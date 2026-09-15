@@ -44,19 +44,21 @@ jobs:
         shell: pwsh
         run: |
           $assets = "app/src/main/assets/patchy"
+          $build = "build/wasm-release-st"
+          $st = "$assets/st"
 
           if (Test-Path $assets) {
             Remove-Item $assets -Recurse -Force
           }
 
           New-Item -ItemType Directory -Force -Path $assets | Out-Null
+          New-Item -ItemType Directory -Force -Path $st | Out-Null
 
-          $build = "build/wasm-release-st"
-
-          Copy-Item "$build/patchy.js" "$assets/"
-          Copy-Item "$build/patchy.wasm" "$assets/"
-          Copy-Item "$build/patchy.data" "$assets/"
-          Copy-Item "$build/qtloader.js" "$assets/"
+          # ST files go inside /st/
+          Copy-Item "$build/patchy.js" "$st/"
+          Copy-Item "$build/patchy.wasm" "$st/"
+          Copy-Item "$build/patchy.data" "$st/"
+          Copy-Item "$build/qtloader.js" "$st/"
 
           Copy-Item `
             "packaging/linux/icons/hicolor/256x256/apps/com.rtsoft.patchy.png" `
@@ -91,16 +93,31 @@ jobs:
           $cacheTag = "$version-st-$([DateTime]::UtcNow.ToString('yyyyMMddHHmmss'))"
 
           $wasmSize = (Get-Item "$build/patchy.wasm").Length
-          $wasmSizeST = $wasmSize
 
+          # Generate the official Patchy web shell.
           $template = Get-Content `
             "packaging/web/patchy.html.in" `
             -Raw
 
-          $html = $template.Replace("__PATCHY_VERSION__", $version)
-          $html = $html.Replace("__PATCHY_CACHE_TAG__", $cacheTag)
-          $html = $html.Replace("__PATCHY_WASM_SIZE__", "$wasmSize")
-          $html = $html.Replace("__PATCHY_WASM_SIZE_ST__", "$wasmSizeST")
+          $html = $template.Replace(
+            "__PATCHY_VERSION__",
+            $version
+          )
+
+          $html = $html.Replace(
+            "__PATCHY_CACHE_TAG__",
+            $cacheTag
+          )
+
+          $html = $html.Replace(
+            "__PATCHY_WASM_SIZE__",
+            "$wasmSize"
+          )
+
+          $html = $html.Replace(
+            "__PATCHY_WASM_SIZE_ST__",
+            "$wasmSize"
+          )
 
           if ($html -match "__PATCHY_") {
             throw "Patchy HTML still contains unreplaced placeholders."
@@ -113,6 +130,8 @@ jobs:
             -Encoding UTF8
 
           Write-Host "Patchy ST web site prepared."
+          Write-Host "ST assets:"
+          Get-ChildItem $st | Select-Object Name, Length
 
       - name: Build Android APK
         shell: cmd
