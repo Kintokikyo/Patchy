@@ -1580,6 +1580,7 @@ if(PATCHY_BUILD_TESTS)
       tests/ui/readme_screenshot_test_support.cpp
       tests/ui/app_shell_tests.cpp
       tests/ui/localization_tests.cpp
+      tests/ui/font_coverage_tests.cpp
       tests/ui/filter_catalog_dialog_tests.cpp
       tests/ui/layer_style_gradient_tests.cpp
       tests/ui/layer_style_gradient_tests_effects.cpp

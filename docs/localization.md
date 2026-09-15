@@ -148,9 +148,10 @@ stay as they were, and translations must not assume localized decimal separators
   every language and the script picks one from the UI culture with the same script-aware
   Chinese rule.
 - wasm: the `/translations` preload takes the directory; the qtbase catalogs come from the
-  host kit. The bundled UI font fallback is Noto Sans JP only, so Chinese text on wasm
-  renders with Japanese glyph forms and Simplified-only characters can be missing; bundling
-  Noto Sans SC/TC costs roughly 20 MB and is a deliberate open decision.
+  host kit. The browser exposes no system fonts, so the build bundles Noto Sans JP, SC and
+  TC and orders them by the active language (`wasm_cjk_fallback_families`, docs/fonts.md).
+  `ui_bundled_web_fonts_cover_every_catalog_character` fails when a translation uses a
+  character no bundled face has.
 
 ## Adding a language
 

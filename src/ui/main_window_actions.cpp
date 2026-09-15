@@ -63,6 +63,7 @@
 #include "ui/layer_style_dialog.hpp"
 #include "ui/layer_list_widget.hpp"
 #include "ui/localization.hpp"
+#include "ui/ui_font.hpp"
 #include "ui/measurement_units.hpp"
 #include "ui/palette_convert_dialog.hpp"
 #include "ui/palette_panel.hpp"
@@ -588,6 +589,22 @@ void MainWindow::retranslate_ui() {
   if (statusBar() != nullptr) {
     statusBar()->showMessage(tr("Ready"));
   }
+#ifdef Q_OS_WASM
+  // The bundled CJK families share most Han codepoints, so the fallback ORDER decides
+  // whose glyph shapes a switched-to language gets. Re-apply it here (only when it
+  // actually changed: setFont relayouts every widget) so a switch between Japanese and
+  // Chinese does not need a page reload. Every other platform has system fonts and
+  // leaves the choice to Qt.
+  if (QFontDatabase::families().contains(QStringLiteral("Noto Sans"))) {
+    QStringList families{QStringLiteral("Noto Sans")};
+    families += wasm_cjk_fallback_families(LocalizationManager::instance().current_language());
+    if (QApplication::font().families() != families) {
+      auto font = QApplication::font();
+      font.setFamilies(families);
+      QApplication::setFont(font);
+    }
+  }
+#endif
 }
 
 }  // namespace patchy::ui

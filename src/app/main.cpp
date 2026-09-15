@@ -291,13 +291,18 @@ QFont application_font() {
   return font;
 #elif defined(Q_OS_WASM)
   // The browser exposes no system fonts and Qt's embedded fallback is
-  // Bitstream Vera, so prefer the bundled Noto Sans, with Noto Sans JP as the
-  // per-glyph fallback that keeps the Japanese UI translation from rendering
-  // tofu. Point size stays Qt's default; the browser's devicePixelRatio drives
-  // scaling on wasm.
+  // Bitstream Vera, so prefer the bundled Noto Sans, with the bundled CJK
+  // families behind it as the per-glyph fallback that keeps a Japanese or
+  // Chinese UI translation from rendering tofu. The CJK order follows the
+  // active language (wasm_cjk_fallback_families), so this runs after the
+  // language is resolved. Point size stays Qt's default; the browser's
+  // devicePixelRatio drives scaling on wasm.
   auto font = QFontDatabase::systemFont(QFontDatabase::GeneralFont);
   if (QFontDatabase::families().contains(QStringLiteral("Noto Sans"))) {
-    font.setFamilies({QStringLiteral("Noto Sans"), QStringLiteral("Noto Sans JP")});
+    QStringList families{QStringLiteral("Noto Sans")};
+    families += patchy::ui::wasm_cjk_fallback_families(
+        patchy::ui::LocalizationManager::instance().current_language());
+    font.setFamilies(families);
   }
   return font;
 #else
@@ -400,13 +405,14 @@ int main(int argc, char* argv[]) {
 #endif
   patchy::ui::user_fonts::restore_user_fonts_at_startup();
   patchy::ui::install_font_database_psd_font_resolver();
-  app.setFont(application_font());
   patchy::ui::LocalizationManager::instance().load_saved_language();
   // --language overrides the saved preference for this run only (screenshots, tests,
   // trying a language); a code Patchy does not ship falls back to English.
   if (const char* language = patchy::language_flag_value(argc, argv); language != nullptr) {
     patchy::ui::LocalizationManager::instance().set_language(QString::fromUtf8(language), /*persist=*/false);
   }
+  // After the language: on wasm the app font's CJK fallback order depends on it.
+  app.setFont(application_font());
   patchy::ui::ThemeManager::instance().load_saved_preference();
 
 #ifdef PATCHY_MCP_EXECUTABLE

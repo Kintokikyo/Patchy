@@ -68,6 +68,8 @@ repositories on 2026-07-31:
 | Noto Sans | 4 (R/B/I/BI) | github.com/notofonts/notofonts.github.io, `fonts/NotoSans/hinted/ttf` |
 | Noto Serif | 4 (R/B/I/BI) | github.com/notofonts/notofonts.github.io, `fonts/NotoSerif/hinted/ttf` |
 | Noto Sans JP | 2 (Regular, Bold) | Google Fonts static TTF builds (fonts.gstatic.com via the css2 API; the TrueType-outline builds Google serves for JP web use, preferred over the noto-cjk CFF OTFs for FreeType rendering consistency) |
+| Noto Sans SC | 2 (Regular, Bold) | Google Fonts static TTF builds (fonts.gstatic.com via the css2 API), fetched September 15, 2026 |
+| Noto Sans TC | 2 (Regular, Bold) | Google Fonts static TTF builds (fonts.gstatic.com via the css2 API), fetched September 15, 2026 |
 | Montserrat | 2 (Regular, Bold) | github.com/JulietaUla/Montserrat, `fonts/ttf` |
 | Oswald | 2 (Regular, Bold) | github.com/googlefonts/OswaldFont, `fonts/ttf` |
 | Caveat | 2 (Regular, Bold) | github.com/googlefonts/caveat, `fonts/ttf` |

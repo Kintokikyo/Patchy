@@ -63,6 +63,18 @@ inline constexpr FamilyAlias kWasmFamilyAliases[] = {
     {"MS Mincho", "Noto Sans JP"},
     {"Meiryo", "Noto Sans JP"},
     {"Yu Gothic", "Noto Sans JP"},
+    {"SimSun", "Noto Sans SC"},
+    {"NSimSun", "Noto Sans SC"},
+    {"SimHei", "Noto Sans SC"},
+    {"Microsoft YaHei", "Noto Sans SC"},
+    {"PingFang SC", "Noto Sans SC"},
+    {"Hiragino Sans GB", "Noto Sans SC"},
+    {"Source Han Sans SC", "Noto Sans SC"},
+    {"MingLiU", "Noto Sans TC"},
+    {"PMingLiU", "Noto Sans TC"},
+    {"Microsoft JhengHei", "Noto Sans TC"},
+    {"PingFang TC", "Noto Sans TC"},
+    {"Source Han Sans TC", "Noto Sans TC"},
 };
 
 }  // namespace patchy::ui::user_fonts

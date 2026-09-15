@@ -210,6 +210,7 @@ int main(int argc, char* argv[]) {
   for (const auto& registration : {
            app_shell_tests,
            localization_tests,
+           font_coverage_tests,
            filter_catalog_dialog_tests,
            layer_style_gradient_tests,
            destructive_filters_gallery_tests,

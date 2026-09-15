@@ -16,9 +16,10 @@ Two trees, one staging target:
   exposes no system fonts to the app. Families: Liberation Sans/Serif/Mono
   (R/B/I/BI, metric-compatible with Arial, Times New Roman, and Courier New),
   Carlito (R/B/I/BI, Calibri-compatible), Noto Sans and Noto Serif (R/B/I/BI),
-  Noto Sans JP (Regular and Bold, the Japanese UI and CJK text fallback),
-  Montserrat, Oswald, Caveat (Regular and Bold each), and Abril Fatface,
-  Pacifico, Lobster (Regular each). About 23 MB total.
+  Noto Sans JP, Noto Sans SC, and Noto Sans TC (Regular and Bold each, the
+  CJK UI and text fallback), Montserrat, Oswald, Caveat (Regular and Bold
+  each), and Abril Fatface, Pacifico, Lobster (Regular each). About 58 MB
+  total, of which the three CJK families are about 45 MB.
 
 The `patchy_bundled_fonts` CMake target cleans and rebuilds
 `${CMAKE_BINARY_DIR}/fonts` from `third_party/fonts`, and under EMSCRIPTEN
@@ -33,9 +34,15 @@ Licensing rules for bundled fonts (binding):
 
 - Open licenses only; every current family is SIL OFL 1.1. Each family
   directory keeps its own `OFL.txt`, which ships with the package.
-- Never bundle an Adobe-created font (Source Sans and friends are OFL but
-  Adobe-created; [legal-constraints.md](legal-constraints.md) bans
-  Adobe-created assets in the repository or a binary).
+- Never bundle an Adobe-BRANDED font: Source Sans, Source Serif, Source Code
+  Pro and the rest of the Source family are OFL but carry Adobe's name, and
+  [legal-constraints.md](legal-constraints.md) bans Adobe-created assets in
+  the repository or a binary. The Noto CJK families (Noto Sans JP/SC/TC) are
+  the deliberate exception (Seth, September 2026): they are Source Han Sans
+  rebuilds and their copyright string still reads "(c) 2014-2021 Adobe, with
+  Reserved Font Name 'Source'", but they ship under Google's Noto name, the
+  OFL grant is irrevocable, and no comparable non-Adobe open Han sans exists.
+  Without them a browser build has no CJK glyphs at all.
 - Every family needs a `NOTICE-THIRD-PARTY.md` entry with its source and
   fetch date. Fetch static instances, not variable fonts.
 

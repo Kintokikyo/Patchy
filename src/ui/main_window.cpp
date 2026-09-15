@@ -56,6 +56,7 @@
 #include "ui/layer_list_widget.hpp"
 #include "ui/layer_merge.hpp"
 #include "ui/localization.hpp"
+#include "ui/ui_font.hpp"
 #include "ui/measurement_units.hpp"
 #include "ui/palette_convert_dialog.hpp"
 #include "ui/palette_panel.hpp"
@@ -949,12 +950,16 @@ QStringList render_text_families_for_display_family(const QString& family) {
     families = QStringList{display_family};
   }
 #ifdef Q_OS_WASM
-  // Per-glyph CJK fallback: Japanese text typed into any Latin-only face
-  // renders through the bundled Noto Sans JP instead of tofu (no system
-  // fonts exist for Qt's own fallback machinery in the browser).
-  const auto jp_fallback = QStringLiteral("Noto Sans JP");
-  if (!families.contains(jp_fallback, Qt::CaseInsensitive)) {
-    families.append(jp_fallback);
+  // Per-glyph CJK fallback: CJK text typed into any Latin-only face renders
+  // through the bundled Noto Sans JP/SC/TC instead of tofu (no system fonts
+  // exist for Qt's own fallback machinery in the browser). The order follows
+  // the UI language, which is the best guess available for which script's
+  // glyph shapes the author wants (see wasm_cjk_fallback_families).
+  for (const auto& fallback :
+       wasm_cjk_fallback_families(LocalizationManager::instance().current_language())) {
+    if (!families.contains(fallback, Qt::CaseInsensitive)) {
+      families.append(fallback);
+    }
   }
 #endif
   return families;

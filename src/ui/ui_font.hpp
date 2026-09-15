@@ -28,6 +28,16 @@ struct UiFontCandidate {
 // none is installed.
 [[nodiscard]] QString installed_ui_font_family(const QStringList& installed_families);
 
+// The bundled CJK families, ordered so the active UI language's own glyph shapes win
+// (wasm only; every other platform has system fonts and Qt's own fallback).
+//
+// THE RULE: Japanese, Simplified Chinese and Traditional Chinese share most Han
+// codepoints, and Qt's per-glyph fallback takes the FIRST family in the list that has
+// the glyph. An order that ignores the UI language renders, say, a Simplified sentence
+// in Japanese shapes with only the Simplified-only characters in Chinese shapes, which
+// is worse than either alone. `language_code` is a LocalizationManager catalog code.
+[[nodiscard]] QStringList wasm_cjk_fallback_families(const QString& language_code);
+
 // The files to register as application fonts: empty whenever a candidate family is
 // already installed (the normal case), and only the fallback family's files when none
 // is, where an outlined PDF export beats having no UI font at all.

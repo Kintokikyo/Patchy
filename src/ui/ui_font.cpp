@@ -25,6 +25,21 @@ QString installed_ui_font_family(const QStringList& installed_families) {
   return {};
 }
 
+QStringList wasm_cjk_fallback_families(const QString& language_code) {
+  static const QString jp = QStringLiteral("Noto Sans JP");
+  static const QString sc = QStringLiteral("Noto Sans SC");
+  static const QString tc = QStringLiteral("Noto Sans TC");
+  if (language_code.startsWith(QStringLiteral("zh_TW")) || language_code.startsWith(QStringLiteral("zh_Hant"))) {
+    return {tc, sc, jp};
+  }
+  if (language_code.startsWith(QStringLiteral("zh"))) {
+    return {sc, tc, jp};
+  }
+  // Japanese and every Latin-script language: Japanese shapes first, then the Chinese
+  // families so a pasted or imported Chinese string still resolves instead of tofu.
+  return {jp, sc, tc};
+}
+
 QStringList ui_font_files_to_register(const QStringList& installed_families) {
   if (!installed_ui_font_family(installed_families).isEmpty()) {
     return {};  // the family is installed: registering its file would break PDF embedding
