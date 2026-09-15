@@ -4,44 +4,83 @@ import android.app.Activity
 import android.os.Bundle
 import android.util.Log
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.net.ServerSocket
-import java.net.Socket
-import java.net.URLConnection
-import kotlin.concurrent.thread
-
+import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 
 class MainActivity : Activity() {
 
     companion object {
-        private const val TAG = "PatchyServer"
-        private const val PORT = 8973
+        private const val TAG = "PatchyWebView"
+        private const val PATCHY_ORIGIN =
+            "https://appassets.androidplatform.net"
     }
 
     private lateinit var webView: WebView
-    private var serverSocket: ServerSocket? = null
+    private lateinit var assetLoader: WebViewAssetLoader
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // WebView
         webView = WebView(this)
 
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
-            allowFileAccess = true
-            allowContentAccess = true
+            allowFileAccess = false
+            allowContentAccess = false
             mediaPlaybackRequiresUserGesture = false
             builtInZoomControls = false
             displayZoomControls = false
         }
 
+        // Load APK assets through a normal HTTPS origin.
+        assetLoader = WebViewAssetLoader.Builder()
+            .addPathHandler(
+                "/assets/",
+                WebViewAssetLoader.AssetsPathHandler(this)
+            )
+            .build()
+
         webView.webViewClient = object : WebViewClient() {
+
+            override fun shouldInterceptRequest(
+                view: WebView,
+                request: WebResourceRequest
+            ): WebResourceResponse? {
+
+                val response = assetLoader.shouldInterceptRequest(request.url)
+
+                if (response != null) {
+                    val headers =
+                        response.responseHeaders?.toMutableMap()
+                            ?: mutableMapOf()
+
+                    // Required for Patchy's threaded WASM build.
+                    headers["Cross-Origin-Opener-Policy"] =
+                        "same-origin"
+
+                    headers["Cross-Origin-Embedder-Policy"] =
+                        "require-corp"
+
+                    headers["Cross-Origin-Resource-Policy"] =
+                        "same-origin"
+
+                    // Required by Android WebView's
+                    // cross-origin isolation allowlist.
+                    headers["Document-Isolation-Policy"] =
+                        "isolate-and-credentialless"
+
+                    response.responseHeaders = headers
+                }
+
+                return response
+            }
 
             override fun onReceivedError(
                 view: WebView,
@@ -57,8 +96,8 @@ class MainActivity : Activity() {
 
             override fun onReceivedHttpError(
                 view: WebView,
-                request: android.webkit.WebResourceRequest,
-                errorResponse: android.webkit.WebResourceResponse
+                request: WebResourceRequest,
+                errorResponse: WebResourceResponse
             ) {
                 Log.e(
                     TAG,
@@ -72,226 +111,77 @@ class MainActivity : Activity() {
             override fun onConsoleMessage(
                 consoleMessage: android.webkit.ConsoleMessage
             ): Boolean {
+
                 Log.d(
                     TAG,
                     "JS: ${consoleMessage.message()} " +
-                        "(${consoleMessage.sourceId()}:${consoleMessage.lineNumber()})"
+                        "(${consoleMessage.sourceId()}:" +
+                        "${consoleMessage.lineNumber()})"
                 )
+
                 return true
             }
         }
 
         setContentView(webView)
 
-        startLocalServer()
+        configureCrossOriginIsolation()
+
+        // Patchy is now loaded from APK assets,
+        // not from localhost.
+        webView.loadUrl(
+            "$PATCHY_ORIGIN/assets/patchy/patchy.html"
+        )
     }
 
-    private fun startLocalServer() {
+    private fun configureCrossOriginIsolation() {
 
-        thread(name = "PatchyServer") {
+        val isolationSupported =
+            WebViewFeature.isFeatureSupported(
+                WebViewFeature.CROSS_ORIGIN_ISOLATED_ALLOWLIST
+            )
 
-            try {
+        val multiProfileSupported =
+            WebViewFeature.isFeatureSupported(
+                WebViewFeature.MULTI_PROFILE
+            )
 
-                serverSocket = ServerSocket(PORT)
+        Log.d(
+            TAG,
+            "CROSS_ORIGIN_ISOLATED_ALLOWLIST supported = " +
+                isolationSupported
+        )
 
-                Log.d(TAG, "Server started on 127.0.0.1:$PORT")
+        Log.d(
+            TAG,
+            "MULTI_PROFILE supported = " +
+                multiProfileSupported
+        )
 
-                runOnUiThread {
-                    if (WebViewFeature.isFeatureSupported(
-                        WebViewFeature.CROSS_ORIGIN_ISOLATED_ALLOWLIST
-                    )) {
-                        WebViewCompat.getProfile(webView).setCrossOriginIsolatedAllowlist(
-                            setOf("http://localhost:$PORT"))
-                        Log.d(TAG, "Cross-Origin Isolation allowlist enabled")
-                    } else {
-                        Log.e(TAG, "Cross-Origin Isolation allowlist NOT supported")
-                    }
-                    webView.loadUrl("http://localhost:$PORT/patchy.html")
-                }
+        if (isolationSupported && multiProfileSupported) {
 
-                while (!serverSocket!!.isClosed) {
-
-                    val socket = serverSocket!!.accept()
-
-                    thread(name = "PatchyRequest") {
-                        handleRequest(socket)
-                    }
-                }
-
-            } catch (e: Exception) {
-
-                Log.e(TAG, "Server stopped", e)
-            }
-        }
-    }
-
-    private fun handleRequest(socket: Socket) {
-
-        socket.use {
-
-            try {
-
-                val reader = BufferedReader(
-                    InputStreamReader(socket.getInputStream())
+            WebViewCompat
+                .getProfile(webView)
+                .setCrossOriginIsolatedAllowlist(
+                    setOf(PATCHY_ORIGIN)
                 )
 
-                val requestLine = reader.readLine() ?: return
+            Log.d(
+                TAG,
+                "Cross-Origin Isolation allowlist enabled for " +
+                    PATCHY_ORIGIN
+            )
 
-                val parts = requestLine.split(" ")
+        } else {
 
-                if (parts.size < 2) {
-                    return
-                }
-
-                val method = parts[0]
-                val path = parts[1]
-
-                while (true) {
-                    val line = reader.readLine() ?: break
-                    if (line.isEmpty()) break
-                }
-
-                if (method != "GET" && method != "HEAD") {
-                    sendStatus(socket, 405, "Method Not Allowed")
-                    return
-                }
-
-                val cleanPath = path.substringBefore("?")
-
-                val assetPath =
-                    if (cleanPath == "/" || cleanPath.isEmpty()) {
-                        "patchy.html"
-                    } else {
-                        cleanPath.removePrefix("/")
-                    }
-
-                // Prevent ../ path traversal.
-                if (
-                    assetPath.contains("..") ||
-                    assetPath.startsWith("/")
-                ) {
-                    sendStatus(socket, 403, "Forbidden")
-                    return
-                }
-
-                Log.d(TAG, "Request: $assetPath")
-
-                val input = try {
-                    assets.open("patchy/$assetPath")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Asset not found: $assetPath")
-                    sendStatus(socket, 404, "Not Found")
-                    return
-                }
-
-                val availableLength = input.available().toLong()
-
-                val mimeType =
-                    URLConnection.guessContentTypeFromName(assetPath)
-                        ?: when {
-                            assetPath.endsWith(".wasm") ->
-                                "application/wasm"
-
-                            assetPath.endsWith(".data") ->
-                                "application/octet-stream"
-
-                            assetPath.endsWith(".js") ->
-                                "text/javascript; charset=utf-8"
-
-                            assetPath.endsWith(".html") ->
-                                "text/html; charset=utf-8"
-
-                            assetPath.endsWith(".svg") ->
-                                "image/svg+xml"
-
-                            assetPath.endsWith(".png") ->
-                                "image/png"
-
-                            assetPath.endsWith(".ico") ->
-                                "image/x-icon"
-
-                            else ->
-                                "application/octet-stream"
-                        }
-
-                val output = socket.getOutputStream()
-
-                val headers =
-                    "HTTP/1.1 200 OK\r\n" +
-                    "Content-Type: $mimeType\r\n" +
-                    "Content-Length: $availableLength\r\n" +
-                    "Cross-Origin-Opener-Policy: same-origin\r\n" +
-                    "Cross-Origin-Embedder-Policy: require-corp\r\n" +
-                    "Cross-Origin-Resource-Policy: same-origin\r\n" + 
-                    "Document-Isolation-Policy: isolate-and-credentialless\r\n" +
-                    "Cache-Control: no-store\r\n" +
-                    "Connection: close\r\n" +
-                    "\r\n"
-
-                output.write(headers.toByteArray())
-
-                if (method == "GET") {
-
-                    // Stream the asset instead of input.readBytes().
-                    // This prevents 26-70 MB assets from being copied
-                    // completely into a Kotlin byte array.
-                    val buffer = ByteArray(64 * 1024)
-
-                    while (true) {
-
-                        val count = input.read(buffer)
-
-                        if (count <= 0) {
-                            break
-                        }
-
-                        output.write(buffer, 0, count)
-                    }
-                }
-
-                output.flush()
-
-                input.close()
-
-                Log.d(TAG, "Served: $assetPath")
-
-            } catch (e: Exception) {
-
-                Log.e(TAG, "Request failed", e)
-            }
-        }
-    }
-
-    private fun sendStatus(
-        socket: Socket,
-        code: Int,
-        message: String
-    ) {
-
-        try {
-
-            val output = socket.getOutputStream()
-
-            val body = "$code $message"
-
-            val response =
-                "HTTP/1.1 $code $message\r\n" +
-                "Content-Type: text/plain; charset=utf-8\r\n" +
-                "Content-Length: ${body.toByteArray().size}\r\n" +
-                "Connection: close\r\n" +
-                "\r\n" +
-                body
-
-            output.write(response.toByteArray())
-            output.flush()
-
-        } catch (_: Exception) {
+            Log.e(
+                TAG,
+                "Cross-Origin Isolation allowlist NOT supported"
+            )
         }
     }
 
     override fun onDestroy() {
-
-        serverSocket?.close()
 
         if (::webView.isInitialized) {
             webView.stopLoading()
