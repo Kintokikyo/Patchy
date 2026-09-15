@@ -356,7 +356,7 @@ std::optional<RotateCanvasSettings> request_rotate_canvas_settings(QWidget* pare
   angle->setDecimals(2);
   angle->setSingleStep(1.0);
   angle->setValue(0.0);
-  angle->setSuffix(QStringLiteral("\u00B0"));
+  angle->setSuffix(degree_suffix());
   configure_dialog_spinbox(angle);
   form->addRow(QObject::tr("Angle:"), angle);
   layout->addLayout(form);
@@ -1176,7 +1176,7 @@ void MainWindow::reset_document(std::int32_t width, std::int32_t height, QColor 
                                                         make_solid_pixels(new_document.width(), new_document.height(),
                                                                           background, background_format));
   set_layer_locks_position(background_layer, true);
-  new_document.add_pixel_layer("Paint Layer", make_solid_pixels(new_document.width(), new_document.height(), QColor(0, 0, 0, 0),
+  new_document.add_pixel_layer(tr("Paint Layer").toStdString(), make_solid_pixels(new_document.width(), new_document.height(), QColor(0, 0, 0, 0),
                                                              PixelFormat::rgba8()));
   add_document_session(std::move(new_document), tr("Untitled-%1").arg(sessions_.size() + 1),
                        QString(), std::move(history_label));

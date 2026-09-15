@@ -1,5 +1,7 @@
 #include "psd/psd_binary.hpp"
 
+#include "support/translate_noop.hpp"
+
 #include <array>
 #include <stdexcept>
 
@@ -66,7 +68,7 @@ std::span<const std::uint8_t> BigEndianReader::read_span(std::size_t count) {
 
 void BigEndianReader::require(std::size_t count) const {
   if (count > remaining()) {
-    throw std::runtime_error("Unexpected end of PSD data");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Unexpected end of PSD data"));
   }
 }
 
@@ -106,12 +108,12 @@ void BigEndianWriter::write_bytes(std::span<const std::uint8_t> bytes) {
 Header read_header(BigEndianReader& reader) {
   const auto signature = reader.read_bytes(4);
   if (signature != std::vector<std::uint8_t>{'8', 'B', 'P', 'S'}) {
-    throw std::runtime_error("Not a PSD/PSB file");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Not a PSD/PSB file"));
   }
 
   const auto version = reader.read_u16();
   if (version != 1 && version != 2) {
-    throw std::runtime_error("Unsupported PSD/PSB version");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported PSD/PSB version"));
   }
 
   reader.skip(6);

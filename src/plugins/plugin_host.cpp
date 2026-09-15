@@ -1,5 +1,7 @@
 #include "plugins/plugin_host.hpp"
 
+#include "support/translate_noop.hpp"
+
 #include <algorithm>
 #include <iterator>
 #include <stdexcept>
@@ -9,10 +11,10 @@ namespace patchy {
 
 void PluginHost::register_plugin(PluginDescriptor descriptor) {
   if (descriptor.identifier.empty()) {
-    throw std::invalid_argument("Plugin identifier cannot be empty");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Plugin identifier cannot be empty"));
   }
   if (find(descriptor.identifier) != nullptr) {
-    throw std::invalid_argument("Plugin identifier is already registered");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Plugin identifier is already registered"));
   }
   plugins_.push_back(std::move(descriptor));
 }

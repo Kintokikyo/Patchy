@@ -1,6 +1,7 @@
 #include "formats/acv_curves_io.hpp"
 
 #include "psd/psd_binary.hpp"
+#include "support/translate_noop.hpp"
 
 #include <array>
 #include <fstream>
@@ -63,7 +64,7 @@ void write_u16(std::vector<std::uint8_t>& bytes, std::uint16_t value) {
 [[nodiscard]] CurveControlPoints read_points(Reader& reader) {
   const auto count = reader.read_u16();
   if (count < kMinPointCount || count > kMaxPointCount) {
-    throw std::runtime_error("Curves preset has an invalid point count");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Curves preset has an invalid point count"));
   }
 
   CurveControlPoints points;
@@ -73,10 +74,10 @@ void write_u16(std::vector<std::uint8_t>& bytes, std::uint16_t value) {
     const auto output = reader.read_u16();
     const auto input = reader.read_u16();
     if (input > 255U || output > 255U) {
-      throw std::runtime_error("Curves preset point values must be between 0 and 255");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Curves preset point values must be between 0 and 255"));
     }
     if (static_cast<int>(input) <= previous_input) {
-      throw std::runtime_error("Curves preset inputs must be strictly increasing");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Curves preset inputs must be strictly increasing"));
     }
     previous_input = input;
     points.push_back({static_cast<int>(input), static_cast<int>(output)});
@@ -86,15 +87,15 @@ void write_u16(std::vector<std::uint8_t>& bytes, std::uint16_t value) {
 
 void validate_points(const CurveControlPoints& points) {
   if (points.size() < kMinPointCount || points.size() > kMaxPointCount) {
-    throw std::runtime_error("Curves preset has an invalid point count");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Curves preset has an invalid point count"));
   }
   int previous_input = -1;
   for (const auto& point : points) {
     if (point.input < 0 || point.input > 255 || point.output < 0 || point.output > 255) {
-      throw std::runtime_error("Curves preset point values must be between 0 and 255");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Curves preset point values must be between 0 and 255"));
     }
     if (point.input <= previous_input) {
-      throw std::runtime_error("Curves preset inputs must be strictly increasing");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Curves preset inputs must be strictly increasing"));
     }
     previous_input = point.input;
   }
@@ -132,7 +133,7 @@ void set_rgb_curve(CurvesAdjustment& result, std::uint16_t channel_index, CurveC
 [[nodiscard]] CurvesAdjustment read_counted(Reader& reader) {
   const auto curve_count = reader.read_u16();
   if (curve_count == 0 || curve_count > kMaxCurveCount) {
-    throw std::runtime_error("Curves preset has an invalid curve count");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Curves preset has an invalid curve count"));
   }
 
   CurvesAdjustment result;
@@ -146,7 +147,7 @@ void set_rgb_curve(CurvesAdjustment& result, std::uint16_t channel_index, CurveC
   const auto bitmap = photoshop_u32_bitmap ? reader.read_u32() : reader.read_u16();
   const auto bitmap_bits = static_cast<std::uint16_t>(photoshop_u32_bitmap ? kMaxCurveCount : 16U);
   if ((bitmap & ~((std::uint32_t{1} << kMaxCurveCount) - 1U)) != 0) {
-    throw std::runtime_error("Curves preset has an invalid curve bitmap");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Curves preset has an invalid curve bitmap"));
   }
 
   CurvesAdjustment result;
@@ -160,7 +161,7 @@ void set_rgb_curve(CurvesAdjustment& result, std::uint16_t channel_index, CurveC
 
   if (reader.remaining() == 0) {
     if (bitmap == 0) {
-      throw std::runtime_error("Curves preset has an empty curve bitmap");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Curves preset has an empty curve bitmap"));
     }
     return result;
   }
@@ -168,20 +169,20 @@ void set_rgb_curve(CurvesAdjustment& result, std::uint16_t channel_index, CurveC
   // Photoshop CS and later may append indexed version-4 records to a version-1
   // bitmap file. This shape is also used by native PSD `curv` blocks.
   if (!reader.read_tag("Crv ")) {
-    throw std::runtime_error("Curves preset has invalid extra curve data");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Curves preset has invalid extra curve data"));
   }
   if (reader.read_u16() != kCountedVersion) {
-    throw std::runtime_error("Curves preset has an unsupported extra curve version");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Curves preset has an unsupported extra curve version"));
   }
   const auto extra_count = reader.read_u32();
   if (extra_count > kMaxCurveCount) {
-    throw std::runtime_error("Curves preset has an invalid extra curve count");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Curves preset has an invalid extra curve count"));
   }
   std::array<bool, kMaxCurveCount> have_extra_channel{};
   for (std::uint32_t item = 0; item < extra_count; ++item) {
     const auto channel_index = reader.read_u16();
     if (channel_index >= kMaxCurveCount || have_extra_channel[channel_index]) {
-      throw std::runtime_error("Curves preset has a duplicate or invalid channel index");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Curves preset has a duplicate or invalid channel index"));
     }
     auto points = read_points(reader);
     // The indexed v4 extension repeats and supersedes bitmap-channel records
@@ -218,7 +219,7 @@ void set_rgb_curve(CurvesAdjustment& result, std::uint16_t channel_index, CurveC
   auto legacy = try_shape(false);
   auto* selected = photoshop.has_value() ? &photoshop : &legacy;
   if (!selected->has_value()) {
-    throw std::runtime_error("Curves preset has malformed version-1 data");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Curves preset has malformed version-1 data"));
   }
   reader = std::move((*selected)->reader);
   return std::move((*selected)->curves);
@@ -228,7 +229,7 @@ void set_rgb_curve(CurvesAdjustment& result, std::uint16_t channel_index, CurveC
 
 CurvesAdjustment read(std::span<const std::uint8_t> bytes) {
   if (bytes.size() > kMaxFileBytes) {
-    throw std::runtime_error("Curves preset is too large");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Curves preset is too large"));
   }
   Reader reader(bytes);
   const auto version = reader.read_u16();
@@ -238,14 +239,14 @@ CurvesAdjustment read(std::span<const std::uint8_t> bytes) {
   } else if (version == kBitmapVersion) {
     result = read_bitmap(reader);
   } else {
-    throw std::runtime_error("Unsupported Curves preset version");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported Curves preset version"));
   }
   // Native PSD `curv` bodies use the same records and pad the body to a
   // four-byte boundary. ACV files normally need no padding, but accepting at
   // most three zero bytes lets this parser be shared without accepting opaque
   // trailing content.
   if (reader.remaining() > 3 || !reader.remaining_bytes_are_zero()) {
-    throw std::runtime_error("Curves preset has trailing data");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Curves preset has trailing data"));
   }
   return result;
 }
@@ -253,23 +254,23 @@ CurvesAdjustment read(std::span<const std::uint8_t> bytes) {
 CurvesAdjustment read_file(const std::filesystem::path& path) {
   std::ifstream file(path, std::ios::binary);
   if (!file) {
-    throw std::runtime_error("Could not open Curves preset");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Could not open Curves preset"));
   }
   file.seekg(0, std::ios::end);
   const auto end = file.tellg();
   if (end < std::streampos{}) {
-    throw std::runtime_error("Could not read Curves preset");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Could not read Curves preset"));
   }
   const auto length = static_cast<std::streamoff>(end);
   if (length > static_cast<std::streamoff>(kMaxFileBytes)) {
-    throw std::runtime_error("Curves preset is too large");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Curves preset is too large"));
   }
   file.seekg(0, std::ios::beg);
   std::vector<std::uint8_t> bytes(static_cast<std::size_t>(length));
   if (!bytes.empty()) {
     file.read(reinterpret_cast<char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
     if (!file) {
-      throw std::runtime_error("Could not read Curves preset");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Could not read Curves preset"));
     }
   }
   return read(bytes);
@@ -297,11 +298,11 @@ void write_file(const std::filesystem::path& path, const CurvesAdjustment& curve
   const auto bytes = write(curves);
   std::ofstream file(path, std::ios::binary);
   if (!file) {
-    throw std::runtime_error("Could not open Curves preset for writing");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Could not open Curves preset for writing"));
   }
   file.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
   if (!file) {
-    throw std::runtime_error("Could not write Curves preset");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Could not write Curves preset"));
   }
 }
 

@@ -22,6 +22,8 @@
 #include "ui/main_window_shared.hpp"
 #include "ui/style_manager_dialog.hpp"
 #include "ui/theme_qss.hpp"
+#include "ui/localization.hpp"
+#include "ui/measurement_units.hpp"
 
 #include <QAbstractButton>
 #include <QCheckBox>
@@ -1186,7 +1188,7 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
     state->stop_location = new QSpinBox(selected_row);
     state->stop_location->setObjectName(object_prefix + QStringLiteral("StopLocationSpin"));
     state->stop_location->setRange(0, 100);
-    state->stop_location->setSuffix(QStringLiteral("%"));
+    state->stop_location->setSuffix(percent_suffix());
     configure_dialog_spinbox(state->stop_location, 64);
     state->stop_color_label = new QLabel(QObject::tr("Color"), selected_row);
     state->stop_hex = new QLineEdit(selected_row);
@@ -1199,7 +1201,7 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
     state->stop_opacity = new QSpinBox(selected_row);
     state->stop_opacity->setObjectName(object_prefix + QStringLiteral("StopOpacitySpin"));
     state->stop_opacity->setRange(0, 100);
-    state->stop_opacity->setSuffix(QStringLiteral("%"));
+    state->stop_opacity->setSuffix(percent_suffix());
     configure_dialog_spinbox(state->stop_opacity, 64);
     selected_layout->addWidget(location_label);
     selected_layout->addWidget(state->stop_location);
@@ -1221,7 +1223,7 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
     state->stop_midpoint = new QSpinBox(midpoint_row);
     state->stop_midpoint->setObjectName(object_prefix + QStringLiteral("StopMidpointSpin"));
     state->stop_midpoint->setRange(5, 95);
-    state->stop_midpoint->setSuffix(QStringLiteral("%"));
+    state->stop_midpoint->setSuffix(percent_suffix());
     configure_dialog_spinbox(state->stop_midpoint, 64);
     midpoint_layout->addWidget(state->stop_midpoint_label);
     midpoint_layout->addWidget(state->stop_midpoint);
@@ -1262,7 +1264,7 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
     state->noise_roughness->setObjectName(object_prefix +
                                           QStringLiteral("NoiseRoughnessSpin"));
     state->noise_roughness->setRange(0, 100);
-    state->noise_roughness->setSuffix(QStringLiteral("%"));
+    state->noise_roughness->setSuffix(percent_suffix());
     configure_dialog_spinbox(state->noise_roughness);
     noise_form->addRow(QObject::tr("Roughness"), state->noise_roughness);
     state->noise_color_model = new QComboBox(state->noise_controls);
@@ -1296,14 +1298,14 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
           object_prefix +
           QStringLiteral("NoiseChannel%1MinimumSpin").arg(channel + 1U));
       state->noise_minimum[channel]->setRange(0, 100);
-      state->noise_minimum[channel]->setSuffix(QStringLiteral("%"));
+      state->noise_minimum[channel]->setSuffix(percent_suffix());
       configure_dialog_spinbox(state->noise_minimum[channel], 64);
       state->noise_maximum[channel] = new QSpinBox(range_row);
       state->noise_maximum[channel]->setObjectName(
           object_prefix +
           QStringLiteral("NoiseChannel%1MaximumSpin").arg(channel + 1U));
       state->noise_maximum[channel]->setRange(0, 100);
-      state->noise_maximum[channel]->setSuffix(QStringLiteral("%"));
+      state->noise_maximum[channel]->setSuffix(percent_suffix());
       configure_dialog_spinbox(state->noise_maximum[channel], 64);
       range_layout->addWidget(state->noise_minimum[channel]);
       range_layout->addWidget(new QLabel(QObject::tr("to"), range_row));
@@ -1908,7 +1910,7 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
   const auto pattern_entry_display_name = [](const PatternLibraryEntry& entry) {
     if (const auto* preset = find_builtin_pattern_preset(entry.id.toStdString());
         preset != nullptr && entry.name == QString::fromLatin1(preset->english_name)) {
-      return QObject::tr(preset->english_name);
+      return translate_data_text(preset->english_name);
     }
     return entry.name;
   };
@@ -1940,7 +1942,7 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
         if (document_patterns != nullptr && document_patterns->find(preset.id) != nullptr) {
           continue;
         }
-        const auto display = QObject::tr(preset.english_name);
+        const auto display = translate_data_text(preset.english_name);
         combo->add_pattern(pattern_preset_icon(generate_builtin_pattern_tile(preset.id)), display,
                            display, QString::fromLatin1(preset.id),
                            QString::fromLatin1(preset.english_name), default_patterns_folder_name());
@@ -1992,7 +1994,7 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
                      QString::fromLatin1(kContourCustomId));
     }
     for (const auto& preset : builtin_contour_presets()) {
-      combo->addItem(contour_preset_icon(preset.contour), QObject::tr(preset.english_name),
+      combo->addItem(contour_preset_icon(preset.contour), translate_data_text(preset.english_name),
                      QString::fromLatin1(preset.id));
     }
     if (matching != nullptr) {

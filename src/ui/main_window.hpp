@@ -1255,7 +1255,6 @@ private:
   void retranslate_brush_preset_combo();
   void retranslate_mixer_combination_combo();
   void sync_mixer_combination_combo();
-  void refresh_language_actions();
   void refresh_options_bar();
   void register_document_action(QAction* action);
   void register_document_widget(QWidget* widget);
@@ -1622,8 +1621,6 @@ private:
   QAction* move_tool_action_{nullptr};
   QAction* type_tool_action_{nullptr};
   QActionGroup* tool_action_group_{nullptr};
-  QAction* language_english_action_{nullptr};
-  QAction* language_japanese_action_{nullptr};
   QAction* float_document_action_{nullptr};
   QAction* window_documents_separator_{nullptr};
   std::vector<QAction*> window_document_actions_;

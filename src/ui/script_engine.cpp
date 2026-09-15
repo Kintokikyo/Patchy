@@ -1012,7 +1012,7 @@ std::int64_t ScriptEngineHost::create_document(int width, int height) {
   Document document(width, height, PixelFormat::rgba8());
   PixelBuffer background(width, height, PixelFormat::rgba8());
   background.clear(255);
-  auto& layer = document.add_pixel_layer(tr("Background").toStdString(), std::move(background));
+  auto& layer = document.add_pixel_layer("Background", std::move(background));
   document.set_active_layer(layer.id());
   window_.add_document_session(std::move(document), tr("Untitled"));
   return active_session_id();

@@ -171,6 +171,7 @@ int main(int argc, char** argv) {
            pdf_tests,
            af_format_tests,
            composite_corpus_tests,
+           translation_marker_tests,
        }) {
     auto group = registration();
     tests.insert(tests.end(), std::make_move_iterator(group.begin()),

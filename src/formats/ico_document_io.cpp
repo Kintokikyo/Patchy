@@ -3,6 +3,7 @@
 #include "formats/binary_le.hpp"
 #include "formats/document_flatten.hpp"
 #include "formats/format_file_io.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <array>
@@ -58,7 +59,7 @@ struct DirectoryEntry {
   auto reader = ico_reader(bytes);
   const auto header_size = reader.read_u32();
   if (header_size < kInfoHeaderSize) {
-    throw std::runtime_error("ICO entry has an unsupported bitmap header");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "ICO entry has an unsupported bitmap header"));
   }
   const auto width = reader.read_i32();
   const auto doubled_height = reader.read_i32();
@@ -71,16 +72,16 @@ struct DirectoryEntry {
   reader.skip(header_size - kInfoHeaderSize);
 
   if (compression != 0) {
-    throw std::runtime_error("ICO entry uses an unsupported compression");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "ICO entry uses an unsupported compression"));
   }
   if (width <= 0 || width > kMaxIconSize) {
-    throw std::runtime_error("ICO entry has an invalid width");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "ICO entry has an invalid width"));
   }
   // The stored height covers the XOR pixels plus the AND mask.
   const bool has_mask = doubled_height > 0 && doubled_height % 2 == 0;
   const auto height = has_mask ? doubled_height / 2 : doubled_height;
   if (height <= 0 || height > kMaxIconSize) {
-    throw std::runtime_error("ICO entry has an invalid height");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "ICO entry has an invalid height"));
   }
 
   std::vector<std::array<std::uint8_t, 4>> palette;
@@ -89,7 +90,7 @@ struct DirectoryEntry {
       colors_used = 1U << bit_count;
     }
     if (colors_used > 256) {
-      throw std::runtime_error("ICO entry palette is too large");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "ICO entry palette is too large"));
     }
     palette.reserve(colors_used);
     for (std::uint32_t i = 0; i < colors_used; ++i) {
@@ -100,13 +101,13 @@ struct DirectoryEntry {
       palette.push_back({red, green, blue, 255});
     }
   } else if (bit_count != 24 && bit_count != 32) {
-    throw std::runtime_error("ICO entry has an unsupported bit depth");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "ICO entry has an unsupported bit depth"));
   }
 
   const auto xor_stride = stride_32bit(width, bit_count);
   const auto and_stride = stride_32bit(width, 1);
   if (reader.remaining() < xor_stride * static_cast<std::size_t>(height)) {
-    throw std::runtime_error("ICO data ended unexpectedly");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "ICO data ended unexpectedly"));
   }
   const auto xor_offset = reader.position();
   const auto and_offset = xor_offset + xor_stride * static_cast<std::size_t>(height);
@@ -163,10 +164,10 @@ struct DirectoryEntry {
             index = (px_row[x / 8] >> (7 - (x % 8))) & 0x01U;
             break;
           default:
-            throw std::runtime_error("ICO entry has an unsupported bit depth");
+            throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "ICO entry has an unsupported bit depth"));
         }
         if (index >= palette.size()) {
-          throw std::runtime_error("ICO entry references a missing palette color");
+          throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "ICO entry references a missing palette color"));
         }
         const auto& color = palette[index];
         out[0] = color[0];
@@ -408,7 +409,7 @@ Document DocumentIo::read(std::span<const std::uint8_t> bytes, std::vector<std::
   const auto type = reader.read_u16();
   const auto count = reader.read_u16();
   if (reserved != 0 || (type != kTypeIcon && type != kTypeCursor) || count == 0) {
-    throw std::runtime_error("File is not an ICO or CUR image");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "File is not an ICO or CUR image"));
   }
   const bool is_cursor = type == kTypeCursor;
 
@@ -459,7 +460,7 @@ Document DocumentIo::read(std::span<const std::uint8_t> bytes, std::vector<std::
     }
   }
   if (decoded.empty()) {
-    throw std::runtime_error("ICO file contains no readable images");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "ICO file contains no readable images"));
   }
 
   // Canvas covers the largest entry; every entry becomes a layer named "WxH" with only the
@@ -519,7 +520,7 @@ std::vector<std::uint8_t> DocumentIo::write(const Document& document, WriteOptio
   }
   std::sort(sizes.begin(), sizes.end());
   if (sizes.empty()) {
-    throw std::runtime_error("No icon sizes selected");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "No icon sizes selected"));
   }
 
   std::optional<RgbaImage> flattened;

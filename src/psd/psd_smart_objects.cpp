@@ -5,6 +5,7 @@
 #include "psd/psd_descriptor.hpp"
 #include "psd/psd_io_internal.hpp"
 #include "psd/psd_layer_effects.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <array>
@@ -2205,7 +2206,7 @@ std::vector<std::uint8_t> author_placed_layer_sold_payload(const SmartObjectPlac
   if (smart_filters != nullptr) {
     auto filter_fx = make_smart_filter_descriptor(*smart_filters);
     if (!filter_fx.has_value()) {
-      throw std::runtime_error("Unsupported authored Smart Filter stack");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported authored Smart Filter stack"));
     }
     add(root, "filterFX", true, std::move(*filter_fx));
   }

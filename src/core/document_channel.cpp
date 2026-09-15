@@ -1,5 +1,7 @@
 #include "core/document_channel.hpp"
 
+#include "support/translate_noop.hpp"
+
 #include <atomic>
 #include <cmath>
 #include <stdexcept>
@@ -21,13 +23,13 @@ std::uint64_t next_document_channel_revision() noexcept {
 
 void validate_channel_pixels(const PixelBuffer& pixels) {
   if (pixels.format() != PixelFormat::gray8()) {
-    throw std::invalid_argument("Document channels must use 8-bit grayscale pixels");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Document channels must use 8-bit grayscale pixels"));
   }
 }
 
 void validate_display_info(const DocumentChannelDisplayInfo& display_info) {
   if (!std::isfinite(display_info.opacity) || display_info.opacity < 0.0F || display_info.opacity > 1.0F) {
-    throw std::out_of_range("Document channel display opacity must be in the inclusive range [0, 1]");
+    throw std::out_of_range(PATCHY_TRANSLATE_NOOP("QObject", "Document channel display opacity must be in the inclusive range [0, 1]"));
   }
 }
 
@@ -36,7 +38,7 @@ void validate_display_info(const DocumentChannelDisplayInfo& display_info) {
 DocumentChannel::DocumentChannel(ChannelId id, std::string name, DocumentChannelKind kind, PixelBuffer pixels)
     : id_(id), name_(std::move(name)), kind_(kind), pixels_(std::move(pixels)) {
   if (id == 0) {
-    throw std::invalid_argument("Document channel id 0 is reserved");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Document channel id 0 is reserved"));
   }
   validate_channel_pixels(pixels_);
   if (kind_ == DocumentChannelKind::Spot) {

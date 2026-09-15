@@ -1,4 +1,5 @@
 #include "ui/gradient_library.hpp"
+#include "ui/localization.hpp"
 
 #include "core/blend_math.hpp"
 #include "core/gradient_presets.hpp"
@@ -70,14 +71,14 @@ QString gradient_library_entry_display_name(const GradientLibraryEntry &entry) {
           find_builtin_gradient_preset(entry.storage_id.toStdString());
       preset != nullptr &&
       entry.name == QString::fromLatin1(preset->english_name))
-    return QCoreApplication::translate("QObject", preset->english_name);
+    return translate_data_text(preset->english_name);
   return entry.name;
 }
 
 QString gradient_folder_display_name(const QString &folder) {
   for (const auto &preset : builtin_gradient_presets()) {
     if (folder == QString::fromLatin1(preset.english_folder))
-      return QCoreApplication::translate("QObject", preset.english_folder);
+      return translate_data_text(preset.english_folder);
   }
   return folder;
 }
@@ -228,11 +229,11 @@ QString GradientLibrary::import_grd(const QString &path, QString &error,
           reinterpret_cast<const std::uint8_t *>(raw.constData()), raw.size()),
       parse_error);
   if (!parsed) {
-    error = QString::fromStdString(parse_error);
+    error = translate_data_text(parse_error);
     return {};
   }
   for (const auto &warning : parsed->warnings)
-    warnings.push_back(QString::fromStdString(warning));
+    warnings.push_back(translate_data_text(warning));
   const auto fallback_folder = QFileInfo(path).completeBaseName();
   QString first;
   for (const auto &item : parsed->gradients) {

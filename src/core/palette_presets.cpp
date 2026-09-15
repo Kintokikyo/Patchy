@@ -1,5 +1,7 @@
 #include "core/palette_presets.hpp"
 
+#include "support/translate_noop.hpp"
+
 #include <array>
 #include <cstddef>
 
@@ -234,19 +236,19 @@ constexpr std::array<RgbColor, 32> kDawnBringer32 = {{
 }};
 
 constexpr std::array<PalettePreset, 13> kPresets = {{
-    {"nes", "NES", kNes},
-    {"c64", "Commodore 64", kC64},
-    {"gameboy", "Game Boy", kGameBoy},
-    {"pico8", "PICO-8", kPico8},
-    {"cga", "CGA / EGA 16", kCga},
-    {"ega64", "EGA 64", kEga64},
-    {"vga256", "DOS / VGA 256", kVga256},
-    {"zx_spectrum", "ZX Spectrum", kZxSpectrum},
-    {"msx", "MSX", kMsx},
-    {"amstrad_cpc", "Amstrad CPC", kAmstradCpc},
-    {"dawnbringer16", "DawnBringer 16", kDawnBringer16},
-    {"dawnbringer32", "DawnBringer 32", kDawnBringer32},
-    {"dink", "Dink Smallwood", kDinkSmallwood},
+    {"nes", PATCHY_TRANSLATE_NOOP("QObject", "NES"), kNes},
+    {"c64", PATCHY_TRANSLATE_NOOP("QObject", "Commodore 64"), kC64},
+    {"gameboy", PATCHY_TRANSLATE_NOOP("QObject", "Game Boy"), kGameBoy},
+    {"pico8", PATCHY_TRANSLATE_NOOP("QObject", "PICO-8"), kPico8},
+    {"cga", PATCHY_TRANSLATE_NOOP("QObject", "CGA / EGA 16"), kCga},
+    {"ega64", PATCHY_TRANSLATE_NOOP("QObject", "EGA 64"), kEga64},
+    {"vga256", PATCHY_TRANSLATE_NOOP("QObject", "DOS / VGA 256"), kVga256},
+    {"zx_spectrum", PATCHY_TRANSLATE_NOOP("QObject", "ZX Spectrum"), kZxSpectrum},
+    {"msx", PATCHY_TRANSLATE_NOOP("QObject", "MSX"), kMsx},
+    {"amstrad_cpc", PATCHY_TRANSLATE_NOOP("QObject", "Amstrad CPC"), kAmstradCpc},
+    {"dawnbringer16", PATCHY_TRANSLATE_NOOP("QObject", "DawnBringer 16"), kDawnBringer16},
+    {"dawnbringer32", PATCHY_TRANSLATE_NOOP("QObject", "DawnBringer 32"), kDawnBringer32},
+    {"dink", PATCHY_TRANSLATE_NOOP("QObject", "Dink Smallwood"), kDinkSmallwood},
 }};
 
 }  // namespace

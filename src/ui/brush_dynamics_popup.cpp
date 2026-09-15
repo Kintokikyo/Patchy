@@ -3,6 +3,7 @@
 #include "ui/brush_tip_library.hpp"
 #include "ui/dialog_utils.hpp"
 #include "ui/theme_qss.hpp"
+#include "ui/measurement_units.hpp"
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -110,7 +111,7 @@ BrushDynamicsPanel::BrushDynamicsPanel(QWidget* parent) : QWidget(parent) {
     auto* spin = new QSpinBox(this);
     spin->setObjectName(object_name);
     spin->setRange(0, maximum);
-    spin->setSuffix(QStringLiteral("%"));
+    spin->setSuffix(percent_suffix());
     QObject::connect(slider, &QSlider::valueChanged, spin, &QSpinBox::setValue);
     QObject::connect(spin, qOverload<int>(&QSpinBox::valueChanged), slider, &QSlider::setValue);
     grid->addWidget(text, row, 0);
@@ -160,13 +161,13 @@ BrushDynamicsPanel::BrushDynamicsPanel(QWidget* parent) : QWidget(parent) {
   base_angle_spin_ = new QSpinBox(this);
   base_angle_spin_->setObjectName(QStringLiteral("dynamicsBaseAngleSpin"));
   base_angle_spin_->setRange(-180, 180);
-  base_angle_spin_->setSuffix(QStringLiteral("°"));
+  base_angle_spin_->setSuffix(degree_suffix());
   shape_grid->addWidget(base_angle_spin_, 0, 1);
   shape_grid->addWidget(new QLabel(tr("Roundness:"), this), 0, 2);
   base_roundness_spin_ = new QSpinBox(this);
   base_roundness_spin_->setObjectName(QStringLiteral("dynamicsBaseRoundnessSpin"));
   base_roundness_spin_->setRange(1, 100);
-  base_roundness_spin_->setSuffix(QStringLiteral("%"));
+  base_roundness_spin_->setSuffix(percent_suffix());
   base_roundness_spin_->setValue(100);
   shape_grid->addWidget(base_roundness_spin_, 0, 3);
   shape_grid->setColumnStretch(4, 1);
@@ -336,7 +337,7 @@ BrushDynamicsPanel::BrushDynamicsPanel(QWidget* parent) : QWidget(parent) {
   purity_spin_ = new QSpinBox(this);
   purity_spin_->setObjectName(QStringLiteral("dynamicsColorPuritySpin"));
   purity_spin_->setRange(-100, 100);
-  purity_spin_->setSuffix(QStringLiteral("%"));
+  purity_spin_->setSuffix(percent_suffix());
   color_grid->addWidget(purity_spin_, 6, 1, Qt::AlignLeft);
   color_per_tip_check_ = new QCheckBox(tr("Apply Per Tip"), this);
   color_per_tip_check_->setObjectName(QStringLiteral("dynamicsColorPerTipCheck"));

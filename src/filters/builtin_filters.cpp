@@ -3,6 +3,7 @@
 #include "filters/smart_filter_renderer.hpp"
 #include "filters/filter_registry.hpp"
 #include "filters/rgba_filter_staging.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <array>
@@ -18,7 +19,7 @@ namespace {
 
 void require_uint8(PixelBuffer& pixels) {
   if (pixels.format().bit_depth != BitDepth::UInt8) {
-    throw std::invalid_argument("Starter built-in filters support UInt8 buffers only");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Starter built-in filters support UInt8 buffers only"));
   }
 }
 

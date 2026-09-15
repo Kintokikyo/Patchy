@@ -5,6 +5,7 @@
 #include "ui/app_settings.hpp"
 #include "ui/dialog_utils.hpp"
 #include "ui/qt_paths.hpp"
+#include "ui/localization.hpp"
 
 #include <QApplication>
 #include <QComboBox>
@@ -271,7 +272,7 @@ PalettePanel::PalettePanel(QWidget* parent) : QWidget(parent) {
   preset_combo_->setToolTip(tr("Load a built-in palette"));
   preset_combo_->addItem(tr("Presets..."), QString());
   for (const auto& preset : builtin_palette_presets()) {
-    preset_combo_->addItem(tr(preset.english_name), QString::fromLatin1(preset.id));
+    preset_combo_->addItem(translate_data_text(preset.english_name), QString::fromLatin1(preset.id));
   }
   connect(preset_combo_, &QComboBox::activated, this, [this](int index) {
     const auto id = preset_combo_->itemData(index).toString();

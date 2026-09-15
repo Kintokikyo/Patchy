@@ -526,7 +526,7 @@ void MainWindow::create_alpha_channel() {
     set_channel_edit_target(ChannelPanel::RowKind::Alpha, id, false, false);
     statusBar()->showMessage(tr("Created channel %1").arg(QString::fromStdString(name)));
   } catch (const std::exception& error) {
-    QMessageBox::warning(this, tr("New Channel"), QString::fromUtf8(error.what()));
+    QMessageBox::warning(this, tr("New Channel"), translate_data_text(error.what()));
   }
 }
 
@@ -548,7 +548,7 @@ void MainWindow::save_selection_as_channel() {
     set_channel_edit_target(ChannelPanel::RowKind::Alpha, id, false, false);
     statusBar()->showMessage(tr("Saved selection as %1").arg(QString::fromStdString(name)));
   } catch (const std::exception& error) {
-    QMessageBox::warning(this, tr("Save Selection as Channel"), QString::fromUtf8(error.what()));
+    QMessageBox::warning(this, tr("Save Selection as Channel"), translate_data_text(error.what()));
   }
 }
 

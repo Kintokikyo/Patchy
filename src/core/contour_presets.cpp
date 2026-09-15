@@ -1,6 +1,7 @@
 #include "core/contour_presets.hpp"
 
 #include "core/style_contour.hpp"
+#include "support/translate_noop.hpp"
 
 #include <cmath>
 #include <vector>
@@ -29,32 +30,32 @@ StyleContour make_contour(const char* preset_name, std::vector<StyleContourPoint
 // cubic in build_style_contour_lut.
 std::vector<ContourPreset> build_presets() {
   std::vector<ContourPreset> presets;
-  presets.push_back({"contour.linear", "Linear", make_contour("Linear", {pt(0, 0), pt(255, 255)})});
-  presets.push_back({"contour.cone", "Cone",
+  presets.push_back({"contour.linear", PATCHY_TRANSLATE_NOOP("QObject", "Linear"), make_contour("Linear", {pt(0, 0), pt(255, 255)})});
+  presets.push_back({"contour.cone", PATCHY_TRANSLATE_NOOP("QObject", "Cone"),
                      make_contour("Cone", {pt(0, 0, true), pt(128, 255, true), pt(255, 0, true)})});
-  presets.push_back({"contour.cone_inverted", "Cone - Inverted",
+  presets.push_back({"contour.cone_inverted", PATCHY_TRANSLATE_NOOP("QObject", "Cone - Inverted"),
                      make_contour("Cone - Inverted", {pt(0, 255, true), pt(128, 0, true), pt(255, 255, true)})});
-  presets.push_back({"contour.cove_deep", "Cove - Deep",
+  presets.push_back({"contour.cove_deep", PATCHY_TRANSLATE_NOOP("QObject", "Cove - Deep"),
                      make_contour("Cove - Deep", {pt(0, 0), pt(72, 220), pt(255, 255)})});
-  presets.push_back({"contour.cove_shallow", "Cove - Shallow",
+  presets.push_back({"contour.cove_shallow", PATCHY_TRANSLATE_NOOP("QObject", "Cove - Shallow"),
                      make_contour("Cove - Shallow", {pt(0, 0), pt(184, 44), pt(255, 255)})});
-  presets.push_back({"contour.gaussian", "Gaussian",
+  presets.push_back({"contour.gaussian", PATCHY_TRANSLATE_NOOP("QObject", "Gaussian"),
                      make_contour("Gaussian",
                                   {pt(0, 0), pt(64, 20), pt(128, 128), pt(192, 236), pt(255, 255)})});
-  presets.push_back({"contour.half_round", "Half Round",
+  presets.push_back({"contour.half_round", PATCHY_TRANSLATE_NOOP("QObject", "Half Round"),
                      make_contour("Half Round", {pt(0, 0), pt(80, 190), pt(160, 246), pt(255, 255)})});
-  presets.push_back({"contour.ring", "Ring",
+  presets.push_back({"contour.ring", PATCHY_TRANSLATE_NOOP("QObject", "Ring"),
                      make_contour("Ring", {pt(0, 0), pt(128, 255), pt(255, 0)})});
-  presets.push_back({"contour.ring_double", "Ring - Double",
+  presets.push_back({"contour.ring_double", PATCHY_TRANSLATE_NOOP("QObject", "Ring - Double"),
                      make_contour("Ring - Double",
                                   {pt(0, 0), pt(64, 255), pt(128, 0), pt(192, 255), pt(255, 0)})});
-  presets.push_back({"contour.rolling_slope", "Rolling Slope - Descending",
+  presets.push_back({"contour.rolling_slope", PATCHY_TRANSLATE_NOOP("QObject", "Rolling Slope - Descending"),
                      make_contour("Rolling Slope - Descending",
                                   {pt(0, 255), pt(64, 224), pt(192, 32), pt(255, 0)})});
-  presets.push_back({"contour.rounded_steps", "Rounded Steps",
+  presets.push_back({"contour.rounded_steps", PATCHY_TRANSLATE_NOOP("QObject", "Rounded Steps"),
                      make_contour("Rounded Steps",
                                   {pt(0, 0), pt(88, 116), pt(128, 128), pt(168, 140), pt(255, 255)})});
-  presets.push_back({"contour.sawtooth", "Sawtooth",
+  presets.push_back({"contour.sawtooth", PATCHY_TRANSLATE_NOOP("QObject", "Sawtooth"),
                      make_contour("Sawtooth",
                                   {pt(0, 0, true), pt(124, 255, true), pt(132, 0, true), pt(255, 255, true)})});
   return presets;

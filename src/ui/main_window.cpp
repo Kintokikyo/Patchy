@@ -5839,8 +5839,8 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
   mask_edit_mode_chip_->setObjectName(QStringLiteral("maskEditModeChip"));
   mask_edit_mode_chip_->setCursor(Qt::PointingHandCursor);
   mask_edit_mode_chip_->setFocusPolicy(Qt::NoFocus);
-  bind_widget_text(mask_edit_mode_chip_, "Editing layer mask (click to exit)");
-  bind_tooltip(mask_edit_mode_chip_, "Paint tools are editing the layer mask. Click to edit the layer pixels again.");
+  bind_widget_text(mask_edit_mode_chip_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Editing layer mask (click to exit)"));
+  bind_tooltip(mask_edit_mode_chip_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Paint tools are editing the layer mask. Click to edit the layer pixels again."));
   connect(mask_edit_mode_chip_, &QToolButton::clicked, this, [this] {
     if (canvas_ != nullptr && canvas_->quick_mask_active()) {
       toggle_quick_mask_mode();
@@ -5874,7 +5874,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
   palette_compliance_timer_->setInterval(400);
   connect(palette_compliance_timer_, &QTimer::timeout, this, [this] { run_palette_compliance_check(); });
   zoom_status_edit_ = new ZoomPercentEdit(zoom_status_bar_);
-  bind_tooltip(zoom_status_edit_, "Zoom percentage. Type a new value and press Enter.");
+  bind_tooltip(zoom_status_edit_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Zoom percentage. Type a new value and press Enter."));
   connect(zoom_status_edit_, &ZoomPercentEdit::zoom_percent_committed, this, [this](double percent) {
     if (canvas_ == nullptr || !has_active_document()) {
       return;

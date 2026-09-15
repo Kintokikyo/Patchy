@@ -1,6 +1,7 @@
 #include "formats/af_tree.hpp"
 
 #include "formats/binary_le.hpp"
+#include "support/translate_noop.hpp"
 
 #include <cstring>
 #include <stdexcept>
@@ -27,7 +28,7 @@ public:
   AfDocument parse() {
     AfDocument document;
     if (reader_.read_u32() != kDocTag) {
-      throw std::runtime_error("Affinity document tree has a bad header");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document tree has a bad header"));
     }
     const std::uint16_t file_version = reader_.read_u16();
     document.root_type_tag = reader_.read_u32();
@@ -44,13 +45,13 @@ public:
 private:
   void bump_class_count() {
     if (++class_count_ > kMaxClasses) {
-      throw std::runtime_error("Affinity document tree is implausibly large");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document tree is implausibly large"));
     }
   }
 
   void read_fields(AfClass& parent, bool with_tag, int depth) {
     if (depth > kMaxDepth) {
-      throw std::runtime_error("Affinity document tree nests too deeply");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document tree nests too deeply"));
     }
     for (;;) {
       std::uint8_t type = reader_.read_u8();
@@ -60,7 +61,7 @@ private:
         return;
       }
       if (type > 0x77) {
-        throw std::runtime_error("Affinity document tree has an unknown field type");
+        throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document tree has an unknown field type"));
       }
       AfField field;
       if (with_tag) {
@@ -110,7 +111,7 @@ private:
     if (type >= 0x35 && type <= 0x74) {
       return read_sized_struct(static_cast<std::size_t>(type) - 0x34, array);
     }
-    throw std::runtime_error("Affinity document tree has an unhandled field type");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document tree has an unhandled field type"));
   }
 
   template <typename T>
@@ -216,7 +217,7 @@ private:
 
   AfValue read_binary(bool array) {
     if (array) {
-      throw std::runtime_error("Affinity document tree has an invalid binary array");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document tree has an invalid binary array"));
     }
     const std::uint32_t size = read_length();
     std::vector<std::uint8_t> data(size);
@@ -228,7 +229,7 @@ private:
 
   AfValue read_embedded(bool array) {
     if (array) {
-      throw std::runtime_error("Affinity document tree has an invalid embedded array");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document tree has an invalid embedded array"));
     }
     AfEmbedded value;
     value.tag = reader_.read_u32();
@@ -242,12 +243,12 @@ private:
 
   AfValue read_flags(bool array) {
     if (array) {
-      throw std::runtime_error("Affinity document tree has an invalid flags array");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document tree has an invalid flags array"));
     }
     (void)reader_.read_u16();  // version
     const std::uint8_t count = reader_.read_u8();
     if (count > 8) {
-      throw std::runtime_error("Affinity document tree has an invalid flags count");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document tree has an invalid flags count"));
     }
     std::uint64_t flags = 0;
     for (std::uint8_t i = 0; i < count; ++i) {
@@ -351,7 +352,7 @@ private:
   std::shared_ptr<AfClass> read_class(std::uint8_t type, int depth, bool have_array_header,
                                       std::uint32_t array_tag, std::uint16_t array_version) {
     if (depth > kMaxDepth) {
-      throw std::runtime_error("Affinity document tree nests too deeply");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document tree nests too deeply"));
     }
     if (type == 0x30) {
       bump_class_count();
@@ -370,7 +371,7 @@ private:
         return found != shared_.end() ? found->second : nullptr;
       }
       if (flag != 1) {
-        throw std::runtime_error("Affinity document tree has an invalid shared class");
+        throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document tree has an invalid shared class"));
       }
       bump_class_count();
       auto cls = std::make_shared<AfClass>();
@@ -409,7 +410,7 @@ private:
     }
     // type == 0x32
     if (flag != 1) {
-      throw std::runtime_error("Affinity document tree has an invalid class");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document tree has an invalid class"));
     }
     bump_class_count();
     auto cls = std::make_shared<AfClass>();
@@ -429,7 +430,7 @@ private:
   std::uint32_t read_count() {
     const std::uint32_t count = reader_.read_u32();
     if (count > kMaxArray) {
-      throw std::runtime_error("Affinity document tree has an implausible array");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document tree has an implausible array"));
     }
     return count;
   }
@@ -437,7 +438,7 @@ private:
   std::uint32_t read_length() {
     const std::uint32_t length = reader_.read_u32();
     if (length > bytes_.size()) {
-      throw std::runtime_error("Affinity document tree has an implausible length");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document tree has an implausible length"));
     }
     return length;
   }
@@ -445,7 +446,7 @@ private:
   std::string read_one_string() {
     const std::uint32_t length = reader_.read_u32();
     if (length > kMaxString) {
-      throw std::runtime_error("Affinity document tree has an implausible string");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document tree has an implausible string"));
     }
     std::string value(length, '\0');
     for (std::uint32_t i = 0; i < length; ++i) {

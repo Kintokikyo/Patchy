@@ -5,6 +5,7 @@
 #include "ui/image_document_io.hpp"
 #include "ui/measurement_units.hpp"
 #include "ui/print_internal.hpp"
+#include "ui/localization.hpp"
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -862,13 +863,13 @@ bool run_print_dialog(QWidget* parent, const Document& document, const QString& 
   x->setObjectName(QStringLiteral("printOffsetXSpin"));
   x->setRange(-100.0, 100.0);
   x->setDecimals(2);
-  x->setSuffix(QStringLiteral(" in"));
+  x->setSuffix(inch_suffix());
   configure_dialog_spinbox(x);
   auto* y = new QDoubleSpinBox(settings_group);
   y->setObjectName(QStringLiteral("printOffsetYSpin"));
   y->setRange(-100.0, 100.0);
   y->setDecimals(2);
-  y->setSuffix(QStringLiteral(" in"));
+  y->setSuffix(inch_suffix());
   configure_dialog_spinbox(y);
   form->addRow(QObject::tr("X"), x);
   form->addRow(QObject::tr("Y"), y);
@@ -890,7 +891,7 @@ bool run_print_dialog(QWidget* parent, const Document& document, const QString& 
   scale->setObjectName(QStringLiteral("printScalePercentSpin"));
   scale->setRange(1.0, 1000.0);
   scale->setDecimals(1);
-  scale->setSuffix(QStringLiteral("%"));
+  scale->setSuffix(percent_suffix());
   scale->setValue(100.0);
   configure_dialog_spinbox(scale, 82);
   auto* scale_size = new QLabel(scale_row);
@@ -1005,7 +1006,7 @@ bool run_print_dialog(QWidget* parent, const Document& document, const QString& 
       }
       dialog.accept();
     } catch (const std::exception& error) {
-      show_critical_message(&dialog, QObject::tr("Print failed"), QString::fromUtf8(error.what()),
+      show_critical_message(&dialog, QObject::tr("Print failed"), translate_data_text(error.what()),
                             QStringLiteral("printFailedMessageBox"));
     }
   };
@@ -1084,7 +1085,7 @@ bool run_print_dialog(QWidget* parent, const Document& document, const QString& 
       }
       dialog.accept();
     } catch (const std::exception& error) {
-      show_critical_message(&dialog, QObject::tr("PDF failed"), QString::fromUtf8(error.what()),
+      show_critical_message(&dialog, QObject::tr("PDF failed"), translate_data_text(error.what()),
                             QStringLiteral("pdfFailedMessageBox"));
     }
   });
@@ -1234,7 +1235,7 @@ bool run_photocopy_dialog(QWidget* parent, const Document& document) {
       }
       dialog.accept();
     } catch (const std::exception& error) {
-      show_critical_message(&dialog, QObject::tr("Print failed"), QString::fromUtf8(error.what()),
+      show_critical_message(&dialog, QObject::tr("Print failed"), translate_data_text(error.what()),
                             QStringLiteral("printFailedMessageBox"));
     }
   });

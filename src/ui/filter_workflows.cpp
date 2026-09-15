@@ -14,6 +14,7 @@
 #include "ui/filter_workflows_internal.hpp"
 #include "ui/zoomable_image_preview.hpp"
 #include "ui/theme_qss.hpp"
+#include "ui/localization.hpp"
 
 #include <QAbstractItemView>
 #include <QButtonGroup>
@@ -130,9 +131,9 @@ QString filter_action_object_name(const QString& identifier) {
 
 namespace {
 
-// Catalog strings are translated dynamically so the Qt-free filter library does
-// not depend on Qt. Keep these markers so lupdate retains the existing QObject
-// translation context and the hand-maintained Japanese entries.
+// Catalog strings are translated dynamically (translate_data_text) so the Qt-free
+// filter library does not depend on Qt. These markers give lupdate the strings in
+// the shared data context.
 [[maybe_unused]] constexpr const char* kFilterTranslationMarkers[] = {
     QT_TRANSLATE_NOOP("QObject", "Invert"),
     QT_TRANSLATE_NOOP("QObject", "Brightness/Contrast"),
@@ -221,10 +222,6 @@ namespace {
     QT_TRANSLATE_NOOP("QObject", "Transition Width"),
 };
 
-QString translate_filter_catalog_text(const std::string& source) {
-  return QCoreApplication::translate("QObject", source.c_str());
-}
-
 double numeric_filter_value(const FilterParameterValue& value, double fallback = 0.0) {
   if (const auto* integer = std::get_if<std::int64_t>(&value); integer != nullptr) {
     return static_cast<double>(*integer);
@@ -252,35 +249,35 @@ QString filter_parameter_suffix(FilterParameterUnit unit) {
 }  // namespace
 
 QString filter_display_name(const FilterDefinition& filter) {
-  return translate_filter_catalog_text(filter.display_name);
+  return translate_data_text(filter.display_name);
 }
 
 QString filter_category_display_name(FilterCategory category) {
   switch (category) {
     case FilterCategory::Uncategorized:
-      return translate_filter_catalog_text("Other");
+      return translate_data_text("Other");
     case FilterCategory::Adjustment:
-      return translate_filter_catalog_text("Adjustments");
+      return translate_data_text("Adjustments");
     case FilterCategory::PhotoLooks:
-      return translate_filter_catalog_text("Photo Looks");
+      return translate_data_text("Photo Looks");
     case FilterCategory::Blur:
-      return translate_filter_catalog_text("Blur");
+      return translate_data_text("Blur");
     case FilterCategory::Sharpen:
-      return translate_filter_catalog_text("Sharpen");
+      return translate_data_text("Sharpen");
     case FilterCategory::Distort:
-      return translate_filter_catalog_text("Distort");
+      return translate_data_text("Distort");
     case FilterCategory::Noise:
-      return translate_filter_catalog_text("Noise");
+      return translate_data_text("Noise");
     case FilterCategory::Pixelate:
-      return translate_filter_catalog_text("Pixelate");
+      return translate_data_text("Pixelate");
     case FilterCategory::Stylize:
-      return translate_filter_catalog_text("Stylize");
+      return translate_data_text("Stylize");
     case FilterCategory::Render:
-      return translate_filter_catalog_text("Render");
+      return translate_data_text("Render");
     case FilterCategory::Artistic:
-      return translate_filter_catalog_text("Artistic");
+      return translate_data_text("Artistic");
   }
-  return translate_filter_catalog_text("Other");
+  return translate_data_text("Other");
 }
 
 QString filter_progress_stage_text(FilterProgressStage stage) {
@@ -326,7 +323,7 @@ FilterDialogSpec filter_dialog_spec_for(const FilterDefinition& filter) {
   for (const auto& parameter : filter.catalog.parameters) {
     const auto default_number = numeric_filter_value(parameter.default_value);
     FilterControlSpec control{
-        translate_filter_catalog_text(parameter.display_name),
+        translate_data_text(parameter.display_name),
         QString::fromStdString(parameter.control_object_name),
         static_cast<int>(std::lround(parameter.practical_minimum.value_or(
             parameter.minimum.value_or(0.0)))),

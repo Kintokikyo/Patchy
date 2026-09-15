@@ -5,6 +5,7 @@
 #include "ui/image_document_io.hpp"
 #include "ui/modifier_names.hpp"
 #include "ui/theme_qss.hpp"
+#include "ui/localization.hpp"
 
 #include <QButtonGroup>
 #include <QCheckBox>
@@ -309,15 +310,15 @@ std::optional<LiquifyMesh> request_liquify(QWidget* parent,
   for (const auto& entry : kTools) {
     tool_width = std::max(
         tool_width,
-        tools->fontMetrics().horizontalAdvance(QObject::tr(entry.name)) + 24);
+        tools->fontMetrics().horizontalAdvance(translate_data_text(entry.name)) + 24);
   }
   tools->setFixedWidth(tool_width);
   for (std::size_t index = 0; index < kTools.size(); ++index) {
     const auto& entry = kTools[index];
     auto* button = new QToolButton(&dialog);
     button->setObjectName(QLatin1String(entry.object_name));
-    button->setText(QObject::tr(entry.name));
-    button->setToolTip(QObject::tr(entry.name));
+    button->setText(translate_data_text(entry.name));
+    button->setToolTip(translate_data_text(entry.name));
     if (entry.tool == LiquifyTool::TwirlClockwise) {
       button->setToolTip(
           resolve_modifier_names(QObject::tr("Twirl clockwise; hold %ALT% to reverse")));

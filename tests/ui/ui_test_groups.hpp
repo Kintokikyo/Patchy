@@ -10,6 +10,7 @@
 #include <vector>
 
 std::vector<patchy::test::TestCase> app_shell_tests();
+std::vector<patchy::test::TestCase> localization_tests();
 std::vector<patchy::test::TestCase> filter_catalog_dialog_tests();
 std::vector<patchy::test::TestCase> layer_style_gradient_tests();
 std::vector<patchy::test::TestCase> destructive_filters_gallery_tests();

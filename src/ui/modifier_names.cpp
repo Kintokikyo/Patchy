@@ -5,27 +5,24 @@
 
 namespace patchy::ui {
 
-namespace {
-
 // Translatable so a locale can spell the macOS keys its own way; Apple Japan writes
 // "command" and "option" in Latin script beside the katakana, so the default stands.
-constexpr const char* kModifierContext = "patchy::ui::ModifierNames";
-
-}  // namespace
+// The context is spelled out at each call because lupdate cannot read it from a
+// constant.
 
 QString ctrl_key_name() {
 #ifdef Q_OS_MACOS
-  return QCoreApplication::translate(kModifierContext, "Command");
+  return QCoreApplication::translate("patchy::ui::ModifierNames", "Command");
 #else
-  return QCoreApplication::translate(kModifierContext, "Ctrl");
+  return QCoreApplication::translate("patchy::ui::ModifierNames", "Ctrl");
 #endif
 }
 
 QString alt_key_name() {
 #ifdef Q_OS_MACOS
-  return QCoreApplication::translate(kModifierContext, "Option");
+  return QCoreApplication::translate("patchy::ui::ModifierNames", "Option");
 #else
-  return QCoreApplication::translate(kModifierContext, "Alt");
+  return QCoreApplication::translate("patchy::ui::ModifierNames", "Alt");
 #endif
 }
 

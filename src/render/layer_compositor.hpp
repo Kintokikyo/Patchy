@@ -9,6 +9,7 @@
 
 #include "render/layer_style_mask_ops.hpp"
 #include "render/raster_view_context.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <array>
@@ -2222,7 +2223,7 @@ void composite_pixel_layer(Target& destination, const Layer& layer, Rect clip,
   }
   if (source.format().bit_depth != BitDepth::UInt8 || source.format().channels < 3) {
     if (throw_on_unsupported_pixel_format) {
-      throw std::invalid_argument("The starter compositor currently supports RGB/RGBA 8-bit layers only");
+      throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "The starter compositor currently supports RGB/RGBA 8-bit layers only"));
     }
     return;
   }

@@ -3,6 +3,7 @@
 #include "core/pattern_presets.hpp"
 #include "psd/pat_reader.hpp"
 #include "ui/photo_pattern_presets.hpp"
+#include "ui/localization.hpp"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -102,9 +103,9 @@ QString pattern_library_entry_display_name(const PatternLibraryEntry& entry) {
     canonical_english = photo->english_name;
   }
   if (canonical_english != nullptr && entry.name == QString::fromLatin1(canonical_english)) {
-    // Keep the existing QObject translation context used by the layer-style
-    // pattern picker and the Japanese pattern-name translations.
-    return QCoreApplication::translate("QObject", canonical_english);
+    // Builtin names are translated in the shared data context, like the
+    // layer-style pattern picker does.
+    return translate_data_text(canonical_english);
   }
   return entry.name;
 }

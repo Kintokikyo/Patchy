@@ -29,6 +29,23 @@ QString measurement_unit_suffix(MeasurementUnit unit) {
   return QObject::tr("px");
 }
 
+QString pixel_suffix() {
+  return QStringLiteral(" ") + measurement_unit_suffix(MeasurementUnit::Pixels);
+}
+
+QString inch_suffix() {
+  return QStringLiteral(" ") + measurement_unit_suffix(MeasurementUnit::Inches);
+}
+
+QString percent_suffix() {
+  return measurement_unit_suffix(MeasurementUnit::Percent);
+}
+
+QString degree_suffix() {
+  //: Degree sign shown after angle values.
+  return QObject::tr("°");
+}
+
 QString measurement_unit_name(MeasurementUnit unit) {
   switch (unit) {
     case MeasurementUnit::Pixels:

@@ -307,17 +307,27 @@ exit /b %ERRORLEVEL%
 :CopyTranslations
 set "PATCHY_BUILD_TRANSLATIONS=%BUILD_DIR%\translations"
 set "PATCHY_STAGE_TRANSLATIONS=%STAGE_DIR%\translations"
-if not exist "%PATCHY_BUILD_TRANSLATIONS%\patchy_ja.qm" (
-  echo Patchy Japanese translation was not found: "%PATCHY_BUILD_TRANSLATIONS%\patchy_ja.qm".
+rem CMake writes languages.txt (one catalog code per line, from PATCHY_TRANSLATED_LANGUAGES)
+rem and stages patchy_<code>.qm plus qtbase_<code>.qm beside it; every shipped language
+rem must be present before packaging. Only those two families are shipped; anything else
+rem in the directory (stale qt_*.qm from older deploy runs) is left behind.
+if not exist "%PATCHY_BUILD_TRANSLATIONS%\languages.txt" (
+  echo Translation language list was not found: "%PATCHY_BUILD_TRANSLATIONS%\languages.txt".
   exit /b 1
 )
-if not exist "%QT_PREFIX%\translations\qtbase_ja.qm" (
-  echo Qt Japanese base translation was not found: "%QT_PREFIX%\translations\qtbase_ja.qm".
-  exit /b 1
+for /f "usebackq delims=" %%L in ("%PATCHY_BUILD_TRANSLATIONS%\languages.txt") do (
+  if not exist "%PATCHY_BUILD_TRANSLATIONS%\patchy_%%L.qm" (
+    echo Patchy translation was not found: "%PATCHY_BUILD_TRANSLATIONS%\patchy_%%L.qm".
+    exit /b 1
+  )
+  if not exist "%PATCHY_BUILD_TRANSLATIONS%\qtbase_%%L.qm" (
+    echo Qt base translation was not found: "%PATCHY_BUILD_TRANSLATIONS%\qtbase_%%L.qm".
+    exit /b 1
+  )
 )
 if not exist "%PATCHY_STAGE_TRANSLATIONS%" mkdir "%PATCHY_STAGE_TRANSLATIONS%" || exit /b 1
-copy /Y "%PATCHY_BUILD_TRANSLATIONS%\patchy_ja.qm" "%PATCHY_STAGE_TRANSLATIONS%\" >nul || exit /b 1
-copy /Y "%QT_PREFIX%\translations\qtbase_ja.qm" "%PATCHY_STAGE_TRANSLATIONS%\" >nul || exit /b 1
+copy /Y "%PATCHY_BUILD_TRANSLATIONS%\patchy_*.qm" "%PATCHY_STAGE_TRANSLATIONS%\" >nul || exit /b 1
+copy /Y "%PATCHY_BUILD_TRANSLATIONS%\qtbase_*.qm" "%PATCHY_STAGE_TRANSLATIONS%\" >nul || exit /b 1
 exit /b 0
 
 :CopyBundledFonts

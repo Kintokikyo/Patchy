@@ -5,6 +5,7 @@
 #include "core/layer_render_utils.hpp"
 #include "core/palette.hpp"
 #include "render/layer_compositor.hpp"
+#include "support/translate_noop.hpp"
 
 #include <array>
 #include <stdexcept>
@@ -112,7 +113,7 @@ private:
 
 PixelBuffer flatten_document_rgba8(const Document& document) {
   if (document.width() <= 0 || document.height() <= 0) {
-    throw std::runtime_error("Cannot flatten an empty document");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Cannot flatten an empty document"));
   }
   if (!render_detail::layers_have_rendered_blend_if(document.layers())) {
     if (auto masked = document_alpha_rgba8(document); masked.has_value()) {
@@ -130,7 +131,7 @@ PixelBuffer flatten_document_rgba8(const Document& document) {
 
 IndexedFlattenResult indexed_flatten_for_palette_mode(const Document& document) {
   if (!document.palette_editing().has_value() || document.palette_editing()->palette.colors.empty()) {
-    throw std::runtime_error("Document is not in palette mode");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Document is not in palette mode"));
   }
   const auto& editing = *document.palette_editing();
   return indexed_rgba8_with_palette(flatten_document_rgba8(document), editing.palette.colors,
@@ -140,7 +141,7 @@ IndexedFlattenResult indexed_flatten_for_palette_mode(const Document& document) 
 IndexedFlattenResult indexed_rgba8_with_palette(const PixelBuffer& rgba, std::span<const RgbColor> colors,
                                                 std::uint8_t alpha_threshold) {
   if (colors.empty()) {
-    throw std::runtime_error("Indexed mapping needs a palette");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Indexed mapping needs a palette"));
   }
   PaletteLut lut;
   lut.build(colors);

@@ -3,6 +3,7 @@
 #include "core/layer_metadata.hpp"
 #include "core/layer_tree.hpp"
 #include "core/vector_raster.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <limits>
@@ -169,14 +170,14 @@ VectorShapeContent combine_vector_appearances(std::span<const Layer* const> laye
   std::int64_t next_group = 0;
   for (const auto* layer : layers) {
     if (layer == nullptr || !layer_is_vector_shape(*layer)) {
-      throw std::runtime_error("Expected an editable vector layer");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Expected an editable vector layer"));
     }
     const auto& source = *layer->vector_shape();
     std::map<std::int32_t, std::int32_t> groups;
     for (auto path : source.path.subpaths) {
       if (!groups.contains(path.shape_group)) {
         if (next_group >= std::numeric_limits<std::int32_t>::max()) {
-          throw std::runtime_error("Too many vector shape groups");
+          throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Too many vector shape groups"));
         }
         groups.emplace(path.shape_group, static_cast<std::int32_t>(next_group++));
       }
@@ -209,7 +210,7 @@ VectorShapeContent combine_vector_appearances(std::span<const Layer* const> laye
     } else if (layer->opacity() != 1.0F || layer->fill_opacity() != 1.0F) {
       // A translucent merged object is an isolation boundary. The planner
       // retains it as a separate layer rather than multiplying its parts.
-      throw std::runtime_error("Cannot remove a vector opacity boundary");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Cannot remove a vector opacity boundary"));
     }
     for (auto& part : parts) {
       std::vector<std::int32_t> remapped;

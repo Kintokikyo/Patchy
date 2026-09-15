@@ -865,14 +865,14 @@ void MainWindow::configure_window_chrome() {
   auto* minimize_button =
       add_chrome_button(QStringLiteral("windowMinimizeButton"), window_chrome_icon(QStringLiteral("minimize")),
                         tr("Minimize"));
-  bind_tooltip(minimize_button, "Minimize");
+  bind_tooltip(minimize_button, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Minimize"));
   maximize_button_ =
       add_chrome_button(QStringLiteral("windowMaximizeButton"), window_chrome_icon(QStringLiteral("maximize")),
                         tr("Maximize / Restore"));
-  bind_tooltip(maximize_button_, "Maximize / Restore");
+  bind_tooltip(maximize_button_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Maximize / Restore"));
   auto* close_button =
       add_chrome_button(QStringLiteral("windowCloseButton"), window_chrome_icon(QStringLiteral("close")), tr("Close"));
-  bind_tooltip(close_button, "Close");
+  bind_tooltip(close_button, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Close"));
   position_window_chrome_controls();
   controls->show();
 

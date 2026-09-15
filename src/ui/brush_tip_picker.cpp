@@ -156,7 +156,7 @@ void BrushTipPicker::rebuild_popup_list(QListWidget* list, const QString& folder
     item->setData(Qt::UserRole, entry.id);
     auto tooltip = entry.folder.isEmpty()
                        ? tr("%1 (%2×%3)").arg(entry.name).arg(entry.size.width()).arg(entry.size.height())
-                       : tr("%1 — %2 (%3×%4)")
+                       : tr("%1 - %2 (%3×%4)")
                              .arg(entry.folder, entry.name)
                              .arg(entry.size.width())
                              .arg(entry.size.height());

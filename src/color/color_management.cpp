@@ -1,5 +1,7 @@
 #include "color/color_management.hpp"
 
+#include "support/translate_noop.hpp"
+
 #include <array>
 #include <stdexcept>
 #include <utility>
@@ -161,7 +163,7 @@ void ColorManager::assign_icc_profile(Document& document, std::vector<std::uint8
 PixelBuffer ColorManager::preview_rgb8(const Document& /*document*/, const PixelBuffer& source,
                                        const ColorTransformSpec& /*spec*/) const {
   if (source.format() != PixelFormat::rgb8()) {
-    throw std::invalid_argument("Color preview placeholder currently accepts RGB8 buffers only");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Color preview placeholder currently accepts RGB8 buffers only"));
   }
   return source;
 }

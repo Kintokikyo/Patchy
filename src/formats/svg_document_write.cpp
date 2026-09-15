@@ -9,6 +9,7 @@
 #include "formats/miniz/miniz.h"
 #include "formats/svg_io_internal.hpp"
 #include "formats/vector_export_plan.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <array>
@@ -66,13 +67,13 @@ std::string base64(std::span<const std::uint8_t> bytes) {
 
 std::vector<std::uint8_t> png_bytes(const PixelBuffer& pixels) {
   if (pixels.empty() || pixels.format() != PixelFormat::rgba8()) {
-    throw std::runtime_error("SVG export can only embed RGBA images");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "SVG export can only embed RGBA images"));
   }
   std::size_t size = 0;
   void* encoded =
       tdefl_write_image_to_png_file_in_memory(pixels.data().data(), pixels.width(), pixels.height(), 4, &size);
   if (encoded == nullptr) {
-    throw std::runtime_error("Could not encode an embedded PNG for SVG export");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Could not encode an embedded PNG for SVG export"));
   }
   std::vector<std::uint8_t> result(static_cast<std::uint8_t*>(encoded), static_cast<std::uint8_t*>(encoded) + size);
   mz_free(encoded);
@@ -237,7 +238,7 @@ struct Writer {
   std::string pattern_paint(const VectorFill& fill) {
     const auto* resource = document.metadata().patterns.find(fill.pattern_id);
     if (resource == nullptr || resource->tile.empty() || pattern_tile_is_unrenderable(resource->tile)) {
-      notice("A pattern fill's tile was missing and exported as gray");
+      notice(PATCHY_TRANSLATE_NOOP("QObject", "A pattern fill's tile was missing and exported as gray"));
       return "#808080";
     }
     const std::string id = "pat" + std::to_string(++pattern_index);
@@ -258,7 +259,7 @@ struct Writer {
     if (fill.pattern_linked) {
       // Linked placement anchors at the layer's effects reference point;
       // SVG patterns anchor at the user-space origin.
-      notice("A layer-linked pattern fill was exported anchored to the document origin");
+      notice(PATCHY_TRANSLATE_NOOP("QObject", "A layer-linked pattern fill was exported anchored to the document origin"));
     }
     defs += "<pattern id=\"" + id + "\" patternUnits=\"userSpaceOnUse\" width=\"" + detail::format_number(cell_width) +
             "\" height=\"" + detail::format_number(cell_height) + "\"";
@@ -617,7 +618,7 @@ struct Writer {
       // not, so non-pass-through groups isolate explicitly.
       css += "isolation:isolate;";
     } else if (std::abs(group.opacity() - 1.0F) > 0.0001F) {
-      notice("Pass-through group opacity is approximated (SVG group opacity isolates the group)");
+      notice(PATCHY_TRANSLATE_NOOP("QObject", "Pass-through group opacity is approximated (SVG group opacity isolates the group)"));
     }
     if (!css.empty()) {
       body += " style=\"" + css + "\"";
@@ -714,7 +715,7 @@ std::vector<std::uint8_t> DocumentIo::write(const Document& document, std::vecto
     return write(expand_compound_vectors(document, true), notices);
   }
   if (document.width() <= 0 || document.height() <= 0) {
-    throw std::runtime_error("Cannot export an empty document as SVG");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Cannot export an empty document as SVG"));
   }
   Writer writer{document, notices};
   return writer.run();

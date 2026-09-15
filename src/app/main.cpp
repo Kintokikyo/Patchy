@@ -402,6 +402,11 @@ int main(int argc, char* argv[]) {
   patchy::ui::install_font_database_psd_font_resolver();
   app.setFont(application_font());
   patchy::ui::LocalizationManager::instance().load_saved_language();
+  // --language overrides the saved preference for this run only (screenshots, tests,
+  // trying a language); a code Patchy does not ship falls back to English.
+  if (const char* language = patchy::language_flag_value(argc, argv); language != nullptr) {
+    patchy::ui::LocalizationManager::instance().set_language(QString::fromUtf8(language), /*persist=*/false);
+  }
   patchy::ui::ThemeManager::instance().load_saved_preference();
 
 #ifdef PATCHY_MCP_EXECUTABLE
@@ -427,6 +432,13 @@ int main(int argc, char* argv[]) {
                      "instance. Needs --run-script, --export, --stress-test, or --screenshot; "
                      "exits 2 otherwise."));
   parser.addOption(headless_option);
+  // Applied above (language_flag_value); listed so the parser accepts it and --help shows it.
+  QCommandLineOption language_option(
+      QStringLiteral("language"),
+      QCoreApplication::translate(
+          "QObject", "UI language for this run only, not saved: en, de, es, fr, it, ja, zh_CN, or zh_TW."),
+      QStringLiteral("code"));
+  parser.addOption(language_option);
   QCommandLineOption stress_option(
       QStringLiteral("stress-test"),
       QCoreApplication::translate(

@@ -2,6 +2,7 @@
 
 #include "core/contour_presets.hpp"
 #include "core/pattern_presets.hpp"
+#include "support/translate_noop.hpp"
 
 #include <array>
 #include <cstddef>
@@ -14,9 +15,9 @@ namespace {
 
 // Canonical folder names (translated at library seed time, like the pattern
 // defaults folder).
-constexpr const char* kTextFolder = "Text";
-constexpr const char* kBasicsFolder = "Basics";
-constexpr const char* kMaterialsFolder = "Materials";
+constexpr const char* kTextFolder = PATCHY_TRANSLATE_NOOP("QObject", "Text");
+constexpr const char* kBasicsFolder = PATCHY_TRANSLATE_NOOP("QObject", "Basics");
+constexpr const char* kMaterialsFolder = PATCHY_TRANSLATE_NOOP("QObject", "Materials");
 
 // Built-in pattern preset ids (core/pattern_presets.cpp); fixed forever.
 constexpr const char* kBrushedMetalPatternId = "c4a11e00-0008-4b1d-9c3e-7a7c9e55b008";
@@ -627,45 +628,45 @@ struct StylePresetEntry {
 // exports. New presets go on the end with fresh ids and the defaults version
 // that introduced them.
 constexpr std::array<StylePresetEntry, 39> kBuiltinStylePresets{{
-    {{"57a1e500-0001-4c6d-8f2a-9b3d4e55c001", "Adventure", kTextFolder, 1}, style_adventure},
-    {{"57a1e500-0002-4c6d-8f2a-9b3d4e55c002", "Hack the Gibson", kTextFolder, 1}, style_hack_the_gibson},
-    {{"57a1e500-0003-4c6d-8f2a-9b3d4e55c003", "A Galaxy Far Away", kTextFolder, 1}, style_a_galaxy_far_away},
-    {{"57a1e500-0004-4c6d-8f2a-9b3d4e55c004", "Neon Nights", kTextFolder, 1}, style_neon_nights},
-    {{"57a1e500-0005-4c6d-8f2a-9b3d4e55c005", "Arcade Cabinet", kTextFolder, 1}, style_arcade_cabinet},
-    {{"57a1e500-0006-4c6d-8f2a-9b3d4e55c006", "Chrome Bumper", kTextFolder, 1}, style_chrome_bumper},
-    {{"57a1e500-0007-4c6d-8f2a-9b3d4e55c007", "Liquid Gold", kTextFolder, 1}, style_liquid_gold},
-    {{"57a1e500-0008-4c6d-8f2a-9b3d4e55c008", "Ice Cold", kTextFolder, 1}, style_ice_cold},
-    {{"57a1e500-0009-4c6d-8f2a-9b3d4e55c009", "Molten Core", kTextFolder, 1}, style_molten_core},
-    {{"57a1e500-000a-4c6d-8f2a-9b3d4e55c00a", "Toxic Ooze", kTextFolder, 1}, style_toxic_ooze},
-    {{"57a1e500-000b-4c6d-8f2a-9b3d4e55c00b", "Midnight Horror", kTextFolder, 1}, style_midnight_horror},
-    {{"57a1e500-000c-4c6d-8f2a-9b3d4e55c00c", "Wanted Poster", kTextFolder, 1}, style_wanted_poster},
-    {{"57a1e500-000d-4c6d-8f2a-9b3d4e55c00d", "Comic Pow", kTextFolder, 1}, style_comic_pow},
-    {{"57a1e500-000e-4c6d-8f2a-9b3d4e55c00e", "Bubble Pop", kTextFolder, 1}, style_bubble_pop},
-    {{"57a1e500-000f-4c6d-8f2a-9b3d4e55c00f", "Saturday Cartoon", kTextFolder, 1}, style_saturday_cartoon},
-    {{"57a1e500-0010-4c6d-8f2a-9b3d4e55c010", "Space Cadet", kTextFolder, 1}, style_space_cadet},
-    {{"57a1e500-0011-4c6d-8f2a-9b3d4e55c011", "Royal Decree", kTextFolder, 1}, style_royal_decree},
-    {{"57a1e500-0012-4c6d-8f2a-9b3d4e55c012", "Stamped Steel", kTextFolder, 1}, style_stamped_steel},
-    {{"57a1e500-0013-4c6d-8f2a-9b3d4e55c013", "Honey Drip", kTextFolder, 1}, style_honey_drip},
-    {{"57a1e500-0014-4c6d-8f2a-9b3d4e55c014", "Blueprint", kTextFolder, 1}, style_blueprint},
-    {{"57a1e500-0015-4c6d-8f2a-9b3d4e55c015", "Soft Shadow", kBasicsFolder, 1}, style_soft_shadow},
-    {{"57a1e500-0016-4c6d-8f2a-9b3d4e55c016", "Sticker Outline", kBasicsFolder, 1}, style_sticker_outline},
-    {{"57a1e500-0017-4c6d-8f2a-9b3d4e55c017", "Simple Emboss", kBasicsFolder, 1}, style_simple_emboss},
-    {{"57a1e500-0018-4c6d-8f2a-9b3d4e55c018", "Warm Glow", kBasicsFolder, 1}, style_warm_glow},
-    {{"57a1e500-0019-4c6d-8f2a-9b3d4e55c019", "Neon Edge", kBasicsFolder, 1}, style_neon_edge},
-    {{"57a1e500-001a-4c6d-8f2a-9b3d4e55c01a", "Letterpress", kBasicsFolder, 1}, style_letterpress},
-    {{"57a1e500-001b-4c6d-8f2a-9b3d4e55c01b", "Carved Oak", kMaterialsFolder, 2}, style_carved_oak},
-    {{"57a1e500-001c-4c6d-8f2a-9b3d4e55c01c", "Walnut Gloss", kMaterialsFolder, 2}, style_walnut_gloss},
-    {{"57a1e500-001d-4c6d-8f2a-9b3d4e55c01d", "Weathered Sign", kMaterialsFolder, 2}, style_weathered_sign},
-    {{"57a1e500-001e-4c6d-8f2a-9b3d4e55c01e", "Driftwood", kMaterialsFolder, 2}, style_driftwood},
-    {{"57a1e500-001f-4c6d-8f2a-9b3d4e55c01f", "Timber Grain", kMaterialsFolder, 2}, style_timber_grain},
-    {{"57a1e500-0020-4c6d-8f2a-9b3d4e55c020", "Marble Monument", kMaterialsFolder, 2}, style_marble_monument},
-    {{"57a1e500-0021-4c6d-8f2a-9b3d4e55c021", "Slate Etched", kMaterialsFolder, 2}, style_slate_etched},
-    {{"57a1e500-0022-4c6d-8f2a-9b3d4e55c022", "Granite Bold", kMaterialsFolder, 2}, style_granite_bold},
-    {{"57a1e500-0023-4c6d-8f2a-9b3d4e55c023", "Rust Bucket", kMaterialsFolder, 2}, style_rust_bucket},
-    {{"57a1e500-0024-4c6d-8f2a-9b3d4e55c024", "Riveted Steel", kMaterialsFolder, 2}, style_riveted_steel},
-    {{"57a1e500-0025-4c6d-8f2a-9b3d4e55c025", "Leather Stamp", kMaterialsFolder, 2}, style_leather_stamp},
-    {{"57a1e500-0026-4c6d-8f2a-9b3d4e55c026", "Frost Drift", kMaterialsFolder, 2}, style_frost_drift},
-    {{"57a1e500-0027-4c6d-8f2a-9b3d4e55c027", "Cracked Desert", kMaterialsFolder, 2}, style_cracked_desert},
+    {{"57a1e500-0001-4c6d-8f2a-9b3d4e55c001", PATCHY_TRANSLATE_NOOP("QObject", "Adventure"), kTextFolder, 1}, style_adventure},
+    {{"57a1e500-0002-4c6d-8f2a-9b3d4e55c002", PATCHY_TRANSLATE_NOOP("QObject", "Hack the Gibson"), kTextFolder, 1}, style_hack_the_gibson},
+    {{"57a1e500-0003-4c6d-8f2a-9b3d4e55c003", PATCHY_TRANSLATE_NOOP("QObject", "A Galaxy Far Away"), kTextFolder, 1}, style_a_galaxy_far_away},
+    {{"57a1e500-0004-4c6d-8f2a-9b3d4e55c004", PATCHY_TRANSLATE_NOOP("QObject", "Neon Nights"), kTextFolder, 1}, style_neon_nights},
+    {{"57a1e500-0005-4c6d-8f2a-9b3d4e55c005", PATCHY_TRANSLATE_NOOP("QObject", "Arcade Cabinet"), kTextFolder, 1}, style_arcade_cabinet},
+    {{"57a1e500-0006-4c6d-8f2a-9b3d4e55c006", PATCHY_TRANSLATE_NOOP("QObject", "Chrome Bumper"), kTextFolder, 1}, style_chrome_bumper},
+    {{"57a1e500-0007-4c6d-8f2a-9b3d4e55c007", PATCHY_TRANSLATE_NOOP("QObject", "Liquid Gold"), kTextFolder, 1}, style_liquid_gold},
+    {{"57a1e500-0008-4c6d-8f2a-9b3d4e55c008", PATCHY_TRANSLATE_NOOP("QObject", "Ice Cold"), kTextFolder, 1}, style_ice_cold},
+    {{"57a1e500-0009-4c6d-8f2a-9b3d4e55c009", PATCHY_TRANSLATE_NOOP("QObject", "Molten Core"), kTextFolder, 1}, style_molten_core},
+    {{"57a1e500-000a-4c6d-8f2a-9b3d4e55c00a", PATCHY_TRANSLATE_NOOP("QObject", "Toxic Ooze"), kTextFolder, 1}, style_toxic_ooze},
+    {{"57a1e500-000b-4c6d-8f2a-9b3d4e55c00b", PATCHY_TRANSLATE_NOOP("QObject", "Midnight Horror"), kTextFolder, 1}, style_midnight_horror},
+    {{"57a1e500-000c-4c6d-8f2a-9b3d4e55c00c", PATCHY_TRANSLATE_NOOP("QObject", "Wanted Poster"), kTextFolder, 1}, style_wanted_poster},
+    {{"57a1e500-000d-4c6d-8f2a-9b3d4e55c00d", PATCHY_TRANSLATE_NOOP("QObject", "Comic Pow"), kTextFolder, 1}, style_comic_pow},
+    {{"57a1e500-000e-4c6d-8f2a-9b3d4e55c00e", PATCHY_TRANSLATE_NOOP("QObject", "Bubble Pop"), kTextFolder, 1}, style_bubble_pop},
+    {{"57a1e500-000f-4c6d-8f2a-9b3d4e55c00f", PATCHY_TRANSLATE_NOOP("QObject", "Saturday Cartoon"), kTextFolder, 1}, style_saturday_cartoon},
+    {{"57a1e500-0010-4c6d-8f2a-9b3d4e55c010", PATCHY_TRANSLATE_NOOP("QObject", "Space Cadet"), kTextFolder, 1}, style_space_cadet},
+    {{"57a1e500-0011-4c6d-8f2a-9b3d4e55c011", PATCHY_TRANSLATE_NOOP("QObject", "Royal Decree"), kTextFolder, 1}, style_royal_decree},
+    {{"57a1e500-0012-4c6d-8f2a-9b3d4e55c012", PATCHY_TRANSLATE_NOOP("QObject", "Stamped Steel"), kTextFolder, 1}, style_stamped_steel},
+    {{"57a1e500-0013-4c6d-8f2a-9b3d4e55c013", PATCHY_TRANSLATE_NOOP("QObject", "Honey Drip"), kTextFolder, 1}, style_honey_drip},
+    {{"57a1e500-0014-4c6d-8f2a-9b3d4e55c014", PATCHY_TRANSLATE_NOOP("QObject", "Blueprint"), kTextFolder, 1}, style_blueprint},
+    {{"57a1e500-0015-4c6d-8f2a-9b3d4e55c015", PATCHY_TRANSLATE_NOOP("QObject", "Soft Shadow"), kBasicsFolder, 1}, style_soft_shadow},
+    {{"57a1e500-0016-4c6d-8f2a-9b3d4e55c016", PATCHY_TRANSLATE_NOOP("QObject", "Sticker Outline"), kBasicsFolder, 1}, style_sticker_outline},
+    {{"57a1e500-0017-4c6d-8f2a-9b3d4e55c017", PATCHY_TRANSLATE_NOOP("QObject", "Simple Emboss"), kBasicsFolder, 1}, style_simple_emboss},
+    {{"57a1e500-0018-4c6d-8f2a-9b3d4e55c018", PATCHY_TRANSLATE_NOOP("QObject", "Warm Glow"), kBasicsFolder, 1}, style_warm_glow},
+    {{"57a1e500-0019-4c6d-8f2a-9b3d4e55c019", PATCHY_TRANSLATE_NOOP("QObject", "Neon Edge"), kBasicsFolder, 1}, style_neon_edge},
+    {{"57a1e500-001a-4c6d-8f2a-9b3d4e55c01a", PATCHY_TRANSLATE_NOOP("QObject", "Letterpress"), kBasicsFolder, 1}, style_letterpress},
+    {{"57a1e500-001b-4c6d-8f2a-9b3d4e55c01b", PATCHY_TRANSLATE_NOOP("QObject", "Carved Oak"), kMaterialsFolder, 2}, style_carved_oak},
+    {{"57a1e500-001c-4c6d-8f2a-9b3d4e55c01c", PATCHY_TRANSLATE_NOOP("QObject", "Walnut Gloss"), kMaterialsFolder, 2}, style_walnut_gloss},
+    {{"57a1e500-001d-4c6d-8f2a-9b3d4e55c01d", PATCHY_TRANSLATE_NOOP("QObject", "Weathered Sign"), kMaterialsFolder, 2}, style_weathered_sign},
+    {{"57a1e500-001e-4c6d-8f2a-9b3d4e55c01e", PATCHY_TRANSLATE_NOOP("QObject", "Driftwood"), kMaterialsFolder, 2}, style_driftwood},
+    {{"57a1e500-001f-4c6d-8f2a-9b3d4e55c01f", PATCHY_TRANSLATE_NOOP("QObject", "Timber Grain"), kMaterialsFolder, 2}, style_timber_grain},
+    {{"57a1e500-0020-4c6d-8f2a-9b3d4e55c020", PATCHY_TRANSLATE_NOOP("QObject", "Marble Monument"), kMaterialsFolder, 2}, style_marble_monument},
+    {{"57a1e500-0021-4c6d-8f2a-9b3d4e55c021", PATCHY_TRANSLATE_NOOP("QObject", "Slate Etched"), kMaterialsFolder, 2}, style_slate_etched},
+    {{"57a1e500-0022-4c6d-8f2a-9b3d4e55c022", PATCHY_TRANSLATE_NOOP("QObject", "Granite Bold"), kMaterialsFolder, 2}, style_granite_bold},
+    {{"57a1e500-0023-4c6d-8f2a-9b3d4e55c023", PATCHY_TRANSLATE_NOOP("QObject", "Rust Bucket"), kMaterialsFolder, 2}, style_rust_bucket},
+    {{"57a1e500-0024-4c6d-8f2a-9b3d4e55c024", PATCHY_TRANSLATE_NOOP("QObject", "Riveted Steel"), kMaterialsFolder, 2}, style_riveted_steel},
+    {{"57a1e500-0025-4c6d-8f2a-9b3d4e55c025", PATCHY_TRANSLATE_NOOP("QObject", "Leather Stamp"), kMaterialsFolder, 2}, style_leather_stamp},
+    {{"57a1e500-0026-4c6d-8f2a-9b3d4e55c026", PATCHY_TRANSLATE_NOOP("QObject", "Frost Drift"), kMaterialsFolder, 2}, style_frost_drift},
+    {{"57a1e500-0027-4c6d-8f2a-9b3d4e55c027", PATCHY_TRANSLATE_NOOP("QObject", "Cracked Desert"), kMaterialsFolder, 2}, style_cracked_desert},
 }};
 
 // The presets table exposed without the builder pointers.

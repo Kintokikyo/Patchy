@@ -281,18 +281,18 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   auto* help_menu = menuBar()->addMenu(tr("&Help"));
   layer_menu->setObjectName(QStringLiteral("layerMenu"));
   filter_menu->setObjectName(QStringLiteral("filterMenu"));
-  bind_action_text(file_menu->menuAction(), "&File");
-  bind_action_text(edit_menu->menuAction(), "&Edit");
-  bind_action_text(image_menu->menuAction(), "&Image");
-  bind_action_text(layer_menu->menuAction(), "&Layer");
-  bind_action_text(type_menu->menuAction(), "&Type");
-  bind_action_text(select_menu->menuAction(), "&Select");
-  bind_action_text(filter_menu->menuAction(), "&Filter");
-  bind_action_text(plugins_menu->menuAction(), "&Plugins");
-  bind_action_text(view_menu->menuAction(), "&View");
-  bind_action_text(window_menu->menuAction(), "&Window");
+  bind_action_text(file_menu->menuAction(), QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "&File"));
+  bind_action_text(edit_menu->menuAction(), QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "&Edit"));
+  bind_action_text(image_menu->menuAction(), QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "&Image"));
+  bind_action_text(layer_menu->menuAction(), QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "&Layer"));
+  bind_action_text(type_menu->menuAction(), QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "&Type"));
+  bind_action_text(select_menu->menuAction(), QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "&Select"));
+  bind_action_text(filter_menu->menuAction(), QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "&Filter"));
+  bind_action_text(plugins_menu->menuAction(), QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "&Plugins"));
+  bind_action_text(view_menu->menuAction(), QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "&View"));
+  bind_action_text(window_menu->menuAction(), QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "&Window"));
   window_menu->setObjectName(QStringLiteral("windowMenu"));
-  bind_action_text(help_menu->menuAction(), "&Help");
+  bind_action_text(help_menu->menuAction(), QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "&Help"));
 
   auto* new_action = file_menu->addAction(tr("&New"));
   auto* open_action = file_menu->addAction(tr("&Open..."));
@@ -386,19 +386,19 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   // entries themselves rescan on every open (main_window_scripting.cpp).
   scripts_menu_ = file_menu->addMenu(tr("Scrip&ts"));
   scripts_menu_->setObjectName(QStringLiteral("fileScriptsMenu"));
-  bind_action_text(scripts_menu_->menuAction(), "Scrip&ts");
+  bind_action_text(scripts_menu_->menuAction(), QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Scrip&ts"));
   // Display text says Manager; the command id and object name keep the
   // historical "editor" spelling (persisted identifiers, never renamed).
   auto* script_editor_action = scripts_menu_->addAction(tr("Script &Manager..."));
   script_editor_action->setObjectName(QStringLiteral("fileScriptEditorAction"));
   register_hotkey(script_editor_action, "file.scripts.editor");
   connect(script_editor_action, &QAction::triggered, this, [this] { open_script_editor(); });
-  bind_action_text(script_editor_action, "Script &Manager...");
+  bind_action_text(script_editor_action, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Script &Manager..."));
   auto* browse_scripts_action = scripts_menu_->addAction(tr("&Browse Scripts Folder..."));
   browse_scripts_action->setObjectName(QStringLiteral("fileBrowseScriptsFolderAction"));
   register_hotkey(browse_scripts_action, "file.scripts.browse_folder");
   connect(browse_scripts_action, &QAction::triggered, this, [this] { browse_user_scripts_folder(); });
-  bind_action_text(browse_scripts_action, "&Browse Scripts Folder...");
+  bind_action_text(browse_scripts_action, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "&Browse Scripts Folder..."));
   scripts_menu_->addSeparator();
   connect(scripts_menu_, &QMenu::aboutToShow, this, [this] { rebuild_scripts_menu(); });
   file_menu->addSeparator();
@@ -508,7 +508,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   copy_svg_action->setObjectName(QStringLiteral("editCopySvgAction"));
   copy_svg_action->setProperty("patchy.channelViewBlocked", true);
   copy_svg_action->setStatusTip(tr("Copy the selected layers to the clipboard as SVG"));
-  bind_action_text(copy_svg_action, "Copy as SVG");
+  bind_action_text(copy_svg_action, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Copy as SVG"));
   bind_translated_status_tip(copy_svg_action, "Copy the selected layers to the clipboard as SVG");
   apply_bound_translation(copy_svg_action);
   edit_menu->insertAction(paste_action, copy_svg_action);
@@ -532,7 +532,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   quick_mask_action_->setCheckable(true);
   quick_mask_action_->setIcon(
       simple_icon(QStringLiteral("QM"), QColor(235, 95, 110)));
-  bind_action_text(quick_mask_action_, "Edit in &Quick Mask Mode");
+  bind_action_text(quick_mask_action_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Edit in &Quick Mask Mode"));
   auto* grow_selection_action = new QAction(tr("&Grow"), this);
   auto* similar_selection_action = new QAction(tr("Simi&lar"), this);
   auto* expand_selection_action = new QAction(tr("&Expand..."), this);
@@ -658,7 +658,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   ungroup_action->setObjectName(QStringLiteral("layerUngroupAction"));
   ungroup_action->setProperty("patchy.channelViewBlocked", true);
   ungroup_action->setStatusTip(tr("Release the selected folder's layers into their parent"));
-  bind_action_text(ungroup_action, "Ungroup Layers");
+  bind_action_text(ungroup_action, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Ungroup Layers"));
   bind_translated_status_tip(ungroup_action, "Release the selected folder's layers into their parent");
   apply_bound_translation(ungroup_action);
   register_hotkey(ungroup_action, "layer.ungroup", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_G));
@@ -676,7 +676,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   trace_image_action->setProperty("patchy.channelViewBlocked", true);
   trace_image_action->setIcon(simple_icon(QStringLiteral("TR"), QColor(170, 230, 190)));
   trace_image_action->setStatusTip(tr("Convert the pixel layer into editable shape layers, one per color"));
-  bind_action_text(trace_image_action, "Trace Image to Shapes...");
+  bind_action_text(trace_image_action, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Trace Image to Shapes..."));
   bind_translated_status_tip(trace_image_action,
                              "Convert the pixel layer into editable shape layers, one per color");
   apply_bound_translation(trace_image_action);
@@ -744,12 +744,12 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   // Layer menu inside its wasm-viewport row bound.
   auto* layer_shape_menu = layer_menu->addMenu(tr("Shape"));
   layer_shape_menu->setObjectName(QStringLiteral("layerShapeMenu"));
-  bind_widget_text(layer_shape_menu, "Shape");
+  bind_widget_text(layer_shape_menu, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Shape"));
   path_simplify_action_ = layer_shape_menu->addAction(tr("Simplify Path..."));
   path_simplify_action_->setObjectName(QStringLiteral("pathSimplifyAction"));
   path_simplify_action_->setProperty("patchy.channelViewBlocked", true);
   path_simplify_action_->setStatusTip(tr("Refit the targeted path with fewer points"));
-  bind_action_text(path_simplify_action_, "Simplify Path...");
+  bind_action_text(path_simplify_action_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Simplify Path..."));
   bind_translated_status_tip(path_simplify_action_, "Refit the targeted path with fewer points");
   apply_bound_translation(path_simplify_action_);
   register_hotkey(path_simplify_action_, "path.simplify");
@@ -763,12 +763,12 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
     patchy::PathCombineOp op;
   };
   const CombineEntry combine_entries[] = {
-      {"Unite Shapes", "layerCombineUniteAction", "layer.combine_unite", patchy::PathCombineOp::Add},
-      {"Subtract Front Shape", "layerCombineSubtractAction", "layer.combine_subtract",
+      {QT_TR_NOOP("Unite Shapes"), "layerCombineUniteAction", "layer.combine_unite", patchy::PathCombineOp::Add},
+      {QT_TR_NOOP("Subtract Front Shape"), "layerCombineSubtractAction", "layer.combine_subtract",
        patchy::PathCombineOp::Subtract},
-      {"Intersect Shapes", "layerCombineIntersectAction", "layer.combine_intersect",
+      {QT_TR_NOOP("Intersect Shapes"), "layerCombineIntersectAction", "layer.combine_intersect",
        patchy::PathCombineOp::Intersect},
-      {"Exclude Overlapping Shapes", "layerCombineExcludeAction", "layer.combine_exclude",
+      {QT_TR_NOOP("Exclude Overlapping Shapes"), "layerCombineExcludeAction", "layer.combine_exclude",
        patchy::PathCombineOp::Xor},
   };
   for (std::size_t i = 0; i < 4; ++i) {
@@ -999,7 +999,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
 
   auto* image_mode_menu = image_menu->addMenu(tr("&Mode"));
   image_mode_menu->setObjectName(QStringLiteral("imageModeMenu"));
-  bind_action_text(image_mode_menu->menuAction(), "&Mode");
+  bind_action_text(image_mode_menu->menuAction(), QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "&Mode"));
   image_mode_rgb_action_ = image_mode_menu->addAction(tr("&RGB Color"));
   image_mode_rgb_action_->setObjectName(QStringLiteral("imageModeRgbAction"));
   image_mode_rgb_action_->setCheckable(true);
@@ -1168,7 +1168,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   filter_convert_smart_filters_action_->setStatusTip(
       tr("Convert the active layer to a Smart Object for editable filters"));
   bind_action_text(filter_convert_smart_filters_action_,
-                   "Convert for Smart Filters");
+                   QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Convert for Smart Filters"));
   bind_translated_status_tip(
       filter_convert_smart_filters_action_,
       "Convert the active layer to a Smart Object for editable filters");
@@ -1186,7 +1186,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   filter_gallery_action->setProperty("patchy.channelViewBlocked", true);
   filter_gallery_action->setIcon(simple_icon(QStringLiteral("FX")));
   filter_gallery_action->setStatusTip(tr("Preview and apply visual filters and photo looks"));
-  bind_action_text(filter_gallery_action, "Filter &Gallery...");
+  bind_action_text(filter_gallery_action, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Filter &Gallery..."));
   bind_translated_status_tip(filter_gallery_action, "Preview and apply visual filters and photo looks");
   apply_bound_translation(filter_gallery_action);
   refresh_action_tooltip(filter_gallery_action);
@@ -1200,7 +1200,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   liquify_action->setIcon(simple_icon(QStringLiteral("LIQ")));
   liquify_action->setStatusTip(
       tr("Push, pull, twist, pucker, or bloat pixels with a brush"));
-  bind_action_text(liquify_action, "&Liquify...");
+  bind_action_text(liquify_action, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "&Liquify..."));
   bind_translated_status_tip(
       liquify_action,
       "Push, pull, twist, pucker, or bloat pixels with a brush");
@@ -1316,7 +1316,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   auto* legacy_windows_only_note = plugins_menu->addAction(tr("Legacy 8BF plug-ins run on Windows only"));
   legacy_windows_only_note->setObjectName(QStringLiteral("pluginsLegacyWindowsOnlyNote"));
   legacy_windows_only_note->setEnabled(false);
-  bind_action_text(legacy_windows_only_note, "Legacy 8BF plug-ins run on Windows only");
+  bind_action_text(legacy_windows_only_note, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Legacy 8BF plug-ins run on Windows only"));
 #endif
   legacy_plugins_menu_ = plugins_menu->addMenu(tr("Legacy Photoshop Plug-ins"));
   legacy_plugins_menu_->setObjectName(QStringLiteral("legacyPluginsMenu"));
@@ -1536,51 +1536,30 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
     register_document_action(action);
   }
 
-  auto* language_group = new QActionGroup(this);
-  language_group->setExclusive(true);
-  language_english_action_ = new QAction(tr("&English"), this);
-  language_japanese_action_ = new QAction(QStringLiteral("日本語"), this);
-  language_english_action_->setObjectName(QStringLiteral("preferencesLanguageEnglishAction"));
-  language_japanese_action_->setObjectName(QStringLiteral("preferencesLanguageJapaneseAction"));
-  language_english_action_->setCheckable(true);
-  language_japanese_action_->setCheckable(true);
-  language_group->addAction(language_english_action_);
-  language_group->addAction(language_japanese_action_);
-  bind_action_text(language_english_action_, "&English");
-  connect(language_english_action_, &QAction::triggered, this, [this] {
-    LocalizationManager::instance().set_language(QStringLiteral("en"));
-    refresh_language_actions();
-  });
-  connect(language_japanese_action_, &QAction::triggered, this, [this] {
-    LocalizationManager::instance().set_language(QStringLiteral("ja"));
-    refresh_language_actions();
-  });
-  refresh_language_actions();
-
   float_document_action_ = window_menu->addAction(tr("Float in &Window"));
   float_document_action_->setObjectName(QStringLiteral("windowFloatDocumentAction"));
-  bind_action_text(float_document_action_, "Float in &Window");
+  bind_action_text(float_document_action_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Float in &Window"));
   register_hotkey(float_document_action_, "window.float_document", QKeySequence());
   connect(float_document_action_, &QAction::triggered, this, [this] { float_active_document(); });
   register_document_action(float_document_action_);
 
   dock_document_action_ = window_menu->addAction(tr("&Dock to Tabs"));
   dock_document_action_->setObjectName(QStringLiteral("windowDockDocumentAction"));
-  bind_action_text(dock_document_action_, "&Dock to Tabs");
+  bind_action_text(dock_document_action_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "&Dock to Tabs"));
   register_hotkey(dock_document_action_, "window.dock_document", QKeySequence());
   connect(dock_document_action_, &QAction::triggered, this, [this] { dock_active_document(); });
   register_document_action(dock_document_action_);
 
   float_all_action_ = window_menu->addAction(tr("Float A&ll in Windows"));
   float_all_action_->setObjectName(QStringLiteral("windowFloatAllAction"));
-  bind_action_text(float_all_action_, "Float A&ll in Windows");
+  bind_action_text(float_all_action_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Float A&ll in Windows"));
   register_hotkey(float_all_action_, "window.float_all", QKeySequence());
   connect(float_all_action_, &QAction::triggered, this, [this] { float_all_documents(); });
   register_document_action(float_all_action_);
 
   consolidate_tabs_action_ = window_menu->addAction(tr("&Consolidate All to Tabs"));
   consolidate_tabs_action_->setObjectName(QStringLiteral("windowConsolidateTabsAction"));
-  bind_action_text(consolidate_tabs_action_, "&Consolidate All to Tabs");
+  bind_action_text(consolidate_tabs_action_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "&Consolidate All to Tabs"));
   register_hotkey(consolidate_tabs_action_, "window.consolidate_all_to_tabs", QKeySequence());
   connect(consolidate_tabs_action_, &QAction::triggered, this, [this] { consolidate_all_to_tabs(); });
   register_document_action(consolidate_tabs_action_);
@@ -1589,14 +1568,14 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
 
   tile_windows_action_ = window_menu->addAction(tr("&Tile"));
   tile_windows_action_->setObjectName(QStringLiteral("windowTileAction"));
-  bind_action_text(tile_windows_action_, "&Tile");
+  bind_action_text(tile_windows_action_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "&Tile"));
   register_hotkey(tile_windows_action_, "window.tile_windows", QKeySequence());
   connect(tile_windows_action_, &QAction::triggered, this, [this] { tile_float_windows(); });
   register_document_action(tile_windows_action_);
 
   cascade_windows_action_ = window_menu->addAction(tr("Ca&scade"));
   cascade_windows_action_->setObjectName(QStringLiteral("windowCascadeAction"));
-  bind_action_text(cascade_windows_action_, "Ca&scade");
+  bind_action_text(cascade_windows_action_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Ca&scade"));
   register_hotkey(cascade_windows_action_, "window.cascade_windows", QKeySequence());
   connect(cascade_windows_action_, &QAction::triggered, this, [this] { cascade_float_windows(); });
   register_document_action(cascade_windows_action_);
@@ -1623,9 +1602,9 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
     const char* label;
   };
   static constexpr ScreenSizePreset kScreenSizePresets[] = {
-      {1280, 720, "1280 x 720 (HD)"},     {1366, 768, "1366 x 768"},
-      {1600, 900, "1600 x 900"},          {1920, 1080, "1920 x 1080 (Full HD)"},
-      {2560, 1440, "2560 x 1440 (QHD)"},  {3840, 2160, "3840 x 2160 (4K UHD)"},
+      {1280, 720, QT_TR_NOOP("1280 x 720 (HD)")},     {1366, 768, QT_TR_NOOP("1366 x 768")},
+      {1600, 900, QT_TR_NOOP("1600 x 900")},          {1920, 1080, QT_TR_NOOP("1920 x 1080 (Full HD)")},
+      {2560, 1440, QT_TR_NOOP("2560 x 1440 (QHD)")},  {3840, 2160, QT_TR_NOOP("3840 x 2160 (4K UHD)")},
   };
   for (const auto& preset : kScreenSizePresets) {
     auto* action = screen_size_menu->addAction(QString());

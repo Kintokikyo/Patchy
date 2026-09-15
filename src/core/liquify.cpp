@@ -1,5 +1,7 @@
 #include "core/liquify.hpp"
 
+#include "support/translate_noop.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -100,7 +102,7 @@ std::uint8_t bilinear_mask(const std::vector<std::uint8_t>& values,
 LiquifyMesh::LiquifyMesh(int width, int height, int maximum_nodes_per_axis)
     : width_(width), height_(height) {
   if (width <= 0 || height <= 0) {
-    throw std::invalid_argument("Liquify mesh dimensions must be positive");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Liquify mesh dimensions must be positive"));
   }
   const int node_limit = std::clamp(maximum_nodes_per_axis, 2, 513);
   columns_ = std::clamp((width + 7) / 8 + 1, 2, node_limit);
@@ -301,7 +303,7 @@ std::optional<PixelBuffer> LiquifyMesh::render(
   if (source.empty() || source.format().bit_depth != BitDepth::UInt8 ||
       (source.format().channels != 3 && source.format().channels != 4) ||
       width_ <= 0 || height_ <= 0) {
-    throw std::invalid_argument("Liquify requires RGB or RGBA UInt8 pixels");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Liquify requires RGB or RGBA UInt8 pixels"));
   }
   PixelBuffer output(source.width(), source.height(), source.format());
   const int channels = source.format().channels;

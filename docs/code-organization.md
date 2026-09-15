@@ -87,7 +87,7 @@ strokes; `ui/canvas_widget_script_stroke.cpp` calls the existing native stroke
 helpers. The shared `patchy_agent_kit` target assembles the installable skill and
 copies authoritative API references once. See [ai-control.md](ai-control.md).
 
-CMake runtime assets use shared copy-once targets: `patchy_bundled_fonts`, `patchy_qt_runtime`, and `patchy_qt_base_translations`. Never attach per-target POST_BUILD copies into the shared output directory because parallel Ninja builds can race. New executables call the existing `patchy_copy_*` helpers.
+CMake runtime assets use shared copy-once targets: `patchy_bundled_fonts`, `patchy_qt_runtime`, and `patchy_qt_base_translations` (one `qtbase_<code>.qm` per language in `PATCHY_TRANSLATED_LANGUAGES`). Never attach per-target POST_BUILD copies into the shared output directory because parallel Ninja builds can race. New executables call the existing `patchy_copy_*` helpers.
 
 Strict warnings belong to Patchy targets. Do not weaken a target's warning level to
 accommodate bundled miniz, stb, zstd, or another third-party translation unit. If a

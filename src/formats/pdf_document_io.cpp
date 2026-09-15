@@ -9,6 +9,7 @@
 #include "formats/pdf_png_writer.hpp"
 #include "formats/vector_fill_rule.hpp"
 #include "psd/psd_text_runs.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -298,7 +299,7 @@ public:
       filetype = "JPEG";
     } else if (image.codec != FilterKind::None) {
       unmodelled_ = true;
-      notice("A PDF image used a codec Patchy cannot import and was skipped.");
+      notice(PATCHY_TRANSLATE_NOOP("QObject", "A PDF image used a codec Patchy cannot import and was skipped."));
       return;
     } else {
       bytes = formats::encode_png_rgba8(image.rgba, image.width, image.height);
@@ -343,7 +344,7 @@ public:
   void on_shading(std::shared_ptr<const ResolvedShading> shading, const VectorPath& clip) override {
     if (shading == nullptr) {
       unmodelled_ = true;
-      notice("A PDF gradient mesh was not imported.");
+      notice(PATCHY_TRANSLATE_NOOP("QObject", "A PDF gradient mesh was not imported."));
       return;
     }
     // `sh` paints the shading across the clip region (the whole page when nothing
@@ -490,24 +491,24 @@ VectorReadResult read_page_as_vectors(std::span<const std::uint8_t> bytes, const
   std::vector<std::string> open_notices;
   auto file = File::open({bytes.begin(), bytes.end()}, &open_notices, options.password);
   if (!file.has_value()) {
-    throw std::runtime_error("This file is not a readable PDF.");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "This file is not a readable PDF."));
   }
   if (!file->decryption_ok()) {
     // Emitting ciphertext as if it were artwork would be worse than refusing.
-    throw std::runtime_error("This PDF is password protected.");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "This PDF is password protected."));
   }
   if (file->pages().empty()) {
-    throw std::runtime_error("This PDF has no pages.");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "This PDF has no pages."));
   }
   if (options.page < 0 || options.page >= static_cast<int>(file->pages().size())) {
-    throw std::runtime_error("The requested PDF page does not exist.");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "The requested PDF page does not exist."));
   }
 
   const auto& page = file->pages()[static_cast<std::size_t>(options.page)];
   const double scale = options.pixels_per_point > 0.0 ? options.pixels_per_point : 1.0;
   const auto size = page_pixel_size(page, scale);
   if (size[0] > kMaximumCanvasPixels || size[1] > kMaximumCanvasPixels) {
-    throw std::runtime_error("This PDF page is too large to import at the chosen resolution.");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "This PDF page is too large to import at the chosen resolution."));
   }
 
   VectorReadResult result{Document(size[0], size[1], PixelFormat::rgba8()), {}, 0, 0, 0, false};
@@ -530,7 +531,7 @@ VectorReadResult read_page_as_vectors(std::span<const std::uint8_t> bytes, const
   result.has_unmodelled_content = sink.has_unmodelled_content();
 
   if (result.document.layers().empty()) {
-    throw std::runtime_error("This PDF page holds no artwork Patchy could import as shapes or text.");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "This PDF page holds no artwork Patchy could import as shapes or text."));
   }
   if (const auto default_layer = default_non_group_layer_id(result.document.layers()); default_layer.has_value()) {
     result.document.set_active_layer(*default_layer);

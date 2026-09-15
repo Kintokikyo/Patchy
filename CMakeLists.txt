@@ -535,17 +535,68 @@ if(PATCHY_BUILD_APP)
     qt_standard_project_setup()
     set(CMAKE_AUTORCC ON)
     set(PATCHY_TRANSLATION_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/translations")
-    set(PATCHY_TS_FILES
-      "${PROJECT_SOURCE_DIR}/translations/patchy_ja.ts"
-    )
+    # Every shipped UI language except the English source. Mirrors the table in
+    # src/ui/localization.cpp; docs/localization.md describes adding one.
+    set(PATCHY_TRANSLATED_LANGUAGES de es fr it ja zh_CN zh_TW)
+    # The English template: every extractable string with empty translations. It is
+    # regenerated with the language files and is never compiled.
+    set(PATCHY_TRANSLATION_TEMPLATE "${PROJECT_SOURCE_DIR}/translations/patchy_en.ts")
+    set(PATCHY_TS_FILES)
+    foreach(language IN LISTS PATCHY_TRANSLATED_LANGUAGES)
+      list(APPEND PATCHY_TS_FILES "${PROJECT_SOURCE_DIR}/translations/patchy_${language}.ts")
+    endforeach()
     set_source_files_properties(${PATCHY_TS_FILES}
       PROPERTIES OUTPUT_LOCATION "${PATCHY_TRANSLATION_OUTPUT_DIR}"
     )
-    qt_add_lrelease(patchy_lrelease
+    qt_add_lrelease(
       TS_FILES ${PATCHY_TS_FILES}
+      LRELEASE_TARGET patchy_lrelease
       QM_FILES_OUTPUT_VARIABLE PATCHY_QM_FILES
     )
     add_custom_target(patchy_translations DEPENDS ${PATCHY_QM_FILES})
+    # lupdate scans every Patchy-owned source on every platform (the macOS .mm scanner
+    # included) so the template is identical whichever host regenerates it; vendored
+    # code only produces parser noise. PATCHY_TRANSLATE_NOOP is the Qt-free marker from
+    # src/support/translate_noop.hpp. `scripts\update-translations.ps1` drives the
+    # target; the UI test translation_template_is_current reruns lupdate with the same
+    # manifest to prove the committed template matches the code.
+    file(GLOB_RECURSE PATCHY_LUPDATE_SOURCES CONFIGURE_DEPENDS
+         "${PROJECT_SOURCE_DIR}/src/*.cpp"
+         "${PROJECT_SOURCE_DIR}/src/*.hpp"
+         "${PROJECT_SOURCE_DIR}/src/*.mm")
+    list(FILTER PATCHY_LUPDATE_SOURCES EXCLUDE REGEX
+         "/src/(formats/(zstd|miniz|libheif|libraw|stb)|color/lcms2)/")
+    list(SORT PATCHY_LUPDATE_SOURCES)
+    set(PATCHY_LUPDATE_OPTIONS
+      -locations none
+      -no-obsolete
+      -source-language en
+      -tr-function-alias QT_TRANSLATE_NOOP+=PATCHY_TRANSLATE_NOOP
+    )
+    qt_add_lupdate(
+      SOURCES ${PATCHY_LUPDATE_SOURCES}
+      INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/src"
+      TS_FILES "${PATCHY_TRANSLATION_TEMPLATE}" ${PATCHY_TS_FILES}
+      LUPDATE_TARGET patchy_update_translations
+      NO_GLOBAL_TARGET
+      OPTIONS ${PATCHY_LUPDATE_OPTIONS}
+    )
+    set_target_properties(patchy_update_translations PROPERTIES EXCLUDE_FROM_ALL TRUE)
+    # Manifest for the catalog tests and the release packager: the lupdate binary, its
+    # options, the include root, the source list, and the shipped language codes.
+    set(PATCHY_LUPDATE_MANIFEST "${PATCHY_TRANSLATION_OUTPUT_DIR}/lupdate-manifest.txt")
+    string(JOIN "\n" PATCHY_LUPDATE_MANIFEST_SOURCES ${PATCHY_LUPDATE_SOURCES})
+    string(JOIN ";" PATCHY_LUPDATE_MANIFEST_OPTIONS ${PATCHY_LUPDATE_OPTIONS})
+    string(JOIN "\n" PATCHY_LANGUAGE_LINES ${PATCHY_TRANSLATED_LANGUAGES})
+    file(GENERATE OUTPUT "${PATCHY_LUPDATE_MANIFEST}" CONTENT
+"lupdate=$<TARGET_FILE:Qt6::lupdate>
+options=${PATCHY_LUPDATE_MANIFEST_OPTIONS}
+include=${PROJECT_SOURCE_DIR}/src
+template=${PATCHY_TRANSLATION_TEMPLATE}
+languages=${PATCHY_TRANSLATED_LANGUAGES}
+${PATCHY_LUPDATE_MANIFEST_SOURCES}
+")
+    file(WRITE "${PATCHY_TRANSLATION_OUTPUT_DIR}/languages.txt" "${PATCHY_LANGUAGE_LINES}\n")
     # Qt's own install variables handle every layout (aqt/official: <prefix>/plugins;
     # distro/Flatpak KDE runtime: multiarch subdirs). Fall back to walking up from
     # Qt6_DIR (<prefix>/lib/cmake/Qt6) for older Qt packages that don't export them.
@@ -558,27 +609,37 @@ if(PATCHY_BUILD_APP)
       set(PATCHY_QT_TRANSLATION_DIR "${PATCHY_QT_PREFIX}/translations")
     endif()
     if(EMSCRIPTEN)
-      # The wasm kit ships no .qm files; qtbase_ja.qm comes from the host kit.
+      # The wasm kit ships no .qm files; the qtbase catalogs come from the host kit.
       set(PATCHY_QT_TRANSLATION_DIR "${QT_HOST_PATH}/translations")
     endif()
     # Runtime asset copies are shared copy-once custom targets rather than
     # per-target POST_BUILD commands: all executables share one output
     # directory, and concurrent copies of the same destination files race
     # under parallel Ninja (intermittent sharing violations on Windows).
-    if(PATCHY_QT_TRANSLATION_DIR AND EXISTS "${PATCHY_QT_TRANSLATION_DIR}/qtbase_ja.qm")
-      add_custom_command(
-        OUTPUT "${CMAKE_BINARY_DIR}/translations/qtbase_ja.qm"
-        COMMAND ${CMAKE_COMMAND} -E make_directory
-                "${CMAKE_BINARY_DIR}/translations"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${PATCHY_QT_TRANSLATION_DIR}/qtbase_ja.qm"
-                "${CMAKE_BINARY_DIR}/translations/qtbase_ja.qm"
-        DEPENDS "${PATCHY_QT_TRANSLATION_DIR}/qtbase_ja.qm"
-        COMMENT "Copying Qt Japanese base translation"
-      )
-      add_custom_target(patchy_qt_base_translations
-        DEPENDS "${CMAKE_BINARY_DIR}/translations/qtbase_ja.qm"
-      )
+    # Qt's own dialog strings (qtbase_<code>.qm) ship beside patchy_<code>.qm for
+    # every language whose catalog the kit provides; a missing one leaves Qt's
+    # dialogs in English for that language, matching the per-string fallback.
+    set(PATCHY_QT_BASE_QM_FILES)
+    foreach(language IN LISTS PATCHY_TRANSLATED_LANGUAGES)
+      set(qt_base_source "${PATCHY_QT_TRANSLATION_DIR}/qtbase_${language}.qm")
+      if(PATCHY_QT_TRANSLATION_DIR AND EXISTS "${qt_base_source}")
+        set(qt_base_destination "${CMAKE_BINARY_DIR}/translations/qtbase_${language}.qm")
+        add_custom_command(
+          OUTPUT "${qt_base_destination}"
+          COMMAND ${CMAKE_COMMAND} -E make_directory
+                  "${CMAKE_BINARY_DIR}/translations"
+          COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                  "${qt_base_source}" "${qt_base_destination}"
+          DEPENDS "${qt_base_source}"
+          COMMENT "Copying Qt base translation (${language})"
+        )
+        list(APPEND PATCHY_QT_BASE_QM_FILES "${qt_base_destination}")
+      else()
+        message(STATUS "Qt base translation for ${language} not found in ${PATCHY_QT_TRANSLATION_DIR}; Qt dialogs stay English for it")
+      endif()
+    endforeach()
+    if(PATCHY_QT_BASE_QM_FILES)
+      add_custom_target(patchy_qt_base_translations DEPENDS ${PATCHY_QT_BASE_QM_FILES})
     endif()
     function(patchy_copy_translations target)
       # lrelease already writes the app .qm files to
@@ -1358,10 +1419,7 @@ if(PATCHY_BUILD_APP)
       set(PATCHY_BUNDLE_RESOURCES_STAMP
           "${CMAKE_BINARY_DIR}/CMakeFiles/patchy_bundle_resources.stamp")
       set(PATCHY_BUNDLE_RESOURCE_DEPS patchy patchy-mcp "${PATCHY_AGENT_KIT_STAMP}" ${PATCHY_QM_FILES})
-      if(TARGET patchy_qt_base_translations)
-        list(APPEND PATCHY_BUNDLE_RESOURCE_DEPS
-             "${CMAKE_BINARY_DIR}/translations/qtbase_ja.qm")
-      endif()
+      list(APPEND PATCHY_BUNDLE_RESOURCE_DEPS ${PATCHY_QT_BASE_QM_FILES})
       if(DEFINED PATCHY_FONTS_STAMP)
         list(APPEND PATCHY_BUNDLE_RESOURCE_DEPS "${PATCHY_FONTS_STAMP}")
       endif()
@@ -1426,8 +1484,8 @@ if(PATCHY_BUILD_APP)
       endif()
       install(FILES ${PATCHY_QM_FILES}
               DESTINATION "${CMAKE_INSTALL_DATADIR}/patchy/translations")
-      if(TARGET patchy_qt_base_translations)
-        install(FILES "${CMAKE_BINARY_DIR}/translations/qtbase_ja.qm"
+      if(PATCHY_QT_BASE_QM_FILES)
+        install(FILES ${PATCHY_QT_BASE_QM_FILES}
                 DESTINATION "${CMAKE_INSTALL_DATADIR}/patchy/translations")
       endif()
       install(FILES "${PROJECT_SOURCE_DIR}/packaging/linux/com.rtsoft.patchy.desktop"
@@ -1491,6 +1549,7 @@ if(PATCHY_BUILD_TESTS)
     tests/core/svg_tests.cpp
     tests/core/vector_raster_tests.cpp
     tests/core/vector_shape_tests.cpp
+    tests/core/translation_marker_tests.cpp
   )
   # The split TUs live in tests/core/ but repeat the historical test_main.cpp
   # include block ("test_harness.hpp" etc.), so tests/ must be on the include path.
@@ -1520,6 +1579,7 @@ if(PATCHY_BUILD_TESTS)
       tests/ui/smart_filter_test_support.cpp
       tests/ui/readme_screenshot_test_support.cpp
       tests/ui/app_shell_tests.cpp
+      tests/ui/localization_tests.cpp
       tests/ui/filter_catalog_dialog_tests.cpp
       tests/ui/layer_style_gradient_tests.cpp
       tests/ui/layer_style_gradient_tests_effects.cpp
@@ -1599,7 +1659,9 @@ if(PATCHY_BUILD_TESTS)
     endif()
     patchy_configure_target(patchy_ui_visual_tests)
     target_compile_options(patchy_ui_visual_tests PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/bigobj>)
-    target_compile_definitions(patchy_ui_visual_tests PRIVATE PATCHY_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
+    target_compile_definitions(patchy_ui_visual_tests PRIVATE
+      PATCHY_SOURCE_DIR="${PROJECT_SOURCE_DIR}"
+      PATCHY_LUPDATE_MANIFEST="${PATCHY_LUPDATE_MANIFEST}")
     patchy_copy_translations(patchy_ui_visual_tests)
     patchy_copy_qt_runtime(patchy_ui_visual_tests)
     patchy_copy_bundled_fonts(patchy_ui_visual_tests)

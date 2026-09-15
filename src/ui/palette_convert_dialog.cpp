@@ -4,6 +4,7 @@
 #include "formats/palette_io.hpp"
 #include "ui/dialog_utils.hpp"
 #include "ui/theme_qss.hpp"
+#include "ui/localization.hpp"
 
 #include <QComboBox>
 #include <QDialog>
@@ -384,7 +385,7 @@ std::optional<PaletteConvertSettings> request_palette_convert_settings(
   source_combo->addItem(QObject::tr("Current palette"));
   const auto presets = builtin_palette_presets();
   for (const auto& preset : presets) {
-    source_combo->addItem(QObject::tr(preset.english_name));
+    source_combo->addItem(translate_data_text(preset.english_name));
   }
   source_combo->addItem(QObject::tr("From file..."));
   const auto file_row = source_combo->count() - 1;

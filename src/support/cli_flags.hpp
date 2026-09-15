@@ -23,4 +23,28 @@ namespace patchy {
   return false;
 }
 
+// Value of "--language <code>" or "--language=<code>" for main(): the UI language for
+// this run only, applied after the saved preference loads and never persisted. Returns
+// nullptr when absent. Same scan rules as headless_flag_present; QCommandLineParser
+// still validates the option.
+[[nodiscard]] inline const char* language_flag_value(int argc, const char* const* argv) noexcept {
+  constexpr const char* kFlag = "--language";
+  constexpr int kFlagLength = 10;
+  for (int i = 1; argv != nullptr && i < argc; ++i) {
+    if (argv[i] == nullptr) {
+      continue;
+    }
+    if (std::strcmp(argv[i], "--") == 0) {
+      return nullptr;
+    }
+    if (std::strcmp(argv[i], kFlag) == 0) {
+      return i + 1 < argc ? argv[i + 1] : nullptr;
+    }
+    if (std::strncmp(argv[i], kFlag, kFlagLength) == 0 && argv[i][kFlagLength] == '=') {
+      return argv[i] + kFlagLength + 1;
+    }
+  }
+  return nullptr;
+}
+
 }  // namespace patchy

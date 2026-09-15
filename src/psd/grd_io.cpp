@@ -2,6 +2,7 @@
 
 #include "psd/psd_binary.hpp"
 #include "psd/psd_descriptor.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -491,7 +492,7 @@ std::optional<GrdReadResult> read_grd(std::span<const std::uint8_t> bytes,
       return std::nullopt;
     }
     result.warnings.push_back(
-        "The file is damaged past the last decoded gradient");
+        PATCHY_TRANSLATE_NOOP("QObject", "The file is damaged past the last decoded gradient"));
   }
   if (result.gradients.empty()) {
     error = "The file contains no usable gradients";

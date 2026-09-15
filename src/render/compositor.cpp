@@ -4,6 +4,7 @@
 #include "core/environment.hpp"
 #include "core/worker_budget.hpp"
 #include "render/layer_compositor.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <array>
@@ -28,7 +29,7 @@ public:
                    static_cast<std::size_t>(std::max(0, destination.height())),
                clamp_unit(initial_alpha)) {
     if (destination_.format() != PixelFormat::rgb8()) {
-      throw std::invalid_argument("The starter compositor currently supports RGB8 destinations only");
+      throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "The starter compositor currently supports RGB8 destinations only"));
     }
   }
 

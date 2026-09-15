@@ -51,20 +51,20 @@ QJsonArray mcp_tool_catalog() {
       {"annotations", QJsonObject{{"readOnlyHint", read}, {"destructiveHint", !read}, {"openWorldHint", !read}}}};
   };
   return {
-    tool("get_info", QCoreApplication::translate("PatchyMcp", "Discover Patchy versions, capabilities, and the installed control skill."), schema(), true),
-    tool("get_help", QCoreApplication::translate("PatchyMcp", "Read the scripting API, workflow, or a runnable example. Use before writing scripts."),
+    tool("get_info", QStringLiteral("Discover Patchy versions, capabilities, and the installed control skill."), schema(), true),
+    tool("get_help", QStringLiteral("Read the scripting API, workflow, or a runnable example. Use before writing scripts."),
          schema({{"topic", QJsonObject{{"type", "string"}, {"enum", QJsonArray{"workflow", "api", "guide", "pixel-art", "painting", "edit-document", "reference-art", "vector-art", "edit-shape", "paths-masks", "painting-guide", "brush-swatches", "fur-strokes", "wet-paint", "brush-library", "timed-brush"}}}}}), true),
-    tool("get_state", QCoreApplication::translate("PatchyMcp", "Inspect open documents, stable IDs, layers, selections, and undo availability."), schema(), true),
-    tool("execute_script", QCoreApplication::translate("PatchyMcp", "Run JavaScript in the persistent workspace. Use patchy.setResult(value) for a JSON result. Globals reset each run; documents persist. Normally edits form one undo step per document; Slow mode separates strokes and edits. Errors can leave partial edits. Scripts are trusted and can access files."),
+    tool("get_state", QStringLiteral("Inspect open documents, stable IDs, layers, selections, and undo availability."), schema(), true),
+    tool("execute_script", QStringLiteral("Run JavaScript in the persistent workspace. Use patchy.setResult(value) for a JSON result. Globals reset each run; documents persist. Normally edits form one undo step per document; Slow mode separates strokes and edits. Errors can leave partial edits. Scripts are trusted and can access files."),
          schema({{"code", str}, {"expectedState", str}, {"name", str}, {"args", QJsonObject{{"type", "object"}, {"additionalProperties", str}}}}, {"code"}), false),
-    tool("draw_strokes", QCoreApplication::translate("PatchyMcp", "Paint a batch through the native Brush, Eraser, or Mixer Brush. Read get_help(painting-guide) for tips, dynamics, pen inputs, and timed strokes. Coordinates are document pixels. Normally the batch is one undo step; Slow mode gives each stroke its own step."),
+    tool("draw_strokes", QStringLiteral("Paint a batch through the native Brush, Eraser, or Mixer Brush. Read get_help(painting-guide) for tips, dynamics, pen inputs, and timed strokes. Coordinates are document pixels. Normally the batch is one undo step; Slow mode gives each stroke its own step."),
          schema({{"documentId", str}, {"expectedState", str}, {"layerId", str}, {"strokes", QJsonObject{{"type", "array"}, {"minItems", 1}, {"maxItems", 1000}, {"items", QJsonObject{{"type", "object"}}}}}},
                 {"documentId", "layerId", "strokes"}), false),
-    tool("get_preview", QCoreApplication::translate("PatchyMcp", "Return a fresh canvas PNG image and coordinate metadata, or a capture of the connected Patchy window. No save path or document state changes."),
+    tool("get_preview", QStringLiteral("Return a fresh canvas PNG image and coordinate metadata, or a capture of the connected Patchy window. No save path or document state changes."),
          schema({{"documentId", str}, {"target", QJsonObject{{"type", "string"}, {"enum", QJsonArray{"canvas", "window"}}}},
                  {"options", QJsonObject{{"type", "object"}}}}), true),
-    tool("undo", QCoreApplication::translate("PatchyMcp", "Undo one edit in the named document."), schema({{"documentId", str}, {"expectedState", str}}, {"documentId"}), false),
-    tool("redo", QCoreApplication::translate("PatchyMcp", "Redo one edit in the named document."), schema({{"documentId", str}, {"expectedState", str}}, {"documentId"}), false)
+    tool("undo", QStringLiteral("Undo one edit in the named document."), schema({{"documentId", str}, {"expectedState", str}}, {"documentId"}), false),
+    tool("redo", QStringLiteral("Redo one edit in the named document."), schema({{"documentId", str}, {"expectedState", str}}, {"documentId"}), false)
   };
 }
 
@@ -73,7 +73,7 @@ QJsonObject mcp_initialize_result(const QJsonObject& params) {
   return {{"protocolVersion", requested == "2025-06-18" ? requested : QStringLiteral("2025-11-25")},
         {"capabilities", QJsonObject{{"tools", QJsonObject{}}}},
         {"serverInfo", QJsonObject{{"name", "patchy"}, {"version", QCoreApplication::applicationVersion()}}},
-        {"instructions", QCoreApplication::translate("PatchyMcp", "Read get_info to identify the workspace: isolated, or the user's open Patchy window with --attach. Read get_help(workflow) and get_help(api). In attached mode every mutating tool requires expectedState from a fresh get_state or preview. If state is stale, inspect again before editing. Use document/layer IDs, batch edits, inspect get_preview, and save checkpoints. JS globals reset between calls. Requests are serialized; failed scripts may leave undoable edits.")}};
+        {"instructions", QStringLiteral("Read get_info to identify the workspace: isolated, or the user's open Patchy window with --attach. Read get_help(workflow) and get_help(api). In attached mode every mutating tool requires expectedState from a fresh get_state or preview. If state is stale, inspect again before editing. Use document/layer IDs, batch edits, inspect get_preview, and save checkpoints. JS globals reset between calls. Requests are serialized; failed scripts may leave undoable edits.")}};
 }
 
 QJsonObject mcp_help_result(const QJsonObject& args) {
@@ -86,9 +86,9 @@ QJsonObject mcp_help_result(const QJsonObject& args) {
     {"painting-guide", "references/painting.md"}, {"brush-swatches", "scripts/brush-swatches.js"},
     {"fur-strokes", "scripts/fur-strokes.js"},
     {"wet-paint", "scripts/wet-paint.js"}, {"brush-library", "scripts/brush-library.js"}, {"timed-brush", "scripts/timed-brush.js"}};
-  if (!files.contains(topic) || kit_directory().isEmpty()) { throw std::runtime_error(QCoreApplication::translate("PatchyMcp", "The requested control-kit resource is unavailable.").toStdString()); }
+  if (!files.contains(topic) || kit_directory().isEmpty()) { throw std::runtime_error(QStringLiteral("The requested control-kit resource is unavailable.").toStdString()); }
   QFile file(kit_directory() + '/' + files.value(topic));
-  if (!file.open(QIODevice::ReadOnly)) { throw std::runtime_error(QCoreApplication::translate("PatchyMcp", "Could not read the control-kit resource.").toStdString()); }
+  if (!file.open(QIODevice::ReadOnly)) { throw std::runtime_error(QStringLiteral("Could not read the control-kit resource.").toStdString()); }
   return {{"topic", topic}, {"text", QString::fromUtf8(file.readAll())}};
 }
 
@@ -203,20 +203,20 @@ struct McpSession::Impl final : public QObject {
 
   void receive_line(const QByteArray& line) {
     if (line.size() > 16 * 1024 * 1024) {
-      rpc_error(QJsonValue(QJsonValue::Null), -32700, QCoreApplication::translate("PatchyMcp", "The request exceeds 16 MiB."));
+      rpc_error(QJsonValue(QJsonValue::Null), -32700, QStringLiteral("The request exceeds 16 MiB."));
       return;
     }
     QJsonParseError parse_error;
     const auto doc = QJsonDocument::fromJson(line, &parse_error);
     if (parse_error.error != QJsonParseError::NoError || !doc.isObject()) {
-      rpc_error(QJsonValue(QJsonValue::Null), -32700, QCoreApplication::translate("PatchyMcp", "Invalid JSON-RPC message.")); return;
+      rpc_error(QJsonValue(QJsonValue::Null), -32700, QStringLiteral("Invalid JSON-RPC message.")); return;
     }
     const auto message = doc.object();
     const auto method = message["method"].toString();
     const auto id = message.value("id");
     if (message["jsonrpc"] != "2.0" || method.isEmpty() ||
         (!id.isUndefined() && !id.isDouble() && !id.isString())) {
-      rpc_error(QJsonValue(QJsonValue::Null), -32600, QCoreApplication::translate("PatchyMcp", "Invalid JSON-RPC message.")); return;
+      rpc_error(QJsonValue(QJsonValue::Null), -32600, QStringLiteral("Invalid JSON-RPC message.")); return;
     }
     if (method == "notifications/cancelled") {
       const auto request = message["params"].toObject().value("requestId");
@@ -226,7 +226,7 @@ struct McpSession::Impl final : public QObject {
     if (method == "tools/call" && !id.isUndefined()) {
       const std::lock_guard lock(request_mutex_);
       if (busy_) {
-        tool_reply(id, {{"error", "busy"}, {"message", QCoreApplication::translate("PatchyMcp", "Another operation is running. Wait for its reply before retrying.")}}, true);
+        tool_reply(id, {{"error", "busy"}, {"message", QStringLiteral("Another operation is running. Wait for its reply before retrying.")}}, true);
         return;
       }
       busy_ = true; cancelled_ = false; active_id_ = id;
@@ -240,7 +240,7 @@ struct McpSession::Impl final : public QObject {
     bool ok = false;
     const auto id = value.toString().toLongLong(&ok);
     if (!value.isString() || !ok || !host_.session_document_const(id)) {
-      throw std::runtime_error(QCoreApplication::translate("PatchyMcp", "Unknown document ID.").toStdString());
+      throw std::runtime_error(QStringLiteral("Unknown document ID.").toStdString());
     }
     return id;
   }
@@ -251,7 +251,7 @@ struct McpSession::Impl final : public QObject {
     const auto id = message.value("id");
     if (id.isUndefined()) { return; }
     if (method == "initialize") {
-      if (initialized_) { rpc_error(id, -32600, QCoreApplication::translate("PatchyMcp", "The MCP connection is already initialized.")); return; }
+      if (initialized_) { rpc_error(id, -32600, QStringLiteral("The MCP connection is already initialized.")); return; }
       initialized_ = true;
       activity_->set_connected(message["params"].toObject()["clientInfo"].toObject()["name"].toString(QStringLiteral("MCP")));
       reply(id, mcp_initialize_result(message["params"].toObject()));
@@ -260,58 +260,58 @@ struct McpSession::Impl final : public QObject {
     if (method == "ping") { reply(id, {}); return; }
     if (!initialized_) {
       if (method == "tools/call") { release_request(); }
-      rpc_error(id, -32600, QCoreApplication::translate("PatchyMcp", "Initialize the MCP connection first."));
+      rpc_error(id, -32600, QStringLiteral("Initialize the MCP connection first."));
       return;
     }
     if (method == "tools/list") { reply(id, {{"tools", mcp_tool_catalog()}}); return; }
-    if (method != "tools/call") { rpc_error(id, -32601, QCoreApplication::translate("PatchyMcp", "Unknown MCP method.")); return; }
+    if (method != "tools/call") { rpc_error(id, -32601, QStringLiteral("Unknown MCP method.")); return; }
     try {
       {
         const std::lock_guard lock(request_mutex_);
-        if (cancelled_ || disconnected_) { throw std::runtime_error(QCoreApplication::translate("PatchyMcp", "Operation cancelled.").toStdString()); }
+        if (cancelled_ || disconnected_) { throw std::runtime_error(QStringLiteral("Operation cancelled.").toStdString()); }
 
       }
       const auto params = message["params"].toObject();
       const auto name = params["name"].toString();
       const auto args_value = params.value("arguments");
-      if (!args_value.isUndefined() && !args_value.isObject()) { throw std::runtime_error(QCoreApplication::translate("PatchyMcp", "Tool arguments must be an object.").toStdString()); }
+      if (!args_value.isUndefined() && !args_value.isObject()) { throw std::runtime_error(QStringLiteral("Tool arguments must be an object.").toStdString()); }
       const auto args = args_value.toObject();
       QJsonObject tool;
       for (const auto& entry : mcp_tool_catalog()) { if (entry.toObject()["name"] == name) { tool = entry.toObject(); break; } }
-      if (tool.isEmpty()) { release_request(); rpc_error(id, -32602, QCoreApplication::translate("PatchyMcp", "Unknown tool.")); return; }
+      if (tool.isEmpty()) { release_request(); rpc_error(id, -32602, QStringLiteral("Unknown tool.")); return; }
       const auto input = tool["inputSchema"].toObject();
       const auto properties = input["properties"].toObject();
       for (auto it = args.begin(); it != args.end(); ++it) {
         const auto type = properties[it.key()].toObject()["type"].toString();
         if (!properties.contains(it.key()) || (type == "string" && !it->isString()) ||
             (type == "object" && !it->isObject()) || (type == "array" && !it->isArray())) {
-          throw std::runtime_error(QCoreApplication::translate("PatchyMcp", "Invalid tool argument: %1").arg(it.key()).toStdString());
+          throw std::runtime_error(QStringLiteral("Invalid tool argument: %1").arg(it.key()).toStdString());
         }
       }
       for (const auto& required : input["required"].toArray()) {
-        if (!args.contains(required.toString())) { throw std::runtime_error(QCoreApplication::translate("PatchyMcp", "Missing tool argument: %1").arg(required.toString()).toStdString()); }
+        if (!args.contains(required.toString())) { throw std::runtime_error(QStringLiteral("Missing tool argument: %1").arg(required.toString()).toStdString()); }
       }
       const bool editing = name == "execute_script" || name == "draw_strokes" || name == "undo" || name == "redo";
       if (name != "get_info" && name != "get_help" && !host_.automation_ready()) {
-        complete_tool(id, {{"error", "busy"}, {"message", QCoreApplication::translate("PatchyMcp", "Finish the current gesture, text edit, transform, dialog, or script before using AI control.")}}, true);
+        complete_tool(id, {{"error", "busy"}, {"message", QStringLiteral("Finish the current gesture, text edit, transform, dialog, or script before using AI control.")}}, true);
         return;
       }
       if (editing && (attached_ || args.contains("expectedState"))) {
         const auto current = state();
         if (args["expectedState"].toString().isEmpty() || args["expectedState"] != current["stateToken"]) {
-          complete_tool(id, {{"error", "stale_state"}, {"message", QCoreApplication::translate("PatchyMcp", "The workspace changed or expectedState is missing. Inspect the current document and preview before retrying an edit.")}, {"state", current}}, true);
+          complete_tool(id, {{"error", "stale_state"}, {"message", QStringLiteral("The workspace changed or expectedState is missing. Inspect the current document and preview before retrying an edit.")}, {"state", current}}, true);
           return;
         }
       }
       const QMap<QString, QString> operations{
-        {"get_info", QCoreApplication::translate("PatchyMcp", "Connection details")},
-        {"get_help", QCoreApplication::translate("PatchyMcp", "Instructions")},
-        {"get_state", QCoreApplication::translate("PatchyMcp", "Document state")},
-        {"get_preview", QCoreApplication::translate("PatchyMcp", "Preview")},
-        {"draw_strokes", QCoreApplication::translate("PatchyMcp", "Painting")},
-        {"undo", QCoreApplication::translate("PatchyMcp", "Undo")},
-        {"redo", QCoreApplication::translate("PatchyMcp", "Redo")},
-        {"execute_script", QCoreApplication::translate("PatchyMcp", "Script")}};
+        {"get_info", QCoreApplication::translate("patchy::ui::McpActivity", "Connection details")},
+        {"get_help", QCoreApplication::translate("patchy::ui::McpActivity", "Instructions")},
+        {"get_state", QCoreApplication::translate("patchy::ui::McpActivity", "Document state")},
+        {"get_preview", QCoreApplication::translate("patchy::ui::McpActivity", "Preview")},
+        {"draw_strokes", QCoreApplication::translate("patchy::ui::McpActivity", "Painting")},
+        {"undo", QCoreApplication::translate("patchy::ui::McpActivity", "Undo")},
+        {"redo", QCoreApplication::translate("patchy::ui::McpActivity", "Redo")},
+        {"execute_script", QCoreApplication::translate("patchy::ui::McpActivity", "Script")}};
       activity_->set_operation(name == "execute_script" ? args["name"].toString(operations[name]) : operations[name], editing);
       if (name == "get_info") {
         const bool offscreen = QGuiApplication::platformName() == QStringLiteral("offscreen");
@@ -333,15 +333,15 @@ struct McpSession::Impl final : public QObject {
         if (target == "canvas") {
           image = host_.render_preview(document_id(args, true), args["options"].toObject(), &metadata);
         } else if (target == "window") {
-          if (args.contains("options") || args.contains("documentId")) { throw std::runtime_error(QCoreApplication::translate("PatchyMcp", "Window previews do not accept document or canvas options.").toStdString()); }
+          if (args.contains("options") || args.contains("documentId")) { throw std::runtime_error(QStringLiteral("Window previews do not accept document or canvas options.").toStdString()); }
           QApplication::sendPostedEvents(nullptr, QEvent::LayoutRequest);
           image = window_.grab().toImage();
           metadata = {{"target", "window"}, {"offscreen", QGuiApplication::platformName() == QStringLiteral("offscreen")}, {"width", image.width()}, {"height", image.height()}};
-        } else { throw std::runtime_error(QCoreApplication::translate("PatchyMcp", "Unknown preview target.").toStdString()); }
+        } else { throw std::runtime_error(QStringLiteral("Unknown preview target.").toStdString()); }
         QByteArray png;
         QBuffer buffer(&png);
         buffer.open(QIODevice::WriteOnly);
-        if (image.isNull() || !image.save(&buffer, "PNG")) { throw std::runtime_error(QCoreApplication::translate("PatchyMcp", "Could not render the preview.").toStdString()); }
+        if (image.isNull() || !image.save(&buffer, "PNG")) { throw std::runtime_error(QStringLiteral("Could not render the preview.").toStdString()); }
         metadata["stateToken"] = state()["stateToken"];
         complete_tool(id, metadata, false, {QJsonObject{{"type", "image"}, {"mimeType", "image/png"}, {"data", QString::fromLatin1(png.toBase64())}}});
       } else if (name == "undo" || name == "redo") {
@@ -357,14 +357,14 @@ struct McpSession::Impl final : public QObject {
           };
           code = "app.getDocument(" + quoted(args["documentId"]) + ").getLayer(" + quoted(args["layerId"]) + ").drawStrokes(" + quoted(args["strokes"]) + ");";
         }
-        if (code.isEmpty() || code.size() > 4 * 1024 * 1024) { throw std::runtime_error(QCoreApplication::translate("PatchyMcp", "Script source must contain 1 to 4194304 characters.").toStdString()); }
+        if (code.isEmpty() || code.size() > 4 * 1024 * 1024) { throw std::runtime_error(QStringLiteral("Script source must contain 1 to 4194304 characters.").toStdString()); }
         ui::ScriptEngineHost::RunOptions options;
         options.name = args["name"].toString(name);
         options.path = QDir::current().absoluteFilePath("patchy-agent.js");
         options.unattended = true;
         const auto script_args = args["args"].toObject();
         for (auto it = script_args.begin(); it != script_args.end(); ++it) {
-          if (!it->isString()) { throw std::runtime_error(QCoreApplication::translate("PatchyMcp", "Script argument values must be strings.").toStdString()); }
+          if (!it->isString()) { throw std::runtime_error(QStringLiteral("Script argument values must be strings.").toStdString()); }
           options.args.append(it.key() + '=' + it->toString());
         }
         logs_ = {}; script_pending_ = true; script_id_ = id;

@@ -682,7 +682,7 @@ void MainWindow::copy_as_svg() {
   try {
     bytes = svg::DocumentIo::write(svg_document, &notices);
   } catch (const std::exception& error) {
-    show_status_error(tr("Could not build SVG: %1").arg(QString::fromUtf8(error.what())));
+    show_status_error(tr("Could not build SVG: %1").arg(translate_data_text(error.what())));
     return;
   }
   const QByteArray svg_bytes(reinterpret_cast<const char*>(bytes.data()), static_cast<qsizetype>(bytes.size()));
@@ -692,7 +692,7 @@ void MainWindow::copy_as_svg() {
   set_system_clipboard_mime(mime);
   auto message = tr("Copied %n layer(s) as SVG", nullptr, static_cast<int>(layers.size()));
   if (!notices.empty()) {
-    message += QStringLiteral(" (") + QString::fromStdString(notices.front()) + QStringLiteral(")");
+    message += QStringLiteral(" (") + translate_data_text(notices.front()) + QStringLiteral(")");
   }
   statusBar()->showMessage(message);
 }
@@ -1157,7 +1157,7 @@ void MainWindow::paste_clipboard() {
   // The marquee that produced the copy must not stay live over the new layer
   // (Photoshop parity); Undo of the paste brings it back.
   canvas_->clear_selection();
-  Layer pasted(document().allocate_layer_id(), "Pasted Layer", std::move(pixels));
+  Layer pasted(document().allocate_layer_id(), tr("Pasted Layer").toStdString(), std::move(pixels));
   pasted.set_bounds(Rect{origin.x(), origin.y(), pasted.pixels().width(), pasted.pixels().height()});
   document().add_layer(std::move(pasted));
   if (move_tool_action_ != nullptr) {

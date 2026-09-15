@@ -1,5 +1,7 @@
 #include "psd/psd_descriptor.hpp"
 
+#include "support/translate_noop.hpp"
+
 #include <algorithm>
 #include <bit>
 #include <stdexcept>
@@ -46,7 +48,7 @@ void write_f64(BigEndianWriter& writer, double value) {
 std::string read_descriptor_unicode_string(BigEndianReader& reader) {
   const auto code_unit_count = reader.read_u32();
   if (code_unit_count > reader.remaining() / 2U) {
-    throw std::runtime_error("PSD descriptor string is truncated");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD descriptor string is truncated"));
   }
   std::string decoded;
   for (std::uint32_t index = 0; index < code_unit_count; ++index) {
@@ -96,7 +98,7 @@ class DescriptorDepthGuard {
   DescriptorDepthGuard() {
     if (++depth() > kMaxDescriptorDepth) {
       --depth();
-      throw std::runtime_error("PSD descriptor nesting is too deep");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD descriptor nesting is too deep"));
     }
   }
   ~DescriptorDepthGuard() { --depth(); }
@@ -114,7 +116,7 @@ class DescriptorDepthGuard {
 // remaining bytes cannot possibly hold is a damaged length, not a reservation request.
 void check_descriptor_count(std::uint32_t count, std::size_t minimum_item_bytes, const BigEndianReader& reader) {
   if (static_cast<std::uint64_t>(count) * minimum_item_bytes > reader.remaining()) {
-    throw std::runtime_error("Invalid PSD descriptor item count");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Invalid PSD descriptor item count"));
   }
 }
 
@@ -461,7 +463,7 @@ void write_descriptor_value(BigEndianWriter& writer, const DescriptorValue& valu
       writer.write_u32(static_cast<std::uint32_t>(value.reference_items.size()));
       for (const auto& item : value.reference_items) {
         if (item.form.size() != 4U) {
-          throw std::runtime_error("PSD reference form must be a 4-character key");
+          throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD reference form must be a 4-character key"));
         }
         write_type_signature(writer, item.form.c_str());
         write_descriptor_unicode_string(writer, item.class_name);
@@ -480,9 +482,9 @@ void write_descriptor_value(BigEndianWriter& writer, const DescriptorValue& valu
       }
       return;
     case DescriptorValue::Type::Empty:
-      throw std::runtime_error("Cannot serialize an empty PSD descriptor value");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Cannot serialize an empty PSD descriptor value"));
   }
-  throw std::runtime_error("Unsupported PSD descriptor value type for writing");
+  throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported PSD descriptor value type for writing"));
 }
 
 void write_descriptor(BigEndianWriter& writer, const DescriptorObject& object) {
@@ -531,7 +533,7 @@ std::vector<std::uint8_t> decode_packbits(std::span<const std::uint8_t> encoded,
     if (header >= 0) {
       const auto count = static_cast<std::size_t>(header) + 1U;
       if (cursor + count > encoded.size()) {
-        throw std::runtime_error("PSD PackBits literal run is truncated");
+        throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD PackBits literal run is truncated"));
       }
       decoded.insert(decoded.end(), encoded.begin() + static_cast<std::ptrdiff_t>(cursor),
                      encoded.begin() + static_cast<std::ptrdiff_t>(cursor + count));
@@ -539,14 +541,14 @@ std::vector<std::uint8_t> decode_packbits(std::span<const std::uint8_t> encoded,
     } else if (header != -128) {
       const auto count = static_cast<std::size_t>(1 - header);
       if (cursor >= encoded.size()) {
-        throw std::runtime_error("PSD PackBits repeat run is truncated");
+        throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD PackBits repeat run is truncated"));
       }
       decoded.insert(decoded.end(), count, encoded[cursor++]);
     }
   }
 
   if (decoded.size() != expected_size) {
-    throw std::runtime_error("PSD PackBits row decoded to the wrong length");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD PackBits row decoded to the wrong length"));
   }
   if (consumed_bytes != nullptr) {
     *consumed_bytes = cursor;

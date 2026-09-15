@@ -3,6 +3,7 @@
 #include "psd/abr_reader.hpp"
 #include "ui/default_brush_tips.hpp"
 #include "ui/app_settings.hpp"
+#include "ui/localization.hpp"
 
 #include <QDir>
 #include <QFile>
@@ -441,11 +442,11 @@ QString BrushTipLibrary::import_abr(const QString& path, QString& error, QString
                                     static_cast<std::size_t>(bytes.size())),
       parse_error);
   if (!result.has_value()) {
-    error = QString::fromStdString(parse_error);
+    error = translate_data_text(parse_error);
     return {};
   }
   for (const auto& warning : result->warnings) {
-    warnings.append(QString::fromStdString(warning));
+    warnings.append(translate_data_text(warning));
   }
 
   // Imported sets land in their own folder so large ABRs stay organized.

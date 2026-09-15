@@ -4,6 +4,7 @@
 #include "psd/psd_descriptor.hpp"
 #include "psd/psd_layer_effects.hpp"
 #include "psd/psd_patterns.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <array>
@@ -356,7 +357,7 @@ std::optional<AslReadResult> read_asl(std::span<const std::uint8_t> bytes, std::
       error = "ASL file is damaged";
       return std::nullopt;
     }
-    result.warnings.push_back("The file is damaged past the last decoded style");
+    result.warnings.push_back(PATCHY_TRANSLATE_NOOP("QObject", "The file is damaged past the last decoded style"));
   }
   if (result.styles.empty()) {
     if (error.empty()) {

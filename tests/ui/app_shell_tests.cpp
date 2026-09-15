@@ -2230,7 +2230,6 @@ void ui_language_switch_updates_existing_window() {
   CHECK(japanese_menus.contains(QStringLiteral("ファイル(F)")));
   CHECK(!japanese_menus.contains(QStringLiteral("環境設定(P)")));
   CHECK(tabs->count() == initial_tab_count);
-  CHECK(require_action(window, "preferencesLanguageJapaneseAction")->isChecked());
   CHECK(require_action(window, "helpAiSetupAction")->text() ==
         QStringLiteral("AI制御のセットアップ(&U)..."));
 
@@ -2244,7 +2243,6 @@ void ui_language_switch_updates_existing_window() {
   CHECK(require_action(window, "helpAiSetupAction")->text() ==
         QStringLiteral("Set &up AI Control..."));
   CHECK(tabs->count() == initial_tab_count);
-  CHECK(require_action(window, "preferencesLanguageEnglishAction")->isChecked());
 }
 
 void ui_language_preference_applies_at_startup() {
@@ -2262,7 +2260,6 @@ void ui_language_preference_applies_at_startup() {
   const auto menus = top_level_menu_texts(*window.menuBar());
   CHECK(menus.contains(QStringLiteral("ファイル(F)")));
   CHECK(!menus.contains(QStringLiteral("環境設定(P)")));
-  CHECK(require_action(window, "preferencesLanguageJapaneseAction")->isChecked());
 }
 
 void ui_language_missing_preference_uses_system_language() {
@@ -2279,7 +2276,6 @@ void ui_language_missing_preference_uses_system_language() {
   CHECK(patchy::ui::LocalizationManager::instance().current_language() == QStringLiteral("ja"));
   const auto menus = top_level_menu_texts(*window.menuBar());
   CHECK(menus.contains(QStringLiteral("ファイル(F)")));
-  CHECK(require_action(window, "preferencesLanguageJapaneseAction")->isChecked());
   auto settings = patchy::ui::app_settings();
   CHECK(!settings.contains(QStringLiteral("preferences/language")));
 }
@@ -2298,7 +2294,6 @@ void ui_language_saved_preference_overrides_system_language() {
   CHECK(patchy::ui::LocalizationManager::instance().current_language() == QStringLiteral("en"));
   const auto menus = top_level_menu_texts(*window.menuBar());
   CHECK(menus.contains(QStringLiteral("File")));
-  CHECK(require_action(window, "preferencesLanguageEnglishAction")->isChecked());
   auto settings = patchy::ui::app_settings();
   CHECK(settings.value(QStringLiteral("preferences/language")).toString() == QStringLiteral("en"));
 }
@@ -2318,7 +2313,98 @@ void ui_language_invalid_preference_falls_back_to_english() {
   const auto menus = top_level_menu_texts(*window.menuBar());
   CHECK(menus.contains(QStringLiteral("File")));
   CHECK(!menus.contains(QStringLiteral("Preferences")));
-  CHECK(require_action(window, "preferencesLanguageEnglishAction")->isChecked());
+}
+
+void ui_language_matching_maps_locales_to_shipped_codes() {
+  auto& manager = patchy::ui::LocalizationManager::instance();
+  // Plain codes, locale names and BCP 47 tags all resolve to a catalog code.
+  CHECK(manager.match_language(QStringLiteral("en")) == QStringLiteral("en"));
+  CHECK(manager.match_language(QStringLiteral("en_US")) == QStringLiteral("en"));
+  CHECK(manager.match_language(QStringLiteral("ja_JP")) == QStringLiteral("ja"));
+  CHECK(manager.match_language(QStringLiteral("fr-CA")) == QStringLiteral("fr"));
+  CHECK(manager.match_language(QStringLiteral("de_AT")) == QStringLiteral("de"));
+  CHECK(manager.match_language(QStringLiteral("es-MX")) == QStringLiteral("es"));
+  CHECK(manager.match_language(QStringLiteral("it")) == QStringLiteral("it"));
+  // Chinese picks the variant by script: Traditional for Taiwan, Hong Kong and Macao
+  // or an explicit Hant tag, Simplified otherwise.
+  CHECK(manager.match_language(QStringLiteral("zh_CN")) == QStringLiteral("zh_CN"));
+  CHECK(manager.match_language(QStringLiteral("zh")) == QStringLiteral("zh_CN"));
+  CHECK(manager.match_language(QStringLiteral("zh_SG")) == QStringLiteral("zh_CN"));
+  CHECK(manager.match_language(QStringLiteral("zh-Hans-CN")) == QStringLiteral("zh_CN"));
+  CHECK(manager.match_language(QStringLiteral("zh_TW")) == QStringLiteral("zh_TW"));
+  CHECK(manager.match_language(QStringLiteral("zh_HK")) == QStringLiteral("zh_TW"));
+  CHECK(manager.match_language(QStringLiteral("zh-Hant")) == QStringLiteral("zh_TW"));
+  // Languages Patchy does not ship match nothing; the caller falls back to English.
+  CHECK(manager.match_language(QStringLiteral("pt_BR")).isEmpty());
+  CHECK(manager.match_language(QStringLiteral("zz")).isEmpty());
+  CHECK(manager.match_language(QString()).isEmpty());
+
+  CHECK(manager.language_for_locale(QLocale(QLocale::French, QLocale::Canada)) == QStringLiteral("fr"));
+  CHECK(manager.language_for_locale(QLocale(QLocale::Chinese, QLocale::TraditionalHanScript, QLocale::Taiwan)) ==
+        QStringLiteral("zh_TW"));
+  CHECK(manager.language_for_locale(QLocale(QLocale::Chinese, QLocale::SimplifiedHanScript, QLocale::China)) ==
+        QStringLiteral("zh_CN"));
+  CHECK(manager.language_for_locale(QLocale(QLocale::Portuguese, QLocale::Brazil)) == QStringLiteral("en"));
+  CHECK(manager.language_for_locale(QLocale::c()) == QStringLiteral("en"));
+
+  // Selecting an unshipped language reports failure and leaves English active.
+  CHECK(!manager.set_language(QStringLiteral("pt_BR"), false));
+  CHECK(manager.current_language() == QStringLiteral("en"));
+}
+
+void ui_language_combo_lists_every_shipped_language() {
+  auto& manager = patchy::ui::LocalizationManager::instance();
+  const auto& shipped = manager.languages();
+  CHECK(!shipped.empty());
+  CHECK(shipped.front().code == QStringLiteral("en"));
+  // Every shipped catalog is built next to the test binary, so the installed set is
+  // the full table.
+  const auto available = manager.available_languages();
+  CHECK(available.size() == shipped.size());
+
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* preferences = require_action(window, "filePreferencesAction");
+  bool saw_dialog = false;
+  QTimer::singleShot(0, [&] {
+    auto* dialog = find_top_level_dialog(QStringLiteral("patchyPreferencesDialog"));
+    CHECK(dialog != nullptr);
+    auto* combo = dialog->findChild<QComboBox*>(QStringLiteral("preferencesLanguageCombo"));
+    CHECK(combo != nullptr);
+    CHECK(combo->count() == static_cast<int>(shipped.size()));
+    for (int index = 0; index < combo->count(); ++index) {
+      const auto& language = shipped[static_cast<std::size_t>(index)];
+      CHECK(combo->itemData(index).toString() == language.code);
+      CHECK(combo->itemText(index) == language.native_name);
+    }
+    CHECK(combo->currentData().toString() == manager.current_language());
+    saw_dialog = true;
+    dialog->reject();
+  });
+  preferences->trigger();
+  QApplication::processEvents();
+  CHECK(saw_dialog);
+}
+
+void ui_language_every_catalog_loads_and_translates() {
+  auto& manager = patchy::ui::LocalizationManager::instance();
+  for (const auto& language : manager.languages()) {
+    CHECK(manager.set_language(language.code, false));
+    CHECK(manager.current_language() == language.code);
+    // Two everyday strings that differ from English in every shipped language, so a
+    // match means the catalog did not load and Qt fell back to the source text. "&File"
+    // would not work here: Italian keeps "File", the way Adobe's Italian UI does.
+    const auto layer_menu = QCoreApplication::translate("patchy::ui::MainWindow", "&Layer");
+    const auto ready = QCoreApplication::translate("patchy::ui::MainWindow", "Ready");
+    if (language.code == QStringLiteral("en")) {
+      CHECK(layer_menu == QStringLiteral("&Layer"));
+      CHECK(ready == QStringLiteral("Ready"));
+    } else {
+      CHECK(layer_menu != QStringLiteral("&Layer"));
+      CHECK(ready != QStringLiteral("Ready"));
+    }
+  }
+  CHECK(manager.set_language(QStringLiteral("en"), false));
 }
 
 void ui_language_catalog_covers_dialog_status_and_properties() {
@@ -3805,6 +3891,9 @@ std::vector<patchy::test::TestCase> app_shell_tests() {
       {"ui_language_saved_preference_overrides_system_language",
        ui_language_saved_preference_overrides_system_language},
       {"ui_language_invalid_preference_falls_back_to_english", ui_language_invalid_preference_falls_back_to_english},
+      {"ui_language_matching_maps_locales_to_shipped_codes", ui_language_matching_maps_locales_to_shipped_codes},
+      {"ui_language_combo_lists_every_shipped_language", ui_language_combo_lists_every_shipped_language},
+      {"ui_language_every_catalog_loads_and_translates", ui_language_every_catalog_loads_and_translates},
       {"ui_language_catalog_covers_dialog_status_and_properties",
        ui_language_catalog_covers_dialog_status_and_properties},
       {"ui_filter_gallery_action_retranslates", ui_filter_gallery_action_retranslates},

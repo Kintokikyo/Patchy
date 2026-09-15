@@ -6,6 +6,7 @@
 #include "ui/brush_dynamics_popup.hpp"
 #include "ui/script_engine.hpp"
 #include "ui/dialog_utils.hpp"
+#include "ui/localization.hpp"
 #include <QComboBox>
 #include <QAbstractItemView>
 #include <QDialogButtonBox>
@@ -87,7 +88,7 @@ void MainWindow::save_current_automation_brush() {
   const auto name = QInputDialog::getText(this, tr("Save Brush Preset"), tr("Name:"), QLineEdit::Normal, {}, &accepted);
   if (!accepted || name.trimmed().isEmpty()) return;
   try { (void)brush_automation_library().save(name, canvas_->current_script_brush(), false); }
-  catch (const std::exception& e) { show_status_error(tr("Could not save brush preset: %1").arg(QString::fromUtf8(e.what()))); }
+  catch (const std::exception& e) { show_status_error(tr("Could not save brush preset: %1").arg(translate_data_text(e.what()))); }
 }
 void MainWindow::manage_automation_brush_presets() {
   auto& library = brush_automation_library(); library.refresh();
@@ -107,7 +108,7 @@ void MainWindow::manage_automation_brush_presets() {
     connect(button, &QPushButton::clicked, &dialog, [&, fn] {
       if (!list->currentItem()) return;
       try { fn(list->currentItem()->data(Qt::UserRole).toString()); reload(); }
-      catch (const std::exception& e) { show_status_error(tr("Brush preset operation failed: %1").arg(QString::fromUtf8(e.what()))); }
+      catch (const std::exception& e) { show_status_error(tr("Brush preset operation failed: %1").arg(translate_data_text(e.what()))); }
     });
   };
   action(tr("Use"), [&](const QString& id) {

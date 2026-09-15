@@ -10,6 +10,7 @@
 #include "formats/format_file_io.hpp"
 
 #include "formats/miniz/miniz.h"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <array>
@@ -186,13 +187,13 @@ struct AseCel {
 [[nodiscard]] std::vector<std::uint8_t> inflate_cel(std::span<const std::uint8_t> compressed,
                                                     std::size_t expected_size) {
   if (compressed.size() > std::numeric_limits<unsigned int>::max()) {
-    throw std::runtime_error("Aseprite cel data failed to decompress");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Aseprite cel data failed to decompress"));
   }
   mz_stream stream{};
   stream.next_in = compressed.data();
   stream.avail_in = static_cast<unsigned int>(compressed.size());
   if (mz_inflateInit(&stream) != MZ_OK) {
-    throw std::runtime_error("Aseprite cel data failed to decompress");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Aseprite cel data failed to decompress"));
   }
   struct InflateCleanup {
     mz_stream& stream;
@@ -207,18 +208,18 @@ struct AseCel {
     const auto status = mz_inflate(&stream, MZ_NO_FLUSH);
     const auto produced = chunk.size() - stream.avail_out;
     if (produced > expected_size - out.size()) {
-      throw std::runtime_error("Aseprite cel data failed to decompress");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Aseprite cel data failed to decompress"));
     }
     out.insert(out.end(), chunk.begin(), chunk.begin() + static_cast<std::ptrdiff_t>(produced));
     if (status == MZ_STREAM_END) {
       break;
     }
     if (status != MZ_OK || (produced == 0 && stream.avail_in == input_before)) {
-      throw std::runtime_error("Aseprite cel data failed to decompress");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Aseprite cel data failed to decompress"));
     }
   }
   if (out.size() != expected_size) {
-    throw std::runtime_error("Aseprite cel data failed to decompress");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Aseprite cel data failed to decompress"));
   }
   return out;
 }
@@ -243,11 +244,11 @@ bool DocumentIo::can_read(std::span<const std::uint8_t> bytes) noexcept {
 Document DocumentIo::read(std::span<const std::uint8_t> bytes, std::vector<std::string>* notices) {
   if (bytes.size() >= 4 && bytes[0] == 'A' && bytes[1] == 'S' && bytes[2] == 'E' && bytes[3] == 'F') {
     throw std::runtime_error(
-        "This is an Adobe swatch palette (.ase), not an Aseprite image. Load it from the Palette panel's "
-        "Load Palette File instead.");
+        PATCHY_TRANSLATE_NOOP("QObject", "This is an Adobe swatch palette (.ase), not an Aseprite image. Load it from the Palette panel's "
+        "Load Palette File instead."));
   }
   if (!sniff(bytes)) {
-    throw std::runtime_error("File is not an Aseprite image");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "File is not an Aseprite image"));
   }
   auto reader = ase_reader(bytes);
   AseHeader header;
@@ -267,13 +268,13 @@ Document DocumentIo::read(std::span<const std::uint8_t> bytes, std::vector<std::
   reader.seek(128);
 
   if (header.width <= 0 || header.height <= 0) {
-    throw std::runtime_error("Aseprite image has invalid dimensions");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Aseprite image has invalid dimensions"));
   }
   if (header.depth != 8 && header.depth != 16 && header.depth != 32) {
-    throw std::runtime_error("Aseprite color depth is not supported");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Aseprite color depth is not supported"));
   }
   if (header.frames == 0) {
-    throw std::runtime_error("Aseprite file contains no frames");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Aseprite file contains no frames"));
   }
   const std::size_t bytes_per_pixel = header.depth / 8U;
 
@@ -286,7 +287,7 @@ Document DocumentIo::read(std::span<const std::uint8_t> bytes, std::vector<std::
     const auto frame_start = reader.position();
     const auto frame_bytes = reader.read_u32();
     if (reader.read_u16() != kFrameMagic) {
-      throw std::runtime_error("Aseprite frame header is damaged");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Aseprite frame header is damaged"));
     }
     const auto old_chunks = reader.read_u16();
     reader.skip(2 + 2);  // duration + future
@@ -332,7 +333,7 @@ Document DocumentIo::read(std::span<const std::uint8_t> bytes, std::vector<std::
                                    bytes_per_pixel;
           if (cel_type == 0) {
             if (reader.position() > chunk_end || pixel_bytes > chunk_end - reader.position()) {
-              throw std::runtime_error("Aseprite cel chunk is truncated");
+              throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Aseprite cel chunk is truncated"));
             }
             cel.pixels.resize(pixel_bytes);
             for (auto& byte : cel.pixels) {
@@ -342,7 +343,7 @@ Document DocumentIo::read(std::span<const std::uint8_t> bytes, std::vector<std::
             // The chunk header only promised 6 bytes; a cel chunk shorter than its fixed
             // fields would otherwise wrap this subtraction and hand inflate the whole file.
             if (reader.position() > chunk_end) {
-              throw std::runtime_error("Aseprite cel chunk is truncated");
+              throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Aseprite cel chunk is truncated"));
             }
             const auto compressed_size = chunk_end - reader.position();
             cel.pixels = inflate_cel(bytes.subspan(reader.position(), compressed_size), pixel_bytes);
@@ -404,10 +405,10 @@ Document DocumentIo::read(std::span<const std::uint8_t> bytes, std::vector<std::
   }
 
   if (layers.empty()) {
-    throw std::runtime_error("Aseprite file contains no layers");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Aseprite file contains no layers"));
   }
   if (header.depth == 8 && palette.empty()) {
-    throw std::runtime_error("Indexed Aseprite file is missing its palette");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Indexed Aseprite file is missing its palette"));
   }
 
   // Decode each layer's cel into an RGBA pixel buffer.
@@ -583,13 +584,13 @@ void write_chunk(LittleEndianWriter& frame, std::uint16_t type, const std::vecto
 std::vector<std::uint8_t> DocumentIo::write(const Document& document) {
   if (document.width() <= 0 || document.height() <= 0 || document.width() > 0xffff ||
       document.height() > 0xffff) {
-    throw std::runtime_error("Aseprite dimensions must be between 1 and 65535");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Aseprite dimensions must be between 1 and 65535"));
   }
 
   std::vector<FlatLayer> flat;
   flatten_layer_tree(document.layers(), 0, flat);
   if (flat.empty()) {
-    throw std::runtime_error("Cannot write an Aseprite file without layers");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Cannot write an Aseprite file without layers"));
   }
 
   // Indexed when the document is palette-mode and a transparent slot fits; RGBA otherwise.
@@ -702,7 +703,7 @@ std::vector<std::uint8_t> DocumentIo::write(const Document& document) {
     mz_ulong compressed_bound = mz_compressBound(static_cast<mz_ulong>(raw.size()));
     std::vector<std::uint8_t> compressed(compressed_bound);
     if (mz_compress(compressed.data(), &compressed_bound, raw.data(), static_cast<mz_ulong>(raw.size())) != MZ_OK) {
-      throw std::runtime_error("Aseprite cel compression failed");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Aseprite cel compression failed"));
     }
     compressed.resize(compressed_bound);
 

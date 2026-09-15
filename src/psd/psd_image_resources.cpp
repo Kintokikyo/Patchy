@@ -22,6 +22,7 @@
 #include "psd/psd_smart_objects.hpp"
 #include "render/compositor.hpp"
 #include "support/string_utils.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <array>
@@ -324,7 +325,7 @@ std::vector<std::uint8_t> grid_guides_resource_for_document(const Document& docu
     payload.insert(payload.end(), {'N', 'm', '0', '1'});
     for (std::size_t i = 0; i < colors.size(); ++i) {
       const std::string_view name = i < names.size() ? std::string_view(names[i]) : std::string_view{};
-      if (name.size() > kMaxPaletteColorNameBytes) { throw std::runtime_error("Palette color name is too long"); }
+      if (name.size() > kMaxPaletteColorNameBytes) { throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Palette color name is too long")); }
       push_u16(static_cast<std::uint16_t>(name.size()));
       payload.insert(payload.end(), name.begin(), name.end());
     }
@@ -387,7 +388,7 @@ std::vector<std::uint8_t> alpha_identifiers_resource(
     while (std::find(used.begin(), used.end(), next_identifier) != used.end()) {
       ++next_identifier;
       if (next_identifier == 0U) {
-        throw std::runtime_error("PSD alpha channel identifiers are exhausted");
+        throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD alpha channel identifiers are exhausted"));
       }
     }
     const auto result = next_identifier++;
@@ -521,18 +522,18 @@ void add_saved_composite_channels(Document& document,
                                   const ParsedCompositeChannelResources& resources) {
   const auto color_channels = composite_color_channel_count(header.color_mode);
   if (first_saved_channel < color_channels || first_saved_channel > header.channels) {
-    throw std::runtime_error("Invalid PSD saved channel layout");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Invalid PSD saved channel layout"));
   }
   const auto expected_count = static_cast<std::size_t>(header.channels - first_saved_channel);
   if (channel_planes.size() != expected_count) {
-    throw std::runtime_error("PSD saved channel count does not match the composite data");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD saved channel count does not match the composite data"));
   }
   const auto first_resource_index = static_cast<std::size_t>(first_saved_channel - color_channels);
   const auto pixel_count = static_cast<std::size_t>(document.width()) * static_cast<std::size_t>(document.height());
   std::size_t alpha_identifier_index = 0;
   for (std::size_t index = 0; index < channel_planes.size(); ++index) {
     if (channel_planes[index].size() != pixel_count) {
-      throw std::runtime_error("PSD saved channel dimensions do not match the document");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD saved channel dimensions do not match the document"));
     }
     const auto aligned_index = [first_resource_index, index, saved_count = channel_planes.size()](
                                    std::size_t resource_count) {
@@ -721,7 +722,7 @@ std::optional<Document> prepare_compound_vector_psd(const Document& document) {
   std::uint64_t next = 1;
   for (const auto id : missing) {
     while (next <= UINT32_MAX && native_ids.contains(static_cast<std::uint32_t>(next))) { ++next; }
-    if (next > UINT32_MAX) { throw std::runtime_error("No available Photoshop layer identifiers"); }
+    if (next > UINT32_MAX) { throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "No available Photoshop layer identifiers")); }
     const auto native_id = static_cast<std::uint32_t>(next++);
     native_ids.emplace(native_id, 1);
     set_photoshop_layer_id(*prepared->find_layer(id), native_id);

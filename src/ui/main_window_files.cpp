@@ -587,7 +587,7 @@ QString extension_patterns(const QStringList& extensions) {
 }
 
 QString format_filter_entry(const FileFormatEntry& entry, const QStringList& extensions) {
-  return QStringLiteral("%1 (%2)").arg(QCoreApplication::translate("QObject", entry.display_name),
+  return QStringLiteral("%1 (%2)").arg(translate_data_text(entry.display_name),
                                        extension_patterns(extensions));
 }
 
@@ -616,7 +616,7 @@ QString open_file_filter() {
       continue;
     }
     filters.push_back(QStringLiteral("%1 (%2) (%2)").arg(
-        QCoreApplication::translate("QObject", entry.display_name), extension_patterns(entry.open_extensions)));
+        translate_data_text(entry.display_name), extension_patterns(entry.open_extensions)));
   }
   filters.push_back(QStringLiteral("%1 (*.*)").arg(QObject::tr("All Files (*.*)")));
   return filters.join(QStringLiteral(";;"));
@@ -815,7 +815,7 @@ QString translated_file_message(const std::string& message) {
     return note;
   }
   // Core readers are Qt-free; localize their fixed diagnostic text at the UI boundary.
-  return QCoreApplication::translate("QObject", message.c_str());
+  return translate_data_text(message);
 }
 
 struct OpenDocumentResult {
@@ -1254,7 +1254,7 @@ QString export_notes_suffix_for(const std::vector<std::string>& notices) {
   if (notices.empty()) {
     return QString();
   }
-  QString suffix = QStringLiteral(" ") + QString::fromStdString(notices.front());
+  QString suffix = QStringLiteral(" ") + translate_data_text(notices.front());
   if (notices.size() > 1) {
     suffix += QObject::tr(" (+%n more export note(s))", nullptr, static_cast<int>(notices.size()) - 1);
   }
@@ -1275,7 +1275,7 @@ std::vector<DividePhotosFormatChoice> divide_photos_format_choices() {
         extension == QStringLiteral("cur")) {
       continue;
     }
-    choices.push_back({QCoreApplication::translate("QObject", entry.display_name), extension});
+    choices.push_back({translate_data_text(entry.display_name), extension});
   }
   return choices;
 }
@@ -2179,7 +2179,7 @@ bool MainWindow::run_divide_photos_flow(std::shared_ptr<const PixelBuffer> sourc
       for (std::size_t i = 0; i < photos.size(); ++i) {
         Document photo_document(photos[i].width(), photos[i].height(), photos[i].format());
         photo_document.print_settings() = print_settings;
-        photo_document.add_pixel_layer(tr("Background").toStdString(), std::move(photos[i]));
+        photo_document.add_pixel_layer("Background", std::move(photos[i]));
         const QString path = saved->at(static_cast<qsizetype>(i));
         // Deliberately not marked modified: the session mirrors the file just
         // written, so closing never prompts to save and the tab carries the
@@ -2208,7 +2208,7 @@ bool MainWindow::run_divide_photos_flow(std::shared_ptr<const PixelBuffer> sourc
   for (auto& photo : photos) {
     Document photo_document(photo.width(), photo.height(), photo.format());
     photo_document.print_settings() = print_settings;
-    photo_document.add_pixel_layer(tr("Background").toStdString(), std::move(photo));
+    photo_document.add_pixel_layer("Background", std::move(photo));
     // Untitled + modified, like scanner import: each photo exists nowhere else yet.
     add_document_session(std::move(photo_document), tr("Photo %1").arg(photo_number), QString(),
                          tr("Divide scanned photos"));
@@ -2412,7 +2412,7 @@ void MainWindow::export_sprite_sheet() {
     // The sheet routes through the normal export machinery (export transforms, indexed GIF/PCX
     // quantization, ...) as a flat document. It inherits the source document's print
     // resolution (the composed QImage would otherwise contribute Qt's screen default).
-    auto sheet_document = document_from_qimage(sheet, "Sprite Sheet");
+    auto sheet_document = document_from_qimage(sheet, tr("Sprite Sheet").toStdString());
     sheet_document.print_settings() = document().print_settings();
     write_flat_image_file(sheet_document, path, extension, *image_options);
     offer_browser_download_for_saved_file(path);
@@ -2549,7 +2549,7 @@ void MainWindow::export_image_sequence() {
       }
       // Each frame routes through the normal export machinery as a flat document and
       // inherits the source document's print resolution (same as the sprite sheet).
-      auto frame_document = document_from_qimage(render_layer_isolated(document(), layer), "Frame");
+      auto frame_document = document_from_qimage(render_layer_isolated(document(), layer), tr("Frame").toStdString());
       frame_document.print_settings() = document().print_settings();
       write_flat_image_file(frame_document, directory.filePath(file_names[frame_index]), extension, *image_options);
       ++frame_index;
@@ -3265,7 +3265,7 @@ void MainWindow::rebuild_recent_files_menu() {
     recent_files_filter_edit_->setMinimumWidth(320);
     // The edit's own Cut/Copy/Paste popup must not nest inside the menu popup.
     recent_files_filter_edit_->setContextMenuPolicy(Qt::NoContextMenu);
-    bind_widget_text(recent_files_filter_edit_, "Filter recent files...");
+    bind_widget_text(recent_files_filter_edit_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Filter recent files..."));
     filter_layout->addWidget(recent_files_filter_edit_);
     // The global QWidget rule would otherwise paint @window_bg over the menu background.
     set_themed_style(*filter_row,

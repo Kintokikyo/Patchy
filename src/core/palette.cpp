@@ -2,6 +2,7 @@
 
 #include "core/document.hpp"
 #include "core/smart_object.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <array>
@@ -38,7 +39,7 @@ struct ColorBox {
 
 [[nodiscard]] ColorBox make_box(std::vector<PaletteColorCount> colors) {
   if (colors.empty()) {
-    throw std::runtime_error("Cannot quantize an empty color box");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Cannot quantize an empty color box"));
   }
   ColorBox box;
   box.colors = std::move(colors);

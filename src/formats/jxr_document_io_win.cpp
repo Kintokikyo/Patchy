@@ -15,6 +15,7 @@
 #include "formats/jxr_document_io.hpp"
 
 #include "formats/wic_com.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <cstring>
@@ -171,7 +172,7 @@ void apply_resolution(Document& document, IWICBitmapFrameDecode& frame) {
   // CopyPixels accepts a UINT byte count. A full 16384-square float image
   // occupies 4 GiB, so deliver bounded row batches without narrowing that size.
   if (stride > (std::numeric_limits<UINT>::max)()) {
-    throw std::runtime_error("JPEG XR float row exceeds the codec buffer limit");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "JPEG XR float row exceeds the codec buffer limit"));
   }
   const auto rows_per_copy = static_cast<UINT>(
       std::min<std::size_t>(64U, (std::numeric_limits<UINT>::max)() / stride));
@@ -238,7 +239,7 @@ FormatReadResult read_jxr(std::span<const std::uint8_t> bytes) {
   }
   if (width == 0 || height == 0 ||
       static_cast<std::uint64_t>(width) * static_cast<std::uint64_t>(height) > kMaxPixels) {
-    throw std::runtime_error("This JPEG XR image's dimensions are not supported");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "This JPEG XR image's dimensions are not supported"));
   }
 
   const auto kind = classify_pixel_format(*factory.get(), *frame.get());
@@ -274,7 +275,7 @@ FormatReadResult read_jxr(std::span<const std::uint8_t> bytes) {
 
   if (kind.is_float) {
     result.notices.push_back(
-        "This HDR image was tone mapped to 8-bit sRGB; Patchy edits 8 bits per channel.");
+        PATCHY_TRANSLATE_NOOP("QObject", "This HDR image was tone mapped to 8-bit sRGB; Patchy edits 8 bits per channel."));
   } else if (kind.bits_per_channel > 8) {
     result.notices.push_back("Converted " + std::to_string(kind.bits_per_channel) +
                              "-bit channels to 8-bit; Patchy edits 8 bits per channel.");
@@ -290,11 +291,11 @@ std::vector<std::uint8_t> write_jxr(std::span<const std::uint8_t> rgba, std::int
                                     bool has_alpha, double horizontal_ppi, double vertical_ppi,
                                     const WriteOptions& options) {
   if (width <= 0 || height <= 0) {
-    throw std::runtime_error("Cannot write an empty document as JPEG XR");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Cannot write an empty document as JPEG XR"));
   }
   const auto pixel_count = static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
   if (rgba.size() < pixel_count * 4U) {
-    throw std::runtime_error("JPEG XR write buffer is too small");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "JPEG XR write buffer is too small"));
   }
 
   const CoInitGuard com_guard;
@@ -358,7 +359,7 @@ std::vector<std::uint8_t> write_jxr(std::span<const std::uint8_t> rgba, std::int
   }
   const bool write_alpha = IsEqualGUID(requested, GUID_WICPixelFormat32bppBGRA) != FALSE;
   if (!write_alpha && !IsEqualGUID(requested, GUID_WICPixelFormat24bppBGR)) {
-    throw std::runtime_error("The Windows JPEG XR encoder did not accept a BGR or BGRA frame");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "The Windows JPEG XR encoder did not accept a BGR or BGRA frame"));
   }
 
   const std::size_t channels = write_alpha ? 4U : 3U;
@@ -400,7 +401,7 @@ std::vector<std::uint8_t> write_jxr(std::span<const std::uint8_t> rgba, std::int
   const auto size = static_cast<std::size_t>(stat.cbSize.QuadPart);
   const auto* locked = static_cast<const std::uint8_t*>(GlobalLock(handle));
   if (locked == nullptr) {
-    throw std::runtime_error("Unable to read back the encoded JPEG XR image");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Unable to read back the encoded JPEG XR image"));
   }
   std::vector<std::uint8_t> encoded(locked, locked + size);
   GlobalUnlock(handle);

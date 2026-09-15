@@ -5,7 +5,7 @@ Read before changing format I/O, open/save filters, notices, or alpha/mask impor
 ## Registry and dispatch
 
 - `builtin_format_registry()` (format_registry.cpp, function-local static) is the single instance. `load_document_from_path` (main_window.cpp) consults it BEFORE the QImageReader fallback; a throwing registry read still falls back to Qt where a Qt plugin exists, but if Qt also fails the REGISTRY error is reported. Handlers may be read-only (`write == nullptr`) and may carry a `sniff` check; sniffing disambiguates `.ase` (Aseprite magic 0xA5E0 at offset 4 vs Adobe `ASEF` swatches; the error points swatch files at the Palette panel).
-- One filter table: `file_format_entries()` (main_window_files.cpp) generates open/save/export filters, `is_supported_image_extension`, `save_file_filter_for_path`, and `path_with_default_extension`. Display names sit in `QT_TRANSLATE_NOOP("QObject", ...)`; update patchy_ja.ts when adding one.
+- One filter table: `file_format_entries()` (main_window_files.cpp) generates open/save/export filters, `is_supported_image_extension`, `save_file_filter_for_path`, and `path_with_default_extension`. Display names sit in `QT_TRANSLATE_NOOP("QObject", ...)` and are shown through `translate_data_text`; run `scripts\update-translations.ps1` and fill every catalog when adding one ([localization.md](localization.md)).
 - A new format needs one table row, one registry row, one writer branch.
 
 ## Open-dialog filter contract

@@ -3,6 +3,7 @@
 #include "psd/psd_binary.hpp"
 #include "psd/psd_descriptor.hpp"
 #include "psd/psd_patterns.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -126,7 +127,7 @@ struct PatPlaneInspection {
 
 [[nodiscard]] std::uint64_t validate_plane_geometry(std::span<const std::uint8_t> bytes) {
   if (bytes.size() < kChannelHeaderBytes) {
-    throw std::runtime_error("PAT pattern channel is truncated");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PAT pattern channel is truncated"));
   }
   BigEndianReader channel(bytes);
   (void)channel.read_u32();  // depth; the shared decoder validates supported values
@@ -138,12 +139,12 @@ struct PatPlaneInspection {
   const auto height64 = static_cast<std::int64_t>(bottom) - static_cast<std::int64_t>(top);
   if (width64 <= 0 || height64 <= 0 || width64 > kMaxPatternDimension ||
       height64 > kMaxPatternDimension) {
-    throw std::runtime_error("PAT pattern channel rectangle is invalid");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PAT pattern channel rectangle is invalid"));
   }
   const auto plane_pixels = static_cast<std::uint64_t>(width64) *
                             static_cast<std::uint64_t>(height64);
   if (plane_pixels > kMaxPatternPixels) {
-    throw std::runtime_error("PAT pattern channel has too many pixels");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PAT pattern channel has too many pixels"));
   }
   return plane_pixels;
 }
@@ -180,12 +181,12 @@ PatRecord read_record(BigEndianReader& reader, std::span<const std::uint8_t> byt
   record.vma_version = reader.read_u32();
   const auto vma_length = static_cast<std::size_t>(reader.read_u32());
   if (vma_length > reader.remaining()) {
-    throw std::runtime_error("PAT pattern VMA is truncated");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PAT pattern VMA is truncated"));
   }
   reader.skip(vma_length);
   record.record_end = reader.position();
   if (record.record_end > bytes.size()) {
-    throw std::runtime_error("PAT pattern record is truncated");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PAT pattern record is truncated"));
   }
   return record;
 }
@@ -197,18 +198,18 @@ PatRecord read_record(BigEndianReader& reader, std::span<const std::uint8_t> byt
                                                 std::span<const std::uint8_t> bytes) {
   BigEndianReader vma(bytes.subspan(record.vma_start, record.record_end - record.vma_start));
   if (vma.read_u32() != kVirtualMemoryArrayVersion) {
-    throw std::runtime_error("PAT pattern VMA version is unsupported");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PAT pattern VMA version is unsupported"));
   }
   const auto vma_length = static_cast<std::size_t>(vma.read_u32());
   if (vma_length > vma.remaining() || vma_length < 20U) {
-    throw std::runtime_error("PAT pattern VMA length is invalid");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PAT pattern VMA length is invalid"));
   }
   const auto payload = bytes.subspan(record.vma_start + 8U, vma_length);
   BigEndianReader slots(payload);
   slots.skip(16U);  // VMA bounds
   const auto declared_channels = slots.read_u32();
   if (declared_channels > 64U) {
-    throw std::runtime_error("PAT pattern channel count is invalid");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PAT pattern channel count is invalid"));
   }
   const auto slot_count = declared_channels + 2U;
   const auto color_channel_count =
@@ -222,17 +223,17 @@ PatRecord read_record(BigEndianReader& reader, std::span<const std::uint8_t> byt
     }
     const auto length = static_cast<std::size_t>(slots.read_u32());
     if (length > slots.remaining()) {
-      throw std::runtime_error("PAT pattern channel is truncated");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PAT pattern channel is truncated"));
     }
     if (length != 0U && length < kChannelHeaderBytes) {
-      throw std::runtime_error("PAT pattern channel is truncated");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PAT pattern channel is truncated"));
     }
     const auto relevant = slot < color_channel_count || slot == declared_channels + 1U;
     if (length != 0U && relevant) {
       const auto plane_samples =
           validate_plane_geometry(payload.subspan(slots.position(), length));
       if (plane_samples > kMaxAttemptedPlaneSamples - inspection.decode_samples) {
-        throw std::runtime_error("PAT pattern plane sample count is too large");
+        throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PAT pattern plane sample count is too large"));
       }
       inspection.decode_samples += plane_samples;
       if (record.mode == kModeIndexed && slot == 0U) {
@@ -250,7 +251,7 @@ PatRecord read_record(BigEndianReader& reader, std::span<const std::uint8_t> byt
   if (record.mode == kModeIndexed && !inspection.sheet_alpha &&
       record.transparent_index < 256U) {
     if (indexed_color_samples > kMaxAttemptedPlaneSamples - inspection.decode_samples) {
-      throw std::runtime_error("PAT pattern plane sample count is too large");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PAT pattern plane sample count is too large"));
     }
     inspection.decode_samples += indexed_color_samples;
   }
@@ -270,22 +271,22 @@ PatRecord read_record(BigEndianReader& reader, std::span<const std::uint8_t> byt
                                                 std::span<const std::uint8_t> bytes) {
   BigEndianReader vma(bytes.subspan(record.vma_start, record.record_end - record.vma_start));
   if (vma.read_u32() != kVirtualMemoryArrayVersion) {
-    throw std::runtime_error("PAT pattern VMA version is unsupported");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PAT pattern VMA version is unsupported"));
   }
   const auto vma_length = static_cast<std::size_t>(vma.read_u32());
   if (vma_length > vma.remaining() || vma_length < 24U) {
-    throw std::runtime_error("PAT pattern VMA length is invalid");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PAT pattern VMA length is invalid"));
   }
   const auto payload = bytes.subspan(record.vma_start + 8U, vma_length);
   BigEndianReader slots(payload);
   slots.skip(16U);  // VMA bounds
   (void)slots.read_u32();  // declared max channels
   if (slots.read_u32() == 0U) {
-    throw std::runtime_error("PAT indexed pattern has no color plane");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PAT indexed pattern has no color plane"));
   }
   const auto slot_length = static_cast<std::size_t>(slots.read_u32());
   if (slot_length < kChannelHeaderBytes || slot_length > slots.remaining()) {
-    throw std::runtime_error("PAT indexed channel is truncated");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PAT indexed channel is truncated"));
   }
   const auto slot_offset = slots.position();
   BigEndianReader channel(payload.subspan(slot_offset, slot_length));
@@ -300,17 +301,17 @@ PatRecord read_record(BigEndianReader& reader, std::span<const std::uint8_t> byt
   const auto height64 = static_cast<std::int64_t>(bottom) - static_cast<std::int64_t>(top);
   if (width64 <= 0 || height64 <= 0 || width64 > kMaxPatternDimension ||
       height64 > kMaxPatternDimension) {
-    throw std::runtime_error("PAT indexed channel rectangle is invalid");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PAT indexed channel rectangle is invalid"));
   }
   const auto width = static_cast<std::int32_t>(width64);
   const auto height = static_cast<std::int32_t>(height64);
   const auto plane_pixels = static_cast<std::uint64_t>(width64) *
                             static_cast<std::uint64_t>(height64);
   if (plane_pixels > kMaxPatternPixels) {
-    throw std::runtime_error("PAT indexed channel has too many pixels");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PAT indexed channel has too many pixels"));
   }
   if ((depth != 8U && depth != 16U) || (pixel_depth != 8U && pixel_depth != 16U)) {
-    throw std::runtime_error("PAT indexed channel depth is unsupported");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PAT indexed channel depth is unsupported"));
   }
   const auto bytes_per_sample = static_cast<std::size_t>(pixel_depth / 8U);
   const auto row_bytes = static_cast<std::size_t>(width) * bytes_per_sample;
@@ -319,20 +320,20 @@ PatRecord read_record(BigEndianReader& reader, std::span<const std::uint8_t> byt
   std::vector<std::uint8_t> raw;
   if (compression == 0U) {
     if (data_length < expected) {
-      throw std::runtime_error("PAT indexed channel data is truncated");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PAT indexed channel data is truncated"));
     }
     raw = channel.read_bytes(expected);
   } else if (compression == 1U) {
     const auto table_bytes = static_cast<std::size_t>(height) * 2U;
     if (data_length < table_bytes) {
-      throw std::runtime_error("PAT indexed RLE table is truncated");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PAT indexed RLE table is truncated"));
     }
     std::vector<std::uint16_t> row_lengths(static_cast<std::size_t>(height));
     std::size_t encoded_total = 0;
     for (auto& row_length : row_lengths) {
       row_length = channel.read_u16();
       if (row_length > data_length - table_bytes - encoded_total) {
-        throw std::runtime_error("PAT indexed RLE row is truncated");
+        throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PAT indexed RLE row is truncated"));
       }
       encoded_total += row_length;
     }
@@ -343,7 +344,7 @@ PatRecord read_record(BigEndianReader& reader, std::span<const std::uint8_t> byt
       raw.insert(raw.end(), row.begin(), row.end());
     }
   } else {
-    throw std::runtime_error("PAT indexed compression mode is unsupported");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PAT indexed compression mode is unsupported"));
   }
 
   IndexedPlane plane;
@@ -387,7 +388,7 @@ PatRecord read_record(BigEndianReader& reader, std::span<const std::uint8_t> byt
   const auto vma_size = record.record_end - record.vma_start;
   if (vma_size > std::numeric_limits<std::uint32_t>::max() ||
       prefix_size > std::numeric_limits<std::uint32_t>::max() - vma_size) {
-    throw std::runtime_error("PAT pattern record is too large");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PAT pattern record is too large"));
   }
   const auto pattern_size = prefix_size + vma_size;
   const auto consumed = 4U + pattern_size;
@@ -518,7 +519,7 @@ std::optional<PatReadResult> read_pat(std::span<const std::uint8_t> bytes, std::
         const auto adapted = adapt_to_patterns_block(record, bytes);
         auto decoded = parse_patterns_block(adapted, cmyk_icc);
         if (decoded.size() != 1U) {
-          throw std::runtime_error("channel data could not be decoded");
+          throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "channel data could not be decoded"));
         }
         auto resource = std::move(decoded.front());
         // Keep the standalone record's semantic identity even if a future

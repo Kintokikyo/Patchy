@@ -1,6 +1,7 @@
 #include "ui/custom_shape_library.hpp"
 
 #include "ui/default_custom_shapes.hpp"
+#include "ui/localization.hpp"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -56,7 +57,7 @@ QString custom_shape_display_name(const CustomShapeLibraryEntry& entry) {
   for (const auto& builtin : builtin_custom_shapes()) {
     if (entry.id == QLatin1String(builtin.id) &&
         entry.name == QLatin1String(builtin.english_name)) {
-      return QCoreApplication::translate("QObject", builtin.english_name);
+      return translate_data_text(builtin.english_name);
     }
   }
   return entry.name;

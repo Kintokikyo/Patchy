@@ -1706,7 +1706,7 @@ void MainWindow::editable_smart_filter_dialog(
                     }
                   } else {
                     window->show_status_error(
-                        window->tr("Smart Filter preview failed: %1")
+                        MainWindow::tr("Smart Filter preview failed: %1")
                             .arg(*error));
                   }
                 }
@@ -2427,7 +2427,7 @@ void MainWindow::apply_filter(const QString& identifier) {
                         }
                       } else {
                         window->show_status_error(
-                            window->tr("Filter preview failed: %1").arg(*error));
+                            MainWindow::tr("Filter preview failed: %1").arg(*error));
                       }
                     }
                     if (!preview_state->closed && preview_state->pending.has_value() && preview_state->start) {
@@ -2549,7 +2549,7 @@ void MainWindow::apply_filter(const QString& identifier) {
         canvas_->document_changed(to_qrect(restore_layer->bounds()));
       }
     }
-    show_critical_message(this, tr("Filter failed"), QString::fromUtf8(error.what()),
+    show_critical_message(this, tr("Filter failed"), translate_data_text(error.what()),
                           QStringLiteral("filterFailedMessageBox"));
   }
 }
@@ -3021,7 +3021,7 @@ void MainWindow::visual_filter_gallery_dialog() {
                       }
                     } else {
                       window->show_status_error(
-                          window->tr("Filter preview failed: %1").arg(*error));
+                          MainWindow::tr("Filter preview failed: %1").arg(*error));
                     }
                   }
                   if (!preview_state->closed && preview_state->pending.has_value() && preview_state->start) {
@@ -3347,7 +3347,7 @@ void MainWindow::visual_filter_gallery_dialog() {
             : tr("Applied %1").arg(display_name));
   } catch (const std::exception& error) {
     restore_original();
-    show_critical_message(this, tr("Filter failed"), QString::fromUtf8(error.what()),
+    show_critical_message(this, tr("Filter failed"), translate_data_text(error.what()),
                           QStringLiteral("filterFailedMessageBox"));
   }
 }

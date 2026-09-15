@@ -13,6 +13,7 @@
 #include "formats/heif_document_io.hpp"
 
 #include "formats/wic_com.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <cstring>
@@ -135,7 +136,7 @@ FormatReadResult read_heif(std::span<const std::uint8_t> bytes) {
   constexpr std::uint64_t kMaxPixels = 268'435'456;  // 256 Mpx (a 1 GiB RGBA buffer)
   if (width == 0 || height == 0 ||
       static_cast<std::uint64_t>(width) * static_cast<std::uint64_t>(height) > kMaxPixels) {
-    throw std::runtime_error("This HEIF image's dimensions are not supported");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "This HEIF image's dimensions are not supported"));
   }
 
   const int orientation = read_heif_orientation(*frame.get());

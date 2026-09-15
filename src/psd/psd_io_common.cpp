@@ -20,6 +20,7 @@
 #include "psd/psd_smart_objects.hpp"
 #include "render/compositor.hpp"
 #include "support/string_utils.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <array>
@@ -109,19 +110,19 @@ PixelFormat format_from_header(const Header& header) {
   // 16- and 32-bit files decode by converting every channel to 8-bit at read time
   // (Patchy's pixel pipeline is 8-bit only), so the returned format is always 8-bit.
   if (header.depth != 8 && header.depth != 16 && header.depth != 32) {
-    throw std::runtime_error("The starter PSD reader currently supports 8, 16, and 32-bit files only");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "The starter PSD reader currently supports 8, 16, and 32-bit files only"));
   }
   if (header.color_mode != kColorModeRgb && header.color_mode != kColorModeCmyk) {
-    throw std::runtime_error("The starter PSD reader currently supports RGB and CMYK files only");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "The starter PSD reader currently supports RGB and CMYK files only"));
   }
   if (header.channels > kMaximumPhotoshopChannelCount) {
-    throw std::runtime_error("PSD files cannot contain more than 56 channels");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD files cannot contain more than 56 channels"));
   }
   if (header.color_mode == kColorModeRgb && header.channels < 3) {
-    throw std::runtime_error("RGB PSD file must contain at least 3 channels");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "RGB PSD file must contain at least 3 channels"));
   }
   if (header.color_mode == kColorModeCmyk && header.channels < 4) {
-    throw std::runtime_error("CMYK PSD file must contain at least 4 channels");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "CMYK PSD file must contain at least 4 channels"));
   }
   return PixelFormat::rgb8();
 }
@@ -129,7 +130,7 @@ PixelFormat format_from_header(const Header& header) {
 std::vector<std::uint8_t> read_file_bytes(const std::filesystem::path& path) {
   std::ifstream file(path, std::ios::binary);
   if (!file) {
-    throw std::runtime_error("Could not open PSD file for reading");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Could not open PSD file for reading"));
   }
   return std::vector<std::uint8_t>(std::istreambuf_iterator<char>(file), {});
 }
@@ -137,7 +138,7 @@ std::vector<std::uint8_t> read_file_bytes(const std::filesystem::path& path) {
 void write_file_bytes(const std::filesystem::path& path, std::span<const std::uint8_t> bytes) {
   std::ofstream file(path, std::ios::binary);
   if (!file) {
-    throw std::runtime_error("Could not open PSD file for writing");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Could not open PSD file for writing"));
   }
   file.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
 }

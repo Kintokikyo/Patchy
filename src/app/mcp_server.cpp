@@ -46,19 +46,19 @@ class AttachedProxy final : public QObject {
 
   void receive_line(const QByteArray& line) {
     if (line.size() > 16 * 1024 * 1024) {
-      rpc_error(QJsonValue(QJsonValue::Null), -32700, QCoreApplication::translate("PatchyMcp", "The request exceeds 16 MiB.")); return;
+      rpc_error(QJsonValue(QJsonValue::Null), -32700, QStringLiteral("The request exceeds 16 MiB.")); return;
     }
     QJsonParseError error;
     const auto doc = QJsonDocument::fromJson(line, &error);
     if (error.error != QJsonParseError::NoError || !doc.isObject()) {
-      rpc_error(QJsonValue(QJsonValue::Null), -32700, QCoreApplication::translate("PatchyMcp", "Invalid JSON-RPC message.")); return;
+      rpc_error(QJsonValue(QJsonValue::Null), -32700, QStringLiteral("Invalid JSON-RPC message.")); return;
     }
     const auto message = doc.object();
     const auto method = message["method"].toString();
     const auto id = message.value("id");
     if (message["jsonrpc"] != "2.0" || method.isEmpty() ||
         (!id.isUndefined() && !id.isDouble() && !id.isString())) {
-      rpc_error(QJsonValue(QJsonValue::Null), -32600, QCoreApplication::translate("PatchyMcp", "Invalid JSON-RPC message.")); return;
+      rpc_error(QJsonValue(QJsonValue::Null), -32600, QStringLiteral("Invalid JSON-RPC message.")); return;
     }
     if (id.isUndefined()) {
       if (method == "notifications/cancelled" && !pending_.isEmpty() &&
@@ -68,24 +68,24 @@ class AttachedProxy final : public QObject {
           const QJsonValue cancelled_id = pending_.value("id");
           pending_ = {};
           unavailable();
-          tool_reply(cancelled_id, {{"error", "cancelled"}, {"message", QCoreApplication::translate("PatchyMcp", "Operation cancelled.")}}, true);
+          tool_reply(cancelled_id, {{"error", "cancelled"}, {"message", QStringLiteral("Operation cancelled.")}}, true);
         }
       }
       return;
     }
     if (method == "initialize") {
-      if (initialized_) { rpc_error(id, -32600, QCoreApplication::translate("PatchyMcp", "The MCP connection is already initialized.")); return; }
+      if (initialized_) { rpc_error(id, -32600, QStringLiteral("The MCP connection is already initialized.")); return; }
       initialized_ = true;
       initialize_params_ = message["params"].toObject();
       reply(id, ui::mcp_initialize_result(initialize_params_));
       return;
     }
     if (method == "ping") { reply(id, {}); return; }
-    if (!initialized_) { rpc_error(id, -32600, QCoreApplication::translate("PatchyMcp", "Initialize the MCP connection first.")); return; }
+    if (!initialized_) { rpc_error(id, -32600, QStringLiteral("Initialize the MCP connection first.")); return; }
     if (method == "tools/list") { reply(id, {{"tools", ui::mcp_tool_catalog()}}); return; }
-    if (method != "tools/call") { rpc_error(id, -32601, QCoreApplication::translate("PatchyMcp", "Unknown MCP method.")); return; }
+    if (method != "tools/call") { rpc_error(id, -32601, QStringLiteral("Unknown MCP method.")); return; }
     if (!pending_.isEmpty()) {
-      tool_reply(id, {{"error", "busy"}, {"message", QCoreApplication::translate("PatchyMcp", "Another operation is running. Wait for its reply before retrying.")}}, true);
+      tool_reply(id, {{"error", "busy"}, {"message", QStringLiteral("Another operation is running. Wait for its reply before retrying.")}}, true);
       return;
     }
     const auto params = message["params"].toObject();
@@ -93,16 +93,16 @@ class AttachedProxy final : public QObject {
     try {
       const auto value = params.value("arguments");
       if (!value.isUndefined() && !value.isObject()) {
-        throw std::runtime_error(QCoreApplication::translate("PatchyMcp", "Tool arguments must be an object.").toStdString());
+        throw std::runtime_error(QStringLiteral("Tool arguments must be an object.").toStdString());
       }
       bool known = false;
       for (const auto& tool : ui::mcp_tool_catalog()) { known = known || tool.toObject()["name"] == name; }
-      if (!known) { throw std::runtime_error(QCoreApplication::translate("PatchyMcp", "Unknown MCP tool.").toStdString()); }
+      if (!known) { throw std::runtime_error(QStringLiteral("Unknown MCP tool.").toStdString()); }
       if (name == "get_help") {
         const auto args = value.toObject();
         for (auto it = args.begin(); it != args.end(); ++it) {
           if (it.key() != "topic" || !it->isString()) {
-            throw std::runtime_error(QCoreApplication::translate("PatchyMcp", "Invalid tool argument: %1").arg(it.key()).toStdString());
+            throw std::runtime_error(QStringLiteral("Invalid tool argument: %1").arg(it.key()).toStdString());
           }
         }
         tool_reply(id, ui::mcp_help_result(args));
@@ -182,8 +182,8 @@ class AttachedProxy final : public QObject {
     disconnecting_ = false;
     if (!pending.isEmpty()) {
       const auto message = uncertain
-        ? QCoreApplication::translate("PatchyMcp", "The Patchy workspace disconnected during this request. Changes may have been made. Do not repeat the edit automatically. Open Patchy from the same installation, call get_info, and inspect the document before continuing.")
-        : QCoreApplication::translate("PatchyMcp", "The Patchy workspace is unavailable. Open Patchy from the same installation, or disconnect another attached client, then call get_info again. This MCP connection remains available. No separate workspace was created.");
+        ? QStringLiteral("The Patchy workspace disconnected during this request. Changes may have been made. Do not repeat the edit automatically. Open Patchy from the same installation, call get_info, and inspect the document before continuing.")
+        : QStringLiteral("The Patchy workspace is unavailable. Open Patchy from the same installation, or disconnect another attached client, then call get_info again. This MCP connection remains available. No separate workspace was created.");
       tool_reply(pending["id"], {{"error", uncertain ? "workspace_disconnected" : "workspace_unavailable"},
         {"message", message}, {"workspace", "attached"}, {"workspaceAvailable", false},
         {"liveWindowAttachment", false}, {"requiresExpectedState", true}, {"skillDirectory", kit_directory()},
@@ -222,7 +222,7 @@ int run_mcp_server(QApplication& app) {
   const auto args = app.arguments().mid(1);
   if (args == QStringList{QStringLiteral("--attach")}) { return run_attached_proxy(app); }
   if (!args.isEmpty() && args != QStringList{QStringLiteral("--visible")} && args != QStringList{QStringLiteral("--check")}) {
-    const auto usage = QCoreApplication::translate("PatchyMcp", "Usage: patchy-mcp [--attach | --visible | --check]. Default: hidden workspace. --visible: separate window. --attach: the running Patchy workspace.").toUtf8();
+    const auto usage = QStringLiteral("Usage: patchy-mcp [--attach | --visible | --check]. Default: hidden workspace. --visible: separate window. --attach: the running Patchy workspace.").toUtf8();
     (void)std::fprintf(stderr, "%s\n", usage.constData());
     return args == QStringList{QStringLiteral("--help")} ? 0 : 2;
   }

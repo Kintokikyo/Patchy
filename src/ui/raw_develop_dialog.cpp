@@ -5,6 +5,7 @@
 #include "ui/dialog_utils.hpp"
 #include "ui/zoomable_image_preview.hpp"
 #include "ui/theme_qss.hpp"
+#include "ui/localization.hpp"
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -382,7 +383,7 @@ std::optional<RawDevelopOutcome> run_raw_develop_dialog(QWidget* parent, const Q
   white_balance_combo->addItem(QObject::tr("As Shot"), QStringLiteral("asShot"));
   white_balance_combo->addItem(QObject::tr("Auto"), QStringLiteral("auto"));
   for (std::size_t index = 0; index < presets.size(); ++index) {
-    white_balance_combo->addItem(QCoreApplication::translate("QObject", presets[index].label),
+    white_balance_combo->addItem(translate_data_text(presets[index].label),
                                  QStringLiteral("preset:%1").arg(index));
   }
   white_balance_combo->addItem(QObject::tr("Custom"), QStringLiteral("custom"));

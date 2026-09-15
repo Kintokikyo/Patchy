@@ -9,6 +9,7 @@
 #include "ui/preset_manager_scaffold.hpp"
 #include "ui/preset_tree_widget.hpp"
 #include "ui/theme_qss.hpp"
+#include "ui/measurement_units.hpp"
 
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -198,7 +199,7 @@ void request_brush_tip_manager(QWidget* parent, BrushTipLibrary& library, const 
   auto* spacing_spin = new QSpinBox(&dialog);
   spacing_spin->setObjectName(QStringLiteral("brushTipSpacingSpin"));
   spacing_spin->setRange(1, 1000);
-  spacing_spin->setSuffix(QStringLiteral("%"));
+  spacing_spin->setSuffix(percent_suffix());
   spacing_spin->setValue(25);
   spacing_spin->setToolTip(QObject::tr("Distance between stamps as a percentage of the brush size"));
   spacing_spin->setMinimumWidth(120);

@@ -9,6 +9,7 @@
 #include "formats/format_file_io.hpp"
 #include "psd/psd_binary.hpp"
 #include "psd/psd_descriptor.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <array>
@@ -63,7 +64,7 @@ bool DocumentIo::can_read(std::span<const std::uint8_t> bytes) noexcept {
 
 Document DocumentIo::read(std::span<const std::uint8_t> bytes, std::vector<std::string>* notices) {
   if (!can_read(bytes)) {
-    throw std::runtime_error("File is not an IFF ILBM image");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "File is not an IFF ILBM image"));
   }
   psd::BigEndianReader reader(bytes);
   reader.skip(4);  // FORM
@@ -122,25 +123,25 @@ Document DocumentIo::read(std::span<const std::uint8_t> bytes, std::vector<std::
   }
 
   if (!have_header || !have_body) {
-    throw std::runtime_error("IFF ILBM file is missing its BMHD or BODY chunk");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "IFF ILBM file is missing its BMHD or BODY chunk"));
   }
   if (header.width <= 0 || header.height <= 0) {
-    throw std::runtime_error("IFF ILBM image has invalid dimensions");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "IFF ILBM image has invalid dimensions"));
   }
   if ((camg & kCamgHam) != 0) {
-    throw std::runtime_error("HAM-mode IFF images are not supported yet");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "HAM-mode IFF images are not supported yet"));
   }
   if (header.compression > 1) {
-    throw std::runtime_error("IFF ILBM compression is not supported");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "IFF ILBM compression is not supported"));
   }
   if (!chunky && (header.planes == 0 || header.planes > 8)) {
-    throw std::runtime_error("Only 1-8 bitplane IFF ILBM images are supported (no 24-bit deep ILBM yet)");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Only 1-8 bitplane IFF ILBM images are supported (no 24-bit deep ILBM yet)"));
   }
   if (chunky && header.planes != 8) {
-    throw std::runtime_error("Only 8-bit IFF PBM images are supported");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Only 8-bit IFF PBM images are supported"));
   }
   if (palette.empty()) {
-    throw std::runtime_error("IFF ILBM file is missing its CMAP palette");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "IFF ILBM file is missing its CMAP palette"));
   }
 
   // EHB doubles a 32-color palette with half-brightness copies.
@@ -162,11 +163,11 @@ Document DocumentIo::read(std::span<const std::uint8_t> bytes, std::vector<std::
   const auto minimum_input = header.compression == 1
       ? decoded_size / 128U + (decoded_size % 128U != 0U) : decoded_size;
   if (minimum_input > body.size()) {
-    throw std::runtime_error("IFF ILBM body data ended unexpectedly");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "IFF ILBM body data ended unexpectedly"));
   }
   const auto data = header.compression == 1 ? psd::decode_packbits(body, decoded_size) : std::move(body);
   if (data.size() < decoded_size) {
-    throw std::runtime_error("IFF ILBM body data ended unexpectedly");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "IFF ILBM body data ended unexpectedly"));
   }
 
   const bool has_alpha = mask_plane || transparent_color;
@@ -222,7 +223,7 @@ Document DocumentIo::read_file(const std::filesystem::path& path, std::vector<st
 std::vector<std::uint8_t> DocumentIo::write(const Document& document) {
   if (document.width() <= 0 || document.height() <= 0 || document.width() > 0xffff ||
       document.height() > 0xffff) {
-    throw std::runtime_error("IFF ILBM dimensions must be between 1 and 65535");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "IFF ILBM dimensions must be between 1 and 65535"));
   }
   const auto indexed =
       document.palette_editing().has_value() && !document.palette_editing()->palette.colors.empty()
@@ -234,7 +235,7 @@ std::vector<std::uint8_t> DocumentIo::write(const Document& document) {
     ++planes;
   }
   if (planes > 8) {
-    throw std::runtime_error("IFF ILBM palettes cannot exceed 256 colors");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "IFF ILBM palettes cannot exceed 256 colors"));
   }
 
   const auto row_bytes = plane_row_bytes(indexed.width);

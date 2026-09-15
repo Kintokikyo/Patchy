@@ -22,6 +22,7 @@
 #include "psd/psd_smart_objects.hpp"
 #include "render/compositor.hpp"
 #include "support/string_utils.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <array>
@@ -206,7 +207,7 @@ const UnknownPsdBlock* find_layer_block(const Layer& layer, std::string_view key
 
 EncodedLayer encode_layer(const Layer& layer, bool large_document) {
   if (layer.kind() != LayerKind::Pixel) {
-    throw std::runtime_error("Layered PSD export currently supports pixel and group layers only");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Layered PSD export currently supports pixel and group layers only"));
   }
   if (layer_is_vector_shape(layer)) {
     // Photoshop's shape/fill layer convention (docs/vector-tools.md): empty
@@ -232,7 +233,7 @@ EncodedLayer encode_layer(const Layer& layer, bool large_document) {
   }
   const auto& pixels = layer.pixels();
   if (pixels.format().bit_depth != BitDepth::UInt8 || pixels.format().channels < 3 || pixels.format().channels > 4) {
-    throw std::runtime_error("Layered PSD export currently supports RGB/RGBA 8-bit layers only");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Layered PSD export currently supports RGB/RGBA 8-bit layers only"));
   }
 
   EncodedLayer encoded;
@@ -247,10 +248,10 @@ EncodedLayer encode_layer(const Layer& layer, bool large_document) {
   if (layer.mask().has_value() && !layer.mask()->pixels.empty()) {
     const auto& mask = *layer.mask();
     if (mask.pixels.format() != PixelFormat::gray8()) {
-      throw std::runtime_error("Layered PSD export requires 8-bit grayscale layer masks");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Layered PSD export requires 8-bit grayscale layer masks"));
     }
     if (mask.bounds.width != mask.pixels.width() || mask.bounds.height != mask.pixels.height()) {
-      throw std::runtime_error("Layer mask bounds do not match mask pixels");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Layer mask bounds do not match mask pixels"));
     }
     channel_ids.push_back(kChannelUserMask);
   }
@@ -291,7 +292,7 @@ EncodedLayer encode_layer(const Layer& layer, bool large_document) {
 
 EncodedLayer encode_adjustment_layer(const Layer& layer, bool large_document) {
   if (layer.kind() != LayerKind::Adjustment || !adjustment_settings_from_layer(layer).has_value()) {
-    throw std::runtime_error("Adjustment layer is missing Patchy adjustment settings");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Adjustment layer is missing Patchy adjustment settings"));
   }
 
   EncodedLayer encoded;
@@ -302,10 +303,10 @@ EncodedLayer encode_adjustment_layer(const Layer& layer, bool large_document) {
   if (layer.mask().has_value() && !layer.mask()->pixels.empty()) {
     const auto& mask = *layer.mask();
     if (mask.pixels.format() != PixelFormat::gray8()) {
-      throw std::runtime_error("Layered PSD export requires 8-bit grayscale layer masks");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Layered PSD export requires 8-bit grayscale layer masks"));
     }
     if (mask.bounds.width != mask.pixels.width() || mask.bounds.height != mask.pixels.height()) {
-      throw std::runtime_error("Layer mask bounds do not match mask pixels");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Layer mask bounds do not match mask pixels"));
     }
     encoded.channels.push_back(encode_channel(kChannelUserMask, mask.pixels.width(), mask.pixels.height(),
                                               mask.pixels.data(), large_document));
@@ -338,10 +339,10 @@ EncodedLayer encode_group(const Layer& layer, bool large_document) {
   if (layer.mask().has_value() && !layer.mask()->pixels.empty()) {
     const auto& mask = *layer.mask();
     if (mask.pixels.format() != PixelFormat::gray8()) {
-      throw std::runtime_error("Layered PSD export requires 8-bit grayscale layer masks");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Layered PSD export requires 8-bit grayscale layer masks"));
     }
     if (mask.bounds.width != mask.pixels.width() || mask.bounds.height != mask.pixels.height()) {
-      throw std::runtime_error("Layer mask bounds do not match mask pixels");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Layer mask bounds do not match mask pixels"));
     }
     encoded.channels.push_back(encode_channel(kChannelUserMask, mask.pixels.width(), mask.pixels.height(),
                                               mask.pixels.data(), large_document));
@@ -378,7 +379,7 @@ LayerRecord read_layer_record(BigEndianReader& reader, bool large_document,
   const auto signature = read_signature(reader);
   if (signature != std::array<char, 4>{'8', 'B', 'I', 'M'} &&
       signature != std::array<char, 4>{'8', 'B', '6', '4'}) {
-    throw std::runtime_error("Invalid PSD layer blend mode signature");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Invalid PSD layer blend mode signature"));
   }
   record.blend_mode = blend_mode_from_key(read_signature(reader));
   record.opacity = reader.read_u8();
@@ -394,7 +395,7 @@ LayerRecord read_layer_record(BigEndianReader& reader, bool large_document,
     const auto mask_length = read_section_length(extra_reader, "layer mask data");
     const auto mask_end = extra_reader.position() + mask_length;
     if (mask_length > extra_reader.remaining()) {
-      throw std::runtime_error("PSD layer mask exceeds the layer record");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD layer mask exceeds the layer record"));
     }
     if (mask_length >= 18U) {
       const auto mask_top = static_cast<std::int32_t>(extra_reader.read_u32());
@@ -434,7 +435,7 @@ LayerRecord read_layer_record(BigEndianReader& reader, bool large_document,
     }
     const auto blending_ranges_length = read_section_length(extra_reader, "layer blending ranges");
     if (extra_reader.position() > extra_end || blending_ranges_length > extra_end - extra_reader.position()) {
-      throw std::runtime_error("PSD layer blending ranges exceed the layer record");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD layer blending ranges exceed the layer record"));
     }
     record.blending_ranges = extra_reader.read_bytes(blending_ranges_length);
     if (extra_reader.position() < extra_end) {
@@ -1033,7 +1034,7 @@ void append_encoded_layers(const Layer& layer, std::vector<EncodedLayer>& encode
     return;
   }
 
-  throw std::runtime_error("Layered PSD export currently supports pixel, adjustment, and group layers only");
+  throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Layered PSD export currently supports pixel, adjustment, and group layers only"));
 }
 
 }  // namespace patchy::psd

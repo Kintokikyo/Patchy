@@ -3,6 +3,7 @@
 #include "color/color_management.hpp"
 #include "psd/psd_binary.hpp"
 #include "psd/psd_descriptor.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <cstring>
@@ -49,14 +50,14 @@ struct DecodedPlane {
 bool read_plane(BigEndianReader& reader, DecodedPlane& plane, std::size_t container_end,
                 bool decode_samples) {
   if (reader.position() > container_end || container_end - reader.position() < 4U) {
-    throw std::runtime_error("PSD pattern channel list is truncated");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD pattern channel list is truncated"));
   }
   const auto written = reader.read_u32();
   if (written == 0U) {
     return false;
   }
   if (container_end - reader.position() < 4U) {
-    throw std::runtime_error("PSD pattern channel length is truncated");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD pattern channel length is truncated"));
   }
   const auto length = reader.read_u32();
   if (length == 0U) {
@@ -64,7 +65,7 @@ bool read_plane(BigEndianReader& reader, DecodedPlane& plane, std::size_t contai
   }
   if (length < kChannelHeaderBytes || length > reader.remaining() ||
       length > container_end - reader.position()) {
-    throw std::runtime_error("PSD pattern channel is truncated");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD pattern channel is truncated"));
   }
   if (!decode_samples) {
     reader.skip(length);
@@ -81,17 +82,17 @@ bool read_plane(BigEndianReader& reader, DecodedPlane& plane, std::size_t contai
   const auto width64 = static_cast<std::int64_t>(right) - static_cast<std::int64_t>(left);
   const auto height64 = static_cast<std::int64_t>(bottom) - static_cast<std::int64_t>(top);
   if (width64 <= 0 || height64 <= 0 || width64 > 30000 || height64 > 30000) {
-    throw std::runtime_error("PSD pattern channel rectangle is invalid");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD pattern channel rectangle is invalid"));
   }
   const auto width = static_cast<std::int32_t>(width64);
   const auto height = static_cast<std::int32_t>(height64);
   const auto plane_pixels = static_cast<std::uint64_t>(width64) *
                             static_cast<std::uint64_t>(height64);
   if (plane_pixels > kMaxDecodedPatternPixels) {
-    throw std::runtime_error("PSD pattern channel has too many pixels");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD pattern channel has too many pixels"));
   }
   if ((depth != 8U && depth != 16U) || (pixel_depth != 8U && pixel_depth != 16U)) {
-    throw std::runtime_error("PSD pattern channel depth is unsupported");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD pattern channel depth is unsupported"));
   }
   const auto bytes_per_sample = static_cast<std::size_t>(pixel_depth / 8U);
   const auto row_bytes = static_cast<std::size_t>(width) * bytes_per_sample;
@@ -100,7 +101,7 @@ bool read_plane(BigEndianReader& reader, DecodedPlane& plane, std::size_t contai
   std::vector<std::uint8_t> raw;
   if (compression == 0U) {
     if (data_length < expected) {
-      throw std::runtime_error("PSD pattern channel data is truncated");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD pattern channel data is truncated"));
     }
     raw = reader.read_bytes(expected);
   } else if (compression == 1U) {
@@ -108,7 +109,7 @@ bool read_plane(BigEndianReader& reader, DecodedPlane& plane, std::size_t contai
     // convention).
     const auto table_bytes = static_cast<std::size_t>(height) * 2U;
     if (data_length < table_bytes) {
-      throw std::runtime_error("PSD pattern RLE table is truncated");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD pattern RLE table is truncated"));
     }
     std::vector<std::uint16_t> counts(static_cast<std::size_t>(height));
     for (auto& count : counts) {
@@ -117,14 +118,14 @@ bool read_plane(BigEndianReader& reader, DecodedPlane& plane, std::size_t contai
     raw.reserve(expected);
     for (const auto count : counts) {
       if (count > end_position - reader.position()) {
-        throw std::runtime_error("PSD pattern RLE row is truncated");
+        throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD pattern RLE row is truncated"));
       }
       const auto encoded = reader.read_bytes(count);
       auto row = decode_packbits(encoded, row_bytes);
       raw.insert(raw.end(), row.begin(), row.end());
     }
   } else {
-    throw std::runtime_error("PSD pattern compression mode is unsupported");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD pattern compression mode is unsupported"));
   }
 
   plane.top = top;
@@ -172,7 +173,7 @@ std::optional<PatternResource> parse_single_pattern(BigEndianReader& reader,
                                                     const CmykToRgbTransform* cmyk_icc) {
   const auto declared_length = reader.read_u32();
   if (declared_length < 16U || declared_length > reader.remaining()) {
-    throw std::runtime_error("PSD pattern length is invalid");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD pattern length is invalid"));
   }
   const auto pattern_end = reader.position() + declared_length;
   std::optional<PatternResource> result;
@@ -207,19 +208,19 @@ std::optional<PatternResource> parse_single_pattern(BigEndianReader& reader,
     if (version == kPatternVersion && supported_mode && width > 0 && height > 0 && width <= 30000 &&
         height <= 30000 && pattern_pixels <= kMaxDecodedPatternPixels && !pattern_id.empty()) {
       if (reader.position() > pattern_end || pattern_end - reader.position() < 8U) {
-        throw std::runtime_error("PSD pattern VMA header is truncated");
+        throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD pattern VMA header is truncated"));
       }
       const auto vma_version = reader.read_u32();
       const auto vma_length = reader.read_u32();
       if (vma_version != kVirtualMemoryArrayVersion || vma_length < 20U ||
           vma_length > reader.remaining() || vma_length > pattern_end - reader.position()) {
-        throw std::runtime_error("PSD pattern VMA header is invalid");
+        throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD pattern VMA header is invalid"));
       }
       const auto vma_end = reader.position() + vma_length;
       reader.skip(16U);  // VMA rectangle (matches the pattern point in captures)
       const auto declared_channels = reader.read_u32();
       if (declared_channels > 64U) {
-        throw std::runtime_error("PSD pattern channel count is invalid");
+        throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD pattern channel count is invalid"));
       }
       const auto slot_count = declared_channels + 2U;
       const auto color_channel_count =

@@ -507,7 +507,7 @@ void bind_translated_text(QObject* object, const char* source, const char* conte
     return;
   }
   object->setProperty(kTranslationContextProperty, QString::fromLatin1(context));
-  object->setProperty(kTranslationTextProperty, QString::fromLatin1(source));
+  object->setProperty(kTranslationTextProperty, QString::fromUtf8(source));
 }
 
 void bind_translated_tooltip(QObject* object, const char* source, const char* context) {
@@ -515,7 +515,7 @@ void bind_translated_tooltip(QObject* object, const char* source, const char* co
     return;
   }
   object->setProperty(kTranslationContextProperty, QString::fromLatin1(context));
-  object->setProperty(kTranslationToolTipProperty, QString::fromLatin1(source));
+  object->setProperty(kTranslationToolTipProperty, QString::fromUtf8(source));
 }
 
 void apply_bound_translation(QObject* object) {

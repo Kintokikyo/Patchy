@@ -4,6 +4,7 @@
 #include "formats/format_file_io.hpp"
 #include "support/srgb_transfer.hpp"
 #include "support/string_utils.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -75,11 +76,11 @@ float highlight_rolloff(float value) {
 std::vector<std::uint8_t> tone_map_scrgb_to_rgba8(std::span<const float> rgba_float, std::int32_t width,
                                                   std::int32_t height) {
   if (width <= 0 || height <= 0) {
-    throw std::runtime_error("JPEG XR tone map input has no pixels");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "JPEG XR tone map input has no pixels"));
   }
   const auto pixel_count = static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
   if (rgba_float.size() < pixel_count * 4U) {
-    throw std::runtime_error("JPEG XR tone map input buffer is too small");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "JPEG XR tone map input buffer is too small"));
   }
 
   std::vector<std::uint8_t> rgba(pixel_count * 4U);
@@ -102,7 +103,7 @@ std::vector<std::uint8_t> tone_map_scrgb_to_rgba8(std::span<const float> rgba_fl
 std::vector<std::uint8_t> write_jxr(const Document& document, const WriteOptions& options) {
   const auto flattened = flatten_document_rgba8(document);
   if (flattened.empty()) {
-    throw std::runtime_error("Cannot write an empty document as JPEG XR");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Cannot write an empty document as JPEG XR"));
   }
   const auto pixels = flattened.data();
   // A fully opaque flatten writes a 24bpp frame; only a document that really uses alpha
@@ -137,7 +138,7 @@ void write_jxr_file(const Document& document, const std::filesystem::path& path,
 // gated on is_available(), so write_jxr is only reachable from a hand-typed path.
 FormatReadResult read_jxr(std::span<const std::uint8_t> bytes) {
   (void)bytes;
-  throw std::runtime_error("JPEG XR images can only be opened on Windows.");
+  throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "JPEG XR images can only be opened on Windows."));
 }
 
 std::vector<std::uint8_t> write_jxr(std::span<const std::uint8_t> rgba, std::int32_t width, std::int32_t height,
@@ -150,7 +151,7 @@ std::vector<std::uint8_t> write_jxr(std::span<const std::uint8_t> rgba, std::int
   (void)horizontal_ppi;
   (void)vertical_ppi;
   (void)options;
-  throw std::runtime_error("JPEG XR images can only be saved on Windows.");
+  throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "JPEG XR images can only be saved on Windows."));
 }
 
 #endif  // !_WIN32

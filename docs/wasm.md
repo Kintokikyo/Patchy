@@ -114,7 +114,7 @@ The second script installs Qt 6.10.3 `wasm_multithread` (plus qtimageformats)
 into `.deps\Qt\6.10.3\wasm_multithread` via aqtinstall (venv
 `.deps\aqt-venv`, upgraded each run), and the matching `win64_msvc2022_64`
 host kit beside it. `QT_HOST_PATH` must be the same Qt version as the wasm
-kit (moc, rcc, lrelease, and the staged `qtbase_ja.qm` come from it;
+kit (moc, rcc, lrelease, lupdate, and the staged `qtbase_<code>.qm` files come from it;
 verified after install). `-WasmArch wasm_singlethread` and `-QtVersion`
 select other kits; kits coexist under `.deps\Qt\<version>\`, so rollback is
 a preset edit. Desktop presets stay on their vendored 6.8.3 kit. The preset
@@ -227,8 +227,8 @@ requestAnimationFrame onto setTimeout before qtloader runs (harness below).
   after load. Script-editor plain Save downloads nothing (Save As does).
 - **Assets.** `--preload-file` mounts staged copies at `/fonts`,
   `/translations`, `/scripts` inside `patchy.data`; `applicationDirPath()`
-  is `/`, so existing directory probes work unchanged. `qtbase_ja.qm` is
-  staged from the host kit (the wasm kit ships no `.qm`).
+  is `/`, so existing directory probes work unchanged. The `qtbase_<code>.qm`
+  files are staged from the host kit (the wasm kit ships no `.qm`).
   `third_party/fonts-web` (~23 MB of OFL fonts, wasm only; see
   [fonts.md](fonts.md)) merges into the staged fonts; `LINK_DEPENDS` on the
   fonts stamp makes a fonts-only change repack `patchy.data`. The 8.7 MB

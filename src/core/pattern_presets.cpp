@@ -1,5 +1,7 @@
 #include "core/pattern_presets.hpp"
 
+#include "support/translate_noop.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -296,18 +298,18 @@ PixelBuffer generate_basketweave() {
 }
 
 constexpr std::array<PatternPreset, 12> kBuiltinPatternPresets{{
-    {"c4a11e00-0001-4b1d-9c3e-7a7c9e55b001", "Checkerboard"},
-    {"c4a11e00-0002-4b1d-9c3e-7a7c9e55b002", "Diagonal Stripes"},
-    {"c4a11e00-0003-4b1d-9c3e-7a7c9e55b003", "Polka Dots"},
-    {"c4a11e00-0004-4b1d-9c3e-7a7c9e55b004", "Grid"},
-    {"c4a11e00-0005-4b1d-9c3e-7a7c9e55b005", "Fine Grain"},
-    {"c4a11e00-0006-4b1d-9c3e-7a7c9e55b006", "Canvas Weave"},
-    {"c4a11e00-0007-4b1d-9c3e-7a7c9e55b007", "Wood Grain"},
-    {"c4a11e00-0008-4b1d-9c3e-7a7c9e55b008", "Brushed Metal"},
-    {"c4a11e00-0009-4b1d-9c3e-7a7c9e55b009", "Bumps"},
-    {"c4a11e00-000a-4b1d-9c3e-7a7c9e55b00a", "Bricks"},
-    {"c4a11e00-000b-4b1d-9c3e-7a7c9e55b00b", "Scales"},
-    {"c4a11e00-000c-4b1d-9c3e-7a7c9e55b00c", "Basketweave"},
+    {"c4a11e00-0001-4b1d-9c3e-7a7c9e55b001", PATCHY_TRANSLATE_NOOP("QObject", "Checkerboard")},
+    {"c4a11e00-0002-4b1d-9c3e-7a7c9e55b002", PATCHY_TRANSLATE_NOOP("QObject", "Diagonal Stripes")},
+    {"c4a11e00-0003-4b1d-9c3e-7a7c9e55b003", PATCHY_TRANSLATE_NOOP("QObject", "Polka Dots")},
+    {"c4a11e00-0004-4b1d-9c3e-7a7c9e55b004", PATCHY_TRANSLATE_NOOP("QObject", "Grid")},
+    {"c4a11e00-0005-4b1d-9c3e-7a7c9e55b005", PATCHY_TRANSLATE_NOOP("QObject", "Fine Grain")},
+    {"c4a11e00-0006-4b1d-9c3e-7a7c9e55b006", PATCHY_TRANSLATE_NOOP("QObject", "Canvas Weave")},
+    {"c4a11e00-0007-4b1d-9c3e-7a7c9e55b007", PATCHY_TRANSLATE_NOOP("QObject", "Wood Grain")},
+    {"c4a11e00-0008-4b1d-9c3e-7a7c9e55b008", PATCHY_TRANSLATE_NOOP("QObject", "Brushed Metal")},
+    {"c4a11e00-0009-4b1d-9c3e-7a7c9e55b009", PATCHY_TRANSLATE_NOOP("QObject", "Bumps")},
+    {"c4a11e00-000a-4b1d-9c3e-7a7c9e55b00a", PATCHY_TRANSLATE_NOOP("QObject", "Bricks")},
+    {"c4a11e00-000b-4b1d-9c3e-7a7c9e55b00b", PATCHY_TRANSLATE_NOOP("QObject", "Scales")},
+    {"c4a11e00-000c-4b1d-9c3e-7a7c9e55b00c", PATCHY_TRANSLATE_NOOP("QObject", "Basketweave")},
 }};
 
 }  // namespace
@@ -367,26 +369,26 @@ namespace {
 // Append-only: ids and canonical names persist in user PSDs and library
 // sidecars. All current entries shipped with pattern-library defaults version 2.
 constexpr std::array<PhotoPatternPreset, 20> kPhotoPatternPresets{{
-    {"f0705a00-0001-4c8b-9e3d-2a5b6c77e001", "Fine Wood Grain", "fine_grained_wood.png", 2},
-    {"f0705a00-0002-4c8b-9e3d-2a5b6c77e002", "Dark Walnut", "dark_wood.png", 2},
-    {"f0705a00-0003-4c8b-9e3d-2a5b6c77e003", "Oak Veneer", "oak_veneer_01.png", 2},
-    {"f0705a00-0004-4c8b-9e3d-2a5b6c77e004", "Weathered Wood", "rough_wood.png", 2},
-    {"f0705a00-0005-4c8b-9e3d-2a5b6c77e005", "Old Planks", "old_planks_02.png", 2},
-    {"f0705a00-0006-4c8b-9e3d-2a5b6c77e006", "Medieval Wood", "medieval_wood.png", 2},
-    {"f0705a00-0007-4c8b-9e3d-2a5b6c77e007", "Tree Bark", "bark_brown_01.png", 2},
-    {"f0705a00-0008-4c8b-9e3d-2a5b6c77e008", "Weathered Marble", "marble_rock_01.png", 2},
-    {"f0705a00-0009-4c8b-9e3d-2a5b6c77e009", "Slate Slabs", "slab_tiles.png", 2},
-    {"f0705a00-000a-4c8b-9e3d-2a5b6c77e00a", "Granite Blocks", "japanese_stone_wall.png", 2},
-    {"f0705a00-000b-4c8b-9e3d-2a5b6c77e00b", "Rock Face", "rock_face.png", 2},
-    {"f0705a00-000c-4c8b-9e3d-2a5b6c77e00c", "Coarse Rust", "rust_coarse_01.png", 2},
-    {"f0705a00-000d-4c8b-9e3d-2a5b6c77e00d", "Steel Plate", "metal_plate.png", 2},
-    {"f0705a00-000e-4c8b-9e3d-2a5b6c77e00e", "Brown Leather", "brown_leather.png", 2},
-    {"f0705a00-000f-4c8b-9e3d-2a5b6c77e00f", "Denim Weave", "denim_fabric.png", 2},
-    {"f0705a00-0010-4c8b-9e3d-2a5b6c77e010", "Burlap", "hessian_230.png", 2},
-    {"f0705a00-0011-4c8b-9e3d-2a5b6c77e011", "Rippled Sand", "damp_sand.png", 2},
-    {"f0705a00-0012-4c8b-9e3d-2a5b6c77e012", "Snow", "snow_02.png", 2},
-    {"f0705a00-0013-4c8b-9e3d-2a5b6c77e013", "Cracked Earth", "mud_cracked_dry_03.png", 2},
-    {"f0705a00-0014-4c8b-9e3d-2a5b6c77e014", "Mossy Forest Floor", "forest_leaves_02.png", 2},
+    {"f0705a00-0001-4c8b-9e3d-2a5b6c77e001", PATCHY_TRANSLATE_NOOP("QObject", "Fine Wood Grain"), "fine_grained_wood.png", 2},
+    {"f0705a00-0002-4c8b-9e3d-2a5b6c77e002", PATCHY_TRANSLATE_NOOP("QObject", "Dark Walnut"), "dark_wood.png", 2},
+    {"f0705a00-0003-4c8b-9e3d-2a5b6c77e003", PATCHY_TRANSLATE_NOOP("QObject", "Oak Veneer"), "oak_veneer_01.png", 2},
+    {"f0705a00-0004-4c8b-9e3d-2a5b6c77e004", PATCHY_TRANSLATE_NOOP("QObject", "Weathered Wood"), "rough_wood.png", 2},
+    {"f0705a00-0005-4c8b-9e3d-2a5b6c77e005", PATCHY_TRANSLATE_NOOP("QObject", "Old Planks"), "old_planks_02.png", 2},
+    {"f0705a00-0006-4c8b-9e3d-2a5b6c77e006", PATCHY_TRANSLATE_NOOP("QObject", "Medieval Wood"), "medieval_wood.png", 2},
+    {"f0705a00-0007-4c8b-9e3d-2a5b6c77e007", PATCHY_TRANSLATE_NOOP("QObject", "Tree Bark"), "bark_brown_01.png", 2},
+    {"f0705a00-0008-4c8b-9e3d-2a5b6c77e008", PATCHY_TRANSLATE_NOOP("QObject", "Weathered Marble"), "marble_rock_01.png", 2},
+    {"f0705a00-0009-4c8b-9e3d-2a5b6c77e009", PATCHY_TRANSLATE_NOOP("QObject", "Slate Slabs"), "slab_tiles.png", 2},
+    {"f0705a00-000a-4c8b-9e3d-2a5b6c77e00a", PATCHY_TRANSLATE_NOOP("QObject", "Granite Blocks"), "japanese_stone_wall.png", 2},
+    {"f0705a00-000b-4c8b-9e3d-2a5b6c77e00b", PATCHY_TRANSLATE_NOOP("QObject", "Rock Face"), "rock_face.png", 2},
+    {"f0705a00-000c-4c8b-9e3d-2a5b6c77e00c", PATCHY_TRANSLATE_NOOP("QObject", "Coarse Rust"), "rust_coarse_01.png", 2},
+    {"f0705a00-000d-4c8b-9e3d-2a5b6c77e00d", PATCHY_TRANSLATE_NOOP("QObject", "Steel Plate"), "metal_plate.png", 2},
+    {"f0705a00-000e-4c8b-9e3d-2a5b6c77e00e", PATCHY_TRANSLATE_NOOP("QObject", "Brown Leather"), "brown_leather.png", 2},
+    {"f0705a00-000f-4c8b-9e3d-2a5b6c77e00f", PATCHY_TRANSLATE_NOOP("QObject", "Denim Weave"), "denim_fabric.png", 2},
+    {"f0705a00-0010-4c8b-9e3d-2a5b6c77e010", PATCHY_TRANSLATE_NOOP("QObject", "Burlap"), "hessian_230.png", 2},
+    {"f0705a00-0011-4c8b-9e3d-2a5b6c77e011", PATCHY_TRANSLATE_NOOP("QObject", "Rippled Sand"), "damp_sand.png", 2},
+    {"f0705a00-0012-4c8b-9e3d-2a5b6c77e012", PATCHY_TRANSLATE_NOOP("QObject", "Snow"), "snow_02.png", 2},
+    {"f0705a00-0013-4c8b-9e3d-2a5b6c77e013", PATCHY_TRANSLATE_NOOP("QObject", "Cracked Earth"), "mud_cracked_dry_03.png", 2},
+    {"f0705a00-0014-4c8b-9e3d-2a5b6c77e014", PATCHY_TRANSLATE_NOOP("QObject", "Mossy Forest Floor"), "forest_leaves_02.png", 2},
 }};
 
 }  // namespace

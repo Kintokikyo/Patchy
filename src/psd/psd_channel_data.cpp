@@ -23,6 +23,7 @@
 #include "render/compositor.hpp"
 #include "support/srgb_transfer.hpp"
 #include "support/string_utils.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <array>
@@ -103,14 +104,14 @@ std::vector<std::uint8_t> encode_packbits_rows(std::span<const std::uint8_t> pla
                                                std::uint16_t channel_count, bool wide_rle_counts,
                                                bool even_rows = false) {
   if (width < 0 || height < 0) {
-    throw std::runtime_error("PSD channel dimensions cannot be negative");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD channel dimensions cannot be negative"));
   }
   const auto row_width = static_cast<std::size_t>(width);
   const auto row_count = static_cast<std::size_t>(height) * static_cast<std::size_t>(channel_count);
   const auto channel_pixels = row_width * static_cast<std::size_t>(height);
   const auto expected_size = channel_pixels * static_cast<std::size_t>(channel_count);
   if (planar_channels.size() != expected_size) {
-    throw std::runtime_error("PSD channel data length does not match its dimensions");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD channel data length does not match its dimensions"));
   }
 
   std::vector<std::vector<std::uint8_t>> rows;
@@ -125,7 +126,7 @@ std::vector<std::uint8_t> encode_packbits_rows(std::span<const std::uint8_t> pla
         make_packbits_row_even(encoded);
       }
       if (encoded.size() > max_row_bytes) {
-        throw std::runtime_error("PSD PackBits row is too large");
+        throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD PackBits row is too large"));
       }
       rows.push_back(std::move(encoded));
     }
@@ -147,7 +148,7 @@ std::vector<std::uint8_t> encode_packbits_rows(std::span<const std::uint8_t> pla
 
 std::vector<std::uint8_t> planar_rgb8_data(const PixelBuffer& pixels) {
   if (pixels.format() != PixelFormat::rgb8()) {
-    throw std::runtime_error("PSD composite export requires RGB8 pixels");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD composite export requires RGB8 pixels"));
   }
 
   const auto channel_pixels = static_cast<std::size_t>(pixels.width()) * static_cast<std::size_t>(pixels.height());
@@ -221,7 +222,7 @@ std::vector<std::uint8_t> read_rle_channel_from_counts(BigEndianReader& reader,
   if (mz_uncompress(data.data(), &out_length, compressed.data(),
                     static_cast<mz_ulong>(compressed.size())) != MZ_OK ||
       out_length != expected_size) {
-    throw std::runtime_error("PSD zip-compressed channel data is corrupt");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD zip-compressed channel data is corrupt"));
   }
   return data;
 }
@@ -377,14 +378,14 @@ void write_rgb8_image_data_with_extra_channels(
     BigEndianWriter& writer, const PixelBuffer& pixels,
     std::span<const std::span<const std::uint8_t>> extra_channels, bool wide_rle_counts) {
   if (pixels.format() != PixelFormat::rgb8()) {
-    throw std::runtime_error("PSD composite export requires RGB8 pixels");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD composite export requires RGB8 pixels"));
   }
   const auto width = static_cast<std::size_t>(pixels.width());
   const auto height = static_cast<std::size_t>(pixels.height());
   const auto channel_pixels = width * height;
   for (const auto channel : extra_channels) {
     if (channel.size() != channel_pixels) {
-      throw std::runtime_error("PSD saved channel dimensions do not match the document");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD saved channel dimensions do not match the document"));
     }
   }
 
@@ -398,7 +399,7 @@ void write_rgb8_image_data_with_extra_channels(
     auto encoded = encode_packbits_row(row);
     make_packbits_row_even(encoded);
     if (encoded.size() > max_row_bytes) {
-      throw std::runtime_error("PSD PackBits row is too large");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD PackBits row is too large"));
     }
     row_lengths.push_back(static_cast<std::uint32_t>(encoded.size()));
     encoded_rows.insert(encoded_rows.end(), encoded.begin(), encoded.end());
@@ -498,7 +499,7 @@ std::vector<std::uint8_t> read_channel_data(BigEndianReader& reader, std::uint16
   }
 
   if (compression != kCompressionRle) {
-    throw std::runtime_error("Unsupported PSD channel compression");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported PSD channel compression"));
   }
 
   std::vector<std::uint32_t> row_lengths;
@@ -643,7 +644,7 @@ std::vector<std::vector<std::uint8_t>> read_flat_image_channels(BigEndianReader&
     return channels;
   }
 
-  throw std::runtime_error("Unsupported PSD composite compression");
+  throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported PSD composite compression"));
 }
 
 // Reads only a contiguous suffix of the composite planes. Raw data can skip the
@@ -653,7 +654,7 @@ std::vector<std::vector<std::uint8_t>> read_flat_image_channels_from(
     BigEndianReader& reader, const Header& header, std::uint16_t compression,
     std::uint16_t first_channel, std::size_t* damaged_rows) {
   if (first_channel > header.channels) {
-    throw std::runtime_error("Invalid PSD saved channel index");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Invalid PSD saved channel index"));
   }
   const auto width = static_cast<std::int32_t>(header.width);
   const auto height = static_cast<std::int32_t>(header.height);
@@ -666,7 +667,7 @@ std::vector<std::vector<std::uint8_t>> read_flat_image_channels_from(
   if (compression == kCompressionRaw) {
     const auto skip_bytes = channel_bytes * static_cast<std::size_t>(first_channel);
     if (skip_bytes > reader.remaining()) {
-      throw std::runtime_error("PSD composite channel data is truncated");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD composite channel data is truncated"));
     }
     reader.skip(skip_bytes);
     for (std::uint16_t channel = first_channel; channel < header.channels; ++channel) {
@@ -694,12 +695,12 @@ std::vector<std::vector<std::uint8_t>> read_flat_image_channels_from(
         for (const auto row_length : rows) {
           if (encoded_size > reader.remaining() ||
               static_cast<std::size_t>(row_length) > reader.remaining() - encoded_size) {
-            throw std::runtime_error("PSD composite channel data is truncated");
+            throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD composite channel data is truncated"));
           }
           encoded_size += row_length;
         }
         if (encoded_size > reader.remaining()) {
-          throw std::runtime_error("PSD composite channel data is truncated");
+          throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD composite channel data is truncated"));
         }
         reader.skip(encoded_size);
       } else {
@@ -711,7 +712,7 @@ std::vector<std::vector<std::uint8_t>> read_flat_image_channels_from(
     return channels;
   }
 
-  throw std::runtime_error("Unsupported PSD composite compression");
+  throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported PSD composite compression"));
 }
 
 std::optional<std::vector<std::uint8_t>> even_composite_rows_normalized(

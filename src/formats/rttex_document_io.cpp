@@ -11,6 +11,7 @@
 #include "formats/miniz/miniz.h"
 #include "formats/stb/stb_image.h"
 #include "support/string_utils.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <cstring>
@@ -56,23 +57,23 @@ JpegEncodeFn g_jpeg_encoder = nullptr;
   const auto compression = reader.read_u8();
   reader.skip(15);
   if (compressed_size > reader.remaining()) {
-    throw std::runtime_error("Proton texture is truncated: the RTPACK header promises more data than the file holds");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Proton texture is truncated: the RTPACK header promises more data than the file holds"));
   }
   if (decompressed_size < kTextureHeaderSize + kMipHeaderSize || decompressed_size > kMaxDecompressedBytes) {
-    throw std::runtime_error("Proton texture has an invalid RTPACK payload size");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Proton texture has an invalid RTPACK payload size"));
   }
   const auto payload = bytes.subspan(reader.position(), compressed_size);
   if (compression == kCompressionNone) {
     return std::vector<std::uint8_t>(payload.begin(), payload.end());
   }
   if (compression != kCompressionZlib) {
-    throw std::runtime_error("Proton texture uses an unknown RTPACK compression type");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Proton texture uses an unknown RTPACK compression type"));
   }
   std::vector<std::uint8_t> inflated(decompressed_size);
   mz_ulong out_length = decompressed_size;
   if (mz_uncompress(inflated.data(), &out_length, payload.data(), static_cast<mz_ulong>(payload.size())) != MZ_OK ||
       out_length != decompressed_size) {
-    throw std::runtime_error("Proton texture's zlib payload is damaged");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Proton texture's zlib payload is damaged"));
   }
   return inflated;
 }
@@ -129,7 +130,7 @@ struct MipHeader {
 
   const auto require_payload = [&](std::size_t bytes_per_pixel) {
     if (payload.size() < pixel_count * bytes_per_pixel) {
-      throw std::runtime_error("Proton texture is truncated: the pixel data is shorter than the header promises");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Proton texture is truncated: the pixel data is shorter than the header promises"));
     }
   };
 
@@ -178,7 +179,7 @@ struct MipHeader {
 
   if (header.format >= kFormatPvrtcFirst && header.format <= kFormatPvrtcLast) {
     throw std::runtime_error(
-        "PVRTC-compressed Proton textures cannot be opened; re-export the source image with RTPack -8888 first");
+        PATCHY_TRANSLATE_NOOP("QObject", "PVRTC-compressed Proton textures cannot be opened; re-export the source image with RTPack -8888 first"));
   }
   switch (header.format) {
     case kFormatUnsignedByte:
@@ -195,7 +196,7 @@ struct MipHeader {
       if (!jpeg) {
         // The engine's own rule: an "embedded" payload without the JPEG marker is raw RGB.
         if (payload.size() != pixel_count * 3U) {
-          throw std::runtime_error("Proton texture's embedded payload is neither a JPEG nor raw RGB pixels");
+          throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Proton texture's embedded payload is neither a JPEG nor raw RGB pixels"));
         }
         copy_raw_8bit(3);
         break;
@@ -207,12 +208,12 @@ struct MipHeader {
       if (stbi_info_from_memory(payload.data(), payload_length, &decoded_width, &decoded_height, &components) == 0 ||
           decoded_width <= 0 || decoded_height <= 0 || decoded_width > kMaxSide || decoded_height > kMaxSide ||
           static_cast<std::uint64_t>(decoded_width) * static_cast<std::uint64_t>(decoded_height) > kMaxPixels) {
-        throw std::runtime_error("Proton texture's embedded JPEG could not be read");
+        throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Proton texture's embedded JPEG could not be read"));
       }
       stbi_uc* decoded =
           stbi_load_from_memory(payload.data(), payload_length, &decoded_width, &decoded_height, &components, 4);
       if (decoded == nullptr) {
-        throw std::runtime_error("Proton texture's embedded JPEG could not be decoded");
+        throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Proton texture's embedded JPEG could not be decoded"));
       }
       // The engine trusts the JPEG's own size; copy the overlap so a mismatch cannot overrun.
       const auto copy_width = std::min(width, decoded_width);
@@ -369,9 +370,9 @@ FormatReadResult read_rttex(std::span<const std::uint8_t> bytes) {
   if (!has_magic(bytes, kTextureMagic)) {
     if (packed) {
       throw std::runtime_error(
-          "This RTPACK file is not a Proton texture (an .rtfont or .rtpak package cannot be opened as an image)");
+          PATCHY_TRANSLATE_NOOP("QObject", "This RTPACK file is not a Proton texture (an .rtfont or .rtpak package cannot be opened as an image)"));
     }
-    throw std::runtime_error("Not a Proton texture: the RTTXTR header is missing");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Not a Proton texture: the RTTXTR header is missing"));
   }
 
   LittleEndianReader reader(bytes, "Proton texture is truncated");
@@ -396,7 +397,7 @@ FormatReadResult read_rttex(std::span<const std::uint8_t> bytes) {
                              std::to_string(header.height) + ")");
   }
   if (header.mipmap_count < 1) {
-    throw std::runtime_error("Proton texture carries no mip levels");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Proton texture carries no mip levels"));
   }
 
   FormatReadResult result;
@@ -406,11 +407,11 @@ FormatReadResult read_rttex(std::span<const std::uint8_t> bytes) {
   }
   // RTPack always records the true size; 0 or a value past the texture means "unpadded".
   if (header.original_width <= 0 || header.original_width > header.width) {
-    result.notices.push_back("Recorded original width was invalid; using the texture width");
+    result.notices.push_back(PATCHY_TRANSLATE_NOOP("QObject", "Recorded original width was invalid; using the texture width"));
     header.original_width = header.width;
   }
   if (header.original_height <= 0 || header.original_height > header.height) {
-    result.notices.push_back("Recorded original height was invalid; using the texture height");
+    result.notices.push_back(PATCHY_TRANSLATE_NOOP("QObject", "Recorded original height was invalid; using the texture height"));
     header.original_height = header.height;
   }
 
@@ -421,10 +422,10 @@ FormatReadResult read_rttex(std::span<const std::uint8_t> bytes) {
   mip.mip_level = reader.read_i32();
   reader.skip(8);
   if (mip.width != header.width || mip.height != header.height) {
-    throw std::runtime_error("Proton texture's first mip level does not match the texture size");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Proton texture's first mip level does not match the texture size"));
   }
   if (mip.data_size < 0 || static_cast<std::size_t>(mip.data_size) > reader.remaining()) {
-    throw std::runtime_error("Proton texture is truncated: the pixel data runs past the end of the file");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Proton texture is truncated: the pixel data runs past the end of the file"));
   }
   const auto payload = bytes.subspan(reader.position(), static_cast<std::size_t>(mip.data_size));
 
@@ -474,11 +475,11 @@ FormatReadResult read_rttex_file(const std::filesystem::path& path) {
 std::vector<std::uint8_t> write_rttex(const Document& document, const WriteOptions& options,
                                       std::vector<std::string>* notices) {
   if (document.width() <= 0 || document.height() <= 0) {
-    throw std::runtime_error("Cannot write an empty document as a Proton texture");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Cannot write an empty document as a Proton texture"));
   }
   const PixelBuffer flat = flatten_document_rgba8(document);
   if (flat.empty()) {
-    throw std::runtime_error("Cannot write an empty document as a Proton texture");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Cannot write an empty document as a Proton texture"));
   }
 
   bool has_alpha = options.force_alpha;
@@ -501,7 +502,7 @@ std::vector<std::uint8_t> write_rttex(const Document& document, const WriteOptio
     }
   }
   if (encoding == Encoding::Jpeg && g_jpeg_encoder == nullptr) {
-    throw std::runtime_error("JPEG-encoded Proton textures need the application's JPEG encoder, which is not installed");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "JPEG-encoded Proton textures need the application's JPEG encoder, which is not installed"));
   }
 
   std::int32_t original_width = flat.width();
@@ -563,7 +564,7 @@ std::vector<std::uint8_t> write_rttex(const Document& document, const WriteOptio
       }
       payload = g_jpeg_encoder(image, std::clamp(options.jpeg_quality, 1, 100));
       if (payload.empty()) {
-        throw std::runtime_error("The JPEG encoder produced no data for the Proton texture");
+        throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "The JPEG encoder produced no data for the Proton texture"));
       }
       format = kFormatEmbeddedFile;
       already_compressed = true;
@@ -605,7 +606,7 @@ std::vector<std::uint8_t> write_rttex(const Document& document, const WriteOptio
   mz_ulong compressed_length = mz_compressBound(static_cast<mz_ulong>(raw.size()));
   std::vector<std::uint8_t> compressed(compressed_length);
   if (mz_compress(compressed.data(), &compressed_length, raw.data(), static_cast<mz_ulong>(raw.size())) != MZ_OK) {
-    throw std::runtime_error("Could not compress the Proton texture");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Could not compress the Proton texture"));
   }
   compressed.resize(compressed_length);
 

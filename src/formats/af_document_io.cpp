@@ -23,6 +23,7 @@
 #include "formats/stb/stb_image.h"
 #include "formats/zstd/zstd.h"
 #include "support/srgb_transfer.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <array>
@@ -114,13 +115,13 @@ struct Container {
   Container container;
   auto reader = af_reader(bytes);
   if (reader.read_u32() != kMagic) {
-    throw std::runtime_error("Not an Affinity document");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Not an Affinity document"));
   }
   container.version = reader.read_u16();
   container.flags = reader.read_u16();
   container.class_tag = reader.read_u32();
   if (reader.read_u32() != kTagInf) {
-    throw std::runtime_error("Affinity document info block is missing");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document info block is missing"));
   }
   const std::uint64_t fat_offset = reader.read_u64();
   container.thumbnail_offset = reader.read_u64();
@@ -128,7 +129,7 @@ struct Container {
   reader.skip(4 + 4);      // revision counters
   if (container.version > 7) {
     if (reader.read_u32() != kTagProt) {
-      throw std::runtime_error("Affinity document protocol block is missing");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document protocol block is missing"));
     }
     container.protocol = reader.read_u32();
   }
@@ -151,15 +152,15 @@ struct Container {
   std::size_t chain_length = 0;
   while (next_offset != 0) {
     if (++chain_length > kMaxFatChain) {
-      throw std::runtime_error("Affinity document stream table recurses");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document stream table recurses"));
     }
     if (next_offset > bytes.size()) {
-      throw std::runtime_error("Affinity document stream table is out of range");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document stream table is out of range"));
     }
     reader.seek(static_cast<std::size_t>(next_offset));
     const std::uint32_t fat_tag = reader.read_u32();
     if (std::find(kFatTags.begin(), kFatTags.end(), fat_tag) == kFatTags.end()) {
-      throw std::runtime_error("Affinity document stream table is corrupt");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document stream table is corrupt"));
     }
     const bool oldest_layout = fat_tag == kFatTags[0];
     const bool ft4_layout = fat_tag == kFatTags[3];
@@ -170,7 +171,7 @@ struct Container {
     const std::uint16_t dirs_count = reader.read_u16();
     reader.skip(1);
     if (files_count > kMaxStreamsPerFat) {
-      throw std::runtime_error("Affinity document stream table is implausible");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document stream table is implausible"));
     }
     chain_links.emplace_back();
     auto& link = chain_links.back();
@@ -178,7 +179,7 @@ struct Container {
       const std::uint32_t id = reader.read_u32();
       const std::uint8_t flag = reader.read_u8();
       if (flag > 2) {
-        throw std::runtime_error("Affinity document stream entry is corrupt");
+        throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document stream entry is corrupt"));
       }
       StreamRecord record;
       if (flag == 0 || flag == 1) {
@@ -207,7 +208,7 @@ struct Container {
       if (flag == 0) {
         const std::uint16_t name_length = reader.read_u16();
         if (name_length > kMaxNameLength) {
-          throw std::runtime_error("Affinity document stream name is implausible");
+          throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document stream name is implausible"));
         }
         std::string name(name_length, '\0');
         for (std::uint16_t c = 0; c < name_length; ++c) {
@@ -226,7 +227,7 @@ struct Container {
       reader.skip(2);  // secondary length, zero in every observed file
       reader.skip(8);  // member count
       if (name_length > kMaxNameLength) {
-        throw std::runtime_error("Affinity document directory name is implausible");
+        throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document directory name is implausible"));
       }
       reader.skip(name_length);
     }
@@ -358,7 +359,7 @@ void undo_tile_interleave(std::vector<std::uint8_t>& bytes) {
   auto reader = LittleEndianReader(png, "Affinity preview image is truncated");
   for (const auto expected : kSignature) {
     if (reader.read_u8() != expected) {
-      throw std::runtime_error("Affinity preview image is not a PNG");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity preview image is not a PNG"));
     }
   }
   const auto read_be32 = [&reader]() {
@@ -378,7 +379,7 @@ void undo_tile_interleave(std::vector<std::uint8_t>& bytes) {
     const std::uint32_t length = read_be32();
     const std::uint32_t type = read_be32();
     if (length > png.size()) {
-      throw std::runtime_error("Affinity preview image is corrupt");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity preview image is corrupt"));
     }
     const std::size_t data_start = reader.position();
     switch (type) {
@@ -391,17 +392,17 @@ void undo_tile_interleave(std::vector<std::uint8_t>& bytes) {
         reader.skip(1);  // filter method
         const std::uint8_t interlace = reader.read_u8();
         if (width <= 0 || height <= 0 || width > kMaxThumbnailSide || height > kMaxThumbnailSide) {
-          throw std::runtime_error("Affinity preview image has implausible dimensions");
+          throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity preview image has implausible dimensions"));
         }
         if (bit_depth != 8 || interlace != 0) {
-          throw std::runtime_error("Affinity preview image uses an unsupported PNG variant");
+          throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity preview image uses an unsupported PNG variant"));
         }
         switch (color_type) {
           case 0: channels = 1; break;
           case 2: channels = 3; break;
           case 6: channels = 4; break;
           default:
-            throw std::runtime_error("Affinity preview image uses an unsupported PNG variant");
+            throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity preview image uses an unsupported PNG variant"));
         }
         break;
       }
@@ -422,7 +423,7 @@ void undo_tile_interleave(std::vector<std::uint8_t>& bytes) {
     reader.skip(4);  // chunk CRC (already covered by the stream checksum)
   }
   if (channels == 0 || compressed.empty()) {
-    throw std::runtime_error("Affinity preview image is incomplete");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity preview image is incomplete"));
   }
 
   const std::size_t row_bytes = static_cast<std::size_t>(width) * static_cast<std::size_t>(channels);
@@ -432,7 +433,7 @@ void undo_tile_interleave(std::vector<std::uint8_t>& bytes) {
   if (mz_uncompress(raw.data(), &out_length, compressed.data(),
                     static_cast<mz_ulong>(compressed.size())) != MZ_OK ||
       out_length != raw_size) {
-    throw std::runtime_error("Affinity preview image failed to decompress");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity preview image failed to decompress"));
   }
 
   PixelBuffer pixels(width, height, PixelFormat::rgba8());
@@ -451,7 +452,7 @@ void undo_tile_interleave(std::vector<std::uint8_t>& bytes) {
     const std::uint8_t filter = raw[static_cast<std::size_t>(y) * (row_bytes + 1)];
     std::uint8_t* row = raw.data() + static_cast<std::size_t>(y) * (row_bytes + 1) + 1;
     if (filter > 4) {
-      throw std::runtime_error("Affinity preview image is corrupt");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity preview image is corrupt"));
     }
     for (std::size_t i = 0; i < row_bytes; ++i) {
       const int left = i >= static_cast<std::size_t>(channels) ? row[i - channels] : 0;
@@ -490,12 +491,12 @@ void undo_tile_interleave(std::vector<std::uint8_t>& bytes) {
                                           const Container& container) {
   const std::uint64_t offset = container.thumbnail_offset;
   if (offset == 0 || offset + 8 > bytes.size()) {
-    throw std::runtime_error("Affinity document has no embedded preview");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document has no embedded preview"));
   }
   auto reader = af_reader(bytes);
   reader.seek(static_cast<std::size_t>(offset));
   if (reader.read_u32() != 0xFFFFFFFFU || reader.read_u32() != kTagThmb) {
-    throw std::runtime_error("Affinity document has no embedded preview");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document has no embedded preview"));
   }
   // A short header precedes the PNG; scan a bounded window for its signature.
   static constexpr std::array<std::uint8_t, 4> kPngStart = {0x89, 0x50, 0x4E, 0x47};
@@ -506,7 +507,7 @@ void undo_tile_interleave(std::vector<std::uint8_t>& bytes) {
       return decode_preview_png(bytes.subspan(at));
     }
   }
-  throw std::runtime_error("Affinity document has no embedded preview");
+  throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document has no embedded preview"));
 }
 
 // ---------------------------------------------------------------- tier 1
@@ -4862,7 +4863,7 @@ void build_layers(LayerBuildContext& ctx, const std::vector<std::shared_ptr<af::
       continue;
     }
     if (++ctx.layer_count > LayerBuildContext::kMaxLayers) {
-      throw std::runtime_error("Affinity document has an implausible number of layers");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document has an implausible number of layers"));
     }
     const af::AfClass& node = *child;
     std::string name = node.string_field(af::tag4("Desc"));
@@ -5321,22 +5322,22 @@ void build_layers(LayerBuildContext& ctx, const std::vector<std::shared_ptr<af::
                                    const af::AfDocument& tree, std::vector<std::string>& notices,
                                    int embed_depth, bool* placeholders_only = nullptr) {
   if (tree.root == nullptr) {
-    throw std::runtime_error("Affinity document tree is empty");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document tree is empty"));
   }
   // root (Pers) -> DocR field -> document node (DfSz + Chld=[spread]).
   const af::AfClass* doc_node = tree.root->child_class(af::tag4("DocR"));
   if (doc_node == nullptr) {
-    throw std::runtime_error("Affinity document has no document node");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document has no document node"));
   }
   // The document node carries DfSz [w,h]; the spread carries the layer children.
   const auto size = doc_node->vec_field(af::tag4("DfSz"));
   if (size.size() != 2) {
-    throw std::runtime_error("Affinity document has no canvas size");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document has no canvas size"));
   }
   std::int32_t width = static_cast<std::int32_t>(std::lround(size[0]));
   std::int32_t height = static_cast<std::int32_t>(std::lround(size[1]));
   if (width <= 0 || height <= 0 || width > kMaxLayerSide || height > kMaxLayerSide) {
-    throw std::runtime_error("Affinity document has an invalid canvas size");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document has an invalid canvas size"));
   }
   // The document's Chld is the spread(s); each spread's Chld is the layers.
   const auto* doc_children = doc_node->field(af::tag4("Chld"));
@@ -5345,7 +5346,7 @@ void build_layers(LayerBuildContext& ctx, const std::vector<std::shared_ptr<af::
           ? std::get_if<std::vector<std::shared_ptr<af::AfClass>>>(&doc_children->value)
           : nullptr;
   if (spreads == nullptr || spreads->empty() || spreads->front() == nullptr) {
-    throw std::runtime_error("Affinity document has no spread");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document has no spread"));
   }
   if (spreads->size() > 1) {
     notices.push_back("This document has " + std::to_string(spreads->size()) +
@@ -5464,7 +5465,7 @@ void build_layers(LayerBuildContext& ctx, const std::vector<std::shared_ptr<af::
     document.add_layer(std::move(layer));
   }
   if (document.layers().empty()) {
-    throw std::runtime_error("Affinity document produced no layers");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Affinity document produced no layers"));
   }
   return document;
 }
@@ -5742,7 +5743,7 @@ void bake_pending_blur_effects(std::vector<Layer>& layers, std::vector<std::stri
 [[nodiscard]] Document read_container(std::span<const std::uint8_t> bytes,
                                       std::vector<std::string>& notices, int embed_depth) {
   if (!sniff(bytes)) {
-    throw std::runtime_error("Not an Affinity document");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Not an Affinity document"));
   }
   const Container container = parse_container(bytes);
   if (container.version > kNewestVerifiedContainerVersion) {

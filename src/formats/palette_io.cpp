@@ -1,6 +1,7 @@
 #include "formats/palette_io.hpp"
 
 #include "formats/bmp_document_io.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <array>
@@ -26,14 +27,14 @@ inline constexpr std::size_t kMaxColors = 256;
 
 [[nodiscard]] std::uint16_t read_u16be(std::span<const std::uint8_t> bytes, std::size_t offset) {
   if (offset + 2 > bytes.size()) {
-    throw std::runtime_error("Palette file is truncated");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Palette file is truncated"));
   }
   return static_cast<std::uint16_t>((static_cast<std::uint16_t>(bytes[offset]) << 8U) | bytes[offset + 1U]);
 }
 
 [[nodiscard]] std::uint32_t read_u32be(std::span<const std::uint8_t> bytes, std::size_t offset) {
   if (offset + 4 > bytes.size()) {
-    throw std::runtime_error("Palette file is truncated");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Palette file is truncated"));
   }
   return (static_cast<std::uint32_t>(bytes[offset]) << 24U) | (static_cast<std::uint32_t>(bytes[offset + 1U]) << 16U) |
          (static_cast<std::uint32_t>(bytes[offset + 2U]) << 8U) | static_cast<std::uint32_t>(bytes[offset + 3U]);
@@ -49,10 +50,10 @@ inline constexpr std::size_t kMaxColors = 256;
 
 void require_color_count(std::size_t count) {
   if (count == 0) {
-    throw std::runtime_error("Palette file does not contain any colors");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Palette file does not contain any colors"));
   }
   if (count > kMaxColors) {
-    throw std::runtime_error("Palette file has more than 256 colors");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Palette file has more than 256 colors"));
   }
 }
 
@@ -89,7 +90,7 @@ void require_color_count(std::size_t count) {
 [[nodiscard]] PaletteFileData read_riff_pal(std::span<const std::uint8_t> bytes) {
   if (bytes.size() < 24U || !starts_with(bytes, "RIFF") ||
       std::memcmp(bytes.data() + 8U, "PAL ", 4) != 0) {
-    throw std::runtime_error("Not a RIFF PAL file");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Not a RIFF PAL file"));
   }
 
   std::size_t offset = 12;
@@ -101,16 +102,16 @@ void require_color_count(std::size_t count) {
                             (static_cast<std::uint32_t>(bytes[offset + 7U]) << 24U);
     offset += 8U;
     if (chunk_size > bytes.size() - offset) {
-      throw std::runtime_error("PAL data chunk is truncated");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PAL data chunk is truncated"));
     }
     if (chunk_id == "data") {
       if (chunk_size < 4U) {
-        throw std::runtime_error("PAL data chunk is too short");
+        throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PAL data chunk is too short"));
       }
       const auto count = static_cast<std::uint16_t>(bytes[offset + 2U]) |
                          static_cast<std::uint16_t>(static_cast<std::uint16_t>(bytes[offset + 3U]) << 8U);
       if (count == 0 || 4ULL + static_cast<std::uint64_t>(count) * 4ULL > chunk_size) {
-        throw std::runtime_error("PAL color count is invalid");
+        throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PAL color count is invalid"));
       }
       require_color_count(count);
       PaletteFileData data;
@@ -123,7 +124,7 @@ void require_color_count(std::size_t count) {
     }
     offset += chunk_size + (chunk_size % 2U);
   }
-  throw std::runtime_error("PAL file does not contain a data chunk");
+  throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PAL file does not contain a data chunk"));
 }
 
 // --- JASC PAL (moved from bmp_document_io.cpp) ---
@@ -135,7 +136,7 @@ void require_color_count(std::size_t count) {
   std::string version;
   std::size_t count = 0;
   if (!std::getline(stream, header) || !std::getline(stream, version) || !(stream >> count)) {
-    throw std::runtime_error("Not a JASC PAL file");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Not a JASC PAL file"));
   }
   if (!header.empty() && header.back() == '\r') {
     header.pop_back();
@@ -144,7 +145,7 @@ void require_color_count(std::size_t count) {
     version.pop_back();
   }
   if (header != "JASC-PAL" || count == 0 || count > kMaxColors) {
-    throw std::runtime_error("JASC PAL header is invalid");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "JASC PAL header is invalid"));
   }
 
   PaletteFileData data;
@@ -155,7 +156,7 @@ void require_color_count(std::size_t count) {
     int blue = 0;
     if (!(stream >> red >> green >> blue) || red < 0 || red > 255 || green < 0 || green > 255 || blue < 0 ||
         blue > 255) {
-      throw std::runtime_error("JASC PAL color entry is invalid");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "JASC PAL color entry is invalid"));
     }
     data.colors.push_back(RgbColor{static_cast<std::uint8_t>(red), static_cast<std::uint8_t>(green),
                                    static_cast<std::uint8_t>(blue)});
@@ -168,7 +169,7 @@ void require_color_count(std::size_t count) {
 [[nodiscard]] PaletteFileData read_gpl(std::span<const std::uint8_t> bytes) {
   const auto lines = split_text_lines(bytes);
   if (lines.empty() || trimmed(lines.front()).rfind("GIMP Palette", 0) != 0) {
-    throw std::runtime_error("Not a GIMP palette file");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Not a GIMP palette file"));
   }
 
   PaletteFileData data;
@@ -190,19 +191,19 @@ void require_color_count(std::size_t count) {
     int blue = 0;
     if (!(entry >> red >> green >> blue) || red < 0 || red > 255 || green < 0 || green > 255 || blue < 0 ||
         blue > 255) {
-      throw std::runtime_error("GIMP palette color entry is invalid");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "GIMP palette color entry is invalid"));
     }
     std::string label;
     std::getline(entry, label);
     label = trimmed(label);
     if (label.size() > kMaxPaletteColorNameBytes || label.find('\0') != std::string::npos) {
-      throw std::runtime_error("Palette color name is invalid");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Palette color name is invalid"));
     }
     data.names.push_back(std::move(label));
     data.colors.push_back(RgbColor{static_cast<std::uint8_t>(red), static_cast<std::uint8_t>(green),
                                    static_cast<std::uint8_t>(blue)});
     if (data.colors.size() > kMaxColors) {
-      throw std::runtime_error("Palette file has more than 256 colors");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Palette file has more than 256 colors"));
     }
   }
   require_color_count(data.colors.size());
@@ -236,13 +237,13 @@ void require_color_count(std::size_t count) {
       line.erase(line.begin());
     }
     if (line.size() != 6 && line.size() != 8) {
-      throw std::runtime_error("Not a hex palette file");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Not a hex palette file"));
     }
     std::array<int, 8> digits{};
     for (std::size_t i = 0; i < line.size(); ++i) {
       digits[i] = hex_digit(line[i]);
       if (digits[i] < 0) {
-        throw std::runtime_error("Not a hex palette file");
+        throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Not a hex palette file"));
       }
     }
     // 8-digit lines are RRGGBBAA; the alpha digits are ignored.
@@ -250,7 +251,7 @@ void require_color_count(std::size_t count) {
                                    static_cast<std::uint8_t>(digits[2] * 16 + digits[3]),
                                    static_cast<std::uint8_t>(digits[4] * 16 + digits[5])});
     if (data.colors.size() > kMaxColors) {
-      throw std::runtime_error("Palette file has more than 256 colors");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Palette file has more than 256 colors"));
     }
   }
   require_color_count(data.colors.size());
@@ -261,7 +262,7 @@ void require_color_count(std::size_t count) {
 
 [[nodiscard]] PaletteFileData read_act(std::span<const std::uint8_t> bytes) {
   if (bytes.size() != 768 && bytes.size() != 772) {
-    throw std::runtime_error("Not an Adobe color table file");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Not an Adobe color table file"));
   }
   std::size_t count = kMaxColors;
   PaletteFileData data;
@@ -288,11 +289,11 @@ void require_color_count(std::size_t count) {
 [[nodiscard]] PaletteFileData read_aco(std::span<const std::uint8_t> bytes) {
   const auto version = read_u16be(bytes, 0);
   if (version != 1 && version != 2) {
-    throw std::runtime_error("Not an Adobe color swatch file");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Not an Adobe color swatch file"));
   }
   const auto count = read_u16be(bytes, 2);
   if (count == 0 || count > kMaxColors) {
-    throw std::runtime_error("Adobe color swatch count is invalid");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Adobe color swatch count is invalid"));
   }
 
   PaletteFileData data;
@@ -309,7 +310,7 @@ void require_color_count(std::size_t count) {
       const auto name_length = read_u32be(bytes, offset);
       offset += 4 + static_cast<std::size_t>(name_length) * 2U;
       if (offset > bytes.size()) {
-        throw std::runtime_error("Adobe color swatch file is truncated");
+        throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Adobe color swatch file is truncated"));
       }
     }
     switch (space) {
@@ -336,7 +337,7 @@ void require_color_count(std::size_t count) {
 
 [[nodiscard]] PaletteFileData read_ase(std::span<const std::uint8_t> bytes) {
   if (!starts_with(bytes, "ASEF")) {
-    throw std::runtime_error("Not an Adobe swatch exchange file");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Not an Adobe swatch exchange file"));
   }
   const auto block_count = read_u32be(bytes, 8);
   PaletteFileData data;
@@ -346,7 +347,7 @@ void require_color_count(std::size_t count) {
     const auto length = read_u32be(bytes, offset + 2);
     const auto payload_offset = offset + 6;
     if (length > bytes.size() - payload_offset) {
-      throw std::runtime_error("Adobe swatch exchange file is truncated");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Adobe swatch exchange file is truncated"));
     }
     offset = payload_offset + length;
     if (type != 0x0001) {
@@ -355,7 +356,7 @@ void require_color_count(std::size_t count) {
     const auto name_length = read_u16be(bytes, payload_offset);
     const auto model_offset = payload_offset + 2 + static_cast<std::size_t>(name_length) * 2U;
     if (model_offset + 4 > bytes.size()) {
-      throw std::runtime_error("Adobe swatch exchange file is truncated");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Adobe swatch exchange file is truncated"));
     }
     const std::string_view model(reinterpret_cast<const char*>(bytes.data() + model_offset), 4);
     if (model == "RGB ") {
@@ -368,7 +369,7 @@ void require_color_count(std::size_t count) {
     }
     // CMYK/LAB entries are skipped.
     if (data.colors.size() > kMaxColors) {
-      throw std::runtime_error("Palette file has more than 256 colors");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Palette file has more than 256 colors"));
     }
   }
   require_color_count(data.colors.size());
@@ -381,7 +382,7 @@ void require_color_count(std::size_t count) {
   const auto document = bmp::DocumentIo::read(bytes);
   const auto& imported = document.indexed_palette();
   if (!imported.has_value() || imported->colors.empty()) {
-    throw std::runtime_error("BMP palette file must be an indexed BMP");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "BMP palette file must be an indexed BMP"));
   }
   PaletteFileData data;
   data.colors = imported->colors;
@@ -410,7 +411,7 @@ void require_color_count(std::size_t count) {
 
 PaletteFileData read_palette_bytes(std::span<const std::uint8_t> bytes) {
   if (bytes.empty()) {
-    throw std::runtime_error("Palette file is empty");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Palette file is empty"));
   }
   if (starts_with(bytes, "BM")) {
     return read_bmp_palette(bytes);
@@ -437,16 +438,16 @@ PaletteFileData read_palette_bytes(std::span<const std::uint8_t> bytes) {
     return read_hex(bytes);
   } catch (const std::exception&) {
   }
-  throw std::runtime_error("Unrecognized palette file format");
+  throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Unrecognized palette file format"));
 }
 
 PaletteFileData read_palette_file(const std::filesystem::path& path) {
   if (path.empty()) {
-    throw std::runtime_error("A palette file path is required");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "A palette file path is required"));
   }
   std::ifstream file(path, std::ios::binary);
   if (!file) {
-    throw std::runtime_error("Could not open palette file");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Could not open palette file"));
   }
   std::vector<std::uint8_t> bytes((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
   return read_palette_bytes(bytes);
@@ -460,10 +461,10 @@ std::span<const std::string_view> readable_palette_extensions() noexcept {
 std::vector<std::uint8_t> write_palette_bytes(std::span<const RgbColor> colors, PaletteFileFormat format,
                                               std::string_view name, std::span<const std::string> names) {
   if (colors.empty()) {
-    throw std::runtime_error("Cannot save an empty palette");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Cannot save an empty palette"));
   }
   if (colors.size() > kMaxColors) {
-    throw std::runtime_error("Palette has more than 256 colors");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Palette has more than 256 colors"));
   }
   // GPL is line-oriented. Refuse line breaks instead of silently changing names
   // or letting one label inject another palette entry.
@@ -473,7 +474,7 @@ std::vector<std::uint8_t> write_palette_bytes(std::span<const RgbColor> colors, 
   };
   if (format == PaletteFileFormat::Gpl &&
       (invalid_name(name) || std::any_of(names.begin(), names.end(), invalid_name))) {
-    throw std::runtime_error("Palette names must be single lines of at most 4096 UTF-8 bytes");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Palette names must be single lines of at most 4096 UTF-8 bytes"));
   }
 
   std::string text;
@@ -540,7 +541,7 @@ std::vector<std::uint8_t> write_palette_bytes(std::span<const RgbColor> colors, 
       return bytes;
     }
   }
-  throw std::runtime_error("Unsupported palette file format");
+  throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported palette file format"));
 }
 
 void write_palette_file(const std::filesystem::path& path, std::span<const RgbColor> colors,
@@ -548,11 +549,11 @@ void write_palette_file(const std::filesystem::path& path, std::span<const RgbCo
   const auto bytes = write_palette_bytes(colors, format, name, names);
   std::ofstream file(path, std::ios::binary | std::ios::trunc);
   if (!file) {
-    throw std::runtime_error("Could not create palette file");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Could not create palette file"));
   }
   file.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
   if (!file) {
-    throw std::runtime_error("Could not write palette file");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Could not write palette file"));
   }
 }
 

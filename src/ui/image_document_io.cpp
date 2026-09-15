@@ -1444,7 +1444,7 @@ Document document_from_qimage(const QImage& image, std::string layer_name) {
   }
 
   if (layer_name.empty()) {
-    layer_name = "Imported Image";
+    layer_name = QObject::tr("Imported Image").toStdString();
   }
   Document document(converted.width(), converted.height(), has_alpha ? PixelFormat::rgba8() : PixelFormat::rgb8());
   document.print_settings().horizontal_ppi = ppi_from_dots_per_meter(image.dotsPerMeterX());

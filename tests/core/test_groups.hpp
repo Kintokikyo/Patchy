@@ -45,3 +45,4 @@ std::vector<patchy::test::TestCase> svg_tests();
 std::vector<patchy::test::TestCase> pdf_tests();
 std::vector<patchy::test::TestCase> af_format_tests();
 std::vector<patchy::test::TestCase> composite_corpus_tests();
+std::vector<patchy::test::TestCase> translation_marker_tests();

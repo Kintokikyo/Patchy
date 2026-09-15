@@ -25,6 +25,14 @@ enum class MeasurementUnit {
 // Localized full name for combo boxes: Pixels, Inches, ...
 [[nodiscard]] QString measurement_unit_name(MeasurementUnit unit);
 
+// Spin-box suffixes for controls that are not unit-switchable: " px", " in", "%" and
+// the degree sign. Every setSuffix in src/ui goes through these (or
+// measurement_unit_suffix) so the text stays translatable.
+[[nodiscard]] QString pixel_suffix();
+[[nodiscard]] QString inch_suffix();
+[[nodiscard]] QString percent_suffix();
+[[nodiscard]] QString degree_suffix();
+
 // Stable settings tokens ("px", "in", "cm", "mm", "pt", "percent"); tokens are
 // persisted in user settings, never rename them.
 [[nodiscard]] QString measurement_unit_settings_token(MeasurementUnit unit);

@@ -1,6 +1,7 @@
 #include "formats/heif_document_io.hpp"
 
 #include "support/string_utils.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <array>
@@ -70,7 +71,7 @@ OrientedImage apply_exif_orientation(std::span<const std::uint8_t> rgba, std::in
                                      std::int32_t height, int orientation) {
   if (width <= 0 || height <= 0 ||
       rgba.size() < static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4U) {
-    throw std::runtime_error("HEIF orientation input buffer is too small");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "HEIF orientation input buffer is too small"));
   }
   if (orientation < 1 || orientation > 8) {
     orientation = 1;
@@ -135,13 +136,13 @@ OrientedImage apply_exif_orientation(std::span<const std::uint8_t> rgba, std::in
 FormatReadResult read_heif(std::span<const std::uint8_t> bytes) {
   (void)bytes;
 #ifdef __APPLE__
-  throw std::runtime_error("Unable to decode this HEIC image with the system codec.");
+  throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Unable to decode this HEIC image with the system codec."));
 #elif defined(__EMSCRIPTEN__)
-  throw std::runtime_error("Unable to decode this HEIC image outside a browser.");
+  throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Unable to decode this HEIC image outside a browser."));
 #else
   throw std::runtime_error(
-      "Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; "
-      "install it with: flatpak install flathub org.freedesktop.Platform.ffmpeg-full//24.08");
+      PATCHY_TRANSLATE_NOOP("QObject", "Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; "
+      "install it with: flatpak install flathub org.freedesktop.Platform.ffmpeg-full//24.08"));
 #endif
 }
 

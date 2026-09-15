@@ -23,6 +23,7 @@
 #include "ui/qt_geometry.hpp"
 #include "ui/selection_outline.hpp"
 #include "ui/theme_qss.hpp"
+#include "ui/measurement_units.hpp"
 
 #include <QApplication>
 #include <QCheckBox>
@@ -602,25 +603,25 @@ void MainWindow::fill_active_path() {
   auto* pattern_scale = new QSpinBox(&dialog);
   pattern_scale->setObjectName(QStringLiteral("fillPathPatternScaleSpin"));
   pattern_scale->setRange(1, 1000);
-  pattern_scale->setSuffix(QStringLiteral("%"));
+  pattern_scale->setSuffix(percent_suffix());
   form->addRow(tr("Scale:"), pattern_scale);
   auto* pattern_angle = new QDoubleSpinBox(&dialog);
   pattern_angle->setObjectName(QStringLiteral("fillPathPatternAngleSpin"));
   pattern_angle->setRange(-180.0, 180.0);
   pattern_angle->setDecimals(1);
-  pattern_angle->setSuffix(QStringLiteral("°"));
+  pattern_angle->setSuffix(degree_suffix());
   form->addRow(tr("Angle:"), pattern_angle);
   auto* pattern_offset_x = new QDoubleSpinBox(&dialog);
   pattern_offset_x->setObjectName(QStringLiteral("fillPathPatternOffsetXSpin"));
   pattern_offset_x->setRange(-30000.0, 30000.0);
   pattern_offset_x->setDecimals(1);
-  pattern_offset_x->setSuffix(QStringLiteral(" px"));
+  pattern_offset_x->setSuffix(pixel_suffix());
   form->addRow(tr("Offset X:"), pattern_offset_x);
   auto* pattern_offset_y = new QDoubleSpinBox(&dialog);
   pattern_offset_y->setObjectName(QStringLiteral("fillPathPatternOffsetYSpin"));
   pattern_offset_y->setRange(-30000.0, 30000.0);
   pattern_offset_y->setDecimals(1);
-  pattern_offset_y->setSuffix(QStringLiteral(" px"));
+  pattern_offset_y->setSuffix(pixel_suffix());
   form->addRow(tr("Offset Y:"), pattern_offset_y);
   auto* pattern_align = new QCheckBox(tr("Align with layer"), &dialog);
   pattern_align->setObjectName(QStringLiteral("fillPathPatternAlignCheck"));
@@ -630,7 +631,7 @@ void MainWindow::fill_active_path() {
   auto* opacity = new QSpinBox(&dialog);
   opacity->setObjectName(QStringLiteral("fillPathOpacitySpin"));
   opacity->setRange(1, 100);
-  opacity->setSuffix(QStringLiteral("%"));
+  opacity->setSuffix(percent_suffix());
   form->addRow(tr("Opacity:"), opacity);
   layout->addLayout(form);
   auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
@@ -944,7 +945,7 @@ void MainWindow::make_selection_from_path() {
   feather->setObjectName(QStringLiteral("makeSelectionFeatherSpin"));
   feather->setRange(0.0, 250.0);
   feather->setDecimals(1);
-  feather->setSuffix(QStringLiteral(" px"));
+  feather->setSuffix(pixel_suffix());
   form->addRow(tr("Feather:"), feather);
   auto* antialias = new QCheckBox(tr("Anti-alias"), &dialog);
   antialias->setObjectName(QStringLiteral("makeSelectionAntialiasCheck"));
@@ -1004,7 +1005,7 @@ void MainWindow::make_work_path_from_selection() {
   tolerance->setRange(0.5, 10.0);
   tolerance->setDecimals(1);
   tolerance->setSingleStep(0.5);
-  tolerance->setSuffix(QStringLiteral(" px"));
+  tolerance->setSuffix(pixel_suffix());
   tolerance->setValue(std::clamp(settings.value(tolerance_key, 2.0).toDouble(), 0.5, 10.0));
   form->addRow(tr("Tolerance:"), tolerance);
   layout->addLayout(form);

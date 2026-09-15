@@ -3,6 +3,7 @@
 #include "formats/raw_tone.hpp"
 
 #include "libraw/libraw.h"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <array>
@@ -363,7 +364,7 @@ struct DevelopSession::Impl {
 DevelopSession::DevelopSession(std::vector<std::uint8_t> file_bytes) : impl_(std::make_unique<Impl>()) {
   impl_->file_bytes = std::move(file_bytes);
   if (impl_->file_bytes.empty()) {
-    throw std::runtime_error("Camera raw open failed: the file is empty");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Camera raw open failed: the file is empty"));
   }
   check_libraw(impl_->processor.open_buffer(impl_->file_bytes.data(), impl_->file_bytes.size()), "open");
   // Metadata and the embedded preview are available before the expensive unpack.
@@ -378,7 +379,7 @@ const RawFileInfo& DevelopSession::info() const noexcept {
 
 DevelopSession::DevelopedImage DevelopSession::develop(const DevelopParams& requested, const DevelopOptions& options) {
   if (requested.processing_version < 1 || requested.processing_version > kProcessingVersion)
-    throw std::invalid_argument("Unsupported RAW processing version");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported RAW processing version"));
   if (options.cancelled && options.cancelled()) throw DevelopCancelled{};
   const auto params = normalize_develop_params(requested);
   int last_progress = -1;
@@ -444,7 +445,7 @@ DevelopSession::DevelopedImage DevelopSession::develop(const DevelopParams& requ
 
     if (processed->type != LIBRAW_IMAGE_BITMAP || processed->bits != 16 ||
         (processed->colors != 3 && processed->colors != 1)) {
-      throw std::runtime_error("Camera raw develop failed: unexpected decoder output format");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Camera raw develop failed: unexpected decoder output format"));
     }
 
     image.width = processed->width;
@@ -477,7 +478,7 @@ DevelopSession::DevelopedImage DevelopSession::develop(const DevelopParams& requ
   const auto pixel_count = static_cast<std::size_t>(image.width) * static_cast<std::size_t>(image.height);
   const auto channel_count = static_cast<std::size_t>(processed->colors);
   if (processed->data_size < pixel_count * channel_count * 2) {
-    throw std::runtime_error("Camera raw develop failed: decoder returned a short image");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Camera raw develop failed: decoder returned a short image"));
   }
   // libraw_processed_image_t's data payload starts 2-byte aligned (fixed 16-byte header).
   const auto* source = reinterpret_cast<const std::uint16_t*>(processed->data);

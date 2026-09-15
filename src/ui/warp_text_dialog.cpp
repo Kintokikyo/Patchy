@@ -2,6 +2,8 @@
 
 #include "ui/dialog_utils.hpp"
 #include "ui/theme_qss.hpp"
+#include "ui/localization.hpp"
+#include "ui/measurement_units.hpp"
 
 #include <QComboBox>
 #include <QDialog>
@@ -61,7 +63,7 @@ std::optional<TextWarp> request_text_warp(QWidget* parent, const TextWarp& initi
   style_combo->insertSeparator(style_combo->count());
   int index = 0;
   for (const auto& entry : kWarpStyles) {
-    style_combo->addItem(QObject::tr(entry.label), QLatin1String(entry.token));
+    style_combo->addItem(translate_data_text(entry.label), QLatin1String(entry.token));
     // Photoshop groups arc-like, banner-like, and lens-like styles.
     if (index == 6 || index == 10) {
       style_combo->insertSeparator(style_combo->count());
@@ -97,7 +99,7 @@ std::optional<TextWarp> request_text_warp(QWidget* parent, const TextWarp& initi
     auto* spin = new QSpinBox(&dialog);
     spin->setObjectName(QLatin1String(spin_name));
     spin->setRange(-100, 100);
-    spin->setSuffix(QStringLiteral(" %"));
+    spin->setSuffix(percent_suffix());
     row->addWidget(slider, 1);
     row->addWidget(spin);
     layout->addLayout(row);

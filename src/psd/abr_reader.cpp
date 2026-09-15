@@ -2,6 +2,7 @@
 
 #include "psd/psd_binary.hpp"
 #include "psd/psd_descriptor.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -235,7 +236,7 @@ std::vector<DescBrushInfo> parse_desc_brush_infos(std::span<const std::uint8_t> 
   BigEndianReader reader(desc_block);
   const auto descriptor_version = reader.read_u32();
   if (descriptor_version != 16U) {
-    throw std::runtime_error("Unsupported ABR descriptor version");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported ABR descriptor version"));
   }
   const auto root = read_descriptor(reader);
   const auto* brush_list = descriptor_value(root, "Brsh");
@@ -319,7 +320,7 @@ std::vector<std::uint8_t> read_mask_rows(BigEndianReader& reader, std::int32_t w
       data.insert(data.end(), decoded.begin(), decoded.end());
     }
   } else {
-    throw std::runtime_error("Unknown ABR brush compression mode");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Unknown ABR brush compression mode"));
   }
 
   if (bytes_per_sample == 1) {
@@ -371,13 +372,13 @@ bool crop_mask_to_content(AbrBrush& brush) {
 
 void validate_brush_dimensions(std::int32_t width, std::int32_t height, std::int32_t depth) {
   if (width <= 0 || height <= 0) {
-    throw std::runtime_error("brush has empty bounds");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "brush has empty bounds"));
   }
   if (width > kMaxBrushDimension || height > kMaxBrushDimension) {
-    throw std::runtime_error("brush is larger than 4096px");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "brush is larger than 4096px"));
   }
   if (depth != 8 && depth != 16) {
-    throw std::runtime_error("brush depth is not 8 or 16 bit");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "brush depth is not 8 or 16 bit"));
   }
 }
 
@@ -388,7 +389,7 @@ AbrReadResult read_abr_v12(BigEndianReader& reader, std::uint16_t version, std::
     const auto type = reader.read_u16();
     const auto size = reader.read_u32();
     if (size > reader.remaining()) {
-      throw std::runtime_error("ABR brush entry is truncated");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "ABR brush entry is truncated"));
     }
     const auto entry_bytes = reader.read_bytes(size);
     if (type != 2U) {
@@ -444,12 +445,12 @@ AbrReadResult read_abr_v6(BigEndianReader& reader, std::span<const std::uint8_t>
   while (reader.remaining() >= 12U) {
     const auto signature = key_string(read_signature(reader));
     if (signature != "8BIM") {
-      throw std::runtime_error("ABR tagged block has a corrupt signature");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "ABR tagged block has a corrupt signature"));
     }
     const auto key = key_string(read_signature(reader));
     const auto length = reader.read_u32();
     if (length > reader.remaining()) {
-      throw std::runtime_error("ABR tagged block is truncated");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "ABR tagged block is truncated"));
     }
     const auto block = bytes.subspan(reader.position(), length);
     if (key == "samp") {
@@ -489,7 +490,7 @@ AbrReadResult read_abr_v6(BigEndianReader& reader, std::span<const std::uint8_t>
     }
     if (padded_size > samp.remaining()) {
       // A truncated trailing entry: keep what we already parsed and warn.
-      result.warnings.push_back("Ignored a truncated trailing brush entry");
+      result.warnings.push_back(PATCHY_TRANSLATE_NOOP("QObject", "Ignored a truncated trailing brush entry"));
       break;
     }
     const auto entry_bytes = samp.read_bytes(padded_size);

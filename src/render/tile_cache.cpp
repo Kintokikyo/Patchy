@@ -1,5 +1,7 @@
 #include "render/tile_cache.hpp"
 
+#include "support/translate_noop.hpp"
+
 #include <functional>
 #include <stdexcept>
 #include <utility>
@@ -19,7 +21,7 @@ std::size_t TileKeyHash::operator()(const TileKey& key) const noexcept {
 
 TileCache::TileCache(std::int32_t tile_size) : tile_size_(tile_size) {
   if (tile_size <= 0) {
-    throw std::invalid_argument("Tile size must be positive");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Tile size must be positive"));
   }
 }
 

@@ -3,6 +3,7 @@
 #include "formats/binary_le.hpp"
 #include "formats/document_flatten.hpp"
 #include "formats/format_file_io.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <array>
@@ -103,7 +104,7 @@ struct Rgba {
   const auto total = pixel_count * bytes_per_pixel;
   if (!rle) {
     if (reader.remaining() < total) {
-      throw std::runtime_error("TGA data ended unexpectedly");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "TGA data ended unexpectedly"));
     }
     out.reserve(total);
     const auto offset = reader.position();
@@ -151,10 +152,10 @@ Document DocumentIo::read(std::span<const std::uint8_t> bytes, std::vector<std::
   auto reader = tga_reader(bytes);
   const auto header = read_header(reader);
   if (!header_is_plausible(header)) {
-    throw std::runtime_error("File is not a supported TGA image");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "File is not a supported TGA image"));
   }
   if (header.pixel_depth == 15 || header.pixel_depth == 16) {
-    throw std::runtime_error("15/16-bit TGA images are not supported yet; convert to 24-bit or 32-bit");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "15/16-bit TGA images are not supported yet; convert to 24-bit or 32-bit"));
   }
   reader.skip(header.id_length);
 
@@ -165,7 +166,7 @@ Document DocumentIo::read(std::span<const std::uint8_t> bytes, std::vector<std::
   std::vector<Rgba> color_map;
   if (header.color_map_type == 1) {
     if (header.color_map_entry_bits != 24 && header.color_map_entry_bits != 32) {
-      throw std::runtime_error("TGA color maps must be 24-bit or 32-bit");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "TGA color maps must be 24-bit or 32-bit"));
     }
     const auto entry_bytes = static_cast<std::size_t>(header.color_map_entry_bits) / 8U;
     color_map.resize(header.color_map_length);
@@ -177,18 +178,18 @@ Document DocumentIo::read(std::span<const std::uint8_t> bytes, std::vector<std::
     }
   }
   if (indexed && color_map.empty()) {
-    throw std::runtime_error("Indexed TGA image is missing its color map");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Indexed TGA image is missing its color map"));
   }
   if (indexed && header.pixel_depth != 8) {
-    throw std::runtime_error("Indexed TGA images must be 8-bit");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Indexed TGA images must be 8-bit"));
   }
   if (grayscale && header.pixel_depth != 8) {
-    throw std::runtime_error("Grayscale TGA images must be 8-bit");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Grayscale TGA images must be 8-bit"));
   }
   if (!indexed && !grayscale && header.pixel_depth != 24 && header.pixel_depth != 32) {
     // The truecolor decode reads three or four bytes per pixel; an 8-bit depth would walk
     // past every pixel (and past the buffer on the last one).
-    throw std::runtime_error("Truecolor TGA images must be 24-bit or 32-bit");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Truecolor TGA images must be 24-bit or 32-bit"));
   }
 
   const auto width = static_cast<std::int32_t>(header.width);
@@ -216,7 +217,7 @@ Document DocumentIo::read(std::span<const std::uint8_t> bytes, std::vector<std::
         const auto map_index =
             index >= static_cast<std::size_t>(header.color_map_first) ? index - header.color_map_first : index;
         if (map_index >= color_map.size()) {
-          throw std::runtime_error("TGA pixel references a missing color map entry");
+          throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "TGA pixel references a missing color map entry"));
         }
         const auto& entry = color_map[map_index];
         dst[0] = entry.r;
@@ -277,10 +278,10 @@ Document DocumentIo::read_file(const std::filesystem::path& path, std::vector<st
 
 std::vector<std::uint8_t> DocumentIo::write(const Document& document) {
   if (document.width() <= 0 || document.height() <= 0) {
-    throw std::runtime_error("Cannot write an empty TGA image");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Cannot write an empty TGA image"));
   }
   if (document.width() > 0xffff || document.height() > 0xffff) {
-    throw std::runtime_error("TGA images cannot exceed 65535 pixels per side");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "TGA images cannot exceed 65535 pixels per side"));
   }
   LittleEndianWriter writer;
 

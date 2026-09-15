@@ -3,8 +3,8 @@
 # qtimageformats) into .deps/Qt/<version>/wasm_multithread via aqtinstall, next
 # to the existing desktop kits, and installs the matching win64_msvc2022_64
 # host kit when it is missing: QT_HOST_PATH must be the same Qt version as the
-# wasm kit (moc/rcc/lrelease and the qtbase_ja.qm the build stages both come
-# from it). Run scripts\wasm\setup-emsdk.ps1 first; Qt 6.10/6.11 pair with the
+# wasm kit (moc/rcc/lrelease/lupdate and the qtbase_<code>.qm files the build
+# stages all come from it). Run scripts\wasm\setup-emsdk.ps1 first; Qt 6.10/6.11 pair with the
 # Emscripten 4.0.7 that script pins.
 #
 # 6.10.3, not 6.11.x: released aqtinstall (3.3.0) cannot install a 6.11 desktop
@@ -61,9 +61,10 @@ if (-not (Test-Path (Join-Path $WasmKitDir 'lib\cmake\Qt6\qt.toolchain.cmake')))
   throw "qt.toolchain.cmake missing after install; the kit layout is not what the wasm-release preset expects"
 }
 # The build depends on more than qmake from the host kit: lrelease compiles the
-# app translations and translations\qtbase_ja.qm is staged into the wasm image
-# (CMakeLists silently skips it when absent, shipping English-only Qt strings).
-foreach ($Probe in @('bin\qmake.exe', 'bin\lrelease.exe', 'translations\qtbase_ja.qm')) {
+# app translations and the host kit's translations\qtbase_<code>.qm files are
+# staged into the wasm image for every language in PATCHY_TRANSLATED_LANGUAGES
+# (CMakeLists silently skips a missing one, shipping English Qt strings for it).
+foreach ($Probe in @('bin\qmake.exe', 'bin\lrelease.exe', 'bin\lupdate.exe', 'translations\qtbase_ja.qm')) {
   if (-not (Test-Path (Join-Path $HostKitDir $Probe))) {
     throw "Host kit is incomplete: $Probe missing under $HostKitDir"
   }

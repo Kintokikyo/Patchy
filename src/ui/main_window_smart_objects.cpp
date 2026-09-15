@@ -568,7 +568,7 @@ bool MainWindow::commit_smart_object_child_session(DocumentSession& child_sessio
     try {
       encoded = psd::DocumentIo::write_layered_rgb8(child_session.document, write_options);
     } catch (const std::exception& error) {
-      show_critical_message(this, tr("Save failed"), QString::fromUtf8(error.what()),
+      show_critical_message(this, tr("Save failed"), translate_data_text(error.what()),
                             QStringLiteral("smartObjectCommitFailedMessageBox"));
       return false;
     }
@@ -1487,7 +1487,7 @@ bool MainWindow::convert_layers_to_smart_object(const std::vector<LayerId>& sele
     write_options.large_document = true;  // Photoshop embeds .psb for converted layers
     child_bytes = psd::DocumentIo::write_layered_rgb8(child, write_options);
   } catch (const std::exception& error) {
-    show_critical_message(this, tr("Convert failed"), QString::fromUtf8(error.what()),
+    show_critical_message(this, tr("Convert failed"), translate_data_text(error.what()),
                           QStringLiteral("convertSmartObjectFailedMessageBox"));
     return false;
   }

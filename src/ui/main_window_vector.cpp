@@ -33,6 +33,8 @@
 #include "ui/photo_pattern_presets.hpp"
 #include "ui/qt_geometry.hpp"
 #include "ui/shape_appearance_dialog.hpp"
+#include "ui/localization.hpp"
+#include "ui/measurement_units.hpp"
 
 #include <QBrush>
 #include <QCheckBox>
@@ -1287,7 +1289,7 @@ bool MainWindow::define_custom_shape_from_svg_path(const QString& path) {
         std::span<const std::uint8_t>(reinterpret_cast<const std::uint8_t*>(raw.constData()),
                                       static_cast<std::size_t>(raw.size())));
   } catch (const std::exception& error) {
-    show_status_error(tr("Could not read the SVG: %1").arg(QString::fromUtf8(error.what())));
+    show_status_error(tr("Could not read the SVG: %1").arg(translate_data_text(error.what())));
     return false;
   }
   // The Photoshop Shapes-panel behavior: one stampable shape per file, all
@@ -2045,7 +2047,7 @@ void MainWindow::simplify_target_path() {
   tolerance->setRange(0.1, 20.0);
   tolerance->setDecimals(1);
   tolerance->setSingleStep(0.5);
-  tolerance->setSuffix(QStringLiteral(" px"));
+  tolerance->setSuffix(pixel_suffix());
   tolerance->setValue(std::clamp(settings.value(QLatin1String(kSimplifyToleranceKey), 1.0).toDouble(), 0.1, 20.0));
   tolerance->setToolTip(tr("Larger values remove more points"));
   form->addRow(tr("Tolerance:"), tolerance);

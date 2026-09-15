@@ -1,5 +1,7 @@
 #include "core/pixel_buffer.hpp"
 
+#include "support/translate_noop.hpp"
+
 #include <algorithm>
 #include <limits>
 #include <stdexcept>
@@ -44,12 +46,12 @@ std::size_t bytes_per_channel(BitDepth depth) {
     case BitDepth::Float32:
       return 4;
   }
-  throw std::invalid_argument("Unsupported bit depth");
+  throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported bit depth"));
 }
 
 std::size_t bytes_per_pixel(PixelFormat format) {
   if (format.channels == 0) {
-    throw std::invalid_argument("Pixel format must have at least one channel");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Pixel format must have at least one channel"));
   }
   return bytes_per_channel(format.bit_depth) * format.channels;
 }
@@ -57,7 +59,7 @@ std::size_t bytes_per_pixel(PixelFormat format) {
 PixelBuffer::PixelBuffer(std::int32_t width, std::int32_t height, PixelFormat format)
     : width_(width), height_(height), format_(format) {
   if (width < 0 || height < 0) {
-    throw std::invalid_argument("PixelBuffer dimensions cannot be negative");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "PixelBuffer dimensions cannot be negative"));
   }
 
   const auto pixel_bytes = bytes_per_pixel(format);
@@ -120,7 +122,7 @@ std::span<const std::uint8_t> PixelBuffer::data() const noexcept {
 
 std::span<std::uint8_t> PixelBuffer::row(std::int32_t y) {
   if (y < 0 || y >= height_) {
-    throw std::out_of_range("PixelBuffer row is out of range");
+    throw std::out_of_range(PATCHY_TRANSLATE_NOOP("QObject", "PixelBuffer row is out of range"));
   }
   auto& bytes = mutable_bytes();
   const auto stride = stride_bytes();
@@ -129,7 +131,7 @@ std::span<std::uint8_t> PixelBuffer::row(std::int32_t y) {
 
 std::span<const std::uint8_t> PixelBuffer::row(std::int32_t y) const {
   if (y < 0 || y >= height_) {
-    throw std::out_of_range("PixelBuffer row is out of range");
+    throw std::out_of_range(PATCHY_TRANSLATE_NOOP("QObject", "PixelBuffer row is out of range"));
   }
   const auto& bytes = const_bytes();
   const auto stride = stride_bytes();
@@ -157,7 +159,7 @@ void PixelBuffer::clear(std::uint8_t value) {
 
 void PixelBuffer::validate_coordinates(std::int32_t x, std::int32_t y) const {
   if (x < 0 || y < 0 || x >= width_ || y >= height_) {
-    throw std::out_of_range("PixelBuffer coordinate is out of range");
+    throw std::out_of_range(PATCHY_TRANSLATE_NOOP("QObject", "PixelBuffer coordinate is out of range"));
   }
 }
 

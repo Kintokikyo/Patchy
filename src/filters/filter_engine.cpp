@@ -5,6 +5,7 @@
 #include "filters/filter_support.hpp"
 #include "filters/rgba_filter_staging.hpp"
 #include "filters/smart_filter_renderer.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <array>
@@ -1652,7 +1653,7 @@ void execute_builtin_filter(const FilterRegistry &registry,
                             PixelBuffer &pixels,
                             const FilterProgress *progress) {
   if (pixels.format().bit_depth != BitDepth::UInt8) {
-    throw std::invalid_argument("Filter previews support UInt8 buffers only");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Filter previews support UInt8 buffers only"));
   }
   if (pixels.format().channels < 3 || pixels.empty()) {
     return;
@@ -2368,7 +2369,7 @@ void execute_builtin_filter(const FilterRegistry &registry,
     return;
   }
 
-  throw std::invalid_argument("Unknown catalogued filter identifier");
+  throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Unknown catalogued filter identifier"));
 }
 
 FilterParameterDefinition
@@ -2535,14 +2536,14 @@ void apply_lens_blur_filter(PixelBuffer &pixels, double radius_pixels,
                             int rotation_degrees,
                             const FilterProgress *progress) {
   if (pixels.format().bit_depth != BitDepth::UInt8) {
-    throw std::invalid_argument("Lens Blur supports UInt8 buffers only");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Lens Blur supports UInt8 buffers only"));
   }
   if (pixels.format().channels < 3 || pixels.empty()) {
     report_filter_progress(progress, 1, 1, FilterProgressStage::Blurring);
     return;
   }
   if (!std::isfinite(radius_pixels)) {
-    throw std::invalid_argument("Invalid Lens Blur settings");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Invalid Lens Blur settings"));
   }
   radius_pixels = std::clamp(radius_pixels, 0.0, 100.0);
   blade_count = std::clamp(blade_count, 3, 8);
@@ -2599,7 +2600,7 @@ void apply_iris_blur_filter(PixelBuffer &pixels, double blur_pixels,
                             double focus_percent,
                             const FilterProgress *progress) {
   if (pixels.format().bit_depth != BitDepth::UInt8) {
-    throw std::invalid_argument("Iris Blur supports UInt8 buffers only");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Iris Blur supports UInt8 buffers only"));
   }
   if (pixels.format().channels < 3 || pixels.empty()) {
     report_filter_progress(progress, 1, 1, FilterProgressStage::Blurring);
@@ -2610,7 +2611,7 @@ void apply_iris_blur_filter(PixelBuffer &pixels, double blur_pixels,
       !std::isfinite(iris_width_percent) ||
       !std::isfinite(iris_height_percent) ||
       !std::isfinite(focus_percent)) {
-    throw std::invalid_argument("Invalid Iris Blur settings");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Invalid Iris Blur settings"));
   }
   blur_pixels = std::clamp(blur_pixels, 0.0, 100.0);
   center_x_percent = std::clamp(center_x_percent, 0.0, 100.0);
@@ -2749,7 +2750,7 @@ void apply_tilt_shift_blur_filter(PixelBuffer &pixels, double blur_pixels,
                                   const FilterProgress *progress) {
   if (pixels.format().bit_depth != BitDepth::UInt8) {
     throw std::invalid_argument(
-        "Tilt-Shift Blur supports UInt8 buffers only");
+        PATCHY_TRANSLATE_NOOP("QObject", "Tilt-Shift Blur supports UInt8 buffers only"));
   }
   if (pixels.format().channels < 3 || pixels.empty()) {
     report_filter_progress(progress, 1, 1, FilterProgressStage::Blurring);
@@ -2760,7 +2761,7 @@ void apply_tilt_shift_blur_filter(PixelBuffer &pixels, double blur_pixels,
       !std::isfinite(center_y_percent) ||
       !std::isfinite(focus_half_width_percent) ||
       !std::isfinite(transition_width_percent)) {
-    throw std::invalid_argument("Invalid Tilt-Shift Blur settings");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Invalid Tilt-Shift Blur settings"));
   }
 
   blur_pixels = std::clamp(blur_pixels, 0.0, 500.0);

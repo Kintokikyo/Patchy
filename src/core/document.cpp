@@ -1,5 +1,7 @@
 #include "core/document.hpp"
 
+#include "support/translate_noop.hpp"
+
 #include <algorithm>
 #include <limits>
 #include <stdexcept>
@@ -34,7 +36,7 @@ bool layer_tree_references_placed_uuid(const std::vector<Layer>& layers,
 Document::Document(std::int32_t width, std::int32_t height, PixelFormat format)
     : width_(width), height_(height), format_(format) {
   if (width < 0 || height < 0) {
-    throw std::invalid_argument("Document dimensions cannot be negative");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Document dimensions cannot be negative"));
   }
   color_state_.working_mode = format.color_mode;
   color_state_.bit_depth = format.bit_depth;
@@ -134,7 +136,7 @@ std::optional<LayerId> Document::active_layer_id() const noexcept {
 
 Layer& Document::add_pixel_layer(std::string name, PixelBuffer pixels) {
   if (pixels.width() != width_ || pixels.height() != height_) {
-    throw std::invalid_argument("Initial pixel layer must match document dimensions");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Initial pixel layer must match document dimensions"));
   }
   auto id = allocate_layer_id();
   layers_.emplace_back(id, std::move(name), std::move(pixels));
@@ -144,7 +146,7 @@ Layer& Document::add_pixel_layer(std::string name, PixelBuffer pixels) {
 
 Layer& Document::add_layer(Layer layer) {
   if (layer.id() == 0) {
-    throw std::invalid_argument("Layer id 0 is reserved");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Layer id 0 is reserved"));
   }
   next_layer_id_ = std::max(next_layer_id_, layer.id() + 1);
   layers_.push_back(std::move(layer));
@@ -162,17 +164,17 @@ const Layer* Document::find_layer(LayerId id) const noexcept {
 
 DocumentChannel& Document::add_channel(DocumentChannel channel) {
   if (channel.id() == 0) {
-    throw std::invalid_argument("Document channel id 0 is reserved");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Document channel id 0 is reserved"));
   }
   if (find_channel(channel.id()) != nullptr) {
-    throw std::invalid_argument("Document channel ids must be unique");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Document channel ids must be unique"));
   }
   const auto& pixels = std::as_const(channel).pixels();
   if (pixels.format() != PixelFormat::gray8()) {
-    throw std::invalid_argument("Document channels must use 8-bit grayscale pixels");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Document channels must use 8-bit grayscale pixels"));
   }
   if (pixels.width() != width_ || pixels.height() != height_) {
-    throw std::invalid_argument("Document channels must match document dimensions");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Document channels must match document dimensions"));
   }
   if (channels_.size() >= maximum_saved_channel_count()) {
     throw std::length_error("Document has reached Photoshop's 56-channel limit");
@@ -200,13 +202,13 @@ const DocumentChannel* Document::find_channel(ChannelId id) const noexcept {
 
 DocumentPath& Document::add_path(DocumentPath path) {
   if (path.id() == 0) {
-    throw std::invalid_argument("Document path id 0 is reserved");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Document path id 0 is reserved"));
   }
   if (find_path(path.id()) != nullptr) {
-    throw std::invalid_argument("Document path ids must be unique");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Document path ids must be unique"));
   }
   if (path.kind() == DocumentPathKind::Work && work_path() != nullptr) {
-    throw std::invalid_argument("A document holds at most one work path");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "A document holds at most one work path"));
   }
   paths_.push_back(std::move(path));
   return paths_.back();
@@ -243,7 +245,7 @@ bool Document::remove_path(DocumentPathId id) {
 
 void Document::set_active_layer(LayerId id) {
   if (find_layer(id) == nullptr) {
-    throw std::invalid_argument("Cannot activate a layer that does not exist");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Cannot activate a layer that does not exist"));
   }
   active_layer_id_ = id;
 }
@@ -294,7 +296,7 @@ bool Document::rename_channel(ChannelId id, std::string name) {
 
 bool Document::reorder_channel(ChannelId id, std::size_t final_index) {
   if (final_index >= channels_.size()) {
-    throw std::out_of_range("Document channel reorder index is out of range");
+    throw std::out_of_range(PATCHY_TRANSLATE_NOOP("QObject", "Document channel reorder index is out of range"));
   }
   const auto found = std::find_if(channels_.begin(), channels_.end(),
                                   [id](const DocumentChannel& channel) { return channel.id() == id; });
@@ -313,7 +315,7 @@ bool Document::reorder_channel(ChannelId id, std::size_t final_index) {
 
 void Document::resize_canvas(std::int32_t width, std::int32_t height) {
   if (width < 0 || height < 0) {
-    throw std::invalid_argument("Document dimensions cannot be negative");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Document dimensions cannot be negative"));
   }
   width_ = width;
   height_ = height;

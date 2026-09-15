@@ -6,6 +6,7 @@
 #include "psd/psd_layer_effects.hpp"
 #include "render/compositor.hpp"
 #include "ui/photo_pattern_presets.hpp"
+#include "ui/localization.hpp"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -94,7 +95,7 @@ using presets::utf8_from_qstring;
 
 QString style_preset_folder_display_name(const char* english_folder) {
   // Keep the QObject translation context shared with the other preset names.
-  return QCoreApplication::translate("QObject", english_folder);
+  return translate_data_text(english_folder);
 }
 
 QString style_library_entry_display_name(const StyleLibraryEntry& entry) {
@@ -102,7 +103,7 @@ QString style_library_entry_display_name(const StyleLibraryEntry& entry) {
   if (const auto* preset = find_builtin_style_preset(id); preset != nullptr) {
     const auto canonical = QString::fromLatin1(preset->english_name);
     if (entry.name == canonical) {
-      return QCoreApplication::translate("QObject", preset->english_name);
+      return translate_data_text(preset->english_name);
     }
   }
   return entry.name;
@@ -479,7 +480,7 @@ QString StyleLibrary::import_asl(const QString& path, QString& error, QStringLis
     return {};
   }
   for (const auto& warning : parsed->warnings) {
-    warnings.append(qstring_from_utf8(warning));
+    warnings.append(translate_data_text(warning));
   }
 
   auto folder = QFileInfo(path).completeBaseName().trimmed();

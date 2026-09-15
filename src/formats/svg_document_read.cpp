@@ -10,6 +10,7 @@
 #include "formats/gradient_placement.hpp"
 #include "formats/vector_fill_rule.hpp"
 #include "formats/svg_xml.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <array>
@@ -800,7 +801,7 @@ VectorPath parse_path_data(std::string_view data) {
       command = c;
       ++scan.position;
     } else if (command == 0) {
-      throw std::runtime_error("SVG path data must begin with a command letter");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "SVG path data must begin with a command letter"));
     }
     const bool relative = command >= 'a' && command <= 'z';
     const char upper = relative ? static_cast<char>(command - 'a' + 'A') : command;
@@ -816,7 +817,7 @@ VectorPath parse_path_data(std::string_view data) {
       continue;
     }
     if (!scan.has_number()) {
-      throw std::runtime_error("SVG path command is missing its coordinates");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "SVG path command is missing its coordinates"));
     }
     bool first_iteration = true;
     while (scan.has_number()) {
@@ -829,7 +830,7 @@ VectorPath parse_path_data(std::string_view data) {
       switch (upper) {
         case 'M':
           if (!scan.number(a) || !scan.number(b)) {
-            throw std::runtime_error("Invalid SVG move command");
+            throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Invalid SVG move command"));
           }
           if (relative) {
             a += x;
@@ -849,7 +850,7 @@ VectorPath parse_path_data(std::string_view data) {
           break;
         case 'L':
           if (!scan.number(a) || !scan.number(b)) {
-            throw std::runtime_error("Invalid SVG line command");
+            throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Invalid SVG line command"));
           }
           if (relative) {
             a += x;
@@ -861,7 +862,7 @@ VectorPath parse_path_data(std::string_view data) {
           break;
         case 'H':
           if (!scan.number(a)) {
-            throw std::runtime_error("Invalid SVG horizontal-line command");
+            throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Invalid SVG horizontal-line command"));
           }
           if (relative) {
             a += x;
@@ -871,7 +872,7 @@ VectorPath parse_path_data(std::string_view data) {
           break;
         case 'V':
           if (!scan.number(a)) {
-            throw std::runtime_error("Invalid SVG vertical-line command");
+            throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Invalid SVG vertical-line command"));
           }
           if (relative) {
             a += y;
@@ -882,7 +883,7 @@ VectorPath parse_path_data(std::string_view data) {
         case 'C':
           if (!scan.number(a) || !scan.number(b) || !scan.number(c2) || !scan.number(d) || !scan.number(e) ||
               !scan.number(f)) {
-            throw std::runtime_error("Invalid SVG cubic-curve command");
+            throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Invalid SVG cubic-curve command"));
           }
           if (relative) {
             a += x;
@@ -900,7 +901,7 @@ VectorPath parse_path_data(std::string_view data) {
           break;
         case 'S':
           if (!scan.number(c2) || !scan.number(d) || !scan.number(e) || !scan.number(f)) {
-            throw std::runtime_error("Invalid SVG smooth-cubic command");
+            throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Invalid SVG smooth-cubic command"));
           }
           if (relative) {
             c2 += x;
@@ -922,7 +923,7 @@ VectorPath parse_path_data(std::string_view data) {
           break;
         case 'Q':
           if (!scan.number(a) || !scan.number(b) || !scan.number(c2) || !scan.number(d)) {
-            throw std::runtime_error("Invalid SVG quadratic-curve command");
+            throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Invalid SVG quadratic-curve command"));
           }
           if (relative) {
             a += x;
@@ -939,7 +940,7 @@ VectorPath parse_path_data(std::string_view data) {
           break;
         case 'T':
           if (!scan.number(c2) || !scan.number(d)) {
-            throw std::runtime_error("Invalid SVG smooth-quadratic command");
+            throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Invalid SVG smooth-quadratic command"));
           }
           if (relative) {
             c2 += x;
@@ -964,7 +965,7 @@ VectorPath parse_path_data(std::string_view data) {
           bool sweep = false;
           if (!scan.number(a) || !scan.number(b) || !scan.number(rotation) || !scan.flag(large) ||
               !scan.flag(sweep) || !scan.number(c2) || !scan.number(d)) {
-            throw std::runtime_error("Invalid SVG arc command");
+            throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Invalid SVG arc command"));
           }
           if (relative) {
             c2 += x;
@@ -1252,7 +1253,7 @@ struct Importer {
       const auto center = detail::map_point(gradient_transform, cx, cy);
       formats::place_radial_gradient(gradient, {ref_x, ref_y, ref_w, ref_h}, center[0], center[1], r);
       if (attribute("fx", "") != "" || attribute("fy", "") != "") {
-        notice("SVG radial-gradient focal points are not supported; the center was used");
+        notice(PATCHY_TRANSLATE_NOOP("QObject", "SVG radial-gradient focal points are not supported; the center was used"));
       }
     }
     const auto spread = lower_ascii(attribute("spreadMethod", "pad"));
@@ -1348,7 +1349,7 @@ struct Importer {
       }
       auto parsed = element_geometry(child);
       if (!parsed.has_value()) {
-        notice("SVG pattern content beyond plain shapes was skipped");
+        notice(PATCHY_TRANSLATE_NOOP("QObject", "SVG pattern content beyond plain shapes was skipped"));
         return std::nullopt;
       }
       auto style = resolve_style(child, Style{}, css);
@@ -1359,7 +1360,7 @@ struct Importer {
       transform_path(parsed->path, child_transform);
       const auto paint = resolve_paint(style.fill, style, parsed->path);
       if (paint.fill.kind == VectorFillKind::Pattern) {
-        notice("Nested SVG patterns are not supported");
+        notice(PATCHY_TRANSLATE_NOOP("QObject", "Nested SVG patterns are not supported"));
         return std::nullopt;
       }
       VectorShapeContent content_shape;
@@ -1423,7 +1424,7 @@ struct Importer {
       fill.pattern_phase_x += transform.e;
       fill.pattern_phase_y += transform.f;
       if (std::abs(std::hypot(transform.a, transform.b) - std::hypot(transform.c, transform.d)) > 0.01) {
-        notice("SVG patternTransform skew was approximated");
+        notice(PATCHY_TRANSLATE_NOOP("QObject", "SVG patternTransform skew was approximated"));
       }
     }
     return fill;
@@ -1451,7 +1452,7 @@ struct Importer {
             return resolve_paint(std::string(fallback), style, path);
           }
         }
-        notice("An SVG paint reference could not be resolved and was replaced with gray");
+        notice(PATCHY_TRANSLATE_NOOP("QObject", "An SVG paint reference could not be resolved and was replaced with gray"));
         return {VectorFill{.kind = VectorFillKind::Solid, .color = {128, 128, 128}}, 1.0};
       }
       if (referenced->name == "linearGradient" || referenced->name == "radialGradient") {
@@ -1461,10 +1462,10 @@ struct Importer {
         if (auto pattern = pattern_fill(*referenced, path); pattern.has_value()) {
           return {std::move(*pattern), 1.0};
         }
-        notice("An SVG pattern paint was approximated with gray");
+        notice(PATCHY_TRANSLATE_NOOP("QObject", "An SVG pattern paint was approximated with gray"));
         return {VectorFill{.kind = VectorFillKind::Solid, .color = {128, 128, 128}}, 1.0};
       }
-      notice("An unsupported SVG paint definition was replaced with gray");
+      notice(PATCHY_TRANSLATE_NOOP("QObject", "An unsupported SVG paint definition was replaced with gray"));
       return {VectorFill{.kind = VectorFillKind::Solid, .color = {128, 128, 128}}, 1.0};
     }
     const auto parsed = parse_color(paint);
@@ -1489,12 +1490,12 @@ struct Importer {
     }
     const auto* referenced = find_reference(*clip);
     if (referenced == nullptr || referenced->name != "clipPath") {
-      notice("An unsupported SVG clip-path was skipped");
+      notice(PATCHY_TRANSLATE_NOOP("QObject", "An unsupported SVG clip-path was skipped"));
       return std::nullopt;
     }
     if (lower_ascii(referenced->attribute("clipPathUnits") != nullptr ? *referenced->attribute("clipPathUnits") : "") ==
         "objectboundingbox") {
-      notice("SVG clip paths in objectBoundingBox units are not supported and were skipped");
+      notice(PATCHY_TRANSLATE_NOOP("QObject", "SVG clip paths in objectBoundingBox units are not supported and were skipped"));
       return std::nullopt;
     }
     LayerVectorMask mask;
@@ -1505,7 +1506,7 @@ struct Importer {
       }
       auto parsed = element_geometry(child);
       if (!parsed.has_value()) {
-        notice("SVG clip-path content beyond plain shapes was skipped");
+        notice(PATCHY_TRANSLATE_NOOP("QObject", "SVG clip-path content beyond plain shapes was skipped"));
         return std::nullopt;
       }
       auto child_transform = Affine{};
@@ -1534,7 +1535,7 @@ struct Importer {
     }
     const auto* referenced = find_reference(*mask_reference);
     if (referenced == nullptr || referenced->name != "mask") {
-      notice("An unsupported SVG mask was skipped");
+      notice(PATCHY_TRANSLATE_NOOP("QObject", "An unsupported SVG mask was skipped"));
       return std::nullopt;
     }
     // Luminance mask from shape-only content: rasterize each child's
@@ -1548,7 +1549,7 @@ struct Importer {
       }
       auto parsed = element_geometry(child);
       if (!parsed.has_value()) {
-        notice("SVG mask content beyond plain shapes was skipped");
+        notice(PATCHY_TRANSLATE_NOOP("QObject", "SVG mask content beyond plain shapes was skipped"));
         return std::nullopt;
       }
       auto style = resolve_style(child, Style{}, css);
@@ -1640,7 +1641,7 @@ struct Importer {
         const double radius = std::min(std::max(rx, ry), std::min(width, height) / 2.0);
         params.corner_radii = {radius, radius, radius, radius};
         if (std::abs(rx - ry) > kEpsilon) {
-          notice("An SVG rectangle with different rx/ry corner radii was approximated");
+          notice(PATCHY_TRANSLATE_NOOP("QObject", "An SVG rectangle with different rx/ry corner radii was approximated"));
         }
       } else {
         params.kind = LiveShapeKind::Rectangle;
@@ -1696,7 +1697,7 @@ struct Importer {
     if (style.stroke_width > 0.0 && lower_ascii(style.stroke) != "none" &&
         std::abs(std::hypot(transform.a, transform.b) - std::hypot(transform.c, transform.d)) >
             0.05 * std::max(1.0, stroke_scale)) {
-      notice("An anisotropic SVG transform approximated a stroke width by its area scale");
+      notice(PATCHY_TRANSLATE_NOOP("QObject", "An anisotropic SVG transform approximated a stroke width by its area scale"));
     }
 
     // Group the subpaths per the element's fill rule before transforming.
@@ -1776,7 +1777,7 @@ struct Importer {
     const double stroke_target = style.stroke_opacity * stroke_paint.alpha;
     stroke.opacity = std::clamp(fill_factor > 1e-6 ? stroke_target / fill_factor : stroke_target, 0.0, 1.0);
     if (stroke.enabled && stroke_target > fill_factor + 1e-6) {
-      notice("An SVG stroke more opaque than its fill was clamped to the fill opacity");
+      notice(PATCHY_TRANSLATE_NOOP("QObject", "An SVG stroke more opaque than its fill was clamped to the fill opacity"));
     }
 
     // A plain stroked <line> becomes Photoshop's live Line shape: the weight-w
@@ -1859,11 +1860,11 @@ struct Importer {
     const auto x_values = number_list(node.attribute("x") != nullptr ? *node.attribute("x") : "0");
     const auto y_values = number_list(node.attribute("y") != nullptr ? *node.attribute("y") : "0");
     if (x_values.size() > 1 || y_values.size() > 1 || node.attribute("textLength") != nullptr) {
-      notice("Complex SVG text positioning was reduced to a plain text layer");
+      notice(PATCHY_TRANSLATE_NOOP("QObject", "Complex SVG text positioning was reduced to a plain text layer"));
     }
     for (const auto& child : node.children) {
       if (child.name == "textPath") {
-        notice("SVG textPath was imported as ordinary text");
+        notice(PATCHY_TRANSLATE_NOOP("QObject", "SVG textPath was imported as ordinary text"));
       }
     }
     Affine local;
@@ -1918,7 +1919,7 @@ struct Importer {
     }
     const auto lower = lower_ascii(std::string_view(*href).substr(0, 64));
     if (!lower.starts_with("data:image/")) {
-      notice("An external SVG image reference was skipped (only embedded data URIs import)");
+      notice(PATCHY_TRANSLATE_NOOP("QObject", "An external SVG image reference was skipped (only embedded data URIs import)"));
       return std::nullopt;
     }
     count_drawable();
@@ -1939,7 +1940,7 @@ struct Importer {
     const auto corner_a = detail::map_point(transform, x, y);
     const auto corner_b = detail::map_point(transform, x + width, y + height);
     if (std::abs(transform.b) > 1e-6 || std::abs(transform.c) > 1e-6) {
-      notice("A rotated or skewed SVG image was imported axis-aligned");
+      notice(PATCHY_TRANSLATE_NOOP("QObject", "A rotated or skewed SVG image was imported axis-aligned"));
     }
     const auto left = static_cast<std::int32_t>(std::lround(std::min(corner_a[0], corner_b[0])));
     const auto top = static_cast<std::int32_t>(std::lround(std::min(corner_a[1], corner_b[1])));
@@ -1999,29 +2000,29 @@ struct Importer {
       }
       if (child.name == "use") {
         if (use_depth >= kMaximumUseDepth) {
-          notice("SVG <use> nesting is too deep; the deepest references were skipped");
+          notice(PATCHY_TRANSLATE_NOOP("QObject", "SVG <use> nesting is too deep; the deepest references were skipped"));
           continue;
         }
         const auto* href = child.attribute("href");
         if (href == nullptr || href->empty() || href->front() != '#') {
-          notice("An SVG <use> without a local reference was skipped");
+          notice(PATCHY_TRANSLATE_NOOP("QObject", "An SVG <use> without a local reference was skipped"));
           continue;
         }
         if (!use_stack.insert(*href).second) {
-          notice("A cyclic SVG <use> reference was skipped");
+          notice(PATCHY_TRANSLATE_NOOP("QObject", "A cyclic SVG <use> reference was skipped"));
           continue;
         }
         constexpr std::size_t kMaximumUseExpansions = 20000;
         if (++use_expansions > kMaximumUseExpansions) {
           if (use_expansions == kMaximumUseExpansions + 1) {
-            notice("The SVG instantiates too many <use> references; the rest were skipped");
+            notice(PATCHY_TRANSLATE_NOOP("QObject", "The SVG instantiates too many <use> references; the rest were skipped"));
           }
           use_stack.erase(*href);
           continue;
         }
         const auto found = ids.find(href->substr(1));
         if (found == ids.end()) {
-          notice("An SVG <use> references a missing element");
+          notice(PATCHY_TRANSLATE_NOOP("QObject", "An SVG <use> references a missing element"));
         } else {
           Affine placement{1, 0, 0, 1,
                            number_or(child.attribute("x") != nullptr ? *child.attribute("x") : "0", 0.0),
@@ -2037,7 +2038,7 @@ struct Importer {
             XmlNode instance = *found->second;
             instance.name = "g";
             if (instance.attribute("viewBox") != nullptr) {
-              notice("An SVG symbol viewBox was ignored (contents placed unscaled)");
+              notice(PATCHY_TRANSLATE_NOOP("QObject", "An SVG symbol viewBox was ignored (contents placed unscaled)"));
             }
             wrapper.children.push_back(std::move(instance));
           } else {
@@ -2067,7 +2068,7 @@ struct Importer {
                                           number_or(child.attribute("x") != nullptr ? *child.attribute("x") : "0", 0.0),
                                           number_or(child.attribute("y") != nullptr ? *child.attribute("y") : "0", 0.0)});
           if (child.attribute("viewBox") != nullptr) {
-            notice("A nested SVG viewBox was ignored");
+            notice(PATCHY_TRANSLATE_NOOP("QObject", "A nested SVG viewBox was ignored"));
           }
         }
         const auto child_transform = detail::multiply(parent_transform, local);
@@ -2180,14 +2181,14 @@ struct Importer {
       // The CSS default replaced-element size.
       width = 300.0;
       height = 150.0;
-      notice("SVG has no usable width/height or viewBox; opened at 300 x 150");
+      notice(PATCHY_TRANSLATE_NOOP("QObject", "SVG has no usable width/height or viewBox; opened at 300 x 150"));
     }
     double scale_clamp = 1.0;
     if (*width > kMaximumCanvasSize || *height > kMaximumCanvasSize) {
       scale_clamp = std::min(kMaximumCanvasSize / *width, kMaximumCanvasSize / *height);
       *width *= scale_clamp;
       *height *= scale_clamp;
-      notice("SVG canvas was scaled down to Patchy's 30000 px document limit");
+      notice(PATCHY_TRANSLATE_NOOP("QObject", "SVG canvas was scaled down to Patchy's 30000 px document limit"));
     }
     document = Document(std::max(1, static_cast<int>(std::lround(*width))),
                         std::max(1, static_cast<int>(std::lround(*height))), PixelFormat::rgba8());
@@ -2244,13 +2245,13 @@ std::vector<std::uint8_t> maybe_inflate(std::span<const std::uint8_t> bytes) {
     return {bytes.begin(), bytes.end()};
   }
   if (bytes.size() < 18 || bytes[2] != 8) {
-    throw std::runtime_error("SVGZ gzip header is invalid");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "SVGZ gzip header is invalid"));
   }
   const auto flags = bytes[3];
   std::size_t position = 10;
   if ((flags & 0x04U) != 0) {  // FEXTRA
     if (position + 2 > bytes.size()) {
-      throw std::runtime_error("SVGZ gzip header is truncated");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "SVGZ gzip header is truncated"));
     }
     const std::size_t extra = bytes[position] | (static_cast<std::size_t>(bytes[position + 1]) << 8);
     position += 2 + extra;
@@ -2260,7 +2261,7 @@ std::vector<std::uint8_t> maybe_inflate(std::span<const std::uint8_t> bytes) {
       ++position;
     }
     if (position >= bytes.size()) {
-      throw std::runtime_error("SVGZ gzip header is truncated");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "SVGZ gzip header is truncated"));
     }
     ++position;
   };
@@ -2274,16 +2275,16 @@ std::vector<std::uint8_t> maybe_inflate(std::span<const std::uint8_t> bytes) {
     position += 2;
   }
   if (position + 8 > bytes.size()) {
-    throw std::runtime_error("SVGZ gzip data is truncated");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "SVGZ gzip data is truncated"));
   }
   std::size_t output_size = 0;
   void* output = tinfl_decompress_mem_to_heap(bytes.data() + position, bytes.size() - position - 8, &output_size, 0);
   if (output == nullptr) {
-    throw std::runtime_error("SVGZ data could not be decompressed");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "SVGZ data could not be decompressed"));
   }
   if (output_size > kMaximumInflatedBytes) {
     mz_free(output);
-    throw std::runtime_error("SVGZ data decompresses to an unreasonable size");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "SVGZ data decompresses to an unreasonable size"));
   }
   std::vector<std::uint8_t> result(static_cast<std::uint8_t*>(output),
                                    static_cast<std::uint8_t*>(output) + output_size);

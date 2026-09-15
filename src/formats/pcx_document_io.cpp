@@ -3,6 +3,7 @@
 #include "formats/binary_le.hpp"
 #include "formats/document_flatten.hpp"
 #include "formats/format_file_io.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <fstream>
@@ -31,7 +32,7 @@ struct Header {
 [[nodiscard]] Header read_header(std::span<const std::uint8_t> bytes) {
   LittleEndianReader reader(bytes, "PCX data ended unexpectedly");
   if (reader.read_u8() != kManufacturer) {
-    throw std::runtime_error("File is not a PCX image");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "File is not a PCX image"));
   }
   Header header;
   header.version = reader.read_u8();
@@ -57,7 +58,7 @@ struct Header {
   std::vector<std::uint8_t> out;
   const auto minimum_input = rle ? decoded_size / 63U + (decoded_size % 63U != 0U) : decoded_size;
   if (offset > bytes.size() || minimum_input > bytes.size() - offset) {
-    throw std::runtime_error("PCX data ended unexpectedly");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PCX data ended unexpectedly"));
   }
   // Grow beyond a small initial buffer only as encoded runs prove the size.
   out.reserve(std::min<std::size_t>(decoded_size, 65536U));
@@ -76,7 +77,7 @@ struct Header {
     }
   }
   if (out.size() < decoded_size) {
-    throw std::runtime_error("PCX data ended unexpectedly");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PCX data ended unexpectedly"));
   }
   out.resize(decoded_size);
   return out;
@@ -113,23 +114,23 @@ bool DocumentIo::can_read(std::span<const std::uint8_t> bytes) noexcept {
 Document DocumentIo::read(std::span<const std::uint8_t> bytes, std::vector<std::string>* notices) {
   (void)notices;
   if (bytes.size() < kHeaderSize) {
-    throw std::runtime_error("PCX file is too short");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PCX file is too short"));
   }
   const auto header = read_header(bytes);
   if (header.width <= 0 || header.height <= 0) {
-    throw std::runtime_error("PCX image has invalid dimensions");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PCX image has invalid dimensions"));
   }
   if (header.encoding > 1) {
-    throw std::runtime_error("PCX encoding is not supported");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PCX encoding is not supported"));
   }
   const bool indexed = header.bits_per_plane == 8 && header.planes == 1;
   const bool truecolor = header.bits_per_plane == 8 && header.planes == 3;
   if (!indexed && !truecolor) {
     throw std::runtime_error(
-        "Only 8-bit indexed and 24-bit PCX images are supported; convert 16-color PCX files to 256 colors first");
+        PATCHY_TRANSLATE_NOOP("QObject", "Only 8-bit indexed and 24-bit PCX images are supported; convert 16-color PCX files to 256 colors first"));
   }
   if (header.bytes_per_line < static_cast<std::size_t>(header.width)) {
-    throw std::runtime_error("PCX row stride is smaller than the image width");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PCX row stride is smaller than the image width"));
   }
 
   const auto row_bytes = header.bytes_per_line * header.planes;
@@ -140,7 +141,7 @@ Document DocumentIo::read(std::span<const std::uint8_t> bytes, std::vector<std::
   if (indexed) {
     // 256-color palette: 769 bytes from EOF, 0x0C marker + 768 RGB bytes.
     if (bytes.size() < kHeaderSize + 769 || bytes[bytes.size() - 769] != kEofPaletteMarker) {
-      throw std::runtime_error("PCX file is missing its 256-color palette");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PCX file is missing its 256-color palette"));
     }
     palette.reserve(256);
     const auto* table = bytes.data() + bytes.size() - 768;
@@ -184,7 +185,7 @@ Document DocumentIo::read_file(const std::filesystem::path& path, std::vector<st
 std::vector<std::uint8_t> DocumentIo::write(const Document& document) {
   if (document.width() <= 0 || document.height() <= 0 || document.width() > 0xffff ||
       document.height() > 0xffff) {
-    throw std::runtime_error("PCX dimensions must be between 1 and 65535");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PCX dimensions must be between 1 and 65535"));
   }
   const bool indexed =
       document.palette_editing().has_value() && !document.palette_editing()->palette.colors.empty();

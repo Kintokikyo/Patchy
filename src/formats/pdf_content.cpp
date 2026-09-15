@@ -1,6 +1,7 @@
 #include "formats/pdf_content.hpp"
 
 #include "formats/pdf_function.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -238,7 +239,7 @@ public:
 
   void run(std::span<const std::uint8_t> content, const Object& resources, int form_depth) {
     if (form_depth > options_.maximum_form_depth) {
-      notice("A PDF form was nested too deeply and was skipped.");
+      notice(PATCHY_TRANSLATE_NOOP("QObject", "A PDF form was nested too deeply and was skipped."));
       return;
     }
     Lexer lexer(content);
@@ -392,7 +393,7 @@ private:
         space.tint = nullptr;
         // Without the transform the honest approximation is "more ink is darker",
         // right for the spot colours these spaces almost always carry.
-        notice("A PDF spot or separation colour was approximated as a shade of grey.");
+        notice(PATCHY_TRANSLATE_NOOP("QObject", "A PDF spot or separation colour was approximated as a shade of grey."));
       }
       return space;
     }
@@ -534,7 +535,7 @@ private:
     auto font = load_font(file_, font_dict);
     if (font.family.empty()) {
       font.family = "Helvetica";
-      notice("A PDF font resource was missing and was substituted.");
+      notice(PATCHY_TRANSLATE_NOOP("QObject", "A PDF font resource was missing and was substituted."));
     }
     return fonts_.emplace(resource_name, std::move(font)).first->second;
   }
@@ -626,7 +627,7 @@ private:
       sink_.on_text(run);
       ++primitives_;
     } else if (!pending.recovered_any && state_.text.render_mode != 3) {
-      notice("Some PDF text used a font with no Unicode mapping and could not be recovered as text.");
+      notice(PATCHY_TRANSLATE_NOOP("QObject", "Some PDF text used a font with no Unicode mapping and could not be recovered as text."));
     }
     pending = PendingRun{};
   }
@@ -745,7 +746,7 @@ private:
     }
     // A guard against a damaged /Width that would allocate the world.
     if (static_cast<std::int64_t>(placed.width) * placed.height > 80'000'000) {
-      notice("A PDF image was too large to import and was skipped.");
+      notice(PATCHY_TRANSLATE_NOOP("QObject", "A PDF image was too large to import and was skipped."));
       return;
     }
 
@@ -779,7 +780,7 @@ private:
     const auto space = resolve_color_space(file_.get_any(image_object, "ColorSpace", "CS"), resources);
     placed.rgba = expand_samples(data.data, placed.width, placed.height, bits, space);
     if (placed.rgba.empty()) {
-      notice("A PDF image used a colour format Patchy could not decode and was skipped.");
+      notice(PATCHY_TRANSLATE_NOOP("QObject", "A PDF image used a colour format Patchy could not decode and was skipped."));
       return;
     }
     apply_soft_mask(image_object, placed);
@@ -873,12 +874,12 @@ private:
     }
     // Same guard as the image itself: a damaged /Width must not allocate the world.
     if (static_cast<std::int64_t>(mask_width) * mask_height > 80'000'000) {
-      notice("A PDF image transparency mask was too large to import; the image imported opaque.");
+      notice(PATCHY_TRANSLATE_NOOP("QObject", "A PDF image transparency mask was too large to import; the image imported opaque."));
       return;
     }
     const auto mask_data = file_.stream_data(mask);
     if (mask_data.image_codec != FilterKind::None || mask_data.data.empty()) {
-      notice("A PDF image's transparency mask used a codec Patchy could not decode; the image imported opaque.");
+      notice(PATCHY_TRANSLATE_NOOP("QObject", "A PDF image's transparency mask used a codec Patchy could not decode; the image imported opaque."));
       return;
     }
     const auto bits = static_cast<int>(file_.get(mask, "BitsPerComponent").integer(8));
@@ -1032,10 +1033,10 @@ private:
     }
     const auto& soft_mask = file_.get(gstate, "SMask");
     if (soft_mask.is_dictionary()) {
-      notice("A PDF soft mask was not applied; the affected artwork imported without it.");
+      notice(PATCHY_TRANSLATE_NOOP("QObject", "A PDF soft mask was not applied; the affected artwork imported without it."));
     }
     if (const auto& font = file_.get(gstate, "Font"); font.is_array()) {
-      notice("A PDF graphics state set a font directly; that text may be positioned differently.");
+      notice(PATCHY_TRANSLATE_NOOP("QObject", "A PDF graphics state set a font directly; that text may be positioned differently."));
     }
   }
 

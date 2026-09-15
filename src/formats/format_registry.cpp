@@ -14,6 +14,7 @@
 #include "formats/tga_document_io.hpp"
 #include "psd/psd_document_io.hpp"
 #include "support/string_utils.hpp"
+#include "support/translate_noop.hpp"
 
 #include <stdexcept>
 #include <utility>
@@ -22,10 +23,10 @@ namespace patchy {
 
 void FormatRegistry::register_handler(FormatHandler handler) {
   if (handler.identifier.empty()) {
-    throw std::invalid_argument("Format identifier cannot be empty");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Format identifier cannot be empty"));
   }
   if (!handler.read) {
-    throw std::invalid_argument("Format handler must provide a read function");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Format handler must provide a read function"));
   }
   handlers_.push_back(std::move(handler));
 }

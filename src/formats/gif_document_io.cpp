@@ -4,6 +4,7 @@
 #include "formats/document_flatten.hpp"
 #include "formats/format_file_io.hpp"
 #include "core/palette.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <fstream>
@@ -89,21 +90,21 @@ void write_color_table(LittleEndianWriter& writer, std::span<const RgbColor> pal
 
 void validate_frame_dimensions(std::int32_t width, std::int32_t height) {
   if (width <= 0 || height <= 0 || width > 0xffff || height > 0xffff) {
-    throw std::runtime_error("GIF dimensions must be between 1 and 65535");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "GIF dimensions must be between 1 and 65535"));
   }
 }
 
 void validate_indexed_image(std::int32_t width, std::int32_t height, std::span<const RgbColor> palette,
                             std::span<const std::uint8_t> indexes) {
   if (palette.empty() || palette.size() > 256) {
-    throw std::runtime_error("GIF palettes must hold 1 to 256 colors");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "GIF palettes must hold 1 to 256 colors"));
   }
   if (indexes.size() != static_cast<std::size_t>(width) * static_cast<std::size_t>(height)) {
-    throw std::runtime_error("GIF index data does not match the image dimensions");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "GIF index data does not match the image dimensions"));
   }
   for (const auto index : indexes) {
     if (index >= palette.size()) {
-      throw std::runtime_error("GIF index references a missing palette color");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "GIF index references a missing palette color"));
     }
   }
 }
@@ -205,12 +206,12 @@ std::vector<std::uint8_t> encode_animation(std::int32_t width, std::int32_t heig
                                            std::span<const GifFrame> frames) {
   validate_frame_dimensions(width, height);
   if (frames.empty()) {
-    throw std::runtime_error("GIF animations need at least one frame");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "GIF animations need at least one frame"));
   }
   for (const auto& frame : frames) {
     validate_indexed_image(width, height, frame.palette, frame.indexes);
     if (frame.transparent_index >= static_cast<int>(frame.palette.size())) {
-      throw std::runtime_error("GIF transparent index references a missing palette color");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "GIF transparent index references a missing palette color"));
     }
   }
 

@@ -1,6 +1,7 @@
 #include "formats/heif_document_io.hpp"
 
 #include "formats/image_density_probe.hpp"
+#include "support/translate_noop.hpp"
 
 #include <libheif/heif.h>
 
@@ -206,12 +207,12 @@ private:
 
 FormatReadResult read_heif_impl(std::span<const std::uint8_t> bytes) {
   if (!sniff(bytes)) {
-    throw std::runtime_error("This file is not a supported HEIC/HEIF image");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "This file is not a supported HEIC/HEIF image"));
   }
 
   ContextPtr context(heif_context_alloc());
   if (!context) {
-    throw std::runtime_error("Unable to initialize the HEIF parser");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Unable to initialize the HEIF parser"));
   }
   if (auto* limits = heif_context_get_security_limits(context.get()); limits != nullptr) {
     if (limits->max_image_size_pixels == 0 ||
@@ -246,7 +247,7 @@ FormatReadResult read_heif_impl(std::span<const std::uint8_t> bytes) {
 
   DecodingOptionsPtr options(heif_decoding_options_alloc());
   if (!options) {
-    throw std::runtime_error("Unable to initialize HEIF decoding options");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Unable to initialize HEIF decoding options"));
   }
   options->decoder_id = "webcodecs";
   options->convert_hdr_to_8bit = true;
@@ -266,7 +267,7 @@ FormatReadResult read_heif_impl(std::span<const std::uint8_t> bytes) {
   if (width_value <= 0 || height_value <= 0 ||
       static_cast<std::uint64_t>(width_value) * static_cast<std::uint64_t>(height_value) >
           kMaximumPixels) {
-    throw std::runtime_error("This HEIF image's dimensions are not supported");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "This HEIF image's dimensions are not supported"));
   }
   const auto width = static_cast<std::int32_t>(width_value);
   const auto height = static_cast<std::int32_t>(height_value);
@@ -276,7 +277,7 @@ FormatReadResult read_heif_impl(std::span<const std::uint8_t> bytes) {
       heif_image_get_plane_readonly(image.get(), heif_channel_interleaved, &stride);
   const auto tight_stride = static_cast<std::size_t>(width) * 4U;
   if (plane == nullptr || stride < 0 || static_cast<std::size_t>(stride) < tight_stride) {
-    throw std::runtime_error("The browser returned an invalid HEIF pixel buffer");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "The browser returned an invalid HEIF pixel buffer"));
   }
 
   const bool has_alpha = has_meaningful_alpha(plane, stride, width, height);

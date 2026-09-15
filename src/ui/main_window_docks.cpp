@@ -988,7 +988,7 @@ void MainWindow::create_docks() {
   setDockOptions(dockOptions() | QMainWindow::GroupedDragging);
   auto* layers_dock = new QDockWidget(tr("Layers"), this);
   layers_dock->setObjectName(QStringLiteral("layersDock"));
-  bind_widget_text(layers_dock, "Layers");
+  bind_widget_text(layers_dock, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Layers"));
   auto* layers_panel = new QWidget(layers_dock);
   layers_panel->setObjectName(QStringLiteral("layersPanel"));
   layers_panel->setMinimumHeight(240);
@@ -1291,7 +1291,7 @@ void MainWindow::create_docks() {
   blend_combo_->setObjectName(QStringLiteral("layerBlendModeCombo"));
   blend_combo_->setSizeAdjustPolicy(QComboBox::AdjustToContents);
   blend_combo_->setToolTip(tr("Blend mode"));
-  bind_tooltip(blend_combo_, "Blend mode");
+  bind_tooltip(blend_combo_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Blend mode"));
   blend_opacity_row->addWidget(blend_combo_);
   connect(blend_combo_, &QComboBox::currentIndexChanged, this, [this](int index) { set_active_layer_blend(index); });
   register_document_widget(blend_combo_);
@@ -1301,7 +1301,7 @@ void MainWindow::create_docks() {
   opacity_spin_->setRange(0, 100);
   opacity_spin_->setValue(100);
   opacity_spin_->setPrefix(tr("Opacity: "));
-  opacity_spin_->setSuffix(QStringLiteral("%"));
+  opacity_spin_->setSuffix(percent_suffix());
   configure_toolbar_spinbox(opacity_spin_, 52);
   blend_opacity_row->addWidget(opacity_spin_);
   connect(opacity_spin_, &QSpinBox::valueChanged, this, [this](int value) { set_active_layer_opacity(value); });
@@ -1313,7 +1313,7 @@ void MainWindow::create_docks() {
   fill_opacity_spin_->setRange(0, 100);
   fill_opacity_spin_->setValue(100);
   fill_opacity_spin_->setPrefix(tr("Fill: "));
-  fill_opacity_spin_->setSuffix(QStringLiteral("%"));
+  fill_opacity_spin_->setSuffix(percent_suffix());
   configure_toolbar_spinbox(fill_opacity_spin_, 52);
   blend_opacity_row->addWidget(fill_opacity_spin_);
   connect(fill_opacity_spin_, &QSpinBox::valueChanged, this,
@@ -1347,7 +1347,7 @@ void MainWindow::create_docks() {
   lock_row->setContentsMargins(0, 0, 0, 0);
   lock_row->setSpacing(6);
   auto* lock_label = new QLabel(tr("Lock"), layers_panel);
-  bind_widget_text(lock_label, "Lock");
+  bind_widget_text(lock_label, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Lock"));
   lock_row->addWidget(lock_label);
   auto* lock_controls = new QHBoxLayout();
   lock_controls->setContentsMargins(0, 0, 0, 0);
@@ -1397,7 +1397,7 @@ void MainWindow::create_docks() {
   layer_name_filter_edit_->setObjectName(QStringLiteral("layerNameFilterEdit"));
   layer_name_filter_edit_->setClearButtonEnabled(true);
   layer_name_filter_edit_->setFixedHeight(24);
-  bind_widget_text(layer_name_filter_edit_, "Filter layers by name...");
+  bind_widget_text(layer_name_filter_edit_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Filter layers by name..."));
   connect(layer_name_filter_edit_, &QLineEdit::textChanged, this, [this] { refresh_layer_list(); });
   register_document_widget(layer_name_filter_edit_);
   // Rides the otherwise-empty stretch space beside the lock buttons instead of
@@ -1498,7 +1498,7 @@ void MainWindow::create_docks() {
 
   channel_dock_ = new QDockWidget(tr("Channels"), this);
   channel_dock_->setObjectName(QStringLiteral("channelsDock"));
-  bind_widget_text(channel_dock_, "Channels");
+  bind_widget_text(channel_dock_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Channels"));
   channel_panel_ = new ChannelPanel(channel_dock_);
   channel_panel_->setContentsMargins(kRightDockResizeHandleWidth, 0, 0, 0);
   channel_dock_->setWidget(channel_panel_);
@@ -1556,7 +1556,7 @@ void MainWindow::create_docks() {
 
   paths_dock_ = new QDockWidget(tr("Paths"), this);
   paths_dock_->setObjectName(QStringLiteral("pathsDock"));
-  bind_widget_text(paths_dock_, "Paths");
+  bind_widget_text(paths_dock_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Paths"));
   paths_panel_ = new PathsPanel(paths_dock_);
   paths_panel_->setContentsMargins(kRightDockResizeHandleWidth, 0, 0, 0);
   paths_dock_->setWidget(paths_panel_);
@@ -1626,7 +1626,7 @@ void MainWindow::create_docks() {
 
   auto* history_dock = new QDockWidget(tr("History"), this);
   history_dock->setObjectName(QStringLiteral("historyDock"));
-  bind_widget_text(history_dock, "History");
+  bind_widget_text(history_dock, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "History"));
   history_list_ = new QListWidget(history_dock);
   history_list_->setObjectName(QStringLiteral("historyList"));
   // itemClicked (not currentRowChanged): the rebuild's programmatic
@@ -1661,7 +1661,7 @@ void MainWindow::create_docks() {
 
   auto* properties_dock = new QDockWidget(tr("Properties"), this);
   properties_dock->setObjectName(QStringLiteral("propertiesDock"));
-  bind_widget_text(properties_dock, "Properties");
+  bind_widget_text(properties_dock, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Properties"));
   auto* properties_scroll = new QScrollArea(properties_dock);
   properties_scroll->setObjectName(QStringLiteral("propertiesScrollArea"));
   properties_scroll->setFrameShape(QFrame::NoFrame);
@@ -1708,7 +1708,7 @@ void MainWindow::create_docks() {
 
   auto* info_dock = new QDockWidget(tr("Info"), this);
   info_dock->setObjectName(QStringLiteral("infoDock"));
-  bind_widget_text(info_dock, "Info");
+  bind_widget_text(info_dock, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Info"));
   auto* info_panel = new QWidget(info_dock);
   info_panel->setObjectName(QStringLiteral("infoPanel"));
   auto* info_layout = new QVBoxLayout(info_panel);
@@ -1742,7 +1742,7 @@ void MainWindow::create_docks() {
 void MainWindow::create_palette_dock() {
   palette_dock_ = new QDockWidget(tr("Palette"), this);
   palette_dock_->setObjectName(QStringLiteral("paletteDock"));
-  bind_widget_text(palette_dock_, "Palette");
+  bind_widget_text(palette_dock_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Palette"));
   palette_panel_ = new PalettePanel(palette_dock_);
   connect(palette_panel_, &PalettePanel::entry_clicked, this, [this](int index) {
     if (canvas_ == nullptr) {
@@ -1811,7 +1811,7 @@ void MainWindow::create_palette_dock() {
       settings.setValue(QLatin1String(kColorPickerPaletteChoiceKey), id);
     }
     set_document_palette(std::vector<RgbColor>(preset->colors.begin(), preset->colors.end()), tr("Set palette"),
-                         tr("Palette set to %1").arg(tr(preset->english_name)));
+                         tr("Palette set to %1").arg(translate_data_text(preset->english_name)));
   });
   connect(palette_panel_, &PalettePanel::load_from_file_requested, this, [this] { load_palette_from_file(); });
   connect(palette_panel_, &PalettePanel::save_to_file_requested, this, [this] { save_palette_to_file(); });

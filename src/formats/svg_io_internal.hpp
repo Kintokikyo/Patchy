@@ -2,6 +2,7 @@
 
 #include "core/layer.hpp"
 #include "formats/affine.hpp"
+#include "support/translate_noop.hpp"
 
 #include <array>
 #include <cmath>
@@ -30,7 +31,7 @@ using patchy::formats::positive_axis_scale_translate;
 // mainstream toolchain, so output stays deterministic cross-platform.
 inline std::string format_number(double value) {
   if (!std::isfinite(value)) {
-    throw std::runtime_error("SVG cannot encode a non-finite number");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "SVG cannot encode a non-finite number"));
   }
   if (std::abs(value) < 5e-13) {
     value = 0.0;

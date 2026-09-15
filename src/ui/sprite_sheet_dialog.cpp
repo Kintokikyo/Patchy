@@ -2,6 +2,7 @@
 
 #include "ui/dialog_utils.hpp"
 #include "ui/image_document_io.hpp"
+#include "ui/measurement_units.hpp"
 
 #include <QCheckBox>
 #include <QDialog>
@@ -64,7 +65,7 @@ std::optional<SpriteSheetExportOptions> prompt_sprite_sheet_export_options(QWidg
   auto* padding = new QSpinBox(&dialog);
   padding->setObjectName(QStringLiteral("spriteSheetPaddingSpin"));
   padding->setRange(0, 64);
-  padding->setSuffix(QStringLiteral(" px"));
+  padding->setSuffix(pixel_suffix());
   configure_dialog_spinbox(padding, 88);
   form->addRow(new QLabel(QObject::tr("Padding:"), &dialog), padding);
 

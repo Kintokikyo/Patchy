@@ -7,6 +7,7 @@
 #include "formats/format_file_io.hpp"
 #include "formats/palette_io.hpp"
 #include "render/layer_compositor.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <array>
@@ -88,7 +89,7 @@ struct BmpHeader {
     case 8:
       return 256;
     default:
-      throw std::runtime_error("Unsupported indexed BMP bit depth");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported indexed BMP bit depth"));
   }
 }
 
@@ -105,12 +106,12 @@ struct BmpHeader {
     case BmpEncoding::Indexed2:
       return 2;
   }
-  throw std::runtime_error("Unsupported BMP encoding");
+  throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported BMP encoding"));
 }
 
 [[nodiscard]] std::size_t row_stride_bytes(std::int32_t width, std::uint16_t bit_count) {
   if (width <= 0) {
-    throw std::runtime_error("BMP width must be positive");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "BMP width must be positive"));
   }
   const auto bits = static_cast<std::uint64_t>(width) * static_cast<std::uint64_t>(bit_count);
   return checked_size((((bits + 31U) & ~31ULL) >> 3U), "BMP row is too large");
@@ -132,10 +133,10 @@ struct BmpHeader {
 [[nodiscard]] BmpHeader read_header(std::span<const std::uint8_t> bytes) {
   auto reader = bmp_reader(bytes);
   if (reader.remaining() < kFileHeaderSize + kInfoHeaderSize) {
-    throw std::runtime_error("BMP file is too short");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "BMP file is too short"));
   }
   if (reader.read_u8() != 'B' || reader.read_u8() != 'M') {
-    throw std::runtime_error("File is not a BMP image");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "File is not a BMP image"));
   }
 
   BmpHeader header;
@@ -145,10 +146,10 @@ struct BmpHeader {
   const auto dib_start = reader.position();
   header.dib_header_size = reader.read_u32();
   if (header.dib_header_size < kInfoHeaderSize) {
-    throw std::runtime_error("Unsupported BMP DIB header");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported BMP DIB header"));
   }
   if (header.dib_header_size - 4U > reader.remaining()) {
-    throw std::runtime_error("BMP DIB header is truncated");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "BMP DIB header is truncated"));
   }
 
   header.width = reader.read_i32();
@@ -163,10 +164,10 @@ struct BmpHeader {
   (void)reader.read_u32();
 
   if (planes != 1) {
-    throw std::runtime_error("BMP plane count must be 1");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "BMP plane count must be 1"));
   }
   if (header.width <= 0 || raw_height == 0 || raw_height == std::numeric_limits<std::int32_t>::min()) {
-    throw std::runtime_error("BMP dimensions are invalid");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "BMP dimensions are invalid"));
   }
   header.top_down = raw_height < 0;
   header.height = header.top_down ? -raw_height : raw_height;
@@ -180,10 +181,10 @@ struct BmpHeader {
   }
 
   if (header.file_size != 0 && header.file_size > bytes.size()) {
-    throw std::runtime_error("BMP file is truncated");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "BMP file is truncated"));
   }
   if (header.pixel_offset > bytes.size() || header.pixel_offset < kFileHeaderSize + header.dib_header_size) {
-    throw std::runtime_error("BMP pixel offset is invalid");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "BMP pixel offset is invalid"));
   }
   return header;
 }
@@ -192,12 +193,12 @@ struct BmpHeader {
   const auto capacity = palette_capacity_for_bits(header.bit_count);
   const auto palette_entries = header.colors_used == 0 ? capacity : header.colors_used;
   if (palette_entries == 0 || palette_entries > capacity) {
-    throw std::runtime_error("BMP palette size is invalid");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "BMP palette size is invalid"));
   }
   const auto palette_bytes = static_cast<std::uint64_t>(palette_entries) * 4ULL;
   if (header.color_table_offset > header.pixel_offset ||
       palette_bytes > header.pixel_offset - header.color_table_offset) {
-    throw std::runtime_error("BMP palette is truncated");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "BMP palette is truncated"));
   }
 
   std::vector<RgbColor> palette;
@@ -211,21 +212,21 @@ struct BmpHeader {
 
 [[nodiscard]] std::vector<RgbColor> read_palette_file(const std::filesystem::path& path) {
   if (path.empty()) {
-    throw std::runtime_error("A palette file is required for indexed BMP palette export");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "A palette file is required for indexed BMP palette export"));
   }
   std::ifstream file(path, std::ios::binary);
   if (!file) {
-    throw std::runtime_error("Could not open BMP palette file");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Could not open BMP palette file"));
   }
   std::vector<std::uint8_t> bytes((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
   if (bytes.empty()) {
-    throw std::runtime_error("Palette file is empty");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Palette file is empty"));
   }
 
   if (DocumentIo::can_read(bytes)) {
     const auto header = read_header(bytes);
     if (header.bit_count != 2 && header.bit_count != 4 && header.bit_count != 8) {
-      throw std::runtime_error("BMP palette file must be an indexed BMP");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "BMP palette file must be an indexed BMP"));
     }
     return read_palette(bytes, header);
   }
@@ -249,13 +250,13 @@ struct BmpHeader {
     case 8:
       return row[x];
     default:
-      throw std::runtime_error("Unsupported indexed BMP bit depth");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported indexed BMP bit depth"));
   }
 }
 
 [[nodiscard]] Document read_indexed(std::span<const std::uint8_t> bytes, const BmpHeader& header) {
   if (header.compression != kBiRgb) {
-    throw std::runtime_error("Compressed indexed BMP files are not supported");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Compressed indexed BMP files are not supported"));
   }
 
   const auto palette = read_palette(bytes, header);
@@ -264,7 +265,7 @@ struct BmpHeader {
                                             static_cast<std::uint64_t>(header.height),
                                         "BMP pixel data is too large");
   if (pixel_bytes > bytes.size() - header.pixel_offset) {
-    throw std::runtime_error("BMP pixel data is truncated");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "BMP pixel data is truncated"));
   }
 
   PixelBuffer pixels(header.width, header.height, PixelFormat::rgb8());
@@ -274,7 +275,7 @@ struct BmpHeader {
     for (std::int32_t x = 0; x < header.width; ++x) {
       const auto palette_index = unpack_index(row, x, header.bit_count);
       if (palette_index >= palette.size()) {
-        throw std::runtime_error("BMP pixel references a missing palette color");
+        throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "BMP pixel references a missing palette color"));
       }
       const auto color = palette[palette_index];
       auto* pixel = pixels.pixel(x, document_y);
@@ -294,14 +295,14 @@ struct BmpHeader {
 
 [[nodiscard]] Document read_rgb24(std::span<const std::uint8_t> bytes, const BmpHeader& header) {
   if (header.compression != kBiRgb) {
-    throw std::runtime_error("Compressed 24-bit BMP files are not supported");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Compressed 24-bit BMP files are not supported"));
   }
   const auto row_stride = row_stride_bytes(header.width, header.bit_count);
   const auto pixel_bytes = checked_size(static_cast<std::uint64_t>(row_stride) *
                                             static_cast<std::uint64_t>(header.height),
                                         "BMP pixel data is too large");
   if (pixel_bytes > bytes.size() - header.pixel_offset) {
-    throw std::runtime_error("BMP pixel data is truncated");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "BMP pixel data is truncated"));
   }
 
   PixelBuffer pixels(header.width, header.height, PixelFormat::rgb8());
@@ -335,7 +336,7 @@ struct BmpHeader {
   // store BGRA bytes, so they share the same byte extraction below.
   if (header.compression != kBiRgb &&
       !(header.compression == kBiBitfields && patchy_alpha_masks(header))) {
-    throw std::runtime_error("Unsupported 32-bit BMP channel masks");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported 32-bit BMP channel masks"));
   }
 
   const auto row_stride = row_stride_bytes(header.width, header.bit_count);
@@ -343,7 +344,7 @@ struct BmpHeader {
                                             static_cast<std::uint64_t>(header.height),
                                         "BMP pixel data is too large");
   if (pixel_bytes > bytes.size() - header.pixel_offset) {
-    throw std::runtime_error("BMP pixel data is truncated");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "BMP pixel data is truncated"));
   }
 
   // Always keep the fourth byte as alpha. Photoshop treats the alpha of a 32-bit BI_RGB
@@ -377,7 +378,7 @@ public:
         alpha_(static_cast<std::size_t>(destination.width()) * static_cast<std::size_t>(destination.height()),
                clamp_unit(initial_alpha)) {
     if (destination_.format() != PixelFormat::rgb8()) {
-      throw std::invalid_argument("BMP RGB render target requires RGB8 pixels");
+      throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "BMP RGB render target requires RGB8 pixels"));
     }
   }
 
@@ -482,7 +483,7 @@ class Rgba8RenderTarget {
 public:
   explicit Rgba8RenderTarget(PixelBuffer& destination) : destination_(destination) {
     if (destination_.format() != PixelFormat::rgba8()) {
-      throw std::invalid_argument("BMP RGBA render target requires RGBA8 pixels");
+      throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "BMP RGBA render target requires RGBA8 pixels"));
     }
   }
 
@@ -638,7 +639,7 @@ void write_file_header(LittleEndianWriter& writer, std::uint32_t file_size, std:
 
 void require_non_empty_document(const Document& document) {
   if (document.width() <= 0 || document.height() <= 0) {
-    throw std::runtime_error("Cannot write an empty BMP image");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Cannot write an empty BMP image"));
   }
 }
 
@@ -795,7 +796,7 @@ struct IndexedPixels {
       auto found = palette_index.find(key);
       if (found == palette_index.end()) {
         if (indexed.palette.size() >= capacity) {
-          throw std::runtime_error("Image has too many colors for exact indexed BMP export");
+          throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Image has too many colors for exact indexed BMP export"));
         }
         const auto index = static_cast<std::uint16_t>(indexed.palette.size());
         indexed.palette.push_back(color);
@@ -834,10 +835,10 @@ struct IndexedPixels {
   indexed.palette = read_palette_file(palette_path);
   const auto capacity = palette_capacity_for_bits(bit_count);
   if (indexed.palette.empty()) {
-    throw std::runtime_error("Palette file does not contain any colors");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Palette file does not contain any colors"));
   }
   if (indexed.palette.size() > capacity) {
-    throw std::runtime_error("Palette file has too many colors for the selected BMP depth");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Palette file has too many colors for the selected BMP depth"));
   }
 
   indexed.indices.reserve(static_cast<std::size_t>(pixels.width()) * static_cast<std::size_t>(pixels.height()));
@@ -871,7 +872,7 @@ void pack_index(std::vector<std::uint8_t>& row, std::int32_t x, std::uint16_t bi
       row[static_cast<std::size_t>(x)] = static_cast<std::uint8_t>(index);
       return;
     default:
-      throw std::runtime_error("Unsupported indexed BMP bit depth");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported indexed BMP bit depth"));
   }
 }
 
@@ -902,7 +903,7 @@ void pack_index(std::vector<std::uint8_t>& row, std::int32_t x, std::uint16_t bi
   }
   const auto capacity = palette_capacity_for_bits(bit_count);
   if (indexed.palette.empty() || indexed.palette.size() > capacity) {
-    throw std::runtime_error("Indexed BMP palette size is invalid");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Indexed BMP palette size is invalid"));
   }
 
   const auto row_stride = row_stride_bytes(pixels.width(), bit_count);
@@ -967,7 +968,7 @@ Document DocumentIo::read(std::span<const std::uint8_t> bytes) {
     case 32:
       return read_rgb32(bytes, header);
     default:
-      throw std::runtime_error("Unsupported BMP bit depth");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported BMP bit depth"));
   }
 }
 
@@ -988,7 +989,7 @@ std::vector<std::uint8_t> DocumentIo::write(const Document& document, WriteOptio
     case BmpEncoding::Indexed2:
       return write_indexed(document, options);
   }
-  throw std::runtime_error("Unsupported BMP encoding");
+  throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported BMP encoding"));
 }
 
 void DocumentIo::write_file(const Document& document, const std::filesystem::path& path, WriteOptions options) {

@@ -6,6 +6,7 @@
 #include "ui/color_panel.hpp"
 #include "ui/dialog_utils.hpp"
 #include "ui/theme_qss.hpp"
+#include "ui/measurement_units.hpp"
 
 #include <QButtonGroup>
 #include <QCheckBox>
@@ -326,7 +327,7 @@ ExportSectionWidgets add_export_options_section(QVBoxLayout* content, QDialog& d
       std::floor(kExportResizeMaxPixels * 100.0 / std::max(source_width, source_height)), 1.0, 1000.0);
   percent_spin->setRange(1.0, max_percent);
   percent_spin->setDecimals(2);
-  percent_spin->setSuffix(QStringLiteral("%"));
+  percent_spin->setSuffix(percent_suffix());
   configure_dialog_spinbox(percent_spin, 96);
   resize_layout->addWidget(resize_check);
   resize_layout->addWidget(width_spin);
@@ -715,7 +716,7 @@ std::optional<ImageSaveOptions> prompt_image_save_options(QWidget* parent, const
     auto* quality = new QSpinBox(quality_row);
     quality->setObjectName(QStringLiteral("jpegQualitySpin"));
     quality->setRange(0, 100);
-    quality->setSuffix(QStringLiteral("%"));
+    quality->setSuffix(percent_suffix());
     quality->setValue(std::clamp(options.jpeg_quality, 0, 100));
     configure_dialog_spinbox(quality, 88);
     QObject::connect(quality_slider, &QSlider::valueChanged, quality, &QSpinBox::setValue);
@@ -799,7 +800,7 @@ std::optional<ImageSaveOptions> prompt_image_save_options(QWidget* parent, const
     auto* quality = new QSpinBox(quality_row);
     quality->setObjectName(QStringLiteral("jxrQualitySpin"));
     quality->setRange(1, 100);
-    quality->setSuffix(QStringLiteral("%"));
+    quality->setSuffix(percent_suffix());
     quality->setValue(std::clamp(options.jxr_quality, 1, 100));
     configure_dialog_spinbox(quality, 88);
     QObject::connect(quality_slider, &QSlider::valueChanged, quality, &QSpinBox::setValue);
@@ -872,7 +873,7 @@ std::optional<ImageSaveOptions> prompt_image_save_options(QWidget* parent, const
     auto* quality = new QSpinBox(quality_row);
     quality->setObjectName(QStringLiteral("rttexJpegQualitySpin"));
     quality->setRange(1, 100);
-    quality->setSuffix(QStringLiteral("%"));
+    quality->setSuffix(percent_suffix());
     quality->setValue(std::clamp(options.rttex_jpeg_quality, 1, 100));
     configure_dialog_spinbox(quality, 88);
     QObject::connect(quality_slider, &QSlider::valueChanged, quality, &QSpinBox::setValue);

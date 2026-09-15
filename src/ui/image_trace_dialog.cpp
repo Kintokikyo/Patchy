@@ -6,6 +6,7 @@
 #include "ui/dialog_utils.hpp"
 #include "ui/theme_palette.hpp"
 #include "ui/theme_qss.hpp"
+#include "ui/localization.hpp"
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -427,22 +428,22 @@ void close_trace_preview(const std::shared_ptr<TracePreviewState>& state) {
 
 const std::vector<ImageTracePreset>& image_trace_presets() {
   static const std::vector<ImageTracePreset> presets = {
-      {"Black and White Logo", make_preset(Mode::BlackAndWhite, 16, 128, 50, 75, 25, Method::Abutting, true)},
-      {"Sketched Art", make_preset(Mode::BlackAndWhite, 16, 200, 60, 85, 10, Method::Abutting, true)},
-      {"Silhouettes", make_preset(Mode::BlackAndWhite, 16, 80, 40, 60, 40, Method::Abutting, true)},
+      {QT_TRANSLATE_NOOP("QObject", "Black and White Logo"), make_preset(Mode::BlackAndWhite, 16, 128, 50, 75, 25, Method::Abutting, true)},
+      {QT_TRANSLATE_NOOP("QObject", "Sketched Art"), make_preset(Mode::BlackAndWhite, 16, 200, 60, 85, 10, Method::Abutting, true)},
+      {QT_TRANSLATE_NOOP("QObject", "Silhouettes"), make_preset(Mode::BlackAndWhite, 16, 80, 40, 60, 40, Method::Abutting, true)},
       // The flat-art presets merge near-duplicate palette entries (15 = a
       // uniform per-channel difference of 15): a narrow-gamut image asked for
       // more colors than it distinctly has degrades to fewer clean layers
       // instead of grain speckle. Distinct flat colors sit far apart, so the
       // merge is a no-op on real flat art. The photo presets keep 0: their
       // close entries are deliberate gradient steps.
-      {"3 Colors", make_preset(Mode::Color, 3, 128, 50, 75, 25, Method::Abutting, false, 0, 0, 15)},
-      {"6 Colors", make_preset(Mode::Color, 6, 128, 50, 75, 25, Method::Abutting, false, 0, 0, 15)},
-      {"16 Colors", make_preset(Mode::Color, 16, 128, 50, 75, 25, Method::Abutting, false, 0, 0, 15)},
-      {"Shades of Gray", make_preset(Mode::Grayscale, 16, 128, 50, 75, 25, Method::Abutting, false, 0, 0, 15)},
-      {"Low Fidelity Photo", make_preset(Mode::Color, 16, 128, 40, 60, 25, Method::Overlapping, false)},
-      {"High Fidelity Photo", make_preset(Mode::Color, 64, 128, 80, 50, 4, Method::Overlapping, false)},
-      {"Photo (Maximum)", make_preset(Mode::Color, 256, 128, 80, 50, 4, Method::Overlapping, false, 2)},
+      {QT_TRANSLATE_NOOP("QObject", "3 Colors"), make_preset(Mode::Color, 3, 128, 50, 75, 25, Method::Abutting, false, 0, 0, 15)},
+      {QT_TRANSLATE_NOOP("QObject", "6 Colors"), make_preset(Mode::Color, 6, 128, 50, 75, 25, Method::Abutting, false, 0, 0, 15)},
+      {QT_TRANSLATE_NOOP("QObject", "16 Colors"), make_preset(Mode::Color, 16, 128, 50, 75, 25, Method::Abutting, false, 0, 0, 15)},
+      {QT_TRANSLATE_NOOP("QObject", "Shades of Gray"), make_preset(Mode::Grayscale, 16, 128, 50, 75, 25, Method::Abutting, false, 0, 0, 15)},
+      {QT_TRANSLATE_NOOP("QObject", "Low Fidelity Photo"), make_preset(Mode::Color, 16, 128, 40, 60, 25, Method::Overlapping, false)},
+      {QT_TRANSLATE_NOOP("QObject", "High Fidelity Photo"), make_preset(Mode::Color, 64, 128, 80, 50, 4, Method::Overlapping, false)},
+      {QT_TRANSLATE_NOOP("QObject", "Photo (Maximum)"), make_preset(Mode::Color, 256, 128, 80, 50, 4, Method::Overlapping, false, 2)},
   };
   return presets;
 }
@@ -970,7 +971,7 @@ std::optional<ImageTraceDialogResult> request_image_trace(QWidget* parent, std::
   });
   const auto is_builtin_name = [&](const QString& name) {
     for (const auto& preset : presets) {
-      if (name.compare(QObject::tr(preset.english_name), Qt::CaseInsensitive) == 0 ||
+      if (name.compare(translate_data_text(preset.english_name), Qt::CaseInsensitive) == 0 ||
           name.compare(QLatin1String(preset.english_name), Qt::CaseInsensitive) == 0) {
         return true;
       }

@@ -7,6 +7,7 @@
 #include "ui/dialog_utils.hpp"
 #include "ui/tool_cursors.hpp"
 #include "ui/theme_qss.hpp"
+#include "ui/localization.hpp"
 
 #include <QApplication>
 #include <QClipboard>
@@ -1622,7 +1623,7 @@ void PatchyColorPickerPrivate::populate_palette_combo() {
   palette_combo_->addItem(PatchyColorPicker::tr("Basic colors"), QLatin1String(kPaletteChoiceBasic));
   palette_combo_->addItem(PatchyColorPicker::tr("Current palette"), QLatin1String(kPaletteChoiceCurrent));
   for (const auto& preset : builtin_palette_presets()) {
-    palette_combo_->addItem(PatchyColorPicker::tr(preset.english_name), QString::fromLatin1(preset.id));
+    palette_combo_->addItem(translate_data_text(preset.english_name), QString::fromLatin1(preset.id));
   }
   palette_combo_->insertSeparator(palette_combo_->count());
   palette_combo_->addItem(PatchyColorPicker::tr("Load Palette File..."), QLatin1String(kPaletteActionLoad));

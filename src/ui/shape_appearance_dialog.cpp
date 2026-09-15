@@ -10,6 +10,7 @@
 #include "ui/dialog_utils.hpp"
 #include "ui/gradient_library.hpp"
 #include "ui/pattern_library.hpp"
+#include "ui/measurement_units.hpp"
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -126,7 +127,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
       spin->setObjectName(QLatin1String(name));
       spin->setRange(minimum, maximum);
       spin->setDecimals(1);
-      spin->setSuffix(QStringLiteral(" px"));
+      spin->setSuffix(pixel_suffix());
       spin->setValue(value);
       configure_dialog_spinbox(spin, 72);
       return spin;
@@ -290,14 +291,14 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   auto* gradient_angle_spin = new QSpinBox(fill_group);
   gradient_angle_spin->setObjectName(QStringLiteral("shapeGradientAngleSpin"));
   gradient_angle_spin->setRange(-180, 180);
-  gradient_angle_spin->setSuffix(QStringLiteral("°"));
+  gradient_angle_spin->setSuffix(degree_suffix());
   configure_dialog_spinbox(gradient_angle_spin, 72);
   fill_form->addRow(QObject::tr("Angle:"), gradient_angle_spin);
 
   auto* gradient_scale_spin = new QSpinBox(fill_group);
   gradient_scale_spin->setObjectName(QStringLiteral("shapeGradientScaleSpin"));
   gradient_scale_spin->setRange(10, 1000);
-  gradient_scale_spin->setSuffix(QStringLiteral("%"));
+  gradient_scale_spin->setSuffix(percent_suffix());
   configure_dialog_spinbox(gradient_scale_spin, 72);
   fill_form->addRow(QObject::tr("Scale:"), gradient_scale_spin);
 
@@ -313,7 +314,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   auto* pattern_scale_spin = new QSpinBox(fill_group);
   pattern_scale_spin->setObjectName(QStringLiteral("shapePatternScaleSpin"));
   pattern_scale_spin->setRange(1, 1000);
-  pattern_scale_spin->setSuffix(QStringLiteral("%"));
+  pattern_scale_spin->setSuffix(percent_suffix());
   configure_dialog_spinbox(pattern_scale_spin, 72);
   fill_form->addRow(QObject::tr("Scale:"), pattern_scale_spin);
 
@@ -323,7 +324,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   pattern_angle_spin->setObjectName(QStringLiteral("shapePatternAngleSpin"));
   pattern_angle_spin->setRange(-180.0, 180.0);
   pattern_angle_spin->setDecimals(1);
-  pattern_angle_spin->setSuffix(QStringLiteral("°"));
+  pattern_angle_spin->setSuffix(degree_suffix());
   configure_dialog_spinbox(pattern_angle_spin, 72);
   fill_form->addRow(QObject::tr("Angle:"), pattern_angle_spin);
 
@@ -331,7 +332,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   pattern_offset_x_spin->setObjectName(QStringLiteral("shapePatternOffsetXSpin"));
   pattern_offset_x_spin->setRange(-30000.0, 30000.0);
   pattern_offset_x_spin->setDecimals(1);
-  pattern_offset_x_spin->setSuffix(QStringLiteral(" px"));
+  pattern_offset_x_spin->setSuffix(pixel_suffix());
   configure_dialog_spinbox(pattern_offset_x_spin, 80);
   fill_form->addRow(QObject::tr("Offset X:"), pattern_offset_x_spin);
 
@@ -339,7 +340,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   pattern_offset_y_spin->setObjectName(QStringLiteral("shapePatternOffsetYSpin"));
   pattern_offset_y_spin->setRange(-30000.0, 30000.0);
   pattern_offset_y_spin->setDecimals(1);
-  pattern_offset_y_spin->setSuffix(QStringLiteral(" px"));
+  pattern_offset_y_spin->setSuffix(pixel_suffix());
   configure_dialog_spinbox(pattern_offset_y_spin, 80);
   fill_form->addRow(QObject::tr("Offset Y:"), pattern_offset_y_spin);
 
@@ -371,7 +372,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   stroke_width_spin->setObjectName(QStringLiteral("shapeStrokeWidthSpin"));
   stroke_width_spin->setRange(0.1, 1000.0);
   stroke_width_spin->setDecimals(1);
-  stroke_width_spin->setSuffix(QStringLiteral(" px"));
+  stroke_width_spin->setSuffix(pixel_suffix());
   stroke_width_spin->setValue(state->settings.stroke.width);
   configure_dialog_spinbox(stroke_width_spin, 80);
   stroke_form->addRow(QObject::tr("Width:"), stroke_width_spin);
@@ -414,14 +415,14 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   auto* stroke_gradient_angle_spin = new QSpinBox(stroke_group);
   stroke_gradient_angle_spin->setObjectName(QStringLiteral("shapeStrokeGradientAngleSpin"));
   stroke_gradient_angle_spin->setRange(-180, 180);
-  stroke_gradient_angle_spin->setSuffix(QStringLiteral("°"));
+  stroke_gradient_angle_spin->setSuffix(degree_suffix());
   configure_dialog_spinbox(stroke_gradient_angle_spin, 72);
   stroke_form->addRow(QObject::tr("Angle:"), stroke_gradient_angle_spin);
 
   auto* stroke_gradient_scale_spin = new QSpinBox(stroke_group);
   stroke_gradient_scale_spin->setObjectName(QStringLiteral("shapeStrokeGradientScaleSpin"));
   stroke_gradient_scale_spin->setRange(10, 1000);
-  stroke_gradient_scale_spin->setSuffix(QStringLiteral("%"));
+  stroke_gradient_scale_spin->setSuffix(percent_suffix());
   configure_dialog_spinbox(stroke_gradient_scale_spin, 72);
   stroke_form->addRow(QObject::tr("Scale:"), stroke_gradient_scale_spin);
 
@@ -438,7 +439,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   auto* stroke_pattern_scale_spin = new QSpinBox(stroke_group);
   stroke_pattern_scale_spin->setObjectName(QStringLiteral("shapeStrokePatternScaleSpin"));
   stroke_pattern_scale_spin->setRange(1, 1000);
-  stroke_pattern_scale_spin->setSuffix(QStringLiteral("%"));
+  stroke_pattern_scale_spin->setSuffix(percent_suffix());
   configure_dialog_spinbox(stroke_pattern_scale_spin, 72);
   stroke_form->addRow(QObject::tr("Scale:"), stroke_pattern_scale_spin);
 
@@ -446,7 +447,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   stroke_pattern_angle_spin->setObjectName(QStringLiteral("shapeStrokePatternAngleSpin"));
   stroke_pattern_angle_spin->setRange(-180.0, 180.0);
   stroke_pattern_angle_spin->setDecimals(1);
-  stroke_pattern_angle_spin->setSuffix(QStringLiteral("°"));
+  stroke_pattern_angle_spin->setSuffix(degree_suffix());
   configure_dialog_spinbox(stroke_pattern_angle_spin, 72);
   stroke_form->addRow(QObject::tr("Angle:"), stroke_pattern_angle_spin);
 
@@ -454,7 +455,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   stroke_pattern_offset_x_spin->setObjectName(QStringLiteral("shapeStrokePatternOffsetXSpin"));
   stroke_pattern_offset_x_spin->setRange(-30000.0, 30000.0);
   stroke_pattern_offset_x_spin->setDecimals(1);
-  stroke_pattern_offset_x_spin->setSuffix(QStringLiteral(" px"));
+  stroke_pattern_offset_x_spin->setSuffix(pixel_suffix());
   configure_dialog_spinbox(stroke_pattern_offset_x_spin, 80);
   stroke_form->addRow(QObject::tr("Offset X:"), stroke_pattern_offset_x_spin);
 
@@ -462,7 +463,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   stroke_pattern_offset_y_spin->setObjectName(QStringLiteral("shapeStrokePatternOffsetYSpin"));
   stroke_pattern_offset_y_spin->setRange(-30000.0, 30000.0);
   stroke_pattern_offset_y_spin->setDecimals(1);
-  stroke_pattern_offset_y_spin->setSuffix(QStringLiteral(" px"));
+  stroke_pattern_offset_y_spin->setSuffix(pixel_suffix());
   configure_dialog_spinbox(stroke_pattern_offset_y_spin, 80);
   stroke_form->addRow(QObject::tr("Offset Y:"), stroke_pattern_offset_y_spin);
 

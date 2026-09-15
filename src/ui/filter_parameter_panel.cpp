@@ -2,6 +2,7 @@
 
 #include "ui/dialog_utils.hpp"
 #include "ui/filter_gallery_controls.hpp"
+#include "ui/localization.hpp"
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -19,10 +20,6 @@
 
 namespace patchy::ui {
 namespace {
-
-QString translate_filter_catalog_text(const std::string& source) {
-  return QCoreApplication::translate("QObject", source.c_str());
-}
 
 double numeric_filter_value(const FilterParameterValue& value,
                             double fallback = 0.0) {
@@ -162,7 +159,7 @@ void FilterParameterPanel::rebuild(const FilterDialogSpec& spec,
       auto* combo = new QComboBox(this);
       combo->setObjectName(control.object_name + QStringLiteral("Combo"));
       for (const auto& option : control.options) {
-        combo->addItem(translate_filter_catalog_text(option.display_name),
+        combo->addItem(translate_data_text(option.display_name),
                        QString::fromStdString(option.value));
       }
       const auto* selected = std::get_if<std::string>(&initial_value);

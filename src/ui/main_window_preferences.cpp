@@ -459,8 +459,11 @@ void MainWindow::show_preferences() {
 
   auto* language_combo = new QComboBox(application_group);
   language_combo->setObjectName(QStringLiteral("preferencesLanguageCombo"));
-  language_combo->addItem(tr("English"), QStringLiteral("en"));
-  language_combo->addItem(QStringLiteral("日本語"), QStringLiteral("ja"));
+  // Native names are data, not translated text: a user who cannot read the current
+  // language still finds their own.
+  for (const auto& language : LocalizationManager::instance().available_languages()) {
+    language_combo->addItem(language.native_name, language.code);
+  }
   const auto current_language = LocalizationManager::instance().current_language();
   const auto current_index = language_combo->findData(current_language);
   language_combo->setCurrentIndex(current_index >= 0 ? current_index : 0);
@@ -691,7 +694,7 @@ void MainWindow::show_preferences() {
   auto* pen_pressure_size_min_spin = new QSpinBox(pen_group);
   pen_pressure_size_min_spin->setObjectName(QStringLiteral("preferencesPenPressureSizeMinSpin"));
   pen_pressure_size_min_spin->setRange(1, 100);
-  pen_pressure_size_min_spin->setSuffix(QStringLiteral("%"));
+  pen_pressure_size_min_spin->setSuffix(percent_suffix());
   pen_pressure_size_min_spin->setValue(pen_input_settings_.pressure_size_min_percent);
   auto* pen_pressure_opacity_check = new QCheckBox(tr("Pressure controls opacity"), pen_group);
   pen_pressure_opacity_check->setObjectName(QStringLiteral("preferencesPenPressureOpacityCheck"));
@@ -699,7 +702,7 @@ void MainWindow::show_preferences() {
   auto* pen_pressure_opacity_min_spin = new QSpinBox(pen_group);
   pen_pressure_opacity_min_spin->setObjectName(QStringLiteral("preferencesPenPressureOpacityMinSpin"));
   pen_pressure_opacity_min_spin->setRange(1, 100);
-  pen_pressure_opacity_min_spin->setSuffix(QStringLiteral("%"));
+  pen_pressure_opacity_min_spin->setSuffix(percent_suffix());
   pen_pressure_opacity_min_spin->setValue(pen_input_settings_.pressure_opacity_min_percent);
   auto* pen_eraser_check = new QCheckBox(tr("Use eraser tip as Eraser"), pen_group);
   pen_eraser_check->setObjectName(QStringLiteral("preferencesPenEraserTipCheck"));
@@ -742,7 +745,7 @@ void MainWindow::show_preferences() {
   auto* pen_tilt_roundness_spin = new QSpinBox(pen_group);
   pen_tilt_roundness_spin->setObjectName(QStringLiteral("preferencesPenTiltMinRoundnessSpin"));
   pen_tilt_roundness_spin->setRange(1, 100);
-  pen_tilt_roundness_spin->setSuffix(QStringLiteral("%"));
+  pen_tilt_roundness_spin->setSuffix(percent_suffix());
   pen_tilt_roundness_spin->setValue(pen_input_settings_.tilt_min_roundness_percent);
 
   const auto refresh_pen_controls = [=] {
@@ -856,7 +859,7 @@ void MainWindow::show_preferences() {
     auto* spin = new QSpinBox(view_group);
     spin->setObjectName(object_name);
     spin->setRange(0, 100);
-    spin->setSuffix(QStringLiteral("%"));
+    spin->setSuffix(percent_suffix());
     spin->setValue(color_alpha_percent(color));
     return spin;
   };
@@ -1064,9 +1067,8 @@ void MainWindow::show_preferences() {
   append_themed_style(dialog, dialog_spinbox_button_style());
 
   if (exec_dialog(dialog) == QDialog::Accepted) {
-    const auto code = language_combo->currentData().toString();
-    if (!code.isEmpty() && LocalizationManager::instance().set_language(code)) {
-      refresh_language_actions();
+    if (const auto code = language_combo->currentData().toString(); !code.isEmpty()) {
+      LocalizationManager::instance().set_language(code);
     }
     hotkey_editor->commit();
     // No restart notice: the scheme is already applied, unlike interface scale.

@@ -18,6 +18,7 @@
 #include "psd/psd_smart_objects.hpp"
 #include "render/compositor.hpp"
 #include "support/string_utils.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <array>
@@ -63,7 +64,7 @@ void append_document_channels_for_write(
     const auto& pixels = channel.pixels();
     if (pixels.format() != PixelFormat::gray8() || pixels.width() != document.width() ||
         pixels.height() != document.height()) {
-      throw std::runtime_error("PSD saved channels must be full-canvas 8-bit grayscale images");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD saved channels must be full-canvas 8-bit grayscale images"));
     }
     planes.emplace_back(pixels.data());
     channel_info.push_back(CompositeChannelInfo{channel.name(), false,
@@ -76,7 +77,7 @@ void append_document_channels_for_write(
 
 void check_composite_channel_limit(std::size_t extra_channel_count) {
   if (3U + extra_channel_count > kMaximumPhotoshopChannelCount) {
-    throw std::runtime_error("PSD files support at most 56 total channels, including merged transparency");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD files support at most 56 total channels, including merged transparency"));
   }
 }
 
@@ -126,13 +127,13 @@ Document read_flat_composite(BigEndianReader& reader, const Header& header,
   const auto first_saved_channel = static_cast<std::uint16_t>(
       color_channel_count + (has_merged_transparency ? 1U : 0U));
   if (first_saved_channel > header.channels) {
-    throw std::runtime_error("PSD merged transparency flag has no matching composite channel");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD merged transparency flag has no matching composite channel"));
   }
   Layer& background = document.add_pixel_layer("Background", std::move(pixels));
   if (has_merged_transparency) {
     const auto& merged_alpha = channel_data[color_channel_count];
     if (merged_alpha.size() != channel_pixels) {
-      throw std::runtime_error("PSD merged transparency dimensions do not match the document");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD merged transparency dimensions do not match the document"));
     }
     PixelBuffer mask_pixels(document.width(), document.height(), PixelFormat::gray8());
     std::copy(merged_alpha.begin(), merged_alpha.end(), mask_pixels.data().begin());
@@ -450,10 +451,10 @@ std::vector<Layer> read_layer_info_records(BigEndianReader& layer_reader, std::i
         continue;
       }
       if (channel.length < 2) {
-        throw std::runtime_error("Invalid PSD layer channel length");
+        throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Invalid PSD layer channel length"));
       }
       if (channel.length > layer_reader.remaining()) {
-        throw std::runtime_error("PSD layer channel data is truncated");
+        throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD layer channel data is truncated"));
       }
       BigEndianReader channel_reader(layer_reader.read_span(static_cast<std::size_t>(channel.length)));
       const auto compression = channel_reader.read_u16();
@@ -479,7 +480,7 @@ std::vector<Layer> read_layer_info_records(BigEndianReader& layer_reader, std::i
           static_cast<std::size_t>(channel_width) * static_cast<std::size_t>(channel_height);
       const auto sample_bytes = static_cast<std::size_t>(depth / 8U);
       if (compression == kCompressionRaw && payload_length < channel_pixel_count * sample_bytes) {
-        throw std::runtime_error("PSD layer channel data is truncated");
+        throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD layer channel data is truncated"));
       }
       std::vector<std::uint8_t> channel_data;
       try {
@@ -931,7 +932,7 @@ bool read_merged_transparency_flag_and_skip_layer_mask(BigEndianReader& reader,
                                                         std::uint64_t layer_mask_length,
                                                         const Header& header) {
   if (layer_mask_length > reader.remaining()) {
-    throw std::runtime_error("Invalid PSD layer and mask information length");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Invalid PSD layer and mask information length"));
   }
   if (layer_mask_length == 0U) {
     return false;
@@ -1254,7 +1255,7 @@ Document DocumentIo::read(std::span<const std::uint8_t> bytes, ReadOptions optio
     const auto first_saved_channel = static_cast<std::uint16_t>(
         color_channel_count + (has_merged_transparency ? 1U : 0U));
     if (first_saved_channel > header.channels) {
-      throw std::runtime_error("PSD merged transparency flag has no matching composite channel");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD merged transparency flag has no matching composite channel"));
     }
     const auto saved_channel_count = static_cast<std::size_t>(header.channels - first_saved_channel);
     if (options.retain_flat_composite) {
@@ -1276,7 +1277,7 @@ Document DocumentIo::read(std::span<const std::uint8_t> bytes, ReadOptions optio
       }
     } else if (saved_channel_count != 0U) {
       if (reader.remaining() < 2U) {
-        throw std::runtime_error("PSD composite image data is missing");
+        throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD composite image data is missing"));
       }
       const auto compression = reader.read_u16();
       auto saved_channels = read_flat_image_channels_from(reader, header, compression,
@@ -1389,7 +1390,7 @@ std::vector<std::uint8_t> DocumentIo::write_layered_rgb8(const Document& documen
       // The format's signed count holds more, but Photoshop rejects 8001
       // records with a composite-only fallback. Folder boundaries count too.
       if (record_count > 8000U) {
-        throw std::runtime_error("Photoshop supports at most 8000 layer records, including group boundaries");
+        throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Photoshop supports at most 8000 layer records, including group boundaries"));
       }
       self(self, layer.children());
     }
@@ -1430,7 +1431,7 @@ std::vector<std::uint8_t> DocumentIo::write_layered_rgb8(const Document& documen
   // channel counts). Saved document channels follow this derived plane.
   const auto layer_count = static_cast<std::int16_t>(encoded_layers.size());
   if (merged_transparency_channel && layer_count == 0) {
-    throw std::runtime_error("A layered PSD needs a layer record to identify merged transparency");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "A layered PSD needs a layer record to identify merged transparency"));
   }
   layer_info.write_u16(static_cast<std::uint16_t>(merged_transparency_channel ? -layer_count : layer_count));
   const auto& global_blocks = document.metadata().unknown_psd_resources;

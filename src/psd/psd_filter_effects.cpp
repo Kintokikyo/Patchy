@@ -3,6 +3,7 @@
 #include "psd/psd_binary.hpp"
 #include "psd/psd_descriptor.hpp"
 #include "core/smart_filter.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <exception>
@@ -110,7 +111,7 @@ encode_filter_mask_tail(const SmartFilterMask &mask) {
   const auto right = checked_edge(mask.bounds.x, mask.bounds.width);
   const auto bottom = checked_edge(mask.bounds.y, mask.bounds.height);
   if (!right.has_value() || !bottom.has_value()) {
-    throw std::runtime_error("PSD filter mask bounds overflow");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD filter mask bounds overflow"));
   }
   BigEndianWriter tail;
   tail.write_u8(1U);
@@ -353,7 +354,7 @@ void mark_block_association_uniqueness(SmartFilterEffectsBlock &block) {
 [[nodiscard]] std::vector<std::uint8_t>
 serialize_filter_effects_record_body(const SmartFilterEffectsRecord &record) {
   if (!raw_record_range_is_valid(record)) {
-    throw std::runtime_error("PSD filter-effects record has no raw body");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD filter-effects record has no raw body"));
   }
   const auto raw = raw_filter_effects_record_body(record);
   if (record.placed_uuid == record.original_placed_uuid) {
@@ -364,7 +365,7 @@ serialize_filter_effects_record_body(const SmartFilterEffectsRecord &record) {
       raw.front() != record.original_placed_uuid.size() ||
       raw.size() < 1U + record.original_placed_uuid.size()) {
     throw std::runtime_error(
-        "PSD filter-effects record cannot be rekeyed safely");
+        PATCHY_TRANSLATE_NOOP("QObject", "PSD filter-effects record cannot be rekeyed safely"));
   }
   const auto original_begin = raw.begin() + 1;
   const auto original_end =
@@ -374,7 +375,7 @@ serialize_filter_effects_record_body(const SmartFilterEffectsRecord &record) {
                   record.original_placed_uuid.begin(),
                   record.original_placed_uuid.end())) {
     throw std::runtime_error(
-        "PSD filter-effects record id does not match its raw body");
+        PATCHY_TRANSLATE_NOOP("QObject", "PSD filter-effects record id does not match its raw body"));
   }
 
   // Size the body exactly, then fill it by copy. Growing it with push_back and
@@ -653,7 +654,7 @@ serialize_filter_effects_block(const SmartFilterEffectsBlock &block) {
   if (block.opaque || (block.key != "FEid" && block.key != "FXid") ||
       block.version < kMinimumOuterVersion ||
       block.version > kMaximumOuterVersion) {
-    throw std::runtime_error("PSD filter-effects block cannot be regenerated");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD filter-effects block cannot be regenerated"));
   }
 
   BigEndianWriter writer;

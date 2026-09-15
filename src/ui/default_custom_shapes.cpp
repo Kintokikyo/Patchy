@@ -2,6 +2,8 @@
 // kappa-arc curves). Every id is persisted; append new shapes, never re-id.
 #include "ui/default_custom_shapes.hpp"
 
+#include "support/translate_noop.hpp"
+
 #include "core/vector_live_shapes.hpp"
 
 #include <cmath>
@@ -86,18 +88,18 @@ std::vector<BuiltinCustomShape> build_shapes() {
   };
 
   // --- Arrows (unit box, pointing as named) ---
-  add("shape.builtin.arrow-right", "Arrow Right", "Arrows",
+  add("shape.builtin.arrow-right", PATCHY_TRANSLATE_NOOP("QObject", "Arrow Right"), PATCHY_TRANSLATE_NOOP("QObject", "Arrows"),
       polygon_path({{0.0, 0.3}, {0.6, 0.3}, {0.6, 0.1}, {1.0, 0.5}, {0.6, 0.9}, {0.6, 0.7}, {0.0, 0.7}}));
-  add("shape.builtin.arrow-left", "Arrow Left", "Arrows",
+  add("shape.builtin.arrow-left", PATCHY_TRANSLATE_NOOP("QObject", "Arrow Left"), PATCHY_TRANSLATE_NOOP("QObject", "Arrows"),
       polygon_path({{1.0, 0.3}, {0.4, 0.3}, {0.4, 0.1}, {0.0, 0.5}, {0.4, 0.9}, {0.4, 0.7}, {1.0, 0.7}}));
-  add("shape.builtin.arrow-up", "Arrow Up", "Arrows",
+  add("shape.builtin.arrow-up", PATCHY_TRANSLATE_NOOP("QObject", "Arrow Up"), PATCHY_TRANSLATE_NOOP("QObject", "Arrows"),
       polygon_path({{0.3, 1.0}, {0.3, 0.4}, {0.1, 0.4}, {0.5, 0.0}, {0.9, 0.4}, {0.7, 0.4}, {0.7, 1.0}}));
-  add("shape.builtin.arrow-down", "Arrow Down", "Arrows",
+  add("shape.builtin.arrow-down", PATCHY_TRANSLATE_NOOP("QObject", "Arrow Down"), PATCHY_TRANSLATE_NOOP("QObject", "Arrows"),
       polygon_path({{0.3, 0.0}, {0.3, 0.6}, {0.1, 0.6}, {0.5, 1.0}, {0.9, 0.6}, {0.7, 0.6}, {0.7, 0.0}}));
-  add("shape.builtin.arrow-double", "Arrow Double", "Arrows",
+  add("shape.builtin.arrow-double", PATCHY_TRANSLATE_NOOP("QObject", "Arrow Double"), PATCHY_TRANSLATE_NOOP("QObject", "Arrows"),
       polygon_path({{0.0, 0.5}, {0.3, 0.2}, {0.3, 0.38}, {0.7, 0.38}, {0.7, 0.2}, {1.0, 0.5},
                     {0.7, 0.8}, {0.7, 0.62}, {0.3, 0.62}, {0.3, 0.8}}));
-  add("shape.builtin.chevron-right", "Chevron", "Arrows",
+  add("shape.builtin.chevron-right", PATCHY_TRANSLATE_NOOP("QObject", "Chevron"), PATCHY_TRANSLATE_NOOP("QObject", "Arrows"),
       polygon_path({{0.2, 0.0}, {0.55, 0.0}, {0.9, 0.5}, {0.55, 1.0}, {0.2, 1.0}, {0.55, 0.5}}));
   {
     // Curved arrow: a quarter-annulus band swept about a center below the
@@ -135,7 +137,7 @@ std::vector<BuiltinCustomShape> build_shapes() {
       }
     }
     path.subpaths.push_back(std::move(subpath));
-    add("shape.builtin.arrow-curved", "Arrow Curved", "Arrows", std::move(path));
+    add("shape.builtin.arrow-curved", PATCHY_TRANSLATE_NOOP("QObject", "Arrow Curved"), PATCHY_TRANSLATE_NOOP("QObject", "Arrows"), std::move(path));
   }
 
   // --- Symbols ---
@@ -154,20 +156,20 @@ std::vector<BuiltinCustomShape> build_shapes() {
         smooth(0.74, 0.0, 0.13, 0.0, -0.105, 0.0),
     };
     path.subpaths.push_back(std::move(subpath));
-    add("shape.builtin.heart", "Heart", "Symbols", std::move(path));
+    add("shape.builtin.heart", PATCHY_TRANSLATE_NOOP("QObject", "Heart"), PATCHY_TRANSLATE_NOOP("QObject", "Symbols"), std::move(path));
   }
-  add("shape.builtin.star", "Star", "Symbols", star_path(5, 0.5, 0.19, 0.5, 0.5));
-  add("shape.builtin.check", "Check Mark", "Symbols",
+  add("shape.builtin.star", PATCHY_TRANSLATE_NOOP("QObject", "Star"), PATCHY_TRANSLATE_NOOP("QObject", "Symbols"), star_path(5, 0.5, 0.19, 0.5, 0.5));
+  add("shape.builtin.check", PATCHY_TRANSLATE_NOOP("QObject", "Check Mark"), PATCHY_TRANSLATE_NOOP("QObject", "Symbols"),
       polygon_path({{0.0, 0.55}, {0.15, 0.4}, {0.35, 0.6}, {0.85, 0.05}, {1.0, 0.2}, {0.35, 0.95}}));
-  add("shape.builtin.cross", "Cross", "Symbols",
+  add("shape.builtin.cross", PATCHY_TRANSLATE_NOOP("QObject", "Cross"), PATCHY_TRANSLATE_NOOP("QObject", "Symbols"),
       polygon_path({{0.15, 0.0}, {0.5, 0.35}, {0.85, 0.0}, {1.0, 0.15}, {0.65, 0.5}, {1.0, 0.85},
                     {0.85, 1.0}, {0.5, 0.65}, {0.15, 1.0}, {0.0, 0.85}, {0.35, 0.5}, {0.0, 0.15}}));
-  add("shape.builtin.plus", "Plus", "Symbols",
+  add("shape.builtin.plus", PATCHY_TRANSLATE_NOOP("QObject", "Plus"), PATCHY_TRANSLATE_NOOP("QObject", "Symbols"),
       polygon_path({{0.35, 0.0}, {0.65, 0.0}, {0.65, 0.35}, {1.0, 0.35}, {1.0, 0.65}, {0.65, 0.65},
                     {0.65, 1.0}, {0.35, 1.0}, {0.35, 0.65}, {0.0, 0.65}, {0.0, 0.35}, {0.35, 0.35}}));
-  add("shape.builtin.diamond", "Diamond", "Symbols",
+  add("shape.builtin.diamond", PATCHY_TRANSLATE_NOOP("QObject", "Diamond"), PATCHY_TRANSLATE_NOOP("QObject", "Symbols"),
       polygon_path({{0.5, 0.0}, {1.0, 0.5}, {0.5, 1.0}, {0.0, 0.5}}));
-  add("shape.builtin.triangle", "Triangle", "Symbols",
+  add("shape.builtin.triangle", PATCHY_TRANSLATE_NOOP("QObject", "Triangle"), PATCHY_TRANSLATE_NOOP("QObject", "Symbols"),
       polygon_path({{0.5, 0.0}, {1.0, 1.0}, {0.0, 1.0}}));
   {
     // Speech bubble: rounded rectangle (kappa corners) with a tail.
@@ -189,9 +191,9 @@ std::vector<BuiltinCustomShape> build_shapes() {
         smooth(0.0, r, 0.0, 0.0, 0.0, -k),
     };
     path.subpaths.push_back(std::move(subpath));
-    add("shape.builtin.speech-bubble", "Speech Bubble", "Symbols", std::move(path));
+    add("shape.builtin.speech-bubble", PATCHY_TRANSLATE_NOOP("QObject", "Speech Bubble"), PATCHY_TRANSLATE_NOOP("QObject", "Symbols"), std::move(path));
   }
-  add("shape.builtin.lightning", "Lightning Bolt", "Symbols",
+  add("shape.builtin.lightning", PATCHY_TRANSLATE_NOOP("QObject", "Lightning Bolt"), PATCHY_TRANSLATE_NOOP("QObject", "Symbols"),
       polygon_path({{0.55, 0.0}, {0.2, 0.55}, {0.42, 0.55}, {0.3, 1.0}, {0.8, 0.4}, {0.55, 0.4},
                     {0.75, 0.0}}));
   {
@@ -199,7 +201,7 @@ std::vector<BuiltinCustomShape> build_shapes() {
     VectorPath path;
     path.subpaths.push_back(circle_subpath(0.5, 0.5, 0.5));
     path.subpaths.push_back(circle_subpath(0.5, 0.5, 0.3));
-    add("shape.builtin.ring", "Ring", "Symbols", std::move(path));
+    add("shape.builtin.ring", PATCHY_TRANSLATE_NOOP("QObject", "Ring"), PATCHY_TRANSLATE_NOOP("QObject", "Symbols"), std::move(path));
   }
   return shapes;
 }

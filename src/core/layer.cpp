@@ -2,6 +2,7 @@
 #include "core/environment.hpp"
 #include "core/smart_filter.hpp"
 #include "core/vector_shape.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <array>
@@ -110,7 +111,7 @@ std::vector<std::uint8_t> encode_layer_blend_if(const LayerBlendIf& settings,
         return blend_if_thresholds_are_valid(channel.this_layer) &&
                blend_if_thresholds_are_valid(channel.underlying_layer);
       })) {
-    throw std::invalid_argument("Blend If thresholds must remain ordered");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Blend If thresholds must remain ordered"));
   }
 
   std::vector<std::uint8_t> encoded;
@@ -397,7 +398,7 @@ photoshop_layer_id(const Layer& layer) noexcept {
 
 void set_photoshop_layer_id(Layer& layer, std::uint32_t id) {
   if (id == 0U) {
-    throw std::invalid_argument("Photoshop layer id 0 is reserved");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Photoshop layer id 0 is reserved"));
   }
   auto& blocks = layer.unknown_psd_blocks();
   const auto first = std::find_if(blocks.begin(), blocks.end(),
@@ -469,7 +470,7 @@ void Layer::set_clipped(bool clipped) noexcept {
 
 void Layer::set_opacity(float opacity) {
   if (opacity < 0.0F || opacity > 1.0F) {
-    throw std::out_of_range("Layer opacity must be in the inclusive range [0, 1]");
+    throw std::out_of_range(PATCHY_TRANSLATE_NOOP("QObject", "Layer opacity must be in the inclusive range [0, 1]"));
   }
   opacity_ = opacity;
   render_revision_ = next_layer_revision();
@@ -478,7 +479,7 @@ void Layer::set_opacity(float opacity) {
 
 void Layer::set_fill_opacity(float opacity) {
   if (opacity < 0.0F || opacity > 1.0F) {
-    throw std::out_of_range("Layer fill opacity must be in the inclusive range [0, 1]");
+    throw std::out_of_range(PATCHY_TRANSLATE_NOOP("QObject", "Layer fill opacity must be in the inclusive range [0, 1]"));
   }
   fill_opacity_ = opacity;
   render_revision_ = next_layer_revision();
@@ -513,10 +514,10 @@ void Layer::set_pixels(PixelBuffer pixels) {
 
 void Layer::set_mask(LayerMask mask) {
   if (mask.pixels.format() != PixelFormat::gray8()) {
-    throw std::invalid_argument("Layer masks must use 8-bit grayscale pixels");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Layer masks must use 8-bit grayscale pixels"));
   }
   if (mask.bounds.width != mask.pixels.width() || mask.bounds.height != mask.pixels.height()) {
-    throw std::invalid_argument("Layer mask bounds must match mask pixel dimensions");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Layer mask bounds must match mask pixel dimensions"));
   }
   mask_ = std::move(mask);
   render_revision_ = next_layer_revision();

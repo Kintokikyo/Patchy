@@ -468,7 +468,8 @@ void raster_nodes(const std::vector<VectorPreviewNode>& nodes, std::vector<Layer
 }  // namespace
 
 QString vector_preview_fallback_text(VectorPreviewFallback reason) {
-  const auto tr = [](const char* text) { return QCoreApplication::translate("VectorPreview", text); };
+  // One literal translate() call per case so lupdate extracts each message under the
+  // VectorPreview context (a helper lambda named tr hides them from it).
   switch (reason) {
     case VectorPreviewFallback::None: return {};
     case VectorPreviewFallback::Content:
@@ -476,10 +477,10 @@ QString vector_preview_fallback_text(VectorPreviewFallback reason) {
     case VectorPreviewFallback::Masks:
     case VectorPreviewFallback::Blending:
     case VectorPreviewFallback::Effects:
-      return tr("Dynamic Vector Preview: using the document's pixel view.");
-    case VectorPreviewFallback::Coordinates: return tr("Pixel view: vector coordinates exceed the preview range at this zoom.");
-    case VectorPreviewFallback::Memory: return tr("Pixel view: Dynamic Vector Preview reached its memory limit.");
-    case VectorPreviewFallback::Failed: return tr("Pixel view: Dynamic Vector Preview could not render this view.");
+      return QCoreApplication::translate("VectorPreview", "Dynamic Vector Preview: using the document's pixel view.");
+    case VectorPreviewFallback::Coordinates: return QCoreApplication::translate("VectorPreview", "Pixel view: vector coordinates exceed the preview range at this zoom.");
+    case VectorPreviewFallback::Memory: return QCoreApplication::translate("VectorPreview", "Pixel view: Dynamic Vector Preview reached its memory limit.");
+    case VectorPreviewFallback::Failed: return QCoreApplication::translate("VectorPreview", "Pixel view: Dynamic Vector Preview could not render this view.");
   }
   return {};
 }

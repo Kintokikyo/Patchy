@@ -3,6 +3,7 @@
 #include "core/blend_math.hpp"
 #include "core/rect_utils.hpp"
 #include "filters/filter_support.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <array>
@@ -143,7 +144,7 @@ sample_result(const FilterRenderResult &result, std::int32_t document_x,
 embed_in_filter_canvas(const PixelBuffer &placed_pixels, Rect placed_bounds,
                        Rect filter_canvas_bounds) {
   if (filter_canvas_bounds.width <= 0 || filter_canvas_bounds.height <= 0) {
-    throw std::invalid_argument("Smart Filter canvas bounds are empty");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Smart Filter canvas bounds are empty"));
   }
   if (equal_rect(placed_bounds, filter_canvas_bounds)) {
     return FilterRenderResult{placed_pixels, placed_bounds};
@@ -261,7 +262,7 @@ struct GaussianLinePlan {
       sum += weight;
     }
     if (!std::isfinite(sum) || sum <= 0.0) {
-      throw std::invalid_argument("Invalid Gaussian Smart Filter radius");
+      throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Invalid Gaussian Smart Filter radius"));
     }
     for (auto &weight : plan.kernel) {
       weight /= sum;
@@ -286,7 +287,7 @@ struct GaussianLinePlan {
   if (!std::isfinite(plan.gain) || !std::isfinite(plan.coefficient1) ||
       !std::isfinite(plan.coefficient2) || !std::isfinite(plan.coefficient3) ||
       plan.gain <= 0.0) {
-    throw std::invalid_argument("Invalid Gaussian Smart Filter radius");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Invalid Gaussian Smart Filter radius"));
   }
   return plan;
 }
@@ -928,7 +929,7 @@ struct TransparentColorExtension {
       ++envelope_size;
     }
     if (envelope_size == 0) {
-      throw std::runtime_error("Filter color extension has no visible source");
+      throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Filter color extension has no visible source"));
     }
 
     std::int32_t selected = 0;
@@ -1003,7 +1004,7 @@ struct WindowValueHistogram {
 [[nodiscard]] std::uint8_t rounded_weighted_average(std::int64_t weight_sum,
                                                     std::int64_t weighted_sum) {
   if (weight_sum <= 0 || weighted_sum < 0) {
-    throw std::runtime_error("Surface Blur produced an empty range kernel");
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Surface Blur produced an empty range kernel"));
   }
   const auto unsigned_weight_sum = static_cast<std::uint64_t>(weight_sum);
   const auto unsigned_weighted_sum = static_cast<std::uint64_t>(weighted_sum);
@@ -2297,18 +2298,18 @@ void validate_stack(const PixelBuffer &pixels, Rect bounds,
       bounds.height < 0 || pixels.width() != bounds.width ||
       pixels.height() != bounds.height) {
     throw std::invalid_argument(
-        "Smart Filters require a bounds-matched RGBA8 preview");
+        PATCHY_TRANSLATE_NOOP("QObject", "Smart Filters require a bounds-matched RGBA8 preview"));
   }
   if (stack.support != SmartFilterStackSupport::Supported ||
       stack.entries.empty() || stack.mask.linked) {
-    throw std::invalid_argument("Unsupported Smart Filter stack");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported Smart Filter stack"));
   }
   if (!stack.mask.pixels.empty() &&
       (stack.mask.pixels.format() != PixelFormat::gray8() ||
        stack.mask.bounds.width < 0 || stack.mask.bounds.height < 0 ||
        stack.mask.pixels.width() != stack.mask.bounds.width ||
        stack.mask.pixels.height() != stack.mask.bounds.height)) {
-    throw std::invalid_argument("Unsupported Smart Filter mask");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported Smart Filter mask"));
   }
   for (const auto &entry : stack.entries) {
     bool parameters_valid = false;
@@ -2319,7 +2320,7 @@ void validate_stack(const PixelBuffer &pixels, Rect bounds,
       const auto *gaussian =
           std::get_if<GaussianBlurSmartFilter>(&entry.parameters);
       if (gaussian == nullptr) {
-        throw std::invalid_argument("Unsupported Smart Filter entry");
+        throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported Smart Filter entry"));
       }
       radius = gaussian->radius_pixels;
       parameters_valid = true;
@@ -2327,7 +2328,7 @@ void validate_stack(const PixelBuffer &pixels, Rect bounds,
       const auto *high_pass =
           std::get_if<HighPassSmartFilter>(&entry.parameters);
       if (high_pass == nullptr) {
-        throw std::invalid_argument("Unsupported Smart Filter entry");
+        throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported Smart Filter entry"));
       }
       radius = high_pass->radius_pixels;
       parameters_valid = true;
@@ -2335,7 +2336,7 @@ void validate_stack(const PixelBuffer &pixels, Rect bounds,
       const auto *median =
           std::get_if<MedianSmartFilter>(&entry.parameters);
       if (median == nullptr) {
-        throw std::invalid_argument("Unsupported Smart Filter entry");
+        throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported Smart Filter entry"));
       }
       radius = median->radius_pixels;
       minimum_radius = kMinimumMedianRadius;
@@ -2428,7 +2429,7 @@ void validate_stack(const PixelBuffer &pixels, Rect bounds,
                          noise->seed >= kMinimumAddNoiseSeed &&
                          noise->seed <= kMaximumAddNoiseSeed;
     } else {
-      throw std::invalid_argument("Unsupported Smart Filter entry");
+      throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported Smart Filter entry"));
     }
     if (!parameters_valid ||
         (entry.kind != SmartFilterKind::DustAndScratches &&
@@ -2446,7 +2447,7 @@ void validate_stack(const PixelBuffer &pixels, Rect bounds,
         !std::isfinite(entry.opacity) ||
         entry.opacity < 0.0 || entry.opacity > 1.0 ||
         !recipe_blend_mode_supported(entry.blend_mode)) {
-      throw std::invalid_argument("Unsupported Smart Filter entry");
+      throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported Smart Filter entry"));
     }
   }
 }
@@ -2460,7 +2461,7 @@ FilterRenderResult render_photoshop_gaussian_blur(
       pixels.height() != bounds.height || !std::isfinite(radius_pixels) ||
       radius_pixels < kMinimumGaussianRadius ||
       radius_pixels > kMaximumGaussianRadius) {
-    throw std::invalid_argument("Invalid Photoshop Gaussian Blur input");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Invalid Photoshop Gaussian Blur input"));
   }
   return render_gaussian(FilterRenderResult{pixels, bounds}, radius_pixels,
                          progress);
@@ -2473,7 +2474,7 @@ FilterRenderResult render_photoshop_high_pass(
       pixels.height() != bounds.height || !std::isfinite(radius_pixels) ||
       radius_pixels < kMinimumGaussianRadius ||
       radius_pixels > kMaximumGaussianRadius) {
-    throw std::invalid_argument("Invalid Photoshop High Pass input");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Invalid Photoshop High Pass input"));
   }
   return render_high_pass(FilterRenderResult{pixels, bounds}, radius_pixels,
                           progress);
@@ -2486,7 +2487,7 @@ FilterRenderResult render_photoshop_median(
       pixels.height() != bounds.height || !std::isfinite(radius_pixels) ||
       radius_pixels < kMinimumMedianRadius ||
       radius_pixels > kMaximumMedianRadius) {
-    throw std::invalid_argument("Invalid Photoshop Median input");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Invalid Photoshop Median input"));
   }
   return render_median(FilterRenderResult{pixels, bounds}, radius_pixels,
                        progress);
@@ -2501,7 +2502,7 @@ FilterRenderResult render_photoshop_dust_and_scratches(
       radius_pixels > kMaximumDustAndScratchesRadius ||
       threshold < kMinimumDustAndScratchesThreshold ||
       threshold > kMaximumDustAndScratchesThreshold) {
-    throw std::invalid_argument("Invalid Photoshop Dust & Scratches input");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Invalid Photoshop Dust & Scratches input"));
   }
   return render_dust_and_scratches(FilterRenderResult{pixels, bounds},
                                    radius_pixels, threshold, progress);
@@ -2516,7 +2517,7 @@ FilterRenderResult render_photoshop_surface_blur(
       radius_pixels > kMaximumSurfaceBlurRadius ||
       threshold < kMinimumSurfaceBlurThreshold ||
       threshold > kMaximumSurfaceBlurThreshold) {
-    throw std::invalid_argument("Invalid Photoshop Surface Blur input");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Invalid Photoshop Surface Blur input"));
   }
   return render_surface_blur(FilterRenderResult{pixels, bounds}, radius_pixels,
                              threshold, progress);
@@ -2536,7 +2537,7 @@ render_photoshop_unsharp_mask(const PixelBuffer &pixels, Rect bounds,
       radius_pixels > kMaximumGaussianRadius ||
       threshold < kMinimumUnsharpMaskThreshold ||
       threshold > kMaximumUnsharpMaskThreshold) {
-    throw std::invalid_argument("Invalid Photoshop Unsharp Mask input");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Invalid Photoshop Unsharp Mask input"));
   }
   return render_unsharp_mask(FilterRenderResult{pixels, bounds}, amount_percent,
                              radius_pixels, threshold, progress);
@@ -2551,7 +2552,7 @@ FilterRenderResult render_photoshop_motion_blur(
       angle_degrees > kMaximumMotionBlurAngle ||
       distance_pixels < kMinimumMotionBlurDistance ||
       distance_pixels > kMaximumMotionBlurDistance) {
-    throw std::invalid_argument("Invalid Photoshop Motion Blur input");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Invalid Photoshop Motion Blur input"));
   }
   return render_motion_blur(FilterRenderResult{pixels, bounds}, angle_degrees,
                             distance_pixels, progress);
@@ -2569,7 +2570,7 @@ FilterRenderResult render_plastic_wrap(
       detail > kMaximumPlasticWrapDetail ||
       smoothness < kMinimumPlasticWrapSmoothness ||
       smoothness > kMaximumPlasticWrapSmoothness) {
-    throw std::invalid_argument("Invalid Plastic Wrap input");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Invalid Plastic Wrap input"));
   }
   return render_plastic_wrap_effect(FilterRenderResult{pixels, bounds},
                                     highlight_strength, detail, smoothness,
@@ -2583,7 +2584,7 @@ FilterRenderResult render_mosaic(const PixelBuffer &pixels, Rect bounds,
       pixels.width() != bounds.width || pixels.height() != bounds.height ||
       cell_size_pixels < kMinimumMosaicCellSize ||
       cell_size_pixels > kMaximumMosaicCellSize) {
-    throw std::invalid_argument("Invalid Mosaic input");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Invalid Mosaic input"));
   }
   return render_mosaic_effect(FilterRenderResult{pixels, bounds},
                               cell_size_pixels, progress);
@@ -2597,7 +2598,7 @@ FilterRenderResult render_box_blur(const PixelBuffer &pixels, Rect bounds,
       !std::isfinite(radius_pixels) ||
       radius_pixels < kMinimumBoxBlurRadius ||
       radius_pixels > kMaximumBoxBlurRadius) {
-    throw std::invalid_argument("Invalid Box Blur input");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Invalid Box Blur input"));
   }
   return render_box_blur_effect(
       FilterRenderResult{pixels, bounds},
@@ -2617,7 +2618,7 @@ FilterRenderResult render_emboss(const PixelBuffer &pixels, Rect bounds,
       height_pixels > kMaximumEmbossHeight ||
       amount_percent < kMinimumEmbossAmount ||
       amount_percent > kMaximumEmbossAmount) {
-    throw std::invalid_argument("Invalid Emboss input");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Invalid Emboss input"));
   }
   return render_emboss_effect(FilterRenderResult{pixels, bounds},
                               angle_degrees, height_pixels, amount_percent,
@@ -2784,7 +2785,7 @@ FilterRenderResult render_radial_blur(const PixelBuffer &pixels, Rect bounds,
       amount < kMinimumRadialBlurAmount || amount > kMaximumRadialBlurAmount ||
       samples < 4 || samples > 32 || !std::isfinite(center_x) ||
       !std::isfinite(center_y)) {
-    throw std::invalid_argument("Invalid Radial Blur input");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Invalid Radial Blur input"));
   }
   return render_radial_blur_effect(FilterRenderResult{pixels, bounds}, amount,
                                    samples, center_x, center_y, progress);
@@ -2800,7 +2801,7 @@ FilterRenderResult render_add_noise(const PixelBuffer &pixels, Rect bounds,
       amount_percent < kMinimumAddNoiseAmount ||
       amount_percent > kMaximumAddNoiseAmount ||
       seed < kMinimumAddNoiseSeed || seed > kMaximumAddNoiseSeed) {
-    throw std::invalid_argument("Invalid Add Noise input");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Invalid Add Noise input"));
   }
   return render_add_noise_effect(FilterRenderResult{pixels, bounds},
                                  amount_percent, gaussian, monochromatic, seed,

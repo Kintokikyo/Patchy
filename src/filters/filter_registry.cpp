@@ -2,6 +2,7 @@
 
 #include "core/blend_math.hpp"
 #include "filters/filter_support.hpp"
+#include "support/translate_noop.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -182,7 +183,7 @@ FilterRenderResult blend_recipe_result(FilterRenderResult before,
     return filtered;
   }
   if (before.pixels.format() != filtered.pixels.format()) {
-    throw std::invalid_argument("Filter recipe changed the pixel format");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Filter recipe changed the pixel format"));
   }
 
   constexpr std::uint64_t kOpacityScale = 65535U;
@@ -353,13 +354,13 @@ FilterCancelled::FilterCancelled() : std::runtime_error("Filter cancelled") {}
 
 void FilterRegistry::register_filter(FilterDefinition filter) {
   if (filter.identifier.empty()) {
-    throw std::invalid_argument("Filter identifier cannot be empty");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Filter identifier cannot be empty"));
   }
   if (!filter.apply) {
-    throw std::invalid_argument("Filter implementation cannot be empty");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Filter implementation cannot be empty"));
   }
   if (find(filter.identifier) != nullptr) {
-    throw std::invalid_argument("Filter identifier is already registered");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Filter identifier is already registered"));
   }
   filters_.push_back(std::move(filter));
 }
@@ -381,7 +382,7 @@ void FilterRegistry::apply(std::string_view identifier,
                            PixelBuffer &pixels) const {
   const auto *filter = find(identifier);
   if (filter == nullptr) {
-    throw std::invalid_argument("Unknown filter identifier");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Unknown filter identifier"));
   }
   filter->apply(pixels);
 }
@@ -391,7 +392,7 @@ FilterInvocation FilterRegistry::default_invocation(std::string_view identifier,
                                                     RgbColor background) const {
   const auto *filter = find(identifier);
   if (filter == nullptr || !filter->catalog.execute) {
-    throw std::invalid_argument("Unknown or uncatalogued filter identifier");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Unknown or uncatalogued filter identifier"));
   }
   FilterInvocation invocation;
   invocation.filter_id = filter->identifier;
@@ -498,11 +499,11 @@ void FilterRegistry::apply(const FilterInvocation &invocation,
                            const FilterProgress *progress) const {
   const auto normalized = normalize(invocation);
   if (!normalized.has_value()) {
-    throw std::invalid_argument("Unsupported filter invocation");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported filter invocation"));
   }
   const auto *filter = find(normalized->filter_id);
   if (filter == nullptr || !filter->catalog.execute) {
-    throw std::invalid_argument("Unsupported filter invocation");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported filter invocation"));
   }
   filter->catalog.execute(*this, *normalized, pixels, progress);
 }
@@ -520,7 +521,7 @@ bool FilterRegistry::supports(const FilterRecipe &recipe) const {
 void FilterRegistry::apply(const FilterRecipe &recipe, PixelBuffer &pixels,
                            const FilterProgress *progress) const {
   if (!supports(recipe)) {
-    throw std::invalid_argument("Unsupported filter recipe");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported filter recipe"));
   }
   const auto effective_count = static_cast<int>(std::count_if(
       recipe.entries.begin(), recipe.entries.end(),
@@ -555,7 +556,7 @@ int FilterRegistry::output_margin(const FilterInvocation &invocation,
                                   std::int32_t height) const {
   const auto normalized = normalize(invocation);
   if (!normalized.has_value()) {
-    throw std::invalid_argument("Unsupported filter invocation");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported filter invocation"));
   }
   const auto *filter = find(normalized->filter_id);
   return filter != nullptr && filter->catalog.output_margin
@@ -605,7 +606,7 @@ FilterRegistry::render(const FilterInvocation &invocation,
                        const FilterProgress *progress) const {
   const auto normalized = normalize(invocation);
   if (!normalized.has_value()) {
-    throw std::invalid_argument("Unsupported filter invocation");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported filter invocation"));
   }
   const auto margin =
       allow_output_expansion && original.format().channels >= 4
@@ -645,7 +646,7 @@ FilterRegistry::render(const FilterRecipe &recipe, const PixelBuffer &original,
                        const FilterProgress *progress,
                        FilterRecipeRenderTrace *trace) const {
   if (!supports(recipe)) {
-    throw std::invalid_argument("Unsupported filter recipe");
+    throw std::invalid_argument(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported filter recipe"));
   }
   if (trace != nullptr) {
     trace->entry_input_bounds.clear();
