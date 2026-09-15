@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Patchy WebView Test</title>
+</head>
+
+<body style="background:#111;color:white;font-family:sans-serif;padding:25px">
+
+<h2>Patchy WebView Test</h2>
+
+<pre id="result">Testing...</pre>
+
+<script>
+const result = document.getElementById("result");
+
+result.textContent =
+    "crossOriginIsolated = " + window.crossOriginIsolated + "\n\n" +
+    "SharedArrayBuffer = " +
+        (typeof SharedArrayBuffer !== "undefined") + "\n\n" +
+    "location.origin = " + location.origin + "\n\n" +
+    "userAgent = " + navigator.userAgent;
+</script>
+
+</body>
+</html>
