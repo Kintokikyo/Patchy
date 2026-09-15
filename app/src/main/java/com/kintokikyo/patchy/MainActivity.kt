@@ -95,7 +95,7 @@ class MainActivity : Activity() {
 
                 runOnUiThread {
                     webView.loadUrl(
-                        "http://127.0.0.1:$PORT/patchy.html"
+                        "http://localhost:$PORT/patchy.html"
                     )
                 }
 
