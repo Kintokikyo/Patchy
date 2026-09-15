@@ -13,6 +13,9 @@ import java.net.Socket
 import java.net.URLConnection
 import kotlin.concurrent.thread
 
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
+
 class MainActivity : Activity() {
 
     companion object {
@@ -94,9 +97,16 @@ class MainActivity : Activity() {
                 Log.d(TAG, "Server started on 127.0.0.1:$PORT")
 
                 runOnUiThread {
-                    webView.loadUrl(
-                        "http://localhost:$PORT/patchy.html"
-                    )
+                    if (WebViewFeature.isFeatureSupported(
+                        WebViewFeature.CROSS_ORIGIN_ISOLATED_ALLOWLIST
+                    )) {
+                        WebViewCompat.getProfile(this).setCrossOriginIsolatedAllowlist(
+                            setOf("http://localhost:$PORT"))
+                        Log.d(TAG, "Cross-Origin Isolation allowlist enabled")
+                    } else {
+                        Log.e(TAG, "Cross-Origin Isolation allowlist NOT supported")
+                    }
+                    webView.loadUrl("http://localhost:$PORT/patchy.html")
                 }
 
                 while (!serverSocket!!.isClosed) {
@@ -212,7 +222,8 @@ class MainActivity : Activity() {
                     "Content-Length: $availableLength\r\n" +
                     "Cross-Origin-Opener-Policy: same-origin\r\n" +
                     "Cross-Origin-Embedder-Policy: require-corp\r\n" +
-                    "Cross-Origin-Resource-Policy: same-origin\r\n" +
+                    "Cross-Origin-Resource-Policy: same-origin\r\n" + 
+                    "Document-Isolation-Policy: isolate-and-credentialless\r\n" +
                     "Cache-Control: no-store\r\n" +
                     "Connection: close\r\n" +
                     "\r\n"
