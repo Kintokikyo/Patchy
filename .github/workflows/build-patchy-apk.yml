@@ -97,11 +97,10 @@ jobs:
             "packaging/web/patchy.html.in" `
             -Raw
 
-          $html = $template `
-            .Replace("__PATCHY_VERSION__", $version) `
-            .Replace("__PATCHY_CACHE_TAG__", $cacheTag) `
-            .Replace("__PATCHY_WASM_SIZE__", "$wasmSize") `
-            .Replace("__PATCHY_WASM_SIZE_ST__", "$wasmSizeST")
+          $html = $template.Replace("__PATCHY_VERSION__", $version)
+          $html = $html.Replace("__PATCHY_CACHE_TAG__", $cacheTag)
+          $html = $html.Replace("__PATCHY_WASM_SIZE__", "$wasmSize")
+          $html = $html.Replace("__PATCHY_WASM_SIZE_ST__", "$wasmSizeST")
 
           if ($html -match "__PATCHY_") {
             throw "Patchy HTML still contains unreplaced placeholders."
