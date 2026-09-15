@@ -1163,11 +1163,8 @@ void ui_text_character_panel_sets_leading_tracking_and_scales() {
   QApplication::processEvents();
 }
 
-void ui_text_character_panel_disables_without_session() {
-  // With no live editor session the Character panel grays out and shows its click-in-text
-  // hint, and the state tracks session boundaries LIVE while the non-modal dialog stays
-  // open: a committed session used to leave the controls enabled, silently no-oping every
-  // edit (the apply functions early-return without an editor).
+void ui_text_character_panel_tracks_session_and_layer() {
+  // Controls follow the live session, then the selected text layer after commit.
   patchy::test::register_test_fonts(patchy::test::TestFontRole::UiDefault);
   patchy::ui::MainWindow window;
   show_window(window);
@@ -1187,62 +1184,91 @@ void ui_text_character_panel_disables_without_session() {
   // The panel runs a nested non-modal loop; drive the whole scenario from a queued lambda.
   bool checks_ran = false;
   QTimer::singleShot(0, [&window, canvas, &checks_ran] {
-    auto* dialog = window.findChild<QDialog*>(QStringLiteral("textCharacterDialog"));
-    CHECK(dialog != nullptr);
-    if (dialog == nullptr) {
-      return;
-    }
-    auto* hint = dialog->findChild<QLabel*>(QStringLiteral("textCharacterHint"));
-    auto* auto_leading = dialog->findChild<QCheckBox*>(QStringLiteral("textCharacterAutoLeading"));
-    auto* leading = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("textCharacterLeadingSpin"));
-    auto* tracking = dialog->findChild<QSpinBox*>(QStringLiteral("textCharacterTrackingSpin"));
-    auto* h_scale = dialog->findChild<QSpinBox*>(QStringLiteral("textCharacterHScaleSpin"));
-    auto* v_scale = dialog->findChild<QSpinBox*>(QStringLiteral("textCharacterVScaleSpin"));
-    CHECK(hint != nullptr && auto_leading != nullptr && leading != nullptr && tracking != nullptr &&
-          h_scale != nullptr && v_scale != nullptr);
-    if (hint == nullptr || auto_leading == nullptr || leading == nullptr || tracking == nullptr ||
-        h_scale == nullptr || v_scale == nullptr) {
-      dialog->reject();
-      return;
-    }
-    // Opened with no session: everything grayed, hint explains why.
-    CHECK(hint->isVisible());
-    CHECK(!auto_leading->isEnabled());
-    CHECK(!leading->isEnabled());
-    CHECK(!tracking->isEnabled());
-    CHECK(!h_scale->isEnabled());
-    CHECK(!v_scale->isEnabled());
+    try {
+      auto* dialog = window.findChild<QDialog*>(QStringLiteral("textCharacterDialog"));
+      CHECK(dialog != nullptr);
+      if (dialog == nullptr) {
+        return;
+      }
+      auto* hint = dialog->findChild<QLabel*>(QStringLiteral("textCharacterHint"));
+      auto* auto_leading = dialog->findChild<QCheckBox*>(QStringLiteral("textCharacterAutoLeading"));
+      auto* leading = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("textCharacterLeadingSpin"));
+      auto* tracking = dialog->findChild<QSpinBox*>(QStringLiteral("textCharacterTrackingSpin"));
+      auto* h_scale = dialog->findChild<QSpinBox*>(QStringLiteral("textCharacterHScaleSpin"));
+      auto* v_scale = dialog->findChild<QSpinBox*>(QStringLiteral("textCharacterVScaleSpin"));
+      CHECK(hint != nullptr && auto_leading != nullptr && leading != nullptr && tracking != nullptr &&
+            h_scale != nullptr && v_scale != nullptr);
+      if (hint == nullptr || auto_leading == nullptr || leading == nullptr || tracking == nullptr ||
+          h_scale == nullptr || v_scale == nullptr) {
+        dialog->reject();
+        return;
+      }
+      // Opened with no session: everything grayed, hint explains why.
+      CHECK(hint->isVisible());
+      CHECK(!auto_leading->isEnabled());
+      CHECK(!leading->isEnabled());
+      CHECK(!tracking->isEnabled());
+      CHECK(!h_scale->isEnabled());
+      CHECK(!v_scale->isEnabled());
 
-    // Start a session while the dialog stays open: controls come alive, hint hides.
-    // add_text_at is the exact call a Type-tool canvas click funnels into; a synthetic
-    // click sent while the dialog is the active window loses its drag state to an
-    // offscreen-platform focus bounce (canvas focusOutEvent clears dragging_text_rect_).
-    patchy::ui::MainWindowTestAccess::add_text_at(window, QPoint(60, 90));
-    QApplication::processEvents();
-    auto* editor = canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
-    CHECK(editor != nullptr);
-    if (editor != nullptr) {
-      editor->setPlainText(QStringLiteral("Live again"));
+      // Start a session while the dialog stays open: controls come alive, hint hides.
+      // add_text_at is the exact call a Type-tool canvas click funnels into; a synthetic
+      // click sent while the dialog is the active window loses its drag state to an
+      // offscreen-platform focus bounce (canvas focusOutEvent clears dragging_text_rect_).
+      patchy::ui::MainWindowTestAccess::add_text_at(window, QPoint(60, 90));
       QApplication::processEvents();
+      auto* editor = canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
+      CHECK(editor != nullptr);
+      if (editor != nullptr) {
+        editor->setPlainText(QStringLiteral("Live again"));
+        QApplication::processEvents();
+        CHECK(!hint->isVisible());
+        CHECK(auto_leading->isEnabled());
+        CHECK(tracking->isEnabled());
+        CHECK(h_scale->isEnabled());
+        CHECK(v_scale->isEnabled());
+      }
+
+      // Committing keeps the selected text layer editable, even with Move active.
+      require_action_by_text(window, QStringLiteral("Move"))->trigger();
+      QApplication::processEvents();
+      CHECK(canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor")) == nullptr);
       CHECK(!hint->isVisible());
       CHECK(auto_leading->isEnabled());
       CHECK(tracking->isEnabled());
       CHECK(h_scale->isEnabled());
       CHECK(v_scale->isEnabled());
+      auto& document = patchy::ui::MainWindowTestAccess::document(window);
+      const auto text_id = *document.active_layer_id();
+      const auto background_id = std::as_const(document).layers().front().id();
+      auto* list = window.findChild<QListWidget*>(QStringLiteral("layerList"));
+      CHECK(list != nullptr);
+      click_layer_row_thumbnail(*list, QString::fromStdString(document.find_layer(background_id)->name()),
+                                QStringLiteral("layerContentThumbnail"));
+      CHECK(hint->isVisible());
+      CHECK(!auto_leading->isEnabled());
+      CHECK(!leading->isEnabled());
+      CHECK(!tracking->isEnabled());
+      CHECK(!h_scale->isEnabled());
+      CHECK(!v_scale->isEnabled());
+      click_layer_row_thumbnail(*list, QString::fromStdString(document.find_layer(text_id)->name()),
+                                QStringLiteral("layerContentThumbnail"));
+      CHECK(!hint->isVisible());
+      CHECK(tracking->isEnabled());
+      document.find_layer(text_id)->set_lock_flags(patchy::kLayerLockImagePixels);
+      patchy::ui::MainWindowTestAccess::refresh_layer_ui(window);
+      CHECK(!tracking->isEnabled());
+      document.find_layer(text_id)->set_lock_flags(0);
+      patchy::ui::MainWindowTestAccess::refresh_layer_ui(window);
+      CHECK(tracking->isEnabled());
+      tracking->setValue(50);
+      CHECK(canvas->tool() == patchy::ui::CanvasTool::Move);
+      CHECK(canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor")) == nullptr);
+      checks_ran = true;
+      dialog->reject();
+    } catch (...) {
+      patchy::ui::unwind_non_modal_dialog_loop(std::current_exception());
     }
-
-    // Commit the session (tool switch) with the dialog still open: back to grayed + hint.
-    require_action_by_text(window, QStringLiteral("Move"))->trigger();
-    QApplication::processEvents();
-    CHECK(canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor")) == nullptr);
-    CHECK(hint->isVisible());
-    CHECK(!auto_leading->isEnabled());
-    CHECK(!leading->isEnabled());
-    CHECK(!tracking->isEnabled());
-    CHECK(!h_scale->isEnabled());
-    CHECK(!v_scale->isEnabled());
-    checks_ran = true;
-    dialog->reject();
   });
   character_button->click();
   QApplication::processEvents();
@@ -1342,7 +1368,7 @@ std::vector<patchy::test::TestCase> text_transform_commit_tests_part1() {
       {"ui_point_text_commit_renders_center_alignment", ui_point_text_commit_renders_center_alignment},
       {"ui_text_character_panel_sets_leading_tracking_and_scales",
        ui_text_character_panel_sets_leading_tracking_and_scales},
-      {"ui_text_character_panel_disables_without_session",
-       ui_text_character_panel_disables_without_session},
+      {"ui_text_character_panel_tracks_session_and_layer",
+       ui_text_character_panel_tracks_session_and_layer},
   };
 }

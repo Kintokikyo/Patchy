@@ -7109,14 +7109,14 @@ void MainWindow::rerender_text_layers_through_transforms(DocumentSession& target
   refresh_layers(std::as_const(target.document).layers());
 }
 
-void MainWindow::add_text_at(QPoint document_point, QRect requested_text_box) {
+void MainWindow::add_text_at(QPoint document_point, QRect requested_text_box, bool show_editor) {
   if (canvas_ == nullptr) {
     return;
   }
   if (canvas_->free_transform_active()) {
     canvas_->finish_free_transform();
   }
-  if (current_tool_ != CanvasTool::Text) {
+  if (show_editor && current_tool_ != CanvasTool::Text) {
     if (type_tool_action_ != nullptr) {
       type_tool_action_->trigger();
     } else {
@@ -7434,6 +7434,9 @@ void MainWindow::add_text_at(QPoint document_point, QRect requested_text_box) {
   }
 
   std::optional<LayerId> provisional_layer;
+  if (!show_editor && !editing_layer.has_value()) {
+    return;
+  }
   if (!editing_layer.has_value()) {
     // Photoshop shows the new type layer the moment the tool clicks, so a NEW session inserts
     // a provisional (1x1 transparent, marker-tagged) text layer immediately. No undo snapshot
@@ -7618,6 +7621,13 @@ void MainWindow::add_text_at(QPoint document_point, QRect requested_text_box) {
         }
       }
     }
+  }
+  if (!show_editor) {
+    // Character-panel edits use the same geometry, font substitution and commit
+    // pipeline as typing, without taking focus or replacing the warped raster.
+    editor->setProperty(kTextEditorPreviewEnabledProperty, false);
+    editor->setTextCursor(QTextCursor(editor->document()));
+    return;
   }
   if (!editing_layer.has_value()) {
     editor->selectAll();
@@ -8530,7 +8540,7 @@ void MainWindow::open_text_character_dialog() {
   text_character_dialog_ = dialog;
   auto* layout = new QFormLayout(dialog);
 
-  text_character_hint_label_ = new QLabel(tr("Click in text with the Type tool to edit these settings."), dialog);
+  text_character_hint_label_ = new QLabel(tr("Select a text layer or click in text with the Type tool to edit these settings."), dialog);
   text_character_hint_label_->setObjectName(QStringLiteral("textCharacterHint"));
   text_character_hint_label_->setWordWrap(true);
   set_themed_style(*text_character_hint_label_, QStringLiteral("color: @hint_text;"));
@@ -8613,6 +8623,87 @@ void MainWindow::open_text_character_dialog() {
   text_character_faux_italic_ = nullptr;
 }
 
+const Layer* MainWindow::text_character_target_layer() const {
+  if (canvas_ == nullptr || !has_active_document() || preview_dialog_edit_locked() ||
+      canvas_->free_transform_active() || canvas_->warp_transform_active()) {
+    return nullptr;
+  }
+  const auto id = document().active_layer_id();
+  const auto* layer = id.has_value() ? document().find_layer(*id) : nullptr;
+  return layer != nullptr && layer_is_text(*layer) && !layer_id_locks_image_pixels(*id) ? layer : nullptr;
+}
+
+void MainWindow::edit_text_layer(LayerId id) {
+  if (canvas_ == nullptr || !has_active_document() || preview_dialog_edit_locked()) {
+    return;
+  }
+  finish_active_text_editor();
+  const auto* layer = std::as_const(document()).find_layer(id);
+  if (layer == nullptr || !layer_is_text(*layer)) {
+    return;
+  }
+  const auto bounds = layer->bounds();
+  document().set_active_layer(id);
+  reveal_layer_in_layer_list(id);
+  add_text_at(QPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2));
+  if (auto* editor = canvas_->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
+      editor != nullptr && editor->property("patchy.editingLayerId").toULongLong() == id) {
+    editor->selectAll();
+    editor->setFocus(Qt::OtherFocusReason);
+  }
+}
+
+void MainWindow::apply_text_character_edit(const std::function<bool(QTextEdit&)>& edit) {
+  if (canvas_ == nullptr || preview_dialog_edit_locked()) {
+    return;
+  }
+  const QPointer<QWidget> previous_focus(QApplication::focusWidget());
+  auto* editor = canvas_->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
+  const bool session_open = editor != nullptr && !editor->property(kTextEditorFinishedProperty).toBool();
+  if (!session_open) {
+    const auto* layer = text_character_target_layer();
+    if (layer == nullptr) {
+      sync_text_character_dialog_from_editor();
+      return;
+    }
+    const auto bounds = layer->bounds();
+    add_text_at(QPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2), {}, false);
+    editor = canvas_->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
+    if (editor == nullptr) {
+      sync_text_character_dialog_from_editor();
+      return;
+    }
+    // Keep refreshes during the commit from treating the hidden transaction as
+    // an interactive session. The layer stays visible throughout.
+    editor->setObjectName(QString());
+  }
+  const auto cleanup = qScopeGuard([this, editor = QPointer<QTextEdit>(editor), session_open, previous_focus] {
+    if (!session_open && editor != nullptr && !editor->property(kTextEditorFinishedProperty).toBool()) {
+      const auto message = statusBar()->currentMessage();
+      cancel_text_editor(editor, static_cast<LayerId>(editor->property("patchy.editingLayerId").toULongLong()));
+      statusBar()->showMessage(message);
+    }
+    sync_text_character_dialog_from_editor();
+    // Commit refreshes can temporarily disable the panel while snapshotting.
+    // Keep subsequent typing in the control that initiated the layer edit.
+    if (!session_open && previous_focus != nullptr && previous_focus->isEnabled()) {
+      previous_focus->setFocus(Qt::OtherFocusReason);
+    }
+  });
+  if (!edit(*editor)) {
+    return;
+  }
+  mark_text_editor_changed(editor);
+  if (session_open) {
+    schedule_text_editor_preview(editor);
+  } else {
+    const QPoint origin(editor->property("patchy.documentTextX").toInt(),
+                        editor->property("patchy.documentTextY").toInt());
+    const auto id = static_cast<LayerId>(editor->property("patchy.editingLayerId").toULongLong());
+    commit_text_editor(editor, origin, id);
+  }
+}
+
 void MainWindow::sync_text_character_dialog_from_editor() {
   if (text_character_dialog_ == nullptr || text_character_auto_leading_ == nullptr ||
       text_character_leading_spin_ == nullptr || text_character_tracking_spin_ == nullptr ||
@@ -8624,20 +8715,38 @@ void MainWindow::sync_text_character_dialog_from_editor() {
   auto* editor =
       canvas_ != nullptr ? canvas_->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor")) : nullptr;
   const bool session_open = editor != nullptr && !editor->property(kTextEditorFinishedProperty).toBool();
-  text_character_hint_label_->setVisible(!session_open);
-  text_character_auto_leading_->setEnabled(session_open);
-  text_character_tracking_spin_->setEnabled(session_open);
-  text_character_h_scale_spin_->setEnabled(session_open);
-  text_character_v_scale_spin_->setEnabled(session_open);
-  text_character_faux_bold_->setEnabled(session_open);
-  text_character_faux_italic_->setEnabled(session_open);
-  if (!session_open) {
+  const auto* layer = session_open ? nullptr : text_character_target_layer();
+  const auto inputs = layer != nullptr ? text_render_inputs_from_layer(*layer) : std::nullopt;
+  const bool enabled = !preview_dialog_edit_locked() && (session_open || inputs.has_value());
+  text_character_hint_label_->setVisible(!enabled);
+  text_character_auto_leading_->setEnabled(enabled);
+  text_character_tracking_spin_->setEnabled(enabled);
+  text_character_h_scale_spin_->setEnabled(enabled);
+  text_character_v_scale_spin_->setEnabled(enabled);
+  text_character_faux_bold_->setEnabled(enabled);
+  text_character_faux_italic_->setEnabled(enabled);
+  if (!enabled) {
     text_character_leading_spin_->setEnabled(false);
     return;
   }
-  const auto format = text_editor_reference_format(*editor);
-  const auto zoom = std::max(0.01, canvas_->zoom());
-  const auto display_scale = text_editor_size_display_scale(*editor);
+  QTextCharFormat format;
+  double zoom = 1.0;
+  double display_scale = 1.0;
+  if (session_open) {
+    format = text_editor_reference_format(*editor);
+    zoom = std::max(0.01, canvas_->zoom());
+    display_scale = text_editor_size_display_scale(*editor);
+  } else {
+    const auto built = build_text_render_document(inputs->settings, inputs->color, inputs->max_width,
+                                                   inputs->paragraph_runs, inputs->rich_text_runs, 1.0);
+    format = QTextCursor(built.document.get()).charFormat();
+    if (const auto affine = canonical_text_affine_transform_for_layer(*layer); affine.has_value()) {
+      const auto scale = std::hypot((*affine)[2], (*affine)[3]);
+      if (std::isfinite(scale) && scale > 0.01) {
+        display_scale = scale;
+      }
+    }
+  }
   const auto to_display_pt = [this, zoom, display_scale](double editor_px) {
     return editor_px / zoom * display_scale * 72.0 / text_size_ppi(document());
   };
@@ -8683,85 +8792,77 @@ void MainWindow::apply_text_character_leading_to_active_editor() {
   if (canvas_ == nullptr || text_character_auto_leading_ == nullptr || text_character_leading_spin_ == nullptr) {
     return;
   }
-  auto* editor = canvas_->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
-  if (editor == nullptr || editor->property(kTextEditorFinishedProperty).toBool()) {
-    return;
-  }
   const bool auto_leading = text_character_auto_leading_->isChecked();
+  const auto leading_pt = text_character_leading_spin_->value();
   text_character_leading_spin_->setEnabled(!auto_leading);
-  const auto zoom = std::max(0.01, canvas_->zoom());
-  const auto display_scale = text_editor_size_display_scale(*editor);
-  const auto leading_editor_px =
-      auto_leading ? 0.0
-                   : std::max(0.0, text_character_leading_spin_->value() * text_size_ppi(document()) / 72.0 /
-                                       display_scale * zoom);
-  mutate_text_editor_character_formats(*editor, [auto_leading, leading_editor_px](QTextCharFormat& format) {
-    format.setProperty(kTextAutoLeadingFormatProperty, auto_leading);
-    format.setProperty(kTextLeadingFormatProperty, leading_editor_px);
+  apply_text_character_edit([this, auto_leading, leading_pt](QTextEdit& editor) {
+    const auto zoom = std::max(0.01, canvas_->zoom());
+    const auto display_scale = text_editor_size_display_scale(editor);
+    const auto leading_editor_px =
+        auto_leading ? 0.0
+                     : std::max(0.0, leading_pt * text_size_ppi(document()) / 72.0 /
+                                         display_scale * zoom);
+    mutate_text_editor_character_formats(editor, [auto_leading, leading_editor_px](QTextCharFormat& format) {
+      format.setProperty(kTextAutoLeadingFormatProperty, auto_leading);
+      format.setProperty(kTextLeadingFormatProperty, leading_editor_px);
+    });
+    // Explicit leading only renders under the Photoshop layout model; a native layer edited
+    // through the panel opts in for this session, and the commit persists the marker.
+    editor.setProperty("patchy.textLayoutMode", QString::fromLatin1(kTextLayoutModePhotoshop));
+    return true;
   });
-  // Explicit leading only renders under the Photoshop layout model; a native layer edited
-  // through the panel opts in for this session, and the commit persists the marker.
-  editor->setProperty("patchy.textLayoutMode", QString::fromLatin1(kTextLayoutModePhotoshop));
-  mark_text_editor_changed(editor);
-  schedule_text_editor_preview(editor);
 }
 
 void MainWindow::apply_text_character_tracking_to_active_editor() {
   if (canvas_ == nullptr || text_character_tracking_spin_ == nullptr) {
     return;
   }
-  auto* editor = canvas_->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
-  if (editor == nullptr || editor->property(kTextEditorFinishedProperty).toBool()) {
-    return;
-  }
   const auto tracking = static_cast<double>(text_character_tracking_spin_->value());
-  mutate_text_editor_character_formats(*editor, [tracking](QTextCharFormat& format) {
-    format.setProperty(kTextTrackingFormatProperty, tracking);
-    // Photoshop tracking: 1/1000 em of the FontSize basis, scaled by the horizontal glyph
-    // scale (the whole advance scales with H; V never affects it).
-    const auto size_basis = character_format_size_basis(format);
-    const auto horizontal = character_format_scale_property(format, kTextHorizontalScaleFormatProperty);
-    auto font = format.font();
-    font.setLetterSpacing(QFont::AbsoluteSpacing, tracking / 1000.0 * size_basis * horizontal);
-    format.setFont(font);
+  apply_text_character_edit([tracking](QTextEdit& editor) {
+    mutate_text_editor_character_formats(editor, [tracking](QTextCharFormat& format) {
+      format.setProperty(kTextTrackingFormatProperty, tracking);
+      // Photoshop tracking: 1/1000 em of the FontSize basis, scaled by the horizontal glyph
+      // scale (the whole advance scales with H; V never affects it).
+      const auto size_basis = character_format_size_basis(format);
+      const auto horizontal = character_format_scale_property(format, kTextHorizontalScaleFormatProperty);
+      auto font = format.font();
+      font.setLetterSpacing(QFont::AbsoluteSpacing, tracking / 1000.0 * size_basis * horizontal);
+      format.setFont(font);
+    });
+    return true;
   });
-  mark_text_editor_changed(editor);
-  schedule_text_editor_preview(editor);
 }
 
 void MainWindow::apply_text_character_glyph_scales_to_active_editor() {
   if (canvas_ == nullptr || text_character_h_scale_spin_ == nullptr || text_character_v_scale_spin_ == nullptr) {
     return;
   }
-  auto* editor = canvas_->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
-  if (editor == nullptr || editor->property(kTextEditorFinishedProperty).toBool()) {
-    return;
-  }
   const auto horizontal = std::clamp(text_character_h_scale_spin_->value(), 1, 1000) / 100.0;
   const auto vertical = std::clamp(text_character_v_scale_spin_->value(), 1, 1000) / 100.0;
-  mutate_text_editor_character_formats(*editor, [horizontal, vertical](QTextCharFormat& format) {
-    const auto exact = character_format_size_basis(format);
-    format.setProperty(kTextExactSizeFormatProperty, exact);
-    format.setProperty(kTextHorizontalScaleFormatProperty, horizontal);
-    format.setProperty(kTextVerticalScaleFormatProperty, vertical);
-    auto font = format.font();
-    if (font.pixelSize() > 0 || font.pointSizeF() <= 0.0) {
-      font.setPixelSize(std::max(1, static_cast<int>(std::lround(exact * vertical))));
-    }
-    const auto stretch_ratio = horizontal / vertical;
-    set_stretch_for_advance_ratio(
-        font, stretch_ratio,
-        std::clamp(static_cast<int>(std::lround(stretch_ratio * 100.0)), 1, 400));
-    const auto tracking = format.hasProperty(kTextTrackingFormatProperty)
-                              ? format.property(kTextTrackingFormatProperty).toDouble()
-                              : 0.0;
-    if (std::isfinite(tracking) && std::abs(tracking) > 0.0001) {
-      font.setLetterSpacing(QFont::AbsoluteSpacing, tracking / 1000.0 * exact * horizontal);
-    }
-    format.setFont(font);
+  apply_text_character_edit([horizontal, vertical](QTextEdit& editor) {
+    mutate_text_editor_character_formats(editor, [horizontal, vertical](QTextCharFormat& format) {
+      const auto exact = character_format_size_basis(format);
+      format.setProperty(kTextExactSizeFormatProperty, exact);
+      format.setProperty(kTextHorizontalScaleFormatProperty, horizontal);
+      format.setProperty(kTextVerticalScaleFormatProperty, vertical);
+      auto font = format.font();
+      if (font.pixelSize() > 0 || font.pointSizeF() <= 0.0) {
+        font.setPixelSize(std::max(1, static_cast<int>(std::lround(exact * vertical))));
+      }
+      const auto stretch_ratio = horizontal / vertical;
+      set_stretch_for_advance_ratio(
+          font, stretch_ratio,
+          std::clamp(static_cast<int>(std::lround(stretch_ratio * 100.0)), 1, 400));
+      const auto tracking = format.hasProperty(kTextTrackingFormatProperty)
+                                ? format.property(kTextTrackingFormatProperty).toDouble()
+                                : 0.0;
+      if (std::isfinite(tracking) && std::abs(tracking) > 0.0001) {
+        font.setLetterSpacing(QFont::AbsoluteSpacing, tracking / 1000.0 * exact * horizontal);
+      }
+      format.setFont(font);
+    });
+    return true;
   });
-  mark_text_editor_changed(editor);
-  schedule_text_editor_preview(editor);
 }
 
 // The family the session is actually set in: the run under the caret first, the options-bar combo
@@ -8889,43 +8990,37 @@ void MainWindow::apply_text_character_faux_bold_to_active_editor() {
   if (canvas_ == nullptr || text_character_faux_bold_ == nullptr) {
     return;
   }
-  auto* editor = canvas_->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
-  if (editor == nullptr || editor->property(kTextEditorFinishedProperty).toBool()) {
-    return;
-  }
   const bool faux_bold = text_character_faux_bold_->isChecked();
-  if (faux_bold && text_editor_layer_is_warped(document(), *editor)) {
-    // Photoshop parity, the reverse direction: enabling faux bold on warped type is refused
-    // (unchecking stays allowed so imported faux+warp layers can be fixed).
-    show_status_error(tr("Faux bold is not available on warped text. Remove the text warp first."));
-    QSignalBlocker blocker(text_character_faux_bold_);
-    text_character_faux_bold_->setChecked(false);
-    return;
-  }
-  mutate_text_editor_character_formats(*editor, [faux_bold](QTextCharFormat& format) {
-    // The stroke itself is applied at render time (apply_faux_bold_to_document); the format only
-    // carries the flag, so the same run keeps working after a colour or size change.
-    format.setProperty(kTextFauxBoldFormatProperty, faux_bold);
+  apply_text_character_edit([this, faux_bold](QTextEdit& editor) {
+    if (faux_bold && text_editor_layer_is_warped(document(), editor)) {
+      // Photoshop parity, the reverse direction: enabling faux bold on warped type is refused
+      // (unchecking stays allowed so imported faux+warp layers can be fixed).
+      show_status_error(tr("Faux bold is not available on warped text. Remove the text warp first."));
+      QSignalBlocker blocker(text_character_faux_bold_);
+      text_character_faux_bold_->setChecked(false);
+      return false;
+    }
+    mutate_text_editor_character_formats(editor, [faux_bold](QTextCharFormat& format) {
+      // The stroke itself is applied at render time (apply_faux_bold_to_document); the format only
+      // carries the flag, so the same run keeps working after a colour or size change.
+      format.setProperty(kTextFauxBoldFormatProperty, faux_bold);
+    });
+    return true;
   });
-  mark_text_editor_changed(editor);
-  schedule_text_editor_preview(editor);
 }
 
 void MainWindow::apply_text_character_faux_italic_to_active_editor() {
   if (canvas_ == nullptr || text_character_faux_italic_ == nullptr) {
     return;
   }
-  auto* editor = canvas_->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
-  if (editor == nullptr || editor->property(kTextEditorFinishedProperty).toBool()) {
-    return;
-  }
   const bool faux_italic = text_character_faux_italic_->isChecked();
-  mutate_text_editor_character_formats(*editor, [faux_italic](QTextCharFormat& format) {
-    // A flag only; the shear happens at render time, so it follows later size and face edits.
-    format.setProperty(kTextFauxItalicFormatProperty, faux_italic);
+  apply_text_character_edit([faux_italic](QTextEdit& editor) {
+    mutate_text_editor_character_formats(editor, [faux_italic](QTextCharFormat& format) {
+      // A flag only; the shear happens at render time, so it follows later size and face edits.
+      format.setProperty(kTextFauxItalicFormatProperty, faux_italic);
+    });
+    return true;
   });
-  mark_text_editor_changed(editor);
-  schedule_text_editor_preview(editor);
 }
 
 void MainWindow::request_warp_text_dialog() {

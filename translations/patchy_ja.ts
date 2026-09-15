@@ -10571,10 +10571,6 @@ Either way Patchy writes a copy; the open document keeps its layers and unsaved 
         <translation>文字</translation>
     </message>
     <message>
-        <source>Click in text with the Type tool to edit these settings.</source>
-        <translation>文字ツールでテキストをクリックすると、これらの設定を編集できます。</translation>
-    </message>
-    <message>
         <source>Auto leading</source>
         <translation>自動行送り</translation>
     </message>
@@ -16548,6 +16544,10 @@ Clipped to the layer below</source>
     <message>
         <source>Brush flow: Shift+number keys (number keys with Airbrush)</source>
         <translation>ブラシのフロー: Shift+数字キーで設定 (エアブラシ時は数字キー)</translation>
+    </message>
+    <message>
+        <source>Select a text layer or click in text with the Type tool to edit these settings.</source>
+        <translation>テキストレイヤーを選択するか、文字ツールでテキスト内をクリックして、これらの設定を編集します。</translation>
     </message>
 </context>
 <context>

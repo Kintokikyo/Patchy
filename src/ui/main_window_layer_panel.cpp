@@ -3454,6 +3454,7 @@ void MainWindow::refresh_layer_thumbnails() {
 
 void MainWindow::refresh_layer_controls() {
   const UiProfileScope profile_scope("refresh_layer_controls");
+  sync_text_character_dialog_from_editor();
   refresh_convert_for_smart_filters_action_state();
   if (canvas_ != nullptr) {
     // The path overlay outlines every panel-selected shape layer.

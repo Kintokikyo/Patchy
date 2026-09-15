@@ -9780,10 +9780,6 @@ RGB: %2, %3, %4</translation>
         <translation>Carácter</translation>
     </message>
     <message>
-        <source>Click in text with the Type tool to edit these settings.</source>
-        <translation>Haga clic en el texto con la herramienta Texto para editar estos ajustes.</translation>
-    </message>
-    <message>
         <source>Auto leading</source>
         <translation>Interlineado automático</translation>
     </message>
@@ -16586,6 +16582,10 @@ Y: %2
     <message>
         <source>Brush flow: Shift+number keys (number keys with Airbrush)</source>
         <translation>Flujo del pincel: Shift+teclas numéricas (teclas numéricas con Aerógrafo)</translation>
+    </message>
+    <message>
+        <source>Select a text layer or click in text with the Type tool to edit these settings.</source>
+        <translation>Selecciona una capa de texto o haz clic en el texto con la herramienta Texto para editar estos ajustes.</translation>
     </message>
 </context>
 <context>

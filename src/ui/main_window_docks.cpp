@@ -1248,6 +1248,16 @@ void MainWindow::create_docks() {
       edit_active_adjustment_layer();
       return;
     }
+    if (layer != nullptr && layer_is_text(*layer)) {
+      // Editing can rebuild the rows. Leave the thumbnail's event first.
+      const auto session_id = session().session_id;
+      QTimer::singleShot(0, this, [this, layer_id, session_id] {
+        if (has_active_document() && session().session_id == session_id) {
+          edit_text_layer(layer_id);
+        }
+      });
+      return;
+    }
     zoom_canvas_to_layer_content(layer_id);
   });
   layer_list->set_smart_filter_double_click_callback(

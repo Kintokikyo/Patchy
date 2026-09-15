@@ -1619,6 +1619,177 @@ void ui_warped_text_refuses_faux_bold_toggle() {
   }
 }
 
+void ui_text_character_panel_edits_selected_layer_without_session() {
+  patchy::test::register_test_fonts(patchy::test::TestFontRole::UiDefault);
+  for (const bool warped : {false, true}) {
+    patchy::ui::MainWindow window;
+    const auto id = build_warped_text_session_document(window, "CharacterLayer", QPoint(110, 130), "BendMore");
+    show_window(window);
+    auto* canvas = require_canvas(window);
+    canvas->set_zoom(0.75);
+    auto& document = patchy::ui::MainWindowTestAccess::document(window);
+    auto* layer = document.find_layer(id);
+    const auto family = QString::fromStdString(std::as_const(*layer).metadata().at(patchy::kLayerMetadataTextFont));
+    layer->metadata()[patchy::kLayerMetadataTextRuns] =
+        QStringLiteral("v3\n0\t4\t36\t0\t0\t#101010\t%1\tauto\t0\t1\t1\n"
+                       "4\t4\t24\t0\t0\t#202080\t%1\tauto\t0\t1\t1\n")
+            .arg(QString::fromLatin1(family.toUtf8().toPercentEncoding())).toStdString();
+    patchy::TextWarp warp;
+    if (warped) {
+      warp.style = "warpArc";
+      warp.value = 60.0;
+    }
+    CHECK(patchy::ui::MainWindowTestAccess::apply_text_warp(window, *layer, warp));
+    // A moved warp must keep the Move-corrected origin when character metrics change.
+    auto moved = layer->bounds();
+    moved.x += 25;
+    moved.y += 15;
+    layer->set_bounds(moved);
+    canvas->document_changed();
+    patchy::ui::MainWindowTestAccess::refresh_layer_ui(window);
+    require_action_by_text(window, QStringLiteral("Type"))->trigger();
+    const auto before = *std::as_const(document).find_layer(id);
+    const auto depth = patchy::ui::MainWindowTestAccess::active_session_undo_depth(window);
+    const auto points_per_pixel = 72.0 / document.print_settings().horizontal_ppi;
+    bool drove = false;
+    QTimer::singleShot(0, [&] {
+      try {
+        auto* dialog = window.findChild<QDialog*>(QStringLiteral("textCharacterDialog"));
+        CHECK(dialog != nullptr);
+        auto* tracking = dialog->findChild<QSpinBox*>(QStringLiteral("textCharacterTrackingSpin"));
+        auto* horizontal = dialog->findChild<QSpinBox*>(QStringLiteral("textCharacterHScaleSpin"));
+        auto* vertical = dialog->findChild<QSpinBox*>(QStringLiteral("textCharacterVScaleSpin"));
+        auto* automatic = dialog->findChild<QCheckBox*>(QStringLiteral("textCharacterAutoLeading"));
+        auto* leading = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("textCharacterLeadingSpin"));
+        auto* faux_bold = dialog->findChild<QCheckBox*>(QStringLiteral("textCharacterFauxBold"));
+        auto* faux_italic = dialog->findChild<QCheckBox*>(QStringLiteral("textCharacterFauxItalic"));
+        CHECK(tracking && horizontal && vertical && automatic && leading && faux_bold && faux_italic);
+        CHECK(tracking->isEnabled() && tracking->value() == 0);
+        CHECK(automatic->isChecked());
+        CHECK(std::abs(leading->value() - 43.2 * points_per_pixel) < 0.05);
+        CHECK(canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor")) == nullptr);
+        CHECK(std::ranges::equal(std::as_const(document).find_layer(id)->pixels().data(), before.pixels().data()));
+        CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == depth);
+        if (warped) {
+          faux_bold->click();
+          CHECK(!faux_bold->isChecked());
+          CHECK(window.statusBar()->currentMessage().contains(QStringLiteral("Faux bold")));
+          CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == depth);
+        }
+        dialog->activateWindow();
+        tracking->setFocus();
+        QApplication::processEvents();
+        CHECK(tracking->hasFocus());
+        tracking->setValue(100);
+        const bool focus_preserved = tracking->hasFocus();
+        CHECK(canvas->tool() == patchy::ui::CanvasTool::Text);
+        CHECK(canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor")) == nullptr);
+        CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == depth + 1);
+        const auto* changed = std::as_const(document).find_layer(id);
+        CHECK(changed->visible());
+        CHECK(!std::ranges::equal(changed->pixels().data(), before.pixels().data()));
+        CHECK(patchy::text_warp_from_layer(*changed).has_value() == warped);
+        // One undo restores the original raster, placement and metadata exactly.
+        require_action_by_text(window, QStringLiteral("Undo"))->trigger();
+        const auto* restored = std::as_const(document).find_layer(id);
+        CHECK(std::ranges::equal(restored->pixels().data(), before.pixels().data()));
+        CHECK(restored->bounds().x == before.bounds().x && restored->bounds().y == before.bounds().y);
+        CHECK(restored->bounds().width == before.bounds().width && restored->bounds().height == before.bounds().height);
+        CHECK(restored->metadata() == before.metadata());
+        CHECK(tracking->value() == 0);
+        require_action_by_text(window, QStringLiteral("Redo"))->trigger();
+        CHECK(tracking->value() == 100);
+        horizontal->setValue(120);
+        vertical->setValue(110);
+        automatic->setChecked(false);
+        leading->setValue(60.0 * points_per_pixel);
+        faux_italic->setChecked(true);
+        if (!warped) {
+          faux_bold->setChecked(true);
+        }
+        CHECK(canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor")) == nullptr);
+        const auto* final_layer = std::as_const(document).find_layer(id);
+        const auto runs = QString::fromStdString(final_layer->metadata().at(patchy::kLayerMetadataTextRuns));
+        bool saw_large = false;
+        bool saw_small = false;
+        for (const auto& line : runs.split(QLatin1Char('\n')).mid(1)) {
+          const auto fields = line.split(QLatin1Char('\t'));
+          if (fields.size() < 14) { continue; }
+          saw_large |= std::abs(fields[2].toDouble() - 36.0) < 0.01;
+          saw_small |= std::abs(fields[2].toDouble() - 24.0) < 0.01;
+          CHECK(std::abs(fields[7].toDouble() - 60.0) < 0.01);
+          CHECK(fields[8].toInt() == 100);
+          CHECK(std::abs(fields[9].toDouble() - 1.2) < 0.001);
+          CHECK(std::abs(fields[10].toDouble() - 1.1) < 0.001);
+          CHECK(fields[11].toInt() == (warped ? 0 : 1));
+          CHECK(fields[13].toInt() == 1);
+        }
+        CHECK(saw_large && saw_small);
+        if (warped) {
+          const auto final_warp = patchy::text_warp_from_layer(*final_layer);
+          CHECK(final_warp.has_value() && final_warp->style == warp.style && final_warp->value == warp.value);
+          save_widget_artifact("ui_text_character_selected_warped_layer", window);
+          save_widget_artifact("ui_text_character_selected_warped_panel", *dialog);
+        }
+        CHECK(focus_preserved);
+        drove = true;
+        dialog->reject();
+      } catch (...) {
+        patchy::ui::unwind_non_modal_dialog_loop(std::current_exception());
+      }
+    });
+    window.findChild<QPushButton*>(QStringLiteral("textCharacterButton"))->click();
+    CHECK(drove);
+  }
+}
+
+void ui_text_thumbnail_double_click_selects_all_without_zoom() {
+  patchy::test::register_test_fonts(patchy::test::TestFontRole::UiDefault);
+  for (const bool warped : {false, true}) {
+    patchy::ui::MainWindow window;
+    const auto id = build_warped_text_session_document(window, "TextThumbnail", QPoint(110, 130), "BendMore");
+    show_window(window);
+    auto* canvas = require_canvas(window);
+    canvas->set_zoom(0.75);
+    auto& document = patchy::ui::MainWindowTestAccess::document(window);
+    auto* layer = document.find_layer(id);
+    patchy::TextWarp warp;
+    if (warped) { warp.style = "warpArc"; warp.value = 60.0; }
+    CHECK(patchy::ui::MainWindowTestAccess::apply_text_warp(window, *layer, warp));
+    const auto name = QString::fromStdString(layer->name());
+    canvas->document_changed();
+    patchy::ui::MainWindowTestAccess::refresh_layer_ui(window);
+    require_action_by_text(window, QStringLiteral("Move"))->trigger();
+    auto* list = window.findChild<QListWidget*>(QStringLiteral("layerList"));
+    CHECK(list != nullptr);
+    click_layer_row_thumbnail(*list, QStringLiteral("Background"), QStringLiteral("layerContentThumbnail"));
+    const auto zoom = canvas->zoom();
+    const auto origin = canvas->widget_position_for_document_point(QPoint(0, 0));
+    click_layer_row_thumbnail(*list, name, QStringLiteral("layerContentThumbnail"));
+    auto* row = list->itemWidget(require_layer_item(*list, name));
+    auto* thumbnail = row->findChild<QLabel*>(QStringLiteral("layerContentThumbnail"));
+    CHECK(thumbnail != nullptr);
+    send_double_click(*thumbnail, thumbnail->rect().center());
+    QApplication::processEvents();
+    auto* editor = canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
+    const bool selected_all = editor != nullptr && editor->textCursor().selectedText() == QStringLiteral("BendMore");
+    const bool correct_layer = editor != nullptr && editor->property("patchy.editingLayerId").toULongLong() == id;
+    const bool type_active = canvas->tool() == patchy::ui::CanvasTool::Text;
+    const bool focused = editor != nullptr && editor->hasFocus();
+    const bool view_unchanged = canvas->zoom() == zoom &&
+        canvas->widget_position_for_document_point(QPoint(0, 0)) == origin;
+    if (editor != nullptr) {
+      editor->insertPlainText(QStringLiteral("Replacement"));
+      require_action_by_text(window, QStringLiteral("Move"))->trigger();
+      QApplication::processEvents();
+    }
+    CHECK(selected_all && correct_layer && type_active && focused && view_unchanged);
+    const auto* committed = std::as_const(document).find_layer(id);
+    CHECK(committed->metadata().at(patchy::kLayerMetadataText) == "Replacement");
+    CHECK(patchy::text_warp_from_layer(*committed).has_value() == warped);
+  }
+}
+
 void ui_warped_text_allows_real_bold_face() {
   // Photoshop's restriction covers FAUX bold only: a family that ships a real Bold
   // face keeps toggling bold on warped text with no refusal.
@@ -2041,6 +2212,10 @@ std::vector<patchy::test::TestCase> warp_tests() {
       {"ui_warp_text_commit_leaves_no_stale_canvas", ui_warp_text_commit_leaves_no_stale_canvas},
       {"ui_warp_text_dialog_refuses_faux_bold", ui_warp_text_dialog_refuses_faux_bold},
       {"ui_warped_text_refuses_faux_bold_toggle", ui_warped_text_refuses_faux_bold_toggle},
+      {"ui_text_character_panel_edits_selected_layer_without_session",
+       ui_text_character_panel_edits_selected_layer_without_session},
+      {"ui_text_thumbnail_double_click_selects_all_without_zoom",
+       ui_text_thumbnail_double_click_selects_all_without_zoom},
       {"ui_warped_text_allows_real_bold_face", ui_warped_text_allows_real_bold_face},
       {"ui_imported_faux_bold_warp_layer_still_renders", ui_imported_faux_bold_warp_layer_still_renders},
       {"ui_options_bar_transform_session_replaces_tool_controls",

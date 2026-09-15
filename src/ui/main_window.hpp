@@ -687,7 +687,8 @@ private:
   void clear_internal_clipboard_on_external_change();
   void transform_active_layer_dialog();
   void warp_transform_active_layer();
-  void add_text_at(QPoint document_point, QRect requested_text_box = {});
+  void add_text_at(QPoint document_point, QRect requested_text_box = {}, bool show_editor = true);
+  void edit_text_layer(LayerId id);
   void cancel_text_editor(QTextEdit* editor, std::optional<LayerId> layer_id);
   void commit_text_editor(QTextEdit* editor, QPoint document_point, std::optional<LayerId> layer_id);
   bool commit_active_text_editor();
@@ -1197,11 +1198,12 @@ private:
   // text layer (committing any open inline edit first) with live preview; OK is one
   // undo step, Cancel restores the pre-dialog pixels and metadata.
   void request_warp_text_dialog();
-  // Photoshop's Character panel (leading / tracking / glyph scales) for the ACTIVE
-  // inline editor session: applies live to the selection (whole text when nothing is
-  // selected) and stays exempt from the editor's focus-loss auto-commit.
+  // Character changes apply to the inline selection, or the selected text layer
+  // through a hidden session committed immediately without an unwarped preview.
   void open_text_character_dialog();
   void sync_text_character_dialog_from_editor();
+  [[nodiscard]] const Layer* text_character_target_layer() const;
+  void apply_text_character_edit(const std::function<bool(QTextEdit&)>& edit);
   void apply_text_character_leading_to_active_editor();
   void apply_text_character_tracking_to_active_editor();
   void apply_text_character_glyph_scales_to_active_editor();

@@ -9780,10 +9780,6 @@ RGB: %2, %3, %4</translation>
         <translation>Zeichen</translation>
     </message>
     <message>
-        <source>Click in text with the Type tool to edit these settings.</source>
-        <translation>Klicken Sie mit dem Text-Werkzeug in den Text, um diese Einstellungen zu bearbeiten.</translation>
-    </message>
-    <message>
         <source>Auto leading</source>
         <translation>Auto-Zeilenabstand</translation>
     </message>
@@ -16586,6 +16582,10 @@ Y: %2
     <message>
         <source>Brush flow: Shift+number keys (number keys with Airbrush)</source>
         <translation>Pinselfluss: Shift+Zifferntasten (Zifferntasten bei Airbrush)</translation>
+    </message>
+    <message>
+        <source>Select a text layer or click in text with the Type tool to edit these settings.</source>
+        <translation>Wählen Sie eine Textebene aus oder klicken Sie mit dem Textwerkzeug in den Text, um diese Einstellungen zu bearbeiten.</translation>
     </message>
 </context>
 <context>

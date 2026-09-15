@@ -9780,10 +9780,6 @@ RVB : %2, %3, %4</translation>
         <translation>Caractère</translation>
     </message>
     <message>
-        <source>Click in text with the Type tool to edit these settings.</source>
-        <translation>Cliquez dans le texte avec l'outil Texte pour modifier ces paramètres.</translation>
-    </message>
-    <message>
         <source>Auto leading</source>
         <translation>Interligne automatique</translation>
     </message>
@@ -16586,6 +16582,10 @@ Y : %2
     <message>
         <source>Brush flow: Shift+number keys (number keys with Airbrush)</source>
         <translation>Flux du pinceau : Shift+touches numériques (touches numériques avec l'Aérographe)</translation>
+    </message>
+    <message>
+        <source>Select a text layer or click in text with the Type tool to edit these settings.</source>
+        <translation>Sélectionnez un calque de texte ou cliquez dans le texte avec l’outil Texte pour modifier ces paramètres.</translation>
     </message>
 </context>
 <context>

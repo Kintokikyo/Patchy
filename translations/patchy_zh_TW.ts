@@ -9757,10 +9757,6 @@ RGB：%2, %3, %4</translation>
         <translation>字元</translation>
     </message>
     <message>
-        <source>Click in text with the Type tool to edit these settings.</source>
-        <translation>請使用文字工具在文字中按一下,即可編輯這些設定。</translation>
-    </message>
-    <message>
         <source>Auto leading</source>
         <translation>自動行距</translation>
     </message>
@@ -16548,6 +16544,10 @@ Y：%2
     <message>
         <source>Brush flow: Shift+number keys (number keys with Airbrush)</source>
         <translation>筆刷流量:Shift+數字鍵 (使用噴槍時為數字鍵)</translation>
+    </message>
+    <message>
+        <source>Select a text layer or click in text with the Type tool to edit these settings.</source>
+        <translation>選取文字圖層，或使用文字工具按一下文字以編輯這些設定。</translation>
     </message>
 </context>
 <context>

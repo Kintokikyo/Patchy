@@ -9771,10 +9771,6 @@ RGB: %2, %3, %4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Click in text with the Type tool to edit these settings.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Auto leading</source>
         <translation type="unfinished"></translation>
     </message>
@@ -16543,6 +16539,10 @@ Y: %2
     </message>
     <message>
         <source>Brush flow: Shift+number keys (number keys with Airbrush)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select a text layer or click in text with the Type tool to edit these settings.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

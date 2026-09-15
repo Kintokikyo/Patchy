@@ -1691,8 +1691,8 @@ bool LayerListWidget::handle_item_double_click(QListWidgetItem* item, QPoint vie
       }
     }
   }
-  // A double-click on the content thumbnail navigates to the layer instead of
-  // opening the row's editor.
+  // The host chooses the thumbnail action for the layer kind (text editing,
+  // adjustment settings, or zooming to content).
   if (content_thumbnail_double_click_callback_) {
     if (const auto target = ctrl_click_target(item, viewport_pos);
         target.has_value() && *target == LayerCtrlClickTarget::ContentThumbnail) {
