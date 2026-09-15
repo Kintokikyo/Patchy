@@ -100,7 +100,7 @@ class MainActivity : Activity() {
                     if (WebViewFeature.isFeatureSupported(
                         WebViewFeature.CROSS_ORIGIN_ISOLATED_ALLOWLIST
                     )) {
-                        WebViewCompat.getProfile(this).setCrossOriginIsolatedAllowlist(
+                        WebViewCompat.getProfile(webView).setCrossOriginIsolatedAllowlist(
                             setOf("http://localhost:$PORT"))
                         Log.d(TAG, "Cross-Origin Isolation allowlist enabled")
                     } else {
