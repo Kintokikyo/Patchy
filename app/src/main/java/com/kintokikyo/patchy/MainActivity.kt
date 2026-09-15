@@ -135,7 +135,7 @@ class MainActivity : Activity() {
         // Patchy is now loaded from APK assets,
         // not from localhost.
         webView.loadUrl(
-            "$PATCHY_ORIGIN/assets/patchy/patchy.html"
+            "$PATCHY_ORIGIN/assets/patchy/patchy.html?PATCHY_WASM_FORCE=st"
         )
     }
 
