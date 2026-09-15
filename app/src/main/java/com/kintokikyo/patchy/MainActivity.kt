@@ -53,6 +53,11 @@ class MainActivity : Activity() {
                 view: WebView,
                 request: WebResourceRequest
             ): WebResourceResponse? {
+                
+                Log.d(
+                    TAG, 
+                    "Asset request: ${request.url}"
+                )
 
                 val response = assetLoader.shouldInterceptRequest(request.url)
 
