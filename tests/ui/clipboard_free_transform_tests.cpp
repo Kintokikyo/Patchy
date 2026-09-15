@@ -1118,6 +1118,182 @@ void ui_move_show_transform_controls_click_shows_passive_transform() {
   QApplication::processEvents();
 }
 
+patchy::LayerId prepare_off_canvas_move_scene(patchy::ui::MainWindow& window, QRect bounds,
+                                             bool auto_select, bool show_controls) {
+  patchy::Document document(200, 160, patchy::PixelFormat::rgba8());
+  auto& background = document.add_pixel_layer(
+      "Background", solid_pixels(200, 160, patchy::PixelFormat::rgba8(), QColor(Qt::white)));
+  patchy::set_layer_locks_position(background, true);
+  patchy::Layer layer(document.allocate_layer_id(), "Move target",
+                      solid_pixels(bounds.width(), bounds.height(), patchy::PixelFormat::rgba8(), QColor(220, 50, 30)));
+  const auto id = layer.id();
+  layer.set_bounds(patchy::Rect{bounds.x(), bounds.y(), bounds.width(), bounds.height()});
+  document.add_layer(std::move(layer));
+  window.add_document_session(std::move(document), QStringLiteral("Off-canvas Move"));
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  require_action_by_text(window, QStringLiteral("Move"))->trigger();
+  canvas->set_zoom(1.0);
+  canvas->center_document_in_view();
+  canvas->set_snap_enabled(false);
+  canvas->set_auto_select_layer(auto_select);
+  canvas->set_show_transform_controls(show_controls);
+  QApplication::processEvents();
+  return id;
+}
+
+void ui_move_auto_select_off_recovers_offscreen_layer_from_anywhere() {
+  for (const bool show_controls : {false, true}) {
+    patchy::ui::MainWindow window;
+    const auto id = prepare_off_canvas_move_scene(window, QRect(-900, 50, 80, 60), false, show_controls);
+    auto* canvas = require_canvas(window);
+    const auto origin = canvas->widget_position_for_document_point(QPoint(0, 0));
+    CHECK(!canvas->rect().intersects(QRect(origin + QPoint(-900, 50), QSize(80, 60))));
+
+    // A first drag over the locked Background moves the selected offscreen layer.
+    drag(*canvas, origin + QPoint(20, 20), origin + QPoint(120, 30));
+    CHECK(canvas->active_layer_document_rect() == QRect(-800, 60, 80, 60));
+    CHECK(!canvas->free_transform_active());
+    require_hotkey_action(window, QStringLiteral("edit.undo"))->trigger();
+    CHECK(canvas->active_layer_document_rect() == QRect(-900, 50, 80, 60));
+
+    // Repeated drags in empty gray space bring it back without hitting its box.
+    const auto start = origin + QPoint(-60, 20);
+    const auto end = start + QPoint(300, 0);
+    CHECK(canvas->rect().contains(start) && canvas->rect().contains(end));
+    for (int step = 1; step <= 3; ++step) {
+      drag(*canvas, start, end);
+      CHECK(canvas->active_layer_document_rect() == QRect(-900 + step * 300, 50, 80, 60));
+      CHECK(!canvas->free_transform_active());
+    }
+    CHECK(canvas->widget_position_for_document_point(QPoint(0, 0)) == origin);
+    const auto& doc = patchy::ui::MainWindowTestAccess::document(window);
+    CHECK(doc.active_layer_id() == id);
+    const auto expected = solid_pixels(80, 60, patchy::PixelFormat::rgba8(), QColor(220, 50, 30));
+    CHECK(doc.find_layer(id)->pixels().byte_size() == expected.byte_size());
+    CHECK(std::memcmp(doc.find_layer(id)->pixels().data().data(), expected.data().data(), expected.byte_size()) == 0);
+    require_hotkey_action(window, QStringLiteral("edit.undo"))->trigger();
+    CHECK(canvas->active_layer_document_rect() == QRect(-300, 50, 80, 60));
+    require_hotkey_action(window, QStringLiteral("edit.redo"))->trigger();
+    CHECK(canvas->active_layer_document_rect() == QRect(0, 50, 80, 60));
+  }
+}
+
+void ui_move_auto_select_on_drags_off_canvas_box_interior() {
+  patchy::ui::MainWindow window;
+  const auto id = prepare_off_canvas_move_scene(window, QRect(60, 50, 80, 60), true, true);
+  auto* canvas = require_canvas(window);
+  const auto inside = canvas->widget_position_for_document_point(QPoint(100, 80));
+  const auto outside = inside - QPoint(300, 0);
+  CHECK(canvas->rect().contains(outside));
+  drag(*canvas, inside, outside);
+  CHECK(canvas->active_layer_document_rect() == QRect(-240, 50, 80, 60));
+  send_mouse(*canvas, QEvent::MouseMove, outside, Qt::NoButton, Qt::NoButton);
+  CHECK(canvas->cursor().shape() == Qt::SizeAllCursor);
+  send_mouse(*canvas, QEvent::MouseButtonPress, outside, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseMove, inside, Qt::NoButton, Qt::LeftButton);
+  CHECK(!canvas->free_transform_active());
+  send_mouse(*canvas, QEvent::MouseButtonRelease, inside, Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  CHECK(canvas->active_layer_document_rect() == QRect(60, 50, 80, 60));
+  CHECK(patchy::ui::MainWindowTestAccess::document(window).active_layer_id() == id);
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(100, 80)), QColor(220, 50, 30), 5));
+  require_hotkey_action(window, QStringLiteral("edit.undo"))->trigger();
+  CHECK(canvas->active_layer_document_rect() == QRect(-240, 50, 80, 60));
+  require_hotkey_action(window, QStringLiteral("edit.redo"))->trigger();
+  CHECK(canvas->active_layer_document_rect() == QRect(60, 50, 80, 60));
+  save_widget_artifact("ui_move_off_canvas_recovered", window);
+}
+
+void ui_move_off_canvas_box_moves_folders_and_multiple_layers() {
+  for (const bool grouped : {false, true}) {
+    patchy::Document document(200, 160, patchy::PixelFormat::rgba8());
+    patchy::Layer first(document.allocate_layer_id(), "First",
+                        solid_pixels(80, 60, patchy::PixelFormat::rgba8(), QColor(220, 50, 30)));
+    patchy::Layer second(document.allocate_layer_id(), "Second",
+                         solid_pixels(80, 60, patchy::PixelFormat::rgba8(), QColor(30, 80, 220)));
+    const auto first_id = first.id();
+    const auto second_id = second.id();
+    first.set_bounds(patchy::Rect{-240, 30, 80, 60});
+    second.set_bounds(patchy::Rect{-180, 100, 80, 60});
+    std::vector<patchy::LayerId> selection{first_id, second_id};
+    if (grouped) {
+      patchy::Layer folder(document.allocate_layer_id(), "Folder", patchy::LayerKind::Group);
+      selection = {folder.id()};
+      folder.add_child(std::move(first));
+      folder.add_child(std::move(second));
+      document.add_layer(std::move(folder));
+    } else {
+      document.add_layer(std::move(first));
+      document.add_layer(std::move(second));
+    }
+    patchy::ui::CanvasWidget canvas;
+    canvas.resize(800, 600);
+    canvas.set_document(&document);
+    canvas.set_zoom(1.0);
+    canvas.center_document_in_view();
+    canvas.set_tool(patchy::ui::CanvasTool::Move);
+    canvas.set_auto_select_layer(true);
+    canvas.set_show_transform_controls(true);
+    canvas.set_snap_enabled(false);
+    canvas.set_selected_layer_ids(selection);
+    canvas.show();
+    QApplication::processEvents();
+    // This point lies in empty space inside the selected set's union box.
+    const auto start = canvas.widget_position_for_document_point(QPoint(-120, 60));
+    drag(canvas, start, start + QPoint(300, 0));
+    const auto& doc = document;
+    const auto first_bounds = doc.find_layer(first_id)->bounds();
+    const auto second_bounds = doc.find_layer(second_id)->bounds();
+    CHECK(first_bounds.x == 60 && first_bounds.y == 30);
+    CHECK(second_bounds.x == 120 && second_bounds.y == 100);
+    CHECK(first_bounds.width == 80 && first_bounds.height == 60);
+    CHECK(second_bounds.width == 80 && second_bounds.height == 60);
+    CHECK(!canvas.free_transform_active());
+  }
+}
+
+void ui_move_off_canvas_keeps_rectangle_handles_pan_and_locks() {
+  patchy::ui::MainWindow window;
+  const auto id = prepare_off_canvas_move_scene(window, QRect(-240, 50, 80, 60), true, true);
+  auto* canvas = require_canvas(window);
+  const QRect original(-240, 50, 80, 60);
+  const auto center = canvas->widget_position_for_document_point(QPoint(-200, 80));
+  const auto empty = canvas->widget_position_for_document_point(QPoint(-100, 20));
+  drag(*canvas, empty, empty + QPoint(30, 30));
+  CHECK(canvas->active_layer_document_rect() == original);
+  for (const bool auto_select : {false, true}) {
+    canvas->set_auto_select_layer(auto_select);
+    drag(*canvas, center, center + QPoint(30, 20), Qt::ControlModifier);
+    CHECK(canvas->active_layer_document_rect() == original);
+    CHECK(!canvas->free_transform_active());
+    const auto corner = canvas->widget_position_for_document_point(QPoint(-160, 110));
+    send_mouse(*canvas, QEvent::MouseMove, corner, Qt::NoButton, Qt::NoButton);
+    CHECK(canvas->cursor().shape() == Qt::SizeFDiagCursor);
+    send_mouse(*canvas, QEvent::MouseButtonPress, corner, Qt::LeftButton, Qt::LeftButton);
+    send_mouse(*canvas, QEvent::MouseButtonRelease, corner, Qt::LeftButton, Qt::NoButton);
+    CHECK(canvas->free_transform_active());
+    send_key(*canvas, Qt::Key_Escape);
+    CHECK(!canvas->free_transform_active());
+    CHECK(canvas->active_layer_document_rect() == original);
+  }
+  canvas->set_show_transform_controls(false);
+  drag(*canvas, center, center + QPoint(30, 20));
+  CHECK(canvas->active_layer_document_rect() == original);
+  canvas->set_show_transform_controls(true);
+  canvas->set_spacebar_panning(true);
+  const auto origin = canvas->widget_position_for_document_point(QPoint(0, 0));
+  drag(*canvas, center, center + QPoint(30, 20));
+  canvas->set_spacebar_panning(false);
+  CHECK(canvas->widget_position_for_document_point(QPoint(0, 0)) == origin + QPoint(30, 20));
+  CHECK(canvas->active_layer_document_rect() == original);
+  auto& doc = patchy::ui::MainWindowTestAccess::document(window);
+  patchy::set_layer_locks_position(*doc.find_layer(id), true);
+  canvas->set_auto_select_layer(false);
+  drag(*canvas, empty, empty + QPoint(30, 20));
+  CHECK(canvas->active_layer_document_rect() == original);
+}
+
 void ui_transform_controls_finish_on_tool_layer_and_duplicate_changes() {
   QApplication::clipboard()->clear();
 
@@ -1553,6 +1729,14 @@ std::vector<patchy::test::TestCase> clipboard_free_transform_tests() {
        ui_transform_numeric_preview_renders_layer_styles},
       {"ui_move_show_transform_controls_click_shows_passive_transform",
        ui_move_show_transform_controls_click_shows_passive_transform},
+      {"ui_move_auto_select_off_recovers_offscreen_layer_from_anywhere",
+       ui_move_auto_select_off_recovers_offscreen_layer_from_anywhere},
+      {"ui_move_auto_select_on_drags_off_canvas_box_interior",
+       ui_move_auto_select_on_drags_off_canvas_box_interior},
+      {"ui_move_off_canvas_box_moves_folders_and_multiple_layers",
+       ui_move_off_canvas_box_moves_folders_and_multiple_layers},
+      {"ui_move_off_canvas_keeps_rectangle_handles_pan_and_locks",
+       ui_move_off_canvas_keeps_rectangle_handles_pan_and_locks},
       {"ui_transform_controls_finish_on_tool_layer_and_duplicate_changes",
        ui_transform_controls_finish_on_tool_layer_and_duplicate_changes},
       {"ui_layer_via_copy_and_cut_match_photoshop_shortcuts",

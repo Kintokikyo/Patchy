@@ -625,11 +625,9 @@ void CanvasWidget::mousePressEvent(QMouseEvent* event) {
   }
 
   if (!document_contains(document_point)) {
-    // Marquee/lasso and brush strokes may begin in the grey area, and the zoom
-    // tool zooms toward the nearest frame point when clicked outside the
-    // canvas. Other tools discard an out-of-bounds press.
-    const bool allows_off_canvas_press = (tool_ == CanvasTool::Move && event->button() == Qt::LeftButton &&
-                                         (auto_select_layer_ || event->modifiers().testFlag(Qt::ControlModifier))) ||
+    // Move can recover selected layers from the grey area. Marquee/lasso and
+    // brush strokes may also begin there, and Zoom uses the nearest frame point.
+    const bool allows_off_canvas_press = (tool_ == CanvasTool::Move && event->button() == Qt::LeftButton) ||
                                          tool_ == CanvasTool::Marquee ||
                                          tool_ == CanvasTool::EllipticalMarquee ||
                                          tool_ == CanvasTool::Lasso ||
@@ -641,22 +639,8 @@ void CanvasWidget::mousePressEvent(QMouseEvent* event) {
                                          (event->button() == Qt::LeftButton &&
                                           tool_supports_off_canvas_brush_strokes(effective_tool));
     if (!allows_off_canvas_press) {
-      // The Move tool's transform resize and rotate handles can sit outside the
-      // document bounds (for example after scaling a layer larger than the
-      // canvas). Let a press that lands on one of those handles fall through to
-      // the transform-handle hit-test below instead of discarding it here;
-      // otherwise the handles can be hovered but never grabbed once they extend
-      // past the canvas edge. The interior Move hit still falls back to the
-      // normal out-of-bounds behaviour.
-      const auto off_canvas_transform_rect = move_transform_controls_rect();
-      const auto off_canvas_handle =
-          off_canvas_transform_rect.has_value()
-              ? transform_handle_at(event->pos(), *off_canvas_transform_rect, 0.0)
-              : TransformHandle::None;
-      if (off_canvas_handle == TransformHandle::None || off_canvas_handle == TransformHandle::Move) {
-        set_move_transform_controls_layer(std::nullopt);
-        return;
-      }
+      set_move_transform_controls_layer(std::nullopt);
+      return;
     }
   }
 
@@ -834,12 +818,20 @@ void CanvasWidget::mousePressEvent(QMouseEvent* event) {
       begin_move_layer_selection(event, clicked_layer, false);
       return;
     }
-    if (auto_select_layer_ && clicked_layer == nullptr) {
+    // The selected box remains a Move target on the pasteboard even though
+    // auto-select only picks artwork inside the document. With auto-select
+    // off, any workspace press can move the selection, including a press
+    // outside its box; passive controls must not consume that first drag.
+    const bool move_selected_layers = !auto_select_layer_ ||
+        (!document_contains(document_point) && passive_handle == TransformHandle::Move);
+    if (!move_selected_layers && clicked_layer == nullptr) {
       begin_move_layer_selection(event, nullptr, true);
       return;
     }
     const auto selected_move_layer_ids = movable_layer_ids();
-    if (auto_select_layer_) {
+    if (move_selected_layers) {
+      layer_ids = selected_move_layer_ids;
+    } else {
       hit_layer = clicked_layer;
       const auto hit_selected_layer =
           hit_layer != nullptr && !selected_layer_ids_.empty() &&
@@ -861,20 +853,8 @@ void CanvasWidget::mousePressEvent(QMouseEvent* event) {
         layer_ids.push_back(hit_layer->id());
         transform_controls_layer = hit_layer;
       }
-    } else if (selected_layer_ids_.size() < 2U) {
-      auto target_id = document_->active_layer_id();
-      if (!selected_layer_ids_.empty()) {
-        target_id = selected_layer_ids_.front();
-      }
-      if (target_id.has_value()) {
-        auto* layer = document_->find_layer(*target_id);
-        if (layer != nullptr && (move_layer_contains_document_point(*layer, document_point) ||
-                                 move_layer_rect_contains_document_point(*layer, document_point))) {
-          transform_controls_layer = layer;
-        }
-      }
     }
-    if (show_transform_controls_ && (auto_select_layer_ || selected_layer_ids_.size() < 2U)) {
+    if (!move_selected_layers && show_transform_controls_) {
       if (transform_controls_layer != nullptr) {
         const ZoomTraceScope controls_trace("move_press.set_controls_layer", zoom_);
         set_move_transform_controls_layer(transform_controls_layer->id());
@@ -889,14 +869,11 @@ void CanvasWidget::mousePressEvent(QMouseEvent* event) {
         set_move_transform_controls_layer(std::nullopt);
       }
     }
-    if (transform_controls_layer == nullptr && passive_transform_rect.has_value() &&
+    if (!move_selected_layers && transform_controls_layer == nullptr && passive_transform_rect.has_value() &&
         passive_handle == TransformHandle::None) {
       set_move_transform_controls_layer(std::nullopt);
       event->accept();
       return;
-    }
-    if (!auto_select_layer_) {
-      layer_ids = selected_move_layer_ids;
     }
     if (layer_ids.empty()) {
       if (top_clicked_layer != nullptr && layer_effectively_locks_position(*top_clicked_layer)) {
