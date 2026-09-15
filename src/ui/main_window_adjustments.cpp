@@ -589,6 +589,10 @@ Layer MainWindow::build_adjustment_layer(QString label, const AdjustmentSettings
   const auto selection_rect = selection.boundingRect().intersected(QRect(0, 0, doc.width(), doc.height()));
   if (!selection.isEmpty() && !selection_rect.isEmpty()) {
     layer.set_mask(LayerMask{to_core_rect(selection_rect), selection_mask_pixels(*canvas_, selection_rect), 0, false});
+  } else {
+    PixelBuffer mask_pixels(doc.width(), doc.height(), PixelFormat::gray8());
+    mask_pixels.clear(255);
+    layer.set_mask(LayerMask{Rect::from_size(doc.width(), doc.height()), std::move(mask_pixels), 255, false});
   }
   return layer;
 }
@@ -615,7 +619,9 @@ void MainWindow::update_adjustment_layer_preview(QString label, const Adjustment
 
   auto preview = build_adjustment_layer(label, settings);
   preview_id = preview.id();
-  doc.add_layer(std::move(preview));
+  const auto selected_ids = selected_or_active_layer_ids();
+  const auto anchor_id = selected_ids.empty() ? std::nullopt : std::optional<LayerId>{selected_ids.front()};
+  insert_layer_after_anchor(doc, std::move(preview), anchor_id);
   if (restore_active_layer.has_value() && doc.find_layer(*restore_active_layer) != nullptr) {
     doc.set_active_layer(*restore_active_layer);
   }
@@ -648,7 +654,11 @@ void MainWindow::create_adjustment_layer(QString label, const AdjustmentSettings
   push_undo_snapshot(tr("%1 adjustment layer").arg(label));
   auto layer = build_adjustment_layer(label, settings);
 
-  doc.add_layer(std::move(layer));
+  const auto layer_id = layer.id();
+  const auto selected_ids = selected_or_active_layer_ids();
+  const auto anchor_id = selected_ids.empty() ? std::nullopt : std::optional<LayerId>{selected_ids.front()};
+  insert_layer_after_anchor(doc, std::move(layer), anchor_id);
+  doc.set_active_layer(layer_id);
   refresh_layer_list();
   refresh_layer_controls();
   refresh_document_info();

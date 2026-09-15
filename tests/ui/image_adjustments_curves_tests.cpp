@@ -829,6 +829,161 @@ void ui_hue_saturation_dialog_adjusts_selected_pixels() {
   save_widget_artifact("ui_hue_saturation_selection", *canvas);
 }
 
+void check_adjustment_white_mask(const patchy::Layer& layer, int width, int height) {
+  CHECK(layer.kind() == patchy::LayerKind::Adjustment);
+  CHECK(layer.mask().has_value());
+  const auto& mask = *layer.mask();
+  CHECK(mask.bounds.x == 0 && mask.bounds.y == 0);
+  CHECK(mask.bounds.width == width && mask.bounds.height == height);
+  CHECK(mask.default_color == 255);
+  CHECK(!mask.disabled);
+  CHECK(mask.pixels.width() == width && mask.pixels.height() == height);
+  CHECK(mask.pixels.format() == patchy::PixelFormat::gray8());
+  CHECK(std::all_of(mask.pixels.data().begin(), mask.pixels.data().end(),
+                    [](std::uint8_t value) { return value == 255; }));
+}
+
+void ui_adjustment_layer_inserts_above_selection_with_white_mask() {
+  for (const bool nested : {false, true}) {
+    for (const bool multiple : {false, true}) {
+      patchy::Document source(48, 32, patchy::PixelFormat::rgba8());
+      patchy::Layer folder(source.allocate_layer_id(), "Folder", patchy::LayerKind::Group);
+      const auto folder_id = folder.id();
+      std::array<patchy::LayerId, 3> ids{};
+      const std::array<const char*, 3> names{"Lower", "Middle", "Upper"};
+      for (std::size_t index = 0; index < names.size(); ++index) {
+        patchy::Layer layer(source.allocate_layer_id(), names[index],
+                            solid_pixels(48, 32, patchy::PixelFormat::rgba8(), QColor(200, 40, 20)));
+        ids[index] = layer.id();
+        if (nested) folder.add_child(std::move(layer));
+        else source.add_layer(std::move(layer));
+      }
+      if (nested) source.add_layer(std::move(folder));
+      source.set_active_layer(ids[1]);
+
+      patchy::ui::MainWindow window;
+      window.add_document_session(std::move(source), QStringLiteral("Adjustment Placement"));
+      show_window(window);
+      auto* list = window.findChild<QListWidget*>(QStringLiteral("layerList"));
+      CHECK(list != nullptr);
+      auto& document = patchy::ui::MainWindowTestAccess::document(window);
+      const auto& read_only = std::as_const(document);
+      if (multiple) {
+        list->setCurrentItem(require_layer_item(*list, QStringLiteral("Lower")),
+                             QItemSelectionModel::ClearAndSelect);
+        require_layer_item(*list, QStringLiteral("Middle"))->setSelected(true);
+        CHECK(document.active_layer_id() == ids[0]);
+        CHECK(list->selectedItems().size() == 2);
+      }
+      const auto before = patchy::layer_tree_signature(read_only.layers());
+      const auto undo_before = patchy::ui::MainWindowTestAccess::active_session_undo_depth(window);
+      require_action(window, "layerNewInvertAdjustmentAction")->trigger();
+      QApplication::processEvents();
+      CHECK(document.active_layer_id().has_value());
+      const auto adjustment_id = *document.active_layer_id();
+      const auto check_created = [&] {
+        const auto& siblings = nested ? read_only.find_layer(folder_id)->children() : read_only.layers();
+        CHECK(siblings.size() == 4);
+        CHECK(siblings[0].id() == ids[0]);
+        CHECK(siblings[1].id() == ids[1]);
+        CHECK(siblings[2].id() == adjustment_id);
+        CHECK(siblings[3].id() == ids[2]);
+        check_adjustment_white_mask(siblings[2], 48, 32);
+        CHECK(document.active_layer_id() == adjustment_id);
+        auto* item = require_layer_item(*list, QStringLiteral("Invert"));
+        CHECK(list->row(item) + 1 == list->row(require_layer_item(*list, QStringLiteral("Middle"))));
+        CHECK(item->isSelected() && list->selectedItems().size() == 1);
+        auto* row = list->itemWidget(item);
+        CHECK(row != nullptr);
+        CHECK(row->findChild<QLabel*>(QStringLiteral("layerMaskThumbnail")) != nullptr);
+      };
+      check_created();
+      CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == undo_before + 1);
+      patchy::ui::MainWindowTestAccess::undo(window);
+      CHECK(patchy::layer_tree_signature(read_only.layers()) == before);
+      patchy::ui::MainWindowTestAccess::redo(window);
+      check_created();
+    }
+  }
+}
+
+void ui_adjustment_layer_preview_uses_topmost_selection_and_cancels_cleanly() {
+  patchy::Document source(48, 32, patchy::PixelFormat::rgba8());
+  const auto lower_id = source.add_pixel_layer(
+      "Lower", solid_pixels(48, 32, patchy::PixelFormat::rgba8(), QColor(255, 0, 0))).id();
+  const auto middle_id = source.add_pixel_layer(
+      "Middle", solid_pixels(48, 32, patchy::PixelFormat::rgba8(), QColor(255, 0, 0))).id();
+  patchy::Layer upper(source.allocate_layer_id(), "Upper",
+                       solid_pixels(24, 32, patchy::PixelFormat::rgba8(), QColor(0, 0, 255)));
+  const auto upper_id = upper.id();
+  source.add_layer(std::move(upper));
+
+  patchy::ui::MainWindow window;
+  window.add_document_session(std::move(source), QStringLiteral("Adjustment Preview Placement"));
+  show_window(window);
+  auto* list = window.findChild<QListWidget*>(QStringLiteral("layerList"));
+  CHECK(list != nullptr);
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  const auto& read_only = std::as_const(document);
+  list->setCurrentItem(require_layer_item(*list, QStringLiteral("Lower")),
+                       QItemSelectionModel::ClearAndSelect);
+  require_layer_item(*list, QStringLiteral("Middle"))->setSelected(true);
+  CHECK(document.active_layer_id() == lower_id);
+  const auto before = patchy::layer_tree_signature(read_only.layers());
+  const auto undo_before = patchy::ui::MainWindowTestAccess::active_session_undo_depth(window);
+
+  const auto check_preview = [&] {
+    CHECK(read_only.layers().size() == 4);
+    CHECK(read_only.layers()[0].id() == lower_id);
+    CHECK(read_only.layers()[1].id() == middle_id);
+    CHECK(read_only.layers()[3].id() == upper_id);
+    check_adjustment_white_mask(read_only.layers()[2], 48, 32);
+    const auto composite = patchy::Compositor{}.flatten_rgb8(read_only);
+    CHECK(composite.pixel(8, 16)[0] == 0 && composite.pixel(8, 16)[2] == 255);
+    CHECK(composite.pixel(36, 16)[0] == 0 && composite.pixel(36, 16)[1] == 255);
+  };
+  for (const bool accept : {false, true}) {
+    bool drove_dialog = false;
+    QTimer::singleShot(0, [&] {
+      try {
+        auto* dialog = find_top_level_dialog(QStringLiteral("patchyHueSaturationDialog"));
+        CHECK(dialog != nullptr);
+        auto* hue = dialog->findChild<QSpinBox*>(QStringLiteral("hueSaturationHueSpin"));
+        auto* preview = dialog->findChild<QCheckBox*>(QStringLiteral("hueSaturationPreviewCheck"));
+        CHECK(hue != nullptr && preview != nullptr);
+        hue->setValue(120);
+        CHECK(process_events_until([&] { return read_only.layers().size() == 4; }, 3000));
+        check_preview();
+        CHECK(document.active_layer_id() == lower_id);
+        preview->setChecked(false);
+        CHECK(process_events_until([&] { return read_only.layers().size() == 3; }, 3000));
+        CHECK(patchy::layer_tree_signature(read_only.layers()) == before);
+        preview->setChecked(true);
+        CHECK(process_events_until([&] { return read_only.layers().size() == 4; }, 3000));
+        check_preview();
+        drove_dialog = true;
+        if (accept) dialog->accept();
+        else dialog->reject();
+      } catch (...) {
+        if (!patchy::ui::unwind_non_modal_dialog_loop(std::current_exception())) throw;
+      }
+    });
+    require_action(window, "layerNewHueSaturationAdjustmentAction")->trigger();
+    CHECK(drove_dialog);
+    if (accept) {
+      check_preview();
+      CHECK(document.active_layer_id() == read_only.layers()[2].id());
+      CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == undo_before + 1);
+      patchy::ui::MainWindowTestAccess::undo(window);
+    } else {
+      CHECK(document.active_layer_id() == lower_id);
+      CHECK(list->selectedItems().size() == 2);
+      CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == undo_before);
+    }
+    CHECK(patchy::layer_tree_signature(read_only.layers()) == before);
+  }
+}
+
 void ui_hue_saturation_creates_masked_adjustment_layer() {
   patchy::ui::MainWindow window;
   show_window(window);
@@ -3251,6 +3406,10 @@ std::vector<patchy::test::TestCase> image_adjustments_curves_tests() {
        ui_levels_histogram_sqrt_heights_and_auto_shared_sampler},
       {"ui_hue_saturation_dialog_adjusts_selected_pixels", ui_hue_saturation_dialog_adjusts_selected_pixels},
       {"ui_hue_saturation_creates_masked_adjustment_layer", ui_hue_saturation_creates_masked_adjustment_layer},
+      {"ui_adjustment_layer_inserts_above_selection_with_white_mask",
+       ui_adjustment_layer_inserts_above_selection_with_white_mask},
+      {"ui_adjustment_layer_preview_uses_topmost_selection_and_cancels_cleanly",
+       ui_adjustment_layer_preview_uses_topmost_selection_and_cancels_cleanly},
       {"ui_hue_saturation_colorize_toggle_switches_ranges_and_creates_layer",
        ui_hue_saturation_colorize_toggle_switches_ranges_and_creates_layer},
       {"ui_layer_clipping_menu_toggles_renders_and_undoes", ui_layer_clipping_menu_toggles_renders_and_undoes},

@@ -72,6 +72,25 @@ folder therefore cannot change the count for the same selected trees.
 `ui_layer_selection_count` covers nesting, overlapping selections, filtering,
 empty folders, script selection, and the optional Little-Everywhere fixture.
 
+## New adjustment layers
+
+Every New Adjustment Layer entry, including Hue/Saturation and Invert, inserts
+directly above the topmost selected row. A selected child keeps the adjustment
+in that child's folder; a selected folder places it above the folder. With no
+selected rows, the active layer is the anchor, falling back to the document top.
+Live previews use the same placement and preserve the original active layer.
+Accepting selects the new adjustment and records one undo step; cancelling
+removes the preview without changing the selection or history.
+
+New adjustments always carry an enabled raster mask. An active pixel selection
+supplies its coverage, with black outside the selection; otherwise the mask
+covers the canvas in white and defaults to white outside it. This is shared by
+previews and committed layers in `main_window_adjustments.cpp`.
+`ui_adjustment_layer_inserts_above_selection_with_white_mask` and
+`ui_adjustment_layer_preview_uses_topmost_selection_and_cancels_cleanly` cover
+placement, masks, preview toggling, cancellation, and undo/redo. The
+`ui_hue_saturation_creates_masked_adjustment_layer` test covers selection masks.
+
 ## Move-tool layer menu
 
 A right-click on the canvas with Move active opens `canvasMoveLayerContextMenu`
