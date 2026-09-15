@@ -1,0 +1,68 @@
+name: Build Patchy APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2025-vs2026
+
+    steps:
+      - name: Checkout Patchy
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Setup Emscripten
+        shell: pwsh
+        run: |
+          pwsh -File scripts/wasm/setup-emsdk.ps1
+
+      - name: Setup Qt WebAssembly
+        shell: pwsh
+        run: |
+          pwsh -File scripts/wasm/setup-qt-wasm.ps1
+
+      - name: Build Patchy WASM
+        shell: cmd
+        run: |
+          call .deps\emsdk\emsdk_env.bat
+          call "C:\Program Files\Microsoft Visual Studio\18\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64
+          cmake --preset wasm-release
+          cmake --build --preset wasm-release
+
+      - name: Copy WASM into Android assets
+        shell: pwsh
+        run: |
+          $assets = "app/src/main/assets/patchy"
+
+          New-Item -ItemType Directory -Force -Path $assets | Out-Null
+
+          Copy-Item "build/wasm-release/patchy.html" "$assets/"
+          Copy-Item "build/wasm-release/patchy.js" "$assets/"
+          Copy-Item "build/wasm-release/patchy.wasm" "$assets/"
+          Copy-Item "build/wasm-release/patchy.data" "$assets/"
+          Copy-Item "build/wasm-release/qtloader.js" "$assets/"
+
+          Write-Host "Patchy WASM copied to Android assets."
+
+      - name: Build Android APK
+        shell: cmd
+        run: |
+          gradle :app:assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: patchy-android
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
