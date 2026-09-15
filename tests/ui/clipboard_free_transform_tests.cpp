@@ -205,6 +205,7 @@ void ui_copy_paste_and_transform_pasted_layer_work() {
   patchy::ui::MainWindow window;
   show_window(window);
   auto* canvas = require_canvas(window);
+  canvas->fit_to_view();
   auto* layer_list = window.findChild<QListWidget*>(QStringLiteral("layerList"));
   CHECK(layer_list != nullptr);
 
@@ -223,12 +224,14 @@ void ui_copy_paste_and_transform_pasted_layer_work() {
   CHECK(layer_list->count() == layers_before + 1);
   const auto pasted_rect = canvas->active_layer_document_rect();
   CHECK(pasted_rect.has_value());
-  CHECK(pasted_rect->topLeft() == copied_selection_rect->topLeft());
+  CHECK(pasted_rect->topLeft() == QPoint(qRound((1024 - copied_selection_rect->width()) / 2.0),
+                                        qRound((768 - copied_selection_rect->height()) / 2.0)));
   CHECK(pasted_rect->size() == copied_selection_rect->size());
   CHECK(!canvas->has_selection());
   require_action_by_text(window, QStringLiteral("Move"))->trigger();
   canvas->set_show_transform_controls(false);
-  drag(*canvas, QPoint(120, 100), QPoint(150, 130));
+  const auto pasted_center = canvas->widget_position_for_document_point(pasted_rect->center());
+  drag(*canvas, pasted_center, pasted_center + QPoint(30, 30));
   QApplication::processEvents();
   CHECK(layer_list->count() == layers_before + 1);
 
@@ -302,6 +305,7 @@ void ui_external_clipboard_image_paste_creates_centered_layer() {
   patchy::ui::MainWindow window;
   show_window(window);
   auto* canvas = require_canvas(window);
+  canvas->fit_to_view();
   auto* layer_list = window.findChild<QListWidget*>(QStringLiteral("layerList"));
   CHECK(layer_list != nullptr);
 
@@ -312,6 +316,8 @@ void ui_external_clipboard_image_paste_creates_centered_layer() {
 
   const auto layers_before = layer_list->count();
   require_action(window, "editPasteAction")->trigger();
+  // At fit zoom this tiny image can be covered by the Move tool's handles.
+  canvas->set_show_transform_controls(false);
   QApplication::processEvents();
 
   CHECK(layer_list->count() == layers_before + 1);
@@ -329,6 +335,7 @@ void ui_external_clipboard_image_paste_overrides_internal_payload() {
   patchy::ui::MainWindow window;
   show_window(window);
   auto* canvas = require_canvas(window);
+  canvas->fit_to_view();
   auto* layer_list = window.findChild<QListWidget*>(QStringLiteral("layerList"));
   CHECK(layer_list != nullptr);
 
@@ -342,6 +349,7 @@ void ui_external_clipboard_image_paste_overrides_internal_payload() {
 
   const auto layers_before = layer_list->count();
   require_action(window, "editPasteAction")->trigger();
+  canvas->set_show_transform_controls(false);
   QApplication::processEvents();
 
   CHECK(layer_list->count() == layers_before + 1);
@@ -351,6 +359,148 @@ void ui_external_clipboard_image_paste_overrides_internal_payload() {
   CHECK(pasted_rect->size() == image.size());
   CHECK(color_close(canvas_pixel(*canvas, pasted_rect->center()), QColor(220, 40, 140), 35));
   QApplication::clipboard()->clear();
+}
+
+void prepare_paste_selection(patchy::ui::MainWindow& window, const char* copy_action) {
+  patchy::Document document(1200, 900, patchy::PixelFormat::rgba8());
+  auto pixels = solid_pixels(80, 60, patchy::PixelFormat::rgba8(), QColor(220, 50, 30));
+  patchy::Layer layer(document.allocate_layer_id(), "Clipboard source", std::move(pixels));
+  layer.set_bounds(patchy::Rect{860, 660, 80, 60});
+  document.add_layer(std::move(layer));
+  window.add_document_session(std::move(document), QStringLiteral("Clipboard source"));
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->select_active_layer_opaque_pixels();
+  CHECK(canvas->selected_document_rect() == QRect(860, 660, 80, 60));
+  require_action(window, copy_action)->trigger();
+  QApplication::processEvents();
+}
+
+void ui_paste_selection_centers_in_panned_zoomed_view() {
+  for (const auto* copy_action : {"editCopyAction", "editCopyMergedAction", "editCutAction"}) {
+    patchy::ui::MainWindow window;
+    prepare_paste_selection(window, copy_action);
+    auto* canvas = require_canvas(window);
+    const auto& source = patchy::ui::MainWindowTestAccess::document(window);
+    CHECK(source.layers().front().pixels().pixel(0, 0)[3] ==
+          (std::strcmp(copy_action, "editCutAction") == 0 ? 0 : 255));
+    canvas->zoom_to_document_rect(QRect(180, 120, 400, 300));
+    require_action(window, "editPasteAction")->trigger();
+    QApplication::processEvents();
+    CHECK(canvas->active_layer_document_rect() == QRect(340, 240, 80, 60));
+    CHECK(!canvas->has_selection());
+    const auto& doc = patchy::ui::MainWindowTestAccess::document(window);
+    const auto* pasted = doc.find_layer(*doc.active_layer_id());
+    CHECK(pasted != nullptr);
+    CHECK(pasted->pixels().width() == 80 && pasted->pixels().height() == 60);
+    const auto expected = solid_pixels(80, 60, patchy::PixelFormat::rgba8(), QColor(220, 50, 30));
+    CHECK(pasted->pixels().byte_size() == expected.byte_size());
+    CHECK(std::memcmp(pasted->pixels().data().data(), expected.data().data(), expected.byte_size()) == 0);
+
+    require_hotkey_action(window, QStringLiteral("edit.undo"))->trigger();
+    CHECK(canvas->selected_document_rect() == QRect(860, 660, 80, 60));
+    require_hotkey_action(window, QStringLiteral("edit.redo"))->trigger();
+    CHECK(canvas->active_layer_document_rect() == QRect(340, 240, 80, 60));
+    CHECK(!canvas->has_selection());
+  }
+}
+
+void ui_paste_selection_clamps_to_each_canvas_edge() {
+  patchy::ui::MainWindow window;
+  prepare_paste_selection(window, "editCopyAction");
+  auto* canvas = require_canvas(window);
+  const std::array<std::pair<QRect, QPoint>, 4> cases{{
+      {QRect(0, 0, 20, 20), QPoint(0, 0)},
+      {QRect(1180, 0, 20, 20), QPoint(1120, 0)},
+      {QRect(0, 880, 20, 20), QPoint(0, 840)},
+      {QRect(1180, 880, 20, 20), QPoint(1120, 840)},
+  }};
+  for (const auto& [view, expected_origin] : cases) {
+    canvas->zoom_to_document_rect(view);
+    require_action(window, "editPasteAction")->trigger();
+    QApplication::processEvents();
+    CHECK(canvas->active_layer_document_rect() == QRect(expected_origin, QSize(80, 60)));
+  }
+}
+
+void ui_paste_in_place_shortcut_restores_cut_coordinates() {
+  patchy::ui::MainWindow window;
+  prepare_paste_selection(window, "editCutAction");
+  auto* canvas = require_canvas(window);
+  canvas->zoom_to_document_rect(QRect(180, 120, 400, 300));
+  auto* paste_in_place = require_hotkey_action(window, QStringLiteral("edit.paste_in_place"));
+  CHECK(paste_in_place->shortcut() == QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_V));
+  window.activateWindow();
+  canvas->setFocus();
+  QApplication::processEvents();
+  send_key(*canvas, Qt::Key_V, Qt::ControlModifier | Qt::ShiftModifier);
+  QApplication::processEvents();
+  CHECK(patchy::ui::MainWindowTestAccess::document(window).layers().size() == 2U);
+  CHECK(canvas->active_layer_document_rect() == QRect(860, 660, 80, 60));
+  CHECK(!canvas->has_selection());
+  require_hotkey_action(window, QStringLiteral("edit.undo"))->trigger();
+  CHECK(canvas->selected_document_rect() == QRect(860, 660, 80, 60));
+  require_hotkey_action(window, QStringLiteral("edit.redo"))->trigger();
+  CHECK(canvas->active_layer_document_rect() == QRect(860, 660, 80, 60));
+  CHECK(!canvas->has_selection());
+}
+
+void ui_paste_selection_between_documents_clamps_and_preserves_size() {
+  patchy::ui::MainWindow window;
+  prepare_paste_selection(window, "editCopyAction");
+  struct Destination {
+    QSize canvas;
+    QPoint centered;
+    QPoint in_place;
+  };
+  const std::array<Destination, 4> cases{{
+      {QSize(1600, 1200), QPoint(760, 570), QPoint(860, 660)},
+      {QSize(200, 150), QPoint(60, 45), QPoint(120, 90)},
+      {QSize(40, 120), QPoint(-20, 30), QPoint(-20, 60)},
+      {QSize(120, 30), QPoint(20, -15), QPoint(40, -15)},
+  }};
+  for (const auto& destination : cases) {
+    window.add_document_session(
+        patchy::Document(destination.canvas.width(), destination.canvas.height(), patchy::PixelFormat::rgba8()),
+        QStringLiteral("Paste destination"));
+    QApplication::processEvents();
+    auto* canvas = require_canvas(window);
+    canvas->fit_to_view();
+    require_action(window, "editPasteAction")->trigger();
+    CHECK(canvas->active_layer_document_rect() == QRect(destination.centered, QSize(80, 60)));
+    require_action(window, "editPasteInPlaceAction")->trigger();
+    CHECK(canvas->active_layer_document_rect() == QRect(destination.in_place, QSize(80, 60)));
+  }
+}
+
+void ui_external_clipboard_paste_in_place_falls_back_to_view_center() {
+  patchy::ui::MainWindow window;
+  prepare_paste_selection(window, "editCopyAction");
+  QImage image(80, 60, QImage::Format_RGBA8888);
+  image.fill(QColor(30, 190, 80));
+  QApplication::clipboard()->setImage(image);
+  QApplication::processEvents();
+  auto* canvas = require_canvas(window);
+  canvas->zoom_to_document_rect(QRect(180, 120, 400, 300));
+  for (const auto* action : {"editPasteAction", "editPasteInPlaceAction"}) {
+    require_action(window, action)->trigger();
+    CHECK(canvas->active_layer_document_rect() == QRect(340, 240, 80, 60));
+  }
+  QApplication::clipboard()->clear();
+}
+
+void ui_paste_in_place_obeys_document_and_channel_guards() {
+  patchy::ui::MainWindow window;
+  show_window_empty(window);
+  auto* action = require_action(window, "editPasteInPlaceAction");
+  CHECK(!action->isEnabled());
+  patchy::ui::MainWindowTestAccess::create_default_document(window);
+  QApplication::processEvents();
+  CHECK(action->isEnabled());
+  require_hotkey_action(window, QStringLiteral("select.quick_mask"))->trigger();
+  CHECK(!action->isEnabled());
+  require_hotkey_action(window, QStringLiteral("select.quick_mask"))->trigger();
+  CHECK(action->isEnabled());
 }
 
 // Paints an opaque 60x45 rect into the startup document and returns its bounds,
@@ -1378,6 +1528,14 @@ std::vector<patchy::test::TestCase> clipboard_free_transform_tests() {
        ui_external_clipboard_image_paste_creates_centered_layer},
       {"ui_external_clipboard_image_paste_overrides_internal_payload",
        ui_external_clipboard_image_paste_overrides_internal_payload},
+      {"ui_paste_selection_centers_in_panned_zoomed_view", ui_paste_selection_centers_in_panned_zoomed_view},
+      {"ui_paste_selection_clamps_to_each_canvas_edge", ui_paste_selection_clamps_to_each_canvas_edge},
+      {"ui_paste_in_place_shortcut_restores_cut_coordinates", ui_paste_in_place_shortcut_restores_cut_coordinates},
+      {"ui_paste_selection_between_documents_clamps_and_preserves_size",
+       ui_paste_selection_between_documents_clamps_and_preserves_size},
+      {"ui_external_clipboard_paste_in_place_falls_back_to_view_center",
+       ui_external_clipboard_paste_in_place_falls_back_to_view_center},
+      {"ui_paste_in_place_obeys_document_and_channel_guards", ui_paste_in_place_obeys_document_and_channel_guards},
       {"ui_free_transform_uses_opaque_pixel_bounds", ui_free_transform_uses_opaque_pixel_bounds},
       {"ui_transform_shift_frees_aspect_ratio_by_default",
        ui_transform_shift_frees_aspect_ratio_by_default},

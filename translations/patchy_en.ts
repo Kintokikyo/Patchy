@@ -16545,6 +16545,10 @@ Y: %2
         <source>Select a text layer or click in text with the Type tool to edit these settings.</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Paste in Place</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

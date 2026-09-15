@@ -481,6 +481,10 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   auto* copy_action = edit_menu->addAction(tr("&Copy"));
   auto* copy_merged_action = edit_menu->addAction(tr("Copy Merged"));
   auto* paste_action = edit_menu->addAction(tr("&Paste"));
+  auto* paste_in_place_action = edit_menu->addAction(tr("Paste in Place"));
+  paste_in_place_action->setObjectName(QStringLiteral("editPasteInPlaceAction"));
+  paste_in_place_action->setProperty("patchy.channelViewBlocked", true);
+  bind_action_text(paste_in_place_action, QT_TR_NOOP("Paste in Place"));
   auto* transform_action = edit_menu->addAction(tr("Free &Transform..."));
   auto* warp_transform_action = edit_menu->addAction(tr("Warp Transform"));
   cut_action->setObjectName(QStringLiteral("editCutAction"));
@@ -493,12 +497,14 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   copy_action->setIcon(simple_icon(QStringLiteral("CP")));
   copy_merged_action->setIcon(simple_icon(QStringLiteral("CM")));
   paste_action->setIcon(simple_icon(QStringLiteral("paste")));
+  paste_in_place_action->setIcon(simple_icon(QStringLiteral("paste")));
   transform_action->setIcon(simple_icon(QStringLiteral("TR")));
   warp_transform_action->setIcon(simple_icon(QStringLiteral("WP")));
   register_hotkey(cut_action, "edit.cut", QKeySequence(Qt::CTRL | Qt::Key_X));
   register_hotkey(copy_action, "edit.copy", QKeySequence(Qt::CTRL | Qt::Key_C));
   register_hotkey(copy_merged_action, "edit.copy_merged", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_C));
   register_hotkey(paste_action, "edit.paste", QKeySequence(Qt::CTRL | Qt::Key_V));
+  register_hotkey(paste_in_place_action, "edit.paste_in_place", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_V));
   register_hotkey(transform_action, "edit.free_transform", QKeySequence(Qt::CTRL | Qt::Key_T));
   register_hotkey(warp_transform_action, "edit.warp_transform", QKeySequence());
   connect(cut_action, &QAction::triggered, this, [this] { cut_selection(); });
@@ -516,9 +522,10 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   connect(copy_svg_action, &QAction::triggered, this, [this] { copy_as_svg(); });
   register_document_action(copy_svg_action);
   connect(paste_action, &QAction::triggered, this, [this] { paste_clipboard(); });
+  connect(paste_in_place_action, &QAction::triggered, this, [this] { paste_clipboard(true); });
   connect(transform_action, &QAction::triggered, this, [this] { transform_active_layer_dialog(); });
   connect(warp_transform_action, &QAction::triggered, this, [this] { warp_transform_active_layer(); });
-  for (auto* action : {cut_action, copy_action, copy_merged_action, paste_action, transform_action,
+  for (auto* action : {cut_action, copy_action, copy_merged_action, paste_action, paste_in_place_action, transform_action,
                        warp_transform_action}) {
     register_document_action(action);
   }

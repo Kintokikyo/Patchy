@@ -2,6 +2,14 @@
 
 Small tool/command behaviors that don't have their own doc. Selection tools live in [selection-tools.md](selection-tools.md); brushes in [brushes.md](brushes.md); the text tool in [text-tool.md](text-tool.md). The vector side of the shape tools (Shape/Path modes, pen, path editing, vector masks, Paths panel, shape library) lives in [vector-tools.md](vector-tools.md); this page covers the legacy Pixels-mode raster behavior, which must stay byte-identical.
 
+## Clipboard pixel placement
+
+- Edit > Paste (`edit.paste`, Ctrl+V) centers copied/cut selection pixels and external clipboard images on the active canvas viewport, using the current pan and zoom. Each axis is clamped so the pasted rectangle fits inside the document.
+- Edit > Paste in Place (`edit.paste_in_place`, Ctrl+Shift+V) uses the selection's original document coordinates, including across documents, with the same bounds clamp. External images have no source coordinates and use the viewport center.
+- Pasting preserves pixel dimensions and content. If the pixels exceed the canvas on an axis, that axis is centered with overflow instead of being resized or cropped. Both commands clear the selection in the paste history entry; Undo restores it and Redo restores placement.
+- The pixel placement code lives in `MainWindow::paste_clipboard` (`main_window_layer_ops.cpp`). Whole editable layer trees and SVG use their separate preserving clone/import paths. Palette and color-picker focus retain their color paste routing.
+- Coverage: the `paste` UI filter includes viewport placement, all four edges, cross-document coordinates, oversized pixels, the actual shortcut, document/channel guards, external clipboard replacement, and undo/redo.
+
 ## Crop tool
 
 Photoshop-style interactive crop (hotkey C; `tools.crop`). Session code in canvas_widget_crop.cpp; commit in `MainWindow::commit_crop_rect` (main_window_layer_ops.cpp), modeled on `crop_to_selection`.

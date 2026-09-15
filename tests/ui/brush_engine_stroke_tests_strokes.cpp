@@ -270,7 +270,8 @@ void ui_cut_selection_clears_source_and_keeps_clipboard() {
   QApplication::clipboard()->setImage(cut_clipboard_image);
   QApplication::processEvents();
 
-  require_action(window, "editPasteAction")->trigger();
+  // Re-publishing the same image must retain Patchy's source coordinates.
+  require_action(window, "editPasteInPlaceAction")->trigger();
   QApplication::processEvents();
   CHECK(layer_list->count() == layers_before + 1);
   const auto pasted_rect = canvas->active_layer_document_rect();
@@ -2776,13 +2777,18 @@ void ui_copy_selected_layers_copies_composited_selection() {
   drag(*canvas, canvas->widget_position_for_document_point(QPoint(20, 20)),
        canvas->widget_position_for_document_point(QPoint(120, 80)));
 
+  const auto copied_rect = canvas->selected_document_rect();
+  CHECK(copied_rect.has_value());
   const auto layers_before = layer_list->count();
   require_action(window, "editCopyAction")->trigger();
   require_action(window, "editPasteAction")->trigger();
   QApplication::processEvents();
   CHECK(layer_list->count() == layers_before + 1);
-  CHECK(color_close(canvas_pixel(*canvas, QPoint(40, 42)), QColor(230, 20, 30), 45));
-  CHECK(color_close(canvas_pixel(*canvas, QPoint(82, 42)), QColor(20, 70, 240), 45));
+  const auto pasted_rect = canvas->active_layer_document_rect();
+  CHECK(pasted_rect.has_value());
+  const auto offset = pasted_rect->topLeft() - copied_rect->topLeft();
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(40, 42) + offset), QColor(230, 20, 30), 45));
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(82, 42) + offset), QColor(20, 70, 240), 45));
   save_widget_artifact("ui_copy_selected_layers", window);
 }
 

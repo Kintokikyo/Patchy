@@ -1060,7 +1060,7 @@ bool MainWindow::paste_svg_from_clipboard() {
   return true;
 }
 
-void MainWindow::paste_clipboard() {
+void MainWindow::paste_clipboard(bool in_place) {
   // See copy_selection: focus inside a color picker routes the paste to it (a
   // clipboard color becomes the picker's current color).
   if (auto* picker = color_picker_ancestor_of(QApplication::focusWidget()); picker != nullptr) {
@@ -1097,7 +1097,7 @@ void MainWindow::paste_clipboard() {
     std::set<std::string> existing_names;
     collect_layer_names(doc.layers(), existing_names);
 
-    push_undo_snapshot(tr("Paste"));
+    push_undo_snapshot(in_place ? tr("Paste in Place") : tr("Paste"));
     canvas_->clear_selection();
     for (const auto& source : clipboard_->smart_object_sources) {
       doc.metadata().smart_objects.adopt(source);
@@ -1138,10 +1138,10 @@ void MainWindow::paste_clipboard() {
   }
 
   PixelBuffer pixels;
-  QPoint origin;
+  std::optional<QPoint> source_origin;
   if (clipboard_.has_value() && !clipboard_->pixels.empty()) {
     pixels = clipboard_->pixels;
-    origin = clipboard_->origin;
+    source_origin = clipboard_->origin;
   } else {
     const auto image = QApplication::clipboard()->image();
     if (image.isNull()) {
@@ -1149,16 +1149,32 @@ void MainWindow::paste_clipboard() {
       return;
     }
     pixels = pixels_from_image_rgba(image);
-    origin = QPoint(std::max(0, (document().width() - pixels.width()) / 2),
-                    std::max(0, (document().height() - pixels.height()) / 2));
   }
 
-  push_undo_snapshot(tr("Paste"));
+  const auto view_center = canvas_->document_point_for_widget_position(
+      QPointF(canvas_->width() / 2.0, canvas_->height() / 2.0));
+  const auto place_axis = [](double desired, int content_size, int canvas_size) {
+    // Keep pixels at their original size. Oversized content cannot fit, so
+    // center its overflow; otherwise keep the entire pasted rectangle inside.
+    if (content_size > canvas_size) {
+      return static_cast<int>(std::floor((canvas_size - content_size) / 2.0));
+    }
+    return static_cast<int>(std::lround(std::clamp(desired, 0.0, static_cast<double>(canvas_size - content_size))));
+  };
+  const bool use_source_origin = in_place && source_origin.has_value();
+  const QPoint origin(
+      place_axis(use_source_origin ? source_origin->x() : view_center.x() - pixels.width() / 2.0,
+                 pixels.width(), document().width()),
+      place_axis(use_source_origin ? source_origin->y() : view_center.y() - pixels.height() / 2.0,
+                 pixels.height(), document().height()));
+
+  push_undo_snapshot(in_place ? tr("Paste in Place") : tr("Paste"));
   // The marquee that produced the copy must not stay live over the new layer
   // (Photoshop parity); Undo of the paste brings it back.
   canvas_->clear_selection();
   Layer pasted(document().allocate_layer_id(), tr("Pasted Layer").toStdString(), std::move(pixels));
-  pasted.set_bounds(Rect{origin.x(), origin.y(), pasted.pixels().width(), pasted.pixels().height()});
+  pasted.set_bounds(Rect{origin.x(), origin.y(), std::as_const(pasted).pixels().width(),
+                         std::as_const(pasted).pixels().height()});
   document().add_layer(std::move(pasted));
   if (move_tool_action_ != nullptr) {
     move_tool_action_->trigger();

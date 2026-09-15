@@ -914,6 +914,9 @@ public:
   [[nodiscard]] QPoint document_point_for_widget_position(QPoint widget_position) const {
     return document_position(widget_position);
   }
+  [[nodiscard]] QPointF document_point_for_widget_position(QPointF widget_position) const {
+    return document_position_f(widget_position);
+  }
   void set_before_edit_callback(std::function<void(QString)> callback);
   // Invoked when a selection-only edit completes and actually changed the
   // selection, so the host can push an undo entry holding the pre-edit state.

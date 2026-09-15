@@ -16587,6 +16587,10 @@ Y : %2
         <source>Select a text layer or click in text with the Type tool to edit these settings.</source>
         <translation>Sélectionnez un calque de texte ou cliquez dans le texte avec l’outil Texte pour modifier ces paramètres.</translation>
     </message>
+    <message>
+        <source>Paste in Place</source>
+        <translation>Coller sur place</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

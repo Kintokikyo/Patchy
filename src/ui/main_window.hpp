@@ -674,7 +674,7 @@ private:
   void cut_selection();
   void copy_selection();
   void copy_merged();
-  void paste_clipboard();
+  void paste_clipboard(bool in_place = false);
   void clear_system_clipboard();
   void set_system_clipboard_image(const QImage& image);
   // Puts arbitrary mime data (Copy as SVG) on the system clipboard and drops

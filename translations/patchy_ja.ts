@@ -16549,6 +16549,10 @@ Clipped to the layer below</source>
         <source>Select a text layer or click in text with the Type tool to edit these settings.</source>
         <translation>テキストレイヤーを選択するか、文字ツールでテキスト内をクリックして、これらの設定を編集します。</translation>
     </message>
+    <message>
+        <source>Paste in Place</source>
+        <translation>同じ位置にペースト</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

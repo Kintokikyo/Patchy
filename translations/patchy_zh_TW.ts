@@ -16549,6 +16549,10 @@ Y：%2
         <source>Select a text layer or click in text with the Type tool to edit these settings.</source>
         <translation>選取文字圖層，或使用文字工具按一下文字以編輯這些設定。</translation>
     </message>
+    <message>
+        <source>Paste in Place</source>
+        <translation>原地貼上</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
