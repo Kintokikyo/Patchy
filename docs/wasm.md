@@ -89,7 +89,11 @@ skips the crash-stack reporter (no `execinfo.h`; node prints trap stacks).
   makes pool exhaustion a hard error, not a silent hang.
 - `-sNODERAWFS=1`: fixtures read from the real filesystem via
   `PATCHY_SOURCE_DIR`, `test-artifacts/` written to disk; the .js becomes
-  node-only.
+  node-only. Path queries work, but anything resolving through
+  `weakly_canonical` (`fs::relative`, `fs::canonical`) throws "No such file or
+  directory" on a Windows `D:/...` path that exists. Use the lexical forms
+  (`lexically_relative`, `lexically_normal`) where the answer is pure string
+  work on paths you already built.
 - Memory: growth to 4 GB, 256 MB initial, 8 MB stack (LibRaw's dcraw-derived
   decoders carry large stack locals; the 64 KB default is far too small),
   1 MB worker stacks.

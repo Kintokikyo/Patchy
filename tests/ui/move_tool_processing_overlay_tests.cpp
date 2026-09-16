@@ -1518,7 +1518,9 @@ void ui_move_tool_prefers_selected_layer_rect_over_topmost_rect() {
   canvas.set_show_transform_controls(false);
   canvas.set_snap_enabled(false);
   std::vector<patchy::LayerId> selected{lower_id};
-  canvas.set_selected_layer_ids(selected);
+  // Build the argument in place. Copying `selected` into the by-value parameter
+  // trips a GCC 13 -Warray-bounds false positive on the inlined vector copy.
+  canvas.set_selected_layer_ids({lower_id});
   canvas.set_layer_selection_requested_callback([&](std::vector<patchy::LayerId> ids, patchy::LayerId active) {
     selected = std::move(ids);
     document.set_active_layer(active);

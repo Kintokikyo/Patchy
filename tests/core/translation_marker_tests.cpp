@@ -118,13 +118,17 @@ void translation_markers_cover_core_messages() {
       if (extension != ".cpp" && extension != ".hpp") {
         continue;
       }
-      if (is_vendored(fs::relative(entry.path(), root))) {
+      // lexically_relative, not relative: the latter goes through weakly_canonical,
+      // which fails under the wasm build's NODERAWFS. Every path here is already
+      // an absolute child of root, so the answer is purely lexical.
+      if (is_vendored(entry.path().lexically_relative(root))) {
         continue;
       }
       std::ifstream in(entry.path(), std::ios::binary);
       const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
       ++scanned;
-      auto file_findings = unmarked_literals(fs::relative(entry.path(), root.parent_path()), text);
+      auto file_findings =
+          unmarked_literals(entry.path().lexically_relative(root.parent_path()), text);
       findings.insert(findings.end(), file_findings.begin(), file_findings.end());
     }
   }

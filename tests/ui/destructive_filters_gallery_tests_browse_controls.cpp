@@ -400,7 +400,9 @@ void ui_filter_gallery_photo_looks_layout_thumbnails_controls_zoom_and_before() 
     CHECK(preview->grab().toImage() == original_preview);
     CHECK(canvas_previews.size() == callback_count_before_compare);
     send_mouse(*before, QEvent::MouseButtonRelease, center, Qt::LeftButton, Qt::NoButton);
-    CHECK(process_events_until([&] { return preview->grab().toImage() == filtered_preview; }, 1000));
+    // Releasing Before re-renders the filter asynchronously rather than restoring
+    // a cached image, so allow the same budget the first render above gets.
+    CHECK(process_events_until([&] { return preview->grab().toImage() == filtered_preview; }, 6000));
     CHECK(canvas_previews.size() == callback_count_before_compare);
 
     zoom_100->click();
