@@ -743,6 +743,86 @@ void drive_visible_copy_dialog(MainWindow& window, const std::function<void(QDia
   CHECK(saw);
 }
 
+void ui_merge_visible_copy_bitmap_preserves_alpha_and_history() {
+  for (const bool opaque_background : {false, true}) {
+    MainWindow window;
+    show_window(window);
+    auto& doc = MainWindowTestAccess::document(window);
+    // RGB document metadata does not imply that its visible content is opaque.
+    doc = Document(48, 40, PixelFormat::rgb8());
+    PixelBuffer background(48, 40, PixelFormat::rgb8());
+    background.clear(255);
+    doc.add_pixel_layer("Background", std::move(background)).set_visible(opaque_background);
+    Layer group(doc.allocate_layer_id(), "Translucent group", LayerKind::Group);
+    group.set_blend_mode(BlendMode::Normal);
+    group.set_opacity(0.5F);
+    group.add_child(pixel_layer(doc, 4, 4, {180, 30, 60}));
+    auto masked = pixel_layer(doc, 12, 8, {20, 150, 90});
+    LayerMask mask;
+    mask.default_color = 128;
+    mask.bounds = {12, 8, 1, 1};
+    mask.pixels = PixelBuffer(1, 1, PixelFormat::gray8());
+    mask.pixels.clear(0);
+    masked.set_mask(std::move(mask));
+    group.add_child(std::move(masked));
+    doc.add_layer(std::move(group));
+    const Document original = doc;
+    const auto expected = qimage_from_document(original, true);
+    CHECK(expected.pixelColor(0, 0).alpha() == (opaque_background ? 255 : 0));
+    if (!opaque_background) {
+      const auto pixel = expected.pixelColor(5, 5);
+      CHECK(pixel.alpha() > 0 && pixel.alpha() < 255);
+      CHECK(pixel.red() == 180 && pixel.green() == 30 && pixel.blue() == 60);
+    }
+    auto* canvas = require_canvas(window);
+    canvas->set_document(&doc);
+    MainWindowTestAccess::refresh_layer_ui(window);
+    const auto history = MainWindowTestAccess::active_session_undo_depth(window);
+    require_action(window, "layerMergeVisibleAction")->trigger();
+    CHECK(std::as_const(doc).layers().size() == original.layers().size() + 1);
+    CHECK(MainWindowTestAccess::active_session_undo_depth(window) == history + 1);
+    const auto& copy = std::as_const(doc).layers().back();
+    const auto copy_id = copy.id();
+    CHECK(copy.pixels().format() == PixelFormat::rgba8());
+    CHECK(copy.bounds().x == 0 && copy.bounds().y == 0);
+    CHECK(copy.bounds().width == doc.width() && copy.bounds().height == doc.height());
+    CHECK(doc.active_layer_id() == copy_id);
+    check_close_images(expected, render_layer_isolated(doc, copy), 0);
+    for (std::size_t i = 0; i < original.layers().size(); ++i) {
+      const auto& source = std::as_const(doc).layers()[i];
+      CHECK(source.id() == original.layers()[i].id());
+      CHECK(source.visible() == original.layers()[i].visible());
+      CHECK(source.content_revision() == original.layers()[i].content_revision());
+    }
+    CHECK(!canvas->processing_operation_active());
+    MainWindowTestAccess::undo(window);
+    CHECK(std::as_const(doc).layers().size() == original.layers().size());
+    check_close_images(expected, qimage_from_document(doc, true), 0);
+    MainWindowTestAccess::redo(window);
+    CHECK(std::as_const(doc).layers().back().id() == copy_id);
+    check_close_images(expected, render_layer_isolated(doc, std::as_const(doc).layers().back()), 0);
+  }
+}
+
+void ui_merge_visible_copy_bitmap_preserves_fully_transparent_canvas() {
+  MainWindow window;
+  show_window(window);
+  auto& doc = MainWindowTestAccess::document(window);
+  doc = Document(24, 20, PixelFormat::rgba8());
+  PixelBuffer empty(24, 20, PixelFormat::rgba8());
+  empty.clear(0);
+  doc.add_pixel_layer("Empty", std::move(empty));
+  require_canvas(window)->set_document(&doc);
+  MainWindowTestAccess::refresh_layer_ui(window);
+  require_action(window, "layerMergeVisibleAction")->trigger();
+  CHECK(std::as_const(doc).layers().size() == 2);
+  const auto& copy = std::as_const(doc).layers().back();
+  CHECK(copy.pixels().format() == PixelFormat::rgba8());
+  for (int y = 0; y < doc.height(); ++y) {
+    for (int x = 0; x < doc.width(); ++x) { CHECK(copy.pixels().pixel(x, y)[3] == 0); }
+  }
+}
+
 void ui_merge_visible_copy_dialog_preserves_sources_and_history() {
   MainWindow window;
   show_window(window);
@@ -873,6 +953,8 @@ std::vector<patchy::test::TestCase> layer_merge_tests() {
   return {
       {"ui_layer_selection_count_includes_collapsed_descendants", ui_layer_selection_count_includes_collapsed_descendants},
       {"ui_layer_selection_count_little_everywhere_if_available", ui_layer_selection_count_little_everywhere_if_available},
+      {"ui_merge_visible_copy_bitmap_preserves_alpha_and_history", ui_merge_visible_copy_bitmap_preserves_alpha_and_history},
+      {"ui_merge_visible_copy_bitmap_preserves_fully_transparent_canvas", ui_merge_visible_copy_bitmap_preserves_fully_transparent_canvas},
       {"ui_merge_visible_copy_dialog_preserves_sources_and_history", ui_merge_visible_copy_dialog_preserves_sources_and_history},
       {"ui_merge_visible_copy_single_vector_raster_and_visibility_choices", ui_merge_visible_copy_single_vector_raster_and_visibility_choices},
       {"ui_merge_visible_copy_little_everywhere_if_available", ui_merge_visible_copy_little_everywhere_if_available},

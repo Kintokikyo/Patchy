@@ -36,7 +36,9 @@ base is hidden. Source locks protect the originals and do not block copying.
 art twice; uncheck it to retain the originals' visibility. Originals retain their
 content, properties and ids. Copied layers receive fresh document/native ids and
 Smart Object instance/cache identities. One Undo restores the tree and visibility.
-Bitmap-only copies retain the existing opaque snapshot without a dialog.
+Bitmap-only copies create an RGBA snapshot without a dialog, preserving fully
+transparent areas and partial coverage from pixels, masks and layer/group opacity.
+Visible opaque backgrounds remain opaque. Source layers retain their visibility.
 Copy rendering uses the same worker and delayed processing overlay as Merge Down;
 preparation and resource duplication finish before undo and document mutation.
 
@@ -141,6 +143,8 @@ read-only part appearances and group references. API version remains 1.
 
 Tests in `tests/ui/layer_merge_tests.cpp` cover the three-option combination,
 colors/strokes, holes/inversion, paint placement, ordering barriers, processing,
-transforms, PSD reopening, dialog cancellation, history and scripting. The
+transforms, PSD reopening, dialog cancellation, history and scripting. Bitmap-copy
+tests cover transparent and opaque backgrounds, masks, group opacity, an entirely
+transparent canvas, unchanged sources and Undo/Redo. The
 optional ignored Little-Everywhere fixture verifies one vector child per folder,
 normal and zoomed images, output counts, and large Shift-selection timing.

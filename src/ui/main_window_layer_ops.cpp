@@ -45,7 +45,6 @@
 #include "psd/psd_smart_objects.hpp"
 #include "ui/action_icons.hpp"
 #include "ui/app_settings.hpp"
-#include "render/compositor.hpp"
 #include "ui/blend_mode_ui.hpp"
 #include "ui/brush_dynamics_popup.hpp"
 #include "ui/brush_presets.hpp"
@@ -3118,8 +3117,8 @@ void MainWindow::merge_visible_to_new_layer() {
       }
       prepared.add_layer(std::move(*copy));
     } else {
-      // Bitmap-only copies retain the existing opaque snapshot behavior.
-      auto future = launch_async([source] { return Compositor{}.flatten_rgb8(source); });
+      // Keep canvas transparency and partial coverage in the copied pixels.
+      auto future = launch_async([source] { return pixels_from_image_rgba(qimage_from_document(source, true)); });
       if (target) {
         target->wait_for_processing_operation([&future] {
           return future.wait_for(std::chrono::milliseconds(16)) == std::future_status::ready;
