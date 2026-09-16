@@ -296,9 +296,10 @@ void MainWindow::populate_new_adjustment_layer_menu(QMenu* menu, const QString& 
     return;
   }
 
-  const auto add_adjustment = [this, menu, &object_name_prefix](const QString& label, const QString& object_key,
+  const auto add_adjustment = [this, menu, &object_name_prefix](const char* source, const QString& object_key,
                                                                const QString& icon_label, auto callback) {
-    auto* action = menu->addAction(simple_icon(icon_label), label);
+    auto* action = menu->addAction(simple_icon(icon_label), tr(source));
+    bind_action_text(action, source);
     if (!object_name_prefix.isEmpty()) {
       action->setObjectName(object_name_prefix + object_key + QStringLiteral("Action"));
       register_document_action(action);
@@ -308,22 +309,22 @@ void MainWindow::populate_new_adjustment_layer_menu(QMenu* menu, const QString& 
   };
   // Photoshop's New Adjustment Layer ordering puts Brightness/Contrast first.
   // No mnemonic: B and C are taken by Color Balance and Curves.
-  add_adjustment(tr("Brightness/Contrast..."), QStringLiteral("BrightnessContrastAdjustment"),
+  add_adjustment(QT_TR_NOOP("Brightness/Contrast..."), QStringLiteral("BrightnessContrastAdjustment"),
                  QStringLiteral("BC"), [this] { new_brightness_contrast_adjustment_layer(); });
-  add_adjustment(tr("&Levels..."), QStringLiteral("LevelsAdjustment"), QStringLiteral("LVL"),
+  add_adjustment(QT_TR_NOOP("&Levels..."), QStringLiteral("LevelsAdjustment"), QStringLiteral("LVL"),
                  [this] { new_levels_adjustment_layer(); });
-  add_adjustment(tr("&Curves..."), QStringLiteral("CurvesAdjustment"), QStringLiteral("CRV"),
+  add_adjustment(QT_TR_NOOP("&Curves..."), QStringLiteral("CurvesAdjustment"), QStringLiteral("CRV"),
                  [this] { new_curves_adjustment_layer(); });
-  add_adjustment(tr("&Hue/Saturation..."), QStringLiteral("HueSaturationAdjustment"), QStringLiteral("HSL"),
+  add_adjustment(QT_TR_NOOP("&Hue/Saturation..."), QStringLiteral("HueSaturationAdjustment"), QStringLiteral("HSL"),
                  [this] { new_hue_saturation_adjustment_layer(); });
-  add_adjustment(tr("Color &Balance..."), QStringLiteral("ColorBalanceAdjustment"), QStringLiteral("CB"),
+  add_adjustment(QT_TR_NOOP("Color &Balance..."), QStringLiteral("ColorBalanceAdjustment"), QStringLiteral("CB"),
                  [this] { new_color_balance_adjustment_layer(); });
   // No ellipsis: Invert has no settings, so no dialog opens.
-  add_adjustment(tr("&Invert"), QStringLiteral("InvertAdjustment"), QStringLiteral("INV"),
+  add_adjustment(QT_TR_NOOP("&Invert"), QStringLiteral("InvertAdjustment"), QStringLiteral("INV"),
                  [this] { new_invert_adjustment_layer(); });
-  add_adjustment(tr("&Posterize..."), QStringLiteral("PosterizeAdjustment"), QStringLiteral("PST"),
+  add_adjustment(QT_TR_NOOP("&Posterize..."), QStringLiteral("PosterizeAdjustment"), QStringLiteral("PST"),
                  [this] { new_posterize_adjustment_layer(); });
-  add_adjustment(tr("&Threshold..."), QStringLiteral("ThresholdAdjustment"), QStringLiteral("THR"),
+  add_adjustment(QT_TR_NOOP("&Threshold..."), QStringLiteral("ThresholdAdjustment"), QStringLiteral("THR"),
                  [this] { new_threshold_adjustment_layer(); });
 }
 

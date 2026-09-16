@@ -990,9 +990,10 @@ void MainWindow::populate_new_fill_layer_menu(QMenu* menu, const QString& object
   if (menu == nullptr) {
     return;
   }
-  const auto add_fill = [this, menu, &object_name_prefix](const QString& label,
+  const auto add_fill = [this, menu, &object_name_prefix](const char* source,
                                                           const QString& object_key, auto callback) {
-    auto* action = menu->addAction(label);
+    auto* action = menu->addAction(tr(source));
+    bind_action_text(action, source);
     if (!object_name_prefix.isEmpty()) {
       action->setObjectName(object_name_prefix + object_key + QStringLiteral("Action"));
       register_document_action(action);
@@ -1000,11 +1001,11 @@ void MainWindow::populate_new_fill_layer_menu(QMenu* menu, const QString& object
     connect(action, &QAction::triggered, this, callback);
     return action;
   };
-  add_fill(tr("&Solid Color..."), QStringLiteral("SolidColorFill"),
+  add_fill(QT_TR_NOOP("&Solid Color..."), QStringLiteral("SolidColorFill"),
            [this] { new_solid_color_fill_layer(); });
-  add_fill(tr("&Gradient..."), QStringLiteral("GradientFill"),
+  add_fill(QT_TR_NOOP("&Gradient..."), QStringLiteral("GradientFill"),
            [this] { new_gradient_fill_layer(); });
-  add_fill(tr("&Pattern..."), QStringLiteral("PatternFill"),
+  add_fill(QT_TR_NOOP("&Pattern..."), QStringLiteral("PatternFill"),
            [this] { new_pattern_fill_layer(); });
 }
 
@@ -1131,10 +1132,11 @@ void MainWindow::populate_vector_mask_menu(QMenu* menu, const QString& object_na
   if (menu == nullptr) {
     return;
   }
-  const auto add_command = [this, menu, &object_name_prefix](const QString& label,
+  const auto add_command = [this, menu, &object_name_prefix](const char* source,
                                                              const QString& object_key,
                                                              auto callback) {
-    auto* action = menu->addAction(label);
+    auto* action = menu->addAction(tr(source));
+    bind_action_text(action, source);
     if (!object_name_prefix.isEmpty()) {
       action->setObjectName(object_name_prefix + object_key + QStringLiteral("Action"));
       register_document_action(action);
@@ -1142,21 +1144,21 @@ void MainWindow::populate_vector_mask_menu(QMenu* menu, const QString& object_na
     connect(action, &QAction::triggered, this, callback);
     return action;
   };
-  add_command(tr("&Reveal All"), QStringLiteral("VectorMaskRevealAll"),
+  add_command(QT_TR_NOOP("&Reveal All"), QStringLiteral("VectorMaskRevealAll"),
               [this] { add_vector_mask(false, false); });
-  add_command(tr("&Hide All"), QStringLiteral("VectorMaskHideAll"),
+  add_command(QT_TR_NOOP("&Hide All"), QStringLiteral("VectorMaskHideAll"),
               [this] { add_vector_mask(true, false); });
-  add_command(tr("&Current Path"), QStringLiteral("VectorMaskCurrentPath"),
+  add_command(QT_TR_NOOP("&Current Path"), QStringLiteral("VectorMaskCurrentPath"),
               [this] { add_vector_mask(false, true); });
   menu->addSeparator();
-  add_command(tr("&Delete Vector Mask"), QStringLiteral("VectorMaskDelete"),
+  add_command(QT_TR_NOOP("&Delete Vector Mask"), QStringLiteral("VectorMaskDelete"),
               [this] { delete_active_vector_mask(); });
-  add_command(tr("D&isable Vector Mask"), QStringLiteral("VectorMaskDisable"), [this] {
+  add_command(QT_TR_NOOP("D&isable Vector Mask"), QStringLiteral("VectorMaskDisable"), [this] {
     if (auto* layer = vector_mask_command_layer(true); layer != nullptr) {
       set_active_layer_vector_mask_disabled(!layer->vector_mask()->disabled);
     }
   });
-  add_command(tr("Ras&terize Vector Mask"), QStringLiteral("VectorMaskRasterize"),
+  add_command(QT_TR_NOOP("Ras&terize Vector Mask"), QStringLiteral("VectorMaskRasterize"),
               [this] { rasterize_active_vector_mask(); });
 }
 

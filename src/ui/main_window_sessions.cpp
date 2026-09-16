@@ -387,6 +387,11 @@ void MainWindow::add_document_session(Document document, QString title, QString 
   {
     const QSignalBlocker blocker(document_tabs_);
     const auto tab_index = document_tabs_->addTab(canvas, tab_title);
+    for (const auto side : {QTabBar::LeftSide, QTabBar::RightSide}) {
+      if (auto* button = document_tabs_->tabBar()->tabButton(tab_index, side)) {
+        bind_tooltip(button, QT_TR_NOOP("Close Tab"));
+      }
+    }
     document_tabs_->setCurrentIndex(tab_index);
   }
   // Publish only after insertion: QStackedWidget may send FocusIn even with

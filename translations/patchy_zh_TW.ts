@@ -11941,10 +11941,6 @@ RGB：%2, %3, %4</translation>
         <translation>背景色</translation>
     </message>
     <message>
-        <source>Edit in Quick Mask Mode (Q)</source>
-        <translation>以快速遮色片模式編輯 (Q)</translation>
-    </message>
-    <message>
         <source>Brightness/Contrast...</source>
         <translation>亮度/對比...</translation>
     </message>
@@ -16552,6 +16548,10 @@ Y：%2
     <message>
         <source>Paste in Place</source>
         <translation>原地貼上</translation>
+    </message>
+    <message>
+        <source>Close Tab</source>
+        <translation>關閉分頁</translation>
     </message>
 </context>
 <context>

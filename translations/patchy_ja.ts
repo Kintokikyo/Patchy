@@ -14280,10 +14280,6 @@ Clipped to the layer below</source>
         <translation>クイックマスクモードで編集(&amp;Q)</translation>
     </message>
     <message>
-        <source>Edit in Quick Mask Mode (Q)</source>
-        <translation>クイックマスクモードで編集 (Q)</translation>
-    </message>
-    <message>
         <source>Filters are unavailable in Quick Mask mode</source>
         <translation>フィルターはクイックマスクモードでは使用できません</translation>
     </message>
@@ -16552,6 +16548,10 @@ Clipped to the layer below</source>
     <message>
         <source>Paste in Place</source>
         <translation>同じ位置にペースト</translation>
+    </message>
+    <message>
+        <source>Close Tab</source>
+        <translation>タブを閉じる</translation>
     </message>
 </context>
 <context>

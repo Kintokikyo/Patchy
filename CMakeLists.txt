@@ -535,6 +535,8 @@ if(PATCHY_BUILD_APP)
     qt_standard_project_setup()
     set(CMAKE_AUTORCC ON)
     set(PATCHY_TRANSLATION_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/translations")
+    # Interpreter-only lookup selects a host tool even when cross-compiling wasm.
+    find_package(Python3 3.8 REQUIRED COMPONENTS Interpreter)
     # Every shipped UI language except the English source. Mirrors the table in
     # src/ui/localization.cpp; docs/localization.md describes adding one.
     set(PATCHY_TRANSLATED_LANGUAGES de es fr it ja zh_CN zh_TW)
@@ -597,6 +599,16 @@ languages=${PATCHY_TRANSLATED_LANGUAGES}
 ${PATCHY_LUPDATE_MANIFEST_SOURCES}
 ")
     file(WRITE "${PATCHY_TRANSLATION_OUTPUT_DIR}/languages.txt" "${PATCHY_LANGUAGE_LINES}\n")
+    add_custom_target(patchy_check_translation_catalogs
+      COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/check-translations.py"
+              --manifest "${PATCHY_LUPDATE_MANIFEST}"
+      COMMENT "Checking translation source freshness and every language catalog"
+      VERBATIM
+    )
+    # Validate even on an incremental build. Target ordering also prevents lrelease
+    # from publishing new .qm files from a catalog the validator rejected.
+    add_dependencies(patchy_lrelease patchy_check_translation_catalogs)
+    add_dependencies(patchy_translations patchy_check_translation_catalogs)
     # Qt's own install variables handle every layout (aqt/official: <prefix>/plugins;
     # distro/Flatpak KDE runtime: multiarch subdirs). Fall back to walking up from
     # Qt6_DIR (<prefix>/lib/cmake/Qt6) for older Qt packages that don't export them.
@@ -1386,6 +1398,37 @@ ${PATCHY_LUPDATE_MANIFEST_SOURCES}
     patchy_copy_qt_runtime(patchy)
     patchy_copy_bundled_fonts(patchy)
     patchy_copy_bundled_scripts(patchy)
+    if(NOT EMSCRIPTEN)
+      # This small runner is a required build tool, independent of PATCHY_BUILD_TESTS.
+      # It shares the actual checks with the UI suite and has private temporary settings.
+      add_executable(patchy_translation_checks
+        tests/ui/translation_check_main.cpp
+        tests/ui/localization_tests.cpp
+        tests/ui/translation_runtime_tests.cpp
+        tests/ui/ui_test_support.cpp
+      )
+      target_include_directories(patchy_translation_checks PRIVATE tests)
+      target_link_libraries(patchy_translation_checks PRIVATE patchy_ui Qt6::Test)
+      target_compile_definitions(patchy_translation_checks PRIVATE
+        PATCHY_SOURCE_DIR="${PROJECT_SOURCE_DIR}"
+        PATCHY_LUPDATE_MANIFEST="${PATCHY_LUPDATE_MANIFEST}"
+        PATCHY_PYTHON_EXECUTABLE="${Python3_EXECUTABLE}")
+      patchy_configure_target(patchy_translation_checks)
+      target_compile_options(patchy_translation_checks PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/bigobj>)
+      patchy_copy_translations(patchy_translation_checks)
+      patchy_copy_qt_runtime(patchy_translation_checks)
+      patchy_copy_bundled_fonts(patchy_translation_checks)
+      patchy_copy_bundled_scripts(patchy_translation_checks)
+      add_custom_target(patchy_check_translation_runtime
+        COMMAND $<TARGET_FILE:patchy_translation_checks>
+        DEPENDS patchy_translation_checks
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        COMMENT "Checking UI translations at startup and after language switches"
+        VERBATIM
+      )
+      add_dependencies(patchy patchy_check_translation_runtime)
+      add_dependencies(patchy-mcp patchy_check_translation_runtime)
+    endif()
     if(WIN32)
       target_sources(patchy PRIVATE src/app/patchy.rc)
     endif()
@@ -1568,6 +1611,9 @@ if(PATCHY_BUILD_TESTS)
   add_test(NAME patchy_core_tests COMMAND patchy_core_tests)
 
   if(PATCHY_BUILD_APP AND Qt6_FOUND)
+    add_test(NAME patchy_translation_validator_tests
+      COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/tests/translation_validator_tests.py"
+              --lupdate $<TARGET_FILE:Qt6::lupdate> --cmake "${CMAKE_COMMAND}")
     # One binary; per-group TUs live in tests/ui/ (tests/ui/ui_test_groups.hpp lists
     # the groups; main() concatenates the group vectors in a fixed order — never
     # static self-registration).
@@ -1580,6 +1626,7 @@ if(PATCHY_BUILD_TESTS)
       tests/ui/readme_screenshot_test_support.cpp
       tests/ui/app_shell_tests.cpp
       tests/ui/localization_tests.cpp
+      tests/ui/translation_runtime_tests.cpp
       tests/ui/font_coverage_tests.cpp
       tests/ui/filter_catalog_dialog_tests.cpp
       tests/ui/layer_style_gradient_tests.cpp
@@ -1662,7 +1709,8 @@ if(PATCHY_BUILD_TESTS)
     target_compile_options(patchy_ui_visual_tests PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/bigobj>)
     target_compile_definitions(patchy_ui_visual_tests PRIVATE
       PATCHY_SOURCE_DIR="${PROJECT_SOURCE_DIR}"
-      PATCHY_LUPDATE_MANIFEST="${PATCHY_LUPDATE_MANIFEST}")
+      PATCHY_LUPDATE_MANIFEST="${PATCHY_LUPDATE_MANIFEST}"
+      PATCHY_PYTHON_EXECUTABLE="${Python3_EXECUTABLE}")
     patchy_copy_translations(patchy_ui_visual_tests)
     patchy_copy_qt_runtime(patchy_ui_visual_tests)
     patchy_copy_bundled_fonts(patchy_ui_visual_tests)

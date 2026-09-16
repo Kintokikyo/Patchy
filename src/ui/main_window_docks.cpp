@@ -369,7 +369,9 @@ void install_collapsible_dock_title(QDockWidget* dock,
   toggle->setChecked(initially_expanded);
   toggle->setText(initially_expanded ? QStringLiteral("v") : QStringLiteral(">"));
   toggle->setFixedSize(18, 18);
-  toggle->setToolTip(initially_expanded ? QObject::tr("Collapse panel") : QObject::tr("Expand panel"));
+  bind_translated_tooltip(toggle, initially_expanded ? QT_TRANSLATE_NOOP("QObject", "Collapse panel")
+                                                   : QT_TRANSLATE_NOOP("QObject", "Expand panel"), "QObject");
+  apply_bound_translation(toggle);
   layout->addWidget(toggle);
 
   auto* label = new QLabel(dock->windowTitle(), title);
@@ -387,7 +389,9 @@ void install_collapsible_dock_title(QDockWidget* dock,
                                      panel_toggled = std::move(panel_toggled)](bool expanded) {
     content->setVisible(expanded);
     toggle->setText(expanded ? QStringLiteral("v") : QStringLiteral(">"));
-    toggle->setToolTip(expanded ? QObject::tr("Collapse panel") : QObject::tr("Expand panel"));
+    bind_translated_tooltip(toggle, expanded ? QT_TRANSLATE_NOOP("QObject", "Collapse panel")
+                                            : QT_TRANSLATE_NOOP("QObject", "Expand panel"), "QObject");
+    apply_bound_translation(toggle);
     // Collapsed docks pin min == max to the exact title-bar height: every
     // collapsed panel renders as the same strip, and the dock area can
     // neither stretch it nor leave a dead band under the header. Expanding
@@ -1300,7 +1304,6 @@ void MainWindow::create_docks() {
   add_blend_mode_items(blend_combo_);
   blend_combo_->setObjectName(QStringLiteral("layerBlendModeCombo"));
   blend_combo_->setSizeAdjustPolicy(QComboBox::AdjustToContents);
-  blend_combo_->setToolTip(tr("Blend mode"));
   bind_tooltip(blend_combo_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Blend mode"));
   blend_opacity_row->addWidget(blend_combo_);
   connect(blend_combo_, &QComboBox::currentIndexChanged, this, [this](int index) { set_active_layer_blend(index); });
@@ -1395,7 +1398,7 @@ void MainWindow::create_docks() {
   lock_all_button_->setToolButtonStyle(Qt::ToolButtonIconOnly);
   lock_all_button_->setIcon(simple_icon(QStringLiteral("lock")));
   lock_all_button_->setIconSize(QSize(15, 15));
-  lock_all_button_->setToolTip(tr("Lock all"));
+  bind_tooltip(lock_all_button_, QT_TR_NOOP("Lock all"));
   lock_all_button_->setFixedSize(24, 24);
   connect(lock_all_button_, &QToolButton::toggled, this, [this](bool checked) { set_active_layer_lock_all(checked); });
   register_document_widget(lock_all_button_);
@@ -1441,13 +1444,13 @@ void MainWindow::create_docks() {
   rename_button->setIcon(simple_icon(QStringLiteral("RN")));
   animation_button->setIcon(simple_icon(QStringLiteral("film")));
   delete_button->setIcon(simple_icon(QStringLiteral("trash")));
-  add_button->setToolTip(tr("New Layer"));
-  add_folder_button->setToolTip(tr("New Folder"));
-  adjustment_button->setToolTip(tr("New Adjustment Layer"));
-  duplicate_button->setToolTip(tr("Duplicate Layer"));
-  rename_button->setToolTip(tr("Rename Layer"));
-  animation_button->setToolTip(tr("Animation Preview"));
-  delete_button->setToolTip(tr("Delete Layer"));
+  bind_tooltip(add_button, QT_TR_NOOP("New Layer"));
+  bind_tooltip(add_folder_button, QT_TR_NOOP("New Folder"));
+  bind_tooltip(adjustment_button, QT_TR_NOOP("New Adjustment Layer"));
+  bind_tooltip(duplicate_button, QT_TR_NOOP("Duplicate Layer"));
+  bind_tooltip(rename_button, QT_TR_NOOP("Rename Layer"));
+  bind_tooltip(animation_button, QT_TR_NOOP("Animation Preview"));
+  bind_tooltip(delete_button, QT_TR_NOOP("Delete Layer"));
   for (auto* button :
        {add_button, add_folder_button, duplicate_button, rename_button, animation_button, delete_button}) {
     button->setProperty("layerActionButton", true);

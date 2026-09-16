@@ -11964,10 +11964,6 @@ RGB: %2, %3, %4</translation>
         <translation>Hintergrundfarbe</translation>
     </message>
     <message>
-        <source>Edit in Quick Mask Mode (Q)</source>
-        <translation>Im Maskierungsmodus bearbeiten (Q)</translation>
-    </message>
-    <message>
         <source>Brightness/Contrast...</source>
         <translation>Helligkeit/Kontrast...</translation>
     </message>
@@ -16590,6 +16586,10 @@ Y: %2
     <message>
         <source>Paste in Place</source>
         <translation>An Originalposition einfügen</translation>
+    </message>
+    <message>
+        <source>Close Tab</source>
+        <translation>Tab schließen</translation>
     </message>
 </context>
 <context>

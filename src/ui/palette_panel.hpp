@@ -79,6 +79,9 @@ signals:
   void extract_from_image_requested();
   void convert_requested();
 
+protected:
+  void changeEvent(QEvent* event) override;
+
 private:
   void show_grid_context_menu(const QPoint& grid_position);
   void update_selection_readout();

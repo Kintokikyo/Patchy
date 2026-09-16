@@ -313,38 +313,47 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   recent_folders_menu_->setProperty(kRecentFoldersMenuProperty, true);
   connect(file_menu, &QMenu::aboutToShow, this, &MainWindow::refresh_recent_history);
   auto* import_menu = file_menu->addMenu(tr("I&mport"));
+  bind_widget_text(import_menu, QT_TR_NOOP("I&mport"));
   import_menu->setObjectName(QStringLiteral("fileImportMenu"));
 #if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
 #ifdef Q_OS_MACOS
   auto* import_scanner_action = import_menu->addAction(tr("From &Scanner..."));
+  bind_action_text(import_scanner_action, QT_TR_NOOP("From &Scanner..."));
 #else
   auto* import_scanner_action = import_menu->addAction(tr("From &Scanner or Camera..."));
+  bind_action_text(import_scanner_action, QT_TR_NOOP("From &Scanner or Camera..."));
 #endif
   import_scanner_action->setObjectName(QStringLiteral("fileImportScannerAction"));
   register_hotkey(import_scanner_action, "file.import_scanner");
   connect(import_scanner_action, &QAction::triggered, this, [this] { import_from_scanner(); });
 #ifdef Q_OS_MACOS
   auto* photocopy_action = import_menu->addAction(tr("&Photocopy (Scanner to Printer)..."));
+  bind_action_text(photocopy_action, QT_TR_NOOP("&Photocopy (Scanner to Printer)..."));
 #else
   auto* photocopy_action = import_menu->addAction(tr("&Photocopy (Scanner or Camera to Printer)..."));
+  bind_action_text(photocopy_action, QT_TR_NOOP("&Photocopy (Scanner or Camera to Printer)..."));
 #endif
   photocopy_action->setObjectName(QStringLiteral("fileImportPhotocopyAction"));
   register_hotkey(photocopy_action, "file.import_photocopy");
   connect(photocopy_action, &QAction::triggered, this, [this] { photocopy_from_scanner(); });
   auto* divide_scan_action = import_menu->addAction(tr("Scan and &Divide Photos..."));
+  bind_action_text(divide_scan_action, QT_TR_NOOP("Scan and &Divide Photos..."));
   divide_scan_action->setObjectName(QStringLiteral("fileImportDivideScannedAction"));
   register_hotkey(divide_scan_action, "file.import_divide_photos");
   connect(divide_scan_action, &QAction::triggered, this, [this] { import_and_divide_from_scanner(); });
 #endif
   auto* import_sprite_sheet_action = import_menu->addAction(tr("Sprite Sheet to &Layers..."));
+  bind_action_text(import_sprite_sheet_action, QT_TR_NOOP("Sprite Sheet to &Layers..."));
   import_sprite_sheet_action->setObjectName(QStringLiteral("fileImportSpriteSheetAction"));
   register_hotkey(import_sprite_sheet_action, "file.import_sprite_sheet");
   connect(import_sprite_sheet_action, &QAction::triggered, this, [this] { import_sprite_sheet(); });
   auto* import_image_sequence_action = import_menu->addAction(tr("&Image Sequence to Layers..."));
+  bind_action_text(import_image_sequence_action, QT_TR_NOOP("&Image Sequence to Layers..."));
   import_image_sequence_action->setObjectName(QStringLiteral("fileImportImageSequenceAction"));
   register_hotkey(import_image_sequence_action, "file.import_image_sequence");
   connect(import_image_sequence_action, &QAction::triggered, this, [this] { import_image_sequence(); });
   auto* place_embedded_action = file_menu->addAction(tr("Place &Embedded..."));
+  bind_action_text(place_embedded_action, QT_TR_NOOP("Place &Embedded..."));
   place_embedded_action->setObjectName(QStringLiteral("filePlaceEmbeddedAction"));
   register_hotkey(place_embedded_action, "file.place_embedded");
   connect(place_embedded_action, &QAction::triggered, this, [this] { place_embedded_file(); });
@@ -353,11 +362,13 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   auto* save_as_action = file_menu->addAction(tr("Save &As..."));
   auto* export_flat_action = file_menu->addAction(tr("Export &Flat Image..."));
   auto* export_sprite_sheet_action = file_menu->addAction(tr("Export Layers as Sprite S&heet..."));
+  bind_action_text(export_sprite_sheet_action, QT_TR_NOOP("Export Layers as Sprite S&heet..."));
   export_sprite_sheet_action->setObjectName(QStringLiteral("fileExportSpriteSheetAction"));
   register_hotkey(export_sprite_sheet_action, "file.export_sprite_sheet");
   connect(export_sprite_sheet_action, &QAction::triggered, this, [this] { export_sprite_sheet(); });
   register_document_action(export_sprite_sheet_action);
   auto* export_image_sequence_action = file_menu->addAction(tr("Export Layers as Image Se&quence..."));
+  bind_action_text(export_image_sequence_action, QT_TR_NOOP("Export Layers as Image Se&quence..."));
   export_image_sequence_action->setObjectName(QStringLiteral("fileExportImageSequenceAction"));
   register_hotkey(export_image_sequence_action, "file.export_image_sequence");
   connect(export_image_sequence_action, &QAction::triggered, this, [this] { export_image_sequence(); });
@@ -365,6 +376,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   // Stays visible on wasm, unlike the sequence export below: an animation is one file,
   // so the browser handoff is a single download.
   auto* export_animated_gif_action = file_menu->addAction(tr("Export Layers as Animated &GIF..."));
+  bind_action_text(export_animated_gif_action, QT_TR_NOOP("Export Layers as Animated &GIF..."));
   export_animated_gif_action->setObjectName(QStringLiteral("fileExportAnimatedGifAction"));
   register_hotkey(export_animated_gif_action, "file.export_animated_gif");
   connect(export_animated_gif_action, &QAction::triggered, this, [this] { export_animated_gif(); });
@@ -487,6 +499,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   bind_action_text(paste_in_place_action, QT_TR_NOOP("Paste in Place"));
   auto* transform_action = edit_menu->addAction(tr("Free &Transform..."));
   auto* warp_transform_action = edit_menu->addAction(tr("Warp Transform"));
+  bind_action_text(warp_transform_action, QT_TR_NOOP("Warp Transform"));
   cut_action->setObjectName(QStringLiteral("editCutAction"));
   copy_action->setObjectName(QStringLiteral("editCopyAction"));
   copy_merged_action->setObjectName(QStringLiteral("editCopyMergedAction"));
@@ -553,6 +566,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   connect(define_brush_tip_action, &QAction::triggered, this, [this] { define_brush_tip_from_selection(); });
   register_document_action(define_brush_tip_action);
   auto* define_custom_shape_action = edit_menu->addAction(tr("Define Custom Shape from Path"));
+  bind_action_text(define_custom_shape_action, QT_TR_NOOP("Define Custom Shape from Path"));
   define_custom_shape_action->setObjectName(QStringLiteral("editDefineCustomShapeAction"));
   register_hotkey(define_custom_shape_action, "edit.define_custom_shape");
   connect(define_custom_shape_action, &QAction::triggered, this,
@@ -561,6 +575,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   // Needs no document (the shape lands in the application library), so it is
   // deliberately not a document action - the Photoshop Shapes-panel import.
   auto* define_custom_shape_svg_action = edit_menu->addAction(tr("Define Custom Shape from SVG File"));
+  bind_action_text(define_custom_shape_svg_action, QT_TR_NOOP("Define Custom Shape from SVG File"));
   define_custom_shape_svg_action->setObjectName(QStringLiteral("editDefineCustomShapeFromSvgAction"));
   register_hotkey(define_custom_shape_svg_action, "edit.define_custom_shape_svg");
   connect(define_custom_shape_svg_action, &QAction::triggered, this,
@@ -713,6 +728,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   apply_layer_mask_action_ = layer_mask_menu->addAction(tr("&Apply Layer Mask"));
   delete_layer_mask_action_ = layer_mask_menu->addAction(tr("&Delete Layer Mask"));
   layer_clipping_mask_action_ = layer_menu->addAction(tr("Create Clipping Mask"));
+  bind_action_text(layer_clipping_mask_action_, QT_TR_NOOP("Create Clipping Mask"));
   auto* vector_mask_menu = layer_menu->addMenu(tr("&Vector Mask"));
   vector_mask_menu->setObjectName(QStringLiteral("layerVectorMaskMenu"));
   populate_vector_mask_menu(vector_mask_menu, QStringLiteral("layer"));
@@ -725,16 +741,25 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   layer_rasterize_action_ = new QAction(tr("Rasterize"), this);
   layer_rasterize_layer_style_action_ = new QAction(tr("Rasterize (including layer style)"), this);
   layer_convert_smart_object_action_ = new QAction(tr("Convert to Smart Object"), this);
+  bind_action_text(layer_convert_smart_object_action_, QT_TR_NOOP("Convert to Smart Object"));
   layer_smart_object_edit_action_ = new QAction(tr("Edit Smart Object Contents"), this);
+  bind_action_text(layer_smart_object_edit_action_, QT_TR_NOOP("Edit Smart Object Contents"));
   layer_smart_object_replace_action_ = new QAction(tr("Replace Smart Object Contents..."), this);
+  bind_action_text(layer_smart_object_replace_action_, QT_TR_NOOP("Replace Smart Object Contents..."));
   layer_smart_object_export_action_ = new QAction(tr("Export Smart Object Contents..."), this);
+  bind_action_text(layer_smart_object_export_action_, QT_TR_NOOP("Export Smart Object Contents..."));
   layer_smart_object_via_copy_action_ = new QAction(tr("New Smart Object via Copy"), this);
+  bind_action_text(layer_smart_object_via_copy_action_, QT_TR_NOOP("New Smart Object via Copy"));
   layer_smart_object_update_action_ = new QAction(tr("Update Smart Object Content"), this);
+  bind_action_text(layer_smart_object_update_action_, QT_TR_NOOP("Update Smart Object Content"));
   layer_smart_object_relink_action_ = new QAction(tr("Relink to File..."), this);
+  bind_action_text(layer_smart_object_relink_action_, QT_TR_NOOP("Relink to File..."));
   layer_smart_object_embed_action_ = new QAction(tr("Embed Linked Smart Object"), this);
+  bind_action_text(layer_smart_object_embed_action_, QT_TR_NOOP("Embed Linked Smart Object"));
   // The same operation as Rasterize, named so people who don't know the term can
   // still find "make this a plain layer again" where they look for it.
   layer_smart_object_to_normal_action_ = new QAction(tr("Convert to Normal Layer (Rasterize)"), this);
+  bind_action_text(layer_smart_object_to_normal_action_, QT_TR_NOOP("Convert to Normal Layer (Rasterize)"));
   auto* layer_smart_objects_menu = layer_menu->addMenu(tr("Smart Objects"));
   layer_smart_objects_menu->setObjectName(QStringLiteral("layerSmartObjectsMenu"));
   layer_smart_objects_menu->addAction(layer_convert_smart_object_action_);
@@ -1008,12 +1033,14 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   image_mode_menu->setObjectName(QStringLiteral("imageModeMenu"));
   bind_action_text(image_mode_menu->menuAction(), QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "&Mode"));
   image_mode_rgb_action_ = image_mode_menu->addAction(tr("&RGB Color"));
+  bind_action_text(image_mode_rgb_action_, QT_TR_NOOP("&RGB Color"));
   image_mode_rgb_action_->setObjectName(QStringLiteral("imageModeRgbAction"));
   image_mode_rgb_action_->setCheckable(true);
   image_mode_rgb_action_->setChecked(true);
   register_hotkey(image_mode_rgb_action_, "image.mode_rgb");
   connect(image_mode_rgb_action_, &QAction::triggered, this, [this] { convert_document_to_rgb(); });
   image_mode_indexed_action_ = image_mode_menu->addAction(tr("&Indexed (Palette)..."));
+  bind_action_text(image_mode_indexed_action_, QT_TR_NOOP("&Indexed (Palette)..."));
   image_mode_indexed_action_->setObjectName(QStringLiteral("imageModeIndexedAction"));
   image_mode_indexed_action_->setCheckable(true);
   register_hotkey(image_mode_indexed_action_, "image.mode_indexed");
@@ -1023,10 +1050,12 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   image_mode_group->addAction(image_mode_rgb_action_);
   image_mode_group->addAction(image_mode_indexed_action_);
   snap_layer_to_palette_action_ = image_menu->addAction(tr("Snap &Layer to Palette"));
+  bind_action_text(snap_layer_to_palette_action_, QT_TR_NOOP("Snap &Layer to Palette"));
   snap_layer_to_palette_action_->setObjectName(QStringLiteral("imageSnapLayerToPaletteAction"));
   register_hotkey(snap_layer_to_palette_action_, "image.snap_layer_to_palette");
   connect(snap_layer_to_palette_action_, &QAction::triggered, this, [this] { snap_layers_to_palette(true); });
   snap_image_to_palette_action_ = image_menu->addAction(tr("Snap Image to &Palette"));
+  bind_action_text(snap_image_to_palette_action_, QT_TR_NOOP("Snap Image to &Palette"));
   snap_image_to_palette_action_->setObjectName(QStringLiteral("imageSnapImageToPaletteAction"));
   register_hotkey(snap_image_to_palette_action_, "image.snap_image_to_palette");
   connect(snap_image_to_palette_action_, &QAction::triggered, this, [this] { snap_layers_to_palette(false); });
@@ -1038,10 +1067,12 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
 
   auto* adjustments_menu = image_menu->addMenu(tr("&Adjustments"));
   adjustments_menu->setObjectName(QStringLiteral("imageAdjustmentsMenu"));
-  const auto add_adjustment_action = [this, adjustments_menu](const QString& label, const QString& object_name,
+  const auto add_adjustment_action = [this, adjustments_menu](const char* source, const QString& object_name,
                                                               const QString& identifier,
                                                               const QKeySequence& shortcut = {}) {
-    auto* action = adjustments_menu->addAction(label);
+    auto* action = adjustments_menu->addAction(tr(source));
+    bind_action_text(action, source);
+    const auto label = action->text();
     action->setObjectName(object_name);
     action->setIcon(simple_icon(label.left(3).toUpper()));
     register_hotkey(action, identifier, shortcut);
@@ -1049,7 +1080,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
     register_document_action(action);
     return action;
   };
-  add_adjustment_action(tr("&Invert"), QStringLiteral("imageAdjustInvertAction"),
+  add_adjustment_action(QT_TR_NOOP("&Invert"), QStringLiteral("imageAdjustInvertAction"),
                         QStringLiteral("patchy.filters.invert"), QKeySequence(Qt::CTRL | Qt::Key_I));
   auto* levels_action = adjustments_menu->addAction(tr("&Levels..."));
   levels_action->setObjectName(QStringLiteral("imageAdjustLevelsAction"));
@@ -1075,30 +1106,31 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   register_hotkey(color_balance_action, "image.color_balance", QKeySequence(Qt::CTRL | Qt::Key_B));
   connect(color_balance_action, &QAction::triggered, this, [this] { color_balance_dialog(); });
   register_document_action(color_balance_action);
-  add_adjustment_action(tr("&Desaturate"), QStringLiteral("imageAdjustDesaturateAction"),
+  add_adjustment_action(QT_TR_NOOP("&Desaturate"), QStringLiteral("imageAdjustDesaturateAction"),
                         QStringLiteral("patchy.filters.desaturate"),
                         QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_U));
-  add_adjustment_action(tr("&Auto Tone"), QStringLiteral("imageAdjustAutoToneAction"),
+  add_adjustment_action(QT_TR_NOOP("&Auto Tone"), QStringLiteral("imageAdjustAutoToneAction"),
                         QStringLiteral("patchy.filters.auto_tone"),
                         QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_L));
-  add_adjustment_action(tr("Auto &Contrast"), QStringLiteral("imageAdjustAutoContrastAction"),
+  add_adjustment_action(QT_TR_NOOP("Auto &Contrast"), QStringLiteral("imageAdjustAutoContrastAction"),
                         QStringLiteral("patchy.filters.auto_contrast"),
                         QKeySequence(Qt::CTRL | Qt::ALT | Qt::SHIFT | Qt::Key_L));
-  add_adjustment_action(tr("Auto Colo&r"), QStringLiteral("imageAdjustAutoColorAction"),
+  add_adjustment_action(QT_TR_NOOP("Auto Colo&r"), QStringLiteral("imageAdjustAutoColorAction"),
                         QStringLiteral("patchy.filters.auto_color"),
                         QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_B));
   auto* auto_all_action = adjustments_menu->addAction(tr("A&uto All"));
+  bind_action_text(auto_all_action, QT_TR_NOOP("A&uto All"));
   auto_all_action->setObjectName(QStringLiteral("imageAdjustAutoAllAction"));
   auto_all_action->setIcon(simple_icon(QStringLiteral("AA")));
   register_hotkey(auto_all_action, "image.auto_all");
   connect(auto_all_action, &QAction::triggered, this, [this] { auto_all_adjustments(); });
   register_document_action(auto_all_action);
   adjustments_menu->addSeparator();
-  add_adjustment_action(tr("&Brightness/Contrast..."), QStringLiteral("imageAdjustBrightnessContrastAction"),
+  add_adjustment_action(QT_TR_NOOP("&Brightness/Contrast..."), QStringLiteral("imageAdjustBrightnessContrastAction"),
                         QStringLiteral("patchy.filters.brightness_contrast"));
-  add_adjustment_action(tr("&Threshold"), QStringLiteral("imageAdjustThresholdAction"),
+  add_adjustment_action(QT_TR_NOOP("&Threshold"), QStringLiteral("imageAdjustThresholdAction"),
                         QStringLiteral("patchy.filters.threshold"));
-  add_adjustment_action(tr("&Posterize"), QStringLiteral("imageAdjustPosterizeAction"),
+  add_adjustment_action(QT_TR_NOOP("&Posterize"), QStringLiteral("imageAdjustPosterizeAction"),
                         QStringLiteral("patchy.filters.posterize"));
   image_menu->addSeparator();
 
@@ -1117,9 +1149,12 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   rotate_cw_action->setObjectName(QStringLiteral("imageRotateClockwiseAction"));
   rotate_ccw_action->setObjectName(QStringLiteral("imageRotateCounterclockwiseAction"));
   rotate_arbitrary_action->setObjectName(QStringLiteral("imageRotateArbitraryAction"));
-  rotate_cw_action->setStatusTip(tr("Rotate the canvas 90 degrees clockwise"));
-  rotate_ccw_action->setStatusTip(tr("Rotate the canvas 90 degrees counterclockwise"));
-  rotate_arbitrary_action->setStatusTip(tr("Rotate the canvas by any angle, enlarging it to fit"));
+  bind_translated_status_tip(rotate_cw_action, QT_TR_NOOP("Rotate the canvas 90 degrees clockwise"));
+  apply_bound_translation(rotate_cw_action);
+  bind_translated_status_tip(rotate_ccw_action, QT_TR_NOOP("Rotate the canvas 90 degrees counterclockwise"));
+  apply_bound_translation(rotate_ccw_action);
+  bind_translated_status_tip(rotate_arbitrary_action, QT_TR_NOOP("Rotate the canvas by any angle, enlarging it to fit"));
+  apply_bound_translation(rotate_arbitrary_action);
   image_size_action->setIcon(simple_icon(QStringLiteral("IS")));
   canvas_size_action->setIcon(simple_icon(QStringLiteral("CS")));
   crop_action->setIcon(simple_icon(QStringLiteral("crop")));
@@ -1136,8 +1171,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   register_hotkey(rotate_arbitrary_action, "image.rotate_arbitrary");
   auto* shift_seams_action = image_menu->addAction(tr("Shift &Seams to Center"));
   shift_seams_action->setObjectName(QStringLiteral("imageShiftSeamsAction"));
-  shift_seams_action->setStatusTip(
-      tr("Wrap the image by half its size so tiling seams land in the middle; press again to shift back"));
+  shift_seams_action->setStatusTip(tr("Wrap the image by half its size so tiling seams land in the middle; press again to shift back"));
   bind_translated_status_tip(
       shift_seams_action,
       "Wrap the image by half its size so tiling seams land in the middle; press again to shift back");
@@ -1150,9 +1184,9 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   connect(rotate_arbitrary_action, &QAction::triggered, this, [this] { rotate_canvas_arbitrary(); });
   connect(shift_seams_action, &QAction::triggered, this, [this] { toggle_tile_seam_offset(); });
   auto* divide_photos_action = image_menu->addAction(tr("Divide Scanned P&hotos..."));
+  bind_action_text(divide_photos_action, QT_TR_NOOP("Divide Scanned P&hotos..."));
   divide_photos_action->setObjectName(QStringLiteral("imageDivideScannedPhotosAction"));
-  divide_photos_action->setStatusTip(
-      tr("Detect the photos in this image and open or save each one as its own image"));
+  divide_photos_action->setStatusTip(tr("Detect the photos in this image and open or save each one as its own image"));
   bind_translated_status_tip(
       divide_photos_action,
       "Detect the photos in this image and open or save each one as its own image");
@@ -1172,8 +1206,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
       "patchy.channelViewBlocked", true);
   filter_convert_smart_filters_action_->setIcon(
       simple_icon(QStringLiteral("SO")));
-  filter_convert_smart_filters_action_->setStatusTip(
-      tr("Convert the active layer to a Smart Object for editable filters"));
+  filter_convert_smart_filters_action_->setStatusTip(tr("Convert the active layer to a Smart Object for editable filters"));
   bind_action_text(filter_convert_smart_filters_action_,
                    QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Convert for Smart Filters"));
   bind_translated_status_tip(
@@ -1205,8 +1238,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   liquify_action->setObjectName(QStringLiteral("filterLiquifyAction"));
   liquify_action->setProperty("patchy.channelViewBlocked", true);
   liquify_action->setIcon(simple_icon(QStringLiteral("LIQ")));
-  liquify_action->setStatusTip(
-      tr("Push, pull, twist, pucker, or bloat pixels with a brush"));
+  liquify_action->setStatusTip(tr("Push, pull, twist, pucker, or bloat pixels with a brush"));
   bind_action_text(liquify_action, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "&Liquify..."));
   bind_translated_status_tip(
       liquify_action,
@@ -1374,8 +1406,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   tiling_mode_action_ = view_menu->addAction(tr("Seamless Tiling in &Window"));
   tiling_mode_action_->setObjectName(QStringLiteral("viewTilingModeAction"));
   tiling_mode_action_->setCheckable(true);
-  tiling_mode_action_->setStatusTip(
-      tr("Repeat the document around itself in the window so tile seams are visible while painting"));
+  tiling_mode_action_->setStatusTip(tr("Repeat the document around itself in the window so tile seams are visible while painting"));
   bind_translated_status_tip(
       tiling_mode_action_,
       "Repeat the document around itself in the window so tile seams are visible while painting");

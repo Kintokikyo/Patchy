@@ -3,6 +3,9 @@
 #include <QStringList>
 #include <QWidget>
 
+#include <functional>
+#include <vector>
+
 class QLabel;
 class QLineEdit;
 class QListWidget;
@@ -41,6 +44,7 @@ class StartPanel final : public QWidget {
 
  protected:
   void showEvent(QShowEvent* event) override;
+  void changeEvent(QEvent* event) override;
 
  private:
   // Rebuilds the visible rows from recent_paths_ through the current filter text.
@@ -50,6 +54,7 @@ class StartPanel final : public QWidget {
 
   // Every existing recent file, filter or no filter; the list widget holds only
   // the rows the filter currently keeps.
+  std::vector<std::function<void()>> retranslation_callbacks_;
   QStringList recent_paths_;
   QLabel* recent_label_{nullptr};
   QLineEdit* recent_filter_edit_{nullptr};

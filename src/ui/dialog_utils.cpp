@@ -189,6 +189,7 @@ protected:
         }
       } else if (event->type() == QEvent::LanguageChange) {
         action_->setText(QObject::tr("Open value slider"));
+        action_->setToolTip(action_->text());
         chevron_->setToolTip(action_->text());
       }
     }

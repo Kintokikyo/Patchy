@@ -38,6 +38,7 @@
 #include <QStringList>
 #include <QTemporaryDir>
 #include <QTextStream>
+#include <QTranslator>
 #include <QXmlStreamReader>
 
 #include <cstdio>
@@ -61,18 +62,6 @@ struct Catalog {
   QString source_language;
   std::vector<CatalogMessage> messages;
 };
-
-QString message_key(const CatalogMessage& message) {
-  return message.context + QLatin1Char('\x1f') + message.source + QLatin1Char('\x1f') + message.comment;
-}
-
-QString describe(const CatalogMessage& message) {
-  auto text = QStringLiteral("[%1] %2").arg(message.context, message.source.left(80));
-  if (!message.comment.isEmpty()) {
-    text += QStringLiteral(" (%1)").arg(message.comment);
-  }
-  return text.replace(QLatin1Char('\n'), QStringLiteral("\\n"));
-}
 
 Catalog read_catalog(const QString& path) {
   QFile file(path);
@@ -189,194 +178,60 @@ void report(const QString& heading, const QStringList& lines) {
   }
 }
 
-// Plural forms Qt expects per shipped language (QTranslator numerus rules).
-int expected_plural_forms(const QString& language) {
-  if (language == QStringLiteral("ja") || language.startsWith(QStringLiteral("zh"))) {
-    return 1;
+void run_catalog_check(const QString& mode) {
+  QProcess process;
+  process.setProcessChannelMode(QProcess::MergedChannels);
+  process.start(QStringLiteral(PATCHY_PYTHON_EXECUTABLE),
+                {QStringLiteral(PATCHY_SOURCE_DIR "/scripts/check-translations.py"),
+                 QStringLiteral("--manifest"), QStringLiteral(PATCHY_LUPDATE_MANIFEST),
+                 QStringLiteral("--check"), mode});
+  CHECK(process.waitForStarted(30000));
+  CHECK(process.waitForFinished(360000));
+  const auto output = process.readAll();
+  if (process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0) {
+    std::fprintf(stderr, "%s", output.constData());
+    CHECK(false);
   }
-  return 2;
-}
-
-QStringList placeholder_problems(const CatalogMessage& message) {
-  QStringList problems;
-  static const QRegularExpression argument_pattern(QStringLiteral("%[1-9]"));
-  // Qt reads "&&" as a literal ampersand and "& " as no accelerator; any other character
-  // after "&" is the accelerator letter, which is often non-ASCII ("&Ö", "&É").
-  static const QRegularExpression accelerator_pattern(QStringLiteral("&[^&\\s]"));
-  QSet<QString> arguments;
-  for (auto it = argument_pattern.globalMatch(message.source); it.hasNext();) {
-    arguments.insert(it.next().captured());
-  }
-  const bool source_has_count = message.source.contains(QStringLiteral("%n"));
-  const auto source_ctrl = message.source.count(QStringLiteral("%CTRL%"));
-  const auto source_alt = message.source.count(QStringLiteral("%ALT%"));
-  const bool source_accelerator = accelerator_pattern.match(message.source).hasMatch();
-  const bool source_ellipsis = message.source.endsWith(QStringLiteral("..."));
-  const bool source_colon = message.source.endsWith(QLatin1Char(':'));
-  bool any_form_has_count = false;
-  for (const auto& translation : message.translations) {
-    for (const auto& argument : arguments) {
-      if (!translation.contains(argument)) {
-        problems << QStringLiteral("missing %1").arg(argument);
-      }
-    }
-    any_form_has_count = any_form_has_count || translation.contains(QStringLiteral("%n"));
-    if (translation.count(QStringLiteral("%CTRL%")) != source_ctrl) {
-      problems << QStringLiteral("%CTRL% token count differs");
-    }
-    if (translation.count(QStringLiteral("%ALT%")) != source_alt) {
-      problems << QStringLiteral("%ALT% token count differs");
-    }
-    if (source_accelerator && !accelerator_pattern.match(translation).hasMatch()) {
-      problems << QStringLiteral("accelerator (&) dropped");
-    }
-    if (source_ellipsis && !(translation.endsWith(QStringLiteral("...")) || translation.endsWith(QStringLiteral("…")))) {
-      problems << QStringLiteral("trailing ellipsis dropped");
-    }
-    if (source_colon && !(translation.endsWith(QLatin1Char(':')) || translation.endsWith(QStringLiteral("：")))) {
-      problems << QStringLiteral("trailing colon dropped");
-    }
-  }
-  if (source_has_count && !any_form_has_count) {
-    problems << QStringLiteral("%n missing from every plural form");
-  }
-  problems.removeDuplicates();
-  return problems;
 }
 
 void ui_translation_template_is_current() {
-  const auto manifest = read_manifest();
-  CHECK(QFileInfo::exists(manifest.lupdate));
-  QTemporaryDir temp;
-  CHECK(temp.isValid());
-  const auto list_path = temp.filePath(QStringLiteral("sources.lst"));
-  {
-    QFile list(list_path);
-    CHECK(list.open(QIODevice::WriteOnly | QIODevice::Text));
-    QTextStream out(&list);
-    for (const auto& source : manifest.sources) {
-      out << source << '\n';
-    }
-  }
-  const auto output = temp.filePath(QStringLiteral("patchy_en.ts"));
-  QStringList arguments = manifest.options;
-  arguments << QStringLiteral("-I") << manifest.include << (QStringLiteral("@") + list_path)
-            << QStringLiteral("-ts") << output;
-  QProcess process;
-  process.setProcessChannelMode(QProcess::MergedChannels);
-  process.start(manifest.lupdate, arguments);
-  CHECK(process.waitForStarted(30000));
-  CHECK(process.waitForFinished(300000));
-  if (process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0) {
-    std::fprintf(stderr, "lupdate failed:\n%s\n", process.readAll().constData());
-    CHECK(false);
-  }
-
-  const auto fresh = read_catalog(output);
-  const auto committed = read_catalog(manifest.template_path);
-  CHECK(committed.language == QStringLiteral("en"));
-  CHECK(committed.source_language == QStringLiteral("en"));
-  CHECK(!fresh.messages.empty());
-
-  QHash<QString, bool> fresh_index;
-  for (const auto& message : fresh.messages) {
-    fresh_index.insert(message_key(message), message.numerus);
-  }
-  QHash<QString, bool> committed_index;
-  for (const auto& message : committed.messages) {
-    committed_index.insert(message_key(message), message.numerus);
-  }
-  QStringList missing;
-  QStringList stale;
-  for (const auto& message : fresh.messages) {
-    const auto it = committed_index.constFind(message_key(message));
-    if (it == committed_index.constEnd()) {
-      missing << describe(message);
-    } else if (*it != message.numerus) {
-      missing << describe(message) + QStringLiteral(" [plural form changed]");
-    }
-  }
-  for (const auto& message : committed.messages) {
-    if (!fresh_index.contains(message_key(message))) {
-      stale << describe(message);
-    }
-  }
-  report(QStringLiteral("Strings in the code but not in translations/patchy_en.ts (run scripts\\update-translations.ps1)"), missing);
-  report(QStringLiteral("Strings in translations/patchy_en.ts that the code no longer uses (run scripts\\update-translations.ps1)"), stale);
-  CHECK(missing.isEmpty());
-  CHECK(stale.isEmpty());
+  run_catalog_check(QStringLiteral("template"));
 }
 
 void ui_translation_catalogs_are_complete() {
-  const auto manifest = read_manifest();
-  const auto template_catalog = read_catalog(manifest.template_path);
-  const auto template_dir = QFileInfo(manifest.template_path).dir();
-  QHash<QString, const CatalogMessage*> template_index;
-  for (const auto& message : template_catalog.messages) {
-    template_index.insert(message_key(message), &message);
-  }
-  const auto runtime_dir = QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("translations"));
+  run_catalog_check(QStringLiteral("catalogs"));
+}
 
+void ui_translation_compiled_catalogs_match_sources() {
+  const auto manifest = read_manifest();
+  QStringList languages;
+  for (const auto& language : patchy::ui::LocalizationManager::instance().languages()) {
+    if (language.code != QStringLiteral("en")) languages << language.code;
+  }
+  CHECK(languages == manifest.languages);
+  const QDir runtime(QCoreApplication::applicationDirPath() + QStringLiteral("/translations"));
+  const auto source = QFileInfo(manifest.template_path).dir();
   QStringList failures;
-  for (const auto& language : manifest.languages) {
-    const auto path = template_dir.filePath(QStringLiteral("patchy_%1.ts").arg(language));
-    if (!QFileInfo::exists(path)) {
-      failures << QStringLiteral("%1: catalog file missing").arg(language);
-      continue;
-    }
-    const auto catalog = read_catalog(path);
-    if (catalog.language != language) {
-      failures << QStringLiteral("%1: TS language attribute is '%2'").arg(language, catalog.language);
-    }
-    if (catalog.source_language != QStringLiteral("en")) {
-      failures << QStringLiteral("%1: TS sourcelanguage attribute is '%2'").arg(language, catalog.source_language);
-    }
-    QSet<QString> seen;
+  for (const auto& language : languages) {
+    QTranslator app_catalog;
+    QTranslator qt_catalog;
+    CHECK(app_catalog.load(runtime.filePath(QStringLiteral("patchy_%1.qm").arg(language))));
+    CHECK(qt_catalog.load(runtime.filePath(QStringLiteral("qtbase_%1.qm").arg(language))));
+    const auto catalog = read_catalog(source.filePath(QStringLiteral("patchy_%1.ts").arg(language)));
     for (const auto& message : catalog.messages) {
-      const auto key = message_key(message);
-      seen.insert(key);
-      const auto prefix = QStringLiteral("%1: %2: ").arg(language, describe(message));
-      if (!template_index.contains(key)) {
-        failures << prefix + QStringLiteral("not in the template (stale; run scripts\\update-translations.ps1)");
-        continue;
-      }
-      if (!message.type.isEmpty()) {
-        failures << prefix + QStringLiteral("translation type is '%1'").arg(message.type);
-        continue;
-      }
-      if (message.translations.isEmpty()) {
-        failures << prefix + QStringLiteral("no translation");
-        continue;
-      }
-      if (message.numerus && message.translations.size() != expected_plural_forms(language)) {
-        failures << prefix + QStringLiteral("%1 plural forms, expected %2")
-                                .arg(message.translations.size())
-                                .arg(expected_plural_forms(language));
-      }
-      for (const auto& translation : message.translations) {
-        if (translation.trimmed().isEmpty()) {
-          failures << prefix + QStringLiteral("empty translation");
+      for (const int count : {0, 1, 2, 5}) {
+        const auto translated = app_catalog.translate(message.context.toUtf8().constData(),
+            message.source.toUtf8().constData(), message.comment.toUtf8().constData(), message.numerus ? count : -1);
+        if (translated.isEmpty() || !message.translations.contains(translated)) {
+          failures << QStringLiteral("%1: [%2] %3: compiled translation missing or stale")
+                          .arg(language, message.context, message.source);
           break;
         }
-      }
-      for (const auto& problem : placeholder_problems(message)) {
-        failures << prefix + problem;
-      }
-    }
-    for (const auto& message : template_catalog.messages) {
-      if (!seen.contains(message_key(message))) {
-        failures << QStringLiteral("%1: %2: missing from the catalog (run scripts\\update-translations.ps1)")
-                        .arg(language, describe(message));
-      }
-    }
-    for (const auto& file : {QStringLiteral("patchy_%1.qm"), QStringLiteral("qtbase_%1.qm")}) {
-      const auto qm = QDir(runtime_dir).filePath(file.arg(language));
-      if (!QFileInfo::exists(qm)) {
-        failures << QStringLiteral("%1: %2 is not built next to the test binary").arg(language, qm);
+        if (!message.numerus) break;
       }
     }
   }
-  report(QStringLiteral("Translation catalog problems"), failures);
+  report(QStringLiteral("Compiled translation problems"), failures);
   CHECK(failures.isEmpty());
 }
 
@@ -460,10 +315,16 @@ void ui_translation_template_covers_runtime_sources() {
 
 }  // namespace
 
+std::vector<patchy::test::TestCase> translation_runtime_tests();
+
 std::vector<patchy::test::TestCase> localization_tests() {
-  return {
+  auto tests = translation_runtime_tests();
+  const std::vector<patchy::test::TestCase> catalogs = {
       {"ui_translation_template_is_current", ui_translation_template_is_current},
       {"ui_translation_catalogs_are_complete", ui_translation_catalogs_are_complete},
+      {"ui_translation_compiled_catalogs_match_sources", ui_translation_compiled_catalogs_match_sources},
       {"ui_translation_template_covers_runtime_sources", ui_translation_template_covers_runtime_sources},
   };
+  tests.insert(tests.end(), catalogs.begin(), catalogs.end());
+  return tests;
 }

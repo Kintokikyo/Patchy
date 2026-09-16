@@ -537,9 +537,10 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   const auto add_option_separator = [this, make_option_separator](std::initializer_list<CanvasTool> tools) {
     register_option_action(make_option_separator(), tools);
   };
-  const auto add_option_action = [this, options_content, options_flow](const QIcon& icon, const QString& text,
+  const auto add_option_action = [this, options_content, options_flow](const QIcon& icon, const char* source,
                                                                        std::initializer_list<CanvasTool> tools) {
-    auto* action = new QAction(icon, text, this);
+    auto* action = new QAction(icon, tr(source), this);
+    bind_action_text(action, source);
     auto* button = new QToolButton(options_content);
     button->setDefaultAction(action);
     button->setToolButtonStyle(Qt::ToolButtonIconOnly);
@@ -564,9 +565,10 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     transform_option_actions_.push_back(widget);
     return widget;
   };
-  const auto add_option_label = [options_content, add_option_widget](const QString& text,
+  const auto add_option_label = [options_content, add_option_widget](const char* source,
                                                                      std::initializer_list<CanvasTool> tools) {
-    auto* label = new QLabel(text, options_content);
+    auto* label = new QLabel(options_content);
+    bind_widget_text(label, source);
     label->setProperty("optionLabel", true);
     label->setAlignment(Qt::AlignVCenter);
     return add_option_widget(label, tools);
@@ -574,7 +576,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
 
   move_auto_select_check_ = new CheckGlyphBox(tr("Auto-Select"), toolbar);
   move_auto_select_check_->setObjectName(QStringLiteral("moveAutoSelectCheck"));
-  move_auto_select_check_->setToolTip(tr("Select layers by clicking artwork or dragging a rectangle from empty space"));
+  bind_tooltip(move_auto_select_check_, QT_TR_NOOP("Select layers by clicking artwork or dragging a rectangle from empty space"));
   move_auto_select_check_->setChecked(canvas_defaults->auto_select_layer());
   add_option_widget(move_auto_select_check_, {CanvasTool::Move});
   connect(move_auto_select_check_, &QCheckBox::toggled, this, [this](bool checked) {
@@ -584,7 +586,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   });
   move_show_transform_controls_check_ = new CheckGlyphBox(tr("Show Transform Controls"), toolbar);
   move_show_transform_controls_check_->setObjectName(QStringLiteral("moveShowTransformControlsCheck"));
-  move_show_transform_controls_check_->setToolTip(tr("Show transform controls when selecting a layer with Move"));
+  bind_tooltip(move_show_transform_controls_check_, QT_TR_NOOP("Show transform controls when selecting a layer with Move"));
   move_show_transform_controls_check_->setChecked(canvas_defaults->show_transform_controls());
   add_option_widget(move_show_transform_controls_check_, {CanvasTool::Move});
   connect(move_show_transform_controls_check_, &QCheckBox::toggled, this, [this](bool checked) {
@@ -595,7 +597,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
 
   transform_reference_combo_ = new QComboBox(toolbar);
   transform_reference_combo_->setObjectName(QStringLiteral("freeTransformReferenceCombo"));
-  transform_reference_combo_->setToolTip(tr("Reference point"));
+  bind_tooltip(transform_reference_combo_, QT_TR_NOOP("Reference point"));
   transform_reference_combo_->setMinimumWidth(96);
   add_transform_option_widget(transform_reference_combo_);
   register_retranslation([this] {
@@ -652,34 +654,34 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   make_transform_label(QT_TR_NOOP("X:"));
   transform_x_spin_ = make_transform_spin(QStringLiteral("freeTransformXSpin"), -30000.0, 30000.0, 2,
                                           QStringLiteral(" px"));
-  transform_x_spin_->setToolTip(tr("Reference X position"));
+  bind_tooltip(transform_x_spin_, QT_TR_NOOP("Reference X position"));
   make_transform_label(QT_TR_NOOP("Y:"));
   transform_y_spin_ = make_transform_spin(QStringLiteral("freeTransformYSpin"), -30000.0, 30000.0, 2,
                                           QStringLiteral(" px"));
-  transform_y_spin_->setToolTip(tr("Reference Y position"));
+  bind_tooltip(transform_y_spin_, QT_TR_NOOP("Reference Y position"));
   make_transform_label(QT_TR_NOOP("W:"));
   transform_scale_x_spin_ = make_transform_spin(QStringLiteral("freeTransformScaleXSpin"), -10000.0, 10000.0, 2,
                                                  QStringLiteral("%"));
-  transform_scale_x_spin_->setToolTip(tr("Horizontal scale"));
+  bind_tooltip(transform_scale_x_spin_, QT_TR_NOOP("Horizontal scale"));
   transform_link_scale_button_ = new QPushButton(toolbar);
   transform_link_scale_button_->setObjectName(QStringLiteral("freeTransformLinkScaleButton"));
   transform_link_scale_button_->setCheckable(true);
   transform_link_scale_button_->setChecked(true);
   transform_link_scale_button_->setIcon(simple_icon(QStringLiteral("link"), QColor(220, 226, 235)));
-  transform_link_scale_button_->setToolTip(tr("Link horizontal and vertical scale"));
+  bind_tooltip(transform_link_scale_button_, QT_TR_NOOP("Link horizontal and vertical scale"));
   transform_link_scale_button_->setFixedWidth(28);
   add_transform_option_widget(transform_link_scale_button_);
   make_transform_label(QT_TR_NOOP("H:"));
   transform_scale_y_spin_ = make_transform_spin(QStringLiteral("freeTransformScaleYSpin"), -10000.0, 10000.0, 2,
                                                  QStringLiteral("%"));
-  transform_scale_y_spin_->setToolTip(tr("Vertical scale"));
+  bind_tooltip(transform_scale_y_spin_, QT_TR_NOOP("Vertical scale"));
   make_transform_label(QT_TR_NOOP("Angle:"));
   transform_rotation_spin_ = make_transform_spin(QStringLiteral("freeTransformRotationSpin"), -3600.0, 3600.0, 2,
                                                  QStringLiteral(" deg"));
-  transform_rotation_spin_->setToolTip(tr("Rotation angle"));
+  bind_tooltip(transform_rotation_spin_, QT_TR_NOOP("Rotation angle"));
   transform_interpolation_combo_ = new QComboBox(toolbar);
   transform_interpolation_combo_->setObjectName(QStringLiteral("freeTransformInterpolationCombo"));
-  transform_interpolation_combo_->setToolTip(tr("Interpolation"));
+  bind_tooltip(transform_interpolation_combo_, QT_TR_NOOP("Interpolation"));
   transform_interpolation_combo_->setMinimumWidth(132);
   add_transform_option_widget(transform_interpolation_combo_);
   register_retranslation([this] {
@@ -748,7 +750,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   }
   warp_style_combo_ = new QComboBox(toolbar);
   warp_style_combo_->setObjectName(QStringLiteral("warpStyleCombo"));
-  warp_style_combo_->setToolTip(tr("Warp style"));
+  bind_tooltip(warp_style_combo_, QT_TR_NOOP("Warp style"));
   warp_style_combo_->setMinimumWidth(110);
   add_warp_option_widget(warp_style_combo_);
   register_retranslation([this] {
@@ -791,7 +793,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   warp_bend_spin_->setKeyboardTracking(false);
   warp_bend_spin_->setSuffix(percent_suffix());
   warp_bend_spin_->setValue(50.0);
-  warp_bend_spin_->setToolTip(tr("Warp bend"));
+  bind_tooltip(warp_bend_spin_, QT_TR_NOOP("Warp bend"));
   configure_dialog_spinbox(warp_bend_spin_, 74);
   add_warp_option_widget(warp_bend_spin_);
   const auto apply_warp_style_from_ui = [this] {
@@ -822,7 +824,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   transform_warp_mode_button_->setObjectName(QStringLiteral("transformWarpModeButton"));
   transform_warp_mode_button_->setCheckable(true);
   transform_warp_mode_button_->setIcon(simple_icon(QStringLiteral("warp")));
-  transform_warp_mode_button_->setToolTip(tr("Switch between free transform and warp"));
+  bind_tooltip(transform_warp_mode_button_, QT_TR_NOOP("Switch between free transform and warp"));
   transform_warp_mode_button_->setFixedWidth(30);
   // Session buttons render their icons at 20px (the QPushButton default of 16px
   // reads tiny on the bar); optionsSessionButton relaxes the QSS side padding so
@@ -833,7 +835,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   transform_apply_button_ = new QPushButton(toolbar);
   transform_apply_button_->setObjectName(QStringLiteral("freeTransformApplyButton"));
   transform_apply_button_->setIcon(simple_icon(QStringLiteral("ok"), QColor(160, 220, 165)));
-  transform_apply_button_->setToolTip(tr("Apply transform"));
+  bind_tooltip(transform_apply_button_, QT_TR_NOOP("Apply transform"));
   transform_apply_button_->setFixedWidth(30);
   transform_apply_button_->setIconSize(QSize(20, 20));
   transform_apply_button_->setProperty("optionsSessionButton", true);
@@ -841,7 +843,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   transform_cancel_button_ = new QPushButton(toolbar);
   transform_cancel_button_->setObjectName(QStringLiteral("freeTransformCancelButton"));
   transform_cancel_button_->setIcon(simple_icon(QStringLiteral("clear"), QColor(255, 150, 150)));
-  transform_cancel_button_->setToolTip(tr("Cancel transform"));
+  bind_tooltip(transform_cancel_button_, QT_TR_NOOP("Cancel transform"));
   transform_cancel_button_->setFixedWidth(30);
   transform_cancel_button_->setIconSize(QSize(20, 20));
   transform_cancel_button_->setProperty("optionsSessionButton", true);
@@ -880,21 +882,21 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   });
 
   auto* selection_new = add_option_action(
-      simple_icon(QStringLiteral("N")), tr("New Selection"),
+      simple_icon(QStringLiteral("N")), QT_TR_NOOP("New Selection"),
       {CanvasTool::Marquee, CanvasTool::EllipticalMarquee, CanvasTool::Lasso, CanvasTool::MagneticLasso,
        CanvasTool::MagicWand, CanvasTool::QuickSelect, CanvasTool::PatchTool});
   selection_new->setObjectName(QStringLiteral("selectionNewModeAction"));
   auto* selection_add = add_option_action(
-      simple_icon(QStringLiteral("+")), tr("Add to Selection"),
+      simple_icon(QStringLiteral("+")), QT_TR_NOOP("Add to Selection"),
       {CanvasTool::Marquee, CanvasTool::EllipticalMarquee, CanvasTool::Lasso, CanvasTool::MagneticLasso,
        CanvasTool::MagicWand, CanvasTool::QuickSelect, CanvasTool::PatchTool});
   selection_add->setObjectName(QStringLiteral("selectionAddModeAction"));
   auto* selection_subtract = add_option_action(
-      simple_icon(QStringLiteral("-")), tr("Subtract from Selection"),
+      simple_icon(QStringLiteral("-")), QT_TR_NOOP("Subtract from Selection"),
       {CanvasTool::Marquee, CanvasTool::EllipticalMarquee, CanvasTool::Lasso, CanvasTool::MagneticLasso,
        CanvasTool::MagicWand, CanvasTool::QuickSelect, CanvasTool::PatchTool});
   selection_subtract->setObjectName(QStringLiteral("selectionSubtractModeAction"));
-  auto* selection_intersect = add_option_action(simple_icon(QStringLiteral("Ix")), tr("Intersect Selection"),
+  auto* selection_intersect = add_option_action(simple_icon(QStringLiteral("Ix")), QT_TR_NOOP("Intersect Selection"),
                                                 {CanvasTool::Marquee, CanvasTool::EllipticalMarquee, CanvasTool::Lasso,
                                                  CanvasTool::MagneticLasso, CanvasTool::MagicWand,
                                                  CanvasTool::PatchTool});
@@ -942,6 +944,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   feather_layout->setContentsMargins(0, 0, 0, 0);
   feather_layout->setSpacing(0);
   auto* feather_label = new QLabel(tr("Feather:"), feather_group);
+  bind_widget_text(feather_label, QT_TR_NOOP("Feather:"));
   feather_label->setAlignment(Qt::AlignCenter);
   feather_layout->addWidget(feather_label);
   auto* feather = new QSpinBox(feather_group);
@@ -954,6 +957,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   add_option_widget(feather_group, {CanvasTool::Marquee, CanvasTool::EllipticalMarquee, CanvasTool::Lasso,
                                     CanvasTool::MagneticLasso, CanvasTool::MagicWand, CanvasTool::QuickSelect});
   auto* anti_alias = new CheckGlyphBox(tr("Anti-alias"), toolbar);
+  bind_widget_text(anti_alias, QT_TR_NOOP("Anti-alias"));
   anti_alias->setObjectName(QStringLiteral("selectionAntiAliasCheck"));
   anti_alias->setChecked(current_selection_antialias_);
   add_option_widget(anti_alias,
@@ -974,13 +978,13 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   connect(anti_alias, &QCheckBox::toggled, this, [apply_selection_edge_settings](bool) {
     apply_selection_edge_settings();
   });
-  add_option_label(tr("Radius:"), {CanvasTool::Marquee});
+  add_option_label(QT_TR_NOOP("Radius:"), {CanvasTool::Marquee});
   auto* marquee_corner_radius = new QSpinBox(toolbar);
   marquee_corner_radius->setObjectName(QStringLiteral("selectionCornerRadiusSpin"));
   marquee_corner_radius->setRange(0, 512);
   marquee_corner_radius->setValue(current_marquee_corner_radius_);
   marquee_corner_radius->setSuffix(pixel_suffix());
-  marquee_corner_radius->setToolTip(tr("Rounded-corner radius for the rectangular marquee (0 = sharp corners)"));
+  bind_tooltip(marquee_corner_radius, QT_TR_NOOP("Rounded-corner radius for the rectangular marquee (0 = sharp corners)"));
   configure_toolbar_spinbox(marquee_corner_radius, 64);
   add_option_widget(marquee_corner_radius, {CanvasTool::Marquee});
   connect(marquee_corner_radius, &QSpinBox::valueChanged, this, [this](int value) {
@@ -989,7 +993,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
       canvas_->set_marquee_corner_radius(value);
     }
   });
-  add_option_label(tr("Style:"), {CanvasTool::Marquee, CanvasTool::EllipticalMarquee});
+  add_option_label(QT_TR_NOOP("Style:"), {CanvasTool::Marquee, CanvasTool::EllipticalMarquee});
   auto* style_combo = new QComboBox(toolbar);
   style_combo->setObjectName(QStringLiteral("selectionStyleCombo"));
   style_combo->addItems({tr("Normal"), tr("Fixed Ratio"), tr("Fixed Size")});
@@ -1006,7 +1010,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     selection_style_combo->setItemText(2, QObject::tr("Fixed Size"));
   });
   add_option_widget(style_combo, {CanvasTool::Marquee, CanvasTool::EllipticalMarquee});
-  add_option_label(tr("Width:"), {CanvasTool::Marquee, CanvasTool::EllipticalMarquee});
+  add_option_label(QT_TR_NOOP("Width:"), {CanvasTool::Marquee, CanvasTool::EllipticalMarquee});
   auto* fixed_width = new QSpinBox(toolbar);
   fixed_width->setObjectName(QStringLiteral("selectionFixedWidthSpin"));
   fixed_width->setRange(1, 30000);
@@ -1014,7 +1018,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   fixed_width->setSuffix(pixel_suffix());
   configure_toolbar_spinbox(fixed_width, 78);
   add_option_widget(fixed_width, {CanvasTool::Marquee, CanvasTool::EllipticalMarquee});
-  add_option_label(tr("Height:"), {CanvasTool::Marquee, CanvasTool::EllipticalMarquee});
+  add_option_label(QT_TR_NOOP("Height:"), {CanvasTool::Marquee, CanvasTool::EllipticalMarquee});
   auto* fixed_height = new QSpinBox(toolbar);
   fixed_height->setObjectName(QStringLiteral("selectionFixedHeightSpin"));
   fixed_height->setRange(1, 30000);
@@ -1053,7 +1057,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   add_option_separator({CanvasTool::Marquee, CanvasTool::EllipticalMarquee, CanvasTool::Lasso,
                         CanvasTool::MagneticLasso, CanvasTool::MagicWand});
 
-  add_option_label(tr("Ratio:"), {CanvasTool::Crop});
+  add_option_label(QT_TR_NOOP("Ratio:"), {CanvasTool::Crop});
   crop_ratio_preset_combo_ = new QComboBox(toolbar);
   crop_ratio_preset_combo_->setObjectName(QStringLiteral("cropRatioPresetCombo"));
   crop_ratio_preset_combo_->setMinimumWidth(118);
@@ -1079,7 +1083,6 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     crop_preset_combo->setItemText(2, QObject::tr("1 : 1 (Square)"));
     crop_preset_combo->setItemText(crop_preset_combo->count() - 1, QObject::tr("Custom"));
   });
-  crop_ratio_preset_combo_->setToolTip(tr("Aspect ratio preset for the crop box"));
   bind_tooltip(crop_ratio_preset_combo_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Aspect ratio preset for the crop box"));
   add_option_widget(crop_ratio_preset_combo_, {CanvasTool::Crop});
   crop_ratio_w_spin_ = new QDoubleSpinBox(toolbar);
@@ -1087,30 +1090,29 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   crop_ratio_w_spin_->setRange(0.0, 10000.0);
   crop_ratio_w_spin_->setDecimals(2);
   crop_ratio_w_spin_->setValue(0.0);
-  crop_ratio_w_spin_->setToolTip(tr("Aspect ratio width (0 = unconstrained)"));
   bind_tooltip(crop_ratio_w_spin_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Aspect ratio width (0 = unconstrained)"));
   configure_toolbar_spinbox(crop_ratio_w_spin_, 64);
   add_option_widget(crop_ratio_w_spin_, {CanvasTool::Crop});
-  add_option_label(QStringLiteral(":"), {CanvasTool::Crop});
+  auto* crop_ratio_separator = new QLabel(QStringLiteral(":"), options_content);
+  crop_ratio_separator->setProperty("optionLabel", true);
+  crop_ratio_separator->setAlignment(Qt::AlignVCenter);
+  add_option_widget(crop_ratio_separator, {CanvasTool::Crop});
   crop_ratio_h_spin_ = new QDoubleSpinBox(toolbar);
   crop_ratio_h_spin_->setObjectName(QStringLiteral("cropRatioHeightSpin"));
   crop_ratio_h_spin_->setRange(0.0, 10000.0);
   crop_ratio_h_spin_->setDecimals(2);
   crop_ratio_h_spin_->setValue(0.0);
-  crop_ratio_h_spin_->setToolTip(tr("Aspect ratio height (0 = unconstrained)"));
   bind_tooltip(crop_ratio_h_spin_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Aspect ratio height (0 = unconstrained)"));
   configure_toolbar_spinbox(crop_ratio_h_spin_, 64);
   add_option_widget(crop_ratio_h_spin_, {CanvasTool::Crop});
   crop_ratio_clear_button_ = new QPushButton(tr("Clear"), toolbar);
   crop_ratio_clear_button_->setObjectName(QStringLiteral("cropRatioClearButton"));
   bind_widget_text(crop_ratio_clear_button_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Clear"));
-  crop_ratio_clear_button_->setToolTip(tr("Clear the aspect ratio constraint"));
   bind_tooltip(crop_ratio_clear_button_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Clear the aspect ratio constraint"));
   add_option_widget(crop_ratio_clear_button_, {CanvasTool::Crop});
   crop_apply_button_ = new QPushButton(toolbar);
   crop_apply_button_->setObjectName(QStringLiteral("cropApplyButton"));
   crop_apply_button_->setIcon(simple_icon(QStringLiteral("ok"), QColor(160, 220, 165)));
-  crop_apply_button_->setToolTip(tr("Apply crop (Enter)"));
   bind_tooltip(crop_apply_button_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Apply crop (Enter)"));
   crop_apply_button_->setFixedWidth(30);
   crop_apply_button_->setIconSize(QSize(20, 20));
@@ -1119,7 +1121,6 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   crop_cancel_button_ = new QPushButton(toolbar);
   crop_cancel_button_->setObjectName(QStringLiteral("cropCancelButton"));
   crop_cancel_button_->setIcon(simple_icon(QStringLiteral("clear"), QColor(255, 150, 150)));
-  crop_cancel_button_->setToolTip(tr("Cancel crop (Esc)"));
   bind_tooltip(crop_cancel_button_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Cancel crop (Esc)"));
   crop_cancel_button_->setFixedWidth(30);
   crop_cancel_button_->setIconSize(QSize(20, 20));
@@ -1182,7 +1183,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     }
   });
 
-  add_option_label(tr("Preset:"),
+  add_option_label(QT_TR_NOOP("Preset:"),
                    {CanvasTool::Brush, CanvasTool::MixerBrush, CanvasTool::Clone, CanvasTool::Healing, CanvasTool::Smudge,
                     CanvasTool::Eraser});
   brush_preset_combo_ = new QComboBox(toolbar);
@@ -1210,7 +1211,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   // The raster brush controls double as the shape tools' Pixels-mode options;
   // refresh_vector_tool_options_visibility hides them in the vector modes.
   vector_pixel_only_option_widgets_.push_back(add_option_label(
-      tr("Size:"),
+      QT_TR_NOOP("Size:"),
       {CanvasTool::Brush, CanvasTool::MixerBrush, CanvasTool::PatternStamp, CanvasTool::Clone, CanvasTool::Healing, CanvasTool::SpotHealing, CanvasTool::Smudge,
        CanvasTool::Dodge, CanvasTool::Burn, CanvasTool::Sponge,
        CanvasTool::BlurBrush, CanvasTool::SharpenBrush,
@@ -1233,15 +1234,16 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   // window widths now that it also carries the Smoothing spin and gear
   // (ui_brush_tip_picker_keeps_options_bar_height).
   brush_size_slider->setFixedWidth(124);
-  brush_size_slider->setToolTip(
-      resolve_modifier_names(tr("Brush size: press [ or ], or %ALT%+Right-drag on the canvas")));
+  register_retranslation([brush_size_slider] {
+    brush_size_slider->setToolTip(resolve_modifier_names(MainWindow::tr("Brush size: press [ or ], or %ALT%+Right-drag on the canvas")));
+  });
   add_option_widget(brush_size_slider,
                     {CanvasTool::Brush, CanvasTool::Clone, CanvasTool::Healing, CanvasTool::SpotHealing, CanvasTool::Smudge,
                      CanvasTool::Dodge, CanvasTool::Burn, CanvasTool::Sponge,
                      CanvasTool::BlurBrush, CanvasTool::SharpenBrush,
                      CanvasTool::Eraser, CanvasTool::Line, CanvasTool::Rectangle, CanvasTool::Ellipse});
   vector_pixel_only_option_widgets_.push_back(add_option_label(
-      tr("Opacity:"),
+      QT_TR_NOOP("Opacity:"),
       {CanvasTool::Brush, CanvasTool::PatternStamp, CanvasTool::Clone, CanvasTool::Healing, CanvasTool::Smudge,
        CanvasTool::Eraser, CanvasTool::Line, CanvasTool::Rectangle, CanvasTool::Ellipse}));
   auto* brush_opacity = new QSpinBox(toolbar);
@@ -1259,12 +1261,12 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   brush_opacity_slider->setValue(canvas_defaults->brush_opacity());
   brush_opacity_slider->setFixedWidth(100);  // was 120; see the size-slider note
 
-  brush_opacity_slider->setToolTip(tr("Brush opacity: press number keys (5 = 50%, 0 = 100%)"));
+  bind_tooltip(brush_opacity_slider, QT_TR_NOOP("Brush opacity: press number keys (5 = 50%, 0 = 100%)"));
   add_option_widget(brush_opacity_slider,
                     {CanvasTool::Brush, CanvasTool::Clone, CanvasTool::Healing, CanvasTool::Smudge,
                      CanvasTool::Eraser, CanvasTool::Line, CanvasTool::Rectangle, CanvasTool::Ellipse});
   vector_pixel_only_option_widgets_.push_back(add_option_label(
-      tr("Soft:"),
+      QT_TR_NOOP("Soft:"),
       {CanvasTool::Brush, CanvasTool::MixerBrush, CanvasTool::PatternStamp, CanvasTool::Clone, CanvasTool::Healing, CanvasTool::SpotHealing, CanvasTool::Smudge,
        CanvasTool::Dodge, CanvasTool::Burn, CanvasTool::Sponge,
        CanvasTool::BlurBrush, CanvasTool::SharpenBrush,
@@ -1285,8 +1287,9 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   brush_softness_slider->setRange(0, 100);
   brush_softness_slider->setValue(canvas_defaults->brush_softness());
   brush_softness_slider->setFixedWidth(96);  // was 110; see the size-slider note
-  brush_softness_slider->setToolTip(
-      resolve_modifier_names(tr("Brush edge softness: %ALT%+Right-drag up or down on the canvas")));
+  register_retranslation([brush_softness_slider] {
+    brush_softness_slider->setToolTip(resolve_modifier_names(MainWindow::tr("Brush edge softness: %ALT%+Right-drag up or down on the canvas")));
+  });
   add_option_widget(brush_softness_slider,
                     {CanvasTool::Brush, CanvasTool::Clone, CanvasTool::Healing, CanvasTool::SpotHealing, CanvasTool::Smudge,
                      CanvasTool::Dodge, CanvasTool::Burn, CanvasTool::Sponge,
@@ -1316,14 +1319,13 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     }
   });
 
-  auto* brush_flow_label = add_option_label(tr("Flow:"), {CanvasTool::Brush, CanvasTool::PatternStamp});
+  auto* brush_flow_label = add_option_label(QT_TR_NOOP("Flow:"), {CanvasTool::Brush, CanvasTool::PatternStamp});
   bind_widget_text(brush_flow_label, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Flow:"));
   auto* brush_flow = new QSpinBox(toolbar);
   brush_flow->setObjectName(QStringLiteral("brushFlowSpin"));
   brush_flow->setRange(1, 100);
   brush_flow->setValue(canvas_defaults->brush_flow());
   brush_flow->setSuffix(percent_suffix());
-  brush_flow->setToolTip(tr("Brush flow: Shift+number keys (number keys with Airbrush)"));
   bind_tooltip(brush_flow, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Brush flow: Shift+number keys (number keys with Airbrush)"));
   configure_toolbar_spinbox(brush_flow, 60);
   add_option_widget(brush_flow, {CanvasTool::Brush, CanvasTool::PatternStamp});
@@ -1331,7 +1333,6 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   brush_airbrush->setObjectName(QStringLiteral("brushAirbrushCheck"));
   bind_widget_text(brush_airbrush, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Airbrush"));
   brush_airbrush->setChecked(canvas_defaults->brush_build_up());
-  brush_airbrush->setToolTip(tr("Build paint while the pointer is held still"));
   bind_tooltip(brush_airbrush, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Build paint while the pointer is held still"));
   add_option_widget(brush_airbrush, {CanvasTool::Brush});
   connect(brush_flow, &QSpinBox::valueChanged, this, [this](int value) {
@@ -1360,7 +1361,6 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   brush_smoothing->setRange(0, 100);
   brush_smoothing->setValue(current_brush_smoothing_);
   brush_smoothing->setSuffix(percent_suffix());
-  brush_smoothing->setToolTip(tr("Stroke smoothing - 0% paints the raw pointer path"));
   bind_tooltip(brush_smoothing, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Stroke smoothing - 0% paints the raw pointer path"));
   configure_toolbar_spinbox(brush_smoothing, 48);
   connect(brush_smoothing, &QSpinBox::valueChanged, this, [this](int value) {
@@ -1380,7 +1380,6 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   // otherwise grow the Options bar row
   // (ui_brush_tip_picker_keeps_options_bar_height).
   brush_smoothing_options_button_->setText(QStringLiteral("..."));
-  brush_smoothing_options_button_->setToolTip(tr("Smoothing options"));
   bind_tooltip(brush_smoothing_options_button_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Smoothing options"));
   brush_smoothing_options_button_->setPopupMode(QToolButton::InstantPopup);
   auto* smoothing_menu = new QMenu(brush_smoothing_options_button_);
@@ -1446,13 +1445,13 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   mixer_combination_combo_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
   mixer_combination_combo_->setMinimumContentsLength(7);
   widen_combo_popup_to_items(mixer_combination_combo_);
-  mixer_combination_combo_->setToolTip(tr("Useful mixer brush combinations"));
+  bind_tooltip(mixer_combination_combo_, QT_TR_NOOP("Useful mixer brush combinations"));
   add_option_widget(mixer_combination_combo_, {CanvasTool::MixerBrush});
 
   const auto add_mixer_percentage = [this, toolbar, add_option_label, add_option_widget](
                                         const char* label_source, const char* object_name,
                                         int minimum, int value, auto setter) {
-    auto* label = add_option_label(tr(label_source), {CanvasTool::MixerBrush});
+    auto* label = add_option_label(label_source, {CanvasTool::MixerBrush});
     bind_widget_text(label, label_source);
     auto* spin = new QSpinBox(toolbar);
     spin->setObjectName(QString::fromLatin1(object_name));
@@ -1536,7 +1535,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   mixer_sample_all_layers_check_ = new CheckGlyphBox(tr("Sample All Layers"), toolbar);
   mixer_sample_all_layers_check_->setObjectName(QStringLiteral("mixerSampleAllLayersCheck"));
   mixer_sample_all_layers_check_->setChecked(canvas_defaults->mixer_sample_all_layers());
-  mixer_sample_all_layers_check_->setToolTip(tr("Sample the merged document instead of the active layer"));
+  bind_tooltip(mixer_sample_all_layers_check_, QT_TR_NOOP("Sample the merged document instead of the active layer"));
   add_option_widget(mixer_sample_all_layers_check_, {CanvasTool::MixerBrush});
   connect(mixer_sample_all_layers_check_, &QCheckBox::toggled, this, [this](bool checked) {
     if (canvas_ != nullptr) {
@@ -1547,7 +1546,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
 
   // Smoothing lands after the mixer cluster so every row that shows it reads
   // Photoshop-style: ..., Flow, (Sample All Layers,) Smooth, gear.
-  auto* brush_smoothing_label = add_option_label(tr("Smooth:"), smoothing_tools);
+  auto* brush_smoothing_label = add_option_label(QT_TR_NOOP("Smooth:"), smoothing_tools);
   bind_widget_text(brush_smoothing_label, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Smooth:"));
   add_option_widget(brush_smoothing, smoothing_tools);
   add_option_widget(brush_smoothing_options_button_, smoothing_tools);
@@ -1611,7 +1610,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     statusBar()->showMessage(tr("Brush preset: %1").arg(brush_preset_display_name(*preset)));
   });
 
-  add_option_label(tr("Tip:"),
+  add_option_label(QT_TR_NOOP("Tip:"),
                    {CanvasTool::Brush, CanvasTool::MixerBrush, CanvasTool::PatternStamp,
                    CanvasTool::Eraser});
   (void)brush_automation_library();
@@ -1685,13 +1684,13 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     }
   });
 
-  auto* pattern_label = add_option_label(tr("Pattern:"), {CanvasTool::PatternStamp});
+  auto* pattern_label = add_option_label(QT_TR_NOOP("Pattern:"), {CanvasTool::PatternStamp});
   bind_widget_text(pattern_label, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Pattern:"));
   pattern_stamp_pattern_combo_ = new QComboBox(toolbar);
   pattern_stamp_pattern_combo_->setObjectName(QStringLiteral("patternStampPatternCombo"));
   pattern_stamp_pattern_combo_->setIconSize(QSize(18, 18));
   pattern_stamp_pattern_combo_->setMinimumWidth(150);
-  refresh_pattern_stamp_pattern_combo();
+  register_retranslation([this] { refresh_pattern_stamp_pattern_combo(); });
   add_option_widget(pattern_stamp_pattern_combo_, {CanvasTool::PatternStamp});
   connect(pattern_stamp_pattern_combo_, &QComboBox::currentIndexChanged, this, [this](int index) {
     if (pattern_stamp_pattern_combo_ == nullptr || index < 0) {
@@ -1706,7 +1705,6 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   manage_patterns->setObjectName(QStringLiteral("patternStampManageButton"));
   manage_patterns->setText(tr("Manage..."));
   bind_widget_text(manage_patterns, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Manage..."));
-  manage_patterns->setToolTip(tr("Import or manage patterns"));
   bind_tooltip(manage_patterns, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Import or manage patterns"));
   add_option_widget(manage_patterns, {CanvasTool::PatternStamp});
   connect(manage_patterns, &QPushButton::clicked, this, [this] {
@@ -1724,9 +1722,10 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   });
 
   pattern_stamp_aligned_check_ = new CheckGlyphBox(tr("Aligned"), toolbar);
+
+  bind_widget_text(pattern_stamp_aligned_check_, QT_TR_NOOP("Aligned"));
   pattern_stamp_aligned_check_->setObjectName(QStringLiteral("patternStampAlignedCheck"));
   pattern_stamp_aligned_check_->setChecked(current_pattern_stamp_aligned_);
-  pattern_stamp_aligned_check_->setToolTip(tr("Keep pattern alignment continuous across strokes"));
   bind_tooltip(pattern_stamp_aligned_check_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Keep pattern alignment continuous across strokes"));
   add_option_widget(pattern_stamp_aligned_check_, {CanvasTool::PatternStamp});
   connect(pattern_stamp_aligned_check_, &QCheckBox::toggled, this, [this](bool checked) {
@@ -1735,7 +1734,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     save_tool_settings();
   });
 
-  add_option_label(tr("Method:"), {CanvasTool::Gradient});
+  add_option_label(QT_TR_NOOP("Method:"), {CanvasTool::Gradient});
   gradient_method_combo_ = new QComboBox(toolbar);
   gradient_method_combo_->setObjectName(QStringLiteral("gradientMethodCombo"));
   gradient_method_combo_->addItem(tr("Linear"), static_cast<int>(GradientMethod::Linear));
@@ -1752,7 +1751,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     gradient_method_combo->setItemText(1, QCoreApplication::translate(kMainWindowTranslationContext, "Radial"));
   });
 
-  add_option_label(tr("Opacity:"), {CanvasTool::Gradient});
+  add_option_label(QT_TR_NOOP("Opacity:"), {CanvasTool::Gradient});
   gradient_opacity_spin_ = new QSpinBox(toolbar);
   gradient_opacity_spin_->setObjectName(QStringLiteral("gradientOpacitySpin"));
   gradient_opacity_spin_->setRange(0, 100);
@@ -1765,7 +1764,6 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   gradient_opacity_slider_->setRange(0, 100);
   gradient_opacity_slider_->setValue(canvas_defaults->gradient_opacity());
   gradient_opacity_slider_->setFixedWidth(110);
-  gradient_opacity_slider_->setToolTip(tr("Gradient opacity"));
   bind_tooltip(gradient_opacity_slider_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Gradient opacity"));
   add_option_widget(gradient_opacity_slider_, {CanvasTool::Gradient});
   gradient_reverse_check_ = new CheckGlyphBox(tr("Reverse"), toolbar);
@@ -1774,14 +1772,12 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   add_option_widget(gradient_reverse_check_, {CanvasTool::Gradient});
   gradient_preview_button_ = new QPushButton(toolbar);
   gradient_preview_button_->setObjectName(QStringLiteral("gradientPreviewButton"));
-  gradient_preview_button_->setToolTip(tr("Gradient preview"));
   bind_tooltip(gradient_preview_button_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Gradient preview"));
   add_option_widget(gradient_preview_button_, {CanvasTool::Gradient});
   gradient_presets_button_ = new QPushButton(toolbar);
   gradient_presets_button_->setObjectName(QStringLiteral("gradientPresetsButton"));
   gradient_presets_button_->setText(tr("Presets"));
   bind_widget_text(gradient_presets_button_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Presets"));
-  gradient_presets_button_->setToolTip(tr("Choose a gradient preset"));
   bind_tooltip(gradient_presets_button_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Choose a gradient preset"));
   add_option_widget(gradient_presets_button_, {CanvasTool::Gradient});
   gradient_edit_stops_button_ = new QPushButton(tr("Edit Stops..."), toolbar);
@@ -1821,7 +1817,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   clone_aligned_check_ = new CheckGlyphBox(tr("Aligned"), toolbar);
   clone_aligned_check_->setObjectName(QStringLiteral("cloneAlignedCheck"));
   clone_aligned_check_->setChecked(canvas_defaults->clone_aligned());
-  clone_aligned_check_->setToolTip(tr("Keep sample source offset aligned across strokes"));
+  bind_tooltip(clone_aligned_check_, QT_TR_NOOP("Keep sample source offset aligned across strokes"));
   add_option_widget(clone_aligned_check_, {CanvasTool::Clone, CanvasTool::Healing});
   connect(clone_aligned_check_, &QCheckBox::toggled, this, [this](bool checked) {
     if (canvas_ != nullptr) {
@@ -1830,12 +1826,12 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     }
   });
 
-  add_option_label(tr("Diffusion:"), {CanvasTool::Healing});
+  add_option_label(QT_TR_NOOP("Diffusion:"), {CanvasTool::Healing});
   auto* healing_diffusion = new QSpinBox(toolbar);
   healing_diffusion->setObjectName(QStringLiteral("healingDiffusionSpin"));
   healing_diffusion->setRange(1, 7);
   healing_diffusion->setValue(current_healing_diffusion_);
-  healing_diffusion->setToolTip(tr("Lower values preserve fine texture; higher values adapt more quickly"));
+  bind_tooltip(healing_diffusion, QT_TR_NOOP("Lower values preserve fine texture; higher values adapt more quickly"));
   configure_toolbar_spinbox(healing_diffusion, 42);
   add_option_widget(healing_diffusion, {CanvasTool::Healing});
   connect(healing_diffusion, &QSpinBox::valueChanged, this, [this](int value) {
@@ -1846,7 +1842,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     }
   });
 
-  add_option_label(tr("Patch:"), {CanvasTool::PatchTool});
+  add_option_label(QT_TR_NOOP("Patch:"), {CanvasTool::PatchTool});
   patch_mode_combo_ = new QComboBox(toolbar);
   patch_mode_combo_->setObjectName(QStringLiteral("patchModeCombo"));
   patch_mode_combo_->addItem(tr("Source"), static_cast<int>(CanvasWidget::PatchToolMode::Source));
@@ -1854,8 +1850,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   patch_mode_combo_->setCurrentIndex(std::max(
       0, patch_mode_combo_->findData(static_cast<int>(canvas_defaults->patch_tool_mode()))));
   patch_mode_combo_->setFixedWidth(104);
-  patch_mode_combo_->setToolTip(
-      tr("Source heals the dragged-from region; Destination copies it onto the drop point"));
+  bind_tooltip(patch_mode_combo_, QT_TR_NOOP("Source heals the dragged-from region; Destination copies it onto the drop point"));
   {
     QPointer<QComboBox> patch_mode_combo(patch_mode_combo_);
     register_retranslation([patch_mode_combo] {
@@ -1882,8 +1877,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   patch_transparent_check_ = new CheckGlyphBox(tr("Transparent"), toolbar);
   patch_transparent_check_->setObjectName(QStringLiteral("patchTransparentCheck"));
   patch_transparent_check_->setChecked(canvas_defaults->patch_tool_transparent());
-  patch_transparent_check_->setToolTip(
-      tr("Keep the region and add only the sampled texture instead of replacing it; clearest when the "
+  bind_tooltip(patch_transparent_check_, QT_TR_NOOP("Keep the region and add only the sampled texture instead of replacing it; clearest when the "
          "source has distinct marks over a plain background"));
   add_option_widget(patch_transparent_check_, {CanvasTool::PatchTool});
   connect(patch_transparent_check_, &QCheckBox::toggled, this, [this](bool checked) {
@@ -1896,7 +1890,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   retouch_sample_all_layers_check_ = new CheckGlyphBox(tr("Sample All Layers"), toolbar);
   retouch_sample_all_layers_check_->setObjectName(QStringLiteral("retouchSampleAllLayersCheck"));
   retouch_sample_all_layers_check_->setChecked(canvas_defaults->retouch_sample_all_layers());
-  retouch_sample_all_layers_check_->setToolTip(tr("Sample the merged document instead of the active layer"));
+  bind_tooltip(retouch_sample_all_layers_check_, QT_TR_NOOP("Sample the merged document instead of the active layer"));
   add_option_widget(retouch_sample_all_layers_check_,
                     {CanvasTool::Clone, CanvasTool::Healing, CanvasTool::SpotHealing, CanvasTool::PatchTool});
   connect(retouch_sample_all_layers_check_, &QCheckBox::toggled, this, [this](bool checked) {
@@ -1906,14 +1900,13 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     }
   });
 
-  add_option_label(tr("Strength:"), {CanvasTool::Dodge, CanvasTool::Burn, CanvasTool::Sponge,
+  add_option_label(QT_TR_NOOP("Strength:"), {CanvasTool::Dodge, CanvasTool::Burn, CanvasTool::Sponge,
                                       CanvasTool::BlurBrush, CanvasTool::SharpenBrush});
   local_adjustment_strength_spin_ = new QSpinBox(toolbar);
   local_adjustment_strength_spin_->setObjectName(QStringLiteral("localAdjustmentStrengthSpin"));
   local_adjustment_strength_spin_->setRange(1, 100);
   local_adjustment_strength_spin_->setValue(current_local_adjustment_strength_);
   local_adjustment_strength_spin_->setSuffix(percent_suffix());
-  local_adjustment_strength_spin_->setToolTip(tr("Maximum adjustment applied during one stroke"));
   bind_tooltip(local_adjustment_strength_spin_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Maximum adjustment applied during one stroke"));
   configure_toolbar_spinbox(local_adjustment_strength_spin_, 52);
   add_option_widget(local_adjustment_strength_spin_,
@@ -1928,7 +1921,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     refresh_document_info();
   });
 
-  add_option_label(tr("Range:"), {CanvasTool::Dodge, CanvasTool::Burn});
+  add_option_label(QT_TR_NOOP("Range:"), {CanvasTool::Dodge, CanvasTool::Burn});
   local_tone_range_combo_ = new QComboBox(toolbar);
   local_tone_range_combo_->setObjectName(QStringLiteral("localToneRangeCombo"));
   local_tone_range_combo_->addItem(tr("Shadows"), static_cast<int>(CanvasWidget::LocalToneRange::Shadows));
@@ -1967,7 +1960,6 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   local_protect_tones_check_ = new CheckGlyphBox(tr("Protect Tones"), toolbar);
   local_protect_tones_check_->setObjectName(QStringLiteral("localProtectTonesCheck"));
   local_protect_tones_check_->setChecked(current_local_protect_tones_);
-  local_protect_tones_check_->setToolTip(tr("Preserve local color differences while lightening or darkening"));
   bind_tooltip(local_protect_tones_check_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Preserve local color differences while lightening or darkening"));
   bind_widget_text(local_protect_tones_check_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Protect Tones"));
   add_option_widget(local_protect_tones_check_, {CanvasTool::Dodge, CanvasTool::Burn});
@@ -1979,7 +1971,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     save_tool_settings();
   });
 
-  add_option_label(tr("Mode:"), {CanvasTool::Sponge});
+  add_option_label(QT_TR_NOOP("Mode:"), {CanvasTool::Sponge});
   sponge_mode_combo_ = new QComboBox(toolbar);
   sponge_mode_combo_->setObjectName(QStringLiteral("spongeModeCombo"));
   sponge_mode_combo_->addItem(tr("Saturate"), static_cast<int>(CanvasWidget::SpongeMode::Saturate));
@@ -2015,7 +2007,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   sponge_vibrance_check_ = new CheckGlyphBox(tr("Vibrance"), toolbar);
   sponge_vibrance_check_->setObjectName(QStringLiteral("spongeVibranceCheck"));
   sponge_vibrance_check_->setChecked(current_sponge_vibrance_);
-  sponge_vibrance_check_->setToolTip(tr("Reduce the adjustment on colors that are already strongly saturated"));
+  bind_tooltip(sponge_vibrance_check_, QT_TR_NOOP("Reduce the adjustment on colors that are already strongly saturated"));
   bind_tooltip(sponge_vibrance_check_,
                QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Reduce the adjustment on colors that are already strongly saturated"));
   bind_widget_text(sponge_vibrance_check_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Vibrance"));
@@ -2028,7 +2020,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     save_tool_settings();
   });
 
-  add_option_label(tr("Size:"), {CanvasTool::QuickSelect});
+  add_option_label(QT_TR_NOOP("Size:"), {CanvasTool::QuickSelect});
   auto* quick_select_size = new QSpinBox(toolbar);
   quick_select_size->setObjectName(QStringLiteral("quickSelectSizeSpin"));
   quick_select_size->setRange(1, 512);
@@ -2040,7 +2032,6 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   quick_select_size_slider->setRange(1, 512);
   quick_select_size_slider->setValue(canvas_defaults->quick_select_size());
   quick_select_size_slider->setFixedWidth(150);
-  quick_select_size_slider->setToolTip(tr("Quick Select brush size: press [ or ]"));
   bind_tooltip(quick_select_size_slider, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Quick Select brush size: press [ or ]"));
   add_option_widget(quick_select_size_slider, {CanvasTool::QuickSelect});
   connect(quick_select_size, &QSpinBox::valueChanged, quick_select_size_slider, &QSlider::setValue);
@@ -2057,7 +2048,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   quick_select_sample_all_layers_check_ = new CheckGlyphBox(tr("Sample All Layers"), toolbar);
   quick_select_sample_all_layers_check_->setObjectName(QStringLiteral("quickSelectSampleAllLayersCheck"));
   quick_select_sample_all_layers_check_->setChecked(canvas_defaults->quick_select_sample_all_layers());
-  quick_select_sample_all_layers_check_->setToolTip(tr("Sample the merged document instead of the active layer"));
+  bind_tooltip(quick_select_sample_all_layers_check_, QT_TR_NOOP("Sample the merged document instead of the active layer"));
   add_option_widget(quick_select_sample_all_layers_check_, {CanvasTool::QuickSelect});
   connect(quick_select_sample_all_layers_check_, &QCheckBox::toggled, this, [this](bool checked) {
     if (canvas_ != nullptr) {
@@ -2070,7 +2061,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   quick_select_enhance_edge_check_ = new CheckGlyphBox(tr("Enhance Edge"), toolbar);
   quick_select_enhance_edge_check_->setObjectName(QStringLiteral("quickSelectEnhanceEdgeCheck"));
   quick_select_enhance_edge_check_->setChecked(canvas_defaults->quick_select_enhance_edge());
-  quick_select_enhance_edge_check_->setToolTip(tr("Smooth the selection boundary after each stroke"));
+  bind_tooltip(quick_select_enhance_edge_check_, QT_TR_NOOP("Smooth the selection boundary after each stroke"));
   add_option_widget(quick_select_enhance_edge_check_, {CanvasTool::QuickSelect});
   connect(quick_select_enhance_edge_check_, &QCheckBox::toggled, this, [this](bool checked) {
     if (canvas_ != nullptr) {
@@ -2080,13 +2071,12 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     }
   });
 
-  add_option_label(tr("Width:"), {CanvasTool::MagneticLasso});
+  add_option_label(QT_TR_NOOP("Width:"), {CanvasTool::MagneticLasso});
   auto* magnetic_width = new QSpinBox(toolbar);
   magnetic_width->setObjectName(QStringLiteral("magneticLassoWidthSpin"));
   magnetic_width->setRange(1, 256);
   magnetic_width->setSuffix(pixel_suffix());
   magnetic_width->setValue(canvas_defaults->magnetic_lasso_width());
-  magnetic_width->setToolTip(tr("Edge search width in document pixels: press [ or ]"));
   bind_tooltip(magnetic_width, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Edge search width in document pixels: press [ or ]"));
   configure_toolbar_spinbox(magnetic_width, 64);
   add_option_widget(magnetic_width, {CanvasTool::MagneticLasso});
@@ -2097,13 +2087,12 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
       refresh_document_info();
     }
   });
-  add_option_label(tr("Contrast:"), {CanvasTool::MagneticLasso});
+  add_option_label(QT_TR_NOOP("Contrast:"), {CanvasTool::MagneticLasso});
   auto* magnetic_contrast = new QSpinBox(toolbar);
   magnetic_contrast->setObjectName(QStringLiteral("magneticLassoContrastSpin"));
   magnetic_contrast->setRange(1, 100);
   magnetic_contrast->setSuffix(percent_suffix());
   magnetic_contrast->setValue(canvas_defaults->magnetic_lasso_edge_contrast());
-  magnetic_contrast->setToolTip(tr("Minimum edge contrast the trace snaps to"));
   bind_tooltip(magnetic_contrast, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Minimum edge contrast the trace snaps to"));
   configure_toolbar_spinbox(magnetic_contrast, 56);
   add_option_widget(magnetic_contrast, {CanvasTool::MagneticLasso});
@@ -2114,12 +2103,11 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
       refresh_document_info();
     }
   });
-  add_option_label(tr("Frequency:"), {CanvasTool::MagneticLasso});
+  add_option_label(QT_TR_NOOP("Frequency:"), {CanvasTool::MagneticLasso});
   auto* magnetic_frequency = new QSpinBox(toolbar);
   magnetic_frequency->setObjectName(QStringLiteral("magneticLassoFrequencySpin"));
   magnetic_frequency->setRange(0, 100);
   magnetic_frequency->setValue(canvas_defaults->magnetic_lasso_frequency());
-  magnetic_frequency->setToolTip(tr("How often anchor points are placed while tracing"));
   bind_tooltip(magnetic_frequency, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "How often anchor points are placed while tracing"));
   configure_toolbar_spinbox(magnetic_frequency, 46);
   add_option_widget(magnetic_frequency, {CanvasTool::MagneticLasso});
@@ -2171,7 +2159,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     register_document_action(action);
   }
 
-  add_option_label(tr("Tol:"), {CanvasTool::MagicWand});
+  add_option_label(QT_TR_NOOP("Tol:"), {CanvasTool::MagicWand});
   auto* wand_tolerance = new QSpinBox(toolbar);
   wand_tolerance->setObjectName(QStringLiteral("wandToleranceSpin"));
   wand_tolerance->setRange(0, 255);
@@ -2189,7 +2177,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   wand_contiguous_check_ = new CheckGlyphBox(tr("Contiguous"), toolbar);
   wand_contiguous_check_->setObjectName(QStringLiteral("wandContiguousCheck"));
   wand_contiguous_check_->setChecked(canvas_defaults->wand_contiguous());
-  wand_contiguous_check_->setToolTip(tr("Limit Magic Wand selection to connected pixels"));
+  bind_tooltip(wand_contiguous_check_, QT_TR_NOOP("Limit Magic Wand selection to connected pixels"));
   add_option_widget(wand_contiguous_check_, {CanvasTool::MagicWand});
   connect(wand_contiguous_check_, &QCheckBox::toggled, this, [this](bool checked) {
     if (canvas_ != nullptr) {
@@ -2202,7 +2190,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   wand_sample_all_layers_check_ = new CheckGlyphBox(tr("Sample All Layers"), toolbar);
   wand_sample_all_layers_check_->setObjectName(QStringLiteral("wandSampleAllLayersCheck"));
   wand_sample_all_layers_check_->setChecked(canvas_defaults->wand_sample_all_layers());
-  wand_sample_all_layers_check_->setToolTip(tr("Sample the merged document instead of the active layer"));
+  bind_tooltip(wand_sample_all_layers_check_, QT_TR_NOOP("Sample the merged document instead of the active layer"));
   add_option_widget(wand_sample_all_layers_check_, {CanvasTool::MagicWand});
   connect(wand_sample_all_layers_check_, &QCheckBox::toggled, this, [this](bool checked) {
     if (canvas_ != nullptr) {
@@ -2216,15 +2204,14 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   // Photoshop-parity default; Pixels is the legacy raster behavior). The
   // vector appearance/combine widgets below register for the same tools and
   // refresh_vector_tool_options_visibility() refines them per mode.
-  add_option_label(tr("Mode:"), {CanvasTool::Line, CanvasTool::Rectangle, CanvasTool::Ellipse, CanvasTool::Pen,
+  add_option_label(QT_TR_NOOP("Mode:"), {CanvasTool::Line, CanvasTool::Rectangle, CanvasTool::Ellipse, CanvasTool::Pen,
                      CanvasTool::Polygon, CanvasTool::CustomShape});
   vector_mode_combo_ = new QComboBox(toolbar);
   vector_mode_combo_->setObjectName(QStringLiteral("vectorModeCombo"));
   vector_mode_combo_->addItems({tr("Shape"), tr("Path"), tr("Pixels")});
   vector_mode_combo_->setCurrentIndex(0);
   vector_mode_combo_->setFixedWidth(76);
-  vector_mode_combo_->setToolTip(
-      tr("What the shape tools create: a shape layer, work-path subpaths, or raster pixels"));
+  bind_tooltip(vector_mode_combo_, QT_TR_NOOP("What the shape tools create: a shape layer, work-path subpaths, or raster pixels"));
   QPointer<QComboBox> vector_mode_combo_pointer(vector_mode_combo_);
   register_retranslation([vector_mode_combo_pointer] {
     if (vector_mode_combo_pointer == nullptr || vector_mode_combo_pointer->count() < 3) {
@@ -2258,10 +2245,10 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
       CanvasTool::Pen,     CanvasTool::Polygon,    CanvasTool::CustomShape,
       CanvasTool::PathSelect, CanvasTool::DirectSelect};
   vector_shape_mode_option_widgets_.push_back(
-      add_option_label(tr("Fill:"), vector_appearance_tools));
+      add_option_label(QT_TR_NOOP("Fill:"), vector_appearance_tools));
   vector_fill_swatch_button_ = new QToolButton(toolbar);
   vector_fill_swatch_button_->setObjectName(QStringLiteral("vectorFillSwatchButton"));
-  vector_fill_swatch_button_->setToolTip(tr("Shape fill: none, solid color, gradient, or pattern"));
+  bind_tooltip(vector_fill_swatch_button_, QT_TR_NOOP("Shape fill: none, solid color, gradient, or pattern"));
   vector_fill_swatch_button_->setAutoRaise(true);
   vector_fill_swatch_button_->setProperty("optionsBarButton", true);
   add_option_widget(vector_fill_swatch_button_, vector_appearance_tools);
@@ -2270,9 +2257,11 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
           [this] { show_vector_paint_menu(false); });
 
   auto* vector_stroke_check = new CheckGlyphBox(tr("Stroke"), toolbar);
+
+  bind_widget_text(vector_stroke_check, QT_TR_NOOP("Stroke"));
   vector_stroke_check->setObjectName(QStringLiteral("vectorStrokeCheck"));
   vector_stroke_check->setChecked(current_vector_stroke_enabled_);
-  vector_stroke_check->setToolTip(tr("Stroke the shape outline"));
+  bind_tooltip(vector_stroke_check, QT_TR_NOOP("Stroke the shape outline"));
   add_option_widget(vector_stroke_check, vector_appearance_tools);
   vector_shape_mode_option_widgets_.push_back(vector_stroke_check);
   connect(vector_stroke_check, &QCheckBox::toggled, this, [this](bool checked) {
@@ -2283,8 +2272,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
 
   vector_stroke_swatch_button_ = new QToolButton(toolbar);
   vector_stroke_swatch_button_->setObjectName(QStringLiteral("vectorStrokeSwatchButton"));
-  vector_stroke_swatch_button_->setToolTip(
-      tr("Shape stroke: solid color, gradient, or pattern"));
+  bind_tooltip(vector_stroke_swatch_button_, QT_TR_NOOP("Shape stroke: solid color, gradient, or pattern"));
   vector_stroke_swatch_button_->setAutoRaise(true);
   vector_stroke_swatch_button_->setProperty("optionsBarButton", true);
   add_option_widget(vector_stroke_swatch_button_, vector_appearance_tools);
@@ -2298,7 +2286,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   vector_stroke_width->setDecimals(1);
   vector_stroke_width->setValue(current_vector_stroke_width_);
   vector_stroke_width->setSuffix(pixel_suffix());
-  vector_stroke_width->setToolTip(tr("Stroke width"));
+  bind_tooltip(vector_stroke_width, QT_TR_NOOP("Stroke width"));
   configure_toolbar_spinbox(vector_stroke_width, 64);
   add_option_widget(vector_stroke_width, vector_appearance_tools);
   vector_shape_mode_option_widgets_.push_back(vector_stroke_width);
@@ -2309,13 +2297,13 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   });
 
   vector_vector_mode_option_widgets_.push_back(
-      add_option_label(tr("Weight:"), {CanvasTool::Line}));
+      add_option_label(QT_TR_NOOP("Weight:"), {CanvasTool::Line}));
   auto* vector_line_weight = new QSpinBox(toolbar);
   vector_line_weight->setObjectName(QStringLiteral("vectorLineWeightSpin"));
   vector_line_weight->setRange(1, 1000);
   vector_line_weight->setValue(current_vector_line_weight_);
   vector_line_weight->setSuffix(pixel_suffix());
-  vector_line_weight->setToolTip(tr("Line thickness"));
+  bind_tooltip(vector_line_weight, QT_TR_NOOP("Line thickness"));
   configure_toolbar_spinbox(vector_line_weight, 58);
   add_option_widget(vector_line_weight, {CanvasTool::Line});
   vector_vector_mode_option_widgets_.push_back(vector_line_weight);
@@ -2325,7 +2313,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   });
 
   vector_vector_mode_option_widgets_.push_back(add_option_label(
-      tr("Combine:"), {CanvasTool::Line, CanvasTool::Rectangle, CanvasTool::Ellipse, CanvasTool::Pen,
+      QT_TR_NOOP("Combine:"), {CanvasTool::Line, CanvasTool::Rectangle, CanvasTool::Ellipse, CanvasTool::Pen,
                        CanvasTool::Polygon, CanvasTool::CustomShape,
                        CanvasTool::PathSelect, CanvasTool::DirectSelect}));
   auto* vector_combine_combo = new QComboBox(toolbar);
@@ -2334,8 +2322,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
       {tr("New Layer"), tr("Add"), tr("Subtract"), tr("Intersect"), tr("Exclude")});
   vector_combine_combo->setCurrentIndex(0);
   vector_combine_combo->setFixedWidth(96);
-  vector_combine_combo->setToolTip(
-      tr("How the next shape combines with the active shape layer or work path"));
+  bind_tooltip(vector_combine_combo, QT_TR_NOOP("How the next shape combines with the active shape layer or work path"));
   QPointer<QComboBox> vector_combine_combo_pointer(vector_combine_combo);
   register_retranslation([vector_combine_combo_pointer] {
     if (vector_combine_combo_pointer == nullptr || vector_combine_combo_pointer->count() < 5) {
@@ -2372,10 +2359,10 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   // Photoshop's Pen "Auto Add/Delete": on, a click on the target path edits
   // its anchors (add on a segment, delete on a point); off, every click draws.
   auto* pen_auto_add_delete = new CheckGlyphBox(tr("Auto Add/Delete"), toolbar);
+  bind_widget_text(pen_auto_add_delete, QT_TR_NOOP("Auto Add/Delete"));
   pen_auto_add_delete->setObjectName(QStringLiteral("penAutoAddDeleteCheck"));
   pen_auto_add_delete->setChecked(current_pen_auto_add_delete_);
-  pen_auto_add_delete->setToolTip(
-      tr("Clicking a segment of the path adds a point and clicking a point deletes it"));
+  bind_tooltip(pen_auto_add_delete, QT_TR_NOOP("Clicking a segment of the path adds a point and clicking a point deletes it"));
   add_option_widget(pen_auto_add_delete, {CanvasTool::Pen});
   connect(pen_auto_add_delete, &QCheckBox::toggled, this, [this](bool checked) {
     current_pen_auto_add_delete_ = checked;
@@ -2386,7 +2373,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   });
 
   vector_vector_mode_option_widgets_.push_back(
-      add_option_label(tr("Sides:"), {CanvasTool::Polygon}));
+      add_option_label(QT_TR_NOOP("Sides:"), {CanvasTool::Polygon}));
   auto* polygon_sides = new QSpinBox(toolbar);
   polygon_sides->setObjectName(QStringLiteral("polygonSidesSpin"));
   polygon_sides->setRange(3, 100);
@@ -2402,13 +2389,13 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   });
 
   vector_vector_mode_option_widgets_.push_back(
-      add_option_label(tr("Star inset:"), {CanvasTool::Polygon}));
+      add_option_label(QT_TR_NOOP("Star inset:"), {CanvasTool::Polygon}));
   auto* polygon_star_inset = new QSpinBox(toolbar);
   polygon_star_inset->setObjectName(QStringLiteral("polygonStarInsetSpin"));
   polygon_star_inset->setRange(0, 99);
   polygon_star_inset->setValue(0);
   polygon_star_inset->setSuffix(percent_suffix());
-  polygon_star_inset->setToolTip(tr("0 makes a plain polygon; higher values pull in star points"));
+  bind_tooltip(polygon_star_inset, QT_TR_NOOP("0 makes a plain polygon; higher values pull in star points"));
   configure_toolbar_spinbox(polygon_star_inset, 56);
   add_option_widget(polygon_star_inset, {CanvasTool::Polygon});
   vector_vector_mode_option_widgets_.push_back(polygon_star_inset);
@@ -2420,12 +2407,12 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   });
 
   vector_vector_mode_option_widgets_.push_back(
-      add_option_label(tr("Shape:"), {CanvasTool::CustomShape}));
+      add_option_label(QT_TR_NOOP("Shape:"), {CanvasTool::CustomShape}));
   custom_shape_combo_ = new QComboBox(toolbar);
   custom_shape_combo_->setObjectName(QStringLiteral("customShapeCombo"));
   custom_shape_combo_->setIconSize(QSize(24, 24));
   custom_shape_combo_->setFixedWidth(150);
-  refresh_custom_shape_combo();
+  register_retranslation([this] { refresh_custom_shape_combo(); });
   add_option_widget(custom_shape_combo_, {CanvasTool::CustomShape});
   vector_vector_mode_option_widgets_.push_back(custom_shape_combo_);
   connect(custom_shape_combo_, &QComboBox::currentIndexChanged, this, [this](int) {
@@ -2434,8 +2421,10 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   });
 
   auto* line_arrow_start = new CheckGlyphBox(tr("Arrow start"), toolbar);
+
+  bind_widget_text(line_arrow_start, QT_TR_NOOP("Arrow start"));
   line_arrow_start->setObjectName(QStringLiteral("lineArrowStartCheck"));
-  line_arrow_start->setToolTip(tr("Add an arrowhead at the line start"));
+  bind_tooltip(line_arrow_start, QT_TR_NOOP("Add an arrowhead at the line start"));
   add_option_widget(line_arrow_start, {CanvasTool::Line});
   vector_vector_mode_option_widgets_.push_back(line_arrow_start);
   connect(line_arrow_start, &QCheckBox::toggled, this, [this](bool checked) {
@@ -2443,8 +2432,9 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     schedule_save_tool_settings();
   });
   auto* line_arrow_end = new CheckGlyphBox(tr("Arrow end"), toolbar);
+  bind_widget_text(line_arrow_end, QT_TR_NOOP("Arrow end"));
   line_arrow_end->setObjectName(QStringLiteral("lineArrowEndCheck"));
-  line_arrow_end->setToolTip(tr("Add an arrowhead at the line end"));
+  bind_tooltip(line_arrow_end, QT_TR_NOOP("Add an arrowhead at the line end"));
   add_option_widget(line_arrow_end, {CanvasTool::Line});
   vector_vector_mode_option_widgets_.push_back(line_arrow_end);
   connect(line_arrow_end, &QCheckBox::toggled, this, [this](bool checked) {
@@ -2463,13 +2453,13 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     }
   });
 
-  add_option_label(tr("Radius:"), {CanvasTool::Rectangle});
+  add_option_label(QT_TR_NOOP("Radius:"), {CanvasTool::Rectangle});
   auto* shape_corner_radius = new QSpinBox(toolbar);
   shape_corner_radius->setObjectName(QStringLiteral("shapeCornerRadiusSpin"));
   shape_corner_radius->setRange(0, 512);
   shape_corner_radius->setValue(canvas_defaults->shape_corner_radius());
   shape_corner_radius->setSuffix(pixel_suffix());
-  shape_corner_radius->setToolTip(tr("Rounded-corner radius for the rectangle tool (0 = sharp corners)"));
+  bind_tooltip(shape_corner_radius, QT_TR_NOOP("Rounded-corner radius for the rectangle tool (0 = sharp corners)"));
   configure_toolbar_spinbox(shape_corner_radius, 64);
   add_option_widget(shape_corner_radius, {CanvasTool::Rectangle});
   connect(shape_corner_radius, &QSpinBox::valueChanged, this, [this](int value) {
@@ -2482,7 +2472,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
 
   // Style / Width / Height for the shape draw tools, mirroring the marquee's
   // Normal / Fixed Ratio / Fixed Size options (session-only, like the marquee's).
-  add_option_label(tr("Style:"), {CanvasTool::Rectangle, CanvasTool::Ellipse});
+  add_option_label(QT_TR_NOOP("Style:"), {CanvasTool::Rectangle, CanvasTool::Ellipse});
   auto* shape_style_combo = new QComboBox(toolbar);
   shape_style_combo->setObjectName(QStringLiteral("shapeStyleCombo"));
   shape_style_combo->addItems({tr("Normal"), tr("Fixed Ratio"), tr("Fixed Size")});
@@ -2499,7 +2489,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     shape_style_combo_pointer->setItemText(2, QObject::tr("Fixed Size"));
   });
   add_option_widget(shape_style_combo, {CanvasTool::Rectangle, CanvasTool::Ellipse});
-  add_option_label(tr("Width:"), {CanvasTool::Rectangle, CanvasTool::Ellipse});
+  add_option_label(QT_TR_NOOP("Width:"), {CanvasTool::Rectangle, CanvasTool::Ellipse});
   auto* shape_fixed_width = new QSpinBox(toolbar);
   shape_fixed_width->setObjectName(QStringLiteral("shapeFixedWidthSpin"));
   shape_fixed_width->setRange(1, 30000);
@@ -2507,7 +2497,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   shape_fixed_width->setSuffix(pixel_suffix());
   configure_toolbar_spinbox(shape_fixed_width, 78);
   add_option_widget(shape_fixed_width, {CanvasTool::Rectangle, CanvasTool::Ellipse});
-  add_option_label(tr("Height:"), {CanvasTool::Rectangle, CanvasTool::Ellipse});
+  add_option_label(QT_TR_NOOP("Height:"), {CanvasTool::Rectangle, CanvasTool::Ellipse});
   auto* shape_fixed_height = new QSpinBox(toolbar);
   shape_fixed_height->setObjectName(QStringLiteral("shapeFixedHeightSpin"));
   shape_fixed_height->setRange(1, 30000);
@@ -2545,7 +2535,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   });
 
   // Fill tool / Fill hotkey settings (independent of the brush; default 100% opacity, 0 softness).
-  add_option_label(tr("Opacity:"), {CanvasTool::Fill});
+  add_option_label(QT_TR_NOOP("Opacity:"), {CanvasTool::Fill});
   auto* fill_opacity = new QSpinBox(toolbar);
   fill_opacity->setObjectName(QStringLiteral("fillOpacitySpin"));
   fill_opacity->setRange(1, 100);
@@ -2558,9 +2548,9 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   fill_opacity_slider->setRange(1, 100);
   fill_opacity_slider->setValue(canvas_defaults->fill_opacity());
   fill_opacity_slider->setFixedWidth(120);
-  fill_opacity_slider->setToolTip(tr("Fill opacity for the Fill tool and Fill shortcut"));
+  bind_tooltip(fill_opacity_slider, QT_TR_NOOP("Fill opacity for the Fill tool and Fill shortcut"));
   add_option_widget(fill_opacity_slider, {CanvasTool::Fill});
-  add_option_label(tr("Soft:"), {CanvasTool::Fill});
+  add_option_label(QT_TR_NOOP("Soft:"), {CanvasTool::Fill});
   auto* fill_softness = new QSpinBox(toolbar);
   fill_softness->setObjectName(QStringLiteral("fillSoftnessSpin"));
   fill_softness->setRange(0, 100);
@@ -2573,7 +2563,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   fill_softness_slider->setRange(0, 100);
   fill_softness_slider->setValue(canvas_defaults->fill_softness());
   fill_softness_slider->setFixedWidth(110);
-  fill_softness_slider->setToolTip(tr("Soft edge feather for the Fill tool and Fill shortcut"));
+  bind_tooltip(fill_softness_slider, QT_TR_NOOP("Soft edge feather for the Fill tool and Fill shortcut"));
   add_option_widget(fill_softness_slider, {CanvasTool::Fill});
   connect(fill_opacity, &QSpinBox::valueChanged, fill_opacity_slider, &QSlider::setValue);
   connect(fill_opacity_slider, &QSlider::valueChanged, fill_opacity, &QSpinBox::setValue);
@@ -2592,7 +2582,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     }
   });
 
-  add_option_label(tr("Font:"), {CanvasTool::Text});
+  add_option_label(QT_TR_NOOP("Font:"), {CanvasTool::Text});
   text_font_combo_ = new FontPickerCombo(toolbar);
   text_font_combo_->setObjectName(QStringLiteral("textFontCombo"));
   text_font_combo_->setCurrentFont(font());
@@ -2604,11 +2594,11 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   // lacks that axis.
   text_style_combo_ = new QComboBox(toolbar);
   text_style_combo_->setObjectName(QStringLiteral("textStyleCombo"));
-  text_style_combo_->setToolTip(tr("Font style"));
+  bind_tooltip(text_style_combo_, QT_TR_NOOP("Font style"));
   text_style_combo_->setFixedWidth(132);
   refresh_text_style_combo(text_font_combo_->currentFont().family(), QString());
   add_option_widget(text_style_combo_, {CanvasTool::Text});
-  add_option_label(tr("Size:"), {CanvasTool::Text});
+  add_option_label(QT_TR_NOOP("Size:"), {CanvasTool::Text});
   text_size_spin_ = new QDoubleSpinBox(toolbar);
   text_size_spin_->setObjectName(QStringLiteral("textSizeSpin"));
   text_size_spin_->setDecimals(3);
@@ -2622,10 +2612,10 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   text_size_spin_->setSuffix(tr(" pt"));
   configure_toolbar_spinbox(text_size_spin_, 74);
   add_option_widget(text_size_spin_, {CanvasTool::Text});
-  add_option_label(tr("Smoothing:"), {CanvasTool::Text});
+  add_option_label(QT_TR_NOOP("Smoothing:"), {CanvasTool::Text});
   text_smoothing_combo_ = new QComboBox(toolbar);
   text_smoothing_combo_->setObjectName(QStringLiteral("textSmoothingCombo"));
-  text_smoothing_combo_->setToolTip(tr("Text smoothing"));
+  bind_tooltip(text_smoothing_combo_, QT_TR_NOOP("Text smoothing"));
   text_smoothing_combo_->addItem(tr("None"), 0);
   text_smoothing_combo_->addItem(tr("Sharp"), 4);
   text_smoothing_combo_->addItem(tr("Crisp"), 2);
@@ -2633,52 +2623,60 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   text_smoothing_combo_->addItem(tr("Smooth"), 3);
   text_smoothing_combo_->addItem(tr("Windows LCD"), 5);
   text_smoothing_combo_->addItem(tr("Windows"), 6);
+  register_retranslation([this] {
+    const QSignalBlocker blocker(text_smoothing_combo_);
+    const char* sources[] = {QT_TR_NOOP("None"), QT_TR_NOOP("Sharp"), QT_TR_NOOP("Crisp"),
+                             QT_TR_NOOP("Strong"), QT_TR_NOOP("Smooth"), QT_TR_NOOP("Windows LCD"), QT_TR_NOOP("Windows")};
+    for (int index = 0; index < 7; ++index) text_smoothing_combo_->setItemText(index, tr(sources[index]));
+  });
   text_smoothing_combo_->setFixedWidth(116);
   set_text_smoothing_combo_value(
       text_smoothing_combo_,
       app_settings().value(QStringLiteral("tools/textSmoothing"), kDefaultTextAntiAlias).toInt());
   add_option_widget(text_smoothing_combo_, {CanvasTool::Text});
-  add_option_label(tr("Color:"), {CanvasTool::Text});
+  add_option_label(QT_TR_NOOP("Color:"), {CanvasTool::Text});
   text_color_button_ = new QPushButton(tr("T"), toolbar);
   text_color_button_->setObjectName(QStringLiteral("textColorButton"));
-  text_color_button_->setToolTip(tr("Text color"));
+  bind_tooltip(text_color_button_, QT_TR_NOOP("Text color"));
   text_color_button_->setFixedSize(30, 26);
   add_option_widget(text_color_button_, {CanvasTool::Text});
-  add_option_label(tr("Align:"), {CanvasTool::Text});
+  add_option_label(QT_TR_NOOP("Align:"), {CanvasTool::Text});
   auto* text_alignment_group = new QButtonGroup(toolbar);
   text_alignment_group->setExclusive(true);
   text_align_left_button_ = new QPushButton(tr("L"), toolbar);
   text_align_left_button_->setObjectName(QStringLiteral("textAlignLeftButton"));
   text_align_left_button_->setCheckable(true);
   text_align_left_button_->setChecked(true);
-  text_align_left_button_->setToolTip(tr("Align Left"));
+  bind_tooltip(text_align_left_button_, QT_TR_NOOP("Align Left"));
   text_align_left_button_->setFixedSize(30, 26);
   text_alignment_group->addButton(text_align_left_button_);
   add_option_widget(text_align_left_button_, {CanvasTool::Text});
   text_align_center_button_ = new QPushButton(tr("C"), toolbar);
   text_align_center_button_->setObjectName(QStringLiteral("textAlignCenterButton"));
   text_align_center_button_->setCheckable(true);
-  text_align_center_button_->setToolTip(tr("Align Center"));
+  bind_tooltip(text_align_center_button_, QT_TR_NOOP("Align Center"));
   text_align_center_button_->setFixedSize(30, 26);
   text_alignment_group->addButton(text_align_center_button_);
   add_option_widget(text_align_center_button_, {CanvasTool::Text});
   text_align_right_button_ = new QPushButton(tr("R"), toolbar);
   text_align_right_button_->setObjectName(QStringLiteral("textAlignRightButton"));
   text_align_right_button_->setCheckable(true);
-  text_align_right_button_->setToolTip(tr("Align Right"));
+  bind_tooltip(text_align_right_button_, QT_TR_NOOP("Align Right"));
   text_align_right_button_->setFixedSize(30, 26);
   text_alignment_group->addButton(text_align_right_button_);
   add_option_widget(text_align_right_button_, {CanvasTool::Text});
   text_warp_button_ = new QPushButton(tr("Warp..."), toolbar);
+  bind_widget_text(text_warp_button_, QT_TR_NOOP("Warp..."));
   text_warp_button_->setObjectName(QStringLiteral("textWarpButton"));
-  text_warp_button_->setToolTip(tr("Warp Text (Photoshop-style styles: arc, flag, fish, ...)"));
+  bind_tooltip(text_warp_button_, QT_TR_NOOP("Warp Text (Photoshop-style styles: arc, flag, fish, ...)"));
   add_option_widget(text_warp_button_, {CanvasTool::Text});
   // Character panel: works on the LIVE editor session, so Qt::NoFocus is load-bearing here
   // exactly like the session apply/cancel buttons (a focus-taking button would fire the
   // editor's focus-loss auto-commit on mouse press).
   text_character_button_ = new QPushButton(tr("Character..."), toolbar);
+  bind_widget_text(text_character_button_, QT_TR_NOOP("Character..."));
   text_character_button_->setObjectName(QStringLiteral("textCharacterButton"));
-  text_character_button_->setToolTip(tr("Character panel (leading, tracking, glyph scales)"));
+  bind_tooltip(text_character_button_, QT_TR_NOOP("Character panel (leading, tracking, glyph scales)"));
   text_character_button_->setFocusPolicy(Qt::NoFocus);
   add_option_widget(text_character_button_, {CanvasTool::Text});
   connect(text_character_button_, &QPushButton::clicked, this, [this] { open_text_character_dialog(); });
@@ -2717,7 +2715,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   text_apply_button_ = new QPushButton(toolbar);
   text_apply_button_->setObjectName(QStringLiteral("textApplyButton"));
   text_apply_button_->setIcon(simple_icon(QStringLiteral("ok"), QColor(160, 220, 165)));
-  text_apply_button_->setToolTip(tr("Apply text edit"));
+  bind_tooltip(text_apply_button_, QT_TR_NOOP("Apply text edit"));
   text_apply_button_->setFixedWidth(30);
   text_apply_button_->setIconSize(QSize(20, 20));
   text_apply_button_->setProperty("optionsSessionButton", true);
@@ -2726,7 +2724,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   text_cancel_button_ = new QPushButton(toolbar);
   text_cancel_button_->setObjectName(QStringLiteral("textCancelButton"));
   text_cancel_button_->setIcon(simple_icon(QStringLiteral("clear"), QColor(255, 150, 150)));
-  text_cancel_button_->setToolTip(tr("Cancel text edit"));
+  bind_tooltip(text_cancel_button_, QT_TR_NOOP("Cancel text edit"));
   text_cancel_button_->setFixedWidth(30);
   text_cancel_button_->setIconSize(QSize(20, 20));
   text_cancel_button_->setProperty("optionsSessionButton", true);

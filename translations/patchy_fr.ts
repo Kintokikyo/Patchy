@@ -11964,10 +11964,6 @@ RVB : %2, %3, %4</translation>
         <translation>Couleur d'arrière-plan</translation>
     </message>
     <message>
-        <source>Edit in Quick Mask Mode (Q)</source>
-        <translation>Modifier en mode Masque (Q)</translation>
-    </message>
-    <message>
         <source>Brightness/Contrast...</source>
         <translation>Luminosité/Contraste...</translation>
     </message>
@@ -16590,6 +16586,10 @@ Y : %2
     <message>
         <source>Paste in Place</source>
         <translation>Coller sur place</translation>
+    </message>
+    <message>
+        <source>Close Tab</source>
+        <translation>Fermer l’onglet</translation>
     </message>
 </context>
 <context>

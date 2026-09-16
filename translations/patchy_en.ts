@@ -11955,10 +11955,6 @@ RGB: %2, %3, %4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Edit in Quick Mask Mode (Q)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Brightness/Contrast...</source>
         <translation type="unfinished"></translation>
     </message>
@@ -16547,6 +16543,10 @@ Y: %2
     </message>
     <message>
         <source>Paste in Place</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Close Tab</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

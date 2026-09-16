@@ -6,6 +6,10 @@
 #include "ui/dialog_utils.hpp"
 #include "ui/qt_paths.hpp"
 #include "ui/localization.hpp"
+#include "ui/main_window_shared.hpp"
+
+#include <QEvent>
+#include <QSignalBlocker>
 
 #include <QApplication>
 #include <QComboBox>
@@ -269,7 +273,8 @@ PalettePanel::PalettePanel(QWidget* parent) : QWidget(parent) {
   top_row->setSpacing(4);
   preset_combo_ = new QComboBox(this);
   preset_combo_->setObjectName(QStringLiteral("palettePresetCombo"));
-  preset_combo_->setToolTip(tr("Load a built-in palette"));
+  bind_translated_tooltip(preset_combo_, QT_TR_NOOP("Load a built-in palette"), "patchy::ui::PalettePanel");
+  apply_bound_translation(preset_combo_);
   preset_combo_->addItem(tr("Presets..."), QString());
   for (const auto& preset : builtin_palette_presets()) {
     preset_combo_->addItem(translate_data_text(preset.english_name), QString::fromLatin1(preset.id));
@@ -283,33 +288,38 @@ PalettePanel::PalettePanel(QWidget* parent) : QWidget(parent) {
   });
   top_row->addWidget(preset_combo_, 1);
 
-  const auto add_tool_button = [this](const char* object_name, QString text, QString tooltip) {
+  const auto add_tool_button = [this](const char* object_name, const char* source, const char* tooltip) {
     auto* button = new QToolButton(this);
     button->setObjectName(QString::fromLatin1(object_name));
-    button->setText(std::move(text));
-    button->setToolTip(std::move(tooltip));
+    if (source[0] == '+' || source[0] == '-') {
+      button->setText(QString::fromUtf8(source));
+    } else {
+      bind_translated_text(button, source, "patchy::ui::PalettePanel");
+    }
+    bind_translated_tooltip(button, tooltip, "patchy::ui::PalettePanel");
+    apply_bound_translation(button);
     button->setAutoRaise(true);
     button->setFocusPolicy(Qt::NoFocus);
     return button;
   };
-  auto* load_button = add_tool_button("paletteLoadButton", tr("Load"), tr("Load a palette file (.pal, .gpl, .hex, .act, .aco, .ase, indexed .bmp)"));
+  auto* load_button = add_tool_button("paletteLoadButton", QT_TR_NOOP("Load"), QT_TR_NOOP("Load a palette file (.pal, .gpl, .hex, .act, .aco, .ase, indexed .bmp)"));
   connect(load_button, &QToolButton::clicked, this, [this] { emit load_from_file_requested(); });
   top_row->addWidget(load_button);
-  auto* save_button = add_tool_button("paletteSaveButton", tr("Save"), tr("Save the palette to a file"));
+  auto* save_button = add_tool_button("paletteSaveButton", QT_TR_NOOP("Save"), QT_TR_NOOP("Save the palette to a file"));
   connect(save_button, &QToolButton::clicked, this, [this] { emit save_to_file_requested(); });
   top_row->addWidget(save_button);
   layout->addLayout(top_row);
 
   auto* action_row = new QHBoxLayout();
   action_row->setSpacing(4);
-  auto* extract_button = add_tool_button("paletteExtractButton", tr("Extract"),
-                                         tr("Build the palette from the image's colors"));
+  auto* extract_button = add_tool_button("paletteExtractButton", QT_TR_NOOP("Extract"),
+                                         QT_TR_NOOP("Build the palette from the image's colors"));
   connect(extract_button, &QToolButton::clicked, this, [this] { emit extract_from_image_requested(); });
   action_row->addWidget(extract_button);
-  auto* add_button = add_tool_button("paletteAddButton", QStringLiteral("+"), tr("Add the foreground color"));
+  auto* add_button = add_tool_button("paletteAddButton", "+", QT_TR_NOOP("Add the foreground color"));
   connect(add_button, &QToolButton::clicked, this, [this] { emit add_from_foreground_requested(); });
   action_row->addWidget(add_button);
-  remove_button_ = add_tool_button("paletteRemoveButton", QStringLiteral("-"), tr("Remove the selected color"));
+  remove_button_ = add_tool_button("paletteRemoveButton", "-", QT_TR_NOOP("Remove the selected color"));
   connect(remove_button_, &QToolButton::clicked, this, [this] {
     if (grid_->selected_index() >= 0) {
       emit remove_entry_requested(grid_->selected_index());
@@ -322,8 +332,8 @@ PalettePanel::PalettePanel(QWidget* parent) : QWidget(parent) {
   count_label_->setTextFormat(Qt::PlainText);
   count_label_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
   count_label_->setWordWrap(true);
-  copy_button_ = add_tool_button("paletteCopyHexButton", tr("Copy"),
-                                 tr("Copy the selected color's hex code to the clipboard"));
+  copy_button_ = add_tool_button("paletteCopyHexButton", QT_TR_NOOP("Copy"),
+                                 QT_TR_NOOP("Copy the selected color's hex code to the clipboard"));
   connect(copy_button_, &QToolButton::clicked, this, [this] {
     if (grid_->selected_index() >= 0) {
       emit copy_color_requested(grid_->selected_index());
@@ -354,19 +364,33 @@ PalettePanel::PalettePanel(QWidget* parent) : QWidget(parent) {
   layout->addWidget(grid_scroll_, 1);
 
   empty_hint_ = new QLabel(tr("No palette. Pick a preset, load a palette file, or extract one from the image."), this);
+  bind_translated_text(empty_hint_, QT_TR_NOOP("No palette. Pick a preset, load a palette file, or extract one from the image."), "patchy::ui::PalettePanel");
   empty_hint_->setObjectName(QStringLiteral("paletteEmptyHint"));
   empty_hint_->setWordWrap(true);
   // Stretch 1 like the scroll well: exactly one of the two is visible, and
   // whichever it is absorbs the dock's slack.
   layout->addWidget(empty_hint_, 1, Qt::AlignTop);
 
-  convert_button_ = add_tool_button("paletteConvertButton", tr("Convert to Indexed (Palette)..."),
-                                    tr("Constrain painting to this palette"));
+  convert_button_ = add_tool_button("paletteConvertButton", QT_TR_NOOP("Convert to Indexed (Palette)..."),
+                                    QT_TR_NOOP("Constrain painting to this palette"));
   convert_button_->setAutoRaise(false);
   connect(convert_button_, &QToolButton::clicked, this, [this] { emit convert_requested(); });
   layout->addWidget(convert_button_);
 
   set_palette({}, false);
+}
+
+void PalettePanel::changeEvent(QEvent* event) {
+  QWidget::changeEvent(event);
+  if (event->type() != QEvent::LanguageChange) return;
+  for (auto* child : findChildren<QObject*>()) apply_bound_translation(child);
+  const QSignalBlocker blocker(preset_combo_);
+  preset_combo_->setItemText(0, tr("Presets..."));
+  int index = 1;
+  for (const auto& preset : builtin_palette_presets()) {
+    preset_combo_->setItemText(index++, translate_data_text(preset.english_name));
+  }
+  update_selection_readout();
 }
 
 void PalettePanel::set_palette(const std::vector<RgbColor>& colors, bool mode_active,

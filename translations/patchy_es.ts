@@ -11964,10 +11964,6 @@ RGB: %2, %3, %4</translation>
         <translation>Color de fondo</translation>
     </message>
     <message>
-        <source>Edit in Quick Mask Mode (Q)</source>
-        <translation>Editar en modo Máscara rápida (Q)</translation>
-    </message>
-    <message>
         <source>Brightness/Contrast...</source>
         <translation>Brillo/contraste...</translation>
     </message>
@@ -16591,6 +16587,10 @@ Y: %2
         <source>Paste in Place</source>
         <translation>Pegar en contexto</translation>
     </message>
+    <message>
+        <source>Close Tab</source>
+        <translation>Cerrar pestaña</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -17823,7 +17823,7 @@ Y: %2
     <name>patchy::ui::StartPanel</name>
     <message>
         <source>Patchy Image Editor</source>
-        <translation>Patchy Image Editor</translation>
+        <translation>Editor de imágenes Patchy</translation>
     </message>
     <message>
         <source>Open source photo editing. Free forever, no subscriptions.</source>

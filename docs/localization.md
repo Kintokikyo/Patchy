@@ -49,9 +49,30 @@ context name identifies the surface.
    `type="unfinished"` entries.
 3. Fill the unfinished entries in every language file. Only the translation text changes;
    the source, context and message order come from lupdate.
-4. Build. `ui_translation_template_is_current` reruns lupdate and fails when step 2 was
-   skipped; `ui_translation_catalogs_are_complete` fails on any unfinished entry or a
-   broken placeholder, so the suite is the gate.
+4. Build. Every application build runs the read-only catalog gate before compiling
+   translations. Desktop builds also check the live UI before linking the app or
+   connector. Missing translations and broken language switching fail the build.
+
+Application builds require a host Python 3.8+ interpreter, including WebAssembly
+cross builds. `scripts/check-translations.py` uses only the standard library and the
+CMake-generated lupdate manifest. It compares a fresh extraction in temporary build
+storage with the English template, then validates every configured catalog's exact
+message keys, language, plural forms, completion, placeholders, accelerators and
+punctuation. Duplicate messages and malformed catalogs fail too. Ordinary builds never
+update source catalogs. `scripts/update-translations.ps1 -Check` runs this same gate;
+the update target remains independent so unfinished catalogs can still be regenerated.
+
+The desktop `patchy_translation_checks` executable runs offscreen with private temporary
+settings. It is required even with `PATCHY_BUILD_TESTS=OFF`. It loads every compiled
+Patchy and Qt catalog, checks compiled messages against the source translations, and
+compares persistent UI text after language changes with a fresh window in that language.
+The comparison walks actual properties, including controls without binding metadata:
+actions, labels, buttons, titles, tooltips, status tips, placeholders, combo entries and
+spin-box prefixes/suffixes. It covers empty and document-open windows, returning to
+English and switching directly between translated languages. User layer names, recent
+paths, font-family names and other item-view content are excluded. Unchanged terms such as RGB are valid;
+this is not an English-word heuristic. WebAssembly runs the host catalog gate and uses
+the same corrected UI code, but does not execute the native runtime checker.
 
 Never hand-edit source strings or contexts in a `.ts` file, never add entries by hand, and
 never use `-no-obsolete`-free runs to keep dead entries: lupdate owns the structure,
@@ -128,6 +149,13 @@ from `available_languages()` (native names as data, not `tr()`); there is no lan
 Switching installs the translators and Qt posts `LanguageChange`; `MainWindow::retranslate_ui`
 re-applies bound properties and registered callbacks (see docs/ui-conventions.md).
 
+Persistent controls must retain their English source through a binding or a retranslation
+callback. Calling `tr()` only in a constructor handles startup but leaves the old language
+after a switch. Options-label and menu-builder helpers take marked source literals and
+bind the created controls. StartPanel and PalettePanel also handle `LanguageChange` for
+their formatted text and preset lists. Language refreshes preserve selections and user
+content; block combo signals while relabeling entries.
+
 `patchy --language <code>` (also `--language=<code>`) applies a language for one run
 without saving it; combine it with `--headless --screenshot` to capture every language.
 
@@ -175,7 +203,14 @@ and the tests keep the structure honest. Issue 11 on GitHub tracks community tra
 ## Tests
 
 - `tests/ui/localization_tests.cpp`: `ui_translation_template_is_current`,
-  `ui_translation_catalogs_are_complete`, `ui_translation_template_covers_runtime_sources`.
+  `ui_translation_catalogs_are_complete`, `ui_translation_template_covers_runtime_sources`,
+  `ui_translation_compiled_catalogs_match_sources`. Catalog tests invoke the shared Python
+  validator rather than maintaining a second set of rules.
+- `tests/ui/translation_runtime_tests.cpp`: startup versus switched UI snapshots and
+  a deliberately unbound-control fixture. These tests also run in the desktop build gate.
+- `tests/translation_validator_tests.py`: broken catalogs in every language, placeholders,
+  plural counts, real lupdate freshness, Unicode paths and a CMake failure-propagation
+  fixture. Run through CTest as `patchy_translation_validator_tests`.
 - `tests/ui/app_shell_tests.cpp`: `ui_language_*` (switching, startup preference, system
   locale matching, combo contents, every catalog loads and translates),
   `ui_language_catalog_covers_dialog_status_and_properties` (pins Japanese strings),

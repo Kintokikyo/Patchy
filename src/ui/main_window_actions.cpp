@@ -568,12 +568,12 @@ void MainWindow::retranslate_ui() {
   retranslate_blend_combo();
   retranslate_brush_preset_combo();
   retranslate_mixer_combination_combo();
+  if (text_style_combo_ != nullptr && text_style_combo_->count() > 0) {
+    const QSignalBlocker blocker(text_style_combo_);
+    text_style_combo_->setItemText(0, tr("Regular"));
+  }
   if (text_size_spin_ != nullptr) {
     text_size_spin_->setSuffix(tr(" pt"));
-  }
-  const auto actions = findChildren<QAction*>();
-  for (auto* action : actions) {
-    refresh_action_tooltip(action);
   }
   rebuild_recent_files_menu();
   refresh_vector_preview_action();
@@ -582,10 +582,17 @@ void MainWindow::retranslate_ui() {
   refresh_layer_controls();
   refresh_channel_panel();
   refresh_document_info();
+  if (canvas_ != nullptr) {
+    canvas_->refresh_info_display();
+  }
   refresh_color_buttons();
   refresh_text_color_button();
   update_undo_redo_actions();
   update_document_action_state();
+  const auto actions = findChildren<QAction*>();
+  for (auto* action : actions) {
+    refresh_action_tooltip(action);
+  }
   if (statusBar() != nullptr) {
     statusBar()->showMessage(tr("Ready"));
   }

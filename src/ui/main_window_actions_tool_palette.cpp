@@ -1060,8 +1060,6 @@ void MainWindow::build_tool_palette(ActionBuildContext& ctx) {
           tool_palette->widgetForAction(quick_mask_action_));
       quick_mask_button != nullptr) {
     quick_mask_button->setObjectName(QStringLiteral("quickMaskButton"));
-    quick_mask_button->setToolTip(tr("Edit in Quick Mask Mode (Q)"));
-    bind_tooltip(quick_mask_button, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Edit in Quick Mask Mode (Q)"));
   }
   connect(primary_color_button_, &QPushButton::clicked, this, [this] { choose_primary_color(); });
   connect(secondary_color_button_, &QPushButton::clicked, this, [this] { choose_secondary_color(); });

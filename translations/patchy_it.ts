@@ -11964,10 +11964,6 @@ RGB: %2, %3, %4</translation>
         <translation>Colore di sfondo</translation>
     </message>
     <message>
-        <source>Edit in Quick Mask Mode (Q)</source>
-        <translation>Modifica in modalità maschera veloce (Q)</translation>
-    </message>
-    <message>
         <source>Brightness/Contrast...</source>
         <translation>Luminosità/contrasto...</translation>
     </message>
@@ -16590,6 +16586,10 @@ Y: %2
     <message>
         <source>Paste in Place</source>
         <translation>Incolla nella stessa posizione</translation>
+    </message>
+    <message>
+        <source>Close Tab</source>
+        <translation>Chiudi scheda</translation>
     </message>
 </context>
 <context>

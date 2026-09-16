@@ -7,10 +7,8 @@
 # Patchy-owned source (CMakeLists.txt owns the source list and options) so that
 # translations\patchy_en.ts (the English template) and every translations\patchy_<code>.ts
 # carry exactly the strings the code uses, then prints the unfinished count per language.
-# -Check skips lupdate and only reports; it fails when any language has unfinished
-# entries. The UI test translation_catalogs_are_complete enforces the same rule, and
-# translation_template_is_current fails when this script has not been run after a
-# string change. See docs/localization.md.
+# -Check runs the read-only build validator (fresh extraction plus all catalog
+# checks). It never updates tracked catalogs. See docs/localization.md.
 param(
   [string]$Preset = "release",
   [switch]$Check
@@ -24,7 +22,8 @@ if (-not (Test-Path $cache)) {
   throw "No configured build at $buildDir. Configure the '$Preset' preset first."
 }
 
-if (-not $Check) {
+& {
+  $target = if ($Check) { "patchy_check_translation_catalogs" } else { "patchy_update_translations" }
   $cmakeLine = Get-Content $cache | Where-Object { $_ -like "CMAKE_COMMAND:INTERNAL=*" } | Select-Object -First 1
   if (-not $cmakeLine) { throw "CMAKE_COMMAND not found in $cache" }
   $cmake = $cmakeLine.Substring("CMAKE_COMMAND:INTERNAL=".Length)
@@ -35,11 +34,11 @@ if (-not $Check) {
       # (AGENTS.md); lupdate itself is single-threaded and takes a few seconds.
       # run-throttled.bat, not a bare `start /b /wait`: that form returns start's
       # own status, so the $LASTEXITCODE check below could never fire.
-      & cmd /s /c "scripts\vs-env.bat -arch=x64 -host_arch=x64 >nul && scripts\run-throttled.bat ""$cmake"" --build --preset $Preset --target patchy_update_translations"
+      & cmd /s /c "scripts\vs-env.bat -arch=x64 -host_arch=x64 >nul && scripts\run-throttled.bat ""$cmake"" --build --preset $Preset --target $target -j 6"
     } else {
-      & nice -n 10 $cmake --build --preset $Preset --target patchy_update_translations
+      & nice -n 10 $cmake --build --preset $Preset --target $target -j 6
     }
-    if ($LASTEXITCODE -ne 0) { throw "lupdate failed (exit $LASTEXITCODE)" }
+    if ($LASTEXITCODE -ne 0) { throw "Translation target $target failed (exit $LASTEXITCODE)" }
   } finally {
     Pop-Location
   }

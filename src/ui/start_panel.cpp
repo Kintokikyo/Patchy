@@ -6,6 +6,9 @@
 #include "ui/theme_palette.hpp"
 #include "ui/theme_qss.hpp"
 #include "ui/splash_artwork.hpp"
+#include "ui/main_window_shared.hpp"
+
+#include <QEvent>
 
 #include <QDir>
 #include <QFileInfo>
@@ -152,8 +155,10 @@ StartPanel::StartPanel(QWidget* parent) : QWidget(parent) {
   auto* header_text = new QVBoxLayout();
   header_text->setSpacing(4);
   auto* title = new QLabel(tr("Patchy Image Editor"), column);
+  bind_translated_text(title, QT_TR_NOOP("Patchy Image Editor"), "patchy::ui::StartPanel");
   title->setObjectName(QStringLiteral("startPanelTitle"));
   auto* tagline = new QLabel(tr("Open source photo editing. Free forever, no subscriptions."), column);
+  bind_translated_text(tagline, QT_TR_NOOP("Open source photo editing. Free forever, no subscriptions."), "patchy::ui::StartPanel");
   tagline->setObjectName(QStringLiteral("startPanelTagline"));
   tagline->setWordWrap(true);
   tagline->setMaximumWidth(240);
@@ -169,9 +174,11 @@ StartPanel::StartPanel(QWidget* parent) : QWidget(parent) {
   auto* buttons_row = new QHBoxLayout();
   buttons_row->setSpacing(10);
   auto* new_button = new QPushButton(tr("New Document..."), column);
+  bind_translated_text(new_button, QT_TR_NOOP("New Document..."), "patchy::ui::StartPanel");
   new_button->setObjectName(QStringLiteral("startPanelNewButton"));
   new_button->setCursor(Qt::PointingHandCursor);
   auto* open_button = new QPushButton(tr("Open..."), column);
+  bind_translated_text(open_button, QT_TR_NOOP("Open..."), "patchy::ui::StartPanel");
   open_button->setObjectName(QStringLiteral("startPanelOpenButton"));
   open_button->setCursor(Qt::PointingHandCursor);
   buttons_row->addStretch(1);
@@ -186,6 +193,7 @@ StartPanel::StartPanel(QWidget* parent) : QWidget(parent) {
   auto* recent_header = new QHBoxLayout();
   recent_header->setSpacing(10);
   recent_label_ = new QLabel(tr("Recent Files"), column);
+  bind_translated_text(recent_label_, QT_TR_NOOP("Recent Files"), "patchy::ui::StartPanel");
   recent_label_->setObjectName(QStringLiteral("startPanelRecentLabel"));
   recent_header->addWidget(recent_label_);
   recent_header->addStretch(1);
@@ -193,6 +201,7 @@ StartPanel::StartPanel(QWidget* parent) : QWidget(parent) {
   recent_filter_edit_->setObjectName(QStringLiteral("startPanelRecentFilterEdit"));
   recent_filter_edit_->setClearButtonEnabled(true);
   recent_filter_edit_->setPlaceholderText(tr("Filter recent files..."));
+  bind_translated_text(recent_filter_edit_, QT_TR_NOOP("Filter recent files..."), "patchy::ui::StartPanel");
   recent_filter_edit_->setFixedHeight(24);
   recent_filter_edit_->setMinimumWidth(140);
   recent_filter_edit_->setMaximumWidth(230);
@@ -217,6 +226,7 @@ StartPanel::StartPanel(QWidget* parent) : QWidget(parent) {
   column_layout->addWidget(recent_list_);
 
   auto* hint = new QLabel(tr("You can also drop image files anywhere in the window"), column);
+  bind_translated_text(hint, QT_TR_NOOP("You can also drop image files anywhere in the window"), "patchy::ui::StartPanel");
   hint->setObjectName(QStringLiteral("startPanelHint"));
   hint->setAlignment(Qt::AlignHCenter);
   column_layout->addSpacing(2);
@@ -232,15 +242,17 @@ StartPanel::StartPanel(QWidget* parent) : QWidget(parent) {
   wasm_note->setAlignment(Qt::AlignHCenter);
   wasm_note->setTextInteractionFlags(Qt::TextBrowserInteraction);
   wasm_note->setOpenExternalLinks(true);
-  const auto desktop_link = QStringLiteral("<a style=\"color:@link_text; text-decoration:none;\" "
-                                           "href=\"https://github.com/SethRobinson/Patchy#download\">%1</a>")
-                                .arg(tr("desktop version"));
-  set_themed_label_text(*wasm_note,
-                        tr("Everything runs locally in your browser. Nothing you make is ever sent online.") +
-                            QStringLiteral("<br/>") +
-                            tr("Drop a font file or a zip of fonts here to use your own fonts.") +
-                            QStringLiteral("<br/>") +
-                            tr("For all your system fonts and better speed, get the %1.").arg(desktop_link));
+  retranslation_callbacks_.push_back([wasm_note] {
+    const auto desktop_link = QStringLiteral("<a style=\"color:@link_text; text-decoration:none;\" "
+                                             "href=\"https://github.com/SethRobinson/Patchy#download\">%1</a>")
+                                  .arg(tr("desktop version"));
+    set_themed_label_text(*wasm_note,
+                          tr("Everything runs locally in your browser. Nothing you make is ever sent online.") +
+                              QStringLiteral("<br/>") +
+                              tr("Drop a font file or a zip of fonts here to use your own fonts.") +
+                              QStringLiteral("<br/>") +
+                              tr("For all your system fonts and better speed, get the %1.").arg(desktop_link));
+  });
   column_layout->addSpacing(2);
   column_layout->addWidget(wasm_note);
 #endif
@@ -260,11 +272,14 @@ StartPanel::StartPanel(QWidget* parent) : QWidget(parent) {
     footer->addLayout(row);
   };
 
-  auto* version = new QLabel(
-      tr("Version %1 (built %2)").arg(QStringLiteral(PATCHY_VERSION), build_timestamp_text()), this);
+  auto* version = new QLabel(this);
+  retranslation_callbacks_.push_back([version] {
+    version->setText(tr("Version %1 (built %2)").arg(QStringLiteral(PATCHY_VERSION), build_timestamp_text()));
+  });
   version->setObjectName(QStringLiteral("startPanelVersion"));
   version->setTextFormat(Qt::PlainText);
   auto* credit = new QLabel(tr("Created by Seth A. Robinson"), this);
+  bind_translated_text(credit, QT_TR_NOOP("Created by Seth A. Robinson"), "patchy::ui::StartPanel");
   credit->setObjectName(QStringLiteral("startPanelCredit"));
   credit->setTextFormat(Qt::PlainText);
   add_footer_row({version, credit});
@@ -272,28 +287,32 @@ StartPanel::StartPanel(QWidget* parent) : QWidget(parent) {
   auto* contributors = new QLabel(this);
   contributors->setObjectName(QStringLiteral("startPanelContributors"));
   contributors->setTextFormat(Qt::RichText);
-  set_themed_label_text(
-      *contributors,
-      tr("Code contributions from %1").arg(code_contributors_link_html(QStringLiteral("@link_text"))));
+  retranslation_callbacks_.push_back([contributors] {
+    set_themed_label_text(
+        *contributors,
+        tr("Code contributions from %1").arg(code_contributors_link_html(QStringLiteral("@link_text"))));
+  });
   contributors->setTextInteractionFlags(Qt::TextBrowserInteraction);
   contributors->setOpenExternalLinks(true);
   add_footer_row({contributors});
 
-  const auto make_home_label = [this](const QString& text) {
+  const auto make_home_label = [this](const char* source, const QString& link) {
     auto* label = new QLabel(this);
     label->setObjectName(QStringLiteral("startPanelHome"));
     label->setTextFormat(Qt::RichText);
     label->setTextInteractionFlags(Qt::TextBrowserInteraction);
     label->setOpenExternalLinks(true);
-    set_themed_label_text(*label, text);
+    retranslation_callbacks_.push_back([label, source, link] {
+      set_themed_label_text(*label, tr(source).arg(link));
+    });
     return label;
   };
   const auto github_link = QStringLiteral("<a style=\"color:@link_text; text-decoration:none;\" "
                                           "href=\"https://github.com/SethRobinson/Patchy\">SethRobinson/Patchy</a>");
   const auto seth_site_link = QStringLiteral("<a style=\"color:@link_text; text-decoration:none;\" "
                                              "href=\"https://rtsoft.com\">rtsoft.com</a>");
-  add_footer_row({make_home_label(tr("GitHub: %1").arg(github_link)),
-                  make_home_label(tr("Seth's site: %1").arg(seth_site_link))});
+  add_footer_row({make_home_label(QT_TR_NOOP("GitHub: %1"), github_link),
+                  make_home_label(QT_TR_NOOP("Seth's site: %1"), seth_site_link)});
 
   update_status_label_ = new QLabel(this);
   update_status_label_->setObjectName(QStringLiteral("startPanelUpdateStatus"));
@@ -302,6 +321,7 @@ StartPanel::StartPanel(QWidget* parent) : QWidget(parent) {
   add_footer_row({update_status_label_});
 
   outer->addLayout(footer);
+  for (const auto& callback : retranslation_callbacks_) callback();
 
   connect(new_button, &QPushButton::clicked, this, &StartPanel::new_document_requested);
   connect(open_button, &QPushButton::clicked, this, &StartPanel::open_requested);
@@ -462,6 +482,14 @@ void StartPanel::open_first_recent_match() {
       return;
     }
   }
+}
+
+void StartPanel::changeEvent(QEvent* event) {
+  QWidget::changeEvent(event);
+  if (event->type() != QEvent::LanguageChange) return;
+  for (auto* child : findChildren<QObject*>()) apply_bound_translation(child);
+  for (const auto& callback : retranslation_callbacks_) callback();
+  rebuild_recent_rows();
 }
 
 void StartPanel::showEvent(QShowEvent* event) {
