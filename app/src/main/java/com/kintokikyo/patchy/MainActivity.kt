@@ -492,13 +492,76 @@ class MainActivity : Activity() {
                         )
 
 
+                    // ----------------------------------
+                    // Tentukan MIME type berdasarkan
+                    // ekstensi nama file.
+                    //
+                    // Jangan mengandalkan blob.type karena
+                    // pada beberapa Android document provider
+                    // hal tersebut dapat membuat ekstensi
+                    // tambahan seperti .txt.
+                    // ----------------------------------
+
+                    val lowerFileName =
+                        pendingSaveFileName
+                            .lowercase()
+
                     pendingSaveMimeType =
-                        if (
-                            mimeType.isNotBlank()
-                        ) {
-                            mimeType
-                        } else {
-                            "application/octet-stream"
+                        when {
+
+                            lowerFileName.endsWith(
+                                ".png"
+                            ) ->
+                                "image/png"
+
+                            lowerFileName.endsWith(
+                                ".jpg"
+                            ) ||
+                            lowerFileName.endsWith(
+                                ".jpeg"
+                            ) ->
+                                "image/jpeg"
+
+                            lowerFileName.endsWith(
+                                ".webp"
+                            ) ->
+                                "image/webp"
+
+                            lowerFileName.endsWith(
+                                ".gif"
+                            ) ->
+                                "image/gif"
+
+                            lowerFileName.endsWith(
+                                ".bmp"
+                            ) ->
+                                "image/bmp"
+
+                            lowerFileName.endsWith(
+                                ".tif"
+                            ) ||
+                            lowerFileName.endsWith(
+                                ".tiff"
+                            ) ->
+                                "image/tiff"
+
+                            lowerFileName.endsWith(
+                                ".svg"
+                            ) ->
+                                "image/svg+xml"
+
+                            lowerFileName.endsWith(
+                                ".psd"
+                            ) ->
+                                "application/vnd.adobe.photoshop"
+
+                            lowerFileName.endsWith(
+                                ".psb"
+                            ) ->
+                                "application/octet-stream"
+
+                            else ->
+                                "application/octet-stream"
                         }
 
 
