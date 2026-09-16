@@ -138,7 +138,7 @@ These are corpus-specific results, not universal product ratings. See the [full 
 
 ## Download
 
-**Latest release: 0.94** · September 11, 2026 · [Release notes](#whats-new)
+**Latest release: 0.95** · September 16, 2026 · [Release notes](#whats-new)
 
 Windows releases are code signed by Seth A. Robinson; the macOS app is signed and
 notarized (Robinson Technologies Corporation).
@@ -150,11 +150,6 @@ notarized (Robinson Technologies Corporation).
 | macOS 12+ (Apple Silicon) | DMG - drag to Applications  | [PatchyMacOS.dmg](https://rtsoft.com/files/PatchyMacOS.dmg) (64 MB)                           |
 | Linux                     | Flatpak bundle              | [PatchyLinux.flatpak](https://rtsoft.com/files/PatchyLinux.flatpak) (31 MB)                   |
 | Any modern browser        | Nothing to install          | [rtsoft.com/patchy](https://www.rtsoft.com/patchy/) (slower and less capable)                 |
-
-The browser version is the same editor compiled to WebAssembly, and everything runs locally:
-nothing you open or make is sent online. Use a desktop build if you can. The browser version is
-slower, it is capped at a browser tab's 4 GB of memory so large documents run out of room sooner,
-and it leaves out printing, scanner and camera import, and command-line automation.
 
 Linux one-line install (paste into a terminal; fetches the bundle and installs it,
 pulling the shared KDE runtime from Flathub automatically):
@@ -185,7 +180,7 @@ flatpak install -y flathub org.freedesktop.Platform.ffmpeg-full//24.08
 - Photoshop-compatible layer style, pattern, and gradient preset libraries, including .asl, .pat, and .grd import/export, 39 built-in styles, and 20 bundled CC0 photo textures
 - Warp Transform tool and Warp Text with all 15 Photoshop warp styles and live preview
 - Multiple document interface: tabbed documents that can float in their own windows, Photoshop-style Tile and Cascade arrangement, a Window menu that lists every open document, and layers that drag or duplicate between documents
-- Rich text with per-run color, font, size, and style, plus a searchable font picker and Character controls for leading, tracking, and horizontal or vertical glyph scaling
+- Rich text with per-run color, font, size, and style, plus a searchable font picker and Character controls for leading, tracking, and horizontal or vertical glyph scaling, editable on the selected text layer without entering text-editing mode
 - Palettized (indexed color) editing mode for pixel art: paint constrained to a palette, quantize with optional dithering, built-in retro palettes (NES, C64, Game Boy, PICO-8, and more), palette files (.pal/.gpl/.hex/.act/.aco/.ase), and exact indexed PNG-8 and 2/4/8-bit BMP export. Layers, layer styles, and effects all keep working (Photoshop's indexed mode flattens and disables them)
 - Named palette colors appear in the Palette panel, color picker, Info panel, and eyedropper readout. Rename swatches, preserve names through GPL, PSD, and indexed PNG round trips, and manage palettes through scripts
 - Pixel-art and game-dev extras: seamless texture authoring (live tile preview window, in-canvas tiling mode, seam shifting), sprite sheet export/import, image sequence export/import (numbered files become layers and back), animated GIF import/export (frames become layers with their timings in the layer names, visible layers save back as a looping animation, and the layers panel's film button previews the animation in-app), and an Export Flat Image dialog with nearest-neighbor scaling (2x-8x), smooth resize, transparent-edge trimming, and background fill
@@ -204,23 +199,24 @@ flatpak install -y flathub org.freedesktop.Platform.ffmpeg-full//24.08
 
 ## What's New
 
+### 0.95 - September 16, 2026
+
+- The interface now supports German, Spanish, French, Italian, Japanese, and Simplified and Traditional Chinese alongside English. It follows your system language or your choice in File > Preferences.  I had to add 20 mb to the filesize to include fonts to do this proper, but.. I think that's ok in the grand scheme of things.\
+  \
+  Note: LLM translation is never perfect, so if you notice any glaring language errors in your native language please let me know or submit a pull request with your fixes on its language file.  Oh, English now has it's own language file too.\
+- Starting a Move drag on a large document prepares the preview in the background, with a moving outline and an animated "Rendering preview..." indicator while it catches up. Repeated drags reuse more of the preview work, and rapid moves no longer pile up full renders
+- Fixed some weirdness with dragging down the Layers panel's eye column, the Character panel works without selecting text, double clicking the T icon for a text object now edits it instead of zooming in to it
+- New adjustment layers appear directly above the topmost selected layer, and include a default mask even if nothing is selected.
+- Paste centers copied selection pixels and clipboard images in the visible canvas area, keeping them inside the document when they fit. Edit > Paste in Place (Ctrl+Shift+V) restores copied selection pixels to their original coordinates, including across documents, with the same edge limits.  Pastes now appear directly above the topmost selected layer.
+- The Move tool works better with stuff that is off the canvas, previously it hard to move them
+- Optimized working with large files, it's more responsible thanks to now allowing movement before preview data is generated and various improvements to how caching works
+
 ### 0.94 - September 11, 2026
 
 - Paste clears the selection, so the marquee that produced the copy no longer stays over the pasted layer. Undo of the paste brings it back
 - The Move tool grabs a layer anywhere inside its outline rectangle, transparent pixels included, instead of starting a layer-selection rectangle there. A visible pixel still wins over an enclosing rectangle, and the selected layer's rectangle wins over a larger one above it
 - Speed improvements with selections on documents with tons of layers
 - Moving a layer on a large document with layer styles no longer freezes while the final pixels render: the move lands immediately and the accurate render catches up in the background. Layer-style masks also stay cached between renders, which halves repeated renders of heavily styled posters
-
-### 0.93 - September 11, 2026
-
-- Drag layers from the Layers panel onto another open document's canvas or tab to copy them there, Photoshop style. Layer > Duplicate Layer to Document offers a destination dialog (any open document or a new one), Alt-dragging inside the panel duplicates layers at the drop position, and scripts gain layer.duplicate(targetDocument)
-- The Window menu lists every open document, a document floated in its own window stays active when the main window is clicked, and the tab strip dims a tab whose document currently lives in a float
-- Export Flat Image (Ctrl+Alt+Shift+S) opens a real options dialog: smooth resize, a labeled pixel-art scale, background fill, trim transparent edges, show in Explorer when done, and WebP quality or lossless
-- Camera raw: a Natural rendering profile deepens shadows and rolls highlights off gently while Neutral keeps the straight camera-to-sRGB output, automatic ISO-based noise reduction gains a separate color noise control, develop settings are saved per photo in a .rawprefs file beside the original, quick previews refine in the background with real progress, and Open shows its progress too. The develop dialog's Done button is gone because Open already saves the settings
-- Image Size folds its scale into text layers and re-renders them crisp instead of leaving resampled text, box text scales its frame with it, and the options bar shows the effective size of any scaled text layer
-- Every choose-a-color prompt uses Patchy's own color picker instead of the system dialog: export background, Canvas Size, New Document, script color fields, and the grid and guide colors, which gain opacity controls
-- Image > Rotate Left and Rotate Right replace the 90-degree rotate items, and a new Rotate Arbitrary command turns the canvas by any angle in either direction and grows it to fit, re-rendering text layers crisp
-- Fixes: dropping files from Explorer no longer holds Explorer up while a RAW or PDF import dialog is open, and grabbing a Move-tool transform handle on box text no longer stretches the text out to its frame
 
 [Older releases](RELEASE-HISTORY.md)
 
