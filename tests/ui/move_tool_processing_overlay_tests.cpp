@@ -4115,6 +4115,10 @@ void ui_move_cold_preview_is_async_and_uses_latest_delta() {
   scene.canvas->document_changed();
   scene.settle();
   scene.canvas->set_selected_layer_ids({scene.layer_id});
+  scene.canvas->set_rulers_visible(false);
+  qputenv("PATCHY_PROCESSING_RENDER_TEST_DELAY_MS", QByteArray("1200"));
+  const QRect badge_area(0, 0, scene.canvas->width(), 80);
+  const auto no_badge = render_widget_image(*scene.canvas).copy(badge_area);
   const auto before = scene.canvas->render_cache_diagnostics();
   const auto start = scene.canvas->widget_position_for_document_point(QPoint(70, 70));
   send_mouse(*scene.canvas, QEvent::MouseButtonPress, start, Qt::LeftButton, Qt::LeftButton);
@@ -4124,8 +4128,20 @@ void ui_move_cold_preview_is_async_and_uses_latest_delta() {
   const auto first_feedback_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - began).count();
   CHECK(first_feedback_ms < 300.0);
   CHECK(scene.canvas->render_cache_diagnostics().move_proxy_previews == before.move_proxy_previews);
+  CHECK(!scene.canvas->processing_overlay_visible());
+  const auto first_badge = render_widget_image(*scene.canvas).copy(badge_area);
+  CHECK(!images_equal_rgba(no_badge, first_badge));
+  save_widget_artifact("ui_move_cold_preview_building", *scene.canvas);
+  const auto first_frame = scene.canvas->render_cache_diagnostics().processing_overlay_frames;
+  // No more pointer events: the spinner must keep animating on its own.
+  CHECK(process_events_until([&] {
+    return scene.canvas->render_cache_diagnostics().processing_overlay_frames > first_frame;
+  }, 1000));
+  CHECK(scene.canvas->render_cache_diagnostics().move_proxy_previews == before.move_proxy_previews);
+  CHECK(!images_equal_rgba(first_badge, render_widget_image(*scene.canvas).copy(badge_area)));
   scene.settle();
   CHECK(scene.canvas->render_cache_diagnostics().move_proxy_previews == before.move_proxy_previews + 1);
+  CHECK(images_equal_rgba(no_badge, render_widget_image(*scene.canvas).copy(badge_area)));
   CHECK(color_close(canvas_pixel(*scene.canvas, QPoint(140, 70)), QColor(20, 90, 235), 8));
   CHECK(color_close(canvas_pixel(*scene.canvas, QPoint(45, 70)), QColor(Qt::white), 8));
   send_mouse(*scene.canvas, QEvent::MouseButtonRelease, start + QPoint(50, 0), Qt::LeftButton, Qt::NoButton);
@@ -4140,11 +4156,26 @@ void ui_move_cold_preview_is_async_and_uses_latest_delta() {
   qputenv("PATCHY_PROCESSING_RENDER_TEST_DELAY_MS", QByteArray("400"));
   CHECK(scene.drag_right(QPoint(120, 70)) < 300.0);
   CHECK(scene.layer_x() == 140);
+  // A released drag must not keep claiming that it is building a drag preview.
+  CHECK(images_equal_rgba(no_badge, render_widget_image(*scene.canvas).copy(badge_area)));
   patchy::ui::MainWindowTestAccess::undo(scene.window);
   scene.settle();
   CHECK(scene.layer_x() == 90);
   const auto restored = render_widget_image(*scene.canvas);
   CHECK(images_equal_rgba(restored, scene.reference_image()));
+
+  scene.canvas->document_changed();
+  scene.settle();
+  qputenv("PATCHY_PROCESSING_RENDER_TEST_DELAY_MS", QByteArray("1200"));
+  const auto cancel_start = scene.canvas->widget_position_for_document_point(QPoint(120, 70));
+  send_mouse(*scene.canvas, QEvent::MouseButtonPress, cancel_start, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*scene.canvas, QEvent::MouseMove, cancel_start + QPoint(20, 0), Qt::NoButton, Qt::LeftButton);
+  CHECK(!images_equal_rgba(no_badge, render_widget_image(*scene.canvas).copy(badge_area)));
+  QFocusEvent focus_out(QEvent::FocusOut, Qt::OtherFocusReason);
+  QApplication::sendEvent(scene.canvas, &focus_out);
+  CHECK(images_equal_rgba(no_badge, render_widget_image(*scene.canvas).copy(badge_area)));
+  scene.settle();
+  CHECK(images_equal_rgba(no_badge, render_widget_image(*scene.canvas).copy(badge_area)));
 }
 
 void ui_move_rapid_commits_keep_latest_region_and_exact_pixels() {

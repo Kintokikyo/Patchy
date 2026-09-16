@@ -2448,6 +2448,17 @@ void CanvasWidget::draw_rulers(QPainter& painter) const {
   painter.restore();
 }
 
+void CanvasWidget::set_move_preview_requested(bool requested) {
+  if (move_preview_requested_ == requested) return;
+  move_preview_requested_ = requested;
+  if (requested && !processing_animation_timer_.isActive()) {
+    processing_animation_timer_.start(kProcessingAnimationIntervalMs, this);
+  }
+  // This is a paint-only hint: never enter a processing wait or pump events
+  // from the pointer handler. Cancellation hides it even if its worker remains.
+  update();
+}
+
 void CanvasWidget::begin_preview_render() {
   if (++preview_renders_in_flight_ != 1) {
     return;
@@ -2472,6 +2483,9 @@ void CanvasWidget::end_preview_render() {
 }
 
 bool CanvasWidget::preview_render_overlay_visible() const {
+  // An outline-only Move needs immediate feedback, including while the mouse
+  // is stationary. Other preview operations keep their existing badge delay.
+  if (moving_layer_ && move_preview_requested_) return true;
   return preview_renders_in_flight_ > 0 && preview_render_started_.isValid() &&
          preview_render_started_.elapsed() >= processing_overlay_delay_ms();
 }
@@ -2567,7 +2581,7 @@ void CanvasWidget::hide_processing_overlay() {
   }
   processing_overlay_visible_ = false;
   processing_overlay_message_.clear();
-  if (preview_renders_in_flight_ == 0) {
+  if (preview_renders_in_flight_ == 0 && !move_preview_requested_) {
     processing_animation_timer_.stop();
   }
   update();

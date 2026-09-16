@@ -641,14 +641,14 @@ QRect CanvasWidget::moving_layers_outline_dirty_rect(QPoint old_delta, QPoint ne
 
 void CanvasWidget::cancel_move_preview() noexcept {
   ++move_preview_generation_;
-  move_preview_requested_ = false;
+  set_move_preview_requested(false);
   if (move_preview_cancel_) move_preview_cancel_->store(true);
 }
 
 bool CanvasWidget::request_move_preview() {
   if constexpr (kBackgroundWorkRunsInline) return false;
   if (document_ == nullptr || moving_layers_.empty()) return false;
-  move_preview_requested_ = true;
+  set_move_preview_requested(true);
   if (move_preview_in_flight_) return true;
 
   const auto generation = ++move_preview_generation_;
@@ -728,7 +728,7 @@ bool CanvasWidget::request_move_preview() {
       widget->move_preview_in_flight_ = false;
       if (!cancelled->load() && generation == widget->move_preview_generation_ && widget->moving_layer_ &&
           key == widget->move_live_latch_key() && level == preview_composite_level_for_zoom(widget->zoom_)) {
-        widget->move_preview_requested_ = false;
+        widget->set_move_preview_requested(false);
         if (*scaled) {
           widget->preview_scaled_document_ = std::move(*scaled);
           widget->preview_scaled_document_level_ = level;

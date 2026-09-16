@@ -36,7 +36,11 @@ Heavy Move-tool drags latch onto a translated-snapshot proxy instead of the old 
 
 Large/deep documents use `should_prepare_move_preview_async`, sharing the
 full-refresh size/layer thresholds. A cold Move starts one snapshot worker and
-draws a moving outline immediately. The worker builds the scaled scene, hidden
+draws a moving outline immediately with the animated, nonblocking
+"Rendering preview..." canvas badge. Its animation continues while the pointer
+is stationary; the badge disappears on completion, release or cancellation,
+even if an abandoned worker is still finishing. Other preview operations retain
+their delayed badge. The worker builds the scaled scene, hidden
 backdrop and proxy; completion checks cancellation, gesture generation, moving
 IDs and preview level, then paints at the current delta. A superseding request
 waits for the existing worker; cancellation is checked between preparation

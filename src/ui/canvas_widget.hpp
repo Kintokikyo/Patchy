@@ -1141,6 +1141,7 @@ private:
   void refresh_curves_clipping_preview();
   void ensure_move_base_cache();
   bool request_move_preview();
+  void set_move_preview_requested(bool requested);
   bool should_prepare_move_preview_async() const noexcept;
   void cancel_move_preview() noexcept;
   // Deferred Move commit (see mouseReleaseEvent and the MoveCommitJob members).
