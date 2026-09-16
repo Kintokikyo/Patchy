@@ -50,7 +50,6 @@ class MainActivity : Activity() {
     // ANDROID FILE PICKER
     // ==============================================
 
-    // Callback untuk Android file picker
     private var filePathCallback:
         ValueCallback<Array<Uri>>? = null
 
@@ -448,10 +447,8 @@ class MainActivity : Activity() {
             try {
 
 
-                // Android WebView memanggil JavascriptInterface
-                // dari thread background.
-                // Jadi operasi MediaStore dilakukan
-                // di thread ini, bukan UI thread.
+                // Android WebView memanggil
+                // JavascriptInterface dari thread background.
 
 
                 val safeFileName =
@@ -982,9 +979,29 @@ class MainActivity : Activity() {
             """
             (function() {
 
+                // ==========================================
+                // CEGAH INSTALL BERULANG
+                // ==========================================
+
                 if (
                     window.__patchyAndroidSaveInstalled
                 ) {
+                    return;
+                }
+
+
+                // ==========================================
+                // PASTIKAN BRIDGE ANDROID ADA
+                // ==========================================
+
+                if (
+                    !window.PatchyAndroid
+                ) {
+
+                    console.error(
+                        "PatchyAndroid bridge tidak tersedia"
+                    );
+
                     return;
                 }
 
@@ -1039,7 +1056,7 @@ class MainActivity : Activity() {
 
 
                         // ----------------------------------
-                        // Minta Android membuat file.
+                        // Minta Android membuat file
                         // ----------------------------------
 
                         PatchyAndroid.prepareSave(
@@ -1050,7 +1067,7 @@ class MainActivity : Activity() {
 
 
                         // ----------------------------------
-                        // Tunggu Android siap.
+                        // Tunggu Android siap
                         // ----------------------------------
 
                         while (
@@ -1070,10 +1087,18 @@ class MainActivity : Activity() {
                         }
 
 
+                        // ----------------------------------
+                        // Gagal / dibatalkan
+                        // ----------------------------------
+
                         if (
                             window.__patchySaveCancelled ||
                             window.__patchySaveError
                         ) {
+
+                            console.error(
+                                "Patchy Android: save dibatalkan"
+                            );
 
                             return;
                         }
@@ -1081,7 +1106,6 @@ class MainActivity : Activity() {
 
                         // ==================================
                         // CHUNK SIZE
-                        // 512 KB
                         // ==================================
 
                         const chunkSize =
@@ -1093,6 +1117,14 @@ class MainActivity : Activity() {
                                 blob.size /
                                 chunkSize
                             );
+
+
+                        console.log(
+                            "Patchy Android: " +
+                            "mengirim " +
+                            totalChunks +
+                            " chunk"
+                        );
 
 
                         // ==================================
@@ -1134,6 +1166,10 @@ class MainActivity : Activity() {
                                 );
 
 
+                            // ----------------------------------
+                            // Uint8Array → binary string
+                            // ----------------------------------
+
                             let binary =
                                 "";
 
@@ -1163,19 +1199,30 @@ class MainActivity : Activity() {
                             }
 
 
+                            // ----------------------------------
+                            // binary → Base64
+                            // ----------------------------------
+
                             const base64 =
                                 btoa(
                                     binary
                                 );
 
 
+                            // ----------------------------------
+                            // Kirim ke Android
+                            // ----------------------------------
+
                             PatchyAndroid.writeChunk(
                                 base64
                             );
 
 
+                            // ----------------------------------
                             // Beri WebView kesempatan
-                            // memproses event berikutnya.
+                            // bernapas
+                            // ----------------------------------
+
                             await new Promise(
                                 resolve =>
                                     setTimeout(
@@ -1185,10 +1232,19 @@ class MainActivity : Activity() {
                             );
 
 
+                            // ----------------------------------
+                            // Periksa error
+                            // ----------------------------------
+
                             if (
                                 window.__patchySaveError ||
                                 window.__patchySaveCancelled
                             ) {
+
+                                console.error(
+                                    "Patchy Android: " +
+                                    "save berhenti"
+                                );
 
                                 return;
                             }
@@ -1196,10 +1252,16 @@ class MainActivity : Activity() {
 
 
                         // ==================================
-                        // SELESAI
+                        // SEMUA DATA SUDAH TERKIRIM
                         // ==================================
 
                         PatchyAndroid.finishSave();
+
+
+                        console.log(
+                            "Patchy Android: " +
+                            "save selesai"
+                        );
 
 
                     } catch (
@@ -1219,110 +1281,137 @@ class MainActivity : Activity() {
 
 
                 // ==========================================
-                // TANGKAP DOWNLOAD PATCHY
+                // HOOK HTMLAnchorElement.click()
+                // ==========================================
+                //
+                // Patchy menggunakan:
+                //
+                // anchor.href = blob:...
+                // anchor.download = "nama.png"
+                // anchor.click()
+                //
+                // Jadi kita hook langsung prototype
+                // click(), bukan document click event.
                 // ==========================================
 
-                document.addEventListener(
-                    "click",
-                    function(event) {
+                const originalAnchorClick =
+                    HTMLAnchorElement.prototype.click;
 
 
-                        let target =
-                            event.target;
+                HTMLAnchorElement.prototype.click =
+                    function() {
 
 
-                        if (
-                            !target ||
-                            !target.closest
-                        ) {
-
-                            return;
-                        }
+                        try {
 
 
-                        const link =
-                            target.closest(
-                                "a[download]"
-                            );
+                            const link =
+                                this;
 
 
-                        if (!link) {
-
-                            return;
-                        }
-
-
-                        const href =
-                            link.href;
+                            const href =
+                                link.href ||
+                                "";
 
 
-                        // ----------------------------------
-                        // Hanya tangkap Blob download.
-                        // ----------------------------------
-
-                        if (
-                            !href ||
-                            !href.startsWith(
-                                "blob:"
-                            )
-                        ) {
-
-                            return;
-                        }
+                            const fileName =
+                                link.download ||
+                                "";
 
 
-                        const fileName =
-                            link.download ||
-                            "Patchy-export";
+                            // ----------------------------------
+                            // Hanya intercept:
+                            //
+                            // <a download>
+                            //
+                            // dengan Blob URL.
+                            // ----------------------------------
 
-
-                        // ----------------------------------
-                        // Hentikan download browser.
-                        // ----------------------------------
-
-                        event.preventDefault();
-
-
-                        event.stopImmediatePropagation();
-
-
-                        // ----------------------------------
-                        // Baca Blob.
-                        // ----------------------------------
-
-                        fetch(
-                            href
-                        )
-                        .then(
-                            response =>
-                                response.blob()
-                        )
-                        .then(
-                            blob =>
-                                sendBlobToAndroid(
-                                    blob,
-                                    fileName
+                            if (
+                                fileName &&
+                                href.startsWith(
+                                    "blob:"
                                 )
-                        )
-                        .catch(
-                            error => {
+                            ) {
 
 
-                                console.error(
-                                    "Could not read Patchy Blob:",
-                                    error
+                                console.log(
+                                    "Patchy Android: " +
+                                    "download intercepted: " +
+                                    fileName
                                 );
 
 
-                                PatchyAndroid.cancelSave();
+                                // ----------------------------------
+                                // Jangan jalankan click asli.
+                                //
+                                // Kalau dijalankan, WebView akan
+                                // mencoba download menggunakan
+                                // mekanisme browser.
+                                // ----------------------------------
+
+                                fetch(
+                                    href
+                                )
+                                .then(
+                                    response =>
+                                        response.blob()
+                                )
+                                .then(
+                                    blob =>
+                                        sendBlobToAndroid(
+                                            blob,
+                                            fileName
+                                        )
+                                )
+                                .catch(
+                                    error => {
+
+
+                                        console.error(
+                                            "Could not read " +
+                                            "Patchy Blob:",
+                                            error
+                                        );
+
+
+                                        PatchyAndroid
+                                            .cancelSave();
+                                    }
+                                );
+
+
+                                return;
                             }
+
+
+                        } catch (
+                            error
+                        ) {
+
+
+                            console.error(
+                                "Patchy Android click hook error:",
+                                error
+                            );
+                        }
+
+
+                        // ----------------------------------
+                        // Bukan download Patchy.
+                        //
+                        // Biarkan perilaku asli.
+                        // ----------------------------------
+
+                        return originalAnchorClick.call(
+                            this
                         );
+                    };
 
 
-                    },
-                    true
-                );
-
+                // ==========================================
+                // DEBUG
+                // ==========================================
 
                 console.log(
                     "Patchy Android Save bridge installed"
