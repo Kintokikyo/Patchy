@@ -203,7 +203,10 @@ flatpak install -y flathub org.freedesktop.Platform.ffmpeg-full//24.08
 
 - The interface now supports German, Spanish, French, Italian, Japanese, and Simplified and Traditional Chinese alongside English. It follows your system language or your choice in File > Preferences.  I had to add 20 mb to the filesize to include fonts to do this proper, but.. I think that's ok in the grand scheme of things.\
   \
-  Note: LLM translation is never perfect, so if you notice any glaring language errors in your native language please let me know or submit a pull request with your fixes on its language file.  Oh, English now has it's own language file too.\
+  Note: LLM translation is never perfect, so if you notice any glaring language errors in your native language please let me know or submit a pull request with your fixes on its language file.  Oh, English now has it's own language file too.
+
+ 
+
 - Starting a Move drag on a large document prepares the preview in the background, with a moving outline and an animated "Rendering preview..." indicator while it catches up. Repeated drags reuse more of the preview work, and rapid moves no longer pile up full renders
 - Fixed some weirdness with dragging down the Layers panel's eye column, the Character panel works without selecting text, double clicking the T icon for a text object now edits it instead of zooming in to it
 - New adjustment layers appear directly above the topmost selected layer, and include a default mask even if nothing is selected.
