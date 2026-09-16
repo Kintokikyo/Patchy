@@ -1,12 +1,10 @@
 package com.kintokikyo.patchy
 
 import android.app.Activity
-import android.content.ContentValues
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.os.Bundle
-import android.provider.MediaStore
 import android.util.Base64
 import android.util.Log
 import android.view.View
@@ -19,6 +17,8 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
+import android.provider.DocumentsContract
+import androidx.webkit.ScriptHandler
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
@@ -37,6 +37,9 @@ class MainActivity : Activity() {
 
         private const val FILE_CHOOSER_REQUEST_CODE =
             1001
+
+        private const val SAVE_FOLDER_REQUEST_CODE =
+            2001
     }
 
 
@@ -47,7 +50,7 @@ class MainActivity : Activity() {
 
 
     // ==============================================
-    // ANDROID FILE PICKER
+    // ANDROID FILE PICKER - OPEN
     // ==============================================
 
     private var filePathCallback:
@@ -64,13 +67,39 @@ class MainActivity : Activity() {
     private var saveUri:
         Uri? = null
 
+    private var pendingSaveFileName:
+        String = ""
+
+    private var pendingSaveMimeType:
+        String = "application/octet-stream"
+
+    @Volatile
+    private var saveReady =
+        false
+
+    @Volatile
+    private var saveCancelled =
+        false
+
+    @Volatile
+    private var saveError =
+        false
+
     private val saveLock =
         Any()
 
 
     // ==============================================
-    // ON CREATE
+    // DOCUMENT START JAVASCRIPT
     // ==============================================
+
+    private var patchySaveScriptHandler:
+        ScriptHandler? = null
+
+
+    // ==================================================
+    // ON CREATE
+    // ==================================================
 
     override fun onCreate(
         savedInstanceState: Bundle?
@@ -91,7 +120,6 @@ class MainActivity : Activity() {
 
         // ==========================================
         // FULLSCREEN
-        // Hilangkan status bar + navigation bar
         // ==========================================
 
         hideSystemBars()
@@ -103,7 +131,6 @@ class MainActivity : Activity() {
 
         webView =
             WebView(this)
-
 
         webView.settings.apply {
 
@@ -171,7 +198,6 @@ class MainActivity : Activity() {
                     request: WebResourceRequest
                 ): WebResourceResponse? {
 
-
                     Log.d(
                         TAG,
                         "Asset request: ${request.url}"
@@ -187,10 +213,8 @@ class MainActivity : Activity() {
 
                     if (response != null) {
 
-
                         val headers =
-                            response
-                                .responseHeaders
+                            response.responseHeaders
                                 ?.toMutableMap()
                                 ?: mutableMapOf()
 
@@ -255,10 +279,6 @@ class MainActivity : Activity() {
                         TAG,
                         "Patchy page finished: $url"
                     )
-
-
-                    // Pasang sistem Save Android
-                    installPatchySaveBridge()
                 }
 
 
@@ -272,7 +292,6 @@ class MainActivity : Activity() {
                     description: String,
                     failingUrl: String
                 ) {
-
 
                     Log.e(
                         TAG,
@@ -292,7 +311,6 @@ class MainActivity : Activity() {
                     request: WebResourceRequest,
                     errorResponse: WebResourceResponse
                 ) {
-
 
                     Log.e(
                         TAG,
@@ -314,7 +332,8 @@ class MainActivity : Activity() {
 
 
                 // ----------------------------------
-                // Android File Picker
+                // ANDROID FILE PICKER
+                // OPEN
                 // ----------------------------------
 
                 override fun onShowFileChooser(
@@ -324,7 +343,6 @@ class MainActivity : Activity() {
                     fileChooserParams:
                         FileChooserParams?
                 ): Boolean {
-
 
                     Log.d(
                         TAG,
@@ -348,17 +366,14 @@ class MainActivity : Activity() {
                             Intent.ACTION_OPEN_DOCUMENT
                         ).apply {
 
-
                             addCategory(
                                 Intent.CATEGORY_OPENABLE
                             )
-
 
                             // Patchy bisa membuka
                             // PNG, JPG, PSD, PSB, dll.
                             type =
                                 "*/*"
-
 
                             putExtra(
                                 Intent.EXTRA_ALLOW_MULTIPLE,
@@ -384,7 +399,6 @@ class MainActivity : Activity() {
                 override fun onConsoleMessage(
                     consoleMessage: ConsoleMessage
                 ): Boolean {
-
 
                     Log.d(
                         TAG,
@@ -416,6 +430,17 @@ class MainActivity : Activity() {
 
 
         // ==========================================
+        // INSTALL SAVE JAVASCRIPT
+        //
+        // HARUS SEBELUM loadUrl()
+        //
+        // API ini bisa masuk ke iframe.
+        // ==========================================
+
+        installPatchySaveScript()
+
+
+        // ==========================================
         // LOAD PATCHY ST
         // ==========================================
 
@@ -443,44 +468,14 @@ class MainActivity : Activity() {
             mimeType: String
         ) {
 
-
             try {
 
-
-                // Android WebView memanggil
-                // JavascriptInterface dari thread background.
-
-
-                val safeFileName =
-                    sanitizeFileName(
-                        fileName
-                    )
-
-
-                val safeMimeType =
-                    if (
-                        mimeType.isNotBlank()
-                    ) {
-                        mimeType
-                    } else {
-                        "application/octet-stream"
-                    }
-
-
-                synchronized(
-                    saveLock
-                ) {
-
+                synchronized(saveLock) {
 
                     // Bersihkan save sebelumnya
                     try {
-
-                        saveOutputStream
-                            ?.close()
-
-                    } catch (
-                        _: Exception
-                    ) {
+                        saveOutputStream?.close()
+                    } catch (_: Exception) {
                     }
 
 
@@ -491,143 +486,109 @@ class MainActivity : Activity() {
                         null
 
 
-                    // ----------------------------------
-                    // Buat file di:
-                    //
-                    // Download/Patchy/
-                    // ----------------------------------
-
-                    val values =
-                        ContentValues().apply {
+                    pendingSaveFileName =
+                        sanitizeFileName(
+                            fileName
+                        )
 
 
-                            put(
-                                MediaStore.Downloads
-                                    .DISPLAY_NAME,
-                                safeFileName
-                            )
-
-
-                            put(
-                                MediaStore.Downloads
-                                    .MIME_TYPE,
-                                safeMimeType
-                            )
-
-
-                            put(
-                                MediaStore.Downloads
-                                    .RELATIVE_PATH,
-                                "Download/Patchy"
-                            )
-
-
-                            // File masih sedang ditulis.
-                            put(
-                                MediaStore.Downloads
-                                    .IS_PENDING,
-                                1
-                            )
+                    pendingSaveMimeType =
+                        if (
+                            mimeType.isNotBlank()
+                        ) {
+                            mimeType
+                        } else {
+                            "application/octet-stream"
                         }
 
 
-                    val uri =
-                        contentResolver.insert(
-                            MediaStore.Downloads
-                                .EXTERNAL_CONTENT_URI,
-                            values
-                        )
+                    saveReady =
+                        false
 
+                    saveCancelled =
+                        false
 
-                    if (
-                        uri == null
-                    ) {
-
-                        throw IllegalStateException(
-                            "MediaStore gagal membuat file"
-                        )
-                    }
-
-
-                    val output =
-                        contentResolver
-                            .openOutputStream(
-                                uri
-                            )
-
-
-                    if (
-                        output == null
-                    ) {
-
-
-                        contentResolver.delete(
-                            uri,
-                            null,
-                            null
-                        )
-
-
-                        throw IllegalStateException(
-                            "Tidak bisa membuka OutputStream"
-                        )
-                    }
-
-
-                    saveUri =
-                        uri
-
-                    saveOutputStream =
-                        output
-
-
-                    Log.d(
-                        TAG,
-                        "Save started: $uri"
-                    )
+                    saveError =
+                        false
                 }
 
 
-                // Beritahu JavaScript bahwa
-                // Android sudah siap menerima data.
-                runOnUiThread {
-
-
-                    webView.evaluateJavascript(
-                        """
-                        window.__patchySaveReady = true;
-                        window.__patchySaveCancelled = false;
-                        window.__patchySaveError = false;
-                        """.trimIndent(),
-                        null
-                    )
-                }
-
-
-            } catch (
-                e: Exception
-            ) {
-
-
-                Log.e(
+                Log.d(
                     TAG,
-                    "Failed preparing save",
-                    e
+                    "Meminta folder untuk: " +
+                        pendingSaveFileName
                 )
 
 
                 runOnUiThread {
 
+                    val intent =
+                        Intent(
+                            Intent.ACTION_OPEN_DOCUMENT_TREE
+                        ).apply {
 
-                    webView.evaluateJavascript(
-                        """
-                        window.__patchySaveReady = false;
-                        window.__patchySaveError = true;
-                        """.trimIndent(),
-                        null
+                            addFlags(
+                                Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                                Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+                                Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+                            )
+                        }
+
+
+                    startActivityForResult(
+                        intent,
+                        SAVE_FOLDER_REQUEST_CODE
                     )
                 }
+
+
+            } catch (e: Exception) {
+
+                Log.e(
+                    TAG,
+                    "Failed preparing save folder",
+                    e
+                )
+
+                saveError =
+                    true
             }
+        }
+
+
+        // ----------------------------------------------
+        // IS SAVE READY?
+        // ----------------------------------------------
+
+        @JavascriptInterface
+        fun isSaveReady():
+            Boolean {
+
+            return saveReady
+        }
+
+
+        // ----------------------------------------------
+        // IS SAVE CANCELLED?
+        // ----------------------------------------------
+
+        @JavascriptInterface
+        fun isSaveCancelled():
+            Boolean {
+
+            return saveCancelled
+        }
+
+
+        // ----------------------------------------------
+        // IS SAVE ERROR?
+        // ----------------------------------------------
+
+        @JavascriptInterface
+        fun isSaveError():
+            Boolean {
+
+            return saveError
         }
 
 
@@ -640,9 +601,7 @@ class MainActivity : Activity() {
             base64Data: String
         ) {
 
-
             try {
-
 
                 val bytes =
                     Base64.decode(
@@ -651,10 +610,7 @@ class MainActivity : Activity() {
                     )
 
 
-                synchronized(
-                    saveLock
-                ) {
-
+                synchronized(saveLock) {
 
                     val output =
                         saveOutputStream
@@ -669,10 +625,7 @@ class MainActivity : Activity() {
                 }
 
 
-            } catch (
-                e: Exception
-            ) {
-
+            } catch (e: Exception) {
 
                 Log.e(
                     TAG,
@@ -680,15 +633,8 @@ class MainActivity : Activity() {
                     e
                 )
 
-
-                runOnUiThread {
-
-
-                    webView.evaluateJavascript(
-                        "window.__patchySaveError = true;",
-                        null
-                    )
-                }
+                saveError =
+                    true
             }
         }
 
@@ -700,22 +646,15 @@ class MainActivity : Activity() {
         @JavascriptInterface
         fun finishSave() {
 
-
             try {
 
-
-                synchronized(
-                    saveLock
-                ) {
-
+                synchronized(saveLock) {
 
                     saveOutputStream
                         ?.flush()
 
-
                     saveOutputStream
                         ?.close()
-
 
                     saveOutputStream =
                         null
@@ -725,70 +664,40 @@ class MainActivity : Activity() {
                         saveUri
 
 
-                    if (
-                        uri != null
-                    ) {
+                    saveUri =
+                        null
 
 
-                        // ----------------------------------
-                        // Publikasikan file.
-                        //
-                        // Sebelumnya IS_PENDING = 1
-                        // Sekarang menjadi 0.
-                        // ----------------------------------
-
-                        val values =
-                            ContentValues().apply {
-
-                                put(
-                                    MediaStore.Downloads
-                                        .IS_PENDING,
-                                    0
-                                )
-                            }
+                    saveReady =
+                        false
 
 
-                        contentResolver.update(
-                            uri,
-                            values,
-                            null,
-                            null
+                    if (uri == null) {
+
+                        throw IllegalStateException(
+                            "URI save tidak tersedia"
                         )
                     }
 
 
-                    saveUri =
-                        null
-                }
-
-
-                Log.d(
-                    TAG,
-                    "Save finished"
-                )
-
-
-                runOnUiThread {
-
-
-                    Toast.makeText(
-                        this@MainActivity,
-                        "File berhasil disimpan di Download/Patchy",
-                        Toast.LENGTH_SHORT
-                    ).show()
-
-
-                    webView.evaluateJavascript(
-                        "window.__patchySaveFinished = true;",
-                        null
+                    Log.d(
+                        TAG,
+                        "Save finished: $uri"
                     )
                 }
 
 
-            } catch (
-                e: Exception
-            ) {
+                runOnUiThread {
 
+                    Toast.makeText(
+                        this@MainActivity,
+                        "File berhasil disimpan",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+
+
+            } catch (e: Exception) {
 
                 Log.e(
                     TAG,
@@ -796,15 +705,8 @@ class MainActivity : Activity() {
                     e
                 )
 
-
-                runOnUiThread {
-
-
-                    webView.evaluateJavascript(
-                        "window.__patchySaveError = true;",
-                        null
-                    )
-                }
+                saveError =
+                    true
             }
         }
 
@@ -816,20 +718,12 @@ class MainActivity : Activity() {
         @JavascriptInterface
         fun cancelSave() {
 
-
-            synchronized(
-                saveLock
-            ) {
-
+            synchronized(saveLock) {
 
                 try {
-
                     saveOutputStream
                         ?.close()
-
-                } catch (
-                    _: Exception
-                ) {
+                } catch (_: Exception) {
                 }
 
 
@@ -841,10 +735,11 @@ class MainActivity : Activity() {
                     saveUri
 
 
-                if (
-                    uri != null
-                ) {
+                saveUri =
+                    null
 
+
+                if (uri != null) {
 
                     try {
 
@@ -854,15 +749,16 @@ class MainActivity : Activity() {
                             null
                         )
 
-                    } catch (
-                        _: Exception
-                    ) {
+                    } catch (_: Exception) {
                     }
                 }
 
 
-                saveUri =
-                    null
+                saveReady =
+                    false
+
+                saveCancelled =
+                    true
             }
 
 
@@ -882,18 +778,15 @@ class MainActivity : Activity() {
         fileName: String
     ): String {
 
-
         var result =
             fileName
 
 
-        // Hilangkan path yang tidak diinginkan
         result =
             result.replace(
                 "/",
                 "_"
             )
-
 
         result =
             result.replace(
@@ -901,13 +794,11 @@ class MainActivity : Activity() {
                 "_"
             )
 
-
         result =
             result.replace(
                 ":",
                 "_"
             )
-
 
         result =
             result.replace(
@@ -915,13 +806,11 @@ class MainActivity : Activity() {
                 "_"
             )
 
-
         result =
             result.replace(
                 "?",
                 "_"
             )
-
 
         result =
             result.replace(
@@ -929,20 +818,17 @@ class MainActivity : Activity() {
                 "_"
             )
 
-
         result =
             result.replace(
                 "<",
                 "_"
             )
 
-
         result =
             result.replace(
                 ">",
                 "_"
             )
-
 
         result =
             result.replace(
@@ -969,14 +855,64 @@ class MainActivity : Activity() {
 
 
     // ==================================================
-    // INSTALL PATCHY SAVE BRIDGE
+    // INSTALL PATCHY SAVE JAVASCRIPT
     // ==================================================
 
-    private fun installPatchySaveBridge() {
+    private fun installPatchySaveScript() {
+
+        if (
+            !WebViewFeature.isFeatureSupported(
+                WebViewFeature.DOCUMENT_START_SCRIPT
+            )
+        ) {
+
+            Log.e(
+                TAG,
+                "DOCUMENT_START_SCRIPT tidak didukung"
+            )
+
+            return
+        }
 
 
-        val script =
-            """
+        try {
+
+            patchySaveScriptHandler =
+                WebViewCompat
+                    .addDocumentStartJavaScript(
+                        webView,
+                        getPatchySaveJavaScript(),
+                        setOf(
+                            PATCHY_ORIGIN
+                        )
+                    )
+
+
+            Log.d(
+                TAG,
+                "Patchy Save JS berhasil dipasang"
+            )
+
+        } catch (e: Exception) {
+
+            Log.e(
+                TAG,
+                "Gagal memasang Patchy Save JS",
+                e
+            )
+        }
+    }
+
+
+    // ==================================================
+    // PATCHY SAVE JAVASCRIPT
+    // ==================================================
+
+    private fun getPatchySaveJavaScript():
+        String {
+
+        return """
+
             (function() {
 
                 // ==========================================
@@ -994,36 +930,9 @@ class MainActivity : Activity() {
                 // PASTIKAN BRIDGE ANDROID ADA
                 // ==========================================
 
-                if (
-                    !window.PatchyAndroid
-                ) {
-
-                    console.error(
-                        "PatchyAndroid bridge tidak tersedia"
-                    );
-
-                    return;
-                }
-
-
+                
                 window.__patchyAndroidSaveInstalled =
                     true;
-
-
-                window.__patchySaveReady =
-                    false;
-
-
-                window.__patchySaveCancelled =
-                    false;
-
-
-                window.__patchySaveFinished =
-                    false;
-
-
-                window.__patchySaveError =
-                    false;
 
 
                 // ==========================================
@@ -1034,29 +943,32 @@ class MainActivity : Activity() {
                     blob,
                     fileName
                 ) {
-
+                
+                    // CEK BRIDGE ANDROID
+                    if (!window.PatchyAndroid) {
+                        console.error("PatchyAndroid bridge tidak tersedia");
+                        return;
+                    }
 
                     try {
 
-
-                        window.__patchySaveReady =
-                            false;
-
-
-                        window.__patchySaveCancelled =
-                            false;
+                        console.log(
+                            "Patchy Android: " +
+                            "download intercepted: " +
+                            fileName
+                        );
 
 
-                        window.__patchySaveFinished =
-                            false;
-
+                        // ----------------------------------
+                        // Reset status
+                        // ----------------------------------
 
                         window.__patchySaveError =
                             false;
 
 
                         // ----------------------------------
-                        // Minta Android membuat file
+                        // Minta Android memilih folder
                         // ----------------------------------
 
                         PatchyAndroid.prepareSave(
@@ -1067,15 +979,14 @@ class MainActivity : Activity() {
 
 
                         // ----------------------------------
-                        // Tunggu Android siap
+                        // Tunggu user memilih folder
                         // ----------------------------------
 
                         while (
-                            !window.__patchySaveReady &&
-                            !window.__patchySaveCancelled &&
-                            !window.__patchySaveError
+                            !PatchyAndroid.isSaveReady() &&
+                            !PatchyAndroid.isSaveCancelled() &&
+                            !PatchyAndroid.isSaveError()
                         ) {
-
 
                             await new Promise(
                                 resolve =>
@@ -1088,16 +999,17 @@ class MainActivity : Activity() {
 
 
                         // ----------------------------------
-                        // Gagal / dibatalkan
+                        // User batal / error
                         // ----------------------------------
 
                         if (
-                            window.__patchySaveCancelled ||
-                            window.__patchySaveError
+                            PatchyAndroid.isSaveCancelled() ||
+                            PatchyAndroid.isSaveError()
                         ) {
 
                             console.error(
-                                "Patchy Android: save dibatalkan"
+                                "Patchy Android: " +
+                                "save dibatalkan"
                             );
 
                             return;
@@ -1136,7 +1048,6 @@ class MainActivity : Activity() {
                             index < totalChunks;
                             index++
                         ) {
-
 
                             const start =
                                 index *
@@ -1184,7 +1095,6 @@ class MainActivity : Activity() {
                                 i += step
                             ) {
 
-
                                 binary +=
                                     String.fromCharCode.apply(
                                         null,
@@ -1200,7 +1110,7 @@ class MainActivity : Activity() {
 
 
                             // ----------------------------------
-                            // binary → Base64
+                            // Binary → Base64
                             // ----------------------------------
 
                             const base64 =
@@ -1219,8 +1129,7 @@ class MainActivity : Activity() {
 
 
                             // ----------------------------------
-                            // Beri WebView kesempatan
-                            // bernapas
+                            // Beri WebView kesempatan bernapas
                             // ----------------------------------
 
                             await new Promise(
@@ -1237,8 +1146,8 @@ class MainActivity : Activity() {
                             // ----------------------------------
 
                             if (
-                                window.__patchySaveError ||
-                                window.__patchySaveCancelled
+                                PatchyAndroid.isSaveError() ||
+                                PatchyAndroid.isSaveCancelled()
                             ) {
 
                                 console.error(
@@ -1268,7 +1177,6 @@ class MainActivity : Activity() {
                         error
                     ) {
 
-
                         console.error(
                             "Patchy Android save error:",
                             error
@@ -1283,16 +1191,6 @@ class MainActivity : Activity() {
                 // ==========================================
                 // HOOK HTMLAnchorElement.click()
                 // ==========================================
-                //
-                // Patchy menggunakan:
-                //
-                // anchor.href = blob:...
-                // anchor.download = "nama.png"
-                // anchor.click()
-                //
-                // Jadi kita hook langsung prototype
-                // click(), bukan document click event.
-                // ==========================================
 
                 const originalAnchorClick =
                     HTMLAnchorElement.prototype.click;
@@ -1301,9 +1199,7 @@ class MainActivity : Activity() {
                 HTMLAnchorElement.prototype.click =
                     function() {
 
-
                         try {
-
 
                             const link =
                                 this;
@@ -1320,11 +1216,11 @@ class MainActivity : Activity() {
 
 
                             // ----------------------------------
-                            // Hanya intercept:
+                            // Intercept:
                             //
                             // <a download>
-                            //
-                            // dengan Blob URL.
+                            // +
+                            // blob:
                             // ----------------------------------
 
                             if (
@@ -1334,20 +1230,15 @@ class MainActivity : Activity() {
                                 )
                             ) {
 
-
                                 console.log(
                                     "Patchy Android: " +
-                                    "download intercepted: " +
+                                    "Blob download ditemukan: " +
                                     fileName
                                 );
 
 
                                 // ----------------------------------
-                                // Jangan jalankan click asli.
-                                //
-                                // Kalau dijalankan, WebView akan
-                                // mencoba download menggunakan
-                                // mekanisme browser.
+                                // Jangan jalankan click asli
                                 // ----------------------------------
 
                                 fetch(
@@ -1366,7 +1257,6 @@ class MainActivity : Activity() {
                                 )
                                 .catch(
                                     error => {
-
 
                                         console.error(
                                             "Could not read " +
@@ -1389,7 +1279,6 @@ class MainActivity : Activity() {
                             error
                         ) {
 
-
                             console.error(
                                 "Patchy Android click hook error:",
                                 error
@@ -1399,7 +1288,6 @@ class MainActivity : Activity() {
 
                         // ----------------------------------
                         // Bukan download Patchy.
-                        //
                         // Biarkan perilaku asli.
                         // ----------------------------------
 
@@ -1409,23 +1297,14 @@ class MainActivity : Activity() {
                     };
 
 
-                // ==========================================
-                // DEBUG
-                // ==========================================
-
                 console.log(
                     "Patchy Android Save bridge installed"
                 );
 
 
             })();
-            """.trimIndent()
 
-
-        webView.evaluateJavascript(
-            script,
-            null
-        )
+        """.trimIndent()
     }
 
 
@@ -1434,7 +1313,6 @@ class MainActivity : Activity() {
     // ==================================================
 
     private fun configureCrossOriginIsolation() {
-
 
         val isolationSupported =
             WebViewFeature.isFeatureSupported(
@@ -1452,7 +1330,8 @@ class MainActivity : Activity() {
 
         Log.d(
             TAG,
-            "CROSS_ORIGIN_ISOLATED_ALLOWLIST supported = " +
+            "CROSS_ORIGIN_ISOLATED_ALLOWLIST " +
+                "supported = " +
                 isolationSupported
         )
 
@@ -1468,7 +1347,6 @@ class MainActivity : Activity() {
             isolationSupported &&
             multiProfileSupported
         ) {
-
 
             WebViewCompat
                 .getProfile(
@@ -1488,9 +1366,7 @@ class MainActivity : Activity() {
                     PATCHY_ORIGIN
             )
 
-
         } else {
-
 
             Log.e(
                 TAG,
@@ -1506,7 +1382,6 @@ class MainActivity : Activity() {
     // ==================================================
 
     private fun hideSystemBars() {
-
 
         @Suppress("DEPRECATION")
 
@@ -1527,7 +1402,6 @@ class MainActivity : Activity() {
     override fun onWindowFocusChanged(
         hasFocus: Boolean
     ) {
-
 
         super.onWindowFocusChanged(
             hasFocus
@@ -1554,7 +1428,6 @@ class MainActivity : Activity() {
         data: Intent?
     ) {
 
-
         super.onActivityResult(
             requestCode,
             resultCode,
@@ -1562,46 +1435,93 @@ class MainActivity : Activity() {
         )
 
 
-        // ----------------------------------------------
-        // Ini HANYA untuk OPEN.
-        // Save tidak memakai ActivityResult.
-        // ----------------------------------------------
+        // ==============================================
+        // OPEN FILE
+        // ==============================================
 
         if (
-            requestCode !=
+            requestCode ==
             FILE_CHOOSER_REQUEST_CODE
         ) {
 
-            return
-        }
+            Log.d(
+                TAG,
+                "File picker result: $resultCode"
+            )
 
 
-        Log.d(
-            TAG,
-            "File picker result: $resultCode"
-        )
+            val callback =
+                filePathCallback
 
 
-        val callback =
-            filePathCallback
+            filePathCallback =
+                null
 
 
-        filePathCallback =
-            null
+            // User batal memilih file
+
+            if (
+                resultCode != RESULT_OK ||
+                data == null
+            ) {
+
+                callback?.onReceiveValue(
+                    null
+                )
+
+                return
+            }
 
 
-        // ----------------------------------------------
-        // User batal memilih file
-        // ----------------------------------------------
+            val uris =
+                mutableListOf<Uri>()
 
-        if (
-            resultCode != RESULT_OK ||
-            data == null
-        ) {
+
+            // ----------------------------------------------
+            // Multiple file
+            // ----------------------------------------------
+
+            data.clipData?.let { clipData ->
+
+                for (
+                    i in 0 until
+                        clipData.itemCount
+                ) {
+
+                    uris.add(
+                        clipData
+                            .getItemAt(i)
+                            .uri
+                    )
+                }
+            }
+
+
+            // ----------------------------------------------
+            // Single file
+            // ----------------------------------------------
+
+            if (
+                uris.isEmpty()
+            ) {
+
+                data.data?.let { uri ->
+
+                    uris.add(
+                        uri
+                    )
+                }
+            }
+
+
+            Log.d(
+                TAG,
+                "Selected files: ${uris.size}"
+            )
 
 
             callback?.onReceiveValue(
-                null
+                uris.toTypedArray()
             )
 
 
@@ -1609,58 +1529,175 @@ class MainActivity : Activity() {
         }
 
 
-        val uris =
-            mutableListOf<Uri>()
-
-
-        // ----------------------------------------------
-        // Multiple file
-        // ----------------------------------------------
-
-        data.clipData?.let { clipData ->
-
-
-            for (
-                i in 0 until clipData.itemCount
-            ) {
-
-
-                uris.add(
-                    clipData
-                        .getItemAt(i)
-                        .uri
-                )
-            }
-        }
-
-
-        // ----------------------------------------------
-        // Single file
-        // ----------------------------------------------
+        // ==============================================
+        // SAVE FOLDER
+        // ==============================================
 
         if (
-            uris.isEmpty()
+            requestCode ==
+            SAVE_FOLDER_REQUEST_CODE
         ) {
 
+            // User batal memilih folder
 
-            data.data?.let { uri ->
+            if (
+                resultCode != RESULT_OK ||
+                data?.data == null
+            ) {
 
-                uris.add(
-                    uri
+                Log.d(
+                    TAG,
+                    "Pemilihan folder dibatalkan"
                 )
+
+
+                saveCancelled =
+                    true
+
+                return
             }
+
+
+            val treeUri =
+                data.data!!
+
+
+            try {
+
+                // ------------------------------------------
+                // Simpan permission folder
+                // ------------------------------------------
+
+                val takeFlags =
+                    data.flags and (
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                        Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                    )
+
+
+                try {
+
+                    contentResolver
+                        .takePersistableUriPermission(
+                            treeUri,
+                            takeFlags
+                        )
+
+                } catch (_: Exception) {
+                }
+
+
+                Log.d(
+                    TAG,
+                    "Folder dipilih: $treeUri"
+                )
+
+
+                // ------------------------------------------
+                // Buat file di folder tersebut
+                // ------------------------------------------
+
+                val fileUri =
+                    DocumentsContract.createDocument(
+                        contentResolver,
+                        treeUri,
+                        pendingSaveMimeType,
+                        pendingSaveFileName
+                    )
+
+
+                if (
+                    fileUri == null
+                ) {
+
+                    throw IllegalStateException(
+                        "Tidak bisa membuat file " +
+                            "di folder yang dipilih"
+                    )
+                }
+
+
+                // ------------------------------------------
+                // Buka OutputStream
+                // ------------------------------------------
+
+                val output =
+                    contentResolver
+                        .openOutputStream(
+                            fileUri
+                        )
+
+
+                if (
+                    output == null
+                ) {
+
+                    try {
+
+                        contentResolver.delete(
+                            fileUri,
+                            null,
+                            null
+                        )
+
+                    } catch (_: Exception) {
+                    }
+
+
+                    throw IllegalStateException(
+                        "Tidak bisa membuka OutputStream"
+                    )
+                }
+
+
+                // ------------------------------------------
+                // Simpan state
+                // ------------------------------------------
+
+                synchronized(saveLock) {
+
+                    saveUri =
+                        fileUri
+
+                    saveOutputStream =
+                        output
+
+                    saveReady =
+                        true
+
+                    saveCancelled =
+                        false
+
+                    saveError =
+                        false
+                }
+
+
+                Log.d(
+                    TAG,
+                    "Save siap: $fileUri"
+                )
+
+
+            } catch (e: Exception) {
+
+                Log.e(
+                    TAG,
+                    "Gagal membuat file save",
+                    e
+                )
+
+
+                saveReady =
+                    false
+
+                saveError =
+                    true
+            }
+
+
+            return
         }
-
-
-        Log.d(
-            TAG,
-            "Selected files: ${uris.size}"
-        )
-
-
-        callback?.onReceiveValue(
-            uris.toTypedArray()
-        )
     }
 
 
@@ -1669,7 +1706,6 @@ class MainActivity : Activity() {
     // ==================================================
 
     override fun onDestroy() {
-
 
         // ----------------------------------------------
         // Bersihkan callback file picker
@@ -1689,19 +1725,14 @@ class MainActivity : Activity() {
         // Bersihkan save stream
         // ----------------------------------------------
 
-        synchronized(
-            saveLock
-        ) {
-
+        synchronized(saveLock) {
 
             try {
 
                 saveOutputStream
                     ?.close()
 
-            } catch (
-                _: Exception
-            ) {
+            } catch (_: Exception) {
             }
 
 
@@ -1711,7 +1742,28 @@ class MainActivity : Activity() {
 
             saveUri =
                 null
+
+
+            saveReady =
+                false
         }
+
+
+        // ----------------------------------------------
+        // Hapus injected script
+        // ----------------------------------------------
+
+        try {
+
+            patchySaveScriptHandler
+                ?.remove()
+
+        } catch (_: Exception) {
+        }
+
+
+        patchySaveScriptHandler =
+            null
 
 
         // ----------------------------------------------
@@ -1721,7 +1773,6 @@ class MainActivity : Activity() {
         if (
             ::webView.isInitialized
         ) {
-
 
             webView.stopLoading()
 
