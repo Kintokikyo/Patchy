@@ -45,10 +45,10 @@ namespace {
 using namespace patchy::test::ui;
 using patchy::ui::MainWindowTestAccess;
 
-template <typename Predicate> void until(Predicate ready) {
+template <typename Predicate> void until(Predicate ready, int timeout_ms = 10000) {
   QElapsedTimer deadline;
   deadline.start();
-  while (!ready() && deadline.elapsed() < 10000) {
+  while (!ready() && deadline.elapsed() < timeout_ms) {
     QApplication::processEvents(QEventLoop::AllEvents, 10);
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
@@ -78,7 +78,7 @@ struct Connection {
         {"method", method}, {"params", params}}).toJson(QJsonDocument::Compact));
     return id;
   }
-  QJsonObject take(int id) {
+  QJsonObject take(int id, int timeout_ms = 10000) {
     QJsonObject result;
     until([&] {
       const std::lock_guard lock(mutex);
@@ -90,11 +90,11 @@ struct Connection {
         }
       }
       return !result.isEmpty();
-    });
+    }, timeout_ms);
     return result;
   }
-  QJsonObject request(const QString& name, const QJsonObject& args = {}) {
-    return take(send("tools/call", {{"name", name}, {"arguments", args}}))["result"].toObject();
+  QJsonObject request(const QString& name, const QJsonObject& args = {}, int timeout_ms = 10000) {
+    return take(send("tools/call", {{"name", name}, {"arguments", args}}), timeout_ms)["result"].toObject();
   }
   QJsonObject call(const QString& name, const QJsonObject& args = {}, bool error = false) {
     const auto result = request(name, args);
@@ -826,7 +826,7 @@ void ui_mcp_running_browsing_and_conflict_feedback() {
   EnvironmentVariableRestorer timeout("PATCHY_SCRIPT_TIMEOUT_MS");
   // Leave time for synchronous dialog construction/QSS polish, which precedes
   // the nested event loop. The browsing hold still exceeds this timeout.
-  qputenv("PATCHY_SCRIPT_TIMEOUT_MS", "2000");
+  qputenv("PATCHY_SCRIPT_TIMEOUT_MS", "4000");
   patchy::ui::MainWindow window;
   show_window_empty(window);
   Connection connection(window);
@@ -866,9 +866,15 @@ void ui_mcp_running_browsing_and_conflict_feedback() {
       const auto inspect_dialog = [&](QAction* action, const QString& name) {
         bool seen = false;
         std::exception_ptr dialog_error;
+        QElapsedTimer browsing_hold;
         QTimer closer;
         QObject::connect(&closer, &QTimer::timeout, &window, [&] {
-          if (auto* dialog = find_top_level_dialog(name)) {
+          if (auto* dialog = find_top_level_dialog(name); dialog && dialog->isVisible()) {
+            if (!browsing_hold.isValid()) browsing_hold.start();
+            // Count actual browsing time, excluding dialog construction and
+            // QSS polish. This still exceeds the inactivity budget even when
+            // construction is slow in the ordered suite.
+            if (browsing_hold.elapsed() < 4800) return;
             seen = true; closer.stop();
             try { if (name == QStringLiteral("patchyPreferencesDialog")) {
               auto* tabs = dialog->findChild<QTabWidget*>();
@@ -881,7 +887,7 @@ void ui_mcp_running_browsing_and_conflict_feedback() {
             dialog->reject();
           }
         });
-        closer.start(2400); // Browsing longer than the JS inactivity timeout is safe.
+        closer.start(20);
         menu.addAction(action); menu.setActiveAction(action);
         QApplication::sendEvent(&menu, &enter);
         closer.stop(); if (dialog_error) std::rethrow_exception(dialog_error); CHECK(seen);
@@ -895,8 +901,10 @@ void ui_mcp_running_browsing_and_conflict_feedback() {
     } catch (...) { error = std::current_exception(); host.stop_active_run(); }
   });
   observer.start(10);
+  // Two deliberate 4.8-second browsing holds plus dialog setup exceed the
+  // ordinary reply deadline. This is independent of the script watchdog.
   const auto result = connection.request("execute_script", {{"expectedState", connection.state()["stateToken"]},
-    {"code", "patchy.ui.present(200);app.activeDocument.activeLayer.fill('#123456');"}});
+    {"code", "patchy.ui.present(200);app.activeDocument.activeLayer.fill('#123456');"}}, 30000);
   observer.stop(); if (error) std::rethrow_exception(error);
   if (result["isError"].toBool()) throw std::runtime_error(QJsonDocument(result).toJson(QJsonDocument::Compact).toStdString());
   CHECK(browsed && !host.run_active());
