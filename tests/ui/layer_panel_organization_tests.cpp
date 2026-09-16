@@ -120,6 +120,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTemporaryDir>
+#include <QTest>
 #include <QLocale>
 #include <QSizeGrip>
 #include <QMetaObject>
@@ -2956,52 +2957,100 @@ void ui_layer_eye_sweep_skips_disabled_and_off_column() {
 }
 
 void ui_layer_eye_sweep_survives_folder_row_rebuild() {
-  patchy::Document document(64, 64, patchy::PixelFormat::rgb8());
-  const auto ids = build_eye_test_document(document, /*folder_visible=*/true, /*child_b_visible=*/true);
+  for (const bool collapsed : {false, true}) {
+    for (const auto* start_name : {"Folder", "Top Layer"}) {
+      patchy::Document document(64, 64, patchy::PixelFormat::rgb8());
+      const auto ids = build_eye_test_document(document, /*folder_visible=*/true, /*child_b_visible=*/true);
 
-  patchy::ui::MainWindow window;
-  show_window(window);
-  window.add_document_session(std::move(document), QStringLiteral("Eye Sweep Rebuild"));
-  QApplication::processEvents();
+      patchy::ui::MainWindow window;
+      show_window(window);
+      window.add_document_session(std::move(document), QStringLiteral("Eye Sweep Rebuild"));
+      QApplication::processEvents();
 
-  auto* layer_list = window.findChild<QListWidget*>(QStringLiteral("layerList"));
-  CHECK(layer_list != nullptr);
-  auto* viewport = layer_list->viewport();
-  auto& doc = patchy::ui::MainWindowTestAccess::document(window);
-  const auto selected_before = layer_list->selectedItems().size();
+      auto* layer_list = window.findChild<QListWidget*>(QStringLiteral("layerList"));
+      CHECK(layer_list != nullptr);
+      auto* viewport = layer_list->viewport();
+      auto& doc = patchy::ui::MainWindowTestAccess::document(window);
+      if (collapsed) {
+        auto* folder_row = layer_list->itemWidget(require_layer_item(*layer_list, QStringLiteral("Folder")));
+        auto* disclosure = folder_row->findChild<QToolButton*>(QStringLiteral("layerFolderDisclosureButton"));
+        CHECK(disclosure != nullptr);
+        disclosure->click();
+        QApplication::processEvents();
+        QApplication::processEvents();
+      }
+      CHECK(layer_list->count() == (collapsed ? 3 : 5));
+      const auto selected_before = layer_list->selectedItems().size();
+      const auto current_id_before = layer_list->currentItem()->data(Qt::UserRole).toULongLong();
 
-  // Pressing a folder eye rebuilds every row (destroying the pressed button);
-  // the sweep must keep going through the viewport afterwards. This is the
-  // regression for the old drag-from-eye rubber-band artifact.
-  auto* eye = layer_row_eye_button(*layer_list, QStringLiteral("Folder"));
-  CHECK(eye != nullptr);
-  const auto center = eye->rect().center();
-  const auto column_x = viewport->mapFromGlobal(eye->mapToGlobal(center)).x();
-  send_mouse(*eye, QEvent::MouseButtonPress, center, Qt::LeftButton, Qt::LeftButton);
-  QApplication::processEvents();
-  QApplication::processEvents();
-  CHECK(!document_layer_visible(doc, ids.folder));
+      // Use Qt's window event routing, including its implicit mouse grab. Sending
+      // moves straight to the viewport hides the lost grab when a folder toggle
+      // rebuilds and destroys the pressed eye button.
+      auto* window_handle = window.windowHandle();
+      CHECK(window_handle != nullptr);
+      auto* eye = layer_row_eye_button(*layer_list, QString::fromLatin1(start_name));
+      QPointer<QToolButton> pressed_eye = eye;
+      CHECK(eye != nullptr);
+      const auto center = eye->rect().center();
+      const auto column_x = viewport->mapFromGlobal(eye->mapToGlobal(center)).x();
+      QTest::mousePress(window_handle, Qt::LeftButton, Qt::NoModifier, eye->mapTo(&window, center));
+      QApplication::processEvents();
+      QApplication::processEvents();
+      QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
 
-  QPoint last_position(column_x, 0);
-  for (const auto* name : {"Child A", "Child B", "Background"}) {
-    auto* item = require_layer_item(*layer_list, QString::fromLatin1(name));
-    last_position = QPoint(column_x, layer_list->visualItemRect(item).center().y());
-    send_mouse(*viewport, QEvent::MouseMove, last_position, Qt::NoButton, Qt::LeftButton);
-    QApplication::processEvents();
-    QApplication::processEvents();
+      QPoint last_position(column_x, 0);
+      for (const auto* name : {"Folder", "Child B", "Child A", "Background"}) {
+        if (collapsed && (QString::fromLatin1(name) == QStringLiteral("Child A") ||
+                          QString::fromLatin1(name) == QStringLiteral("Child B"))) {
+          continue;
+        }
+        auto* item = require_layer_item(*layer_list, QString::fromLatin1(name));
+        last_position = QPoint(column_x, layer_list->visualItemRect(item).center().y());
+        QTest::mouseMove(window_handle, viewport->mapTo(&window, last_position));
+        QApplication::processEvents();
+        QApplication::processEvents();
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+      }
+      // Releasing outside the list must also retire the sweep's explicit grab.
+      QTest::mouseRelease(window_handle, Qt::LeftButton, Qt::NoModifier, QPoint(10, 10));
+      QApplication::processEvents();
+
+      CHECK(pressed_eye.isNull());
+      CHECK(QWidget::mouseGrabber() == nullptr);
+      CHECK(!document_layer_visible(doc, ids.folder));
+      // The now-disabled children were skipped; the enabled Background eye adopted
+      // the sweep state.
+      CHECK(document_layer_visible(doc, ids.child_a));
+      CHECK(document_layer_visible(doc, ids.child_b));
+      CHECK(!document_layer_visible(doc, ids.background));
+      CHECK(document_layer_visible(doc, ids.top) == (QString::fromLatin1(start_name) == QStringLiteral("Folder")));
+      CHECK(layer_list->selectedItems().size() == selected_before);
+      CHECK(layer_list->currentItem()->data(Qt::UserRole).toULongLong() == current_id_before);
+      save_widget_artifact("ui_layer_eye_sweep_after_folder_rebuild", window);
+
+      // Sweep upward through the group to show the rows again, with the same real
+      // event routing. A plain hover after release must leave the eyes alone.
+      eye = layer_row_eye_button(*layer_list, QStringLiteral("Background"));
+      QTest::mousePress(window_handle, Qt::LeftButton, Qt::NoModifier, eye->mapTo(&window, eye->rect().center()));
+      for (const auto* name : {"Folder", "Top Layer"}) {
+        auto* item = require_layer_item(*layer_list, QString::fromLatin1(name));
+        last_position = QPoint(column_x, layer_list->visualItemRect(item).center().y());
+        QTest::mouseMove(window_handle, viewport->mapTo(&window, last_position));
+        QApplication::processEvents();
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+      }
+      QTest::mouseRelease(window_handle, Qt::LeftButton, Qt::NoModifier, viewport->mapTo(&window, last_position));
+      QTest::mouseMove(window_handle, viewport->mapTo(&window, QPoint(column_x, viewport->height() - 1)));
+      CHECK(QWidget::mouseGrabber() == nullptr);
+      CHECK(document_layer_visible(doc, ids.top));
+      CHECK(document_layer_visible(doc, ids.folder));
+      CHECK(document_layer_visible(doc, ids.background));
+      CHECK(document_layer_visible(doc, ids.child_a));
+      CHECK(document_layer_visible(doc, ids.child_b));
+      CHECK(layer_list->selectedItems().size() == selected_before);
+      CHECK(layer_list->currentItem()->data(Qt::UserRole).toULongLong() == current_id_before);
+    }
   }
-  send_mouse(*viewport, QEvent::MouseButtonRelease, last_position, Qt::LeftButton, Qt::NoButton);
-  QApplication::processEvents();
-
-  CHECK(!document_layer_visible(doc, ids.folder));
-  // The now-disabled children were skipped; the enabled Background eye adopted
-  // the sweep state.
-  CHECK(document_layer_visible(doc, ids.child_a));
-  CHECK(document_layer_visible(doc, ids.child_b));
-  CHECK(!document_layer_visible(doc, ids.background));
-  CHECK(document_layer_visible(doc, ids.top));
-  CHECK(layer_list->selectedItems().size() == selected_before);
-  save_widget_artifact("ui_layer_eye_sweep_after_folder_rebuild", window);
 }
 
 void ui_layer_eye_double_click_toggles_each_click() {

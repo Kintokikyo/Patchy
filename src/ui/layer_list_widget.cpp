@@ -311,6 +311,10 @@ bool LayerListWidget::handle_visibility_eye_press(QWidget* eye_button, const QMo
   visibility_sweep_max_x_ = button_top_left.x() + eye_button->width() + kSweepColumnSlack;
   visibility_sweep_last_viewport_pos_ = viewport_pos;
   visibility_swept_ids_ = {id};
+  // A group toggle replaces every row, destroying the pressed eye and Qt's
+  // implicit mouse grab with it. Keep delivery on the persistent viewport for
+  // the entire gesture, including its release outside the list.
+  viewport()->grabMouse();
   // Deferred: a folder toggle rebuilds the layer rows, deleting the pressed button.
   QTimer::singleShot(0, this, [this, id, visible = visibility_sweep_target_visible_] {
     if (visibility_sweep_callback_) {
@@ -369,12 +373,16 @@ bool LayerListWidget::handle_visibility_sweep_move(QPoint viewport_position, con
 }
 
 void LayerListWidget::end_visibility_sweep() {
+  const auto was_active = visibility_sweep_active_;
   visibility_sweep_active_ = false;
   visibility_sweep_target_visible_ = false;
   visibility_sweep_min_x_ = 0;
   visibility_sweep_max_x_ = 0;
   visibility_sweep_last_viewport_pos_ = QPoint();
   visibility_swept_ids_.clear();
+  if (was_active && QWidget::mouseGrabber() == viewport()) {
+    viewport()->releaseMouse();
+  }
 }
 
 void LayerListWidget::set_ctrl_click_callback(std::function<void(QListWidgetItem*, LayerCtrlClickTarget)> callback) {
@@ -848,6 +856,11 @@ void LayerListWidget::setSelection(const QRect& rect, QItemSelectionModel::Selec
 }
 
 bool LayerListWidget::viewportEvent(QEvent* event) {
+  if (event->type() == QEvent::UngrabMouse || event->type() == QEvent::Hide ||
+      event->type() == QEvent::WindowDeactivate ||
+      (event->type() == QEvent::EnabledChange && !viewport()->isEnabled())) {
+    end_visibility_sweep();
+  }
   switch (event->type()) {
     case QEvent::MouseButtonPress:
     case QEvent::MouseButtonDblClick:
