@@ -2,6 +2,25 @@
 
 Split from [performance.md](performance.md) (which owns the universal rules and the stress harness). Read this before changing the Move tool's drag previews, the preview-scaled document, or the free-transform preview.
 
+## Visibility render waits
+
+Visibility changes still take the blocking partial-refresh path:
+`set_layer_visibility` calls `document_changed_effect_bounds`, whose bounded
+region route begins a processing operation and waits for
+`render_document_patches_with_processing`. The worker does the render, but the
+caller pumps with `ExcludeUserInputEvents`, so the layer-eye sweep cannot keep
+consuming native moves during the wait. The large full-invalidation route can
+instead keep the previous frame and refresh asynchronously; partial does not
+mean non-blocking. Folder visibility also rebuilds all rows.
+
+Do not fix this by changing the wait to accept all input: the partial-render
+worker reads the live Document, and the wait already admits queued timers,
+including deferred eye-toggle callbacks. A non-blocking visibility path needs
+batched mutations, an immutable render snapshot, accumulated dirty regions,
+and generation-checked completion. A slow-render sweep regression must route
+native window events and cross several rows in one move; direct viewport
+events or script visibility setters do not exercise the same path.
+
 ## Move-drag proxy preview (August 2026)
 
 Heavy Move-tool drags latch onto a translated-snapshot proxy instead of the old dashed-outline fallback (canvas_widget_move.cpp / canvas_widget_events.cpp):
@@ -16,6 +35,21 @@ Heavy Move-tool drags latch onto a translated-snapshot proxy instead of the old 
 - Release-commit integrity (August 2026): the commit captures `commit_delta`, the moving set, and the committed ids into locals at release entry and reads only those through patch render, layer mutation, and retention. Canvas input handlers drop user input while `processing_render_wait_active_` (releases are parked in `deferred_wait_release_` and replayed after the outermost wait unwinds so open gestures still end), and ShortcutOverride is accepted, because the wasm nested waits deliver DOM input synchronously (see wasm.md); without both, a Move release re-entered its own commit mid-wait: the drag followed the mouse after release, patches and mutation used different deltas, and re-entrant clicks pushed ghost undo snapshots. The precommit-patch route also marks an in-flight async render-cache refresh pending (its snapshot predates the commit; the completion re-snapshots instead of installing stale pre-move pixels), and `patch_render_cache_patches` fails closed: one invalid patch rejects the whole set so the release falls back to `document_changed_effect_bounds`. Pinned by `ui_move_commit_ignores_reentrant_input_during_processing_wait` plus the pinball fixture test's force-refresh pixel comparison.
 - Latch hitch bounded by banded renders: the base-hole and snapshot renders go through `qimage_from_document_rect_with_hidden_layers_banded` (image_document_io.cpp), horizontal bands across workers (these rects sit far below the 4 Mpx strip gate while crossing the whole styled stack). PREVIEW-ONLY: band-windowed style blurs can differ ~1-2/255 from the unbanded render near styled layers; commit and render-cache patch paths never consume banded output.
 
+Cold preview preparation still blocks the first mouse-move handler:
+`ensure_move_base_cache` lazily builds the preview-scaled document and renders
+the base before returning; `ensure_move_proxy_image` also completes its render
+before the proxy can be drawn. Banded workers reduce compute time without
+making that handler asynchronous. At reduced zoom, the scaled-document build
+visits every layer's raster surfaces, including hidden layers.
+
+Retention has additional boundaries: `focusOutEvent` calls
+`cancel_pointer_gestures`, which clears the retained base/proxy and slow-frame
+latch even when no drag is active. Ordinary document invalidations, including
+visibility changes, discard the entire preview-scaled document. A canvas-clipped
+proxy is rebuilt on the next drag even when its base survives. Distinguish a
+direct repeat drag from one after panel focus, visibility edits, or tool changes
+when measuring cache reuse.
+
 ## Deferred Move commit (September 2026)
 
 A release used to render the accurate full-res patches of the vacated plus destination region synchronously under the processing overlay (`render_document_patches_with_processing` with a forced wait for styled, proxied, or outline drags). On the 4000x2781 pinball poster (26 styled layers, 17 stacked bevel/stroke "3D" copies) that was 19 s per release cold and 9 s warm: the whole freeze Seth reported as "moving a layer takes 5 seconds". The commit is now deferred whenever that render would have waited (`force_processing_wait` or `dirty_region_should_use_processing_wait`) and a preview frame can be held (`can_hold_move_commit_preview`: a base cache plus either the proxy or live patches rendered at the release delta; never on single-threaded wasm. A canvas-clipped proxy still holds: content entering from off-canvas shows as a gap until the patches land, which beats the freeze):
@@ -27,6 +61,12 @@ A release used to render the accurate full-res patches of the vacated plus desti
 - Any other document change cancels the job: `document_changed_impl` folds the job region into a partial invalidation first; the full-invalidation entry points (`document_changed`, `document_changed_async_preview`, `force_refresh`, `active_edit_target_changed_impl`, `set_document_internal`) just cancel, since they refresh everything. A further Move commit restarts ONE job over the union of both regions from the newer snapshot.
 - Diagnostics: `move_deferred_commits` counts deferred releases; a landed job counts as a `move_precommit_patches` patch. `PATCHY_RENDER_TRACE=1` prints `deferred=1` on the release line. `patchy_perf_tests.exe manylayers` on the poster copy (`PATCHY_PERF_MANYLAYERS_PSD`) measures it end to end.
 - Tests: `ui_move_release_defers_accurate_patches_behind_a_hold`, `ui_move_deferred_commit_yields_to_undo`, `ui_move_deferred_commit_serves_exact_pixels_to_readers`, `ui_move_second_drag_while_commit_pending_merges_jobs` (all on `DeferredMoveScene`: proxy latched via `PATCHY_MOVE_LIVE_LATCH_MS=0`, worker slowed by `PATCHY_PROCESSING_RENDER_TEST_DELAY_MS`). The reentrancy test keeps the synchronous route on purpose (its release delta differs from the last live patch, so no hold exists).
+
+Replacing or cancelling a Move commit job invalidates its result, but does not
+stop its worker. Rapid releases can therefore leave multiple superseded renders
+computing concurrently despite only one current `move_commit_job_`. Any queue
+or cooperative-cancellation change must preserve the accumulated dirty region,
+the latest snapshot, exact-pixel readers, and the generation check above.
 
 ## Display-resolution move previews (August 2026)
 
