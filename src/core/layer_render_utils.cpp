@@ -436,14 +436,28 @@ namespace {
   return Rect{x0, y0, std::max(1, x1 - x0), std::max(1, y1 - y0)};
 }
 
-void shrink_layer_for_preview(Layer& layer, int level) {
+PixelBuffer cached_preview_surface(const PixelBuffer& source, int level, PreviewScaleCache* cache,
+                                   LayerId id, std::size_t surface) {
+  if (cache == nullptr) return downscale_pixel_buffer_by_level(source, level);
+  auto& entry = cache->layers[id][surface];
+  if (std::as_const(entry.source).data().data() != source.data().data() ||
+      entry.source.width() != source.width() || entry.source.height() != source.height() ||
+      entry.source.format() != source.format()) {
+    entry.scaled = downscale_pixel_buffer_by_level(source, level);
+    entry.source = source;
+  }
+  return entry.scaled;
+}
+
+void shrink_layer_for_preview(Layer& layer, int level, PreviewScaleCache* cache) {
+  const auto& original = std::as_const(layer);
   if (layer.kind() == LayerKind::Group) {
     for (auto& child : layer.children()) {
-      shrink_layer_for_preview(child, level);
+      shrink_layer_for_preview(child, level, cache);
     }
     layer.set_bounds(preview_scaled_bounds_endpoints(layer.bounds(), level));
-  } else if (!layer.pixels().empty()) {
-    auto buffer = downscale_pixel_buffer_by_level(layer.pixels(), level);
+  } else if (!original.pixels().empty()) {
+    auto buffer = cached_preview_surface(original.pixels(), level, cache, layer.id(), 0);
     const auto bounds = layer.bounds();
     const Rect scaled_bounds{preview_scaled_position(bounds.x, level), preview_scaled_position(bounds.y, level),
                              buffer.width(), buffer.height()};
@@ -453,10 +467,10 @@ void shrink_layer_for_preview(Layer& layer, int level) {
     layer.set_bounds(preview_scaled_bounds_endpoints(layer.bounds(), level));
   }
 
-  if (layer.mask().has_value()) {
-    auto mask = *layer.mask();
+  if (original.mask().has_value()) {
+    auto mask = *original.mask();
     if (!mask.pixels.empty()) {
-      mask.pixels = downscale_pixel_buffer_by_level(mask.pixels, level);
+      mask.pixels = cached_preview_surface(mask.pixels, level, cache, layer.id(), 1);
       mask.bounds = Rect{preview_scaled_position(mask.bounds.x, level),
                          preview_scaled_position(mask.bounds.y, level), mask.pixels.width(), mask.pixels.height()};
     } else {
@@ -467,7 +481,7 @@ void shrink_layer_for_preview(Layer& layer, int level) {
   if (const auto* vector_mask = layer.vector_mask(); vector_mask != nullptr) {
     auto updated = *vector_mask;
     if (!updated.cache.empty()) {
-      updated.cache = downscale_pixel_buffer_by_level(updated.cache, level);
+      updated.cache = cached_preview_surface(updated.cache, level, cache, layer.id(), 2);
       updated.cache_bounds =
           Rect{preview_scaled_position(updated.cache_bounds.x, level),
                preview_scaled_position(updated.cache_bounds.y, level), updated.cache.width(), updated.cache.height()};
@@ -520,15 +534,29 @@ PixelBuffer downscale_pixel_buffer_by_level(const PixelBuffer& source, int level
   return result;
 }
 
-Document build_preview_scaled_document(const Document& document, int level) {
+Document build_preview_scaled_document(const Document& document, int level, PreviewScaleCache* cache) {
   Document scaled(document);
   if (level <= 0) {
     return scaled;
   }
+  if (cache != nullptr) {
+    if (cache->level != level) cache->layers.clear();
+    cache->level = level;
+    std::erase_if(cache->layers, [&document](const auto& entry) {
+      return document.find_layer(entry.first) == nullptr;
+    });
+    // Removed surfaces must not retain obsolete full-resolution storage.
+    for (auto& [id, surfaces] : cache->layers) {
+      const auto* layer = document.find_layer(id);
+      if (layer->pixels().empty()) surfaces[0] = {};
+      if (!layer->mask() || layer->mask()->pixels.empty()) surfaces[1] = {};
+      if (!layer->vector_mask() || layer->vector_mask()->cache.empty()) surfaces[2] = {};
+    }
+  }
   scaled.resize_canvas(preview_scaled_dimension(document.width(), level),
                        preview_scaled_dimension(document.height(), level));
   for (auto& layer : scaled.layers()) {
-    shrink_layer_for_preview(layer, level);
+    shrink_layer_for_preview(layer, level, cache);
   }
   return scaled;
 }

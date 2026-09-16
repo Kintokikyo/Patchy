@@ -611,6 +611,47 @@ void preview_scaled_document_shrinks_layers_and_styles() {
   CHECK(static_cast<int>(*scaled_child->mask()->pixels.pixel(4, 3)) == 255);
 }
 
+void preview_scaled_document_reuses_only_unchanged_surfaces() {
+  patchy::Document document(32, 24, patchy::PixelFormat::rgba8());
+  patchy::PixelBuffer pixels(32, 24, patchy::PixelFormat::rgba8());
+  pixels.clear(255);
+  const auto id = document.add_pixel_layer("Cached", pixels).id();
+  patchy::PixelBuffer mask(32, 24, patchy::PixelFormat::gray8());
+  mask.clear(255);
+  document.find_layer(id)->set_mask(patchy::LayerMask{patchy::Rect{0, 0, 32, 24}, mask, 0, false});
+  patchy::PreviewScaleCache cache;
+  const auto first = patchy::build_preview_scaled_document(document, 1, &cache);
+  const auto* first_layer = first.find_layer(id);
+  document.find_layer(id)->set_visible(false);
+  document.find_layer(id)->set_bounds(patchy::Rect{7, -3, 32, 24});
+  patchy::LayerDropShadow shadow;
+  shadow.enabled = true;
+  shadow.size = 14;
+  document.find_layer(id)->layer_style().drop_shadows.push_back(shadow);
+  const auto second = patchy::build_preview_scaled_document(document, 1, &cache);
+  const auto* second_layer = second.find_layer(id);
+  CHECK(first_layer->pixels().data().data() == second_layer->pixels().data().data());
+  CHECK(first_layer->mask()->pixels.data().data() == second_layer->mask()->pixels.data().data());
+  CHECK(!second_layer->visible());
+  CHECK(second_layer->bounds().x == 3 && second_layer->bounds().y == -2);
+  CHECK(second_layer->layer_style().drop_shadows.front().size == 7);
+  document.find_layer(id)->mask()->pixels.clear(0);
+  const auto third = patchy::build_preview_scaled_document(document, 1, &cache);
+  CHECK(third.find_layer(id)->pixels().data().data() == second_layer->pixels().data().data());
+  CHECK(third.find_layer(id)->mask()->pixels.data().data() != second_layer->mask()->pixels.data().data());
+  CHECK(*third.find_layer(id)->mask()->pixels.pixel(0, 0) == 0);
+  document.find_layer(id)->pixels().clear(0);
+  const auto fourth = patchy::build_preview_scaled_document(document, 1, &cache);
+  CHECK(*fourth.find_layer(id)->pixels().pixel(0, 0) == 0);
+  CHECK(*first_layer->pixels().pixel(0, 0) == 255);
+  const auto smaller = patchy::build_preview_scaled_document(document, 2, &cache);
+  CHECK(smaller.find_layer(id)->pixels().width() == 8);
+  document.remove_layer(id);
+  const auto removed = patchy::build_preview_scaled_document(document, 2, &cache);
+  CHECK(removed.layers().empty());
+  CHECK(cache.layers.empty());
+}
+
 void preview_scaled_document_flatten_keeps_solid_regions() {
   patchy::Document document(128, 96, patchy::PixelFormat::rgba8());
   patchy::PixelBuffer background(128, 96, patchy::PixelFormat::rgba8());
@@ -708,6 +749,7 @@ std::vector<patchy::test::TestCase> document_model_tests() {
       {"document_print_settings_default_and_copy", document_print_settings_default_and_copy},
       {"document_grid_guides_default_and_copy", document_grid_guides_default_and_copy},
       {"preview_scaled_document_shrinks_layers_and_styles", preview_scaled_document_shrinks_layers_and_styles},
+      {"preview_scaled_document_reuses_only_unchanged_surfaces", preview_scaled_document_reuses_only_unchanged_surfaces},
       {"preview_scaled_document_flatten_keeps_solid_regions", preview_scaled_document_flatten_keeps_solid_regions},
       {"ungroup_layer_releases_children_in_place_and_order", ungroup_layer_releases_children_in_place_and_order},
   };

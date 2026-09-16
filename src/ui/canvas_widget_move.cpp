@@ -5,6 +5,7 @@
 // canvas_widget.cpp; behavior must stay identical.
 
 #include "ui/canvas_widget.hpp"
+#include "ui/background_workers.hpp"
 #include "ui/canvas_widget_shared.hpp"
 
 #include "core/adjustment_layer.hpp"
@@ -353,6 +354,7 @@ void CanvasWidget::draw_move_layer_selection(QPainter& painter) const {
 
 void CanvasWidget::begin_move_drag(const std::vector<LayerId>& layer_ids, QPoint document_point,
                                    QPoint widget_point) {
+  cancel_move_preview();
   move_drag_pending_ = true;
   moving_layer_ = false;
   move_start_ = document_point;
@@ -637,6 +639,122 @@ QRect CanvasWidget::moving_layers_outline_dirty_rect(QPoint old_delta, QPoint ne
   return dirty.adjusted(-2, -2, 2, 2).intersected(QRect(0, 0, document_->width(), document_->height()));
 }
 
+void CanvasWidget::cancel_move_preview() noexcept {
+  ++move_preview_generation_;
+  move_preview_requested_ = false;
+  if (move_preview_cancel_) move_preview_cancel_->store(true);
+}
+
+bool CanvasWidget::request_move_preview() {
+  if constexpr (kBackgroundWorkRunsInline) return false;
+  if (document_ == nullptr || moving_layers_.empty()) return false;
+  move_preview_requested_ = true;
+  if (move_preview_in_flight_) return true;
+
+  const auto generation = ++move_preview_generation_;
+  const auto level = preview_composite_level_for_zoom(zoom_);
+  const auto key = move_live_latch_key();
+  auto snapshot = std::make_shared<const Document>(*document_);
+  auto scaled = std::make_shared<std::optional<Document>>();
+  auto scale_cache = preview_scale_cache_ ? std::make_shared<PreviewScaleCache>(*preview_scale_cache_)
+                                        : std::make_shared<PreviewScaleCache>();
+  if (level >= 1 && preview_scaled_document_ && preview_scaled_document_level_ == level) {
+    scaled->emplace(*preview_scaled_document_);
+  }
+  const QRect canvas_rect(0, 0, document_->width(), document_->height());
+  QRect proxy_rect;
+  std::vector<LayerId> moving_ids;
+  for (const auto& moving : moving_layers_) {
+    moving_ids.push_back(moving.id);
+    if (const auto* layer = snapshot->find_layer(moving.id)) {
+      proxy_rect = proxy_rect.united(moving_layer_effect_rect(*layer, moving, QPoint()));
+    }
+  }
+  const bool clipped = !canvas_rect.contains(proxy_rect);
+  proxy_rect = proxy_rect.intersected(canvas_rect);
+  if (level >= 1) proxy_rect = rect_aligned_to_mip_grid(proxy_rect, level).intersected(canvas_rect);
+  std::vector<LayerId> hidden;
+  const std::function<void(const Layer&)> collect_hidden = [&](const Layer& layer) {
+    if (layer.kind() == LayerKind::Group) {
+      for (const auto& child : layer.children()) collect_hidden(child);
+    } else if (layer.kind() != LayerKind::Adjustment &&
+               std::find(moving_ids.begin(), moving_ids.end(), layer.id()) == moving_ids.end()) {
+      hidden.push_back(layer.id());
+    }
+  };
+  for (const auto& layer : snapshot->layers()) collect_hidden(layer);
+  auto base = move_base_cache_scale_level_ == level ? move_base_cache_ : QImage();
+  const auto cancelled = std::make_shared<std::atomic_bool>(false);
+  move_preview_cancel_ = cancelled;
+  move_preview_in_flight_ = true;
+  const int delay = std::max(0, qEnvironmentVariableIntValue("PATCHY_PROCESSING_RENDER_TEST_DELAY_MS"));
+  auto* app = QApplication::instance();
+  const QPointer<CanvasWidget> widget(this);
+  run_tracked_background_worker([widget, app, generation, level, key, snapshot, scaled, moving_ids, hidden,
+                                 proxy_rect, clipped, cancelled, delay, scale_cache, base = std::move(base)]() mutable {
+    QImage proxy;
+    try {
+      if (delay > 0) std::this_thread::sleep_for(std::chrono::milliseconds(delay));
+      if (!cancelled->load() && level >= 1 && !*scaled) {
+        scaled->emplace(build_preview_scaled_document(*snapshot, level, scale_cache.get()));
+      }
+      const auto& source = *scaled ? **scaled : *snapshot;
+      if (!cancelled->load() && base.isNull()) {
+        base = qimage_from_document_rect_with_hidden_layers_banded(
+                   source, QRect(0, 0, source.width(), source.height()), true, moving_ids)
+                   .convertToFormat(QImage::Format_RGBA8888);
+      }
+      const auto area = static_cast<std::int64_t>(proxy_rect.width()) * proxy_rect.height();
+      if (!cancelled->load() && !proxy_rect.isEmpty() &&
+          (level >= 1 || area <= kMoveProxyLastResortSnapshotArea)) {
+        proxy = qimage_from_document_rect_with_hidden_layers_banded(
+            source, level >= 1 ? preview_scaled_document_rect(proxy_rect, level) : proxy_rect, true, hidden);
+        const auto pixels = static_cast<std::int64_t>(proxy.width()) * proxy.height();
+        if (pixels > kMoveProxyMaxPixels) {
+          const auto scale = std::sqrt(static_cast<double>(kMoveProxyMaxPixels) / static_cast<double>(pixels));
+          proxy = proxy.scaled(QSize(std::max(1, static_cast<int>(std::lround(proxy.width() * scale))),
+                                     std::max(1, static_cast<int>(std::lround(proxy.height() * scale)))),
+                               Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+        }
+        proxy = proxy.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+      }
+    } catch (...) {
+      base = {};
+      proxy = {};
+    }
+    QMetaObject::invokeMethod(app, [widget, generation, level, key, scaled, scale_cache, cancelled, proxy_rect, clipped,
+                                  base = std::move(base), proxy = std::move(proxy)]() mutable {
+      if (!widget) return;
+      widget->move_preview_in_flight_ = false;
+      if (!cancelled->load() && generation == widget->move_preview_generation_ && widget->moving_layer_ &&
+          key == widget->move_live_latch_key() && level == preview_composite_level_for_zoom(widget->zoom_)) {
+        widget->move_preview_requested_ = false;
+        if (*scaled) {
+          widget->preview_scaled_document_ = std::move(*scaled);
+          widget->preview_scaled_document_level_ = level;
+          widget->preview_scale_cache_ = std::move(scale_cache);
+        }
+        if (!base.isNull() && !proxy.isNull()) {
+          widget->move_base_cache_ = std::move(base);
+          widget->move_base_cache_scale_level_ = level;
+          widget->move_proxy_image_ = std::move(proxy);
+          widget->move_proxy_document_rect_ = proxy_rect;
+          widget->move_proxy_rect_canvas_clipped_ = clipped;
+          widget->moving_layers_use_outline_preview_ = false;
+          widget->move_drag_uses_proxy_preview_ = true;
+          widget->move_live_frame_slow_ = true;
+          ++widget->render_cache_diagnostics_.move_proxy_previews;
+        }
+        // Paint uses the current delta, including moves delivered during work.
+        widget->update();
+      } else if (widget->move_preview_requested_ && widget->moving_layer_) {
+        widget->request_move_preview();
+      }
+    }, Qt::QueuedConnection);
+  });
+  return true;
+}
+
 bool CanvasWidget::ensure_move_proxy_image() {
   if (!move_proxy_image_.isNull()) {
     return true;
@@ -776,6 +894,7 @@ void CanvasWidget::retain_move_preview_caches(const std::vector<LayerId>& commit
 }
 
 void CanvasWidget::clear_retained_move_caches() noexcept {
+  cancel_move_preview();
   retained_move_ids_.clear();
   retained_move_composite_level_ = -1;
   clear_move_base_cache();
@@ -783,6 +902,7 @@ void CanvasWidget::clear_retained_move_caches() noexcept {
 }
 
 void CanvasWidget::invalidate_retained_move_caches() noexcept {
+  cancel_move_preview();
   if (moving_layer_ || move_drag_pending_) {
     // Clearing mid-drag would strand the in-flight proxy blit; flag it so the
     // release skips retention instead.
@@ -831,12 +951,15 @@ Document* CanvasWidget::preview_scaled_document_for_level(int level) {
   if (preview_scaled_document_.has_value() && preview_scaled_document_level_ == level) {
     return &*preview_scaled_document_;
   }
-  preview_scaled_document_.emplace(build_preview_scaled_document(std::as_const(*document_), level));
+  if (!preview_scale_cache_) preview_scale_cache_ = std::make_shared<PreviewScaleCache>();
+  preview_scaled_document_.emplace(build_preview_scaled_document(std::as_const(*document_), level,
+                                                                preview_scale_cache_.get()));
   preview_scaled_document_level_ = level;
   return &*preview_scaled_document_;
 }
 
 void CanvasWidget::clear_preview_scaled_document() noexcept {
+  cancel_move_preview();
   preview_scaled_document_.reset();
   preview_scaled_document_level_ = 0;
 }

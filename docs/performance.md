@@ -59,8 +59,8 @@ Do not read a single stress run as a measurement: text steps swing 50%+ run to r
 
 The Layers panel's rules (three-pass rebuild order, no rebuild on canvas-driven selection of existing rows, viewport-bounded row masks) and their measured numbers live in [layer-panel.md](layer-panel.md). Profiling: `refresh_layer_list`, `set_active_layer_from_selection`, `restyle_layer_rows`, `update_layer_target_styles`, and `refresh_options_bar` log under `PATCHY_UI_PROFILE=1`, and `PATCHY_ZOOM_TRACE=1` adds the Move-tool press phases (`move_press.*`, including `handle_transform_start` for a passive-handle grab). `patchy_perf_tests.exe layerpanel` times the Quintavius rebuild, folder collapse/expand, and a Layer Style open/cancel round trip (af-spike/web_samples2; [SKIP] when absent); `manylayers` times a panel row click, a canvas auto-select click, and two Move-tool press/drag/release rounds on the 2056-layer Little-Everywhere-fixed.psd (local-test-fixtures/psd; [SKIP] when absent); `PATCHY_PERF_MANYLAYERS_PSD=<path>` points it at another file and `PATCHY_PERF_RENDER_PHASE=1` adds a timed full render (pair it with `PATCHY_RENDER_SINGLE_THREADED=1` so the sampler sees the compositor). `PATCHY_PERF_SAMPLER=1` samples 10 ms main-thread stacks per measured phase. Never read one run as a measurement: alternate builds and compare means.
 
-Visibility's partial-refresh path still blocks mouse input while its worker
-renders. Snapshot, batching, and slow-sweep regression requirements are in
+Visibility sweeps use coalesced snapshot refreshes without blocking input.
+Cache retention, background Move preparation and queue contracts are in
 [interactive-previews.md](interactive-previews.md#visibility-render-waits).
 
 ## Deep documents defer full recomposites (layer-count gate)

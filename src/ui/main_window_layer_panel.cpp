@@ -2868,7 +2868,7 @@ void MainWindow::set_layer_visibility(LayerId id, bool visible) {
     }
     updating_layer_list_ = was_updating;
   }
-  canvas_->document_changed_effect_bounds(to_qrect(layer_render_bounds(*layer)));
+  canvas_->layer_visibility_changed(id);
   refresh_layer_controls();
   if (is_group) {
     refresh_layer_list();

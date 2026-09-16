@@ -1081,6 +1081,7 @@ void ui_hue_saturation_creates_masked_adjustment_layer() {
 
   layer_list->item(0)->setCheckState(Qt::Unchecked);
   QApplication::processEvents();
+  CHECK(process_events_until([canvas] { return canvas->render_settled(); }, 10000));
   CHECK(color_close(canvas_pixel(*canvas, QPoint(70, 70)), QColor(255, 0, 0), 12));
   CHECK(color_close(canvas_pixel(*canvas, QPoint(180, 70)), QColor(255, 0, 0), 12));
   save_widget_artifact("ui_hue_saturation_adjustment_layer", window);

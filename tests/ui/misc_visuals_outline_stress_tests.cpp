@@ -222,6 +222,7 @@ void ui_transparency_checkerboard_and_copy_paste_preserve_alpha() {
 
   require_layer_item(*layer_list, QStringLiteral("Background"))->setCheckState(Qt::Unchecked);
   QApplication::processEvents();
+  CHECK(process_events_until([canvas] { return canvas->render_settled(); }, 10000));
   auto transparent_preview = canvas_pixel(*canvas, QPoint(40, 40));
   CHECK(transparent_preview.alpha() == 255);
   CHECK(transparent_preview.red() >= 170);
@@ -247,6 +248,7 @@ void ui_transparency_checkerboard_and_copy_paste_preserve_alpha() {
   CHECK(layer_list != nullptr);
   require_layer_item(*layer_list, QStringLiteral("Background"))->setCheckState(Qt::Unchecked);
   QApplication::processEvents();
+  CHECK(process_events_until([canvas] { return canvas->render_settled(); }, 10000));
   const auto pasted_preview = canvas_pixel(*canvas, QPoint(24, 24));
   CHECK(pasted_preview.red() >= 170);
   CHECK(pasted_preview.red() <= 245);

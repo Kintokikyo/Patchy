@@ -1485,6 +1485,16 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
       last_mouse_position_ = event->pos();
       return;
     }
+    // Cold preparation on large documents must not occupy the input handler.
+    // Keep a moving outline until the snapshot worker supplies the base/proxy.
+    if (!moving_layers_use_outline_preview_ && !move_drag_uses_proxy_preview_ &&
+        (move_base_cache_.isNull() || move_proxy_image_.isNull()) &&
+        should_prepare_move_preview_async() &&
+        request_move_preview()) {
+      moving_layers_use_outline_preview_ = true;
+      move_preview_patches_.clear();
+      move_preview_patches_delta_.reset();
+    }
     if (!moving_layers_use_outline_preview_ && !move_drag_uses_proxy_preview_ &&
         (move_live_frame_slow_ || moving_layers_should_use_outline_preview(old_delta, move_preview_delta_))) {
       move_preview_patches_.clear();
@@ -2126,13 +2136,13 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
               std::any_of(committed_layers.begin(), committed_layers.end(),
                           [](const MovingLayer& layer) { return layer.expensive_style; });
           if ((force_processing_wait || dirty_region_should_use_processing_wait(patched_region)) &&
-              can_hold_move_commit_preview(commit_delta)) {
+              (can_hold_move_commit_preview(commit_delta) || move_preview_requested_)) {
             // Deferred commit: this render would block behind the processing
             // overlay (a 4000x2781 styled poster paid 9-19 s per release,
             // September 2026). Mutate now, keep the preview frame on screen,
             // and render the accurate patches on a worker (start_move_commit_job).
             defer_accurate_patches = true;
-            arm_move_commit_hold(commit_delta);
+            if (can_hold_move_commit_preview(commit_delta)) arm_move_commit_hold(commit_delta);
           } else {
             precommit_patches =
                 render_document_patches_with_processing(patched_region, final_bounds, force_processing_wait);
@@ -2180,6 +2190,7 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
       }
     }
     const bool proxy_content_complete = !move_proxy_image_.isNull() && !move_proxy_rect_canvas_clipped_;
+    cancel_move_preview();
     moving_layer_ = false;
     move_drag_pending_ = false;
     moving_layers_.clear();
@@ -3200,6 +3211,7 @@ bool CanvasWidget::handle_opacity_digit_key(int key, Qt::KeyboardModifiers modif
 }
 
 void CanvasWidget::cancel_pointer_gestures() {
+  const bool cancel_move = move_drag_pending_ || moving_layer_;
   move_context_press_pos_.reset();
   cancel_move_layer_selection();
   if (selecting_ || lassoing_ || quick_selecting_ || moving_selection_) {
@@ -3220,8 +3232,10 @@ void CanvasWidget::cancel_pointer_gestures() {
   move_preview_patches_delta_.reset();
   moving_layers_use_outline_preview_ = false;
   move_drag_uses_proxy_preview_ = false;
-  clear_retained_move_caches();
-  reset_move_live_latch();
+  if (cancel_move) {
+    clear_retained_move_caches();
+    reset_move_live_latch();
+  }
   dragging_transform_ = dragging_warp_handle_ = false;
   transform_drag_uses_proxy_preview_ = false;
   path_transform_drag_handle_ = TransformHandle::None;

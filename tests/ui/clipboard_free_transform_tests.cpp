@@ -1405,6 +1405,7 @@ void ui_layer_via_copy_and_cut_match_photoshop_shortcuts() {
 
   layer_list->item(0)->setCheckState(Qt::Unchecked);
   QApplication::processEvents();
+  CHECK(process_events_until([canvas] { return canvas->render_settled(); }, 10000));
   const auto revealed = canvas_pixel(*canvas, QPoint(110, 80));
   CHECK(!color_close(revealed, QColor(245, 30, 30), 45));
   CHECK(revealed.red() > 210 && revealed.green() > 210 && revealed.blue() > 210);

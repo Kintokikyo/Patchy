@@ -873,6 +873,9 @@ void ui_layer_rows_toggle_visibility_and_drag_reorder() {
   patchy::ui::MainWindow window;
   show_window(window);
   auto* canvas = require_canvas(window);
+  const auto settle_visibility = [canvas] {
+    CHECK(process_events_until([canvas] { return canvas->render_settled(); }, 10000));
+  };
   auto* layer_list = window.findChild<QListWidget*>(QStringLiteral("layerList"));
   CHECK(layer_list != nullptr);
   CHECK(layer_list->dragDropMode() == QAbstractItemView::InternalMove);
@@ -900,6 +903,7 @@ void ui_layer_rows_toggle_visibility_and_drag_reorder() {
   CHECK(layer_list->item(0)->checkState() == Qt::Unchecked);
   CHECK(blue_visibility->text().isEmpty());
   CHECK(!blue_visibility->icon().isNull());
+  settle_visibility();
   CHECK(color_close(canvas_pixel(*canvas, QPoint(80, 80)), QColor(240, 30, 30), 40));
 
   blue_visibility = layer_list->itemWidget(layer_list->item(0))->findChild<QToolButton*>(QStringLiteral("layerVisibilityCheck"));
@@ -909,6 +913,7 @@ void ui_layer_rows_toggle_visibility_and_drag_reorder() {
   CHECK(layer_list->item(0)->checkState() == Qt::Checked);
   CHECK(blue_visibility->text().isEmpty());
   CHECK(!blue_visibility->icon().isNull());
+  settle_visibility();
   CHECK(color_close(canvas_pixel(*canvas, QPoint(80, 80)), QColor(20, 100, 255), 40));
 
   auto* background_item = require_layer_item(*layer_list, QStringLiteral("Background"));
@@ -2957,6 +2962,8 @@ void ui_layer_eye_sweep_skips_disabled_and_off_column() {
 }
 
 void ui_layer_eye_sweep_survives_folder_row_rebuild() {
+  EnvironmentVariableRestorer restore_delay{"PATCHY_PROCESSING_RENDER_TEST_DELAY_MS"};
+  EnvironmentVariableRestorer restore_threshold{"PATCHY_PROCESSING_OVERLAY_MIN_PIXELS"};
   for (const bool collapsed : {false, true}) {
     for (const auto* start_name : {"Folder", "Top Layer"}) {
       patchy::Document document(64, 64, patchy::PixelFormat::rgb8());
@@ -2980,6 +2987,11 @@ void ui_layer_eye_sweep_survives_folder_row_rebuild() {
         QApplication::processEvents();
       }
       CHECK(layer_list->count() == (collapsed ? 3 : 5));
+      auto* canvas = require_canvas(window);
+      canvas->force_refresh();
+      const auto overlays_before = canvas->render_cache_diagnostics().processing_overlays_shown;
+      qputenv("PATCHY_PROCESSING_RENDER_TEST_DELAY_MS", QByteArray("600"));
+      qputenv("PATCHY_PROCESSING_OVERLAY_MIN_PIXELS", QByteArray("1"));
       const auto selected_before = layer_list->selectedItems().size();
       const auto current_id_before = layer_list->currentItem()->data(Qt::UserRole).toULongLong();
 
@@ -2993,10 +3005,14 @@ void ui_layer_eye_sweep_survives_folder_row_rebuild() {
       CHECK(eye != nullptr);
       const auto center = eye->rect().center();
       const auto column_x = viewport->mapFromGlobal(eye->mapToGlobal(center)).x();
+      const auto press_started = std::chrono::steady_clock::now();
       QTest::mousePress(window_handle, Qt::LeftButton, Qt::NoModifier, eye->mapTo(&window, center));
       QApplication::processEvents();
       QApplication::processEvents();
       QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+      const auto press_ms = std::chrono::duration<double, std::milli>(
+          std::chrono::steady_clock::now() - press_started).count();
+      CHECK(press_ms < 400.0);  // the injected render takes at least 600 ms
 
       QPoint last_position(column_x, 0);
       for (const auto* name : {"Folder", "Child B", "Child A", "Background"}) {
@@ -3049,6 +3065,12 @@ void ui_layer_eye_sweep_survives_folder_row_rebuild() {
       CHECK(document_layer_visible(doc, ids.child_b));
       CHECK(layer_list->selectedItems().size() == selected_before);
       CHECK(layer_list->currentItem()->data(Qt::UserRole).toULongLong() == current_id_before);
+      CHECK(canvas->render_cache_diagnostics().processing_overlays_shown == overlays_before);
+      qputenv("PATCHY_PROCESSING_RENDER_TEST_DELAY_MS", QByteArray("0"));
+      CHECK(process_events_until([canvas] { return canvas->render_settled(); }, 10000));
+      const auto settled_image = render_widget_image(*canvas);
+      canvas->force_refresh();
+      CHECK(images_equal_rgba(settled_image, render_widget_image(*canvas)));
     }
   }
 }

@@ -71,6 +71,7 @@
 #include <cstdint>
 #include <cmath>
 #include <cstdio>
+#include <mutex>
 #include <cstring>
 #include <future>
 #include <functional>
@@ -82,6 +83,23 @@
 #include <vector>
 
 namespace patchy::ui {
+
+// One running render and one replaceable request. The worker drains the queue
+// itself so exact-pixel readers can wait without depending on UI completion
+// delivery to start the latest request.
+struct CanvasWidget::MoveCommitWorker {
+  struct Request {
+    std::uint64_t generation{};
+    std::shared_ptr<const Document> snapshot;
+    QRegion region;
+    std::shared_ptr<std::promise<std::vector<RenderedDocumentPatch>>> promise;
+    std::shared_ptr<std::atomic_bool> cancelled;
+  };
+  std::mutex mutex;
+  bool running{false};
+  std::optional<Request> pending;
+  std::shared_ptr<std::atomic_bool> current_cancel;
+};
 
 namespace {
 
@@ -264,6 +282,7 @@ CanvasWidget::RenderCacheDiagnostics CanvasWidget::render_cache_diagnostics() co
 
 bool CanvasWidget::render_settled() const noexcept {
   return !render_cache_dirty_ && !async_render_cache_in_flight_ && !move_commit_job_.has_value() &&
+         !move_preview_in_flight_ &&
          vector_preview_settled();
 }
 
@@ -289,6 +308,13 @@ bool CanvasWidget::should_defer_full_refresh_to_async() const noexcept {
       static_cast<std::int64_t>(document_->width()) * static_cast<std::int64_t>(document_->height());
   return canvas_area >= kProcessingOverlayDirtyAreaThreshold ||
          total_layer_count(std::as_const(*document_).layers()) >= kDeferFullRefreshMinLayers;
+}
+
+bool CanvasWidget::should_prepare_move_preview_async() const noexcept {
+  if constexpr (kBackgroundWorkRunsInline) return false;
+  return document_ != nullptr &&
+         (static_cast<std::int64_t>(document_->width()) * document_->height() >= kProcessingOverlayDirtyAreaThreshold ||
+          total_layer_count(std::as_const(*document_).layers()) >= kDeferFullRefreshMinLayers);
 }
 
 bool CanvasWidget::should_defer_first_render_to_async() const noexcept {
@@ -416,6 +442,23 @@ void CanvasWidget::document_changed() {
 }
 
 void CanvasWidget::document_changed_async_preview() {
+  document_changed_async_preview_impl(false);
+}
+
+void CanvasWidget::layer_visibility_changed(LayerId id) {
+  if (document_ != nullptr && preview_scaled_document_) {
+    const auto* real = std::as_const(*document_).find_layer(id);
+    auto* scaled = preview_scaled_document_->find_layer(id);
+    if (real != nullptr && scaled != nullptr) {
+      scaled->set_visible(real->visible());
+    } else {
+      clear_preview_scaled_document();
+    }
+  }
+  document_changed_async_preview_impl(true);
+}
+
+void CanvasWidget::document_changed_async_preview_impl(bool preserve_scaled_document) {
   clear_transform_commit_hold();
   cancel_move_commit_job();
   if (document_ == nullptr || render_cache_.isNull() ||
@@ -425,7 +468,9 @@ void CanvasWidget::document_changed_async_preview() {
   }
 
   // Same bypass as document_changed(): see the invalidation note there.
-  clear_preview_scaled_document();
+  if (!preserve_scaled_document) {
+    clear_preview_scaled_document();
+  }
   invalidate_retained_move_caches();
   refresh_free_transform_preview_caches();
   notify_document_changed();
@@ -436,11 +481,22 @@ void CanvasWidget::document_changed_async_preview() {
     return;
   }
 
+  // Paint may hold the previous image, but exact-pixel readers must refresh.
+  render_cache_dirty_ = true;
+  async_render_cache_explicit_hold_ = true;
   if (async_render_cache_in_flight_) {
     async_render_cache_pending_ = true;
     return;
   }
-  start_async_render_cache_refresh();
+  if (!async_render_cache_start_queued_) {
+    async_render_cache_start_queued_ = true;
+    QTimer::singleShot(0, this, [this] {
+      async_render_cache_start_queued_ = false;
+      if (async_render_cache_explicit_hold_ && !async_render_cache_in_flight_) {
+        start_async_render_cache_refresh();
+      }
+    });
+  }
 }
 
 void CanvasWidget::force_refresh() {
@@ -745,7 +801,10 @@ void CanvasWidget::paintEvent(QPaintEvent* event) {
   prepare_vector_preview();
 
   if (!processing_render_wait_active_) {
-    if (should_defer_full_refresh_to_async()) {
+    if (async_render_cache_explicit_hold_) {
+      // Explicit asynchronous edits already queued a snapshot refresh. Native
+      // pointer events continue while this previous frame stays on screen.
+    } else if (should_defer_full_refresh_to_async()) {
       // Keep the previous frame on screen while the recomposite runs in the
       // background; the completion lambda swaps the cache and repaints. This is
       // what stops big documents (>= overlay scale) from flashing checkerboard
@@ -1090,6 +1149,7 @@ void CanvasWidget::ensure_render_cache() {
     return;
   }
 
+  cancel_async_render_cache_refresh();
   render_cache_ = render_document_image_with_processing();
   quantize_image_for_palette_display(render_cache_);
   render_cache_dirty_ = false;
@@ -1193,6 +1253,10 @@ void CanvasWidget::start_async_render_cache_refresh() {
           if (generation != widget->async_render_cache_generation_ || image == nullptr || image->isNull() ||
               widget->document_ == nullptr ||
               snapshot_size != QSize(widget->document_->width(), widget->document_->height())) {
+            if (generation == widget->async_render_cache_generation_) {
+              widget->async_render_cache_explicit_hold_ = false;
+              widget->update();
+            }
             return;
           }
           // Installing here is content-correct even mid-drag or mid-wait:
@@ -1204,6 +1268,7 @@ void CanvasWidget::start_async_render_cache_refresh() {
           widget->quantize_image_for_palette_display(*image);
           widget->render_cache_ = std::move(*image);
           widget->render_cache_dirty_ = false;
+          widget->async_render_cache_explicit_hold_ = false;
           ++widget->render_cache_diagnostics_.full_refreshes;
           widget->invalidate_display_mip_cache();
           widget->refresh_curves_clipping_preview();
@@ -1224,6 +1289,7 @@ void CanvasWidget::cancel_async_render_cache_refresh() noexcept {
   invalidate_vector_preview();
   ++async_render_cache_generation_;
   async_render_cache_pending_ = false;
+  async_render_cache_explicit_hold_ = false;
 }
 
 std::vector<RenderedDocumentPatch> CanvasWidget::render_document_patches_with_processing(
@@ -1607,33 +1673,66 @@ void CanvasWidget::start_move_commit_job(const QRegion& document_region) {
   job.result = promise->get_future().share();
   move_commit_job_ = std::move(job);
   ++render_cache_diagnostics_.move_deferred_commits;
-  auto* app = QApplication::instance();
-  QPointer<CanvasWidget> widget(this);
-  run_tracked_background_worker([app, widget, generation, snapshot, region, promise] {
-    std::vector<RenderedDocumentPatch> patches;
-    try {
-      if (const auto delay = processing_render_test_delay_ms(); delay > 0) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(delay));
-      }
-      patches = qimage_patches_from_document_region(*snapshot, region, true);
-      for (auto& patch : patches) {
-        patch.image = patch.image.convertToFormat(QImage::Format_RGBA8888);
-      }
-    } catch (...) {
-      patches.clear();
+  if (!move_commit_worker_) {
+    move_commit_worker_ = std::make_shared<MoveCommitWorker>();
+  }
+  const auto state = move_commit_worker_;
+  {
+    std::lock_guard lock(state->mutex);
+    if (state->current_cancel) {
+      state->current_cancel->store(true);
     }
-    promise->set_value(std::move(patches));
-    if (app == nullptr) {
+    if (state->pending) {
+      state->pending->promise->set_value({});
+    }
+    state->pending = MoveCommitWorker::Request{
+        generation, std::move(snapshot), region, promise, std::make_shared<std::atomic_bool>(false)};
+    if (state->running) {
       return;
     }
-    QMetaObject::invokeMethod(
-        app,
-        [widget, generation] {
-          if (widget != nullptr) {
-            widget->finish_move_commit_job(generation);
+    state->running = true;
+  }
+  auto* app = QApplication::instance();
+  QPointer<CanvasWidget> widget(this);
+  run_tracked_background_worker([app, widget, state] {
+    for (;;) {
+      MoveCommitWorker::Request request;
+      {
+        std::lock_guard lock(state->mutex);
+        if (!state->pending) {
+          state->running = false;
+          state->current_cancel.reset();
+          return;
+        }
+        request = std::move(*state->pending);
+        state->pending.reset();
+        state->current_cancel = request.cancelled;
+      }
+      std::vector<RenderedDocumentPatch> patches;
+      try {
+        if (const auto delay = processing_render_test_delay_ms(); delay > 0) {
+          std::this_thread::sleep_for(std::chrono::milliseconds(delay));
+        }
+        // Cancellation is checked between regions; an already running render
+        // finishes safely using its immutable snapshot.
+        for (const auto& rect : request.region) {
+          if (request.cancelled->load()) break;
+          auto rendered = qimage_patches_from_document_region(*request.snapshot, QRegion(rect), true);
+          for (auto& patch : rendered) {
+            patch.image = patch.image.convertToFormat(QImage::Format_RGBA8888);
+            patches.push_back(std::move(patch));
           }
-        },
-        Qt::QueuedConnection);
+        }
+      } catch (...) {
+        patches.clear();
+      }
+      request.promise->set_value(std::move(patches));
+      if (app != nullptr) {
+        QMetaObject::invokeMethod(app, [widget, completed = request.generation] {
+          if (widget != nullptr) widget->finish_move_commit_job(completed);
+        }, Qt::QueuedConnection);
+      }
+    }
   });
 }
 
@@ -1666,22 +1765,29 @@ void CanvasWidget::finish_move_commit_job(std::uint64_t generation) {
 }
 
 void CanvasWidget::cancel_move_commit_job() noexcept {
+  if (move_commit_worker_) {
+    std::lock_guard lock(move_commit_worker_->mutex);
+    if (move_commit_worker_->current_cancel) {
+      move_commit_worker_->current_cancel->store(true);
+    }
+    if (move_commit_worker_->pending) {
+      move_commit_worker_->pending->promise->set_value({});
+      move_commit_worker_->pending.reset();
+    }
+  }
   // The queued completion finds no job with its generation and does nothing.
   move_commit_job_.reset();
   clear_move_commit_hold();
 }
 
 void CanvasWidget::wait_for_move_commit_job() {
-  if (!move_commit_job_.has_value()) {
-    return;
+  while (move_commit_job_.has_value()) {
+    const auto generation = move_commit_job_->generation;
+    auto result = move_commit_job_->result;
+    wait_for_processing_operation(
+        [&result] { return result.wait_for(std::chrono::milliseconds(16)) == std::future_status::ready; }, true);
+    finish_move_commit_job(generation);
   }
-  const auto generation = move_commit_job_->generation;
-  auto result = move_commit_job_->result;
-  wait_for_processing_operation(
-      [&result] { return result.wait_for(std::chrono::milliseconds(16)) == std::future_status::ready; }, true);
-  // The pump may have delivered a document change that cancelled or replaced
-  // the job; finish() checks the generation itself.
-  finish_move_commit_job(generation);
 }
 
 void CanvasWidget::clear_move_base_cache() noexcept {

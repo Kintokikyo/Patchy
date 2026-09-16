@@ -34,6 +34,7 @@
 #include <QWidget>
 
 #include <array>
+#include <atomic>
 #include <cstdint>
 #include <chrono>
 #include <map>
@@ -56,6 +57,7 @@ class QScrollBar;
 class QTabletEvent;
 
 namespace patchy {
+struct PreviewScaleCache;
 enum class LiveShapeKind : std::uint8_t;
 enum class PathCombineOp : std::uint8_t;
 struct PathAnchor;
@@ -808,6 +810,7 @@ public:
   void force_refresh();
   void document_changed();
   void document_changed_async_preview();
+  void layer_visibility_changed(LayerId id);
   void document_changed(QRect document_rect);
   void document_changed(QRegion document_region);
   void document_changed_effect_bounds(QRect document_rect);
@@ -1101,6 +1104,7 @@ private:
   void set_document_internal(Document* document, bool preserve_frame_for_same_size,
                              bool normal_composite_unchanged = false);
   void start_async_render_cache_refresh();
+  void document_changed_async_preview_impl(bool preserve_scaled_document);
   void cancel_async_render_cache_refresh() noexcept;
   void invalidate_vector_preview() noexcept;
   [[nodiscard]] bool vector_preview_available_for_view() const noexcept;
@@ -1136,6 +1140,9 @@ private:
   void invalidate_display_mip_cache() noexcept;
   void refresh_curves_clipping_preview();
   void ensure_move_base_cache();
+  bool request_move_preview();
+  bool should_prepare_move_preview_async() const noexcept;
+  void cancel_move_preview() noexcept;
   // Deferred Move commit (see mouseReleaseEvent and the MoveCommitJob members).
   [[nodiscard]] bool can_hold_move_commit_preview(QPoint commit_delta) const noexcept;
   void arm_move_commit_hold(QPoint commit_delta);
@@ -1759,6 +1766,8 @@ private:
   RenderCacheDiagnostics render_cache_diagnostics_{};
   bool async_render_cache_in_flight_{false};
   bool async_render_cache_pending_{false};
+  bool async_render_cache_explicit_hold_{false};
+  bool async_render_cache_start_queued_{false};
   std::uint64_t async_render_cache_generation_{0};
   std::vector<QImage> display_mip_cache_{};
   QSize display_mip_source_size_{};
@@ -2249,6 +2258,8 @@ private:
     std::shared_future<std::vector<RenderedDocumentPatch>> result{};
   };
   std::optional<MoveCommitJob> move_commit_job_{};
+  struct MoveCommitWorker;
+  std::shared_ptr<MoveCommitWorker> move_commit_worker_{};
   std::uint64_t move_commit_job_generation_{0};
   QImage move_commit_hold_base_{};
   int move_commit_hold_scale_level_{0};
@@ -2271,6 +2282,11 @@ private:
   // PREVIEW-ONLY scaled document cache (display-resolution compositing).
   std::optional<Document> preview_scaled_document_{};
   int preview_scaled_document_level_{0};
+  std::shared_ptr<PreviewScaleCache> preview_scale_cache_{};
+  bool move_preview_in_flight_{false};
+  bool move_preview_requested_{false};
+  std::uint64_t move_preview_generation_{0};
+  std::shared_ptr<std::atomic_bool> move_preview_cancel_{};
   std::optional<LayerId> transform_layer_id_;
   QRectF transform_original_rect_{};
   QRectF transform_current_rect_{};

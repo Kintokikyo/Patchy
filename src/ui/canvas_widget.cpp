@@ -286,6 +286,7 @@ void CanvasWidget::set_document_internal(Document* document, bool preserve_frame
   cancel_pen_path();  // an in-flight path belongs to the outgoing document
   cancel_path_transform();
   clear_preview_scaled_document();
+  preview_scale_cache_.reset();
   clear_transform_commit_hold();  // a held commit frame belongs to the outgoing state
   cancel_move_commit_job();
   active_document_path_.reset();

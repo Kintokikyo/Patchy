@@ -3,6 +3,7 @@
 #include "core/rect_utils.hpp"
 #include "psd/psd_document_io.hpp"
 #include "ui/qt_paths.hpp"
+#include "ui/background_workers.hpp"
 #include "test_harness.hpp"
 #include "local_psd_fixtures.hpp"
 #include "ui/image_document_io.hpp"
@@ -20,6 +21,7 @@
 #include <QPainter>
 #include <QRect>
 #include <QRegion>
+#include <QScopeGuard>
 #include <QTabWidget>
 #include <QTimer>
 
@@ -948,6 +950,7 @@ void many_layers_select_and_move_perf_if_available() {
   constexpr int kDragFrames = 6;
   std::vector<double> frame_ms;
   QPoint drag_position = click_position;
+  const auto preview_started = Clock::now();
   begin_phase();
   for (int frame = 1; frame <= kDragFrames; ++frame) {
     drag_position = click_position + QPoint(30 * frame, 20 * frame);
@@ -958,6 +961,16 @@ void many_layers_select_and_move_perf_if_available() {
     }));
   }
   end_phase("move_frames");
+  // Report immediate feedback separately from a cold background preview.
+  const auto settle_canvas = [&] {
+    const auto deadline = Clock::now() + std::chrono::seconds(120);
+    while (!canvas->render_settled() && Clock::now() < deadline) {
+      QApplication::processEvents();
+    }
+    CHECK(canvas->render_settled());
+  };
+  settle_canvas();
+  const auto preview_ready_ms = std::chrono::duration<double, std::milli>(Clock::now() - preview_started).count();
   begin_phase();
   const auto release_ms = elapsed_ms([&] {
     send_mouse(*canvas, QEvent::MouseButtonRelease, drag_position, Qt::LeftButton, Qt::NoButton);
@@ -986,6 +999,7 @@ void many_layers_select_and_move_perf_if_available() {
     QApplication::processEvents();
   });
   end_phase("move2");
+  const auto exact_settle_ms = elapsed_ms(settle_canvas);
   std::ostringstream frames2;
   for (std::size_t index = 0; index < frame2_ms.size(); ++index) {
     frames2 << (index == 0 ? "" : "/") << frame2_ms[index];
@@ -1005,6 +1019,7 @@ void many_layers_select_and_move_perf_if_available() {
             << " move_frames_ms=" << frames.str() << " move_release_ms=" << release_ms
             << " move2_press_ms=" << press2_ms << " move2_frames_ms=" << frames2.str()
             << " move2_release_ms=" << release2_ms << " styled_layers=" << styled_count
+            << " preview_ready_ms=" << preview_ready_ms << " exact_settle_ms=" << exact_settle_ms
             << " full_refresh_delta=" << (after.full_refreshes - before.full_refreshes)
             << " proxy_previews_delta=" << (after.move_proxy_previews - before.move_proxy_previews)
             << " outline_previews_delta=" << (after.move_outline_previews - before.move_outline_previews)
@@ -1015,6 +1030,20 @@ void many_layers_select_and_move_perf_if_available() {
             << (moved_target != nullptr ? clean_name(moved_target->name()) : std::string("?")) << "\" moved="
             << (moved ? 1 : 0) << '\n';
   CHECK(moved);
+  if (qEnvironmentVariableIsSet("PATCHY_PERF_VERIFY_FINAL")) {
+    const auto capture = [canvas] {
+      QImage image(canvas->size(), QImage::Format_ARGB32_Premultiplied);
+      image.fill(Qt::transparent);
+      canvas->render(&image);
+      return image;
+    };
+    const auto committed = capture();
+    canvas->force_refresh();
+    settle_canvas();
+    const bool identical = images_equal_rgba(committed, capture());
+    std::cout << "[PERF_FINAL_RENDER_CHECK] matches_full_refresh=" << (identical ? 1 : 0) << '\n';
+    CHECK(identical);
+  }
 }
 
 }  // namespace
@@ -1027,6 +1056,7 @@ int main(int argc, char* argv[]) {
     qputenv("QT_QPA_PLATFORM", QByteArray("offscreen"));
   }
   QApplication app(argc, argv);
+  const auto finish_workers = qScopeGuard([] { patchy::ui::wait_for_tracked_background_workers(); });
   try {
     if (argc > 1 && std::string_view(argv[1]) == "zoom") {
       tent_psb_zoom_step_perf_if_available();

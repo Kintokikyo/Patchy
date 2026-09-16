@@ -6,6 +6,7 @@
 #include "core/rect_utils.hpp"
 
 #include <cstdint>
+#include <array>
 #include <optional>
 #include <unordered_map>
 #include <vector>
@@ -66,7 +67,16 @@ struct AncestorGroupStyleInfo {
 // is part of the preview contract).
 [[nodiscard]] std::int32_t preview_scaled_dimension(std::int32_t value, int level) noexcept;
 [[nodiscard]] PixelBuffer downscale_pixel_buffer_by_level(const PixelBuffer& source, int level);
-[[nodiscard]] Document build_preview_scaled_document(const Document& document, int level);
+// One level and one entry per current layer surface. Keeping the COW source
+// alive makes storage identity safe against allocator reuse and forces later
+// edits to detach. Metadata is always rebuilt from the current document.
+struct PreviewScaleCache {
+  struct Surface { PixelBuffer source; PixelBuffer scaled; };
+  int level{0};
+  std::unordered_map<LayerId, std::array<Surface, 3>> layers;
+};
+[[nodiscard]] Document build_preview_scaled_document(const Document& document, int level,
+                                                     PreviewScaleCache* cache = nullptr);
 // Recompute `scaled`'s position-bearing fields (bounds, raster-mask bounds,
 // vector shape/mask with the downscaled cache and feather kept) from the
 // translated full-res `real` layer, exactly as a fresh

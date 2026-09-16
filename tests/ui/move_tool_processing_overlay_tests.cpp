@@ -2979,6 +2979,10 @@ void ui_move_repeat_drag_reuses_retained_caches() {
 
   // Drag 2 of the same selection: the press reuses the retained caches and
   // the proxy latches on the first move. Layer moves to 460..1460.
+  QFocusEvent focus_out(QEvent::FocusOut, Qt::MouseFocusReason);
+  QApplication::sendEvent(&canvas, &focus_out);
+  QFocusEvent focus_in(QEvent::FocusIn, Qt::MouseFocusReason);
+  QApplication::sendEvent(&canvas, &focus_in);
   send_mouse(canvas, QEvent::MouseButtonPress, start, Qt::LeftButton, Qt::LeftButton);
   send_mouse(canvas, QEvent::MouseMove, start + QPoint(30, 0), Qt::NoButton, Qt::LeftButton);
   QApplication::processEvents();
@@ -4099,10 +4103,68 @@ void ui_move_second_drag_while_commit_pending_merges_jobs() {
   CHECK(scene.layer_x() == 40);
 }
 
+void ui_move_cold_preview_is_async_and_uses_latest_delta() {
+  DeferredMoveScene scene;
+  auto& doc = patchy::ui::MainWindowTestAccess::document(scene.window);
+  // Deep but small: exercises the production async threshold without a large
+  // fixture or a timing dependency on the compositor's natural speed.
+  for (int i = 0; i < 200; ++i) {
+    doc.add_layer(patchy::Layer(doc.allocate_layer_id(), "Empty", patchy::PixelBuffer()));
+  }
+  doc.set_active_layer(scene.layer_id);
+  scene.canvas->document_changed();
+  scene.settle();
+  scene.canvas->set_selected_layer_ids({scene.layer_id});
+  const auto before = scene.canvas->render_cache_diagnostics();
+  const auto start = scene.canvas->widget_position_for_document_point(QPoint(70, 70));
+  send_mouse(*scene.canvas, QEvent::MouseButtonPress, start, Qt::LeftButton, Qt::LeftButton);
+  const auto began = std::chrono::steady_clock::now();
+  send_mouse(*scene.canvas, QEvent::MouseMove, start + QPoint(20, 0), Qt::NoButton, Qt::LeftButton);
+  send_mouse(*scene.canvas, QEvent::MouseMove, start + QPoint(50, 0), Qt::NoButton, Qt::LeftButton);
+  const auto first_feedback_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - began).count();
+  CHECK(first_feedback_ms < 300.0);
+  CHECK(scene.canvas->render_cache_diagnostics().move_proxy_previews == before.move_proxy_previews);
+  scene.settle();
+  CHECK(scene.canvas->render_cache_diagnostics().move_proxy_previews == before.move_proxy_previews + 1);
+  CHECK(color_close(canvas_pixel(*scene.canvas, QPoint(140, 70)), QColor(20, 90, 235), 8));
+  CHECK(color_close(canvas_pixel(*scene.canvas, QPoint(45, 70)), QColor(Qt::white), 8));
+  send_mouse(*scene.canvas, QEvent::MouseButtonRelease, start + QPoint(50, 0), Qt::LeftButton, Qt::NoButton);
+  scene.settle();
+  const auto committed = render_widget_image(*scene.canvas);
+  CHECK(images_equal_rgba(committed, scene.reference_image()));
+
+  // Release before preparation finishes, then Undo while both workers may be
+  // alive. Neither completion may install the abandoned preview/document.
+  scene.canvas->document_changed();
+  scene.settle();
+  qputenv("PATCHY_PROCESSING_RENDER_TEST_DELAY_MS", QByteArray("400"));
+  CHECK(scene.drag_right(QPoint(120, 70)) < 300.0);
+  CHECK(scene.layer_x() == 140);
+  patchy::ui::MainWindowTestAccess::undo(scene.window);
+  scene.settle();
+  CHECK(scene.layer_x() == 90);
+  const auto restored = render_widget_image(*scene.canvas);
+  CHECK(images_equal_rgba(restored, scene.reference_image()));
+}
+
+void ui_move_rapid_commits_keep_latest_region_and_exact_pixels() {
+  DeferredMoveScene scene;
+  for (int i = 0; i < 5; ++i) {
+    CHECK(scene.drag_right(QPoint(70 + i * 50, 70)) < 300.0);
+  }
+  CHECK(scene.layer_x() == 290);
+  CHECK(scene.canvas->move_commit_job_pending());
+  scene.settle();
+  const auto committed = render_widget_image(*scene.canvas);
+  CHECK(images_equal_rgba(committed, scene.reference_image()));
+}
+
 }  // namespace
 
 std::vector<patchy::test::TestCase> move_tool_processing_overlay_tests() {
   return {
+      {"ui_move_cold_preview_is_async_and_uses_latest_delta", ui_move_cold_preview_is_async_and_uses_latest_delta},
+      {"ui_move_rapid_commits_keep_latest_region_and_exact_pixels", ui_move_rapid_commits_keep_latest_region_and_exact_pixels},
       {"ui_move_preview_preserves_layer_order", ui_move_preview_preserves_layer_order},
       {"ui_move_tool_moves_selected_layers_together", ui_move_tool_moves_selected_layers_together},
       {"ui_move_auto_select_hover_outlines_with_multi_selection",
