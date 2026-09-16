@@ -1421,284 +1421,316 @@ class MainActivity : Activity() {
     // HASIL FILE PICKER
     // ==================================================
 
-    @Suppress("DEPRECATION")
-    override fun onActivityResult(
-        requestCode: Int,
-        resultCode: Int,
-        data: Intent?
+@Suppress("DEPRECATION")
+override fun onActivityResult(
+    requestCode: Int,
+    resultCode: Int,
+    data: Intent?
+) {
+
+    super.onActivityResult(
+        requestCode,
+        resultCode,
+        data
+    )
+
+
+    // ==============================================
+    // OPEN FILE
+    // ==============================================
+
+    if (
+        requestCode ==
+        FILE_CHOOSER_REQUEST_CODE
     ) {
 
-        super.onActivityResult(
-            requestCode,
-            resultCode,
-            data
+        Log.d(
+            TAG,
+            "File picker result: $resultCode"
         )
 
 
-        // ==============================================
-        // OPEN FILE
-        // ==============================================
+        val callback =
+            filePathCallback
+
+
+        filePathCallback =
+            null
+
+
+        // User batal memilih file
 
         if (
-            requestCode ==
-            FILE_CHOOSER_REQUEST_CODE
+            resultCode != RESULT_OK ||
+            data == null
         ) {
 
-            Log.d(
-                TAG,
-                "File picker result: $resultCode"
-            )
-
-
-            val callback =
-                filePathCallback
-
-
-            filePathCallback =
-                null
-
-
-            // User batal memilih file
-
-            if (
-                resultCode != RESULT_OK ||
-                data == null
-            ) {
-
-                callback?.onReceiveValue(
-                    null
-                )
-
-                return
-            }
-
-
-            val uris =
-                mutableListOf<Uri>()
-
-
-            // ----------------------------------------------
-            // Multiple file
-            // ----------------------------------------------
-
-            data.clipData?.let { clipData ->
-
-                for (
-                    i in 0 until
-                        clipData.itemCount
-                ) {
-
-                    uris.add(
-                        clipData
-                            .getItemAt(i)
-                            .uri
-                    )
-                }
-            }
-
-
-            // ----------------------------------------------
-            // Single file
-            // ----------------------------------------------
-
-            if (
-                uris.isEmpty()
-            ) {
-
-                data.data?.let { uri ->
-
-                    uris.add(
-                        uri
-                    )
-                }
-            }
-
-
-            Log.d(
-                TAG,
-                "Selected files: ${uris.size}"
-            )
-
-
             callback?.onReceiveValue(
-                uris.toTypedArray()
+                null
             )
-
 
             return
         }
 
 
-        // ==============================================
-        // SAVE FOLDER
-        // ==============================================
+        val uris =
+            mutableListOf<Uri>()
 
-        if (
-            requestCode ==
-            SAVE_FOLDER_REQUEST_CODE
-        ) {
 
-            // User batal memilih folder
+        // ----------------------------------------------
+        // Multiple file
+        // ----------------------------------------------
 
-            if (
-                resultCode != RESULT_OK ||
-                data?.data == null
+        data.clipData?.let { clipData ->
+
+            for (
+                i in 0 until
+                    clipData.itemCount
             ) {
 
-                Log.d(
-                    TAG,
-                    "Pemilihan folder dibatalkan"
+                uris.add(
+                    clipData
+                        .getItemAt(i)
+                        .uri
                 )
-
-
-                saveCancelled =
-                    true
-
-                return
             }
+        }
 
 
-            val treeUri =
-                data.data!!
+        // ----------------------------------------------
+        // Single file
+        // ----------------------------------------------
+
+        if (
+            uris.isEmpty()
+        ) {
+
+            data.data?.let { uri ->
+
+                uris.add(
+                    uri
+                )
+            }
+        }
+
+
+        Log.d(
+            TAG,
+            "Selected files: ${uris.size}"
+        )
+
+
+        callback?.onReceiveValue(
+            uris.toTypedArray()
+        )
+
+
+        return
+    }
+
+
+    // ==============================================
+    // SAVE FOLDER
+    // ==============================================
+
+    if (
+        requestCode ==
+        SAVE_FOLDER_REQUEST_CODE
+    ) {
+
+        // User batal memilih folder
+
+        if (
+            resultCode != RESULT_OK ||
+            data?.data == null
+        ) {
+
+            Log.d(
+                TAG,
+                "Pemilihan folder dibatalkan"
+            )
+
+
+            saveCancelled =
+                true
+
+            return
+        }
+
+
+        val treeUri =
+            data.data!!
+
+
+        try {
+
+            // ------------------------------------------
+            // Simpan permission folder
+            // ------------------------------------------
+
+            val takeFlags =
+                data.flags and (
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
 
 
             try {
 
-                // ------------------------------------------
-                // Simpan permission folder
-                // ------------------------------------------
+                contentResolver
+                    .takePersistableUriPermission(
+                        treeUri,
+                        takeFlags
+                    )
 
-                val takeFlags =
-                    data.flags and (
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                        Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            } catch (_: Exception) {
+            }
+
+
+            Log.d(
+                TAG,
+                "Folder dipilih: $treeUri"
+            )
+
+
+            // ------------------------------------------
+            // UBAH TREE URI MENJADI DOCUMENT URI
+            // ------------------------------------------
+            //
+            // ACTION_OPEN_DOCUMENT_TREE memberikan
+            // tree URI.
+            //
+            // createDocument() membutuhkan URI dokumen
+            // yang menunjuk ke folder parent.
+            // ------------------------------------------
+
+            val parentDocumentUri =
+                DocumentsContract.buildDocumentUriUsingTree(
+                    treeUri,
+                    DocumentsContract.getTreeDocumentId(
+                        treeUri
+                    )
+                )
+
+
+            Log.d(
+                TAG,
+                "Parent document URI: $parentDocumentUri"
+            )
+
+
+            // ------------------------------------------
+            // Buat file di folder tersebut
+            // ------------------------------------------
+
+            val fileUri =
+                DocumentsContract.createDocument(
+                    contentResolver,
+                    parentDocumentUri,
+                    pendingSaveMimeType,
+                    pendingSaveFileName
+                )
+
+
+            if (
+                fileUri == null
+            ) {
+
+                throw IllegalStateException(
+                    "Tidak bisa membuat file " +
+                        "di folder yang dipilih"
+                )
+            }
+
+
+            Log.d(
+                TAG,
+                "File berhasil dibuat: $fileUri"
+            )
+
+
+            // ------------------------------------------
+            // Buka OutputStream
+            // ------------------------------------------
+
+            val output =
+                contentResolver
+                    .openOutputStream(
+                        fileUri
                     )
 
 
+            if (
+                output == null
+            ) {
+
                 try {
 
-                    contentResolver
-                        .takePersistableUriPermission(
-                            treeUri,
-                            takeFlags
-                        )
+                    contentResolver.delete(
+                        fileUri,
+                        null,
+                        null
+                    )
 
                 } catch (_: Exception) {
                 }
 
 
-                Log.d(
-                    TAG,
-                    "Folder dipilih: $treeUri"
+                throw IllegalStateException(
+                    "Tidak bisa membuka OutputStream"
                 )
-
-
-                // ------------------------------------------
-                // Buat file di folder tersebut
-                // ------------------------------------------
-
-                val fileUri =
-                    DocumentsContract.createDocument(
-                        contentResolver,
-                        treeUri,
-                        pendingSaveMimeType,
-                        pendingSaveFileName
-                    )
-
-
-                if (
-                    fileUri == null
-                ) {
-
-                    throw IllegalStateException(
-                        "Tidak bisa membuat file " +
-                            "di folder yang dipilih"
-                    )
-                }
-
-
-                // ------------------------------------------
-                // Buka OutputStream
-                // ------------------------------------------
-
-                val output =
-                    contentResolver
-                        .openOutputStream(
-                            fileUri
-                        )
-
-
-                if (
-                    output == null
-                ) {
-
-                    try {
-
-                        contentResolver.delete(
-                            fileUri,
-                            null,
-                            null
-                        )
-
-                    } catch (_: Exception) {
-                    }
-
-
-                    throw IllegalStateException(
-                        "Tidak bisa membuka OutputStream"
-                    )
-                }
-
-
-                // ------------------------------------------
-                // Simpan state
-                // ------------------------------------------
-
-                synchronized(saveLock) {
-
-                    saveUri =
-                        fileUri
-
-                    saveOutputStream =
-                        output
-
-                    saveReady =
-                        true
-
-                    saveCancelled =
-                        false
-
-                    saveError =
-                        false
-                }
-
-
-                Log.d(
-                    TAG,
-                    "Save siap: $fileUri"
-                )
-
-
-            } catch (e: Exception) {
-
-                Log.e(
-                    TAG,
-                    "Gagal membuat file save",
-                    e
-                )
-
-
-                saveReady =
-                    false
-
-                saveError =
-                    true
             }
 
 
-            return
+            // ------------------------------------------
+            // Simpan state
+            // ------------------------------------------
+
+            synchronized(saveLock) {
+
+                saveUri =
+                    fileUri
+
+                saveOutputStream =
+                    output
+
+                saveReady =
+                    true
+
+                saveCancelled =
+                    false
+
+                saveError =
+                    false
+            }
+
+
+            Log.d(
+                TAG,
+                "Save siap: $fileUri"
+            )
+
+
+        } catch (e: Exception) {
+
+            Log.e(
+                TAG,
+                "Gagal membuat file save",
+                e
+            )
+
+
+            saveReady =
+                false
+
+            saveError =
+                true
         }
+
+
+        return
     }
+}
 
 
     // ==================================================
