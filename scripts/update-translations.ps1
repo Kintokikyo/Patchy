@@ -33,7 +33,9 @@ if (-not $Check) {
     if ($IsWindows -or $env:OS -eq "Windows_NT") {
       # Same developer environment and below-normal priority as every other build
       # (AGENTS.md); lupdate itself is single-threaded and takes a few seconds.
-      & cmd /s /c "scripts\vs-env.bat -arch=x64 -host_arch=x64 >nul && start """" /b /wait /belownormal ""$cmake"" --build --preset $Preset --target patchy_update_translations"
+      # run-throttled.bat, not a bare `start /b /wait`: that form returns start's
+      # own status, so the $LASTEXITCODE check below could never fire.
+      & cmd /s /c "scripts\vs-env.bat -arch=x64 -host_arch=x64 >nul && scripts\run-throttled.bat ""$cmake"" --build --preset $Preset --target patchy_update_translations"
     } else {
       & nice -n 10 $cmake --build --preset $Preset --target patchy_update_translations
     }

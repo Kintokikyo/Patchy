@@ -29,10 +29,12 @@ Required release handoff steps:
 1. Build the release preset:
 
    ```powershell
-   cmd /s /c 'scripts\vs-env.bat -arch=x64 -host_arch=x64 >nul && start "" /b /wait /belownormal "C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" --build --preset release -j 6'
+   cmd /s /c 'scripts\vs-env.bat -arch=x64 -host_arch=x64 >nul && scripts\run-throttled.bat "C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" --build --preset release -j 6'
    ```
 
-   The throttling is mandatory (Seth, September 2026): `-j 6` caps ninja's parallelism (its default of every core plus two makes this 24-core machine unresponsive) and `start "" /b /wait /belownormal` runs the whole build at below-normal priority. Run the test binaries through the same `start "" /b /wait /belownormal` wrapper. Never launch an unthrottled build.
+   The throttling is mandatory (Seth, September 2026): `-j 6` caps ninja's parallelism (its default of every core plus two makes this 24-core machine unresponsive) and `scripts\run-throttled.bat` runs the whole build at below-normal priority. Run the test binaries through the same helper. Never launch an unthrottled build.
+
+   Use the helper, never a bare `start "" /b /wait /belownormal` (September 2026). Both throttle, but `cmd /c start ...` exits with start's own status, which is 0 whenever start managed to launch the program, so a failed build or a suite printing `[FAIL]` comes back as success. `run-throttled.bat` reads `%ERRORLEVEL%` after start returns and propagates the child's real code, negative crash codes included.
 
    Run this from the repository root in PowerShell or a real cmd prompt, never Git Bash or another POSIX shell. Nested quoting collapses there, cmd prints its banner, and exits 0 without building. Trust the build only if the log contains compile/link lines or `ninja: no work to do`, never the exit code alone. Builds that include an app target never end at `ninja: no work to do`: every build rewrites the generated build-stamp header (`cmake/write_build_stamp.cmake`), recompiles `build_info.cpp`, and relinks, so the in-app build date always matches the build that produced the binary.
 
@@ -47,15 +49,15 @@ Required release handoff steps:
 2. Run release test binaries from `build\release`, scoped to the change:
 
    ```powershell
-   .\patchy_core_tests.exe
-   $env:QT_QPA_PLATFORM='offscreen'; .\patchy_ui_visual_tests.exe
+   cmd /s /c 'cd /d build\release && ..\..\scripts\run-throttled.bat .\patchy_core_tests.exe'
+   $env:QT_QPA_PLATFORM='offscreen'; cmd /s /c 'cd /d build\release && ..\..\scripts\run-throttled.bat .\patchy_ui_visual_tests.exe'
    ```
 
    - **Per-change verification runs only the tests the change could possibly affect** (Seth, September 2026). Both binaries accept a name-substring filter as the first argument; the UI suite also reads `PATCHY_UI_TEST_FILTER`. Pick filters that cover the feature, the changed tests, and any shared code the change touches, and report the filters used. Do not run a full suite "to be safe" for a localized change: a new dialog, menu item, or script API needs its own tests plus the theme-token and hotkey checks, not the whole UI suite.
    - Widen to the full core suite only when the change reaches core-wide surfaces: `src/core`, shared helpers (`main_window_shared`, `canvas_widget_shared`, `psd_io_common`), PSD or other serialization, byte-pinned/canary paths, or refactors and file moves whose blast radius cannot be filtered.
    - Widen to the full UI visual suite only for changes that can affect rendering or UI behavior application-wide: compositing/rendering, application-wide QSS/theme or hotkeys, or the visual test harness itself. Never run it for build-system or other non-rendering changes (Seth, July 2026).
    - **A real release (preparing release builds for final packaging and upload) always runs both full suites.** Filtered runs miss ordered cross-test state such as QSettings and artifact dependencies, so that is the one time the whole suite is mandatory.
-   - **Never trust the exit code of a test run wrapped in `start "" /b /wait /belownormal`** (September 2026). `start` sets the inner `ERRORLEVEL` correctly, but `cmd /c` returns `start`'s own status, so a suite with failures comes back as 0. Grep the log for `[FAIL]` to judge the result, or propagate explicitly with `cmd /v:on /s /c '... & exit /b !ERRORLEVEL!'`. The same wrapper is mandatory for throttling, so the log, not the exit code, is the verdict.
+   - **Judge a suite by its `[FAIL]` lines as well as its exit code.** Both are trustworthy through `run-throttled.bat`, but only if the suite is actually launched through it; a bare `start "" /b /wait /belownormal` reports every failure as exit 0 (see step 1).
 
 3. Explicitly report whether `build\release\patchy.exe` exists.
 

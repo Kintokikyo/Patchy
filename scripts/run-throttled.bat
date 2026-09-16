@@ -1,0 +1,25 @@
+@echo off
+rem Runs one command at below-normal priority and returns ITS exit code:
+rem
+rem   scripts\run-throttled.bat "C:\...\cmake.exe" --build --preset release -j 6
+rem   scripts\run-throttled.bat .\patchy_core_tests.exe
+rem
+rem Use this instead of writing `start "" /b /wait /belownormal ...` inline. That
+rem form throttles correctly but LOSES the exit code: `start /wait` does set
+rem ERRORLEVEL from the child, yet `cmd /c start ...` exits with start's own status,
+rem which is 0 whenever start managed to launch the program. A test suite that
+rem failed, or a build that did not link, then looks exactly like success
+rem (September 2026: a full UI suite reported exit 0 while printing [FAIL]).
+rem
+rem Reading %ERRORLEVEL% on its own line, after start has returned, gives the
+rem child's real code. Do not "simplify" this to `& if errorlevel 1 exit /b 1`:
+rem that comparison is false for the negative codes a crash produces, so an
+rem access violation (-1073741819) would be reported as success.
+rem
+rem No setlocal: nothing here needs to be undone, and %ERRORLEVEL% must survive.
+if "%~1"=="" (
+  echo usage: scripts\run-throttled.bat ^<command^> [args...]>&2
+  exit /b 2
+)
+start "" /b /wait /belownormal %*
+exit /b %ERRORLEVEL%

@@ -111,7 +111,7 @@ environment:
 ```powershell
 python -m venv .deps/mcp-client
 .deps/mcp-client/Scripts/python -m pip install 'mcp>=1.26,<2'
-cmd /s /c 'start "" /b /wait /belownormal .deps\mcp-client\Scripts\python.exe tests\mcp_client_tests.py build\release\patchy-mcp.exe'
+cmd /s /c 'scripts\run-throttled.bat .deps\mcp-client\Scripts\python.exe tests\mcp_client_tests.py build\release\patchy-mcp.exe'
 ```
 
 Run from the repository root. Artifacts stay under `test-artifacts/mcp`. The test
