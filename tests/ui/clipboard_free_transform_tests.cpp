@@ -361,6 +361,151 @@ void ui_external_clipboard_image_paste_overrides_internal_payload() {
   QApplication::clipboard()->clear();
 }
 
+enum class PasteOrderPayload { InternalPixels, LayerStack, ExternalImage, SvgStack };
+
+std::vector<std::string> prepare_paste_order_clipboard(patchy::ui::MainWindow& window,
+                                                      PasteOrderPayload payload) {
+  QApplication::clipboard()->clear();
+  patchy::Document source(48, 32, patchy::PixelFormat::rgba8());
+  source.add_pixel_layer("Source lower", solid_pixels(48, 32, patchy::PixelFormat::rgba8(), QColor(Qt::red)));
+  source.add_pixel_layer("Source upper", solid_pixels(48, 32, patchy::PixelFormat::rgba8(), QColor(Qt::green)));
+  window.add_document_session(std::move(source), QStringLiteral("Clipboard source"));
+  show_window(window);
+  switch (payload) {
+    case PasteOrderPayload::InternalPixels:
+      require_action(window, "editCopyMergedAction")->trigger();
+      return {"Pasted Layer"};
+    case PasteOrderPayload::LayerStack: {
+      auto* list = window.findChild<QListWidget*>(QStringLiteral("layerList"));
+      CHECK(list != nullptr);
+      require_layer_item(*list, QStringLiteral("Source lower"))->setSelected(true);
+      CHECK(list->selectedItems().size() == 2);
+      require_action(window, "editCopyAction")->trigger();
+      return {"Source lower copy", "Source upper copy"};
+    }
+    case PasteOrderPayload::ExternalImage: {
+      QImage image(12, 10, QImage::Format_RGBA8888);
+      image.fill(Qt::red);
+      QApplication::clipboard()->setImage(image);
+      return {"Pasted Layer"};
+    }
+    case PasteOrderPayload::SvgStack:
+      QApplication::clipboard()->setText(QStringLiteral(
+          "<svg xmlns='http://www.w3.org/2000/svg' width='48' height='32'>"
+          "<rect id='SvgLower' width='20' height='20' fill='red'/>"
+          "<rect id='SvgUpper' x='10' width='20' height='20' fill='green'/></svg>"));
+      return {"SvgLower", "SvgUpper"};
+  }
+  throw std::runtime_error("Unknown clipboard payload");
+}
+
+void ui_paste_inserts_above_topmost_selected_layer() {
+  for (const auto payload : {PasteOrderPayload::InternalPixels, PasteOrderPayload::LayerStack,
+                             PasteOrderPayload::ExternalImage, PasteOrderPayload::SvgStack}) {
+    for (const bool in_place : {false, true}) {
+      for (const bool nested : {false, true}) {
+        for (const bool multiple : {false, true}) {
+          patchy::ui::MainWindow window;
+          const auto pasted_names = prepare_paste_order_clipboard(window, payload);
+          patchy::Document target(48, 32, patchy::PixelFormat::rgba8());
+          patchy::Layer folder(target.allocate_layer_id(), "Folder", patchy::LayerKind::Group);
+          const auto folder_id = folder.id();
+          std::array<patchy::LayerId, 3> ids{};
+          const std::array<const char*, 3> names{"Lower", "Middle", "Upper"};
+          for (std::size_t index = 0; index < names.size(); ++index) {
+            patchy::Layer layer(target.allocate_layer_id(), names[index],
+                                solid_pixels(48, 32, patchy::PixelFormat::rgba8(), QColor(Qt::blue)));
+            ids[index] = layer.id();
+            if (nested) folder.add_child(std::move(layer));
+            else target.add_layer(std::move(layer));
+          }
+          if (nested) target.add_layer(std::move(folder));
+          target.set_active_layer(ids[1]);
+          window.add_document_session(std::move(target), QStringLiteral("Paste layer order"));
+          auto* list = window.findChild<QListWidget*>(QStringLiteral("layerList"));
+          CHECK(list != nullptr);
+          auto& document = patchy::ui::MainWindowTestAccess::document(window);
+          const auto& read_only = std::as_const(document);
+          if (multiple) {
+            list->setCurrentItem(require_layer_item(*list, QStringLiteral("Lower")),
+                                 QItemSelectionModel::ClearAndSelect);
+            require_layer_item(*list, QStringLiteral("Middle"))->setSelected(true);
+            CHECK(document.active_layer_id() == ids[0]);
+            CHECK(list->selectedItems().size() == 2);
+          }
+          const auto before = patchy::layer_tree_signature(read_only.layers());
+          const auto undo_before = patchy::ui::MainWindowTestAccess::active_session_undo_depth(window);
+          require_action(window, in_place ? "editPasteInPlaceAction" : "editPasteAction")->trigger();
+          QApplication::processEvents();
+          const auto pasted_id = document.active_layer_id();
+          CHECK(pasted_id.has_value());
+          const auto check_pasted = [&] {
+            const auto& siblings = nested ? read_only.find_layer(folder_id)->children() : read_only.layers();
+            CHECK(siblings.size() == 3 + pasted_names.size());
+            CHECK(siblings[0].id() == ids[0] && siblings[1].id() == ids[1]);
+            CHECK(siblings.back().id() == ids[2]);
+            for (std::size_t index = 0; index < pasted_names.size(); ++index) {
+              CHECK(siblings[2 + index].name() == pasted_names[index]);
+            }
+            CHECK(siblings[1 + pasted_names.size()].id() == *pasted_id);
+            CHECK(document.active_layer_id() == pasted_id);
+            CHECK(list->selectedItems().size() == 1);
+            auto* top = require_layer_item(*list, QString::fromStdString(pasted_names.back()));
+            CHECK(top->isSelected());
+            auto* bottom = require_layer_item(*list, QString::fromStdString(pasted_names.front()));
+            CHECK(list->row(bottom) + 1 == list->row(require_layer_item(*list, QStringLiteral("Middle"))));
+          };
+          check_pasted();
+          CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == undo_before + 1);
+          patchy::ui::MainWindowTestAccess::undo(window);
+          CHECK(patchy::layer_tree_signature(read_only.layers()) == before);
+          patchy::ui::MainWindowTestAccess::redo(window);
+          check_pasted();
+        }
+      }
+    }
+  }
+  QApplication::clipboard()->clear();
+}
+
+void ui_paste_above_selected_folder_or_at_top_without_selection() {
+  for (const bool selected : {false, true}) {
+    patchy::ui::MainWindow window;
+    prepare_paste_order_clipboard(window, PasteOrderPayload::ExternalImage);
+    patchy::Document target(48, 32, patchy::PixelFormat::rgba8());
+    patchy::Layer folder(target.allocate_layer_id(), "Folder", patchy::LayerKind::Group);
+    const auto folder_id = folder.id();
+    patchy::Layer child(target.allocate_layer_id(), "Child",
+                        solid_pixels(48, 32, patchy::PixelFormat::rgba8(), QColor(Qt::blue)));
+    const auto child_id = child.id();
+    folder.add_child(std::move(child));
+    target.add_layer(std::move(folder));
+    const auto upper_id = target.add_pixel_layer(
+        "Upper", solid_pixels(48, 32, patchy::PixelFormat::rgba8(), QColor(Qt::white))).id();
+    target.set_active_layer(child_id);
+    window.add_document_session(std::move(target), QStringLiteral("Paste folder anchor"));
+    auto* list = window.findChild<QListWidget*>(QStringLiteral("layerList"));
+    CHECK(list != nullptr);
+    if (selected) {
+      // A selected ancestor is above its child, even when the child is active.
+      require_layer_item(*list, QStringLiteral("Folder"))->setSelected(true);
+      CHECK(list->selectedItems().size() == 2);
+    } else {
+      list->clearSelection();
+      CHECK(list->selectedItems().empty());
+    }
+    require_action(window, "editPasteAction")->trigger();
+    const auto& document = patchy::ui::MainWindowTestAccess::document(window);
+    CHECK(document.layers().size() == 3);
+    CHECK(document.layers()[0].id() == folder_id);
+    CHECK(document.layers()[selected ? 2 : 1].id() == upper_id);
+    CHECK(document.layers()[selected ? 1 : 2].id() == document.active_layer_id());
+    CHECK(document.find_layer(folder_id)->children().size() == 1);
+    CHECK(document.find_layer(folder_id)->children()[0].id() == child_id);
+  }
+  QApplication::clipboard()->clear();
+}
+
 void prepare_paste_selection(patchy::ui::MainWindow& window, const char* copy_action) {
   patchy::Document document(1200, 900, patchy::PixelFormat::rgba8());
   auto pixels = solid_pixels(80, 60, patchy::PixelFormat::rgba8(), QColor(220, 50, 30));
@@ -1705,6 +1850,9 @@ std::vector<patchy::test::TestCase> clipboard_free_transform_tests() {
        ui_external_clipboard_image_paste_creates_centered_layer},
       {"ui_external_clipboard_image_paste_overrides_internal_payload",
        ui_external_clipboard_image_paste_overrides_internal_payload},
+      {"ui_paste_inserts_above_topmost_selected_layer", ui_paste_inserts_above_topmost_selected_layer},
+      {"ui_paste_above_selected_folder_or_at_top_without_selection",
+       ui_paste_above_selected_folder_or_at_top_without_selection},
       {"ui_paste_selection_centers_in_panned_zoomed_view", ui_paste_selection_centers_in_panned_zoomed_view},
       {"ui_paste_selection_clamps_to_each_canvas_edge", ui_paste_selection_clamps_to_each_canvas_edge},
       {"ui_paste_in_place_shortcut_restores_cut_coordinates", ui_paste_in_place_shortcut_restores_cut_coordinates},

@@ -835,7 +835,8 @@ void ui_copy_paste_layer_panel_copies_layers_and_folder_trees() {
   require_action(window, "editCopyAction")->trigger();
   require_action(window, "editPasteAction")->trigger();
   QApplication::processEvents();
-  CHECK(layer_list->item(0)->text() == QStringLiteral("Text: Title copy"));
+  CHECK(layer_list->row(require_layer_item(*layer_list, QStringLiteral("Text: Title copy"))) + 1 ==
+        layer_list->row(require_layer_item(*layer_list, QStringLiteral("Text: Title"))));
 
   auto* folder_item = require_layer_item(*layer_list, QStringLiteral("Folder"));
   layer_list->clearSelection();
@@ -864,7 +865,8 @@ void ui_copy_paste_layer_panel_copies_layers_and_folder_trees() {
   require_action(window, "editCopyAction")->trigger();
   require_action(window, "editPasteAction")->trigger();
   QApplication::processEvents();
-  CHECK(layer_list->item(0)->text() == QStringLiteral("Background copy"));
+  CHECK(layer_list->row(require_layer_item(*layer_list, QStringLiteral("Background copy"))) + 1 ==
+        layer_list->row(require_layer_item(*layer_list, QStringLiteral("Background"))));
   CHECK(layer_list->count() == 12);
   save_widget_artifact("ui_copy_paste_layer_panel_tree", window);
 }

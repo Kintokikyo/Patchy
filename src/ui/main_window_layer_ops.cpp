@@ -1019,6 +1019,8 @@ bool MainWindow::paste_svg_from_clipboard() {
   }
 
   auto& doc = document();
+  const auto selected_ids = selected_layer_ids();
+  auto anchor_id = selected_ids.empty() ? std::nullopt : std::optional<LayerId>{selected_ids.front()};
   push_undo_snapshot(tr("Paste shape"));
   // Photoshop drops the selection once the clipboard lands on its own layer;
   // the snapshot above keeps it for Undo.
@@ -1050,7 +1052,10 @@ bool MainWindow::paste_svg_from_clipboard() {
     }
     existing_names.insert(pasted->name());
     rebake(rebake, *pasted);
-    doc.add_layer(std::move(*pasted));
+    const auto pasted_id = pasted->id();
+    insert_layer_after_anchor(doc, std::move(*pasted), anchor_id);
+    anchor_id = pasted_id;
+    doc.set_active_layer(pasted_id);
     ++added;
   }
   refresh_layer_list();
@@ -1080,6 +1085,10 @@ void MainWindow::paste_clipboard(bool in_place) {
   if (canvas_ != nullptr) {
     canvas_->finish_free_transform();
   }
+  // Panel order is top to bottom. Capture the destination before inserting
+  // anything, then advance the anchor to preserve the pasted stack's order.
+  const auto selected_ids = selected_layer_ids();
+  auto anchor_id = selected_ids.empty() ? std::nullopt : std::optional<LayerId>{selected_ids.front()};
   if (clipboard_.has_value() && !clipboard_->layers_top_to_bottom.empty()) {
     auto& doc = document();
     const auto caches_available = std::all_of(
@@ -1118,7 +1127,10 @@ void MainWindow::paste_clipboard(bool in_place) {
       }
       pasted->set_name(next_duplicate_name(it->name(), existing_names));
       existing_names.insert(pasted->name());
-      doc.add_layer(std::move(*pasted));
+      const auto pasted_id = pasted->id();
+      insert_layer_after_anchor(doc, std::move(*pasted), anchor_id);
+      anchor_id = pasted_id;
+      doc.set_active_layer(pasted_id);
     }
     refresh_layer_list();
     refresh_layer_controls();
@@ -1175,7 +1187,9 @@ void MainWindow::paste_clipboard(bool in_place) {
   Layer pasted(document().allocate_layer_id(), tr("Pasted Layer").toStdString(), std::move(pixels));
   pasted.set_bounds(Rect{origin.x(), origin.y(), std::as_const(pasted).pixels().width(),
                          std::as_const(pasted).pixels().height()});
-  document().add_layer(std::move(pasted));
+  const auto pasted_id = pasted.id();
+  insert_layer_after_anchor(document(), std::move(pasted), anchor_id);
+  document().set_active_layer(pasted_id);
   if (move_tool_action_ != nullptr) {
     move_tool_action_->trigger();
   } else {
