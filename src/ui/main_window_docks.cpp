@@ -650,9 +650,11 @@ void MainWindow::handle_right_dock_panel_toggled(QDockWidget* dock, bool expande
     // Re-clamp only when this toggle grew the window: offscreen tests open
     // windows larger than the platform screen, and an unconditional clamp
     // would shrink them behind the tests' backs.
+#ifndef Q_OS_ANDROID
     if (height() > height_before) {
       clamp_window_to_available_screen();
     }
+#endif
   });
 }
 
