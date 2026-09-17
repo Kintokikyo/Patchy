@@ -150,6 +150,19 @@
         "CMAKE_C_FLAGS": "-fexceptions -msimd128",
         "CMAKE_CXX_FLAGS": "-fexceptions -msimd128"
       }
+    }, 
+    {
+      "name": "android-release",
+      "displayName": "Android ARM64 native release build",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/android-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "PATCHY_BUILD_APP": "ON",
+        "PATCHY_BUILD_TESTS": "OFF",
+        "QT_ANDROID_ABIS": "arm64-v8a",
+        "QT_ANDROID_MIN_SDK_VERSION": "26"
+      }
     }
   ],
   "buildPresets": [
@@ -200,6 +213,10 @@
     {
       "name": "wasm-release-st",
       "configurePreset": "wasm-release-st"
+    }, 
+    {
+      "name": "android-release",
+      "configurePreset": "android-release"
     }
   ],
   "testPresets": [
