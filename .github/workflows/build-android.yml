@@ -73,7 +73,7 @@ jobs:
 
       - name: Prepare Android Package
         run: |
-          "$QT_ROOT_DIR/bin/androiddeployqt" \
+          "$HOST_QT_ROOT/bin/androiddeployqt" \
             --input build/android-release/android-patchy-deployment-settings.json \
             --output build/android-release/android-build \
             --aux-mode
