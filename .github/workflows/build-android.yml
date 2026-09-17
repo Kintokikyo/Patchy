@@ -68,7 +68,8 @@ jobs:
             -DQT_ANDROID_PACKAGE_NAME=com.kintokikyo.patchy \
             -DQT_HOST_PATH="$HOST_QT_ROOT" \
             -DANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" \
-            -DANDROID_NDK_ROOT="$ANDROID_NDK_ROOT"
+            -DANDROID_NDK_ROOT="$ANDROID_NDK_ROOT" \
+            -DQT_ENABLE_VERBOSE_DEPLOYMENT=ON
 
       - name: Build APK
         run: |
