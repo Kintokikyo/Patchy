@@ -1297,6 +1297,10 @@ if(PATCHY_BUILD_APP)
       endif()
     elseif(ANDROID)
       qt_add_executable(patchy src/app/main.cpp)
+      set_property(TARGET patchy PROPERTY 
+      QT_ANDROID_PACKAGE_SOURCE_DIR 
+      "${CMAKE_CURRENT_SOURCE_DIR}/android"
+      )
     else()
       add_executable(patchy WIN32 MACOSX_BUNDLE
         src/app/main.cpp
