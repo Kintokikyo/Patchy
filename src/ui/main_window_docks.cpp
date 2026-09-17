@@ -412,17 +412,19 @@ void install_collapsible_dock_title(QDockWidget* dock,
   // group's layout has no room for the pin plus its tab bar, and the docked
   // partner blinks away). Pulling a panel out expands it, and the collapse
   // toggle only shows while the panel sits in the main window's column.
-  // Deferred a hop because window() still reports the old top-level while
-  // topLevelChanged is being emitted.
-  QObject::connect(dock, &QDockWidget::topLevelChanged, toggle, [dock, toggle](bool) {
-    QTimer::singleShot(0, toggle, [dock, toggle] {
-      const bool in_main_window_column = qobject_cast<QMainWindow*>(dock->window()) != nullptr;
+  // Use the floating state supplied by topLevelChanged directly.
+  // This avoids querying dock->window() while the dock transition is
+  // still being processed.
+  QObject::connect(dock, &QDockWidget::topLevelChanged, toggle, 
+    [dock, toggle](bool floating) {
+      const bool in_main_window_column = !floating;
+      
       toggle->setVisible(in_main_window_column);
-      if (!in_main_window_column && !toggle->isChecked()) {
+      
+      if (floating && !toggle->isChecked()) {
         toggle->setChecked(true);
       }
     });
-  });
 
   dock->setTitleBarWidget(title);
   apply_expanded_state(initially_expanded);
