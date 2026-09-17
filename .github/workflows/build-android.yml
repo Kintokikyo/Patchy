@@ -71,6 +71,12 @@ jobs:
             -DANDROID_NDK_ROOT="$ANDROID_NDK_ROOT" \
             -DQT_ENABLE_VERBOSE_DEPLOYMENT=ON
 
+      - name: Build Patchy Native
+        run: |
+          cmake --build build/android-release \
+            --target patchy \
+            --parallel 2
+
       - name: Prepare Android Package
         run: |
           "$HOST_QT_ROOT/bin/androiddeployqt" \
@@ -98,3 +104,26 @@ jobs:
           echo ""
           echo "===== build.gradle ====="
           cat build/android-release/android-build/build.gradle || true
+
+      - name: Build APK
+        run: |
+          cmake --build build/android-release \
+            --target apk \
+            --parallel 2
+
+      - name: Find APK
+        run: |
+          echo "===== APK FILES ====="
+          find build/android-release \
+            -type f \
+            -name "*.apk" \
+            -print
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: patchy-native-android
+          path: |
+            build/android-release/**/*.apk
+            build/android-release/*.apk
+          if-no-files-found: error
