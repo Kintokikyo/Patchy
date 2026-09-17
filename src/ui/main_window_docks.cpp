@@ -992,8 +992,7 @@ void MainWindow::create_docks() {
   // dragging a dock back OUT by its tab under GroupedDragging (which also
   // drags a tabbed group as one unit by its shared title bar).
   #ifdef Q_OS_ANDROID
-    setDockOptions((dockOptions() | QMainWindow::GroupedDragging) 
-      & ~QMainWindow::AnimatedDocks);
+    setDockOptions(dockOptions() & ~QMainWindow::GroupedDragging);
   #else
     setDockOptions(dockOptions() | QMainWindow::GroupedDragging);
   #endif
