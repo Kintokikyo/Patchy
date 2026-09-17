@@ -76,6 +76,10 @@ empty folders, script selection, and the optional Little-Everywhere fixture.
 
 ## New adjustment layers
 
+Clipping controls and row badges use `effective_clip_base`: pixel layers and
+folders can host a clipped run. Adjustments clipped above a folder affect its
+merged content. The folder itself cannot be a clipped member.
+
 Every New Adjustment Layer entry, including Hue/Saturation and Invert, inserts
 directly above the topmost selected row. A selected child keeps the adjustment
 in that child's folder; a selected folder places it above the folder. With no

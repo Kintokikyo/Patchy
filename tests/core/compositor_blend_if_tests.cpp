@@ -91,7 +91,9 @@
 namespace {
 
 using patchy::test::close_float;
+using patchy::test::find_layer_named;
 using patchy::test::kTestBlendIfIdentityEntry;
+using patchy::test::rgb_diff_metrics;
 using patchy::test::solid_rgb;
 using patchy::test::solid_rgba;
 using patchy::test::test_blend_if_identity_payload;
@@ -526,6 +528,102 @@ void compositor_clip_base_effects_do_not_widen_the_clip_shape() {
   CHECK(pixel(0) == white);
   CHECK(pixel(5) == white);
   CHECK(pixel(7) == white);
+
+  for (const auto mode : {patchy::BlendMode::PassThrough, patchy::BlendMode::Normal}) {
+    auto grouped = document;
+    const auto& original = std::as_const(grouped).layers()[1];
+    patchy::Layer folder(grouped.allocate_layer_id(), "Folder base", patchy::LayerKind::Group);
+    folder.set_blend_mode(mode);
+    folder.layer_style() = original.layer_style();
+    folder.add_child(patchy::Layer(grouped.allocate_layer_id(), "Content", original.pixels()));
+    grouped.layers()[1] = std::move(folder);
+    const auto group_render = patchy::Compositor{}.flatten_rgb8(grouped);
+    CHECK(rgb_diff_metrics(flattened, group_render).max_channel_delta == 0);
+  }
+}
+
+void compositor_group_clip_base_limits_adjustments_and_combines_child_coverage() {
+  for (const auto mode : {patchy::BlendMode::PassThrough, patchy::BlendMode::Normal}) {
+    patchy::Document document(6, 1, patchy::PixelFormat::rgb8());
+    document.add_pixel_layer("Black background", solid_rgb(6, 1, 0, 0, 0));
+    patchy::Layer group(document.allocate_layer_id(), "Clip base", patchy::LayerKind::Group);
+    group.set_blend_mode(mode);
+    group.set_opacity(0.5F);
+    group.set_fill_opacity(0.0F);  // Folder Fill does not hide content.
+    patchy::Layer first(document.allocate_layer_id(), "First", solid_rgba(3, 1, 0, 0, 0, 128));
+    first.set_bounds({1, 0, 3, 1});
+    group.add_child(std::move(first));
+    patchy::Layer nested(document.allocate_layer_id(), "Nested", patchy::LayerKind::Group);
+    patchy::Layer second(document.allocate_layer_id(), "Second", solid_rgba(2, 1, 0, 0, 0, 128));
+    second.set_bounds({2, 0, 2, 1});
+    nested.add_child(std::move(second));
+    group.add_child(std::move(nested));
+    patchy::PixelBuffer mask(6, 1, patchy::PixelFormat::gray8());
+    mask.clear(255);
+    mask.pixel(3, 0)[0] = 128;
+    group.set_mask(patchy::LayerMask{patchy::Rect{0, 0, 6, 1}, std::move(mask), 255, false});
+    const auto group_id = group.id();
+    document.add_layer(std::move(group));
+
+    patchy::AdjustmentSettings invert;
+    invert.kind = patchy::AdjustmentKind::Invert;
+    patchy::Layer adjustment(document.allocate_layer_id(), "Clipped invert", patchy::LayerKind::Adjustment);
+    patchy::configure_adjustment_layer(adjustment, invert);
+    adjustment.set_clipped(true);
+    document.add_layer(std::move(adjustment));
+
+    const auto rendered = patchy::Compositor{}.flatten_rgb8(document);
+    // The background stays black. Overlapping half-alpha children contribute
+    // 192/255 coverage, then folder opacity and mask attenuate it once.
+    const std::array<int, 6> expected{0, 64, 96, 48, 0, 0};
+    for (int x = 0; x < 6; ++x) {
+      for (int channel = 0; channel < 3; ++channel) {
+        CHECK(rendered.pixel(x, 0)[channel] == expected[static_cast<std::size_t>(x)]);
+      }
+    }
+    document.find_layer(group_id)->set_visible(false);
+    const auto hidden = patchy::Compositor{}.flatten_rgb8(document);
+    CHECK(std::all_of(hidden.data().begin(), hidden.data().end(), [](auto value) { return value == 0; }));
+  }
+}
+
+void psd_backglass_group_clipped_invert_matches_photoshop_if_available() {
+  const auto path = patchy::test::local_format_fixture_path("backglass-invert", "Backglass_homebrew.psd");
+  if (!std::filesystem::exists(path)) {
+    std::cout << "[SKIP] local Backglass fixture unavailable\n";
+    return;
+  }
+  const auto document = patchy::psd::DocumentIo::read_file(path);
+  const auto* invert = find_layer_named(document.layers(), "Invert 1");
+  const auto* folder = find_layer_named(document.layers(), "Group 1");
+  CHECK(invert != nullptr && invert->clipped());
+  CHECK(folder != nullptr && folder->kind() == patchy::LayerKind::Group);
+  patchy::psd::ReadOptions options;
+  options.prefer_flat_composite = true;
+  const auto reference = patchy::psd::DocumentIo::read_file(path, options);
+  const auto expected = patchy::Compositor{}.flatten_rgb8(reference);
+  const auto actual = patchy::Compositor{}.flatten_rgb8(document);
+  const auto* text = find_layer_named(document.layers(), "C2 KYOTO");
+  CHECK(text != nullptr);
+  const auto text_bounds = text->bounds();
+  for (int y = 0; y < document.height(); ++y) {
+    for (int x = 0; x < document.width(); ++x) {
+      const auto tx = x - text_bounds.x;
+      const auto ty = y - text_bounds.y;
+      if (tx >= 0 && ty >= 0 && tx < text->pixels().width() && ty < text->pixels().height()) {
+        // Photoshop's saved text-edge blending differs from the imported
+        // raster's straight alpha. Keep that separate calibration out of
+        // this clipping regression; opaque text still has to stay white.
+        const auto alpha = text->pixels().pixel(tx, ty)[3];
+        if (alpha > 0 && alpha < 255) {
+          continue;
+        }
+      }
+      for (int channel = 0; channel < 3; ++channel) {
+        CHECK(actual.pixel(x, y)[channel] == expected.pixel(x, y)[channel]);
+      }
+    }
+  }
 }
 
 void compositor_pass_through_group_blend_if_isolates_adjustment_child() {
@@ -1589,6 +1687,10 @@ std::vector<patchy::test::TestCase> compositor_blend_if_tests() {
        compositor_blend_if_clip_base_keeps_original_coverage},
       {"compositor_clip_base_effects_do_not_widen_the_clip_shape",
        compositor_clip_base_effects_do_not_widen_the_clip_shape},
+      {"compositor_group_clip_base_limits_adjustments_and_combines_child_coverage",
+       compositor_group_clip_base_limits_adjustments_and_combines_child_coverage},
+      {"psd_backglass_group_clipped_invert_matches_photoshop_if_available",
+       psd_backglass_group_clipped_invert_matches_photoshop_if_available},
       {"compositor_pass_through_group_blend_if_isolates_adjustment_child",
        compositor_pass_through_group_blend_if_isolates_adjustment_child},
       {"compositor_pass_through_group_opacity_fades_once_at_overlap",

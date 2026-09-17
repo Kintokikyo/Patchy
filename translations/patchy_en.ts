@@ -16005,10 +16005,6 @@ Y: %2
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Create Clipping Mask needs a pixel layer below</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Release clipping mask</source>
         <translation type="unfinished"></translation>
     </message>
@@ -16547,6 +16543,10 @@ Y: %2
     </message>
     <message>
         <source>Close Tab</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Create Clipping Mask needs a pixel layer or group below</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

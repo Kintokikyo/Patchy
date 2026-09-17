@@ -2100,6 +2100,11 @@ void composite_pass_through_group(Target& destination, const Layer& layer, Rect 
                                   bool throw_on_unsupported_pixel_format, StyleMaskProvider* masks,
                                   const PatternStore* patterns, bool styled);
 
+inline PixelBuffer group_silhouette_for_render(const Layer& layer, Rect bounds,
+                                              const std::vector<LayerBoundsOverride>* overrides,
+                                              bool throw_on_unsupported_pixel_format,
+                                              StyleMaskProvider* masks, const PatternStore* patterns);
+
 template <typename Target>
 void composite_adjustment_layer(Target& destination, const Layer& layer, Rect clip,
                                 const std::vector<LayerBoundsOverride>* overrides,
@@ -2187,10 +2192,9 @@ void composite_pixel_layer(Target& destination, const Layer& layer, Rect clip,
                            const CompositeSnapshot* blend_if_backdrop_override = nullptr,
                            const PatternStore* patterns = nullptr,
                            bool suppress_channel_restriction = false) {
-  // Styled GROUPS route through this same pipeline (July 2026): the group's
+  // Styled groups and group clipping bases route through this pipeline: the group's
   // flattened children arrive as an override pixel buffer and the group plays
-  // the layer's role. Plain groups never reach here (composite_layer
-  // dispatches them to the group branch first).
+  // the layer's role. Other plain groups use composite_layer's group branch.
   if (!layer_visible_for_render(layer, overrides) || layer.opacity() <= 0.0F ||
       (layer.kind() != LayerKind::Pixel && layer.kind() != LayerKind::Group)) {
     return;
@@ -2768,9 +2772,9 @@ void composite_pixel_layer(Target& destination, const Layer& layer, Rect clip,
 }
 
 [[nodiscard]] inline bool layer_is_clip_base(const Layer& layer) noexcept {
-  // Only composited-content layers host a clipping group; a clipped run above a
-  // group or adjustment layer renders unclipped (defensive).
-  return layer.kind() == LayerKind::Pixel;
+  // A folder's merged children can host clipped layers, including adjustments.
+  // Adjustment layers themselves have no content to define a clipping shape.
+  return layer.kind() == LayerKind::Pixel || layer.kind() == LayerKind::Group;
 }
 
 // Isolated buffer for one Photoshop clipping group. The base layer composites
@@ -3337,8 +3341,10 @@ void composite_sibling_layers(Target& destination, const std::vector<Layer>& sib
       index = run_end;
       continue;
     }
-    const auto group_rect =
-        intersect_rect(clip, layer_bounds_with_effects(layer, layer_bounds_for_render(layer, overrides)));
+    const auto base_bounds = layer.kind() == LayerKind::Group
+                                 ? layer_render_bounds_for_render(layer, overrides)
+                                 : layer_bounds_with_effects(layer, layer_bounds_for_render(layer, overrides));
+    const auto group_rect = intersect_rect(clip, base_bounds);
     if (group_rect.empty()) {
       index = run_end;
       continue;
@@ -3354,9 +3360,28 @@ void composite_sibling_layers(Target& destination, const std::vector<Layer>& sib
     // the whole clipped ensemble (the P7 probe: a member over a G-restricted
     // base keeps the ORIGINAL backdrop's green). Restricted MEMBERS self-wrap
     // normally: their backdrop is the base content (the P7b probe).
-    composite_layer(group, layer, group_rect, overrides, throw_on_unsupported_pixel_format, masks,
-                    base_backdrop.has_value() ? &*base_backdrop : nullptr, patterns,
-                    /*suppress_channel_restriction=*/true);
+    if (layer.kind() == LayerKind::Group) {
+      // A folder clipping base supplies its merged content, even in Pass Through
+      // mode. Render the children first, then apply the folder's mask, opacity,
+      // Blend If and effects once through the ordinary base-layer pipeline.
+      // This records the union alpha of overlapping/nested children and excludes
+      // the folder's own effects from the clipping shape. Keep the full bounds
+      // for stable effect geometry across partial renders and parallel strips.
+      const auto flattened = group_silhouette_for_render(
+          layer, base_bounds, overrides, throw_on_unsupported_pixel_format, masks, patterns);
+      const auto* outer_override = layer_override_for_render(layer, overrides);
+      const std::vector<LayerBoundsOverride> base_override{LayerBoundsOverride{
+          layer.id(), base_bounds, &flattened,
+          outer_override != nullptr ? outer_override->mask_bounds : std::nullopt,
+          std::optional<bool>{}}};
+      composite_pixel_layer(group, layer, group_rect, &base_override, throw_on_unsupported_pixel_format, masks,
+                            base_backdrop.has_value() ? &*base_backdrop : nullptr, patterns,
+                            /*suppress_channel_restriction=*/true);
+    } else {
+      composite_layer(group, layer, group_rect, overrides, throw_on_unsupported_pixel_format, masks,
+                      base_backdrop.has_value() ? &*base_backdrop : nullptr, patterns,
+                      /*suppress_channel_restriction=*/true);
+    }
     group.freeze_clip();
     for (std::size_t member = index + 1; member < run_end; ++member) {
       composite_layer(group, siblings[member], group_rect, overrides, throw_on_unsupported_pixel_format, masks,

@@ -1401,7 +1401,7 @@ void MainWindow::toggle_active_layer_clipping() {
     return;
   }
   if (!clipped && effective_clip_base(*location->siblings, location->index) == nullptr) {
-    show_status_error(tr("Create Clipping Mask needs a pixel layer below"));
+    show_status_error(tr("Create Clipping Mask needs a pixel layer or group below"));
     return;
   }
 

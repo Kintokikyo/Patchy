@@ -1263,6 +1263,39 @@ void ui_layer_clipping_menu_toggles_renders_and_undoes() {
   action->trigger();
   QApplication::processEvents();
   CHECK(color_close(canvas_pixel(*canvas, QPoint(5, 5)), QColor(220, 40, 200), 6));
+
+  // An adjustment above a folder clips to that folder, shows its badge, and
+  // repaints immediately when the clip is created or released.
+  patchy::Layer folder_base(doc.allocate_layer_id(), "Folder clip base", patchy::LayerKind::Group);
+  patchy::Layer folder_content(doc.allocate_layer_id(), "Folder content",
+      solid_pixels(30, 20, patchy::PixelFormat::rgba8(), QColor(60, 60, 200, 255)));
+  folder_content.set_bounds({140, 100, 30, 20});
+  folder_base.add_child(std::move(folder_content));
+  doc.add_layer(std::move(folder_base));
+  patchy::AdjustmentSettings invert;
+  invert.kind = patchy::AdjustmentKind::Invert;
+  patchy::Layer folder_adjustment(doc.allocate_layer_id(), "Folder invert", patchy::LayerKind::Adjustment);
+  folder_adjustment.set_bounds(patchy::Rect::from_size(doc.width(), doc.height()));
+  patchy::configure_adjustment_layer(folder_adjustment, invert);
+  const auto folder_adjustment_id = folder_adjustment.id();
+  doc.add_layer(std::move(folder_adjustment));
+  doc.set_active_layer(folder_adjustment_id);
+  patchy::ui::MainWindowTestAccess::refresh_layer_ui(window);
+  canvas->document_changed(QRect(0, 0, doc.width(), doc.height()));
+  QApplication::processEvents();
+  CHECK(action->isEnabled());
+  action->trigger();
+  QApplication::processEvents();
+  CHECK(doc.find_layer(folder_adjustment_id)->clipped());
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(5, 5)), QColor(220, 40, 200), 6));
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(150, 110)), QColor(195, 195, 55), 6));
+  member_row = layer_list->itemWidget(layer_list->item(0));
+  CHECK(member_row != nullptr);
+  CHECK(member_row->findChild<QToolButton*>(QStringLiteral("layerClippingBadgeButton")) != nullptr);
+  action->trigger();
+  QApplication::processEvents();
+  CHECK(!doc.find_layer(folder_adjustment_id)->clipped());
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(5, 5)), QColor(35, 215, 55), 6));
   save_widget_artifact("ui_layer_clipping_toggle", window);
 }
 
@@ -1450,7 +1483,7 @@ void ui_layer_clipping_action_enablement() {
   CHECK(action->isEnabled());
   CHECK(action->text() == QStringLiteral("Create Clipping Mask"));
 
-  // A folder cannot clip, and a layer directly above a folder has no base.
+  // A folder cannot be a clipped member, but it can be the base below a layer.
   patchy::Layer folder(doc.allocate_layer_id(), "Folder", patchy::LayerKind::Group);
   folder.add_child(patchy::Layer(doc.allocate_layer_id(), "Inside",
                                  solid_pixels(4, 4, patchy::PixelFormat::rgba8(), QColor(1, 2, 3, 255))));
@@ -1466,7 +1499,7 @@ void ui_layer_clipping_action_enablement() {
   CHECK(!action->isEnabled());
   doc.set_active_layer(above_id);
   patchy::ui::MainWindowTestAccess::refresh_layer_ui(window);
-  CHECK(!action->isEnabled());
+  CHECK(action->isEnabled());
 
   // An already-clipped layer always offers Release.
   doc.set_active_layer(top_id);

@@ -1063,7 +1063,7 @@ void compositor_clipping_run_edge_cases() {
     const auto flattened = patchy::Compositor{}.flatten_rgb8(document);
     CHECK(flattened.pixel(0, 0)[2] == 250);
   }
-  // (b) A clipped layer above a group renders unclipped (groups cannot host).
+  // (b) A clipped layer above a group is limited to the group's content.
   {
     patchy::Document document(2, 2, patchy::PixelFormat::rgb8());
     patchy::Layer group(document.allocate_layer_id(), "Folder", patchy::LayerKind::Group);
@@ -1072,8 +1072,11 @@ void compositor_clipping_run_edge_cases() {
     patchy::Layer clipped(document.allocate_layer_id(), "Clipped", solid_rgba(2, 2, 10, 130, 250, 255));
     clipped.set_clipped(true);
     document.add_layer(std::move(clipped));
-    const auto flattened = patchy::Compositor{}.flatten_rgb8(document);
-    CHECK(flattened.pixel(1, 1)[2] == 250);  // covers the whole canvas, not just the group
+    std::vector<std::uint8_t> alpha;
+    const auto flattened = patchy::Compositor{}.flatten_rgb8(document, &alpha);
+    CHECK(flattened.pixel(0, 0)[2] == 250);
+    CHECK(alpha[0] == 255);
+    CHECK(alpha[3] == 0);  // the member cannot expand the folder's coverage
   }
   // (c) A clipped layer above an adjustment layer renders unclipped.
   {

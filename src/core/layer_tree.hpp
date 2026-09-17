@@ -58,8 +58,8 @@ void collect_initially_collapsed_layer_groups(const std::vector<Layer>& layers, 
                                                                            LayerId id);
 // The layer a clipped sibling at `index` would clip to: walks down through the
 // consecutive clipped run below it and returns the first non-clipped sibling if
-// it can host a clipping group (a pixel layer), else nullptr. Index 0 (nothing
-// below) and group/adjustment bases yield nullptr - such flags render unclipped.
+// it can host a clipping group (a pixel layer or folder), else nullptr. Index 0
+// (nothing below) and adjustment bases yield nullptr; such flags render unclipped.
 [[nodiscard]] const Layer* effective_clip_base(const std::vector<Layer>& siblings, std::size_t index);
 [[nodiscard]] std::vector<std::pair<LayerId, LayerId>> layer_tree_signature(const std::vector<Layer>& layers,
                                                                             LayerId parent_id = 0);

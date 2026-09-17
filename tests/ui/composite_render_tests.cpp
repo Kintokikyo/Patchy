@@ -11,6 +11,7 @@
 #include "ui_test_groups.hpp"
 
 #include "core/document.hpp"
+#include "core/adjustment_layer.hpp"
 #include "core/layer.hpp"
 #include "psd/psd_document_io.hpp"
 #include "ui/image_document_io.hpp"
@@ -293,6 +294,64 @@ void styled_group_partial_render_and_child_edit_match_full_render() {
   }
 }
 
+void group_clipped_adjustment_preview_keeps_backdrop_and_tracks_child_move() {
+  for (const auto mode : {patchy::BlendMode::PassThrough, patchy::BlendMode::Normal}) {
+    patchy::Document document(300, 200, patchy::PixelFormat::rgb8());
+    document.add_pixel_layer("Backdrop", solid_rgb(300, 200, 0, 0, 0));
+    patchy::Layer group(document.allocate_layer_id(), "Clip base", patchy::LayerKind::Group);
+    group.set_blend_mode(mode);
+    patchy::Layer child(document.allocate_layer_id(), "Child", solid_rgba(60, 40, 0, 0, 0, 255));
+    const auto child_id = child.id();
+    child.set_bounds({20, 20, 60, 40});
+    group.add_child(std::move(child));
+    document.add_layer(std::move(group));
+    patchy::AdjustmentSettings invert;
+    invert.kind = patchy::AdjustmentKind::Invert;
+    patchy::Layer adjustment(document.allocate_layer_id(), "Clipped invert", patchy::LayerKind::Adjustment);
+    patchy::configure_adjustment_layer(adjustment, invert);
+    adjustment.set_clipped(true);
+    document.add_layer(std::move(adjustment));
+
+    const auto full = patchy::ui::qimage_from_document(document, true);
+    CHECK(full.pixelColor(0, 0) == QColor(0, 0, 0));
+    CHECK(full.pixelColor(40, 40) == QColor(255, 255, 255));
+    const QRect patch(30, 30, 200, 100);
+    CHECK(patchy::ui::qimage_from_document_rect(document, patch, true) == full.copy(patch));
+
+    const patchy::Rect moved_bounds{190, 120, 60, 40};
+    const auto preview = patchy::ui::qimage_from_document_rect_with_layer_bounds(
+        document, QRect(0, 0, 300, 200), true, child_id, moved_bounds);
+    document.find_layer(child_id)->set_bounds(moved_bounds);
+    const auto moved = patchy::ui::qimage_from_document(document, true);
+    CHECK(preview == moved);
+    CHECK(moved.pixelColor(40, 40) == QColor(0, 0, 0));
+    CHECK(moved.pixelColor(200, 130) == QColor(255, 255, 255));
+  }
+}
+
+void backglass_group_clipped_invert_preview_matches_photoshop_if_available() {
+  const auto path = patchy::test::local_format_fixture_path("backglass-invert", "Backglass_homebrew.psd");
+  if (!std::filesystem::exists(path)) {
+    std::cout << "[SKIP] local Backglass fixture unavailable\n";
+    return;
+  }
+  const auto document = patchy::psd::DocumentIo::read_file(path);
+  patchy::psd::ReadOptions options;
+  options.prefer_flat_composite = true;
+  const auto reference = patchy::psd::DocumentIo::read_file(path, options);
+  const auto rendered = patchy::ui::qimage_from_document(document, true);
+  const auto expected = patchy::ui::qimage_from_document(reference, true);
+  // Compare both dragons and the surrounding background exactly. The core
+  // fixture test also checks opaque text; fractional text edges have a
+  // separate Photoshop blending difference unrelated to clipping.
+  const QRect left(0, 0, 500, document.height());
+  const QRect right(1400, 0, document.width() - 1400, document.height());
+  CHECK(rendered.copy(left) == expected.copy(left));
+  CHECK(rendered.copy(right) == expected.copy(right));
+  const QRect patch(70, 160, 300, 100);
+  CHECK(patchy::ui::qimage_from_document_rect(document, patch, true) == rendered.copy(patch));
+}
+
 void styled_group_parallel_strips_match_single_threaded() {
   patchy::Document document(2048, 2048, patchy::PixelFormat::rgba8());
   patchy::Layer group(document.allocate_layer_id(), "Styled", patchy::LayerKind::Group);
@@ -323,5 +382,9 @@ std::vector<patchy::test::TestCase> composite_render_tests() {
        group_isolation_override_bounds_match_actual_layer_move},
       {"styled_group_partial_render_and_child_edit_match_full_render", styled_group_partial_render_and_child_edit_match_full_render},
       {"styled_group_parallel_strips_match_single_threaded", styled_group_parallel_strips_match_single_threaded},
+      {"group_clipped_adjustment_preview_keeps_backdrop_and_tracks_child_move",
+       group_clipped_adjustment_preview_keeps_backdrop_and_tracks_child_move},
+      {"backglass_group_clipped_invert_preview_matches_photoshop_if_available",
+       backglass_group_clipped_invert_preview_matches_photoshop_if_available},
   };
 }

@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.1" language="de" sourcelanguage="en">
 <context>
@@ -146,7 +146,7 @@
         <translation>Die angegebene Datei öffnen, unter &lt;path&gt; speichern (Format gemäß Dateiendung) und beenden. Läuft unbeaufsichtigt: Abfragen werden unterdrückt und keine laufende Instanz wird wiederverwendet.</translation>
     </message>
     <message>
-        <source>With --export: append this text to every text layer, re-rendering each through Patchy's text engine, before saving.</source>
+        <source>With --export: append this text to every text layer, re-rendering each through Patchy&apos;s text engine, before saving.</source>
         <translation>Mit --export: diesen Text vor dem Speichern an jede Textebene anhängen und jede über die Text-Engine von Patchy neu rendern.</translation>
     </message>
     <message>
@@ -1158,7 +1158,7 @@
         <translation>Die Cel-Daten der Aseprite-Datei konnten nicht dekomprimiert werden</translation>
     </message>
     <message>
-        <source>This is an Adobe swatch palette (.ase), not an Aseprite image. Load it from the Palette panel's Load Palette File instead.</source>
+        <source>This is an Adobe swatch palette (.ase), not an Aseprite image. Load it from the Palette panel&apos;s Load Palette File instead.</source>
         <translation>Dies ist eine Adobe-Farbfelderpalette (.ase), kein Aseprite-Bild. Laden Sie sie stattdessen über „Palettendatei laden“ im Palettenbedienfeld.</translation>
     </message>
     <message>
@@ -1398,7 +1398,7 @@
         <translation>Die HEIF-Dekodierungsoptionen konnten nicht initialisiert werden</translation>
     </message>
     <message>
-        <source>This HEIF image's dimensions are not supported</source>
+        <source>This HEIF image&apos;s dimensions are not supported</source>
         <translation>Die Abmessungen dieses HEIF-Bilds werden nicht unterstützt</translation>
     </message>
     <message>
@@ -1518,7 +1518,7 @@
         <translation>Eine JPEG XR-Float-Zeile überschreitet das Pufferlimit des Codecs</translation>
     </message>
     <message>
-        <source>This JPEG XR image's dimensions are not supported</source>
+        <source>This JPEG XR image&apos;s dimensions are not supported</source>
         <translation>Die Abmessungen dieses JPEG XR-Bilds werden nicht unterstützt</translation>
     </message>
     <message>
@@ -1718,7 +1718,7 @@
         <translation>Die Transparenzmaske eines PDF-Bilds war zu groß für den Import; das Bild wurde deckend importiert.</translation>
     </message>
     <message>
-        <source>A PDF image's transparency mask used a codec Patchy could not decode; the image imported opaque.</source>
+        <source>A PDF image&apos;s transparency mask used a codec Patchy could not decode; the image imported opaque.</source>
         <translation>Die Transparenzmaske eines PDF-Bilds verwendete einen Codec, den Patchy nicht dekodieren konnte; das Bild wurde deckend importiert.</translation>
     </message>
     <message>
@@ -1790,7 +1790,7 @@
         <translation>Die Proton-Textur verwendet einen unbekannten RTPACK-Komprimierungstyp</translation>
     </message>
     <message>
-        <source>Proton texture's zlib payload is damaged</source>
+        <source>Proton texture&apos;s zlib payload is damaged</source>
         <translation>Die zlib-Nutzdaten der Proton-Textur sind beschädigt</translation>
     </message>
     <message>
@@ -1802,15 +1802,15 @@
         <translation>PVRTC-komprimierte Proton-Texturen können nicht geöffnet werden; exportieren Sie das Quellbild zuerst mit RTPack -8888 neu</translation>
     </message>
     <message>
-        <source>Proton texture's embedded payload is neither a JPEG nor raw RGB pixels</source>
+        <source>Proton texture&apos;s embedded payload is neither a JPEG nor raw RGB pixels</source>
         <translation>Die eingebetteten Nutzdaten der Proton-Textur sind weder ein JPEG noch rohe RGB-Pixel</translation>
     </message>
     <message>
-        <source>Proton texture's embedded JPEG could not be read</source>
+        <source>Proton texture&apos;s embedded JPEG could not be read</source>
         <translation>Das in der Proton-Textur eingebettete JPEG konnte nicht gelesen werden</translation>
     </message>
     <message>
-        <source>Proton texture's embedded JPEG could not be decoded</source>
+        <source>Proton texture&apos;s embedded JPEG could not be decoded</source>
         <translation>Das in der Proton-Textur eingebettete JPEG konnte nicht dekodiert werden</translation>
     </message>
     <message>
@@ -1834,7 +1834,7 @@
         <translation>Die gespeicherte Originalhöhe war ungültig; die Texturhöhe wird verwendet</translation>
     </message>
     <message>
-        <source>Proton texture's first mip level does not match the texture size</source>
+        <source>Proton texture&apos;s first mip level does not match the texture size</source>
         <translation>Die erste Mip-Stufe der Proton-Textur passt nicht zur Texturgröße</translation>
     </message>
     <message>
@@ -1846,7 +1846,7 @@
         <translation>Ein leeres Dokument kann nicht als Proton-Textur geschrieben werden</translation>
     </message>
     <message>
-        <source>JPEG-encoded Proton textures need the application's JPEG encoder, which is not installed</source>
+        <source>JPEG-encoded Proton textures need the application&apos;s JPEG encoder, which is not installed</source>
         <translation>JPEG-kodierte Proton-Texturen benötigen den JPEG-Encoder der Anwendung, der nicht installiert ist</translation>
     </message>
     <message>
@@ -2010,7 +2010,7 @@
         <translation>Das SVG hat keine verwendbare Breite/Höhe oder viewBox; geöffnet mit 300 x 150</translation>
     </message>
     <message>
-        <source>SVG canvas was scaled down to Patchy's 30000 px document limit</source>
+        <source>SVG canvas was scaled down to Patchy&apos;s 30000 px document limit</source>
         <translation>Die SVG-Zeichenfläche wurde auf das Dokumentlimit von Patchy (30000 px) verkleinert</translation>
     </message>
     <message>
@@ -2042,7 +2042,7 @@
         <translation>Für den SVG-Export konnte kein eingebettetes PNG codiert werden</translation>
     </message>
     <message>
-        <source>A pattern fill's tile was missing and exported as gray</source>
+        <source>A pattern fill&apos;s tile was missing and exported as gray</source>
         <translation>Die Kachel einer Musterfüllung fehlte und wurde als Grau exportiert</translation>
     </message>
     <message>
@@ -3090,7 +3090,7 @@
         </translation>
     </message>
     <message>
-        <source>Delete brush tip "%1"?</source>
+        <source>Delete brush tip &quot;%1&quot;?</source>
         <translation>Pinselspitze "%1" löschen?</translation>
     </message>
     <message numerus="yes">
@@ -3163,11 +3163,11 @@
         <translation>%1 ist ein Smartobjekt, das mit einer externen Datei verknüpft ist. Patchy behält es bei und kann es von der Festplatte aktualisieren, sobald die Quelldatei verfügbar ist.</translation>
     </message>
     <message>
-        <source>%1 is a smart object with Smart Filters; Patchy preserves them and shows Photoshop's preview (rasterize the layer to edit it here).</source>
+        <source>%1 is a smart object with Smart Filters; Patchy preserves them and shows Photoshop&apos;s preview (rasterize the layer to edit it here).</source>
         <translation>%1 ist ein Smartobjekt mit Smartfiltern. Patchy behält sie bei und zeigt die Vorschau von Photoshop an (rastern Sie die Ebene, um sie hier zu bearbeiten).</translation>
     </message>
     <message>
-        <source>%1 is a smart object with a warp or perspective transform; Patchy preserves it and shows Photoshop's preview (rasterize the layer to edit it here).</source>
+        <source>%1 is a smart object with a warp or perspective transform; Patchy preserves it and shows Photoshop&apos;s preview (rasterize the layer to edit it here).</source>
         <translation>%1 ist ein Smartobjekt mit einer Verkrümmungs- oder Perspektivtransformation. Patchy behält sie bei und zeigt die Vorschau von Photoshop an (rastern Sie die Ebene, um sie hier zu bearbeiten).</translation>
     </message>
     <message>
@@ -3675,7 +3675,7 @@
         <translation>Fotos teilen</translation>
     </message>
     <message>
-        <source>The folder "%1" could not be created.</source>
+        <source>The folder &quot;%1&quot; could not be created.</source>
         <translation>Der Ordner "%1" konnte nicht erstellt werden.</translation>
     </message>
     <message>
@@ -4299,7 +4299,7 @@
         <translation>Komprimieren (RTPACK-zlib-Container)</translation>
     </message>
     <message>
-        <source>The texture is padded to a power of two and its true size is recorded in the header, so it opens again at the true size. JPEG applies only to images without transparency (RTPack's rule): a transparent image is written lossless instead.</source>
+        <source>The texture is padded to a power of two and its true size is recorded in the header, so it opens again at the true size. JPEG applies only to images without transparency (RTPack&apos;s rule): a transparent image is written lossless instead.</source>
         <translation>Die Textur wird auf eine Zweierpotenz aufgefüllt und ihre wahre Größe im Header gespeichert, sodass sie wieder in der wahren Größe geöffnet wird. JPEG gilt nur für Bilder ohne Transparenz (Regel von RTPack): Ein transparentes Bild wird stattdessen verlustfrei geschrieben.</translation>
     </message>
     <message>
@@ -4407,7 +4407,7 @@
         <translation>Verlustfreie Bilddaten (größere Datei)</translation>
     </message>
     <message>
-        <source>Unchecked, the page is compressed as JPEG at Qt's fixed quality.</source>
+        <source>Unchecked, the page is compressed as JPEG at Qt&apos;s fixed quality.</source>
         <translation>Ohne Häkchen wird die Seite als JPEG mit der festen Qualitätsstufe von Qt komprimiert.</translation>
     </message>
     <message>
@@ -4419,11 +4419,11 @@
         <translation>Bei fehlender Schrift den Text als Bild exportieren, statt eine Ersatzschrift zu verwenden</translation>
     </message>
     <message>
-        <source>Unchecked, text in a font that is not installed is written as editable text in a substitute font, so it can look different from the canvas. Checked, that text is written as an image of the layer's pixels instead.</source>
+        <source>Unchecked, text in a font that is not installed is written as editable text in a substitute font, so it can look different from the canvas. Checked, that text is written as an image of the layer&apos;s pixels instead.</source>
         <translation>Ohne Häkchen wird Text in einer nicht installierten Schrift als bearbeitbarer Text in einer Ersatzschrift geschrieben und kann daher anders aussehen als auf der Arbeitsfläche. Mit Häkchen wird dieser Text stattdessen als Bild der Ebenenpixel geschrieben.</translation>
     </message>
     <message>
-        <source>The page is sized from the document's resolution, so it prints at the image's own size.</source>
+        <source>The page is sized from the document&apos;s resolution, so it prints at the image&apos;s own size.</source>
         <translation>Die Seitengröße ergibt sich aus der Auflösung des Dokuments, sodass der Druck in der Originalgröße des Bildes erfolgt.</translation>
     </message>
     <message>
@@ -4455,7 +4455,7 @@
         <translation> s</translation>
     </message>
     <message>
-        <source>Each visible top-level layer becomes one frame, with the top layer first. Hidden layers are skipped. A layer name ending in a time, like "blink 0.25s", overrides the default delay for that frame. The animation loops forever.</source>
+        <source>Each visible top-level layer becomes one frame, with the top layer first. Hidden layers are skipped. A layer name ending in a time, like &quot;blink 0.25s&quot;, overrides the default delay for that frame. The animation loops forever.</source>
         <translation>Jede sichtbare Ebene der obersten Hierarchieebene wird zu einem Frame, beginnend mit der obersten Ebene. Ausgeblendete Ebenen werden übersprungen. Ein Ebenenname, der mit einer Zeitangabe endet, etwa "blink 0.25s", überschreibt die Standardverzögerung für diesen Frame. Die Animation läuft in einer Endlosschleife.</translation>
     </message>
     <message>
@@ -4738,11 +4738,11 @@
         <translation>Geben Sie einen Namen für die Vorgabe ein.</translation>
     </message>
     <message>
-        <source>"%1" is a built-in preset. Choose another name.</source>
+        <source>&quot;%1&quot; is a built-in preset. Choose another name.</source>
         <translation>"%1" ist eine integrierte Vorgabe. Wählen Sie einen anderen Namen.</translation>
     </message>
     <message>
-        <source>Replace the preset "%1"?</source>
+        <source>Replace the preset &quot;%1&quot;?</source>
         <translation>Vorgabe "%1" ersetzen?</translation>
     </message>
     <message>
@@ -4750,7 +4750,7 @@
         <translation>Nachzeichnen-Vorgabe löschen</translation>
     </message>
     <message>
-        <source>Delete the preset "%1"?</source>
+        <source>Delete the preset &quot;%1&quot;?</source>
         <translation>Vorgabe "%1" löschen?</translation>
     </message>
     <message>
@@ -4758,7 +4758,7 @@
         <translation>Ebenenstil</translation>
     </message>
     <message>
-        <source>Pattern "%1" is not embedded in this document, so the effect that references it cannot render until you choose another pattern.</source>
+        <source>Pattern &quot;%1&quot; is not embedded in this document, so the effect that references it cannot render until you choose another pattern.</source>
         <translation>Das Muster "%1" ist nicht in dieses Dokument eingebettet, daher kann der Effekt, der darauf verweist, erst gerendert werden, wenn Sie ein anderes Muster wählen.</translation>
     </message>
     <message>
@@ -4774,7 +4774,7 @@
         <translation>Durch bearbeitbare Standardwerte ersetzen</translation>
     </message>
     <message>
-        <source>This folder's closing PSD record contains separate Blend If data. Patchy preserves that boundary data unchanged; the controls below edit only the visible folder record.</source>
+        <source>This folder&apos;s closing PSD record contains separate Blend If data. Patchy preserves that boundary data unchanged; the controls below edit only the visible folder record.</source>
         <translation>Der abschließende PSD-Datensatz dieses Ordners enthält separate Mischen-wenn-Daten. Patchy behält diese Begrenzungsdaten unverändert bei; die Steuerelemente unten bearbeiten nur den sichtbaren Ordnerdatensatz.</translation>
     </message>
     <message>
@@ -4968,7 +4968,7 @@
         <translation>Ein nicht aktivierter Kanal behält die darunterliegenden Ebenen bei, statt zu mischen</translation>
     </message>
     <message>
-        <source>This layer preserves Photoshop channel restrictions Patchy cannot edit for this file's color mode</source>
+        <source>This layer preserves Photoshop channel restrictions Patchy cannot edit for this file&apos;s color mode</source>
         <translation>Diese Ebene behält Photoshop-Kanalbeschränkungen bei, die Patchy für den Farbmodus dieser Datei nicht bearbeiten kann</translation>
     </message>
     <message>
@@ -4992,7 +4992,7 @@
         <translation>Interne Effekte als Gruppe mischen</translation>
     </message>
     <message>
-        <source>Put the layer's blend mode over its overlays, satin, and inner glow instead of letting them blend with their own modes</source>
+        <source>Put the layer&apos;s blend mode over its overlays, satin, and inner glow instead of letting them blend with their own modes</source>
         <translation>Die Füllmethode der Ebene auf ihre Überlagerungen, Glanz und Schein nach innen anwenden, statt diese mit ihren eigenen Methoden mischen zu lassen</translation>
     </message>
     <message>
@@ -5184,7 +5184,7 @@
         <translation>Überdrucken</translation>
     </message>
     <message>
-        <source>Blend the stroke against the layer's own content. When off, the stroke knocks the content out of its band and blends with the layers below, like Photoshop</source>
+        <source>Blend the stroke against the layer&apos;s own content. When off, the stroke knocks the content out of its band and blends with the layers below, like Photoshop</source>
         <translation>Die Kontur mit dem eigenen Inhalt der Ebene mischen. Wenn deaktiviert, spart die Kontur den Inhalt in ihrem Band aus und wird wie in Photoshop mit den darunter liegenden Ebenen gemischt</translation>
     </message>
     <message>
@@ -5272,7 +5272,7 @@
         <translation>Ebene spart Schlagschatten aus</translation>
     </message>
     <message>
-        <source>Hide the shadow under the layer's own shape so it never shows through knocked-out or semi-transparent content, like Photoshop</source>
+        <source>Hide the shadow under the layer&apos;s own shape so it never shows through knocked-out or semi-transparent content, like Photoshop</source>
         <translation>Den Schatten unter der eigenen Form der Ebene ausblenden, damit er wie in Photoshop nie durch ausgesparten oder halbtransparenten Inhalt sichtbar wird</translation>
     </message>
     <message>
@@ -5424,11 +5424,11 @@
         <translation>Fehlende Schriftart</translation>
     </message>
     <message>
-        <source>Patchy can't locate the font "%1". Editing this PSD raster preview will substitute another font. Continue?</source>
+        <source>Patchy can&apos;t locate the font &quot;%1&quot;. Editing this PSD raster preview will substitute another font. Continue?</source>
         <translation>Patchy kann die Schriftart „%1“ nicht finden. Beim Bearbeiten dieser PSD-Rastervorschau wird eine andere Schriftart ersetzt. Fortfahren?</translation>
     </message>
     <message>
-        <source>Patchy can't locate these fonts: %1. Editing this PSD raster preview will substitute other fonts. Continue?</source>
+        <source>Patchy can&apos;t locate these fonts: %1. Editing this PSD raster preview will substitute other fonts. Continue?</source>
         <translation>Patchy kann diese Schriftarten nicht finden: %1. Beim Bearbeiten dieser PSD-Rastervorschau werden andere Schriftarten ersetzt. Fortfahren?</translation>
     </message>
     <message>
@@ -5774,11 +5774,11 @@ In „Generatives Hochskalieren“ öffnen...</translation>
         <translation>Patchy hat nicht unterstützte Photoshop-Daten für „Mischen wenn“ erhalten, ohne sie zu rendern (%1 Ebenendatensatz/-sätze, %2 Gruppengrenzen-Datensatz/-sätze).</translation>
     </message>
     <message>
-        <source>Layer '%1': invalid Gaussian blur radius; effect skipped</source>
+        <source>Layer &apos;%1&apos;: invalid Gaussian blur radius; effect skipped</source>
         <translation>Ebene „%1“: ungültiger Radius für Gaußschen Weichzeichner; Effekt übersprungen</translation>
     </message>
     <message>
-        <source>Layer '%1': Gaussian blur could not be applied; original pixels kept</source>
+        <source>Layer &apos;%1&apos;: Gaussian blur could not be applied; original pixels kept</source>
         <translation>Ebene „%1“: Gaußscher Weichzeichner konnte nicht angewendet werden; Originalpixel beibehalten</translation>
     </message>
     <message>
@@ -6750,7 +6750,7 @@ RGB: %2, %3, %4</translation>
         <translation>Als Bild öffnen</translation>
     </message>
     <message>
-        <source>Open the selected pattern's texture as a new image</source>
+        <source>Open the selected pattern&apos;s texture as a new image</source>
         <translation>Die Textur des ausgewählten Musters als neues Bild öffnen</translation>
     </message>
     <message>
@@ -6781,7 +6781,7 @@ RGB: %2, %3, %4</translation>
         </translation>
     </message>
     <message>
-        <source>Delete pattern "%1"?</source>
+        <source>Delete pattern &quot;%1&quot;?</source>
         <translation>Muster „%1“ löschen?</translation>
     </message>
     <message numerus="yes">
@@ -6803,7 +6803,7 @@ RGB: %2, %3, %4</translation>
         </translation>
     </message>
     <message>
-        <source>Could not load the selected pattern's texture.</source>
+        <source>Could not load the selected pattern&apos;s texture.</source>
         <translation>Die Textur des ausgewählten Musters konnte nicht geladen werden.</translation>
     </message>
     <message>
@@ -6980,7 +6980,7 @@ RGB: %2, %3, %4</translation>
         <translation>Der bearbeitbare Import übernimmt nur eine Seite. Seite %1 wurde importiert.</translation>
     </message>
     <message>
-        <source>Some artwork could not be kept editable; reimport with "Flattened image per page" for an exact copy.</source>
+        <source>Some artwork could not be kept editable; reimport with &quot;Flattened image per page&quot; for an exact copy.</source>
         <translation>Einige Grafiken konnten nicht bearbeitbar bleiben. Importieren Sie mit „Reduziertes Bild pro Seite“ erneut, um eine exakte Kopie zu erhalten.</translation>
     </message>
     <message>
@@ -7016,7 +7016,7 @@ RGB: %2, %3, %4</translation>
         <translation>Drucker nicht verfügbar</translation>
     </message>
     <message>
-        <source>Windows cannot read the settings for "%1". The printer driver may need to be repaired or reinstalled.</source>
+        <source>Windows cannot read the settings for &quot;%1&quot;. The printer driver may need to be repaired or reinstalled.</source>
         <translation>Windows kann die Einstellungen für „%1“ nicht lesen. Der Druckertreiber muss möglicherweise repariert oder neu installiert werden.</translation>
     </message>
     <message>
@@ -7580,7 +7580,7 @@ RGB: %2, %3, %4</translation>
         <translation>An Ebene ausrichten</translation>
     </message>
     <message>
-        <source>Anchor the tile grid to the layer's position; unchecked anchors it to the document origin</source>
+        <source>Anchor the tile grid to the layer&apos;s position; unchecked anchors it to the document origin</source>
         <translation>Verankert das Kachelraster an der Position der Ebene; ohne Häkchen wird es am Dokumentursprung verankert</translation>
     </message>
     <message>
@@ -7677,7 +7677,7 @@ RGB: %2, %3, %4</translation>
         <translation>GitHub: %1</translation>
     </message>
     <message>
-        <source>Seth's site: %1</source>
+        <source>Seth&apos;s site: %1</source>
         <translation>Seths Website: %1</translation>
     </message>
     <message>
@@ -7792,7 +7792,7 @@ RGB: %2, %3, %4</translation>
         </translation>
     </message>
     <message>
-        <source>Delete style "%1"?</source>
+        <source>Delete style &quot;%1&quot;?</source>
         <translation>Stil "%1" löschen?</translation>
     </message>
     <message numerus="yes">
@@ -8079,7 +8079,7 @@ RGB: %2, %3, %4</translation>
         <translation>Look löschen</translation>
     </message>
     <message>
-        <source>Delete Look "%1"?</source>
+        <source>Delete Look &quot;%1&quot;?</source>
         <translation>Look "%1" löschen?</translation>
     </message>
     <message>
@@ -8232,7 +8232,7 @@ RGB: %2, %3, %4</translation>
 <context>
     <name>VectorPreview</name>
     <message>
-        <source>Dynamic Vector Preview: using the document's pixel view.</source>
+        <source>Dynamic Vector Preview: using the document&apos;s pixel view.</source>
         <translation>Dynamische Vektorvorschau: Die Pixelansicht des Dokuments wird verwendet.</translation>
     </message>
     <message>
@@ -8398,7 +8398,7 @@ RGB: %2, %3, %4</translation>
         <translation>Zeit festlegen</translation>
     </message>
     <message>
-        <source>Renames the selected layers to end with this frame time, like "blink 0.25s".</source>
+        <source>Renames the selected layers to end with this frame time, like &quot;blink 0.25s&quot;.</source>
         <translation>Benennt die ausgewählten Ebenen so um, dass sie mit dieser Frame-Zeit enden, z. B. "blink 0.25s".</translation>
     </message>
     <message>
@@ -8406,11 +8406,11 @@ RGB: %2, %3, %4</translation>
         <translation>Entfernen</translation>
     </message>
     <message>
-        <source>Removes the trailing frame time from the selected layers' names.</source>
+        <source>Removes the trailing frame time from the selected layers&apos; names.</source>
         <translation>Entfernt die abschließende Frame-Zeit aus den Namen der ausgewählten Ebenen.</translation>
     </message>
     <message>
-        <source>Plays the visible top-level layers as frames, top layer first, exactly like the animated GIF export. A layer name ending in a time, like "blink 0.25s", sets that frame's delay.</source>
+        <source>Plays the visible top-level layers as frames, top layer first, exactly like the animated GIF export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
         <translation>Spielt die sichtbaren Ebenen der obersten Ebene als Frames ab, beginnend mit der obersten Ebene, genau wie beim Export als animiertes GIF. Ein Ebenenname, der mit einer Zeit endet, z. B. "blink 0.25s", legt die Verzögerung dieses Frames fest.</translation>
     </message>
     <message>
@@ -8798,7 +8798,7 @@ RGB: %2, %3, %4</translation>
 <context>
     <name>patchy::ui::BrushTipLibrary</name>
     <message>
-        <source>Could not open "%1".</source>
+        <source>Could not open &quot;%1&quot;.</source>
         <translation>"%1" konnte nicht geöffnet werden.</translation>
     </message>
     <message>
@@ -8806,11 +8806,11 @@ RGB: %2, %3, %4</translation>
         <translation>Pinsel %1</translation>
     </message>
     <message>
-        <source>Could not save brush "%1".</source>
+        <source>Could not save brush &quot;%1&quot;.</source>
         <translation>Der Pinsel "%1" konnte nicht gespeichert werden.</translation>
     </message>
     <message>
-        <source>No brush tips could be imported from "%1".</source>
+        <source>No brush tips could be imported from &quot;%1&quot;.</source>
         <translation>Aus "%1" konnten keine Pinselspitzen importiert werden.</translation>
     </message>
 </context>
@@ -9124,11 +9124,11 @@ RGB: %2, %3, %4</translation>
         <translation>Wählen Sie eine normale Pixelebene, bevor Sie auf Text malen</translation>
     </message>
     <message>
-        <source>Smart object contents can't be painted. Rasterize the layer to edit its pixels.</source>
+        <source>Smart object contents can&apos;t be painted. Rasterize the layer to edit its pixels.</source>
         <translation>Der Inhalt von Smartobjekten kann nicht bemalt werden. Rastern Sie die Ebene, um ihre Pixel zu bearbeiten.</translation>
     </message>
     <message>
-        <source>Shape layers can't be painted. Rasterize the layer to edit its pixels.</source>
+        <source>Shape layers can&apos;t be painted. Rasterize the layer to edit its pixels.</source>
         <translation>Formebenen können nicht bemalt werden. Rastern Sie die Ebene, um ihre Pixel zu bearbeiten.</translation>
     </message>
     <message>
@@ -9304,11 +9304,11 @@ RGB: %2, %3, %4</translation>
         <translation>Wählen Sie eine bearbeitbare Pixelebene zum Transformieren aus</translation>
     </message>
     <message>
-        <source>This smart object is preview-only and can't be transformed. Rasterize the layer first.</source>
+        <source>This smart object is preview-only and can&apos;t be transformed. Rasterize the layer first.</source>
         <translation>Dieses Smartobjekt ist nur als Vorschau verfügbar und kann nicht transformiert werden. Rastern Sie die Ebene zuerst.</translation>
     </message>
     <message>
-        <source>This layer's vector data is preserved but can't be edited.</source>
+        <source>This layer&apos;s vector data is preserved but can&apos;t be edited.</source>
         <translation>Die Vektordaten dieser Ebene bleiben erhalten, können aber nicht bearbeitet werden.</translation>
     </message>
     <message>
@@ -9364,19 +9364,19 @@ RGB: %2, %3, %4</translation>
         <translation>Wählen Sie eine bearbeitbare Pixelebene zum Verkrümmen aus</translation>
     </message>
     <message>
-        <source>Text layers use Warp Text (the Type tool's Warp... button). For a custom mesh, convert to a smart object or rasterize first.</source>
+        <source>Text layers use Warp Text (the Type tool&apos;s Warp... button). For a custom mesh, convert to a smart object or rasterize first.</source>
         <translation>Textebenen verwenden Text verkrümmen (die Schaltfläche Verkrümmen... des Text-Werkzeugs). Für ein eigenes Gitter konvertieren Sie die Ebene zuerst in ein Smartobjekt oder rastern Sie sie.</translation>
     </message>
     <message>
-        <source>This smart object is preview-only and can't be warped. Rasterize the layer first.</source>
+        <source>This smart object is preview-only and can&apos;t be warped. Rasterize the layer first.</source>
         <translation>Dieses Smartobjekt ist nur als Vorschau verfügbar und kann nicht verkrümmt werden. Rastern Sie die Ebene zuerst.</translation>
     </message>
     <message>
-        <source>Shape layers and vector masks can't be warped. Convert to a smart object or rasterize first.</source>
+        <source>Shape layers and vector masks can&apos;t be warped. Convert to a smart object or rasterize first.</source>
         <translation>Formebenen und Vektormasken können nicht verkrümmt werden. Konvertieren Sie die Ebene zuerst in ein Smartobjekt oder rastern Sie sie.</translation>
     </message>
     <message>
-        <source>This smart object's contents can't be decoded for warping</source>
+        <source>This smart object&apos;s contents can&apos;t be decoded for warping</source>
         <translation>Der Inhalt dieses Smartobjekts kann zum Verkrümmen nicht dekodiert werden</translation>
     </message>
     <message>
@@ -9595,7 +9595,7 @@ RGB: %2, %3, %4</translation>
     <name>patchy::ui::FontPickerCombo</name>
     <message>
         <source>The quick brown fox jumps over the lazy dog. 0123456789</source>
-        <extracomment>Latin sample text in the font preview; keep it Latin in every language (it demonstrates the font's Latin glyph coverage).</extracomment>
+        <extracomment>Latin sample text in the font preview; keep it Latin in every language (it demonstrates the font&apos;s Latin glyph coverage).</extracomment>
         <translation>Franz jagt im komplett verwahrlosten Taxi quer durch Bayern. 0123456789</translation>
     </message>
     <message>
@@ -9788,7 +9788,7 @@ RGB: %2, %3, %4</translation>
         <translation>Faux-Fett</translation>
     </message>
     <message>
-        <source>Thicken the current face synthetically instead of switching to the family's bold face</source>
+        <source>Thicken the current face synthetically instead of switching to the family&apos;s bold face</source>
         <translation>Den aktuellen Schriftschnitt synthetisch verstärken, statt zum fetten Schnitt der Schriftfamilie zu wechseln</translation>
     </message>
     <message>
@@ -9796,7 +9796,7 @@ RGB: %2, %3, %4</translation>
         <translation>Faux-Kursiv</translation>
     </message>
     <message>
-        <source>Slant the current face synthetically instead of switching to the family's italic face</source>
+        <source>Slant the current face synthetically instead of switching to the family&apos;s italic face</source>
         <translation>Den aktuellen Schriftschnitt synthetisch neigen, statt zum kursiven Schnitt der Schriftfamilie zu wechseln</translation>
     </message>
     <message>
@@ -10668,7 +10668,7 @@ RGB: %2, %3, %4</translation>
         <translation>Ebenengruppierung aufheben</translation>
     </message>
     <message>
-        <source>Release the selected folder's layers into their parent</source>
+        <source>Release the selected folder&apos;s layers into their parent</source>
         <translation>Verschiebt die Ebenen des ausgewählten Ordners in die übergeordnete Ebene</translation>
     </message>
     <message>
@@ -12641,7 +12641,7 @@ Rechteck: -</translation>
         <translation>Affinity-Bildebenen</translation>
     </message>
     <message numerus="yes">
-        <source>This document places %n image file(s) as Affinity "Image" layers.</source>
+        <source>This document places %n image file(s) as Affinity &quot;Image&quot; layers.</source>
         <translation>
             <numerusform>Dieses Dokument platziert %n Bilddatei als Affinity-Ebene vom Typ "Bild".</numerusform>
             <numerusform>Dieses Dokument platziert %n Bilddateien als Affinity-Ebenen vom Typ "Bild".</numerusform>
@@ -12956,7 +12956,7 @@ Rechteck: -</translation>
         <translation>PDF-Ebenen speichern</translation>
     </message>
     <message>
-        <source>How should this document's layers be written to the PDF?</source>
+        <source>How should this document&apos;s layers be written to the PDF?</source>
         <translation>Wie sollen die Ebenen dieses Dokuments in die PDF geschrieben werden?</translation>
     </message>
     <message>
@@ -13564,27 +13564,27 @@ Speichern Sie Ihre Arbeit und schließen Sie Patchy, bevor Sie das Installations
         <translation>Ebene rastern?</translation>
     </message>
     <message>
-        <source>"%1" is a text layer: its pixels are re-created from the text, so changes made by %2 would be lost on the next text edit.</source>
+        <source>&quot;%1&quot; is a text layer: its pixels are re-created from the text, so changes made by %2 would be lost on the next text edit.</source>
         <translation>„%1“ ist eine Textebene: Ihre Pixel werden aus dem Text neu erzeugt, daher gingen die Änderungen durch %2 bei der nächsten Textbearbeitung verloren.</translation>
     </message>
     <message>
-        <source>"%1" is a shape layer: its pixels are re-created from the shape, so changes made by %2 would be lost on the next shape edit.</source>
+        <source>&quot;%1&quot; is a shape layer: its pixels are re-created from the shape, so changes made by %2 would be lost on the next shape edit.</source>
         <translation>„%1“ ist eine Formebene: Ihre Pixel werden aus der Form neu erzeugt, daher gingen die Änderungen durch %2 bei der nächsten Formbearbeitung verloren.</translation>
     </message>
     <message>
-        <source>Convert the layer to a smart object to keep the text editable, or rasterize it into plain pixels. Rasterized text can't be edited again.</source>
+        <source>Convert the layer to a smart object to keep the text editable, or rasterize it into plain pixels. Rasterized text can&apos;t be edited again.</source>
         <translation>Konvertieren Sie die Ebene in ein Smartobjekt, damit der Text bearbeitbar bleibt, oder rastern Sie sie in einfache Pixel. Gerasterter Text kann nicht mehr bearbeitet werden.</translation>
     </message>
     <message>
-        <source>Convert the layer to a smart object to keep the shape editable, or rasterize it into plain pixels. A rasterized shape can't be edited as a vector again.</source>
+        <source>Convert the layer to a smart object to keep the shape editable, or rasterize it into plain pixels. A rasterized shape can&apos;t be edited as a vector again.</source>
         <translation>Konvertieren Sie die Ebene in ein Smartobjekt, damit die Form bearbeitbar bleibt, oder rastern Sie sie in einfache Pixel. Eine gerasterte Form kann nicht mehr als Vektor bearbeitet werden.</translation>
     </message>
     <message>
-        <source>Rasterize the layer into plain pixels to use %1. Rasterized text can't be edited again.</source>
+        <source>Rasterize the layer into plain pixels to use %1. Rasterized text can&apos;t be edited again.</source>
         <translation>Rastern Sie die Ebene in einfache Pixel, um %1 zu verwenden. Gerasterter Text kann nicht mehr bearbeitet werden.</translation>
     </message>
     <message>
-        <source>Rasterize the layer into plain pixels to use %1. A rasterized shape can't be edited as a vector again.</source>
+        <source>Rasterize the layer into plain pixels to use %1. A rasterized shape can&apos;t be edited as a vector again.</source>
         <translation>Rastern Sie die Ebene in einfache Pixel, um %1 zu verwenden. Eine gerasterte Form kann nicht mehr als Vektor bearbeitet werden.</translation>
     </message>
     <message>
@@ -13712,7 +13712,7 @@ Speichern Sie Ihre Arbeit und schließen Sie Patchy, bevor Sie das Installations
         <translation>Neues Dokument aus diesem Zustand</translation>
     </message>
     <message>
-        <source>Created new document from "%1"</source>
+        <source>Created new document from &quot;%1&quot;</source>
         <translation>Neues Dokument aus „%1“ erstellt</translation>
     </message>
     <message>
@@ -14069,7 +14069,7 @@ Speichern Sie Ihre Arbeit und schließen Sie Patchy, bevor Sie das Installations
         <translation>Frame-Zeit entfernen</translation>
     </message>
     <message>
-        <source>"%1" will open as a new image when the Layer Style dialog closes</source>
+        <source>&quot;%1&quot; will open as a new image when the Layer Style dialog closes</source>
         <translation>„%1“ wird als neues Bild geöffnet, sobald der Dialog „Ebenenstil“ geschlossen wird</translation>
     </message>
     <message>
@@ -14077,7 +14077,7 @@ Speichern Sie Ihre Arbeit und schließen Sie Patchy, bevor Sie das Installations
         <translation>Muster als Bild öffnen</translation>
     </message>
     <message>
-        <source>Opened pattern "%1" as a new image</source>
+        <source>Opened pattern &quot;%1&quot; as a new image</source>
         <translation>Muster „%1“ als neues Bild geöffnet</translation>
     </message>
     <message>
@@ -14281,7 +14281,7 @@ Speichern Sie Ihre Arbeit und schließen Sie Patchy, bevor Sie das Installations
         <translation>Nichts zu löschen</translation>
     </message>
     <message>
-        <source>Text and smart object layers can't be cleared. Deselect first, then Delete removes the layer.</source>
+        <source>Text and smart object layers can&apos;t be cleared. Deselect first, then Delete removes the layer.</source>
         <translation>Text- und Smartobjekt-Ebenen können nicht gelöscht werden. Heben Sie zuerst die Auswahl auf, dann entfernt Delete die Ebene.</translation>
     </message>
     <message>
@@ -14845,7 +14845,7 @@ Y: %2
         <translation>Einige Ebenen enthalten Farben außerhalb der Palette, daher zeigt die Arbeitsfläche sie an die Palette angeglichen an (Filter, Einstellungen, Einfügen und Text können dies verursachen).</translation>
     </message>
     <message>
-        <source>Keep the palettized look by making those snapped colors permanent, or restore the layers' original colors?</source>
+        <source>Keep the palettized look by making those snapped colors permanent, or restore the layers&apos; original colors?</source>
         <translation>Möchten Sie den palettierten Look beibehalten, indem die angeglichenen Farben dauerhaft übernommen werden, oder die ursprünglichen Farben der Ebenen wiederherstellen?</translation>
     </message>
     <message>
@@ -14908,7 +14908,7 @@ Y: %2
         <translation>Für alle indizierten Bilder so verfahren</translation>
     </message>
     <message>
-        <source>Editing with the image's palette</source>
+        <source>Editing with the image&apos;s palette</source>
         <translation>Bearbeitung mit der Palette des Bilds</translation>
     </message>
     <message numerus="yes">
@@ -15059,7 +15059,7 @@ Y: %2
         <translation>An Ebene ausrichten</translation>
     </message>
     <message>
-        <source>Anchor the tile grid to the layer's position; unchecked anchors it to the document origin</source>
+        <source>Anchor the tile grid to the layer&apos;s position; unchecked anchors it to the document origin</source>
         <translation>Verankert das Kachelraster an der Position der Ebene; ohne Häkchen wird es am Dokumentursprung verankert</translation>
     </message>
     <message>
@@ -15251,7 +15251,7 @@ Y: %2
         <translation>Ebenenminiaturen auf den Ebeneninhalt zoomen</translation>
     </message>
     <message>
-        <source>When enabled, layer thumbnails crop to the layer's visible pixels instead of previewing the whole canvas, so small layers fill their thumbnail.</source>
+        <source>When enabled, layer thumbnails crop to the layer&apos;s visible pixels instead of previewing the whole canvas, so small layers fill their thumbnail.</source>
         <translation>Wenn aktiviert, werden Ebenenminiaturen auf die sichtbaren Pixel der Ebene beschnitten, statt die gesamte Arbeitsfläche zu zeigen, sodass kleine Ebenen ihre Miniatur ausfüllen.</translation>
     </message>
     <message>
@@ -15283,7 +15283,7 @@ Y: %2
         <translation>In Pixelebenen konvertieren</translation>
     </message>
     <message>
-        <source>Affinity documents place image files as "Image" layers. Smart objects keep each placed file's full-resolution original for re-editing and PSD export; pixel layers keep only the pixels at their placed size.</source>
+        <source>Affinity documents place image files as &quot;Image&quot; layers. Smart objects keep each placed file&apos;s full-resolution original for re-editing and PSD export; pixel layers keep only the pixels at their placed size.</source>
         <translation>Affinity-Dokumente platzieren Bilddateien als „Image“-Ebenen. Smartobjekte behalten das Original jeder platzierten Datei in voller Auflösung zum erneuten Bearbeiten und für den PSD-Export; Pixelebenen behalten nur die Pixel in ihrer platzierten Größe.</translation>
     </message>
     <message>
@@ -15699,11 +15699,11 @@ Y: %2
         <translation>Smartobjekt-Inhalt nach %1 exportiert</translation>
     </message>
     <message>
-        <source>This smart object has Smart Filters; Patchy keeps Photoshop's preview (rasterize to edit pixels)</source>
+        <source>This smart object has Smart Filters; Patchy keeps Photoshop&apos;s preview (rasterize to edit pixels)</source>
         <translation>Dieses Smartobjekt hat Smartfilter; Patchy behält die Photoshop-Vorschau bei (zum Bearbeiten der Pixel rastern)</translation>
     </message>
     <message>
-        <source>This smart object has a warp or perspective transform; Patchy keeps Photoshop's preview</source>
+        <source>This smart object has a warp or perspective transform; Patchy keeps Photoshop&apos;s preview</source>
         <translation>Dieses Smartobjekt hat eine Verkrümmungs- oder Perspektivtransformation; Patchy behält die Photoshop-Vorschau bei</translation>
     </message>
     <message>
@@ -15711,7 +15711,7 @@ Y: %2
         <translation>Dieses Smartobjekt kann nur beibehalten, nicht bearbeitet werden</translation>
     </message>
     <message>
-        <source>This smart object's contents are not embedded in the document</source>
+        <source>This smart object&apos;s contents are not embedded in the document</source>
         <translation>Der Inhalt dieses Smartobjekts ist nicht im Dokument eingebettet</translation>
     </message>
     <message>
@@ -15723,7 +15723,7 @@ Y: %2
         <translation>Verknüpfte Datei wird bearbeitet. Speichern (%CTRL%+S) schreibt %1 und aktualisiert %2</translation>
     </message>
     <message>
-        <source>Patchy can't re-encode %1 contents; use Export Smart Object Contents or rasterize the layer</source>
+        <source>Patchy can&apos;t re-encode %1 contents; use Export Smart Object Contents or rasterize the layer</source>
         <translation>Patchy kann %1-Inhalt nicht neu kodieren; verwenden Sie „Smartobjekt-Inhalt exportieren“ oder rastern Sie die Ebene</translation>
     </message>
     <message>
@@ -15739,7 +15739,7 @@ Y: %2
         <translation>Smartobjekt-Inhalt wird bearbeitet. Speichern (%CTRL%+S) überträgt ihn zurück auf %1</translation>
     </message>
     <message>
-        <source>Smart object contents can't be painted. Rasterize the layer to edit its pixels.</source>
+        <source>Smart object contents can&apos;t be painted. Rasterize the layer to edit its pixels.</source>
         <translation>Auf Smartobjekt-Inhalt kann nicht gemalt werden. Rastern Sie die Ebene, um ihre Pixel zu bearbeiten.</translation>
     </message>
     <message>
@@ -15747,15 +15747,15 @@ Y: %2
         <translation>Auf Smartobjekt malen?</translation>
     </message>
     <message>
-        <source>"%1" is a smart object, so its pixels can't be painted directly.</source>
+        <source>&quot;%1&quot; is a smart object, so its pixels can&apos;t be painted directly.</source>
         <translation>„%1“ ist ein Smartobjekt, daher kann nicht direkt auf seine Pixel gemalt werden.</translation>
     </message>
     <message>
-        <source>Rasterize the layer to paint on its pixels, or open the smart object's contents in their own tab and draw there.</source>
+        <source>Rasterize the layer to paint on its pixels, or open the smart object&apos;s contents in their own tab and draw there.</source>
         <translation>Rastern Sie die Ebene, um auf ihre Pixel zu malen, oder öffnen Sie den Inhalt des Smartobjekts in einer eigenen Registerkarte und zeichnen Sie dort.</translation>
     </message>
     <message>
-        <source>Rasterize the layer to paint on its pixels. This smart object's contents can't be edited in Patchy.</source>
+        <source>Rasterize the layer to paint on its pixels. This smart object&apos;s contents can&apos;t be edited in Patchy.</source>
         <translation>Rastern Sie die Ebene, um auf ihre Pixel zu malen. Der Inhalt dieses Smartobjekts kann in Patchy nicht bearbeitet werden.</translation>
     </message>
     <message>
@@ -15779,7 +15779,7 @@ Y: %2
         <translation>Der Inhalt konnte nicht als %1 neu kodiert werden</translation>
     </message>
     <message>
-        <source>These contents can't be re-encoded</source>
+        <source>These contents can&apos;t be re-encoded</source>
         <translation>Dieser Inhalt kann nicht neu kodiert werden</translation>
     </message>
     <message>
@@ -16047,10 +16047,6 @@ Y: %2
         <translation>Schnittmaske zurückwandeln</translation>
     </message>
     <message>
-        <source>Create Clipping Mask needs a pixel layer below</source>
-        <translation>„Schnittmaske erstellen“ benötigt eine Pixelebene darunter</translation>
-    </message>
-    <message>
         <source>Release clipping mask</source>
         <translation>Schnittmaske zurückwandeln</translation>
     </message>
@@ -16190,7 +16186,7 @@ Y: %2
         <translation>Wählen Sie eine Formebene aus, um ihr Aussehen zu bearbeiten</translation>
     </message>
     <message>
-        <source>This shape layer's vector data is preserved but can't be edited.</source>
+        <source>This shape layer&apos;s vector data is preserved but can&apos;t be edited.</source>
         <translation>Die Vektordaten dieser Formebene bleiben erhalten, können aber nicht bearbeitet werden.</translation>
     </message>
     <message>
@@ -16262,7 +16258,7 @@ Y: %2
         <translation>Legen Sie Formebenen in eine Gruppe und wenden Sie die Vektormaske auf diese Gruppe an.</translation>
     </message>
     <message>
-        <source>This layer's vector data is preserved but can't be edited.</source>
+        <source>This layer&apos;s vector data is preserved but can&apos;t be edited.</source>
         <translation>Die Vektordaten dieser Ebene bleiben erhalten, können aber nicht bearbeitet werden.</translation>
     </message>
     <message>
@@ -16591,6 +16587,10 @@ Y: %2
         <source>Close Tab</source>
         <translation>Tab schließen</translation>
     </message>
+    <message>
+        <source>Create Clipping Mask needs a pixel layer or group below</source>
+        <translation>Zum Erstellen einer Schnittmaske muss darunter eine Pixelebene oder Gruppe liegen</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -16773,7 +16773,7 @@ Y: %2
         <translation>Extrahieren</translation>
     </message>
     <message>
-        <source>Build the palette from the image's colors</source>
+        <source>Build the palette from the image&apos;s colors</source>
         <translation>Die Palette aus den Farben des Bildes erstellen</translation>
     </message>
     <message>
@@ -16789,7 +16789,7 @@ Y: %2
         <translation>Kopieren</translation>
     </message>
     <message>
-        <source>Copy the selected color's hex code to the clipboard</source>
+        <source>Copy the selected color&apos;s hex code to the clipboard</source>
         <translation>Den Hex-Code der ausgewählten Farbe in die Zwischenablage kopieren</translation>
     </message>
     <message>
@@ -16978,7 +16978,7 @@ Y: %2
         <translation>%CTRL%-Klick oder %CTRL%+Enter lädt den Pfad als Auswahl; ziehen Sie zum Neuanordnen.</translation>
     </message>
     <message>
-        <source>This is the document's clipping path.</source>
+        <source>This is the document&apos;s clipping path.</source>
         <translation>Dies ist der Beschneidungspfad des Dokuments.</translation>
     </message>
     <message>
@@ -16986,7 +16986,7 @@ Y: %2
         <translation>Der temporäre Arbeitspfad. Doppelklicken Sie, um ihn als benannten Pfad zu speichern.</translation>
     </message>
     <message>
-        <source>The active layer's path (shape or vector mask).</source>
+        <source>The active layer&apos;s path (shape or vector mask).</source>
         <translation>Der Pfad der aktiven Ebene (Form oder Vektormaske).</translation>
     </message>
 </context>
@@ -16997,19 +16997,19 @@ Y: %2
         <translation>Unbenanntes Muster</translation>
     </message>
     <message>
-        <source>Could not open "%1".</source>
+        <source>Could not open &quot;%1&quot;.</source>
         <translation>„%1“ konnte nicht geöffnet werden.</translation>
     </message>
     <message>
-        <source>Could not read "%1".</source>
+        <source>Could not read &quot;%1&quot;.</source>
         <translation>„%1“ konnte nicht gelesen werden.</translation>
     </message>
     <message>
-        <source>"%1" is too large to import safely.</source>
+        <source>&quot;%1&quot; is too large to import safely.</source>
         <translation>„%1“ ist zu groß, um sicher importiert zu werden.</translation>
     </message>
     <message>
-        <source>Could not import patterns from "%1". The file is not a supported Photoshop PAT file or is damaged.</source>
+        <source>Could not import patterns from &quot;%1&quot;. The file is not a supported Photoshop PAT file or is damaged.</source>
         <translation>Aus „%1“ konnten keine Muster importiert werden. Die Datei ist keine unterstützte Photoshop-PAT-Datei oder ist beschädigt.</translation>
     </message>
     <message>
@@ -17025,35 +17025,35 @@ Y: %2
         <translation>Muster %1</translation>
     </message>
     <message>
-        <source>Skipped pattern "%1" because its pixels could not be decoded.</source>
+        <source>Skipped pattern &quot;%1&quot; because its pixels could not be decoded.</source>
         <translation>Muster „%1“ wurde übersprungen, weil seine Pixel nicht dekodiert werden konnten.</translation>
     </message>
     <message>
-        <source>Pattern "%1" used an id already assigned to different pixels; it was imported with a new id.</source>
+        <source>Pattern &quot;%1&quot; used an id already assigned to different pixels; it was imported with a new id.</source>
         <translation>Muster „%1“ verwendete eine ID, die bereits anderen Pixeln zugewiesen war; es wurde mit einer neuen ID importiert.</translation>
     </message>
     <message>
-        <source>Could not save pattern "%1".</source>
+        <source>Could not save pattern &quot;%1&quot;.</source>
         <translation>Muster „%1“ konnte nicht gespeichert werden.</translation>
     </message>
     <message>
-        <source>No patterns could be imported from "%1".</source>
+        <source>No patterns could be imported from &quot;%1&quot;.</source>
         <translation>Aus „%1“ konnten keine Muster importiert werden.</translation>
     </message>
     <message>
-        <source>"%1" is too large to use as a pattern (over 30,000 pixels wide or tall).</source>
+        <source>&quot;%1&quot; is too large to use as a pattern (over 30,000 pixels wide or tall).</source>
         <translation>„%1“ ist zu groß für ein Muster (mehr als 30.000 Pixel breit oder hoch).</translation>
     </message>
     <message>
-        <source>"%1" is too large to use as a pattern (over 8 million pixels).</source>
+        <source>&quot;%1&quot; is too large to use as a pattern (over 8 million pixels).</source>
         <translation>„%1“ ist zu groß für ein Muster (mehr als 8 Millionen Pixel).</translation>
     </message>
     <message>
-        <source>Could not read "%1" as an image.</source>
+        <source>Could not read &quot;%1&quot; as an image.</source>
         <translation>„%1“ konnte nicht als Bild gelesen werden.</translation>
     </message>
     <message>
-        <source>Animated image "%1": imported the first frame only.</source>
+        <source>Animated image &quot;%1&quot;: imported the first frame only.</source>
         <translation>Animiertes Bild „%1“: Nur der erste Frame wurde importiert.</translation>
     </message>
     <message>
@@ -17168,7 +17168,7 @@ Y: %2
         <translation>Symbol aus aktuellem Fenster festlegen</translation>
     </message>
     <message>
-        <source>Captures the running script's window (or the active image) as this script's icon.</source>
+        <source>Captures the running script&apos;s window (or the active image) as this script&apos;s icon.</source>
         <translation>Erfasst das Fenster des laufenden Skripts (oder das aktive Bild) als Symbol dieses Skripts.</translation>
     </message>
     <message>
@@ -17263,7 +17263,7 @@ Y: %2
 <context>
     <name>patchy::ui::ScriptEngineHost</name>
     <message>
-        <source>Invalid color: %1 (use "#rrggbb" or a named color)</source>
+        <source>Invalid color: %1 (use &quot;#rrggbb&quot; or a named color)</source>
         <translation>Ungültige Farbe: %1 (verwenden Sie "#rrggbb" oder einen Farbnamen)</translation>
     </message>
     <message>
@@ -17691,7 +17691,7 @@ Y: %2
         <translation>Skript stoppen</translation>
     </message>
     <message>
-        <source>Stop "%1"?</source>
+        <source>Stop &quot;%1&quot;?</source>
         <translation>"%1" stoppen?</translation>
     </message>
     <message>
@@ -17783,11 +17783,11 @@ Y: %2
         <translation>showDialog: spec.fields muss ein Array sein</translation>
     </message>
     <message>
-        <source>showDialog: every field needs a non-empty "key"</source>
+        <source>showDialog: every field needs a non-empty &quot;key&quot;</source>
         <translation>showDialog: Jedes Feld benötigt einen nicht leeren "key"</translation>
     </message>
     <message>
-        <source>showDialog: unknown field type "%1" (use number, slider, checkbox, choice, text, color, folder, or file)</source>
+        <source>showDialog: unknown field type &quot;%1&quot; (use number, slider, checkbox, choice, text, color, folder, or file)</source>
         <translation>showDialog: unbekannter Feldtyp "%1" (verwenden Sie number, slider, checkbox, choice, text, color, folder oder file)</translation>
     </message>
     <message>
@@ -17882,7 +17882,7 @@ Y: %2
         <translation>GitHub: %1</translation>
     </message>
     <message>
-        <source>Seth's site: %1</source>
+        <source>Seth&apos;s site: %1</source>
         <translation>Seths Website: %1</translation>
     </message>
     <message>
@@ -17917,7 +17917,7 @@ Y: %2
         <translation>Photoshop-Stile (*.asl)</translation>
     </message>
     <message numerus="yes">
-        <source>Exported %n style(s) to "%1".</source>
+        <source>Exported %n style(s) to &quot;%1&quot;.</source>
         <translation>
             <numerusform>%n Stil nach "%1" exportiert.</numerusform>
             <numerusform>%n Stile nach "%1" exportiert.</numerusform>
@@ -17939,19 +17939,19 @@ Y: %2
         <translation>Unbenannter Stil</translation>
     </message>
     <message>
-        <source>Could not open "%1".</source>
+        <source>Could not open &quot;%1&quot;.</source>
         <translation>"%1" konnte nicht geöffnet werden.</translation>
     </message>
     <message>
-        <source>Could not read "%1".</source>
+        <source>Could not read &quot;%1&quot;.</source>
         <translation>"%1" konnte nicht gelesen werden.</translation>
     </message>
     <message>
-        <source>"%1" is too large to import safely.</source>
+        <source>&quot;%1&quot; is too large to import safely.</source>
         <translation>"%1" ist zu groß, um sicher importiert zu werden.</translation>
     </message>
     <message>
-        <source>Could not import styles from "%1". The file is not a supported Photoshop ASL file or is damaged.</source>
+        <source>Could not import styles from &quot;%1&quot;. The file is not a supported Photoshop ASL file or is damaged.</source>
         <translation>Aus "%1" konnten keine Stile importiert werden. Die Datei ist keine unterstützte Photoshop-ASL-Datei oder ist beschädigt.</translation>
     </message>
     <message>
@@ -17963,15 +17963,15 @@ Y: %2
         <translation>Stil %1</translation>
     </message>
     <message>
-        <source>Style "%1" used an id already assigned to a different style; it was imported with a new id.</source>
+        <source>Style &quot;%1&quot; used an id already assigned to a different style; it was imported with a new id.</source>
         <translation>Der Stil "%1" verwendete eine ID, die bereits einem anderen Stil zugewiesen ist. Er wurde mit einer neuen ID importiert.</translation>
     </message>
     <message>
-        <source>Could not save style "%1".</source>
+        <source>Could not save style &quot;%1&quot;.</source>
         <translation>Der Stil "%1" konnte nicht gespeichert werden.</translation>
     </message>
     <message>
-        <source>No styles could be imported from "%1".</source>
+        <source>No styles could be imported from &quot;%1&quot;.</source>
         <translation>Aus "%1" konnten keine Stile importiert werden.</translation>
     </message>
     <message>
@@ -17979,7 +17979,7 @@ Y: %2
         <translation>Es gibt keine Stile zum Exportieren.</translation>
     </message>
     <message>
-        <source>Could not write "%1".</source>
+        <source>Could not write &quot;%1&quot;.</source>
         <translation>"%1" konnte nicht geschrieben werden.</translation>
     </message>
     <message>

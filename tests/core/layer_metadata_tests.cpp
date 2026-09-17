@@ -321,7 +321,9 @@ void layer_set_clipped_bumps_render_revision_only() {
   std::vector<patchy::Layer> group_base;
   group_base.push_back(patchy::Layer(4, "Folder", patchy::LayerKind::Group));
   group_base.push_back(clone.clone_with_id(44));
-  CHECK(patchy::effective_clip_base(group_base, 1) == nullptr);
+  CHECK(patchy::effective_clip_base(group_base, 1) == &group_base[0]);
+  group_base.push_back(clone.clone_with_id(45));
+  CHECK(patchy::effective_clip_base(group_base, 2) == &group_base[0]);
 }
 
 std::int32_t read_i32_be_at(std::span<const std::uint8_t> bytes, std::size_t offset) {

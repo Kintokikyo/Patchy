@@ -244,7 +244,7 @@ const Layer* effective_clip_base(const std::vector<Layer>& siblings, std::size_t
       --index;
       continue;
     }
-    return candidate.kind() == LayerKind::Pixel ? &candidate : nullptr;
+    return candidate.kind() == LayerKind::Pixel || candidate.kind() == LayerKind::Group ? &candidate : nullptr;
   }
   return nullptr;
 }
