@@ -22,6 +22,19 @@ jobs:
         with:
           packages: ''
 
+      - name: Create test keystore
+        run: |
+          keytool -genkeypair \
+            -v \
+            -keystore "$GITHUB_WORKSPACE/patchy-test.keystore" \
+            -alias patchy \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass patchy123 \
+            -keypass patchy123 \
+            -dname "CN=Patchy, OU=Kintokikyo, O=Patchy, L=Indonesia, ST=Indonesia, C=ID"
+
       - name: Install Android SDK packages
         run: |
           sdkmanager "platform-tools" \
@@ -54,6 +67,11 @@ jobs:
           cache: true
 
       - name: Configure Patchy
+        env:
+          QT_ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/patchy-test.keystore
+          QT_ANDROID_KEYSTORE_ALIAS: patchy
+          QT_ANDROID_KEYSTORE_STORE_PASS: patchy123
+          QT_ANDROID_KEYSTORE_KEY_PASS: patchy123
         run: |
           "$QT_ROOT_DIR/bin/qt-cmake" \
             -S . \
@@ -69,10 +87,16 @@ jobs:
             -DQT_HOST_PATH="$HOST_QT_ROOT" \
             -DANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" \
             -DANDROID_NDK_ROOT="$ANDROID_NDK_ROOT" \
-            -DQT_ENABLE_VERBOSE_DEPLOYMENT=ON
+            -DQT_ENABLE_VERBOSE_DEPLOYMENT=ON \
+            -DQT_ANDROID_SIGN_APK=ON
 
       - name: Build APK
         continue-on-error: true
+        env:
+          QT_ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/patchy-test.keystore
+          QT_ANDROID_KEYSTORE_ALIAS: patchy
+          QT_ANDROID_KEYSTORE_STORE_PASS: patchy123
+          QT_ANDROID_KEYSTORE_KEY_PASS: patchy123
         run: |
           cmake --build build/android-release \
             --target apk \
