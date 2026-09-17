@@ -71,11 +71,33 @@ jobs:
             -DANDROID_NDK_ROOT="$ANDROID_NDK_ROOT" \
             -DQT_ENABLE_VERBOSE_DEPLOYMENT=ON
 
-      - name: Build APK
+      - name: Prepare Android Package
         run: |
-          cmake --build build/android-release \
-            --target apk \
-            --parallel 2
+          "$QT_ROOT_DIR/bin/androiddeployqt" \
+            --input build/android-release/android-patchy-deployment-settings.json \
+            --output build/android-release/android-build \
+            --aux-mode
+
+      - name: Inspect Android Gradle Project
+        run: |
+          echo "===== android-build ====="
+          find build/android-release/android-build -maxdepth 2 -type f -print
+
+          echo ""
+          echo "===== settings.gradle.kts ====="
+          cat build/android-release/android-build/settings.gradle.kts || true
+
+          echo ""
+          echo "===== settings.gradle ====="
+          cat build/android-release/android-build/settings.gradle || true
+
+          echo ""
+          echo "===== build.gradle.kts ====="
+          cat build/android-release/android-build/build.gradle.kts || true
+
+          echo ""
+          echo "===== build.gradle ====="
+          cat build/android-release/android-build/build.gradle || true
 
       - name: Find APK
         run: |
