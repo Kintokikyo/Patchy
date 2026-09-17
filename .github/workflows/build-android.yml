@@ -36,7 +36,7 @@ jobs:
           host: 'linux'
           target: 'desktop'
           arch: 'linux_gcc_64'
-          modules: 'qtdeclarative qtsvg qttools qtimageformats'
+          archives: 'qtbase qtdeclarative qtsvg qttools qtimageformats'
           cache: true
 
       - name: Save host Qt path
@@ -50,7 +50,7 @@ jobs:
           host: 'linux'
           target: 'android'
           arch: 'android_arm64_v8a'
-          modules: 'qtdeclarative qtsvg qttools qtimageformats'
+          archives: 'qtbase qtdeclarative qtsvg qttools qtimageformats'
           cache: true
 
       - name: Configure Patchy
