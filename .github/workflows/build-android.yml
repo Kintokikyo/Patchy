@@ -66,6 +66,42 @@ jobs:
           modules: 'qtimageformats'
           cache: true
 
+      - name: Prepare Qt Android manifest
+        run: |
+          echo "===== FIND QT ANDROID TEMPLATE ====="
+
+          QT_ANDROID_TEMPLATE=$(find "$QT_ROOT_DIR" \
+            -path "*/src/android/templates/AndroidManifest.xml" \
+            -print -quit)
+
+          echo "Template: $QT_ANDROID_TEMPLATE"
+
+          if [ -z "$QT_ANDROID_TEMPLATE" ]; then
+            echo "ERROR: Qt AndroidManifest.xml template not found"
+            exit 1
+          fi
+          
+          cp "$QT_ANDROID_TEMPLATE" android/AndroidManifest.xml
+
+          echo "===== PATCH MANIFEST ====="
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("android/AndroidManifest.xml")
+          text = path.read_text()
+
+          text = text.replace(
+            'android:screenOrientation="unspecified"',
+            'android:screenOrientation="landscape"'
+          )
+
+          path.write_text(text)
+          PY
+
+          echo "===== FINAL MANIFEST ====="
+          cat android/AndroidManifest.xml
+
       - name: Configure Patchy
         env:
           QT_ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/patchy-test.keystore
