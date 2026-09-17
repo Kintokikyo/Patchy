@@ -91,13 +91,11 @@ jobs:
           path = Path("android/AndroidManifest.xml")
           text = path.read_text()
 
-          # Lock Landscape
           text = text.replace(
             'android:screenOrientation="unspecified"',
             'android:screenOrientation="landscape"'
           )
 
-          # Remove Android ActionBar
           text = text.replace(
             '<activity',
             '<activity android:theme="@android:style/Theme.Material.NoActionBar"', 
