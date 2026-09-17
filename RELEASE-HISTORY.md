@@ -3,6 +3,13 @@
 Older Patchy release notes are collected here. The two most recent releases
 remain in [README.md](README.md#whats-new).
 
+## 0.94 - September 11, 2026
+
+- Paste clears the selection, so the marquee that produced the copy no longer stays over the pasted layer. Undo of the paste brings it back
+- The Move tool grabs a layer anywhere inside its outline rectangle, transparent pixels included, instead of starting a layer-selection rectangle there. A visible pixel still wins over an enclosing rectangle, and the selected layer's rectangle wins over a larger one above it
+- Speed improvements with selections on documents with tons of layers
+- Moving a layer on a large document with layer styles no longer freezes while the final pixels render: the move lands immediately and the accurate render catches up in the background. Layer-style masks also stay cached between renders, which halves repeated renders of heavily styled posters
+
 ## 0.93 - September 11, 2026
 
 - Drag layers from the Layers panel onto another open document's canvas or tab to copy them there, Photoshop style. Layer > Duplicate Layer to Document offers a destination dialog (any open document or a new one), Alt-dragging inside the panel duplicates layers at the drop position, and scripts gain layer.duplicate(targetDocument)

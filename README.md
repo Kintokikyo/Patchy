@@ -138,7 +138,7 @@ These are corpus-specific results, not universal product ratings. See the [full 
 
 ## Download
 
-**Latest release: 0.95** · September 16, 2026 · [Release notes](#whats-new)
+**Latest release: 0.96** · September 17, 2026 · [Release notes](#whats-new)
 
 Windows releases are code signed by Seth A. Robinson; the macOS app is signed and
 notarized (Robinson Technologies Corporation).
@@ -199,6 +199,13 @@ flatpak install -y flathub org.freedesktop.Platform.ffmpeg-full//24.08
 
 ## What's New
 
+### 0.96 - September 17, 2026
+
+- Canvas Size preserves each layer's off-canvas pixels and masks when shrinking or enlarging the canvas. An optional "Also crop each actual layer to the canvas area" checkbox enables destructive cropping and starts unchecked every time the dialog opens
+- Clipping masks above layer groups now use the group's combined transparency correctly
+- Merge Visible to New Layer (Copy) preserves transparency in the merged copy
+- Switching languages updates menus, panels, tool options, and the start screen consistently
+
 ### 0.95 - September 16, 2026
 
 - The interface now supports German, Spanish, French, Italian, Japanese, and Simplified and Traditional Chinese alongside English. It follows your system language or your choice in File > Preferences.  I had to add 20 mb to the filesize to include fonts to do this proper, but.. I think that's ok in the grand scheme of things.\
@@ -213,13 +220,6 @@ flatpak install -y flathub org.freedesktop.Platform.ffmpeg-full//24.08
 - Paste centers copied selection pixels and clipboard images in the visible canvas area, keeping them inside the document when they fit. Edit > Paste in Place (Ctrl+Shift+V) restores copied selection pixels to their original coordinates, including across documents, with the same edge limits.  Pastes now appear directly above the topmost selected layer.
 - The Move tool works better with stuff that is off the canvas, previously it hard to move them
 - Optimized working with large files, it's more responsible thanks to now allowing movement before preview data is generated and various improvements to how caching works
-
-### 0.94 - September 11, 2026
-
-- Paste clears the selection, so the marquee that produced the copy no longer stays over the pasted layer. Undo of the paste brings it back
-- The Move tool grabs a layer anywhere inside its outline rectangle, transparent pixels included, instead of starting a layer-selection rectangle there. A visible pixel still wins over an enclosing rectangle, and the selected layer's rectangle wins over a larger one above it
-- Speed improvements with selections on documents with tons of layers
-- Moving a layer on a large document with layer styles no longer freezes while the final pixels render: the move lands immediately and the accurate render catches up in the background. Layer-style masks also stay cached between renders, which halves repeated renders of heavily styled posters
 
 [Older releases](RELEASE-HISTORY.md)
 
