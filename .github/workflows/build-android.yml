@@ -71,23 +71,17 @@ jobs:
             -DANDROID_NDK_ROOT="$ANDROID_NDK_ROOT" \
             -DQT_ENABLE_VERBOSE_DEPLOYMENT=ON
 
-      - name: Build Patchy Native
+      - name: Build APK
+        continue-on-error: true
         run: |
           cmake --build build/android-release \
-            --target patchy \
+            --target apk \
             --parallel 2
-
-      - name: Prepare Android Package
-        run: |
-          "$HOST_QT_ROOT/bin/androiddeployqt" \
-            --input build/android-release/android-patchy-deployment-settings.json \
-            --output build/android-release/android-build \
-            --aux-mode
 
       - name: Inspect Android Gradle Project
         run: |
           echo "===== android-build ====="
-          find build/android-release/android-build -maxdepth 2 -type f -print
+          find build/android-release/android-build -maxdepth 2 -type f -print || true
 
           echo ""
           echo "===== settings.gradle.kts ====="
@@ -105,12 +99,6 @@ jobs:
           echo "===== build.gradle ====="
           cat build/android-release/android-build/build.gradle || true
 
-      - name: Build APK
-        run: |
-          cmake --build build/android-release \
-            --target apk \
-            --parallel 2
-
       - name: Find APK
         run: |
           echo "===== APK FILES ====="
@@ -118,6 +106,13 @@ jobs:
             -type f \
             -name "*.apk" \
             -print
+
+      - name: Check APK
+        run: |
+          if ! find build/android-release -type f -name "*.apk" | grep -q .; then
+            echo "APK belum berhasil dibuat."
+            exit 1
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
