@@ -502,6 +502,8 @@ if(PATCHY_BUILD_APP)
   # there would fail the whole find_package and silently skip the app target.
   if(EMSCRIPTEN)
     set(PATCHY_QT_COMPONENTS Widgets Svg Network Qml LinguistTools)
+  elseif(ANDROID)
+    set(PATCHY_QT_COMPONENTS Widgets Svg Network Qml LinguistTools)
   else()
     set(PATCHY_QT_COMPONENTS Widgets Svg PrintSupport Network Qml LinguistTools Test)
   endif()
@@ -602,7 +604,7 @@ if(PATCHY_BUILD_APP)
     # when the Qt install is missing qtimageformats or its TLS plugin. Not on wasm:
     # that kit links plugins statically (no loadable files to probe) and has no TLS
     # backend at all (QtNetwork rides the browser's fetch).
-    if(NOT EMSCRIPTEN)
+    if(NOT EMSCRIPTEN AND NOT ANDROID)
       if(WIN32)
         set(PATCHY_REQUIRED_QT_TLS_PLUGINS qschannelbackend)
         set(PATCHY_QT_PLUGIN_PREFIX "")
@@ -777,7 +779,7 @@ if(PATCHY_BUILD_APP)
       endif()
     endfunction()
     # One writer assembles the installable skill, including the authoritative API docs.
-    if(NOT EMSCRIPTEN)
+    if(NOT EMSCRIPTEN AND NOT ANDROID)
       set(PATCHY_AGENT_KIT_DIR "${PROJECT_SOURCE_DIR}/agent-kit")
       file(GLOB_RECURSE PATCHY_AGENT_KIT_FILES CONFIGURE_DEPENDS "${PATCHY_AGENT_KIT_DIR}/*")
       set(PATCHY_AGENT_KIT_STAMP "${CMAKE_BINARY_DIR}/CMakeFiles/patchy_agent_kit.stamp")
@@ -1090,7 +1092,7 @@ if(PATCHY_BUILD_APP)
       # drop this dependency when the upstream fix lands.
       target_link_libraries(patchy_ui PRIVATE Qt6::CorePrivate)
     elseif(ANDROID)
-      # Android: Qt6::PrintSupport tidak digunakan.
+      target_sources(patchy_ui PRIVATE src/ui/print_dialog_wasm.cpp)
     else()
       target_sources(patchy_ui PRIVATE src/ui/print_dialog.cpp)
       target_link_libraries(patchy_ui PUBLIC Qt6::PrintSupport)
@@ -1301,7 +1303,7 @@ if(PATCHY_BUILD_APP)
       )
     endif()
     target_link_libraries(patchy PRIVATE patchy_ui)
-    if(NOT EMSCRIPTEN)
+    if(NOT EMSCRIPTEN AND NOT ANDROID)
       add_executable(patchy-mcp src/app/main.cpp src/app/mcp_server.cpp src/app/mcp_stdio.cpp)
       target_link_libraries(patchy-mcp PRIVATE patchy_ui)
       target_compile_definitions(patchy-mcp PRIVATE PATCHY_MCP_EXECUTABLE=1 PATCHY_VERSION="${PROJECT_VERSION}")
@@ -1399,7 +1401,7 @@ if(PATCHY_BUILD_APP)
       add_custom_target(patchy_bundle_resources ALL
                         DEPENDS "${PATCHY_BUNDLE_RESOURCES_STAMP}")
     endif()
-    if(NOT EMSCRIPTEN)
+    if(NOT EMSCRIPTEN AND NOT ANDROID)
       # 34 MB the wasm virtual filesystem could never see; the sole runtime
       # consumer (load_bundled_legacy_plugins) early-returns when absent.
       add_custom_command(TARGET patchy POST_BUILD
@@ -1413,7 +1415,7 @@ if(PATCHY_BUILD_APP)
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
       )
     endif()
-    if(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
+    if(UNIX AND NOT APPLE AND NOT EMSCRIPTEN AND NOT ANDROID)
       install(DIRECTORY "${PATCHY_AGENT_KIT_DIR}/"
               DESTINATION "${CMAKE_INSTALL_DATADIR}/patchy/ai")
       install(FILES "${PATCHY_BUNDLED_SCRIPTS_DIR}/patchy.d.ts"
