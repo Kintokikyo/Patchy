@@ -8170,6 +8170,10 @@ RVB : %2, %3, %4</translation>
         <source>UI language for this run only, not saved: en, de, es, fr, it, ja, zh_CN, or zh_TW.</source>
         <translation>Langue de l'interface pour cette exécution uniquement, non enregistrée : en, de, es, fr, it, ja, zh_CN ou zh_TW.</translation>
     </message>
+    <message>
+        <source>Also crop each actual layer to the canvas area</source>
+        <translation>Recadrer également chaque calque à la zone de travail</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

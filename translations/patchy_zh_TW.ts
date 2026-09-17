@@ -8147,6 +8147,10 @@ RGB：%2, %3, %4</translation>
         <source>UI language for this run only, not saved: en, de, es, fr, it, ja, zh_CN, or zh_TW.</source>
         <translation>僅本次執行使用的介面語言，不會儲存：en、de、es、fr、it、ja、zh_CN 或 zh_TW。</translation>
     </message>
+    <message>
+        <source>Also crop each actual layer to the canvas area</source>
+        <translation>同時將每個圖層本身裁剪至畫布區域</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

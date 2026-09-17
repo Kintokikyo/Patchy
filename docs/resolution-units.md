@@ -40,6 +40,15 @@ logical DPI (96 on Windows, varies with scaling) and indistinguishable from a re
 
 ## Dialog semantics (Photoshop link rules)
 
+Canvas Size preserves off-canvas layer pixels and raster masks by default, including
+hidden layers and layers inside groups. The anchor translates their bounds without
+resampling. Background layers fill newly exposed canvas with the extension color while
+retaining existing pixels. "Also crop each actual layer to the canvas area" explicitly
+enables the destructive layer/mask crop, even when the canvas dimensions are unchanged.
+The checkbox starts unchecked on every opening and is never persisted. Both modes are
+undoable. Document alpha/spot channels remain canvas-sized; editable vector paths, text
+transforms and Smart Object placements continue to follow the anchor translation.
+
 Image Size (`request_image_size_settings`, main_window.cpp): canonical state is pixel
 W/H + PPI. W/H unit combos (Percent/Pixels/Inches/Cm/Mm/Points) stay in step. Resample ON:
 pixel/percent edits move pixels; physical edits set pixels = value x ppi; a resolution

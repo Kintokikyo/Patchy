@@ -273,6 +273,7 @@ struct CanvasSizeSettings {
   std::int32_t height{0};
   CanvasAnchor anchor{CanvasAnchor::Center};
   QColor extension_color{Qt::white};
+  bool crop_layers{false};
 };
 
 struct RotateCanvasSettings {
@@ -1058,6 +1059,11 @@ std::optional<CanvasSizeSettings> request_canvas_size_settings(QWidget* parent, 
   color_swatch->setFocusPolicy(Qt::StrongFocus);
   color_swatch->setFixedSize(49, 24);
   extension_row->addWidget(color_swatch);
+  auto* crop_layers = new QCheckBox(QObject::tr("Also crop each actual layer to the canvas area"), &dialog);
+  crop_layers->setObjectName(QStringLiteral("canvasSizeCropLayersCheck"));
+  // Destructive opt-in, deliberately never loaded from or saved to settings.
+  crop_layers->setChecked(false);
+  content_layout->addWidget(crop_layers);
   content_layout->addStretch(1);
 
   QColor extension_color_value(Qt::white);
@@ -1159,7 +1165,8 @@ std::optional<CanvasSizeSettings> request_canvas_size_settings(QWidget* parent, 
   }
   const auto checked_anchor =
       anchor_group->checkedId() < 0 ? CanvasAnchor::Center : static_cast<CanvasAnchor>(anchor_group->checkedId());
-  return CanvasSizeSettings{target_width(), target_height(), checked_anchor, extension_color_value};
+  return CanvasSizeSettings{target_width(), target_height(), checked_anchor, extension_color_value,
+                            crop_layers->isChecked()};
 }
 
 }  // namespace
@@ -1329,7 +1336,7 @@ void MainWindow::resize_canvas_dialog() {
   if (!settings.has_value()) {
     return;
   }
-  if (settings->width == doc.width() && settings->height == doc.height()) {
+  if (settings->width == doc.width() && settings->height == doc.height() && !settings->crop_layers) {
     return;
   }
   if (refuse_document_geometry_change()) {
@@ -1337,7 +1344,8 @@ void MainWindow::resize_canvas_dialog() {
   }
 
   push_undo_snapshot(tr("Canvas size"));
-  resize_canvas_and_layers(doc, settings->width, settings->height, settings->anchor, edit_color(settings->extension_color));
+  resize_canvas_and_layers(doc, settings->width, settings->height, settings->anchor,
+                           edit_color(settings->extension_color), settings->crop_layers);
   canvas_->clear_selection();
   const auto previous_channel_target = canvas_->layer_edit_target();
   const auto previous_channel_id = canvas_->active_document_channel_id();

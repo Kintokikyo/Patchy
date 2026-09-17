@@ -1803,6 +1803,78 @@ void ui_document_tab_context_menu_closes_tabs_and_file_menu_closes_all() {
   CHECK(!file_close_all_action->isEnabled());
 }
 
+void ui_canvas_size_preserves_layers_and_crop_option_resets() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  document = patchy::Document(8, 8, patchy::PixelFormat::rgb8());
+  patchy::Layer paint(document.allocate_layer_id(), "Paint",
+                      solid_pixels(12, 12, patchy::PixelFormat::rgba8(), QColor(17, 29, 41)));
+  const auto id = paint.id();
+  paint.set_bounds({-2, -2, 12, 12});
+  document.add_layer(std::move(paint));
+  auto* canvas = patchy::ui::MainWindowTestAccess::canvas(window);
+  canvas->set_document(&document);
+  const auto resize = [&](int size, bool crop, bool cancel = false) {
+    bool saw_dialog = false;
+    std::exception_ptr failure;
+    QTimer::singleShot(0, &window, [&] {
+      auto* dialog = window.findChild<QDialog*>(QStringLiteral("patchyCanvasSizeDialog"));
+      try {
+        CHECK(dialog != nullptr);
+        auto* checkbox = dialog->findChild<QCheckBox*>(QStringLiteral("canvasSizeCropLayersCheck"));
+        CHECK(checkbox != nullptr);
+        CHECK(!checkbox->isChecked());
+        CHECK(checkbox->text() == QStringLiteral("Also crop each actual layer to the canvas area"));
+        checkbox->setChecked(crop);
+        auto* width = dialog->findChild<QSpinBox*>(QStringLiteral("canvasSizeWidthSpin"));
+        auto* height = dialog->findChild<QSpinBox*>(QStringLiteral("canvasSizeHeightSpin"));
+        CHECK(width != nullptr && height != nullptr);
+        width->setValue(size);
+        height->setValue(size);
+        save_widget_artifact("ui_canvas_size_crop_option", *dialog);
+        saw_dialog = true;
+      } catch (...) {
+        failure = std::current_exception();
+      }
+      if (dialog != nullptr) {
+        if (cancel || failure) {
+          dialog->reject();
+        } else {
+          dialog->accept();
+        }
+      }
+    });
+    require_action(window, "imageCanvasSizeAction")->trigger();
+    if (failure) {
+      std::rethrow_exception(failure);
+    }
+    CHECK(saw_dialog);
+  };
+  const auto layer = [&]() -> const patchy::Layer& { return *std::as_const(document).find_layer(id); };
+  resize(4, false);
+  CHECK(document.width() == 4);
+  CHECK(layer().bounds().x == -4 && layer().bounds().y == -4);
+  CHECK(layer().pixels().width() == 12 && layer().pixels().height() == 12);
+  CHECK(layer().pixels().pixel(11, 11)[0] == 17);
+  patchy::ui::MainWindowTestAccess::undo(window);
+  CHECK(document.width() == 8 && layer().bounds().x == -2);
+  patchy::ui::MainWindowTestAccess::redo(window);
+  CHECK(document.width() == 4 && layer().pixels().width() == 12);
+  // Explicit crop also works without changing canvas dimensions.
+  resize(4, true);
+  CHECK(layer().bounds().x == 0 && layer().bounds().y == 0);
+  CHECK(layer().pixels().width() == 4 && layer().pixels().height() == 4);
+  patchy::ui::MainWindowTestAccess::undo(window);
+  CHECK(layer().bounds().x == -4 && layer().pixels().width() == 12);
+  // Both acceptance and cancellation forget the destructive option.
+  resize(6, true, true);
+  CHECK(document.width() == 4 && layer().pixels().width() == 12);
+  resize(8, false);
+  CHECK(document.width() == 8 && layer().bounds().x == -2);
+  CHECK(layer().pixels().width() == 12 && layer().pixels().pixel(11, 11)[0] == 17);
+}
+
 void ui_new_document_and_canvas_size_dialogs_work() {
   patchy::ui::MainWindow window;
   show_window(window);
@@ -2286,6 +2358,8 @@ std::vector<patchy::test::TestCase> layer_context_lifecycle_tests() {
       {"ui_document_tab_context_menu_closes_tabs_and_file_menu_closes_all",
        ui_document_tab_context_menu_closes_tabs_and_file_menu_closes_all},
       {"ui_new_document_and_canvas_size_dialogs_work", ui_new_document_and_canvas_size_dialogs_work},
+      {"ui_canvas_size_preserves_layers_and_crop_option_resets",
+       ui_canvas_size_preserves_layers_and_crop_option_resets},
       {"ui_new_document_presets_and_clipboard_work", ui_new_document_presets_and_clipboard_work},
       {"ui_new_document_dialog_remembers_last_settings", ui_new_document_dialog_remembers_last_settings},
       {"ui_new_document_opens_fit_to_view", ui_new_document_opens_fit_to_view},

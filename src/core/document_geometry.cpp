@@ -10,6 +10,7 @@
 #include "core/document_path.hpp"
 #include "core/layer_metadata.hpp"
 #include "core/pixel_tools_internal.hpp"
+#include "core/rect_utils.hpp"
 #include "core/smart_object.hpp"
 #include "core/vector_raster.hpp"
 #include "core/vector_shape.hpp"
@@ -326,7 +327,8 @@ struct CanvasResizeOffset {
                             canvas_anchor_axis_offset(old_height, new_height, row)};
 }
 
-void shift_layer_mask_to_canvas(Layer& layer, CanvasResizeOffset offset, std::int32_t width, std::int32_t height) {
+void shift_layer_mask_to_canvas(Layer& layer, CanvasResizeOffset offset, std::int32_t width, std::int32_t height,
+                                bool crop_mask = true) {
   auto& mask = layer.mask();
   if (!mask.has_value() || width <= 0 || height <= 0) {
     return;
@@ -334,6 +336,10 @@ void shift_layer_mask_to_canvas(Layer& layer, CanvasResizeOffset offset, std::in
 
   const auto shifted_bounds =
       Rect{mask->bounds.x + offset.x, mask->bounds.y + offset.y, mask->bounds.width, mask->bounds.height};
+  if (!crop_mask) {
+    mask->bounds = shifted_bounds;
+    return;
+  }
   const auto clipped = intersect_rect(shifted_bounds, Rect{0, 0, width, height});
   if (clipped.empty() || mask->pixels.empty()) {
     mask->bounds = {};
@@ -356,12 +362,12 @@ void shift_layer_mask_to_canvas(Layer& layer, CanvasResizeOffset offset, std::in
 }
 
 void resize_layer_to_canvas(Layer& layer, std::int32_t width, std::int32_t height, CanvasResizeOffset offset,
-                            EditColor extension_color) {
+                            EditColor extension_color, bool crop_layer = true) {
   if (layer.kind() == LayerKind::Group) {
     for (auto& child : layer.children()) {
-      resize_layer_to_canvas(child, width, height, offset, extension_color);
+      resize_layer_to_canvas(child, width, height, offset, extension_color, crop_layer);
     }
-    shift_layer_mask_to_canvas(layer, offset, width, height);
+    shift_layer_mask_to_canvas(layer, offset, width, height, crop_layer);
     if (!layer.bounds().empty()) {
       const auto bounds = layer.bounds();
       layer.set_bounds(Rect{bounds.x + offset.x, bounds.y + offset.y, bounds.width, bounds.height});
@@ -369,7 +375,7 @@ void resize_layer_to_canvas(Layer& layer, std::int32_t width, std::int32_t heigh
     return;
   }
   if (layer.kind() != LayerKind::Pixel || width <= 0 || height <= 0) {
-    shift_layer_mask_to_canvas(layer, offset, width, height);
+    shift_layer_mask_to_canvas(layer, offset, width, height, crop_layer);
     if (!layer.bounds().empty()) {
       const auto bounds = layer.bounds();
       layer.set_bounds(Rect{bounds.x + offset.x, bounds.y + offset.y, bounds.width, bounds.height});
@@ -378,29 +384,50 @@ void resize_layer_to_canvas(Layer& layer, std::int32_t width, std::int32_t heigh
   }
 
   const auto old_bounds = layer.bounds();
-  const auto& source = layer.pixels();
-  PixelBuffer resized(width, height, canvas_resized_format_for_layer(layer, source, extension_color));
+  const auto shifted_bounds =
+      Rect{old_bounds.x + offset.x, old_bounds.y + offset.y, old_bounds.width, old_bounds.height};
+  auto resized_bounds = Rect::from_size(width, height);
+  if (!crop_layer) {
+    shift_layer_mask_to_canvas(layer, offset, width, height, false);
+    layer.set_bounds(shifted_bounds);
+    // Ordinary layers need only a translation. Painting already expands their
+    // buffers on demand; resizing the canvas must not rewrite their pixels.
+    if (layer.name() != "Background") {
+      return;
+    }
+    // Keep the Background's existing off-canvas data while filling new space.
+    resized_bounds = unite_rect(resized_bounds, shifted_bounds);
+    if (resized_bounds.x == shifted_bounds.x && resized_bounds.y == shifted_bounds.y &&
+        resized_bounds.width == shifted_bounds.width && resized_bounds.height == shifted_bounds.height) {
+      return;
+    }
+  }
+  const auto& source = std::as_const(layer).pixels();
+  PixelBuffer resized(resized_bounds.width, resized_bounds.height,
+                      canvas_resized_format_for_layer(layer, source, extension_color));
   fill_resized_layer_background(resized, layer, extension_color);
 
   if (!source.empty()) {
     for (std::int32_t sy = 0; sy < source.height(); ++sy) {
-      const auto document_y = old_bounds.y + sy + offset.y;
-      if (document_y < 0 || document_y >= height) {
+      const auto destination_y = shifted_bounds.y + sy - resized_bounds.y;
+      if (destination_y < 0 || destination_y >= resized_bounds.height) {
         continue;
       }
       for (std::int32_t sx = 0; sx < source.width(); ++sx) {
-        const auto document_x = old_bounds.x + sx + offset.x;
-        if (document_x < 0 || document_x >= width) {
+        const auto destination_x = shifted_bounds.x + sx - resized_bounds.x;
+        if (destination_x < 0 || destination_x >= resized_bounds.width) {
           continue;
         }
-        copy_resized_layer_pixel(source, resized, sx, sy, document_x, document_y);
+        copy_resized_layer_pixel(source, resized, sx, sy, destination_x, destination_y);
       }
     }
   }
 
-  shift_layer_mask_to_canvas(layer, offset, width, height);
+  if (crop_layer) {
+    shift_layer_mask_to_canvas(layer, offset, width, height);
+  }
   layer.set_pixels(std::move(resized));
-  layer.set_bounds(Rect{0, 0, width, height});
+  layer.set_bounds(resized_bounds);
 }
 
 // Rotated crop mapping: the crop box is `crop` rotated by the angle about its
@@ -1088,7 +1115,7 @@ void resize_image_and_layers(Document& document, std::int32_t width, std::int32_
 }
 
 void resize_canvas_and_layers(Document& document, std::int32_t width, std::int32_t height, CanvasAnchor anchor,
-                              EditColor extension_color) {
+                              EditColor extension_color, bool crop_layers) {
   if (width <= 0 || height <= 0) {
     return;
   }
@@ -1105,7 +1132,7 @@ void resize_canvas_and_layers(Document& document, std::int32_t width, std::int32
   }
   document.resize_canvas(width, height);
   for (auto& layer : document.layers()) {
-    resize_layer_to_canvas(layer, width, height, offset, extension_color);
+    resize_layer_to_canvas(layer, width, height, offset, extension_color, crop_layers);
   }
   transform_document_vector_data(document,
                                  {1.0, 0.0, 0.0, 1.0, static_cast<double>(offset.x),

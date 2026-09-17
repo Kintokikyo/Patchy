@@ -210,9 +210,12 @@ void resize_image_and_layers(Document& document, std::int32_t width, std::int32_
 // for deeper formats. Shared with the Proton texture writer's stretch-to-power-of-two mode.
 [[nodiscard]] PixelBuffer scale_pixels_resampled(const PixelBuffer& source, std::int32_t width,
                                                  std::int32_t height);
+// Preserve off-canvas layer pixels and masks unless crop_layers is explicitly enabled.
+// Background layers still fill newly exposed canvas with extension_color.
 void resize_canvas_and_layers(Document& document, std::int32_t width, std::int32_t height,
                               CanvasAnchor anchor = CanvasAnchor::TopLeft,
-                              EditColor extension_color = EditColor{255, 255, 255, 255});
+                              EditColor extension_color = EditColor{255, 255, 255, 255},
+                              bool crop_layers = false);
 [[nodiscard]] bool crop_document(Document& document, Rect crop);
 // Crop that may extend beyond the canvas: content outside `crop` is discarded,
 // the canvas becomes crop.width x crop.height, area outside the old canvas is

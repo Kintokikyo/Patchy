@@ -8147,6 +8147,10 @@ Mixed selection</source>
         <source>UI language for this run only, not saved: en, de, es, fr, it, ja, zh_CN, or zh_TW.</source>
         <translation>この実行のみに適用される UI 言語 (保存されません): en、de、es、fr、it、ja、zh_CN、zh_TW。</translation>
     </message>
+    <message>
+        <source>Also crop each actual layer to the canvas area</source>
+        <translation>各レイヤー自体もカンバス領域に切り抜く</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

@@ -8170,6 +8170,10 @@ RGB: %2, %3, %4</translation>
         <source>UI language for this run only, not saved: en, de, es, fr, it, ja, zh_CN, or zh_TW.</source>
         <translation>Lingua dell'interfaccia solo per questa esecuzione, non salvata: en, de, es, fr, it, ja, zh_CN o zh_TW.</translation>
     </message>
+    <message>
+        <source>Also crop each actual layer to the canvas area</source>
+        <translation>Ritaglia anche ogni singolo livello all’area del quadro</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

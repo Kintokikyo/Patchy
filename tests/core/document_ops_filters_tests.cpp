@@ -163,8 +163,8 @@ void document_canvas_resize_expands_layers_for_editing() {
   CHECK(layer != nullptr);
   CHECK(layer->bounds().x == 0);
   CHECK(layer->bounds().y == 0);
-  CHECK(layer->pixels().width() == 96);
-  CHECK(layer->pixels().height() == 72);
+  CHECK(layer->pixels().width() == 64);
+  CHECK(layer->pixels().height() == 48);
   CHECK(layer->pixels().pixel(20, 20)[3] == 255);
 
   CHECK(!patchy::paint_brush(document, layer_id, 90, 66, options, false).empty());
@@ -195,13 +195,107 @@ void document_canvas_resize_honors_anchor_and_extension_color() {
 
   const auto* sticker_layer = document.find_layer(sticker_id);
   CHECK(sticker_layer != nullptr);
-  CHECK(sticker_layer->bounds().x == 0);
-  CHECK(sticker_layer->bounds().y == 0);
-  CHECK(sticker_layer->pixels().pixel(1, 1)[3] == 0);
-  CHECK(sticker_layer->pixels().pixel(2, 2)[0] == 220);
-  CHECK(sticker_layer->pixels().pixel(2, 2)[1] == 10);
-  CHECK(sticker_layer->pixels().pixel(2, 2)[2] == 90);
-  CHECK(sticker_layer->pixels().pixel(2, 2)[3] == 255);
+  CHECK(sticker_layer->bounds().x == 2);
+  CHECK(sticker_layer->bounds().y == 2);
+  CHECK(sticker_layer->pixels().width() == 1);
+  CHECK(sticker_layer->pixels().height() == 1);
+  CHECK(sticker_layer->pixels().pixel(0, 0)[0] == 220);
+  CHECK(sticker_layer->pixels().pixel(0, 0)[1] == 10);
+  CHECK(sticker_layer->pixels().pixel(0, 0)[2] == 90);
+  CHECK(sticker_layer->pixels().pixel(0, 0)[3] == 255);
+}
+
+void document_canvas_resize_preserves_offcanvas_layers_and_masks() {
+  for (const auto anchor : {patchy::CanvasAnchor::TopLeft, patchy::CanvasAnchor::Center,
+                            patchy::CanvasAnchor::BottomRight}) {
+    for (const auto size : {4, 12}) {
+      patchy::Document document(8, 8, patchy::PixelFormat::rgb8());
+      patchy::Layer group(document.allocate_layer_id(), "Folder", patchy::LayerKind::Group);
+      const auto group_id = group.id();
+      patchy::LayerMask mask;
+      mask.bounds = {-4, -3, 18, 16};
+      mask.pixels = patchy::PixelBuffer(18, 16, patchy::PixelFormat::gray8());
+      mask.pixels.clear(173);
+      group.set_mask(mask);
+      patchy::Layer child(document.allocate_layer_id(), "Offcanvas", solid_rgba(16, 14, 91, 73, 55, 127));
+      const auto child_id = child.id();
+      child.set_bounds({-3, -2, 16, 14});
+      child.set_mask(mask);
+      group.children().push_back(std::move(child));
+      // Include a hidden layer wholly outside even the expanded canvas.
+      patchy::Layer outside(document.allocate_layer_id(), "Outside", solid_rgb(2, 3, 17, 29, 41));
+      const auto outside_id = outside.id();
+      outside.set_bounds({30, 40, 2, 3});
+      outside.set_visible(false);
+      group.children().push_back(std::move(outside));
+      document.add_layer(std::move(group));
+      const auto background_id = document.add_pixel_layer("Background", solid_rgb(8, 8, 10, 20, 30)).id();
+      const auto original = document;
+      const int offset = anchor == patchy::CanvasAnchor::TopLeft ? 0
+                       : anchor == patchy::CanvasAnchor::Center ? (size - 8) / 2 : size - 8;
+      patchy::resize_canvas_and_layers(document, size, size, anchor);
+      CHECK(document.width() == size && document.height() == size);
+      for (const auto id : {child_id, outside_id}) {
+        const auto& before = *original.find_layer(id);
+        const auto& after = *std::as_const(document).find_layer(id);
+        CHECK(after.bounds().x == before.bounds().x + offset);
+        CHECK(after.bounds().y == before.bounds().y + offset);
+        CHECK(after.bounds().width == before.bounds().width);
+        CHECK(after.bounds().height == before.bounds().height);
+        CHECK(after.pixels().format() == before.pixels().format());
+        CHECK(std::ranges::equal(after.pixels().data(), before.pixels().data()));
+      }
+      for (const auto id : {child_id, group_id}) {
+        const auto& after = *std::as_const(document).find_layer(id)->mask();
+        CHECK(after.bounds.x == mask.bounds.x + offset);
+        CHECK(after.bounds.y == mask.bounds.y + offset);
+        CHECK(after.bounds.width == mask.bounds.width);
+        CHECK(after.bounds.height == mask.bounds.height);
+        CHECK(std::ranges::equal(after.pixels.data(), std::as_const(mask.pixels).data()));
+      }
+      // Shrink then re-expand: the Background's original edges must survive too.
+      patchy::resize_canvas_and_layers(document, 8, 8, anchor);
+      const auto& background = *std::as_const(document).find_layer(background_id);
+      for (int y = 0; y < 8; ++y) {
+        for (int x = 0; x < 8; ++x) {
+          CHECK(background.pixels().pixel(x - background.bounds().x, y - background.bounds().y)[0] == 10);
+        }
+      }
+    }
+  }
+}
+
+void document_canvas_resize_explicitly_crops_layers_and_masks() {
+  patchy::Document document(8, 8, patchy::PixelFormat::rgb8());
+  patchy::Layer group(document.allocate_layer_id(), "Folder", patchy::LayerKind::Group);
+  const auto group_id = group.id();
+  patchy::LayerMask mask;
+  mask.bounds = {-2, -2, 12, 12};
+  mask.pixels = patchy::PixelBuffer(12, 12, patchy::PixelFormat::gray8());
+  mask.pixels.clear(173);
+  group.set_mask(mask);
+  patchy::Layer child(document.allocate_layer_id(), "Paint", solid_rgba(12, 12, 91, 73, 55, 127));
+  const auto child_id = child.id();
+  child.set_bounds(mask.bounds);
+  child.set_mask(mask);
+  group.children().push_back(std::move(child));
+  document.add_layer(std::move(group));
+  patchy::resize_canvas_and_layers(document, 4, 4, patchy::CanvasAnchor::Center,
+                                   patchy::EditColor{255, 255, 255, 255}, true);
+  const auto& cropped = *std::as_const(document).find_layer(child_id);
+  CHECK(cropped.bounds().x == 0 && cropped.bounds().y == 0);
+  CHECK(cropped.pixels().width() == 4 && cropped.pixels().height() == 4);
+  CHECK(cropped.pixels().pixel(3, 3)[0] == 91);
+  for (const auto id : {child_id, group_id}) {
+    const auto& cropped_mask = *std::as_const(document).find_layer(id)->mask();
+    CHECK(cropped_mask.bounds.x == 0 && cropped_mask.bounds.y == 0);
+    CHECK(cropped_mask.pixels.width() == 4 && cropped_mask.pixels.height() == 4);
+    CHECK(*cropped_mask.pixels.pixel(3, 3) == 173);
+  }
+  patchy::resize_canvas_and_layers(document, 8, 8, patchy::CanvasAnchor::Center);
+  const auto& restored = *std::as_const(document).find_layer(child_id);
+  CHECK(restored.bounds().x == 2 && restored.bounds().y == 2);
+  CHECK(restored.pixels().width() == 4 && restored.pixels().height() == 4);
 }
 
 void crop_document_expanding_rect_grows_canvas() {
@@ -2589,6 +2683,10 @@ std::vector<patchy::test::TestCase> document_ops_filters_tests() {
       {"document_canvas_resize_expands_layers_for_editing", document_canvas_resize_expands_layers_for_editing},
       {"document_canvas_resize_honors_anchor_and_extension_color",
        document_canvas_resize_honors_anchor_and_extension_color},
+      {"document_canvas_resize_preserves_offcanvas_layers_and_masks",
+       document_canvas_resize_preserves_offcanvas_layers_and_masks},
+      {"document_canvas_resize_explicitly_crops_layers_and_masks",
+       document_canvas_resize_explicitly_crops_layers_and_masks},
       {"crop_document_expanding_rect_grows_canvas", crop_document_expanding_rect_grows_canvas},
       {"crop_document_expanding_rect_with_translucent_fill_promotes_background",
        crop_document_expanding_rect_with_translucent_fill_promotes_background},
