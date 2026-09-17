@@ -1089,6 +1089,8 @@ if(PATCHY_BUILD_APP)
       # header to defuse the sendPendingEvents re-entrancy crash (docs/wasm.md);
       # drop this dependency when the upstream fix lands.
       target_link_libraries(patchy_ui PRIVATE Qt6::CorePrivate)
+    elseif(ANDROID)
+      # Android: Qt6::PrintSupport tidak digunakan.
     else()
       target_sources(patchy_ui PRIVATE src/ui/print_dialog.cpp)
       target_link_libraries(patchy_ui PUBLIC Qt6::PrintSupport)
@@ -1291,6 +1293,8 @@ if(PATCHY_BUILD_APP)
       if(DEFINED PATCHY_FONTS_STAMP)
         set_property(TARGET patchy APPEND PROPERTY LINK_DEPENDS "${PATCHY_FONTS_STAMP}")
       endif()
+    elseif(ANDROID)
+      qt_add_executable(patchy src/app/main.cpp)
     else()
       add_executable(patchy WIN32 MACOSX_BUNDLE
         src/app/main.cpp
