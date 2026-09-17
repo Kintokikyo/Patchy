@@ -98,16 +98,3 @@ jobs:
           echo ""
           echo "===== build.gradle ====="
           cat build/android-release/android-build/build.gradle || true
-
-      - name: Find APK
-        run: |
-          find build/android-release -type f -name "*.apk" -print
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: patchy-native-android
-          path: |
-            build/android-release/**/*.apk
-            build/android-release/*.apk
-          if-no-files-found: error
