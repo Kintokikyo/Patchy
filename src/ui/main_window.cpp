@@ -6612,10 +6612,19 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
 
   refresh_document_window_title();
   setWindowIcon(patchy_app_icon());
+  #ifdef Q_OS_ANDROID
+  {
+    if (auto* screen = QGuiApplication::primaryScreen()) {
+        const QRect available = screen->availableGeometry();
+        setGeometry(available);
+    }
+  }
+  #else
   if (!restore_window_geometry()) {
     resize(1280, 860);
     clamp_window_to_available_screen();
   }
+  #endif
   setStyleSheet(photoshop_style());
   // Connected after the first sheet is applied: connecting earlier would let a
   // scheme change restyle a half-built window.
