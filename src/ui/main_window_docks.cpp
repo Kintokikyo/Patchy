@@ -397,8 +397,18 @@ void install_collapsible_dock_title(QDockWidget* dock,
     // event-loop hop later so the demand never lingers in the window's
     // minimum size. A floor of 0 means the layout-derived natural minimum.
     const auto collapsed_height = dock->titleBarWidget()->sizeHint().height();
+    #ifdef Q_OS_ANDROID
+    if (expanded) {
+      dock->setMinimumHeight(0);
+      dock->setMaximumHeight(expanded_maximum_height);
+    } else {
+      dock->setMinimumHeight(collapsed_height);
+      dock->setMaximumHeight(collapsed_height);
+    }
+    #else
     dock->setMinimumHeight(expanded ? expanded_boost_height : collapsed_height);
     dock->setMaximumHeight(expanded ? expanded_maximum_height : collapsed_height);
+    #endif
     dock->updateGeometry();
     if (panel_toggled) {
       panel_toggled(expanded);
@@ -609,9 +619,11 @@ void MainWindow::handle_right_dock_panel_toggled(QDockWidget* dock, bool expande
     // later clamp or user resize can redistribute the column freely. Skip
     // the release when the panel was re-collapsed before this hop ran (the
     // collapsed min == max pin must survive).
+    #ifndef Q_OS_ANDROID
     if (expanded && dock->widget() != nullptr && dock->widget()->isVisible()) {
       dock->setMinimumHeight(expanded_minimum_height);
     }
+    #endif
     if (dock->isFloating()) {
       // No column redistributes space for a floating dock, so an expand with
       // a zero boost (Info) leaves the window at the collapsed strip size;
