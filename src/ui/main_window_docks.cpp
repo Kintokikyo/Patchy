@@ -627,6 +627,12 @@ void MainWindow::refresh_collapsed_right_dock_heights() {
 
 void MainWindow::handle_right_dock_panel_toggled(QDockWidget* dock, bool expanded,
                                                  int expanded_minimum_height) {
+  #ifdef Q_OS_ANDROID
+    Q_UNUSED(dock);
+    Q_UNUSED(expanded);
+    Q_UNUSED(expanded_minimum_height);
+    return;
+  #endif
   // Construction-time apply_expanded_state: the dock area is not laid out
   // yet, and no dock that starts expanded boosts past its floor.
   if (!isVisible()) {
