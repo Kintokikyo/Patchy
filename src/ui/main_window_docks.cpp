@@ -830,14 +830,17 @@ bool MainWindow::handle_dock_group_window_event(QObject* watched, QEvent* event)
         const auto global = mouse_event->globalPosition().toPoint();
         
         if (dock_group_drag_edges_ == Qt::Edges{}) {
+          const auto delta = global - dock_group_drag_press_global_;
+          const auto new_position = dock_group_drag_origin_rect_.topLeft() + delta;
+          
         #ifdef Q_OS_ANDROID
           if (auto* window = dock_group_drag_window_->windowHandle()) {
-            window->setPosition(global - dock_group_drag_offset_);
+            window->setPosition(new_position);
           } else {
-            dock_group_drag_window_->move(global - dock_group_drag_offset_);
+            dock_group_drag_window_->move(new_position);
           }
         #else
-          dock_group_drag_window_->move(global - dock_group_drag_offset_);
+          dock_group_drag_window_->move(new_position);
         #endif
         } else {
           const auto delta = global - dock_group_drag_press_global_;
