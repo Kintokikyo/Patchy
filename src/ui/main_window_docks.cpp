@@ -403,9 +403,21 @@ void install_collapsible_dock_title(QDockWidget* dock,
     const auto collapsed_height = dock->titleBarWidget()->sizeHint().height();
     #ifdef Q_OS_ANDROID
     if (expanded) {
-      dock->setMinimumHeight(0);
-      dock->setMaximumHeight(expanded_maximum_height);
+#ifdef Q_OS_ANDROID
+    if (expanded) {
+        dock->setMinimumHeight(0);
+        dock->setMaximumHeight(expanded_maximum_height);
     } else {
+        // Collapsed: keep only the title bar visible.
+        dock->setMinimumHeight(collapsed_height);
+        dock->setMaximumHeight(collapsed_height);
+    }
+#else
+    dock->setMinimumHeight(
+        expanded ? expanded_boost_height : collapsed_height);
+    dock->setMaximumHeight(
+        expanded ? expanded_maximum_height : collapsed_height);
+#endif
       dock->setMinimumHeight(collapsed_height);
       dock->setMaximumHeight(collapsed_height);
     }
