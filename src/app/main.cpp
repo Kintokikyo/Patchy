@@ -85,7 +85,7 @@ void load_bundled_fonts() {
 // QApplication is constructed because Qt only reads the variable at construction time. An
 // existing environment override (e.g. from tests/CI) is left untouched.
 void apply_gui_scale_factor() {
-#ifdef Q_OS_WASM
+#if defined(Q_OS_WASM) || defined(Q_OS_ANDROID)
   // Never set QT_SCALE_FACTOR on wasm: the wasm platform plugin builds pointer events
   // from the raw DOM offsetX/clientX values and never converts them through Qt's
   // high-DPI factor, so any factor other than 1 renders correctly but lands every
