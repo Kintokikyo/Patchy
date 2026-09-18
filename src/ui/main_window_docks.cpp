@@ -404,27 +404,15 @@ void install_collapsible_dock_title(QDockWidget* dock,
     const auto collapsed_height = dock->titleBarWidget()->sizeHint().height();
        
     #ifdef Q_OS_ANDROID
-       if (expanded) {
-        // Android: never allow the dock to request
-        // more vertical space than its available area.
-       const int available_height =
-         std::max(
-         0,
-         dock->parentWidget() 
-         ? dock->parentWidget()->height() 
-         : dock->height());
-
-        const int safe_maximum_height =
-            std::min(expanded_maximum_height, available_height);
-
-        dock->setMinimumHeight(0);
-        dock->setMaximumHeight(
-            std::max(collapsed_height, safe_maximum_height));
-       } else {
-        // Collapsed: keep only the title bar visible.
-        dock->setMinimumHeight(collapsed_height);
-        dock->setMaximumHeight(collapsed_height);
-       }
+    if (expanded) {
+      // Android: let QMainWindow determine the dock height naturally.
+      dock->setMinimumHeight(0);
+      dock->setMaximumHeight(QWIDGETSIZE_MAX);
+    } else {
+      // Collapsed: keep only the title bar visible.
+      dock->setMinimumHeight(collapsed_height);
+      dock->setMaximumHeight(collapsed_height);
+    }
     #else
        dock->setMinimumHeight(
         expanded ? expanded_boost_height : collapsed_height);
