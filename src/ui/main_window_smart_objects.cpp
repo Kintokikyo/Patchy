@@ -1661,15 +1661,14 @@ void MainWindow::place_embedded_file_with_path(const QString& path) {
 
   auto& target_document = document();
   auto doc = target_document;
-  // E2 placement rule: physical pixels (content px scaled by doc_ppi/content_dpi) land
-  // 1:1 centered when they fit, else scaled down to fit the canvas, centered.
+  // Place the source at its exact pixel dimensions, centered on whole pixels.
   const double content_dpi = smart_object_source_dpi(placed);
   // Keep the source's exact pixel dimensions.
   const double placed_width = static_cast<double>(image->width());
   const double placed_height = static_cast<double>(image->height());
-  
-  const double left = (doc.width() - placed_width) / 2.0;
-  const double top = (doc.height() - placed_height) / 2.0;
+  // Snap the initial placement to whole pixels.
+  const double left = std::round((doc.width() - placed_width) / 2.0);
+  const double top = std::round((doc.height() - placed_height) / 2.0);
 
   SmartObjectPlacement placement;
   placement.uuid = placed.uuid;
