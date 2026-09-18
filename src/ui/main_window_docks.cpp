@@ -615,12 +615,6 @@ void MainWindow::refresh_collapsed_right_dock_heights() {
 
 void MainWindow::handle_right_dock_panel_toggled(QDockWidget* dock, bool expanded,
                                                  int expanded_minimum_height) {
-  #ifdef Q_OS_ANDROID
-    Q_UNUSED(dock);
-    Q_UNUSED(expanded);
-    Q_UNUSED(expanded_minimum_height);
-    return;
-  #endif
   // Construction-time apply_expanded_state: the dock area is not laid out
   // yet, and no dock that starts expanded boosts past its floor.
   if (!isVisible()) {
@@ -635,11 +629,6 @@ void MainWindow::handle_right_dock_panel_toggled(QDockWidget* dock, bool expande
     // later clamp or user resize can redistribute the column freely. Skip
     // the release when the panel was re-collapsed before this hop ran (the
     // collapsed min == max pin must survive).
-    #ifndef Q_OS_ANDROID
-    if (expanded && dock->widget() != nullptr && dock->widget()->isVisible()) {
-      dock->setMinimumHeight(expanded_minimum_height);
-    }
-    #endif
     if (dock->isFloating()) {
       // No column redistributes space for a floating dock, so an expand with
       // a zero boost (Info) leaves the window at the collapsed strip size;
