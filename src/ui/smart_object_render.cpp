@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cmath>
 #include <limits>
 #include <span>
 #include <string>
@@ -346,18 +347,62 @@ std::optional<TransformedImage> render_smart_object_pixels(
   if (source_image.isNull() || source_image.width() <= 0 || source_image.height() <= 0) {
     return std::nullopt;
   }
+
   const auto width = static_cast<qreal>(source_image.width());
   const auto height = static_cast<qreal>(source_image.height());
-  const QPolygonF source_quad({QPointF(0.0, 0.0), QPointF(width, 0.0), QPointF(width, height),
-                               QPointF(0.0, height)});
   const auto& quad = placement.transform;
-  const QPolygonF target_quad({QPointF(quad[0], quad[1]), QPointF(quad[2], quad[3]),
-                               QPointF(quad[4], quad[5]), QPointF(quad[6], quad[7])});
+
+  // Exact 1:1 placement:
+  // no scaling, rotation, skew, perspective, or sub-pixel translation.
+  // In this case the source pixels are copied directly and never pass
+  // through the transform resampler.
+  constexpr qreal kEpsilon = 1e-9;
+
+  const auto is_integer = [kEpsilon](qreal value) {
+    return std::abs(value - std::round(value)) < kEpsilon;
+  };
+
+  const bool exact_1_to_1 =
+      is_integer(quad[0]) &&
+      is_integer(quad[1]) &&
+      std::abs(quad[2] - (quad[0] + width)) < kEpsilon &&
+      std::abs(quad[3] - quad[1]) < kEpsilon &&
+      std::abs(quad[4] - quad[2]) < kEpsilon &&
+      std::abs(quad[5] - (quad[1] + height)) < kEpsilon &&
+      std::abs(quad[6] - quad[0]) < kEpsilon &&
+      std::abs(quad[7] - quad[5]) < kEpsilon;
+
+  if (exact_1_to_1) {
+    const int left = static_cast<int>(std::round(quad[0]));
+    const int top = static_cast<int>(std::round(quad[1]));
+
+    return TransformedImage{
+        source_image.copy(),
+        Rect{left, top, source_image.width(), source_image.height()}
+    };
+  }
+
+  const QPolygonF source_quad({
+      QPointF(0.0, 0.0),
+      QPointF(width, 0.0),
+      QPointF(width, height),
+      QPointF(0.0, height)
+  });
+
+  const QPolygonF target_quad({
+      QPointF(quad[0], quad[1]),
+      QPointF(quad[2], quad[3]),
+      QPointF(quad[4], quad[5]),
+      QPointF(quad[6], quad[7])
+  });
+
   QTransform source_to_document;
   if (!QTransform::quadToQuad(source_quad, target_quad, source_to_document)) {
     return std::nullopt;
   }
-  return resample_transformed_rgba8(source_image, source_to_document, interpolation);
+
+  return resample_transformed_rgba8(
+      source_image, source_to_document, interpolation);
 }
 
 std::optional<SmartObjectLayerPreview> render_smart_object_layer_preview(
