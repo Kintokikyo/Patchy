@@ -617,7 +617,7 @@ bool restore_dialog_position(QDialog& dialog) {
   return true;
 }
 
-#ifdef Q_OS_WASM
+#if defined(Q_OS_WASM) || defined(Q_OS_ANDROID)
 constexpr auto kDialogOverflowScrollInstalledProperty = "patchy.dialogOverflowScrollInstalled";
 
 // Last resort for a dialog whose LAYOUT minimum exceeds the canvas: resizing
@@ -705,7 +705,7 @@ void clamp_dialog_to_screen(QDialog& dialog) {
 #endif
 
 void place_dialog(QDialog& dialog) {
-#ifdef Q_OS_WASM
+#if defined(Q_OS_WASM) || defined(Q_OS_ANDROID)
   clamp_dialog_to_screen(dialog);
 #endif
   if (!restore_dialog_position(dialog)) {
