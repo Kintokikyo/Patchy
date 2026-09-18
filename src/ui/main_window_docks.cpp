@@ -381,13 +381,18 @@ void install_collapsible_dock_title(QDockWidget* dock,
   }
   layout->addWidget(label, 1);
 
-  const auto expanded_boost_height = std::max(expanded_minimum_height, expanded_preferred_height);
-  const auto apply_expanded_state = [dock, content, toggle, expanded_boost_height,
-                                     expanded_maximum_height,
-                                     panel_toggled = std::move(panel_toggled)](bool expanded) {
+  const auto expanded_boost_height = 
+    std::max(expanded_minimum_height, expanded_preferred_height);
+  
+  const auto apply_expanded_state =
+    [dock, content, toggle, expanded_boost_height,
+     expanded_maximum_height,
+     panel_toggled = std::move(panel_toggled)](bool expanded) {
+
     content->setVisible(expanded);
     toggle->setText(expanded ? QStringLiteral("v") : QStringLiteral(">"));
-    toggle->setToolTip(expanded ? QObject::tr("Collapse panel") : QObject::tr("Expand panel"));
+    toggle->setToolTip(
+        expanded ? QObject::tr("Collapse panel") : QObject::tr("Expand panel"));
     // Collapsed docks pin min == max to the exact title-bar height: every
     // collapsed panel renders as the same strip, and the dock area can
     // neither stretch it nor leave a dead band under the header. Expanding
@@ -397,23 +402,40 @@ void install_collapsible_dock_title(QDockWidget* dock,
     // event-loop hop later so the demand never lingers in the window's
     // minimum size. A floor of 0 means the layout-derived natural minimum.
     const auto collapsed_height = dock->titleBarWidget()->sizeHint().height();
+       
     #ifdef Q_OS_ANDROID
-    if (expanded) {
-      dock->setMinimumHeight(0);
-      dock->setMaximumHeight(expanded_maximum_height);
-    } else {
-      dock->setMinimumHeight(collapsed_height);
-      dock->setMaximumHeight(collapsed_height);
-    }
+       if (expanded) {
+        // Android: never allow the dock to request
+        // more vertical space than its available area.
+       const int available_height =
+         std::max(
+         0,
+         dock->parentWidget() 
+         ? dock->parentWidget()->height() 
+         : dock->height());
+
+        const int safe_maximum_height =
+            std::min(expanded_maximum_height, available_height);
+
+        dock->setMinimumHeight(0);
+        dock->setMaximumHeight(
+            std::max(collapsed_height, safe_maximum_height));
+       } else {
+        // Collapsed: keep only the title bar visible.
+        dock->setMinimumHeight(collapsed_height);
+        dock->setMaximumHeight(collapsed_height);
+       }
     #else
-    dock->setMinimumHeight(expanded ? expanded_boost_height : collapsed_height);
-    dock->setMaximumHeight(expanded ? expanded_maximum_height : collapsed_height);
+       dock->setMinimumHeight(
+        expanded ? expanded_boost_height : collapsed_height);
+       dock->setMaximumHeight(
+        expanded ? expanded_maximum_height : collapsed_height);
     #endif
-    dock->updateGeometry();
-    if (panel_toggled) {
-      panel_toggled(expanded);
-    }
-  };
+       dock->updateGeometry();
+       if (panel_toggled) {
+        panel_toggled(expanded);
+       }
+     };
 
   QObject::connect(toggle, &QToolButton::toggled, dock, apply_expanded_state);
 
