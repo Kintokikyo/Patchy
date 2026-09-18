@@ -5830,6 +5830,9 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     if (auto* screen = QGuiApplication::primaryScreen()) {
         const QRect available = screen->availableGeometry();
         setGeometry(available);
+        // Android: keep MainWindow fixed to the screen viewport.
+        setMinimumSize(available.size());
+        setMaximumSize(available.size());
     }
   }
   #else
