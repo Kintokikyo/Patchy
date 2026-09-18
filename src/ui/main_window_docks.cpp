@@ -814,6 +814,11 @@ bool MainWindow::handle_right_dock_title_drag_event(QObject* watched, QEvent* ev
 }
 
 bool MainWindow::handle_dock_group_window_event(QObject* watched, QEvent* event) {
+  #ifdef Q_OS_ANDROID
+    Q_UNUSED(watched);
+    Q_UNUSED(event);
+    return false;
+  #endif
   // Qt's floating dock tab-group window ships with no grabbable chrome of
   // its own: presses on the blank strip beside the tabs do nothing, and its
   // edge-resize handler moves the borders without ever showing a resize
