@@ -24,6 +24,8 @@ inline constexpr std::array<int, 8> kGuiScalePercents{67, 75, 90, 100, 125, 150,
 // default and the step list; keep them in sync when changing either.
 #ifdef Q_OS_WASM
 inline constexpr int kDefaultGuiScalePercent = 75;
+#elif defined(Q_OS_ANDROID)
+inline constexpr int kDefaultGuiScalePercent = 75;
 #else
 inline constexpr int kDefaultGuiScalePercent = 100;
 #endif
