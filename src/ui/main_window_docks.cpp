@@ -961,6 +961,15 @@ bool MainWindow::handle_dock_group_window_event(QObject* watched, QEvent* event)
         // the move to the frame origin: move() positions the frame while
         // mouse coordinates are client-relative, and the platform can pad a
         // frame margin between the two.
+        #ifdef Q_OS_ANDROID
+        // Android: let Qt/Android handle floating-window movement natively.
+        if (edges == Qt::Edges{} && widget->windowHandle() != nullptr) {
+          if (widget->windowHandle()->startSystemMove()) {
+            mouse_event->accept();
+            return true;
+          }
+        }
+        #endif
         dock_group_drag_window_ = widget;
         dock_group_drag_edges_ = edges;
         dock_group_drag_press_global_ = mouse_event->globalPosition().toPoint();
@@ -990,6 +999,14 @@ bool MainWindow::handle_dock_group_window_event(QObject* watched, QEvent* event)
     auto* mouse_event = static_cast<QMouseEvent*>(event);
     if (mouse_event->button() == Qt::LeftButton &&
         tab_bar->tabAt(mouse_event->position().toPoint()) < 0) {
+      #ifdef Q_OS_ANDROID
+      if (tab_bar->windowHandle() != nullptr) {
+        if (tab_bar->windowHandle()->startSystemMove()) {
+          mouse_event->accept();
+          return true;
+        }
+      }
+      #endif
       dock_group_drag_window_ = tab_bar->window();
       dock_group_drag_edges_ = Qt::Edges{};
       dock_group_drag_offset_ =
