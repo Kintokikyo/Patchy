@@ -97,14 +97,20 @@ jobs:
           )
 
           text = text.replace(
+            '    package="org.qtproject.qt.example"',
+            '',
+            1
+           )
+
+          text = text.replace(
             '<activity',
             '<activity android:theme="@android:style/Theme.Material.NoActionBar"', 
             1
            )
 
           text = text.replace(
-           'android:name="org.qtproject.qt.android.bindings.QtActivity"',
-           'android:name="com.kintokikyo.patchy.MainActivity"',
+            'android:name="org.qtproject.qt.android.bindings.QtActivity"',
+            'android:name="com.kintokikyo.patchy.MainActivity"',
            1
           )
 
