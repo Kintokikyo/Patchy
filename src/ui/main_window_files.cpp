@@ -263,6 +263,13 @@
 #include <tpcshrd.h>
 #endif
 
+#ifdef Q_OS_ANDROID
+#include <QJniEnvironment>
+#include <QJniObject>
+#include <QNativeInterface>
+#include <QTemporaryFile>
+#endif
+
 #ifndef PATCHY_VERSION
 #define PATCHY_VERSION "0.0.0"
 #endif
@@ -328,6 +335,142 @@ bool is_affinity_document_extension(const QString& extension) {
   return extension == QStringLiteral("af") || extension == QStringLiteral("afphoto") ||
          extension == QStringLiteral("afdesign") || extension == QStringLiteral("afpub");
 }
+
+#ifdef Q_OS_ANDROID
+
+bool is_android_content_uri(const QString& path) {
+    return path.startsWith(
+        QStringLiteral("content://"),
+        Qt::CaseInsensitive);
+}
+
+void write_file_to_android_uri(const QString& local_path,
+                               const QString& uri_string) {
+    QFile input(local_path);
+
+    if (!input.open(QIODevice::ReadOnly)) {
+        throw std::runtime_error(
+            QStringLiteral("Cannot reopen temporary file for Android storage: %1")
+                .arg(local_path)
+                .toStdString());
+    }
+
+    const auto context =
+        QNativeInterface::QAndroidApplication::context();
+
+    if (!context.isValid()) {
+        throw std::runtime_error(
+            "Android context is unavailable");
+    }
+
+    const auto resolver =
+        context.callObjectMethod(
+            "getContentResolver",
+            "()Landroid/content/ContentResolver;");
+            
+    QJniEnvironment env;
+    
+    if (env.checkAndClearExceptions(
+        QJniEnvironment::OutputMode::Silent)) {
+        throw std::runtime_error(
+            "Android getContentResolver() failed");
+    }
+
+    if (!resolver.isValid()) {
+        throw std::runtime_error(
+            "Android ContentResolver is unavailable");
+    }
+
+    const auto uri_text =
+        QJniObject::fromString(uri_string);
+
+    const auto uri =
+        QJniObject::callStaticObjectMethod(
+            "android/net/Uri",
+            "parse",
+            "(Ljava/lang/String;)Landroid/net/Uri;",
+            uri_text.object<jstring>());
+
+    if (!uri.isValid()) {
+        throw std::runtime_error(
+            "Invalid Android content URI");
+    }
+
+    const auto output =
+        resolver.callObjectMethod(
+            "openOutputStream",
+            "(Landroid/net/Uri;)Ljava/io/OutputStream;",
+            uri.object<jobject>());
+            
+    if (env.checkAndClearExceptions(
+        QJniEnvironment::OutputMode::Silent)) {
+        throw std::runtime_error(
+            "Android openOutputStream() failed");
+    }
+
+    if (!output.isValid()) {
+        throw std::runtime_error(
+            "Android could not open the destination for writing");
+    }
+
+    constexpr qint64 kChunkSize = 1024 * 1024;
+
+    while (!input.atEnd()) {
+        const QByteArray chunk =
+            input.read(kChunkSize);
+
+        if (chunk.isEmpty() && !input.atEnd()) {
+            throw std::runtime_error(
+                "Failed reading temporary save file");
+        }
+
+        if (chunk.isEmpty()) {
+            break;
+        }
+
+        const jsize size =
+            static_cast<jsize>(chunk.size());
+
+        const jbyteArray bytes =
+            env->NewByteArray(size);
+
+        if (bytes == nullptr) {
+            throw std::runtime_error(
+                "Unable to allocate Android byte array");
+        }
+
+        env->SetByteArrayRegion(
+            bytes,
+            0,
+            size,
+            reinterpret_cast<const jbyte*>(chunk.constData()));
+
+        output.callMethod<void>(
+            "write",
+            "([B)V",
+            bytes);
+
+        env->DeleteLocalRef(bytes);
+
+        if (env.checkAndClearExceptions(
+                QJniEnvironment::OutputMode::Silent)) {
+            throw std::runtime_error(
+                "Android failed while writing the destination");
+        }
+    }
+
+    output.callMethod<void>(
+        "close",
+        "()V");
+
+    if (env.checkAndClearExceptions(
+            QJniEnvironment::OutputMode::Silent)) {
+        throw std::runtime_error(
+            "Android failed while closing the destination");
+    }
+}
+
+#endif
 
 // Affinity "Image" layers (placed image files) import wrapped as embedded
 // smart objects; count them for the import-choice dialog.
@@ -1176,21 +1319,39 @@ void show_open_failed_message_box(QWidget* parent, const QString& error_text) {
 }
 
 QString path_with_default_extension(QString path, const QString& selected_filter) {
-  if (!QFileInfo(path).suffix().isEmpty()) {
-    return path;
-  }
+    QString selected_extension;
 
-  for (const auto& entry : file_format_entries()) {
-    if (entry.save_extensions.isEmpty()) {
-      continue;
+    for (const auto& entry : file_format_entries()) {
+        if (entry.save_extensions.isEmpty()) {
+            continue;
+        }
+
+        for (const auto& extension : entry.save_extensions) {
+            if (selected_filter.contains(QStringLiteral("*.") + extension)) {
+                selected_extension = entry.save_extensions.front();
+                break;
+            }
+        }
+
+        if (!selected_extension.isEmpty()) {
+            break;
+        }
     }
-    for (const auto& extension : entry.save_extensions) {
-      if (selected_filter.contains(QStringLiteral("*.") + extension)) {
-        return path + QLatin1Char('.') + entry.save_extensions.front();
-      }
+
+    if (selected_extension.isEmpty()) {
+        selected_extension = QStringLiteral("psd");
     }
-  }
-  return path + QStringLiteral(".psd");
+
+    const QFileInfo info(path);
+
+    if (info.suffix().isEmpty()) {
+        return path + QLatin1Char('.') + selected_extension;
+    }
+
+    return info.dir().filePath(
+        info.completeBaseName() +
+        QLatin1Char('.') +
+        selected_extension);
 }
 
 // Interactive-open machinery shared by open_document_path and the document-tab
@@ -3158,6 +3319,13 @@ bool MainWindow::save_document_to_path(QString path, std::optional<ImageSaveOpti
     return false;
   }
   const auto saving_session_id = session().session_id;
+  
+  #ifdef Q_OS_ANDROID
+    QString writer_path = path;
+    std::optional<QTemporaryFile> temporary_file;
+  #else
+    const QString writer_path = path;
+  #endif
   // Playback drives real layer visibility one frame at a time; a save mid-playback would
   // write that frame's visibility to disk (close_document_session stops it for the same
   // reason before its own prompt).
@@ -3165,6 +3333,32 @@ bool MainWindow::save_document_to_path(QString path, std::optional<ImageSaveOpti
     animation_preview_window_->stop_playback_for(&document());
   }
   const auto extension = extension_for_path(path);
+  #ifdef Q_OS_ANDROID
+    if (is_android_content_uri(path)) {
+        const QString temporary_suffix =
+            extension.isEmpty()
+                ? QStringLiteral(".tmp")
+                : QStringLiteral(".") + extension;
+
+        temporary_file.emplace(
+            QDir::tempPath() +
+            QStringLiteral("/patchy-save-XXXXXX") +
+            temporary_suffix);
+
+        if (!temporary_file->open()) {
+            throw std::runtime_error(
+                QStringLiteral(
+                    "Cannot create temporary file for Android save: %1")
+                    .arg(temporary_file->errorString())
+                    .toStdString());
+        }
+
+        writer_path = temporary_file->fileName();
+
+        temporary_file->close();
+        temporary_file->setAutoRemove(false);
+    }
+  #endif
   const bool discards_layers = !save_extension_preserves_layers(extension) &&
                                flat_save_discards_layers(std::as_const(document()));
   // CLI automation saves are explicit about their target format, so flattening needs no
@@ -3231,23 +3425,32 @@ bool MainWindow::save_document_to_path(QString path, std::optional<ImageSaveOpti
 
     QString export_notes_suffix;
     if (is_photoshop_document_extension(extension)) {
-      psd::DocumentIo::write_layered_rgb8_file(document(), to_filesystem_path(path),
+      psd::DocumentIo::write_layered_rgb8_file(document(), to_filesystem_path(writer_path),
                                                psd::WriteOptions{extension == QStringLiteral("psb")});
     } else if (extension == QStringLiteral("aseprite") || extension == QStringLiteral("ase")) {
       // Layered save: the Aseprite writer keeps the layer tree instead of flattening.
-      aseprite::DocumentIo::write_file(document(), to_filesystem_path(path));
+      aseprite::DocumentIo::write_file(document(), to_filesystem_path(writer_path));
     } else if (extension == QStringLiteral("svg")) {
       // Structure-preserving vector write (never write_flat_image_file):
       // shape layers stay SVG vectors, the writer reports what it baked.
       std::vector<std::string> svg_notices;
-      svg::DocumentIo::write_file(document(), to_filesystem_path(path), &svg_notices);
+      svg::DocumentIo::write_file(document(), to_filesystem_path(writer_path), &svg_notices);
       export_notes_suffix = export_notes_suffix_for(svg_notices);
     } else {
       // Editable PDF keeps layers and reports what it baked, like the SVG writer.
       std::vector<std::string> writer_notices;
-      write_flat_image_file(document(), path, extension, effective_image_options, &writer_notices);
+      write_flat_image_file(document(), writer_path, extension, effective_image_options, &writer_notices);
       export_notes_suffix = export_notes_suffix_for(writer_notices);
     }
+    #ifdef Q_OS_ANDROID
+    if (is_android_content_uri(path)) {
+        write_file_to_android_uri(
+            writer_path,
+            path);
+
+        QFile::remove(writer_path);
+        }
+    #endif
     offer_browser_download_for_saved_file(path);
     const bool saved_flattened_copy =
         discards_layers &&
@@ -3299,6 +3502,11 @@ bool MainWindow::save_document_to_path(QString path, std::optional<ImageSaveOpti
     }
     return true;
   } catch (const std::exception& error) {
+  #ifdef Q_OS_ANDROID
+    if (is_android_content_uri(path) && writer_path != path) {
+        QFile::remove(writer_path);
+    }
+  #endif
     if (unattended_automation()) {
       fprintf(stderr, "Save failed: %s (%s)\n", error.what(), path.toUtf8().constData());
     } else {
@@ -3325,9 +3533,17 @@ void MainWindow::export_flat_image() {
     return;
   }
   path = path_with_default_extension(path, selected_filter);
+  
+  #ifdef Q_OS_ANDROID
+    QString writer_path = path;
+    std::optional<QTemporaryFile> temporary_file;
+  #else
+    QString writer_path = path;
+  #endif
 
   try {
     const auto extension = extension_for_path(path);
+    
     const bool svg_export = extension == QStringLiteral("svg");
     std::optional<ImageSaveOptions> image_options;
     if (!is_photoshop_document_extension(extension) && !svg_export) {
@@ -3358,21 +3574,57 @@ void MainWindow::export_flat_image() {
         return;
       }
     }
+    
+    #ifdef Q_OS_ANDROID
+    if (is_android_content_uri(path)) {
+    const QString temporary_suffix =
+        extension.isEmpty()
+            ? QStringLiteral(".tmp")
+            : QStringLiteral(".") + extension;
+
+    temporary_file.emplace(
+        QDir::tempPath() +
+        QStringLiteral("/patchy-export-XXXXXX") +
+        temporary_suffix);
+
+    if (!temporary_file->open()) {
+        throw std::runtime_error(
+            QStringLiteral(
+                "Cannot create temporary file for Android export: %1")
+                .arg(temporary_file->errorString())
+                .toStdString());
+    }
+
+    writer_path = temporary_file->fileName();
+
+    temporary_file->close();
+    temporary_file->setAutoRemove(false);
+    }
+    #endif
     const auto effective_image_options = image_options.value_or(image_save_defaults_for_document());
     QString export_notes_suffix;
     if (is_photoshop_document_extension(extension)) {
-      psd::DocumentIo::write_flat_rgb8_file(document(), to_filesystem_path(path));
+      psd::DocumentIo::write_flat_rgb8_file(document(), to_filesystem_path(writer_path));
     } else if (svg_export) {
       // The same structure-preserving writer as Save As: shape layers export
       // as real vectors even from the "flat" export flow.
       std::vector<std::string> svg_notices;
-      svg::DocumentIo::write_file(document(), to_filesystem_path(path), &svg_notices);
+      svg::DocumentIo::write_file(document(), to_filesystem_path(writer_path), &svg_notices);
       export_notes_suffix = export_notes_suffix_for(svg_notices);
     } else {
       std::vector<std::string> writer_notices;
-      write_flat_image_file(document(), path, extension, effective_image_options, &writer_notices);
+      write_flat_image_file(document(), writer_path, extension, effective_image_options, &writer_notices);
       export_notes_suffix = export_notes_suffix_for(writer_notices);
     }
+    #ifdef Q_OS_ANDROID
+    if (is_android_content_uri(path)) {
+        write_file_to_android_uri(
+            writer_path,
+            path);
+
+        QFile::remove(writer_path);
+        }
+    #endif
     offer_browser_download_for_saved_file(path);
     if (!is_photoshop_document_extension(extension) && image_save_options_apply_to_extension(extension)) {
       persist_image_save_defaults(effective_image_options);
@@ -3383,6 +3635,11 @@ void MainWindow::export_flat_image() {
       reveal_path_in_file_explorer(path, /*is_file*/ true);
     }
   } catch (const std::exception& error) {
+    #ifdef Q_OS_ANDROID
+    if (is_android_content_uri(path) && writer_path != path) {
+        QFile::remove(writer_path);
+    }
+    #endif
     show_critical_message(this, tr("Export failed"), translated_file_message(error.what()),
                           QStringLiteral("exportFailedMessageBox"));
   }
