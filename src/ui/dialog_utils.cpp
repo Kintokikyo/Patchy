@@ -1697,6 +1697,83 @@ QString prompt_android_save_file(QWidget* parent,
     if (!rows.isEmpty()) {
         form->addRow(QObject::tr("Format:"), format_combo);
     }
+    
+    const auto get_filter_extension =
+    [](const QString& filter_text) -> QString {
+        const int wildcard_pos =
+            filter_text.indexOf(QStringLiteral("*."));
+
+        if (wildcard_pos < 0) {
+            return {};
+        }
+
+        const int extension_start = wildcard_pos + 2;
+
+        int extension_end =
+            filter_text.indexOf(
+                QLatin1Char(' '),
+                extension_start);
+
+        const int closing_paren =
+            filter_text.indexOf(
+                QLatin1Char(')'),
+                extension_start);
+
+        if (extension_end < 0 ||
+            (closing_paren >= 0 &&
+             closing_paren < extension_end)) {
+            extension_end = closing_paren;
+        }
+
+        if (extension_end < 0) {
+            extension_end = filter_text.size();
+        }
+
+        return filter_text.mid(
+            extension_start,
+            extension_end - extension_start);
+    };
+
+QObject::connect(
+    format_combo,
+    &QComboBox::currentTextChanged,
+    &dialog,
+    [name_edit, format_combo, get_filter_extension] {
+        const QString current_name =
+            name_edit->text().trimmed();
+
+        if (current_name.isEmpty()) {
+            return;
+        }
+
+        const QString extension =
+            get_filter_extension(
+                format_combo->currentText());
+
+        if (extension.isEmpty()) {
+            return;
+        }
+
+        const QFileInfo info(current_name);
+
+        QString new_name;
+
+        if (info.suffix().isEmpty()) {
+            new_name =
+                current_name +
+                QLatin1Char('.') +
+                extension;
+        } else {
+            new_name =
+                info.completeBaseName() +
+                QLatin1Char('.') +
+                extension;
+        }
+
+        if (new_name != current_name) {
+            name_edit->setText(new_name);
+        }
+    });
 
     layout->addLayout(form);
 
