@@ -249,6 +249,10 @@ interface PatchyLayer {
   readonly children: PatchyLayer[];
   /** Text layers: setting text re-renders the layer; an empty string clears its ink. */
   text: string;
+  /** Text layers: "horizontal" or "vertical" (columns top to bottom, right to left). Setting it re-renders. */
+  textOrientation: 'horizontal' | 'vertical';
+  /** Text layers: paragraph base direction, "auto" (first strong character), "ltr" or "rtl". Setting it re-renders. */
+  textDirection: 'auto' | 'ltr' | 'rtl';
 
   /** Finite signed 32-bit positions; throws if the position or resulting bounds overflow. */
   moveTo(x: number, y: number): void;
@@ -442,13 +446,19 @@ interface PatchyDocument {
   addLayer(name: string): PatchyLayer;
   /**
    * Adds a text layer rendered through Patchy's text engine. Options:
-   * {font, size, x, y, color, bold, italic}; x/y is the text anchor point.
+   * {font, size, x, y, color, bold, italic, orientation, direction}; x/y is
+   * the text anchor point (for vertical text: the first column's top centre).
    * size is the text height in DOCUMENT PIXELS, independent of the canvas
    * zoom and the document PPI (the Character panel shows the pt equivalent).
+   * orientation "vertical" stacks upright glyphs in columns that advance right
+   * to left (Photoshop's Vertical Type); direction sets the paragraph base
+   * direction ("auto" follows the first strong character).
    */
   addTextLayer(text: string, options?: {
     font?: string; size?: number; x?: number; y?: number;
     color?: string; bold?: boolean; italic?: boolean;
+    orientation?: 'horizontal' | 'vertical';
+    direction?: 'auto' | 'ltr' | 'rtl';
   }): PatchyLayer;
   /** First layer (depth-first) with this exact name, or undefined. */
   findLayer(name: string): PatchyLayer | undefined;

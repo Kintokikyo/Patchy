@@ -10,6 +10,7 @@
 #include <QRawFont>
 #include <QString>
 #include <QTextBlock>
+#include <QTextBoundaryFinder>
 #include <QTextCharFormat>
 #include <QTextDocument>
 #include <QTextLayout>
@@ -17,6 +18,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <optional>
 
 namespace patchy::ui {
 
@@ -256,6 +258,362 @@ PhotoshopTextLayoutPlan photoshop_text_layout_plan(const QTextDocument& document
   return plan;
 }
 
+void VerticalTextLayoutPlan::translate(double dx, double dy) {
+  for (auto& column : columns) {
+    column.axis += dx;
+    column.top += dy;
+    for (auto& cell : column.cells) {
+      cell.top += dy;
+      cell.baseline += dy;
+    }
+  }
+  cell_rect.translate(dx, dy);
+  anchor += QPointF(dx, dy);
+}
+
+namespace {
+
+struct BlockFormatRange {
+  int start{0};  // block-relative
+  int end{0};
+  QTextCharFormat format;
+};
+
+// Char formats of a block by block-relative range; a blank block yields none and callers fall
+// back to the block's own char format.
+std::vector<BlockFormatRange> block_format_ranges(const QTextBlock& block) {
+  std::vector<BlockFormatRange> ranges;
+  for (auto fragment_it = block.begin(); !fragment_it.atEnd(); ++fragment_it) {
+    const auto fragment = fragment_it.fragment();
+    if (!fragment.isValid() || fragment.length() <= 0) {
+      continue;
+    }
+    ranges.push_back(BlockFormatRange{fragment.position() - block.position(),
+                                      fragment.position() - block.position() + fragment.length(),
+                                      fragment.charFormat()});
+  }
+  return ranges;
+}
+
+const QTextCharFormat& block_format_at(const std::vector<BlockFormatRange>& ranges, int relative,
+                                       const QTextCharFormat& fallback) {
+  for (const auto& range : ranges) {
+    if (relative >= range.start && relative < range.end) {
+      return range.format;
+    }
+  }
+  return ranges.empty() ? fallback : ranges.back().format;
+}
+
+double vertical_alignment_fraction(Qt::Alignment alignment) {
+  if ((alignment & Qt::AlignHCenter) != 0) {
+    return 0.5;
+  }
+  if ((alignment & Qt::AlignRight) != 0) {
+    return 1.0;
+  }
+  return 0.0;
+}
+
+bool cluster_is_whitespace(const QString& text, int start, int end) {
+  for (int index = start; index < end && index < text.size(); ++index) {
+    if (!text.at(index).isSpace()) {
+      return false;
+    }
+  }
+  return true;
+}
+
+}  // namespace
+
+VerticalTextLayoutPlan vertical_text_layout_plan(const QTextDocument& document, bool boxed, double box_width,
+                                                 double box_height) {
+  VerticalTextLayoutPlan plan;
+  const auto* layout = document.documentLayout();
+  if (layout == nullptr) {
+    return plan;
+  }
+  constexpr double kWrapTolerance = 0.01;
+  // Columns are built with the first axis at x = 0 and every column's cells starting at y = 0;
+  // the alignment offset and the normalisation to a (0, 0) top-left corner are applied after.
+  double axis = 0.0;
+  double previous_space_after = 0.0;
+  bool first_column = true;
+  for (auto block = document.begin(); block.isValid(); block = block.next()) {
+    auto* text_layout = block.layout();
+    if (text_layout == nullptr) {
+      continue;
+    }
+    const auto block_format = block.blockFormat();
+    const auto paragraph_fraction = [&block_format] {
+      if (block_format.hasProperty(kTextBlockAutoLeadFractionProperty)) {
+        const auto fraction = block_format.property(kTextBlockAutoLeadFractionProperty).toDouble();
+        if (std::isfinite(fraction) && fraction > 0.01 && fraction < 10.0) {
+          return fraction;
+        }
+      }
+      return 1.2;
+    }();
+    const auto alignment_fraction = vertical_alignment_fraction(block_format.alignment());
+    const auto text = block.text();
+    const auto ranges = block_format_ranges(block);
+    const auto fallback_format = block.charFormat();
+    const auto space_before = std::max(0.0, block_format.topMargin());
+    const auto space_after = std::max(0.0, block_format.bottomMargin());
+    bool first_column_of_block = true;
+    const auto line_count = text_layout->lineCount();
+    if (line_count <= 0) {
+      continue;
+    }
+    for (int line_index = 0; line_index < line_count; ++line_index) {
+      const auto line = text_layout->lineAt(line_index);
+      if (!line.isValid()) {
+        continue;
+      }
+      const auto line_start = line.textStart();
+      const auto line_end = std::min(static_cast<int>(text.size()), line_start + line.textLength());
+
+      // Grapheme clusters of the line: one cell each.
+      std::vector<std::pair<int, int>> clusters;
+      if (line_end > line_start) {
+        QTextBoundaryFinder finder(QTextBoundaryFinder::Grapheme, text);
+        int cluster_start = line_start;
+        finder.setPosition(line_start);
+        while (cluster_start < line_end) {
+          int next = finder.toNextBoundary();
+          if (next < 0 || next > line_end) {
+            next = line_end;
+          }
+          if (next <= cluster_start) {
+            next = cluster_start + 1;
+            finder.setPosition(next);
+          }
+          clusters.emplace_back(cluster_start, next);
+          cluster_start = next;
+        }
+      }
+
+      std::vector<VerticalTextColumn> line_columns;
+      const auto start_column = [&](int first_relative) {
+        VerticalTextColumn column;
+        column.line = line;
+        column.block_position = block.position();
+        column.start = block.position() + first_relative;
+        column.end = column.start;
+        return column;
+      };
+      const auto finish_column = [&](VerticalTextColumn&& column) {
+        if (!column.cells.empty()) {
+          column.cells.back().gap = 0.0;
+        }
+        if (column.em <= 0.0) {
+          column.em = photoshop_char_exact_size(fallback_format);
+        }
+        if (column.leading <= 0.0) {
+          column.leading = photoshop_char_leading(fallback_format, paragraph_fraction);
+        }
+        line_columns.push_back(std::move(column));
+      };
+
+      auto column = start_column(line_start);
+      double y = 0.0;
+      for (const auto& [cluster_start, cluster_end] : clusters) {
+        const auto& format = block_format_at(ranges, cluster_start, fallback_format);
+        const auto exact_size = photoshop_char_exact_size(format);
+        const auto vertical_scale = format.hasProperty(kTextVerticalScaleFormatProperty)
+                                        ? std::clamp(format.property(kTextVerticalScaleFormatProperty).toDouble(),
+                                                     0.01, 100.0)
+                                        : 1.0;
+        const auto em = std::max(1.0, exact_size * vertical_scale);
+        const auto tracking = format.hasProperty(kTextTrackingFormatProperty)
+                                  ? format.property(kTextTrackingFormatProperty).toDouble()
+                                  : 0.0;
+        const auto gap = std::isfinite(tracking) ? tracking / 1000.0 * exact_size : 0.0;
+        const auto font = format.font();
+        const auto letter_spacing = font.letterSpacingType() == QFont::AbsoluteSpacing ? font.letterSpacing() : 0.0;
+        const auto x0 = line.cursorToX(cluster_start);
+        const auto x1 = line.cursorToX(cluster_end);
+        const auto glyph_start = std::min(x0, x1);
+        const auto glyph_end = std::max(glyph_start, std::max(x0, x1) - letter_spacing);
+        const bool whitespace = cluster_is_whitespace(text, cluster_start, cluster_end);
+        const auto advance = whitespace ? std::max(0.0, glyph_end - glyph_start) : em;
+        if (boxed && !column.cells.empty() && y + advance > box_height + kWrapTolerance) {
+          finish_column(std::move(column));
+          column = start_column(cluster_start);
+          y = 0.0;
+        }
+        const QFontMetricsF metrics(font);
+        VerticalTextCell cell;
+        cell.position = block.position() + cluster_start;
+        cell.length = cluster_end - cluster_start;
+        cell.top = y;
+        cell.advance = advance;
+        cell.gap = gap;
+        cell.baseline = y + (em - (metrics.ascent() + metrics.descent())) / 2.0 + metrics.ascent();
+        cell.glyph_start = glyph_start;
+        cell.glyph_end = glyph_end;
+        cell.format = format;
+        column.cells.push_back(std::move(cell));
+        column.end = block.position() + cluster_end;
+        column.em = std::max(column.em, em);
+        column.leading = std::max(column.leading, photoshop_char_leading(format, paragraph_fraction));
+        y += advance + gap;
+      }
+      finish_column(std::move(column));
+
+      for (auto& item : line_columns) {
+        if (first_column) {
+          axis = boxed ? box_width - item.em / 2.0 : 0.0;
+          first_column = false;
+        } else {
+          const auto block_space_before = first_column_of_block ? space_before : 0.0;
+          axis -= std::max(0.01, item.leading) + block_space_before + previous_space_after;
+        }
+        first_column_of_block = false;
+        previous_space_after = 0.0;
+        // Alignment along the column: the run's top, middle or bottom sits at the anchor
+        // (point) or the run is placed inside the frame height (box).
+        double run_height = 0.0;
+        if (!item.cells.empty()) {
+          run_height = item.cells.back().top + item.cells.back().advance;
+        }
+        const auto offset = boxed ? alignment_fraction * std::max(0.0, box_height - run_height)
+                                  : -alignment_fraction * run_height;
+        item.axis = axis;
+        item.top = offset;
+        for (auto& cell : item.cells) {
+          cell.top += offset;
+          cell.baseline += offset;
+        }
+        plan.columns.push_back(std::move(item));
+      }
+    }
+    if (!plan.columns.empty()) {
+      plan.columns.back().last_in_block = true;
+    }
+    previous_space_after = space_after;
+  }
+  if (plan.columns.empty()) {
+    return plan;
+  }
+  if (boxed) {
+    // Whole columns past the frame's left edge stay hidden, the way overflowing lines do.
+    std::erase_if(plan.columns, [](const VerticalTextColumn& column) { return column.axis + column.em / 2.0 < 0.0; });
+    if (plan.columns.empty()) {
+      return plan;
+    }
+    for (std::size_t index = 0; index + 1 < plan.columns.size(); ++index) {
+      if (plan.columns[index].block_position != plan.columns[index + 1].block_position) {
+        plan.columns[index].last_in_block = true;
+      }
+    }
+    plan.columns.back().last_in_block = true;
+  }
+  QRectF cells;
+  for (const auto& column : plan.columns) {
+    const auto bottom = column.cells.empty() ? column.top + column.em : column.cells.back().top + column.cells.back().advance;
+    const QRectF rect(column.axis - column.em / 2.0, column.top, column.em, std::max(1.0, bottom - column.top));
+    cells = cells.isNull() ? rect : cells.united(rect);
+  }
+  if (boxed) {
+    plan.cell_rect = QRectF(0.0, 0.0, std::max(1.0, box_width), std::max(1.0, box_height)).united(cells);
+    plan.anchor = QPointF(0.0, 0.0);
+  } else {
+    plan.cell_rect = cells;
+    plan.anchor = QPointF(0.0, 0.0);
+    plan.translate(-cells.left(), -cells.top());
+  }
+  plan.valid = true;
+  return plan;
+}
+
+TextLineGeometry TextLineGeometry::from_vertical_plan(const QTextDocument& document,
+                                                      const VerticalTextLayoutPlan& plan) {
+  TextLineGeometry geometry;
+  geometry.vertical_ = true;
+  geometry.maximum_position_ = std::max(0, document.characterCount() - 1);
+  geometry.columns_ = plan.columns;
+  geometry.vertical_rect_ = plan.cell_rect;
+  return geometry;
+}
+
+QRectF TextLineGeometry::vertical_caret_rect(int position) const {
+  if (columns_.empty()) {
+    return {};
+  }
+  position = std::clamp(position, 0, maximum_position_);
+  const VerticalTextColumn* target = nullptr;
+  for (const auto& column : columns_) {
+    if (position >= column.start && (position < column.end || (position == column.end && column.last_in_block))) {
+      target = &column;
+      break;
+    }
+  }
+  if (target == nullptr) {
+    target = &columns_.back();
+  }
+  double y = target->top;
+  for (const auto& cell : target->cells) {
+    if (position < cell.position + cell.length) {
+      y = cell.top;
+      return QRectF(target->axis - target->em / 2.0, y, std::max(1.0, target->em), 1.0);
+    }
+    y = cell.top + cell.advance;
+  }
+  return QRectF(target->axis - target->em / 2.0, y, std::max(1.0, target->em), 1.0);
+}
+
+std::vector<QRectF> TextLineGeometry::vertical_selection_rects(int start, int end) const {
+  std::vector<QRectF> rects;
+  for (const auto& column : columns_) {
+    std::optional<double> top;
+    double bottom = 0.0;
+    for (const auto& cell : column.cells) {
+      if (cell.position + cell.length <= start || cell.position >= end) {
+        continue;
+      }
+      if (!top.has_value()) {
+        top = cell.top;
+      }
+      bottom = cell.top + cell.advance;
+    }
+    if (top.has_value()) {
+      rects.push_back(QRectF(column.axis - column.em / 2.0, *top, std::max(1.0, column.em),
+                             std::max(1.0, bottom - *top)));
+    }
+  }
+  return rects;
+}
+
+int TextLineGeometry::vertical_position_at(QPointF local_point) const {
+  if (columns_.empty()) {
+    return 0;
+  }
+  const VerticalTextColumn* best = &columns_.front();
+  qreal best_distance = std::numeric_limits<qreal>::max();
+  for (const auto& column : columns_) {
+    const auto half = std::max(column.em, column.leading) / 2.0;
+    const auto left = column.axis - half;
+    const auto right = column.axis + half;
+    const qreal distance = local_point.x() < left ? left - local_point.x()
+                           : local_point.x() > right ? local_point.x() - right
+                                                     : 0.0;
+    if (distance < best_distance) {
+      best_distance = distance;
+      best = &column;
+      if (distance == 0.0) {
+        break;
+      }
+    }
+  }
+  for (const auto& cell : best->cells) {
+    if (local_point.y() < cell.top + cell.advance / 2.0) {
+      return std::clamp(cell.position, 0, maximum_position_);
+    }
+  }
+  return std::clamp(best->end, 0, maximum_position_);
+}
+
 TextLineGeometry TextLineGeometry::build(const QTextDocument& document, bool boxed, bool photoshop_layout) {
   if (photoshop_layout) {
     if (auto plan = photoshop_text_layout_plan(document, boxed); plan.valid) {
@@ -304,6 +662,9 @@ TextLineGeometry TextLineGeometry::from_lines(const QTextDocument& document,
 }
 
 QRectF TextLineGeometry::bounding_rect() const {
+  if (vertical_) {
+    return vertical_rect_;
+  }
   QRectF bounds;
   for (const auto& entry : lines_) {
     const auto rect = entry.line.rect().translated(entry.block_origin);
@@ -313,6 +674,9 @@ QRectF TextLineGeometry::bounding_rect() const {
 }
 
 QRectF TextLineGeometry::caret_rect(int position) const {
+  if (vertical_) {
+    return vertical_caret_rect(position);
+  }
   if (lines_.empty()) {
     return {};
   }
@@ -363,6 +727,9 @@ std::vector<QRectF> TextLineGeometry::selection_rects(int start, int end) const 
   if (start == end) {
     return rects;
   }
+  if (vertical_) {
+    return vertical_selection_rects(start, end);
+  }
   for (const auto& entry : lines_) {
     const auto line_start = entry.block_position + entry.line.textStart();
     const auto line_end = line_start + entry.line.textLength();
@@ -381,6 +748,9 @@ std::vector<QRectF> TextLineGeometry::selection_rects(int start, int end) const 
 }
 
 int TextLineGeometry::position_at(QPointF local_point) const {
+  if (vertical_) {
+    return vertical_position_at(local_point);
+  }
   if (lines_.empty()) {
     return 0;
   }

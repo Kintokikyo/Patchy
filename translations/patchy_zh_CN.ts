@@ -16557,6 +16557,50 @@ Y: %2
         <source>Create Clipping Mask needs a pixel layer or group below</source>
         <translation>创建剪贴蒙版需要下方有像素图层或组</translation>
     </message>
+    <message>
+        <source>Align Top</source>
+        <translation>顶对齐</translation>
+    </message>
+    <message>
+        <source>Align Center (Vertical)</source>
+        <translation>居中对齐（垂直）</translation>
+    </message>
+    <message>
+        <source>Align Bottom</source>
+        <translation>底对齐</translation>
+    </message>
+    <message>
+        <source>Vertical text: columns read top to bottom, right to left</source>
+        <translation>直排文字：列从上到下阅读，从右向左排列</translation>
+    </message>
+    <message>
+        <source>Direction:</source>
+        <translation>方向:</translation>
+    </message>
+    <message>
+        <source>Paragraph direction (auto follows the first strong character)</source>
+        <translation>段落方向（自动跟随第一个强方向字符）</translation>
+    </message>
+    <message>
+        <source>Auto</source>
+        <translation>自动</translation>
+    </message>
+    <message>
+        <source>Left to right</source>
+        <translation>从左到右</translation>
+    </message>
+    <message>
+        <source>Right to left</source>
+        <translation>从右到左</translation>
+    </message>
+    <message>
+        <source>Horizontal Text</source>
+        <translation>横排文字</translation>
+    </message>
+    <message>
+        <source>Vertical Text</source>
+        <translation>直排文字</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -17749,11 +17793,11 @@ Y: %2
     </message>
     <message>
         <source>showDialog: every field needs a non-empty &quot;key&quot;</source>
-        <translation>showDialog：每个字段都需要非空的 "key"</translation>
+        <translation>showDialog：每个字段都需要非空的 &quot;key&quot;</translation>
     </message>
     <message>
         <source>showDialog: unknown field type &quot;%1&quot; (use number, slider, checkbox, choice, text, color, folder, or file)</source>
-        <translation>showDialog：未知的字段类型 "%1"（可用 number、slider、checkbox、choice、text、color、folder 或 file）</translation>
+        <translation>showDialog：未知的字段类型 &quot;%1&quot;（可用 number、slider、checkbox、choice、text、color、folder 或 file）</translation>
     </message>
     <message>
         <source>Choose Color</source>
@@ -17782,6 +17826,22 @@ Y: %2
     <message>
         <source>Work Path</source>
         <translation>工作路径</translation>
+    </message>
+    <message>
+        <source>textOrientation must be &apos;horizontal&apos; or &apos;vertical&apos;.</source>
+        <translation>textOrientation 必须为 &apos;horizontal&apos; 或 &apos;vertical&apos;。</translation>
+    </message>
+    <message>
+        <source>textDirection must be &apos;auto&apos;, &apos;ltr&apos; or &apos;rtl&apos;.</source>
+        <translation>textDirection 必须为 &apos;auto&apos;、&apos;ltr&apos; 或 &apos;rtl&apos;。</translation>
+    </message>
+    <message>
+        <source>orientation must be &apos;horizontal&apos; or &apos;vertical&apos;.</source>
+        <translation>orientation 必须为 &apos;horizontal&apos; 或 &apos;vertical&apos;。</translation>
+    </message>
+    <message>
+        <source>direction must be &apos;auto&apos;, &apos;ltr&apos; or &apos;rtl&apos;.</source>
+        <translation>direction 必须为 &apos;auto&apos;、&apos;ltr&apos; 或 &apos;rtl&apos;。</translation>
     </message>
 </context>
 <context>

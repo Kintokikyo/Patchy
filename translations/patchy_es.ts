@@ -3091,7 +3091,7 @@
     </message>
     <message>
         <source>Delete brush tip &quot;%1&quot;?</source>
-        <translation>¿Eliminar la punta de pincel "%1"?</translation>
+        <translation>¿Eliminar la punta de pincel &quot;%1&quot;?</translation>
     </message>
     <message numerus="yes">
         <source>Delete %n brush tip(s)?</source>
@@ -3676,7 +3676,7 @@
     </message>
     <message>
         <source>The folder &quot;%1&quot; could not be created.</source>
-        <translation>No se pudo crear la carpeta "%1".</translation>
+        <translation>No se pudo crear la carpeta &quot;%1&quot;.</translation>
     </message>
     <message>
         <source>Photos found: %1</source>
@@ -4456,7 +4456,7 @@
     </message>
     <message>
         <source>Each visible top-level layer becomes one frame, with the top layer first. Hidden layers are skipped. A layer name ending in a time, like &quot;blink 0.25s&quot;, overrides the default delay for that frame. The animation loops forever.</source>
-        <translation>Cada capa visible de nivel superior se convierte en un fotograma, empezando por la capa superior. Las capas ocultas se omiten. Un nombre de capa que termine en un tiempo, como "blink 0.25s", sustituye el retardo predeterminado de ese fotograma. La animación se repite indefinidamente.</translation>
+        <translation>Cada capa visible de nivel superior se convierte en un fotograma, empezando por la capa superior. Las capas ocultas se omiten. Un nombre de capa que termine en un tiempo, como &quot;blink 0.25s&quot;, sustituye el retardo predeterminado de ese fotograma. La animación se repite indefinidamente.</translation>
     </message>
     <message>
         <source>%1: %2</source>
@@ -4739,11 +4739,11 @@
     </message>
     <message>
         <source>&quot;%1&quot; is a built-in preset. Choose another name.</source>
-        <translation>"%1" es un ajuste preestablecido integrado. Elija otro nombre.</translation>
+        <translation>&quot;%1&quot; es un ajuste preestablecido integrado. Elija otro nombre.</translation>
     </message>
     <message>
         <source>Replace the preset &quot;%1&quot;?</source>
-        <translation>¿Desea reemplazar el ajuste preestablecido "%1"?</translation>
+        <translation>¿Desea reemplazar el ajuste preestablecido &quot;%1&quot;?</translation>
     </message>
     <message>
         <source>Delete Trace Preset</source>
@@ -4751,7 +4751,7 @@
     </message>
     <message>
         <source>Delete the preset &quot;%1&quot;?</source>
-        <translation>¿Desea eliminar el ajuste preestablecido "%1"?</translation>
+        <translation>¿Desea eliminar el ajuste preestablecido &quot;%1&quot;?</translation>
     </message>
     <message>
         <source>Layer Style</source>
@@ -4759,7 +4759,7 @@
     </message>
     <message>
         <source>Pattern &quot;%1&quot; is not embedded in this document, so the effect that references it cannot render until you choose another pattern.</source>
-        <translation>El motivo "%1" no está incrustado en este documento, por lo que el efecto que lo utiliza no se puede renderizar hasta que elija otro motivo.</translation>
+        <translation>El motivo &quot;%1&quot; no está incrustado en este documento, por lo que el efecto que lo utiliza no se puede renderizar hasta que elija otro motivo.</translation>
     </message>
     <message>
         <source>Photoshop Satin custom contours and contour anti-aliasing are preserved until you edit layer styles. Patchy previews and saves edited Satin with the non-anti-aliased Linear contour.</source>
@@ -5425,7 +5425,7 @@
     </message>
     <message>
         <source>Patchy can&apos;t locate the font &quot;%1&quot;. Editing this PSD raster preview will substitute another font. Continue?</source>
-        <translation>Patchy no encuentra la fuente "%1". Al editar esta previsualización rasterizada del PSD se sustituirá por otra fuente. ¿Desea continuar?</translation>
+        <translation>Patchy no encuentra la fuente &quot;%1&quot;. Al editar esta previsualización rasterizada del PSD se sustituirá por otra fuente. ¿Desea continuar?</translation>
     </message>
     <message>
         <source>Patchy can&apos;t locate these fonts: %1. Editing this PSD raster preview will substitute other fonts. Continue?</source>
@@ -5775,11 +5775,11 @@ Abrir en Ampliación generativa...</translation>
     </message>
     <message>
         <source>Layer &apos;%1&apos;: invalid Gaussian blur radius; effect skipped</source>
-        <translation>Capa '%1': el radio del desenfoque gaussiano no es válido; se omitió el efecto</translation>
+        <translation>Capa &apos;%1&apos;: el radio del desenfoque gaussiano no es válido; se omitió el efecto</translation>
     </message>
     <message>
         <source>Layer &apos;%1&apos;: Gaussian blur could not be applied; original pixels kept</source>
-        <translation>Capa '%1': no se pudo aplicar el desenfoque gaussiano; se conservaron los píxeles originales</translation>
+        <translation>Capa &apos;%1&apos;: no se pudo aplicar el desenfoque gaussiano; se conservaron los píxeles originales</translation>
     </message>
     <message>
         <source>Animated GIF: imported %1 frames as layers</source>
@@ -6782,7 +6782,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Delete pattern &quot;%1&quot;?</source>
-        <translation>¿Eliminar el motivo "%1"?</translation>
+        <translation>¿Eliminar el motivo &quot;%1&quot;?</translation>
     </message>
     <message numerus="yes">
         <source>Delete %n pattern(s)?</source>
@@ -6981,7 +6981,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Some artwork could not be kept editable; reimport with &quot;Flattened image per page&quot; for an exact copy.</source>
-        <translation>Parte del material gráfico no se pudo mantener editable; vuelva a importar con "Imagen acoplada por página" para obtener una copia exacta.</translation>
+        <translation>Parte del material gráfico no se pudo mantener editable; vuelva a importar con &quot;Imagen acoplada por página&quot; para obtener una copia exacta.</translation>
     </message>
     <message>
         <source>Editable import was not possible (%1); the page was flattened instead.</source>
@@ -7017,7 +7017,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Windows cannot read the settings for &quot;%1&quot;. The printer driver may need to be repaired or reinstalled.</source>
-        <translation>Windows no puede leer la configuración de "%1". Puede que sea necesario reparar o reinstalar el controlador de la impresora.</translation>
+        <translation>Windows no puede leer la configuración de &quot;%1&quot;. Puede que sea necesario reparar o reinstalar el controlador de la impresora.</translation>
     </message>
     <message>
         <source>%1 x %2 %3</source>
@@ -7793,7 +7793,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Delete style &quot;%1&quot;?</source>
-        <translation>¿Eliminar el estilo "%1"?</translation>
+        <translation>¿Eliminar el estilo &quot;%1&quot;?</translation>
     </message>
     <message numerus="yes">
         <source>Delete %n style(s)?</source>
@@ -8080,7 +8080,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Delete Look &quot;%1&quot;?</source>
-        <translation>¿Eliminar el aspecto "%1"?</translation>
+        <translation>¿Eliminar el aspecto &quot;%1&quot;?</translation>
     </message>
     <message>
         <source>delete</source>
@@ -8403,7 +8403,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Renames the selected layers to end with this frame time, like &quot;blink 0.25s&quot;.</source>
-        <translation>Cambia el nombre de las capas seleccionadas para que terminen con este tiempo de fotograma, como "parpadeo 0.25s".</translation>
+        <translation>Cambia el nombre de las capas seleccionadas para que terminen con este tiempo de fotograma, como &quot;parpadeo 0.25s&quot;.</translation>
     </message>
     <message>
         <source>Remove</source>
@@ -8415,7 +8415,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Plays the visible top-level layers as frames, top layer first, exactly like the animated GIF export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
-        <translation>Reproduce las capas visibles de nivel superior como fotogramas, empezando por la capa superior, exactamente igual que la exportación de GIF animado. Un nombre de capa que termine en un tiempo, como "parpadeo 0.25s", define el retardo de ese fotograma.</translation>
+        <translation>Reproduce las capas visibles de nivel superior como fotogramas, empezando por la capa superior, exactamente igual que la exportación de GIF animado. Un nombre de capa que termine en un tiempo, como &quot;parpadeo 0.25s&quot;, define el retardo de ese fotograma.</translation>
     </message>
     <message>
         <source>No visible layers</source>
@@ -8803,7 +8803,7 @@ RGB: %2, %3, %4</translation>
     <name>patchy::ui::BrushTipLibrary</name>
     <message>
         <source>Could not open &quot;%1&quot;.</source>
-        <translation>No se pudo abrir "%1".</translation>
+        <translation>No se pudo abrir &quot;%1&quot;.</translation>
     </message>
     <message>
         <source>Brush %1</source>
@@ -8811,11 +8811,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Could not save brush &quot;%1&quot;.</source>
-        <translation>No se pudo guardar el pincel "%1".</translation>
+        <translation>No se pudo guardar el pincel &quot;%1&quot;.</translation>
     </message>
     <message>
         <source>No brush tips could be imported from &quot;%1&quot;.</source>
-        <translation>No se pudo importar ninguna punta de pincel desde "%1".</translation>
+        <translation>No se pudo importar ninguna punta de pincel desde &quot;%1&quot;.</translation>
     </message>
 </context>
 <context>
@@ -12647,8 +12647,8 @@ Rect.: -</translation>
     <message numerus="yes">
         <source>This document places %n image file(s) as Affinity &quot;Image&quot; layers.</source>
         <translation>
-            <numerusform>Este documento coloca %n archivo de imagen como capa "Imagen" de Affinity.</numerusform>
-            <numerusform>Este documento coloca %n archivos de imagen como capas "Imagen" de Affinity.</numerusform>
+            <numerusform>Este documento coloca %n archivo de imagen como capa &quot;Imagen&quot; de Affinity.</numerusform>
+            <numerusform>Este documento coloca %n archivos de imagen como capas &quot;Imagen&quot; de Affinity.</numerusform>
         </translation>
     </message>
     <message>
@@ -13569,11 +13569,11 @@ Guarde su trabajo y cierre Patchy antes de ejecutar el instalador.</translation>
     </message>
     <message>
         <source>&quot;%1&quot; is a text layer: its pixels are re-created from the text, so changes made by %2 would be lost on the next text edit.</source>
-        <translation>"%1" es una capa de texto: sus píxeles se vuelven a generar a partir del texto, por lo que los cambios realizados con %2 se perderían en la próxima edición del texto.</translation>
+        <translation>&quot;%1&quot; es una capa de texto: sus píxeles se vuelven a generar a partir del texto, por lo que los cambios realizados con %2 se perderían en la próxima edición del texto.</translation>
     </message>
     <message>
         <source>&quot;%1&quot; is a shape layer: its pixels are re-created from the shape, so changes made by %2 would be lost on the next shape edit.</source>
-        <translation>"%1" es una capa de forma: sus píxeles se vuelven a generar a partir de la forma, por lo que los cambios realizados con %2 se perderían en la próxima edición de la forma.</translation>
+        <translation>&quot;%1&quot; es una capa de forma: sus píxeles se vuelven a generar a partir de la forma, por lo que los cambios realizados con %2 se perderían en la próxima edición de la forma.</translation>
     </message>
     <message>
         <source>Convert the layer to a smart object to keep the text editable, or rasterize it into plain pixels. Rasterized text can&apos;t be edited again.</source>
@@ -13717,7 +13717,7 @@ Guarde su trabajo y cierre Patchy antes de ejecutar el instalador.</translation>
     </message>
     <message>
         <source>Created new document from &quot;%1&quot;</source>
-        <translation>Se creó un nuevo documento a partir de "%1"</translation>
+        <translation>Se creó un nuevo documento a partir de &quot;%1&quot;</translation>
     </message>
     <message>
         <source>Select a layer to copy as SVG</source>
@@ -14074,7 +14074,7 @@ Guarde su trabajo y cierre Patchy antes de ejecutar el instalador.</translation>
     </message>
     <message>
         <source>&quot;%1&quot; will open as a new image when the Layer Style dialog closes</source>
-        <translation>"%1" se abrirá como una imagen nueva cuando se cierre el cuadro de diálogo Estilo de capa</translation>
+        <translation>&quot;%1&quot; se abrirá como una imagen nueva cuando se cierre el cuadro de diálogo Estilo de capa</translation>
     </message>
     <message>
         <source>Open pattern as image</source>
@@ -14082,7 +14082,7 @@ Guarde su trabajo y cierre Patchy antes de ejecutar el instalador.</translation>
     </message>
     <message>
         <source>Opened pattern &quot;%1&quot; as a new image</source>
-        <translation>Motivo "%1" abierto como imagen nueva</translation>
+        <translation>Motivo &quot;%1&quot; abierto como imagen nueva</translation>
     </message>
     <message>
         <source>Layer style</source>
@@ -15288,7 +15288,7 @@ Y: %2
     </message>
     <message>
         <source>Affinity documents place image files as &quot;Image&quot; layers. Smart objects keep each placed file&apos;s full-resolution original for re-editing and PSD export; pixel layers keep only the pixels at their placed size.</source>
-        <translation>Los documentos de Affinity colocan los archivos de imagen como capas "Image". Los objetos inteligentes conservan el original a resolución completa de cada archivo colocado para volver a editarlo y exportarlo a PSD; las capas de píxeles conservan solo los píxeles a su tamaño de colocación.</translation>
+        <translation>Los documentos de Affinity colocan los archivos de imagen como capas &quot;Image&quot;. Los objetos inteligentes conservan el original a resolución completa de cada archivo colocado para volver a editarlo y exportarlo a PSD; las capas de píxeles conservan solo los píxeles a su tamaño de colocación.</translation>
     </message>
     <message>
         <source>Opening Affinity image layers:</source>
@@ -15752,7 +15752,7 @@ Y: %2
     </message>
     <message>
         <source>&quot;%1&quot; is a smart object, so its pixels can&apos;t be painted directly.</source>
-        <translation>"%1" es un objeto inteligente, por lo que no se puede pintar directamente en sus píxeles.</translation>
+        <translation>&quot;%1&quot; es un objeto inteligente, por lo que no se puede pintar directamente en sus píxeles.</translation>
     </message>
     <message>
         <source>Rasterize the layer to paint on its pixels, or open the smart object&apos;s contents in their own tab and draw there.</source>
@@ -16595,6 +16595,50 @@ Y: %2
         <source>Create Clipping Mask needs a pixel layer or group below</source>
         <translation>Crear máscara de recorte requiere una capa de píxeles o un grupo debajo</translation>
     </message>
+    <message>
+        <source>Align Top</source>
+        <translation>Alinear arriba</translation>
+    </message>
+    <message>
+        <source>Align Center (Vertical)</source>
+        <translation>Alinear al centro (vertical)</translation>
+    </message>
+    <message>
+        <source>Align Bottom</source>
+        <translation>Alinear abajo</translation>
+    </message>
+    <message>
+        <source>Vertical text: columns read top to bottom, right to left</source>
+        <translation>Texto vertical: las columnas se leen de arriba abajo, de derecha a izquierda</translation>
+    </message>
+    <message>
+        <source>Direction:</source>
+        <translation>Dirección:</translation>
+    </message>
+    <message>
+        <source>Paragraph direction (auto follows the first strong character)</source>
+        <translation>Dirección del párrafo (auto sigue el primer carácter fuerte)</translation>
+    </message>
+    <message>
+        <source>Auto</source>
+        <translation>Auto</translation>
+    </message>
+    <message>
+        <source>Left to right</source>
+        <translation>De izquierda a derecha</translation>
+    </message>
+    <message>
+        <source>Right to left</source>
+        <translation>De derecha a izquierda</translation>
+    </message>
+    <message>
+        <source>Horizontal Text</source>
+        <translation>Texto horizontal</translation>
+    </message>
+    <message>
+        <source>Vertical Text</source>
+        <translation>Texto vertical</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -17002,19 +17046,19 @@ Y: %2
     </message>
     <message>
         <source>Could not open &quot;%1&quot;.</source>
-        <translation>No se pudo abrir "%1".</translation>
+        <translation>No se pudo abrir &quot;%1&quot;.</translation>
     </message>
     <message>
         <source>Could not read &quot;%1&quot;.</source>
-        <translation>No se pudo leer "%1".</translation>
+        <translation>No se pudo leer &quot;%1&quot;.</translation>
     </message>
     <message>
         <source>&quot;%1&quot; is too large to import safely.</source>
-        <translation>"%1" es demasiado grande para importarlo de forma segura.</translation>
+        <translation>&quot;%1&quot; es demasiado grande para importarlo de forma segura.</translation>
     </message>
     <message>
         <source>Could not import patterns from &quot;%1&quot;. The file is not a supported Photoshop PAT file or is damaged.</source>
-        <translation>No se pudieron importar motivos desde "%1". El archivo no es un archivo PAT de Photoshop compatible o está dañado.</translation>
+        <translation>No se pudieron importar motivos desde &quot;%1&quot;. El archivo no es un archivo PAT de Photoshop compatible o está dañado.</translation>
     </message>
     <message>
         <source>Some pattern data was skipped or repaired because it is unsupported or damaged.</source>
@@ -17030,35 +17074,35 @@ Y: %2
     </message>
     <message>
         <source>Skipped pattern &quot;%1&quot; because its pixels could not be decoded.</source>
-        <translation>Se omitió el motivo "%1" porque no se pudieron descodificar sus píxeles.</translation>
+        <translation>Se omitió el motivo &quot;%1&quot; porque no se pudieron descodificar sus píxeles.</translation>
     </message>
     <message>
         <source>Pattern &quot;%1&quot; used an id already assigned to different pixels; it was imported with a new id.</source>
-        <translation>El motivo "%1" usaba un id ya asignado a píxeles distintos; se importó con un id nuevo.</translation>
+        <translation>El motivo &quot;%1&quot; usaba un id ya asignado a píxeles distintos; se importó con un id nuevo.</translation>
     </message>
     <message>
         <source>Could not save pattern &quot;%1&quot;.</source>
-        <translation>No se pudo guardar el motivo "%1".</translation>
+        <translation>No se pudo guardar el motivo &quot;%1&quot;.</translation>
     </message>
     <message>
         <source>No patterns could be imported from &quot;%1&quot;.</source>
-        <translation>No se pudo importar ningún motivo desde "%1".</translation>
+        <translation>No se pudo importar ningún motivo desde &quot;%1&quot;.</translation>
     </message>
     <message>
         <source>&quot;%1&quot; is too large to use as a pattern (over 30,000 pixels wide or tall).</source>
-        <translation>"%1" es demasiado grande para usarlo como motivo (más de 30.000 píxeles de ancho o de alto).</translation>
+        <translation>&quot;%1&quot; es demasiado grande para usarlo como motivo (más de 30.000 píxeles de ancho o de alto).</translation>
     </message>
     <message>
         <source>&quot;%1&quot; is too large to use as a pattern (over 8 million pixels).</source>
-        <translation>"%1" es demasiado grande para usarlo como motivo (más de 8 millones de píxeles).</translation>
+        <translation>&quot;%1&quot; es demasiado grande para usarlo como motivo (más de 8 millones de píxeles).</translation>
     </message>
     <message>
         <source>Could not read &quot;%1&quot; as an image.</source>
-        <translation>No se pudo leer "%1" como imagen.</translation>
+        <translation>No se pudo leer &quot;%1&quot; como imagen.</translation>
     </message>
     <message>
         <source>Animated image &quot;%1&quot;: imported the first frame only.</source>
-        <translation>Imagen animada "%1": solo se importó el primer fotograma.</translation>
+        <translation>Imagen animada &quot;%1&quot;: solo se importó el primer fotograma.</translation>
     </message>
     <message>
         <source>%1 Copy</source>
@@ -17268,7 +17312,7 @@ Y: %2
     <name>patchy::ui::ScriptEngineHost</name>
     <message>
         <source>Invalid color: %1 (use &quot;#rrggbb&quot; or a named color)</source>
-        <translation>Color no válido: %1 (use "#rrggbb" o un color con nombre)</translation>
+        <translation>Color no válido: %1 (use &quot;#rrggbb&quot; o un color con nombre)</translation>
     </message>
     <message>
         <source>The layer no longer exists.</source>
@@ -17696,7 +17740,7 @@ Y: %2
     </message>
     <message>
         <source>Stop &quot;%1&quot;?</source>
-        <translation>¿Detener "%1"?</translation>
+        <translation>¿Detener &quot;%1&quot;?</translation>
     </message>
     <message>
         <source>Undo the changes it made</source>
@@ -17788,11 +17832,11 @@ Y: %2
     </message>
     <message>
         <source>showDialog: every field needs a non-empty &quot;key&quot;</source>
-        <translation>showDialog: cada campo necesita una "key" no vacía</translation>
+        <translation>showDialog: cada campo necesita una &quot;key&quot; no vacía</translation>
     </message>
     <message>
         <source>showDialog: unknown field type &quot;%1&quot; (use number, slider, checkbox, choice, text, color, folder, or file)</source>
-        <translation>showDialog: tipo de campo desconocido "%1" (use number, slider, checkbox, choice, text, color, folder o file)</translation>
+        <translation>showDialog: tipo de campo desconocido &quot;%1&quot; (use number, slider, checkbox, choice, text, color, folder o file)</translation>
     </message>
     <message>
         <source>Choose Color</source>
@@ -17821,6 +17865,22 @@ Y: %2
     <message>
         <source>Work Path</source>
         <translation>Trazado en curso</translation>
+    </message>
+    <message>
+        <source>textOrientation must be &apos;horizontal&apos; or &apos;vertical&apos;.</source>
+        <translation>textOrientation debe ser &apos;horizontal&apos; o &apos;vertical&apos;.</translation>
+    </message>
+    <message>
+        <source>textDirection must be &apos;auto&apos;, &apos;ltr&apos; or &apos;rtl&apos;.</source>
+        <translation>textDirection debe ser &apos;auto&apos;, &apos;ltr&apos; o &apos;rtl&apos;.</translation>
+    </message>
+    <message>
+        <source>orientation must be &apos;horizontal&apos; or &apos;vertical&apos;.</source>
+        <translation>orientation debe ser &apos;horizontal&apos; o &apos;vertical&apos;.</translation>
+    </message>
+    <message>
+        <source>direction must be &apos;auto&apos;, &apos;ltr&apos; or &apos;rtl&apos;.</source>
+        <translation>direction debe ser &apos;auto&apos;, &apos;ltr&apos; o &apos;rtl&apos;.</translation>
     </message>
 </context>
 <context>
@@ -17923,8 +17983,8 @@ Y: %2
     <message numerus="yes">
         <source>Exported %n style(s) to &quot;%1&quot;.</source>
         <translation>
-            <numerusform>Se exportó %n estilo a "%1".</numerusform>
-            <numerusform>Se exportaron %n estilos a "%1".</numerusform>
+            <numerusform>Se exportó %n estilo a &quot;%1&quot;.</numerusform>
+            <numerusform>Se exportaron %n estilos a &quot;%1&quot;.</numerusform>
         </translation>
     </message>
     <message>
@@ -17944,19 +18004,19 @@ Y: %2
     </message>
     <message>
         <source>Could not open &quot;%1&quot;.</source>
-        <translation>No se pudo abrir "%1".</translation>
+        <translation>No se pudo abrir &quot;%1&quot;.</translation>
     </message>
     <message>
         <source>Could not read &quot;%1&quot;.</source>
-        <translation>No se pudo leer "%1".</translation>
+        <translation>No se pudo leer &quot;%1&quot;.</translation>
     </message>
     <message>
         <source>&quot;%1&quot; is too large to import safely.</source>
-        <translation>"%1" es demasiado grande para importarlo de forma segura.</translation>
+        <translation>&quot;%1&quot; es demasiado grande para importarlo de forma segura.</translation>
     </message>
     <message>
         <source>Could not import styles from &quot;%1&quot;. The file is not a supported Photoshop ASL file or is damaged.</source>
-        <translation>No se pudieron importar estilos desde "%1". El archivo no es un archivo ASL de Photoshop compatible o está dañado.</translation>
+        <translation>No se pudieron importar estilos desde &quot;%1&quot;. El archivo no es un archivo ASL de Photoshop compatible o está dañado.</translation>
     </message>
     <message>
         <source>Imported Styles</source>
@@ -17968,15 +18028,15 @@ Y: %2
     </message>
     <message>
         <source>Style &quot;%1&quot; used an id already assigned to a different style; it was imported with a new id.</source>
-        <translation>El estilo "%1" usaba un id ya asignado a otro estilo; se importó con un id nuevo.</translation>
+        <translation>El estilo &quot;%1&quot; usaba un id ya asignado a otro estilo; se importó con un id nuevo.</translation>
     </message>
     <message>
         <source>Could not save style &quot;%1&quot;.</source>
-        <translation>No se pudo guardar el estilo "%1".</translation>
+        <translation>No se pudo guardar el estilo &quot;%1&quot;.</translation>
     </message>
     <message>
         <source>No styles could be imported from &quot;%1&quot;.</source>
-        <translation>No se pudo importar ningún estilo desde "%1".</translation>
+        <translation>No se pudo importar ningún estilo desde &quot;%1&quot;.</translation>
     </message>
     <message>
         <source>There are no styles to export.</source>
@@ -17984,7 +18044,7 @@ Y: %2
     </message>
     <message>
         <source>Could not write &quot;%1&quot;.</source>
-        <translation>No se pudo escribir "%1".</translation>
+        <translation>No se pudo escribir &quot;%1&quot;.</translation>
     </message>
     <message>
         <source>%1 Copy</source>

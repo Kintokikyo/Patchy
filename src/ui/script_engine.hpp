@@ -27,6 +27,8 @@
 #include <condition_variable>
 #include <cstdint>
 #include <functional>
+
+class QTextEdit;
 #include <map>
 #include <memory>
 #include <mutex>
@@ -241,11 +243,20 @@ public:
     bool italic{false};
     QColor color;        // invalid = current default
     QPoint position{0, 0};
+    QString orientation;  // "horizontal" / "vertical"; empty = horizontal
+    QString direction;    // "auto" / "ltr" / "rtl"; empty = auto
   };
   std::optional<LayerId> add_text_layer(std::int64_t session_id, const TextLayerParams& params);
   bool set_text_layer_text(std::int64_t session_id, LayerId layer_id, const QString& text);
   [[nodiscard]] QString text_layer_text(std::int64_t session_id, LayerId layer_id) const;
+  // Vertical type and paragraph direction, through the same hidden session as `text`.
+  [[nodiscard]] QString text_layer_orientation(std::int64_t session_id, LayerId layer_id) const;
+  bool set_text_layer_orientation(std::int64_t session_id, LayerId layer_id, const QString& orientation);
+  [[nodiscard]] QString text_layer_direction(std::int64_t session_id, LayerId layer_id) const;
+  bool set_text_layer_direction(std::int64_t session_id, LayerId layer_id, const QString& direction);
   [[nodiscard]] bool layer_is_text_layer(std::int64_t session_id, LayerId layer_id) const;
+  bool edit_text_layer_session(std::int64_t session_id, LayerId layer_id,
+                               const std::function<void(QTextEdit&)>& edit);
 
   // Filter application onto a layer's pixel buffer by registry id.
   bool apply_filter_to_layer(std::int64_t session_id, LayerId layer_id, const QString& filter_id,

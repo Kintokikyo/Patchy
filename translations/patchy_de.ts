@@ -56,7 +56,7 @@
     </message>
     <message>
         <source>Keep folders and merge their contents separately. Turn off to merge across ordinary Pass Through groups.</source>
-        <translation>Ordner beibehalten und ihren Inhalt getrennt zusammenfügen. Deaktivieren Sie die Option, um über gewöhnliche Gruppen mit der Füllmethode "Hindurchwirken" hinweg zusammenzufügen.</translation>
+        <translation>Ordner beibehalten und ihren Inhalt getrennt zusammenfügen. Deaktivieren Sie die Option, um über gewöhnliche Gruppen mit der Füllmethode &quot;Hindurchwirken&quot; hinweg zusammenzufügen.</translation>
     </message>
     <message>
         <source>Separate merges for different vector types</source>
@@ -363,7 +363,7 @@
     </message>
     <message>
         <source>Blend If thresholds must remain ordered</source>
-        <translation>Die Schwellenwerte von "Farbbereich" müssen geordnet bleiben</translation>
+        <translation>Die Schwellenwerte von &quot;Farbbereich&quot; müssen geordnet bleiben</translation>
     </message>
     <message>
         <source>Photoshop layer id 0 is reserved</source>
@@ -3091,7 +3091,7 @@
     </message>
     <message>
         <source>Delete brush tip &quot;%1&quot;?</source>
-        <translation>Pinselspitze "%1" löschen?</translation>
+        <translation>Pinselspitze &quot;%1&quot; löschen?</translation>
     </message>
     <message numerus="yes">
         <source>Delete %n brush tip(s)?</source>
@@ -3664,7 +3664,7 @@
     </message>
     <message>
         <source>Add continues numbering after the files already in the folder; Overwrite starts at 001 and asks before replacing anything.</source>
-        <translation>"Hinzufügen" setzt die Nummerierung nach den bereits im Ordner vorhandenen Dateien fort. "Überschreiben" beginnt bei 001 und fragt nach, bevor etwas ersetzt wird.</translation>
+        <translation>&quot;Hinzufügen&quot; setzt die Nummerierung nach den bereits im Ordner vorhandenen Dateien fort. &quot;Überschreiben&quot; beginnt bei 001 und fragt nach, bevor etwas ersetzt wird.</translation>
     </message>
     <message>
         <source>Choose Folder</source>
@@ -3676,7 +3676,7 @@
     </message>
     <message>
         <source>The folder &quot;%1&quot; could not be created.</source>
-        <translation>Der Ordner "%1" konnte nicht erstellt werden.</translation>
+        <translation>Der Ordner &quot;%1&quot; konnte nicht erstellt werden.</translation>
     </message>
     <message>
         <source>Photos found: %1</source>
@@ -4456,7 +4456,7 @@
     </message>
     <message>
         <source>Each visible top-level layer becomes one frame, with the top layer first. Hidden layers are skipped. A layer name ending in a time, like &quot;blink 0.25s&quot;, overrides the default delay for that frame. The animation loops forever.</source>
-        <translation>Jede sichtbare Ebene der obersten Hierarchieebene wird zu einem Frame, beginnend mit der obersten Ebene. Ausgeblendete Ebenen werden übersprungen. Ein Ebenenname, der mit einer Zeitangabe endet, etwa "blink 0.25s", überschreibt die Standardverzögerung für diesen Frame. Die Animation läuft in einer Endlosschleife.</translation>
+        <translation>Jede sichtbare Ebene der obersten Hierarchieebene wird zu einem Frame, beginnend mit der obersten Ebene. Ausgeblendete Ebenen werden übersprungen. Ein Ebenenname, der mit einer Zeitangabe endet, etwa &quot;blink 0.25s&quot;, überschreibt die Standardverzögerung für diesen Frame. Die Animation läuft in einer Endlosschleife.</translation>
     </message>
     <message>
         <source>%1: %2</source>
@@ -4739,11 +4739,11 @@
     </message>
     <message>
         <source>&quot;%1&quot; is a built-in preset. Choose another name.</source>
-        <translation>"%1" ist eine integrierte Vorgabe. Wählen Sie einen anderen Namen.</translation>
+        <translation>&quot;%1&quot; ist eine integrierte Vorgabe. Wählen Sie einen anderen Namen.</translation>
     </message>
     <message>
         <source>Replace the preset &quot;%1&quot;?</source>
-        <translation>Vorgabe "%1" ersetzen?</translation>
+        <translation>Vorgabe &quot;%1&quot; ersetzen?</translation>
     </message>
     <message>
         <source>Delete Trace Preset</source>
@@ -4751,7 +4751,7 @@
     </message>
     <message>
         <source>Delete the preset &quot;%1&quot;?</source>
-        <translation>Vorgabe "%1" löschen?</translation>
+        <translation>Vorgabe &quot;%1&quot; löschen?</translation>
     </message>
     <message>
         <source>Layer Style</source>
@@ -4759,7 +4759,7 @@
     </message>
     <message>
         <source>Pattern &quot;%1&quot; is not embedded in this document, so the effect that references it cannot render until you choose another pattern.</source>
-        <translation>Das Muster "%1" ist nicht in dieses Dokument eingebettet, daher kann der Effekt, der darauf verweist, erst gerendert werden, wenn Sie ein anderes Muster wählen.</translation>
+        <translation>Das Muster &quot;%1&quot; ist nicht in dieses Dokument eingebettet, daher kann der Effekt, der darauf verweist, erst gerendert werden, wenn Sie ein anderes Muster wählen.</translation>
     </message>
     <message>
         <source>Photoshop Satin custom contours and contour anti-aliasing are preserved until you edit layer styles. Patchy previews and saves edited Satin with the non-anti-aliased Linear contour.</source>
@@ -7793,7 +7793,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Delete style &quot;%1&quot;?</source>
-        <translation>Stil "%1" löschen?</translation>
+        <translation>Stil &quot;%1&quot; löschen?</translation>
     </message>
     <message numerus="yes">
         <source>Delete %n style(s)?</source>
@@ -8080,7 +8080,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Delete Look &quot;%1&quot;?</source>
-        <translation>Look "%1" löschen?</translation>
+        <translation>Look &quot;%1&quot; löschen?</translation>
     </message>
     <message>
         <source>delete</source>
@@ -8403,7 +8403,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Renames the selected layers to end with this frame time, like &quot;blink 0.25s&quot;.</source>
-        <translation>Benennt die ausgewählten Ebenen so um, dass sie mit dieser Frame-Zeit enden, z. B. "blink 0.25s".</translation>
+        <translation>Benennt die ausgewählten Ebenen so um, dass sie mit dieser Frame-Zeit enden, z. B. &quot;blink 0.25s&quot;.</translation>
     </message>
     <message>
         <source>Remove</source>
@@ -8415,7 +8415,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Plays the visible top-level layers as frames, top layer first, exactly like the animated GIF export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
-        <translation>Spielt die sichtbaren Ebenen der obersten Ebene als Frames ab, beginnend mit der obersten Ebene, genau wie beim Export als animiertes GIF. Ein Ebenenname, der mit einer Zeit endet, z. B. "blink 0.25s", legt die Verzögerung dieses Frames fest.</translation>
+        <translation>Spielt die sichtbaren Ebenen der obersten Ebene als Frames ab, beginnend mit der obersten Ebene, genau wie beim Export als animiertes GIF. Ein Ebenenname, der mit einer Zeit endet, z. B. &quot;blink 0.25s&quot;, legt die Verzögerung dieses Frames fest.</translation>
     </message>
     <message>
         <source>No visible layers</source>
@@ -8803,7 +8803,7 @@ RGB: %2, %3, %4</translation>
     <name>patchy::ui::BrushTipLibrary</name>
     <message>
         <source>Could not open &quot;%1&quot;.</source>
-        <translation>"%1" konnte nicht geöffnet werden.</translation>
+        <translation>&quot;%1&quot; konnte nicht geöffnet werden.</translation>
     </message>
     <message>
         <source>Brush %1</source>
@@ -8811,11 +8811,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Could not save brush &quot;%1&quot;.</source>
-        <translation>Der Pinsel "%1" konnte nicht gespeichert werden.</translation>
+        <translation>Der Pinsel &quot;%1&quot; konnte nicht gespeichert werden.</translation>
     </message>
     <message>
         <source>No brush tips could be imported from &quot;%1&quot;.</source>
-        <translation>Aus "%1" konnten keine Pinselspitzen importiert werden.</translation>
+        <translation>Aus &quot;%1&quot; konnten keine Pinselspitzen importiert werden.</translation>
     </message>
 </context>
 <context>
@@ -12647,8 +12647,8 @@ Rechteck: -</translation>
     <message numerus="yes">
         <source>This document places %n image file(s) as Affinity &quot;Image&quot; layers.</source>
         <translation>
-            <numerusform>Dieses Dokument platziert %n Bilddatei als Affinity-Ebene vom Typ "Bild".</numerusform>
-            <numerusform>Dieses Dokument platziert %n Bilddateien als Affinity-Ebenen vom Typ "Bild".</numerusform>
+            <numerusform>Dieses Dokument platziert %n Bilddatei als Affinity-Ebene vom Typ &quot;Bild&quot;.</numerusform>
+            <numerusform>Dieses Dokument platziert %n Bilddateien als Affinity-Ebenen vom Typ &quot;Bild&quot;.</numerusform>
         </translation>
     </message>
     <message>
@@ -12786,7 +12786,7 @@ Rechteck: -</translation>
     </message>
     <message>
         <source>Cancelled Divide Scanned Photos</source>
-        <translation>"Gescannte Fotos aufteilen" abgebrochen</translation>
+        <translation>&quot;Gescannte Fotos aufteilen&quot; abgebrochen</translation>
     </message>
     <message>
         <source>Divide scanned photos</source>
@@ -13033,7 +13033,7 @@ In beiden Fällen schreibt Patchy eine Kopie; das geöffnete Dokument behält se
 Download the DMG, quit Patchy, and drag the new Patchy into Applications.</source>
         <translation>Patchy %1 ist verfügbar. Sie verwenden Version %2.
 
-Laden Sie die DMG herunter, beenden Sie Patchy und ziehen Sie das neue Patchy in den Ordner "Programme".</translation>
+Laden Sie die DMG herunter, beenden Sie Patchy und ziehen Sie das neue Patchy in den Ordner &quot;Programme&quot;.</translation>
     </message>
     <message>
         <source>Patchy %1 is available. You are using version %2.
@@ -13161,27 +13161,27 @@ Speichern Sie Ihre Arbeit und schließen Sie Patchy, bevor Sie das Installations
     </message>
     <message>
         <source>Cancelled Radial Blur</source>
-        <translation>"Radialer Weichzeichner" abgebrochen</translation>
+        <translation>&quot;Radialer Weichzeichner&quot; abgebrochen</translation>
     </message>
     <message>
         <source>Cancelled Add Noise</source>
-        <translation>"Rauschen hinzufügen" abgebrochen</translation>
+        <translation>&quot;Rauschen hinzufügen&quot; abgebrochen</translation>
     </message>
     <message>
         <source>Cancelled Box Blur</source>
-        <translation>"Feld-Weichzeichner" abgebrochen</translation>
+        <translation>&quot;Feld-Weichzeichner&quot; abgebrochen</translation>
     </message>
     <message>
         <source>Cancelled Emboss</source>
-        <translation>"Relief" abgebrochen</translation>
+        <translation>&quot;Relief&quot; abgebrochen</translation>
     </message>
     <message>
         <source>Cancelled Mosaic</source>
-        <translation>"Mosaikeffekt" abgebrochen</translation>
+        <translation>&quot;Mosaikeffekt&quot; abgebrochen</translation>
     </message>
     <message>
         <source>Cancelled Plastic Wrap</source>
-        <translation>"Kunststofffolie" abgebrochen</translation>
+        <translation>&quot;Kunststofffolie&quot; abgebrochen</translation>
     </message>
     <message>
         <source>Cancelled Unsharp Mask</source>
@@ -16595,6 +16595,50 @@ Y: %2
         <source>Create Clipping Mask needs a pixel layer or group below</source>
         <translation>Zum Erstellen einer Schnittmaske muss darunter eine Pixelebene oder Gruppe liegen</translation>
     </message>
+    <message>
+        <source>Align Top</source>
+        <translation>Oben ausrichten</translation>
+    </message>
+    <message>
+        <source>Align Center (Vertical)</source>
+        <translation>Zentriert ausrichten (vertikal)</translation>
+    </message>
+    <message>
+        <source>Align Bottom</source>
+        <translation>Unten ausrichten</translation>
+    </message>
+    <message>
+        <source>Vertical text: columns read top to bottom, right to left</source>
+        <translation>Vertikaler Text: Spalten laufen von oben nach unten, von rechts nach links</translation>
+    </message>
+    <message>
+        <source>Direction:</source>
+        <translation>Richtung:</translation>
+    </message>
+    <message>
+        <source>Paragraph direction (auto follows the first strong character)</source>
+        <translation>Absatzrichtung (Auto folgt dem ersten richtungsstarken Zeichen)</translation>
+    </message>
+    <message>
+        <source>Auto</source>
+        <translation>Auto</translation>
+    </message>
+    <message>
+        <source>Left to right</source>
+        <translation>Links nach rechts</translation>
+    </message>
+    <message>
+        <source>Right to left</source>
+        <translation>Rechts nach links</translation>
+    </message>
+    <message>
+        <source>Horizontal Text</source>
+        <translation>Horizontaler Text</translation>
+    </message>
+    <message>
+        <source>Vertical Text</source>
+        <translation>Vertikaler Text</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -17268,7 +17312,7 @@ Y: %2
     <name>patchy::ui::ScriptEngineHost</name>
     <message>
         <source>Invalid color: %1 (use &quot;#rrggbb&quot; or a named color)</source>
-        <translation>Ungültige Farbe: %1 (verwenden Sie "#rrggbb" oder einen Farbnamen)</translation>
+        <translation>Ungültige Farbe: %1 (verwenden Sie &quot;#rrggbb&quot; oder einen Farbnamen)</translation>
     </message>
     <message>
         <source>The layer no longer exists.</source>
@@ -17696,7 +17740,7 @@ Y: %2
     </message>
     <message>
         <source>Stop &quot;%1&quot;?</source>
-        <translation>"%1" stoppen?</translation>
+        <translation>&quot;%1&quot; stoppen?</translation>
     </message>
     <message>
         <source>Undo the changes it made</source>
@@ -17788,11 +17832,11 @@ Y: %2
     </message>
     <message>
         <source>showDialog: every field needs a non-empty &quot;key&quot;</source>
-        <translation>showDialog: Jedes Feld benötigt einen nicht leeren "key"</translation>
+        <translation>showDialog: Jedes Feld benötigt einen nicht leeren &quot;key&quot;</translation>
     </message>
     <message>
         <source>showDialog: unknown field type &quot;%1&quot; (use number, slider, checkbox, choice, text, color, folder, or file)</source>
-        <translation>showDialog: unbekannter Feldtyp "%1" (verwenden Sie number, slider, checkbox, choice, text, color, folder oder file)</translation>
+        <translation>showDialog: unbekannter Feldtyp &quot;%1&quot; (verwenden Sie number, slider, checkbox, choice, text, color, folder oder file)</translation>
     </message>
     <message>
         <source>Choose Color</source>
@@ -17821,6 +17865,22 @@ Y: %2
     <message>
         <source>Work Path</source>
         <translation>Arbeitspfad</translation>
+    </message>
+    <message>
+        <source>textOrientation must be &apos;horizontal&apos; or &apos;vertical&apos;.</source>
+        <translation>textOrientation muss &apos;horizontal&apos; oder &apos;vertical&apos; sein.</translation>
+    </message>
+    <message>
+        <source>textDirection must be &apos;auto&apos;, &apos;ltr&apos; or &apos;rtl&apos;.</source>
+        <translation>textDirection muss &apos;auto&apos;, &apos;ltr&apos; oder &apos;rtl&apos; sein.</translation>
+    </message>
+    <message>
+        <source>orientation must be &apos;horizontal&apos; or &apos;vertical&apos;.</source>
+        <translation>orientation muss &apos;horizontal&apos; oder &apos;vertical&apos; sein.</translation>
+    </message>
+    <message>
+        <source>direction must be &apos;auto&apos;, &apos;ltr&apos; or &apos;rtl&apos;.</source>
+        <translation>direction muss &apos;auto&apos;, &apos;ltr&apos; oder &apos;rtl&apos; sein.</translation>
     </message>
 </context>
 <context>
@@ -17923,8 +17983,8 @@ Y: %2
     <message numerus="yes">
         <source>Exported %n style(s) to &quot;%1&quot;.</source>
         <translation>
-            <numerusform>%n Stil nach "%1" exportiert.</numerusform>
-            <numerusform>%n Stile nach "%1" exportiert.</numerusform>
+            <numerusform>%n Stil nach &quot;%1&quot; exportiert.</numerusform>
+            <numerusform>%n Stile nach &quot;%1&quot; exportiert.</numerusform>
         </translation>
     </message>
     <message>
@@ -17944,19 +18004,19 @@ Y: %2
     </message>
     <message>
         <source>Could not open &quot;%1&quot;.</source>
-        <translation>"%1" konnte nicht geöffnet werden.</translation>
+        <translation>&quot;%1&quot; konnte nicht geöffnet werden.</translation>
     </message>
     <message>
         <source>Could not read &quot;%1&quot;.</source>
-        <translation>"%1" konnte nicht gelesen werden.</translation>
+        <translation>&quot;%1&quot; konnte nicht gelesen werden.</translation>
     </message>
     <message>
         <source>&quot;%1&quot; is too large to import safely.</source>
-        <translation>"%1" ist zu groß, um sicher importiert zu werden.</translation>
+        <translation>&quot;%1&quot; ist zu groß, um sicher importiert zu werden.</translation>
     </message>
     <message>
         <source>Could not import styles from &quot;%1&quot;. The file is not a supported Photoshop ASL file or is damaged.</source>
-        <translation>Aus "%1" konnten keine Stile importiert werden. Die Datei ist keine unterstützte Photoshop-ASL-Datei oder ist beschädigt.</translation>
+        <translation>Aus &quot;%1&quot; konnten keine Stile importiert werden. Die Datei ist keine unterstützte Photoshop-ASL-Datei oder ist beschädigt.</translation>
     </message>
     <message>
         <source>Imported Styles</source>
@@ -17968,15 +18028,15 @@ Y: %2
     </message>
     <message>
         <source>Style &quot;%1&quot; used an id already assigned to a different style; it was imported with a new id.</source>
-        <translation>Der Stil "%1" verwendete eine ID, die bereits einem anderen Stil zugewiesen ist. Er wurde mit einer neuen ID importiert.</translation>
+        <translation>Der Stil &quot;%1&quot; verwendete eine ID, die bereits einem anderen Stil zugewiesen ist. Er wurde mit einer neuen ID importiert.</translation>
     </message>
     <message>
         <source>Could not save style &quot;%1&quot;.</source>
-        <translation>Der Stil "%1" konnte nicht gespeichert werden.</translation>
+        <translation>Der Stil &quot;%1&quot; konnte nicht gespeichert werden.</translation>
     </message>
     <message>
         <source>No styles could be imported from &quot;%1&quot;.</source>
-        <translation>Aus "%1" konnten keine Stile importiert werden.</translation>
+        <translation>Aus &quot;%1&quot; konnten keine Stile importiert werden.</translation>
     </message>
     <message>
         <source>There are no styles to export.</source>
@@ -17984,7 +18044,7 @@ Y: %2
     </message>
     <message>
         <source>Could not write &quot;%1&quot;.</source>
-        <translation>"%1" konnte nicht geschrieben werden.</translation>
+        <translation>&quot;%1&quot; konnte nicht geschrieben werden.</translation>
     </message>
     <message>
         <source>%1 Copy</source>

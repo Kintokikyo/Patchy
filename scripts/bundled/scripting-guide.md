@@ -332,7 +332,7 @@ Field types: `number`, `slider`, `checkbox`, `choice`, `text`, `color`, `folder`
 | `doc.layers` | Top-level layers, bottom to top. Groups expose `.children`. |
 | `doc.activeLayer` | Get or set the targeted layer. |
 | `doc.addLayer(name)` | New empty pixel layer on top, made active. |
-| `doc.addTextLayer(text, options)` | Text layer through the real text engine. Options: `font`, `size`, `x`, `y`, `color`, `bold`, `italic`. `size` is the text height in document pixels. |
+| `doc.addTextLayer(text, options)` | Text layer through the real text engine. Options: `font`, `size`, `x`, `y`, `color`, `bold`, `italic`, `orientation` (`"horizontal"` or `"vertical"`), `direction` (`"auto"`, `"ltr"`, `"rtl"`). `size` is the text height in document pixels; for vertical text `x`/`y` is the first column's top centre. |
 | `doc.findLayer(name)` | First layer with that exact name, or `undefined`. |
 | `doc.combineShapes(layers, op)` | Combine Shapes: merges sibling shape layers into the bottom-most one and returns it. `op` is `"unite"`, `"subtract"` (front shapes cut from the base), `"intersect"`, or `"exclude"`. |
 | `doc.mergeLayers(layers, options?)` | Merges the supplied layers and selected groups' contents without a dialog. Options `keepVectors`, `withinGroups`, `separateVectorTypes` default to `true`, `false`, `true`. Vector parts retain their colors, strokes, opacity and paint alignment. Enable `withinGroups` to retain folders. `separateVectorTypes` separates solid, gradient, pattern and mixed-paint categories; turn it off to combine these appearances in one vector layer. Returns surviving selected leaf layers in bottom-to-top order. A single leaf is unchanged. Set `keepVectors:false` to rasterize merges. Masks, effects, clipping, locks and stacking order can require additional layers. |
@@ -418,6 +418,7 @@ preview. PNG export may reserve one extra palette entry for transparency.
 | `layer.x` / `layer.y` / `layer.moveTo(x, y)` | Content offset in document pixels. Moving via `x`/`y` is cheap, so animate sprites this way. |
 | `layer.bounds` | The content bounding box. |
 | `layer.isGroup` / `layer.children` / `layer.isText` / `layer.text` | Group and text access. Setting `text` re-renders the layer. |
+| `layer.textOrientation` / `layer.textDirection` | Text layers: `"horizontal"` or `"vertical"`, and the paragraph direction `"auto"`, `"ltr"` or `"rtl"`. Setting either re-renders the layer. |
 | `layer.duplicate(targetDocument?)` / `layer.remove()` | Copy above itself, or into another open document above its active layer; or delete. |
 | `layer.ungroup()` | Releases a folder's layers into its parent (top to bottom) and removes the folder. |
 | `layer.fill(color)` | Fills the selection (or everything on an empty layer). |

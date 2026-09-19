@@ -16553,6 +16553,50 @@ Y: %2
         <source>Create Clipping Mask needs a pixel layer or group below</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Align Top</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Align Center (Vertical)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Align Bottom</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Vertical text: columns read top to bottom, right to left</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Direction:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Paragraph direction (auto follows the first strong character)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Auto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Left to right</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Right to left</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Horizontal Text</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Vertical Text</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -17778,6 +17822,22 @@ Y: %2
     </message>
     <message>
         <source>Work Path</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>textOrientation must be &apos;horizontal&apos; or &apos;vertical&apos;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>textDirection must be &apos;auto&apos;, &apos;ltr&apos; or &apos;rtl&apos;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>orientation must be &apos;horizontal&apos; or &apos;vertical&apos;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>direction must be &apos;auto&apos;, &apos;ltr&apos; or &apos;rtl&apos;.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

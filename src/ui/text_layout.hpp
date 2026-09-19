@@ -24,6 +24,7 @@
 #include <QFont>
 #include <QPointF>
 #include <QRectF>
+#include <QTextCharFormat>
 #include <QTextFormat>
 
 #include <optional>
@@ -142,6 +143,65 @@ struct PhotoshopLineMetrics {
 // Line x positions stay Qt's own (alignment against the layout width).
 [[nodiscard]] PhotoshopTextLayoutPlan photoshop_text_layout_plan(const QTextDocument& document, bool boxed);
 
+// ---- Vertical (tategaki) text ----
+//
+// Photoshop's Vertical Type model, calibrated against PS 2026 renders and DOM read-backs
+// (local-test-fixtures/psd/ps2026_vtext, September 2026):
+// - Every glyph stands UPRIGHT (Latin included: "Hello" stacks H, e, l, l, o) in a cell one em
+//   tall (FontSize x vertical glyph scale); whitespace advances by its horizontal width (a 32 px
+//   Arial space is 8.9 px of column). Tracking adds FontSize x tracking/1000 after every cell
+//   except a column's last.
+// - The glyph is centred on the column axis horizontally; vertically the font's ascent+descent
+//   box is centred in the cell (Arial's 1.117 em box hangs 0.06 em past both cell edges, MS
+//   Gothic's 1.0 em box fills it), i.e. baseline = cell top + (em - (asc + desc)) / 2 + asc.
+// - Columns advance LEFT by the entered column's max effective leading (auto = paragraph
+//   fraction x FontSize), with the same per-column rule horizontal lines use for baselines.
+// - Point text anchors the first column's axis at the transform translation, the column run's
+//   top / middle / bottom for left / center / right justification. Box text puts the first
+//   column against the frame's RIGHT edge and wraps by cell count at the frame height.
+// The document is laid out horizontally with NoWrap (one QTextLine per paragraph) purely for
+// shaping and per-character formats; the plan below re-places each grapheme cluster into its
+// cell and the renderer draws the cluster's glyph runs there. Layout space: (0, 0) is the
+// top-left of the cell union for point text and the frame's top-left for box text.
+struct VerticalTextCell {
+  int position{0};       // document position of the cell's first character
+  int length{1};         // characters in the cell (one grapheme cluster)
+  double top{0.0};       // cell top in layout space
+  double advance{0.0};   // cell height: the em, or a space's horizontal advance
+  double gap{0.0};       // tracking gap after the cell (0 after a column's last cell)
+  double baseline{0.0};  // glyph baseline y in layout space
+  double glyph_start{0.0};  // the cluster's horizontal extent in its QTextLine (cursorToX)
+  double glyph_end{0.0};    // ... minus the letter spacing Qt appends after it
+  QTextCharFormat format;
+};
+
+struct VerticalTextColumn {
+  QTextLine line;
+  int block_position{0};
+  double axis{0.0};     // column centre x in layout space
+  double em{0.0};       // column width: the largest cell em
+  double leading{0.0};  // the column's max effective leading (its pitch from the previous column)
+  double top{0.0};      // y of the first cell (or of the caret in an empty column)
+  int start{0};         // document positions covered [start, end)
+  int end{0};
+  bool last_in_block{false};
+  std::vector<VerticalTextCell> cells;
+};
+
+struct VerticalTextLayoutPlan {
+  std::vector<VerticalTextColumn> columns;
+  QRectF cell_rect;  // union of the cell boxes (box text: the frame united with them)
+  QPointF anchor;    // Photoshop's transform anchor in layout space (see above)
+  bool valid{false};
+
+  // Shift every coordinate (the renderer pads the cell union by a bleed on each side).
+  void translate(double dx, double dy);
+};
+
+// `box_width`/`box_height` are the frame dims for box text (ignored for point text).
+[[nodiscard]] VerticalTextLayoutPlan vertical_text_layout_plan(const QTextDocument& document, bool boxed,
+                                                               double box_width, double box_height);
+
 // Caret, selection and hit-test geometry over the line plan the renderer draws, in the
 // document's own coordinate space. Read the file header comment on lifetime.
 class TextLineGeometry {
@@ -156,8 +216,17 @@ public:
   [[nodiscard]] static TextLineGeometry from_lines(const QTextDocument& document,
                                                    const std::vector<BoxTextLineRenderItem>& lines);
 
+  // Vertical text: caret bars run ACROSS the column (em wide, thin), selections are column
+  // strips, and a click resolves to the nearest column by x and the nearest cell edge by y.
+  [[nodiscard]] static TextLineGeometry from_vertical_plan(const QTextDocument& document,
+                                                           const VerticalTextLayoutPlan& plan);
+
   [[nodiscard]] bool empty() const noexcept {
-    return lines_.empty();
+    return lines_.empty() && columns_.empty();
+  }
+
+  [[nodiscard]] bool vertical() const noexcept {
+    return vertical_;
   }
 
   // Union of the positioned line boxes, in document space. This is how tall the text actually
@@ -185,7 +254,14 @@ private:
   };
 
   std::vector<Line> lines_;
+  std::vector<VerticalTextColumn> columns_;
+  QRectF vertical_rect_;
+  bool vertical_{false};
   int maximum_position_{0};
+
+  [[nodiscard]] QRectF vertical_caret_rect(int position) const;
+  [[nodiscard]] std::vector<QRectF> vertical_selection_rects(int start, int end) const;
+  [[nodiscard]] int vertical_position_at(QPointF local_point) const;
 };
 
 }  // namespace patchy::ui

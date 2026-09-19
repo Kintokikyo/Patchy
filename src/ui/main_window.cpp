@@ -284,7 +284,30 @@ struct TextToolSettings {
   // Photoshop leading-model layout (kLayerMetadataTextLayoutMode == "photoshop"): baselines
   // advance by each entered line's max leading instead of Qt's natural spacing.
   bool photoshop_layout{false};
+  // Vertical type (kLayerMetadataTextOrientation == "vertical"): upright glyphs stacked in
+  // columns that advance right to left. See ui/text_layout.hpp.
+  bool vertical{false};
 };
+
+constexpr auto kTextEditorOrientationProperty = "patchy.documentTextOrientation";
+// Document-space point the vertical layout's Photoshop anchor stays pinned to for the session
+// (the click for a new layer, the layer's own anchor for a re-edit): vertical text grows LEFT
+// and, for centred/bottom text, UP, so the widget origin has to move as the layout grows.
+constexpr auto kTextEditorVerticalAnchorProperty = "patchy.verticalAnchor";
+
+bool text_editor_is_vertical(const QTextEdit& editor) {
+  return editor.property(kTextEditorOrientationProperty).toString() == QLatin1String(kTextOrientationVertical);
+}
+
+// Caret bars are thin ACROSS the reading direction: a horizontal caret gets its width, a
+// vertical one (em wide, one pixel tall from the layout) its height.
+void apply_text_caret_thickness(QRect& caret, int thickness, bool vertical) {
+  if (vertical) {
+    caret.setHeight(thickness);
+  } else {
+    caret.setWidth(thickness);
+  }
+}
 
 constexpr auto kTextEditorPreviewEnabledProperty = "patchy.textPreviewEnabled";
 constexpr auto kTextEditorPreviewExpensiveProperty = "patchy.expensiveTextStylePreview";
@@ -336,6 +359,20 @@ std::vector<QRect> text_editor_viewport_selection_rects(const QTextEdit& editor,
 double text_editor_metric_scale(const QTextEdit& editor);
 bool text_editor_uses_photoshop_layout(const QTextEdit& editor);
 double text_editor_size_display_scale(const QTextEdit& editor);
+
+// The vertical layout plan a render pass draws, bleed included, so the caret geometry and the
+// glyphs come from one placement. `box_scale` scales the frame dims (a transform fold),
+// `size_scale` the bleed's size basis (the fold plus any PSD-frame layout scale).
+struct VerticalRenderPlan {
+  VerticalTextLayoutPlan plan;
+  double bleed{0.0};
+  QRectF local_rect;
+};
+bool layer_text_is_vertical(const Layer& layer);
+std::optional<QPointF> vertical_text_layer_anchor(const Layer& layer);
+VerticalRenderPlan vertical_render_plan(const QTextDocument& document, const TextToolSettings& settings,
+                                        double box_scale, double size_scale);
+VerticalRenderPlan vertical_render_plan_for_editor(const QTextEdit& editor, const QTextDocument& layout_document);
 
 // The document a text layer is rasterized from, plus the font/width the layout was built against.
 // Built by build_text_render_document -- the single construction shared by the rasterizer and the
@@ -1299,6 +1336,40 @@ protected:
     QTextEdit::focusInEvent(event);
   }
 
+  // Vertical text: the arrow keys follow the columns. Up/Down step along the column (previous
+  // and next character), Left/Right jump to the next and previous column (columns advance
+  // leftward, and with NoWrap every paragraph is one QTextLine, so Qt's own Down/Up land
+  // there). Home/End keep their line meaning (column start/end).
+  void keyPressEvent(QKeyEvent* event) override {
+    if (text_editor_is_vertical(*this)) {
+      int remapped = 0;
+      switch (event->key()) {
+        case Qt::Key_Up:
+          remapped = Qt::Key_Left;
+          break;
+        case Qt::Key_Down:
+          remapped = Qt::Key_Right;
+          break;
+        case Qt::Key_Left:
+          remapped = Qt::Key_Down;
+          break;
+        case Qt::Key_Right:
+          remapped = Qt::Key_Up;
+          break;
+        default:
+          break;
+      }
+      if (remapped != 0) {
+        QKeyEvent replacement(event->type(), remapped, event->modifiers(), event->text(), event->isAutoRepeat(),
+                              static_cast<ushort>(event->count()));
+        QTextEdit::keyPressEvent(&replacement);
+        event->setAccepted(replacement.isAccepted());
+        return;
+      }
+    }
+    QTextEdit::keyPressEvent(event);
+  }
+
   bool canInsertFromMimeData(const QMimeData* source) const override {
     return source != nullptr && (source->hasText() || QTextEdit::canInsertFromMimeData(source));
   }
@@ -1336,7 +1407,7 @@ protected:
       auto caret = property(kTextEditorPreviewCaretProperty).toRect();
       if (caret.isNull() || caret.isEmpty()) {
         caret = text_editor_viewport_caret_rect(*this);
-        caret.setWidth(text_editor_caret_width(*this));
+        apply_text_caret_thickness(caret, text_editor_caret_width(*this), text_editor_is_vertical(*this));
       }
       painter.fillRect(caret.intersected(viewport()->rect()), palette().color(QPalette::Text));
     }
@@ -1756,6 +1827,7 @@ std::unique_ptr<QTextDocument> build_text_editor_document_space_layout(const QTe
                             text_width,
                             text_height};
   settings.photoshop_layout = text_editor_uses_photoshop_layout(editor);
+  settings.vertical = text_editor_is_vertical(editor);
   const auto rich_text_runs = rich_text_runs_from_document(*source_units, settings, color);
   const auto paragraph_runs = paragraph_runs_from_document(*source_units);
   // The scales MUST mirror the render pass (update_text_editor_preview / commit_text_editor).
@@ -1817,6 +1889,10 @@ QRectF scale_document_rect_to_viewport(const QRect& document_rect, double zoom, 
 // photoshop_layout either) drifted the caret and the highlight off the glyphs on every
 // PS-model layer.  See ui/text_layout.hpp.
 TextLineGeometry text_editor_line_geometry(const QTextEdit& editor, const QTextDocument& layout_document) {
+  if (text_editor_is_vertical(editor)) {
+    return TextLineGeometry::from_vertical_plan(layout_document,
+                                                vertical_render_plan_for_editor(editor, layout_document).plan);
+  }
   return TextLineGeometry::build(layout_document,
                                  text_flow_is_box(editor.property("patchy.documentTextFlow").toString()),
                                  text_editor_uses_photoshop_layout(editor));
@@ -1936,7 +2012,7 @@ void update_text_editor_preview_caret(QTextEdit& editor, double zoom) {
     editor.setProperty(kTextEditorPreviewCaretProperty, QVariant());
     return;
   }
-  caret.setWidth(caret_width);
+  apply_text_caret_thickness(caret, caret_width, text_editor_is_vertical(editor));
   editor.setProperty(kTextEditorPreviewCaretProperty, caret);
 }
 
@@ -2423,7 +2499,7 @@ private:
     if (caret.isEmpty() || caret_width <= 0) {
       return;
     }
-    caret.setWidth(caret_width);
+    apply_text_caret_thickness(caret, caret_width, text_editor_is_vertical(*editor_));
     // Published in CANVAS coordinates whether or not this frame draws it (the caret blinks).
     // It is where a user has to click to put the cursor back, which is the only place the
     // transformed hit-test can be checked from outside.
@@ -2797,6 +2873,7 @@ QString paragraph_runs_from_document(const QTextDocument& document) {
     double space_before{0.0};
     double space_after{0.0};
     double auto_lead_fraction{1.2};
+    QString direction;  // "ltr" / "rtl", empty for auto
   };
   const auto normalized_metric = [](double value) {
     return std::isfinite(value) && std::abs(value) >= 0.0001 ? value : 0.0;
@@ -2809,6 +2886,7 @@ QString paragraph_runs_from_document(const QTextDocument& document) {
   std::vector<ParagraphRunLine> run_lines;
   bool include_layout = false;
   bool include_fraction = false;
+  bool include_direction = false;
   const int plain_length = static_cast<int>(document.toPlainText().size());
   for (auto block = document.begin(); block.isValid(); block = block.next()) {
     const auto start = std::clamp(block.position(), 0, std::max(0, plain_length));
@@ -2832,13 +2910,23 @@ QString paragraph_runs_from_document(const QTextDocument& document) {
     }
     include_layout = include_layout || run.first_line_indent != 0.0 || run.start_indent != 0.0 ||
                      run.end_indent != 0.0 || run.space_before != 0.0 || run.space_after != 0.0;
+    // An explicit paragraph direction is a v4 column; auto (the bidi default) leaves the
+    // paragraph on the older formats so ordinary text stays byte-identical.
+    if (format.layoutDirection() == Qt::LeftToRight) {
+      run.direction = QStringLiteral("ltr");
+    } else if (format.layoutDirection() == Qt::RightToLeft) {
+      run.direction = QStringLiteral("rtl");
+    }
+    include_direction = include_direction || !run.direction.isEmpty();
     run_lines.push_back(std::move(run));
   }
+  include_fraction = include_fraction || include_direction;
   include_layout = include_layout || include_fraction;
 
   QStringList lines;
-  lines << (include_fraction ? QStringLiteral("v3")
-                             : (include_layout ? QStringLiteral("v2") : QStringLiteral("v1")));
+  lines << (include_direction ? QStringLiteral("v4")
+                              : (include_fraction ? QStringLiteral("v3")
+                                                  : (include_layout ? QStringLiteral("v2") : QStringLiteral("v1"))));
   for (const auto& run : run_lines) {
     auto line = QStringLiteral("%1\t%2\t%3").arg(run.start).arg(run.length).arg(run.alignment);
     if (include_layout) {
@@ -2851,6 +2939,9 @@ QString paragraph_runs_from_document(const QTextDocument& document) {
     }
     if (include_fraction) {
       line += QStringLiteral("\t%1").arg(QString::number(run.auto_lead_fraction, 'g', 17));
+    }
+    if (include_direction) {
+      line += QStringLiteral("\t%1").arg(run.direction.isEmpty() ? QStringLiteral("auto") : run.direction);
     }
     lines << line;
   }
@@ -2871,7 +2962,7 @@ void apply_paragraph_runs_to_document(QTextDocument& document, const QString& pa
   for (const auto& raw_line : lines) {
     const auto line = raw_line.trimmed();
     if (line.isEmpty() || line == QStringLiteral("v1") || line == QStringLiteral("v2") ||
-        line == QStringLiteral("v3")) {
+        line == QStringLiteral("v3") || line == QStringLiteral("v4")) {
       continue;
     }
     const auto fields = line.split(QLatin1Char('\t'));
@@ -2890,6 +2981,13 @@ void apply_paragraph_runs_to_document(QTextDocument& document, const QString& pa
     cursor.setPosition(std::min(plain_length, start + std::max(1, length)), QTextCursor::KeepAnchor);
     QTextBlockFormat format;
     format.setAlignment(paragraph_alignment_from_name(fields[2]));
+    if (fields.size() >= 10) {
+      if (fields[9] == QStringLiteral("rtl")) {
+        format.setLayoutDirection(Qt::RightToLeft);
+      } else if (fields[9] == QStringLiteral("ltr")) {
+        format.setLayoutDirection(Qt::LeftToRight);
+      }
+    }
     if (fields.size() >= 8) {
       format.setTextIndent(metric_value(fields[3]));
       format.setLeftMargin(metric_value(fields[4]));
@@ -3428,12 +3526,21 @@ TextRenderDocument build_text_render_document(const TextToolSettings& settings, 
                           ? std::max(kMinimumTextBoxDocumentSize,
                                      static_cast<int>(std::lround(settings.box_width * box_scale)))
                           : std::max(64, max_width);
+  if (settings.vertical) {
+    // Vertical forms (a rotated long-vowel mark, brackets that open downward, small kana
+    // shifted to the upper right) come from the OpenType 'vert' feature. QTextCharFormat
+    // cannot carry features (Qt 6.8), so it rides on the default font every run resolves
+    // against. Fonts without the feature are unaffected.
+    result.font.setFeature(QFont::Tag("vert"), 1);
+  }
   result.document = std::make_unique<QTextDocument>();
   auto& document = *result.document;
   document.setDocumentMargin(0);
   document.setDefaultFont(result.font);
   QTextOption option;
-  option.setWrapMode(settings.boxed ? QTextOption::WordWrap : QTextOption::NoWrap);
+  // Vertical text is laid out horizontally with NoWrap for shaping only; the vertical plan
+  // wraps it by cells at the frame height.
+  option.setWrapMode(settings.boxed && !settings.vertical ? QTextOption::WordWrap : QTextOption::NoWrap);
   option.setUseDesignMetrics(true);
   document.setDefaultTextOption(option);
   if (!rich_text_runs.trimmed().isEmpty()) {
@@ -3466,12 +3573,12 @@ TextRenderDocument build_text_render_document(const TextToolSettings& settings, 
   // content, which -- when max_width is a layer's already-scaled pixel bounds -- inflated the rendered
   // image and, after the document transform re-scaled it, produced a free-transform rect several times
   // wider than the glyphs.  Use -1 (auto) for point text so size().width() is the ideal content width.
-  document.setTextWidth(settings.boxed ? static_cast<qreal>(result.text_width) : -1.0);
+  document.setTextWidth(settings.boxed && !settings.vertical ? static_cast<qreal>(result.text_width) : -1.0);
   if (!paragraph_runs.trimmed().isEmpty()) {
     apply_paragraph_runs_to_document(document, paragraph_runs, layout_scale);
   }
   apply_text_smoothing_to_document(document, settings.anti_alias);
-  if (!settings.boxed) {
+  if (!settings.boxed || settings.vertical) {
     // Qt only honors paragraph alignment against a finite layout width; leaving point text
     // unconstrained (-1) silently lays every line out flush-left, so centered/right-justified
     // multi-line point text (Photoshop aligns each line around the type anchor) collapsed to
@@ -3537,7 +3644,51 @@ struct TextRenderPlan {
   QTransform document_transform;  // post-fold residual (identity when none was supplied)
   bool has_document_transform{false};
   bool faux_italic_render{false};
+  // Vertical type: the cell plan replaces the line items (which stay empty).
+  bool vertical{false};
+  VerticalTextLayoutPlan vertical_plan;
 };
+
+VerticalRenderPlan vertical_render_plan(const QTextDocument& document, const TextToolSettings& settings,
+                                        double box_scale, double size_scale) {
+  VerticalRenderPlan result;
+  box_scale = std::isfinite(box_scale) && box_scale > 0.01 ? box_scale : 1.0;
+  size_scale = std::isfinite(size_scale) && size_scale > 0.01 ? size_scale : 1.0;
+  const auto box_width = static_cast<double>(std::max(kMinimumTextBoxDocumentSize,
+                                                      static_cast<int>(std::lround(settings.box_width * box_scale))));
+  const auto box_height = static_cast<double>(std::max(kMinimumTextBoxDocumentSize,
+                                                       static_cast<int>(std::lround(settings.box_height * box_scale))));
+  result.plan = vertical_text_layout_plan(document, settings.boxed, box_width, box_height);
+  result.bleed = psd::vertical_text_bleed_for_size(std::max(1, settings.size) * size_scale);
+  const auto bleed = result.bleed;
+  if (settings.boxed) {
+    // The buffer keeps the frame's origin and size and grows only where cells overhang, the
+    // rule the horizontal boxed paths follow for pixels-only callers.
+    result.local_rect = QRectF(0.0, 0.0, std::max(box_width, result.plan.cell_rect.right() + bleed),
+                               std::max(box_height, result.plan.cell_rect.bottom() + bleed));
+  } else {
+    result.plan.translate(bleed, bleed);
+    result.local_rect = QRectF(0.0, 0.0, std::max(1.0, result.plan.cell_rect.right() + bleed),
+                               std::max(1.0, result.plan.cell_rect.bottom() + bleed));
+  }
+  return result;
+}
+
+VerticalRenderPlan vertical_render_plan_for_editor(const QTextEdit& editor, const QTextDocument& layout_document) {
+  TextToolSettings settings;
+  settings.size = std::max(1, editor.property("patchy.documentTextSize").toInt());
+  settings.boxed = text_flow_is_box(editor.property("patchy.documentTextFlow").toString());
+  settings.box_width = std::max(kMinimumTextBoxDocumentSize, editor.property("patchy.documentTextWidth").toInt());
+  settings.box_height = std::max(kMinimumTextBoxDocumentSize, editor.property("patchy.documentTextHeight").toInt());
+  settings.photoshop_layout = text_editor_uses_photoshop_layout(editor);
+  settings.vertical = true;
+  // Mirrors build_text_editor_document_space_layout's scales, argument for argument.
+  const auto frame_layout_scale =
+      settings.photoshop_layout && editor.property("patchy.usesPsdTextFrame").toBool()
+          ? text_editor_size_display_scale(editor)
+          : 1.0;
+  return vertical_render_plan(layout_document, settings, 1.0, frame_layout_scale);
+}
 
 TextRenderPlan build_text_render_plan(const TextToolSettings& settings, QColor color, std::int32_t max_width,
                                       const QString& paragraph_runs, const QString& rich_text_runs,
@@ -3588,10 +3739,15 @@ TextRenderPlan build_text_render_plan(const TextToolSettings& settings, QColor c
   QRectF local_rect;
   std::vector<BoxTextLineRenderItem> line_render_items;
   PhotoshopTextLayoutPlan photoshop_plan;
-  if (settings.photoshop_layout) {
+  if (settings.photoshop_layout && !settings.vertical) {
     photoshop_plan = photoshop_text_layout_plan(document, settings.boxed);
   }
-  if (settings.boxed) {
+  if (settings.vertical) {
+    auto vertical = vertical_render_plan(document, settings, fold_scale, layout_scale);
+    local_rect = vertical.local_rect;
+    result.vertical = true;
+    result.vertical_plan = std::move(vertical.plan);
+  } else if (settings.boxed) {
     local_rect = QRectF(0.0, 0.0, static_cast<qreal>(text_width),
                         static_cast<qreal>(std::max(
                             kMinimumTextBoxDocumentSize,
@@ -3680,11 +3836,66 @@ TextRenderPlan build_text_render_plan(const TextToolSettings& settings, QColor c
 
 // Draws a plan through `painter`, whose transform must already map the plan's DOCUMENT
 // space onto the device; the plan's own residual transform is applied here.
+// Vertical type: every cell's grapheme cluster is drawn as its own glyph runs at the cell,
+// centred on the column axis with the baseline the plan computed. QPainter::drawGlyphRun keeps
+// the font engine's rasterization (hinting/antialias settings) but ignores char-format outlines,
+// so faux-bold cells fill and stroke glyph paths instead, the same stroke width
+// apply_faux_bold_to_document merged into the format.
+void draw_vertical_text_plan(const TextRenderPlan& plan, QPainter& painter) {
+  for (const auto& column : plan.vertical_plan.columns) {
+    for (const auto& cell : column.cells) {
+      if (cell.length <= 0 || !column.line.isValid()) {
+        continue;
+      }
+      const auto runs = column.line.glyphRuns(cell.position - column.block_position, cell.length);
+      if (runs.isEmpty()) {
+        continue;
+      }
+      const auto glyph_center = (cell.glyph_start + cell.glyph_end) / 2.0;
+      const QPointF origin(column.axis - glyph_center, cell.baseline - (column.line.y() + column.line.ascent()));
+      painter.save();
+      if (plan.faux_italic_render && cell.format.property(kTextFauxItalicFormatProperty).toBool()) {
+        painter.setTransform(faux_italic_shear(cell.baseline), true);
+      }
+      auto color = cell.format.foreground().color();
+      if (!color.isValid()) {
+        color = QColor(Qt::black);
+      }
+      const auto outline = cell.format.textOutline();
+      const bool faux_bold = outline.style() != Qt::NoPen && outline.widthF() > 0.0;
+      if (faux_bold) {
+        painter.setRenderHint(QPainter::Antialiasing, painter.testRenderHint(QPainter::TextAntialiasing));
+        for (const auto& run : runs) {
+          const auto raw_font = run.rawFont();
+          const auto indexes = run.glyphIndexes();
+          const auto positions = run.positions();
+          for (int index = 0; index < indexes.size() && index < positions.size(); ++index) {
+            auto path = raw_font.pathForGlyph(indexes[index]);
+            path.translate(origin + positions[index]);
+            painter.fillPath(path, color);
+            painter.strokePath(path, outline);
+          }
+        }
+      } else {
+        painter.setPen(color);
+        for (const auto& run : runs) {
+          painter.drawGlyphRun(origin, run);
+        }
+      }
+      painter.restore();
+    }
+  }
+}
+
 void draw_text_render_plan(const TextRenderPlan& plan, QPainter& painter) {
   auto& document = *plan.built.document;
   const auto& font = plan.built.font;
   if (plan.has_document_transform) {
     painter.setTransform(plan.document_transform, true);
+  }
+  if (plan.vertical) {
+    draw_vertical_text_plan(plan, painter);
+    return;
   }
   if (!plan.line_render_items.empty()) {
     for (const auto& item : plan.line_render_items) {
@@ -3870,21 +4081,37 @@ std::optional<QSizeF> text_editor_source_visible_size(const QTextEdit& editor) {
 // The horizontal fraction of a text block's width that its justification pins in place: Photoshop
 // point text keeps the anchor at the line start for left text, the line middle for centered text,
 // and the line end for right-justified text.
-double horizontal_alignment_anchor_factor(Qt::Alignment alignment) {
-  if ((alignment & Qt::AlignHCenter) != 0) {
+double horizontal_alignment_anchor_factor(Qt::Alignment alignment,
+                                          Qt::LayoutDirection direction = Qt::LeftToRight) {
+  // Alignment is logical (start/end): Qt draws "left" in a right-to-left paragraph flush right,
+  // and the anchor has to pin the same visual edge or the committed layer jumps by its width.
+  const auto visual = QStyle::visualAlignment(direction, alignment);
+  if ((visual & Qt::AlignHCenter) != 0) {
     return 0.5;
   }
-  if ((alignment & Qt::AlignRight) != 0) {
+  if ((visual & Qt::AlignRight) != 0) {
     return 1.0;
   }
   return 0.0;
+}
+
+// A paragraph's base direction: the explicit block direction, else the Unicode bidi default
+// (the first strong character decides).
+Qt::LayoutDirection resolved_block_direction(const QTextBlock& block) {
+  const auto direction = block.blockFormat().layoutDirection();
+  if (direction == Qt::LeftToRight || direction == Qt::RightToLeft) {
+    return direction;
+  }
+  return block.text().isRightToLeft() ? Qt::RightToLeft : Qt::LeftToRight;
 }
 
 // Multi-paragraph point text can mix justifications, but the rendered raster is placed as one
 // block; the first paragraph's justification decides which point of the block stays fixed.
 double text_editor_anchor_alignment_factor(const QTextEdit& editor) {
   const auto block = editor.document()->begin();
-  return block.isValid() ? horizontal_alignment_anchor_factor(block.blockFormat().alignment()) : 0.0;
+  return block.isValid()
+             ? horizontal_alignment_anchor_factor(block.blockFormat().alignment(), resolved_block_direction(block))
+             : 0.0;
 }
 
 // Same as text_editor_anchor_alignment_factor, derived from a layer's stored paragraph runs for
@@ -3904,14 +4131,27 @@ double layer_anchor_alignment_factor(const Layer& layer) {
     if (fields.size() < 3) {
       continue;
     }
-    return horizontal_alignment_anchor_factor(paragraph_alignment_from_name(fields[2]));
+    auto direction = Qt::LeftToRight;
+    if (fields.size() >= 10 && fields[9] == QStringLiteral("rtl")) {
+      direction = Qt::RightToLeft;
+    } else if (fields.size() < 10 || fields[9] != QStringLiteral("ltr")) {
+      // Auto: the first paragraph's own text decides, as the layout does.
+      if (const auto text = layer.metadata().find(kLayerMetadataText); text != layer.metadata().end()) {
+        const auto first_paragraph = QString::fromStdString(text->second).section(QLatin1Char('\n'), 0, 0);
+        if (first_paragraph.isRightToLeft()) {
+          direction = Qt::RightToLeft;
+        }
+      }
+    }
+    return horizontal_alignment_anchor_factor(paragraph_alignment_from_name(fields[2]), direction);
   }
   return 0.0;
 }
 
 bool text_document_has_non_left_alignment(const QTextDocument& document) {
   for (auto block = document.begin(); block.isValid(); block = block.next()) {
-    if ((block.blockFormat().alignment() & (Qt::AlignHCenter | Qt::AlignRight | Qt::AlignJustify)) != 0) {
+    const auto visual = QStyle::visualAlignment(resolved_block_direction(block), block.blockFormat().alignment());
+    if ((visual & (Qt::AlignHCenter | Qt::AlignRight | Qt::AlignJustify)) != 0) {
       return true;
     }
   }
@@ -4150,6 +4390,7 @@ std::optional<double> calibrated_box_text_metric_scale_for_editor(const QTextEdi
                             text_width,
                             text_height};
   settings.photoshop_layout = text_editor_uses_photoshop_layout(editor);
+  settings.vertical = text_editor_is_vertical(editor);
   const auto rich_text_runs = rich_text_runs_from_document(*document_text, settings, text_color);
   const auto paragraph_runs = paragraph_runs_from_document(*document_text);
   settings.html = document_html_from_text_runs(document_text->toPlainText(), rich_text_runs, settings, text_color);
@@ -4198,8 +4439,16 @@ std::optional<LayerAffineTransform> anchored_text_transform_for_pixels(const QTe
   // width difference between the source raster and this render (font substitution or edits
   // change the width).  The source visible size is captured alongside the anchor on edit start.
   auto anchor_x = anchor->x();
-  if (const auto factor = text_editor_anchor_alignment_factor(editor); factor > 0.0) {
-    if (const auto source_size = text_editor_source_visible_size(editor); source_size.has_value()) {
+  auto anchor_y = anchor->y();
+  if (const auto source_size = text_editor_source_visible_size(editor); source_size.has_value()) {
+    if (text_editor_is_vertical(editor)) {
+      // Vertical text: the first column sits at the RIGHT edge (the stack axis pins there) and
+      // the justification fraction runs along y.
+      anchor_x += source_size->width() - static_cast<double>(visible_bounds->width);
+      if (const auto factor = text_editor_anchor_alignment_factor(editor); factor > 0.0) {
+        anchor_y += factor * (source_size->height() - static_cast<double>(visible_bounds->height));
+      }
+    } else if (const auto factor = text_editor_anchor_alignment_factor(editor); factor > 0.0) {
       anchor_x += factor * (source_size->width() - static_cast<double>(visible_bounds->width));
     }
   }
@@ -4208,7 +4457,7 @@ std::optional<LayerAffineTransform> anchored_text_transform_for_pixels(const QTe
                               0.0,
                               1.0,
                               anchor_x - static_cast<double>(visible_bounds->x),
-                              anchor->y() - static_cast<double>(visible_bounds->y)};
+                              anchor_y - static_cast<double>(visible_bounds->y)};
 }
 
 bool update_text_editor_transform_from_source_anchor(QTextEdit& editor, const PixelBuffer& pixels) {
@@ -4256,6 +4505,7 @@ std::optional<PixelBuffer> render_text_editor_pixels_for_source_anchor(const QTe
                             text_width,
                             text_height};
   settings.photoshop_layout = text_editor_uses_photoshop_layout(editor);
+  settings.vertical = text_editor_is_vertical(editor);
   const auto rich_text_runs = rich_text_runs_from_document(*document_text, settings, text_color);
   const auto paragraph_runs = paragraph_runs_from_document(*document_text);
   settings.html = document_html_from_text_runs(document_text->toPlainText(), rich_text_runs, settings, text_color);
@@ -4700,6 +4950,12 @@ bool update_text_editor_transform_from_psd_local_bounds(QTextEdit& editor, const
   return true;
 }
 
+bool layer_text_is_vertical(const Layer& layer) {
+  const auto found = layer.metadata().find(kLayerMetadataTextOrientation);
+  return found != layer.metadata().end() && found->second == kTextOrientationVertical;
+}
+
+
 std::optional<QPointF> layer_source_visible_anchor(const Layer& layer) {
   if (const auto visible_bounds = visible_alpha_local_bounds(layer.pixels()); visible_bounds.has_value()) {
     return QPointF(static_cast<double>(layer.bounds().x + visible_bounds->x),
@@ -4781,6 +5037,8 @@ std::optional<LayerTextRenderInputs> text_render_inputs_from_layer(const Layer& 
                             box_height};
   settings.photoshop_layout =
       value(kLayerMetadataTextLayoutMode).value_or(QString()) == QLatin1String(kTextLayoutModePhotoshop);
+  settings.vertical =
+      value(kLayerMetadataTextOrientation).value_or(QString()) == QLatin1String(kTextOrientationVertical);
   return LayerTextRenderInputs{std::move(settings), color.isValid() ? color : QColor(Qt::black),
                                layer.bounds().width > 0 ? layer.bounds().width : 320, paragraph_runs,
                                rich_text_runs};
@@ -4793,6 +5051,34 @@ std::optional<PixelBuffer> render_text_layer_pixels_from_metadata(const Layer& l
   }
   return render_text_pixels(inputs->settings, inputs->color, inputs->max_width, inputs->paragraph_runs,
                             inputs->rich_text_runs);
+}
+
+// Document-space Photoshop anchor of a vertical point layer: the layer raster is the plan's
+// buffer placed at the layer bounds (a commit), or that buffer ink-trimmed (a transform
+// re-render), so a fresh identity render of the layer's own text recovers the offset.
+std::optional<QPointF> vertical_text_layer_anchor(const Layer& layer) {
+  const auto inputs = text_render_inputs_from_layer(layer);
+  if (!inputs.has_value() || !inputs->settings.vertical || inputs->settings.boxed) {
+    return std::nullopt;
+  }
+  const auto plan = build_text_render_plan(inputs->settings, inputs->color, inputs->max_width, inputs->paragraph_runs,
+                                           inputs->rich_text_runs, std::nullopt, 1.0, QTransform(), 1.0);
+  if (!plan.vertical || !plan.vertical_plan.valid) {
+    return std::nullopt;
+  }
+  QPointF offset = plan.vertical_plan.anchor;
+  const auto buffer_width = static_cast<int>(std::ceil(plan.local_rect.right()));
+  const auto buffer_height = static_cast<int>(std::ceil(plan.local_rect.bottom()));
+  const auto& pixels = layer.pixels();
+  if ((pixels.width() != buffer_width || pixels.height() != buffer_height) &&
+      visible_alpha_local_bounds(pixels).has_value()) {
+    if (const auto rendered = render_text_layer_pixels_from_metadata(layer); rendered.has_value()) {
+      if (const auto visible = visible_alpha_local_bounds(*rendered); visible.has_value()) {
+        offset -= QPointF(static_cast<double>(visible->x), static_cast<double>(visible->y));
+      }
+    }
+  }
+  return QPointF(static_cast<double>(layer.bounds().x), static_cast<double>(layer.bounds().y)) + offset;
 }
 
 // Re-render a text layer's glyphs *through* the layer transform so a scaled/rotated layer stays
@@ -5211,8 +5497,9 @@ bool text_editor_layer_is_warped(const Document& doc, const QTextEdit& editor) {
 }
 
 void clear_layer_text_metadata(Layer& layer) {
-  static constexpr std::array<const char*, 24> kTextMetadataKeys = {
+  static constexpr std::array<const char*, 25> kTextMetadataKeys = {
       kLayerMetadataText,
+      kLayerMetadataTextOrientation,
       kLayerMetadataTextHtml,
       kLayerMetadataTextRuns,
       kLayerMetadataTextParagraphRuns,
@@ -5296,6 +5583,11 @@ void store_patchy_text_metadata(Layer& layer, const TextToolSettings& settings, 
   layer.metadata()[kLayerMetadataTextBold] = settings.bold ? "true" : "false";
   layer.metadata()[kLayerMetadataTextItalic] = settings.italic ? "true" : "false";
   layer.metadata()[kLayerMetadataTextAntiAlias] = std::to_string(std::clamp(settings.anti_alias, 0, 16));
+  if (settings.vertical) {
+    layer.metadata()[kLayerMetadataTextOrientation] = kTextOrientationVertical;
+  } else {
+    layer.metadata().erase(kLayerMetadataTextOrientation);
+  }
   layer.metadata()[kLayerMetadataTextRasterStatus] = "patchy_raster";
   clear_layer_psd_text_source(layer);
 }
@@ -7173,6 +7465,11 @@ void MainWindow::add_text_at(QPoint document_point, QRect requested_text_box, bo
     requested_text_box = requested_text_box.normalized();
     document_point = requested_text_box.topLeft();
   }
+  // New type takes the options bar's orientation; a re-edit takes the layer's.
+  bool vertical_text = text_vertical_default_;
+  // Where the vertical layout's Photoshop anchor stays pinned for the session (relayout moves
+  // the widget origin around it as columns grow). A new session anchors at the click.
+  std::optional<QPointF> vertical_anchor = QPointF(document_point);
   int document_editor_width =
       boxed_text ? requested_text_box.width() : std::max(160, std::min(520, document().width() - document_point.x() - 8));
   int document_editor_height = boxed_text ? requested_text_box.height() : 96;
@@ -7185,6 +7482,8 @@ void MainWindow::add_text_at(QPoint document_point, QRect requested_text_box, bo
       }
       editing_layer = *active;
       editing_layer_was_visible = layer->visible();
+      vertical_text = layer_text_is_vertical(*layer);
+      vertical_anchor.reset();
       initial_text = QString::fromStdString(layer->metadata().at(kLayerMetadataText));
       if (const auto found = layer->metadata().find(kLayerMetadataTextHtml); found != layer->metadata().end()) {
         initial_html = QString::fromStdString(found->second);
@@ -7277,6 +7576,15 @@ void MainWindow::add_text_at(QPoint document_point, QRect requested_text_box, bo
       auto text_transform = patchy_text_transform_for_layer(*layer);
       const auto psd_frame = psd_text_frame_rect(*layer);
       const bool using_psd_frame = psd_frame.has_value() && boxed_text;
+      if (vertical_text && !boxed_text &&
+          (!text_transform.has_value() || !qtransform_has_non_translation_linear_part(*text_transform)) &&
+          !layer->metadata().contains(kLayerMetadataPsdTextTransform) && !layer_has_active_text_warp(*layer)) {
+        // A Patchy vertical point layer re-edits around its own layout anchor, recovered from the
+        // raster (the raster is the plan's buffer, ink-trimmed at most), never the ink edges,
+        // which move with the first column's glyph widths.
+        vertical_anchor = vertical_text_layer_anchor(*layer);
+        text_transform.reset();
+      }
       editing_layer_uses_psd_text_frame = layer_should_edit_with_psd_text_frame(*layer, boxed_text) && using_psd_frame;
       editing_layer_is_warped_text = layer_has_active_text_warp(*layer);
       if (editing_layer_is_warped_text && !editing_layer_uses_psd_text_frame) {
@@ -7453,6 +7761,7 @@ void MainWindow::add_text_at(QPoint document_point, QRect requested_text_box, bo
                                           boxed_text,
                                           document_editor_width,
                                           document_editor_height};
+    placeholder_settings.vertical = vertical_text;
     Layer provisional(document().allocate_layer_id(), placeholder_settings.text.toStdString(),
                       make_solid_pixels(1, 1, QColor(0, 0, 0, 0), PixelFormat::rgba8()));
     provisional.set_bounds(Rect{document_point.x(), document_point.y(), 1, 1});
@@ -7489,9 +7798,14 @@ void MainWindow::add_text_at(QPoint document_point, QRect requested_text_box, bo
   editor->setAttribute(Qt::WA_TranslucentBackground, true);
   editor->viewport()->setAttribute(Qt::WA_TranslucentBackground, true);
   editor->viewport()->setAutoFillBackground(false);
-  editor->setLineWrapMode(boxed_text ? QTextEdit::WidgetWidth : QTextEdit::NoWrap);
+  editor->setLineWrapMode(boxed_text && !vertical_text ? QTextEdit::WidgetWidth : QTextEdit::NoWrap);
   editor->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   editor->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  editor->setProperty(kTextEditorOrientationProperty,
+                      vertical_text ? QString::fromLatin1(kTextOrientationVertical) : QString());
+  if (vertical_text && !boxed_text && vertical_anchor.has_value()) {
+    editor->setProperty(kTextEditorVerticalAnchorProperty, *vertical_anchor);
+  }
   editor->setProperty("patchy.documentTextSize", document_text_size);
   editor->setProperty("patchy.documentTextWidth", document_editor_width);
   editor->setProperty("patchy.documentTextHeight", document_editor_height);
@@ -7957,6 +8271,7 @@ void MainWindow::commit_text_editor(QTextEdit* editor, QPoint document_point, st
                             text_width,
                             text_height};
   settings.photoshop_layout = text_editor_uses_photoshop_layout(*editor);
+  settings.vertical = text_editor_is_vertical(*editor);
   const auto rich_text_runs = rich_text_runs_from_document(*document_text, settings, text_color);
   const auto paragraph_runs = paragraph_runs_from_document(*document_text);
   settings.html = document_html_from_text_runs(document_text->toPlainText(), rich_text_runs, settings, text_color);
@@ -10018,15 +10333,45 @@ void MainWindow::relayout_text_editor(QTextEdit* editor, bool allow_point_auto_e
   auto document_editor_height =
       std::max(kMinimumTextBoxDocumentSize, editor->property("patchy.documentTextHeight").toInt());
 
+  const bool vertical = text_editor_is_vertical(*editor);
   QTextOption option;
-  option.setWrapMode(boxed ? QTextOption::WordWrap : QTextOption::NoWrap);
+  option.setWrapMode(boxed && !vertical ? QTextOption::WordWrap : QTextOption::NoWrap);
   option.setUseDesignMetrics(true);
   editor->document()->setDefaultTextOption(option);
-  editor->setLineWrapMode(boxed ? QTextEdit::WidgetWidth : QTextEdit::NoWrap);
+  editor->setLineWrapMode(boxed && !vertical ? QTextEdit::WidgetWidth : QTextEdit::NoWrap);
 
   int width = std::max(1, static_cast<int>(std::round(document_editor_width * zoom)));
   int height = std::max(1, static_cast<int>(std::round(document_editor_height * zoom)));
-  if (boxed) {
+  QPoint document_point_for_geometry = document_point;
+  if (vertical) {
+    // The widget's rect is the hit area, so it covers the vertical plan's whole buffer (cells
+    // plus bleed), and for point text the widget origin follows the layout so the Photoshop
+    // anchor (first column axis, alignment point along y) stays where the session pinned it:
+    // vertical text grows leftward as columns are added.
+    editor->document()->setTextWidth(-1);
+    double layout_zoom = 1.0;
+    if (const auto* layout_document = text_editor_document_space_layout(*editor, layout_zoom);
+        layout_document != nullptr) {
+      const auto vertical_plan = vertical_render_plan_for_editor(*editor, *layout_document);
+      width = std::max(8, static_cast<int>(std::ceil(vertical_plan.local_rect.width() * zoom)));
+      height = std::max(8, static_cast<int>(std::ceil(vertical_plan.local_rect.height() * zoom)));
+      if (!boxed) {
+        document_editor_width = std::max(1, static_cast<int>(std::ceil(vertical_plan.local_rect.width())));
+        document_editor_height = std::max(1, static_cast<int>(std::ceil(vertical_plan.local_rect.height())));
+        editor->setProperty("patchy.documentTextWidth", document_editor_width);
+        editor->setProperty("patchy.documentTextHeight", document_editor_height);
+        const auto anchor_value = editor->property(kTextEditorVerticalAnchorProperty);
+        if (anchor_value.isValid() && !text_editor_transform_override(*editor).has_value()) {
+          const auto anchor = anchor_value.toPointF();
+          document_point_for_geometry =
+              QPoint(static_cast<int>(std::lround(anchor.x() - vertical_plan.plan.anchor.x())),
+                     static_cast<int>(std::lround(anchor.y() - vertical_plan.plan.anchor.y())));
+          editor->setProperty("patchy.documentTextX", document_point_for_geometry.x());
+          editor->setProperty("patchy.documentTextY", document_point_for_geometry.y());
+        }
+      }
+    }
+  } else if (boxed) {
     editor->document()->setTextWidth(width);
   } else {
     editor->document()->setTextWidth(-1);
@@ -10072,7 +10417,7 @@ void MainWindow::relayout_text_editor(QTextEdit* editor, bool allow_point_auto_e
     editor->setProperty("patchy.documentTextHeight", document_editor_height);
   }
 
-  const auto widget_point = canvas_->widget_position_for_document_point(document_point);
+  const auto widget_point = canvas_->widget_position_for_document_point(document_point_for_geometry);
   editor->setGeometry(widget_point.x(), widget_point.y(), std::max(1, width), std::max(1, height));
   update_text_editor_transform_overlay(editor);
   update_text_editor_handles(editor);
@@ -10548,6 +10893,7 @@ void MainWindow::update_text_editor_preview(QTextEdit* editor) {
                             text_width,
                             text_height};
   settings.photoshop_layout = text_editor_uses_photoshop_layout(*editor);
+  settings.vertical = text_editor_is_vertical(*editor);
   const auto paragraph_runs = paragraph_runs_from_document(*document_text);
   const auto rich_text_runs = rich_text_runs_from_document(*document_text, settings, text_color);
   settings.html = document_html_from_text_runs(document_text->toPlainText(), rich_text_runs, settings, text_color);
@@ -10782,6 +11128,132 @@ void MainWindow::apply_text_alignment_to_active_editor(Qt::Alignment alignment) 
   schedule_text_editor_preview(editor);
 }
 
+void MainWindow::apply_text_orientation(bool vertical, bool remember_default) {
+  if (canvas_ == nullptr) {
+    return;
+  }
+  if (remember_default) {
+    // The options-bar toggle also decides what the NEXT new layer takes; scripted edits
+    // leave the user's tool setting alone. Saved immediately, like the smoothing combo: a
+    // debounced save that never fires before the window closes leaves the previous value in
+    // the store (that leaked a vertical default into unrelated tests on the remote builders).
+    text_vertical_default_ = vertical;
+    save_tool_settings();
+  }
+  auto* editor = canvas_->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
+  const bool session_open = editor != nullptr && !editor->property(kTextEditorFinishedProperty).toBool();
+  if (session_open) {
+    if (text_editor_is_vertical(*editor) == vertical) {
+      sync_text_orientation_controls_from_editor();
+      return;
+    }
+    editor->setProperty(kTextEditorOrientationProperty,
+                        vertical ? QString::fromLatin1(kTextOrientationVertical) : QString());
+    if (vertical && !editor->property(kTextEditorVerticalAnchorProperty).isValid()) {
+      // Switching a live session: the widget origin (the layout top-left) becomes the anchor.
+      editor->setProperty(kTextEditorVerticalAnchorProperty,
+                          QPointF(editor->property("patchy.documentTextX").toInt(),
+                                  editor->property("patchy.documentTextY").toInt()));
+    }
+    mark_text_editor_changed(editor);
+    relayout_text_editor(editor, true);
+    sync_text_orientation_controls_from_editor();
+    schedule_text_editor_preview(editor);
+    return;
+  }
+  // No session: the selected text layer converts through a hidden session (one undo step),
+  // the Character-panel pattern. Nothing selected: the next new layer takes the orientation.
+  if (const auto* layer = text_character_target_layer();
+      layer != nullptr && layer_text_is_vertical(*layer) != vertical) {
+    apply_text_character_edit([vertical](QTextEdit& target) {
+      target.setProperty(kTextEditorOrientationProperty,
+                         vertical ? QString::fromLatin1(kTextOrientationVertical) : QString());
+      return true;
+    });
+  }
+  sync_text_orientation_controls_from_editor();
+}
+
+void MainWindow::apply_text_direction_to_active_editor(Qt::LayoutDirection direction) {
+  if (canvas_ == nullptr) {
+    return;
+  }
+  auto* editor = canvas_->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
+  const bool session_open = editor != nullptr && !editor->property(kTextEditorFinishedProperty).toBool();
+  const auto apply = [direction](QTextEdit& target) {
+    // Paragraph-level, like alignment: every paragraph the selection touches, or the caret's.
+    auto cursor = target.textCursor();
+    QTextBlockFormat format;
+    format.setLayoutDirection(direction);
+    cursor.mergeBlockFormat(format);
+    return true;
+  };
+  if (session_open) {
+    apply(*editor);
+    mark_text_editor_changed(editor);
+    relayout_text_editor(editor, true);
+    sync_text_orientation_controls_from_editor();
+    schedule_text_editor_preview(editor);
+    return;
+  }
+  if (text_character_target_layer() != nullptr) {
+    apply_text_character_edit([apply](QTextEdit& target) {
+      auto cursor = target.textCursor();
+      cursor.select(QTextCursor::Document);
+      target.setTextCursor(cursor);
+      return apply(target);
+    });
+  }
+  sync_text_orientation_controls_from_editor();
+}
+
+void MainWindow::sync_text_orientation_controls_from_editor() {
+  if (canvas_ == nullptr || text_orientation_button_ == nullptr || text_direction_combo_ == nullptr) {
+    return;
+  }
+  const auto* editor = canvas_->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
+  const bool session_open = editor != nullptr && !editor->property(kTextEditorFinishedProperty).toBool();
+  bool vertical = text_vertical_default_;
+  auto direction = Qt::LayoutDirectionAuto;
+  if (session_open) {
+    vertical = text_editor_is_vertical(*editor);
+    direction = editor->textCursor().blockFormat().layoutDirection();
+  } else if (const auto* layer = text_character_target_layer(); layer != nullptr) {
+    vertical = layer_text_is_vertical(*layer);
+    if (const auto found = layer->metadata().find(kLayerMetadataTextParagraphRuns);
+        found != layer->metadata().end()) {
+      for (const auto& raw_line : QString::fromStdString(found->second).split(QLatin1Char('\n'))) {
+        const auto fields = raw_line.trimmed().split(QLatin1Char('\t'));
+        if (fields.size() < 10) {
+          continue;
+        }
+        direction = fields[9] == QStringLiteral("rtl")   ? Qt::RightToLeft
+                    : fields[9] == QStringLiteral("ltr") ? Qt::LeftToRight
+                                                         : Qt::LayoutDirectionAuto;
+        break;
+      }
+    }
+  }
+  {
+    QSignalBlocker blocker(text_orientation_button_);
+    text_orientation_button_->setChecked(vertical);
+  }
+  {
+    QSignalBlocker blocker(text_direction_combo_);
+    const auto index = text_direction_combo_->findData(static_cast<int>(direction));
+    text_direction_combo_->setCurrentIndex(std::max(0, index));
+  }
+  // Vertical text aligns along the column: the buttons read Top / Center / Bottom.
+  const auto set_tip = [this](QPushButton* button, const char* horizontal, const char* vertical_tip, bool is_vertical) {
+    if (button != nullptr) {
+      button->setToolTip(tr(is_vertical ? vertical_tip : horizontal));
+    }
+  };
+  set_tip(text_align_left_button_, QT_TR_NOOP("Align Left"), QT_TR_NOOP("Align Top"), vertical);
+  set_tip(text_align_center_button_, QT_TR_NOOP("Align Center"), QT_TR_NOOP("Align Center (Vertical)"), vertical);
+  set_tip(text_align_right_button_, QT_TR_NOOP("Align Right"), QT_TR_NOOP("Align Bottom"), vertical);
+}
+
 void MainWindow::sync_text_alignment_buttons_from_editor() {
   if (text_align_left_button_ == nullptr || text_align_center_button_ == nullptr ||
       text_align_right_button_ == nullptr || canvas_ == nullptr) {
@@ -10796,6 +11268,7 @@ void MainWindow::sync_text_alignment_buttons_from_editor() {
   set_checked(text_align_left_button_, (alignment & (Qt::AlignHCenter | Qt::AlignRight)) == 0);
   set_checked(text_align_center_button_, (alignment & Qt::AlignHCenter) != 0);
   set_checked(text_align_right_button_, (alignment & Qt::AlignRight) != 0);
+  sync_text_orientation_controls_from_editor();
 }
 
 void MainWindow::apply_text_family_to_active_editor() {
@@ -11027,6 +11500,7 @@ bool MainWindow::is_text_option_widget(QWidget* widget) const {
   };
   return owns(text_font_combo_) || owns(text_style_combo_) || owns(text_size_spin_) ||
          owns(text_smoothing_combo_) || owns(text_color_button_) || owns(text_align_left_button_) ||
+         owns(text_orientation_button_) || owns(text_direction_combo_) ||
          owns(text_align_center_button_) || owns(text_align_right_button_) || owns(text_apply_button_) ||
          owns(text_cancel_button_) || owns(text_character_button_) || owns(primary_color_button_) ||
          // The Character panel edits the LIVE session; focus moving into it must not commit.

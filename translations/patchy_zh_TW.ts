@@ -16557,6 +16557,50 @@ Y：%2
         <source>Create Clipping Mask needs a pixel layer or group below</source>
         <translation>建立剪裁遮色片需要下方有像素圖層或群組</translation>
     </message>
+    <message>
+        <source>Align Top</source>
+        <translation>頂端對齊</translation>
+    </message>
+    <message>
+        <source>Align Center (Vertical)</source>
+        <translation>置中對齊（垂直）</translation>
+    </message>
+    <message>
+        <source>Align Bottom</source>
+        <translation>底端對齊</translation>
+    </message>
+    <message>
+        <source>Vertical text: columns read top to bottom, right to left</source>
+        <translation>直排文字：欄由上到下閱讀，由右向左排列</translation>
+    </message>
+    <message>
+        <source>Direction:</source>
+        <translation>方向:</translation>
+    </message>
+    <message>
+        <source>Paragraph direction (auto follows the first strong character)</source>
+        <translation>段落方向（自動依第一個強方向字元）</translation>
+    </message>
+    <message>
+        <source>Auto</source>
+        <translation>自動</translation>
+    </message>
+    <message>
+        <source>Left to right</source>
+        <translation>由左至右</translation>
+    </message>
+    <message>
+        <source>Right to left</source>
+        <translation>由右至左</translation>
+    </message>
+    <message>
+        <source>Horizontal Text</source>
+        <translation>橫排文字</translation>
+    </message>
+    <message>
+        <source>Vertical Text</source>
+        <translation>直排文字</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -17229,7 +17273,7 @@ Y：%2
     <name>patchy::ui::ScriptEngineHost</name>
     <message>
         <source>Invalid color: %1 (use &quot;#rrggbb&quot; or a named color)</source>
-        <translation>無效的顏色：%1 (請使用 "#rrggbb" 或顏色名稱)</translation>
+        <translation>無效的顏色：%1 (請使用 &quot;#rrggbb&quot; 或顏色名稱)</translation>
     </message>
     <message>
         <source>The layer no longer exists.</source>
@@ -17749,11 +17793,11 @@ Y：%2
     </message>
     <message>
         <source>showDialog: every field needs a non-empty &quot;key&quot;</source>
-        <translation>showDialog：每個欄位都需要非空白的 "key"</translation>
+        <translation>showDialog：每個欄位都需要非空白的 &quot;key&quot;</translation>
     </message>
     <message>
         <source>showDialog: unknown field type &quot;%1&quot; (use number, slider, checkbox, choice, text, color, folder, or file)</source>
-        <translation>showDialog：不明的欄位類型 "%1" (請使用 number、slider、checkbox、choice、text、color、folder 或 file)</translation>
+        <translation>showDialog：不明的欄位類型 &quot;%1&quot; (請使用 number、slider、checkbox、choice、text、color、folder 或 file)</translation>
     </message>
     <message>
         <source>Choose Color</source>
@@ -17782,6 +17826,22 @@ Y：%2
     <message>
         <source>Work Path</source>
         <translation>工作路徑</translation>
+    </message>
+    <message>
+        <source>textOrientation must be &apos;horizontal&apos; or &apos;vertical&apos;.</source>
+        <translation>textOrientation 必須為 &apos;horizontal&apos; 或 &apos;vertical&apos;。</translation>
+    </message>
+    <message>
+        <source>textDirection must be &apos;auto&apos;, &apos;ltr&apos; or &apos;rtl&apos;.</source>
+        <translation>textDirection 必須為 &apos;auto&apos;、&apos;ltr&apos; 或 &apos;rtl&apos;。</translation>
+    </message>
+    <message>
+        <source>orientation must be &apos;horizontal&apos; or &apos;vertical&apos;.</source>
+        <translation>orientation 必須為 &apos;horizontal&apos; 或 &apos;vertical&apos;。</translation>
+    </message>
+    <message>
+        <source>direction must be &apos;auto&apos;, &apos;ltr&apos; or &apos;rtl&apos;.</source>
+        <translation>direction 必須為 &apos;auto&apos;、&apos;ltr&apos; 或 &apos;rtl&apos;。</translation>
     </message>
 </context>
 <context>

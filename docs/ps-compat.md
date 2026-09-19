@@ -22,7 +22,7 @@ A successful Patchy save/reopen or a structurally valid file is not evidence
 of warning-free Photoshop opening. Changes to PSD writing must preserve this
 contract and report the verification actually performed. Opening with dialogs
 suppressed cannot establish the absence of warnings. If Photoshop was not
-checked, say so; this requirement does not grant permission to control it.
+checked, say so. Driving Photoshop through COM is always authorized (AGENTS.md); desktop screenshots are not.
 Follow the repository's computer-control rule and [testing.md](testing.md).
 
 ## COM scripting techniques

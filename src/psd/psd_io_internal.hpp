@@ -161,6 +161,8 @@ struct PsdTextGeometry {
   PsdTextBoundsD box_bounds{};
   std::array<int, 4> tail_bounds{0, 0, 0, 0};
   int text_index{0};
+  // TySh 'Ornt' = Vrtc: Photoshop's Vertical Type (columns top to bottom, right to left).
+  bool vertical{false};
   // Non-identity Warp Text settings from the TySh warp descriptor (box = 'bounds').
   std::optional<TextWarp> warp;
 };

@@ -255,6 +255,43 @@ style must not render nothing).
 - `textCharacterDialog` is exempted from the focus-loss auto-commit via `is_text_option_widget`.
 - Setting fixed leading opts the layer into the Photoshop layout marker at commit (explicit leading does not render under Qt-natural layout; see the Photoshop text model below).
 
+## Vertical text and paragraph direction
+
+Vertical type (`patchy.text.orientation = vertical`) and the paragraph base direction
+(`patchy.text.paragraph_runs` v4 column 9: `auto`/`ltr`/`rtl`). The layout model and its
+Photoshop calibration are in [text-render-calibration.md](text-render-calibration.md); this is
+the session contract.
+
+- **One Type tool, an orientation toggle.** `textOrientationButton` (and the layer context
+  menu's Horizontal/Vertical Text entry) switches a live session in place, converts the selected
+  layer through the Character-panel hidden session (one undo step), or seeds the next new layer
+  (`tools/textVertical`). `textDirectionCombo` is paragraph-level like alignment. Both carry the
+  `is_text_option_widget` exemption.
+- **The plan is the authority, again.** `vertical_text_layout_plan` (ui/text_layout.hpp)
+  re-places every grapheme cluster of the horizontally shaped NoWrap document into a cell;
+  `TextLineGeometry::from_vertical_plan` answers caret (em-wide bar, thickened ACROSS the column),
+  selection strips and hit-testing from the plan `draw_vertical_text_plan` draws (per-cell glyph
+  runs, faux bold as filled + stroked paths). `vertical_render_plan` and its `_for_editor` twin
+  add the bleed and must mirror each other's scales.
+- **The anchor moves the widget, not the text.** Vertical text grows LEFT (and UP when centred
+  or bottom-aligned), so `relayout_text_editor` re-derives the widget origin from
+  `kTextEditorVerticalAnchorProperty` (the click for a new layer; `vertical_text_layer_anchor`
+  recovers a re-edit's from the raster). Imported PSD vertical layers keep the ink-anchor path
+  with the stack-axis fraction at 1 (right edge).
+- **Arrow keys follow the columns** (`InlineTextEdit::keyPressEvent`): Up/Down step along the
+  column, Left/Right jump between columns.
+- **Right-to-left needs no shaping work**: Qt runs bidi and HarfBuzz inside QTextLayout.
+  Alignment is logical (`QTextEngine::alignLine` applies `QStyle::visualAlignment`), so the
+  point-text anchor helpers resolve the same visual alignment via `resolved_block_direction`.
+  Spell non-ASCII test literals as `\x` escapes (MSVC reads sources as ANSI; mojibake has no
+  bidi class).
+- Scripting: `doc.addTextLayer(text, {orientation, direction})`, `layer.textOrientation` /
+  `textDirection`. Tests: `tests/ui/text_vertical_rtl_tests.cpp`, `psd_*vertical*` and
+  `psd_paragraph_direction*` in tests/core.
+- Known gaps: tate-chu-yoko, kinsoku, vmtx metrics, sideways Roman (`/BaselineDirection`),
+  transformed PSD vertical imports re-anchor by the horizontal rules, box indents, uncalibrated
+  vertical Warp Text, SVG export rasterizes it.
+
 ## Document geometry operations follow the text transform
 
 Every operation that remaps document space -- Image Size, Canvas Size, Crop to Selection,

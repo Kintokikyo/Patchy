@@ -47,6 +47,8 @@ class ScriptLayerObject : public QObject {
   Q_PROPERTY(bool isShape READ is_shape)
   Q_PROPERTY(QJSValue children READ children)
   Q_PROPERTY(QString text READ text WRITE set_text)
+  Q_PROPERTY(QString textOrientation READ text_orientation WRITE set_text_orientation)
+  Q_PROPERTY(QString textDirection READ text_direction WRITE set_text_direction)
 
 public:
   ScriptLayerObject(ScriptEngineHost& host, std::int64_t session_id, LayerId layer_id);
@@ -84,6 +86,11 @@ public:
   [[nodiscard]] QJSValue children() const;
   [[nodiscard]] QString text() const;
   void set_text(const QString& text);
+  // "horizontal" / "vertical", and "auto" / "ltr" / "rtl"; setting either re-renders the layer.
+  [[nodiscard]] QString text_orientation() const;
+  void set_text_orientation(const QString& orientation);
+  [[nodiscard]] QString text_direction() const;
+  void set_text_direction(const QString& direction);
 
   Q_INVOKABLE void moveTo(double x, double y);
   Q_INVOKABLE QJSValue duplicate(const QJSValue& target = QJSValue());

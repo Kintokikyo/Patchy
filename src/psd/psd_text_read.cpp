@@ -1351,6 +1351,12 @@ std::optional<std::vector<PsdTextParagraphRun>> extract_engine_paragraph_runs(st
         fraction.has_value() && std::isfinite(*fraction) && *fraction > 0.01 && *fraction < 10.0) {
       run.auto_leading_fraction = *fraction;
     }
+    // Middle Eastern composer paragraph sheets carry /ParagraphDirection (0 = left to right,
+    // 1 = right to left); Latin-composer sheets omit it and stay auto.
+    if (const auto direction = engine_number_after_key(dictionaries[index], "/ParagraphDirection");
+        direction.has_value() && std::isfinite(*direction)) {
+      run.direction = std::lround(*direction) == 1 ? "rtl" : "ltr";
+    }
     runs.push_back(run);
     start += length;
   }
@@ -1488,15 +1494,23 @@ std::string serialize_paragraph_metric(double value) {
   return stream.str();
 }
 
-// v1: start len alignment; v2: + indent/space metrics; v3: + auto-leading fraction.
+// v1: start len alignment; v2: + indent/space metrics; v3: + auto-leading fraction;
+// v4: + paragraph direction ("auto", "ltr" or "rtl"). Every column is read by index and the
+// version token rises only when a run needs the column, so files without an explicit direction
+// stay byte-identical.
 std::string serialize_patchy_paragraph_runs(std::span<const PsdTextParagraphRun> runs) {
-  const bool include_fraction = std::any_of(runs.begin(), runs.end(), [](const PsdTextParagraphRun& run) {
-    return std::abs(run.auto_leading_fraction - 1.2) > 0.0001;
+  const bool include_direction = std::any_of(runs.begin(), runs.end(), [](const PsdTextParagraphRun& run) {
+    return run.direction == "ltr" || run.direction == "rtl";
   });
+  const bool include_fraction = include_direction ||
+      std::any_of(runs.begin(), runs.end(), [](const PsdTextParagraphRun& run) {
+        return std::abs(run.auto_leading_fraction - 1.2) > 0.0001;
+      });
   const bool include_layout =
       include_fraction ||
       std::any_of(runs.begin(), runs.end(), [](const PsdTextParagraphRun& run) { return paragraph_run_has_layout(run); });
-  std::string serialized = include_fraction ? "v3" : (include_layout ? "v2" : "v1");
+  std::string serialized =
+      include_direction ? "v4" : (include_fraction ? "v3" : (include_layout ? "v2" : "v1"));
   for (const auto& run : runs) {
     serialized += '\n';
     serialized += std::to_string(run.start);
@@ -1519,6 +1533,10 @@ std::string serialize_patchy_paragraph_runs(std::span<const PsdTextParagraphRun>
     if (include_fraction) {
       serialized += '\t';
       serialized += serialize_paragraph_metric(run.auto_leading_fraction);
+    }
+    if (include_direction) {
+      serialized += '\t';
+      serialized += run.direction == "ltr" || run.direction == "rtl" ? run.direction : "auto";
     }
   }
   return serialized;
@@ -1958,6 +1976,10 @@ std::optional<PsdTextGeometry> extract_type_tool_geometry(std::span<const std::u
     if (const auto* text_index = descriptor_value(descriptor, "TextIndex");
         text_index != nullptr && text_index->type == DescriptorValue::Type::Integer) {
       geometry.text_index = text_index->integer_value;
+    }
+    if (const auto* orientation = descriptor_value(descriptor, "Ornt");
+        orientation != nullptr && orientation->type == DescriptorValue::Type::Enum) {
+      geometry.vertical = orientation->enum_value == "Vrtc";
     }
     // The warp descriptor follows the text descriptor (Warp Text: style + bend +
     // distortions, acting over the 'bounds' box). A malformed warp degrades to "no

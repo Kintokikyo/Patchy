@@ -38,6 +38,11 @@ inline constexpr const char* kLayerMetadataTextRasterStatus = "patchy.text.raste
 // native layout stays byte-stable.
 inline constexpr const char* kLayerMetadataTextLayoutMode = "patchy.text.layout";
 inline constexpr const char* kTextLayoutModePhotoshop = "photoshop";
+// "vertical" on type layers whose glyphs stack top to bottom in columns that advance right to
+// left (Photoshop's Vertical Type tool, TySh Ornt = Vrtc). Absent means horizontal. The layout
+// model is documented in docs/text-tool.md ("Vertical text").
+inline constexpr const char* kLayerMetadataTextOrientation = "patchy.text.orientation";
+inline constexpr const char* kTextOrientationVertical = "vertical";
 inline constexpr const char* kLayerMetadataTextTransform = "patchy.text.transform";
 inline constexpr const char* kLayerMetadataPsdTextTransform = "patchy.psd.text.transform";
 inline constexpr const char* kLayerMetadataPsdTextBounds = "patchy.psd.text.bounds";

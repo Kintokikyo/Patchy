@@ -1517,6 +1517,120 @@ void collect_layer_ids(const std::vector<Layer>& layers, std::set<LayerId>& out)
 
 }  // namespace
 
+namespace {
+
+std::optional<Qt::LayoutDirection> layout_direction_for_name(const QString& name) {
+  if (name == QLatin1String("ltr")) {
+    return Qt::LeftToRight;
+  }
+  if (name == QLatin1String("rtl")) {
+    return Qt::RightToLeft;
+  }
+  if (name == QLatin1String("auto")) {
+    return Qt::LayoutDirectionAuto;
+  }
+  return std::nullopt;
+}
+
+}  // namespace
+
+QString ScriptEngineHost::text_layer_orientation(std::int64_t session_id, LayerId layer_id) const {
+  const auto* document = session_document_const(session_id);
+  const auto* layer = document != nullptr ? document->find_layer(layer_id) : nullptr;
+  if (layer == nullptr || !layer_is_text(*layer)) {
+    return QString();
+  }
+  const auto found = layer->metadata().find(kLayerMetadataTextOrientation);
+  return found != layer->metadata().end() && found->second == kTextOrientationVertical
+             ? QStringLiteral("vertical")
+             : QStringLiteral("horizontal");
+}
+
+QString ScriptEngineHost::text_layer_direction(std::int64_t session_id, LayerId layer_id) const {
+  const auto* document = session_document_const(session_id);
+  const auto* layer = document != nullptr ? document->find_layer(layer_id) : nullptr;
+  if (layer == nullptr || !layer_is_text(*layer)) {
+    return QString();
+  }
+  const auto found = layer->metadata().find(kLayerMetadataTextParagraphRuns);
+  if (found != layer->metadata().end()) {
+    for (const auto& raw_line : QString::fromStdString(found->second).split(QLatin1Char('\n'))) {
+      const auto fields = raw_line.trimmed().split(QLatin1Char('\t'));
+      if (fields.size() < 10) {
+        continue;
+      }
+      if (fields[9] == QLatin1String("ltr") || fields[9] == QLatin1String("rtl")) {
+        return fields[9];
+      }
+      break;
+    }
+  }
+  return QStringLiteral("auto");
+}
+
+// Opens the hidden edit session `text` uses and runs `edit` on it before the commit.
+bool ScriptEngineHost::edit_text_layer_session(std::int64_t session_id, LayerId layer_id,
+                                               const std::function<void(QTextEdit&)>& edit) {
+  pump_progress_indicator();
+  auto* session = window_.session_with_id(session_id);
+  if (session == nullptr || session->canvas == nullptr) {
+    return false;
+  }
+  const auto* layer = std::as_const(session->document).find_layer(layer_id);
+  if (layer == nullptr || !layer_is_text(*layer) || window_.layer_id_locks_image_pixels(layer_id)) {
+    return false;
+  }
+  window_.activate_document_session(*session);
+  if (!prepare_mutation(session_id)) {
+    return false;
+  }
+  const auto bounds = layer->bounds();
+  const QPoint anchor(bounds.x + std::max(1, bounds.width) / 2, bounds.y + std::max(1, bounds.height) / 2);
+  session->document.set_active_layer(layer_id);
+  window_.add_text_at(anchor);
+  QTextEdit* editor = wait_for_inline_text_editor(session->canvas);
+  if (editor == nullptr) {
+    return false;
+  }
+  if (editor->property("patchy.editingLayerId").toULongLong() != static_cast<qulonglong>(layer_id)) {
+    window_.cancel_active_text_editor();
+    return false;
+  }
+  edit(*editor);
+  QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+  window_.finish_active_text_editor();
+  QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+  note_structure_changed(session_id);
+  return true;
+}
+
+bool ScriptEngineHost::set_text_layer_orientation(std::int64_t session_id, LayerId layer_id,
+                                                  const QString& orientation) {
+  if (orientation != QLatin1String("vertical") && orientation != QLatin1String("horizontal")) {
+    return false;
+  }
+  if (text_layer_orientation(session_id, layer_id) == orientation) {
+    return layer_is_text_layer(session_id, layer_id);
+  }
+  return edit_text_layer_session(session_id, layer_id, [this, orientation](QTextEdit&) {
+    window_.apply_text_orientation(orientation == QLatin1String("vertical"), /*remember_default*/ false);
+  });
+}
+
+bool ScriptEngineHost::set_text_layer_direction(std::int64_t session_id, LayerId layer_id,
+                                                const QString& direction) {
+  const auto resolved = layout_direction_for_name(direction);
+  if (!resolved.has_value()) {
+    return false;
+  }
+  return edit_text_layer_session(session_id, layer_id, [this, resolved](QTextEdit& editor) {
+    auto all = editor.textCursor();
+    all.select(QTextCursor::Document);
+    editor.setTextCursor(all);
+    window_.apply_text_direction_to_active_editor(*resolved);
+  });
+}
+
 std::optional<LayerId> ScriptEngineHost::add_text_layer(std::int64_t session_id,
                                                         const TextLayerParams& params) {
   pump_progress_indicator();
@@ -1557,7 +1671,18 @@ std::optional<LayerId> ScriptEngineHost::add_text_layer(std::int64_t session_id,
     format.setForeground(params.color);
   }
   editor->setCurrentCharFormat(format);
+  if (params.orientation == QLatin1String("vertical")) {
+    window_.apply_text_orientation(true, /*remember_default*/ false);
+  } else if (params.orientation == QLatin1String("horizontal")) {
+    window_.apply_text_orientation(false, /*remember_default*/ false);
+  }
   editor->insertPlainText(params.text);
+  if (const auto direction = layout_direction_for_name(params.direction); direction.has_value()) {
+    auto all = editor->textCursor();
+    all.select(QTextCursor::Document);
+    editor->setTextCursor(all);
+    window_.apply_text_direction_to_active_editor(*direction);
+  }
   QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
   window_.finish_active_text_editor();
   QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);

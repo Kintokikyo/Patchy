@@ -1928,10 +1928,185 @@ void psd_polymega_text_keeps_photoshop_raster_if_available() {
   CHECK(dark * 10U > visible * 9U);
 }
 
+patchy::Layer& add_vertical_text_layer_for_writer(patchy::Document& document, const patchy::Rect& bounds,
+                                                  const std::string& paragraph_runs) {
+  patchy::Layer text_layer(document.allocate_layer_id(), "Hello", solid_rgba(bounds.width, bounds.height, 0, 0, 0, 0));
+  auto& layer = document.add_layer(std::move(text_layer));
+  layer.set_bounds(bounds);
+  layer.metadata()[patchy::kLayerMetadataText] = "Hello";
+  layer.metadata()[patchy::kLayerMetadataTextRuns] = "v1\n0\t5\t32\t0\t0\t#000000\tArial";
+  layer.metadata()[patchy::kLayerMetadataTextParagraphRuns] = paragraph_runs;
+  layer.metadata()[patchy::kLayerMetadataTextFlow] = "point";
+  layer.metadata()[patchy::kLayerMetadataTextFont] = "Arial";
+  layer.metadata()[patchy::kLayerMetadataTextSize] = "32";
+  layer.metadata()[patchy::kLayerMetadataTextColor] = "#000000";
+  layer.metadata()[patchy::kLayerMetadataTextRasterStatus] = "patchy_raster";
+  return layer;
+}
+
+// Vertical type: the TySh says Ornt = Vrtc, the engine data carries Photoshop's vertical
+// writing direction, and the transform translation is the first column's top centre
+// recovered from the raster rect (cells plus the fixed bleed on every side).
+void psd_writer_exports_vertical_type_block_and_reads_it_back() {
+  patchy::Document document(240, 240, patchy::PixelFormat::rgb8());
+  document.add_pixel_layer("Background", solid_rgb(240, 240, 255, 255, 255));
+  // 32 px "Hello" stacked: one em wide plus 8 px bleed each side, five cells plus bleed tall.
+  auto& layer = add_vertical_text_layer_for_writer(document, patchy::Rect{100, 40, 48, 176}, "v1\n0\t5\tleft");
+  layer.metadata()[patchy::kLayerMetadataTextOrientation] = patchy::kTextOrientationVertical;
+
+  const auto bytes = patchy::psd::DocumentIo::write_layered_rgb8(document);
+  const auto text_payload = psd_layer_block_payload(psd_layer_extra_data(bytes, 1), "TySh");
+  CHECK(text_payload.has_value());
+  if (!text_payload.has_value()) {
+    return;
+  }
+  const std::string payload_text(text_payload->begin(), text_payload->end());
+  CHECK(payload_text.find("Vrtc") != std::string::npos);
+  CHECK(payload_text.find("/WritingDirection 2") != std::string::npos);
+  CHECK(payload_text.find("/WritingDirection 0") == std::string::npos);
+  CHECK(payload_text.find("/Procession 1") != std::string::npos);
+  CHECK(payload_text.find("/ParagraphDirection") == std::string::npos);
+  // tx = left + width - bleed - em/2 = 100 + 48 - 8 - 16; ty = top + bleed (top-aligned).
+  CHECK(std::abs(read_f64_be_at(*text_payload, 34U) - 124.0) < 0.000001);
+  CHECK(std::abs(read_f64_be_at(*text_payload, 42U) - 48.0) < 0.000001);
+
+  const auto read = patchy::psd::DocumentIo::read(bytes);
+  CHECK(read.layers().size() == 2);
+  const auto& reopened = read.layers().back();
+  CHECK(reopened.metadata().at(patchy::kLayerMetadataTextOrientation) == patchy::kTextOrientationVertical);
+  const auto transform = patchy::parse_layer_affine_transform(reopened.metadata().at(patchy::kLayerMetadataPsdTextTransform));
+  CHECK(transform.has_value());
+  if (transform.has_value()) {
+    CHECK(std::abs((*transform)[4] - 124.0) < 0.000001);
+    CHECK(std::abs((*transform)[5] - 48.0) < 0.000001);
+  }
+
+  // Bottom-aligned vertical text anchors at the run's bottom instead.
+  patchy::Document bottom_document(240, 240, patchy::PixelFormat::rgb8());
+  bottom_document.add_pixel_layer("Background", solid_rgb(240, 240, 255, 255, 255));
+  auto& bottom = add_vertical_text_layer_for_writer(bottom_document, patchy::Rect{100, 40, 48, 176}, "v1\n0\t5\tright");
+  bottom.metadata()[patchy::kLayerMetadataTextOrientation] = patchy::kTextOrientationVertical;
+  const auto bottom_payload =
+      psd_layer_block_payload(psd_layer_extra_data(patchy::psd::DocumentIo::write_layered_rgb8(bottom_document), 1), "TySh");
+  CHECK(bottom_payload.has_value());
+  if (bottom_payload.has_value()) {
+    CHECK(std::abs(read_f64_be_at(*bottom_payload, 42U) - (40.0 + 176.0 - 8.0)) < 0.000001);
+  }
+
+  // A horizontal layer keeps the historical block byte for byte: Hrzn, direction 0, no
+  // procession change.
+  patchy::Document horizontal_document(240, 240, patchy::PixelFormat::rgb8());
+  horizontal_document.add_pixel_layer("Background", solid_rgb(240, 240, 255, 255, 255));
+  add_vertical_text_layer_for_writer(horizontal_document, patchy::Rect{100, 40, 96, 40}, "v1\n0\t5\tleft");
+  const auto horizontal_payload = psd_layer_block_payload(
+      psd_layer_extra_data(patchy::psd::DocumentIo::write_layered_rgb8(horizontal_document), 1), "TySh");
+  CHECK(horizontal_payload.has_value());
+  if (horizontal_payload.has_value()) {
+    const std::string horizontal_text(horizontal_payload->begin(), horizontal_payload->end());
+    CHECK(horizontal_text.find("Hrzn") != std::string::npos);
+    CHECK(horizontal_text.find("/WritingDirection 0") != std::string::npos);
+    CHECK(horizontal_text.find("/Procession 0") != std::string::npos);
+  }
+}
+
+// Paragraph direction rides the v4 paragraph-runs column and the Middle Eastern composer's
+// /ParagraphDirection key; auto paragraphs stay on the older formats and write no key.
+void psd_paragraph_direction_round_trips_as_v4_column() {
+  patchy::Document document(240, 120, patchy::PixelFormat::rgb8());
+  document.add_pixel_layer("Background", solid_rgb(240, 120, 255, 255, 255));
+  add_vertical_text_layer_for_writer(document, patchy::Rect{20, 20, 96, 40}, "v4\n0\t5\tleft\t0\t0\t0\t0\t0\t1.2\trtl");
+
+  const auto bytes = patchy::psd::DocumentIo::write_layered_rgb8(document);
+  const auto text_payload = psd_layer_block_payload(psd_layer_extra_data(bytes, 1), "TySh");
+  CHECK(text_payload.has_value());
+  if (!text_payload.has_value()) {
+    return;
+  }
+  const std::string payload_text(text_payload->begin(), text_payload->end());
+  CHECK(payload_text.find("/ParagraphDirection 1") != std::string::npos);
+  CHECK(payload_text.find("Hrzn") != std::string::npos);
+
+  const auto read = patchy::psd::DocumentIo::read(bytes);
+  CHECK(read.layers().size() == 2);
+  const auto& runs = read.layers().back().metadata().at(patchy::kLayerMetadataTextParagraphRuns);
+  CHECK(runs.rfind("v4\n", 0) == 0);
+  CHECK(runs.find("\trtl") != std::string::npos);
+
+  // Explicit left-to-right writes the key with 0; auto writes nothing.
+  patchy::Document ltr_document(240, 120, patchy::PixelFormat::rgb8());
+  ltr_document.add_pixel_layer("Background", solid_rgb(240, 120, 255, 255, 255));
+  add_vertical_text_layer_for_writer(ltr_document, patchy::Rect{20, 20, 96, 40}, "v4\n0\t5\tleft\t0\t0\t0\t0\t0\t1.2\tltr");
+  const auto ltr_payload =
+      psd_layer_block_payload(psd_layer_extra_data(patchy::psd::DocumentIo::write_layered_rgb8(ltr_document), 1), "TySh");
+  CHECK(ltr_payload.has_value());
+  if (ltr_payload.has_value()) {
+    const std::string ltr_text(ltr_payload->begin(), ltr_payload->end());
+    CHECK(ltr_text.find("/ParagraphDirection 0") != std::string::npos);
+  }
+  patchy::Document auto_document(240, 120, patchy::PixelFormat::rgb8());
+  auto_document.add_pixel_layer("Background", solid_rgb(240, 120, 255, 255, 255));
+  add_vertical_text_layer_for_writer(auto_document, patchy::Rect{20, 20, 96, 40}, "v1\n0\t5\tleft");
+  const auto auto_payload =
+      psd_layer_block_payload(psd_layer_extra_data(patchy::psd::DocumentIo::write_layered_rgb8(auto_document), 1), "TySh");
+  CHECK(auto_payload.has_value());
+  if (auto_payload.has_value()) {
+    const std::string auto_text(auto_payload->begin(), auto_payload->end());
+    CHECK(auto_text.find("/ParagraphDirection") == std::string::npos);
+    const auto reread = patchy::psd::DocumentIo::read(patchy::psd::DocumentIo::write_layered_rgb8(auto_document));
+    CHECK(reread.layers().back().metadata().at(patchy::kLayerMetadataTextParagraphRuns).rfind("v1\n", 0) == 0);
+  }
+}
+
+// A Photoshop 2026 vertical type layer (ps2026_vtext capture sweep): Ornt = Vrtc imports as
+// the orientation key with Photoshop's anchor (the click point) as the transform, and an
+// unedited resave keeps the block byte for byte.
+void psd_vertical_capture_imports_orientation_if_available() {
+  const auto path = patchy::test::local_psd_fixture_path("ps2026_vtext/vt_point_ja_multi.psd");
+  if (!std::filesystem::exists(path)) {
+    return;
+  }
+  auto document = patchy::psd::DocumentIo::read_file(path);
+  const patchy::Layer* text_layer = nullptr;
+  for (const auto& layer : document.layers()) {
+    if (patchy::layer_is_text(layer)) {
+      text_layer = &layer;
+    }
+  }
+  CHECK(text_layer != nullptr);
+  if (text_layer == nullptr) {
+    return;
+  }
+  CHECK(text_layer->metadata().at(patchy::kLayerMetadataTextOrientation) == patchy::kTextOrientationVertical);
+  const auto transform =
+      patchy::parse_layer_affine_transform(text_layer->metadata().at(patchy::kLayerMetadataPsdTextTransform));
+  CHECK(transform.has_value());
+  if (transform.has_value()) {
+    CHECK(std::abs((*transform)[4] - 250.0) < 0.001);
+    CHECK(std::abs((*transform)[5] - 40.0) < 0.001);
+  }
+  CHECK(text_layer->metadata().at(patchy::kLayerMetadataTextRasterStatus) == "psd_raster_preview");
+  const auto bytes = patchy::psd::DocumentIo::write_layered_rgb8(document);
+  const std::string written(bytes.begin(), bytes.end());
+  CHECK(written.find("Vrtc") != std::string::npos);
+  CHECK(written.find("/WritingDirection 2") != std::string::npos);
+  const auto reread = patchy::psd::DocumentIo::read(bytes);
+  bool found = false;
+  for (const auto& layer : reread.layers()) {
+    if (patchy::layer_is_text(layer)) {
+      found = true;
+      CHECK(layer.metadata().at(patchy::kLayerMetadataTextOrientation) == patchy::kTextOrientationVertical);
+    }
+  }
+  CHECK(found);
+}
+
 }  // namespace
 
 std::vector<patchy::test::TestCase> psd_text_tests() {
   return {
+      {"psd_writer_exports_vertical_type_block_and_reads_it_back", psd_writer_exports_vertical_type_block_and_reads_it_back},
+      {"psd_paragraph_direction_round_trips_as_v4_column", psd_paragraph_direction_round_trips_as_v4_column},
+      {"psd_vertical_capture_imports_orientation_if_available", psd_vertical_capture_imports_orientation_if_available},
       {"psd_import_regenerates_large_styled_text_preview_alpha",
        psd_import_regenerates_large_styled_text_preview_alpha},
       {"psd_import_keeps_clean_foreign_styled_text_raster",

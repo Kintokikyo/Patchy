@@ -3685,7 +3685,7 @@ Open in Generative Upscale...</source>
     </message>
     <message>
         <source>Windows cannot read the settings for &quot;%1&quot;. The printer driver may need to be repaired or reinstalled.</source>
-        <translation>Windows は "%1" の設定を読み取れません。プリンタードライバーの修復または再インストールが必要な可能性があります。</translation>
+        <translation>Windows は &quot;%1&quot; の設定を読み取れません。プリンタードライバーの修復または再インストールが必要な可能性があります。</translation>
     </message>
     <message>
         <source>Image pixels locked</source>
@@ -12079,7 +12079,7 @@ RGB: -
     </message>
     <message>
         <source>Created new document from &quot;%1&quot;</source>
-        <translation>"%1" から新規ドキュメントを作成しました</translation>
+        <translation>&quot;%1&quot; から新規ドキュメントを作成しました</translation>
     </message>
     <message>
         <source>Reopened %1</source>
@@ -12769,7 +12769,7 @@ To update, paste this into a terminal:
     </message>
     <message>
         <source>&quot;%1&quot; is a smart object, so its pixels can&apos;t be painted directly.</source>
-        <translation>"%1" はスマートオブジェクトのため、ピクセルに直接描画できません。</translation>
+        <translation>&quot;%1&quot; はスマートオブジェクトのため、ピクセルに直接描画できません。</translation>
     </message>
     <message>
         <source>Rasterize the layer to paint on its pixels, or open the smart object&apos;s contents in their own tab and draw there.</source>
@@ -12801,11 +12801,11 @@ To update, paste this into a terminal:
     </message>
     <message>
         <source>&quot;%1&quot; is a text layer: its pixels are re-created from the text, so changes made by %2 would be lost on the next text edit.</source>
-        <translation>"%1" はテキストレイヤーです。ピクセルはテキストから再生成されるため、%2 による変更は次にテキストを編集したときに失われます。</translation>
+        <translation>&quot;%1&quot; はテキストレイヤーです。ピクセルはテキストから再生成されるため、%2 による変更は次にテキストを編集したときに失われます。</translation>
     </message>
     <message>
         <source>&quot;%1&quot; is a shape layer: its pixels are re-created from the shape, so changes made by %2 would be lost on the next shape edit.</source>
-        <translation>"%1" はシェイプレイヤーです。ピクセルはシェイプから再生成されるため、%2 による変更は次にシェイプを編集したときに失われます。</translation>
+        <translation>&quot;%1&quot; はシェイプレイヤーです。ピクセルはシェイプから再生成されるため、%2 による変更は次にシェイプを編集したときに失われます。</translation>
     </message>
     <message>
         <source>Convert the layer to a smart object to keep the text editable, or rasterize it into plain pixels. Rasterized text can&apos;t be edited again.</source>
@@ -16557,6 +16557,50 @@ Clipped to the layer below</source>
         <source>Create Clipping Mask needs a pixel layer or group below</source>
         <translation>クリッピングマスクを作成するには、下にピクセルレイヤーまたはグループが必要です</translation>
     </message>
+    <message>
+        <source>Align Top</source>
+        <translation>上揃え</translation>
+    </message>
+    <message>
+        <source>Align Center (Vertical)</source>
+        <translation>中央揃え（縦）</translation>
+    </message>
+    <message>
+        <source>Align Bottom</source>
+        <translation>下揃え</translation>
+    </message>
+    <message>
+        <source>Vertical text: columns read top to bottom, right to left</source>
+        <translation>縦書き: 上から下へ読み、行は右から左へ進みます</translation>
+    </message>
+    <message>
+        <source>Direction:</source>
+        <translation>方向:</translation>
+    </message>
+    <message>
+        <source>Paragraph direction (auto follows the first strong character)</source>
+        <translation>段落の方向（自動は最初の強い文字に従います）</translation>
+    </message>
+    <message>
+        <source>Auto</source>
+        <translation>自動</translation>
+    </message>
+    <message>
+        <source>Left to right</source>
+        <translation>左から右</translation>
+    </message>
+    <message>
+        <source>Right to left</source>
+        <translation>右から左</translation>
+    </message>
+    <message>
+        <source>Horizontal Text</source>
+        <translation>横書きテキスト</translation>
+    </message>
+    <message>
+        <source>Vertical Text</source>
+        <translation>縦書きテキスト</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -17321,7 +17365,7 @@ Clipped to the layer below</source>
     </message>
     <message>
         <source>Stop &quot;%1&quot;?</source>
-        <translation>"%1" を停止しますか?</translation>
+        <translation>&quot;%1&quot; を停止しますか?</translation>
     </message>
     <message>
         <source>Undo the changes it made</source>
@@ -17385,11 +17429,11 @@ Clipped to the layer below</source>
     </message>
     <message>
         <source>showDialog: every field needs a non-empty &quot;key&quot;</source>
-        <translation>showDialog: すべてのフィールドに空でない "key" が必要です</translation>
+        <translation>showDialog: すべてのフィールドに空でない &quot;key&quot; が必要です</translation>
     </message>
     <message>
         <source>showDialog: unknown field type &quot;%1&quot; (use number, slider, checkbox, choice, text, color, folder, or file)</source>
-        <translation>showDialog: 不明なフィールドタイプ "%1" です (number、slider、checkbox、choice、text、color、folder、file のいずれかを使用してください)</translation>
+        <translation>showDialog: 不明なフィールドタイプ &quot;%1&quot; です (number、slider、checkbox、choice、text、color、folder、file のいずれかを使用してください)</translation>
     </message>
     <message>
         <source>Browse...</source>
@@ -17461,7 +17505,7 @@ Clipped to the layer below</source>
     </message>
     <message>
         <source>Invalid color: %1 (use &quot;#rrggbb&quot; or a named color)</source>
-        <translation>無効な色です: %1 ("#rrggbb" または色名を使用してください)</translation>
+        <translation>無効な色です: %1 (&quot;#rrggbb&quot; または色名を使用してください)</translation>
     </message>
     <message>
         <source>This layer is not a text layer.</source>
@@ -17782,6 +17826,22 @@ Clipped to the layer below</source>
     <message>
         <source>Unknown blend mode: %1</source>
         <translation>不明な描画モード: %1</translation>
+    </message>
+    <message>
+        <source>textOrientation must be &apos;horizontal&apos; or &apos;vertical&apos;.</source>
+        <translation>textOrientation は &apos;horizontal&apos; または &apos;vertical&apos; でなければなりません。</translation>
+    </message>
+    <message>
+        <source>textDirection must be &apos;auto&apos;, &apos;ltr&apos; or &apos;rtl&apos;.</source>
+        <translation>textDirection は &apos;auto&apos;、&apos;ltr&apos;、&apos;rtl&apos; のいずれかでなければなりません。</translation>
+    </message>
+    <message>
+        <source>orientation must be &apos;horizontal&apos; or &apos;vertical&apos;.</source>
+        <translation>orientation は &apos;horizontal&apos; または &apos;vertical&apos; でなければなりません。</translation>
+    </message>
+    <message>
+        <source>direction must be &apos;auto&apos;, &apos;ltr&apos; or &apos;rtl&apos;.</source>
+        <translation>direction は &apos;auto&apos;、&apos;ltr&apos;、&apos;rtl&apos; のいずれかでなければなりません。</translation>
     </message>
 </context>
 <context>

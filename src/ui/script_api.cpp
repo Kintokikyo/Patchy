@@ -421,6 +421,46 @@ void ScriptLayerObject::set_text(const QString& text) {
   }
 }
 
+QString ScriptLayerObject::text_orientation() const {
+  const ScriptApiCall api_call(host_);
+  return host_.text_layer_orientation(session_id_, layer_id_);
+}
+
+void ScriptLayerObject::set_text_orientation(const QString& orientation) {
+  const ScriptApiCall api_call(host_);
+  if (!host_.layer_is_text_layer(session_id_, layer_id_)) {
+    host_.throw_js_error(ScriptEngineHost::tr("This layer is not a text layer."));
+    return;
+  }
+  if (orientation != QLatin1String("horizontal") && orientation != QLatin1String("vertical")) {
+    host_.throw_js_error(ScriptEngineHost::tr("textOrientation must be 'horizontal' or 'vertical'."));
+    return;
+  }
+  if (!host_.set_text_layer_orientation(session_id_, layer_id_, orientation)) {
+    host_.throw_js_error(ScriptEngineHost::tr("Could not edit the text layer."));
+  }
+}
+
+QString ScriptLayerObject::text_direction() const {
+  const ScriptApiCall api_call(host_);
+  return host_.text_layer_direction(session_id_, layer_id_);
+}
+
+void ScriptLayerObject::set_text_direction(const QString& direction) {
+  const ScriptApiCall api_call(host_);
+  if (!host_.layer_is_text_layer(session_id_, layer_id_)) {
+    host_.throw_js_error(ScriptEngineHost::tr("This layer is not a text layer."));
+    return;
+  }
+  if (direction != QLatin1String("auto") && direction != QLatin1String("ltr") && direction != QLatin1String("rtl")) {
+    host_.throw_js_error(ScriptEngineHost::tr("textDirection must be 'auto', 'ltr' or 'rtl'."));
+    return;
+  }
+  if (!host_.set_text_layer_direction(session_id_, layer_id_, direction)) {
+    host_.throw_js_error(ScriptEngineHost::tr("Could not edit the text layer."));
+  }
+}
+
 QJSValue ScriptLayerObject::duplicate(const QJSValue& target) {
   const ScriptApiCall api_call(host_);
   if (!target.isUndefined() && !target.isNull()) {
@@ -1379,6 +1419,23 @@ QJSValue ScriptDocumentObject::addTextLayer(const QString& text, const QJSValue&
     }
     params.position = QPoint(options.property(QStringLiteral("x")).toInt(),
                              options.property(QStringLiteral("y")).toInt());
+    const auto orientation = options.property(QStringLiteral("orientation"));
+    if (orientation.isString()) {
+      params.orientation = orientation.toString();
+      if (params.orientation != QLatin1String("horizontal") && params.orientation != QLatin1String("vertical")) {
+        host_.throw_js_error(ScriptEngineHost::tr("orientation must be 'horizontal' or 'vertical'."));
+        return QJSValue();
+      }
+    }
+    const auto direction = options.property(QStringLiteral("direction"));
+    if (direction.isString()) {
+      params.direction = direction.toString();
+      if (params.direction != QLatin1String("auto") && params.direction != QLatin1String("ltr") &&
+          params.direction != QLatin1String("rtl")) {
+        host_.throw_js_error(ScriptEngineHost::tr("direction must be 'auto', 'ltr' or 'rtl'."));
+        return QJSValue();
+      }
+    }
   }
   const auto created = host_.add_text_layer(session_id_, params);
   if (!created.has_value()) {

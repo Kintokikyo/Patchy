@@ -1194,6 +1194,12 @@ private:
   void apply_text_smoothing_to_active_editor();
   void apply_text_alignment_to_active_editor(Qt::Alignment alignment);
   void sync_text_alignment_buttons_from_editor();
+  // Vertical type (options-bar toggle / layer context menu): a live session re-lays out, the
+  // selected text layer converts through a hidden session, otherwise the next new layer takes
+  // it. Paragraph direction works the same way (auto / left-to-right / right-to-left).
+  void apply_text_orientation(bool vertical, bool remember_default = true);
+  void apply_text_direction_to_active_editor(Qt::LayoutDirection direction);
+  void sync_text_orientation_controls_from_editor();
   // Photoshop's Warp Text: opens the style/bend/distortion dialog for the active
   // text layer (committing any open inline edit first) with live preview; OK is one
   // undo step, Cancel restores the pre-dialog pixels and metadata.
@@ -1532,6 +1538,10 @@ private:
   QPushButton* text_align_left_button_{nullptr};
   QPushButton* text_align_center_button_{nullptr};
   QPushButton* text_align_right_button_{nullptr};
+  QPushButton* text_orientation_button_{nullptr};
+  QComboBox* text_direction_combo_{nullptr};
+  // Orientation new type layers take (persisted as tools/textVertical).
+  bool text_vertical_default_{false};
   QPushButton* text_warp_button_{nullptr};
   // Character panel (leading / tracking / glyph scales) for the live editor session;
   // the dialog and its controls are exempt from the focus-loss auto-commit via

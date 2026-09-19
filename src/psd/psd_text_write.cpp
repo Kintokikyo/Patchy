@@ -459,6 +459,9 @@ std::vector<PsdTextParagraphRun> parse_patchy_paragraph_runs_metadata(std::strin
         run.auto_leading_fraction = *fraction;
       }
     }
+    if (fields.size() >= 10U && (fields[9] == "ltr" || fields[9] == "rtl")) {
+      run.direction = std::string(fields[9]);
+    }
     if (run.length <= 0 || run.start >= text_length) {
       continue;
     }
@@ -1025,6 +1028,35 @@ void translate_text_geometry_local(PsdTextGeometry& geometry, double dx, double 
   translate_text_bounds_local(geometry.box_bounds, dx, dy);
 }
 
+bool layer_text_is_vertical(const Layer& layer) {
+  return layer_metadata_value(layer, kLayerMetadataTextOrientation).value_or(std::string_view{}) ==
+         kTextOrientationVertical;
+}
+
+double layer_text_base_size(const Layer& layer) {
+  if (const auto size = layer_metadata_value(layer, kLayerMetadataTextSize); size.has_value()) {
+    return std::max(1.0, static_cast<double>(parse_int_or(*size, 36)));
+  }
+  return 36.0;
+}
+
+// Reading-axis anchor fraction of vertical text: the first paragraph's justification decides
+// whether the transform translation sits at the column run's top (0), middle (0.5) or bottom (1).
+double vertical_text_anchor_fraction(const Layer& layer, std::string_view text) {
+  const auto runs = paragraph_runs_for_layer(layer, text);
+  if (runs.empty()) {
+    return 0.0;
+  }
+  switch (runs.front().justification) {
+    case 1:
+      return 1.0;
+    case 2:
+      return 0.5;
+    default:
+      return 0.0;
+  }
+}
+
 double point_text_baseline_offset(const Layer& layer, const PsdTextGeometry& geometry) {
   if (finite_text_bounds(geometry.bounding_box) && geometry.bounding_box.bottom > 1.0 &&
       text_bounds_height(geometry.bounding_box) > 1.0) {
@@ -1250,7 +1282,14 @@ std::string engine_paragraph_properties(const PsdTextParagraphRun& run) {
                                                : 1.2);
   properties += " /LeadingType 0 /Hanging ";
   properties += run.first_line_indent < 0.0 && run.start_indent > 0.0 ? "true" : "false";
-  properties += " /Burasagari false /KinsokuOrder 0 /EveryLineComposer false >>";
+  properties += " /Burasagari false /KinsokuOrder 0 /EveryLineComposer false";
+  if (run.direction == "ltr" || run.direction == "rtl") {
+    // Photoshop's Middle Eastern composer key; the Latin composer ignores it. Written only for
+    // an explicit direction so ordinary paragraphs stay byte-identical.
+    properties += " /ParagraphDirection ";
+    properties += run.direction == "rtl" ? '1' : '0';
+  }
+  properties += " >>";
   return properties;
 }
 
@@ -1335,12 +1374,20 @@ std::string engine_grid_info() {
          " /AlignLineHeightToGridFlags false >>\n";
 }
 
-std::string engine_rendered_shape(bool boxed_text, const PsdTextBoundsD& box_bounds) {
+std::string engine_rendered_shape(bool boxed_text, const PsdTextBoundsD& box_bounds, bool vertical) {
   const auto shape_type = boxed_text ? 1 : 0;
-  std::string rendered = "/Rendered << /Version 1 /Shapes << /WritingDirection 0 /Children [ << /ShapeType ";
+  // Vertical type: Photoshop 2026 writes /WritingDirection 2 in both the Shapes and the Lines
+  // dictionaries and /Procession 1 (September 2026 captures, ps2026_vtext); horizontal is 0/0.
+  const char* writing_direction = vertical ? "2" : "0";
+  std::string rendered = "/Rendered << /Version 1 /Shapes << /WritingDirection ";
+  rendered += writing_direction;
+  rendered += " /Children [ << /ShapeType ";
   rendered += std::to_string(shape_type);
-  rendered +=
-      " /Procession 0 /Lines << /WritingDirection 0 /Children [ ] >> /Cookie << /Photoshop << /ShapeType ";
+  rendered += " /Procession ";
+  rendered += vertical ? "1" : "0";
+  rendered += " /Lines << /WritingDirection ";
+  rendered += writing_direction;
+  rendered += " /Children [ ] >> /Cookie << /Photoshop << /ShapeType ";
   rendered += std::to_string(shape_type);
   if (boxed_text) {
     rendered += " /BoxBounds [ ";
@@ -1365,7 +1412,7 @@ std::string engine_rendered_shape(bool boxed_text, const PsdTextBoundsD& box_bou
 
 std::vector<std::uint8_t> engine_data_for_text(std::string_view text, std::span<const PsdTextStyleRun> runs,
                                                std::span<const PsdTextParagraphRun> paragraph_runs, bool boxed_text,
-                                               const PsdTextBoundsD& box_bounds, int anti_alias) {
+                                               const PsdTextBoundsD& box_bounds, int anti_alias, bool vertical) {
   const auto engine_text = photoshop_engine_text(text);
   const auto engine_units = static_cast<int>(utf8_to_utf16(engine_text).size());
   std::vector<std::string> fonts{"AdobeInvisFont"};
@@ -1450,7 +1497,7 @@ std::vector<std::uint8_t> engine_data_for_text(std::string_view text, std::span<
   engine += "/AntiAlias ";
   engine += std::to_string(std::clamp(anti_alias, 0, 16));
   engine += " /UseFractionalGlyphWidths true\n";
-  engine += engine_rendered_shape(boxed_text, box_bounds);
+  engine += engine_rendered_shape(boxed_text, box_bounds, vertical);
   engine += ">>\n";
   const PsdTextStyleRun normal_style = runs.empty() ? PsdTextStyleRun{} : runs.front();
   const auto normal_font_index = font_indices.empty() ? 1 : font_indices.front();
@@ -1472,7 +1519,7 @@ void write_text_descriptor(BigEndianWriter& writer, std::string_view text, std::
   write_descriptor_item_header(writer, "Txt ", {'T', 'E', 'X', 'T'});
   write_descriptor_unicode_string(writer, text);
   write_descriptor_enum_item(writer, "textGridding", "textGridding", "None");
-  write_descriptor_enum_item(writer, "Ornt", "Ornt", "Hrzn");
+  write_descriptor_enum_item(writer, "Ornt", "Ornt", geometry.vertical ? "Vrtc" : "Hrzn");
   write_descriptor_enum_item(writer, "AntA", "Annt", "AnCr");
   write_descriptor_object_item(writer, "bounds", geometry.bounds);
   write_descriptor_object_item(writer, "boundingBox", geometry.bounding_box);
@@ -1500,6 +1547,7 @@ void write_warp_descriptor(BigEndianWriter& writer, const TextWarp* warp) {
 PsdTextGeometry text_geometry_for_layer(const Layer& layer, const Rect& text_bounds, bool boxed_text,
                                         const TextWarp* warp) {
   PsdTextGeometry geometry;
+  geometry.vertical = layer_text_is_vertical(layer);
   geometry.transform = {1.0, 0.0, 0.0, 1.0, static_cast<double>(text_bounds.x), static_cast<double>(text_bounds.y)};
   geometry.bounds =
       PsdTextBoundsD{0.0, 0.0, static_cast<double>(std::max(1, text_bounds.width)),
@@ -1509,12 +1557,35 @@ PsdTextGeometry text_geometry_for_layer(const Layer& layer, const Rect& text_bou
   geometry.tail_bounds = {text_bounds.x, text_bounds.y, text_bounds.x + text_bounds.width,
                           text_bounds.y + text_bounds.height};
   bool bounding_box_from_pixels = false;
+  if (geometry.vertical && !boxed_text && warp == nullptr) {
+    // Photoshop anchors vertical point text at the top CENTER of the first (rightmost) column
+    // for top-aligned text, at the run's middle or bottom for centered/bottom-aligned text
+    // (ps2026_vtext: 32 px type stores bounds x in [-16, 16] and y in [0, h], [-h/2, h/2] or
+    // [-h, 0]). Patchy's vertical raster is the cell union plus the fixed bleed on every side
+    // (vertical_text_bleed_for_size), so the anchor is recoverable from the raster rect alone.
+    const auto size = std::max(1.0, layer_text_base_size(layer));
+    const auto bleed = vertical_text_bleed_for_size(size);
+    const auto width = static_cast<double>(std::max(1, text_bounds.width));
+    const auto height = static_cast<double>(std::max(1, text_bounds.height));
+    const auto factor = vertical_text_anchor_fraction(layer, *layer_metadata_value(layer, kLayerMetadataText));
+    const auto anchor_x = std::max(0.0, width - bleed - size / 2.0);
+    const auto anchor_y = bleed + factor * std::max(0.0, height - 2.0 * bleed);
+    geometry.transform = {1.0, 0.0, 0.0, 1.0, static_cast<double>(text_bounds.x) + anchor_x,
+                          static_cast<double>(text_bounds.y) + anchor_y};
+    geometry.bounds = PsdTextBoundsD{bleed - anchor_x, bleed - anchor_y, width - bleed - anchor_x,
+                                     height - bleed - anchor_y};
+    geometry.bounding_box = geometry.bounds;
+    geometry.box_bounds = geometry.bounds;
+    bounding_box_from_pixels = true;
+  }
 
-  if (const auto patchy_transform = layer_metadata_value(layer, kLayerMetadataTextTransform); patchy_transform.has_value()) {
+  if (const auto patchy_transform = layer_metadata_value(layer, kLayerMetadataTextTransform);
+      patchy_transform.has_value() && !(geometry.vertical && !boxed_text && warp == nullptr)) {
     if (const auto parsed = parse_double_array6(*patchy_transform); parsed.has_value()) {
       geometry.transform = *parsed;
     }
-  } else if (const auto psd_transform = layer_metadata_value(layer, kLayerMetadataPsdTextTransform); psd_transform.has_value()) {
+  } else if (const auto psd_transform = layer_metadata_value(layer, kLayerMetadataPsdTextTransform);
+             psd_transform.has_value() && !(geometry.vertical && !boxed_text && warp == nullptr)) {
     if (const auto parsed = parse_double_array6(*psd_transform); parsed.has_value()) {
       geometry.transform = *parsed;
     }
@@ -1573,7 +1644,7 @@ PsdTextGeometry text_geometry_for_layer(const Layer& layer, const Rect& text_bou
   } else if (!bounding_box_from_pixels) {
     geometry.bounding_box = geometry.bounds;
   }
-  if (!boxed_text && point_text_geometry_needs_baseline_anchor(layer, geometry)) {
+  if (!boxed_text && !geometry.vertical && point_text_geometry_needs_baseline_anchor(layer, geometry)) {
     translate_text_geometry_local(geometry, 0.0, point_text_baseline_offset(layer, geometry));
   }
   if (const auto index = layer_metadata_value(layer, kLayerMetadataPsdTextIndex); index.has_value()) {
@@ -1617,8 +1688,8 @@ std::optional<std::vector<std::uint8_t>> photoshop_type_tool_payload_for_layer(c
                                                 warp_active ? &*warp : nullptr);
   const auto anti_alias_metadata = layer_metadata_value(layer, kLayerMetadataTextAntiAlias);
   const auto anti_alias = anti_alias_metadata.has_value() ? parse_int_or(*anti_alias_metadata, 3) : 3;
-  const auto engine_data =
-      engine_data_for_text(*text, runs, paragraph_runs, boxed_text, geometry.box_bounds, anti_alias);
+  const auto engine_data = engine_data_for_text(*text, runs, paragraph_runs, boxed_text, geometry.box_bounds,
+                                                anti_alias, geometry.vertical);
   const auto descriptor_text = photoshop_engine_text(*text);
 
   const auto build_payload = [&](std::span<const std::uint8_t> engine_bytes) {

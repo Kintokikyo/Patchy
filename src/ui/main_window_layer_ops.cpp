@@ -2757,10 +2757,16 @@ void MainWindow::show_layer_context_menu(QPoint position) {
         QStringLiteral("layerContextEditShapeAppearanceAction"));
   }
   QAction* warp_text_action = nullptr;
+  QAction* text_orientation_action = nullptr;
   if (active_layer != nullptr && layer_is_text(*active_layer)) {
     warp_text_action = menu.addAction(simple_icon(QStringLiteral("T"), QColor(190, 220, 255)),
                                       tr("Warp Text..."));
     warp_text_action->setObjectName(QStringLiteral("layerContextWarpTextAction"));
+    const bool vertical = active_layer->metadata().contains(kLayerMetadataTextOrientation) &&
+                          active_layer->metadata().at(kLayerMetadataTextOrientation) == kTextOrientationVertical;
+    text_orientation_action = menu.addAction(simple_icon(QStringLiteral("T"), QColor(190, 220, 255)),
+                                             vertical ? tr("Horizontal Text") : tr("Vertical Text"));
+    text_orientation_action->setObjectName(QStringLiteral("layerContextTextOrientationAction"));
   }
   if (layer_clipping_mask_action_ != nullptr) {
     // Kept near the top so Create/Release Clipping Mask stays discoverable.
@@ -3005,6 +3011,10 @@ void MainWindow::show_layer_context_menu(QPoint position) {
     edit_active_shape_appearance();
   } else if (chosen == warp_text_action && warp_text_action != nullptr) {
     request_warp_text_dialog();
+  } else if (chosen == text_orientation_action && text_orientation_action != nullptr) {
+    const bool vertical = active_layer != nullptr && active_layer->metadata().contains(kLayerMetadataTextOrientation) &&
+                          active_layer->metadata().at(kLayerMetadataTextOrientation) == kTextOrientationVertical;
+    apply_text_orientation(!vertical);
   } else if (chosen == new_action) {
     add_layer();
   } else if (chosen == new_folder_action) {

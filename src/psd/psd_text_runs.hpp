@@ -12,6 +12,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <cmath>
 #include <string_view>
 
 namespace patchy::psd {
@@ -65,7 +66,22 @@ struct PsdTextParagraphRun {
   double space_after{0.0};
   // Auto-leading fraction (Photoshop default 1.2): auto leading = fraction x font size.
   double auto_leading_fraction{1.2};
+  // Paragraph base direction: "ltr", "rtl", or empty for auto (the first strong character
+  // decides, the Unicode bidi default). Photoshop keeps its directionType outside the TySh
+  // (September 2026 captures: an RTL and an LTR save differ only in bounds), so this comes from
+  // Patchy's own paragraph runs (v4 column 9) and is written to the engine data as
+  // /ParagraphDirection for Photoshop's Middle Eastern composer.
+  std::string direction;
 };
+
+// Vertical (tategaki) text rasters are the cell union plus this bleed on every side, in
+// document pixels, derived from the layer's base size only so the PSD writer (Qt-free) and the
+// UI renderer agree on where the Photoshop anchor sits inside the raster. Kept as a fraction of
+// the em so accents and the ascent overhang of fonts whose ascent + descent exceeds the em
+// (Arial: 1.117 em) stay inside the raster.
+[[nodiscard]] inline double vertical_text_bleed_for_size(double size) {
+  return std::ceil(0.25 * std::max(1.0, size));
+}
 
 std::string serialize_patchy_text_runs(std::span<const PsdTextStyleRun> runs);
 std::string serialize_patchy_paragraph_runs(std::span<const PsdTextParagraphRun> runs);

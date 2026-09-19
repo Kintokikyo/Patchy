@@ -2665,6 +2665,30 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   text_align_right_button_->setFixedSize(30, 26);
   text_alignment_group->addButton(text_align_right_button_);
   add_option_widget(text_align_right_button_, {CanvasTool::Text});
+  // Photoshop's "Toggle text orientation": one Type tool with a vertical switch instead of a
+  // second tool. Qt::NoFocus like the session buttons, so toggling never auto-commits.
+  text_orientation_button_ = new QPushButton(tr("Vertical"), toolbar);
+  bind_widget_text(text_orientation_button_, QT_TR_NOOP("Vertical"));
+  text_orientation_button_->setObjectName(QStringLiteral("textOrientationButton"));
+  text_orientation_button_->setCheckable(true);
+  text_orientation_button_->setChecked(text_vertical_default_);
+  bind_tooltip(text_orientation_button_, QT_TR_NOOP("Vertical text: columns read top to bottom, right to left"));
+  text_orientation_button_->setFocusPolicy(Qt::NoFocus);
+  add_option_widget(text_orientation_button_, {CanvasTool::Text});
+  add_option_label(QT_TR_NOOP("Direction:"), {CanvasTool::Text});
+  text_direction_combo_ = new QComboBox(toolbar);
+  text_direction_combo_->setObjectName(QStringLiteral("textDirectionCombo"));
+  bind_tooltip(text_direction_combo_, QT_TR_NOOP("Paragraph direction (auto follows the first strong character)"));
+  text_direction_combo_->addItem(tr("Auto"), static_cast<int>(Qt::LayoutDirectionAuto));
+  text_direction_combo_->addItem(tr("Left to right"), static_cast<int>(Qt::LeftToRight));
+  text_direction_combo_->addItem(tr("Right to left"), static_cast<int>(Qt::RightToLeft));
+  register_retranslation([this] {
+    const QSignalBlocker blocker(text_direction_combo_);
+    const char* sources[] = {QT_TR_NOOP("Auto"), QT_TR_NOOP("Left to right"), QT_TR_NOOP("Right to left")};
+    for (int index = 0; index < 3; ++index) text_direction_combo_->setItemText(index, tr(sources[index]));
+  });
+  text_direction_combo_->setFixedWidth(116);
+  add_option_widget(text_direction_combo_, {CanvasTool::Text});
   text_warp_button_ = new QPushButton(tr("Warp..."), toolbar);
   bind_widget_text(text_warp_button_, QT_TR_NOOP("Warp..."));
   text_warp_button_->setObjectName(QStringLiteral("textWarpButton"));
@@ -2707,6 +2731,15 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   connect(text_align_right_button_, &QPushButton::clicked, this,
           [this] { apply_text_alignment_to_active_editor(Qt::AlignRight); });
   connect(text_warp_button_, &QPushButton::clicked, this, [this] { request_warp_text_dialog(); });
+  connect(text_orientation_button_, &QPushButton::toggled, this,
+          [this](bool checked) { apply_text_orientation(checked); });
+  connect(text_direction_combo_, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
+    if (index < 0) {
+      return;
+    }
+    apply_text_direction_to_active_editor(
+        static_cast<Qt::LayoutDirection>(text_direction_combo_->itemData(index).toInt()));
+  });
   // Session apply/cancel, shown only while an inline text editor is open (the
   // text controls above stay visible too -- they apply live to the editor, so
   // unlike a transform session the bar keeps them).  Qt::NoFocus is load-bearing:

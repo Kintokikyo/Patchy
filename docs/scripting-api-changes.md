@@ -1,5 +1,11 @@
 # Scripting API compatibility
 
+2026-09-20 (API 1): vertical type and paragraph direction. `doc.addTextLayer` takes
+`orientation` (`"horizontal"` | `"vertical"`) and `direction` (`"auto"` | `"ltr"` |
+`"rtl"`); text layers expose `textOrientation` and `textDirection` (read/write, a write
+re-renders through the same hidden session as `text`). Invalid values throw. Additive;
+apiVersion unchanged. See [text-tool.md](text-tool.md).
+
 2026-09-11 (API 1): `layer.duplicate(targetDocument?)` accepts another open
 document and copies the layer there, above its active layer at the same
 coordinates (centered when the sizes differ); masks, styles, and smart-object
