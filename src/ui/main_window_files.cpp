@@ -355,8 +355,8 @@ void write_file_to_android_uri(const QString& local_path,
                 .toStdString());
     }
 
-    const auto context =
-        QNativeInterface::QAndroidApplication::context();
+    const QJniObject context = 
+        QJniObject(QNativeInterface::QAndroidApplication::context());
 
     if (!context.isValid()) {
         throw std::runtime_error(
