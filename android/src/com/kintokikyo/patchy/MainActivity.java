@@ -7,7 +7,7 @@ import org.qtproject.qt.android.bindings.QtActivity;
 
 public class MainActivity extends QtActivity {
     @Override
-    protected void onCreate(android.os.Bundle savedInstanceState) {
+    public void onCreate(android.os.Bundle savedInstanceState) {
         android.util.Log.e(
                 "PATCHY_MAIN",
                 "CUSTOM MAIN ACTIVITY onCreate()");
