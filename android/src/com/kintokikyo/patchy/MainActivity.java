@@ -1,12 +1,70 @@
 package com.kintokikyo.patchy;
 
 import android.content.Intent;
+import android.content.Context;
 import android.net.Uri;
 import android.os.ParcelFileDescriptor;
+
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 
 import org.qtproject.qt.android.bindings.QtActivity;
 
 public class MainActivity extends QtActivity {
+
+    public static boolean writeFileToUri(
+        Context context,
+        String localPath,
+        String uriString) {
+
+    android.util.Log.e(
+            "PATCHY_MAIN",
+            "JAVA WRITE HELPER START"
+    );
+
+    try (
+        FileInputStream input =
+                new FileInputStream(localPath);
+
+        ParcelFileDescriptor pfd =
+                context.getContentResolver().openFileDescriptor(
+                        Uri.parse(uriString),
+                        "w");
+
+        FileOutputStream output =
+                new FileOutputStream(
+                        pfd.getFileDescriptor())
+    ) {
+
+        byte[] buffer = new byte[1024 * 1024];
+
+        int bytesRead;
+
+        while ((bytesRead = input.read(buffer)) != -1) {
+            output.write(buffer, 0, bytesRead);
+        }
+
+        output.flush();
+
+        android.util.Log.e(
+                "PATCHY_MAIN",
+                "JAVA WRITE HELPER = SUCCESS"
+        );
+
+        return true;
+
+    } catch (Exception e) {
+
+        android.util.Log.e(
+                "PATCHY_MAIN",
+                "JAVA WRITE HELPER = FAILED",
+                e
+        );
+
+        return false;
+    }
+    }
 
     @Override
     public void onCreate(android.os.Bundle savedInstanceState) {
