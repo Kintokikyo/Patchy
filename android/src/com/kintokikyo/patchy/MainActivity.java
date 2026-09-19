@@ -8,6 +8,23 @@ import org.qtproject.qt.android.bindings.QtActivity;
 public class MainActivity extends QtActivity {
 
     @Override
+    public void startActivityForResult(
+            Intent intent,
+            int requestCode) {
+
+        if (Intent.ACTION_CREATE_DOCUMENT.equals(intent.getAction())) {
+            intent.addFlags(
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                    | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        }
+
+        super.startActivityForResult(
+                intent,
+                requestCode);
+    }
+
+    @Override
     protected void onActivityResult(
             int requestCode,
             int resultCode,
