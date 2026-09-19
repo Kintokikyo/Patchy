@@ -102,6 +102,12 @@ jobs:
             1
            )
 
+           text = text.replace(
+           'android:name="org.qtproject.qt.android.bindings.QtActivity"',
+           'android:name="com.kintokikyo.patchy.MainActivity"',
+           1
+           )
+
           path.write_text(text)
           PY
 
