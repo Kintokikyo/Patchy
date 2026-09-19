@@ -11,6 +11,9 @@ public class MainActivity extends QtActivity {
     public void startActivityForResult(
             Intent intent,
             int requestCode) {
+        android.util.Log.d(
+            "PATCHY_MAIN",
+            "startActivityForResult: " + intent.getAction());
 
         if (Intent.ACTION_CREATE_DOCUMENT.equals(intent.getAction())) {
             intent.addFlags(
