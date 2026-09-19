@@ -1843,35 +1843,13 @@ QString get_save_file_name(QWidget* parent, const QString& caption, const QStrin
         (selected_filter != nullptr && !selected_filter->isEmpty())
             ? *selected_filter
             : filter;
-
-    QFileDialog dialog(
-        parent,
-        caption,
-        QString(),
-        native_filter);
-
-    configure_file_dialog(
-        dialog,
-        object_name,
-        QString(),
-        QFileDialog::AcceptSave,
-        QFileDialog::AnyFile,
-        nullptr);
-
-    // Give Android's picker the filename chosen in Patchy's dialog.
-    dialog.selectFile(file_name);
-
-    if (exec_dialog(dialog) != QDialog::Accepted) {
-        return {};
-    }
-
-    const auto files = dialog.selectedFiles();
-
-    if (files.isEmpty()) {
-        return {};
-    }
-
-    return files.front();
+            
+    return QFileDialog::getSaveFileName(
+    parent,
+    caption,
+    file_name,
+    native_filter,
+    selected_filter);
 
 #else
   QFileDialog dialog(parent, caption, QString(), filter);
