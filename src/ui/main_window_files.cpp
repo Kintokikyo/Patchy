@@ -358,8 +358,19 @@ void write_file_to_android_uri(const QString& local_path,
     const QJniObject local_path_java =
         QJniObject::fromString(local_path);
 
+    const QUrl android_uri(uri_string);
+    
+    if (!android_uri.isValid()) {
+        throw std::runtime_error(
+            "Android destination URI is invalid");
+    }
+
+    const QString encoded_uri =
+        QString::fromUtf8(
+            android_uri.toEncoded(QUrl::FullyEncoded));
+
     const QJniObject uri_string_java =
-        QJniObject::fromString(uri_string);
+        QJniObject::fromString(encoded_uri);
 
     const jboolean result =
         context.callMethod<jboolean>(
