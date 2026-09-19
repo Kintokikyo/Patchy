@@ -343,145 +343,42 @@ bool is_android_content_uri(const QString& path) {
 
 void write_file_to_android_uri(const QString& local_path,
                                const QString& uri_string) {
-    QFile input(local_path);
 
-    if (!input.open(QIODevice::ReadOnly)) {
-        throw std::runtime_error(
-            QStringLiteral("Cannot reopen temporary file for Android storage: %1")
-                .arg(local_path)
-                .toStdString());
-    }
-
-    const QJniObject context = 
-        QJniObject(QNativeInterface::QAndroidApplication::context());
+    const QJniObject context =
+        QNativeInterface::QAndroidApplication::context();
 
     if (!context.isValid()) {
         throw std::runtime_error(
             "Android context is unavailable");
     }
 
-    const auto resolver =
-        context.callObjectMethod(
-            "getContentResolver",
-            "()Landroid/content/ContentResolver;");
-            
-    QJniEnvironment env;
-    
-    if (env.checkAndClearExceptions(
-        QJniEnvironment::OutputMode::Silent)) {
-        throw std::runtime_error(
-            "Android getContentResolver() failed");
-    }
+    const QJniObject local_path_java =
+        QJniObject::fromString(local_path);
 
-    if (!resolver.isValid()) {
-        throw std::runtime_error(
-            "Android ContentResolver is unavailable");
-    }
-
-    const auto uri_text =
+    const QJniObject uri_string_java =
         QJniObject::fromString(uri_string);
 
-    const auto uri =
-        QJniObject::callStaticObjectMethod(
-            "android/net/Uri",
-            "parse",
-            "(Ljava/lang/String;)Landroid/net/Uri;",
-            uri_text.object<jstring>());
+    const jboolean result =
+        QJniObject::callStaticMethod<jboolean>(
+            "com/kintokikyo/patchy/MainActivity",
+            "writeFileToUri",
+            "(Landroid/content/Context;Ljava/lang/String;Ljava/lang/String;)Z",
+            context.object<jobject>(),
+            local_path_java.object<jstring>(),
+            uri_string_java.object<jstring>());
 
-    if (!uri.isValid()) {
-        throw std::runtime_error(
-            "Invalid Android content URI");
-    }
-
-    const auto file_descriptor =
-    resolver.callObjectMethod(
-        "openFileDescriptor",
-        "(Landroid/net/Uri;Ljava/lang/String;)Landroid/os/ParcelFileDescriptor;",
-        uri.object<jobject>(),
-        QJniObject::fromString(QStringLiteral("w"))
-            .object<jstring>());
-            
-    if (env.checkAndClearExceptions(
-        QJniEnvironment::OutputMode::Silent)) {
-        throw std::runtime_error(
-            "Android openFileDescriptor() failed");
-    }
-
-    if (!file_descriptor.isValid()) {
-        throw std::runtime_error(
-            "Android could not open the destination for writing");
-    }
-
-    const QJniObject output(
-        "android/os/ParcelFileDescriptor$AutoCloseOutputStream",
-        "(Landroid/os/ParcelFileDescriptor;)V",
-        file_descriptor.object<jobject>());
-
-    if (env.checkAndClearExceptions(
-        QJniEnvironment::OutputMode::Silent)) {
-        throw std::runtime_error(
-            "Android could not create the destination output stream");
-    }
-
-    if (!output.isValid()) {
-        throw std::runtime_error(
-            "Android could not create the destination output stream");
-    }
-
-    constexpr qint64 kChunkSize = 1024 * 1024;
-
-    while (!input.atEnd()) {
-        const QByteArray chunk =
-            input.read(kChunkSize);
-
-        if (chunk.isEmpty() && !input.atEnd()) {
-            throw std::runtime_error(
-                "Failed reading temporary save file");
-        }
-
-        if (chunk.isEmpty()) {
-            break;
-        }
-
-        const jsize size =
-            static_cast<jsize>(chunk.size());
-
-        const jbyteArray bytes =
-            env->NewByteArray(size);
-
-        if (bytes == nullptr) {
-            throw std::runtime_error(
-                "Unable to allocate Android byte array");
-        }
-
-        env->SetByteArrayRegion(
-            bytes,
-            0,
-            size,
-            reinterpret_cast<const jbyte*>(chunk.constData()));
-
-        output.callMethod<void>(
-            "write",
-            "([B)V",
-            bytes);
-
-        env->DeleteLocalRef(bytes);
-
-        if (env.checkAndClearExceptions(
-                QJniEnvironment::OutputMode::Silent)) {
-            throw std::runtime_error(
-                "Android failed while writing the destination");
-        }
-    }
-
-    output.callMethod<void>(
-        "close",
-        "()V");
+    QJniEnvironment env;
 
     if (env.checkAndClearExceptions(
             QJniEnvironment::OutputMode::Silent)) {
+
         throw std::runtime_error(
-            "Android failed while closing the destination");
+            "Android Java write helper failed");
+    }
+
+    if (!result) {
+        throw std::runtime_error(
+            "Android could not write the destination");
     }
 }
 
