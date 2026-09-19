@@ -263,7 +263,7 @@
 #ifdef Q_OS_ANDROID
 #include <QJniEnvironment>
 #include <QJniObject>
-#include <QNativeInterface>
+#include <QtCore/qnativeinterface.h>
 #include <QTemporaryFile>
 #endif
 
