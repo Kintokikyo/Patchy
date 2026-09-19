@@ -162,6 +162,10 @@ jobs:
           find build/android-release/android-build -maxdepth 2 -type f -print || true
 
           echo ""
+          echo "===== gradle.properties ====="
+          cat build/android-release/android-build/gradle.properties || true
+
+          echo ""
           echo "===== settings.gradle.kts ====="
           cat build/android-release/android-build/settings.gradle.kts || true
 
