@@ -22,6 +22,35 @@ public class MainActivity extends QtActivity {
             "JAVA WRITE HELPER START"
     );
 
+    android.util.Log.e(
+        "PATCHY_MAIN",
+        "HELPER URI = " + uriString
+    );
+        
+    int uriPermission =
+        checkUriPermission(
+                Uri.parse(uriString),
+                android.os.Process.myPid(),
+                android.os.Process.myUid(),
+                Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        
+    android.util.Log.e(
+        "PATCHY_MAIN",
+        "HELPER WRITE PERMISSION = " + uriPermission
+    );
+        
+    for (android.content.UriPermission permission :
+        getContentResolver().getPersistedUriPermissions()) {
+
+    android.util.Log.e(
+            "PATCHY_MAIN",
+            "PERSISTED URI = "
+            + permission.getUri()
+            + " WRITE="
+            + permission.isWritePermission()
+    );
+    }
+        
     try (
         FileInputStream input =
                 new FileInputStream(localPath);
