@@ -6,20 +6,31 @@ import android.net.Uri;
 import org.qtproject.qt.android.bindings.QtActivity;
 
 public class MainActivity extends QtActivity {
+    @Override
+    protected void onCreate(android.os.Bundle savedInstanceState) {
+        android.util.Log.e(
+                "PATCHY_MAIN",
+                "CUSTOM MAIN ACTIVITY onCreate()");
+
+        super.onCreate(savedInstanceState);
+    }
 
     @Override
     public void startActivityForResult(
             Intent intent,
             int requestCode) {
-        android.util.Log.d(
+        android.util.Log.e(
             "PATCHY_MAIN",
-            "startActivityForResult: " + intent.getAction());
+            "CUSTOM startActivityForResult CALLED: " + intent.getAction());
 
         if (Intent.ACTION_CREATE_DOCUMENT.equals(intent.getAction())) {
             intent.addFlags(
                     Intent.FLAG_GRANT_READ_URI_PERMISSION
                     | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                     | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+            android.util.Log.e(
+                "PATCHY_MAIN",
+                "CREATE_DOCUMENT flags = " + intent.getFlags());
         }
 
         super.startActivityForResult(
@@ -32,6 +43,12 @@ public class MainActivity extends QtActivity {
             int requestCode,
             int resultCode,
             Intent data) {
+        
+        android.util.Log.e(
+            "PATCHY_MAIN",
+            "onActivityResult requestCode=" + requestCode
+            + " resultCode=" + resultCode
+            + " data=" + (data != null ? data.getData() : null));
 
         super.onActivityResult(
                 requestCode,
