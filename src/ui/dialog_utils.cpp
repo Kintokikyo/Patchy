@@ -18,6 +18,7 @@
 #include <QComboBox>
 #include <QCursor>
 #include <QDialog>
+#include <QDialogButtonBox>
 #include <QDoubleSpinBox>
 #include <QDir>
 #include <QElapsedTimer>
@@ -1779,16 +1780,177 @@ QStringList get_open_file_names(QWidget* parent, const QString& caption, const Q
 #endif
 }
 
+#ifdef Q_OS_ANDROID
+
+QString prompt_android_save_file(QWidget* parent,
+                                 const QString& caption,
+                                 const QString& initial_path,
+                                 const QString& filter,
+                                 QString* selected_filter) {
+    const auto rows = filter.split(QStringLiteral(";;"), Qt::SkipEmptyParts);
+
+    QDialog dialog(parent);
+    dialog.setObjectName(QStringLiteral("androidSaveFileDialog"));
+    dialog.setWindowTitle(caption);
+    dialog.setModal(true);
+
+    auto* layout = new QVBoxLayout(&dialog);
+
+    auto* form = new QFormLayout();
+
+    auto* name_edit = new QLineEdit(&dialog);
+    name_edit->setObjectName(QStringLiteral("androidSaveFileNameEdit"));
+
+    const auto initial_name = QFileInfo(initial_path).fileName();
+    name_edit->setText(initial_name.isEmpty()
+                           ? QStringLiteral("Untitled.psd")
+                           : initial_name);
+    name_edit->selectAll();
+
+    form->addRow(QObject::tr("File name:"), name_edit);
+
+    auto* format_combo = new QComboBox(&dialog);
+    format_combo->setObjectName(QStringLiteral("androidSaveFormatCombo"));
+
+    for (const auto& row : rows) {
+        format_combo->addItem(row);
+    }
+
+    if (selected_filter != nullptr && !selected_filter->isEmpty()) {
+        const int index = format_combo->findText(*selected_filter);
+        if (index >= 0) {
+            format_combo->setCurrentIndex(index);
+        }
+    }
+
+    if (!rows.isEmpty()) {
+        form->addRow(QObject::tr("Format:"), format_combo);
+    }
+
+    layout->addLayout(form);
+
+    auto* buttons =
+        new QDialogButtonBox(QDialogButtonBox::Save |
+                             QDialogButtonBox::Cancel,
+                             &dialog);
+
+    QObject::connect(
+        buttons, &QDialogButtonBox::accepted,
+        &dialog, &QDialog::accept);
+
+    QObject::connect(
+        buttons, &QDialogButtonBox::rejected,
+        &dialog, &QDialog::reject);
+
+    layout->addWidget(buttons);
+
+    auto* save_button = buttons->button(QDialogButtonBox::Save);
+
+    const auto update_save_enabled =
+        [save_button, name_edit] {
+            save_button->setEnabled(
+                !name_edit->text().trimmed().isEmpty());
+        };
+
+    QObject::connect(
+        name_edit, &QLineEdit::textChanged,
+        &dialog, update_save_enabled);
+
+    update_save_enabled();
+
+    name_edit->setFocus();
+
+    if (exec_dialog(dialog) != QDialog::Accepted) {
+        return {};
+    }
+
+    auto file_name = name_edit->text().trimmed();
+
+    if (file_name.isEmpty()) {
+        return {};
+    }
+
+    // Prevent the user from injecting directory separators.
+    file_name.replace(QLatin1Char('/'), QLatin1Char('_'));
+    file_name.replace(QLatin1Char('\\'), QLatin1Char('_'));
+
+    if (selected_filter != nullptr &&
+        format_combo->count() > 0) {
+        *selected_filter = format_combo->currentText();
+    }
+
+    return file_name;
+}
+
+#endif
+
 QString get_save_file_name(QWidget* parent, const QString& caption, const QString& dir, const QString& filter,
                            QString* selected_filter, const QString& object_name, const QStringList& recent_files) {
 #ifdef Q_OS_WASM
-  // Saving in the browser means downloading, so there is no location to pick;
-  // a small name + format prompt stands in for the save dialog and the chosen
-  // MEMFS path flows through the unchanged writer pipeline, whose result the
-  // per-site offer_browser_download_for_saved_file hook then downloads.
-  Q_UNUSED(object_name);
-  Q_UNUSED(recent_files);
-  return wasm_files::prompt_save_file(parent, caption, dir, filter, selected_filter);
+
+    Q_UNUSED(object_name);
+    Q_UNUSED(recent_files);
+
+    return wasm_files::prompt_save_file(
+        parent,
+        caption,
+        dir,
+        filter,
+        selected_filter);
+
+#elif defined(Q_OS_ANDROID)
+
+    Q_UNUSED(object_name);
+    Q_UNUSED(recent_files);
+
+    const auto file_name =
+        prompt_android_save_file(
+            parent,
+            caption,
+            dir,
+            filter,
+            selected_filter);
+
+    if (file_name.isEmpty()) {
+        return {};
+    }
+
+    // Android's native picker is now only responsible for
+    // choosing the destination folder / final file location.
+    const QString native_filter =
+        (selected_filter != nullptr && !selected_filter->isEmpty())
+            ? *selected_filter
+            : filter;
+
+    QFileDialog dialog(
+        parent,
+        caption,
+        QString(),
+        native_filter);
+
+    configure_file_dialog(
+        dialog,
+        object_name,
+        QString(),
+        QFileDialog::AcceptSave,
+        QFileDialog::AnyFile,
+        nullptr);
+
+    // Give Android's picker the filename chosen in Patchy's dialog.
+    dialog.selectFile(file_name);
+
+    if (exec_dialog(dialog) != QDialog::Accepted) {
+        return {};
+    }
+
+    const auto files = dialog.selectedFiles();
+
+    if (files.isEmpty()) {
+        return {};
+    }
+
+    return files.front();
+
 #else
   QFileDialog dialog(parent, caption, QString(), filter);
   configure_file_dialog(dialog, object_name, dir, QFileDialog::AcceptSave, QFileDialog::AnyFile, selected_filter);
