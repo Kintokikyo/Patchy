@@ -359,11 +359,9 @@ void write_file_to_android_uri(const QString& local_path,
         QJniObject::fromString(uri_string);
 
     const jboolean result =
-        QJniObject::callStaticMethod<jboolean>(
-            "com/kintokikyo/patchy/MainActivity",
+        context.callMethod<jboolean>(
             "writeFileToUri",
-            "(Landroid/content/Context;Ljava/lang/String;Ljava/lang/String;)Z",
-            context.object<jobject>(),
+            "(Ljava/lang/String;Ljava/lang/String;)Z",
             local_path_java.object<jstring>(),
             uri_string_java.object<jstring>());
 
