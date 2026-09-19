@@ -396,21 +396,39 @@ void write_file_to_android_uri(const QString& local_path,
             "Invalid Android content URI");
     }
 
-    const auto output =
-        resolver.callObjectMethod(
-            "openOutputStream",
-            "(Landroid/net/Uri;)Ljava/io/OutputStream;",
-            uri.object<jobject>());
+    const auto file_descriptor =
+    resolver.callObjectMethod(
+        "openFileDescriptor",
+        "(Landroid/net/Uri;Ljava/lang/String;)Landroid/os/ParcelFileDescriptor;",
+        uri.object<jobject>(),
+        QJniObject::fromString(QStringLiteral("w"))
+            .object<jstring>());
             
     if (env.checkAndClearExceptions(
         QJniEnvironment::OutputMode::Silent)) {
         throw std::runtime_error(
-            "Android openOutputStream() failed");
+            "Android openFileDescriptor() failed");
+    }
+
+    if (!file_descriptor.isValid()) {
+        throw std::runtime_error(
+            "Android could not open the destination for writing");
+    }
+
+    const QJniObject output(
+        "android/os/ParcelFileDescriptor$AutoCloseOutputStream",
+        "(Landroid/os/ParcelFileDescriptor;)V",
+        file_descriptor.object<jobject>());
+
+    if (env.checkAndClearExceptions(
+        QJniEnvironment::OutputMode::Silent)) {
+        throw std::runtime_error(
+            "Android could not create the destination output stream");
     }
 
     if (!output.isValid()) {
         throw std::runtime_error(
-            "Android could not open the destination for writing");
+            "Android could not create the destination output stream");
     }
 
     constexpr qint64 kChunkSize = 1024 * 1024;
@@ -1343,6 +1361,12 @@ QString path_with_default_extension(QString path, const QString& selected_filter
     }
 
     const QFileInfo info(path);
+    
+    #ifdef Q_OS_ANDROID
+    if (is_android_content_uri(path)) {
+        return path;
+    }
+    #endif
 
     if (info.suffix().isEmpty()) {
         return path + QLatin1Char('.') + selected_extension;
