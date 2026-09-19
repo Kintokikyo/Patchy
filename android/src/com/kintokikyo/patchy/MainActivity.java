@@ -13,8 +13,7 @@ import org.qtproject.qt.android.bindings.QtActivity;
 
 public class MainActivity extends QtActivity {
 
-    public static boolean writeFileToUri(
-        Context context,
+    public boolean writeFileToUri(
         String localPath,
         String uriString) {
 
@@ -28,7 +27,7 @@ public class MainActivity extends QtActivity {
                 new FileInputStream(localPath);
 
         ParcelFileDescriptor pfd =
-                context.getContentResolver().openFileDescriptor(
+                getContentResolver().openFileDescriptor(
                         Uri.parse(uriString),
                         "w");
 
