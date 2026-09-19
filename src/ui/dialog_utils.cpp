@@ -1875,10 +1875,61 @@ QString prompt_android_save_file(QWidget* parent,
     file_name.replace(QLatin1Char('\\'), QLatin1Char('_'));
 
     if (selected_filter != nullptr &&
-        format_combo->count() > 0) {
-        *selected_filter = format_combo->currentText();
+    format_combo->count() > 0) {
+    *selected_filter = format_combo->currentText();
+    }
+    
+    // Make the filename match the selected format before
+    // passing it to Android's native save picker.
+    QString selected_extension;
+    
+    const auto current_filter = format_combo->currentText();
+    const int wildcard_pos = 
+    current_filter.indexOf(QStringLiteral("*."));
+    
+    if (wildcard_pos >= 0) {
+    const int extension_start = wildcard_pos + 2;
+
+    int extension_end =
+        current_filter.indexOf(
+            QLatin1Char(' '),
+            extension_start);
+
+    const int closing_paren =
+        current_filter.indexOf(
+            QLatin1Char(')'),
+            extension_start);
+
+    if (extension_end < 0 ||
+        (closing_paren >= 0 &&
+         closing_paren < extension_end)) {
+        extension_end = closing_paren;
     }
 
+    if (extension_end < 0) {
+        extension_end = current_filter.size();
+    }
+
+    selected_extension =
+        current_filter.mid(
+            extension_start,
+            extension_end - extension_start);
+    }
+    
+    if (!selected_extension.isEmpty()) {
+    const QFileInfo info(file_name);
+
+    if (info.suffix().isEmpty()) {
+        file_name +=
+            QLatin1Char('.') +
+            selected_extension;
+    } else {
+        file_name =
+            info.completeBaseName() +
+            QLatin1Char('.') +
+            selected_extension;
+        }
+    }
     return file_name;
 }
 
