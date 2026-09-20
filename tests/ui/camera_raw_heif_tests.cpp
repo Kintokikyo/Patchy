@@ -338,6 +338,13 @@ void raw_test_write(const QString& path, const QByteArray& bytes) {
   CHECK(file.write(bytes) == bytes.size());
 }
 
+// Hang guard for the dialog drivers below, not a performance bound: the develop
+// dialog must eventually close by itself or through the driver. Two
+// full-resolution 26 MP ARW develops finish well inside this on an idle machine;
+// the old 30 s limit was close enough to the honest cost that a concurrent build
+// pushed it over.
+constexpr qint64 kRawDialogDeadlineMs = 120000;
+
 std::optional<patchy::ui::RawDevelopOutcome> raw_test_dialog(
     const QString& path, const std::function<void(QDialog&)>& step) {
   std::exception_ptr error;
@@ -348,7 +355,7 @@ std::optional<patchy::ui::RawDevelopOutcome> raw_test_dialog(
     auto* dialog = find_top_level_dialog(QStringLiteral("rawDevelopDialog"));
     if (!dialog) return;
     try {
-      CHECK(elapsed.elapsed() < 30000);
+      CHECK(elapsed.elapsed() < kRawDialogDeadlineMs);
       step(*dialog);
     } catch (...) {
       error = std::current_exception();
@@ -1144,7 +1151,7 @@ void ui_raw_file_drop_returns_before_dialog_and_preserves_batch() {
         try {
           // The native source can release its drag loop before any modal UI.
           CHECK(drop_returned);
-          CHECK(elapsed.elapsed() < 30000);
+          CHECK(elapsed.elapsed() < kRawDialogDeadlineMs);
           CHECK(MainWindowTestAccess::session_count(window) == 0);
           CHECK(dialog->windowTitle().contains(QFileInfo(path).fileName()));
           dialog_seen = true;

@@ -538,6 +538,20 @@ def protocol_edges(exe, attach_env=None):
         state = data.get("state", data)
         state_token = state.get("stateToken", state_token)
         return message
+    # Scripts signal progress by writing a marker file; the test waits for it
+    # instead of sleeping, so a loaded machine cannot make the cancel arrive
+    # before the work it is meant to interrupt.
+    mode = "attached" if attach_env else "owned"
+    def marker(name):
+        path = SESSION_TEMP / f"protocol-{mode}-{name}.ready"
+        path.unlink(missing_ok=True)
+        return path
+    def wait_for_marker(path, timeout=30):
+        deadline = time.monotonic() + timeout
+        while not path.is_file():
+            assert proc.poll() is None, "connector exited before the script signalled"
+            assert time.monotonic() < deadline, f"script never wrote {path.name}"
+            time.sleep(0.01)
     try:
         send("initialize", {"protocolVersion": "2025-06-18", "capabilities": {},
                             "clientInfo": {"name": "test", "version": "1"}}, 1)
@@ -545,9 +559,11 @@ def protocol_edges(exe, attach_env=None):
         send("notifications/initialized")
         send("tools/call", {"name": "get_state"}, 100)
         assert take(100)["result"]["structuredContent"]["documents"] == []
+        partial = marker("partial-cancel")
         send("tools/call", {"name": "execute_script", "arguments": {
-            "code": "app.newDocument(8,8).addShape('Partial cancel',{type:'ellipse',x:1,y:1,width:6,height:6}); while(true){}"}}, 2)
-        time.sleep(0.2)
+            "code": "app.newDocument(8,8).addShape('Partial cancel',{type:'ellipse',x:1,y:1,width:6,height:6});"
+                    f"patchy.io.writeTextFile({json.dumps(str(partial))},'ready'); while(true){{}}"}}, 2)
+        wait_for_marker(partial)
         send("tools/call", {"name": "get_state"}, 3)
         assert take(3)["result"]["structuredContent"]["error"] == "busy"
         send("notifications/cancelled", {"requestId": 2, "reason": "test cancellation"})
@@ -562,10 +578,15 @@ def protocol_edges(exe, attach_env=None):
         send("tools/call", {"name": "execute_script", "arguments": {"code":
             "app.newDocument(256,256).addLayer('Cancelled airbrush');"}}, 14)
         assert not take(14)["result"]["isError"]
+        # The stroke call blocks the engine until it is cancelled, so the marker
+        # is written as the statement right before it: the cancel round trip is
+        # far longer than the gap between the write returning and native painting.
+        stroke = marker("native-stroke")
         send("tools/call", {"name": "execute_script", "arguments": {"code":
+            f"patchy.io.writeTextFile({json.dumps(str(stroke))},'ready');"
             "app.activeDocument.activeLayer.drawStrokes([{size:256,flow:10,airbrush:true,points:["
             "{x:128,y:128,timeMs:0},{x:128,y:128,timeMs:3600000}]}]);"}}, 15)
-        time.sleep(0.2)
+        wait_for_marker(stroke)
         send("notifications/cancelled", {"requestId": 15, "reason": "native stroke stop"})
         paint_cancelled = take(15)["result"]
         assert paint_cancelled["isError"] and paint_cancelled["structuredContent"]["status"] == "cancelled", paint_cancelled

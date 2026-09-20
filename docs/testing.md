@@ -14,10 +14,15 @@ Groups that outgrew ~3,000 lines are split into part files (`<group>_tests_<them
 
 Local-fixture tests skip on a remote machine until `local-test-fixtures` is copied there, because that directory is deliberately untracked. Sync it from the repo root with `tar -cf - local-test-fixtures | ssh <host> 'tar -xf - -C ~/patchy/src'` (Git Bash; macOS tar drops four `__MACOSX/._*` AppleDouble entries, which are not test inputs). The snapshot checkout leaves untracked files alone, so one sync persists across later `remote-build.ps1` runs. Read the per-platform consequences in [platform.md](platform.md) before doing this: a synced corpus turns previously skipped text tests into failures and one hang. The repository-wide fixture sourcing rule lives in `AGENTS.md`.
 
-Adding a committed PSD also requires entries in the local and remote
-`local-test-fixtures/composite-corpus/flatten-digests.txt` and
-`render-digests.txt` baselines. Add only the new fixture's verified digests and
-preserve every existing entry. A snapshot sync does not copy these untracked files.
+The composite corpus digest baselines live next to the PSDs they pin. The committed
+fixtures' baselines, `test-fixtures/psd/flatten-digests.txt` and `render-digests.txt`,
+are tracked, so every machine (remote snapshots included) checks the same bytes and a
+re-pin is a reviewable diff. To add a committed PSD or re-pin after a deliberate
+rendering change, delete the tracked file, rerun `composite_corpus` in the core and UI
+suites, review `git diff`, and commit it; a failing run also writes the actual digests
+under `test-artifacts/composite-corpus/` so a re-pin can be a copy. Never re-pin per
+machine. `local-test-fixtures/composite-corpus/*-digests.txt` is the untracked overlay
+for documents dropped into that directory only; a snapshot sync never copies it.
 
 ## Running and filtering
 
@@ -47,6 +52,12 @@ Offscreen does not clear `QApplication::keyboardModifiers()` after synthetic key
   sleep does not guarantee a number of timer deliveries on a busy machine. The
   Airbrush opacity-cap test retains its pixel bounds and PSD round trip while
   allowing delayed timer delivery.
+- A wall-clock limit in a test is a hang guard, never a performance bound: give it
+  minutes (`kRawDialogDeadlineMs` in `camera_raw_heif_tests.cpp` is 120 s), because a
+  concurrent build or another suite on the machine must not turn it into a failure.
+  A fixed sleep is never a synchronization primitive; wait for the state itself
+  (`process_events_until`, or the marker file a script writes, as `protocol_edges` in
+  `tests/mcp_client_tests.py` does before it cancels).
 
 - The test `CHECK()` macro throws. A failure while a MainWindow still owns an open inline text editor can abort during unwind without printing a `[FAIL]` line. Commit or close the editor before assertions that may throw.
 - The test binaries can exit 0 even when tests fail. Never trust the exit code alone; grep the output for `[FAIL]` to judge a run. Both runners print `[PASS]` on stdout and `[FAIL]` on stderr, so when a run is captured to files, grep the stderr capture (a stdout-only grep reports zero failures for any run).

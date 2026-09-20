@@ -2,10 +2,12 @@
 // friends), the UI-side twin of tests/core/composite_corpus_tests.cpp. Renders
 // every committed PSD fixture plus local-test-fixtures/composite-corpus
 // documents single-threaded in both alpha modes and compares FNV-1a digests
-// against a machine-local baseline. A digest change means rendered bytes
-// changed, not just speed. Re-pin deliberately by deleting the baseline file
-// and rerunning.
+// against per-directory baselines (the committed one,
+// test-fixtures/psd/render-digests.txt, is tracked). A digest change means
+// rendered bytes changed, not just speed. See tests/composite_corpus_support.hpp
+// for the re-pin procedure.
 
+#include "composite_corpus_support.hpp"
 #include "local_psd_fixtures.hpp"
 #include "test_harness.hpp"
 #include "ui_test_groups.hpp"
@@ -22,6 +24,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -34,42 +37,7 @@
 
 namespace {
 
-struct ScopedSingleThreadedRender {
-  ScopedSingleThreadedRender() {
-#ifdef _WIN32
-    _putenv_s("PATCHY_RENDER_SINGLE_THREADED", "1");
-#else
-    setenv("PATCHY_RENDER_SINGLE_THREADED", "1", 1);
-#endif
-  }
-  ~ScopedSingleThreadedRender() {
-#ifdef _WIN32
-    _putenv_s("PATCHY_RENDER_SINGLE_THREADED", "");
-#else
-    unsetenv("PATCHY_RENDER_SINGLE_THREADED");
-#endif
-  }
-};
-
-std::vector<std::filesystem::path> corpus_documents() {
-  std::vector<std::filesystem::path> files;
-  const auto add_from = [&files](const std::filesystem::path& directory) {
-    if (!std::filesystem::exists(directory)) {
-      return;
-    }
-    for (const auto& entry : std::filesystem::directory_iterator(directory)) {
-      if (entry.is_regular_file() && entry.path().extension() == ".psd") {
-        files.push_back(entry.path());
-      }
-    }
-  };
-  add_from(patchy::test::source_root_path() / "test-fixtures" / "psd");
-  add_from(patchy::test::source_root_path() / "local-test-fixtures" / "composite-corpus");
-  std::sort(files.begin(), files.end(), [](const std::filesystem::path& lhs, const std::filesystem::path& rhs) {
-    return lhs.filename().string() < rhs.filename().string();
-  });
-  return files;
-}
+using namespace patchy::test::corpus;
 
 std::uint64_t fnv1a_hash(std::uint64_t hash, std::span<const std::uint8_t> bytes) {
   for (const auto byte : bytes) {
@@ -91,88 +59,40 @@ std::uint64_t image_digest(const QImage& image) {
   return hash;
 }
 
-std::string digest_hex(std::uint64_t digest) {
-  char buffer[17] = {};
-  std::snprintf(buffer, sizeof(buffer), "%016llx", static_cast<unsigned long long>(digest));
-  return buffer;
-}
-
-// Baseline line format: "<rgba digest> <rgb digest> <file name>".
-std::map<std::string, std::string> read_baseline(const std::filesystem::path& path) {
-  std::map<std::string, std::string> baseline;
-  std::ifstream in(path);
-  std::string line;
-  while (std::getline(in, line)) {
-    // Tolerate a CRLF baseline read without text-mode translation (see the
-    // core corpus test: a '\r' glued to the name fails every lookup).
-    if (!line.empty() && line.back() == '\r') {
-      line.pop_back();
-    }
-    const auto second_space = line.find(' ', line.find(' ') + 1);
-    if (second_space == std::string::npos || second_space + 1 >= line.size()) {
+void composite_corpus_render_digests_are_stable() {
+  ScopedSingleThreadedRender single_threaded;
+  int problems = 0;
+  std::size_t documents = 0;
+  for (const auto& directory : corpus_directories()) {
+    const auto files = psd_files_in(directory.dir);
+    if (files.empty()) {
       continue;
     }
-    baseline[line.substr(second_space + 1)] = line.substr(0, second_space);
+    std::map<std::string, std::string> digests;
+    for (const auto& file : files) {
+      std::optional<patchy::Document> document;
+      try {
+        document.emplace(patchy::psd::DocumentIo::read_file(file));
+      } catch (const std::exception& error) {
+        if (directory.committed) {
+          throw;
+        }
+        std::cout << "[INFO] skipping unreadable " << file.filename().string() << ": " << error.what() << '\n';
+        continue;
+      }
+      const auto rgba = patchy::ui::qimage_from_document(*document, true);
+      const auto rgb = patchy::ui::qimage_from_document(*document, false);
+      digests[file.filename().string()] = digest_hex(image_digest(rgba)) + ' ' + digest_hex(image_digest(rgb));
+    }
+    if (digests.empty()) {
+      continue;
+    }
+    documents += digests.size();
+    problems += compare_corpus_baseline("render", directory, 2, digests);
   }
-  return baseline;
-}
-
-void composite_corpus_render_digests_are_stable() {
-  const auto files = corpus_documents();
-  if (files.empty()) {
+  if (documents == 0) {
     std::cout << "[SKIP] no corpus documents found\n";
     return;
-  }
-  ScopedSingleThreadedRender single_threaded;
-  std::map<std::string, std::string> digests;
-  for (const auto& file : files) {
-    std::optional<patchy::Document> document;
-    try {
-      document.emplace(patchy::psd::DocumentIo::read_file(file));
-    } catch (const std::exception& error) {
-      if (file.parent_path() == patchy::test::source_root_path() / "test-fixtures" / "psd") {
-        throw;
-      }
-      std::cout << "[INFO] skipping unreadable " << file.filename().string() << ": " << error.what() << '\n';
-      continue;
-    }
-    const auto rgba = patchy::ui::qimage_from_document(*document, true);
-    const auto rgb = patchy::ui::qimage_from_document(*document, false);
-    digests[file.filename().string()] = digest_hex(image_digest(rgba)) + ' ' + digest_hex(image_digest(rgb));
-  }
-  CHECK(!digests.empty());
-
-  const auto baseline_path =
-      patchy::test::source_root_path() / "local-test-fixtures" / "composite-corpus" / "render-digests.txt";
-  if (!std::filesystem::exists(baseline_path)) {
-    std::filesystem::create_directories(baseline_path.parent_path());
-    std::ofstream out(baseline_path, std::ios::trunc);
-    for (const auto& [name, hex] : digests) {
-      out << hex << ' ' << name << '\n';
-    }
-    std::cout << "[INFO] wrote render corpus baseline (" << digests.size()
-              << " documents): " << baseline_path.string() << '\n';
-    return;
-  }
-
-  const auto baseline = read_baseline(baseline_path);
-  int problems = 0;
-  for (const auto& [name, hex] : digests) {
-    const auto pinned = baseline.find(name);
-    if (pinned == baseline.end()) {
-      std::cerr << "[DIGEST] new document not in baseline (re-pin deliberately): " << name << '\n';
-      ++problems;
-    } else if (pinned->second != hex) {
-      std::cerr << "[DIGEST] rendered bytes changed: " << name << " baseline=" << pinned->second
-                << " actual=" << hex << '\n';
-      ++problems;
-    }
-  }
-  for (const auto& [name, hex] : baseline) {
-    if (digests.find(name) == digests.end()) {
-      std::cerr << "[DIGEST] baseline document missing from corpus: " << name << '\n';
-      ++problems;
-    }
   }
   CHECK(problems == 0);
 }
