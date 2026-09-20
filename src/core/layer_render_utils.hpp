@@ -96,6 +96,13 @@ void retarget_preview_scaled_layer_bounds(Layer& scaled, const Layer& real, int 
 // so headers do not need the complete LayerVectorMask type).
 [[nodiscard]] bool layer_has_enabled_vector_mask(const Layer& layer) noexcept;
 [[nodiscard]] bool layer_vector_mask_hides_effects(const Layer& layer) noexcept;
+// Photoshop's mask feather (raster and vector alike, PS 27.9 calibration in
+// docs/vector-tools.md) is a gaussian of sigma = feather pixels. These are its
+// deterministic three-box approximation: the box radii for a sigma, and the
+// edge-clamped horizontal+vertical passes over a 16-bit plane (0..65535).
+[[nodiscard]] std::array<std::int32_t, 3> mask_feather_box_radii(double sigma) noexcept;
+void mask_feather_blur(std::vector<std::uint16_t>& plane, std::int32_t width, std::int32_t height,
+                       const std::array<std::int32_t, 3>& radii);
 // The raster mask as rendered when its feather parameter is active: the
 // painted plane blurred to a gaussian of sigma = feather pixels (three box
 // passes; Photoshop 27.9 calibration, docs/vector-tools.md), edge-clamped at

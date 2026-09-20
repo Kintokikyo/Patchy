@@ -255,8 +255,7 @@ void psd_both_masks_fixture_parses_parameters() {
   // reads partial coverage.
   const auto edge_alpha = patchy::vector_mask_alpha_at(parameterized, 88, 51);
   CHECK(edge_alpha > 0.45F && edge_alpha < 0.95F);
-  check_flatten_matches_reference(document, "photoshop-both-masks.bmp", "psd_vector_both_masks", 1.6, 128,
-                                  0.15);
+  check_flatten_matches_reference(document, "photoshop-both-masks.bmp", "psd_vector_both_masks", 0.3, 8, 0.2);
 }
 
 // Raster mask + vector mask WITH feather/density on one layer: Photoshop
@@ -286,11 +285,49 @@ void psd_both_masks_with_vector_parameters_keeps_real_user_mask() {
   };
   const auto document = read_fixture("photoshop-both-masks-params.psd");
   check(document);
-  check_flatten_matches_reference(document, "photoshop-both-masks-params.bmp", "psd_vector_both_masks_params", 1.6,
-                                  128, 0.15);
+  check_flatten_matches_reference(document, "photoshop-both-masks-params.bmp", "psd_vector_both_masks_params", 0.3,
+                                  8, 0.15);
 
   const auto written = patchy::psd::DocumentIo::write_layered_rgb8(document);
   check(patchy::psd::DocumentIo::read(written, {}));
+}
+
+// Vector mask feather at sizes where the blur width matters (4 and 8 px):
+// Photoshop's feather is a gaussian of sigma = feather pixels, and unlike the
+// raster mask's it does NOT clamp at the canvas: the first layer's path ends
+// on the canvas top-left and fades to half coverage there.
+void psd_vector_mask_feather_matches_photoshop_gaussian() {
+  const auto check = [](const Document& document) {
+    CHECK(document.layers().size() == 3);
+    const auto& edge = layer_at(document, 1);
+    CHECK(edge.vector_mask() != nullptr);
+    CHECK(edge.vector_mask()->density == 255);
+    CHECK(std::fabs(edge.vector_mask()->feather - 4.0) < 1e-9);
+    CHECK(!edge.mask().has_value());
+    const auto& interior = layer_at(document, 2);
+    CHECK(interior.vector_mask() != nullptr);
+    CHECK(std::fabs(interior.vector_mask()->feather - 8.0) < 1e-9);
+
+    const auto at_canvas_edge = patchy::vector_mask_alpha_at(edge, 10, 0);
+    CHECK(at_canvas_edge > 0.45F && at_canvas_edge < 0.65F);
+    CHECK(patchy::vector_mask_alpha_at(edge, 12, 20) > 0.98F);
+    // One sigma outside the path edge a gaussian still shows ~16%; the old
+    // radius ~ feather/2 blur had already dropped to a few percent.
+    const auto one_sigma_out = patchy::vector_mask_alpha_at(interior, 74, 8);
+    CHECK(one_sigma_out > 0.10F && one_sigma_out < 0.24F);
+  };
+  const auto document = read_fixture("photoshop-vector-mask-feather.psd");
+  check(document);
+  // Broad ramps spread +-1 rounding deltas over most of this small canvas, so
+  // the differing fraction is loose; mean and max are the gates.
+  check_flatten_matches_reference(document, "photoshop-vector-mask-feather.bmp", "psd_vector_mask_feather", 0.8, 8,
+                                  0.6);
+
+  const auto written = patchy::psd::DocumentIo::write_layered_rgb8(document);
+  const auto reread = patchy::psd::DocumentIo::read(written, {});
+  check(reread);
+  check_flatten_matches_reference(reread, "photoshop-vector-mask-feather.bmp", "psd_vector_mask_feather_rewritten",
+                                  0.8, 8, 0.6);
 }
 
 // Raster mask Density/Feather (Properties panel): mask parameter bits 0/1.
@@ -1816,6 +1853,7 @@ std::vector<patchy::test::TestCase> psd_vector_fixtures_tests() {
       {"psd_both_masks_fixture_parses_parameters", psd_both_masks_fixture_parses_parameters},
       {"psd_both_masks_with_vector_parameters_keeps_real_user_mask",
        psd_both_masks_with_vector_parameters_keeps_real_user_mask},
+      {"psd_vector_mask_feather_matches_photoshop_gaussian", psd_vector_mask_feather_matches_photoshop_gaussian},
       {"psd_user_mask_density_and_feather_render_and_round_trip",
        psd_user_mask_density_and_feather_render_and_round_trip},
       {"psd_saved_paths_fixture_populates_document_paths", psd_saved_paths_fixture_populates_document_paths},

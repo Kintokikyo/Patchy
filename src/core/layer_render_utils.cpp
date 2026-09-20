@@ -83,10 +83,12 @@ VisibleAlphaBoundsCache& visible_alpha_bounds_cache() {
   return cache;
 }
 
+}  // namespace
+
 // Three box radii whose stacked variance approximates a gaussian of `sigma`
 // (the "boxes for gauss" split: m passes of the lower odd width, the rest two
 // wider). sqrt/floor on doubles only, so the radii are toolchain-stable.
-std::array<std::int32_t, 3> feather_box_radii(double sigma) noexcept {
+std::array<std::int32_t, 3> mask_feather_box_radii(double sigma) noexcept {
   constexpr double kPasses = 3.0;
   const auto ideal_width = std::sqrt(12.0 * sigma * sigma / kPasses + 1.0);
   auto lower = static_cast<std::int32_t>(std::floor(ideal_width));
@@ -104,6 +106,8 @@ std::array<std::int32_t, 3> feather_box_radii(double sigma) noexcept {
   }
   return radii;
 }
+
+namespace {
 
 // One edge-clamped box pass along rows (horizontal) or columns, 16-bit
 // samples, integer accumulation with round-to-nearest.
@@ -132,8 +136,23 @@ void feather_box_pass(std::vector<std::uint16_t>& plane, std::vector<std::uint16
   plane.swap(scratch);
 }
 
+}  // namespace
+
+void mask_feather_blur(std::vector<std::uint16_t>& plane, std::int32_t width, std::int32_t height,
+                       const std::array<std::int32_t, 3>& radii) {
+  std::vector<std::uint16_t> scratch(plane.size());
+  for (const auto radius : radii) {
+    if (radius > 0) {
+      feather_box_pass(plane, scratch, width, height, radius, true);
+      feather_box_pass(plane, scratch, width, height, radius, false);
+    }
+  }
+}
+
+namespace {
+
 std::shared_ptr<const FeatheredLayerMask> compute_feathered_layer_mask(const LayerMask& mask) {
-  const auto radii = feather_box_radii(mask.feather);
+  const auto radii = mask_feather_box_radii(mask.feather);
   const auto reach = radii[0] + radii[1] + radii[2];
   if (reach <= 0) {
     return nullptr;
@@ -162,13 +181,7 @@ std::shared_ptr<const FeatheredLayerMask> compute_feathered_layer_mask(const Lay
       out[x] = static_cast<std::uint16_t>(source[x] * 257U);
     }
   }
-  std::vector<std::uint16_t> scratch(count);
-  for (const auto radius : radii) {
-    if (radius > 0) {
-      feather_box_pass(plane, scratch, width, height, radius, true);
-      feather_box_pass(plane, scratch, width, height, radius, false);
-    }
-  }
+  mask_feather_blur(plane, width, height, radii);
   auto result = std::make_shared<FeatheredLayerMask>();
   result->offset_x = domain.x - mask.bounds.x;
   result->offset_y = domain.y - mask.bounds.y;

@@ -8,13 +8,13 @@ UI/PSD contracts and patent boundaries. Encoding facts: PS 27.8 COM probes
 
 ## Shape tools (Line / Rectangle / Ellipse)
 
-Draw tools carry a Shape | Path | Pixels mode combo (persisted
+Draw tools carry a Shape | Path | Pixels combo (persisted
 `tools/vectorToolMode`, default Shape). Shape-mode drags preview the actual
 options-bar fill and stroke read at draw time; only the Content edit target
 previews this way, and mask/channel/quick-mask targets always take the
 raster path. Release creates a shape layer: live-shape parameters (rect,
-rounded rect via Radius, ellipse, line with Weight) generate the path, and
-the options-bar paints become the appearance (stroke alignment defaults to
+rounded rect via Radius, ellipse, line with Weight) generate the path; the
+options-bar paints become the appearance (stroke alignment defaults to
 Inside, PS's default). The Combine option (New Layer / Add / Subtract /
 Intersect / Exclude) instead appends the drag to the active shape layer as a
 new shape group with that op. Path mode appends the same subpaths to the
@@ -32,7 +32,7 @@ per gesture, width spin debounced) and stick as next-shape defaults.
 
 ## Pen tool
 
-The Pen (P) draws bezier paths anchor by anchor: click places a corner,
+The Pen (P) draws bezier paths by anchor: click places a corner,
 click-drag pulls symmetric smooth handles (Alt breaks the pair), clicking
 the first anchor closes and commits, Enter commits the open path (it fills
 its implied chord, the PS open-subpath rule), Backspace pops the last
@@ -42,10 +42,10 @@ active one per Combine); other modes route to the work path. The
 construction overlay draws in canvas_widget_vector_tools.cpp
 (canvas_widget_pen.cpp is TABLET input, not this tool).
 
-A badge crosshair cursor advertises the click action (insert/delete/convert/
+A badge crosshair cursor shows the click action (insert/delete/convert/
 close); one classifier (`pen_hover_hit_raw`, narrowed per tool and by the
 Auto Add/Delete option) drives cursor, click editor, and right-click menu so
-they never disagree; details in [vector-commands.md](vector-commands.md).
+they never disagree ([vector-commands.md](vector-commands.md)).
 Holding Ctrl acts as Direct Select: with no session it latches the gesture
 onto the path-edit handlers (one "Edit path" undo entry); mid-session it
 drags an in-progress anchor without adding one. Ctrl clicks never insert,
@@ -55,9 +55,8 @@ delete, close, or extend; Delete removes a Ctrl-selected anchor.
 
 Polygon drags center-out with Sides and a Star inset percent (0 = plain);
 Custom Shape stamps a library shape into the drag rect (Shift keeps it
-square). Both are vector-only: the mode combo greys out Pixels for them
-(and the Pen) and shows the effective mode (Path), leaving the setting
-untouched. They write plain paths (PS's polygon/custom origination
+square). Both are vector-only: the combo greys out Pixels (and
+the Pen) and shows the effective mode (Path), leaving the setting alone. They write plain paths (PS's polygon/custom origination
 descriptors: unprobed). The
 Line tool gains arrow start/end checkboxes (head width 5x, length 10x the
 weight, PS's proportions) encoded through the probed keyOriginLine arrow
@@ -84,7 +83,7 @@ the active shape layer, else the work path.
 
 ## Vector mask UI
 
-Layers with a vector mask grow a third row thumbnail (grayscale coverage,
+Layers with a vector mask get a third row thumbnail (grayscale coverage,
 density and disabled-cross conventions). Click targets the mask path for
 pen/path tools (raster painting refuses), Ctrl-click loads the coverage as
 a selection, Alt-click toggles the grayscale view, Shift-click disables.
@@ -96,7 +95,7 @@ drags and pen commits append subpaths to the mask path.
 
 ## Paths panel
 
-Tabifies with Channels. Rows: saved paths (filled coverage thumbnails so
+Tabs with Channels. Rows: saved paths (filled coverage thumbnails so
 boolean holes read, 1 px outline), the work path (italic, last), and a
 transient row for the active layer's shape or vector-mask path. Selecting a
 row targets it for pen/path tools (outranking the layer/work-path fallback);
@@ -105,8 +104,8 @@ rename, row moves to the END (DocumentPath::set_kind drops the stale 1025
 source so the writer allocates a saved-range id;
 psd_work_path_saved_as_named_round_trips). Ctrl-click (Cmd on macOS) loads a
 row's path as a selection without changing targeting; Ctrl+Enter on the
-CANVAS does the same for the targeted row (deliberately a canvas key, not an
-app shortcut).
+CANVAS does the same for the targeted row (a canvas key, not an app
+shortcut).
 
 Saved rows drag-reorder among themselves (frame-breaking drops revert); the
 writer assigns the sorted saved-range id set by document order so reorders
@@ -130,7 +129,7 @@ designates ONE saved path as the document clipping path (resource 2999;
 name underlines; exclusive). Work-path draws and layer activation
 auto-select/target their rows; activating a layer with its own path drops
 a stale work/saved-path target (vector-commands.md). Dismissal (empty
-click, or Escape after clearing the anchor selection) sticks per layer
+click, or Escape once no anchor is selected) sticks per layer
 until the layer changes, the row is re-clicked, or a new drag commits; a
 path tool still draws its edit-target fallback afterward.
 
@@ -159,7 +158,7 @@ ui_paths_panel_actions_follow_row_selection pins it):
 Ctrl+T with Path Select or Direct Select active (and a targetable path)
 starts a PATH transform session instead of the layer one: a rotated-box
 overlay over the path, or over the Direct Select anchor subset (PS's Free
-Transform Points), with the usual move/scale/rotate gestures, arrow nudges,
+Transform Points), with the usual move/scale/rotate, arrow nudges,
 Enter/Esc, tool-switch commit, document-switch cancel. The commit is ONE
 apply_path_edit undo entry ("Transform path") routed to the active target
 (panel path, vector mask, shape layer with live annotations dropped, or
@@ -176,16 +175,15 @@ re-rasterize at the new canvas: Image Size scales anchors and stroke
 width, Canvas Size/crop translate (canvas-relative PSD records need
 this), 90-degree rotates map edge coordinates, per-layer flips mirror about
 the pixel-bounds center. Free Transform applies its affine delta to the
-path model and re-rasterizes instead of resampling, so scaled shapes stay
-sharp; Move translates the model. Live-shape annotations survive positive
+path model and re-rasterizes (no resampling); Move translates the model. Live-shape annotations survive positive
 axis-aligned scale + translate and drop otherwise (keyShapeInvalidated
 rule). Saved and work paths ride document ops too. Warp refuses on vector
 layers.
 
 ## Appearance editing and fill layers
 
-The vector badge, row double-click, and context menu's Edit Shape Appearance
-(after Edit Layer Styles) open fill and stroke controls: paint kind, width,
+The vector badge, row double-click, and the context menu's Edit Shape
+Appearance open fill and stroke controls: paint kind, width,
 alignment, caps, joins, and dash presets. Custom preserves PSD dash arrays.
 `pattern_linked` anchors at the effects reference point when on and document
 origin when off; offsets add either way (PatternTileSampler).
@@ -196,7 +194,7 @@ rect to rounded. generate_live_shape_subpaths preserves live shape parameters.
 Dialogs are the patent-cleared route; on-canvas gizmos stay excluded.
 
 Edits preview live and restore on cancel or exception; a PSD-read gradient/pattern
-stroke paint stays untouched unless explicitly re-picked. The preview
+stroke paint stays untouched unless re-picked. The preview
 rasterizes on a worker: the vector MODEL applies synchronously,
 baked pixels lag, requests coalesce, the pattern anchor rides a scratch
 layer; accept commits the in-flight result (60s timeout fallback). Layer >
@@ -205,11 +203,11 @@ fill layers as shape layers with an empty path (= whole canvas); a TARGETED
 Paths-panel row becomes the new layer's shape path (PS's "current path"
 rule, build_fill_layer), and selections become raster masks. Library patterns adopt into the document PatternStore on use.
 
-New Gradient/Pattern Fill stages the layer and adds one history entry only on OK.
+New Gradient/Pattern Fill stages the layer; one history entry, only on OK.
 Cancel restores the original document, active layer and pattern store included.
 Changing a path transform's layer, selection, path, or edit target cancels it.
 Sub-lattice dash lengths clamp to the raster lattice; excessive boundary counts
-fall back to a solid stroke to bound work on imported paths.
+fall back to a solid stroke (bounds work on imported paths).
 
 ## Photoshop file encodings (observed, PS 27.8 / July 2026)
 
@@ -423,8 +421,9 @@ Inner effects keep their full-silhouette geometry.
 
 PS's baked derived plane (mask flags bit 3) holds UNFEATHERED path
 coverage; the feather applies at render. Patchy bakes its own feathered
-cache (triple box blur, radius ~ feather/2; narrower than PS's sigma =
-feather above ~2 px).
+cache: the raster mask's gaussian (mask_feather_blur) but NOT
+canvas-clamped: a path ending on the canvas edge fades there
+(photoshop-vector-mask-feather.psd).
 
 ### Vector masks on layers (mask data section, channels)
 
@@ -490,6 +489,8 @@ headless-stale (ps-compat.md).
   channel or section.
 - photoshop-both-masks.psd/bmp: raster + vector masks on one layer; second
   layer at density 60% + feather 1.5 px (parameters + baked -2, flags 0x18).
+- photoshop-vector-mask-feather.psd/bmp: vector feather 4 (path on the
+  canvas corner) and 8.
 - photoshop-user-mask-params.psd/bmp: raster-mask feather 3 + density 50%,
   feather 6.5, density 25%.
 - photoshop-saved-paths.psd/bmp: "Alpha Path" (rect, clipping path), "Beta
@@ -522,7 +523,7 @@ check):
 - On-canvas live-shape gizmo widgets (in-canvas radius handles etc.);
   options-bar/dialog parameter editing is the cleared route (Apple
   US 8971623; docs/patent-research.md).
-- Variable-width strokes / art brushes on paths (out of scope anyway).
+- Variable-width strokes / art brushes on paths (out of scope).
 
 Method rules (as for all PSD work): ground truth is licensed Photoshop's
 observed output via COM byte-diffing; no Adobe specification text in the
