@@ -406,37 +406,53 @@ inline std::vector<float> build_mask_coverage_plane(const Layer& layer, Rect dra
 
   const auto& mask = layer.mask();
   if (mask.has_value() && !mask->disabled) {
-    const auto mask_bounds = mask_bounds_override.value_or(mask->bounds);
+    auto mask_bounds = mask_bounds_override.value_or(mask->bounds);
+    // A feathered mask samples its cached blurred plane (wider than the
+    // painted one) in place of the painted pixels; see feathered_layer_mask.
+    const auto feathered = feathered_layer_mask(layer);
+    const auto& mask_pixels = feathered != nullptr ? feathered->pixels : mask->pixels;
+    if (feathered != nullptr) {
+      mask_bounds = Rect{mask_bounds.x + feathered->offset_x, mask_bounds.y + feathered->offset_y,
+                         mask_pixels.width(), mask_pixels.height()};
+    }
     const auto default_value = static_cast<float>(mask->default_color);
-    const bool pixels_valid = !mask->pixels.empty() && mask->pixels.format() == PixelFormat::gray8();
+    const bool pixels_valid = !mask_pixels.empty() && mask_pixels.format() == PixelFormat::gray8();
     // layer_mask_alpha_at treats pixels beyond the buffer (bounds wider than
     // the allocation) as default-colored, so the inside span clips to both.
-    const auto inside_rows = pixels_valid ? std::min(mask_bounds.height, mask->pixels.height()) : 0;
+    const auto inside_rows = pixels_valid ? std::min(mask_bounds.height, mask_pixels.height()) : 0;
     const auto inside_begin = pixels_valid ? std::clamp(mask_bounds.x, row_begin, row_end) : row_begin;
     const auto inside_end =
         pixels_valid
-            ? std::clamp(mask_bounds.x + std::min(mask_bounds.width, mask->pixels.width()), row_begin, row_end)
+            ? std::clamp(mask_bounds.x + std::min(mask_bounds.width, mask_pixels.width()), row_begin, row_end)
             : row_begin;
+    // Mask density: layer_mask_alpha_at's expressions, default density first
+    // (the pinned legacy operation order), then the density-lifted form.
+    const bool full_density = mask->density == 255;
+    const auto density = static_cast<float>(mask->density) / 255.0F;
+    const auto masked = [full_density, density](float value, float mask_value) {
+      return full_density ? value * mask_value / 255.0F
+                          : value * (mask_value / 255.0F * density + (1.0F - density));
+    };
     auto* row_out = plane.data();
     for (std::int32_t y = draw_rect.y; y < draw_rect.y + draw_rect.height; ++y, row_out += plane_width) {
       if (!pixels_valid || y < mask_bounds.y || y >= mask_bounds.y + inside_rows) {
         for (std::size_t index = 0; index < plane_width; ++index) {
-          row_out[index] = row_out[index] * default_value / 255.0F;
+          row_out[index] = masked(row_out[index], default_value);
         }
         continue;
       }
-      const auto* mask_row = mask->pixels.row(y - mask_bounds.y).data();
+      const auto* mask_row = mask_pixels.row(y - mask_bounds.y).data();
       for (std::int32_t x = row_begin; x < inside_begin; ++x) {
         auto& value = row_out[x - row_begin];
-        value = value * default_value / 255.0F;
+        value = masked(value, default_value);
       }
       for (std::int32_t x = inside_begin; x < inside_end; ++x) {
         auto& value = row_out[x - row_begin];
-        value = value * static_cast<float>(mask_row[x - mask_bounds.x]) / 255.0F;
+        value = masked(value, static_cast<float>(mask_row[x - mask_bounds.x]));
       }
       for (std::int32_t x = inside_end; x < row_end; ++x) {
         auto& value = row_out[x - row_begin];
-        value = value * default_value / 255.0F;
+        value = masked(value, default_value);
       }
     }
   }

@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <array>
+#include <memory>
 #include <optional>
 #include <unordered_map>
 #include <vector>
@@ -95,6 +96,22 @@ void retarget_preview_scaled_layer_bounds(Layer& scaled, const Layer& real, int 
 // so headers do not need the complete LayerVectorMask type).
 [[nodiscard]] bool layer_has_enabled_vector_mask(const Layer& layer) noexcept;
 [[nodiscard]] bool layer_vector_mask_hides_effects(const Layer& layer) noexcept;
+// The raster mask as rendered when its feather parameter is active: the
+// painted plane blurred to a gaussian of sigma = feather pixels (three box
+// passes; Photoshop 27.9 calibration, docs/vector-tools.md), edge-clamped at
+// LayerMask::feather_canvas. The plane sits at mask.bounds origin + offset and
+// reads default_color beyond it. Null when the feather is inactive. Results
+// are cached on content_revision, so repaints never re-blur.
+struct FeatheredLayerMask {
+  std::int32_t offset_x{0};
+  std::int32_t offset_y{0};
+  PixelBuffer pixels{};  // gray8
+};
+[[nodiscard]] std::shared_ptr<const FeatheredLayerMask> feathered_layer_mask(const Layer& layer);
+// Points every feathered raster mask in the subtree at `canvas` (no revision
+// bump when nothing changes).
+void sync_layer_mask_feather_canvas(Layer& layer, Rect canvas);
+// Both overloads fold in the raster mask's density and feather.
 [[nodiscard]] float layer_mask_alpha_at(const Layer& layer, std::int32_t x, std::int32_t y);
 [[nodiscard]] float layer_mask_alpha_at(const Layer& layer, std::int32_t x, std::int32_t y, Rect mask_bounds);
 [[nodiscard]] std::vector<float> layer_alpha_mask(const PixelBuffer& source, const Layer& layer, Rect bounds,

@@ -2,10 +2,9 @@
 
 References: [scripting](vector-automation.md), [preview](vector-preview.md), [merging](layer-merging.md), [open strokes](open-path-strokes.md).
 
-UI/PSD contracts and patent boundaries. Encoding facts: Photoshop 27.8 COM
-probes (July 2026; method rules below);
-Probes: `local-test-fixtures/vector-probe/` (untracked). Constraints:
-docs/legal-constraints.md.
+UI/PSD contracts and patent boundaries. Encoding facts: PS 27.8 COM probes
+(July 2026) in `local-test-fixtures/vector-probe/`
+(untracked). Constraints: docs/legal-constraints.md.
 
 ## Shape tools (Line / Rectangle / Ellipse)
 
@@ -59,7 +58,7 @@ Custom Shape stamps a library shape into the drag rect (Shift keeps it
 square). Both are vector-only: the mode combo greys out Pixels for them
 (and the Pen) and shows the effective mode (Path), leaving the setting
 untouched. They write plain paths (PS's polygon/custom origination
-descriptors were not probed). The
+descriptors: unprobed). The
 Line tool gains arrow start/end checkboxes (head width 5x, length 10x the
 weight, PS's proportions) encoded through the probed keyOriginLine arrow
 keys. The CustomShapeLibrary (JSON sidecars
@@ -167,14 +166,14 @@ apply_path_edit undo entry ("Transform path") routed to the active target
 work path), then re-rasterizes. Lives in canvas_widget_vector_tools.cpp
 (path_transform_*), separate from the pixel session; begin_path_transform
 is called ONLY from transform_active_layer_dialog. Corner-handle aspect
-locking and the Shift modifier follow the same rules as the pixel session
-and share its predicate; see [tools.md](tools.md).
+locking and Shift share the pixel session's rules and predicate
+([tools.md](tools.md)).
 
 ## Geometry operations
 
-Every document-geometry op transforms the vector data alongside the pixels
-and re-rasterizes at the new canvas: Image Size scales anchors and stroke
-width, Canvas Size/crop translate (canvas-relative PSD records depend on
+Document-geometry ops transform the vector data with the pixels and
+re-rasterize at the new canvas: Image Size scales anchors and stroke
+width, Canvas Size/crop translate (canvas-relative PSD records need
 this), 90-degree rotates map edge coordinates, per-layer flips mirror about
 the pixel-bounds center. Free Transform applies its affine delta to the
 path model and re-rasterizes instead of resampling, so scaled shapes stay
@@ -207,7 +206,7 @@ Paths-panel row becomes the new layer's shape path (PS's "current path"
 rule, build_fill_layer), and selections become raster masks. Library patterns adopt into the document PatternStore on use.
 
 New Gradient/Pattern Fill stages the layer and adds one history entry only on OK.
-Cancel restores the original document, including its active layer and pattern store.
+Cancel restores the original document, active layer and pattern store included.
 Changing a path transform's layer, selection, path, or edit target cancels it.
 Sub-lattice dash lengths clamp to the raster lattice; excessive boundary counts
 fall back to a solid stroke to bound work on imported paths.
@@ -229,12 +228,11 @@ resources); model: src/core/vector_shape.hpp.
   1. Every pattern id referenced by a `PtFl` fill or a `vstk` pattern
      stroke paint MUST resolve to pattern data in the file's
      `Patt`/`Pat2`/`Pat3` blocks. PS falls back to its OWN loaded presets
-     by GUID (which can mask the bug) and hard-refuses the file when the id
-     resolves nowhere. The writer collects vector fill/stroke pattern ids
-     alongside style ids (`collect_referenced_pattern_ids`) and writes a
-     1x1 fully transparent placeholder tile for any id with no usable tile
-     (renders as no paint; `PatternStore::adopt` heals such tiles on
-     re-pick).
+     by GUID (masking the bug) and hard-refuses the file when the id
+     resolves nowhere. The writer collects vector pattern ids with the style
+     ids (`collect_referenced_pattern_ids`) and writes a 1x1 transparent
+     placeholder tile for any id lacking a usable tile (renders as no
+     paint; `PatternStore::adopt` heals it on re-pick).
   2. A `vogk` covering only SOME of the vmsk subpath groups is rejected. A
      mixed live/non-live layer therefore writes NO vogk/vowv at all
      (`origination_covers_path_groups` gates the writer; the reader keeps
@@ -242,8 +240,8 @@ resources); model: src/core/vector_shape.hpp.
      heal on resave). The shapes open as plain paths, PS's own fallback;
      only live editability is lost.
 - Channel data is EMPTY: layer bounds (0,0,0,0) and every channel (including
-  transparency id -1) is 2 bytes (just the compression marker). Readers must
-  rasterize from the vector data. (Writer in src/psd/psd_layer_records.cpp.)
+  transparency id -1) is 2 bytes (the compression marker alone). Readers
+  rasterize from the vector data (writer: src/psd/psd_layer_records.cpp).
 - Layer record flags: bit 3 + **bit 4** (0x18). Bit 4 = "pixel data
   irrelevant"; write it on shape/fill layers.
 - `lnsr` = 'cont' for content layers ('bgnd' for Background). PS names:
@@ -254,8 +252,7 @@ resources); model: src/core/vector_shape.hpp.
   it. A CS6 Fill: None shape has NO fill block, `fillEnabled` false in vstk,
   and this vscg: the reader builds a fill-kind-None shape with the vstk
   stroke (vscg paint fills in when vstk lacks strokeStyleContent) instead of
-  vector-locking it, which refused Free Transform for every folder or
-  multi-selection holding one. Untouched layers re-emit vscg verbatim; edits
+  vector-locking it. Untouched layers re-emit vscg verbatim; edits
   regenerate SoCo + vstk and drop it (PS's resave does the same). A vscg
   with no vstk/vmsk pair still locks as "unparsed". Pinned by
   `psd_legacy_vscg_stroke_only_shape_*`.
@@ -264,8 +261,8 @@ resources); model: src/core/vector_shape.hpp.
 
 - Payload: u32 version = 3, u32 flags (bit 0 invert, bit 1 not-linked, bit 2
   disabled), then 26-byte path records, padded to even length. `vsms` is a
-  legacy alternate with the same payload; PS 27.8 always writes `vmsk`. Read
-  both, write vmsk.
+  legacy alternate (same payload; PS 27.8 writes `vmsk`): read both,
+  write vmsk.
 - Record order: one selector-6 record (fill rule; observed all zeros), one
   selector-8 record (initial fill; u16 observed 0), then per subpath a
   length record followed by its knot records.
@@ -358,17 +355,16 @@ captured order (kind-dependent):
 - App-level (`executeActionGet`) path-drawn subpaths report keyActionMode
   entries instead of live-shape data.
 
-The knot constructions Patchy uses to regenerate live-shape paths (kappa
-handles, corner orders) are recorded in src/core/vector_live_shapes.hpp.
+Live-shape knot constructions (kappa handles, corner orders):
+src/core/vector_live_shapes.hpp.
 
 ### GdFl gradient fill geometry (calibrated July 2026, probe5c/5d/5e)
 
 - Linear span = the CENTER CHORD of the aligned bounds:
   min(w/|cos a|, h/|sin a|), centered on the bounds center (measured within
-  0.5 px at angles 0/20/37/60/75/90). This intentionally differs from the
-  corner-to-corner projection layer-style overlays use
-  (GradientSpanBasis::LayerProjection keeps its own calibration); the two
-  bases agree at exact axis angles.
+  0.5 px at angles 0/20/37/60/75/90). Layer-style overlays deliberately keep
+  their corner-to-corner projection (GradientSpanBasis::LayerProjection);
+  the two agree at exact axis angles.
 - Classic easing applies even to TWO-stop ramps: per-segment catmull-rom
   with duplicated virtual endpoints (f(t) = 0.5t + 1.5t^2 - t^3 for a plain
   2-stop ramp), scaled by smoothness/4096. The OPACITY ramp eases
@@ -376,20 +372,18 @@ handles, corner orders) are recorded in src/core/vector_live_shapes.hpp.
   (midpoint, 50%) and apply BEFORE the ease.
 - gradient_color/gradient_stop_opacity expose this via the
   endpoint_smoothing flag; the vector fill painter passes it, layer styles
-  keep the historical default.
+  keep their default.
 
 ### Known render divergences (July 2026)
 
 - GdFl with UNEVENLY spaced stops: PS parametrizes its smoothness spline
   non-uniformly by stop location; Patchy's uniform per-segment catmull
   differs by a few /255 there (gradient fixture: mean 1.2, max 8).
-- Stroke dashes: boundaries land where each renderer's arc-length
-  integration puts them; a handful of dash-edge pixels flip (mean ~0.3 on
-  the strokes fixture).
+- Stroke dashes: arc-length integration differs, so a few dash-edge pixels
+  flip (mean ~0.3 on the strokes fixture).
 - ROTATED pattern fills: the placement mapping is pinned exactly
-  (R(angle) @ (p - anchor) / scale), but PS resamples rotated tiles with its
-  own soft per-cell filter, so cell-edge deltas are large while the
-  structure matches; psd_pattern_params_probe_render_parity_if_available
+  (R(angle) @ (p - anchor) / scale), but PS resamples rotated tiles with a
+  soft per-cell filter: cell-edge deltas are large, the structure matches; psd_pattern_params_probe_render_parity_if_available
   checks confident-cell agreement (>= 97%), not pixel means. Patchy's
   crisper render is deliberate.
 
@@ -409,8 +403,8 @@ handles, corner orders) are recorded in src/core/vector_live_shapes.hpp.
   stroke_miter_spike_stays_in_bounds,
   stroke_curve_is_insensitive_to_sub_quantum_anchor_jitter, stroke golden 3.
 - Known gap: whether PS consumes `strokeStyleMiterLimit` 100 as an SVG-style
-  ratio (Patchy's reading; a bare doub, not #Prc) or a percentage; settling
-  it needs a COM probe of an acute mitered corner at limit 100 vs 4.
+  ratio (Patchy's reading; a bare doub, not #Prc) or a percentage; settle
+  via a COM probe of an acute mitered corner at limit 100 vs 4.
 
 ### Interior effects vs the vector stroke (probed July 2026)
 
@@ -427,9 +421,10 @@ src/render/layer_compositor.hpp). Blend-If layers
 and transform-preview overrides keep the legacy combined-plane behavior.
 Inner effects keep their full-silhouette geometry.
 
-PS's baked derived mask plane (mask flags bit 3) holds UNFEATHERED path
-coverage; the feather applies at render time. Patchy bakes its own feathered
-cache (triple box blur, radius ~ feather/2): close but not gaussian-exact.
+PS's baked derived plane (mask flags bit 3) holds UNFEATHERED path
+coverage; the feather applies at render. Patchy bakes its own feathered
+cache (triple box blur, radius ~ feather/2; narrower than PS's sigma =
+feather above ~2 px).
 
 ### Vector masks on layers (mask data section, channels)
 
@@ -439,16 +434,22 @@ cache (triple box blur, radius ~ feather/2): close but not gaussian-exact.
 - Density/feather use the parameters form: section flags bit 4, then a
   parameter flags byte (bit 0 user density u8, bit 1 user feather f64, bit 2
   vector density u8 raw, bit 3 vector feather f64 BE), values in that order.
-  With a vector parameter set, PS ALSO bakes a derived plane into -2 and sets
-  section flags bit 3 with the baked rect as the section rect.
+  With a vector parameter set PS ALSO bakes a derived plane into -2
+  (section flags bit 3, section rect = baked rect).
 - Raster + PARAMETERIZED vector mask (photoshop-both-masks-params.psd):
   a 48-byte section. -2 is PS's COMBINED render (flags 0x18); the
   painted mask is channel -3, sized by the real-user-mask fields (flags u8,
   default u8, rect), which sit BEFORE the parameter byte (Adobe's spec says
-  after). Patchy loads -3 as the mask and drops -2.
-- User-mask density/feather are read and DROPPED.
-- COM authoring gotchas: vectorMaskFeather/Density setd requires the vector
-  mask path selected first, and feather needs its OWN setd call.
+  after). Patchy loads -3 as the mask and drops -2. Real
+  fields need bit 3 or no bit 4 (PS reads Patchy's 40-byte painted
+  all-four form parameters-first).
+- Raster-mask density/feather (photoshop-user-mask-params.psd): PS sets bits
+  0/1 singly, pads the section to a multiple of 4, keeps -2 the PAINTED
+  plane. Both apply at render (LayerMask::density/feather): density as the
+  vector mask's; feather = gaussian sigma = feather px
+  (feathered_layer_mask), edge-clamped at the canvas (feather_canvas).
+- COM gotchas: vectorMaskFeather/Density setd needs the vector mask path
+  selected first; feather needs its OWN setd call.
 
 ### Document path image resources and PSB
 
@@ -468,9 +469,9 @@ Resource-id constants live in src/core/document_path.hpp.
 
 ## Fixture inventory (test-fixtures/psd, self-authored via COM, July 2026)
 
-Each .psd has a sibling .bmp: Photoshop's own flatten (24-bit, white
-background layer in every file) for render-parity tests. The embedded PSD
-composites are headless-stale (see ps-compat.md); compare against the BMPs.
+Each .psd has a sibling .bmp, Photoshop's own flatten (24-bit, white
+background layer), for render-parity tests; the embedded composites are
+headless-stale (ps-compat.md).
 
 - photoshop-shape-solid.psd/bmp: curved shape, SoCo red; pins knot in/out
   order via render.
@@ -486,9 +487,11 @@ composites are headless-stale (see ps-compat.md); compare against the BMPs.
 - photoshop-shape-live-rect.psd/bmp: live rounded rect (radii 4/8/12/16),
   live ellipse, live line w4 (vogk per kind; vowv presence).
 - photoshop-vector-mask-on-pixel.psd/bmp: pixel layer + vector mask; no mask
-  channel or mask-data section.
+  channel or section.
 - photoshop-both-masks.psd/bmp: raster + vector masks on one layer; second
   layer at density 60% + feather 1.5 px (parameters + baked -2, flags 0x18).
+- photoshop-user-mask-params.psd/bmp: raster-mask feather 3 + density 50%,
+  feather 6.5, density 25%.
 - photoshop-saved-paths.psd/bmp: "Alpha Path" (rect, clipping path), "Beta
   Path" (donut), work path; resources 2000/2001/1025/2999.
 - photoshop-shape.psb/photoshop-shape-psb.bmp: PSB variant of the solid
@@ -521,7 +524,7 @@ check):
   US 8971623; docs/patent-research.md).
 - Variable-width strokes / art brushes on paths (out of scope anyway).
 
-Method rules (same as all PSD work): ground truth is observed output of
-licensed Photoshop via COM byte-diffing; no Adobe specification text in the
+Method rules (as for all PSD work): ground truth is licensed Photoshop's
+observed output via COM byte-diffing; no Adobe specification text in the
 repo; self-authored fixtures only; referential "compatible with Adobe
 Photoshop" phrasing; original tool icons with non-Photoshop geometry.

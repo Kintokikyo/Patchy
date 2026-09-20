@@ -751,6 +751,11 @@ void resize_layer_mask_image(Layer& layer, std::int32_t old_width, std::int32_t 
   }
 
   const auto new_bounds = scale_document_rect(mask->bounds, old_width, old_height, new_width, new_height);
+  if (mask->feather > 0.0 && old_width > 0 && old_height > 0) {
+    // The feather is in pixels, so it scales with the image (mean of the axes
+    // for a non-uniform resize).
+    mask->feather *= (static_cast<double>(new_width) / old_width + static_cast<double>(new_height) / old_height) * 0.5;
+  }
   if (mask->pixels.empty()) {
     mask->bounds = new_bounds;
     return;

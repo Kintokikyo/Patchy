@@ -1,4 +1,5 @@
 #include "ui/vector_operations.hpp"
+#include "core/layer_render_utils.hpp"
 #include "core/path_fit.hpp"
 #include "core/vector_raster.hpp"
 #include "ui/selection_outline.hpp"
@@ -214,16 +215,24 @@ void bake_vector_mask(Layer& layer, int width, int height) {
     }
   }
   if (const auto& existing = std::as_const(layer).mask(); existing.has_value() && !existing->disabled) {
-    // Both masks multiply in the compositor; the baked result does the same.
+    // Both masks multiply in the compositor; the baked result does the same,
+    // raster mask feather and density included (the replacement mask below
+    // carries default parameters).
+    const auto feathered = feathered_layer_mask(std::as_const(layer));
+    const auto& raster_pixels = feathered != nullptr ? feathered->pixels : existing->pixels;
+    const auto raster_x = existing->bounds.x + (feathered != nullptr ? feathered->offset_x : 0);
+    const auto raster_y = existing->bounds.y + (feathered != nullptr ? feathered->offset_y : 0);
+    const auto raster_density = static_cast<int>(existing->density);
     for (int y = 0; y < coverage.height(); ++y) {
       for (int x = 0; x < coverage.width(); ++x) {
-        const auto local_x = x - existing->bounds.x;
-        const auto local_y = y - existing->bounds.y;
-        std::uint8_t raster_value = existing->default_color;
-        if (!existing->pixels.empty() && local_x >= 0 && local_y >= 0 &&
-            local_x < existing->pixels.width() && local_y < existing->pixels.height()) {
-          raster_value = *existing->pixels.pixel(local_x, local_y);
+        const auto local_x = x - raster_x;
+        const auto local_y = y - raster_y;
+        int raster_value = existing->default_color;
+        if (!raster_pixels.empty() && local_x >= 0 && local_y >= 0 &&
+            local_x < raster_pixels.width() && local_y < raster_pixels.height()) {
+          raster_value = *raster_pixels.pixel(local_x, local_y);
         }
+        raster_value = (raster_value * raster_density) / 255 + (255 - raster_density);
         auto* value = coverage.pixel(x, y);
         *value = static_cast<std::uint8_t>((*value * raster_value) / 255);
       }

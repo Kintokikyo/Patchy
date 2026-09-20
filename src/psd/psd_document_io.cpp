@@ -819,6 +819,13 @@ std::vector<Layer> read_layer_info_records(BigEndianReader& layer_reader, std::i
       mask_linked = record.mask->real_user_mask->linked;
     }
     if (decoded_mask.has_value()) {
+      // Raster mask density/feather (mask parameter bits 0/1). The plane is the
+      // unmodified painted mask; both apply at render time. A NaN or negative
+      // feather from a damaged file stays at the hard-edged default.
+      decoded_mask->density = record.mask->user_density.value_or(255);
+      if (const auto feather = record.mask->user_feather.value_or(0.0); feather > 0.0 && feather <= 1000.0) {
+        decoded_mask->feather = feather;
+      }
       layer.set_mask(std::move(*decoded_mask));
       if (!mask_linked) {
         set_layer_mask_linked(layer, false);

@@ -83,6 +83,177 @@ VisibleAlphaBoundsCache& visible_alpha_bounds_cache() {
   return cache;
 }
 
+// Three box radii whose stacked variance approximates a gaussian of `sigma`
+// (the "boxes for gauss" split: m passes of the lower odd width, the rest two
+// wider). sqrt/floor on doubles only, so the radii are toolchain-stable.
+std::array<std::int32_t, 3> feather_box_radii(double sigma) noexcept {
+  constexpr double kPasses = 3.0;
+  const auto ideal_width = std::sqrt(12.0 * sigma * sigma / kPasses + 1.0);
+  auto lower = static_cast<std::int32_t>(std::floor(ideal_width));
+  if (lower % 2 == 0) {
+    --lower;
+  }
+  lower = std::max(lower, 1);
+  const auto lower_d = static_cast<double>(lower);
+  const auto narrow = (12.0 * sigma * sigma - kPasses * lower_d * lower_d - 4.0 * kPasses * lower_d - 3.0 * kPasses) /
+                      (-4.0 * lower_d - 4.0);
+  const auto narrow_passes = std::clamp(static_cast<std::int32_t>(std::floor(narrow + 0.5)), 0, 3);
+  std::array<std::int32_t, 3> radii{};
+  for (std::int32_t pass = 0; pass < 3; ++pass) {
+    radii[static_cast<std::size_t>(pass)] = ((pass < narrow_passes ? lower : lower + 2) - 1) / 2;
+  }
+  return radii;
+}
+
+// One edge-clamped box pass along rows (horizontal) or columns, 16-bit
+// samples, integer accumulation with round-to-nearest.
+void feather_box_pass(std::vector<std::uint16_t>& plane, std::vector<std::uint16_t>& scratch, std::int32_t width,
+                      std::int32_t height, std::int32_t radius, bool horizontal) {
+  const auto length = horizontal ? width : height;
+  const auto lines = horizontal ? height : width;
+  const auto step = horizontal ? std::size_t{1} : static_cast<std::size_t>(width);
+  const std::int64_t window = 2 * static_cast<std::int64_t>(radius) + 1;
+  for (std::int32_t line = 0; line < lines; ++line) {
+    const auto base = horizontal ? static_cast<std::size_t>(line) * static_cast<std::size_t>(width)
+                                 : static_cast<std::size_t>(line);
+    const auto at = [&](std::int32_t index) -> std::int64_t {
+      return plane[base + static_cast<std::size_t>(std::clamp(index, 0, length - 1)) * step];
+    };
+    std::int64_t sum = 0;
+    for (std::int32_t index = -radius; index <= radius; ++index) {
+      sum += at(index);
+    }
+    for (std::int32_t index = 0; index < length; ++index) {
+      scratch[base + static_cast<std::size_t>(index) * step] =
+          static_cast<std::uint16_t>((sum + window / 2) / window);
+      sum += at(index + radius + 1) - at(index - radius);
+    }
+  }
+  plane.swap(scratch);
+}
+
+std::shared_ptr<const FeatheredLayerMask> compute_feathered_layer_mask(const LayerMask& mask) {
+  const auto radii = feather_box_radii(mask.feather);
+  const auto reach = radii[0] + radii[1] + radii[2];
+  if (reach <= 0) {
+    return nullptr;
+  }
+  // The blur needs `reach` pixels of default color around the painted plane;
+  // at the canvas it clamps to the edge row/column instead, as Photoshop does.
+  auto domain = outset_rect(mask.bounds, reach);
+  if (!mask.feather_canvas.empty()) {
+    domain = intersect_rect(domain, mask.feather_canvas);
+  }
+  if (domain.empty()) {
+    return nullptr;
+  }
+  const auto width = domain.width;
+  const auto height = domain.height;
+  const auto count = static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
+  std::vector<std::uint16_t> plane(count, static_cast<std::uint16_t>(mask.default_color * 257U));
+  const auto inside = intersect_rect(
+      domain, Rect{mask.bounds.x, mask.bounds.y, std::min(mask.bounds.width, mask.pixels.width()),
+                   std::min(mask.bounds.height, mask.pixels.height())});
+  for (std::int32_t y = inside.y; y < inside.y + inside.height; ++y) {
+    const auto* source = mask.pixels.row(y - mask.bounds.y).data() + (inside.x - mask.bounds.x);
+    auto* out = plane.data() + static_cast<std::size_t>(y - domain.y) * static_cast<std::size_t>(width) +
+                static_cast<std::size_t>(inside.x - domain.x);
+    for (std::int32_t x = 0; x < inside.width; ++x) {
+      out[x] = static_cast<std::uint16_t>(source[x] * 257U);
+    }
+  }
+  std::vector<std::uint16_t> scratch(count);
+  for (const auto radius : radii) {
+    if (radius > 0) {
+      feather_box_pass(plane, scratch, width, height, radius, true);
+      feather_box_pass(plane, scratch, width, height, radius, false);
+    }
+  }
+  auto result = std::make_shared<FeatheredLayerMask>();
+  result->offset_x = domain.x - mask.bounds.x;
+  result->offset_y = domain.y - mask.bounds.y;
+  result->pixels = PixelBuffer(width, height, PixelFormat::gray8());
+  for (std::int32_t y = 0; y < height; ++y) {
+    auto* out = result->pixels.row(y).data();
+    const auto* in = plane.data() + static_cast<std::size_t>(y) * static_cast<std::size_t>(width);
+    for (std::int32_t x = 0; x < width; ++x) {
+      out[x] = static_cast<std::uint8_t>((in[x] + 128U) / 257U);
+    }
+  }
+  return result;
+}
+
+// content_revision changes on every mask edit; the geometry fields cover the
+// render-revision-only translate_linked_mask, which moves the plane against
+// the clamp canvas without touching content.
+struct FeatheredMaskKey {
+  std::uint64_t revision{0};
+  double feather{0.0};
+  Rect bounds{};
+  Rect canvas{};
+
+  [[nodiscard]] bool operator==(const FeatheredMaskKey& other) const noexcept {
+    const auto same_rect = [](Rect lhs, Rect rhs) {
+      return lhs.x == rhs.x && lhs.y == rhs.y && lhs.width == rhs.width && lhs.height == rhs.height;
+    };
+    return revision == other.revision && feather == other.feather && same_rect(bounds, other.bounds) &&
+           same_rect(canvas, other.canvas);
+  }
+};
+
+class FeatheredMaskCache {
+public:
+  [[nodiscard]] std::shared_ptr<const FeatheredLayerMask> fetch_or_compute(const FeatheredMaskKey& key,
+                                                                          const LayerMask& mask) {
+    // Per-pixel callers hit the same layer repeatedly; skip the lock for them.
+    thread_local FeatheredMaskKey last_key;
+    thread_local std::shared_ptr<const FeatheredLayerMask> last_value;
+    if (last_value != nullptr && last_key == key) {
+      return last_value;
+    }
+    {
+      const std::lock_guard lock(mutex_);
+      for (auto entry = entries_.begin(); entry != entries_.end(); ++entry) {
+        if (entry->key == key) {
+          entries_.splice(entries_.begin(), entries_, entry);
+          last_key = key;
+          last_value = entries_.front().value;
+          return last_value;
+        }
+      }
+    }
+    // Computed outside the lock: two threads racing on a fresh key both blur
+    // and produce identical planes, so a duplicate entry is harmless.
+    auto value = compute_feathered_layer_mask(mask);
+    if (value == nullptr) {
+      return nullptr;
+    }
+    const std::lock_guard lock(mutex_);
+    constexpr std::size_t kMaxEntries = 32U;
+    if (entries_.size() >= kMaxEntries) {
+      entries_.pop_back();
+    }
+    entries_.push_front(Node{key, value});
+    last_key = key;
+    last_value = value;
+    return value;
+  }
+
+private:
+  struct Node {
+    FeatheredMaskKey key;
+    std::shared_ptr<const FeatheredLayerMask> value;
+  };
+
+  std::mutex mutex_;
+  std::list<Node> entries_;
+};
+
+FeatheredMaskCache& feathered_mask_cache() {
+  static FeatheredMaskCache cache;
+  return cache;
+}
+
 int layer_style_falloff_radius(float size) noexcept {
   return std::max(0, static_cast<int>(std::ceil(std::max(0.0F, size))));
 }
@@ -101,6 +272,10 @@ std::optional<PixelBuffer> document_alpha_rgba8(const Document& document) {
   const auto& mask = layer.mask();
   if (!mask.has_value() || mask->disabled || mask->pixels.empty() ||
       mask->pixels.format() != PixelFormat::gray8()) {
+    return std::nullopt;
+  }
+  if (mask->density != 255 || mask->feather > 0.0) {
+    // The painted plane is not what renders; let the caller flatten instead.
     return std::nullopt;
   }
   const auto width = document.width();
@@ -476,6 +651,8 @@ void shrink_layer_for_preview(Layer& layer, int level, PreviewScaleCache* cache)
     } else {
       mask.bounds = preview_scaled_bounds_endpoints(mask.bounds, level);
     }
+    mask.feather /= static_cast<double>(std::int32_t{1} << level);
+    mask.feather_canvas = preview_scaled_bounds_endpoints(mask.feather_canvas, level);
     layer.set_mask(std::move(mask));
   }
   if (const auto* vector_mask = layer.vector_mask(); vector_mask != nullptr) {
@@ -667,25 +844,84 @@ float layer_mask_alpha_at(const Layer& layer, std::int32_t x, std::int32_t y) {
   return layer_mask_alpha_at(layer, x, y, mask->bounds);
 }
 
+std::shared_ptr<const FeatheredLayerMask> feathered_layer_mask(const Layer& layer) {
+  const auto& mask = layer.mask();
+  if (!mask.has_value() || !(mask->feather > 0.05) || mask->pixels.empty() ||
+      mask->pixels.format() != PixelFormat::gray8()) {
+    return nullptr;
+  }
+  return feathered_mask_cache().fetch_or_compute(
+      FeatheredMaskKey{layer.content_revision(), mask->feather, mask->bounds, mask->feather_canvas}, *mask);
+}
+
+namespace {
+
+[[nodiscard]] bool layer_mask_feather_canvas_stale(const Layer& layer, Rect canvas) {
+  const auto& mask = layer.mask();
+  if (!mask.has_value() || !(mask->feather > 0.0)) {
+    return false;
+  }
+  const auto current = mask->feather_canvas;
+  return current.x != canvas.x || current.y != canvas.y || current.width != canvas.width ||
+         current.height != canvas.height;
+}
+
+[[nodiscard]] bool subtree_feather_canvas_stale(const Layer& layer, Rect canvas) {
+  return layer_mask_feather_canvas_stale(layer, canvas) ||
+         std::any_of(layer.children().begin(), layer.children().end(),
+                     [canvas](const Layer& child) { return subtree_feather_canvas_stale(child, canvas); });
+}
+
+}  // namespace
+
+void sync_layer_mask_feather_canvas(Layer& layer, Rect canvas) {
+  // Const probe first: the mutable accessors bump revisions on access.
+  if (!subtree_feather_canvas_stale(std::as_const(layer), canvas)) {
+    return;
+  }
+  if (layer_mask_feather_canvas_stale(std::as_const(layer), canvas)) {
+    layer.mask()->feather_canvas = canvas;
+  }
+  for (auto& child : layer.children()) {
+    sync_layer_mask_feather_canvas(child, canvas);
+  }
+}
+
 float layer_mask_alpha_at(const Layer& layer, std::int32_t x, std::int32_t y, Rect mask_bounds) {
   const auto vector_alpha = vector_mask_alpha_at(layer, x, y);
   const auto& mask = layer.mask();
   if (!mask.has_value() || mask->disabled) {
     return vector_alpha;
   }
+  // Density lifts the hidden floor exactly like the vector mask's. The
+  // default-density expression stays as it was: pinned compositor bytes depend
+  // on its float operation order.
+  const auto masked = [&](std::uint8_t value) {
+    if (mask->density == 255) {
+      return vector_alpha * static_cast<float>(value) / 255.0F;
+    }
+    const auto density = static_cast<float>(mask->density) / 255.0F;
+    return vector_alpha * (static_cast<float>(value) / 255.0F * density + (1.0F - density));
+  };
   if (mask->pixels.empty() || mask->pixels.format() != PixelFormat::gray8()) {
-    return vector_alpha * static_cast<float>(mask->default_color) / 255.0F;
+    return masked(mask->default_color);
+  }
+  const auto feathered = feathered_layer_mask(layer);
+  const auto& pixels = feathered != nullptr ? feathered->pixels : mask->pixels;
+  if (feathered != nullptr) {
+    mask_bounds = Rect{mask_bounds.x + feathered->offset_x, mask_bounds.y + feathered->offset_y, pixels.width(),
+                       pixels.height()};
   }
   if (!mask_bounds.contains(x, y)) {
-    return vector_alpha * static_cast<float>(mask->default_color) / 255.0F;
+    return masked(mask->default_color);
   }
 
   const auto local_x = x - mask_bounds.x;
   const auto local_y = y - mask_bounds.y;
-  if (local_x < 0 || local_y < 0 || local_x >= mask->pixels.width() || local_y >= mask->pixels.height()) {
-    return vector_alpha * static_cast<float>(mask->default_color) / 255.0F;
+  if (local_x < 0 || local_y < 0 || local_x >= pixels.width() || local_y >= pixels.height()) {
+    return masked(mask->default_color);
   }
-  return vector_alpha * static_cast<float>(*mask->pixels.pixel(local_x, local_y)) / 255.0F;
+  return masked(*pixels.pixel(local_x, local_y));
 }
 
 std::vector<float> layer_alpha_mask(const PixelBuffer& source, const Layer& layer, Rect bounds, Rect mask_bounds,

@@ -141,8 +141,10 @@ struct LayerMaskInfo {
   // Mask-data flags bit 3: the stored plane was rendered from other data (the
   // baked vector-mask coverage Photoshop writes when density/feather are set).
   bool from_rendering{false};
-  // Mask parameters (flags bit 4): vector-mask density (raw 0..255) and
-  // feather in pixels, when present.
+  // Mask parameters (flags bit 4): raster (user) mask and vector-mask density
+  // (raw 0..255) and feather in pixels, when present.
+  std::optional<std::uint8_t> user_density{};
+  std::optional<double> user_feather{};
   std::optional<std::uint8_t> vector_density{};
   std::optional<double> vector_feather{};
   // The "real user mask" fields of the 36+ byte form. Photoshop writes them

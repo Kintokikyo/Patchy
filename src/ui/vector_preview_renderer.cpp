@@ -454,7 +454,11 @@ void raster_nodes(const std::vector<VectorPreviewNode>& nodes, std::vector<Layer
     }
     if (const auto& mask = source.mask(); mask && !mask->disabled) {
       auto pixels = sample_pixels(mask->pixels, mask->bounds, area, view, budget, true, mask->default_color);
-      layer.set_mask(LayerMask{area, std::move(pixels), mask->default_color, false});
+      LayerMask preview_mask{area, std::move(pixels), mask->default_color, false};
+      preview_mask.density = mask->density;
+      preview_mask.feather = mask->feather;
+      scale_value(preview_mask.feather, view.scale);
+      layer.set_mask(std::move(preview_mask));
     }
     if (const auto* mask = source.vector_mask(); mask && !mask->disabled) {
       layer.set_vector_mask(*mask);

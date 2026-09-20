@@ -419,8 +419,12 @@ LayerRecord read_layer_record(BigEndianReader& reader, bool large_document,
       // parameters. Adobe's format document lists the parameters first;
       // Photoshop 27.9 writes 48 bytes in this order (captured in
       // photoshop-both-masks-params.psd). The 20-byte form has 2 pad bytes
-      // here and the 28-byte parameters-only form has no real fields.
-      if (mask_length >= 36U && mask_end - extra_reader.position() >= 18U) {
+      // here and the 28-byte parameters-only form has no real fields. Length
+      // alone does not decide: a painted (bit 3 clear) mask whose parameters
+      // run past 36 bytes - Patchy writes 40 for all four - has no real
+      // fields, and Photoshop 27.9 reads it parameters-first too.
+      const bool parameters_only = (mask_flags & 0x18U) == 0x10U;
+      if (mask_length >= 36U && !parameters_only && mask_end - extra_reader.position() >= 18U) {
         const auto real_flags = extra_reader.read_u8();
         const auto real_default_color = extra_reader.read_u8();
         const auto real_top = static_cast<std::int32_t>(extra_reader.read_u32());
@@ -434,10 +438,10 @@ LayerRecord read_layer_record(BigEndianReader& reader, bool large_document,
       if ((mask_flags & 0x10U) != 0 && extra_reader.position() < mask_end) {
         const auto parameter_flags = extra_reader.read_u8();
         if ((parameter_flags & 0x01U) != 0 && extra_reader.position() < mask_end) {
-          (void)extra_reader.read_u8();  // user mask density (preserved via re-import only)
+          record.mask->user_density = extra_reader.read_u8();
         }
         if ((parameter_flags & 0x02U) != 0 && mask_end - extra_reader.position() >= 8U) {
-          (void)read_f64(extra_reader);  // user mask feather
+          record.mask->user_feather = read_f64(extra_reader);
         }
         if ((parameter_flags & 0x04U) != 0 && extra_reader.position() < mask_end) {
           record.mask->vector_density = extra_reader.read_u8();
@@ -723,12 +727,25 @@ void write_layer_record(BigEndianWriter& writer, const EncodedLayer& encoded, bo
     }
     const auto* vector_mask = encoded.layer->vector_mask();
     const bool vector_parameters = vector_mask && (vector_mask->density != 255 || vector_mask->feather > 0.0);
-    if (vector_parameters) { mask_flags |= 0x10U; }
+    // Parameter flags, values in bit order: bit 0 user density (u8), bit 1
+    // user feather (f64), bits 2/3 the vector pair. Photoshop sets the user
+    // bits one by one (PS 27.9 capture, photoshop-user-mask-params.psd).
+    std::uint8_t parameter_flags = vector_parameters ? 0x0CU : 0U;
+    if (mask.density != 255) { parameter_flags |= 0x01U; }
+    if (mask.feather > 0.0) { parameter_flags |= 0x02U; }
+    if (parameter_flags != 0) { mask_flags |= 0x10U; }
     mask_data.write_u8(mask_flags);
-    if (vector_parameters) {
-      mask_data.write_u8(0x0C);
-      mask_data.write_u8(vector_mask->density);
-      write_f64(mask_data, vector_mask->feather);
+    if (parameter_flags != 0) {
+      mask_data.write_u8(parameter_flags);
+      if ((parameter_flags & 0x01U) != 0) { mask_data.write_u8(mask.density); }
+      if ((parameter_flags & 0x02U) != 0) { write_f64(mask_data, mask.feather); }
+      if (vector_parameters) {
+        mask_data.write_u8(vector_mask->density);
+        write_f64(mask_data, vector_mask->feather);
+      }
+      // Photoshop pads the section to a multiple of 4 (27 -> 28 for feather
+      // alone); the 20- and 28-byte forms need none.
+      while (mask_data.bytes().size() % 4U != 0) { mask_data.write_u8(0); }
     } else { mask_data.write_u16(0); }
     write_length_prefixed_block(extra, mask_data.bytes());
   } else if (const auto* vector_mask =

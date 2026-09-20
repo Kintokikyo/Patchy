@@ -2023,6 +2023,7 @@ std::vector<LayerId> MainWindow::copy_layers_between_sessions(DocumentSession& s
       offset_copied_layer_tree(clone, dx, dy, target_document.width(), target_document.height());
     }
     rebake_vector_rasters(clone, target_canvas, &std::as_const(target_document).metadata().patterns);
+    sync_layer_mask_feather_canvas(clone, target_canvas);
   }
 
   // Directly above the target's active layer, in source order, then the

@@ -1,5 +1,6 @@
 #include "core/document.hpp"
 
+#include "core/layer_render_utils.hpp"
 #include "support/translate_noop.hpp"
 
 #include <algorithm>
@@ -150,6 +151,7 @@ Layer& Document::add_layer(Layer layer) {
   }
   next_layer_id_ = std::max(next_layer_id_, layer.id() + 1);
   layers_.push_back(std::move(layer));
+  sync_layer_mask_feather_canvas(layers_.back(), Rect::from_size(width_, height_));
   active_layer_id_ = layers_.back().id();
   return layers_.back();
 }
@@ -319,6 +321,10 @@ void Document::resize_canvas(std::int32_t width, std::int32_t height) {
   }
   width_ = width;
   height_ = height;
+  // Feathered raster masks edge-clamp their blur at the canvas.
+  for (auto& layer : layers_) {
+    sync_layer_mask_feather_canvas(layer, Rect::from_size(width_, height_));
+  }
 }
 
 LayerId Document::allocate_layer_id() noexcept {

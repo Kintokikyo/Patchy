@@ -108,6 +108,15 @@ struct LayerMask {
   PixelBuffer pixels{};
   std::uint8_t default_color{255};
   bool disabled{false};
+  // Mask parameters (Properties panel): density raw 0..255, feather pixels.
+  // `pixels` stays the painted mask; both apply at render time
+  // (feathered_layer_mask in layer_render_utils.hpp).
+  std::uint8_t density{255};
+  double feather{0.0};
+  // Canvas the feather blur edge-clamps to, as Photoshop does (a mask touching
+  // the canvas edge does not fade into the default color there). Empty = no
+  // clamp. Kept current by sync_layer_mask_feather_canvas.
+  Rect feather_canvas{};
 };
 
 struct RgbColor {

@@ -293,6 +293,79 @@ void psd_both_masks_with_vector_parameters_keeps_real_user_mask() {
   check(patchy::psd::DocumentIo::read(written, {}));
 }
 
+// Raster mask Density/Feather (Properties panel): mask parameter bits 0/1.
+// The stored -2 plane is the unmodified painted mask; both values apply at
+// render time, the feather as a gaussian of sigma = feather pixels that
+// edge-clamps at the canvas (the first layer's mask touches the top edge and
+// must not fade there).
+void psd_user_mask_density_and_feather_render_and_round_trip() {
+  const auto check = [](const Document& document) {
+    CHECK(document.layers().size() == 4);
+    const auto& both = layer_at(document, 1);
+    CHECK(both.mask().has_value());
+    CHECK(both.mask()->density == 128);
+    CHECK(std::fabs(both.mask()->feather - 3.0) < 1e-9);
+    CHECK(both.mask()->bounds.width == 40 && both.mask()->bounds.height == 36);
+    // The painted plane stays hard-edged; only the render is feathered.
+    CHECK(both.mask()->pixels.pixel(20, 35)[0] == 255);
+    const auto& feather_only = layer_at(document, 2);
+    CHECK(feather_only.mask().has_value());
+    CHECK(feather_only.mask()->density == 255);
+    CHECK(std::fabs(feather_only.mask()->feather - 6.5) < 1e-9);
+    const auto& density_only = layer_at(document, 3);
+    CHECK(density_only.mask().has_value());
+    CHECK(density_only.mask()->density == 64);
+    CHECK(density_only.mask()->feather == 0.0);
+
+    // Density lifts the hidden floor: fully hidden still shows 1 - density.
+    CHECK(std::fabs(patchy::layer_mask_alpha_at(density_only, 80, 10) - (1.0F - 64.0F / 255.0F)) < 1e-5F);
+    CHECK(std::fabs(patchy::layer_mask_alpha_at(density_only, 80, 40) - 1.0F) < 1e-5F);
+    // Feather: half coverage on the painted edge, a ramp beyond the painted
+    // rect, and no fade at the canvas edge.
+    const auto edge = patchy::layer_mask_alpha_at(feather_only, 48, 10);
+    CHECK(edge > 0.4F && edge < 0.6F);
+    const auto outside = patchy::layer_mask_alpha_at(feather_only, 48, 4);
+    CHECK(outside > 0.1F && outside < 0.35F);
+    CHECK(std::fabs(patchy::layer_mask_alpha_at(both, 15, 0) - 1.0F) < 1e-5F);
+  };
+  const auto document = read_fixture("photoshop-user-mask-params.psd");
+  check(document);
+  // The gaussian ramps spread +-1 rounding deltas over much of this small
+  // canvas, so the differing fraction is loose; mean and max are the gates.
+  check_flatten_matches_reference(document, "photoshop-user-mask-params.bmp", "psd_user_mask_params", 0.5, 8, 0.35);
+
+  const auto written = patchy::psd::DocumentIo::write_layered_rgb8(document);
+  const auto reread = patchy::psd::DocumentIo::read(written, {});
+  check(reread);
+  check_flatten_matches_reference(reread, "photoshop-user-mask-params.bmp", "psd_user_mask_params_rewritten", 0.5, 8,
+                                  0.35);
+
+  // All four parameters on one layer: the user pair precedes the vector pair
+  // (37 bytes padded to 40). The file lands in test-artifacts for the
+  // Photoshop acceptance check.
+  auto combined = read_fixture("photoshop-both-masks-params.psd");
+  {
+    auto& layer = combined.layers()[1];
+    auto mask = *std::as_const(layer).mask();
+    mask.density = 200;
+    mask.feather = 1.25;
+    layer.set_mask(std::move(mask));
+  }
+  const auto combined_bytes = patchy::psd::DocumentIo::write_layered_rgb8(combined);
+  std::filesystem::create_directories("test-artifacts");
+  std::ofstream("test-artifacts/psd_user_and_vector_mask_params.psd", std::ios::binary)
+      .write(reinterpret_cast<const char*>(combined_bytes.data()),
+             static_cast<std::streamsize>(combined_bytes.size()));
+  const auto combined_reread = patchy::psd::DocumentIo::read(combined_bytes, {});
+  const auto& combined_layer = layer_at(combined_reread, 1);
+  CHECK(combined_layer.mask().has_value());
+  CHECK(combined_layer.mask()->density == 200);
+  CHECK(std::fabs(combined_layer.mask()->feather - 1.25) < 1e-9);
+  CHECK(combined_layer.vector_mask() != nullptr);
+  CHECK(combined_layer.vector_mask()->density == 153);
+  CHECK(std::fabs(combined_layer.vector_mask()->feather - 2.0) < 1e-9);
+}
+
 void psd_saved_paths_fixture_populates_document_paths() {
   const auto document = read_fixture("photoshop-saved-paths.psd");
   CHECK(document.paths().size() == 3);
@@ -1743,6 +1816,8 @@ std::vector<patchy::test::TestCase> psd_vector_fixtures_tests() {
       {"psd_both_masks_fixture_parses_parameters", psd_both_masks_fixture_parses_parameters},
       {"psd_both_masks_with_vector_parameters_keeps_real_user_mask",
        psd_both_masks_with_vector_parameters_keeps_real_user_mask},
+      {"psd_user_mask_density_and_feather_render_and_round_trip",
+       psd_user_mask_density_and_feather_render_and_round_trip},
       {"psd_saved_paths_fixture_populates_document_paths", psd_saved_paths_fixture_populates_document_paths},
       {"psd_shape_psb_fixture_parses_and_renders", psd_shape_psb_fixture_parses_and_renders},
       {"psd_vector_untouched_blocks_round_trip_bytes", psd_vector_untouched_blocks_round_trip_bytes},
