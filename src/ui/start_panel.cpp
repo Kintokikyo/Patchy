@@ -23,6 +23,7 @@
 #include <QShowEvent>
 #include <QStyledItemDelegate>
 #include <QStyleOptionViewItem>
+#include <QUrl>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -102,13 +103,35 @@ class RecentFileDelegate final : public QStyledItemDelegate {
     }
 
     const QFileInfo info(path);
+
+    QString display_name = info.fileName();
+    QString display_location = info.absolutePath();
+
+    #ifdef Q_OS_ANDROID
+    if (path.startsWith(QStringLiteral("content://"),
+                    Qt::CaseInsensitive)) {
+      display_name = QUrl::fromPercentEncoding(
+        display_name.toUtf8());
+
+      display_location = QUrl::fromPercentEncoding(
+        display_location.toUtf8());
+
+      // Android content URI tidak punya filesystem path
+      // yang cocok untuk ditampilkan sebagai lokasi.
+      display_location.clear();
+    }
+    #endif
+
     const QRect text_area = row.adjusted(10, 3, -10, -3);
     const auto name_font = offset_font(option.font, 0, true);
     painter->setFont(name_font);
     painter->setPen(theme().text_primary);
     const QRect name_rect(text_area.left(), text_area.top(), text_area.width(), text_area.height() / 2);
     painter->drawText(name_rect, Qt::AlignLeft | Qt::AlignVCenter,
-                      QFontMetrics(name_font).elidedText(info.fileName(), Qt::ElideMiddle, name_rect.width()));
+                  QFontMetrics(name_font).elidedText(
+                      display_name,
+                      Qt::ElideMiddle,
+                      name_rect.width()));
 
     const auto path_font = offset_font(option.font, -1, false);
     painter->setFont(path_font);
@@ -116,8 +139,10 @@ class RecentFileDelegate final : public QStyledItemDelegate {
     const QRect path_rect(text_area.left(), text_area.top() + text_area.height() / 2, text_area.width(),
                           text_area.height() - text_area.height() / 2);
     painter->drawText(path_rect, Qt::AlignLeft | Qt::AlignVCenter,
-                      QFontMetrics(path_font).elidedText(QDir::toNativeSeparators(info.absolutePath()),
-                                                         Qt::ElideMiddle, path_rect.width()));
+                  QFontMetrics(path_font).elidedText(
+                      display_location,
+                      Qt::ElideMiddle,
+                      path_rect.width()));
     painter->restore();
   }
 };
@@ -433,6 +458,13 @@ void StartPanel::set_recent_files(const QStringList& paths) {
     if (recent_paths_.size() >= kMaxRecentEntries) {
       break;
     }
+  #ifdef Q_OS_ANDROID
+    if (path.startsWith(QStringLiteral("content://"),
+                        Qt::CaseInsensitive)) {
+        recent_paths_ << path;
+        continue;
+    }
+  #endif
     const QFileInfo info(path);
     if (!info.isFile()) {
       continue;  // Recent entries can outlive their files; dead rows would just error on click.
@@ -455,9 +487,19 @@ void StartPanel::rebuild_recent_rows() {
     if (!matches) {
       continue;
     }
-    auto* item = new QListWidgetItem(QFileInfo(path).fileName(), recent_list_);
+    QString display_name = QFileInfo(path).fileName();
+
+    #ifdef Q_OS_ANDROID
+      if (path.startsWith(QStringLiteral("content://"),
+                    Qt::CaseInsensitive)) {
+      display_name = QUrl::fromPercentEncoding(
+        display_name.toUtf8());
+    }
+    #endif
+
+    auto* item = new QListWidgetItem(display_name, recent_list_);
     item->setData(kRecentPathRole, path);
-    item->setToolTip(native_path);
+    item->setToolTip(display_name);
   }
 
   const bool has_entries = !recent_paths_.isEmpty();
