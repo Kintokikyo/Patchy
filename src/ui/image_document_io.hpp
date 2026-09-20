@@ -152,6 +152,13 @@ bool promote_flat_alpha_to_layer_mask(Document& document);
 [[nodiscard]] std::vector<RenderedDocumentPatch> qimage_patches_from_document_region_with_layer_pixels(
     const Document& document, const QRegion& document_region, bool preserve_alpha, LayerId layer_id,
     const PixelBuffer& layer_pixels, Rect layer_bounds);
+// One-rect form rendered in horizontal bands across workers. PREVIEW-ONLY
+// (live Free Transform drags): band-windowed style blurs can differ ~1-2/255
+// from the unbanded render, so the result must never reach a commit or the
+// render cache.
+[[nodiscard]] std::vector<RenderedDocumentPatch> qimage_patch_from_document_rect_with_layer_pixels_banded(
+    const Document& document, QRect document_rect, bool preserve_alpha, LayerId layer_id,
+    const PixelBuffer& layer_pixels, Rect layer_bounds);
 // N-layer variant of the pixel-substituting region render (multi-target Free
 // Transform preview). Same override semantics per entry: the mask, when
 // present, stays at its document position. Pixel pointers must outlive the call.

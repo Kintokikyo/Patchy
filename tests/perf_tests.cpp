@@ -1046,6 +1046,153 @@ void many_layers_select_and_move_perf_if_available() {
   }
 }
 
+// Free Transform rotate-drag cost with and without a layer mask (GitHub #13:
+// "rotating a layer with a mask causes severe lag", reported on a 10-core
+// laptop). Synthetic, so it runs on any machine: a noise layer covering 60% of
+// the canvas is rotated by dragging the rotate handle, once plain (the cheap
+// rotated-blit preview) and once with a linked canvas-sized reveal-all mask
+// (the composited-patch preview), timing every mouse-move plus its repaint and
+// then the commit.
+void masked_layer_rotate_perf() {
+  struct Size {
+    int width;
+    int height;
+  };
+  for (const auto size : {Size{1920, 1080}, Size{4000, 3000}}) {
+    // 0 = no mask, 1 = reveal-all mask (what Add Layer Mask creates), 2 = a
+    // painted mask hiding the layer's right third.
+    for (const int masked : {0, 1, 2}) {
+      patchy::Document document(size.width, size.height, patchy::PixelFormat::rgba8());
+      patchy::PixelBuffer backdrop(size.width, size.height, patchy::PixelFormat::rgba8());
+      backdrop.clear(255);
+      document.add_layer(patchy::Layer(document.allocate_layer_id(), "Backdrop", std::move(backdrop)));
+
+      const int layer_width = size.width * 6 / 10;
+      const int layer_height = size.height * 6 / 10;
+      patchy::PixelBuffer noise(layer_width, layer_height, patchy::PixelFormat::rgba8());
+      std::uint64_t seed = 0x9E3779B97F4A7C15ULL;
+      for (int y = 0; y < layer_height; ++y) {
+        auto row = noise.row(y);
+        for (int x = 0; x < layer_width; ++x) {
+          seed += 0x9E3779B97F4A7C15ULL;
+          auto z = seed;
+          z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ULL;
+          z = (z ^ (z >> 27)) * 0x94D049BB133111EBULL;
+          z ^= z >> 31;
+          auto* pixel = row.data() + static_cast<std::size_t>(x) * 4U;
+          pixel[0] = static_cast<std::uint8_t>(z);
+          pixel[1] = static_cast<std::uint8_t>(z >> 8);
+          pixel[2] = static_cast<std::uint8_t>(z >> 16);
+          pixel[3] = 255;
+        }
+      }
+      patchy::Layer layer(document.allocate_layer_id(), "Rotated", std::move(noise));
+      layer.set_bounds(patchy::Rect{(size.width - layer_width) / 2, (size.height - layer_height) / 2, layer_width,
+                                    layer_height});
+      const auto layer_id = layer.id();
+      if (masked != 0) {
+        patchy::PixelBuffer mask(size.width, size.height, patchy::PixelFormat::gray8());
+        mask.clear(255);
+        if (masked == 2) {
+          for (int y = 0; y < size.height; ++y) {
+            auto row = mask.row(y);
+            std::fill(row.begin() + size.width * 6 / 10, row.end(), std::uint8_t{0});
+          }
+        }
+        layer.set_mask(patchy::LayerMask{patchy::Rect{0, 0, size.width, size.height}, std::move(mask), 255, false});
+      }
+      document.add_layer(std::move(layer));
+
+      patchy::ui::MainWindow window;
+      window.resize(1600, 1000);
+      if (qEnvironmentVariableIsSet("PATCHY_PERF_ONSCREEN")) {
+        window.showMaximized();
+      } else {
+        window.show();
+      }
+      QApplication::processEvents();
+      window.add_document_session(std::move(document), QStringLiteral("Mask Rotate Perf"));
+      QApplication::processEvents();
+      auto* canvas = active_canvas(window);
+      CHECK(canvas != nullptr);
+      const auto settle_started = Clock::now();
+      while (!canvas->render_settled() &&
+             std::chrono::duration<double>(Clock::now() - settle_started).count() < 60.0) {
+        canvas->repaint();
+        QApplication::processEvents();
+      }
+      auto* layer_list = window.findChild<QListWidget*>(QStringLiteral("layerList"));
+      CHECK(layer_list != nullptr);
+      for (int row = 0; row < layer_list->count(); ++row) {
+        auto* item = layer_list->item(row);
+        if (static_cast<patchy::LayerId>(item->data(patchy::ui::kLayerIdRole).toULongLong()) == layer_id) {
+          layer_list->clearSelection();
+          layer_list->setCurrentItem(item);
+          item->setSelected(true);
+        }
+      }
+      QApplication::processEvents();
+
+      auto* transform_action = window.findChild<QAction*>(QStringLiteral("editFreeTransformAction"));
+      CHECK(transform_action != nullptr);
+      transform_action->trigger();
+      QApplication::processEvents();
+      CHECK(canvas->free_transform_active());
+
+      const auto bounds = std::as_const(patchy::ui::MainWindowTestAccess::document(window)).find_layer(layer_id)->bounds();
+      const auto top_center =
+          canvas->widget_position_for_document_point(QPoint(bounds.x + bounds.width / 2, bounds.y));
+      const auto start = top_center + QPoint(0, -32);
+      const auto before = canvas->render_cache_diagnostics();
+      const auto press_ms = elapsed_ms([&] {
+        send_mouse(*canvas, QEvent::MouseButtonPress, start, Qt::LeftButton, Qt::LeftButton);
+        canvas->repaint();
+      });
+      constexpr int kFrames = 40;
+      std::vector<double> frames;
+      frames.reserve(kFrames);
+      for (int frame = 1; frame <= kFrames; ++frame) {
+        const auto point = start + QPoint(frame * 6, frame * 2);
+        frames.push_back(elapsed_ms([&] {
+          send_mouse(*canvas, QEvent::MouseMove, point, Qt::NoButton, Qt::LeftButton);
+          canvas->repaint();
+        }));
+      }
+      const auto release_ms = elapsed_ms([&] {
+        send_mouse(*canvas, QEvent::MouseButtonRelease, start + QPoint(kFrames * 6, kFrames * 2), Qt::LeftButton,
+                   Qt::NoButton);
+        canvas->repaint();
+      });
+      const auto after = canvas->render_cache_diagnostics();
+      const auto commit_ms = elapsed_ms([&] {
+        send_key(*canvas, Qt::Key_Return);
+        const auto commit_started = Clock::now();
+        canvas->repaint();
+        while (!canvas->render_settled() &&
+               std::chrono::duration<double>(Clock::now() - commit_started).count() < 60.0) {
+          QApplication::processEvents();
+        }
+        CHECK(canvas->render_settled());
+      });
+      CHECK(!canvas->free_transform_active());
+
+      auto sorted = frames;
+      std::sort(sorted.begin(), sorted.end());
+      double total = 0.0;
+      for (const auto value : frames) {
+        total += value;
+      }
+      std::cout << std::fixed << std::setprecision(1) << "[PERF] maskrotate " << size.width << 'x' << size.height
+                << " masked=" << masked << " press_ms=" << press_ms << " first_frame_ms=" << frames.front()
+                << " frame_avg_ms=" << total / kFrames << " frame_median_ms=" << sorted[sorted.size() / 2]
+                << " frame_max_ms=" << sorted.back() << " release_ms=" << release_ms
+                << " commit_ms=" << commit_ms
+                << " proxy_latched=" << (after.transform_proxy_previews - before.transform_proxy_previews)
+                << " threads=" << std::thread::hardware_concurrency() << '\n';
+    }
+  }
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -1066,6 +1213,10 @@ int main(int argc, char* argv[]) {
       quintavius_layer_panel_perf_if_available();
       return 0;
     }
+    if (argc > 1 && std::string_view(argv[1]) == "maskrotate") {
+      masked_layer_rotate_perf();
+      return 0;
+    }
     if (argc > 1 && std::string_view(argv[1]) == "manylayers") {
       many_layers_select_and_move_perf_if_available();
       return 0;
@@ -1075,6 +1226,7 @@ int main(int argc, char* argv[]) {
     tent_psb_zoom_step_perf_if_available();
     quintavius_layer_panel_perf_if_available();
     many_layers_select_and_move_perf_if_available();
+    masked_layer_rotate_perf();
   } catch (const std::exception& error) {
     std::cerr << "[FAIL] " << error.what() << '\n';
     return 1;

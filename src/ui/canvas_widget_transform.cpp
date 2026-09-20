@@ -92,6 +92,14 @@ constexpr std::int64_t kTransformProxyAreaThreshold = 4'000'000;
 constexpr std::int64_t kStyledTransformProxyAreaThreshold = 1'000'000;
 // The proxy itself stays bounded so the latched blit is cheap at any zoom.
 constexpr std::int64_t kTransformProxyMaxPixels = 4'000'000;
+// Row fan-out gates for the transform resamplers. They run per mouse-move on
+// the composited preview path, and the bicubic kernel costs about 60 ns per
+// output pixel on one thread, so the old 1 Mpx / 128-row gate left every
+// sub-megapixel layer (most layers of a 1080p document) at 50+ ms per frame
+// (GitHub #13). A worker launch is tens of microseconds; 64 K pixels of
+// bicubic is milliseconds. Byte-identical at any split (pure per-pixel map).
+constexpr std::int64_t kResampleParallelMinArea = 65'536;
+constexpr int kResampleRowsPerWorker = 32;
 
 std::optional<QRect> move_layer_transform_local_rect(const Layer& layer) {
   if (!layer_has_movable_pixels(layer)) {
@@ -107,12 +115,126 @@ std::optional<QRect> move_layer_transform_local_rect(const Layer& layer) {
   return opaque_pixel_local_rect(layer);
 }
 
+// Whether an enabled raster mask can change what the layer renders. A
+// reveal-all mask (white everywhere, white default: what Add Layer Mask
+// creates) cannot, so it must not push the transform preview off the cheap
+// rotated blit onto the composited path. Runs at session start and on Layer
+// Style refreshes, never per frame; the scan exits at the first non-white byte.
+bool raster_mask_affects_render(const LayerMask& mask) {
+  if (mask.disabled) {
+    return false;
+  }
+  if (mask.default_color != 255 || mask.pixels.format() != PixelFormat::gray8()) {
+    return true;
+  }
+  for (int y = 0; y < mask.pixels.height(); ++y) {
+    const auto row = mask.pixels.row(y);
+    if (std::any_of(row.begin(), row.end(), [](std::uint8_t value) { return value != 255; })) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool layer_needs_composited_transform_preview(const Layer& layer) {
   return std::abs(layer.opacity() - 1.0F) > 0.001F || std::abs(layer.fill_opacity() - 1.0F) > 0.001F ||
          layer.blend_mode() != BlendMode::Normal ||
-         (layer.mask().has_value() && !layer.mask()->disabled) ||
+         (layer.mask().has_value() && raster_mask_affects_render(*layer.mask())) ||
          patchy::layer_has_enabled_vector_mask(layer) ||
          (layer.layer_style().effects_visible && !layer.layer_style().empty());
+}
+
+// Smallest sub-rect of a gray8 mask buffer holding every pixel that differs
+// from `default_color`; empty when the whole buffer reads as the default.
+QRect non_default_mask_local_rect(const PixelBuffer& pixels, std::uint8_t default_color) {
+  int left = pixels.width();
+  int right = -1;
+  int top = -1;
+  int bottom = -1;
+  for (int y = 0; y < pixels.height(); ++y) {
+    const auto row = pixels.row(y);
+    int row_left = 0;
+    while (row_left < pixels.width() && row[static_cast<std::size_t>(row_left)] == default_color) {
+      ++row_left;
+    }
+    if (row_left == pixels.width()) {
+      continue;
+    }
+    int row_right = pixels.width() - 1;
+    while (row[static_cast<std::size_t>(row_right)] == default_color) {
+      --row_right;
+    }
+    left = std::min(left, row_left);
+    right = std::max(right, row_right);
+    if (top < 0) {
+      top = y;
+    }
+    bottom = y;
+  }
+  return right < left ? QRect() : QRect(QPoint(left, top), QPoint(right, bottom));
+}
+
+// The layer's linked raster mask mapped through a Free Transform delta, or
+// nullopt when there is no linked raster mask to take along. Out-of-source
+// samples read default_color, so a rotated reveal-all mask keeps its surround.
+// The result is trimmed back to its non-default extent: the resampled AABB of a
+// rotated mask is mostly default-colored corners, and leaving them in would
+// roughly double the buffer with every further rotation.
+std::optional<LayerMask> transformed_linked_raster_mask(const Layer& layer, const QTransform& delta,
+                                                        CanvasWidget::TransformInterpolation interpolation) {
+  const auto& stored_mask = layer.mask();
+  if (!stored_mask.has_value() || stored_mask->pixels.empty() ||
+      stored_mask->pixels.format() != PixelFormat::gray8() || !layer_mask_linked(layer)) {
+    return std::nullopt;
+  }
+  // Only the non-default part of the source can change the result: everything
+  // outside it reads default_color before and after, exactly what an
+  // out-of-source sample returns. A freshly added reveal-all mask (uniformly
+  // its default) therefore transforms to itself, and a canvas-sized mask with
+  // a small painted area costs only that area per preview frame.
+  const auto source_keep = non_default_mask_local_rect(stored_mask->pixels, stored_mask->default_color);
+  if (source_keep.isEmpty()) {
+    return std::nullopt;
+  }
+  PixelBuffer source_pixels = stored_mask->pixels;
+  if (source_keep.width() != stored_mask->pixels.width() || source_keep.height() != stored_mask->pixels.height()) {
+    PixelBuffer cropped(source_keep.width(), source_keep.height(), PixelFormat::gray8());
+    for (int y = 0; y < source_keep.height(); ++y) {
+      const auto source_row = stored_mask->pixels.row(source_keep.y() + y);
+      std::copy_n(source_row.begin() + source_keep.x(), source_keep.width(), cropped.row(y).begin());
+    }
+    source_pixels = std::move(cropped);
+  }
+  // Left-to-right composition: mask-local -> document, then the delta.
+  auto resampled = resample_transformed_gray8(
+      source_pixels, stored_mask->default_color,
+      QTransform::fromTranslate(stored_mask->bounds.x + source_keep.x(), stored_mask->bounds.y + source_keep.y()) *
+          delta,
+      interpolation);
+  auto updated = *stored_mask;
+  const auto keep = non_default_mask_local_rect(resampled.pixels, stored_mask->default_color);
+  if (keep.isEmpty()) {
+    // Everything reads as the default: one default pixel at the old origin
+    // keeps the mask (and its default color) without the dead buffer.
+    PixelBuffer single(1, 1, PixelFormat::gray8());
+    single.clear(stored_mask->default_color);
+    updated.pixels = std::move(single);
+    updated.bounds = Rect{resampled.bounds.x, resampled.bounds.y, 1, 1};
+    return updated;
+  }
+  if (keep.width() == resampled.pixels.width() && keep.height() == resampled.pixels.height()) {
+    updated.pixels = std::move(resampled.pixels);
+    updated.bounds = resampled.bounds;
+    return updated;
+  }
+  PixelBuffer trimmed(keep.width(), keep.height(), PixelFormat::gray8());
+  for (int y = 0; y < keep.height(); ++y) {
+    const auto source_row = std::as_const(resampled.pixels).row(keep.y() + y);
+    std::copy_n(source_row.begin() + keep.x(), keep.width(), trimmed.row(y).begin());
+  }
+  updated.pixels = std::move(trimmed);
+  updated.bounds = Rect{resampled.bounds.x + keep.x(), resampled.bounds.y + keep.y(), keep.width(), keep.height()};
+  return updated;
 }
 
 LayerAffineTransform affine_from_qtransform(const QTransform& transform) {
@@ -384,8 +506,9 @@ TransformedImage resample_transformed_rgba8(const QImage& source, const QTransfo
   // max_blocking_fanout_workers: this thread blocks on the row futures, so on
   // the wasm main thread the fan-out must fit the idle pthread pool.
   const auto workers = patchy::max_blocking_fanout_workers(
-      std::clamp(std::min(transformed.height() / 128, hardware_threads), 1, 16));
-  if (area >= 1'000'000 && workers >= 2 && !qEnvironmentVariableIsSet("PATCHY_RENDER_SINGLE_THREADED")) {
+      std::clamp(std::min(transformed.height() / kResampleRowsPerWorker, hardware_threads), 1, 16));
+  if (area >= kResampleParallelMinArea && workers >= 2 &&
+      !qEnvironmentVariableIsSet("PATCHY_RENDER_SINGLE_THREADED")) {
     std::vector<std::future<void>> strips;
     strips.reserve(static_cast<std::size_t>(workers));
     const auto rows_per_strip = (transformed.height() + workers - 1) / workers;
@@ -578,8 +701,9 @@ TransformedMask resample_transformed_gray8(const PixelBuffer& source, std::uint8
   const auto area = static_cast<std::int64_t>(transformed.width()) * transformed.height();
   const auto hardware_threads = static_cast<int>(std::thread::hardware_concurrency());
   const auto workers = patchy::max_blocking_fanout_workers(
-      std::clamp(std::min(transformed.height() / 128, hardware_threads), 1, 16));
-  if (area >= 1'000'000 && workers >= 2 && !qEnvironmentVariableIsSet("PATCHY_RENDER_SINGLE_THREADED")) {
+      std::clamp(std::min(transformed.height() / kResampleRowsPerWorker, hardware_threads), 1, 16));
+  if (area >= kResampleParallelMinArea && workers >= 2 &&
+      !qEnvironmentVariableIsSet("PATCHY_RENDER_SINGLE_THREADED")) {
     std::vector<std::future<void>> strips;
     strips.reserve(static_cast<std::size_t>(workers));
     const auto rows_per_strip = (transformed.height() + workers - 1) / workers;
@@ -1017,6 +1141,7 @@ void CanvasWidget::reset_free_transform_session_state() {
   transform_preview_patches_rect_ = QRect();
   transform_drag_uses_proxy_preview_ = false;
   transform_live_frame_slow_ = false;
+  transform_preview_patches_banded_ = false;
   transform_proxy_image_ = QImage();
   transform_proxy_layer_opacity_ = 1.0;
   transform_requires_composited_preview_ = false;
@@ -1404,9 +1529,36 @@ void CanvasWidget::refresh_transform_multi_preview_cache(bool processing_wait) {
     return;
   }
 
-  const auto compute = [document = document_, jobs = std::move(jobs), interpolation = transform_interpolation_]()
+  const auto compute = [document = document_, jobs = std::move(jobs), delta, mask_only_ids = transform_mask_only_ids_,
+                        interpolation = transform_interpolation_]()
       -> std::pair<std::vector<RenderedDocumentPatch>, QRect> {
     const QRect canvas_rect(0, 0, document->width(), document->height());
+    // Linked raster masks (members, the folder's own, adjustment riders)
+    // preview at their transformed position through a copy-on-write document
+    // copy, the way the single-layer preview does.
+    std::optional<Document> masked_document;
+    const auto preview_transformed_mask = [&](LayerId id) {
+      const auto* layer = std::as_const(*document).find_layer(id);
+      if (layer == nullptr) {
+        return;
+      }
+      auto mask = transformed_linked_raster_mask(*layer, delta, interpolation);
+      if (!mask.has_value()) {
+        return;
+      }
+      if (!masked_document.has_value()) {
+        masked_document.emplace(*document);
+      }
+      if (auto* masked_layer = masked_document->find_layer(id); masked_layer != nullptr) {
+        masked_layer->set_mask(std::move(*mask));
+      }
+    };
+    for (const auto& job : jobs) {
+      preview_transformed_mask(job.id);
+    }
+    for (const auto id : mask_only_ids) {
+      preview_transformed_mask(id);
+    }
     std::vector<PixelBuffer> transformed_pixels;
     transformed_pixels.reserve(jobs.size());  // stable addresses for the overrides
     std::vector<LayerPixelsOverrideSpec> overrides;
@@ -1431,8 +1583,8 @@ void CanvasWidget::refresh_transform_multi_preview_cache(bool processing_wait) {
     if (patch_region.isEmpty() || overrides.empty()) {
       return {};
     }
-    auto patches =
-        qimage_patches_from_document_region_with_layer_pixel_overrides(*document, patch_region, true, overrides);
+    auto patches = qimage_patches_from_document_region_with_layer_pixel_overrides(
+        masked_document.has_value() ? *masked_document : *document, patch_region, true, overrides);
     return {std::move(patches), patch_region.boundingRect()};
   };
 
@@ -1465,6 +1617,7 @@ void CanvasWidget::refresh_transform_multi_preview_cache(bool processing_wait) {
 }
 
 void CanvasWidget::refresh_transform_composited_preview_cache(bool processing_wait) {
+  transform_preview_patches_banded_ = false;
   if (!transform_targets_.empty()) {
     refresh_transform_multi_preview_cache(processing_wait);
     return;
@@ -1484,12 +1637,17 @@ void CanvasWidget::refresh_transform_composited_preview_cache(bool processing_wa
   // its transformed bounds, and everywhere else transform_base_cache_ already
   // holds the final composite. Re-rendering the full canvas here on every
   // mouse-move was the transform preview's dominant cost on large documents.
+  const bool live_drag = dragging_transform_ && !processing_wait;
   const auto compute = [document = document_, layer, layer_id = *transform_layer_id_,
                         source = transform_source_image_,
                         source_to_document =
                             transform_source_to_document(transform_source_image_.size(), transform_current_rect_,
                                                          transform_angle_, transform_scale_x_sign_,
                                                          transform_scale_y_sign_),
+                        delta = free_transform_delta(transform_original_rect_, transform_current_rect_,
+                                                     transform_angle_, transform_scale_x_sign_,
+                                                     transform_scale_y_sign_),
+                        live_drag,
                         interpolation =
                             transform_interpolation_]() -> std::pair<std::vector<RenderedDocumentPatch>, QRect> {
     const auto transformed_result = resample_transformed_rgba8(source, source_to_document, interpolation);
@@ -1503,8 +1661,27 @@ void CanvasWidget::refresh_transform_composited_preview_cache(bool processing_wa
     if (patch_rect.isEmpty()) {
       return {};
     }
-    auto patches = qimage_patches_from_document_region_with_layer_pixels(
-        *document, QRegion(patch_rect), true, layer_id, transformed_pixels, transformed_result.bounds);
+    // A linked raster mask previews at its transformed position too. The
+    // render overrides carry mask bounds only, so the transformed mask rides a
+    // copy of the document (pixel buffers are copy-on-write, so this is cheap).
+    std::optional<Document> masked_document;
+    if (auto mask = transformed_linked_raster_mask(*layer, delta, interpolation); mask.has_value()) {
+      masked_document.emplace(*document);
+      if (auto* masked_layer = masked_document->find_layer(layer_id); masked_layer != nullptr) {
+        masked_layer->set_mask(std::move(*mask));
+      }
+    }
+    const auto& render_document = masked_document.has_value() ? *masked_document : *document;
+    // Drag frames band the patch across workers: a single rect under 4 Mpx
+    // otherwise composites on one thread (about 70 ms per mouse-move for a
+    // masked 1152x648 layer, GitHub #13). Preview-only by contract; the
+    // release, numeric, and nudge refreshes keep the exact unbanded render.
+    auto patches = live_drag ? qimage_patch_from_document_rect_with_layer_pixels_banded(
+                                   render_document, patch_rect, true, layer_id, transformed_pixels,
+                                   transformed_result.bounds)
+                             : qimage_patches_from_document_region_with_layer_pixels(
+                                   render_document, QRegion(patch_rect), true, layer_id, transformed_pixels,
+                                   transformed_result.bounds);
     return {std::move(patches), patch_rect};
   };
 
@@ -1550,6 +1727,7 @@ void CanvasWidget::refresh_transform_composited_preview_cache(bool processing_wa
   }
   transform_preview_patches_ = std::move(result.first);
   transform_preview_patches_rect_ = result.second;
+  transform_preview_patches_banded_ = live_drag;
 }
 
 bool CanvasWidget::transform_drag_should_use_proxy_preview() const {
@@ -2305,6 +2483,17 @@ void CanvasWidget::commit_free_transform() {
         smart_filter_rerender_failed = true;
       }
     }
+    // A linked raster mask follows the layer through the same delta (Photoshop
+    // behavior; an unlinked mask stays put). Every layer type takes this path:
+    // the mask is document-space data independent of how the pixels re-render.
+    if (auto updated_mask = transformed_linked_raster_mask(
+            std::as_const(*layer),
+            free_transform_delta(transform_original_rect_, transform_current_rect_, transform_angle_,
+                                 transform_scale_x_sign_, transform_scale_y_sign_),
+            transform_interpolation_);
+        updated_mask.has_value()) {
+      layer->set_mask(std::move(*updated_mask));
+    }
   }
 
   if (smart_filter_rerender_failed && rollback_document.has_value()) {
@@ -2336,8 +2525,8 @@ void CanvasWidget::commit_free_transform() {
 
 // Multi-target commit: one shared affine delta applied per leaf with the same
 // per-type branches as the single-layer commit above, plus linked raster masks
-// (the folder's own mask, member masks, adjustment masks), which the
-// single-layer path deliberately leaves untouched for byte-stability. One undo
+// (the folder's own mask, member masks, adjustment masks) through the same
+// transformed_linked_raster_mask the single-layer commit uses. One undo
 // entry ("Free Transform") for the whole set; a required Smart Filter re-render
 // makes the commit transactional exactly like the single path.
 void CanvasWidget::commit_free_transform_multi() {
@@ -2371,21 +2560,13 @@ void CanvasWidget::commit_free_transform_multi() {
     }
   };
   const auto transform_linked_raster_mask = [this, &delta, &dirty_rect](Layer& layer) {
-    const auto& stored_mask = std::as_const(layer).mask();
-    if (!stored_mask.has_value() || stored_mask->pixels.empty() || !layer_mask_linked(std::as_const(layer))) {
+    auto updated = transformed_linked_raster_mask(std::as_const(layer), delta, transform_interpolation_);
+    if (!updated.has_value()) {
       return;
     }
-    const auto mask = *stored_mask;
-    dirty_rect = dirty_rect.united(to_qrect(mask.bounds));
-    // Left-to-right composition: mask-local -> document, then the delta.
-    auto resampled = resample_transformed_gray8(
-        mask.pixels, mask.default_color,
-        QTransform::fromTranslate(mask.bounds.x, mask.bounds.y) * delta, transform_interpolation_);
-    auto updated = mask;
-    updated.pixels = std::move(resampled.pixels);
-    updated.bounds = resampled.bounds;
-    dirty_rect = dirty_rect.united(to_qrect(updated.bounds));
-    layer.set_mask(std::move(updated));
+    dirty_rect = dirty_rect.united(to_qrect(std::as_const(layer).mask()->bounds));
+    dirty_rect = dirty_rect.united(to_qrect(updated->bounds));
+    layer.set_mask(std::move(*updated));
   };
 
   bool transactional_smart_filter = false;

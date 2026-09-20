@@ -1922,6 +1922,10 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
       // showing the proxy rather than the raw source blit.
       refresh_transform_composited_preview_cache(true);
       transform_drag_uses_proxy_preview_ = false;
+    } else if (transform_preview_patches_banded_) {
+      // Live drag frames render in preview-only bands; the resting preview
+      // (and the commit hold built from it) gets the exact render.
+      refresh_transform_composited_preview_cache(true);
     }
     update_tool_cursor();
     update();

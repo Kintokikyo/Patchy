@@ -1690,21 +1690,17 @@ QImage qimage_from_document_rect_with_hidden_layers(const Document& document, QR
   return render_document_rect(document, document_rect, preserve_alpha, &overrides);
 }
 
-QImage qimage_from_document_rect_with_hidden_layers_banded(const Document& document, QRect document_rect,
-                                                           bool preserve_alpha,
-                                                           const std::vector<LayerId>& hidden_layer_ids) {
-  const auto clipped = document_rect.intersected(QRect(0, 0, document.width(), document.height()));
-  if (clipped.isEmpty()) {
-    return {};
-  }
-  const auto overrides = hidden_layer_overrides(document, hidden_layer_ids);
-  // Preview-only banding: small-but-expensive rects (a move-proxy snapshot or
-  // base-cache hole over a styled stack) sit far below render_document_rect's
-  // 4 Mpx strip gate and would serialize, so split into horizontal bands
-  // rendered across workers. Style-mask float blurs are windowed per band, so
-  // the bytes may differ from the unbanded render by the documented ~1-2/255
-  // divergence class near styled layers - never feed the result into a commit
-  // or render-cache patch path.
+namespace {
+
+// Preview-only banding: small-but-expensive rects (a move-proxy snapshot, a
+// base-cache hole over a styled stack, a masked Free Transform drag patch) sit
+// far below render_document_rect's 4 Mpx strip gate and would serialize, so
+// split into horizontal bands rendered across workers. Style-mask float blurs
+// are windowed per band, so the bytes may differ from the unbanded render by
+// the documented ~1-2/255 divergence class near styled layers - never feed the
+// result into a commit or render-cache patch path.
+QImage render_document_rect_banded(const Document& document, QRect clipped, bool preserve_alpha,
+                                   const std::vector<render_detail::LayerBoundsOverride>& overrides) {
   const auto hardware_threads = std::max(1, static_cast<int>(std::thread::hardware_concurrency()));
   const auto worker_budget =
       max_blocking_fanout_workers(std::clamp(clipped.height() / 32, 1, std::min(hardware_threads, 16)));
@@ -1712,7 +1708,6 @@ QImage qimage_from_document_rect_with_hidden_layers_banded(const Document& docum
       render_profile_enabled()) {
     return render_document_rect(document, clipped, preserve_alpha, &overrides);
   }
-
   std::vector<QRect> bands;
   bands.reserve(static_cast<std::size_t>(worker_budget));
   const auto rows_per_band = (clipped.height() + worker_budget - 1) / worker_budget;
@@ -1738,6 +1733,40 @@ QImage qimage_from_document_rect_with_hidden_layers_banded(const Document& docum
   }
   apply_document_resolution(stitched, document);
   return stitched;
+}
+
+}  // namespace
+
+QImage qimage_from_document_rect_with_hidden_layers_banded(const Document& document, QRect document_rect,
+                                                           bool preserve_alpha,
+                                                           const std::vector<LayerId>& hidden_layer_ids) {
+  const auto clipped = document_rect.intersected(QRect(0, 0, document.width(), document.height()));
+  if (clipped.isEmpty()) {
+    return {};
+  }
+  return render_document_rect_banded(document, clipped, preserve_alpha,
+                                     hidden_layer_overrides(document, hidden_layer_ids));
+}
+
+// Banded (PREVIEW-ONLY, see render_document_rect_banded) form of
+// qimage_patches_from_document_region_with_layer_pixels for one rect: the live
+// Free Transform drag preview of a composited (masked, blended, styled) layer.
+std::vector<RenderedDocumentPatch> qimage_patch_from_document_rect_with_layer_pixels_banded(
+    const Document& document, QRect document_rect, bool preserve_alpha, LayerId layer_id,
+    const PixelBuffer& layer_pixels, Rect layer_bounds) {
+  const auto clipped = document_rect.intersected(QRect(0, 0, document.width(), document.height()));
+  if (clipped.isEmpty()) {
+    return {};
+  }
+  const std::vector<render_detail::LayerBoundsOverride> overrides{
+      render_detail::LayerBoundsOverride{layer_id, layer_bounds, &layer_pixels}};
+  auto image = render_document_rect_banded(document, clipped, preserve_alpha, overrides);
+  if (image.isNull()) {
+    return {};
+  }
+  std::vector<RenderedDocumentPatch> patches;
+  patches.push_back(RenderedDocumentPatch{clipped, std::move(image)});
+  return patches;
 }
 
 bool image_format_preserves_alpha(std::string_view extension) noexcept {

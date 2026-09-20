@@ -2322,6 +2322,7 @@ private:
   // patch-compositing the full transformed area per mouse-move. Sticky for
   // the rest of the drag; the proxy image persists across drags in a session.
   bool transform_drag_uses_proxy_preview_{false};
+  bool transform_preview_patches_banded_{false};  // drag frames; release re-renders exactly
   // A live composited-preview refresh ran over the latch threshold; the next
   // drag move latches the proxy. Persists across drags within the session
   // (the layer stays expensive) and resets with the session state.

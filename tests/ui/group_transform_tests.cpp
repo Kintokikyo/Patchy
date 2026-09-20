@@ -351,6 +351,106 @@ void ui_group_transform_resamples_linked_masks() {
   CHECK(adjustment_layer->mask()->bounds.width == 160 && adjustment_layer->mask()->bounds.height == 40);
 }
 
+// Single-layer Free Transform takes a LINKED raster mask along (GitHub #13:
+// rotating a masked layer rotated only the pixels), in the live preview as well
+// as the commit, and trims the resampled mask back to its non-default extent
+// so repeated rotations cannot balloon the buffer. An UNLINKED mask stays put.
+void ui_free_transform_single_layer_rotates_linked_mask() {
+  const auto run = [](bool linked) {
+    patchy::Document document(200, 200, patchy::PixelFormat::rgba8());
+    patchy::PixelBuffer white(200, 200, patchy::PixelFormat::rgba8());
+    white.clear(255);
+    document.add_layer(patchy::Layer(document.allocate_layer_id(), "Backdrop", std::move(white)));
+
+    // 80x40 red bar centered on (100,100); the mask reveals its LEFT half only.
+    patchy::PixelBuffer red(80, 40, patchy::PixelFormat::rgba8());
+    for (int y = 0; y < 40; ++y) {
+      for (int x = 0; x < 80; ++x) {
+        auto* pixel = red.pixel(x, y);
+        pixel[0] = 255;
+        pixel[1] = 0;
+        pixel[2] = 0;
+        pixel[3] = 255;
+      }
+    }
+    patchy::Layer bar(document.allocate_layer_id(), "Bar", std::move(red));
+    bar.set_bounds(patchy::Rect{60, 80, 80, 40});
+    const auto bar_id = bar.id();
+    patchy::PixelBuffer mask_pixels(80, 40, patchy::PixelFormat::gray8());
+    mask_pixels.clear(0);
+    for (int y = 0; y < 40; ++y) {
+      for (int x = 0; x < 40; ++x) {
+        mask_pixels.pixel(x, y)[0] = 255;
+      }
+    }
+    bar.set_mask(patchy::LayerMask{patchy::Rect{60, 80, 80, 40}, std::move(mask_pixels), 0, false});
+    if (!linked) {
+      patchy::set_layer_mask_linked(bar, false);
+    }
+    document.add_layer(std::move(bar));
+
+    patchy::ui::MainWindow window;
+    show_window(window);
+    window.add_document_session(std::move(document), QStringLiteral("Single Transform Mask"));
+    auto* canvas = require_canvas(window);
+    auto* layer_list = window.findChild<QListWidget*>(QStringLiteral("layerList"));
+    CHECK(layer_list != nullptr);
+    auto& doc = patchy::ui::MainWindowTestAccess::document(window);
+
+    select_layer_rows_by_id(*layer_list, {bar_id});
+    require_action(window, "editFreeTransformAction")->trigger();
+    QApplication::processEvents();
+    CHECK(canvas->free_transform_active());
+    CHECK(!canvas->free_transform_is_multi_target());
+
+    // Rotate 90 degrees clockwise about the center: the bar becomes 40x80 at
+    // (80,60) and its revealed left half becomes the TOP half.
+    const auto state = canvas->transform_controls_state();
+    CHECK(state.has_value());
+    CHECK(canvas->set_transform_controls_state(state->reference_position, 100.0, 100.0, 90.0));
+    QApplication::processEvents();
+    const auto is_red = [](QColor color) { return color.red() > 200 && color.green() < 60 && color.blue() < 60; };
+    const auto is_white = [](QColor color) { return color.red() > 200 && color.green() > 200 && color.blue() > 200; };
+    if (linked) {
+      // Live preview, before the commit.
+      CHECK(is_red(canvas_pixel(*canvas, QPoint(100, 75))));
+      CHECK(is_white(canvas_pixel(*canvas, QPoint(100, 125))));
+    }
+
+    send_key(*canvas, Qt::Key_Return);
+    QApplication::processEvents();
+    CHECK(!canvas->free_transform_active());
+
+    const auto* layer = std::as_const(doc).find_layer(bar_id);
+    CHECK(layer != nullptr && layer->mask().has_value());
+    CHECK(layer->bounds().x == 80 && layer->bounds().y == 60);
+    CHECK(layer->bounds().width == 40 && layer->bounds().height == 80);
+    const auto& mask = *layer->mask();
+    if (linked) {
+      CHECK(mask.bounds.x == 80 && mask.bounds.y == 60);
+      CHECK(mask.bounds.width == 40 && mask.bounds.height == 40);
+      CHECK(mask.pixels.width() == 40 && mask.pixels.height() == 40);
+      CHECK(mask.pixels.pixel(20, 20)[0] == 255);
+      CHECK(mask.default_color == 0);
+      CHECK(is_red(canvas_pixel(*canvas, QPoint(100, 75))));
+      CHECK(is_white(canvas_pixel(*canvas, QPoint(100, 125))));
+    } else {
+      CHECK(mask.bounds.x == 60 && mask.bounds.y == 80);
+      CHECK(mask.bounds.width == 80 && mask.bounds.height == 40);
+    }
+
+    // One undo entry restores pixels and mask together.
+    patchy::ui::MainWindowTestAccess::undo(window);
+    QApplication::processEvents();
+    const auto* restored = std::as_const(doc).find_layer(bar_id);
+    CHECK(restored != nullptr && restored->mask().has_value());
+    CHECK(restored->bounds().x == 60 && restored->bounds().width == 80);
+    CHECK(restored->mask()->bounds.x == 60 && restored->mask()->bounds.width == 80);
+  };
+  run(true);
+  run(false);
+}
+
 // A position-locked member or an unparsed smart object member (no placement
 // quad to ride the transform) refuses the whole folder session; scaling the
 // rest of a folder around a pinned member would tear the artwork apart. A
@@ -939,6 +1039,7 @@ std::vector<patchy::test::TestCase> group_transform_tests() {
       {"ui_multi_select_free_transform_transforms_selection_together",
        ui_multi_select_free_transform_transforms_selection_together},
       {"ui_group_transform_resamples_linked_masks", ui_group_transform_resamples_linked_masks},
+      {"ui_free_transform_single_layer_rotates_linked_mask", ui_free_transform_single_layer_rotates_linked_mask},
       {"ui_group_transform_commit_deferred_refresh_never_shows_old_geometry",
        ui_group_transform_commit_deferred_refresh_never_shows_old_geometry},
       {"ui_group_transform_refuses_locked_and_unparsed_members",
