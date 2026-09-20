@@ -1,6 +1,7 @@
 #include "core/layer_metadata.hpp"
 #include "core/layer_render_utils.hpp"
 #include "core/rect_utils.hpp"
+#include "core/worker_budget.hpp"
 #include "psd/psd_document_io.hpp"
 #include "ui/qt_paths.hpp"
 #include "ui/background_workers.hpp"
@@ -1046,19 +1047,28 @@ void many_layers_select_and_move_perf_if_available() {
   }
 }
 
-// Free Transform rotate-drag cost with and without a layer mask (GitHub #13:
-// "rotating a layer with a mask causes severe lag", reported on a 10-core
-// laptop). Synthetic, so it runs on any machine: a noise layer covering 60% of
-// the canvas is rotated by dragging the rotate handle, once plain (the cheap
-// rotated-blit preview) and once with a linked canvas-sized reveal-all mask
-// (the composited-patch preview), timing every mouse-move plus its repaint and
-// then the commit.
+// Free Transform rotate-drag cost with and without a layer mask (GitHub #13
+// and #15: "rotating a layer with a mask causes severe lag" / "massive CPU
+// usage", reported on a 12-thread laptop). Synthetic, so it runs on any
+// machine: a noise layer covering 60% of the canvas is rotated by dragging the
+// rotate handle, plain (the cheap rotated-blit preview), with a linked
+// canvas-sized reveal-all mask (must stay on the blit), and with a painted
+// mask (the composited-patch preview), timing every mouse-move plus its repaint
+// and then the commit. PATCHY_RENDER_THREADS=4 prices the low-core case.
+//
+// The ceilings are relative or latch-backed so machine load cannot flake them:
+// the reveal-all mask never leaves the blit path (no proxy, frames within a
+// small factor of the unmasked drag), and every configuration's median frame
+// stays under the 100 ms live-frame latch, which the proxy guarantees for the
+// composited cases once a frame runs over it.
 void masked_layer_rotate_perf() {
   struct Size {
     int width;
     int height;
   };
+  constexpr double kLiveFrameLatchMs = 100.0;  // live_preview_frame_latch_ms default
   for (const auto size : {Size{1920, 1080}, Size{4000, 3000}}) {
+    double unmasked_median_ms = 0.0;
     // 0 = no mask, 1 = reveal-all mask (what Add Layer Mask creates), 2 = a
     // painted mask hiding the layer's right third.
     for (const int masked : {0, 1, 2}) {
@@ -1144,6 +1154,14 @@ void masked_layer_rotate_perf() {
           canvas->widget_position_for_document_point(QPoint(bounds.x + bounds.width / 2, bounds.y));
       const auto start = top_center + QPoint(0, -32);
       const auto before = canvas->render_cache_diagnostics();
+      // PATCHY_PERF_SAMPLER=1 attributes the press + drag frames of each
+      // configuration separately (one sampler per phase, Windows only).
+#ifdef Q_OS_WIN
+      std::unique_ptr<MainThreadSampler> sampler;
+      if (qEnvironmentVariableIsSet("PATCHY_PERF_SAMPLER")) {
+        sampler = std::make_unique<MainThreadSampler>();
+      }
+#endif
       const auto press_ms = elapsed_ms([&] {
         send_mouse(*canvas, QEvent::MouseButtonPress, start, Qt::LeftButton, Qt::LeftButton);
         canvas->repaint();
@@ -1164,6 +1182,13 @@ void masked_layer_rotate_perf() {
         canvas->repaint();
       });
       const auto after = canvas->render_cache_diagnostics();
+#ifdef Q_OS_WIN
+      if (sampler) {
+        std::cout << "[SAMPLER_PHASE] maskrotate " << size.width << 'x' << size.height << " masked=" << masked
+                  << " press+drag+release\n";
+        sampler.reset();
+      }
+#endif
       const auto commit_ms = elapsed_ms([&] {
         send_key(*canvas, Qt::Key_Return);
         const auto commit_started = Clock::now();
@@ -1188,7 +1213,16 @@ void masked_layer_rotate_perf() {
                 << " frame_max_ms=" << sorted.back() << " release_ms=" << release_ms
                 << " commit_ms=" << commit_ms
                 << " proxy_latched=" << (after.transform_proxy_previews - before.transform_proxy_previews)
-                << " threads=" << std::thread::hardware_concurrency() << '\n';
+                << " threads=" << patchy::hardware_worker_threads() << '\n';
+      const auto median_ms = sorted[sorted.size() / 2];
+      const auto proxy_latched = after.transform_proxy_previews - before.transform_proxy_previews;
+      CHECK(median_ms < kLiveFrameLatchMs);
+      if (masked == 0) {
+        unmasked_median_ms = median_ms;
+      } else if (masked == 1) {
+        CHECK(proxy_latched == 0);
+        CHECK(median_ms <= unmasked_median_ms * 3.0 + 4.0);
+      }
     }
   }
 }

@@ -1,8 +1,12 @@
 #include "core/worker_budget.hpp"
 
+#include "core/environment.hpp"
+
 #include <algorithm>
 #include <atomic>
+#include <cstdlib>
 #include <limits>
+#include <thread>
 
 #if defined(__EMSCRIPTEN_PTHREADS__)
 #include <emscripten.h>
@@ -28,6 +32,23 @@ int idle_prespawned_pool_workers() {
   }
 #endif
   return std::numeric_limits<int>::max();
+}
+
+int hardware_worker_threads() noexcept {
+  static const int threads = [] {
+    const int hardware = std::max(1, static_cast<int>(std::thread::hardware_concurrency()));
+    const auto override_value = environment_variable("PATCHY_RENDER_THREADS");
+    if (!override_value.has_value()) {
+      return hardware;
+    }
+    char* end = nullptr;
+    const long parsed = std::strtol(override_value->c_str(), &end, 10);
+    if (end == override_value->c_str() || parsed < 1) {
+      return hardware;
+    }
+    return static_cast<int>(std::min<long>(parsed, 256));
+  }();
+  return threads;
 }
 
 int max_blocking_fanout_workers(int wanted) {

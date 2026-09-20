@@ -881,7 +881,7 @@ bool apply_row_spans_in_parallel(PixelBuffer& pixels, const QRegion& selection, 
     return false;
   }
   const auto area = static_cast<std::int64_t>(pixels.width()) * pixels.height();
-  const auto hardware_threads = static_cast<int>(std::thread::hardware_concurrency());
+  const auto hardware_threads = patchy::hardware_worker_threads();
   const auto workers = patchy::max_blocking_fanout_workers(
       std::clamp(std::min(pixels.height() / 128, hardware_threads), 1, 16));
   if (area < 1'000'000 || workers < 2 || qEnvironmentVariableIsSet("PATCHY_RENDER_SINGLE_THREADED")) {

@@ -16,6 +16,7 @@
 #include "core/smart_object.hpp"
 #include "core/smart_filter.hpp"
 #include "core/layer_render_utils.hpp"
+#include "render/layer_compositor.hpp"
 #include "core/layer_tree.hpp"
 #include "core/pixel_tools.hpp"
 #include "core/quick_select.hpp"
@@ -174,50 +175,77 @@ QRect non_default_mask_local_rect(const PixelBuffer& pixels, std::uint8_t defaul
   return right < left ? QRect() : QRect(QPoint(left, top), QPoint(right, bottom));
 }
 
-// The layer's linked raster mask mapped through a Free Transform delta, or
-// nullopt when there is no linked raster mask to take along. Out-of-source
-// samples read default_color, so a rotated reveal-all mask keeps its surround.
-// The result is trimmed back to its non-default extent: the resampled AABB of a
-// rotated mask is mostly default-colored corners, and leaving them in would
-// roughly double the buffer with every further rotation.
-std::optional<LayerMask> transformed_linked_raster_mask(const Layer& layer, const QTransform& delta,
-                                                        CanvasWidget::TransformInterpolation interpolation) {
+// The linked raster mask's non-default crop, or nullopt when the layer has no
+// linked gray8 raster mask to take along. Only the non-default part of the
+// source can change a transformed result: everything outside it reads
+// default_color before and after, exactly what an out-of-source sample
+// returns. A freshly added reveal-all mask (uniformly its default) therefore
+// transforms to itself (empty `pixels`), and a canvas-sized mask with a small
+// painted area costs only that area per preview frame. This scans the whole
+// stored buffer once; the preview paths cache the result per content revision
+// (CanvasWidget::transform_linked_mask_source) so no drag frame rescans it.
+std::optional<TransformLinkedMaskSource> linked_mask_source(const Layer& layer) {
   const auto& stored_mask = layer.mask();
   if (!stored_mask.has_value() || stored_mask->pixels.empty() ||
       stored_mask->pixels.format() != PixelFormat::gray8() || !layer_mask_linked(layer)) {
     return std::nullopt;
   }
-  // Only the non-default part of the source can change the result: everything
-  // outside it reads default_color before and after, exactly what an
-  // out-of-source sample returns. A freshly added reveal-all mask (uniformly
-  // its default) therefore transforms to itself, and a canvas-sized mask with
-  // a small painted area costs only that area per preview frame.
-  const auto source_keep = non_default_mask_local_rect(stored_mask->pixels, stored_mask->default_color);
-  if (source_keep.isEmpty()) {
+  TransformLinkedMaskSource source;
+  source.content_revision = layer.content_revision();
+  source.default_color = stored_mask->default_color;
+  const auto keep = non_default_mask_local_rect(stored_mask->pixels, stored_mask->default_color);
+  if (keep.isEmpty()) {
+    return source;
+  }
+  source.bounds =
+      Rect{stored_mask->bounds.x + keep.x(), stored_mask->bounds.y + keep.y(), keep.width(), keep.height()};
+  if (keep.width() == stored_mask->pixels.width() && keep.height() == stored_mask->pixels.height()) {
+    source.pixels = stored_mask->pixels;  // copy-on-write share, no copy
+    return source;
+  }
+  PixelBuffer cropped(keep.width(), keep.height(), PixelFormat::gray8());
+  for (int y = 0; y < keep.height(); ++y) {
+    const auto source_row = stored_mask->pixels.row(keep.y() + y);
+    std::copy_n(source_row.begin() + keep.x(), keep.width(), cropped.row(y).begin());
+  }
+  source.pixels = std::move(cropped);
+  return source;
+}
+
+// The layer's linked raster mask mapped through a Free Transform delta, or
+// nullopt when there is nothing to take along (no linked raster mask, or one
+// that is uniformly its default and so transforms to itself). Out-of-source
+// samples read default_color, so a rotated reveal-all mask keeps its surround.
+// With `trim` the result is cut back to its non-default extent: the resampled
+// AABB of a rotated mask is mostly default-colored corners, and leaving them in
+// would roughly double the buffer with every further rotation. Commits trim;
+// preview frames skip that scan and copy because the untrimmed mask renders
+// identically (outside its non-default extent it holds default_color, which is
+// also what the compositor reads beyond the mask bounds).
+std::optional<LayerMask> transformed_linked_raster_mask(const Layer& layer, const TransformLinkedMaskSource& source,
+                                                        const QTransform& delta,
+                                                        CanvasWidget::TransformInterpolation interpolation,
+                                                        bool trim) {
+  const auto& stored_mask = layer.mask();
+  if (!stored_mask.has_value() || source.pixels.empty()) {
     return std::nullopt;
   }
-  PixelBuffer source_pixels = stored_mask->pixels;
-  if (source_keep.width() != stored_mask->pixels.width() || source_keep.height() != stored_mask->pixels.height()) {
-    PixelBuffer cropped(source_keep.width(), source_keep.height(), PixelFormat::gray8());
-    for (int y = 0; y < source_keep.height(); ++y) {
-      const auto source_row = stored_mask->pixels.row(source_keep.y() + y);
-      std::copy_n(source_row.begin() + source_keep.x(), source_keep.width(), cropped.row(y).begin());
-    }
-    source_pixels = std::move(cropped);
-  }
-  // Left-to-right composition: mask-local -> document, then the delta.
-  auto resampled = resample_transformed_gray8(
-      source_pixels, stored_mask->default_color,
-      QTransform::fromTranslate(stored_mask->bounds.x + source_keep.x(), stored_mask->bounds.y + source_keep.y()) *
-          delta,
-      interpolation);
+  // Left-to-right composition: crop-local -> document, then the delta.
+  auto resampled = resample_transformed_gray8(source.pixels, source.default_color,
+                                              QTransform::fromTranslate(source.bounds.x, source.bounds.y) * delta,
+                                              interpolation);
   auto updated = *stored_mask;
-  const auto keep = non_default_mask_local_rect(resampled.pixels, stored_mask->default_color);
+  if (!trim) {
+    updated.pixels = std::move(resampled.pixels);
+    updated.bounds = resampled.bounds;
+    return updated;
+  }
+  const auto keep = non_default_mask_local_rect(resampled.pixels, source.default_color);
   if (keep.isEmpty()) {
     // Everything reads as the default: one default pixel at the old origin
     // keeps the mask (and its default color) without the dead buffer.
     PixelBuffer single(1, 1, PixelFormat::gray8());
-    single.clear(stored_mask->default_color);
+    single.clear(source.default_color);
     updated.pixels = std::move(single);
     updated.bounds = Rect{resampled.bounds.x, resampled.bounds.y, 1, 1};
     return updated;
@@ -235,6 +263,53 @@ std::optional<LayerMask> transformed_linked_raster_mask(const Layer& layer, cons
   updated.pixels = std::move(trimmed);
   updated.bounds = Rect{resampled.bounds.x + keep.x(), resampled.bounds.y + keep.y(), keep.width(), keep.height()};
   return updated;
+}
+
+// Commit-path form: one fresh crop, trimmed result. Bytes are pinned by the
+// transform-commit suites; the preview paths share the resample above.
+std::optional<LayerMask> transformed_linked_raster_mask(const Layer& layer, const QTransform& delta,
+                                                        CanvasWidget::TransformInterpolation interpolation) {
+  const auto source = linked_mask_source(layer);
+  if (!source.has_value()) {
+    return std::nullopt;
+  }
+  return transformed_linked_raster_mask(layer, *source, delta, interpolation, true);
+}
+
+// Proxy source for a masked layer. A linked raster mask rides the transform
+// rigidly, so multiplying the source alpha by the layer's mask coverage over
+// the source's document rect (once per latch, O(source pixels)) lets the
+// latched proxy show the masked silhouette instead of the whole layer; a
+// vector mask folds in through the same coverage plane, since the commit maps
+// its path along too. An unlinked raster mask stays put, so the layer keeps the
+// plain approximation. The accurate patches return at release either way.
+QImage source_image_with_mask_coverage(const QImage& source, const Layer& layer, QRectF original_rect) {
+  if (source.isNull()) {
+    return source;
+  }
+  const auto& mask = layer.mask();
+  const bool raster_enabled = mask.has_value() && !mask->disabled;
+  if (raster_enabled && !layer_mask_linked(layer)) {
+    return source;
+  }
+  const bool raster_renders = raster_enabled && raster_mask_affects_render(*mask);
+  if (!raster_renders && !patchy::layer_has_enabled_vector_mask(layer)) {
+    return source;
+  }
+  const Rect draw_rect{static_cast<std::int32_t>(std::lround(original_rect.x())),
+                       static_cast<std::int32_t>(std::lround(original_rect.y())), source.width(), source.height()};
+  const auto plane = patchy::render_detail::build_mask_coverage_plane(layer, draw_rect, std::nullopt);
+  QImage masked = source.convertToFormat(QImage::Format_RGBA8888);
+  for (int y = 0; y < masked.height(); ++y) {
+    auto* row = masked.scanLine(y);
+    const auto* coverage = plane.data() + static_cast<std::size_t>(y) * static_cast<std::size_t>(masked.width());
+    for (int x = 0; x < masked.width(); ++x) {
+      auto& alpha = row[static_cast<std::size_t>(x) * 4U + 3U];
+      alpha = static_cast<std::uint8_t>(
+          std::lround(static_cast<float>(alpha) * std::clamp(coverage[x], 0.0F, 1.0F)));
+    }
+  }
+  return masked;
 }
 
 LayerAffineTransform affine_from_qtransform(const QTransform& transform) {
@@ -502,7 +577,7 @@ TransformedImage resample_transformed_rgba8(const QImage& source, const QTransfo
   };
 
   const auto area = static_cast<std::int64_t>(transformed.width()) * transformed.height();
-  const auto hardware_threads = static_cast<int>(std::thread::hardware_concurrency());
+  const auto hardware_threads = patchy::hardware_worker_threads();
   // max_blocking_fanout_workers: this thread blocks on the row futures, so on
   // the wasm main thread the fan-out must fit the idle pthread pool.
   const auto workers = patchy::max_blocking_fanout_workers(
@@ -699,7 +774,7 @@ TransformedMask resample_transformed_gray8(const PixelBuffer& source, std::uint8
   };
 
   const auto area = static_cast<std::int64_t>(transformed.width()) * transformed.height();
-  const auto hardware_threads = static_cast<int>(std::thread::hardware_concurrency());
+  const auto hardware_threads = patchy::hardware_worker_threads();
   const auto workers = patchy::max_blocking_fanout_workers(
       std::clamp(std::min(transformed.height() / kResampleRowsPerWorker, hardware_threads), 1, 16));
   if (area >= kResampleParallelMinArea && workers >= 2 &&
@@ -808,6 +883,7 @@ bool CanvasWidget::begin_free_transform() {
   transform_drag_uses_proxy_preview_ = false;
   transform_live_frame_slow_ = false;
   transform_proxy_image_ = QImage();
+  transform_mask_sources_.clear();
   transform_proxy_layer_opacity_ = 1.0;
   transform_requires_composited_preview_ = layer_needs_composited_transform_preview(*layer);
   setCursor(Qt::ArrowCursor);
@@ -1016,6 +1092,7 @@ bool CanvasWidget::begin_free_transform_multi(TransformTargetCollection collecti
   transform_drag_uses_proxy_preview_ = false;
   transform_live_frame_slow_ = false;
   transform_proxy_image_ = QImage();
+  transform_mask_sources_.clear();
   transform_proxy_layer_opacity_ = 1.0;
   transform_multi_snapshot_ = QImage();
   transform_multi_snapshot_rect_ = QRect();
@@ -1143,6 +1220,7 @@ void CanvasWidget::reset_free_transform_session_state() {
   transform_live_frame_slow_ = false;
   transform_preview_patches_banded_ = false;
   transform_proxy_image_ = QImage();
+  transform_mask_sources_.clear();
   transform_proxy_layer_opacity_ = 1.0;
   transform_requires_composited_preview_ = false;
   transform_source_local_rect_ = QRect();
@@ -1528,23 +1606,41 @@ void CanvasWidget::refresh_transform_multi_preview_cache(bool processing_wait) {
   if (jobs.empty()) {
     return;
   }
+  // Linked raster masks (members, the folder's own, adjustment riders) preview
+  // at their transformed position; their crops come from the session cache on
+  // the main thread (the compute may run on a worker) and share copy-on-write.
+  std::vector<std::pair<LayerId, TransformLinkedMaskSource>> mask_sources;
+  const auto collect_mask_source = [&](LayerId id) {
+    const auto* layer = std::as_const(*document_).find_layer(id);
+    if (layer == nullptr) {
+      return;
+    }
+    if (const auto* source = transform_linked_mask_source(*layer); source != nullptr) {
+      mask_sources.emplace_back(id, *source);
+    }
+  };
+  for (const auto& job : jobs) {
+    collect_mask_source(job.id);
+  }
+  for (const auto id : transform_mask_only_ids_) {
+    collect_mask_source(id);
+  }
 
-  const auto compute = [document = document_, jobs = std::move(jobs), delta, mask_only_ids = transform_mask_only_ids_,
+  const auto compute = [document = document_, jobs = std::move(jobs), delta, mask_sources = std::move(mask_sources),
                         interpolation = transform_interpolation_]()
       -> std::pair<std::vector<RenderedDocumentPatch>, QRect> {
     const QRect canvas_rect(0, 0, document->width(), document->height());
-    // Linked raster masks (members, the folder's own, adjustment riders)
-    // preview at their transformed position through a copy-on-write document
-    // copy, the way the single-layer preview does.
+    // The transformed masks ride a copy-on-write document copy, the way the
+    // single-layer preview does (render overrides carry mask bounds only).
     std::optional<Document> masked_document;
-    const auto preview_transformed_mask = [&](LayerId id) {
+    for (const auto& [id, source] : mask_sources) {
       const auto* layer = std::as_const(*document).find_layer(id);
       if (layer == nullptr) {
-        return;
+        continue;
       }
-      auto mask = transformed_linked_raster_mask(*layer, delta, interpolation);
+      auto mask = transformed_linked_raster_mask(*layer, source, delta, interpolation, false);
       if (!mask.has_value()) {
-        return;
+        continue;
       }
       if (!masked_document.has_value()) {
         masked_document.emplace(*document);
@@ -1552,12 +1648,6 @@ void CanvasWidget::refresh_transform_multi_preview_cache(bool processing_wait) {
       if (auto* masked_layer = masked_document->find_layer(id); masked_layer != nullptr) {
         masked_layer->set_mask(std::move(*mask));
       }
-    };
-    for (const auto& job : jobs) {
-      preview_transformed_mask(job.id);
-    }
-    for (const auto id : mask_only_ids) {
-      preview_transformed_mask(id);
     }
     std::vector<PixelBuffer> transformed_pixels;
     transformed_pixels.reserve(jobs.size());  // stable addresses for the overrides
@@ -1628,9 +1718,15 @@ void CanvasWidget::refresh_transform_composited_preview_cache(bool processing_wa
       !transform_layer_id_.has_value() || transform_source_image_.isNull()) {
     return;
   }
-  const auto* layer = document_->find_layer(*transform_layer_id_);
+  const auto* layer = std::as_const(*document_).find_layer(*transform_layer_id_);
   if (layer == nullptr) {
     return;
+  }
+  // The linked mask's crop comes from the session cache on the main thread
+  // (the compute may run on a worker at release) and shares copy-on-write.
+  std::optional<TransformLinkedMaskSource> mask_source;
+  if (const auto* cached = transform_linked_mask_source(*layer); cached != nullptr) {
+    mask_source = *cached;
   }
 
   // Region-limited: the layer (plus its effects) can only contribute inside
@@ -1639,7 +1735,7 @@ void CanvasWidget::refresh_transform_composited_preview_cache(bool processing_wa
   // mouse-move was the transform preview's dominant cost on large documents.
   const bool live_drag = dragging_transform_ && !processing_wait;
   const auto compute = [document = document_, layer, layer_id = *transform_layer_id_,
-                        source = transform_source_image_,
+                        source = transform_source_image_, mask_source,
                         source_to_document =
                             transform_source_to_document(transform_source_image_.size(), transform_current_rect_,
                                                          transform_angle_, transform_scale_x_sign_,
@@ -1663,12 +1759,16 @@ void CanvasWidget::refresh_transform_composited_preview_cache(bool processing_wa
     }
     // A linked raster mask previews at its transformed position too. The
     // render overrides carry mask bounds only, so the transformed mask rides a
-    // copy of the document (pixel buffers are copy-on-write, so this is cheap).
+    // copy of the document: the copy is O(layer count) with copy-on-write pixel
+    // buffers, never O(pixels), which is why it stays per frame.
     std::optional<Document> masked_document;
-    if (auto mask = transformed_linked_raster_mask(*layer, delta, interpolation); mask.has_value()) {
-      masked_document.emplace(*document);
-      if (auto* masked_layer = masked_document->find_layer(layer_id); masked_layer != nullptr) {
-        masked_layer->set_mask(std::move(*mask));
+    if (mask_source.has_value()) {
+      if (auto mask = transformed_linked_raster_mask(*layer, *mask_source, delta, interpolation, false);
+          mask.has_value()) {
+        masked_document.emplace(*document);
+        if (auto* masked_layer = masked_document->find_layer(layer_id); masked_layer != nullptr) {
+          masked_layer->set_mask(std::move(*mask));
+        }
       }
     }
     const auto& render_document = masked_document.has_value() ? *masked_document : *document;
@@ -1730,6 +1830,24 @@ void CanvasWidget::refresh_transform_composited_preview_cache(bool processing_wa
   transform_preview_patches_banded_ = live_drag;
 }
 
+// Main-thread lookup of the session's cached linked-mask crop for `layer`,
+// rebuilt when the layer's content revision moved. Returns nullptr when the
+// layer has no linked raster mask to take along.
+const TransformLinkedMaskSource* CanvasWidget::transform_linked_mask_source(const Layer& layer) {
+  const auto found = transform_mask_sources_.find(layer.id());
+  if (found != transform_mask_sources_.end() && found->second.content_revision == layer.content_revision()) {
+    return &found->second;
+  }
+  auto source = linked_mask_source(layer);
+  if (!source.has_value()) {
+    transform_mask_sources_.erase(layer.id());
+    return nullptr;
+  }
+  auto& slot = transform_mask_sources_[layer.id()];
+  slot = std::move(*source);
+  return &slot;
+}
+
 bool CanvasWidget::transform_drag_should_use_proxy_preview() const {
   if (document_ == nullptr || !transform_layer_id_.has_value() || transform_source_image_.isNull()) {
     return false;
@@ -1763,7 +1881,15 @@ bool CanvasWidget::transform_drag_should_use_proxy_preview() const {
 
   const auto area = std::max(resample_area, patch_area);
   const bool styled = layer->layer_style().effects_visible && !layer->layer_style().empty();
-  return area >= (styled ? kStyledTransformProxyAreaThreshold : kTransformProxyAreaThreshold);
+  // The area gates price a frame on the 16-worker reference machine (a 4 Mpx
+  // composited preview runs about 85 ms there, just under the time hatch).
+  // Every stage of a composited frame fans out per row, so its cost scales
+  // with the worker count: a 4-thread laptop pays the same frame about four
+  // times longer, so it latches at a quarter of the area (GitHub #15).
+  const auto worker_share = static_cast<double>(std::clamp(patchy::hardware_worker_threads(), 1, 16)) / 16.0;
+  const auto threshold = static_cast<std::int64_t>(
+      static_cast<double>(styled ? kStyledTransformProxyAreaThreshold : kTransformProxyAreaThreshold) * worker_share);
+  return area >= threshold;
 }
 
 void CanvasWidget::ensure_transform_proxy_image() {
@@ -1777,16 +1903,21 @@ void CanvasWidget::ensure_transform_proxy_image() {
   if (!transform_proxy_image_.isNull() || transform_source_image_.isNull()) {
     return;
   }
-  const auto source_area = static_cast<std::int64_t>(transform_source_image_.width()) *
-                           static_cast<std::int64_t>(transform_source_image_.height());
+  QImage source = transform_source_image_;
+  if (document_ != nullptr && transform_layer_id_.has_value()) {
+    if (const auto* layer = std::as_const(*document_).find_layer(*transform_layer_id_); layer != nullptr) {
+      source = source_image_with_mask_coverage(source, *layer, transform_original_rect_);
+    }
+  }
+  const auto source_area = static_cast<std::int64_t>(source.width()) * static_cast<std::int64_t>(source.height());
   if (source_area <= kTransformProxyMaxPixels) {
-    transform_proxy_image_ = transform_source_image_.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+    transform_proxy_image_ = source.convertToFormat(QImage::Format_ARGB32_Premultiplied);
     return;
   }
   const auto scale = std::sqrt(static_cast<double>(kTransformProxyMaxPixels) / static_cast<double>(source_area));
-  const QSize proxy_size(std::max(1, static_cast<int>(std::lround(transform_source_image_.width() * scale))),
-                         std::max(1, static_cast<int>(std::lround(transform_source_image_.height() * scale))));
-  transform_proxy_image_ = transform_source_image_.scaled(proxy_size, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)
+  const QSize proxy_size(std::max(1, static_cast<int>(std::lround(source.width() * scale))),
+                         std::max(1, static_cast<int>(std::lround(source.height() * scale))));
+  transform_proxy_image_ = source.scaled(proxy_size, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)
                                .convertToFormat(QImage::Format_ARGB32_Premultiplied);
 }
 
@@ -3405,6 +3536,7 @@ bool CanvasWidget::switch_warp_to_free_transform() {
   transform_drag_uses_proxy_preview_ = false;
   transform_live_frame_slow_ = false;
   transform_proxy_image_ = QImage();
+  transform_mask_sources_.clear();
   transform_proxy_layer_opacity_ = 1.0;
   transform_requires_composited_preview_ = layer_needs_composited_transform_preview(*layer);
   rebuild_transform_base_cache();

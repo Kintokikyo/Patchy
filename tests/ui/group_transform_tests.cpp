@@ -355,6 +355,9 @@ void ui_group_transform_resamples_linked_masks() {
 // rotating a masked layer rotated only the pixels), in the live preview as well
 // as the commit, and trims the resampled mask back to its non-default extent
 // so repeated rotations cannot balloon the buffer. An UNLINKED mask stays put.
+// The preview is updated three times in one session so the second and third
+// frames hit the session's cached mask crop (GitHub #15) and must still track
+// the geometry.
 void ui_free_transform_single_layer_rotates_linked_mask() {
   const auto run = [](bool linked) {
     patchy::Document document(200, 200, patchy::PixelFormat::rgba8());
@@ -413,6 +416,16 @@ void ui_free_transform_single_layer_rotates_linked_mask() {
     const auto is_white = [](QColor color) { return color.red() > 200 && color.green() > 200 && color.blue() > 200; };
     if (linked) {
       // Live preview, before the commit.
+      CHECK(is_red(canvas_pixel(*canvas, QPoint(100, 75))));
+      CHECK(is_white(canvas_pixel(*canvas, QPoint(100, 125))));
+      // Back to the original geometry (a cache hit on the mask crop): the
+      // revealed half is the LEFT half again, then rotate once more.
+      CHECK(canvas->set_transform_controls_state(state->reference_position, 100.0, 100.0, 0.0));
+      QApplication::processEvents();
+      CHECK(is_red(canvas_pixel(*canvas, QPoint(80, 100))));
+      CHECK(is_white(canvas_pixel(*canvas, QPoint(120, 100))));
+      CHECK(canvas->set_transform_controls_state(state->reference_position, 100.0, 100.0, 90.0));
+      QApplication::processEvents();
       CHECK(is_red(canvas_pixel(*canvas, QPoint(100, 75))));
       CHECK(is_white(canvas_pixel(*canvas, QPoint(100, 125))));
     }
