@@ -172,6 +172,7 @@ Useful diagnostic variables:
 - `PATCHY_ZOOM_TRACE=1` logs paint and zoom phases over 2 ms.
 - `PATCHY_STYLE_MASK_CACHE_OFF=1` disables the style-mask cache.
 - `PATCHY_RENDER_SINGLE_THREADED=1` forces byte-stable sequential rendering.
+- `PATCHY_RENDER_THREADS=<n>` caps every parallel fan-out at n workers in place of the hardware thread count (perf harness emulation of a low-core machine; the transform proxy gate scales with it).
 - `PATCHY_PROCESSING_OVERLAY_MIN_PIXELS` overrides the processing-overlay threshold.
 - `PATCHY_NO_SOUND=1` suppresses script audio; offscreen suites rely on it.
 - `PATCHY_SETTINGS_DIR=<dir>` redirects the app's ini settings store (automation isolation).

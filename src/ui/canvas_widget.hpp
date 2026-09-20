@@ -179,6 +179,16 @@ struct CanvasReadGesture {
   CanvasReadPhase phase{CanvasReadPhase::Press};
 };
 
+// The non-default part of a linked raster mask, cropped out once per layer
+// content revision so a Free Transform preview frame resamples only the
+// painted area and never rescans the stored buffer (canvas_widget_transform.cpp).
+struct TransformLinkedMaskSource {
+  std::uint64_t content_revision{0};
+  Rect bounds{};  // document rect of `pixels`
+  std::uint8_t default_color{255};
+  PixelBuffer pixels{};  // copy-on-write; empty when the mask is uniformly its default
+};
+
 class CanvasWidget final : public QWidget {
   Q_OBJECT
 
@@ -1657,6 +1667,7 @@ private:
   void refresh_transform_multi_preview_cache(bool processing_wait);
   void commit_free_transform_multi();
   void refresh_transform_composited_preview_cache(bool processing_wait = false);
+  [[nodiscard]] const TransformLinkedMaskSource* transform_linked_mask_source(const Layer& layer);
   void refresh_transform_preview_for_drag();
   [[nodiscard]] bool transform_drag_should_use_proxy_preview() const;
   void ensure_transform_proxy_image();
@@ -2327,6 +2338,11 @@ private:
   // drag move latches the proxy. Persists across drags within the session
   // (the layer stays expensive) and resets with the session state.
   bool transform_live_frame_slow_{false};
+  // Session cache of the linked raster masks' non-default crops, keyed by the
+  // layer content revision (mask edits and Layer Style live edits bump it, a
+  // mouse-move never does). Looked up on the main thread before a preview
+  // compute starts; cleared with the rest of the session state.
+  std::unordered_map<LayerId, TransformLinkedMaskSource> transform_mask_sources_;
   // Level the transform base was composited at (preview-scaled document);
   // 0 = full-res.
   int transform_base_cache_scale_level_{0};

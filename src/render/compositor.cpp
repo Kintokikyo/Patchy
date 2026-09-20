@@ -257,7 +257,7 @@ PixelBuffer Compositor::flatten_rgb8(const Document& document, std::vector<std::
   // pixel test) keep the sequential path byte for byte, as does
   // PATCHY_RENDER_SINGLE_THREADED=1.
   const auto area = static_cast<std::int64_t>(document.width()) * static_cast<std::int64_t>(document.height());
-  const auto hardware_threads = static_cast<int>(std::thread::hardware_concurrency());
+  const auto hardware_threads = patchy::hardware_worker_threads();
   // max_blocking_fanout_workers: this thread blocks on the strip joins below,
   // so on the wasm main thread the fan-out must fit the idle pthread pool or
   // it deadlocks the tab; fewer strips (or the sequential path) is the

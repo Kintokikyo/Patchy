@@ -127,7 +127,7 @@ void parallel_chunks(std::size_t count, std::size_t min_per_worker, int max_work
   }
   int wanted = static_cast<int>(std::min<std::size_t>(
       std::max<std::size_t>(1, count / std::max<std::size_t>(1, min_per_worker)),
-      std::clamp<unsigned>(std::thread::hardware_concurrency(), 1U, 8U)));
+      static_cast<std::size_t>(std::min(hardware_worker_threads(), 8))));
   if (max_workers > 0) {
     wanted = std::min(wanted, max_workers);
   }

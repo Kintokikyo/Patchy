@@ -1190,7 +1190,7 @@ QImage render_document_rect(const Document& document, QRect document_rect, bool 
   // PATCHY_RENDER_SINGLE_THREADED escape hatch.
   RenderProfile profile;
   const auto clip_area = static_cast<std::int64_t>(clip.width) * static_cast<std::int64_t>(clip.height);
-  const auto hardware_threads = static_cast<int>(std::thread::hardware_concurrency());
+  const auto hardware_threads = patchy::hardware_worker_threads();
   // max_blocking_fanout_workers: this thread blocks on the strip futures, so
   // on the wasm main thread the fan-out must fit the idle pthread pool or it
   // deadlocks the tab (fewer strips render the same bytes, just slower).
@@ -1346,7 +1346,7 @@ std::vector<RenderedDocumentPatch> render_document_region(
   // readable.
   const auto worker_budget = max_blocking_fanout_workers(
       std::clamp(static_cast<int>(rects.size()), 1,
-                 std::max(1, static_cast<int>(std::thread::hardware_concurrency()))));
+                 patchy::hardware_worker_threads()));
   const bool parallel = rects.size() >= 2U && worker_budget >= 2 && total_area >= 1'000'000 &&
                         !qEnvironmentVariableIsSet("PATCHY_RENDER_SINGLE_THREADED") && !render_trace_enabled() &&
                         !render_profile_enabled();
@@ -1701,7 +1701,7 @@ namespace {
 // result into a commit or render-cache patch path.
 QImage render_document_rect_banded(const Document& document, QRect clipped, bool preserve_alpha,
                                    const std::vector<render_detail::LayerBoundsOverride>& overrides) {
-  const auto hardware_threads = std::max(1, static_cast<int>(std::thread::hardware_concurrency()));
+  const auto hardware_threads = patchy::hardware_worker_threads();
   const auto worker_budget =
       max_blocking_fanout_workers(std::clamp(clipped.height() / 32, 1, std::min(hardware_threads, 16)));
   if (worker_budget < 2 || qEnvironmentVariableIsSet("PATCHY_RENDER_SINGLE_THREADED") || render_trace_enabled() ||

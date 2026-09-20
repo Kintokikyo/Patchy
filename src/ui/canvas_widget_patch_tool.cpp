@@ -482,7 +482,7 @@ void CanvasWidget::commit_patch_tool_drag() {
   };
 
   const auto area = static_cast<std::int64_t>(destination_bounds.width()) * destination_bounds.height();
-  const auto hardware_threads = static_cast<int>(std::thread::hardware_concurrency());
+  const auto hardware_threads = patchy::hardware_worker_threads();
   // max_blocking_fanout_workers: this thread blocks on the row futures, so on
   // the wasm main thread the fan-out must fit the idle pthread pool.
   const auto workers = patchy::max_blocking_fanout_workers(

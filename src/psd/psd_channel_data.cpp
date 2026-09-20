@@ -587,7 +587,7 @@ void convert_cmyk_planes_to_rgb(PixelBuffer& pixels, const std::uint8_t* cyan,
   // for any worker count.
   const auto worker_count = static_cast<std::size_t>(std::max(
       1, max_blocking_fanout_workers(static_cast<int>(
-             std::min<std::size_t>(std::max<std::size_t>(1, std::thread::hardware_concurrency()), 16)))));
+             std::min<std::size_t>(static_cast<std::size_t>(hardware_worker_threads()), 16)))));
   // One worker means the split buys nothing; run inline instead of spawning a
   // single thread (which single-threaded wasm builds cannot create at all).
   if (worker_count <= 1) {

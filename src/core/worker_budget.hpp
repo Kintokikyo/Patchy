@@ -16,6 +16,14 @@ namespace patchy {
 // Callers fall back to their sequential path when this returns less than 2.
 int max_blocking_fanout_workers(int wanted);
 
+// The worker count every parallel fan-out sizes itself from:
+// std::thread::hardware_concurrency() (at least 1), or PATCHY_RENDER_THREADS
+// when that is set to a positive integer. The override exists to emulate a
+// machine with fewer cores on the reference box (a 4-thread laptop keeps
+// every per-frame fan-out four times longer than the 24-thread build box
+// shows), so perf harnesses can price the low-core case; it is read once.
+int hardware_worker_threads() noexcept;
+
 // Number of pre-spawned pthread pool workers currently idle, read on the wasm
 // main browser thread. Returns a huge value on native builds, on
 // single-threaded wasm, and on wasm worker threads (which cannot see the
