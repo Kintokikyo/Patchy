@@ -184,6 +184,7 @@
 #include <QMutex>
 #include <QHash>
 #include <QInputMethod>
+#include <QInputMethodEvent>
 #include <QRawFont>
 #include <QTextCharFormat>
 #include <QTextBlock>
@@ -318,6 +319,11 @@ constexpr auto kTextEditorPreviewPaintProperty = "patchy.previewPaintsText";
 constexpr auto kTextEditorPreviewCaretProperty = "patchy.previewCaretRect";
 constexpr auto kTextEditorPreviewSelectionProperty = "patchy.previewSelectionRects";
 constexpr auto kTextEditorTransformedOverlayProperty = "patchy.transformedPreviewOverlayActive";
+// The input method's uncommitted composition (the kana being typed before the IME commits it).
+// Qt keeps it in the widget's preedit layer, outside the document, so every render document
+// built from the editor has to add it back or the user types blind until the IME commits.
+constexpr auto kTextEditorPreeditTextProperty = "patchy.preeditText";
+constexpr auto kTextEditorPreeditCursorProperty = "patchy.preeditCursor";
 constexpr auto kTextEditorChangedProperty = "patchy.textEditorChanged";
 constexpr auto kTextEditorSourceRasterPreviewProperty = "patchy.sourceRasterPreview";
 constexpr auto kTextEditorForceBakedPreviewProperty = "patchy.forceBakedPreview";
@@ -358,6 +364,8 @@ int text_editor_caret_width(const QTextEdit& editor) noexcept;
 int text_editor_caret_blink_phase_ms();
 QRect text_editor_viewport_caret_rect(const QTextEdit& editor);
 std::optional<QRect> text_editor_input_method_rect(const QTextEdit& editor);
+QString text_editor_preedit_text(const QTextEdit& editor);
+int text_editor_caret_position(const QTextEdit& editor);
 std::vector<QRect> text_editor_viewport_selection_rects(const QTextEdit& editor, int start, int end);
 double text_editor_metric_scale(const QTextEdit& editor);
 bool text_editor_uses_photoshop_layout(const QTextEdit& editor);
@@ -1442,6 +1450,34 @@ protected:
     QTextEdit::focusInEvent(event);
   }
 
+  // Mirror the composition into properties the render documents read
+  // (document_from_editor_in_document_units) and re-preview, exactly like a keystroke: the
+  // preedit is not document text, so textChanged never fires for it.
+  void inputMethodEvent(QInputMethodEvent* event) override {
+    QTextEdit::inputMethodEvent(event);
+    const auto preedit = event->preeditString();
+    int cursor = static_cast<int>(preedit.size());
+    for (const auto& attribute : event->attributes()) {
+      if (attribute.type == QInputMethodEvent::Cursor) {
+        cursor = std::clamp(attribute.start, 0, static_cast<int>(preedit.size()));
+      }
+    }
+    const bool changed = property(kTextEditorPreeditTextProperty).toString() != preedit ||
+                         property(kTextEditorPreeditCursorProperty).toInt() != cursor;
+    setProperty(kTextEditorPreeditTextProperty, preedit.isEmpty() ? QVariant() : QVariant(preedit));
+    setProperty(kTextEditorPreeditCursorProperty, preedit.isEmpty() ? QVariant() : QVariant(cursor));
+    if (changed && composition_changed_ && !property(kTextEditorFinishedProperty).toBool()) {
+      composition_changed_();
+    }
+  }
+
+public:
+  void set_composition_changed_callback(std::function<void()> callback) {
+    composition_changed_ = std::move(callback);
+  }
+
+protected:
+
   // Vertical text: the arrow keys follow the columns. Up/Down step along the column (previous
   // and next character), Left/Right jump to the next and previous column (columns advance
   // leftward, and with NoWrap every paragraph is one QTextLine, so Qt's own Down/Up land
@@ -1600,6 +1636,7 @@ private:
 
   QElapsedTimer caret_blink_clock_;
   QTimer caret_blink_timer_;
+  std::function<void()> composition_changed_;
 };
 
 class TextCommitFilter final : public QObject {
@@ -1900,8 +1937,29 @@ std::unique_ptr<QTextDocument> copy_text_document_formats(const QTextDocument& s
   return document;
 }
 
+QString text_editor_preedit_text(const QTextEdit& editor) {
+  return editor.property(kTextEditorPreeditTextProperty).toString();
+}
+
+// The caret's position in the text the render documents lay out: the document cursor plus the
+// input method's cursor inside the composition (which those documents insert at the cursor).
+int text_editor_caret_position(const QTextEdit& editor) {
+  const auto position = editor.textCursor().position();
+  const auto preedit = text_editor_preedit_text(editor);
+  if (preedit.isEmpty()) {
+    return position;
+  }
+  return position + std::clamp(editor.property(kTextEditorPreeditCursorProperty).toInt(), 0,
+                               static_cast<int>(preedit.size()));
+}
+
 std::unique_ptr<QTextDocument> document_from_editor_in_document_units(const QTextEdit& editor, double zoom) {
   auto document = copy_text_document_formats(*editor.document());
+  if (const auto preedit = text_editor_preedit_text(editor); !preedit.isEmpty()) {
+    QTextCursor cursor(document.get());
+    cursor.setPosition(std::clamp(editor.textCursor().position(), 0, static_cast<int>(document->characterCount()) - 1));
+    cursor.insertText(preedit, editor.currentCharFormat());
+  }
   scale_document_font_sizes(*document, zoom > 0.0 ? 1.0 / zoom : 1.0);
   return document;
 }
@@ -2070,7 +2128,7 @@ QRect text_editor_viewport_caret_rect(const QTextEdit& editor) {
   double zoom = 1.0;
   const auto layout_document = text_editor_document_space_layout(editor, zoom);
   const auto caret_document_rect =
-      text_editor_line_geometry(editor, *layout_document).caret_rect(editor.textCursor().position()).toAlignedRect();
+      text_editor_line_geometry(editor, *layout_document).caret_rect(text_editor_caret_position(editor)).toAlignedRect();
   QRect caret;
   if (!caret_document_rect.isEmpty()) {
     const QPointF scroll_offset(editor.horizontalScrollBar()->value(), editor.verticalScrollBar()->value());
@@ -2123,7 +2181,7 @@ void update_text_editor_preview_caret(QTextEdit& editor, double zoom) {
   }
   editor.setProperty(kTextEditorPreviewSelectionProperty, selection_rects);
 
-  const auto caret_document_rect = geometry.caret_rect(editor.textCursor().position()).toAlignedRect();
+  const auto caret_document_rect = geometry.caret_rect(text_editor_caret_position(editor)).toAlignedRect();
   auto caret = caret_document_rect.isEmpty()
                    ? editor.cursorRect()
                    : scale_document_rect_to_viewport(caret_document_rect, layout_zoom, scroll_offset).toAlignedRect();
@@ -8177,6 +8235,13 @@ void MainWindow::add_text_at(QPoint document_point, QRect requested_text_box, bo
     mark_text_editor_changed(editor);
     resize_editor();
   });
+  editor->set_composition_changed_callback([this, editor = QPointer<QTextEdit>(editor), resize_editor] {
+    if (editor == nullptr) {
+      return;
+    }
+    mark_text_editor_changed(editor);
+    resize_editor();
+  });
   const auto lock_scroll = [editor = QPointer<QTextEdit>(editor)] {
     if (editor != nullptr) {
       reset_text_editor_scroll(editor);
@@ -8357,6 +8422,22 @@ void MainWindow::commit_text_editor(QTextEdit* editor, QPoint document_point, st
     editor->deleteLater();
     refresh_options_bar();  // hides the session apply/cancel buttons
     return;
+  }
+  // An open IME composition is on screen (the preview draws it), so a commit keeps it. The
+  // platform context commits it into the document synchronously where it can (Windows sends
+  // the commit string from reset); where nothing arrives, insert what was being composed.
+  if (!text_editor_preedit_text(*editor).isEmpty()) {
+    if (auto* input_method = QGuiApplication::inputMethod(); input_method != nullptr) {
+      input_method->commit();
+      input_method->reset();
+    }
+    if (const auto preedit = text_editor_preedit_text(*editor); !preedit.isEmpty()) {
+      auto cursor = editor->textCursor();
+      cursor.insertText(preedit, editor->currentCharFormat());
+      editor->setTextCursor(cursor);
+    }
+    editor->setProperty(kTextEditorPreeditTextProperty, QVariant());
+    editor->setProperty(kTextEditorPreeditCursorProperty, QVariant());
   }
   // The provisional layer inserted at click time comes out before anything else: the undo
   // snapshot below must capture the pre-click document, and every dropped-commit path must
@@ -11120,8 +11201,10 @@ void MainWindow::update_text_editor_preview(QTextEdit* editor) {
     return;
   }
 
-  // Untrimmed: run offsets index the full document text (see commit_text_editor).
-  const auto text = editor->toPlainText();
+  // Untrimmed: run offsets index the full document text (see commit_text_editor). The
+  // composition is part of it here, so a first kana in an empty session previews too.
+  auto document_text = document_from_editor_in_document_units(*editor, canvas_->zoom());
+  const auto text = document_text->toPlainText();
   if (text.trimmed().isEmpty()) {
     // As above: consume the vacated region, or an all-deleted session leaves a ghost on screen.
     if (const auto vacated = hide_text_editor_source_layer(editor); !vacated.isEmpty()) {
@@ -11151,7 +11234,6 @@ void MainWindow::update_text_editor_preview(QTextEdit* editor) {
     text_family = text_display_family_from_format(text_editor_reference_format(*editor),
                                                   display_text_family_from_font(editor->font()));
   }
-  auto document_text = document_from_editor_in_document_units(*editor, canvas_->zoom());
   TextToolSettings settings{text,
                             QString(),
                             text_family,

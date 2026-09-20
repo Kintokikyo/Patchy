@@ -990,6 +990,106 @@ void ui_vertical_text_input_method_rect_excludes_the_column() {
   process_events_for(200);
 }
 
+// The IME composition (Qt's preedit string, not document text) used to be invisible in a
+// previewed session: the render documents came from the QTextDocument alone, so a user typing
+// kana saw nothing until the IME committed. The composition now previews at the cursor, moves
+// the drawn caret, survives a commit that interrupts it, and clears when the IME commits.
+void ui_text_ime_composition_previews_and_commits() {
+  register_test_fonts(TestFontRole::UiDefault);
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_zoom(1.0);
+  canvas->set_primary_color(QColor(0, 0, 0));
+  auto& live_document = patchy::ui::MainWindowTestAccess::document(window);
+  require_action_by_text(window, QStringLiteral("Type"))->trigger();
+  QApplication::processEvents();
+  auto* font_combo = window.findChild<QFontComboBox*>(QStringLiteral("textFontCombo"));
+  CHECK(font_combo != nullptr);
+  if (font_combo == nullptr) {
+    return;
+  }
+  font_combo->setCurrentFont(QFont(QStringLiteral("Arial")));
+  patchy::ui::MainWindowTestAccess::add_text_at(window, QPoint(40, 60));
+  auto* editor = canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
+  CHECK(editor != nullptr);
+  if (editor == nullptr) {
+    return;
+  }
+  editor->clear();
+  editor->insertPlainText(QStringLiteral("hey"));
+  process_events_for(250);
+  const auto dark_pixels = [&] {
+    const auto image = canvas->grab().toImage();
+    int count = 0;
+    for (int y = 0; y < image.height(); ++y) {
+      for (int x = 0; x < image.width(); ++x) {
+        if (qGray(image.pixel(x, y)) < 96) {
+          ++count;
+        }
+      }
+    }
+    return count;
+  };
+  const auto caret_before = editor->property("patchy.previewCaretRect").toRect();
+  const auto ink_before = dark_pixels();
+  CHECK(!caret_before.isEmpty());
+  CHECK(ink_before > 0);
+
+  // Composing "abc" with the IME cursor at its end.
+  QList<QInputMethodEvent::Attribute> attributes;
+  attributes.push_back(QInputMethodEvent::Attribute(QInputMethodEvent::Cursor, 3, 1, QVariant()));
+  QInputMethodEvent compose(QStringLiteral("abc"), attributes);
+  QApplication::sendEvent(editor, &compose);
+  process_events_for(250);
+  CHECK(editor->toPlainText() == QStringLiteral("hey"));
+  CHECK(editor->property("patchy.preeditText").toString() == QStringLiteral("abc"));
+  const auto caret_composing = editor->property("patchy.previewCaretRect").toRect();
+  const auto ink_composing = dark_pixels();
+  std::printf("  caret %d -> %d, ink %d -> %d\n", caret_before.x(), caret_composing.x(), ink_before, ink_composing);
+  std::fflush(stdout);
+  // The composition is drawn (more ink) and the caret sits after it (three glyphs right).
+  CHECK(ink_composing > ink_before + 40);
+  CHECK(caret_composing.x() > caret_before.x() + 30);
+
+  // The IME cursor inside the composition moves the drawn caret back.
+  QList<QInputMethodEvent::Attribute> mid_attributes;
+  mid_attributes.push_back(QInputMethodEvent::Attribute(QInputMethodEvent::Cursor, 1, 1, QVariant()));
+  QInputMethodEvent compose_mid(QStringLiteral("abc"), mid_attributes);
+  QApplication::sendEvent(editor, &compose_mid);
+  process_events_for(250);
+  const auto caret_mid = editor->property("patchy.previewCaretRect").toRect();
+  CHECK(caret_mid.x() < caret_composing.x() - 10);
+  CHECK(caret_mid.x() > caret_before.x());
+
+  // The IME commits: the document takes the text, the composition clears, the ink stays.
+  QInputMethodEvent commit(QString(), {});
+  commit.setCommitString(QStringLiteral("abc"));
+  QApplication::sendEvent(editor, &commit);
+  process_events_for(250);
+  CHECK(editor->toPlainText() == QStringLiteral("heyabc"));
+  CHECK(!editor->property("patchy.preeditText").isValid());
+  CHECK(std::abs(dark_pixels() - ink_composing) < 40);
+
+  // A commit that interrupts a composition keeps the composed text (no platform context
+  // offscreen, so this exercises the insert fallback).
+  QInputMethodEvent compose_again(QStringLiteral("d"), {});
+  QApplication::sendEvent(editor, &compose_again);
+  process_events_for(250);
+  require_action_by_text(window, QStringLiteral("Move"))->trigger();
+  process_events_for(200);
+  const auto id = live_document.active_layer_id();
+  CHECK(id.has_value());
+  if (!id.has_value()) {
+    return;
+  }
+  const auto* layer = live_document.find_layer(*id);
+  CHECK(layer != nullptr && patchy::layer_is_text(*layer));
+  if (layer != nullptr) {
+    CHECK(layer->metadata().at(patchy::kLayerMetadataText) == "heyabcd");
+  }
+}
+
 // Horizontal sessions answer the drawn caret too (zoomed, so the widget layout and the render
 // disagree on where the line is), one line tall like a text field.
 void ui_text_input_method_rect_follows_the_drawn_caret() {
@@ -1286,6 +1386,7 @@ std::vector<patchy::test::TestCase> text_vertical_rtl_tests() {
       {"ui_vertical_text_rotated_roman_lies_along_the_column", ui_vertical_text_rotated_roman_lies_along_the_column},
       {"ui_vertical_text_input_method_rect_excludes_the_column", ui_vertical_text_input_method_rect_excludes_the_column},
       {"ui_text_input_method_rect_follows_the_drawn_caret", ui_text_input_method_rect_follows_the_drawn_caret},
+      {"ui_text_ime_composition_previews_and_commits", ui_text_ime_composition_previews_and_commits},
       {"ui_typing_uncovered_characters_switches_their_font", ui_typing_uncovered_characters_switches_their_font},
   };
 }

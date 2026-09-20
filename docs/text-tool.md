@@ -64,40 +64,38 @@ does its final `setTextWidth` before any plan is built. Keep that order.
 
 ## The text on screen is never missing
 
-An edit session must never produce a frame with no glyphs in it. Two rules enforce that:
+An edit session must never produce a frame with no glyphs in it:
 
 - **The edited layer stays visible until its replacement is ready.** `add_text_at` does not hide
   it; `hide_text_editor_source_layer` does, from inside `update_text_editor_preview`, once the
-  preview pixels are in place, and it returns the vacated region so hide and reveal land in ONE
-  `document_changed_effect_bounds` call. Hiding up front blanks the text for the whole
-  first-preview delay.
+  preview pixels are in place, returning the vacated region so hide and reveal land in ONE
+  `document_changed_effect_bounds` call. Hiding up front blanks the text for the first-preview
+  delay.
 - **The debounce never removes the preview.** An expensive style re-renders on the longer delay,
   but the last good preview keeps drawing until the new one replaces it; tearing it out first
-  flashes every keystroke between two rasterizations.
+  flashes every keystroke.
 
 `kTextEditorPreviewPaintProperty` therefore means "the glyphs come from somewhere other than this
 widget", true for the whole of any previewed session.
 `ui_expensive_text_style_preview_never_blanks_while_typing` pins it by sampling the canvas for
-the text's own dark pixels at every point where it could vanish.
+the text's dark pixels wherever it could vanish.
 
-Re-editing an existing layer also must not MOVE its text. Every such session renders live through
-`render_text_pixels`, including plain unstyled text that needs no preview otherwise
-(`kTextEditorForceBakedPreviewProperty`), because the editor widget's own glyph rasterization
-differs from the committed layer's. `ui_text_edit_entry_leaves_the_pixels_alone` pins both flows:
+Re-editing an existing layer must not MOVE its text. Every such session renders live through
+`render_text_pixels`, plain unstyled text included (`kTextEditorForceBakedPreviewProperty`),
+because the editor widget's own glyph rasterization differs from the committed layer's. `ui_text_edit_entry_leaves_the_pixels_alone` pins both flows:
 enter, do nothing, and the preview must be byte-identical to the committed pixels at the same
 origin, as must a re-commit.
 
 **Every session previews, including the one that creates the text.** A new session renders over
 its provisional layer, and `restore_active_layer` is that provisional (not whatever was active
 before the click) so the preview insert does not steal the layer-panel selection. Without this,
-selection highlights drew at widget metrics before the first commit and at render metrics after
-it. One consequence for tests: on-screen glyphs are debounced, so a test that changes an option
-(alignment, size) and measures pixels has to let the preview land first.
+selection highlights drew at widget metrics before the first commit and at render metrics after.
+For tests: on-screen glyphs are debounced, so a test that changes an option (alignment, size) and
+measures pixels has to let the preview land first.
 
 Ending a session must not flash either. `restore_text_editor_source_layer` puts the edited layer
-back BEFORE `remove_text_editor_preview` takes the preview away, in commit and in cancel: the
-layer still holds its committed pixels there, so the text carries through the handover. Removing
-the preview first leaves a frame with neither on screen.
+back BEFORE `remove_text_editor_preview` takes the preview away, in commit and in cancel, so the
+committed pixels carry the text through the handover.
 
 ## Session lifecycle (provisional layer, commit, cancel)
 
@@ -105,11 +103,11 @@ the preview first leaves a frame with neither on screen.
 - **Commit invalidation must cover old ∪ preview ∪ new.** The restore/remove teardown pair invalidates its regions BEFORE the layer mutates, so those rects are recomposited with the pre-commit pixels; `commit_text_editor` captures the old layer and preview render bounds up front and unions them into the post-mutation `document_changed_effect_bounds`. Skipping the union left the old render baked in the canvas cache wherever the new bounds did not cover it (routine on warped layers, whose bounds change shape per edit) until a manual F5. Same rule for `hide_text_editor_source_layer`: it returns the vacated rect and never invalidates itself, so every caller must consume the return (the no-preview and empty-text branches in `update_text_editor_preview` once dropped it and left a ghost after select-all + Delete).
 - **Warped text layers get a warp-aware session**: entry resolves a Move-corrected unwarped transform and gates off every raster-derived anchor (the raster is the warped ink). See the Warp Text section of [warp.md](warp.md).
 - Clicking off commits through the focus-loss handler, which arms `swallow_next_canvas_left_press_` so the press that caused the commit cannot start the next session; a release clears a stale flag. MainWindow's canvas event filter must leave that flag alone for input delivered during a blocking processing wait: on wasm the mouseup arrives re-entrantly inside the commit's own undo-snapshot wait, before the press resumes, and clearing the flag there opened a new text session from one click off (see the input-reentry rules in [wasm.md](wasm.md); pinned by `ui_text_click_off_commit_ignores_reentrant_release_during_wait`).
-- Mutating actions that take no focus (e.g. layer lock buttons) must call `finish_active_text_editor()` first, or they operate on a half-committed session.
+- Mutating actions that take no focus (layer lock buttons) must call `finish_active_text_editor()` first, or they operate on a half-committed session.
 
 ## Delete semantics
 
-Delete on a text layer deletes the OBJECT, never its pixels: pixel-clearing leaves an invisible layer whose metadata resurrects the text (`clear_active_layer` special-cases it; mixed selections clear pixels and delete text layers in one undo step).
+Delete on a text layer deletes the OBJECT, never its pixels: clearing leaves an invisible layer whose metadata resurrects the text (`clear_active_layer` special-cases it; mixed selections clear pixels and delete text layers in one undo step).
 
 ## The overlay must accept click focus
 
@@ -284,6 +282,10 @@ the session contract.
   `ImCursorRectangle` with `text_editor_input_method_rect`: the caret's line, the whole remaining
   column for vertical text (Windows keeps the candidate list out of that rect), mapped through
   the overlay when transformed. QTextEdit's own answer put the IME list on the typed column.
+  The composition (Qt's preedit, not document text) is mirrored into
+  `kTextEditorPreeditTextProperty`; `document_from_editor_in_document_units` inserts it at the
+  cursor, so every render document, the caret (`text_editor_caret_position`) and an
+  interrupting commit carry what is being typed.
 - **Right-to-left needs no shaping work**: Qt runs bidi and HarfBuzz in QTextLayout. Alignment
   is logical (`QStyle::visualAlignment`), so the anchor helpers resolve it via
   `resolved_block_direction`. Spell non-ASCII test literals as `\x` escapes.
