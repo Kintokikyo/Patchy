@@ -11,6 +11,7 @@
 #include <exception>
 
 class QAction;
+class QBoxLayout;
 class QDialog;
 class QDoubleSpinBox;
 class QFormLayout;
@@ -55,14 +56,28 @@ void configure_dialog_spinbox(QDoubleSpinBox* spin, int width = 92);
 // prefix, and applies sub-control rules unreliably to children created after the stylesheet.
 [[nodiscard]] ThemedQss dialog_spinbox_button_style();
 void configure_compact_symbol_button(QPushButton* button);
+struct SpinStepButtons {
+  QPushButton* decrease{nullptr};
+  QPushButton* increase{nullptr};
+
+  // Disables whichever button cannot move the value any further.
+  void sync(const QSpinBox& spin) const;
+};
+// Appends compact - / + push buttons after `spin` in `layout`. They step the spin
+// box, auto-repeat while held, and disable at the range ends. Object names are
+// <spin objectName>DecreaseButton / <spin objectName>IncreaseButton so UI tests can
+// find them. `field_name` is the field's label ("Size"; a trailing colon is dropped)
+// and feeds the "Decrease %1" / "Increase %1" accessible names and tooltips.
+SpinStepButtons add_spin_step_buttons(QSpinBox* spin, QBoxLayout* layout, const QString& field_name);
 // Adds a "label: [slider ------] [spin]" form row whose slider and spin box mirror
 // each other. Object names are passed explicitly (never derived here): UI tests look
 // these widgets up by exact objectName, so each call site keeps its own naming
-// scheme. row_spacing < 0 keeps the layout's default spacing.
+// scheme. row_spacing < 0 keeps the layout's default spacing. step_buttons appends
+// the add_spin_step_buttons pair after the spin box for one-unit adjustments.
 QSpinBox* add_dialog_slider_spin_row(QFormLayout* form, QWidget* parent, const QString& label,
                                      const QString& slider_object_name, const QString& spin_object_name,
                                      int minimum, int maximum, int value, const QString& suffix = QString(),
-                                     int spin_width = 72, int row_spacing = -1);
+                                     int spin_width = 72, int row_spacing = -1, bool step_buttons = false);
 // Moves a popup (already resized to its final size) directly below `anchor`:
 // clamps it inside the screen's available horizontal range and flips it above
 // the anchor when it would run past the bottom. Call before show().

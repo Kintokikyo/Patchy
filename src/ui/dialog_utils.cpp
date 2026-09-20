@@ -992,7 +992,7 @@ void configure_dialog_spinbox(QDoubleSpinBox* spin, int width) {
 QSpinBox* add_dialog_slider_spin_row(QFormLayout* form, QWidget* parent, const QString& label,
                                      const QString& slider_object_name, const QString& spin_object_name,
                                      int minimum, int maximum, int value, const QString& suffix,
-                                     int spin_width, int row_spacing) {
+                                     int spin_width, int row_spacing, bool step_buttons) {
   auto* row = new QWidget(parent);
   auto* row_layout = new QHBoxLayout(row);
   row_layout->setContentsMargins(0, 0, 0, 0);
@@ -1012,7 +1012,18 @@ QSpinBox* add_dialog_slider_spin_row(QFormLayout* form, QWidget* parent, const Q
   }
   configure_dialog_spinbox(spin, spin_width);
   row_layout->addWidget(slider, 1);
-  row_layout->addWidget(spin);
+  if (step_buttons) {
+    // The field and its - / + pair read as one control: tight spacing inside,
+    // the row's own gap between them and the slider.
+    auto* field_layout = new QHBoxLayout();
+    field_layout->setContentsMargins(0, 0, 0, 0);
+    field_layout->setSpacing(2);
+    field_layout->addWidget(spin);
+    row_layout->addLayout(field_layout);
+    add_spin_step_buttons(spin, field_layout, label);
+  } else {
+    row_layout->addWidget(spin);
+  }
   QObject::connect(slider, &QSlider::valueChanged, spin, &QSpinBox::setValue);
   QObject::connect(spin, qOverload<int>(&QSpinBox::valueChanged), slider, &QSlider::setValue);
   form->addRow(label, row);
@@ -1140,6 +1151,61 @@ void configure_compact_symbol_button(QPushButton* button) {
   }
   button->setFixedSize(22, 22);
   button->update();
+}
+
+namespace {
+
+ThemedQss spin_step_button_style() {
+  return ThemedQss(QStringLiteral(R"(
+    QPushButton {
+      background: @button_bg;
+      border: 1px solid @field_inset_border;
+      border-top-color: @field_bevel_top;
+      border-radius: 2px;
+      padding: 0;
+    }
+    QPushButton:hover { background: @button_hover_bg; border-color: @button_hover_border; }
+    QPushButton:pressed { background: @accent_pressed_bg; border-color: @accent_border_bright; }
+    QPushButton:disabled { background: @spin_button_disabled_bg; border-top-color: @spin_button_disabled_bevel; }
+  )"));
+}
+
+}  // namespace
+
+void SpinStepButtons::sync(const QSpinBox& spin) const {
+  decrease->setEnabled(spin.value() > spin.minimum());
+  increase->setEnabled(spin.value() < spin.maximum());
+}
+
+SpinStepButtons add_spin_step_buttons(QSpinBox* spin, QBoxLayout* layout, const QString& field_name) {
+  auto name = field_name.trimmed();
+  if (name.endsWith(QLatin1Char(':'))) {
+    name.chop(1);
+  }
+  const auto step_style = spin_step_button_style();
+  const auto make_button = [&](const QString& symbol, const QString& suffix, const QString& accessible) {
+    auto* button = new QPushButton(symbol, layout->parentWidget());
+    button->setObjectName(spin->objectName() + suffix);
+    button->setAccessibleName(accessible);
+    button->setToolTip(accessible);
+    button->setAutoRepeat(true);
+    configure_compact_symbol_button(button);
+    set_themed_style(*button, step_style);
+    layout->addWidget(button);
+    return button;
+  };
+
+  SpinStepButtons buttons;
+  buttons.decrease = make_button(QStringLiteral("-"), QStringLiteral("DecreaseButton"),
+                                 QObject::tr("Decrease %1").arg(name));
+  buttons.increase = make_button(QStringLiteral("+"), QStringLiteral("IncreaseButton"),
+                                 QObject::tr("Increase %1").arg(name));
+  QObject::connect(buttons.decrease, &QPushButton::clicked, spin, &QSpinBox::stepDown);
+  QObject::connect(buttons.increase, &QPushButton::clicked, spin, &QSpinBox::stepUp);
+  QObject::connect(spin, qOverload<int>(&QSpinBox::valueChanged), spin,
+                   [buttons, spin](int) { buttons.sync(*spin); });
+  buttons.sync(*spin);
+  return buttons;
 }
 
 VisibleSizeGrip::VisibleSizeGrip(QWidget* parent) : QSizeGrip(parent) {

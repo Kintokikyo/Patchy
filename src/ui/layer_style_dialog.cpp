@@ -1064,7 +1064,7 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
                                                    int value, const QString& suffix = {}, int spin_width = 72) {
     return add_dialog_slider_spin_row(form, parent, label, slider_object_name(spin_object_name),
                                       spin_object_name, minimum, maximum, value, suffix, spin_width,
-                                      /*row_spacing=*/8);
+                                      /*row_spacing=*/8, /*step_buttons=*/true);
   };
   auto add_color_slider_row = [&slider_object_name](QVBoxLayout* layout, QWidget* parent, const QString& label,
                                                     const QString& spin_object_name, std::uint8_t value) {
@@ -2163,19 +2163,6 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
       color: @spinbox_disabled_text;
     }
   )");
-  const auto blend_if_step_button_style = QStringLiteral(R"(
-    QPushButton {
-      background: @button_bg;
-      border: 1px solid @field_inset_border;
-      border-top-color: @field_bevel_top;
-      border-radius: 2px;
-      padding: 0;
-    }
-    QPushButton:hover { background: @button_hover_bg; border-color: @button_hover_border; }
-    QPushButton:pressed { background: @accent_pressed_bg; border-color: @accent_border_bright; }
-    QPushButton:disabled { background: @spin_button_disabled_bg; border-top-color: @spin_button_disabled_bevel; }
-  )");
-
   auto make_blend_if_spin = [&](QWidget* parent_widget, const QString& object_name,
                                 const QString& accessible_name) {
     BlendIfRowWidgets::SpinControl control;
@@ -2192,37 +2179,11 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
     spin->setFixedWidth(48);
     set_themed_style(*spin, blend_if_value_style);
 
-    auto* decrease = new QPushButton(QStringLiteral("-"), control.container);
-    decrease->setObjectName(object_name + QStringLiteral("DecreaseButton"));
-    decrease->setAccessibleName(QObject::tr("Decrease %1").arg(accessible_name));
-    decrease->setToolTip(decrease->accessibleName());
-    decrease->setAutoRepeat(true);
-    configure_compact_symbol_button(decrease);
-    set_themed_style(*decrease, blend_if_step_button_style);
-
-    auto* increase = new QPushButton(QStringLiteral("+"), control.container);
-    increase->setObjectName(object_name + QStringLiteral("IncreaseButton"));
-    increase->setAccessibleName(QObject::tr("Increase %1").arg(accessible_name));
-    increase->setToolTip(increase->accessibleName());
-    increase->setAutoRepeat(true);
-    configure_compact_symbol_button(increase);
-    set_themed_style(*increase, blend_if_step_button_style);
-
     layout->addWidget(spin);
-    layout->addWidget(decrease);
-    layout->addWidget(increase);
-
     control.spin = spin;
-    control.decrease = decrease;
-    control.increase = increase;
-    QObject::connect(decrease, &QPushButton::clicked, spin, &QSpinBox::stepDown);
-    QObject::connect(increase, &QPushButton::clicked, spin, &QSpinBox::stepUp);
-    QObject::connect(spin, qOverload<int>(&QSpinBox::valueChanged), control.container,
-                     [decrease, increase, spin](int) {
-                       decrease->setEnabled(spin->value() > spin->minimum());
-                       increase->setEnabled(spin->value() < spin->maximum());
-                     });
-    control.sync_buttons();
+    const auto buttons = add_spin_step_buttons(spin, layout, accessible_name);
+    control.decrease = buttons.decrease;
+    control.increase = buttons.increase;
     return control;
   };
 

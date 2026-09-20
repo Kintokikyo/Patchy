@@ -1761,6 +1761,125 @@ void ui_layer_style_pattern_overlay_controls_map_to_settings() {
   CHECK(!result.link_with_layer);
 }
 
+void ui_layer_style_slider_rows_have_step_buttons() {
+  patchy::Document document(96, 72, patchy::PixelFormat::rgba8());
+  patchy::Layer layer(document.allocate_layer_id(), "Step Buttons",
+                      solid_pixels(48, 36, patchy::PixelFormat::rgba8(), QColor(80, 140, 220, 255)));
+  patchy::LayerBevelEmboss bevel;
+  bevel.enabled = true;
+  layer.layer_style().bevels.push_back(bevel);
+
+  bool inspected = false;
+  QTimer::singleShot(0, [&] {
+    auto* dialog = qobject_cast<QDialog*>(find_top_level_dialog(QStringLiteral("patchyLayerStyleDialog")));
+    CHECK(dialog != nullptr);
+    auto* categories = dialog->findChild<QListWidget*>(QStringLiteral("layerStyleCategoryList"));
+    CHECK(categories != nullptr);
+    const auto click_step_button = [](QPushButton* button) {
+      send_mouse(*button, QEvent::MouseButtonPress, button->rect().center(), Qt::LeftButton,
+                 Qt::LeftButton);
+      send_mouse(*button, QEvent::MouseButtonRelease, button->rect().center(), Qt::LeftButton,
+                 Qt::NoButton);
+    };
+
+    // Every effect slider row carries the pair; only the R/G/B colour rows and the
+    // standalone fields (gradient stops, noise) stay bare.
+    int slider_rows = 0;
+    for (auto* spin : dialog->findChildren<QSpinBox*>()) {
+      const auto name = spin->objectName();
+      if (!name.startsWith(QStringLiteral("layerStyle")) || !name.endsWith(QStringLiteral("Spin"))) {
+        continue;
+      }
+      auto slider_name = name;
+      slider_name.chop(4);
+      slider_name += QStringLiteral("Slider");
+      if (dialog->findChild<QSlider*>(slider_name) == nullptr) {
+        continue;
+      }
+      const bool colour_channel = name.endsWith(QStringLiteral("RedSpin")) ||
+                                  name.endsWith(QStringLiteral("GreenSpin")) ||
+                                  name.endsWith(QStringLiteral("BlueSpin"));
+      auto* decrease = dialog->findChild<QPushButton*>(name + QStringLiteral("DecreaseButton"));
+      auto* increase = dialog->findChild<QPushButton*>(name + QStringLiteral("IncreaseButton"));
+      if (colour_channel) {
+        CHECK(decrease == nullptr && increase == nullptr);
+        continue;
+      }
+      ++slider_rows;
+      CHECK(decrease != nullptr && increase != nullptr);
+      if (decrease == nullptr || increase == nullptr) {
+        continue;
+      }
+      CHECK(!decrease->icon().isNull() && !increase->icon().isNull());
+      CHECK(decrease->autoRepeat() && increase->autoRepeat());
+    }
+    CHECK(slider_rows >= 40);
+
+    const auto bevel_items = categories->findItems(QStringLiteral("Bevel & Emboss"), Qt::MatchExactly);
+    CHECK(!bevel_items.isEmpty());
+    categories->setCurrentItem(bevel_items.front());
+    QApplication::processEvents();
+
+    auto* size = dialog->findChild<QSpinBox*>(QStringLiteral("layerStyleBevelSizeSpin"));
+    auto* size_slider = dialog->findChild<QSlider*>(QStringLiteral("layerStyleBevelSizeSlider"));
+    auto* size_minus = dialog->findChild<QPushButton*>(QStringLiteral("layerStyleBevelSizeSpinDecreaseButton"));
+    auto* size_plus = dialog->findChild<QPushButton*>(QStringLiteral("layerStyleBevelSizeSpinIncreaseButton"));
+    CHECK(size != nullptr && size_slider != nullptr);
+    CHECK(size_minus != nullptr && size_plus != nullptr);
+    CHECK(size_minus->accessibleName() == QStringLiteral("Decrease Size"));
+    CHECK(size_plus->accessibleName() == QStringLiteral("Increase Size"));
+    CHECK(size_minus->toolTip() == QStringLiteral("Decrease Size"));
+    for (auto* button : {size_minus, size_plus}) {
+      CHECK(button->isVisible());
+      CHECK(button->width() >= 20 && button->height() >= 20);
+    }
+    // The buttons sit right of the field, and the field keeps a readable width.
+    CHECK(size_minus->x() > size->x() + size->width() - 1);
+    CHECK(size_plus->x() > size_minus->x());
+    CHECK(size->width() >= 60);
+
+    size->setValue(5);
+    click_step_button(size_plus);
+    CHECK(size->value() == 6);
+    CHECK(size_slider->value() == 6);
+    click_step_button(size_minus);
+    CHECK(size->value() == 5);
+    CHECK(size_slider->value() == 5);
+
+    size->setValue(size->minimum());
+    CHECK(!size_minus->isEnabled());
+    CHECK(size_plus->isEnabled());
+    size->setValue(size->maximum());
+    CHECK(size_minus->isEnabled());
+    CHECK(!size_plus->isEnabled());
+    size->setValue(7);
+    CHECK(size_minus->isEnabled() && size_plus->isEnabled());
+
+    // The slider side stays in sync when the stepper drives an opacity row too.
+    auto* opacity = dialog->findChild<QSpinBox*>(QStringLiteral("layerStyleBevelHighlightOpacitySpin"));
+    auto* opacity_slider = dialog->findChild<QSlider*>(QStringLiteral("layerStyleBevelHighlightOpacitySlider"));
+    auto* opacity_minus =
+        dialog->findChild<QPushButton*>(QStringLiteral("layerStyleBevelHighlightOpacitySpinDecreaseButton"));
+    CHECK(opacity != nullptr && opacity_slider != nullptr && opacity_minus != nullptr);
+    opacity->setValue(75);
+    click_step_button(opacity_minus);
+    CHECK(opacity->value() == 74);
+    CHECK(opacity_slider->value() == 74);
+
+    save_widget_artifact("ui_layer_style_step_buttons", *dialog);
+    inspected = true;
+    dialog->accept();
+  });
+
+  const auto settings = patchy::ui::request_layer_style_settings(nullptr, layer, {});
+  CHECK(inspected);
+  CHECK(settings.has_value());
+  CHECK(settings->style.bevels.size() == 1);
+  const auto& result = settings->style.bevels.front();
+  CHECK(std::abs(result.size - 7.0F) < 0.01F);
+  CHECK(std::abs(result.highlight_opacity - 0.74F) < 0.005F);
+}
+
 }  // namespace
 
 std::vector<patchy::test::TestCase> layer_style_gradient_tests_part1() {
@@ -1775,6 +1894,7 @@ std::vector<patchy::test::TestCase> layer_style_gradient_tests_part1() {
        ui_blend_if_range_editor_renders_and_edits_split_handles},
       {"ui_layer_style_blend_if_controls_load_channels_and_map_settings",
        ui_layer_style_blend_if_controls_load_channels_and_map_settings},
+      {"ui_layer_style_slider_rows_have_step_buttons", ui_layer_style_slider_rows_have_step_buttons},
       {"ui_layer_style_blend_if_preview_off_accumulates_and_cancel_restores",
        ui_layer_style_blend_if_preview_off_accumulates_and_cancel_restores},
       {"ui_layer_style_blend_if_unsupported_requires_explicit_replace",

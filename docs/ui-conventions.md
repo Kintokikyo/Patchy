@@ -50,6 +50,8 @@ Show a dialog through `exec_dialog` or `run_non_modal_dialog` rather than callin
 
 Dialog spin boxes that retain their minus/plus buttons must append `dialog_spinbox_button_style()` from `src/ui/dialog_utils` to the dialog stylesheet after all children exist.
 
+A slider row that wants one-unit steppers passes `step_buttons = true` to `add_dialog_slider_spin_row`; the Layer Style dialog does this for every effect slider. The pair comes from `add_spin_step_buttons` in `src/ui/dialog_utils.hpp` (compact 22 px `-` / `+` push buttons that auto-repeat and disable at the range ends), which the Blend If fields also use. The buttons are named `<spin objectName>DecreaseButton` and `<spin objectName>IncreaseButton`, and their accessible names are the shared `Decrease %1` / `Increase %1` strings with the field label.
+
 A font derived from another one (a smaller detail line, a larger headline) goes through `scale_font_size`, `scaled_font`, or `offset_font` in `src/ui/dialog_utils.hpp`. Never write `font.setPointSizeF(font.pointSizeF() * k)` directly: the size lives in points or pixels and the unused accessor returns -1, so that line is a no-op plus a Qt warning wherever the inherited font is pixel-defined (macOS). See the cross-platform rules in [platform.md](platform.md).
 
 ## Item-widget rows and selection
