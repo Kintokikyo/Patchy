@@ -2609,6 +2609,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   // 48 px at the default document's 72 ppi = 48 pt (startup builds the bar with
   // no document open).
   text_size_spin_->setValue(has_active_document() ? text_pixels_to_points(48, document()) : 48.0);
+  text_size_auto_points_ = text_size_spin_->value();
   text_size_spin_->setSuffix(tr(" pt"));
   configure_toolbar_spinbox(text_size_spin_, 74);
   add_option_widget(text_size_spin_, {CanvasTool::Text});
@@ -2671,7 +2672,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   bind_widget_text(text_orientation_button_, QT_TR_NOOP("Vertical"));
   text_orientation_button_->setObjectName(QStringLiteral("textOrientationButton"));
   text_orientation_button_->setCheckable(true);
-  text_orientation_button_->setChecked(text_vertical_default_);
+  text_orientation_button_->setChecked(false);
   bind_tooltip(text_orientation_button_, QT_TR_NOOP("Vertical text: columns read top to bottom, right to left"));
   text_orientation_button_->setFocusPolicy(Qt::NoFocus);
   add_option_widget(text_orientation_button_, {CanvasTool::Text});

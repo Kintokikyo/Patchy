@@ -7401,6 +7401,21 @@ void MainWindow::rerender_text_layers_through_transforms(DocumentSession& target
   refresh_layers(std::as_const(target.document).layers());
 }
 
+int MainWindow::automatic_text_size_px(std::optional<int> box_height) const {
+  if (!has_active_document()) {
+    return 48;
+  }
+  const auto& doc = std::as_const(*this).document();
+  const auto shorter = static_cast<double>(std::max(1, std::min(doc.width(), doc.height())));
+  // 1/16 of the shorter side: 48 px on the 1024x768 default, ~68 on 1080p, ~312 on 5000.
+  auto size = std::clamp(static_cast<int>(std::lround(shorter / 16.0)), 8, 1024);
+  if (box_height.has_value()) {
+    // A dragged frame fits at least two lines.
+    size = std::clamp(*box_height / 2, 8, size);
+  }
+  return size;
+}
+
 void MainWindow::add_text_at(QPoint document_point, QRect requested_text_box, bool show_editor) {
   if (canvas_ == nullptr) {
     return;
@@ -7465,8 +7480,9 @@ void MainWindow::add_text_at(QPoint document_point, QRect requested_text_box, bo
     requested_text_box = requested_text_box.normalized();
     document_point = requested_text_box.topLeft();
   }
-  // New type takes the options bar's orientation; a re-edit takes the layer's.
-  bool vertical_text = text_vertical_default_;
+  // New type starts horizontal unless the toggle armed it; a re-edit takes the layer's.
+  bool vertical_text = text_vertical_next_;
+  text_vertical_next_ = false;
   // Where the vertical layout's Photoshop anchor stays pinned for the session (relayout moves
   // the widget origin around it as columns grow). A new session anchors at the click.
   std::optional<QPointF> vertical_anchor = QPointF(document_point);
@@ -7744,6 +7760,15 @@ void MainWindow::add_text_at(QPoint document_point, QRect requested_text_box, bo
   std::optional<LayerId> provisional_layer;
   if (!show_editor && !editing_layer.has_value()) {
     return;
+  }
+  if (!editing_layer.has_value() && text_size_spin_ != nullptr &&
+      std::abs(text_size_spin_->value() - text_size_auto_points_) < 0.0005) {
+    // Still on the automatic size: scale it to this document (48 px on the 1024x768 default,
+    // ~312 px on a 5000x5000 canvas, where 48 px was unreadable) and to a dragged box.
+    document_text_size = automatic_text_size_px(boxed_text ? std::optional<int>(document_editor_height) : std::nullopt);
+    text_size_auto_points_ = text_pixels_to_points(document_text_size, document());
+    const QSignalBlocker blocker(text_size_spin_);
+    text_size_spin_->setValue(text_size_auto_points_);
   }
   if (!editing_layer.has_value()) {
     // Photoshop shows the new type layer the moment the tool clicks, so a NEW session inserts
@@ -8840,6 +8865,20 @@ double character_format_scale_property(const QTextCharFormat& format, int proper
 
 }  // namespace
 
+namespace {
+
+// Character-panel numbers apply on Enter, focus loss or a +/- click, never per keystroke:
+// with keyboard tracking on, deleting the "2" of "-200" applied "-00" at once, the apply
+// re-synced the panel from the layer and the field went blank under the user's cursor.
+template <typename Spin>
+void configure_text_character_spin(Spin* spin) {
+  spin->setKeyboardTracking(false);
+  spin->setButtonSymbols(QAbstractSpinBox::PlusMinus);
+  spin->setAccelerated(true);
+}
+
+}  // namespace
+
 void MainWindow::open_text_character_dialog() {
   if (text_character_dialog_ != nullptr) {
     text_character_dialog_->show();
@@ -8884,6 +8923,7 @@ void MainWindow::open_text_character_dialog() {
   text_character_leading_spin_->setSingleStep(0.5);
   text_character_leading_spin_->setSuffix(tr(" pt"));
   configure_dialog_spinbox(text_character_leading_spin_);
+  configure_text_character_spin(text_character_leading_spin_);
   layout->addRow(tr("Leading:"), text_character_leading_spin_);
 
   text_character_tracking_spin_ = new QSpinBox(dialog);
@@ -8892,6 +8932,7 @@ void MainWindow::open_text_character_dialog() {
   text_character_tracking_spin_->setSingleStep(10);
   text_character_tracking_spin_->setToolTip(tr("Space between characters, in 1/1000 em (Photoshop tracking)"));
   configure_dialog_spinbox(text_character_tracking_spin_);
+  configure_text_character_spin(text_character_tracking_spin_);
   layout->addRow(tr("Tracking:"), text_character_tracking_spin_);
 
   text_character_h_scale_spin_ = new QSpinBox(dialog);
@@ -8899,6 +8940,7 @@ void MainWindow::open_text_character_dialog() {
   text_character_h_scale_spin_->setRange(1, 1000);
   text_character_h_scale_spin_->setSuffix(tr(" %"));
   configure_dialog_spinbox(text_character_h_scale_spin_);
+  configure_text_character_spin(text_character_h_scale_spin_);
   layout->addRow(tr("Horizontal scale:"), text_character_h_scale_spin_);
 
   text_character_v_scale_spin_ = new QSpinBox(dialog);
@@ -8906,6 +8948,7 @@ void MainWindow::open_text_character_dialog() {
   text_character_v_scale_spin_->setRange(1, 1000);
   text_character_v_scale_spin_->setSuffix(tr(" %"));
   configure_dialog_spinbox(text_character_v_scale_spin_);
+  configure_text_character_spin(text_character_v_scale_spin_);
   layout->addRow(tr("Vertical scale:"), text_character_v_scale_spin_);
 
   connect(text_character_auto_leading_, &QCheckBox::toggled, this,
@@ -11132,14 +11175,6 @@ void MainWindow::apply_text_orientation(bool vertical, bool remember_default) {
   if (canvas_ == nullptr) {
     return;
   }
-  if (remember_default) {
-    // The options-bar toggle also decides what the NEXT new layer takes; scripted edits
-    // leave the user's tool setting alone. Saved immediately, like the smoothing combo: a
-    // debounced save that never fires before the window closes leaves the previous value in
-    // the store (that leaked a vertical default into unrelated tests on the remote builders).
-    text_vertical_default_ = vertical;
-    save_tool_settings();
-  }
   auto* editor = canvas_->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
   const bool session_open = editor != nullptr && !editor->property(kTextEditorFinishedProperty).toBool();
   if (session_open) {
@@ -11163,13 +11198,18 @@ void MainWindow::apply_text_orientation(bool vertical, bool remember_default) {
   }
   // No session: the selected text layer converts through a hidden session (one undo step),
   // the Character-panel pattern. Nothing selected: the next new layer takes the orientation.
-  if (const auto* layer = text_character_target_layer();
-      layer != nullptr && layer_text_is_vertical(*layer) != vertical) {
-    apply_text_character_edit([vertical](QTextEdit& target) {
-      target.setProperty(kTextEditorOrientationProperty,
-                         vertical ? QString::fromLatin1(kTextOrientationVertical) : QString());
-      return true;
-    });
+  if (const auto* layer = text_character_target_layer(); layer != nullptr) {
+    if (layer_text_is_vertical(*layer) != vertical) {
+      apply_text_character_edit([vertical](QTextEdit& target) {
+        target.setProperty(kTextEditorOrientationProperty,
+                           vertical ? QString::fromLatin1(kTextOrientationVertical) : QString());
+        return true;
+      });
+    }
+  } else if (remember_default) {
+    // Nothing to convert: arm the next new layer (one shot), so the button stays checked until
+    // that layer exists.
+    text_vertical_next_ = vertical;
   }
   sync_text_orientation_controls_from_editor();
 }
@@ -11213,7 +11253,7 @@ void MainWindow::sync_text_orientation_controls_from_editor() {
   }
   const auto* editor = canvas_->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
   const bool session_open = editor != nullptr && !editor->property(kTextEditorFinishedProperty).toBool();
-  bool vertical = text_vertical_default_;
+  bool vertical = text_vertical_next_;
   auto direction = Qt::LayoutDirectionAuto;
   if (session_open) {
     vertical = text_editor_is_vertical(*editor);

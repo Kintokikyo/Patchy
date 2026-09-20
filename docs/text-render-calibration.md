@@ -121,6 +121,9 @@ of PS's 67x92 raster on `vt_point_ja_multi`).
   base size) on every side (psd/psd_text_runs.hpp, shared by the renderer and the Qt-free PSD
   writer), so `text_geometry_for_layer` recovers the anchor from the raster rect alone:
   tx = right - bleed - em/2, ty = top + bleed + fraction x (height - 2 x bleed).
+- **`/Tracking` is written as an integer.** Photoshop's engine re-lays out a layer with a
+  negative float tracking (`-305.000000`) as "the result would be too big", every edit failing;
+  `-305` and positive floats work (COM bisect on a user file, September 2026).
 - **TySh encoding**: descriptor `Ornt` enum `Vrtc`; engine data `/WritingDirection 2` in
   both the Shapes and Lines dictionaries and `/Procession 1` (horizontal: 0, 0). Nothing else
   in the engine data differs between a vertical and a horizontal save.

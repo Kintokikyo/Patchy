@@ -264,9 +264,9 @@ the session contract.
 
 - **One Type tool, an orientation toggle.** `textOrientationButton` (and the layer context
   menu's Horizontal/Vertical Text entry) switches a live session in place, converts the selected
-  layer through the Character-panel hidden session (one undo step), or seeds the next new layer
-  (`tools/textVertical`). `textDirectionCombo` is paragraph-level like alignment. Both carry the
-  `is_text_option_widget` exemption.
+  layer through the Character-panel hidden session (one undo step), or arms the NEXT new layer
+  once. It is never persisted and a fresh session starts horizontal (a sticky default made every
+  later box vertical). `textDirectionCombo` is paragraph-level like alignment.
 - **The plan is the authority, again.** `vertical_text_layout_plan` (ui/text_layout.hpp)
   re-places every grapheme cluster of the horizontally shaped NoWrap document into a cell;
   `TextLineGeometry::from_vertical_plan` answers caret (em-wide bar, thickened ACROSS the column),

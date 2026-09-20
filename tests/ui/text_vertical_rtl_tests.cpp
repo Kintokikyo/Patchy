@@ -4,12 +4,12 @@
 // See docs/text-tool.md ("Vertical text and paragraph direction").
 
 #include "core/layer_metadata.hpp"
-#include "ui/app_settings.hpp"
 #include "core/layer_render_utils.hpp"
 #include "psd/psd_document_io.hpp"
 #include "ui/canvas_widget.hpp"
 #include "ui/main_window.hpp"
 #include "ui/qt_paths.hpp"
+#include "ui/dialog_utils.hpp"
 #include "ui/script_engine.hpp"
 
 #include "local_psd_fixtures.hpp"
@@ -20,7 +20,10 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QCheckBox>
 #include <QComboBox>
+#include <QDialog>
+#include <QSpinBox>
 #include <QDoubleSpinBox>
 #include <QElapsedTimer>
 #include <QEventLoop>
@@ -33,6 +36,7 @@
 #include <QTextCursor>
 #include <QTextDocument>
 #include <QTextLayout>
+#include <QTimer>
 #include <QTextEdit>
 
 #include <algorithm>
@@ -135,6 +139,11 @@ patchy::LayerId add_vertical_text_layer(patchy::Document& document, const char* 
   layer.metadata()[patchy::kLayerMetadataTextParagraphRuns] =
       "v1\n0\t" + std::to_string(utf16_length) + "\t" + alignment;
   return document.add_layer(std::move(layer)).id();
+}
+
+bool layer_is_vertical_metadata(const patchy::Layer& layer) {
+  const auto found = layer.metadata().find(patchy::kLayerMetadataTextOrientation);
+  return found != layer.metadata().end() && found->second == patchy::kTextOrientationVertical;
 }
 
 // Enter the layer with the Type tool at `click`, then apply with no change: the layer
@@ -271,9 +280,7 @@ ToolLayer create_vertical_layer_with_tool(patchy::ui::MainWindow& window, patchy
   return result;
 }
 
-// The orientation toggle is a persisted tool setting (tools/textVertical); leave the suite the
-// way it was found. The store is cleared directly as well: on the Linux/macOS builders the
-// un-toggle alone still left the next test starting vertical (September 2026).
+// A checked toggle with no session arms the next new layer; leave the suite the way it was found.
 auto vertical_toggle_guard(patchy::ui::MainWindow& window) {
   return qScopeGuard([&window] {
     if (auto* toggle = window.findChild<QPushButton*>(QStringLiteral("textOrientationButton"));
@@ -281,7 +288,6 @@ auto vertical_toggle_guard(patchy::ui::MainWindow& window) {
       toggle->click();
       QApplication::processEvents();
     }
-    patchy::ui::app_settings().setValue(QStringLiteral("tools/textVertical"), false);
   });
 }
 
@@ -724,6 +730,204 @@ void ui_rtl_hebrew_paragraph_direction_reorders_and_persists() {
 }
 
 
+// The Character panel's leading field unlocks when Auto leading is unchecked and the value
+// commits into the runs (Photoshop's "Set leading"); it was reported as permanently grey. The
+// panel runs a nested non-modal loop, so the scenario is driven from a queued lambda.
+void ui_text_character_panel_leading_unlocks_and_applies() {
+  register_test_fonts(TestFontRole::UiDefault);
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_zoom(1.0);
+  canvas->set_primary_color(QColor(0, 0, 0));
+  require_action_by_text(window, QStringLiteral("Type"))->trigger();
+  QApplication::processEvents();
+  patchy::ui::MainWindowTestAccess::add_text_at(window, QPoint(40, 40));
+  auto* editor = canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
+  CHECK(editor != nullptr);
+  if (editor == nullptr) {
+    return;
+  }
+  editor->setPlainText(QStringLiteral("One\nTwo\nThree"));
+  process_events_for(250);
+  auto* character_button = window.findChild<QPushButton*>(QStringLiteral("textCharacterButton"));
+  CHECK(character_button != nullptr);
+  if (character_button == nullptr) {
+    return;
+  }
+  bool checks_ran = false;
+  QTimer::singleShot(0, [&window, canvas, &checks_ran] {
+    try {
+      auto* dialog = window.findChild<QDialog*>(QStringLiteral("textCharacterDialog"));
+      CHECK(dialog != nullptr);
+      if (dialog == nullptr) {
+        return;
+      }
+      auto* auto_leading = dialog->findChild<QCheckBox*>(QStringLiteral("textCharacterAutoLeading"));
+      auto* leading = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("textCharacterLeadingSpin"));
+      auto* tracking = dialog->findChild<QSpinBox*>(QStringLiteral("textCharacterTrackingSpin"));
+      CHECK(auto_leading != nullptr && leading != nullptr && tracking != nullptr);
+      if (auto_leading == nullptr || leading == nullptr || tracking == nullptr) {
+        dialog->reject();
+        return;
+      }
+      CHECK(auto_leading->isChecked());
+      CHECK(!leading->isEnabled());
+      CHECK(tracking->buttonSymbols() == QAbstractSpinBox::PlusMinus);
+      CHECK(!tracking->keyboardTracking());
+      auto_leading->setChecked(false);
+      QApplication::processEvents();
+      CHECK(!auto_leading->isChecked());
+      CHECK(leading->isEnabled());
+      leading->setValue(96.0);
+      QApplication::processEvents();
+      process_events_for(250);
+      CHECK(!auto_leading->isChecked());
+      CHECK(leading->isEnabled());
+      CHECK(std::abs(leading->value() - 96.0) < 0.01);
+      require_action_by_text(window, QStringLiteral("Move"))->trigger();
+      QApplication::processEvents();
+      process_events_for(200);
+      auto& live_document = patchy::ui::MainWindowTestAccess::document(window);
+      const auto id = live_document.active_layer_id();
+      CHECK(id.has_value());
+      if (id.has_value()) {
+        const auto* layer = live_document.find_layer(*id);
+        CHECK(layer != nullptr);
+        if (layer != nullptr) {
+          const auto runs = layer->metadata().at(patchy::kLayerMetadataTextRuns);
+          std::printf("  leading runs: %s | height %d\n", runs.substr(0, 70).c_str(), layer->bounds().height);
+          std::fflush(stdout);
+          // 96 pt at 72 ppi = 96 px of leading: three lines span at least 2 x 96 plus a glyph.
+          CHECK(layer->bounds().height >= 2 * 96 + 30);
+          CHECK(runs.find("\t96") != std::string::npos);
+        }
+      }
+      // With the layer selected and no session, the panel still reads fixed leading.
+      CHECK(!auto_leading->isChecked());
+      CHECK(leading->isEnabled());
+      CHECK(canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor")) == nullptr);
+      checks_ran = true;
+      dialog->reject();
+    } catch (...) {
+      patchy::ui::unwind_non_modal_dialog_loop(std::current_exception());
+    }
+  });
+  character_button->click();
+  QApplication::processEvents();
+  CHECK(checks_ran);
+}
+
+// The initial size follows the document until the user types one: 48 px on the default
+// 1024x768 document, ~312 px on a 5000x5000 canvas, and a typed size sticks.
+void ui_new_text_size_scales_with_the_document() {
+  register_test_fonts(TestFontRole::UiDefault);
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto& live_document = patchy::ui::MainWindowTestAccess::document(window);
+  require_action_by_text(window, QStringLiteral("Type"))->trigger();
+  QApplication::processEvents();
+  auto* size_spin = window.findChild<QDoubleSpinBox*>(QStringLiteral("textSizeSpin"));
+  CHECK(size_spin != nullptr);
+  if (size_spin == nullptr) {
+    return;
+  }
+  const auto default_size = size_spin->value();
+  patchy::ui::MainWindowTestAccess::add_text_at(window, QPoint(40, 40));
+  auto* editor = canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
+  CHECK(editor != nullptr);
+  if (editor == nullptr) {
+    return;
+  }
+  const auto small_document_size = editor->property("patchy.documentTextSize").toInt();
+  std::printf("  %dx%d document: %d px (spin %.1f)\n", live_document.width(), live_document.height(),
+              small_document_size, default_size);
+  std::fflush(stdout);
+  CHECK(std::abs(small_document_size - std::lround(std::min(live_document.width(), live_document.height()) / 16.0)) <= 1);
+  require_action_by_text(window, QStringLiteral("Move"))->trigger();
+  process_events_for(150);
+
+  patchy::Document big(5000, 5000, patchy::PixelFormat::rgba8());
+  big.add_pixel_layer("Background", solid_pixels(5000, 5000, patchy::PixelFormat::rgba8(), QColor(Qt::white)));
+  window.add_document_session(std::move(big), QStringLiteral("Big"));
+  QApplication::processEvents();
+  canvas = require_canvas(window);
+  require_action_by_text(window, QStringLiteral("Type"))->trigger();
+  QApplication::processEvents();
+  patchy::ui::MainWindowTestAccess::add_text_at(window, QPoint(400, 400));
+  editor = canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
+  CHECK(editor != nullptr);
+  if (editor == nullptr) {
+    return;
+  }
+  const auto big_size = editor->property("patchy.documentTextSize").toInt();
+  std::printf("  5000x5000 document: %d px (spin %.1f)\n", big_size, size_spin->value());
+  std::fflush(stdout);
+  CHECK(std::abs(big_size - 312) <= 1);
+  require_action_by_text(window, QStringLiteral("Move"))->trigger();
+  process_events_for(150);
+
+  // A user-typed size sticks for the next new layer.
+  patchy::ui::MainWindowTestAccess::document(window).clear_active_layer();
+  require_action_by_text(window, QStringLiteral("Type"))->trigger();
+  QApplication::processEvents();
+  size_spin->setValue(20.0);
+  QApplication::processEvents();
+  patchy::ui::MainWindowTestAccess::add_text_at(window, QPoint(2400, 2400));
+  editor = canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
+  CHECK(editor != nullptr);
+  if (editor == nullptr) {
+    return;
+  }
+  // 20 pt on this document's ppi: whatever that is in pixels, it is the typed size, not the
+  // automatic one.
+  const auto typed_size = editor->property("patchy.documentTextSize").toInt();
+  std::printf("  typed 20 pt -> %d px\n", typed_size);
+  std::fflush(stdout);
+  CHECK(typed_size > 0 && typed_size < 300);
+  CHECK(std::abs(size_spin->value() - 20.0) < 0.5);
+  require_action_by_text(window, QStringLiteral("Move"))->trigger();
+  process_events_for(150);
+}
+
+// A fresh session always starts horizontal; the toggle with nothing selected arms one layer.
+void ui_new_text_starts_horizontal_after_vertical_layer() {
+  register_test_fonts(TestFontRole::UiDefault);
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_zoom(1.0);
+  canvas->set_primary_color(QColor(0, 0, 0));
+  auto& live_document = patchy::ui::MainWindowTestAccess::document(window);
+  const auto guard = vertical_toggle_guard(window);
+  const auto created = create_vertical_layer_with_tool(window, *canvas, QPoint(200, 40), QStringLiteral("Hi"),
+                                                       QStringLiteral("Arial"));
+  CHECK(created.id.has_value());
+  auto* toggle = window.findChild<QPushButton*>(QStringLiteral("textOrientationButton"));
+  CHECK(toggle != nullptr);
+  if (!created.id.has_value() || toggle == nullptr) {
+    return;
+  }
+  const auto* vertical_layer = live_document.find_layer(*created.id);
+  CHECK(vertical_layer != nullptr && layer_is_vertical_metadata(*vertical_layer));
+  // Deselect so the next click starts a NEW layer; the toggle reads horizontal and the new
+  // session is horizontal even though the previous layer was vertical.
+  live_document.clear_active_layer();
+  require_action_by_text(window, QStringLiteral("Type"))->trigger();
+  QApplication::processEvents();
+  CHECK(!toggle->isChecked());
+  patchy::ui::MainWindowTestAccess::add_text_at(window, QPoint(40, 200));
+  auto* editor = canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
+  CHECK(editor != nullptr);
+  if (editor == nullptr) {
+    return;
+  }
+  CHECK(editor->property("patchy.documentTextOrientation").toString().isEmpty());
+  require_action_by_text(window, QStringLiteral("Move"))->trigger();
+  process_events_for(150);
+}
+
 // Scripting: the same run/backlog helpers scripting_tests.cpp uses.
 bool run_script_to_end(patchy::ui::MainWindow& window, const QString& source) {
   auto& host = window.script_engine_host();
@@ -814,5 +1018,8 @@ std::vector<patchy::test::TestCase> text_vertical_rtl_tests() {
       {"ui_text_orientation_toggle_converts_layer_and_undoes", ui_text_orientation_toggle_converts_layer_and_undoes},
       {"ui_rtl_hebrew_paragraph_direction_reorders_and_persists", ui_rtl_hebrew_paragraph_direction_reorders_and_persists},
       {"ui_script_add_text_layer_vertical_and_rtl_options", ui_script_add_text_layer_vertical_and_rtl_options},
+      {"ui_text_character_panel_leading_unlocks_and_applies", ui_text_character_panel_leading_unlocks_and_applies},
+      {"ui_new_text_size_scales_with_the_document", ui_new_text_size_scales_with_the_document},
+      {"ui_new_text_starts_horizontal_after_vertical_layer", ui_new_text_starts_horizontal_after_vertical_layer},
   };
 }

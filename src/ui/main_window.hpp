@@ -1539,9 +1539,15 @@ private:
   QPushButton* text_align_center_button_{nullptr};
   QPushButton* text_align_right_button_{nullptr};
   QPushButton* text_orientation_button_{nullptr};
+  // The size the options bar last set on its own (points). While the spin still shows it, a
+  // new session re-derives the size from the document / dragged box; a size the user typed
+  // sticks (last used, like Photoshop).
+  double text_size_auto_points_{48.0};
+  [[nodiscard]] int automatic_text_size_px(std::optional<int> box_height) const;
   QComboBox* text_direction_combo_{nullptr};
-  // Orientation new type layers take (persisted as tools/textVertical).
-  bool text_vertical_default_{false};
+  // Toggling Vertical with nothing to convert arms the NEXT new type layer once; a new session
+  // always starts horizontal otherwise (never persisted: a sticky default surprised users).
+  bool text_vertical_next_{false};
   QPushButton* text_warp_button_{nullptr};
   // Character panel (leading / tracking / glyph scales) for the live editor session;
   // the dialog and its controls are exempt from the focus-loss auto-commit via

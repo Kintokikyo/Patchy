@@ -1315,8 +1315,11 @@ std::string engine_style_sheet_data(const PsdTextStyleRun& run, int font_index) 
   style += fixed_leading ? " /AutoLeading false /Leading " : " /AutoLeading true /Leading ";
   style += std::to_string(fixed_leading ? *run.leading : font_size * 1.2);
   if (std::isfinite(run.tracking) && std::abs(run.tracking) > 0.0001) {
+    // Photoshop writes tracking as an integer and its type engine fails a NEGATIVE float:
+    // "/Tracking -305.000000" made every re-layout of the layer stop with "the result would
+    // be too big" (COM bisect, September 2026); "-305" and positive floats both work.
     style += " /Tracking ";
-    style += std::to_string(run.tracking);
+    style += std::to_string(static_cast<long long>(std::lround(run.tracking)));
   }
   if (std::isfinite(run.horizontal_scale) && std::abs(run.horizontal_scale - 1.0) > 0.0001) {
     style += " /HorizontalScale ";

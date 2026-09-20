@@ -1452,7 +1452,7 @@ void psd_restaurant_menu_dishes_leading_survives_save_round_trip_if_available() 
   const std::string written_text(written.begin(), written.end());
   CHECK(written_text.find("/AutoLeading false /Leading 19.433330") != std::string::npos);
   CHECK(written_text.find("/AutoLeading false /Leading 11.100000") != std::string::npos);
-  CHECK(written_text.find("/Tracking -20.000000") != std::string::npos);
+  CHECK(written_text.find("/Tracking -20 ") != std::string::npos);
 
   const auto reread = patchy::psd::DocumentIo::read(written);
   const patchy::Layer* reread_dishes = nullptr;
@@ -2100,10 +2100,52 @@ void psd_vertical_capture_imports_orientation_if_available() {
   CHECK(found);
 }
 
+// Photoshop's type engine fails to re-lay out a run whose /Tracking is a negative float
+// ("result would be too big", September 2026 bisect); tracking is written as an integer.
+void psd_writer_writes_tracking_as_an_integer() {
+  patchy::Document document(240, 120, patchy::PixelFormat::rgb8());
+  document.add_pixel_layer("Background", solid_rgb(240, 120, 255, 255, 255));
+  auto& layer = add_vertical_text_layer_for_writer(document, patchy::Rect{20, 20, 96, 40}, "v1\n0\t5\tleft");
+  layer.metadata()[patchy::kLayerMetadataTextRuns] = "v3\n0\t5\t32\t0\t0\t#000000\tArial\tauto\t-305\t1\t1";
+  layer.metadata()[patchy::kLayerMetadataTextLayoutMode] = patchy::kTextLayoutModePhotoshop;
+  const auto bytes = patchy::psd::DocumentIo::write_layered_rgb8(document);
+  const auto text_payload = psd_layer_block_payload(psd_layer_extra_data(bytes, 1), "TySh");
+  CHECK(text_payload.has_value());
+  if (!text_payload.has_value()) {
+    return;
+  }
+  const std::string payload_text(text_payload->begin(), text_payload->end());
+  CHECK(payload_text.find("/Tracking -305 ") != std::string::npos);
+  CHECK(payload_text.find("/Tracking -305.") == std::string::npos);
+  const auto read = patchy::psd::DocumentIo::read(bytes);
+  CHECK(read.layers().back().metadata().at(patchy::kLayerMetadataTextRuns).find("\t-305\t") != std::string::npos);
+}
+
+// The user file that failed in Photoshop (vertical box text, tracking -305): a Patchy re-save
+// writes the integer tracking. The artifact is kept for the Photoshop re-render check by COM.
+void psd_vertical_tracking_bug_file_resaves_with_integer_tracking_if_available() {
+  const auto path = patchy::test::local_psd_fixture_path("vtext-bugs/vertical_text_test_from_patchy.psd");
+  if (!std::filesystem::exists(path)) {
+    return;
+  }
+  auto document = patchy::psd::DocumentIo::read_file(path);
+  const auto bytes = patchy::psd::DocumentIo::write_layered_rgb8(document);
+  const std::string written(bytes.begin(), bytes.end());
+  CHECK(written.find("/Tracking -305 ") != std::string::npos);
+  CHECK(written.find("/Tracking -305.") == std::string::npos);
+  CHECK(written.find("Vrtc") != std::string::npos);
+  std::filesystem::create_directories("test-artifacts");
+  std::ofstream out("test-artifacts/vertical_tracking_check.psd", std::ios::binary);
+  out.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+}
+
 }  // namespace
 
 std::vector<patchy::test::TestCase> psd_text_tests() {
   return {
+      {"psd_writer_writes_tracking_as_an_integer", psd_writer_writes_tracking_as_an_integer},
+      {"psd_vertical_tracking_bug_file_resaves_with_integer_tracking_if_available",
+       psd_vertical_tracking_bug_file_resaves_with_integer_tracking_if_available},
       {"psd_writer_exports_vertical_type_block_and_reads_it_back", psd_writer_exports_vertical_type_block_and_reads_it_back},
       {"psd_paragraph_direction_round_trips_as_v4_column", psd_paragraph_direction_round_trips_as_v4_column},
       {"psd_vertical_capture_imports_orientation_if_available", psd_vertical_capture_imports_orientation_if_available},

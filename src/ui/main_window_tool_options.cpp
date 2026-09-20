@@ -2020,11 +2020,6 @@ void MainWindow::load_tool_settings() {
         text_smoothing_combo_,
         settings.value(QStringLiteral("tools/textSmoothing"), kDefaultTextAntiAlias).toInt());
   }
-  text_vertical_default_ = settings.value(QStringLiteral("tools/textVertical"), false).toBool();
-  if (text_orientation_button_ != nullptr) {
-    const QSignalBlocker blocker(text_orientation_button_);
-    text_orientation_button_->setChecked(text_vertical_default_);
-  }
 }
 
 void MainWindow::schedule_save_tool_settings() {
@@ -2154,7 +2149,6 @@ void MainWindow::save_tool_settings() const {
   if (text_smoothing_combo_ != nullptr) {
     settings.setValue(QStringLiteral("tools/textSmoothing"), text_smoothing_combo_value(text_smoothing_combo_));
   }
-  settings.setValue(QStringLiteral("tools/textVertical"), text_vertical_default_);
 }
 
 MainWindow::BrushToolSettings& MainWindow::active_stored_brush_settings() {
