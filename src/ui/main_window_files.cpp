@@ -408,6 +408,109 @@ void write_file_to_android_uri(const QString& local_path,
     }
 }
 
+std::optional<QString> pick_android_directory() {
+
+    const QJniObject context =
+        QNativeInterface::QAndroidApplication::context();
+
+    if (!context.isValid()) {
+        return std::nullopt;
+    }
+
+    constexpr jint request_code = 0x5047;
+
+    context.callMethod<void>(
+        "pickPatchyDirectory",
+        "(I)V",
+        request_code);
+
+    QJniEnvironment env;
+
+    if (env.checkAndClearExceptions(
+            QJniEnvironment::OutputMode::Silent)) {
+
+        return std::nullopt;
+    }
+
+    QElapsedTimer timer;
+    timer.start();
+
+    while (timer.elapsed() < 120000) {
+
+        QApplication::processEvents(
+            QEventLoop::AllEvents,
+            25);
+
+        const QJniObject result =
+            context.callObjectMethod(
+                "consumePatchyDirectoryResult",
+                "(I)Ljava/lang/String;",
+                request_code);
+
+        if (result.isValid()) {
+
+            const QString uri =
+                result.toString();
+
+            if (uri.isEmpty()) {
+                return std::nullopt;
+            }
+
+            return uri;
+        }
+
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(25));
+    }
+
+    return std::nullopt;
+}
+
+bool write_file_to_android_directory(
+    const QString& local_path,
+    const QString& directory_uri,
+    const QString& file_name,
+    const QString& mime_type) {
+
+    const QJniObject context =
+        QNativeInterface::QAndroidApplication::context();
+
+    if (!context.isValid()) {
+        return false;
+    }
+
+    const QJniObject local_path_java =
+        QJniObject::fromString(local_path);
+
+    const QJniObject directory_uri_java =
+        QJniObject::fromString(directory_uri);
+
+    const QJniObject file_name_java =
+        QJniObject::fromString(file_name);
+
+    const QJniObject mime_type_java =
+        QJniObject::fromString(mime_type);
+
+    const jboolean result =
+        context.callMethod<jboolean>(
+            "writeFileToPatchyDirectory",
+            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Z",
+            local_path_java.object<jstring>(),
+            directory_uri_java.object<jstring>(),
+            file_name_java.object<jstring>(),
+            mime_type_java.object<jstring>());
+
+    QJniEnvironment env;
+
+    if (env.checkAndClearExceptions(
+            QJniEnvironment::OutputMode::Silent)) {
+
+        return false;
+    }
+
+    return result;
+}
+
 #endif
 
 // Affinity "Image" layers (placed image files) import wrapped as embedded
@@ -2915,43 +3018,184 @@ void MainWindow::export_image_sequence() {
       return;
     }
     const auto& layer_names = options->visible_layers_only ? visible_layer_names : all_layer_names;
+
     const auto file_names = image_sequence_file_names(layer_names, options->naming, extension);
+
+  #ifdef Q_OS_ANDROID
+
+    // Android: pilih folder menggunakan Storage Access Framework.
+    const auto directory_uri = pick_android_directory();
+
+    if (!directory_uri.has_value()) {
+      return;
+    }
+
+    int frame_index = 0;
+
+    for (const auto& layer : std::as_const(document()).layers()) {
+
+      if (options->visible_layers_only && !layer.visible()) {
+        continue;
+      }
+
+      auto frame_document =
+          document_from_qimage(
+              render_layer_isolated(document(), layer),
+              "Frame");
+
+      frame_document.print_settings() =
+          document().print_settings();
+
+      // Render frame ke temporary file terlebih dahulu.
+      std::optional<QTemporaryFile> temporary_file;
+
+      const QString temporary_suffix =
+          extension.isEmpty()
+              ? QStringLiteral(".tmp")
+              : QStringLiteral(".") + extension;
+
+      temporary_file.emplace(
+          QDir::tempPath() +
+          QStringLiteral("/patchy-sequence-XXXXXX") +
+          temporary_suffix);
+
+      if (!temporary_file->open()) {
+        throw std::runtime_error(
+            QStringLiteral(
+                "Cannot create temporary file for Android image sequence: %1")
+                .arg(temporary_file->errorString())
+                .toStdString());
+      }
+
+      const QString temporary_path =
+          temporary_file->fileName();
+
+      temporary_file->close();
+      temporary_file->setAutoRemove(false);
+
+      // Gunakan writer Patchy yang normal untuk menghasilkan frame.
+      write_flat_image_file(
+          frame_document,
+          temporary_path,
+          extension,
+          *image_options);
+
+      QString mime_type;
+
+      if (extension == QStringLiteral("png")) {
+        mime_type = QStringLiteral("image/png");
+      }
+      else if (extension == QStringLiteral("jpg") ||
+               extension == QStringLiteral("jpeg")) {
+        mime_type = QStringLiteral("image/jpeg");
+      }
+      else if (extension == QStringLiteral("webp")) {
+        mime_type = QStringLiteral("image/webp");
+      }
+      else {
+        mime_type =
+            QStringLiteral("application/octet-stream");
+      }
+
+      // Kirim temporary file ke folder Android yang dipilih.
+      if (!write_file_to_android_directory(
+              temporary_path,
+              *directory_uri,
+              file_names[frame_index],
+              mime_type)) {
+
+        QFile::remove(temporary_path);
+
+        throw std::runtime_error(
+            QStringLiteral(
+                "Could not write image sequence frame: %1")
+                .arg(file_names[frame_index])
+                .toStdString());
+      }
+
+      QFile::remove(temporary_path);
+
+      ++frame_index;
+    }
+
+    statusBar()->showMessage(tr("Exported %1 images").arg(file_names.size()));
+
+  #else
+
     const auto directory = chosen.dir();
-    // The save dialog confirmed overwriting only the exact name typed there; the rest
-    // of the set needs its own check.
+
+    // The save dialog confirmed overwriting only the exact name typed there;
+    // the rest of the set needs its own check.
     int existing = 0;
+
     for (const auto& name : file_names) {
       const auto target = directory.filePath(name);
-      if (target != path && QFileInfo::exists(target)) {
+
+      if (target != path &&
+          QFileInfo::exists(target)) {
         ++existing;
       }
     }
+
     if (existing > 0) {
-      const auto answer = show_warning_message(
-          this, tr("Export Image Sequence"),
-          tr("%1 of %2 files already exist in this folder. Overwrite them?").arg(existing).arg(file_names.size()),
-          QMessageBox::Yes | QMessageBox::No, QMessageBox::No, QStringLiteral("imageSequenceOverwriteMessageBox"));
+      const auto answer =
+          show_warning_message(
+              this,
+              tr("Export Image Sequence"),
+              tr("%1 of %2 files already exist in this folder. "
+                 "Overwrite them?")
+                  .arg(existing)
+                  .arg(file_names.size()),
+              QMessageBox::Yes | QMessageBox::No,
+              QMessageBox::No,
+              QStringLiteral(
+                  "imageSequenceOverwriteMessageBox"));
+
       if (answer != QMessageBox::Yes) {
         return;
       }
     }
+
     int frame_index = 0;
-    for (const auto& layer : std::as_const(document()).layers()) {
-      if (options->visible_layers_only && !layer.visible()) {
+
+    for (const auto& layer :
+         std::as_const(document()).layers()) {
+
+      if (options->visible_layers_only &&
+          !layer.visible()) {
         continue;
       }
-      // Each frame routes through the normal export machinery as a flat document and
-      // inherits the source document's print resolution (same as the sprite sheet).
-      auto frame_document = document_from_qimage(render_layer_isolated(document(), layer), tr("Frame").toStdString());
-      frame_document.print_settings() = document().print_settings();
-      write_flat_image_file(frame_document, directory.filePath(file_names[frame_index]), extension, *image_options);
+// Each frame routes through the normal export machinery as a flat document and
+// inherits the source document's print resolution (same as the sprite sheet).
+auto frame_document = document_from_qimage(
+    render_layer_isolated(document(), layer),
+    tr("Frame").toStdString());
+
+frame_document.print_settings() = document().print_settings();
+
+write_flat_image_file(
+    frame_document,
+    directory.filePath(file_names[frame_index]),
+    extension,
+    *image_options);
       ++frame_index;
     }
+
     remember_save_directory_for_path(path);
-    statusBar()->showMessage(tr("Exported %1 images to %2").arg(file_names.size()).arg(directory.absolutePath()));
+
+    statusBar()->showMessage(
+        tr("Exported %1 images to %2")
+            .arg(file_names.size())
+            .arg(directory.absolutePath()));
+
     if (image_options->export_reveal_in_file_explorer) {
-      reveal_path_in_file_explorer(directory.absolutePath(), /*is_file*/ false);
+      reveal_path_in_file_explorer(
+          directory.absolutePath(),
+          /*is_file*/ false);
     }
+
+  #endif
+
   } catch (const std::exception& error) {
     show_critical_message(this, tr("Export failed"), translated_file_message(error.what()),
                           QStringLiteral("exportFailedMessageBox"));
