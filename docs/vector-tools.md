@@ -433,19 +433,20 @@ cache (triple box blur, radius ~ feather/2): close but not gaussian-exact.
 
 ### Vector masks on layers (mask data section, channels)
 
-- A vector-mask-ONLY layer has NO mask data section and NO baked mask
-  channel; the path is the only representation.
-- Raster + vector masks together: the ordinary 20-byte mask data section
-  holds the raster mask (rect, default color, flags) and the vector mask
-  stays purely in vmsk; the raster plane is channel id -2.
-- Vector mask density/feather (Properties panel) use the mask-parameters
-  form: section flags bit 4 set, then a parameter flags byte (bit 0 user
-  density u8, bit 1 user feather f64, bit 2 vector density u8 raw 0..255,
-  bit 3 vector feather f64 BE), values in that order. With any vector
-  parameter set, PS ALSO bakes a derived coverage plane into channel -2 and
-  sets section flags bit 3 ("mask came from rendering other data") with the
-  baked rect as the section rect. Reading: use the baked plane until the
-  first vector edit, then re-derive.
+- Vector-mask-ONLY layer: no mask section or channel.
+- Raster + vector masks: the 20-byte section holds the raster mask
+  (channel -2); the vector mask stays in vmsk.
+- Density/feather use the parameters form: section flags bit 4, then a
+  parameter flags byte (bit 0 user density u8, bit 1 user feather f64, bit 2
+  vector density u8 raw, bit 3 vector feather f64 BE), values in that order.
+  With a vector parameter set, PS ALSO bakes a derived plane into -2 and sets
+  section flags bit 3 with the baked rect as the section rect.
+- Raster + PARAMETERIZED vector mask (photoshop-both-masks-params.psd):
+  a 48-byte section. -2 is PS's COMBINED render (flags 0x18); the
+  painted mask is channel -3, sized by the real-user-mask fields (flags u8,
+  default u8, rect), which sit BEFORE the parameter byte (Adobe's spec says
+  after). Patchy loads -3 as the mask and drops -2.
+- User-mask density/feather are read and DROPPED.
 - COM authoring gotchas: vectorMaskFeather/Density setd requires the vector
   mask path selected first, and feather needs its OWN setd call.
 
@@ -487,8 +488,7 @@ composites are headless-stale (see ps-compat.md); compare against the BMPs.
 - photoshop-vector-mask-on-pixel.psd/bmp: pixel layer + vector mask; no mask
   channel or mask-data section.
 - photoshop-both-masks.psd/bmp: raster + vector masks on one layer; second
-  layer at density 60% + feather 1.5 px (mask parameters + baked derived -2
-  channel, section flags 0x18).
+  layer at density 60% + feather 1.5 px (parameters + baked -2, flags 0x18).
 - photoshop-saved-paths.psd/bmp: "Alpha Path" (rect, clipping path), "Beta
   Path" (donut), work path; resources 2000/2001/1025/2999.
 - photoshop-shape.psb/photoshop-shape-psb.bmp: PSB variant of the solid

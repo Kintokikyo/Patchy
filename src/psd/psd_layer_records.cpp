@@ -414,6 +414,23 @@ LayerRecord read_layer_record(BigEndianReader& reader, bool large_document,
       // (u8, raw 0..255), bit 3 vector feather (f64). Captured layout in
       // docs/vector-tools.md.
       record.mask->from_rendering = (mask_flags & 0x08U) != 0;
+      // The 36+ byte form carries the real-user-mask fields (flags, default
+      // color, rect) DIRECTLY after the section flags, ahead of any mask
+      // parameters. Adobe's format document lists the parameters first;
+      // Photoshop 27.9 writes 48 bytes in this order (captured in
+      // photoshop-both-masks-params.psd). The 20-byte form has 2 pad bytes
+      // here and the 28-byte parameters-only form has no real fields.
+      if (mask_length >= 36U && mask_end - extra_reader.position() >= 18U) {
+        const auto real_flags = extra_reader.read_u8();
+        const auto real_default_color = extra_reader.read_u8();
+        const auto real_top = static_cast<std::int32_t>(extra_reader.read_u32());
+        const auto real_left = static_cast<std::int32_t>(extra_reader.read_u32());
+        const auto real_bottom = static_cast<std::int32_t>(extra_reader.read_u32());
+        const auto real_right = static_cast<std::int32_t>(extra_reader.read_u32());
+        record.mask->real_user_mask = LayerMaskInfo::RealUserMask{
+            checked_record_rect(real_left, real_top, real_right, real_bottom, "layer mask"), real_default_color,
+            (real_flags & 0x02U) != 0, (real_flags & 0x01U) == 0};
+      }
       if ((mask_flags & 0x10U) != 0 && extra_reader.position() < mask_end) {
         const auto parameter_flags = extra_reader.read_u8();
         if ((parameter_flags & 0x01U) != 0 && extra_reader.position() < mask_end) {

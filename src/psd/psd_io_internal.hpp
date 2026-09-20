@@ -145,6 +145,17 @@ struct LayerMaskInfo {
   // feather in pixels, when present.
   std::optional<std::uint8_t> vector_density{};
   std::optional<double> vector_feather{};
+  // The "real user mask" fields of the 36+ byte form. Photoshop writes them
+  // when a layer carries BOTH a raster mask and a vector mask with density or
+  // feather set: channel -2 then holds the combined rendered plane (flags bit
+  // 3) and channel -3 holds the raster mask the user painted, described here.
+  struct RealUserMask {
+    Rect bounds{};
+    std::uint8_t default_color{255};
+    bool disabled{false};
+    bool linked{true};
+  };
+  std::optional<RealUserMask> real_user_mask{};
 };
 
 struct PsdTextBoundsD {

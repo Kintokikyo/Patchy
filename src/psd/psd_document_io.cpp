@@ -444,6 +444,7 @@ std::vector<Layer> read_layer_info_records(BigEndianReader& layer_reader, std::i
     }
 
     std::optional<LayerMask> decoded_mask;
+    std::optional<LayerMask> decoded_real_user_mask;
     for (const auto channel : record.channels) {
       if (channel.length == 0) {
         // Old Photoshop writes zero-length channel data (no compression marker at
@@ -459,21 +460,24 @@ std::vector<Layer> read_layer_info_records(BigEndianReader& layer_reader, std::i
       BigEndianReader channel_reader(layer_reader.read_span(static_cast<std::size_t>(channel.length)));
       const auto compression = channel_reader.read_u16();
       const auto payload_length = channel.length - 2;
-      if (channel.id == kChannelRealUserMask) {
-        // Patchy does not model Photoshop's separate real-user-mask plane. A
-        // complete -2 plane carries the rendered mask in files that also contain
-        // -3. Skip the declared -3 bytes exactly instead of decoding them against
-        // the layer bounds, which are not the real mask's dimensions.
+      const bool real_user_mask_channel = channel.id == kChannelRealUserMask;
+      if (real_user_mask_channel && !(record.mask.has_value() && record.mask->real_user_mask.has_value())) {
+        // A -3 plane without the real-mask rect that sizes it cannot be
+        // decoded; skip its declared bytes exactly.
         continue;
       }
       if (compression != kCompressionRaw && compression != kCompressionRle &&
           compression != kCompressionZip && compression != kCompressionZipPrediction) {
         continue;
       }
-      const auto channel_width = channel.id == kChannelUserMask && record.mask.has_value()
+      const auto channel_width = real_user_mask_channel
+                                     ? std::max(0, record.mask->real_user_mask->bounds.width)
+                                 : channel.id == kChannelUserMask && record.mask.has_value()
                                      ? std::max(0, record.mask->bounds.width)
                                      : width;
-      const auto channel_height = channel.id == kChannelUserMask && record.mask.has_value()
+      const auto channel_height = real_user_mask_channel
+                                      ? std::max(0, record.mask->real_user_mask->bounds.height)
+                                  : channel.id == kChannelUserMask && record.mask.has_value()
                                       ? std::max(0, record.mask->bounds.height)
                                       : height;
       const auto channel_pixel_count =
@@ -499,6 +503,18 @@ std::vector<Layer> read_layer_info_records(BigEndianReader& layer_reader, std::i
         std::copy(channel_data.begin(), channel_data.end(), mask_pixels.data().begin());
         decoded_mask = LayerMask{record.mask->bounds, std::move(mask_pixels), record.mask->default_color,
                                  record.mask->disabled};
+      }
+      if (real_user_mask_channel) {
+        // The raster mask the user painted, stored beside the combined
+        // rendered -2 plane when the layer also has a parameterized vector
+        // mask. It never feeds the color planes below.
+        if (channel_width > 0 && channel_height > 0 && channel_data.size() >= channel_pixel_count) {
+          const auto& real = *record.mask->real_user_mask;
+          PixelBuffer mask_pixels(channel_width, channel_height, PixelFormat::gray8());
+          std::copy_n(channel_data.begin(), channel_pixel_count, mask_pixels.data().begin());
+          decoded_real_user_mask = LayerMask{real.bounds, std::move(mask_pixels), real.default_color, real.disabled};
+        }
+        continue;
       }
       const auto target_channel = channel.id == kChannelRed      ? 0
                                   : channel.id == kChannelGreen  ? 1
@@ -794,9 +810,17 @@ std::vector<Layer> read_layer_info_records(BigEndianReader& layer_reader, std::i
       }
       layer.set_vector_mask(std::move(vector_mask));
     }
+    bool mask_linked = !record.mask.has_value() || record.mask->linked;
+    if (decoded_real_user_mask.has_value()) {
+      // Raster mask + parameterized vector mask: channel -3 is the mask the
+      // user painted and -2 only Photoshop's combined render of both, so the
+      // real plane (with its own link/disable flags) is the layer's mask.
+      decoded_mask = std::move(decoded_real_user_mask);
+      mask_linked = record.mask->real_user_mask->linked;
+    }
     if (decoded_mask.has_value()) {
       layer.set_mask(std::move(*decoded_mask));
-      if (record.mask.has_value() && !record.mask->linked) {
+      if (!mask_linked) {
         set_layer_mask_linked(layer, false);
       }
     }

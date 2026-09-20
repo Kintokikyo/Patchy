@@ -259,6 +259,40 @@ void psd_both_masks_fixture_parses_parameters() {
                                   0.15);
 }
 
+// Raster mask + vector mask WITH feather/density on one layer: Photoshop
+// stores its combined render in channel -2 (section flags bit 3) and the mask
+// the user painted in channel -3, described by the real-user-mask fields that
+// sit BEFORE the parameter block in the 48-byte form. Patchy used to read the
+// real-flags byte as "no parameters", drop -2 as derived, and skip -3, losing
+// the raster mask, the feather, and the density in one go.
+void psd_both_masks_with_vector_parameters_keeps_real_user_mask() {
+  const auto check = [](const Document& document) {
+    CHECK(document.layers().size() == 2);
+    const auto& layer = layer_at(document, 1);
+    const auto* vector_mask = layer.vector_mask();
+    CHECK(vector_mask != nullptr);
+    CHECK(vector_mask->density == 153);
+    CHECK(std::fabs(vector_mask->feather - 2.0) < 1e-9);
+    // The raster mask is the REAL user mask (the selection's top 36 rows),
+    // not Photoshop's combined render (rect 5,7..43,36).
+    CHECK(layer.mask().has_value());
+    const auto& mask = *layer.mask();
+    CHECK(mask.bounds.x == 0 && mask.bounds.y == 0);
+    CHECK(mask.bounds.width == 96 && mask.bounds.height == 36);
+    CHECK(mask.default_color == 0);
+    CHECK(!mask.disabled);
+    CHECK(patchy::layer_mask_linked(layer));
+    CHECK(mask.pixels.pixel(48, 18)[0] == 255);
+  };
+  const auto document = read_fixture("photoshop-both-masks-params.psd");
+  check(document);
+  check_flatten_matches_reference(document, "photoshop-both-masks-params.bmp", "psd_vector_both_masks_params", 1.6,
+                                  128, 0.15);
+
+  const auto written = patchy::psd::DocumentIo::write_layered_rgb8(document);
+  check(patchy::psd::DocumentIo::read(written, {}));
+}
+
 void psd_saved_paths_fixture_populates_document_paths() {
   const auto document = read_fixture("photoshop-saved-paths.psd");
   CHECK(document.paths().size() == 3);
@@ -1707,6 +1741,8 @@ std::vector<patchy::test::TestCase> psd_vector_fixtures_tests() {
       {"psd_shape_live_fixture_parses_origination", psd_shape_live_fixture_parses_origination},
       {"psd_vector_mask_fixture_masks_pixels", psd_vector_mask_fixture_masks_pixels},
       {"psd_both_masks_fixture_parses_parameters", psd_both_masks_fixture_parses_parameters},
+      {"psd_both_masks_with_vector_parameters_keeps_real_user_mask",
+       psd_both_masks_with_vector_parameters_keeps_real_user_mask},
       {"psd_saved_paths_fixture_populates_document_paths", psd_saved_paths_fixture_populates_document_paths},
       {"psd_shape_psb_fixture_parses_and_renders", psd_shape_psb_fixture_parses_and_renders},
       {"psd_vector_untouched_blocks_round_trip_bytes", psd_vector_untouched_blocks_round_trip_bytes},
