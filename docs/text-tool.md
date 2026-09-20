@@ -288,7 +288,7 @@ the session contract.
 - Scripting: `doc.addTextLayer(text, {orientation, direction})`, `layer.textOrientation` /
   `textDirection`. Tests: `tests/ui/text_vertical_rtl_tests.cpp`, `psd_*vertical*` and
   `psd_paragraph_direction*` in tests/core.
-- Known gaps: tate-chu-yoko, kinsoku, vmtx metrics, sideways Roman (`/BaselineDirection`),
+- Known gaps: tate-chu-yoko, kinsoku, vmtx metrics,
   transformed PSD vertical imports re-anchor by the horizontal rules, box indents, uncalibrated
   vertical Warp Text, SVG export rasterizes it.
 

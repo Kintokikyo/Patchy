@@ -2671,6 +2671,7 @@ QString rich_text_runs_from_document(const QTextDocument& document, const TextTo
   bool includes_faux_bold = false;
   bool includes_style = false;
   bool includes_faux_italic = false;
+  bool includes_rotated = false;
   const auto fallback_family = fallback.family.isEmpty() ? QApplication::font().family() : fallback.family;
   const auto fallback_size = std::max(1, fallback.size);
   const auto fallback_color_name = (fallback_color.isValid() ? fallback_color : QColor(Qt::black)).name(QColor::HexRgb);
@@ -2690,12 +2691,13 @@ QString rich_text_runs_from_document(const QTextDocument& document, const TextTo
     double vertical_scale{1.0};
     bool faux_bold{false};
     bool faux_italic{false};
+    bool rotated_roman{false};
     QString style;
   };
   std::vector<SerializedRun> collected;
 
   const auto append_run = [&collected, &includes_leading, &photoshop_layout, &includes_faux_bold, &includes_style,
-                           &includes_faux_italic, &fallback_family, fallback_size,
+                           &includes_faux_italic, &includes_rotated, &fallback_family, fallback_size,
                            &fallback_color_name](int start, int length, const QTextCharFormat& format) {
     if (length <= 0) {
       return;
@@ -2765,7 +2767,10 @@ QString rich_text_runs_from_document(const QTextDocument& document, const TextTo
     run.faux_italic = format.hasProperty(kTextFauxItalicFormatProperty) &&
                       format.property(kTextFauxItalicFormatProperty).toBool();
     includes_faux_italic = includes_faux_italic || run.faux_italic;
-    photoshop_layout = photoshop_layout || run.auto_leading || run.faux_bold || run.faux_italic ||
+    run.rotated_roman = format.hasProperty(kTextRotatedRomanFormatProperty) &&
+                        format.property(kTextRotatedRomanFormatProperty).toBool();
+    includes_rotated = includes_rotated || run.rotated_roman;
+    photoshop_layout = photoshop_layout || run.auto_leading || run.faux_bold || run.faux_italic || run.rotated_roman ||
                        !run.style.isEmpty() ||
                        std::abs(run.tracking) > 0.0001 ||
                        std::abs(run.horizontal_scale - 1.0) > 0.0001 ||
@@ -2814,7 +2819,9 @@ QString rich_text_runs_from_document(const QTextDocument& document, const TextTo
   if (!found_run) {
     append_run(0, document.toPlainText().size(), fallback_format);
   }
-  if (includes_faux_italic) {
+  if (includes_rotated) {
+    lines[0] = QStringLiteral("v7");
+  } else if (includes_faux_italic) {
     lines[0] = QStringLiteral("v6");
   } else if (includes_style) {
     lines[0] = QStringLiteral("v5");
@@ -2845,14 +2852,17 @@ QString rich_text_runs_from_document(const QTextDocument& document, const TextTo
       line += QStringLiteral("\t%1").arg(QString::number(run.vertical_scale, 'g', 17));
       // Column 11 is faux bold and column 12 the style name; the style column needs the faux
       // one in front of it, so a styled run emits both.
-      if (includes_faux_bold || includes_style || includes_faux_italic) {
+      if (includes_faux_bold || includes_style || includes_faux_italic || includes_rotated) {
         line += QStringLiteral("\t%1").arg(run.faux_bold ? 1 : 0);
       }
-      if (includes_style || includes_faux_italic) {
+      if (includes_style || includes_faux_italic || includes_rotated) {
         line += QStringLiteral("\t%1").arg(QString::fromLatin1(run.style.toUtf8().toPercentEncoding()));
       }
-      if (includes_faux_italic) {
+      if (includes_faux_italic || includes_rotated) {
         line += QStringLiteral("\t%1").arg(run.faux_italic ? 1 : 0);
+      }
+      if (includes_rotated) {
+        line += QStringLiteral("\t%1").arg(run.rotated_roman ? 2 : 0);
       }
     } else if (includes_leading) {
       line += QStringLiteral("\t%1").arg(QString::number(run.leading, 'g', 17));
@@ -3015,7 +3025,8 @@ void apply_patchy_text_runs_to_document(QTextDocument& document, const QString& 
   for (const auto& raw_line : lines) {
     const auto line = raw_line.trimmed();
     if (line.isEmpty() || line == QStringLiteral("v1") || line == QStringLiteral("v2") ||
-        line == QStringLiteral("v3") || line == QStringLiteral("v4")) {
+        line == QStringLiteral("v3") || line == QStringLiteral("v4") || line == QStringLiteral("v5") ||
+        line == QStringLiteral("v6") || line == QStringLiteral("v7")) {
       continue;
     }
     const auto fields = line.split(QLatin1Char('\t'));
@@ -3125,6 +3136,9 @@ void apply_patchy_text_runs_to_document(QTextDocument& document, const QString& 
     }
     if (fields.size() >= 14 && fields[13].toInt() != 0) {
       format.setProperty(kTextFauxItalicFormatProperty, true);
+    }
+    if (fields.size() >= 15 && fields[14].toInt() == 2) {
+      format.setProperty(kTextRotatedRomanFormatProperty, true);
     }
     QTextCursor cursor(&document);
     cursor.setPosition(start);
@@ -3852,9 +3866,17 @@ void draw_vertical_text_plan(const TextRenderPlan& plan, QPainter& painter) {
         continue;
       }
       const auto glyph_center = (cell.glyph_start + cell.glyph_end) / 2.0;
-      const QPointF origin(column.axis - glyph_center, cell.baseline - (column.line.y() + column.line.ascent()));
+      QPointF origin(column.axis - glyph_center, cell.baseline - (column.line.y() + column.line.ascent()));
       painter.save();
-      if (plan.faux_italic_render && cell.format.property(kTextFauxItalicFormatProperty).toBool()) {
+      if (cell.rotated) {
+        // Rotated Roman: the horizontal glyph run turns 90 degrees clockwise so its advance runs
+        // down the column and its ascenders point right, with the ascent+descent box centred on
+        // the column axis (Photoshop's Standard Vertical Roman Alignment).
+        const QFontMetricsF metrics(cell.format.font());
+        painter.translate(column.axis + (metrics.descent() - metrics.ascent()) / 2.0, cell.top);
+        painter.rotate(90.0);
+        origin = QPointF(-cell.glyph_start, -(column.line.y() + column.line.ascent()));
+      } else if (plan.faux_italic_render && cell.format.property(kTextFauxItalicFormatProperty).toBool()) {
         painter.setTransform(faux_italic_shear(cell.baseline), true);
       }
       auto color = cell.format.foreground().color();
@@ -8916,6 +8938,12 @@ void MainWindow::open_text_character_dialog() {
       tr("Slant the current face synthetically instead of switching to the family's italic face"));
   layout->addRow(QString(), text_character_faux_italic_);
 
+  text_character_rotate_roman_ = new QCheckBox(tr("Rotate Latin (vertical text)"), dialog);
+  text_character_rotate_roman_->setObjectName(QStringLiteral("textCharacterRotateRoman"));
+  text_character_rotate_roman_->setToolTip(
+      tr("Lay Latin letters on their side along the column instead of upright (Photoshop's Standard Vertical Roman Alignment)"));
+  layout->addRow(QString(), text_character_rotate_roman_);
+
   text_character_leading_spin_ = new QDoubleSpinBox(dialog);
   text_character_leading_spin_->setObjectName(QStringLiteral("textCharacterLeadingSpin"));
   text_character_leading_spin_->setDecimals(2);
@@ -8957,6 +8985,8 @@ void MainWindow::open_text_character_dialog() {
           [this](bool) { apply_text_character_faux_bold_to_active_editor(); });
   connect(text_character_faux_italic_, &QCheckBox::toggled, this,
           [this](bool) { apply_text_character_faux_italic_to_active_editor(); });
+  connect(text_character_rotate_roman_, &QCheckBox::toggled, this,
+          [this](bool) { apply_text_character_rotate_roman_to_active_editor(); });
   connect(text_character_leading_spin_, &QDoubleSpinBox::valueChanged, this,
           [this](double) { apply_text_character_leading_to_active_editor(); });
   connect(text_character_tracking_spin_, &QSpinBox::valueChanged, this,
@@ -8979,6 +9009,7 @@ void MainWindow::open_text_character_dialog() {
   text_character_v_scale_spin_ = nullptr;
   text_character_faux_bold_ = nullptr;
   text_character_faux_italic_ = nullptr;
+  text_character_rotate_roman_ = nullptr;
 }
 
 const Layer* MainWindow::text_character_target_layer() const {
@@ -9083,6 +9114,12 @@ void MainWindow::sync_text_character_dialog_from_editor() {
   text_character_v_scale_spin_->setEnabled(enabled);
   text_character_faux_bold_->setEnabled(enabled);
   text_character_faux_italic_->setEnabled(enabled);
+  // Only vertical text has a Roman orientation to choose.
+  const bool vertical_target =
+      session_open ? text_editor_is_vertical(*editor) : (layer != nullptr && layer_text_is_vertical(*layer));
+  if (text_character_rotate_roman_ != nullptr) {
+    text_character_rotate_roman_->setEnabled(enabled && vertical_target);
+  }
   if (!enabled) {
     text_character_leading_spin_->setEnabled(false);
     return;
@@ -9126,6 +9163,11 @@ void MainWindow::sync_text_character_dialog_from_editor() {
                                         format.property(kTextFauxBoldFormatProperty).toBool());
   text_character_faux_italic_->setChecked(format.hasProperty(kTextFauxItalicFormatProperty) &&
                                           format.property(kTextFauxItalicFormatProperty).toBool());
+  if (text_character_rotate_roman_ != nullptr) {
+    QSignalBlocker block_rotate(text_character_rotate_roman_);
+    text_character_rotate_roman_->setChecked(format.hasProperty(kTextRotatedRomanFormatProperty) &&
+                                             format.property(kTextRotatedRomanFormatProperty).toBool());
+  }
   text_character_auto_leading_->setChecked(auto_leading);
   text_character_leading_spin_->setEnabled(!auto_leading);
   const auto leading_pt = auto_leading || !has_fixed
@@ -9376,6 +9418,20 @@ void MainWindow::apply_text_character_faux_italic_to_active_editor() {
     mutate_text_editor_character_formats(editor, [faux_italic](QTextCharFormat& format) {
       // A flag only; the shear happens at render time, so it follows later size and face edits.
       format.setProperty(kTextFauxItalicFormatProperty, faux_italic);
+    });
+    return true;
+  });
+}
+
+void MainWindow::apply_text_character_rotate_roman_to_active_editor() {
+  if (canvas_ == nullptr || text_character_rotate_roman_ == nullptr) {
+    return;
+  }
+  const bool rotated = text_character_rotate_roman_->isChecked();
+  apply_text_character_edit([rotated](QTextEdit& editor) {
+    mutate_text_editor_character_formats(editor, [rotated](QTextCharFormat& format) {
+      // A flag only; the vertical plan decides per cluster (CJK stays upright).
+      format.setProperty(kTextRotatedRomanFormatProperty, rotated);
     });
     return true;
   });

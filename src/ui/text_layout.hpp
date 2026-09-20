@@ -79,6 +79,11 @@ inline constexpr int kTextFauxItalicFormatProperty = QTextFormat::UserProperty +
 // degrees, matching Photoshop's synthetic slant.
 inline constexpr double kFauxItalicSlant = 0.2126;
 
+// Vertical type only (runs v7): Roman glyphs of this run lie rotated 90 degrees along the
+// column instead of standing upright (Photoshop's "Standard Vertical Roman Alignment",
+// /BaselineDirection 2). CJK glyphs stay upright either way.
+inline constexpr int kTextRotatedRomanFormatProperty = QTextFormat::UserProperty + 42;
+
 // One visual line as the renderer draws it: the line, the origin it is drawn at, and the
 // rect it is clipped to. `block_position` is the owning block's document position, which
 // QTextLine alone cannot recover (its lineNumber() is an index within its own block's
@@ -172,6 +177,9 @@ struct VerticalTextCell {
   double baseline{0.0};  // glyph baseline y in layout space
   double glyph_start{0.0};  // the cluster's horizontal extent in its QTextLine (cursorToX)
   double glyph_end{0.0};    // ... minus the letter spacing Qt appends after it
+  // Roman glyph lying rotated 90 degrees along the column (run flag, never a CJK cluster):
+  // the cell advances by the glyph's HORIZONTAL width and the renderer rotates it.
+  bool rotated{false};
   QTextCharFormat format;
 };
 

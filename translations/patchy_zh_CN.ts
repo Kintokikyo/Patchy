@@ -16601,6 +16601,14 @@ Y: %2
         <source>Vertical Text</source>
         <translation>直排文字</translation>
     </message>
+    <message>
+        <source>Rotate Latin (vertical text)</source>
+        <translation>旋转拉丁字母（直排文字）</translation>
+    </message>
+    <message>
+        <source>Lay Latin letters on their side along the column instead of upright (Photoshop&apos;s Standard Vertical Roman Alignment)</source>
+        <translation>让拉丁字母沿列侧躺而不是直立（Photoshop 的 Standard Vertical Roman Alignment）</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

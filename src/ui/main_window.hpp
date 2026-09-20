@@ -1215,6 +1215,7 @@ private:
   void apply_text_character_glyph_scales_to_active_editor();
   void apply_text_character_faux_bold_to_active_editor();
   void apply_text_character_faux_italic_to_active_editor();
+  void apply_text_character_rotate_roman_to_active_editor();
   // The options-bar font-style picker, the only face control in the bar (like Photoshop).
   // `refresh_text_style_combo` rebuilds the list for a family, keeping `preferred` selected
   // when that family offers it and falling back to the face the caller's bold/italic flags
@@ -1563,6 +1564,9 @@ private:
   QSpinBox* text_character_v_scale_spin_{nullptr};
   QCheckBox* text_character_faux_bold_{nullptr};
   QCheckBox* text_character_faux_italic_{nullptr};
+  // Vertical type only: rotate Roman glyphs along the column (Photoshop's Standard Vertical
+  // Roman Alignment, /BaselineDirection 2).
+  QCheckBox* text_character_rotate_roman_{nullptr};
   // Session apply/cancel for the inline text editor (Photoshop's options-bar
   // commit/cancel); visible only while an editor is open, managed by
   // refresh_options_bar(), never registered as per-tool option widgets.

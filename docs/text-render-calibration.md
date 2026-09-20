@@ -18,7 +18,7 @@ Probe PSDs `photoshop-text-*.psd`. The rules apply when `kLayerMetadataTextLayou
 - **Tracking = FontSize x tracking/1000 px per inter-glyph gap** (not after the last glyph), as absolute letter spacing.
 - **VerticalScale/HorizontalScale scale glyphs only**; auto leading stays 1.2 x FontSize, unscaled.
 
-Run format "patchy.text.runs" v3 adds double sizes, a leading column (number or `auto`), tracking, and H/V glyph scales; v4 appends the faux-bold flag, v5 the face/style name, v6 the faux-italic flag; paragraph v3 appends the auto-leading fraction. Every column is read by INDEX, so the version token rises only when a run needs the new column and existing files stay byte-identical. Patchy-authored text keeps v1/v2 and Qt-natural layout (the PS model is opt-in per layer, so Patchy PSDs reopen unchanged). Export writes `/AutoLeading false` for fixed leading (PS ignores it otherwise), non-zero `/Tracking`, non-1 `/HorizontalScale`/`/VerticalScale`.
+Run format "patchy.text.runs" v3 adds double sizes, a leading column (number or `auto`), tracking, and H/V glyph scales; v4 appends the faux-bold flag, v5 the face/style name, v6 the faux-italic flag, v7 the rotated-Roman flag of vertical type; paragraph v3 appends the auto-leading fraction, v4 the direction. Every column is read by INDEX, so the version token rises only when a run needs the new column and existing files stay byte-identical. Patchy-authored text keeps v1/v2 and Qt-natural layout (the PS model is opt-in per layer, so Patchy PSDs reopen unchanged). Export writes `/AutoLeading false` for fixed leading (PS ignores it otherwise), non-zero `/Tracking`, non-1 `/HorizontalScale`/`/VerticalScale`.
 
 ## Faux bold is not the bold face
 
@@ -99,8 +99,14 @@ Photoshop 2026 captures: `local-test-fixtures/psd/ps2026_vtext/` (`capture_vtext
 `ui_vertical_text_matches_photoshop_capture_if_available` (re-rendered ink lands within 1 px
 of PS's 67x92 raster on `vt_point_ja_multi`).
 
-- **Every glyph is upright, Latin included**: "Hello" stacks H, e, l, l, o (PS's default;
-  the "rotated Roman" variant is `/BaselineDirection` 1, not modelled). Cell pitch = FontSize x
+- **Every glyph is upright, Latin included, by default**: "Hello" stacks H, e, l, l, o. Photoshop's
+  "Standard Vertical Roman Alignment" lies Roman glyphs on their side instead: per run,
+  `/BaselineDirection` 1 = upright (what PS writes by default), 2 = rotated; a run WITHOUT the
+  key re-lays out rotated, so every vertical run Patchy writes carries it. Patchy: runs v7
+  column 14 (`2` = rotated, written only then), `kTextRotatedRomanFormatProperty`, the
+  Character panel's "Rotate Latin (vertical text)"; a rotated cell advances by the glyph's
+  horizontal width and is drawn turned 90 degrees clockwise with its ascent+descent box centred
+  on the axis; CJK clusters stay upright either way. Cell pitch = FontSize x
   VerticalScale (MS Gothic and Arial both advance 32 px per glyph at 32 px); whitespace advances
   by its horizontal width (a 32 px Arial space is 8.89 px of column, so "Hello World" spans
   10 x 32 + 8.89). Tracking adds FontSize x tracking/1000 after every cell except a column's

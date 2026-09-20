@@ -43,6 +43,10 @@ struct PsdTextStyleRun {
   // through QFont at all -- setStyle(StyleOblique) resolves to the real Italic face when one
   // exists, so it is rendered as a shear.
   bool faux_italic{false};
+  // Photoshop's /BaselineDirection for VERTICAL type: 1 = Roman glyphs stand upright (the
+  // default Photoshop writes), 2 = they lie rotated 90 degrees ("Standard Vertical Roman
+  // Alignment"). 0 = unspecified (upright). Runs v7 column 14 carries it only when rotated.
+  int baseline_direction{0};
   // Fixed leading in engine units (document pixels through the TySh transform). Unset when the
   // run uses Photoshop auto leading (auto_leading), which is paragraph AutoLeading fraction x size.
   std::optional<double> leading;

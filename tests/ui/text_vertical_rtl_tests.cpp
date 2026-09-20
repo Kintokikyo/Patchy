@@ -928,6 +928,88 @@ void ui_new_text_starts_horizontal_after_vertical_layer() {
   process_events_for(150);
 }
 
+// Rotated Roman (runs v7 column 14 = 2, Photoshop's Standard Vertical Roman Alignment): "HH"
+// stacks two caps 32 px apart when upright; rotated, each H lies on its side, so the column
+// is only a cap tall (~23 px) across and the two glyphs follow each other by their horizontal
+// advance (~23 px), never the em.
+void ui_vertical_text_rotated_roman_lies_along_the_column() {
+  register_test_fonts(TestFontRole::UiDefault);
+  patchy::Document document(320, 320, patchy::PixelFormat::rgba8());
+  document.add_pixel_layer("Background", solid_pixels(320, 320, patchy::PixelFormat::rgba8(), QColor(Qt::white)));
+  const auto add_layer = [&document](const char* name, bool rotated, int left) {
+    patchy::Layer layer(document.allocate_layer_id(), name,
+                        solid_pixels(48, 80, patchy::PixelFormat::rgba8(), QColor(0, 0, 0, 0)));
+    layer.set_bounds(patchy::Rect{left, 40, 48, 80});
+    layer.metadata()[patchy::kLayerMetadataText] = "HH";
+    layer.metadata()[patchy::kLayerMetadataTextFlow] = "point";
+    layer.metadata()[patchy::kLayerMetadataTextFont] = "Arial";
+    layer.metadata()[patchy::kLayerMetadataTextSize] = "32";
+    layer.metadata()[patchy::kLayerMetadataTextColor] = "#000000";
+    layer.metadata()[patchy::kLayerMetadataTextOrientation] = patchy::kTextOrientationVertical;
+    layer.metadata()[patchy::kLayerMetadataTextRasterStatus] = "patchy_raster";
+    layer.metadata()[patchy::kLayerMetadataTextRuns] =
+        rotated ? "v7\n0\t2\t32\t0\t0\t#000000\tArial\tauto\t0\t1\t1\t0\t\t0\t2" : "v1\n0\t2\t32\t0\t0\t#000000\tArial";
+    return document.add_layer(std::move(layer)).id();
+  };
+  const auto upright_id = add_layer("Upright", false, 60);
+  const auto rotated_id = add_layer("Rotated", true, 200);
+
+  patchy::ui::MainWindow window;
+  show_window(window);
+  window.add_document_session(std::move(document), QStringLiteral("Rotated Roman"));
+  QApplication::processEvents();
+  auto& live_document = patchy::ui::MainWindowTestAccess::document(window);
+  auto* canvas = require_canvas(window);
+  auto* layer_list = window.findChild<QListWidget*>(QStringLiteral("layerList"));
+  CHECK(layer_list != nullptr);
+  if (layer_list == nullptr) {
+    return;
+  }
+  struct Ink {
+    int width{0};
+    int height{0};
+    bool valid{false};
+  };
+  const auto measure = [&](patchy::LayerId id, const QString& row, QPoint click) {
+    rerender_through_edit_session(window, *canvas, *layer_list, row, click);
+    Ink ink;
+    const auto* layer = live_document.find_layer(id);
+    if (layer == nullptr) {
+      return ink;
+    }
+    const auto bounds = patchy::visible_alpha_local_bounds(layer->pixels());
+    if (!bounds.has_value()) {
+      return ink;
+    }
+    ink.width = bounds->width;
+    ink.height = bounds->height;
+    ink.valid = true;
+    return ink;
+  };
+  const auto upright = measure(upright_id, QStringLiteral("Upright"), QPoint(84, 60));
+  const auto rotated = measure(rotated_id, QStringLiteral("Rotated"), QPoint(224, 60));
+  std::printf("  upright ink %dx%d, rotated ink %dx%d\n", upright.width, upright.height, rotated.width, rotated.height);
+  std::fflush(stdout);
+  CHECK(upright.valid && rotated.valid);
+  if (!upright.valid || !rotated.valid) {
+    return;
+  }
+  // Upright: two 32 px cells, each H ~23 px tall and ~21 px wide.
+  CHECK(upright.height >= 50 && upright.height <= 60);
+  CHECK(upright.width <= 26);
+  // Rotated: the column is one cap tall across (H's height, ~23) and two advances long
+  // (~2 x 23), clearly shorter than the upright stack.
+  CHECK(rotated.width >= 18 && rotated.width <= 26);
+  CHECK(rotated.height >= 38 && rotated.height <= 50);
+  CHECK(rotated.height < upright.height);
+  // The panel's checkbox reads the flag back for the selected layer.
+  layer_list->setCurrentItem(require_layer_item(*layer_list, QStringLiteral("Rotated")));
+  QApplication::processEvents();
+  const auto* rotated_layer = live_document.find_layer(rotated_id);
+  CHECK(rotated_layer != nullptr &&
+        rotated_layer->metadata().at(patchy::kLayerMetadataTextRuns).rfind("v7\n", 0) == 0);
+}
+
 // Scripting: the same run/backlog helpers scripting_tests.cpp uses.
 bool run_script_to_end(patchy::ui::MainWindow& window, const QString& source) {
   auto& host = window.script_engine_host();
@@ -1021,5 +1103,6 @@ std::vector<patchy::test::TestCase> text_vertical_rtl_tests() {
       {"ui_text_character_panel_leading_unlocks_and_applies", ui_text_character_panel_leading_unlocks_and_applies},
       {"ui_new_text_size_scales_with_the_document", ui_new_text_size_scales_with_the_document},
       {"ui_new_text_starts_horizontal_after_vertical_layer", ui_new_text_starts_horizontal_after_vertical_layer},
+      {"ui_vertical_text_rotated_roman_lies_along_the_column", ui_vertical_text_rotated_roman_lies_along_the_column},
   };
 }

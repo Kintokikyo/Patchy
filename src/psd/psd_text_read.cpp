@@ -1187,6 +1187,9 @@ PsdTextEngineDefaults extract_engine_text_defaults(std::span<const std::uint8_t>
       }
       defaults.faux_bold = engine_bool_after_key(sheet, "/FauxBold");
       defaults.faux_italic = engine_bool_after_key(sheet, "/FauxItalic");
+      if (const auto baseline = engine_number_after_key(sheet, "/BaselineDirection"); baseline.has_value()) {
+        defaults.baseline_direction = static_cast<int>(std::lround(*baseline));
+      }
       defaults.fill_color = extract_engine_fill_color_from_text(sheet, cmyk);
     }
   }
@@ -1251,6 +1254,8 @@ std::optional<std::vector<PsdTextStyleRun>> extract_engine_text_runs(std::span<c
     // Same split for the slant: it thickens/slants the run's OWN face. Folding it into
     // run.italic picked the family's real Italic face, a different typeface again.
     run.faux_italic = engine_bool_after_key(dictionaries[index], "/FauxItalic", defaults.faux_italic);
+    run.baseline_direction = static_cast<int>(std::lround(
+        engine_number_after_key(dictionaries[index], "/BaselineDirection").value_or(defaults.baseline_direction)));
     run.auto_leading = engine_bool_after_key(dictionaries[index], "/AutoLeading", defaults.auto_leading);
     // Photoshop records a stale /Leading value even for auto-leading runs; only a fixed
     // (non-auto) run's leading participates in layout.
@@ -1390,7 +1395,10 @@ std::string serialize_patchy_text_runs(std::span<const PsdTextStyleRun> runs) {
   const bool include_leading = std::any_of(runs.begin(), runs.end(), [](const PsdTextStyleRun& run) {
     return run.leading.has_value() && std::isfinite(*run.leading) && *run.leading > 0.0;
   });
-  const bool include_faux_italic =
+  // v7: the rotated-Roman flag (BaselineDirection 2), only when a run carries it.
+  const bool include_rotated =
+      std::any_of(runs.begin(), runs.end(), [](const PsdTextStyleRun& run) { return run.baseline_direction == 2; });
+  const bool include_faux_italic = include_rotated ||
       std::any_of(runs.begin(), runs.end(), [](const PsdTextStyleRun& run) { return run.faux_italic; });
   const bool include_style = include_faux_italic ||
       std::any_of(runs.begin(), runs.end(), [](const PsdTextStyleRun& run) { return !run.style.empty(); });
@@ -1402,7 +1410,9 @@ std::string serialize_patchy_text_runs(std::span<const PsdTextStyleRun> runs) {
                std::abs(run.horizontal_scale - 1.0) > 0.0001 || std::abs(run.vertical_scale - 1.0) > 0.0001;
       });
   std::string serialized =
-      include_faux_italic
+      include_rotated
+          ? "v7"
+          : include_faux_italic
           ? "v6"
           : (include_style ? "v5"
                            : (include_faux_bold ? "v4"
@@ -1452,6 +1462,10 @@ std::string serialize_patchy_text_runs(std::span<const PsdTextStyleRun> runs) {
       if (include_faux_italic) {
         serialized += '\t';
         serialized += run.faux_italic ? '1' : '0';
+      }
+      if (include_rotated) {
+        serialized += '\t';
+        serialized += run.baseline_direction == 2 ? '2' : '0';
       }
     } else if (include_leading) {
       serialized += '\t';

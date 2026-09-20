@@ -268,7 +268,8 @@ std::vector<PsdTextStyleRun> parse_patchy_text_runs_metadata(std::string_view ru
       line.remove_suffix(1);
     }
     line_start = line_end == std::string_view::npos ? runs_text.size() : line_end + 1U;
-    if (line.empty() || line == "v1" || line == "v2" || line == "v3" || line == "v4" || line == "v5" || line == "v6") {
+    if (line.empty() || line == "v1" || line == "v2" || line == "v3" || line == "v4" || line == "v5" || line == "v6" ||
+        line == "v7") {
       continue;
     }
 
@@ -325,6 +326,9 @@ std::vector<PsdTextStyleRun> parse_patchy_text_runs_metadata(std::string_view ru
     }
     if (fields.size() >= 14U) {
       run.faux_italic = parse_int_or(fields[13], fallback.faux_italic ? 1 : 0) != 0;
+    }
+    if (fields.size() >= 15U) {
+      run.baseline_direction = parse_int_or(fields[14], 0) == 2 ? 2 : 0;
     }
     if (run.length <= 0 || run.start >= text_length) {
       continue;
@@ -435,7 +439,8 @@ std::vector<PsdTextParagraphRun> parse_patchy_paragraph_runs_metadata(std::strin
       line.remove_suffix(1);
     }
     line_start = line_end == std::string_view::npos ? runs_text.size() : line_end + 1U;
-    if (line.empty() || line == "v1" || line == "v2" || line == "v3" || line == "v4" || line == "v5" || line == "v6") {
+    if (line.empty() || line == "v1" || line == "v2" || line == "v3" || line == "v4" || line == "v5" || line == "v6" ||
+        line == "v7") {
       continue;
     }
     const auto fields = split_tab_fields(line);
@@ -1293,7 +1298,7 @@ std::string engine_paragraph_properties(const PsdTextParagraphRun& run) {
   return properties;
 }
 
-std::string engine_style_sheet_data(const PsdTextStyleRun& run, int font_index) {
+std::string engine_style_sheet_data(const PsdTextStyleRun& run, int font_index, bool vertical = false) {
   std::string style = "<< /Font ";
   style += std::to_string(std::max(0, font_index));
   const auto font_size = std::max(1.0, run.size);
@@ -1308,6 +1313,13 @@ std::string engine_style_sheet_data(const PsdTextStyleRun& run, int font_index) 
   // resolved (Georgia-Italic, not Georgia + FauxItalic), so this is the SYNTHETIC slant alone.
   style += " /FauxItalic ";
   style += run.faux_italic ? "true" : "false";
+  if (vertical) {
+    // Vertical type: Photoshop writes /BaselineDirection 1 for its upright Roman default and 2
+    // for "Standard Vertical Roman Alignment" (rotated); a run WITHOUT the key re-lays out
+    // rotated, which is why a Patchy vertical file came back sideways (September 2026).
+    style += " /BaselineDirection ";
+    style += run.baseline_direction == 2 ? '2' : '1';
+  }
   // A fixed-leading run must export /AutoLeading false or Photoshop ignores the value and
   // re-derives auto leading. Auto (and unspecified) runs keep the historical auto shape.
   const bool fixed_leading = !run.auto_leading && run.leading.has_value() && std::isfinite(*run.leading) &&
@@ -1487,7 +1499,7 @@ std::vector<std::uint8_t> engine_data_for_text(std::string_view text, std::span<
     }
     const auto font_index = font_indices.empty() ? 1 : font_indices[std::min(index, font_indices.size() - 1U)];
     engine += "<< /StyleSheet << /StyleSheetData ";
-    engine += engine_style_sheet_data(run, font_index);
+    engine += engine_style_sheet_data(run, font_index, vertical);
     engine += " >> >> ";
   }
   engine += "] /RunLengthArray [ ";

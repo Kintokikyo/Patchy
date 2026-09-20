@@ -285,6 +285,7 @@ struct PsdTextEngineDefaults {
   std::optional<int> font_index;
   bool faux_bold{false};
   bool faux_italic{false};
+  int baseline_direction{0};
   std::optional<RgbColor> fill_color;
   double auto_leading_fraction{1.2};
 };

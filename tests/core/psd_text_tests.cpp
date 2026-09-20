@@ -2139,10 +2139,47 @@ void psd_vertical_tracking_bug_file_resaves_with_integer_tracking_if_available()
   out.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
 }
 
+// Vertical type writes Photoshop's /BaselineDirection: 1 (upright Roman, PS's own default)
+// unless the run carries the rotated flag (runs v7 column 14 = 2); horizontal type writes no
+// key. A run without the key re-laid out ROTATED in Photoshop (September 2026).
+void psd_writer_writes_baseline_direction_for_vertical_type() {
+  const auto payload_for = [](const std::string& runs, bool vertical) {
+    patchy::Document document(240, 240, patchy::PixelFormat::rgb8());
+    document.add_pixel_layer("Background", solid_rgb(240, 240, 255, 255, 255));
+    auto& layer = add_vertical_text_layer_for_writer(document, patchy::Rect{100, 40, 48, 176}, "v1\n0\t5\tleft");
+    layer.metadata()[patchy::kLayerMetadataTextRuns] = runs;
+    if (vertical) {
+      layer.metadata()[patchy::kLayerMetadataTextOrientation] = patchy::kTextOrientationVertical;
+    }
+    const auto bytes = patchy::psd::DocumentIo::write_layered_rgb8(document);
+    const auto payload = psd_layer_block_payload(psd_layer_extra_data(bytes, 1), "TySh");
+    CHECK(payload.has_value());
+    return std::pair(payload.has_value() ? std::string(payload->begin(), payload->end()) : std::string(), bytes);
+  };
+  const auto [upright, upright_bytes] = payload_for("v1\n0\t5\t32\t0\t0\t#000000\tArial", true);
+  CHECK(upright.find("/BaselineDirection 1") != std::string::npos);
+  CHECK(upright.find("/BaselineDirection 2") == std::string::npos);
+  // v7: ... faux-bold style faux-italic rotated
+  const auto [rotated, rotated_bytes] =
+      payload_for("v7\n0\t5\t32\t0\t0\t#000000\tArial\tauto\t0\t1\t1\t0\t\t0\t2", true);
+  CHECK(rotated.find("/BaselineDirection 2") != std::string::npos);
+  CHECK(rotated.find("/BaselineDirection 1") == std::string::npos);
+  const auto [horizontal, horizontal_bytes] = payload_for("v1\n0\t5\t32\t0\t0\t#000000\tArial", false);
+  CHECK(horizontal.find("/BaselineDirection") == std::string::npos);
+  // Read back: the rotated run keeps its v7 column, the upright one stays on the older format.
+  const auto reread = patchy::psd::DocumentIo::read(rotated_bytes);
+  const auto& runs = reread.layers().back().metadata().at(patchy::kLayerMetadataTextRuns);
+  CHECK(runs.rfind("v7\n", 0) == 0);
+  CHECK(runs.find("\t2") != std::string::npos);
+  const auto reread_upright = patchy::psd::DocumentIo::read(upright_bytes);
+  CHECK(reread_upright.layers().back().metadata().at(patchy::kLayerMetadataTextRuns).rfind("v7\n", 0) != 0);
+}
+
 }  // namespace
 
 std::vector<patchy::test::TestCase> psd_text_tests() {
   return {
+      {"psd_writer_writes_baseline_direction_for_vertical_type", psd_writer_writes_baseline_direction_for_vertical_type},
       {"psd_writer_writes_tracking_as_an_integer", psd_writer_writes_tracking_as_an_integer},
       {"psd_vertical_tracking_bug_file_resaves_with_integer_tracking_if_available",
        psd_vertical_tracking_bug_file_resaves_with_integer_tracking_if_available},

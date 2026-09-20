@@ -16601,6 +16601,14 @@ Clipped to the layer below</source>
         <source>Vertical Text</source>
         <translation>縦書きテキスト</translation>
     </message>
+    <message>
+        <source>Rotate Latin (vertical text)</source>
+        <translation>欧文を回転（縦書き）</translation>
+    </message>
+    <message>
+        <source>Lay Latin letters on their side along the column instead of upright (Photoshop&apos;s Standard Vertical Roman Alignment)</source>
+        <translation>欧文を立てずに行に沿って横倒しにします（Photoshop の縦中横ではなく標準の縦組み欧文回転）</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

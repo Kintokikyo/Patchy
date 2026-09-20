@@ -315,6 +315,39 @@ double vertical_alignment_fraction(Qt::Alignment alignment) {
   return 0.0;
 }
 
+// Scripts whose glyphs stand upright in vertical text whatever the run says (Han, kana,
+// Hangul, bopomofo, CJK symbols and punctuation, full-width forms).
+bool cluster_stays_upright(const QString& text, int start, int end) {
+  for (int index = start; index < end && index < text.size(); ++index) {
+    const auto ch = text.at(index);
+    if (ch.isHighSurrogate() && index + 1 < text.size()) {
+      const auto code = QChar::surrogateToUcs4(ch, text.at(index + 1));
+      if (code >= 0x20000 && code <= 0x3FFFF) {
+        return true;
+      }
+      ++index;
+      continue;
+    }
+    switch (ch.script()) {
+      case QChar::Script_Han:
+      case QChar::Script_Hiragana:
+      case QChar::Script_Katakana:
+      case QChar::Script_Hangul:
+      case QChar::Script_Bopomofo:
+        return true;
+      default:
+        break;
+    }
+    const auto code = ch.unicode();
+    if ((code >= 0x3000 && code <= 0x30FF) || (code >= 0x3400 && code <= 0x9FFF) ||
+        (code >= 0xAC00 && code <= 0xD7AF) || (code >= 0xF900 && code <= 0xFAFF) ||
+        (code >= 0xFF00 && code <= 0xFFEF)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool cluster_is_whitespace(const QString& text, int start, int end) {
   for (int index = start; index < end && index < text.size(); ++index) {
     if (!text.at(index).isSpace()) {
@@ -436,7 +469,10 @@ VerticalTextLayoutPlan vertical_text_layout_plan(const QTextDocument& document, 
         const auto glyph_start = std::min(x0, x1);
         const auto glyph_end = std::max(glyph_start, std::max(x0, x1) - letter_spacing);
         const bool whitespace = cluster_is_whitespace(text, cluster_start, cluster_end);
-        const auto advance = whitespace ? std::max(0.0, glyph_end - glyph_start) : em;
+        const bool rotated = !whitespace && format.hasProperty(kTextRotatedRomanFormatProperty) &&
+                             format.property(kTextRotatedRomanFormatProperty).toBool() &&
+                             !cluster_stays_upright(text, cluster_start, cluster_end);
+        const auto advance = whitespace || rotated ? std::max(0.0, glyph_end - glyph_start) : em;
         if (boxed && !column.cells.empty() && y + advance > box_height + kWrapTolerance) {
           finish_column(std::move(column));
           column = start_column(cluster_start);
@@ -452,6 +488,7 @@ VerticalTextLayoutPlan vertical_text_layout_plan(const QTextDocument& document, 
         cell.baseline = y + (em - (metrics.ascent() + metrics.descent())) / 2.0 + metrics.ascent();
         cell.glyph_start = glyph_start;
         cell.glyph_end = glyph_end;
+        cell.rotated = rotated;
         cell.format = format;
         column.cells.push_back(std::move(cell));
         column.end = block.position() + cluster_end;

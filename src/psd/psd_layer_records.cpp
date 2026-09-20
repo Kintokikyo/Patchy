@@ -504,6 +504,15 @@ LayerRecord read_layer_record(BigEndianReader& reader, bool large_document,
               record.text_bold = first_run.bold;
               record.text_italic = first_run.italic;
             }
+            // /BaselineDirection only means something for vertical type (Photoshop writes 2
+            // into horizontal runs too, from its normal sheet); dropping it here keeps
+            // horizontal imports on their historical run versions.
+            const auto orientation_geometry = extract_type_tool_geometry(text_payload);
+            if (!orientation_geometry.has_value() || !orientation_geometry->vertical) {
+              for (auto& run : *runs) {
+                run.baseline_direction = 0;
+              }
+            }
             record.text_runs = serialize_patchy_text_runs(*runs);
             if (auto paragraph_runs = extract_engine_paragraph_runs(text_payload, *record.text);
                 paragraph_runs.has_value()) {

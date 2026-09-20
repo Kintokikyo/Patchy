@@ -16639,6 +16639,14 @@ Y: %2
         <source>Vertical Text</source>
         <translation>Texto vertical</translation>
     </message>
+    <message>
+        <source>Rotate Latin (vertical text)</source>
+        <translation>Rotar letras latinas (texto vertical)</translation>
+    </message>
+    <message>
+        <source>Lay Latin letters on their side along the column instead of upright (Photoshop&apos;s Standard Vertical Roman Alignment)</source>
+        <translation>Colocar las letras latinas de lado a lo largo de la columna en lugar de en vertical (Standard Vertical Roman Alignment de Photoshop)</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
