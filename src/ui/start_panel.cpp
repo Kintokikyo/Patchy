@@ -488,13 +488,34 @@ void StartPanel::rebuild_recent_rows() {
       continue;
     }
     QString display_name = QFileInfo(path).fileName();
+    QString display_location = QFileInfo(path).absolutePath();
 
     #ifdef Q_OS_ANDROID
       if (path.startsWith(QStringLiteral("content://"),
-                    Qt::CaseInsensitive)) {
-      display_name = QUrl::fromPercentEncoding(
-        display_name.toUtf8());
-    }
+                        Qt::CaseInsensitive)) {
+        const QUrl uri(path);
+        QString decoded_path = QUrl::fromPercentEncoding(
+            uri.path(QUrl::FullyEncoded).toUtf8());
+
+        const QString document_prefix =
+            QStringLiteral("/document/");
+
+        if (decoded_path.startsWith(document_prefix)) {
+            decoded_path = decoded_path.mid(document_prefix.size());
+        }
+
+        if (decoded_path.startsWith(QStringLiteral("primary:"))) {
+            decoded_path = decoded_path.mid(
+                QStringLiteral("primary:").size());
+        }
+
+        display_name = QFileInfo(decoded_path).fileName();
+        display_location = QFileInfo(decoded_path).path();
+
+        if (display_location == QStringLiteral(".")) {
+            display_location.clear();
+        }
+      }
     #endif
 
     auto* item = new QListWidgetItem(display_name, recent_list_);
