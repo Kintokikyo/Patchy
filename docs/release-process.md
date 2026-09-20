@@ -14,7 +14,7 @@ The Flatpak packager also runs its sandbox build at lower priority with six jobs
 When bumping the release version, update the version fields:
 
 - `CMakeLists.txt` (`project(... VERSION x.y)`)
-- `latest_version.json` — the per-platform `version` entries: windows always; macos/linux only when those artifacts actually ship. This is the update-check manifest served to the app from raw.githubusercontent.com on main, and only takes effect once pushed.
+- `latest_version.json`: the per-platform `version` entries: windows always; macos/linux only when those artifacts actually ship. This is the update-check manifest served to the app from raw.githubusercontent.com on main, and only takes effect once pushed.
 - The `<release>` tag in `packaging/linux/com.rtsoft.patchy.metainfo.xml`
 - The latest-release line in `README.md`'s Download section, with the published
   version and release date matching the newest "What's New" entry.
@@ -55,15 +55,13 @@ Build order matters: finalize the README first (the Windows zip/installer embed 
 
 `build\package` must never hold a previous version's files once a new build starts (Seth, September 2026). The mac and Linux builders write versioned artifacts (`Patchy-<version>.dmg`, `Patchy-<version>.flatpak`); the upload scripts copy the newest one over the published names `PatchyMacOS.dmg` and `PatchyLinux.flatpak` and upload that copy, so those unversioned files are upload staging copies of whatever shipped LAST. `release-mac.ps1` and `release-linux.ps1` delete them along with the old versioned artifacts, and the Windows packager deletes its own final-named outputs before rebuilding. An agent that builds packages by hand must do the same delete before reporting the folder as release-ready.
 
-## A bad build must not be able to ship quietly
+## Release safety checks
 
-Two failure modes used to look exactly like success, both found in September 2026 while publishing a macOS-only release. Do not reintroduce either shape.
+Three checks keep a broken build from looking like a shipped one. Keep every escape hatch explicit and opt-in, and keep the safe behavior the default.
 
-**Unsigned artifacts.** Signing was gated on credentials being present and merely printed "signing skipped" otherwise, so a missing `~/.patchy-release-env` (mac) or `RT_PROJECTS` (Windows) produced an unsigned build that a long log made invisible. Both sides now fail instead: `packaging/macos/make-dmg.sh` errors under `PATCHY_REQUIRE_SIGNING=1` (set by `scripts\remote\release-mac.ps1`) and additionally requires `spctl` to report `source=Notarized Developer ID` on the finished dmg; `build-release.bat`'s `:SignFile` errors unless `PATCHY_ALLOW_UNSIGNED=1` is set for a deliberately unsigned local build. Keep the escape hatches explicit and opt-in, and keep the safe behavior the default. Details and the `stapler validate` hang to avoid: [packaging/macos/README.md](../packaging/macos/README.md).
-
-**Unverified uploads.** The desktop upload scripts called `%RT_PROJECTS%\UploadFileToRTsoftSSH.bat`, a bare `scp` whose exit code nobody checked, and `upload-to-rtsoft.bat` ran all four platforms unconditionally and exited 0 regardless. A refused connection or a truncated transfer was indistinguishable from a publish. Every release artifact now goes through `scripts\release\upload-one-file.bat`, which fails on a bad `scp` and then compares the local SHA-256 against one the server computes over what actually landed; `upload-to-rtsoft.bat` collects per-platform failures and ends with a named summary and a non-zero exit. Uploading a new artifact means calling that helper, not `scp` directly. (`upload-wasm-to-rtsoft.bat` predates it and does its own multi-file transfer plus a live COOP/COEP header check, which is why it stays separate.)
-
-**Packages that cannot run headless.** `--headless` is a shipped feature, so a package missing the offscreen platform plugin is broken while its build log looks fine. `build-release.bat` copies `qwindows.dll` and `qoffscreen.dll` itself (`:CopyRequiredPlatformPlugins`; windeployqt deploys only the former) and then runs the staged `patchy.exe --headless --run-script` on a one-line script (`:HeadlessSmokeCheck`), failing unless the output ends in `[done]`. `packaging/macos/make-dmg.sh` copies `libqoffscreen.dylib` after macdeployqt and runs the same check on the staged bundle. `packaging/linux/make-flatpak.sh` runs it inside the built sandbox with `flatpak-builder --run` (the plugin comes from the org.kde.Platform runtime, so this is the check that the runtime still ships it; nothing is installed on glados). All three are fatal and run before any artifact is written. Note that `release-linux.ps1` builds with `-SkipTests`, so this smoke check is the only thing that executes the Flatpak on release day; the suites run natively on glados through `remote-build.ps1` during per-change verification.
+- **Signing is mandatory.** `packaging/macos/make-dmg.sh` errors under `PATCHY_REQUIRE_SIGNING=1` (set by `scripts\remote\release-mac.ps1`) and requires `spctl` to report `source=Notarized Developer ID` on the finished dmg; `build-release.bat`'s `:SignFile` errors unless `PATCHY_ALLOW_UNSIGNED=1` is set for a deliberately unsigned local build. A missing `~/.patchy-release-env` (mac) or `RT_PROJECTS` (Windows) is a failure, not a "signing skipped" line. The `stapler validate` hang to avoid is in [packaging/macos/README.md](../packaging/macos/README.md).
+- **Uploads are verified.** Every desktop artifact goes through `scripts\release\upload-one-file.bat`, which fails on a bad `scp` and then compares the local SHA-256 against one the server computes over what landed; `upload-to-rtsoft.bat` collects per-platform failures and ends with a named summary and a non-zero exit. Never call `scp` or `%RT_PROJECTS%\UploadFileToRTsoftSSH.bat` directly for a release artifact. (`upload-wasm-to-rtsoft.bat` does its own multi-file transfer plus a live COOP/COEP header check, which is why it stays separate.)
+- **Packages must run headless.** `--headless` is a shipped feature, so every packager runs the staged `patchy.exe --headless --run-script` on a one-line script and fails unless the output ends in `[done]`: `build-release.bat` copies `qwindows.dll` and `qoffscreen.dll` itself (`:CopyRequiredPlatformPlugins`; windeployqt deploys only the former) before `:HeadlessSmokeCheck`; `packaging/macos/make-dmg.sh` copies `libqoffscreen.dylib` after macdeployqt and runs the same check; `packaging/linux/make-flatpak.sh` runs it inside the built sandbox with `flatpak-builder --run` (the plugin comes from the org.kde.Platform runtime). All three run before any artifact is written. `release-linux.ps1` builds with `-SkipTests`, so this smoke check is the only thing that executes the Flatpak on release day; the suites run natively on glados through `remote-build.ps1` during per-change verification.
 
 After any upload, the claim "it shipped" needs evidence: the helper's `Verified <name> (sha256 ...)` line, or `curl -sI` against the public URL.
 
@@ -81,75 +79,27 @@ There are no versioned wasm artifacts: the site serves stable names and a redepl
 
 ## A running connector must not block the Windows relink
 
-`build\release\patchy-mcp.exe` is usually running (the Codex app keeps one `--attach`
-connector alive per thread for as long as the thread exists), which would make the release
-preset's connector link fail with `LNK1104` and leave the package with a stale connector.
-Never kill those clients. Since September 2026 the `patchy-mcp` target's PRE_LINK step
-(`cmake/unlock_locked_executable.cmake`) handles it: a locked `patchy-mcp.exe` is renamed to
-`patchy-mcp.stale-<timestamp>.exe` (Windows allows renaming a running image, and the
-clients keep running from the renamed file), the build links a fresh `patchy-mcp.exe` that
-the packager signs and stages, and every later connector link deletes stale copies that
-nothing runs any more. Nothing manual is needed; `build-release.bat` runs through. Stale
-copies are build artifacts under the housekeeping rule in AGENTS.md and must never be
-packaged (the packager stages `patchy-mcp.exe` by name). The connector must not be copied
-elsewhere to dodge the lock: its `--attach` socket name hashes the executable's own folder,
-so a connector outside `build\release` cannot attach to a Patchy running from it.
+`build\release\patchy-mcp.exe` is usually running (an MCP client such as the Codex app keeps one `--attach` connector alive per thread), which would make the release preset's connector link fail with `LNK1104`. Never kill those clients. The `patchy-mcp` target's PRE_LINK step (`cmake/unlock_locked_executable.cmake`) renames a locked `patchy-mcp.exe` to `patchy-mcp.stale-<timestamp>.exe` (the clients keep running from the renamed file), the build links a fresh `patchy-mcp.exe` that the packager signs and stages, and every later connector link deletes stale copies nothing runs any more. Stale copies are build artifacts under the housekeeping rule in AGENTS.md and must never be packaged (the packager stages `patchy-mcp.exe` by name). Do not copy the connector elsewhere to dodge the lock: its `--attach` socket name hashes the executable's own folder, so a connector outside `build\release` cannot attach to a Patchy running from it.
 
 ## Batch files live in scripts\release and call their siblings by full path
 
-The release and upload batch files live in `scripts\release`. Each derives the repo
-root from its own location (`%~dp0..\..`) and cds there, so they run correctly from
-any launch cwd, and `release-all.bat` reaches the mac/linux wrappers as
-`%~dp0..\remote\release-*.bat`. Do not "simplify" those relative hops; they encode the
-scripts' depth below the repo root.
+Each release and upload batch file derives the repo root from its own location (`%~dp0..\..`) and cds there, so it runs from any launch cwd; `release-all.bat` reaches the mac/linux wrappers as `%~dp0..\remote\release-*.bat`. Do not "simplify" those relative hops: they encode the scripts' depth below the repo root.
 
-`NoDefaultCurrentDirectoryInExePath` is set in most non-interactive shells, including the
-ones coding agents run commands in. It stops cmd from resolving a bare command name out of
-the current directory, so `cmd /c "build-release.bat"` run from inside `scripts\release`
-fails with `'build-release.bat' is not recognized` even when the file is right there. A
-relative path that contains a separator, like `scripts\release\build-release.bat` from the
-repo root, resolves fine, because cmd treats that as a path rather than a name to search
-for.
+Non-interactive shells set `NoDefaultCurrentDirectoryInExePath`, so cmd will not resolve a bare command name out of the current directory: `cmd /c "build-release.bat"` from inside `scripts\release` fails with `'build-release.bat' is not recognized`, while a path containing a separator (`scripts\release\build-release.bat` from the repo root) resolves fine. That is why `release-all.bat` and `upload-to-rtsoft.bat` launch their siblings as `"%~dp0name.bat"`; keep it that way, since a bare-name launch dies before the delete-previous-artifacts step and leaves the previous version's files for the newest-file upload scripts to pick up.
 
-That is why `release-all.bat` and `upload-to-rtsoft.bat` launch their siblings as
-`"%~dp0name.bat"`; keep it that way (both files carry the same warning as comments). A
-bare-name launch dies instantly before the delete-previous-artifacts step, leaving the
-previous version's zip and installer in `build\package` for the newest-file upload
-scripts to pick up.
-
-Inside a parenthesized block such as `if errorlevel 1 ( ... )`, an unescaped `)` in
-echo text closes the block early, and the resulting "was unexpected at this time" is a
-fatal parse error that ends the whole calling chain, including `upload-to-rtsoft.bat`
-and any wrapper around it, before the later platforms run (September 2026: the Linux and
-mac failure messages said "(or was left in a bad state)", so the first failed hash
-silently ended the release upload). cmd parses the entire block when it reaches the
-`if`, so the bug fires even when the condition is false. Escape as `^)` or reword.
+Inside a parenthesized block such as `if errorlevel 1 ( ... )`, an unescaped `)` in echo text closes the block early and the resulting parse error ends the whole calling chain, even when the condition is false. Escape as `^)` or reword.
 
 ## scripts\vs-env.bat, not VsDevCmd.bat
 
-Every build entry point (`scripts\release\build-release.bat`, `scripts\run-tests.ps1`,
-`scripts\make-readme-screenshots.ps1`, the handoff command in AGENTS.md) enters the
-developer environment through `scripts\vs-env.bat`, which forwards its arguments to
-VsDevCmd.bat. It is the only place that knows where Visual Studio is installed, and it
-prepends the VS Installer directory to `PATH` before the call.
+Every build entry point (`scripts\release\build-release.bat`, `scripts\run-tests.ps1`, `scripts\make-readme-screenshots.ps1`, the handoff command in AGENTS.md) enters the developer environment through `scripts\vs-env.bat`, which forwards its arguments to VsDevCmd.bat. It is the only place that knows where Visual Studio is installed, and it prepends the VS Installer directory to `PATH`, which is what silences the harmless but alarming `'vswhere.exe' is not recognized` line. If some caller prints that line, check whether it went through vs-env.bat rather than chasing the message.
 
-That `PATH` line is what silences the spurious `'vswhere.exe' is not recognized` message
-(harmless, but it reads exactly like a real failure in a release log; the full mechanism
-is explained in `scripts\vs-env.bat`'s own comments). Do not chase that message if some
-other caller prints it: check whether that caller went through vs-env.bat.
+## Agent/non-interactive runs
 
-## Agent/non-interactive runs: NO_PAUSE
-
-**Agent/non-interactive release runs must set `NO_PAUSE=1` before launching the batch files.** From PowerShell in the repo root, set `$env:NO_PAUSE='1'` and then run `cmd /c scripts\release\release-all.bat`; the environment is inherited by the three `start`ed consoles and, critically, by `%RT_PROJECTS%\Signing\sign.bat`, which otherwise pauses after EVERY signed Windows file. Do this before the first launch, not after a signing prompt appears.
-
-`release-mac.bat` and `release-linux.bat` have their own unconditional final `pause`, so do not wait for those wrapper `cmd.exe` processes to exit: determine success from the child PowerShell completion and fresh versioned artifacts, then close the completed wrapper consoles.
-
-To keep evidence of each builder's result, an agent run can launch the same four scripts `release-all.bat` starts, each through a small wrapper batch file that redirects the builder's output to a log and then writes `%ERRORLEVEL%` to a marker file (call `release-mac.ps1` and `release-linux.ps1` directly there, since their `.bat` wrappers pause). Start each wrapper with `start "<title>" /min /belownormal cmd /c "<wrapper>"` so the whole tree inherits below-normal priority, and set `CMAKE_BUILD_PARALLEL_LEVEL=6` alongside `NO_PAUSE=1` so `cmake --build` inside the scripts is throttled as AGENTS.md requires. Do not capture exit codes with Windows PowerShell 5.1's `Start-Process -PassThru` while redirecting output: its `ExitCode` comes back empty there (pwsh 7 is fine). Inside those wrappers invoke the test binaries as `.\patchy_core_tests.exe`, a path, never by bare name: `NoDefaultCurrentDirectoryInExePath` applies to them too, and a bare name exits 9009 (`not recognized`) after `cd /d build\release` (September 2026, 0.93 run). Invoke them directly, too: the outer `start` already gave the whole tree below-normal priority, and wrapping a binary in a second `start "" /b /wait` would make the `%ERRORLEVEL%` the wrapper records always 0. Where a single command does need throttling, `scripts\run-throttled.bat` is the one form that both lowers priority and returns the child's code.
-
-Issue the `start "<title>" ...` launches from PowerShell (`cmd /c "start ..."`), never from Git Bash: bash mangles the quoted title, `start` takes it for the program name, and Seth gets a modal "Windows cannot find" dialog while nothing launches (September 2026, 0.97 run). Do not run a local build while the Windows suites or the MCP client suite are running: under that load `ui_raw_local_photo_visual_acceptance_if_available` misses its 30 second limit and the MCP `protocol_edges` cancellation check fails, and both pass on a quiet machine (same run). The per-machine corpus digest baselines on studiomac and glados also go stale whenever a committed PSD is added or deliberately re-rendered; see "Adding a committed PSD" in [testing.md](testing.md) and update them before the remote suites.
-
-Launch the release batch files from cmd or Windows PowerShell, not from pwsh 7 (or reset `PSModulePath` first to `%USERPROFILE%\Documents\WindowsPowerShell\Modules;%ProgramFiles%\WindowsPowerShell\Modules;%SystemRoot%\system32\WindowsPowerShell\v1.0\Modules`). pwsh 7 puts its own module directories on `PSModulePath`, and the `powershell` 5.1 one-liners inside the scripts then load pwsh's incompatible `Microsoft.PowerShell.Utility`, so `Get-FileHash` is "not recognized" and `upload-one-file.bat` refuses every desktop upload (September 2026). The build scripts happened to survive because they only use cmdlets from other modules.
-
-`scripts\release\upload-to-rtsoft.bat` itself does not read `NO_PAUSE`: it already passes the positional `nopause` argument to the per-platform upload scripts, but the top-level script ends in one final unconditional `pause`, which an automated runner must dismiss (feed Enter) after all uploads complete.
+1. Launch from cmd or Windows PowerShell 5.1, not Git Bash and not pwsh 7. Bash mangles the quoted `start "<title>"` and Seth gets a modal "Windows cannot find" dialog while nothing launches. pwsh 7 puts its own module directories on `PSModulePath`, the `powershell` 5.1 one-liners inside the scripts then load an incompatible `Microsoft.PowerShell.Utility`, `Get-FileHash` is "not recognized", and `upload-one-file.bat` refuses every desktop upload. From pwsh 7, reset `PSModulePath` first to `%USERPROFILE%\Documents\WindowsPowerShell\Modules;%ProgramFiles%\WindowsPowerShell\Modules;%SystemRoot%\system32\WindowsPowerShell\v1.0\Modules`.
+2. Set `NO_PAUSE=1` and `CMAKE_BUILD_PARALLEL_LEVEL=6` in the environment before the first launch, then run `cmd /c scripts\release\release-all.bat`. The three `start`ed consoles inherit both, and so does `%RT_PROJECTS%\Signing\sign.bat`, which otherwise pauses after every signed Windows file. `CMAKE_BUILD_PARALLEL_LEVEL` throttles the `cmake --build` calls inside the scripts as AGENTS.md requires.
+3. To keep evidence of each builder's result, launch the same four scripts `release-all.bat` starts through small wrapper batch files that redirect the builder's output to a log and write `%ERRORLEVEL%` to a marker file (call `release-mac.ps1` and `release-linux.ps1` directly there; their `.bat` wrappers end in an unconditional `pause`, so never wait for those wrapper consoles to exit). Start each wrapper with `start "<title>" /min /belownormal cmd /c "<wrapper>"` so the whole tree inherits below-normal priority. Do not capture exit codes with Windows PowerShell 5.1's `Start-Process -PassThru` while redirecting output: its `ExitCode` comes back empty there.
+4. Inside those wrappers invoke the test binaries as `.\patchy_core_tests.exe`, a path (a bare name exits 9009 under `NoDefaultCurrentDirectoryInExePath`), and directly, not through a second `start "" /b /wait`, which would make the recorded `%ERRORLEVEL%` always 0. Where a single command does need throttling, `scripts\run-throttled.bat` both lowers priority and returns the child's code.
+5. Run the suites one at a time and not alongside a build (they share the QSettings store; see [testing.md](testing.md)). The tests themselves tolerate a loaded machine: wall-clock limits are hang guards, not performance bounds.
+6. `upload-to-rtsoft.bat` passes the positional `nopause` argument to the per-platform upload scripts but ends in one unconditional `pause`; feed it Enter after all uploads complete.
 
 Do not say a release was created unless the release preset build completed successfully.
