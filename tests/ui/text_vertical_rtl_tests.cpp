@@ -1007,6 +1007,91 @@ void ui_vertical_text_rotated_roman_lies_along_the_column() {
         rotated_layer->metadata().at(patchy::kLayerMetadataTextRuns).rfind("v7\n", 0) == 0);
 }
 
+// Photoshop switches the face of characters the current font cannot draw; Patchy used to draw
+// them through Qt's silent fallback and store "Arial" for the kana, which Photoshop then
+// re-laid out as empty boxes. Typing kana into Arial now commits a Japanese face for those
+// characters, as its own run, and the exported type block names that font.
+void ui_typing_uncovered_characters_switches_their_font() {
+  register_test_fonts(TestFontRole::UiDefault);
+  const auto japanese = japanese_test_family();
+  if (!japanese.has_value()) {
+    return;
+  }
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_zoom(1.0);
+  canvas->set_primary_color(QColor(0, 0, 0));
+  auto& live_document = patchy::ui::MainWindowTestAccess::document(window);
+  require_action_by_text(window, QStringLiteral("Type"))->trigger();
+  QApplication::processEvents();
+  auto* font_combo = window.findChild<QFontComboBox*>(QStringLiteral("textFontCombo"));
+  CHECK(font_combo != nullptr);
+  if (font_combo == nullptr) {
+    return;
+  }
+  font_combo->setCurrentFont(QFont(QStringLiteral("Arial")));
+  patchy::ui::MainWindowTestAccess::add_text_at(window, QPoint(40, 60));
+  auto* editor = canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
+  CHECK(editor != nullptr);
+  if (editor == nullptr) {
+    return;
+  }
+  // "hey" + hiragana ko-ni-chi-ha + " man", the way a user types it: one insert per keystroke.
+  editor->clear();
+  for (const auto ch : QString::fromUtf8("hey \xe3\x81\x93\xe3\x81\xab\xe3\x81\xa1\xe3\x81\xaf man")) {
+    editor->insertPlainText(QString(ch));
+    QApplication::processEvents();
+  }
+  process_events_for(250);
+  require_action_by_text(window, QStringLiteral("Move"))->trigger();
+  process_events_for(200);
+  const auto id = live_document.active_layer_id();
+  CHECK(id.has_value());
+  if (!id.has_value()) {
+    return;
+  }
+  const auto* layer = live_document.find_layer(*id);
+  CHECK(layer != nullptr && patchy::layer_is_text(*layer));
+  if (layer == nullptr) {
+    return;
+  }
+  const auto runs = layer->metadata().at(patchy::kLayerMetadataTextRuns);
+  std::printf("  runs:\n%s\n", runs.c_str());
+  std::fflush(stdout);
+  // Two runs: Arial for "hey ", then the Japanese family from the first kana on (Photoshop keeps
+  // the switched face for what follows, and so does the typing format here).
+  int arial_runs = 0;
+  int japanese_runs = 0;
+  for (const auto& line : QString::fromStdString(runs).split(QLatin1Char('\n'))) {
+    const auto fields = line.split(QLatin1Char('\t'));
+    if (fields.size() < 7) {
+      continue;
+    }
+    const auto family = QString::fromUtf8(QByteArray::fromPercentEncoding(fields[6].toLatin1()));
+    if (family == QStringLiteral("Arial")) {
+      ++arial_runs;
+    } else if (QFontDatabase::families(QFontDatabase::Japanese).contains(family)) {
+      ++japanese_runs;
+      CHECK(fields[1].toInt() == 8);  // the kana and the " man" typed after them (the typing format follows)
+    }
+  }
+  CHECK(arial_runs == 1);
+  CHECK(japanese_runs == 1);
+  // The PSD names two fonts, Arial and the substitute. Kept as an artifact for the Photoshop
+  // re-render check by COM (the headless build sees no system fonts, so only this offscreen
+  // run with a registered Japanese face produces a representative file).
+  const auto bytes = patchy::psd::DocumentIo::write_layered_rgb8(live_document);
+  {
+    std::filesystem::create_directories("test-artifacts");
+    std::ofstream out("test-artifacts/mixed_kana_check.psd", std::ios::binary);
+    out.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+  }
+  const std::string haystack(bytes.begin(), bytes.end());
+  CHECK(haystack.find("A\0r\0i\0a\0l\0M\0T", 0) != std::string::npos || haystack.find("ArialMT") != std::string::npos);
+  CHECK(haystack.find("\0G\0o\0t\0h\0i\0c", 0) != std::string::npos || haystack.find("Gothic") != std::string::npos);
+}
+
 // Scripting: the same run/backlog helpers scripting_tests.cpp uses.
 bool run_script_to_end(patchy::ui::MainWindow& window, const QString& source) {
   auto& host = window.script_engine_host();
@@ -1101,5 +1186,6 @@ std::vector<patchy::test::TestCase> text_vertical_rtl_tests() {
       {"ui_new_text_size_scales_with_the_document", ui_new_text_size_scales_with_the_document},
       {"ui_new_text_starts_horizontal_after_vertical_layer", ui_new_text_starts_horizontal_after_vertical_layer},
       {"ui_vertical_text_rotated_roman_lies_along_the_column", ui_vertical_text_rotated_roman_lies_along_the_column},
+      {"ui_typing_uncovered_characters_switches_their_font", ui_typing_uncovered_characters_switches_their_font},
   };
 }

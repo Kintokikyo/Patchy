@@ -204,6 +204,12 @@ style must not render nothing).
 
 ## Font resolution
 
+- **Characters the run's face cannot draw move to the face that draws them** on every edit
+  (`substitute_uncovered_characters_in_editor`): kana typed into Arial commit as their own run
+  in the family `QRawFont::fromFont(font, system)` resolves, like Photoshop's own switch. Qt's
+  silent per-glyph fallback used to draw them while the runs said "Arial", and Photoshop showed
+  empty boxes. Only writing systems a registered face covers are probed (docs/testing.md).
+
 - **A family that resolves but covers none of the layer's characters counts as MISSING.** Patchy
   bundles Noto Naskh Arabic (third_party/fonts), so the family is in the database, but its cmap
   holds no Latin letters at all: space, `!`, `,`, `.`, `:` and the digits are the whole ASCII
@@ -247,7 +253,7 @@ style must not render nothing).
 
 ## Character panel
 
-- Opened via options bar > Character... while the Text tool is active; edits leading auto/fixed, tracking, H/V glyph scales, faux bold and faux italic. The leading field is never locked: entering a value turns Auto leading off (Photoshop's behavior; a greyed field read as broken). Number fields apply on Enter, focus loss or their +/- buttons, not per keystroke. During inline editing it applies to the text selection, or the whole object with a bare caret. Otherwise it applies to the active unlocked text layer, including warped text, and remains usable after switching tools.
+- Opened via options bar > Character... while the Text tool is active; edits leading auto/fixed, tracking, H/V glyph scales, faux bold and faux italic. The leading field is never locked: a typed value turns Auto leading off (Photoshop). Number fields apply on Enter, focus loss or +/-. During inline editing it applies to the text selection, or the whole object with a bare caret. Otherwise it applies to the active unlocked text layer, including warped text, and remains usable after switching tools.
 - **Faux bold is refused on warped layers** (Photoshop parity, see [warp.md](warp.md)): the checkbox shows a status error and reverts when ENABLING on a session whose layer carries an active Warp Text; unchecking stays allowed so imported faux+warp files can be fixed. Ctrl+B's faux fallback refuses the same way, while a family with a real Bold face keeps toggling normally. Faux italic is unrestricted (PS warps it fine).
 - Without an inline session, the panel reads the first character's format from the stored text runs, with the transform's vertical scale and document resolution applied to displayed leading. A change creates a hidden session through `add_text_at(..., show_editor=false)` and commits it immediately through the normal Type undo/render path. It never shows an unwarped preview or takes keyboard focus; mixed run sizes and colors survive. Opening the panel alone does not mutate the layer.
 - Controls disable when neither a live session nor an editable text layer is available, including pixel locks and active transform sessions. `refresh_options_bar` and `refresh_layer_controls` synchronize the panel on session, selection, lock and history changes. Tests: `ui_text_character_panel_tracks_session_and_layer`, `ui_text_character_panel_edits_selected_layer_without_session`.
@@ -263,31 +269,26 @@ Photoshop calibration are in [text-render-calibration.md](text-render-calibratio
 the session contract.
 
 - **One Type tool, an orientation toggle.** `textOrientationButton` (and the layer context
-  menu's Horizontal/Vertical Text entry) switches a live session in place, converts the selected
-  layer through the Character-panel hidden session (one undo step), or arms the NEXT new layer
-  once. It is never persisted and a fresh session starts horizontal (a sticky default made every
-  later box vertical). `textDirectionCombo` is paragraph-level like alignment.
+  menu entry) switches a live session in place, converts the selected layer through the
+  Character-panel hidden session (one undo step), or arms the NEXT new layer once; never
+  persisted, a fresh session starts horizontal. `textDirectionCombo` is paragraph-level.
 - **The plan is the authority, again.** `vertical_text_layout_plan` (ui/text_layout.hpp)
   re-places every grapheme cluster of the horizontally shaped NoWrap document into a cell;
-  `TextLineGeometry::from_vertical_plan` answers caret (em-wide bar, thickened ACROSS the column),
-  selection strips and hit-testing from the plan `draw_vertical_text_plan` draws (per-cell glyph
-  runs, faux bold as filled + stroked paths). `vertical_render_plan` and its `_for_editor` twin
-  add the bleed and must mirror each other's scales.
+  `TextLineGeometry::from_vertical_plan` answers caret, selection and hit-testing from the plan
+  `draw_vertical_text_plan` draws. `vertical_render_plan` and its `_for_editor` twin add the
+  bleed and must mirror each other's scales.
 - **The anchor moves the widget, not the text.** Vertical text grows LEFT (and UP when centred
   or bottom-aligned), so `relayout_text_editor` re-derives the widget origin from
-  `kTextEditorVerticalAnchorProperty` (the click for a new layer; `vertical_text_layer_anchor`
-  recovers a re-edit's from the raster). Imported PSD vertical layers keep the ink-anchor path
-  with the stack-axis fraction at 1 (right edge).
+  `kTextEditorVerticalAnchorProperty` (`vertical_text_layer_anchor` recovers a re-edit's from
+  the raster). Imported PSD vertical layers keep the ink-anchor path, stack-axis fraction 1.
 - **Arrow keys follow the columns** (`InlineTextEdit::keyPressEvent`): Up/Down step along the
   column, Left/Right jump between columns.
-- **Right-to-left needs no shaping work**: Qt runs bidi and HarfBuzz inside QTextLayout.
-  Alignment is logical (`QTextEngine::alignLine` applies `QStyle::visualAlignment`), so the
-  point-text anchor helpers resolve the same visual alignment via `resolved_block_direction`.
-  Spell non-ASCII test literals as `\x` escapes (MSVC reads sources as ANSI; mojibake has no
-  bidi class).
+- **Right-to-left needs no shaping work**: Qt runs bidi and HarfBuzz in QTextLayout. Alignment
+  is logical (`QStyle::visualAlignment`), so the anchor helpers resolve it the same way via
+  `resolved_block_direction`. Spell non-ASCII test literals as `\x` escapes (MSVC reads sources
+  as ANSI).
 - Scripting: `doc.addTextLayer(text, {orientation, direction})`, `layer.textOrientation` /
-  `textDirection`. Tests: `tests/ui/text_vertical_rtl_tests.cpp`, `psd_*vertical*` and
-  `psd_paragraph_direction*` in tests/core.
+  `textDirection`. Tests: `tests/ui/text_vertical_rtl_tests.cpp`, `psd_*vertical*` in tests/core.
 - Known gaps: tate-chu-yoko, kinsoku, vmtx metrics,
   transformed PSD vertical imports re-anchor by the horizontal rules, box indents, uncalibrated
   vertical Warp Text, SVG export rasterizes it.

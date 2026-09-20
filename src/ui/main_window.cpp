@@ -182,6 +182,7 @@
 #include <QStandardItem>
 #include <QStyledItemDelegate>
 #include <QMutex>
+#include <QHash>
 #include <QRawFont>
 #include <QTextCharFormat>
 #include <QTextBlock>
@@ -1126,6 +1127,109 @@ QFont render_text_font_for_display_family(const QString& family, int pixel_size,
   }
   configure_text_font_smoothing(font, anti_alias);
   return font;
+}
+
+// The writing system a fallback face is looked up under for one character. Han is shared by
+// three systems; the first one an installed face covers wins, Japanese first (the same order the
+// wasm CJK fallback uses).
+QFontDatabase::WritingSystem fallback_writing_system_for_character(QChar character) {
+  if (character.script() == QChar::Script_Han) {
+    for (const auto system : {QFontDatabase::Japanese, QFontDatabase::SimplifiedChinese,
+                              QFontDatabase::TraditionalChinese}) {
+      if (!QFontDatabase::families(system).isEmpty()) {
+        return system;
+      }
+    }
+    return QFontDatabase::Any;
+  }
+  return writing_system_for_character(character);
+}
+
+void set_text_display_family(QTextCharFormat& format, const QString& family);
+
+// Photoshop switches the FACE of characters the current font cannot draw (kana typed into
+// Arial lands in Kozuka Gothic, as its own style run). Qt only draws them through a silent
+// per-glyph fallback that the stored runs never named, so a Photoshop re-layout of the PSD
+// showed empty boxes for the kana. Runs the same substitution on every edit: characters the
+// run's PRIMARY face lacks move to the family Qt resolves for their writing system, so the
+// runs, the options bar and the exported font list all name the face that really draws them.
+void substitute_uncovered_characters_in_editor(QTextEdit& editor) {
+  auto* document = editor.document();
+  if (document == nullptr || editor.property("patchy.substitutingUncoveredCharacters").toBool()) {
+    return;
+  }
+  struct Range {
+    int start{0};
+    int length{0};
+    QString family;
+  };
+  std::vector<Range> ranges;
+  QHash<QString, QRawFont> primary_faces;
+  for (auto block = document->begin(); block.isValid(); block = block.next()) {
+    for (auto fragment_it = block.begin(); !fragment_it.atEnd(); ++fragment_it) {
+      const auto fragment = fragment_it.fragment();
+      if (!fragment.isValid() || fragment.length() <= 0) {
+        continue;
+      }
+      const auto format = fragment.charFormat();
+      const auto font = format.font();
+      const auto key = font.families().join(QLatin1Char('|')) + QLatin1Char('#') + font.styleName() +
+                       QString::number(font.weight()) + (font.italic() ? QLatin1String("i") : QLatin1String("r"));
+      auto primary = primary_faces.value(key);
+      if (!primary.isValid()) {
+        primary = QRawFont::fromFont(font);
+        primary_faces.insert(key, primary);
+      }
+      if (!primary.isValid()) {
+        continue;
+      }
+      const auto text = fragment.text();
+      int index = 0;
+      while (index < text.size()) {
+        uint code = text.at(index).unicode();
+        int length = 1;
+        if (text.at(index).isHighSurrogate() && index + 1 < text.size() && text.at(index + 1).isLowSurrogate()) {
+          code = QChar::surrogateToUcs4(text.at(index), text.at(index + 1));
+          length = 2;
+        }
+        const QChar probe(code < 0x10000 ? static_cast<char16_t>(code) : u' ');
+        const bool ignorable = code < 0x20 || QChar::isSpace(code) || QChar::isMark(code) ||
+                               probe.category() == QChar::Other_Format;
+        if (!ignorable && !primary.supportsCharacter(code)) {
+          const auto system = fallback_writing_system_for_character(probe);
+          // A writing system no registered face covers crashes QRawFont::familyName (docs/testing.md).
+          if (system != QFontDatabase::Any && !QFontDatabase::families(system).isEmpty()) {
+            const auto fallback = QRawFont::fromFont(font, system);
+            if (fallback.isValid() && !fallback.familyName().isEmpty() &&
+                fallback.familyName() != primary.familyName() && fallback.supportsCharacter(code)) {
+              const auto position = fragment.position() + index;
+              if (!ranges.empty() && ranges.back().family == fallback.familyName() &&
+                  ranges.back().start + ranges.back().length == position) {
+                ranges.back().length += length;
+              } else {
+                ranges.push_back(Range{position, length, fallback.familyName()});
+              }
+            }
+          }
+        }
+        index += length;
+      }
+    }
+  }
+  if (ranges.empty()) {
+    return;
+  }
+  editor.setProperty("patchy.substitutingUncoveredCharacters", true);
+  for (const auto& range : ranges) {
+    QTextCursor cursor(document);
+    cursor.setPosition(range.start);
+    cursor.setPosition(range.start + range.length, QTextCursor::KeepAnchor);
+    QTextCharFormat format;
+    format.setFontFamilies(QStringList{range.family});
+    set_text_display_family(format, range.family);
+    cursor.mergeCharFormat(format);
+  }
+  editor.setProperty("patchy.substitutingUncoveredCharacters", false);
 }
 
 void set_text_display_family(QTextCharFormat& format, const QString& family) {
@@ -8009,6 +8113,10 @@ void MainWindow::add_text_at(QPoint document_point, QRect requested_text_box, bo
     schedule_text_editor_preview(editor);
   };
   connect(editor, &QTextEdit::textChanged, editor, [this, editor = QPointer<QTextEdit>(editor), resize_editor] {
+    if (editor == nullptr) {
+      return;
+    }
+    substitute_uncovered_characters_in_editor(*editor);
     mark_text_editor_changed(editor);
     resize_editor();
   });
