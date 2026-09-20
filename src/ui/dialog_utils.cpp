@@ -59,6 +59,7 @@
 #include <QTabBar>
 #include <QTabWidget>
 #include <QToolButton>
+#include <QUrl>
 #include <QVariant>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -1672,10 +1673,17 @@ QString prompt_android_save_file(QWidget* parent,
     auto* name_edit = new QLineEdit(&dialog);
     name_edit->setObjectName(QStringLiteral("androidSaveFileNameEdit"));
 
-    const auto initial_name = QFileInfo(initial_path).fileName();
+    auto initial_name = QFileInfo(initial_path).fileName();
+    
+    #ifdef Q_OS_ANDROID
+    if (initial_path.startsWith(QStringLiteral("content://"),
+                        Qt::CaseInsensitive)) {
+                        initial_name = QUrl::fromPercentEncoding(initial_name.toUtf8());
+    }
+    #endif
     name_edit->setText(initial_name.isEmpty()
-                           ? QStringLiteral("Untitled.psd")
-                           : initial_name);
+                       ? QStringLiteral("Untitled.psd")
+                       : initial_name);
     name_edit->selectAll();
 
     form->addRow(QObject::tr("File name:"), name_edit);
