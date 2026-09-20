@@ -120,28 +120,6 @@ std::optional<QString> japanese_test_family() {
   return families.front();
 }
 
-patchy::LayerId add_vertical_text_layer(patchy::Document& document, const char* name, const std::string& text,
-                                        const QString& family, int size, const std::string& alignment,
-                                        QPoint origin) {
-  patchy::Layer layer(document.allocate_layer_id(), name,
-                      solid_pixels(8, 8, patchy::PixelFormat::rgba8(), QColor(0, 0, 0, 0)));
-  layer.set_bounds(patchy::Rect{origin.x(), origin.y(), 8, 8});
-  layer.metadata()[patchy::kLayerMetadataText] = text;
-  layer.metadata()[patchy::kLayerMetadataTextFlow] = "point";
-  layer.metadata()[patchy::kLayerMetadataTextFont] = family.toStdString();
-  layer.metadata()[patchy::kLayerMetadataTextSize] = std::to_string(size);
-  layer.metadata()[patchy::kLayerMetadataTextColor] = "#000000";
-  layer.metadata()[patchy::kLayerMetadataTextOrientation] = patchy::kTextOrientationVertical;
-  layer.metadata()[patchy::kLayerMetadataTextRasterStatus] = "patchy_raster";
-  const auto utf16_length = QString::fromStdString(text).size();
-  layer.metadata()[patchy::kLayerMetadataTextRuns] =
-      "v1\n0\t" + std::to_string(utf16_length) + "\t" + std::to_string(size) + "\t0\t0\t#000000\t" +
-      QString::fromLatin1(family.toUtf8().toPercentEncoding()).toStdString();
-  layer.metadata()[patchy::kLayerMetadataTextParagraphRuns] =
-      "v1\n0\t" + std::to_string(utf16_length) + "\t" + alignment;
-  return document.add_layer(std::move(layer)).id();
-}
-
 bool layer_is_vertical_metadata(const patchy::Layer& layer) {
   const auto found = layer.metadata().find(patchy::kLayerMetadataTextOrientation);
   return found != layer.metadata().end() && found->second == patchy::kTextOrientationVertical;

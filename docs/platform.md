@@ -47,6 +47,12 @@ After it snapshots the tree, use the corresponding remote checkout for clean
 `mac-dev` or `linux-dev` verification. Do not add `-Werror` or `/WX`; a new warning is
 fixed in source or isolated at the exact vendored source and diagnostic.
 
+GCC-only diagnostics MSVC never reports (September 2026): `-Wmissing-field-initializers`
+fires when a positional aggregate initializer stops before a member that has no default
+member initializer (a plain `std::string direction;` added to the end of a struct breaks
+every older `T{a, b, c}` site), and `-Wunused-function` fires for a dead helper in an
+anonymous namespace. Name the members with designated initializers, and delete dead helpers.
+
 ### The flatpak build is a second Linux compiler
 
 A warning reported by the flatpak release build usually cannot be reproduced or

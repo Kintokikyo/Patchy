@@ -361,7 +361,7 @@ std::vector<PsdTextParagraphRun> paragraph_runs_from_text_line_breaks(std::strin
   std::vector<PsdTextParagraphRun> runs;
   const auto text_length = static_cast<int>(utf8_to_utf16(text).size());
   if (text_length <= 0) {
-    runs.push_back(PsdTextParagraphRun{0, 1, justification});
+    runs.push_back(PsdTextParagraphRun{.start = 0, .length = 1, .justification = justification, .direction = {}});
     return runs;
   }
 
@@ -374,7 +374,8 @@ std::vector<PsdTextParagraphRun> paragraph_runs_from_text_line_breaks(std::strin
     const auto segment = text.substr(segment_start, index + 1U - segment_start);
     const auto length = static_cast<int>(utf8_to_utf16(segment).size());
     if (length > 0) {
-      runs.push_back(PsdTextParagraphRun{start_units, length, justification});
+      runs.push_back(PsdTextParagraphRun{.start = start_units, .length = length,
+                                         .justification = justification, .direction = {}});
       start_units += length;
     }
     segment_start = index + 1U;
@@ -383,11 +384,13 @@ std::vector<PsdTextParagraphRun> paragraph_runs_from_text_line_breaks(std::strin
   if (segment_start < text.size()) {
     const auto length = static_cast<int>(utf8_to_utf16(text.substr(segment_start)).size());
     if (length > 0) {
-      runs.push_back(PsdTextParagraphRun{start_units, length, justification});
+      runs.push_back(PsdTextParagraphRun{.start = start_units, .length = length,
+                                         .justification = justification, .direction = {}});
     }
   }
   if (runs.empty()) {
-    runs.push_back(PsdTextParagraphRun{0, text_length, justification});
+    runs.push_back(PsdTextParagraphRun{.start = 0, .length = text_length,
+                                       .justification = justification, .direction = {}});
   }
   return runs;
 }
@@ -477,7 +480,8 @@ std::vector<PsdTextParagraphRun> parse_patchy_paragraph_runs_metadata(std::strin
     return lhs.start < rhs.start;
   });
   if (runs.empty()) {
-    runs.push_back(PsdTextParagraphRun{0, std::max(1, text_length), 0});
+    runs.push_back(PsdTextParagraphRun{.start = 0, .length = std::max(1, text_length),
+                                       .justification = 0, .direction = {}});
   }
   return runs;
 }
