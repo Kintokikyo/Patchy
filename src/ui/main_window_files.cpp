@@ -2750,7 +2750,7 @@ void MainWindow::import_sprite_sheet() {
     refresh_layer_controls();
     update_undo_redo_actions();
     mark_session_modified(session());
-    statusBar()->showMessage(tr("Imported %1 frames from %2").arg(frame_count).arg(path));
+    statusBar()->showMessage(tr("Imported %1 frames from %2").arg(frame_count).arg(display_path_for_ui(path)));
   } catch (const std::exception& error) {
     show_critical_message(this, tr("Import failed"), translated_file_message(error.what()),
                           QStringLiteral("openFailedMessageBox"));
@@ -2810,7 +2810,7 @@ void MainWindow::export_sprite_sheet() {
     write_flat_image_file(sheet_document, path, extension, *image_options);
     offer_browser_download_for_saved_file(path);
     remember_save_directory_for_path(path);
-    statusBar()->showMessage(tr("Exported sprite sheet %1").arg(path));
+    statusBar()->showMessage(tr("Exported sprite sheet %1").arg(display_path_for_ui(path)));
     if (image_options->export_reveal_in_file_explorer) {
       reveal_path_in_file_explorer(path, /*is_file*/ true);
     }
@@ -2993,7 +2993,7 @@ void MainWindow::export_animated_gif() {
     write_flat_image_file(document(), path, QStringLiteral("gif"), *options, &writer_notices);
     offer_browser_download_for_saved_file(path);
     remember_save_directory_for_path(path);
-    statusBar()->showMessage(tr("Exported %1").arg(path) + export_notes_suffix_for(writer_notices));
+    statusBar()->showMessage(tr("Exported %1").arg(display_path_for_ui(path)) + export_notes_suffix_for(writer_notices));
     if (options->export_reveal_in_file_explorer) {
       reveal_path_in_file_explorer(path, /*is_file*/ true);
     }
@@ -3410,14 +3410,13 @@ bool MainWindow::save_document_to_path(QString path, std::optional<ImageSaveOpti
         }
       }
       add_recent_file(path);
-      statusBar()->showMessage((extension == QStringLiteral("svg") ? tr("Saved SVG copy %1.")
-                                : is_pdf_extension(extension) && effective_image_options.pdf_editable_layers
-                                    ? tr("Saved PDF copy with editable layers %1.")
-                                : extension == QStringLiteral("gif") && effective_image_options.gif_animate
-                                    ? tr("Saved animated GIF copy %1")
-                                    : tr("Saved flattened copy %1"))
-                                   .arg(path) +
-                               export_notes_suffix);
+      statusBar()->showMessage(
+      (extension == QStringLiteral("svg") ? tr("Saved SVG copy %1.")
+     : is_pdf_extension(extension) && effective_image_options.pdf_editable_layers
+         ? tr("Saved PDF copy with editable layers %1.")
+     : extension == QStringLiteral("gif") && effective_image_options.gif_animate
+         ? tr("Saved animated GIF copy %1")
+         : tr("Saved flattened copy %1")).arg(display_path_for_ui(path)) + export_notes_suffix);
       return true;
     }
     auto& active_session = session();
@@ -3574,7 +3573,7 @@ void MainWindow::export_flat_image() {
       persist_image_save_defaults(effective_image_options);
     }
     remember_save_directory_for_path(path);
-    statusBar()->showMessage(tr("Exported %1").arg(path) + export_notes_suffix);
+    statusBar()->showMessage(tr("Exported %1").arg(display_path_for_ui(path)) + export_notes_suffix);
     if (effective_image_options.export_reveal_in_file_explorer) {
       reveal_path_in_file_explorer(path, /*is_file*/ true);
     }
