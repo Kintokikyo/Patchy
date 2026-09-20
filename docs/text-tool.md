@@ -35,9 +35,9 @@ clicking mid-INK; the click probe must come from the render, since click and car
 and agree even when it is wrong.
 
 Mouse hit-testing goes through the same plan. `QTextEdit::cursorForPosition` must never resolve a
-click inside a text session: the widget hit-tests against its own internal layout, built at an
-integer pixel size of `round(size * zoom)` with Qt's natural line spacing, so a click and the
-caret it produced can answer different lines. `MainWindow::handle_text_editor_viewport_mouse_event`
+click inside a text session: the widget hit-tests against its own internal layout (integer pixel
+size `round(size * zoom)`, Qt's natural line spacing), so a click and the caret it produced can
+answer different lines. `MainWindow::handle_text_editor_viewport_mouse_event`
 intercepts left press/drag/double-click on the editor viewport for the flat case and
 `TransformedTextEditOverlay::cursor_position_for_overlay_point` covers the transformed one; both
 end at `TextLineGeometry::position_at`. Everything else (right-click menu, middle click, release)
@@ -48,8 +48,8 @@ The editor widget is SIZED from that layout too, not from `QTextDocument::size()
 rect is its hit area, so a widget shorter than the glyphs makes the lines past its bottom edge
 unclickable: the click falls through to the canvas and the focus-loss auto-commit ends the
 session, routine under the Photoshop leading model.
-`ui_transformed_text_click_returns_to_the_caret_it_drew` covers it, rotating the fixed-leading
-fixture so the click has to survive both the transform inverse and the leading divergence.
+`ui_transformed_text_click_returns_to_the_caret_it_drew` covers it on the rotated fixed-leading
+fixture (transform inverse plus leading divergence).
 
 `render_text_pixels_with_local_rect` is split into `build_text_render_plan` (layout, line
 plan, local rect, the post-fold residual transform) and `draw_text_render_plan(plan, QPainter&)`.
