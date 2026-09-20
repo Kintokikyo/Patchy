@@ -1938,7 +1938,7 @@ void MainWindow::open_document_path(QString path) {
       if (!unattended_automation()) remember_open_directory_for_path(path);
     }
     if (loaded->import_notices.isEmpty()) {
-      statusBar()->showMessage(tr("Opened %1").arg(browser_transfer ? loaded_file_name : path));
+      statusBar()->showMessage(tr("Opened %1").arg(loaded_file_name));
     } else {
       // Import notes ride the status bar by default; the consolidated popup is
       // opt-in via the same preference that gates the PSD compatibility report
@@ -2104,7 +2104,7 @@ void MainWindow::reopen_document_session(DocumentSession& target_session) {
     refresh_document_tab_titles();
     open_extra_imported_page_sessions(loaded->file_name, std::move(loaded->extra_documents));
     if (loaded->import_notices.isEmpty()) {
-      statusBar()->showMessage(tr("Reopened %1").arg(path));
+      statusBar()->showMessage(tr("Reopened %1").arg(loaded->file_name));
     } else {
       auto status_notes = loaded->import_notices.front();
       if (loaded->import_notices.size() > 1) {
