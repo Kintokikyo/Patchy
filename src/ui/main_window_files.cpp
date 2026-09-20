@@ -343,6 +343,20 @@ bool is_android_content_uri(const QString& path) {
         QStringLiteral("content://"),
         Qt::CaseInsensitive);
 }
+#endif
+
+QString display_path_for_ui(const QString& path) {
+#ifdef Q_OS_ANDROID
+    if (is_android_content_uri(path)) {
+        return QUrl::fromPercentEncoding(
+            QFileInfo(path).fileName().toUtf8());
+    }
+#endif
+
+    return QDir::toNativeSeparators(path);
+}
+
+#ifdef Q_OS_ANDROID
 
 void write_file_to_android_uri(const QString& local_path,
                                const QString& uri_string) {
@@ -4019,12 +4033,16 @@ void MainWindow::rebuild_recent_files_menu() {
   }
 
   const auto add_recent_action = [this](QMenu* menu, const QString& path, int index) {
-    const auto label = tr("&%1 %2").arg(index).arg(QDir::toNativeSeparators(path));
+    const auto display_path = display_path_for_ui(path);
+
+    const auto label = tr("&%1 %2").arg(index).arg(display_path);
     auto* action = menu->addAction(label);
-    action->setToolTip(path);
+    action->setToolTip(display_path);
     action->setData(path);
-    connect(action, &QAction::triggered, this, [this, path] { open_recent_document(path); });
-  };
+    connect(action, &QAction::triggered, this, [this, path] {
+        open_recent_document(path);
+    });
+};
 
   const auto recent_count = static_cast<int>(recent_files_.size());
   const auto direct_count = std::min(recent_count, kRecentFilesMenuPageSize);
@@ -4095,8 +4113,12 @@ void MainWindow::apply_recent_files_filter(const QString& filter_text) {
       }
       // Labels keep the original recency index so a filtered row still says
       // where the file sits in the full list.
-      auto* action = new QAction(tr("&%1 %2").arg(index + 1).arg(native_path), recent_files_menu_);
-      action->setToolTip(path);
+      const auto display_path = display_path_for_ui(path);
+
+      auto* action = new QAction(
+        tr("&%1 %2").arg(index + 1).arg(display_path),
+        recent_files_menu_);
+      action->setToolTip(display_path);
       action->setData(path);
       connect(action, &QAction::triggered, this, [this, path] { open_recent_document(path); });
       recent_files_menu_->addAction(action);
