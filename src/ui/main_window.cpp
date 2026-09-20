@@ -11593,7 +11593,7 @@ void MainWindow::sync_text_orientation_controls_from_editor() {
     text_direction_combo_->setCurrentIndex(std::max(0, index));
   }
   // Vertical text aligns along the column: the buttons read Top / Center / Bottom.
-  const auto set_tip = [this](QPushButton* button, const char* horizontal, const char* vertical_tip, bool is_vertical) {
+  const auto set_tip = [](QPushButton* button, const char* horizontal, const char* vertical_tip, bool is_vertical) {
     if (button != nullptr) {
       button->setToolTip(tr(is_vertical ? vertical_tip : horizontal));
     }
