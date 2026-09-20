@@ -6922,10 +6922,6 @@ Mixed selection</source>
         <translation>ブラウザー以外ではこの HEIC 画像をデコードできません。</translation>
     </message>
     <message>
-        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install flathub org.freedesktop.Platform.ffmpeg-full//24.08</source>
-        <translation>この HEIC 画像をデコードできません。HEIC のデコードには Flatpak のコーデック拡張が必要です。次のコマンドでインストールしてください: flatpak install flathub org.freedesktop.Platform.ffmpeg-full//24.08</translation>
-    </message>
-    <message>
         <source>This file is not a supported HEIC/HEIF image</source>
         <translation>このファイルは対応している HEIC/HEIF 画像ではありません。</translation>
     </message>
@@ -8150,6 +8146,10 @@ Mixed selection</source>
     <message>
         <source>Also crop each actual layer to the canvas area</source>
         <translation>各レイヤー自体もカンバス領域に切り抜く</translation>
+    </message>
+    <message>
+        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</source>
+        <translation>この HEIC 画像をデコードできません。HEIC のデコードには Flatpak のコーデック拡張が必要です。次のコマンドでインストールしてください: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</translation>
     </message>
 </context>
 <context>

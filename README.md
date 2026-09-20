@@ -151,11 +151,12 @@ notarized (Robinson Technologies Corporation).
 | Linux                     | Flatpak bundle              | [PatchyLinux.flatpak](https://rtsoft.com/files/PatchyLinux.flatpak) (31 MB)                   |
 | Any modern browser        | Nothing to install          | [rtsoft.com/patchy](https://www.rtsoft.com/patchy/) (slower and less capable)                 |
 
-Linux one-line install (paste into a terminal; fetches the bundle and installs it,
-pulling the shared KDE runtime from Flathub automatically):
+Linux one-line install (paste into a terminal; adds the Flathub remote for your user
+if it is missing, fetches the bundle, and installs it for your user with the shared KDE
+runtime, no root needed):
 
 ```sh
-curl -L -o /tmp/PatchyLinux.flatpak https://rtsoft.com/files/PatchyLinux.flatpak && flatpak install -y /tmp/PatchyLinux.flatpak
+flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo && curl -L -o /tmp/PatchyLinux.flatpak https://rtsoft.com/files/PatchyLinux.flatpak && flatpak install --user -y /tmp/PatchyLinux.flatpak
 ```
 
 Optional: opening iPhone HEIC photos on Linux uses the shared Freedesktop codec
@@ -163,7 +164,7 @@ extension, which bundle installs do not fetch on their own. Patchy will show thi
 command if it is needed:
 
 ```sh
-flatpak install -y flathub org.freedesktop.Platform.ffmpeg-full//24.08
+flatpak install --user -y flathub org.freedesktop.Platform.ffmpeg-full//24.08
 ```
 
 ## Features

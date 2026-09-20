@@ -1382,10 +1382,6 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install flathub org.freedesktop.Platform.ffmpeg-full//24.08</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>This file is not a supported HEIC/HEIF image</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8163,6 +8159,10 @@ RGB: %2, %3, %4</source>
     </message>
     <message>
         <source>Also crop each actual layer to the canvas area</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

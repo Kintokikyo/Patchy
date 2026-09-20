@@ -1656,8 +1656,13 @@ void ui_update_available_dialog_warns_to_close_patchy_before_installing() {
 #if defined(Q_OS_MACOS)
     CHECK(dialog->text().contains(QStringLiteral("drag the new Patchy into Applications")));
 #elif defined(Q_OS_LINUX)
-    CHECK(dialog->text().contains(QStringLiteral("flatpak install")));
-    CHECK(dialog->text().contains(QStringLiteral("curl -L -o")));
+    // The command must work with no root and no preconfigured remote (GitHub issue 14):
+    // it adds the Flathub user remote, fetches the bundle, and installs per user.
+    CHECK(dialog->text().contains(QStringLiteral(
+        "flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo && ")));
+    CHECK(dialog->text().contains(
+        QStringLiteral("curl -L -o /tmp/PatchyLinux.flatpak https://rtsoft.com/files/PatchyLinux.flatpak && ")));
+    CHECK(dialog->text().contains(QStringLiteral("flatpak install --user -y /tmp/PatchyLinux.flatpak")));
     CHECK(dialog->findChild<QAbstractButton*>(QStringLiteral("updateCopyCommandButton")) != nullptr);
 #else
     CHECK(dialog->text().contains(
@@ -1667,8 +1672,14 @@ void ui_update_available_dialog_warns_to_close_patchy_before_installing() {
     dialog->reject();
   });
 
-  window.show_update_available({QStringLiteral("windows"), QStringLiteral("9.9"),
-                                QUrl(QStringLiteral("https://rtsoft.com/files/PatchyWindowsInstaller.exe"))});
+  // The Linux dialog embeds the bundle name from the download URL in its command, so
+  // that platform gets the real Flatpak URL; the others only show generic advice.
+#if defined(Q_OS_LINUX)
+  const QUrl download_url(QStringLiteral("https://rtsoft.com/files/PatchyLinux.flatpak"));
+#else
+  const QUrl download_url(QStringLiteral("https://rtsoft.com/files/PatchyWindowsInstaller.exe"));
+#endif
+  window.show_update_available({QStringLiteral("windows"), QStringLiteral("9.9"), download_url});
   CHECK(saw_dialog);
 }
 

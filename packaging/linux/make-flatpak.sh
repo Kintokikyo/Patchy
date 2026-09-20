@@ -4,7 +4,8 @@
 #   sudo apt-get install -y flatpak flatpak-builder
 #   flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 #   flatpak install -y flathub org.kde.Platform//6.8 org.kde.Sdk//6.8
-# Users install the produced bundle with:  flatpak install ./Patchy-<version>.flatpak
+# Users install the produced bundle with:  flatpak install --user ./Patchy-<version>.flatpak
+# (the README one-liner adds the Flathub user remote first; see README.md here).
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -54,5 +55,10 @@ fi
 echo "Headless smoke check passed."
 timeout 180 flatpak-builder --run "$BUILD_DIR" "flatpak/$APP_ID.yml" patchy-mcp --check
 
-flatpak build-bundle "$REPO_DIR" "$PACKAGE_DIR/Patchy-$VERSION.flatpak" "$APP_ID"
+# --runtime-repo records where org.kde.Platform//6.8 lives in the bundle metadata. A
+# single-file bundle has no origin remote, so without it `flatpak install` on a machine
+# with no Flathub remote fails with "requires the runtime ... which was not found"
+# (GitHub issue 14, CachyOS with no preconfigured remotes).
+flatpak build-bundle --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
+  "$REPO_DIR" "$PACKAGE_DIR/Patchy-$VERSION.flatpak" "$APP_ID"
 echo "Bundle written: $PACKAGE_DIR/Patchy-$VERSION.flatpak"

@@ -142,7 +142,7 @@ FormatReadResult read_heif(std::span<const std::uint8_t> bytes) {
 #else
   throw std::runtime_error(
       PATCHY_TRANSLATE_NOOP("QObject", "Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; "
-      "install it with: flatpak install flathub org.freedesktop.Platform.ffmpeg-full//24.08"));
+      "install it with: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08"));
 #endif
 }
 

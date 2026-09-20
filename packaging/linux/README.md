@@ -3,9 +3,31 @@
 Patchy ships on Linux as a self-hosted single-file Flatpak bundle
 (`build/package/Patchy-<version>.flatpak`; `scripts\release\upload-linux-to-rtsoft.bat` publishes the
 newest one to rtsoft.com under the stable name `PatchyLinux.flatpak`, matching the
-Windows "latest" convention). Users install it with
-`flatpak install ./PatchyLinux.flatpak`; the KDE runtime it needs is fetched
-automatically from Flathub.
+Windows "latest" convention). Users install it with the README one-liner, which adds the
+Flathub user remote if it is missing and then runs `flatpak install --user -y
+/tmp/PatchyLinux.flatpak`. The app's update dialog shows the same command.
+
+Two things keep that install working on a machine with no preconfigured remote and no
+root (GitHub issue 14, CachyOS, September 2026):
+
+- `make-flatpak.sh` passes `--runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo`
+  to `flatpak build-bundle`. A single-file bundle has no origin remote, so that metadata
+  key is the only hint `flatpak install` gets about where `org.kde.Platform//6.8` lives;
+  without it the install aborts with "requires the runtime ... which was not found".
+  The value lives in the bundle file's own header, not in the app's `metadata` file, so
+  check a bundle with `strings -n 12 Patchy-<version>.flatpak | grep -m1 flatpakrepo`.
+  For a full end-to-end check, point `FLATPAK_SYSTEM_DIR` and `FLATPAK_USER_DIR` at two
+  empty directories (a machine with no runtimes and no remotes) and run `flatpak install
+  --user -y <bundle>`: flatpak must create the `flathub` remote and pull the runtime by
+  itself. Verified 2026-09 on glados; the pre-fix 0.97 bundle fails there with the
+  exact error from the issue.
+- Every documented command uses `--user`. Without it flatpak targets the system
+  installation and asks polkit for root, which is the permission error normal users hit.
+  The `remote-add --user --if-not-exists flathub` step is still needed for bundles built
+  before the `--runtime-repo` flag, and it lets the codec line below resolve `flathub` in
+  the user installation. Keep `README.md`, `main_window_files.cpp`
+  (`show_update_available`), the HEIC hint in `heif_document_io.cpp`, and the
+  `app_shell_tests.cpp` assertion in step.
 
 - `flatpak/com.rtsoft.patchy.yml` — the manifest. Runtime `org.kde.Platform//6.8`
   matches the Qt line the app is developed against; Qt is deliberately not vendored.
@@ -19,7 +41,7 @@ automatically from Flathub.
   visible to the installation; repo-based installs such as a future Flathub
   listing would). Everything else works without it; only HEIC opens are
   affected, and Patchy's open-error dialog shows the exact one-line
-  `flatpak install` fix, which the README download section also documents.
+  `flatpak install --user` fix, which the README download section also documents.
   Patchy bundles no HEVC code, and the block goes away if the runtime moves to
   6.10+, whose base inherits codecs-extra instead (auto-installed with the
   runtime, so HEIC then works with zero user action).

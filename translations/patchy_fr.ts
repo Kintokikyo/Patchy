@@ -1382,10 +1382,6 @@
         <translation>Impossible de décoder cette image HEIC en dehors d&apos;un navigateur.</translation>
     </message>
     <message>
-        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install flathub org.freedesktop.Platform.ffmpeg-full//24.08</source>
-        <translation>Impossible de décoder cette image HEIC. Le décodage HEIC nécessite l&apos;extension de codecs Flatpak ; installez-la avec : flatpak install flathub org.freedesktop.Platform.ffmpeg-full//24.08</translation>
-    </message>
-    <message>
         <source>This file is not a supported HEIC/HEIF image</source>
         <translation>Ce fichier n&apos;est pas une image HEIC/HEIF prise en charge</translation>
     </message>
@@ -8173,6 +8169,10 @@ RVB : %2, %3, %4</translation>
     <message>
         <source>Also crop each actual layer to the canvas area</source>
         <translation>Recadrer également chaque calque à la zone de travail</translation>
+    </message>
+    <message>
+        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</source>
+        <translation>Impossible de décoder cette image HEIC. Le décodage HEIC nécessite l&apos;extension de codecs Flatpak ; installez-la avec : flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</translation>
     </message>
 </context>
 <context>

@@ -3128,10 +3128,16 @@ void MainWindow::show_update_available(const UpdateInfo& update) {
 #elif defined(Q_OS_LINUX)
   // A flatpak bundle installs from a local path only (URLs work only for repo-backed
   // flatpakrefs), so the one-liner fetches the stable URL first. curl ships by default
-  // on Ubuntu/Fedora/Arch/openSUSE.
+  // on Ubuntu/Fedora/Arch/openSUSE. The bundle needs org.kde.Platform from Flathub, and
+  // distros such as CachyOS ship no remote at all, so the command adds the Flathub user
+  // remote first and installs per user (no polkit/root prompt). Keep it identical to
+  // the README download section (GitHub issue 14).
   const auto bundle_name = QFileInfo(update.download_url.path()).fileName();
-  const auto install_command = QStringLiteral("curl -L -o /tmp/%1 %2 && flatpak install -y /tmp/%1")
-                                   .arg(bundle_name, update.download_url.toString());
+  const auto install_command =
+      QStringLiteral("flatpak remote-add --user --if-not-exists flathub "
+                     "https://dl.flathub.org/repo/flathub.flatpakrepo && "
+                     "curl -L -o /tmp/%1 %2 && flatpak install --user -y /tmp/%1")
+          .arg(bundle_name, update.download_url.toString());
   const auto update_text = tr("Patchy %1 is available. You are using version %2.\n\n"
                               "To update, paste this into a terminal:\n\n%3")
                                .arg(update.version, QStringLiteral(PATCHY_VERSION), install_command);

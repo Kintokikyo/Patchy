@@ -1382,10 +1382,6 @@
         <translation>无法在浏览器之外解码此 HEIC 图像。</translation>
     </message>
     <message>
-        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install flathub org.freedesktop.Platform.ffmpeg-full//24.08</source>
-        <translation>无法解码此 HEIC 图像。HEIC 解码需要 Flatpak 编解码器扩展，请使用以下命令安装：flatpak install flathub org.freedesktop.Platform.ffmpeg-full//24.08</translation>
-    </message>
-    <message>
         <source>This file is not a supported HEIC/HEIF image</source>
         <translation>此文件不是支持的 HEIC/HEIF 图像</translation>
     </message>
@@ -8150,6 +8146,10 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Also crop each actual layer to the canvas area</source>
         <translation>同时将每个图层本身裁剪到画布区域</translation>
+    </message>
+    <message>
+        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</source>
+        <translation>无法解码此 HEIC 图像。HEIC 解码需要 Flatpak 编解码器扩展，请使用以下命令安装：flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</translation>
     </message>
 </context>
 <context>
