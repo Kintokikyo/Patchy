@@ -33,6 +33,7 @@ enum class TestFontRole {
   Wingdings,       // a symbol-writing-system family (font picker preview tests)
   TimesNewRoman,   // .af mixed-run text fixture face
   CourierNew,      // .af mixed-run text fixture face
+  FranklinGothicMedium,  // a GDI family DirectWrite files as "Franklin Gothic" + face "Medium"
 };
 
 inline QStringList test_font_candidates(TestFontRole role) {
@@ -185,6 +186,15 @@ inline QStringList test_font_candidates(TestFontRole role) {
       return {QStringLiteral("/System/Library/Fonts/Supplemental/Courier New.ttf")};
 #else
       return {};  // Liberation Mono registers under its own family name
+#endif
+    case TestFontRole::FranklinGothicMedium:
+#if defined(Q_OS_WIN)
+      return {
+          QStringLiteral("C:/Windows/Fonts/framd.ttf"),
+          QStringLiteral("C:/Windows/Fonts/framdit.ttf"),
+      };
+#else
+      return {};  // the Windows-only GDI/DirectWrite naming split has no equivalent elsewhere
 #endif
   }
   return {};

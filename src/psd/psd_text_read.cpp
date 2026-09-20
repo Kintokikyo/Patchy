@@ -693,6 +693,18 @@ bool font_names_match(std::string_view lhs, std::string_view rhs) {
          compact_font_key_with_bt_suffix(lhs_compact) == compact_font_key_with_bt_suffix(rhs_compact);
 }
 
+// Whether bold + italic can already say everything this face name says. Such a face is never
+// recorded as a style and never baked into the family (main_window.cpp's
+// text_style_is_flag_expressible mirrors this list). "Plain" and "Roman" are what older fonts
+// call their upright regular face (Letraset's Balmoral LET ships "Plain" as its only face).
+bool face_name_is_flag_expressible(std::string_view face) {
+  static constexpr std::array<std::string_view, 10> kFlagExpressible{
+      "regular", "normal", "plain", "roman", "bold", "italic", "oblique", "bold italic", "italic bold",
+      "bold oblique"};
+  const auto key = ascii_lower_copy(std::string(face));
+  return std::find(kFlagExpressible.begin(), kFlagExpressible.end(), key) != kFlagExpressible.end();
+}
+
 #endif
 
 bool strip_ascii_ci_suffix(std::string& value, std::string_view suffix) {
@@ -859,6 +871,11 @@ std::optional<std::string> directwrite_font_info_string(IDWriteFont* font, DWRIT
   return utf8;
 }
 
+// The reader's name matcher, shared with the writer's WIN32-name lookup (psd_text_write.cpp).
+bool directwrite_font_names_match(std::string_view lhs, std::string_view rhs) {
+  return font_names_match(lhs, rhs);
+}
+
 namespace {
 
 std::optional<ResolvedPhotoshopFont> registry_resolved_photoshop_font(std::string_view font_name);
@@ -904,6 +921,12 @@ std::optional<ResolvedPhotoshopFont> directwrite_resolved_photoshop_font(std::st
       if (FAILED(font_family->GetFont(font_index, &font)) || !font) {
         continue;
       }
+      // Synthesized bold/oblique variants share the real face's PostScript and full names; a
+      // PSD can only name the real face, so its weight and face name must not come from a
+      // simulation.
+      if (font->GetSimulations() != DWRITE_FONT_SIMULATIONS_NONE) {
+        continue;
+      }
       std::vector<std::string> candidates;
       if (const auto postscript = directwrite_font_info_string(font.Get(), DWRITE_INFORMATIONAL_STRING_POSTSCRIPT_NAME);
           postscript.has_value()) {
@@ -942,12 +965,7 @@ std::optional<ResolvedPhotoshopFont> directwrite_resolved_photoshop_font(std::st
             return {};
           }
           auto value = utf8_from_wide(*face);
-          auto key = value;
-          std::transform(key.begin(), key.end(), key.begin(),
-                         [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
-          static constexpr std::array<std::string_view, 8> kFlagExpressible{
-              "regular", "normal", "bold", "italic", "oblique", "bold italic", "italic bold", "bold oblique"};
-          if (std::find(kFlagExpressible.begin(), kFlagExpressible.end(), key) != kFlagExpressible.end()) {
+          if (face_name_is_flag_expressible(value)) {
             return {};
           }
           return value;
@@ -981,12 +999,36 @@ std::optional<ResolvedPhotoshopFont> directwrite_resolved_photoshop_font(std::st
         // Style ships its whole family at weight 500, so "BookmanOldStyle-Italic" used to come
         // back as family "Bookman Old Style Italic" - a name the font database cannot list
         // faces for, which emptied the style picker and diverted Bold/Italic to faux.
-        if (weight != DWRITE_FONT_WEIGHT_NORMAL && weight != DWRITE_FONT_WEIGHT_BOLD &&
-            !declared_style.empty()) {
-          return ResolvedPhotoshopFont{family + ' ' + declared_style, declared_style, false, italic};
+        auto resolved = weight != DWRITE_FONT_WEIGHT_NORMAL && weight != DWRITE_FONT_WEIGHT_BOLD &&
+                                !declared_style.empty()
+                            ? ResolvedPhotoshopFont{family + ' ' + declared_style, declared_style, false, italic}
+                            : ResolvedPhotoshopFont{family, declared_style,
+                                                    weight >= DWRITE_FONT_WEIGHT_SEMI_BOLD, italic};
+        // Qt's Windows font database lists the GDI (name-table family/subfamily) names, which are
+        // DirectWrite's WIN32 informational strings, not the weight-stretch-style family and face
+        // DirectWrite derives. The two agree for most fonts, and for a face like Franklin Gothic
+        // Demi the derived "family + face" IS the GDI family. When they disagree nothing
+        // downstream can find the derived name: Balmoral LET (an old TrueType font whose only face
+        // is "Plain" at OS/2 weight class 5) is DirectWrite family "Balmoral LET Plain" with a
+        // synthesized "Medium" face, so the derived name "Balmoral LET Plain Medium" raised the
+        // missing-font prompt for an installed font; Franklin Gothic Medium is DirectWrite family
+        // "Franklin Gothic" + face "Medium" at weight 400, so it came back as the nonexistent family
+        // "Franklin Gothic". Store the WIN32 family instead, with the WIN32 subfamily as the face
+        // when the flags cannot express it; the flags then follow that subfamily's own words.
+        if (const auto win32_family =
+                directwrite_font_info_string(font.Get(), DWRITE_INFORMATIONAL_STRING_WIN32_FAMILY_NAMES);
+            win32_family.has_value() && !font_names_match(*win32_family, resolved.family)) {
+          const auto win32_face =
+              directwrite_font_info_string(font.Get(), DWRITE_INFORMATIONAL_STRING_WIN32_SUBFAMILY_NAMES)
+                  .value_or(std::string());
+          const auto face_key = ascii_lower_copy(win32_face);
+          resolved.family = *win32_family;
+          resolved.style = face_name_is_flag_expressible(win32_face) ? std::string() : win32_face;
+          resolved.bold = face_key.find("bold") != std::string::npos;
+          resolved.italic = italic || face_key.find("italic") != std::string::npos ||
+                            face_key.find("oblique") != std::string::npos;
         }
-        return ResolvedPhotoshopFont{std::move(family), declared_style,
-                                     weight >= DWRITE_FONT_WEIGHT_SEMI_BOLD, italic};
+        return resolved;
       }
     }
   }

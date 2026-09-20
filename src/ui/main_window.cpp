@@ -657,14 +657,16 @@ TextStyleFlags text_style_flags_for_style(const QString& family, const QString& 
 }
 
 // Whether bold + italic can already say everything this face name says. Mirrors the PSD
-// reader's kFlagExpressible list: picks from this set live in the flags with NO recorded
-// style, so ordinary Bold/Italic text stays on runs v3/v4 and round-trips byte-stable.
+// reader's face_name_is_flag_expressible list: picks from this set live in the flags with NO
+// recorded style, so ordinary Bold/Italic text stays on runs v3/v4 and round-trips byte-stable.
+// "Plain" and "Roman" are older fonts' names for the upright regular face.
 bool text_style_is_flag_expressible(const QString& style) {
   const auto key = style.trimmed().toCaseFolded();
   for (const auto& expressible :
-       {QStringLiteral("regular"), QStringLiteral("normal"), QStringLiteral("bold"),
-        QStringLiteral("italic"), QStringLiteral("oblique"), QStringLiteral("bold italic"),
-        QStringLiteral("italic bold"), QStringLiteral("bold oblique")}) {
+       {QStringLiteral("regular"), QStringLiteral("normal"), QStringLiteral("plain"),
+        QStringLiteral("roman"), QStringLiteral("bold"), QStringLiteral("italic"),
+        QStringLiteral("oblique"), QStringLiteral("bold italic"), QStringLiteral("italic bold"),
+        QStringLiteral("bold oblique")}) {
     if (key == expressible) {
       return true;
     }
@@ -881,6 +883,8 @@ bool text_family_draws_any_of(const QString& family, const QString& demanded) {
   return !tested_any;
 }
 
+bool try_register_missing_system_font_family(const QString& family);
+
 // `demanded` is the text this family actually has to draw; pass it empty to check availability
 // alone.
 void append_missing_text_family(QStringList& missing, const QString& family, const QString& demanded) {
@@ -888,8 +892,15 @@ void append_missing_text_family(QStringList& missing, const QString& family, con
   if (requested.isEmpty() || requested.compare(QStringLiteral("PSD Text"), Qt::CaseInsensitive) == 0) {
     return;
   }
-  const bool resolves = available_text_family_match(requested).has_value() ||
-                        available_text_family_style_match(requested).has_value();
+  bool resolves = available_text_family_match(requested).has_value() ||
+                  available_text_family_style_match(requested).has_value();
+  if (!resolves && try_register_missing_system_font_family(requested)) {
+    // A font Windows has but Qt's database skipped is not missing: the render path registers it
+    // from the registry, so the warning has to ask the same question or it fires on an
+    // installed font (a no-op under the offscreen platform, exactly like the render rescue).
+    resolves = available_text_family_match(requested).has_value() ||
+               available_text_family_style_match(requested).has_value();
+  }
   if (resolves && text_family_draws_any_of(requested, demanded)) {
     return;
   }

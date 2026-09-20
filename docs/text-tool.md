@@ -2,7 +2,7 @@
 
 The inline text editor's session machinery, commit/cancel semantics, and the Character panel. The Photoshop layout/measurement model (engine units, leading, faux bold/italic, whole-pixel folding, run-format columns) lives in [text-render-calibration.md](text-render-calibration.md); Warp Text lives in [warp.md](warp.md) and offscreen font registration in [testing.md](testing.md).
 
-Do NOT attempt to split the remaining text code out of main_window.cpp as a pure file move: the render pipeline is shared between too many members; it is a "design a module with its own header" job, not a file split. The line-layout half already lives that way in `src/ui/text_layout.{hpp,cpp}` (next section).
+Do NOT attempt to split the remaining text code out of main_window.cpp as a pure file move: the render pipeline is shared between too many members; it is a "design a module with its own header" job, not a file split.
 
 ## One layout authority (src/ui/text_layout.hpp)
 
@@ -16,8 +16,7 @@ answers are guaranteed to agree with the drawn glyphs.
 
 Caret and selection geometry MUST go through `TextLineGeometry`, never Qt's natural
 `blockBoundingRect` origins: those drift roughly (leading - Qt line spacing) px per line on a
-PS-model layer (`ui_psd_text_caret_follows_photoshop_leading` pins it on the fixed-leading probe:
-40 px leading against Qt's ~29). `BoxTextLineRenderItem::block_position` exists only for this:
+PS-model layer (pinned by `ui_psd_text_caret_follows_photoshop_leading`). `BoxTextLineRenderItem::block_position` exists only for this:
 `QTextLine::lineNumber()` is an index within its own block's layout, so the owning block cannot be
 recovered from the line alone. Caret lookup resolves the owning block FIRST, the way
 `QTextDocument::findBlock` does, because a block's last line ends before the paragraph separator
@@ -29,7 +28,7 @@ for argument: `metric_scale` AND the PSD-frame `layout_scale` (`text_editor_size
 when `photoshop_layout && usesPsdTextFrame`). A frame session keeps its runs in raw engine units
 and folds the frame's vertical scale into the glyph sizes only at render time, so a default
 `layout_scale` of 1.0 lays the caret and selection out at the raw size while the glyphs draw
-scaled (on a 1.5x frame, selecting one character highlights one and a half).
+scaled.
 `ui_psd_frame_text_highlight_matches_scaled_glyphs` pins it against the rendered ink and by
 clicking mid-INK; the click probe must come from the render, since click and caret share a layout
 and agree even when it is wrong.
@@ -47,7 +46,7 @@ click exactly where the caret is drawn and the caret must come back to that posi
 The editor widget is SIZED from that layout too, not from `QTextDocument::size()`. The widget's
 rect is its hit area, so a widget shorter than the glyphs makes the lines past its bottom edge
 unclickable: the click falls through to the canvas and the focus-loss auto-commit ends the
-session, routine under the Photoshop leading model.
+session.
 `ui_transformed_text_click_returns_to_the_caret_it_drew` covers it on the rotated fixed-leading
 fixture (transform inverse plus leading divergence).
 
@@ -76,9 +75,8 @@ An edit session must never produce a frame with no glyphs in it:
   flashes every keystroke.
 
 `kTextEditorPreviewPaintProperty` therefore means "the glyphs come from somewhere other than this
-widget", true for the whole of any previewed session.
-`ui_expensive_text_style_preview_never_blanks_while_typing` pins it by sampling the canvas for
-the text's dark pixels wherever it could vanish.
+widget", true for the whole of any previewed session; pinned by
+`ui_expensive_text_style_preview_never_blanks_while_typing`.
 
 Re-editing an existing layer must not MOVE its text. Every such session renders live through
 `render_text_pixels`, plain unstyled text included (`kTextEditorForceBakedPreviewProperty`),
@@ -88,8 +86,7 @@ origin, as must a re-commit.
 
 **Every session previews, including the one that creates the text.** A new session renders over
 its provisional layer, and `restore_active_layer` is that provisional (not whatever was active
-before the click) so the preview insert does not steal the layer-panel selection. Without this,
-selection highlights drew at widget metrics before the first commit and at render metrics after.
+before the click) so the preview insert does not steal the layer-panel selection.
 For tests: on-screen glyphs are debounced, so a test that changes an option (alignment, size) and
 measures pixels has to let the preview land first.
 
@@ -99,10 +96,10 @@ committed pixels carry the text through the handover.
 
 ## Session lifecycle (provisional layer, commit, cancel)
 
-- A Type-tool click inserts a provisional 1x1 text layer (marker `patchy.internal.provisional_text`); `commit_text_editor` removes it via the marker-checked `MainWindow::take_provisional_text_layer` (a stale id can never delete an unrelated layer), then snapshots and recreates the committed layer under the same id; cancel/empty-commit leaves history and modified state untouched.
-- **Commit invalidation must cover old ∪ preview ∪ new.** The restore/remove teardown pair invalidates its regions BEFORE the layer mutates, so those rects are recomposited with the pre-commit pixels; `commit_text_editor` captures the old layer and preview render bounds up front and unions them into the post-mutation `document_changed_effect_bounds`. Skipping the union left the old render baked in the canvas cache wherever the new bounds did not cover it (routine on warped layers, whose bounds change shape per edit) until a manual F5. Same rule for `hide_text_editor_source_layer`: it returns the vacated rect and never invalidates itself, so every caller must consume the return (the no-preview and empty-text branches in `update_text_editor_preview` once dropped it and left a ghost after select-all + Delete).
+- A Type-tool click inserts a provisional 1x1 text layer (marker `patchy.internal.provisional_text`); `commit_text_editor` removes it via the marker-checked `MainWindow::take_provisional_text_layer`, then snapshots and recreates the committed layer under the same id; cancel/empty-commit leaves history and modified state untouched.
+- **Commit invalidation must cover old ∪ preview ∪ new.** The restore/remove teardown pair invalidates its regions BEFORE the layer mutates, so those rects are recomposited with the pre-commit pixels; `commit_text_editor` captures the old layer and preview render bounds up front and unions them into the post-mutation `document_changed_effect_bounds`, or the old render stays baked in the canvas cache wherever the new bounds do not cover it (routine on warped layers, whose bounds change shape per edit). Same rule for `hide_text_editor_source_layer`: it returns the vacated rect and never invalidates itself, so every caller must consume the return.
 - **Warped text layers get a warp-aware session**: entry resolves a Move-corrected unwarped transform and gates off every raster-derived anchor (the raster is the warped ink). See the Warp Text section of [warp.md](warp.md).
-- Clicking off commits through the focus-loss handler, which arms `swallow_next_canvas_left_press_` so the press that caused the commit cannot start the next session; a release clears a stale flag. MainWindow's canvas event filter must leave that flag alone for input delivered during a blocking processing wait: on wasm the mouseup arrives re-entrantly inside the commit's own undo-snapshot wait, before the press resumes, and clearing the flag there opened a new text session from one click off (see the input-reentry rules in [wasm.md](wasm.md); pinned by `ui_text_click_off_commit_ignores_reentrant_release_during_wait`).
+- Clicking off commits through the focus-loss handler, which arms `swallow_next_canvas_left_press_` so the press that caused the commit cannot start the next session; a release clears a stale flag. MainWindow's canvas event filter must leave that flag alone for input delivered during a blocking processing wait: on wasm the mouseup arrives re-entrantly inside the commit's undo-snapshot wait, and clearing the flag there opened a new session from one click off (input-reentry rules in [wasm.md](wasm.md); pinned by `ui_text_click_off_commit_ignores_reentrant_release_during_wait`).
 - Mutating actions that take no focus (layer lock buttons) must call `finish_active_text_editor()` first, or they operate on a half-committed session.
 
 ## Delete semantics
@@ -127,8 +124,8 @@ refresh, so that fires constantly.
 
 Tests that ask "would a real click reach the right widget" must use
 `click_widget_like_a_user` (tests/ui/ui_test_support.cpp), which routes the press to the deepest
-child under the point and applies the focus policy walk first. `send_mouse` straight to the canvas
-answers a different question and hid this bug.
+child under the point and applies the focus policy walk first; `send_mouse` straight to the canvas
+answers a different question.
 
 ## Options bar while an editor is open
 
@@ -178,7 +175,7 @@ style must not render nothing).
 - **Never ask `QFontDatabase::styles()` with an unresolved display family.** A face-baked name
   ("ITC Lubalin Graph Demi", the "Bookman Old Style Italic" older imports recorded) lists its
   faces only under the SPLIT base family; the unsplit name answers nothing, which emptied the
-  picker and diverted Ctrl+B/Ctrl+I to faux (the Game_Screen.psd regression).
+  picker and diverted Ctrl+B/Ctrl+I to faux.
   `available_text_family_styles` resolves through `text_style_query_family`, probes the four
   flag combinations with `QRawFont` (forcing Qt's lazy per-family population;
   `QFontInfo::styleName` can echo the request back), re-queries for faces only the database knows
@@ -206,10 +203,9 @@ style must not render nothing).
   docs/testing.md).
 
 - **A family that resolves but covers none of the layer's characters counts as MISSING.** Patchy
-  bundles Noto Naskh Arabic (third_party/fonts), so the family is in the database, but its cmap
-  holds no Latin letters at all: space, `!`, `,`, `.`, `:` and the digits are the whole ASCII
-  coverage, so an installed-only check called it available and the layer rendered entirely in the
-  Latin fallback with no warning. `text_family_draws_any_of` probes per writing system with
+  bundles Noto Naskh Arabic (third_party/fonts), whose cmap holds no Latin letters (space,
+  punctuation and digits are its whole ASCII coverage), so an installed-only check rendered a
+  Latin layer entirely in the fallback with no warning. `text_family_draws_any_of` probes per writing system with
   `QRawFont::fromFont(font, system)` and requires the face that comes back to BE the requested
   family: asking without the writing system resolves through the default script, so a family that
   cannot draw Latin quietly returns the Latin fallback and reports full coverage. "Any", not
@@ -221,8 +217,10 @@ style must not render nothing).
   `try_register_missing_system_font_family` loads every CurrentVersion\Fonts registry entry whose
   name starts with the requested family as an application font and retries: Qt's Windows database
   can miss registered fonts entirely (Arial Narrow, registered and on disk yet absent from the
-  database, fell to Tahoma). Attempted families are cached per run; application fonts are never
-  removed (removeApplicationFont can crash live font users).
+  database, fell to Tahoma). `append_missing_text_family` asks the same rescue before calling a
+  family missing, so the prompt and the badge never fire on a font Windows has. Attempted families
+  are cached per run; application fonts are never removed (removeApplicationFont can crash live
+  font users).
 - On wasm, `available_text_family_match` also resolves common system families through the bundled
   metric-compatible alias table, and every text render appends a Noto Sans JP fallback family. See
   [fonts.md](fonts.md).
@@ -236,11 +234,24 @@ style must not render nothing).
   the face NAME, not the raw weight: a face whose name the flags can already express is never
   baked into the family, whatever weight it declares (Bookman Old Style ships its whole family at
   weight 500, so "BookmanOldStyle-Italic" must resolve to the plain family plus the italic flag).
-  Two further rules make the kept faces work:
+  "Plain" and "Roman" (older fonts' upright regular face) are flag-expressible too; the reader's
+  `face_name_is_flag_expressible` and main_window.cpp's `text_style_is_flag_expressible` must
+  change together. Three further rules make the kept faces work:
   - The kept name is `family + " " + faceName`, what Qt calls such a face when it splits it into
     its own family ("ITC Lubalin Graph Demi"). The DirectWrite FULL_NAME can be a PostScript-style
     name ("LubalinGraphITCbyBT-Demi") that matches nothing in the database and falls through to a
     substitute.
+  - **The stored family must be a name Qt's Windows database lists, which is the GDI name**
+    (DirectWrite's WIN32_FAMILY_NAMES / WIN32_SUBFAMILY_NAMES), not the weight-stretch-style
+    family and face DirectWrite derives. When the WIN32 family differs from the name built above,
+    the reader stores it, keeps the WIN32 subfamily as the style only when the flags cannot
+    express it, and reads bold/italic from that subfamily's words. Issue 16: Balmoral LET (one
+    "Plain" face at OS/2 weight class 5) is DirectWrite family "Balmoral LET Plain" plus a
+    synthesized "Medium" face, so "Balmoral LET Plain Medium" raised the missing-font prompt for
+    an installed font; Franklin Gothic Medium (DirectWrite "Franklin Gothic" + "Medium", weight
+    400) came back as the nonexistent family "Franklin Gothic". Simulated DirectWrite faces are
+    skipped. The writer looks a GDI family DirectWrite lacks up by
+    the same WIN32 strings before its prefix split, so the PostScript name round-trips.
   - The bold flag is NOT set alongside it: the name already carries the weight, and Qt would
     synthesise bold on top of the face, the same "heavier and wider" bug by another route.
     Black/Heavy (>= 800) is the deliberate exception, keeping the flag as an uninstalled-face
@@ -252,7 +263,7 @@ style must not render nothing).
 - **Faux bold is refused on warped layers** (Photoshop parity, see [warp.md](warp.md)): the checkbox shows a status error and reverts when ENABLING on a session whose layer carries an active Warp Text; unchecking stays allowed so imported faux+warp files can be fixed. Ctrl+B's faux fallback refuses the same way, while a family with a real Bold face keeps toggling normally. Faux italic is unrestricted (PS warps it fine).
 - Without an inline session, the panel reads the first character's format from the stored text runs, with the transform's vertical scale and document resolution applied to displayed leading. A change creates a hidden session through `add_text_at(..., show_editor=false)` and commits it immediately through the normal Type undo/render path. It never shows an unwarped preview or takes keyboard focus; mixed run sizes and colors survive. Opening the panel alone does not mutate the layer.
 - Controls disable when neither a live session nor an editable text layer is available, including pixel locks and active transform sessions. `refresh_options_bar` and `refresh_layer_controls` synchronize the panel on session, selection, lock and history changes. Tests: `ui_text_character_panel_tracks_session_and_layer`, `ui_text_character_panel_edits_selected_layer_without_session`.
-- Double-clicking a text layer's T thumbnail activates the Type tool and opens the layer with all text selected, preserving zoom and pan. The deferred callback checks the document session before editing because entry may rebuild the layer rows. `ui_text_thumbnail_double_click_selects_all_without_zoom` covers plain and warped text and replacement of the selected contents.
+- Double-clicking a text layer's T thumbnail activates the Type tool and opens the layer with all text selected, preserving zoom and pan. The deferred callback checks the document session before editing because entry may rebuild the layer rows. Pinned by `ui_text_thumbnail_double_click_selects_all_without_zoom`.
 - `textCharacterDialog` is exempted from the focus-loss auto-commit via `is_text_option_widget`.
 - Setting fixed leading opts the layer into the Photoshop layout marker at commit (explicit leading does not render under Qt-natural layout; see the Photoshop text model below).
 
@@ -281,8 +292,7 @@ the session contract.
 - **The IME is placed from the drawn caret.** `InlineTextEdit::inputMethodQuery` answers
   `ImCursorRectangle` with `text_editor_input_method_rect`: the caret's line, the whole remaining
   column for vertical text (Windows keeps the candidate list out of that rect), mapped through
-  the overlay when transformed. QTextEdit's own answer put the IME list on the typed column.
-  The composition (Qt's preedit, not document text) is mirrored into
+  the overlay when transformed. The composition (Qt's preedit, not document text) is mirrored into
   `kTextEditorPreeditTextProperty`; `document_from_editor_in_document_units` inserts it at the
   cursor, so every render document, the caret (`text_editor_caret_position`) and an
   interrupting commit carry what is being typed.
@@ -305,10 +315,8 @@ BEFORE mutating the layer, so the implicit case can materialize translate(bounds
 pre-operation bounds. A layer with no stored transform gets one only under a matrix with a
 linear part (scale/rotate/flip); a pure translation already rides in the bounds the operation
 moves. Skipping this left the transform stale, and the next metadata re-render (an edit commit,
-`--append-text`, a PSD save) put the text back where and how big it was BEFORE the operation:
-the August 2026 pinball-poster corruption, where an Image Size to A3 scaled the raster
-~3.3x/3.7x per axis while the saved TySh still mapped the text to the old placement, ~900 px
-away. The `ui_*_keeps_text_transform_in_sync` and `ui_layer_flip_keeps_text_mirrored_across_reedit`
+`--append-text`, a PSD save) put the text back where and how big it was BEFORE the operation.
+The `ui_*_keeps_text_transform_in_sync` and `ui_layer_flip_keeps_text_mirrored_across_reedit`
 probes pin each operation with a no-change re-edit. `patchy.psd.text.*` stays untouched on
 purpose: it is the import snapshot, and diverging from it is exactly what routes the PSD writer
 off the templated TySh (and turns off the PSD-frame edit session via
@@ -323,9 +331,7 @@ transform carries scale with the free-transform commit's rules
 vertical scale into the size, per-run sizes, paragraph metrics and frame dims
 (`fold_text_transform_scale_into_font_size`) and re-rasterize through the residual; installed-font
 PSD point text re-renders crisp through the glyph-aligned transform; everything else keeps the
-resampled raster and its raster status. Without the fold, the next session showed the OLD size in
-the options bar and a typed size landed text-local, so the matrix multiplied it again (a 2x
-resize turned 60 pt into 120 pt). The options bar now derives its displayed size from the
+resampled raster and its raster status. The options bar derives its displayed size from the
 transform's vertical scale for ANY layer, so documents saved in that split state edit at the
 effective size. `ui_image_size_dialog_*` and `ui_split_state_text_size_spin_shows_effective_size`
 pin it.
@@ -333,7 +339,7 @@ pin it.
 Negative-determinant (flipped) transforms are ordinary transforms everywhere in the pipeline:
 the free-transform commit composes the signed delta, the crisp re-render draws THROUGH the
 mirrored matrix, and the drag preview's plain source blit applies the scale signs like the
-proxy path (it used to show unmirrored pixels for the whole drag).
+proxy path.
 `ui_point_text_flip_transform_mirrors_and_survives_reedit` pins flip -> re-edit -> flip back.
 
 Committing empty text to an existing unlocked text layer clears its stored text
