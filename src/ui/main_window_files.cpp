@@ -2702,8 +2702,52 @@ void MainWindow::export_animated_gif() {
   }
   try {
     std::vector<std::string> writer_notices;
-    write_flat_image_file(document(), path, QStringLiteral("gif"), *options, &writer_notices);
+
+  #ifdef Q_OS_ANDROID
+    QString writer_path = path;
+    std::optional<QTemporaryFile> temporary_file;
+
+    if (is_android_content_uri(path)) {
+        temporary_file.emplace(
+            QDir::tempPath() +
+            QStringLiteral("/patchy-gif-XXXXXX.gif"));
+
+        if (!temporary_file->open()) {
+            throw std::runtime_error(
+                QStringLiteral(
+                    "Cannot create temporary file for Android GIF export: %1")
+                    .arg(temporary_file->errorString())
+                    .toStdString());
+        }
+
+        writer_path = temporary_file->fileName();
+
+        temporary_file->close();
+        temporary_file->setAutoRemove(false);
+    }
+  #else
+    const QString writer_path = path;
+  #endif
+
+    write_flat_image_file(
+        document(),
+        writer_path,
+        QStringLiteral("gif"),
+        *options,
+        &writer_notices);
+
+  #ifdef Q_OS_ANDROID
+    if (is_android_content_uri(path)) {
+        write_file_to_android_uri(
+            writer_path,
+            path);
+
+        QFile::remove(writer_path);
+    }
+  #endif
+
     offer_browser_download_for_saved_file(path);
+    
     remember_save_directory_for_path(path);
     statusBar()->showMessage(tr("Exported %1").arg(display_path_for_ui(path)) + export_notes_suffix_for(writer_notices));
     if (options->export_reveal_in_file_explorer) {
