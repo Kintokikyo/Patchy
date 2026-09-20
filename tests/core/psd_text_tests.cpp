@@ -2057,21 +2057,23 @@ void psd_paragraph_direction_round_trips_as_v4_column() {
   }
 }
 
-// A Photoshop 2026 vertical type layer (ps2026_vtext capture sweep): Ornt = Vrtc imports as
-// the orientation key with Photoshop's anchor (the click point) as the transform, and an
-// unedited resave keeps the block byte for byte.
-void psd_vertical_capture_imports_orientation_if_available() {
-  const auto path = patchy::test::local_psd_fixture_path("ps2026_vtext/vt_point_ja_multi.psd");
-  if (!std::filesystem::exists(path)) {
-    return;
-  }
-  auto document = patchy::psd::DocumentIo::read_file(path);
+const patchy::Layer* committed_fixture_text_layer(const patchy::Document& document) {
   const patchy::Layer* text_layer = nullptr;
   for (const auto& layer : document.layers()) {
     if (patchy::layer_is_text(layer)) {
       text_layer = &layer;
     }
   }
+  return text_layer;
+}
+
+// A Photoshop 2026 vertical type layer (photoshop-text-vertical-point.psd, the ps2026_vtext
+// capture vt_point_ja_multi): Ornt = Vrtc imports as the orientation key with Photoshop's anchor
+// (the click point) as the transform, and an unedited resave keeps the block byte for byte.
+void psd_vertical_capture_imports_orientation() {
+  auto document = patchy::psd::DocumentIo::read_file(
+      patchy::test::committed_psd_fixture_path("photoshop-text-vertical-point.psd"));
+  const auto* text_layer = committed_fixture_text_layer(document);
   CHECK(text_layer != nullptr);
   if (text_layer == nullptr) {
     return;
@@ -2098,6 +2100,57 @@ void psd_vertical_capture_imports_orientation_if_available() {
     }
   }
   CHECK(found);
+}
+
+// The other committed captures: a vertical box layer keeps its 150x250 frame, a run Photoshop
+// captured with "Standard Vertical Roman Alignment" (/BaselineDirection 2) reads back as the
+// runs v7 rotated flag, and a Middle Eastern engine Hebrew layer imports horizontal (Photoshop
+// keeps paragraph direction outside TySh, so Patchy's direction stays auto and bidi decides).
+void psd_vertical_box_rotated_roman_and_hebrew_captures_import() {
+  {
+    auto document = patchy::psd::DocumentIo::read_file(
+        patchy::test::committed_psd_fixture_path("photoshop-text-vertical-box.psd"));
+    const auto* layer = committed_fixture_text_layer(document);
+    CHECK(layer != nullptr);
+    if (layer != nullptr) {
+      CHECK(layer->metadata().at(patchy::kLayerMetadataTextOrientation) == patchy::kTextOrientationVertical);
+      CHECK(layer->metadata().count(patchy::kLayerMetadataTextBoxWidth) == 1);
+      CHECK(layer->metadata().count(patchy::kLayerMetadataTextBoxHeight) == 1);
+      CHECK(std::abs(std::stod(layer->metadata().at(patchy::kLayerMetadataTextBoxWidth)) - 150.0) < 1.0);
+      CHECK(std::abs(std::stod(layer->metadata().at(patchy::kLayerMetadataTextBoxHeight)) - 250.0) < 1.0);
+    }
+  }
+  {
+    auto document = patchy::psd::DocumentIo::read_file(
+        patchy::test::committed_psd_fixture_path("photoshop-text-vertical-rotated-roman.psd"));
+    const auto* layer = committed_fixture_text_layer(document);
+    CHECK(layer != nullptr);
+    if (layer != nullptr) {
+      CHECK(layer->metadata().at(patchy::kLayerMetadataTextOrientation) == patchy::kTextOrientationVertical);
+      const auto& runs = layer->metadata().at(patchy::kLayerMetadataTextRuns);
+      CHECK(runs.rfind("v7\n", 0) == 0);
+      CHECK(runs.find("\t2\n") != std::string::npos || runs.substr(runs.size() - 2) == "\t2");
+      const auto bytes = patchy::psd::DocumentIo::write_layered_rgb8(document);
+      const std::string written(bytes.begin(), bytes.end());
+      CHECK(written.find("/BaselineDirection 2") != std::string::npos);
+    }
+  }
+  {
+    auto document = patchy::psd::DocumentIo::read_file(
+        patchy::test::committed_psd_fixture_path("photoshop-text-rtl-hebrew.psd"));
+    const auto* layer = committed_fixture_text_layer(document);
+    CHECK(layer != nullptr);
+    if (layer != nullptr) {
+      CHECK(layer->metadata().count(patchy::kLayerMetadataTextOrientation) == 0);
+      // "shalom olam" in Hebrew, UTF-8.
+      CHECK(layer->metadata().at(patchy::kLayerMetadataTextHtml).find("\xd7\xa9\xd7\x9c\xd7\x95\xd7\x9d") !=
+            std::string::npos);
+      const auto bytes = patchy::psd::DocumentIo::write_layered_rgb8(document);
+      const std::string written(bytes.begin(), bytes.end());
+      CHECK(written.find("Hrzn") != std::string::npos);
+      CHECK(written.find("Vrtc") == std::string::npos);
+    }
+  }
 }
 
 // Photoshop's type engine fails to re-lay out a run whose /Tracking is a negative float
@@ -2185,7 +2238,8 @@ std::vector<patchy::test::TestCase> psd_text_tests() {
        psd_vertical_tracking_bug_file_resaves_with_integer_tracking_if_available},
       {"psd_writer_exports_vertical_type_block_and_reads_it_back", psd_writer_exports_vertical_type_block_and_reads_it_back},
       {"psd_paragraph_direction_round_trips_as_v4_column", psd_paragraph_direction_round_trips_as_v4_column},
-      {"psd_vertical_capture_imports_orientation_if_available", psd_vertical_capture_imports_orientation_if_available},
+      {"psd_vertical_capture_imports_orientation", psd_vertical_capture_imports_orientation},
+      {"psd_vertical_box_rotated_roman_and_hebrew_captures_import", psd_vertical_box_rotated_roman_and_hebrew_captures_import},
       {"psd_import_regenerates_large_styled_text_preview_alpha",
        psd_import_regenerates_large_styled_text_preview_alpha},
       {"psd_import_keeps_clean_foreign_styled_text_raster",

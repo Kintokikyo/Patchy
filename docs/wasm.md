@@ -23,9 +23,8 @@ Three configurations share the pinned Emscripten 4.0.7 toolchain:
   `?PATCHY_WASM_FORCE=st` selects it. See [wasm-memory.md](wasm-memory.md).
   Provision with `setup-qt-wasm.ps1 -WasmArch wasm_singlethread`.
 
-Desktop builds are unaffected: the presets, the `if(EMSCRIPTEN)` CMake
-branches, the `Q_OS_WASM` gates, and `scripts/wasm/` are the whole wasm
-surface.
+The presets, the `if(EMSCRIPTEN)` CMake branches, the `Q_OS_WASM` gates,
+and `scripts/wasm/` are the whole wasm surface.
 
 ## Toolchain setup
 
@@ -36,13 +35,11 @@ pwsh -File scripts\wasm\setup-emsdk.ps1
 Idempotent: clones emsdk into `.deps\emsdk` (gitignored), `git pull`s an
 existing clone (a stale checkout fails with "unknown version"), installs +
 activates Emscripten 4.0.7, the Qt-supported version (`-EmsdkVersion`
-provisions others; versions coexist, and emsdk swaps `upstream/` in place on
-activate, so serialize builds across versions and reactivate 4.0.7 when
-done). The bundled node 22.16.0 runs the tests; the scripts glob
-`.deps\emsdk\node\*\bin\node.exe` and build-wasm.bat existence-checks for the
-`bin\node.exe` layout, so extra node version directories (newer emsdk node
-packages drop the `bin\` level) are tolerated as long as exactly one
-directory matches that layout.
+provisions others; emsdk swaps `upstream/` in place on activate, so
+serialize builds across versions and reactivate 4.0.7 when done). The
+bundled node 22.16.0 runs the tests; the scripts glob
+`.deps\emsdk\node\*\bin\node.exe`, so extra node directories (newer emsdk
+node packages drop the `bin\` level) are fine while exactly one matches.
 
 ## Configure and build (wasm-core)
 
@@ -56,7 +53,7 @@ cmd /s /c 'call .deps\emsdk\emsdk_env.bat >nul 2>&1 && call scripts\vs-env.bat -
 
 Build with the same wrapper and `--build --preset wasm-core`. Output:
 `build\wasm-core\patchy_core_tests.js` + `.wasm`. The zero-warning rule
-applies; vendored suppressions stay scoped to one file and one diagnostic.
+applies.
 
 ## Running the suite
 
@@ -69,12 +66,11 @@ emsdk-bundled node from `build\wasm-core`, so `test-artifacts/` lands there.
 `ctest` also works there (the preset pins `CMAKE_CROSSCOMPILING_EMULATOR`).
 
 The suite passes at the Windows count with the 2.4 GB
-`local-test-fixtures/` corpus, canaries byte-identical. Expected
-`[SKIP]`s: one absent local fixture, two HEIC tests (node has no
-`VideoDecoder`), and `af_modern_embeds_are_center_anchored_if_available`
-(its fixture exceeds a 32-bit address space, the wasm32 cap). The engine
-libraries carry no wasm `#ifdef`s; the one guard, in `tests/core/main.cpp`,
-skips the crash-stack reporter (no `execinfo.h`; node prints trap stacks).
+`local-test-fixtures/` corpus, canaries byte-identical. Expected `[SKIP]`s:
+one absent local fixture, two HEIC tests (node has no `VideoDecoder`), and
+`af_modern_embeds_are_center_anchored_if_available` (fixture beyond the
+wasm32 address space). The engine libraries carry no wasm `#ifdef`s; the one
+guard, in `tests/core/main.cpp`, skips the crash-stack reporter.
 
 ## wasm-core preset decisions (all in CMakePresets.json)
 
@@ -124,13 +120,11 @@ select other kits; kits coexist under `.deps\Qt\<version>\`, so rollback is
 a preset edit. Desktop presets stay on their vendored 6.8.3 kit. The preset
 chains Qt's toolchain file into emsdk's via `QT_CHAINLOAD_TOOLCHAIN_FILE`.
 
-Not 6.11 yet: released aqtinstall (3.3.0) cannot install a 6.11 desktop
-host kit (per-arch folders, no base `Updates.xml`); revisit when aqtinstall
-understands the layout.
+Not 6.11 yet: aqtinstall 3.3.0 cannot install a 6.11 desktop host kit
+(per-arch folders, no base `Updates.xml`).
 
 Kit facts: 6.10 suspends via `EM_ASYNC_JS` (no `-sASYNCIFY_IMPORTS`);
-Emscripten 3.1.58+ folds the pthread bootstrap into `patchy.js` (no
-`patchy.worker.js`).
+Emscripten 3.1.58+ folds the pthread bootstrap into `patchy.js`.
 
 ### Build, serve, stop
 
@@ -144,17 +138,16 @@ pwsh -File scripts\wasm\serve-app.ps1   # [port] [--open]; default port 8973
 ```
 
 then open `http://localhost:8973/patchy.html`; `serve.mjs` sends the
-COOP/COEP headers the threaded build needs. The release wrappers
-`scripts\release\start-local-wasm-test-server.bat` (raw build dir) and
-`start-local-wasm-server.bat` (staged site) add port cleanup.
+COOP/COEP headers the threaded build needs. `scripts\release\start-local-wasm-test-server.bat`
+(raw build dir) and `start-local-wasm-server.bat` (staged site) add port cleanup.
 
 When wasm work is finished, stop every local server you started with
 `scripts\wasm\free-server-port.ps1 -Port <port>`, one call per port (repo
-rule; see AGENTS.md). It only stops node listeners.
+rule; see AGENTS.md).
 
 A hidden tab never fires requestAnimationFrame, so Qt stops presenting and
-the tab looks frozen; nothing is wrong. Keep the tab foregrounded, or shim
-requestAnimationFrame onto setTimeout before qtloader runs (harness below).
+the tab looks frozen. Keep it foregrounded, or shim requestAnimationFrame
+onto setTimeout before qtloader runs (harness below).
 
 ### Decisions and gates
 
@@ -183,13 +176,11 @@ requestAnimationFrame onto setTimeout before qtloader runs (harness below).
 - **CLI flows exit through `exit_cli_application` (ui/cli_exit.hpp), never
   a bare `QCoreApplication::exit`.** With Emscripten's default
   EXIT_RUNTIME=0 a bare exit unwinds the Asyncify-resumed exec stack, main
-  returns, and the runtime silently stays alive with Qt already destroyed:
-  qtloader's onExit never fires and the tab parks with a clean console. On
-  wasm the helper calls `emscripten_force_exit`: worker threads stop,
-  Module.onExit delivers the exit code to the page as `qt.onExit`, and
-  destructors/unflushed settings are skipped like a process exit. Used by
-  every CLI completion (`--run-script`, `--export`, `--stress-test`,
-  `--screenshot`); desktop keeps `QCoreApplication::exit`.
+  returns, and the runtime silently stays alive with Qt destroyed: qtloader's
+  onExit never fires and the tab parks with a clean console. On wasm the
+  helper calls `emscripten_force_exit` (workers stop, Module.onExit delivers
+  the code as `qt.onExit`, destructors and unflushed settings are skipped).
+  Used by every CLI completion; desktop keeps `QCoreApplication::exit`.
 - **JSPI needs a source-built Qt** with wasm EH and `-feature-wasm_jspi`.
   Stock Qt's JS-exception libraries cannot mix with it, so the shipped aqt
   kit stays on Asyncify.
@@ -233,17 +224,16 @@ requestAnimationFrame onto setTimeout before qtloader runs (harness below).
   `/translations`, `/scripts` inside `patchy.data`; `applicationDirPath()`
   is `/`, so existing directory probes work unchanged. The `qtbase_<code>.qm`
   files are staged from the host kit (the wasm kit ships no `.qm`).
-  `third_party/fonts-web` (~23 MB of OFL fonts, wasm only; see
-  [fonts.md](fonts.md)) merges into the staged fonts; `LINK_DEPENDS` on the
-  fonts stamp makes a fonts-only change repack `patchy.data`. The 8.7 MB
-  texture pack stays embedded (lazy fetch is a future size lever).
+  `third_party/fonts-web` (~23 MB of OFL fonts, wasm only; [fonts.md](fonts.md))
+  merges into the staged fonts; `LINK_DEPENDS` on the fonts stamp makes a
+  fonts-only change repack `patchy.data`. The 8.7 MB texture pack stays
+  embedded.
 - **Memory:** the shell page constructs the shared `WebAssembly.Memory`
   and passes it to qtLoad as `wasmMemory`; `QT_WASM_INITIAL_MEMORY`
   (256 MB) is the FLOOR baked into the memory import, and the page's
-  `BAKED_MIN_MB` must stay in sync (a smaller page-supplied initial is a
-  LinkError). The ladders, the About readout, the opt-in `patchyMemStats`
-  publisher, the wasm history/cache budgets, and the Safari 26 tab-kill
-  investigation live in [wasm-memory.md](wasm-memory.md).
+  `BAKED_MIN_MB` must stay in sync (a smaller initial is a LinkError).
+  Ladders, the About readout, `patchyMemStats`, the history/cache budgets,
+  and the Safari 26 tab-kill investigation: [wasm-memory.md](wasm-memory.md).
 
 ### Web file access
 
@@ -491,7 +481,6 @@ Single-threaded builds: `should_defer_full_refresh_to_async` /
 `should_defer_first_render_to_async` (canvas_widget_render.cpp) return false
 when `kBackgroundWorkRunsInline` (background_workers.hpp): deferring to an
 inline worker composed the frame inside paintEvent anyway.
-`build\wasm-st-baseline` preserves a single-threaded build for comparisons.
 
 ## Release deployment (rtsoft.com/patchy)
 
@@ -527,13 +516,11 @@ page compiles from bytes; streaming instantiation is unused).
 ## Headless stress harness
 
 The wasm stress/A-B harness (hidden-tab timer shims, interleaved two-port
-comparisons, `--run-script` mode, and the browser-file large-open regression)
-is documented in
-[performance.md](performance.md).
+comparisons, `--run-script` mode, the browser-file large-open regression) is
+documented in [performance.md](performance.md).
 
 ## Later steps (not built yet)
 
 Remaining: texture lazy-fetch, the advertised document-size cap, and
 preset/library persistence across reloads (follow the poll-pattern
-IndexedDB glue in user_fonts_wasm.cpp, not IDBFS). Tile-cache eviction is
-moot while `src/render/tile_cache.hpp` stays dead code.
+IndexedDB glue in user_fonts_wasm.cpp, not IDBFS).

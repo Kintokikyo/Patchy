@@ -205,10 +205,10 @@ style must not render nothing).
 ## Font resolution
 
 - **Characters the run's face cannot draw move to the face that draws them** on every edit
-  (`substitute_uncovered_characters_in_editor`): kana typed into Arial commit as their own run
-  in the family `QRawFont::fromFont(font, system)` resolves, like Photoshop's own switch. Qt's
-  silent per-glyph fallback used to draw them while the runs said "Arial", and Photoshop showed
-  empty boxes. Only writing systems a registered face covers are probed (docs/testing.md).
+  (`substitute_uncovered_characters_in_editor`, the textChanged hook): kana typed into Arial
+  commit as their own run in the Japanese family `QRawFont::fromFont(font, system)` resolves.
+  Only writing systems a registered face covers are probed (the empty-family crash,
+  docs/testing.md).
 
 - **A family that resolves but covers none of the layer's characters counts as MISSING.** Patchy
   bundles Noto Naskh Arabic (third_party/fonts), so the family is in the database, but its cmap
@@ -271,7 +271,7 @@ the session contract.
 - **One Type tool, an orientation toggle.** `textOrientationButton` (and the layer context
   menu entry) switches a live session in place, converts the selected layer through the
   Character-panel hidden session (one undo step), or arms the NEXT new layer once; never
-  persisted, a fresh session starts horizontal. `textDirectionCombo` is paragraph-level.
+  persisted, a fresh session starts horizontal. `textDirectionCombo` is per paragraph.
 - **The plan is the authority, again.** `vertical_text_layout_plan` (ui/text_layout.hpp)
   re-places every grapheme cluster of the horizontally shaped NoWrap document into a cell;
   `TextLineGeometry::from_vertical_plan` answers caret, selection and hit-testing from the plan
@@ -284,11 +284,10 @@ the session contract.
 - **Arrow keys follow the columns** (`InlineTextEdit::keyPressEvent`): Up/Down step along the
   column, Left/Right jump between columns.
 - **Right-to-left needs no shaping work**: Qt runs bidi and HarfBuzz in QTextLayout. Alignment
-  is logical (`QStyle::visualAlignment`), so the anchor helpers resolve it the same way via
-  `resolved_block_direction`. Spell non-ASCII test literals as `\x` escapes (MSVC reads sources
-  as ANSI).
+  is logical (`QStyle::visualAlignment`), so the anchor helpers resolve it via
+  `resolved_block_direction`. Spell non-ASCII test literals as `\x` escapes.
 - Scripting: `doc.addTextLayer(text, {orientation, direction})`, `layer.textOrientation` /
-  `textDirection`. Tests: `tests/ui/text_vertical_rtl_tests.cpp`, `psd_*vertical*` in tests/core.
+  `textDirection`. Tests: `tests/ui/text_vertical_rtl_tests.cpp`.
 - Known gaps: tate-chu-yoko, kinsoku, vmtx metrics,
   transformed PSD vertical imports re-anchor by the horizontal rules, box indents, uncalibrated
   vertical Warp Text, SVG export rasterizes it.

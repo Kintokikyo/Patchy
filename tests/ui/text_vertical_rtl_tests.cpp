@@ -1,6 +1,6 @@
 // Vertical (tategaki) type layers and right-to-left paragraphs: the cell layout model in
 // ui/text_layout.hpp, its caret/selection/hit-test geometry, the orientation toggle, PSD
-// round trips, and the Photoshop 2026 captures under local-test-fixtures/psd/ps2026_vtext.
+// round trips, and the committed Photoshop 2026 captures (photoshop-text-vertical-*.psd).
 // See docs/text-tool.md ("Vertical text and paragraph direction").
 
 #include "core/layer_metadata.hpp"
@@ -164,11 +164,10 @@ void rerender_through_edit_session(patchy::ui::MainWindow& window, patchy::ui::C
   process_events_for(200);
 }
 
-void ui_vertical_text_matches_photoshop_capture_if_available() {
-  const auto path = patchy::test::local_psd_fixture_path("ps2026_vtext/vt_point_ja_multi.psd");
-  if (!std::filesystem::exists(path)) {
-    return;
-  }
+// photoshop-text-vertical-point.psd is the ps2026_vtext capture vt_point_ja_multi (MS Gothic,
+// three-character columns). Skips only where no Japanese test face is registered.
+void ui_vertical_text_matches_photoshop_capture() {
+  const auto path = patchy::test::committed_psd_fixture_path("photoshop-text-vertical-point.psd");
   register_test_fonts(TestFontRole::UiDefault);
   if (!japanese_test_family().has_value()) {
     return;
@@ -1175,7 +1174,7 @@ std::vector<patchy::test::TestCase> text_vertical_rtl_tests() {
   return {
       {"ui_vertical_text_lays_out_columns_top_to_bottom_right_to_left",
        ui_vertical_text_lays_out_columns_top_to_bottom_right_to_left},
-      {"ui_vertical_text_matches_photoshop_capture_if_available", ui_vertical_text_matches_photoshop_capture_if_available},
+      {"ui_vertical_text_matches_photoshop_capture", ui_vertical_text_matches_photoshop_capture},
       {"ui_vertical_text_caret_and_selection_follow_the_columns", ui_vertical_text_caret_and_selection_follow_the_columns},
       {"ui_vertical_text_recommit_keeps_origin_and_round_trips_psd",
        ui_vertical_text_recommit_keeps_origin_and_round_trips_psd},
