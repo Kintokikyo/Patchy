@@ -183,6 +183,7 @@
 #include <QStyledItemDelegate>
 #include <QMutex>
 #include <QHash>
+#include <QInputMethod>
 #include <QRawFont>
 #include <QTextCharFormat>
 #include <QTextBlock>
@@ -356,6 +357,7 @@ void update_text_editor_preview_caret(QTextEdit& editor, double zoom);
 int text_editor_caret_width(const QTextEdit& editor) noexcept;
 int text_editor_caret_blink_phase_ms();
 QRect text_editor_viewport_caret_rect(const QTextEdit& editor);
+std::optional<QRect> text_editor_input_method_rect(const QTextEdit& editor);
 std::vector<QRect> text_editor_viewport_selection_rects(const QTextEdit& editor, int start, int end);
 double text_editor_metric_scale(const QTextEdit& editor);
 bool text_editor_uses_photoshop_layout(const QTextEdit& editor);
@@ -1478,6 +1480,20 @@ protected:
     return source != nullptr && (source->hasText() || QTextEdit::canInsertFromMimeData(source));
   }
 
+  // The input method (the Windows Japanese IME's candidate list, macOS marked text) is placed
+  // from this query. QTextEdit answers with its own internal layout's cursor, which is nowhere
+  // near the glyphs a previewed session draws (Photoshop leading, canvas zoom, a transform,
+  // and for vertical text a horizontal NoWrap line at the widget's top), so the candidate
+  // window landed on top of the text being typed. Answer with the drawn caret instead.
+  QVariant inputMethodQuery(Qt::InputMethodQuery query) const override {
+    if (query == Qt::ImCursorRectangle) {
+      if (const auto rect = text_editor_input_method_rect(*this); rect.has_value()) {
+        return *rect;
+      }
+    }
+    return QTextEdit::inputMethodQuery(query);
+  }
+
   void insertFromMimeData(const QMimeData* source) override {
     if (source == nullptr) {
       return;
@@ -2117,7 +2133,11 @@ void update_text_editor_preview_caret(QTextEdit& editor, double zoom) {
     return;
   }
   apply_text_caret_thickness(caret, caret_width, text_editor_is_vertical(editor));
+  const bool moved = editor.property(kTextEditorPreviewCaretProperty).toRect() != caret;
   editor.setProperty(kTextEditorPreviewCaretProperty, caret);
+  if (moved && QGuiApplication::focusObject() == &editor) {
+    QGuiApplication::inputMethod()->update(Qt::ImCursorRectangle);
+  }
 }
 
 class TransformedTextEditOverlay final : public QWidget {
@@ -2176,6 +2196,11 @@ public:
 
   [[nodiscard]] QTextEdit* editor() const noexcept {
     return editor_;
+  }
+
+  // An editor-viewport rect's footprint on the canvas after the text transform.
+  [[nodiscard]] QRect canvas_bounds_for_editor_rect(QRectF rect) const {
+    return map_editor_rect_to_canvas(rect).boundingRect().toAlignedRect();
   }
 
   void configure(QTextEdit* editor, QTransform transform, std::function<void(QTextEdit*)> resize_callback) {
@@ -2755,6 +2780,38 @@ TransformedTextEditOverlay* transformed_text_edit_overlay_for_canvas(CanvasWidge
   auto* widget = canvas->findChild<QWidget*>(QString::fromLatin1(kTransformedTextEditOverlayObjectName),
                                              Qt::FindDirectChildrenOnly);
   return widget == nullptr ? nullptr : static_cast<TransformedTextEditOverlay*>(widget);
+}
+
+// The rect a previewed session hands the input method as its cursor rectangle, in editor
+// viewport coordinates. Windows keeps the IME candidate list OUT of this rect (CFS_EXCLUDE),
+// so it is the drawn caret's line for horizontal text and, for vertical text, the caret's cell
+// column down to the bottom of the widget: the list then opens below the column instead of
+// covering the characters after the caret. A transformed session maps the caret through the
+// overlay's transform and back into this widget's coordinates, so the rect still lands on the
+// glyphs the overlay draws. std::nullopt for an unpreviewed session (QTextEdit's own answer).
+std::optional<QRect> text_editor_input_method_rect(const QTextEdit& editor) {
+  if (!editor.property(kTextEditorPreviewPaintProperty).toBool() || editor.viewport() == nullptr) {
+    return std::nullopt;
+  }
+  auto caret = text_editor_viewport_caret_rect(editor);
+  const auto caret_width = text_editor_caret_width(editor);
+  if (caret.isEmpty() || caret_width <= 0) {
+    return std::nullopt;
+  }
+  const bool vertical = text_editor_is_vertical(editor);
+  apply_text_caret_thickness(caret, caret_width, vertical);
+  if (vertical) {
+    caret.setBottom(std::max(caret.bottom(), editor.viewport()->rect().bottom()));
+  }
+  if (editor.property(kTextEditorTransformedOverlayProperty).toBool()) {
+    auto* canvas = qobject_cast<CanvasWidget*>(editor.parentWidget());
+    const auto* overlay = transformed_text_edit_overlay_for_canvas(canvas);
+    if (overlay != nullptr && overlay->editor() == &editor) {
+      const auto canvas_rect = overlay->canvas_bounds_for_editor_rect(QRectF(caret));
+      return QRect(editor.viewport()->mapFrom(canvas, canvas_rect.topLeft()), canvas_rect.size());
+    }
+  }
+  return caret;
 }
 
 QString document_html_for_editor(const QString& document_html, const QFont& editor_font, double zoom) {

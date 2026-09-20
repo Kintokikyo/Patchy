@@ -27,6 +27,7 @@
 #include <QDoubleSpinBox>
 #include <QElapsedTimer>
 #include <QEventLoop>
+#include <QInputMethodEvent>
 #include <QFontComboBox>
 #include <QScopeGuard>
 #include <QFontDatabase>
@@ -924,6 +925,104 @@ void ui_new_text_starts_horizontal_after_vertical_layer() {
   process_events_for(150);
 }
 
+// The IME candidate list is placed from Qt::ImCursorRectangle. QTextEdit's own answer for a
+// vertical session is its internal horizontal line at the widget's top, so the Windows Japanese
+// IME's list covered the column being typed. The query now answers the drawn caret's column,
+// from the caret down to the widget's bottom, so the list opens below the text.
+void ui_vertical_text_input_method_rect_excludes_the_column() {
+  register_test_fonts(TestFontRole::UiDefault);
+  const auto family = japanese_test_family();
+  if (!family.has_value()) {
+    return;
+  }
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_zoom(1.0);
+  canvas->set_primary_color(QColor(0, 0, 0));
+  const auto guard = vertical_toggle_guard(window);
+  const auto created = create_vertical_layer_with_tool(
+      window, *canvas, QPoint(200, 40), QString::fromUtf8("\xe3\x81\x82\xe3\x81\x84\xe3\x81\x86"), *family);
+  CHECK(created.id.has_value());
+  if (!created.id.has_value()) {
+    return;
+  }
+  require_action_by_text(window, QStringLiteral("Type"))->trigger();
+  const auto hit = canvas->widget_position_for_document_point(QPoint(200, 48));
+  send_mouse(*canvas, QEvent::MouseButtonPress, hit, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, hit, Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  process_events_for(250);
+  auto* editor = canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
+  CHECK(editor != nullptr);
+  if (editor == nullptr) {
+    return;
+  }
+  CHECK(editor->textCursor().position() == 0);
+  const auto caret = editor->property("patchy.previewCaretRect").toRect();
+  CHECK(!caret.isEmpty());
+  QInputMethodQueryEvent query(Qt::ImCursorRectangle);
+  QApplication::sendEvent(editor, &query);
+  const auto ime = query.value(Qt::ImCursorRectangle).toRect();
+  std::printf("  caret %d,%d %dx%d  ime %d,%d %dx%d  stock %d,%d %dx%d\n", caret.x(), caret.y(), caret.width(),
+              caret.height(), ime.x(), ime.y(), ime.width(), ime.height(), editor->cursorRect().x(),
+              editor->cursorRect().y(), editor->cursorRect().width(), editor->cursorRect().height());
+  std::fflush(stdout);
+  // Same column as the drawn caret, starting at the caret ...
+  CHECK(std::abs(ime.x() - caret.x()) <= 1);
+  CHECK(std::abs(ime.width() - caret.width()) <= 1);
+  CHECK(std::abs(ime.y() - caret.y()) <= 1);
+  // ... and reaching past the three 32 px cells below it, so the candidate list opens under them.
+  CHECK(ime.bottom() >= caret.y() + 90);
+  CHECK(ime.bottom() <= editor->viewport()->rect().bottom());
+  // Not the stock answer: QTextEdit's internal line sits at the widget's top-left.
+  CHECK(ime != editor->cursorRect());
+
+  // The rect follows the caret down the column.
+  send_key(*editor, Qt::Key_Down);
+  QApplication::processEvents();
+  QInputMethodQueryEvent second_query(Qt::ImCursorRectangle);
+  QApplication::sendEvent(editor, &second_query);
+  const auto second = second_query.value(Qt::ImCursorRectangle).toRect();
+  CHECK(std::abs(second.y() - caret.y() - 32) <= 3);
+  CHECK(std::abs(second.x() - caret.x()) <= 1);
+  require_action_by_text(window, QStringLiteral("Move"))->trigger();
+  process_events_for(200);
+}
+
+// Horizontal sessions answer the drawn caret too (zoomed, so the widget layout and the render
+// disagree on where the line is), one line tall like a text field.
+void ui_text_input_method_rect_follows_the_drawn_caret() {
+  register_test_fonts(TestFontRole::UiDefault);
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_zoom(2.0);
+  canvas->set_primary_color(QColor(0, 0, 0));
+  require_action_by_text(window, QStringLiteral("Type"))->trigger();
+  QApplication::processEvents();
+  patchy::ui::MainWindowTestAccess::add_text_at(window, QPoint(40, 60));
+  auto* editor = canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
+  CHECK(editor != nullptr);
+  if (editor == nullptr) {
+    return;
+  }
+  editor->insertPlainText(QStringLiteral("hey"));
+  process_events_for(250);
+  const auto caret = editor->property("patchy.previewCaretRect").toRect();
+  CHECK(!caret.isEmpty());
+  QInputMethodQueryEvent query(Qt::ImCursorRectangle);
+  QApplication::sendEvent(editor, &query);
+  const auto ime = query.value(Qt::ImCursorRectangle).toRect();
+  std::printf("  caret %d,%d %dx%d  ime %d,%d %dx%d\n", caret.x(), caret.y(), caret.width(), caret.height(), ime.x(),
+              ime.y(), ime.width(), ime.height());
+  std::fflush(stdout);
+  CHECK(ime == caret);
+  CHECK(ime.height() > ime.width());
+  require_action_by_text(window, QStringLiteral("Move"))->trigger();
+  process_events_for(200);
+}
+
 // Rotated Roman (runs v7 column 14 = 2, Photoshop's Standard Vertical Roman Alignment): "HH"
 // stacks two caps 32 px apart when upright; rotated, each H lies on its side, so the column
 // is only a cap tall (~23 px) across and the two glyphs follow each other by their horizontal
@@ -1185,6 +1284,8 @@ std::vector<patchy::test::TestCase> text_vertical_rtl_tests() {
       {"ui_new_text_size_scales_with_the_document", ui_new_text_size_scales_with_the_document},
       {"ui_new_text_starts_horizontal_after_vertical_layer", ui_new_text_starts_horizontal_after_vertical_layer},
       {"ui_vertical_text_rotated_roman_lies_along_the_column", ui_vertical_text_rotated_roman_lies_along_the_column},
+      {"ui_vertical_text_input_method_rect_excludes_the_column", ui_vertical_text_input_method_rect_excludes_the_column},
+      {"ui_text_input_method_rect_follows_the_drawn_caret", ui_text_input_method_rect_follows_the_drawn_caret},
       {"ui_typing_uncovered_characters_switches_their_font", ui_typing_uncovered_characters_switches_their_font},
   };
 }

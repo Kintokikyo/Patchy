@@ -24,17 +24,15 @@ recovered from the line alone. Caret lookup resolves the owning block FIRST, the
 and a document-wide scan answers the previous block for a position at the start of the next one.
 
 **The caret layout must be built with the same SCALES as the render pass**, not just the same
-document. `build_text_editor_document_space_layout` has to mirror `update_text_editor_preview`
-argument for argument: `metric_scale` AND the PSD-frame `layout_scale`
-(`text_editor_size_display_scale` when `photoshop_layout && usesPsdTextFrame`). A frame session
-keeps its runs in raw engine units and folds the frame transform's vertical scale into the glyph
-sizes only at render time, so `layout_scale` left at its 1.0 default lays the caret and selection
-out at the raw size while the glyphs are drawn scaled: on a 1.5x frame, selecting one character
-highlights one and a half. `ui_psd_frame_text_highlight_matches_scaled_glyphs` pins it by
-comparing a select-all highlight against the rendered ink (space-free text), and by clicking the
-middle of the INK and requiring the cursor to land mid-text. The click probe must be derived from
-the render: clicking the caret proves nothing, because click and caret share a layout and agree
-even when that layout is wrong against the glyphs.
+document. `build_text_editor_document_space_layout` mirrors `update_text_editor_preview` argument
+for argument: `metric_scale` AND the PSD-frame `layout_scale` (`text_editor_size_display_scale`
+when `photoshop_layout && usesPsdTextFrame`). A frame session keeps its runs in raw engine units
+and folds the frame's vertical scale into the glyph sizes only at render time, so a default
+`layout_scale` of 1.0 lays the caret and selection out at the raw size while the glyphs draw
+scaled (on a 1.5x frame, selecting one character highlights one and a half).
+`ui_psd_frame_text_highlight_matches_scaled_glyphs` pins it against the rendered ink and by
+clicking mid-INK; the click probe must come from the render, since click and caret share a layout
+and agree even when it is wrong.
 
 Mouse hit-testing goes through the same plan. `QTextEdit::cursorForPosition` must never resolve a
 click inside a text session: the widget hit-tests against its own internal layout, built at an
@@ -117,23 +115,22 @@ Delete on a text layer deletes the OBJECT, never its pixels: pixel-clearing leav
 
 `TransformedTextEditOverlay` covers the text it is editing, so it is what a click on transformed
 text hits, and it must take `Qt::ClickFocus`. With `Qt::NoFocus` Qt's focus-before-press walk
-(`giveFocusAccordingToFocusPolicy`) skips past it to the CanvasWidget behind, and the editor's
-focus-loss auto-commit reads that as clicking off: every click on transformed text ends the
-session instead of moving the caret. The overlay path is only reached from the SECOND edit of an
+(`giveFocusAccordingToFocusPolicy`) skips past it to the CanvasWidget behind, and the focus-loss
+auto-commit reads that as clicking off: every click on transformed text ends the session. The overlay path is only reached from the SECOND edit of an
 imported layer on: committing writes a patchy transform that moves the next session off the
 PSD-frame path, where the QTextEdit takes focus itself. Focus landing on the overlay is exempt
-from the auto-commit via the `is_text_option_widget` objectName match, and `mousePressEvent`
-hands focus straight back to the editor.
+from the auto-commit (`is_text_option_widget` objectName match); `mousePressEvent` hands focus
+back to the editor.
 
-Do NOT reach for a focus proxy here. It reads as the tidier answer and is a trap: clearing a proxy
-while the proxy holds focus makes Qt reassign the application focus widget, so the editor silently
-loses focus and the session commits out from under whoever was mid-call. `configure()` runs on
-every cursor move, selection change and preview refresh, so that fires constantly.
+Do NOT reach for a focus proxy here: clearing a proxy while it holds focus makes Qt reassign the
+application focus widget, so the editor silently loses focus and the session commits out from
+under whoever was mid-call. `configure()` runs on every cursor move, selection change and preview
+refresh, so that fires constantly.
 
 Tests that ask "would a real click reach the right widget" must use
 `click_widget_like_a_user` (tests/ui/ui_test_support.cpp), which routes the press to the deepest
 child under the point and applies the focus policy walk first. `send_mouse` straight to the canvas
-answers a different question and hid this bug from several tests that looked like they covered it.
+answers a different question and hid this bug from several tests.
 
 ## Options bar while an editor is open
 
@@ -283,6 +280,10 @@ the session contract.
   the raster). Imported PSD vertical layers keep the ink-anchor path, stack-axis fraction 1.
 - **Arrow keys follow the columns** (`InlineTextEdit::keyPressEvent`): Up/Down step along the
   column, Left/Right jump between columns.
+- **The IME is placed from the drawn caret.** `InlineTextEdit::inputMethodQuery` answers
+  `ImCursorRectangle` with `text_editor_input_method_rect`: the caret's line, the whole remaining
+  column for vertical text (Windows keeps the candidate list out of that rect), mapped through
+  the overlay when transformed. QTextEdit's own answer put the IME list on the typed column.
 - **Right-to-left needs no shaping work**: Qt runs bidi and HarfBuzz in QTextLayout. Alignment
   is logical (`QStyle::visualAlignment`), so the anchor helpers resolve it via
   `resolved_block_direction`. Spell non-ASCII test literals as `\x` escapes.
