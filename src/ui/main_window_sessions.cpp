@@ -1394,10 +1394,17 @@ bool MainWindow::session_is_modified(const DocumentSession& target_session) cons
 
 QString MainWindow::session_display_title(const DocumentSession& target_session) const {
   auto title = target_session.title.isEmpty() ? tr("Untitled") : target_session.title;
-  if (session_is_modified(target_session)) {
-    title.append(QStringLiteral("*"));
-  }
-  return title;
+
+  #ifdef Q_OS_ANDROID
+    if (target_session.path.startsWith(QStringLiteral("content://"))) {
+        title = QUrl::fromPercentEncoding(title.toUtf8());
+    }
+  #endif
+
+    if (session_is_modified(target_session)) {
+        title.append(QStringLiteral("*"));
+    }
+    return title;
 }
 
 void MainWindow::rebuild_window_document_entries(QMenu* window_menu) {
