@@ -16647,6 +16647,10 @@ Y : %2
         <source>Lay Latin letters on their side along the column instead of upright (Photoshop&apos;s Standard Vertical Roman Alignment)</source>
         <translation>Coucher les lettres latines le long de la colonne au lieu de les laisser droites (Standard Vertical Roman Alignment de Photoshop)</translation>
     </message>
+    <message>
+        <source>Line spacing (Photoshop leading). Entering a value turns Auto leading off.</source>
+        <translation>Interligne (leading de Photoshop). Saisir une valeur désactive l&apos;interligne automatique.</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

@@ -772,13 +772,10 @@ void ui_text_character_panel_leading_unlocks_and_applies() {
         return;
       }
       CHECK(auto_leading->isChecked());
-      CHECK(!leading->isEnabled());
+      // Never locked (Photoshop): the field shows the auto value and editing it turns Auto off.
+      CHECK(leading->isEnabled());
       CHECK(tracking->buttonSymbols() == QAbstractSpinBox::PlusMinus);
       CHECK(!tracking->keyboardTracking());
-      auto_leading->setChecked(false);
-      QApplication::processEvents();
-      CHECK(!auto_leading->isChecked());
-      CHECK(leading->isEnabled());
       leading->setValue(96.0);
       QApplication::processEvents();
       process_events_for(250);

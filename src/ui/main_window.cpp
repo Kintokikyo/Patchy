@@ -8950,6 +8950,7 @@ void MainWindow::open_text_character_dialog() {
   text_character_leading_spin_->setRange(0.01, 10000.0);
   text_character_leading_spin_->setSingleStep(0.5);
   text_character_leading_spin_->setSuffix(tr(" pt"));
+  text_character_leading_spin_->setToolTip(tr("Line spacing (Photoshop leading). Entering a value turns Auto leading off."));
   configure_dialog_spinbox(text_character_leading_spin_);
   configure_text_character_spin(text_character_leading_spin_);
   layout->addRow(tr("Leading:"), text_character_leading_spin_);
@@ -8987,8 +8988,14 @@ void MainWindow::open_text_character_dialog() {
           [this](bool) { apply_text_character_faux_italic_to_active_editor(); });
   connect(text_character_rotate_roman_, &QCheckBox::toggled, this,
           [this](bool) { apply_text_character_rotate_roman_to_active_editor(); });
-  connect(text_character_leading_spin_, &QDoubleSpinBox::valueChanged, this,
-          [this](double) { apply_text_character_leading_to_active_editor(); });
+  connect(text_character_leading_spin_, &QDoubleSpinBox::valueChanged, this, [this](double) {
+    // Photoshop's leading field is never locked: entering a value is what turns Auto off.
+    if (text_character_auto_leading_ != nullptr && text_character_auto_leading_->isChecked()) {
+      const QSignalBlocker blocker(text_character_auto_leading_);
+      text_character_auto_leading_->setChecked(false);
+    }
+    apply_text_character_leading_to_active_editor();
+  });
   connect(text_character_tracking_spin_, &QSpinBox::valueChanged, this,
           [this](int) { apply_text_character_tracking_to_active_editor(); });
   connect(text_character_h_scale_spin_, &QSpinBox::valueChanged, this,
@@ -9169,7 +9176,7 @@ void MainWindow::sync_text_character_dialog_from_editor() {
                                              format.property(kTextRotatedRomanFormatProperty).toBool());
   }
   text_character_auto_leading_->setChecked(auto_leading);
-  text_character_leading_spin_->setEnabled(!auto_leading);
+  text_character_leading_spin_->setEnabled(true);
   const auto leading_pt = auto_leading || !has_fixed
                               ? to_display_pt(1.2 * character_format_size_basis(format))
                               : to_display_pt(fixed_leading);
@@ -9194,7 +9201,6 @@ void MainWindow::apply_text_character_leading_to_active_editor() {
   }
   const bool auto_leading = text_character_auto_leading_->isChecked();
   const auto leading_pt = text_character_leading_spin_->value();
-  text_character_leading_spin_->setEnabled(!auto_leading);
   apply_text_character_edit([this, auto_leading, leading_pt](QTextEdit& editor) {
     const auto zoom = std::max(0.01, canvas_->zoom());
     const auto display_scale = text_editor_size_display_scale(editor);

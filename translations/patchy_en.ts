@@ -16605,6 +16605,10 @@ Y: %2
         <source>Lay Latin letters on their side along the column instead of upright (Photoshop&apos;s Standard Vertical Roman Alignment)</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Line spacing (Photoshop leading). Entering a value turns Auto leading off.</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

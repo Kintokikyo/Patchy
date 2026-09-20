@@ -16609,6 +16609,10 @@ Clipped to the layer below</source>
         <source>Lay Latin letters on their side along the column instead of upright (Photoshop&apos;s Standard Vertical Roman Alignment)</source>
         <translation>欧文を立てずに行に沿って横倒しにします（Photoshop の縦中横ではなく標準の縦組み欧文回転）</translation>
     </message>
+    <message>
+        <source>Line spacing (Photoshop leading). Entering a value turns Auto leading off.</source>
+        <translation>行送り（Photoshop の行送り）。値を入力すると自動行送りがオフになります。</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
