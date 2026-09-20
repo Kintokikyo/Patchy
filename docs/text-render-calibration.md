@@ -99,7 +99,8 @@ Photoshop 2026 captures: `local-test-fixtures/psd/ps2026_vtext/` (`capture_vtext
 `test-fixtures/psd/photoshop-text-vertical-{point,box,rotated-roman}.psd` and
 `photoshop-text-rtl-hebrew.psd` (corpus digests pinned). Pinned by
 `ui_vertical_text_matches_photoshop_capture` (re-rendered ink lands within 1 px of PS's 67x92
-raster on the point capture) and `psd_vertical_*captures*` in tests/core.
+raster on the point capture; skips without MS Gothic, since entering an imported layer whose face
+is missing raises the modal substitution prompt) and `psd_vertical_*captures*` in tests/core.
 
 - **Every glyph is upright, Latin included, by default**: "Hello" stacks H, e, l, l, o. Photoshop's
   "Standard Vertical Roman Alignment" lies Roman glyphs on their side instead: per run,

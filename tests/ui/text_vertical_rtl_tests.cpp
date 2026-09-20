@@ -166,11 +166,14 @@ void rerender_through_edit_session(patchy::ui::MainWindow& window, patchy::ui::C
 }
 
 // photoshop-text-vertical-point.psd is the ps2026_vtext capture vt_point_ja_multi (MS Gothic,
-// three-character columns). Skips only where no Japanese test face is registered.
+// three-character columns). The ink comparison is against MS Gothic's metrics, and entering an
+// imported layer whose face is missing asks the user to confirm a substitute (a modal dialog that
+// hung the Linux and macOS suites), so the test skips without that face.
 void ui_vertical_text_matches_photoshop_capture() {
   const auto path = patchy::test::committed_psd_fixture_path("photoshop-text-vertical-point.psd");
   register_test_fonts(TestFontRole::UiDefault);
-  if (!japanese_test_family().has_value()) {
+  if (!japanese_test_family().has_value() ||
+      skip_without_font_face(QStringLiteral("MS Gothic"), "Photoshop vertical capture face")) {
     return;
   }
   auto document = patchy::psd::DocumentIo::read_file(path);
