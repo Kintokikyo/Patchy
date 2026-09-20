@@ -130,7 +130,7 @@ refresh, so that fires constantly.
 Tests that ask "would a real click reach the right widget" must use
 `click_widget_like_a_user` (tests/ui/ui_test_support.cpp), which routes the press to the deepest
 child under the point and applies the focus policy walk first. `send_mouse` straight to the canvas
-answers a different question and hid this bug from several tests.
+answers a different question and hid this bug.
 
 ## Options bar while an editor is open
 
