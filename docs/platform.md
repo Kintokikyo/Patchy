@@ -77,6 +77,8 @@ warning instead of merely being compiled by something that never reported it.
 
 macOS (arm64, preset `mac-release`, Qt at `.deps/Qt/6.8.3/macos`) and Linux (preset `linux-release`, Qt at `.deps/Qt/6.8.3/gcc_64`) build remotely via `scripts\remote\remote-build.ps1 -Target mac|linux`, which snapshots the working tree (uncommitted changes included; it creates no commits or branches and does not touch the real index) to a bare repo on `seth@studiomac.local` / `glados@glados.local`, builds there, and runs both suites (core + offscreen UI) with output streamed back. One-time machine provisioning is `scripts/remote/setup-mac.sh` / `setup-linux.sh` (idempotent: venv tools + Qt via aqtinstall + apt deps).
 
+`remote-build.ps1` checks out over the one shared `~/patchy/src`, so first make sure no other session is using the box: `ssh glados@glados.local "pgrep -af 'patchy_|ninja|cc1plus'"`. When it is busy, do not wait on or kill the other run: push the snapshot to a private ref (`refs/snapshots/<topic>`), clone `~/patchy.git` into `~/patchy-<topic>/src`, symlink `.deps` to `~/patchy/src/.deps`, configure and build the preset there with the environment lines from `build-and-test.sh`, and delete the clone and the ref afterwards (September 2026, the `maskrotate` perf run).
+
 ## AddressSanitizer runs (order-dependent heap bugs)
 
 The `linux-asan` preset (RelWithDebInfo + `-fsanitize=address`, own `build/linux-asan` dir) is the tool for crashes that only reproduce in the full ordered suite: it found the July 2026 ~MainWindow teardown and SmartObjectStore reallocation use-after-frees behind the pen-test segfault. Sync the tree with `remote-build.ps1 -Target linux -SkipTests`, then build and run the instrumented suites on the box:
