@@ -1432,6 +1432,29 @@ void MainWindow::add_layer_mask() {
                                : tr("Added layer mask. Paint with black to hide and white to reveal."));
 }
 
+bool MainWindow::can_add_layer_mask() const {
+  if (canvas_ == nullptr || !has_active_document() || preview_dialog_edit_locked()) {
+    return false;
+  }
+  const auto& doc = std::as_const(document());
+  const auto active = doc.active_layer_id();
+  const auto ids = selected_or_active_layer_ids();
+  if (!active.has_value() || ids.size() != 1U || ids.front() != *active) {
+    return false;
+  }
+  const auto* layer = doc.find_layer(*active);
+  return layer != nullptr &&
+         (layer->kind() == LayerKind::Pixel || layer->kind() == LayerKind::Adjustment ||
+          layer->kind() == LayerKind::Group) &&
+         !layer->mask().has_value() && !layer_id_locks_image_pixels(*active);
+}
+
+void MainWindow::refresh_add_layer_mask_button_state() {
+  if (add_layer_mask_button_ != nullptr) {
+    add_layer_mask_button_->setEnabled(can_add_layer_mask());
+  }
+}
+
 void MainWindow::delete_active_layer_mask() {
   auto& doc = document();
   const auto active = doc.active_layer_id();

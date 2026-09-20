@@ -1821,6 +1821,64 @@ void ui_layer_action_buttons_accept_multiselect_drops() {
   CHECK(require_layer_item(*layer_list, QStringLiteral("Layer 3")) != nullptr);
 }
 
+// The Layers panel footer's Add Layer Mask button: enabled only for exactly
+// one selected layer that can take a new mask, and it adds the mask.
+void ui_layer_add_mask_button_tracks_selection_and_adds_mask() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* layer_list = window.findChild<QListWidget*>(QStringLiteral("layerList"));
+  auto* mask_button = window.findChild<QPushButton*>(QStringLiteral("layerAddMaskButton"));
+  CHECK(layer_list != nullptr);
+  CHECK(mask_button != nullptr);
+  CHECK(!mask_button->toolTip().isEmpty());
+
+  require_action(window, "layerNewAction")->trigger();
+  require_action(window, "layerNewAction")->trigger();
+  QApplication::processEvents();
+  auto* layer3 = require_layer_item(*layer_list, QStringLiteral("Layer 3"));
+  auto* layer4 = require_layer_item(*layer_list, QStringLiteral("Layer 4"));
+  const auto layer4_id = static_cast<patchy::LayerId>(layer4->data(patchy::ui::kLayerIdRole).toULongLong());
+
+  // One selected pixel layer without a mask: enabled.
+  layer_list->clearSelection();
+  layer_list->setCurrentItem(layer4);
+  layer4->setSelected(true);
+  QApplication::processEvents();
+  CHECK(mask_button->isEnabled());
+
+  // Two selected layers: disabled.
+  layer3->setSelected(true);
+  QApplication::processEvents();
+  CHECK(!mask_button->isEnabled());
+
+  layer_list->clearSelection();
+  layer4 = require_layer_item(*layer_list, QStringLiteral("Layer 4"));
+  layer_list->setCurrentItem(layer4);
+  layer4->setSelected(true);
+  QApplication::processEvents();
+  CHECK(mask_button->isEnabled());
+
+  mask_button->click();
+  QApplication::processEvents();
+  const auto& doc = std::as_const(patchy::ui::MainWindowTestAccess::document(window));
+  const auto* masked = doc.find_layer(layer4_id);
+  CHECK(masked != nullptr && masked->mask().has_value());
+  // The layer has its mask now, so there is nothing left to add.
+  CHECK(!mask_button->isEnabled());
+
+  patchy::ui::MainWindowTestAccess::undo(window);
+  QApplication::processEvents();
+  CHECK(doc.find_layer(layer4_id) != nullptr && !doc.find_layer(layer4_id)->mask().has_value());
+  CHECK(mask_button->isEnabled());
+
+  // A pixel-locked layer cannot take a mask.
+  auto* lock_all = window.findChild<QToolButton*>(QStringLiteral("layerLockAllButton"));
+  CHECK(lock_all != nullptr);
+  lock_all->click();
+  QApplication::processEvents();
+  CHECK(!mask_button->isEnabled());
+}
+
 void ui_layer_folders_expand_and_contract_children() {
   patchy::Document document(32, 32, patchy::PixelFormat::rgb8());
   document.add_pixel_layer("Background",
@@ -3319,6 +3377,8 @@ std::vector<patchy::test::TestCase> layer_panel_organization_tests() {
       {"ui_layer_new_folder_button_groups_dropped_layers",
        ui_layer_new_folder_button_groups_dropped_layers},
       {"ui_layer_action_buttons_accept_multiselect_drops", ui_layer_action_buttons_accept_multiselect_drops},
+      {"ui_layer_add_mask_button_tracks_selection_and_adds_mask",
+       ui_layer_add_mask_button_tracks_selection_and_adds_mask},
       {"ui_layer_folders_expand_and_contract_children", ui_layer_folders_expand_and_contract_children},
       {"ui_layer_folders_open_with_saved_expansion_state", ui_layer_folders_open_with_saved_expansion_state},
       {"ui_move_auto_select_reveals_layers_in_collapsed_folders",

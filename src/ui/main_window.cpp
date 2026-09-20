@@ -12000,6 +12000,7 @@ void MainWindow::update_document_action_state() {
   if (layer_list_ != nullptr) {
     layer_list_->setEnabled(has_document && !locked);
   }
+  refresh_add_layer_mask_button_state();
   const bool quick_mask_view =
       canvas_ != nullptr && canvas_->quick_mask_active();
   const bool smart_filter_mask_view =

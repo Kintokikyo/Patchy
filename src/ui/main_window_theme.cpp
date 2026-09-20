@@ -912,8 +912,8 @@ QString photoshop_style_template() {
     }
     QPushButton[layerActionButton="true"], QToolButton[layerActionButton="true"] {
       padding: 0;
-      min-width: 40px;
-      max-width: 40px;
+      min-width: 38px;
+      max-width: 38px;
       min-height: 34px;
       max-height: 34px;
     }

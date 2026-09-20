@@ -805,6 +805,11 @@ private:
   void layer_via_copy();
   void layer_via_cut();
   void add_layer_mask();
+  // Whether Add Layer Mask would do something right now: one eligible
+  // (pixel/adjustment/group, pixels unlocked) layer, with no mask yet or a
+  // selection to build one from. Drives the Layers panel footer button.
+  [[nodiscard]] bool can_add_layer_mask() const;
+  void refresh_add_layer_mask_button_state();
   void delete_active_layer_mask();
   void set_active_layer_mask_linked(bool linked);
   void set_layer_edit_target_ui(CanvasWidget::LayerEditTarget target, bool announce);
@@ -1448,6 +1453,7 @@ private:
   QToolButton* lock_image_pixels_button_{nullptr};
   QToolButton* lock_position_button_{nullptr};
   QToolButton* lock_all_button_{nullptr};
+  QPushButton* add_layer_mask_button_{nullptr};
   QAction* selection_new_mode_action_{nullptr};
   QAction* selection_add_mode_action_{nullptr};
   QAction* selection_subtract_mode_action_{nullptr};

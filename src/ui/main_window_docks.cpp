@@ -1422,10 +1422,15 @@ void MainWindow::create_docks() {
 
   auto* layer_buttons = new QHBoxLayout();
   layer_buttons->setContentsMargins(0, 0, 0, 0);
-  layer_buttons->setSpacing(10);
+  // Eight 38 px buttons at 5 px spacing total 339 px: one under the 340 px the
+  // seven-button row took, so the mask button did not raise the dock's minimum
+  // width (ui_layer_fx_and_smart_badges_stay_visible_in_narrow_panel).
+  layer_buttons->setSpacing(5);
   auto* add_button = new QPushButton(layers_panel);
   auto* add_folder_button = new QPushButton(layers_panel);
   auto* adjustment_button = new QToolButton(layers_panel);
+  add_layer_mask_button_ = new QPushButton(layers_panel);
+  auto* add_mask_button = add_layer_mask_button_;
   auto* duplicate_button = new QPushButton(layers_panel);
   auto* rename_button = new QPushButton(layers_panel);
   auto* animation_button = new QPushButton(layers_panel);
@@ -1433,6 +1438,7 @@ void MainWindow::create_docks() {
   add_button->setObjectName(QStringLiteral("layerNewButton"));
   adjustment_button->setObjectName(QStringLiteral("layerNewAdjustmentButton"));
   add_folder_button->setObjectName(QStringLiteral("layerNewFolderButton"));
+  add_mask_button->setObjectName(QStringLiteral("layerAddMaskButton"));
   duplicate_button->setObjectName(QStringLiteral("layerDuplicateButton"));
   rename_button->setObjectName(QStringLiteral("layerRenameButton"));
   animation_button->setObjectName(QStringLiteral("layerAnimationButton"));
@@ -1440,6 +1446,7 @@ void MainWindow::create_docks() {
   add_button->setIcon(simple_icon(QStringLiteral("new")));
   add_folder_button->setIcon(simple_icon(QStringLiteral("dir"), QColor(245, 205, 105)));
   adjustment_button->setIcon(simple_icon(QStringLiteral("ADJ"), QColor(190, 220, 255)));
+  add_mask_button->setIcon(simple_icon(QStringLiteral("mask"), QColor(210, 220, 230)));
   duplicate_button->setIcon(simple_icon(QStringLiteral("dup")));
   rename_button->setIcon(simple_icon(QStringLiteral("RN")));
   animation_button->setIcon(simple_icon(QStringLiteral("film")));
@@ -1447,15 +1454,17 @@ void MainWindow::create_docks() {
   bind_tooltip(add_button, QT_TR_NOOP("New Layer"));
   bind_tooltip(add_folder_button, QT_TR_NOOP("New Folder"));
   bind_tooltip(adjustment_button, QT_TR_NOOP("New Adjustment Layer"));
+  bind_tooltip(add_mask_button, QT_TR_NOOP("Add Layer Mask"));
   bind_tooltip(duplicate_button, QT_TR_NOOP("Duplicate Layer"));
   bind_tooltip(rename_button, QT_TR_NOOP("Rename Layer"));
   bind_tooltip(animation_button, QT_TR_NOOP("Animation Preview"));
   bind_tooltip(delete_button, QT_TR_NOOP("Delete Layer"));
   for (auto* button :
-       {add_button, add_folder_button, duplicate_button, rename_button, animation_button, delete_button}) {
+       {add_button, add_folder_button, add_mask_button, duplicate_button, rename_button, animation_button,
+        delete_button}) {
     button->setProperty("layerActionButton", true);
     button->setIconSize(QSize(24, 24));
-    button->setFixedSize(40, 34);
+    button->setFixedSize(38, 34);
     // Panel buttons never take keyboard focus (the Channels/Paths panel rule):
     // a focused button would swallow canvas keys after a click.
     button->setFocusPolicy(Qt::NoFocus);
@@ -1470,7 +1479,7 @@ void MainWindow::create_docks() {
   }
   adjustment_button->setProperty("layerActionButton", true);
   adjustment_button->setIconSize(QSize(24, 24));
-  adjustment_button->setFixedSize(40, 34);
+  adjustment_button->setFixedSize(38, 34);
   adjustment_button->setFocusPolicy(Qt::NoFocus);
   auto* adjustment_button_menu = new QMenu(adjustment_button);
   adjustment_button_menu->setObjectName(QStringLiteral("layerNewAdjustmentButtonMenu"));
@@ -1481,6 +1490,7 @@ void MainWindow::create_docks() {
   layer_buttons->addWidget(add_button);
   layer_buttons->addWidget(add_folder_button);
   layer_buttons->addWidget(adjustment_button);
+  layer_buttons->addWidget(add_mask_button);
   layer_buttons->addWidget(duplicate_button);
   layer_buttons->addWidget(rename_button);
   layer_buttons->addWidget(animation_button);
@@ -1489,6 +1499,7 @@ void MainWindow::create_docks() {
   layers_layout->addLayout(layer_buttons);
   connect(add_button, &QPushButton::clicked, this, [this] { add_layer(); });
   connect(add_folder_button, &QPushButton::clicked, this, [this] { create_layer_folder(); });
+  connect(add_mask_button, &QPushButton::clicked, this, [this] { add_layer_mask(); });
   connect(duplicate_button, &QPushButton::clicked, this, [this] { duplicate_active_layer(); });
   connect(rename_button, &QPushButton::clicked, this, [this] { rename_active_layer(); });
   connect(animation_button, &QPushButton::clicked, this, [this] { toggle_animation_preview_window(); });
@@ -1499,6 +1510,9 @@ void MainWindow::create_docks() {
                        static_cast<QWidget*>(delete_button)}) {
     register_document_widget(widget);
   }
+  // Not a document widget: its enabled state also depends on the layer
+  // selection, so refresh_add_layer_mask_button_state owns it.
+  add_mask_button->setEnabled(false);
 
   layers_dock->setWidget(layers_panel);
   install_collapsible_dock_title(layers_dock, layers_panel, QStringLiteral("layers"), 300, QWIDGETSIZE_MAX,

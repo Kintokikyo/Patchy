@@ -3456,6 +3456,7 @@ void MainWindow::refresh_layer_controls() {
   const UiProfileScope profile_scope("refresh_layer_controls");
   sync_text_character_dialog_from_editor();
   refresh_convert_for_smart_filters_action_state();
+  refresh_add_layer_mask_button_state();
   if (canvas_ != nullptr) {
     // The path overlay outlines every panel-selected shape layer.
     canvas_->set_panel_selected_layer_ids(has_active_document() ? selected_or_active_layer_ids()
