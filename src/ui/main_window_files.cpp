@@ -3138,7 +3138,7 @@ bool MainWindow::save_document_to_path(QString path, std::optional<ImageSaveOpti
     }
     set_session_saved(active_session);
     add_recent_file(path);
-    statusBar()->showMessage(tr("Saved %1").arg(path) + export_notes_suffix);
+    statusBar()->showMessage(tr("Saved %1").arg(session_display_title(active_session)) + export_notes_suffix);
     if (linked_external_child) {
       refresh_external_smart_object_after_save(active_session);
     }
