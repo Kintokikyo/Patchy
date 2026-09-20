@@ -1096,6 +1096,7 @@ bool point_text_geometry_needs_baseline_anchor(const Layer& layer, const PsdText
 #ifdef _WIN32
 std::optional<std::wstring> directwrite_localized_string(IDWriteLocalizedStrings* strings);
 std::optional<std::string> directwrite_font_info_string(IDWriteFont* font, DWRITE_INFORMATIONAL_STRING_ID id);
+bool directwrite_font_names_match(std::string_view lhs, std::string_view rhs);
 #endif
 
 namespace {
@@ -1148,6 +1149,57 @@ Microsoft::WRL::ComPtr<IDWriteFont> directwrite_font_with_face_name(IDWriteFontF
   return {};
 }
 
+// The installed font whose WIN32 (GDI name-table) family is `family`: the name the reader stores
+// when DirectWrite's own family and face disagree with what Qt lists (Balmoral LET, Franklin
+// Gothic Medium; see directwrite_resolved_photoshop_font). Among that family's faces the one whose
+// WIN32 subfamily is the recorded `style` wins, then the one whose subfamily says what the
+// bold/italic flags say ("Plain" counts as regular), then the first. Null when no font carries
+// the name.
+Microsoft::WRL::ComPtr<IDWriteFont> directwrite_font_with_win32_names(IDWriteFontCollection* collection,
+                                                                      std::string_view family,
+                                                                      std::string_view style, bool bold,
+                                                                      bool italic) {
+  Microsoft::WRL::ComPtr<IDWriteFont> flags_match;
+  Microsoft::WRL::ComPtr<IDWriteFont> first_match;
+  const auto family_count = collection->GetFontFamilyCount();
+  for (UINT32 family_index = 0; family_index < family_count; ++family_index) {
+    Microsoft::WRL::ComPtr<IDWriteFontFamily> font_family;
+    if (FAILED(collection->GetFontFamily(family_index, &font_family)) || !font_family) {
+      continue;
+    }
+    const auto font_count = font_family->GetFontCount();
+    for (UINT32 font_index = 0; font_index < font_count; ++font_index) {
+      Microsoft::WRL::ComPtr<IDWriteFont> font;
+      if (FAILED(font_family->GetFont(font_index, &font)) || !font ||
+          font->GetSimulations() != DWRITE_FONT_SIMULATIONS_NONE) {
+        continue;
+      }
+      const auto win32_family =
+          directwrite_font_info_string(font.Get(), DWRITE_INFORMATIONAL_STRING_WIN32_FAMILY_NAMES);
+      if (!win32_family.has_value() || !directwrite_font_names_match(*win32_family, family)) {
+        continue;
+      }
+      const auto win32_face =
+          directwrite_font_info_string(font.Get(), DWRITE_INFORMATIONAL_STRING_WIN32_SUBFAMILY_NAMES)
+              .value_or(std::string());
+      if (!style.empty() && directwrite_font_names_match(win32_face, style)) {
+        return font;
+      }
+      const auto face_key = ascii_lower_copy(win32_face);
+      const bool face_bold = face_key.find("bold") != std::string::npos;
+      const bool face_italic =
+          face_key.find("italic") != std::string::npos || face_key.find("oblique") != std::string::npos;
+      if (!flags_match && face_bold == bold && face_italic == italic) {
+        flags_match = font;
+      }
+      if (!first_match) {
+        first_match = font;
+      }
+    }
+  }
+  return flags_match ? flags_match : first_match;
+}
+
 std::string photoshop_font_name_for_run(std::string_view family, std::string_view style, bool bold,
                                         bool italic) {
   const auto fallback = family.empty() ? std::string("Arial") : std::string(family);
@@ -1175,6 +1227,15 @@ std::string photoshop_font_name_for_run(std::string_view family, std::string_vie
       font_family.Reset();
     }
   } else {
+    // A GDI family name DirectWrite does not know as a family of its own ("Balmoral LET" is
+    // DirectWrite family "Balmoral LET Plain"): the WIN32 informational strings name the face
+    // the reader stored, so the same PostScript name round-trips.
+    if (const auto font = directwrite_font_with_win32_names(collection.Get(), fallback, style, bold, italic);
+        font) {
+      if (auto name = directwrite_postscript_name(font.Get()); !name.empty()) {
+        return name;
+      }
+    }
     // The display family may carry a face the flags cannot express ("ITC Lubalin Graph Demi",
     // "Arial Black"): try the longest word-prefix that IS a DirectWrite family and keep the
     // remainder as the face to look up, mirroring the read side's family+face split.

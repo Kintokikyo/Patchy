@@ -1166,6 +1166,175 @@ void psd_text_recorded_style_resolves_the_exact_face() {
 #endif
 }
 
+namespace {
+
+std::vector<std::uint8_t> single_run_text_psd(std::string_view text, std::string_view postscript_name) {
+  const auto text_literal = engine_utf16be_literal(text);
+  const auto font_literal = engine_utf16be_literal(postscript_name);
+  const auto length = std::to_string(text.size());
+  const std::string engine_data =
+      "<< /EngineDict << /Editor << /Text " + text_literal +
+      " >> /StyleRun << /RunArray [ << /StyleSheet << /StyleSheetData << /Font 0 /FontSize 16 "
+      "/FauxBold false /FauxItalic false /FillColor << /Type 1 /Values [ 1.0 0.0 0.0 0.0 ] >> "
+      ">> >> >> ] /RunLengthArray [ " +
+      length +
+      " ] >> /ParagraphRun << /RunArray [ << /ParagraphSheet << "
+      "/Properties << /Justification 0 >> >> >> ] /RunLengthArray [ " +
+      length + " ] >> /AntiAlias 2 /FontSet [ << /Name " + font_literal +
+      " /Script 0 /FontType 1 /Synthetic 0 >> ] >>";
+  const auto payload =
+      std::vector<std::uint8_t>(reinterpret_cast<const std::uint8_t*>(engine_data.data()),
+                                reinterpret_cast<const std::uint8_t*>(engine_data.data()) + engine_data.size());
+  return single_text_layer_psd(payload);
+}
+
+// The family field and the style field of the first run line of a patchy.text.runs blob.
+struct FirstRunFields {
+  std::string family;
+  std::string style;
+};
+
+FirstRunFields first_run_fields(const std::string& runs) {
+  FirstRunFields fields;
+  const auto run_start = runs.find('\n');
+  if (run_start == std::string::npos) {
+    return fields;
+  }
+  const auto line = runs.substr(run_start + 1, runs.find('\n', run_start + 1) - run_start - 1);
+  std::vector<std::string> columns;
+  std::size_t start = 0;
+  while (true) {
+    const auto tab = line.find('\t', start);
+    columns.push_back(line.substr(start, tab == std::string::npos ? std::string::npos : tab - start));
+    if (tab == std::string::npos) {
+      break;
+    }
+    start = tab + 1;
+  }
+  // start len size bold italic color family leading tracking hscale vscale fauxbold style ...
+  if (columns.size() > 6) {
+    fields.family = columns[6];
+  }
+  if (columns.size() > 12) {
+    fields.style = columns[12];
+  }
+  return fields;
+}
+
+#ifdef _WIN32
+// The system font directory, the same convention tests/test_fonts.hpp registers from.
+bool windows_font_file_installed(const char* file_name) {
+  return std::filesystem::exists(std::filesystem::path("C:/Windows/Fonts") / file_name);
+}
+#endif
+
+}  // namespace
+
+void psd_text_gdi_family_wins_when_directwrite_renames_the_face() {
+  // Issue 16 (Balmoral LET): the DirectWrite resolver stored its derived "family + face" name,
+  // which Qt's Windows font database (GDI names) does not list when DirectWrite regroups a font
+  // under a weight-stretch-style family. Franklin Gothic Medium is the same split on a stock
+  // Windows font: DirectWrite files it as family "Franklin Gothic" + face "Medium" at weight 400,
+  // GDI as family "Franklin Gothic Medium" + "Regular". The stored family has to be the GDI one,
+  // with no style column (Regular is flag-expressible) and no bold flag. The suffix heuristic
+  // humanizes the PostScript name to the same family, so the expectation holds everywhere; the
+  // regression it guards ("Franklin Gothic" + style "Medium") only happens where DirectWrite
+  // resolves the name.
+  auto read = patchy::psd::DocumentIo::read(single_run_text_psd("Method\r", "FranklinGothic-Medium"));
+  CHECK(read.layers().size() == 1);
+  if (read.layers().empty()) {
+    return;
+  }
+  const auto& metadata = read.layers().front().metadata();
+  CHECK(metadata.at(patchy::kLayerMetadataTextFont) == "Franklin Gothic Medium");
+  CHECK(metadata.at(patchy::kLayerMetadataTextBold) == "false");
+  CHECK(metadata.at(patchy::kLayerMetadataTextItalic) == "false");
+  const auto fields = first_run_fields(metadata.at(patchy::kLayerMetadataTextRuns));
+  CHECK(fields.family == "Franklin%20Gothic%20Medium");
+  CHECK(fields.style.empty());
+
+#ifdef _WIN32
+  // With the font installed the writer must find the GDI family again (DirectWrite has no family
+  // of that name) and write the face's real PostScript name, not the display family verbatim.
+  if (windows_font_file_installed("framd.ttf")) {
+    const auto bytes = patchy::psd::DocumentIo::write_layered_rgb8(read);
+    const auto written = psd_layer_block_payload(psd_layer_extra_data(bytes, 0), "TySh");
+    CHECK(written.has_value());
+    if (written.has_value()) {
+      const auto postscript = utf16be_test_bytes("FranklinGothic-Medium");
+      CHECK(std::search(written->begin(), written->end(), postscript.begin(), postscript.end()) != written->end());
+    }
+  } else {
+    std::cout << "[SKIP] framd.ttf is not installed (Franklin Gothic Medium PostScript round trip)\n";
+  }
+#endif
+}
+
+void psd_text_balmoral_let_plain_never_bakes_a_synthesized_weight_if_available() {
+  // The reporter's font (issue 16): Balmoral LET is an old TrueType font whose only face is
+  // "Plain" at OS/2 weight class 5, which DirectWrite reads as Medium (500) and files as family
+  // "Balmoral LET Plain" + face "Medium". The reader used to store "Balmoral LET Plain Medium",
+  // so editing the imported layer warned that an installed font was missing. Wherever the name
+  // resolves (DirectWrite with the font installed, the suffix heuristic without it) the stored
+  // family must carry neither the synthesized weight nor a style column: "Plain" is the regular
+  // face and is flag-expressible.
+  const auto check_layer = [](const patchy::Layer& layer) {
+    const auto& metadata = layer.metadata();
+    const auto family = metadata.at(patchy::kLayerMetadataTextFont);
+    CHECK(family.find("Balmoral") != std::string::npos);
+    CHECK(family.find("Medium") == std::string::npos);
+    CHECK(metadata.at(patchy::kLayerMetadataTextBold) == "false");
+    CHECK(metadata.at(patchy::kLayerMetadataTextItalic) == "false");
+    const auto fields = first_run_fields(metadata.at(patchy::kLayerMetadataTextRuns));
+    CHECK(fields.family.find("Medium") == std::string::npos);
+    CHECK(fields.style.empty());
+    return family;
+  };
+
+  const auto read = patchy::psd::DocumentIo::read(single_run_text_psd("La methode\r", "BalmoralLetPlain"));
+  CHECK(read.layers().size() == 1);
+  if (read.layers().empty()) {
+    return;
+  }
+  const auto family = check_layer(read.layers().front());
+  if (family == "Balmoral LET") {
+    // The font is installed: DirectWrite resolved it, so the writer must give Photoshop the same
+    // PostScript name back through the WIN32-name lookup (DirectWrite knows no "Balmoral LET"
+    // family of its own).
+    const auto bytes = patchy::psd::DocumentIo::write_layered_rgb8(read);
+    const auto written = psd_layer_block_payload(psd_layer_extra_data(bytes, 0), "TySh");
+    CHECK(written.has_value());
+    if (written.has_value()) {
+      const auto postscript = utf16be_test_bytes("BalmoralLetPlain");
+      CHECK(std::search(written->begin(), written->end(), postscript.begin(), postscript.end()) != written->end());
+    }
+  }
+
+  // The reporter's PSD itself, when copied into local-test-fixtures: every layer set in the
+  // font obeys the same rules.
+  const auto path = patchy::test::local_psd_fixture_path("La methode.psd");
+  if (!std::filesystem::exists(path)) {
+    return;
+  }
+  const auto document = patchy::psd::DocumentIo::read_file(path);
+  int balmoral_layers = 0;
+  const std::function<void(const std::vector<patchy::Layer>&)> visit = [&](const std::vector<patchy::Layer>& layers) {
+    for (const auto& layer : layers) {
+      if (layer.kind() == patchy::LayerKind::Group) {
+        visit(layer.children());
+        continue;
+      }
+      const auto font = layer.metadata().find(patchy::kLayerMetadataTextFont);
+      if (font != layer.metadata().end() && font->second.find("Balmoral") != std::string::npos) {
+        ++balmoral_layers;
+        check_layer(layer);
+      }
+    }
+  };
+  visit(document.layers());
+  CHECK(balmoral_layers > 0);
+}
+
 void psd_text_engine_data_preserves_paragraph_layout_runs() {
   const std::string first = "Speed Mode - Hold down TAB and the entire game will run faster.";
   const std::string second = "Saving your game - Find a Save Machine and use it.";
@@ -2270,6 +2439,10 @@ std::vector<patchy::test::TestCase> psd_text_tests() {
       {"psd_text_flag_expressible_face_never_bakes_into_the_family",
        psd_text_flag_expressible_face_never_bakes_into_the_family},
       {"psd_text_recorded_style_resolves_the_exact_face", psd_text_recorded_style_resolves_the_exact_face},
+      {"psd_text_gdi_family_wins_when_directwrite_renames_the_face",
+       psd_text_gdi_family_wins_when_directwrite_renames_the_face},
+      {"psd_text_balmoral_let_plain_never_bakes_a_synthesized_weight_if_available",
+       psd_text_balmoral_let_plain_never_bakes_a_synthesized_weight_if_available},
       {"psd_text_engine_data_preserves_paragraph_layout_runs",
        psd_text_engine_data_preserves_paragraph_layout_runs},
       {"psd_text_engine_normal_style_sheet_supplies_missing_run_properties",

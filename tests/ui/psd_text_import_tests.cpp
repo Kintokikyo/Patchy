@@ -2532,6 +2532,110 @@ void ui_editing_past_the_missing_font_warning_substitutes_the_font() {
   CHECK(!badge_tooltip().contains(QStringLiteral("Missing font")));
 }
 
+// Issue 16 (Balmoral LET): the PSD reader used to store DirectWrite's derived "family + face"
+// name, which the Windows font database (GDI names) does not list when DirectWrite regroups a
+// font under a weight-stretch-style family, so editing an imported layer set in an INSTALLED
+// font raised the Missing Font prompt ("Balmoral LET Plain Medium"). Franklin Gothic Medium is
+// the same split on a stock Windows font (DirectWrite: family "Franklin Gothic" + face "Medium";
+// GDI: family "Franklin Gothic Medium"). A Patchy save names the face by PostScript name exactly
+// as Photoshop does, so the reader resolves it through DirectWrite on the way back: the stored
+// family has to be one the database lists, the layer panel must not badge it, and entering the
+// editor on the imported raster must not warn.
+void ui_imported_gdi_family_edits_without_the_missing_font_prompt() {
+  patchy::test::register_test_fonts(patchy::test::TestFontRole::UiDefault);
+  patchy::test::register_test_fonts(patchy::test::TestFontRole::FranklinGothicMedium);
+  const auto family = QStringLiteral("Franklin Gothic Medium");
+  if (skip_without_font_face(family, "GDI-versus-DirectWrite family naming fixture face")) {
+    return;
+  }
+
+  patchy::Document authored(320, 180, patchy::PixelFormat::rgba8());
+  authored.add_pixel_layer("Background", solid_pixels(320, 180, patchy::PixelFormat::rgba8(), QColor(Qt::white)));
+  auto pixels = solid_pixels(118, 36, patchy::PixelFormat::rgba8(), QColor(0, 0, 0, 0));
+  fill_pixel_rect(pixels, QRect(0, 0, 96, 30), QColor(20, 20, 20, 255));
+  patchy::Layer text_layer(authored.allocate_layer_id(), "Method", std::move(pixels));
+  text_layer.set_bounds(patchy::Rect{86, 62, 118, 36});
+  text_layer.metadata()[patchy::kLayerMetadataText] = "Method";
+  text_layer.metadata()[patchy::kLayerMetadataTextFlow] = "point";
+  text_layer.metadata()[patchy::kLayerMetadataTextFont] = family.toStdString();
+  text_layer.metadata()[patchy::kLayerMetadataTextSize] = "28";
+  text_layer.metadata()[patchy::kLayerMetadataTextColor] = "#202020";
+  text_layer.metadata()[patchy::kLayerMetadataTextBold] = "false";
+  text_layer.metadata()[patchy::kLayerMetadataTextItalic] = "false";
+  text_layer.metadata()[patchy::kLayerMetadataTextRuns] = "v1\n0\t6\t28\t0\t0\t#202020\tFranklin%20Gothic%20Medium";
+  text_layer.metadata()[patchy::kLayerMetadataTextRasterStatus] = "patchy_raster";
+  authored.add_layer(std::move(text_layer));
+
+  auto document = patchy::psd::DocumentIo::read(patchy::psd::DocumentIo::write_layered_rgb8(authored));
+  patchy::Layer* imported = nullptr;
+  for (auto& layer : document.layers()) {
+    if (layer.metadata().count(patchy::kLayerMetadataText) != 0) {
+      imported = &layer;
+    }
+  }
+  CHECK(imported != nullptr);
+  if (imported == nullptr) {
+    return;
+  }
+  // The PostScript name Patchy wrote ("FranklinGothic-Medium") came back as the GDI family, not
+  // as DirectWrite's "Franklin Gothic" (a family the database has never heard of).
+  const auto stored = QString::fromStdString(imported->metadata().at(patchy::kLayerMetadataTextFont));
+  CHECK(stored == family);
+  if (stored != family) {
+    return;
+  }
+  const auto runs = QString::fromStdString(imported->metadata().at(patchy::kLayerMetadataTextRuns));
+  CHECK(runs.contains(QStringLiteral("Franklin%20Gothic%20Medium")));
+  CHECK(!runs.contains(QStringLiteral("\tMedium")));
+  // Photoshop's raster is the state in which the substitution warning is asked.
+  imported->metadata()[patchy::kLayerMetadataTextRasterStatus] = "psd_raster_preview";
+  const auto layer_id = imported->id();
+
+  patchy::ui::MainWindow window;
+  show_window(window);
+  window.add_document_session(std::move(document), QStringLiteral("GDI family"));
+  QApplication::processEvents();
+  auto* layer_list = window.findChild<QListWidget*>(QStringLiteral("layerList"));
+  CHECK(layer_list != nullptr);
+  if (layer_list == nullptr) {
+    return;
+  }
+  auto* item = require_layer_item(*layer_list, QStringLiteral("Method"));
+  auto* row = item == nullptr ? nullptr : layer_list->itemWidget(item);
+  auto* thumbnail = row == nullptr ? nullptr : row->findChild<QLabel*>(QStringLiteral("layerContentThumbnail"));
+  CHECK(thumbnail != nullptr);
+  if (thumbnail != nullptr) {
+    CHECK(thumbnail->toolTip() == QStringLiteral("Text layer"));
+  }
+
+  patchy::ui::MainWindowTestAccess::document(window).set_active_layer(layer_id);
+  require_action_by_text(window, QStringLiteral("Type"))->trigger();
+  QApplication::processEvents();
+  bool warned = false;
+  QTimer::singleShot(0, [&warned] {
+    auto* dialog = qobject_cast<QMessageBox*>(find_top_level_dialog(QStringLiteral("missingPsdTextFontMessageBox")));
+    if (dialog == nullptr) {
+      return;
+    }
+    warned = true;
+    dialog->button(QMessageBox::Cancel)->click();
+  });
+  auto* canvas = require_canvas(window);
+  const auto hit_point = canvas->widget_position_for_document_point(QPoint(92, 68));
+  send_mouse(*canvas, QEvent::MouseButtonPress, hit_point, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, hit_point, Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  process_events_for(250);
+  CHECK(!warned);
+  auto* editor = canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
+  CHECK(editor != nullptr);
+  if (editor != nullptr) {
+    CHECK(editor->toPlainText() == QStringLiteral("Method"));
+    send_key(*editor, Qt::Key_Escape);
+    QApplication::processEvents();
+  }
+}
+
 // A family the font database does not have cannot be a row, so a control set to one (a tool
 // setting saved on a machine that had the font, a face uninstalled since) parks on some OTHER
 // family while its current font still names the missing one. Picking the family the control is
@@ -3263,6 +3367,8 @@ std::vector<patchy::test::TestCase> psd_text_import_tests() {
        ui_text_layer_font_without_glyph_coverage_counts_as_missing},
       {"ui_editing_past_the_missing_font_warning_substitutes_the_font",
        ui_editing_past_the_missing_font_warning_substitutes_the_font},
+      {"ui_imported_gdi_family_edits_without_the_missing_font_prompt",
+       ui_imported_gdi_family_edits_without_the_missing_font_prompt},
       {"ui_font_picker_applies_a_pick_the_control_already_shows",
        ui_font_picker_applies_a_pick_the_control_already_shows},
       {"ui_text_options_apply_to_the_whole_layer_without_a_selection",
