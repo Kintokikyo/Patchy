@@ -181,6 +181,12 @@ struct LayerPixelsOverrideSpec {
 [[nodiscard]] QImage qimage_from_document_rect_with_hidden_layers_banded(
     const Document& document, QRect document_rect, bool preserve_alpha,
     const std::vector<LayerId>& hidden_layer_ids);
+// Same PREVIEW-ONLY banded render with bounds overrides on top of the hidden
+// set: the Move proxy snapshot shifts a moving set that hangs off the canvas
+// back onto it, because the compositor clips every render to the canvas.
+[[nodiscard]] QImage qimage_from_document_rect_with_hidden_layers_and_layer_bounds_banded(
+    const Document& document, QRect document_rect, bool preserve_alpha, const std::vector<LayerId>& hidden_layer_ids,
+    const std::vector<std::pair<LayerId, Rect>>& layer_bounds);
 [[nodiscard]] bool image_format_preserves_alpha(std::string_view extension) noexcept;
 // The flattened image every flat-file writer starts from. With preserve_alpha, a single
 // masked layer exports non-destructively: the original colors are kept and the mask

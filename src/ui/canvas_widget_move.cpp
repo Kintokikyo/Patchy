@@ -90,6 +90,47 @@ constexpr std::int64_t kStyledMoveOutlineDirtyAreaThreshold = 1'000'000;
 constexpr std::int64_t kMoveProxyMaxPixels = 4'000'000;
 constexpr std::int64_t kMoveProxyLastResortSnapshotArea = 80'000'000;
 
+// The compositor clips every render to the canvas, so a moving set that hangs
+// off it used to snapshot without its off-canvas content, and a set lying
+// entirely on the pasteboard could not snapshot at all (the drag then kept the
+// dashed outline even once it reached the canvas). Returns the translation
+// that brings `effect_union` as far onto the canvas as it fits; the snapshot
+// renders there through bounds overrides and the proxy rect maps back. The
+// translation is a whole number of 2^level blocks so the preview-scaled copies
+// shift by an exact scaled amount.
+QPoint move_proxy_snapshot_shift(QRect effect_union, QRect canvas_rect, int level) {
+  const int block = 1 << std::max(0, level);
+  const auto axis_shift = [block](int low, int size, int canvas_size) {
+    const auto slack = canvas_size - size;
+    const auto target = std::clamp(low, std::min(0, slack), std::max(0, slack));
+    const auto shift = target - low;
+    // Round away from zero: undershooting would leave the far edge clipped.
+    return shift >= 0 ? (shift + block - 1) / block * block : -((-shift + block - 1) / block * block);
+  };
+  return QPoint(axis_shift(effect_union.x(), effect_union.width(), canvas_rect.width()),
+                axis_shift(effect_union.y(), effect_union.height(), canvas_rect.height()));
+}
+
+// Bounds overrides that render the moving set translated by `shift`. `source`
+// is the document the snapshot renders from: the real one, or the
+// preview-scaled copy at `level`, whose layers shift by the scaled amount.
+std::vector<std::pair<LayerId, Rect>> move_proxy_shifted_bounds(const Document& source,
+                                                                const std::vector<LayerId>& moving_ids, QPoint shift,
+                                                                int level) {
+  const int block = 1 << std::max(0, level);
+  std::vector<std::pair<LayerId, Rect>> bounds;
+  bounds.reserve(moving_ids.size());
+  for (const auto id : moving_ids) {
+    if (const auto* layer = source.find_layer(id)) {
+      auto shifted = layer->bounds();
+      shifted.x += shift.x() / block;
+      shifted.y += shift.y() / block;
+      bounds.emplace_back(id, shifted);
+    }
+  }
+  return bounds;
+}
+
 }  // namespace
 
 void CanvasWidget::close_move_layer_context_menu() {
@@ -648,7 +689,10 @@ QRect CanvasWidget::moving_layers_outline_dirty_rect(QPoint old_delta, QPoint ne
   if (dirty.isEmpty()) {
     return dirty;
   }
-  return dirty.adjusted(-2, -2, 2, 2).intersected(QRect(0, 0, document_->width(), document_->height()));
+  // Deliberately not clipped to the canvas: paint draws the dashed outline on
+  // the pasteboard too, and a canvas-clipped repaint left a layer dragged from
+  // (or across) the pasteboard invisible until it reached the canvas.
+  return dirty.adjusted(-2, -2, 2, 2);
 }
 
 void CanvasWidget::cancel_move_preview() noexcept {
@@ -682,6 +726,11 @@ bool CanvasWidget::request_move_preview() {
       proxy_rect = proxy_rect.united(moving_layer_effect_rect(*layer, moving, QPoint()));
     }
   }
+  // Same off-canvas shift as ensure_move_proxy_image: proxy_rect stays in
+  // shifted (render) space until the completion maps it back.
+  const auto proxy_shift =
+      proxy_rect.isEmpty() ? QPoint() : move_proxy_snapshot_shift(proxy_rect, canvas_rect, level);
+  proxy_rect.translate(proxy_shift);
   const bool clipped = !canvas_rect.contains(proxy_rect);
   proxy_rect = proxy_rect.intersected(canvas_rect);
   if (level >= 1) proxy_rect = rect_aligned_to_mip_grid(proxy_rect, level).intersected(canvas_rect);
@@ -703,7 +752,8 @@ bool CanvasWidget::request_move_preview() {
   auto* app = QApplication::instance();
   const QPointer<CanvasWidget> widget(this);
   run_tracked_background_worker([widget, app, generation, level, key, snapshot, scaled, moving_ids, hidden,
-                                 proxy_rect, clipped, cancelled, delay, scale_cache, base = std::move(base)]() mutable {
+                                 proxy_rect, proxy_shift, clipped, cancelled, delay, scale_cache,
+                                 base = std::move(base)]() mutable {
     QImage proxy;
     try {
       if (delay > 0) std::this_thread::sleep_for(std::chrono::milliseconds(delay));
@@ -719,8 +769,12 @@ bool CanvasWidget::request_move_preview() {
       const auto area = static_cast<std::int64_t>(proxy_rect.width()) * proxy_rect.height();
       if (!cancelled->load() && !proxy_rect.isEmpty() &&
           (level >= 1 || area <= kMoveProxyLastResortSnapshotArea)) {
-        proxy = qimage_from_document_rect_with_hidden_layers_banded(
-            source, level >= 1 ? preview_scaled_document_rect(proxy_rect, level) : proxy_rect, true, hidden);
+        const auto source_rect = level >= 1 ? preview_scaled_document_rect(proxy_rect, level) : proxy_rect;
+        proxy = proxy_shift.isNull()
+                    ? qimage_from_document_rect_with_hidden_layers_banded(source, source_rect, true, hidden)
+                    : qimage_from_document_rect_with_hidden_layers_and_layer_bounds_banded(
+                          source, source_rect, true, hidden,
+                          move_proxy_shifted_bounds(source, moving_ids, proxy_shift, level));
         const auto pixels = static_cast<std::int64_t>(proxy.width()) * proxy.height();
         if (pixels > kMoveProxyMaxPixels) {
           const auto scale = std::sqrt(static_cast<double>(kMoveProxyMaxPixels) / static_cast<double>(pixels));
@@ -734,8 +788,9 @@ bool CanvasWidget::request_move_preview() {
       base = {};
       proxy = {};
     }
-    QMetaObject::invokeMethod(app, [widget, generation, level, key, scaled, scale_cache, cancelled, proxy_rect, clipped,
-                                  base = std::move(base), proxy = std::move(proxy)]() mutable {
+    QMetaObject::invokeMethod(app, [widget, generation, level, key, scaled, scale_cache, cancelled, proxy_rect,
+                                  proxy_shift, clipped, base = std::move(base),
+                                  proxy = std::move(proxy)]() mutable {
       if (!widget) return;
       widget->move_preview_in_flight_ = false;
       if (!cancelled->load() && generation == widget->move_preview_generation_ && widget->moving_layer_ &&
@@ -750,7 +805,7 @@ bool CanvasWidget::request_move_preview() {
           widget->move_base_cache_ = std::move(base);
           widget->move_base_cache_scale_level_ = level;
           widget->move_proxy_image_ = std::move(proxy);
-          widget->move_proxy_document_rect_ = proxy_rect;
+          widget->move_proxy_document_rect_ = proxy_rect.translated(-proxy_shift);
           widget->move_proxy_rect_canvas_clipped_ = clipped;
           widget->moving_layers_use_outline_preview_ = false;
           widget->move_drag_uses_proxy_preview_ = true;
@@ -784,8 +839,6 @@ bool CanvasWidget::ensure_move_proxy_image() {
     }
     snapshot_rect = snapshot_rect.united(moving_layer_effect_rect(*layer, moving_layer, QPoint()));
   }
-  move_proxy_rect_canvas_clipped_ = !snapshot_rect.isEmpty() && !canvas_rect.contains(snapshot_rect);
-  snapshot_rect = snapshot_rect.intersected(canvas_rect);
   if (snapshot_rect.isEmpty()) {
     return false;
   }
@@ -794,6 +847,16 @@ bool CanvasWidget::ensure_move_proxy_image() {
   // last-resort area cap only applies to full-res snapshots.
   const auto composite_level = preview_composite_level_for_zoom(zoom_);
   Document* scaled_document = composite_level >= 1 ? preview_scaled_document_for_level(composite_level) : nullptr;
+  // A set hanging off the canvas snapshots shifted onto it (see
+  // move_proxy_snapshot_shift); only what still does not fit stays clipped.
+  const auto snapshot_shift =
+      move_proxy_snapshot_shift(snapshot_rect, canvas_rect, scaled_document != nullptr ? composite_level : 0);
+  snapshot_rect.translate(snapshot_shift);
+  move_proxy_rect_canvas_clipped_ = !canvas_rect.contains(snapshot_rect);
+  snapshot_rect = snapshot_rect.intersected(canvas_rect);
+  if (snapshot_rect.isEmpty()) {
+    return false;
+  }
   if (scaled_document != nullptr) {
     snapshot_rect = rect_aligned_to_mip_grid(snapshot_rect, composite_level).intersected(canvas_rect);
   }
@@ -832,11 +895,21 @@ bool CanvasWidget::ensure_move_proxy_image() {
   // Banded: the snapshot is small but crosses the styled stack, and this
   // render is the other half of the latch hitch (preview-only, so the band
   // divergence class is acceptable).
+  const Document& snapshot_source = scaled_document != nullptr ? *scaled_document : std::as_const(*document_);
+  const auto source_level = scaled_document != nullptr ? composite_level : 0;
+  const auto source_rect =
+      scaled_document != nullptr ? preview_scaled_document_rect(snapshot_rect, composite_level) : snapshot_rect;
+  std::vector<LayerId> moving_ids;
+  moving_ids.reserve(moving_layers_.size());
+  for (const auto& moving_layer : moving_layers_) {
+    moving_ids.push_back(moving_layer.id);
+  }
   auto snapshot =
-      scaled_document != nullptr
-          ? qimage_from_document_rect_with_hidden_layers_banded(
-                *scaled_document, preview_scaled_document_rect(snapshot_rect, composite_level), true, hidden)
-          : qimage_from_document_rect_with_hidden_layers_banded(*document_, snapshot_rect, true, hidden);
+      snapshot_shift.isNull()
+          ? qimage_from_document_rect_with_hidden_layers_banded(snapshot_source, source_rect, true, hidden)
+          : qimage_from_document_rect_with_hidden_layers_and_layer_bounds_banded(
+                snapshot_source, source_rect, true, hidden,
+                move_proxy_shifted_bounds(snapshot_source, moving_ids, snapshot_shift, source_level));
   if (snapshot.isNull()) {
     return false;
   }
@@ -849,7 +922,7 @@ bool CanvasWidget::ensure_move_proxy_image() {
     snapshot = snapshot.scaled(proxy_size, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
   }
   move_proxy_image_ = snapshot.convertToFormat(QImage::Format_ARGB32_Premultiplied);
-  move_proxy_document_rect_ = snapshot_rect;
+  move_proxy_document_rect_ = snapshot_rect.translated(-snapshot_shift);
   return !move_proxy_image_.isNull();
 }
 
@@ -857,13 +930,16 @@ QRect CanvasWidget::move_proxy_dirty_rect(QPoint old_delta, QPoint new_delta) co
   if (document_ == nullptr || move_proxy_document_rect_.isEmpty()) {
     return {};
   }
-  auto dirty =
-      move_proxy_document_rect_.translated(old_delta).united(move_proxy_document_rect_.translated(new_delta));
+  // The blit only shows inside the canvas; the outline repaints unclipped.
+  auto dirty = move_proxy_document_rect_.translated(old_delta)
+                   .united(move_proxy_document_rect_.translated(new_delta))
+                   .adjusted(-2, -2, 2, 2)
+                   .intersected(QRect(0, 0, document_->width(), document_->height()));
   const auto outline_dirty = moving_layers_outline_dirty_rect(old_delta, new_delta);
   if (!outline_dirty.isEmpty()) {
     dirty = dirty.united(outline_dirty);
   }
-  return dirty.adjusted(-2, -2, 2, 2).intersected(QRect(0, 0, document_->width(), document_->height()));
+  return dirty;
 }
 
 void CanvasWidget::clear_move_proxy() noexcept {

@@ -1591,10 +1591,11 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
     }
     auto update_region =
         previous_preview_region.united(preview_region).united(patch_region).intersected(canvas_region);
+    // The outline also shows on the pasteboard, so its repaint is the one part
+    // of the update that is not clipped to the canvas.
     const auto outline_dirty = moving_layers_outline_dirty_rect(old_delta, move_preview_delta_);
     if (!outline_dirty.isEmpty()) {
       update_region += outline_dirty;
-      update_region = update_region.intersected(canvas_region);
     }
     if (!patch_region.isEmpty()) {
       const auto patch_render_start = std::chrono::steady_clock::now();
@@ -2203,6 +2204,12 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
       }
     }
     const bool proxy_content_complete = !move_proxy_image_.isNull() && !move_proxy_rect_canvas_clipped_;
+    // The dashed outline also shows on the pasteboard, which the canvas-clipped
+    // commit repaints below never reach.
+    if (const auto outline_dirty = moving_layers_outline_dirty_rect(commit_delta, commit_delta);
+        !outline_dirty.isEmpty()) {
+      update(widget_rect_for_document_rect(outline_dirty));
+    }
     cancel_move_preview();
     moving_layer_ = false;
     move_drag_pending_ = false;

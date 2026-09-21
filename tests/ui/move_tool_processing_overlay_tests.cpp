@@ -2963,6 +2963,137 @@ void ui_move_slow_live_frame_latches_proxy() {
   CHECK(color_close(canvas_pixel(canvas, QPoint(40, 60)), QColor(Qt::white), 20));
 }
 
+// The compositor clips every render to the canvas, so the proxy snapshot of a
+// layer on the pasteboard used to come out empty (the drag kept the dashed
+// outline even once it reached the canvas) and a layer hanging off the edge
+// lost its off-canvas part. The snapshot now renders shifted onto the canvas.
+void ui_move_proxy_snapshots_offcanvas_layer_content() {
+  EnvironmentVariableRestorer restore_latch("PATCHY_MOVE_LIVE_LATCH_MS");
+  qputenv("PATCHY_MOVE_LIVE_LATCH_MS", QByteArray("0"));
+
+  struct Case {
+    int canvas_width;
+    int canvas_height;
+    double zoom;
+    int layer_x;
+    int layer_size;
+  };
+  // Fully on the pasteboard, hanging off the left edge, and the preview-scaled
+  // route (zoom 50%, odd offset so the shift has to round to the mip grid).
+  for (const auto& test_case : {Case{300, 200, 1.0, -80, 40}, Case{300, 200, 1.0, -20, 40},
+                                Case{800, 600, 0.5, -101, 120}}) {
+    patchy::Document document(test_case.canvas_width, test_case.canvas_height, patchy::PixelFormat::rgba8());
+    document.add_pixel_layer("Background", solid_pixels(test_case.canvas_width, test_case.canvas_height,
+                                                         patchy::PixelFormat::rgba8(), QColor(Qt::white)));
+    patchy::Layer layer(document.allocate_layer_id(), "Pasteboard Move",
+                        solid_pixels(test_case.layer_size, test_case.layer_size, patchy::PixelFormat::rgba8(),
+                                     QColor(220, 40, 40)));
+    const auto layer_id = layer.id();
+    layer.set_bounds(patchy::Rect{test_case.layer_x, 40, test_case.layer_size, test_case.layer_size});
+    document.add_layer(std::move(layer));
+
+    patchy::ui::CanvasWidget canvas;
+    canvas.resize(520, 380);
+    canvas.set_document(&document);
+    canvas.set_zoom(test_case.zoom);
+    canvas.set_tool(patchy::ui::CanvasTool::Move);
+    canvas.set_show_transform_controls(false);
+    canvas.set_auto_select_layer(false);
+    canvas.set_snap_enabled(false);
+    canvas.set_selected_layer_ids({layer_id});
+    canvas.show();
+    QApplication::processEvents();
+
+    const auto before_stats = canvas.render_cache_diagnostics();
+    const auto widget_delta = [&](int document_delta) {
+      return QPoint(static_cast<int>(std::lround(document_delta * test_case.zoom)), 0);
+    };
+    const auto start = canvas.widget_position_for_document_point(QPoint(test_case.layer_x + 10, 60));
+    send_mouse(canvas, QEvent::MouseButtonPress, start, Qt::LeftButton, Qt::LeftButton);
+    // The first on-canvas move renders a live frame (marked slow by the zero
+    // threshold); the next move latches the proxy from the press-time position.
+    const auto first_delta = -test_case.layer_x + 20;
+    const auto second_delta = first_delta + 40;
+    send_mouse(canvas, QEvent::MouseMove, start + widget_delta(first_delta), Qt::NoButton, Qt::LeftButton);
+    QApplication::processEvents();
+    send_mouse(canvas, QEvent::MouseMove, start + widget_delta(second_delta), Qt::NoButton, Qt::LeftButton);
+    QApplication::processEvents();
+
+    const auto mid_drag_stats = canvas.render_cache_diagnostics();
+    CHECK(mid_drag_stats.move_proxy_previews == before_stats.move_proxy_previews + 1);
+    CHECK(mid_drag_stats.move_outline_previews == before_stats.move_outline_previews);
+    // The layer now spans x = 60 .. 60 + size; its left part started off-canvas.
+    const auto inset = test_case.layer_size / 8;
+    CHECK(color_close(canvas_pixel(canvas, QPoint(60 + inset, 60)), QColor(220, 40, 40), 45));
+    CHECK(color_close(canvas_pixel(canvas, QPoint(60 + test_case.layer_size - inset, 60)), QColor(220, 40, 40), 45));
+    CHECK(color_close(canvas_pixel(canvas, QPoint(60 + test_case.layer_size + 3 * inset, 60)), QColor(Qt::white), 30));
+
+    send_mouse(canvas, QEvent::MouseButtonRelease, start + widget_delta(second_delta), Qt::LeftButton, Qt::NoButton);
+    QApplication::processEvents();
+    CHECK(color_close(canvas_pixel(canvas, QPoint(60 + inset, 60)), QColor(220, 40, 40), 45));
+  }
+}
+
+// The dashed move outline is drawn on the pasteboard too, but every drag
+// repaint used to be clipped to the canvas, so a layer dragged across the
+// pasteboard showed nothing moving until it reached the canvas.
+void ui_move_outline_repaints_on_pasteboard() {
+  struct PaintRegionRecorder : QObject {
+    QRegion region;
+    bool eventFilter(QObject* watched, QEvent* event) override {
+      if (event->type() == QEvent::Paint) {
+        region += static_cast<QPaintEvent*>(event)->region();
+      }
+      return QObject::eventFilter(watched, event);
+    }
+  };
+
+  patchy::Document document(300, 200, patchy::PixelFormat::rgba8());
+  document.add_pixel_layer("Background", solid_pixels(300, 200, patchy::PixelFormat::rgba8(), QColor(Qt::white)));
+  patchy::Layer layer(document.allocate_layer_id(), "Pasteboard Outline",
+                      solid_pixels(40, 40, patchy::PixelFormat::rgba8(), QColor(220, 40, 40)));
+  const auto layer_id = layer.id();
+  layer.set_bounds(patchy::Rect{-90, 40, 40, 40});
+  document.add_layer(std::move(layer));
+
+  patchy::ui::CanvasWidget canvas;
+  canvas.resize(520, 380);
+  canvas.set_document(&document);
+  canvas.set_zoom(1.0);
+  canvas.set_tool(patchy::ui::CanvasTool::Move);
+  canvas.set_show_transform_controls(false);
+  canvas.set_auto_select_layer(false);
+  canvas.set_snap_enabled(false);
+  canvas.set_selected_layer_ids({layer_id});
+  canvas.show();
+  QApplication::processEvents();
+  // Center the 300x200 document so the layer sits on visible pasteboard.
+  canvas.center_document_in_view();
+  QApplication::processEvents();
+
+  const auto start = canvas.widget_position_for_document_point(QPoint(-70, 60));
+  send_mouse(canvas, QEvent::MouseButtonPress, start, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(canvas, QEvent::MouseMove, start + QPoint(10, 0), Qt::NoButton, Qt::LeftButton);
+  QApplication::processEvents();
+
+  // Still entirely on the pasteboard after this move (x = -70 .. -30).
+  PaintRegionRecorder recorder;
+  canvas.installEventFilter(&recorder);
+  send_mouse(canvas, QEvent::MouseMove, start + QPoint(20, 0), Qt::NoButton, Qt::LeftButton);
+  QApplication::processEvents();
+  const QRect outline_widget_rect(canvas.widget_position_for_document_point(QPoint(-70, 40)),
+                                  canvas.widget_position_for_document_point(QPoint(-30, 80)));
+  CHECK(canvas.rect().contains(outline_widget_rect));
+  CHECK(QRegion(outline_widget_rect).subtracted(recorder.region).isEmpty());
+
+  // Release erases the outline where it ended up, off the canvas.
+  recorder.region = QRegion();
+  send_mouse(canvas, QEvent::MouseButtonRelease, start + QPoint(20, 0), Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  canvas.removeEventFilter(&recorder);
+  CHECK(QRegion(outline_widget_rect).subtracted(recorder.region).isEmpty());
+}
+
 // At zoom <= 50% the live move preview composites from the preview-scaled
 // document (display-resolution compositing): the counter latches once per
 // drag, the preview shows the moved content, and the release renders full-res
@@ -4500,6 +4631,8 @@ std::vector<patchy::test::TestCase> move_tool_processing_overlay_tests() {
       {"ui_move_styled_folder_live_preview_clears_shadow_trail",
        ui_move_styled_folder_live_preview_clears_shadow_trail},
       {"ui_move_slow_live_frame_latches_proxy", ui_move_slow_live_frame_latches_proxy},
+      {"ui_move_proxy_snapshots_offcanvas_layer_content", ui_move_proxy_snapshots_offcanvas_layer_content},
+      {"ui_move_outline_repaints_on_pasteboard", ui_move_outline_repaints_on_pasteboard},
       {"ui_move_scaled_preview_composites_at_display_resolution",
        ui_move_scaled_preview_composites_at_display_resolution},
       {"ui_move_scaled_proxy_after_commit_shows_moved_content",

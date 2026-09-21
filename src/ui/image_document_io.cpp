@@ -1748,6 +1748,22 @@ QImage qimage_from_document_rect_with_hidden_layers_banded(const Document& docum
                                      hidden_layer_overrides(document, hidden_layer_ids));
 }
 
+QImage qimage_from_document_rect_with_hidden_layers_and_layer_bounds_banded(
+    const Document& document, QRect document_rect, bool preserve_alpha, const std::vector<LayerId>& hidden_layer_ids,
+    const std::vector<std::pair<LayerId, Rect>>& layer_bounds) {
+  const auto clipped = document_rect.intersected(QRect(0, 0, document.width(), document.height()));
+  if (clipped.isEmpty()) {
+    return {};
+  }
+  auto overrides = hidden_layer_overrides(document, hidden_layer_ids);
+  overrides.reserve(overrides.size() + layer_bounds.size());
+  for (const auto& [layer_id, bounds] : layer_bounds) {
+    overrides.push_back(render_detail::LayerBoundsOverride{
+        layer_id, bounds, nullptr, linked_mask_bounds_for_layer_bounds_override(document, layer_id, bounds)});
+  }
+  return render_document_rect_banded(document, clipped, preserve_alpha, overrides);
+}
+
 // Banded (PREVIEW-ONLY, see render_document_rect_banded) form of
 // qimage_patches_from_document_region_with_layer_pixels for one rect: the live
 // Free Transform drag preview of a composited (masked, blended, styled) layer.
