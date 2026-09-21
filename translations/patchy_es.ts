@@ -8234,6 +8234,10 @@ RGB: %2, %3, %4</translation>
         <source>Below 100% the fill shows through everywhere, like Photoshop&apos;s vector mask density</source>
         <translation>Por debajo del 100 % el relleno se ve en toda la imagen, como la densidad de máscara vectorial de Photoshop</translation>
     </message>
+    <message>
+        <source>Restore the default fill, stroke, opacity, and edge (the geometry stays)</source>
+        <translation>Restaurar el relleno, trazo, opacidad y borde predeterminados (la geometría se mantiene)</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -16734,6 +16738,46 @@ Y: %2
     <message>
         <source>Finish the transform first: press Enter to apply it or Esc to cancel it</source>
         <translation>Termine primero la transformación: Intro la aplica, Esc la cancela</translation>
+    </message>
+    <message>
+        <source>Shape Appearance...</source>
+        <translation>Apariencia de forma...</translation>
+    </message>
+    <message>
+        <source>Edit the active shape layer&apos;s fill, stroke, opacity, and edge</source>
+        <translation>Editar el relleno, trazo, opacidad y borde de la capa de forma activa</translation>
+    </message>
+    <message>
+        <source>Appearance...</source>
+        <translation>Apariencia...</translation>
+    </message>
+    <message>
+        <source>Edit Appearance...</source>
+        <translation>Editar apariencia...</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>ninguno</translation>
+    </message>
+    <message>
+        <source>gradient</source>
+        <translation>degradado</translation>
+    </message>
+    <message>
+        <source>pattern</source>
+        <translation>motivo</translation>
+    </message>
+    <message>
+        <source>%1 px %2</source>
+        <translation>%1 px %2</translation>
+    </message>
+    <message>
+        <source>off</source>
+        <translation>desactivado</translation>
+    </message>
+    <message>
+        <source>Shape: Fill %1 | Stroke %2 | Feather %3 px | Density %4%</source>
+        <translation>Forma: Relleno %1 | Trazo %2 | Desvanecer %3 px | Densidad %4 %</translation>
     </message>
 </context>
 <context>

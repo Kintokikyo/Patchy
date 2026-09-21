@@ -107,7 +107,8 @@ GradientDefinition resolve_gradient_definition(GradientDefinition definition, Rg
 
 std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
     QWidget* parent, std::function<void(const ShapeAppearanceSettings&)> preview_changed,
-    ShapeAppearanceSettings initial, GradientLibrary* gradient_library,
+    ShapeAppearanceSettings initial, ShapeAppearanceSettings reset_defaults,
+    GradientLibrary* gradient_library,
     PatternLibrary* pattern_library, const PatternStore* document_patterns, RgbColor foreground,
     RgbColor background) {
   QDialog dialog(parent);
@@ -684,6 +685,9 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   left_column->addStretch(1);
   right_column->addStretch(1);
   auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+  auto* reset_button = buttons->addButton(QObject::tr("Reset"), QDialogButtonBox::ResetRole);
+  reset_button->setObjectName(QStringLiteral("shapeAppearanceResetButton"));
+  reset_button->setToolTip(QObject::tr("Restore the default fill, stroke, opacity, and edge (the geometry stays)"));
   QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
   QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
   dialog_layout->addWidget(buttons);
@@ -829,8 +833,8 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
     }
   };
 
-  // Initial control state from the settings.
-  {
+  // Syncs every control from state->settings (construction and Reset).
+  const auto sync_all_controls = [=] {
     QSignalBlocker kind_blocker(fill_kind_combo);
     const auto kind_index = fill_kind_combo->findData(static_cast<int>(state->settings.fill.kind));
     fill_kind_combo->setCurrentIndex(std::max(0, kind_index));
@@ -879,9 +883,27 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
       dash_index = 3;
     }
     stroke_dash_combo->setCurrentIndex(dash_index);
-  }
-  sync_gradient_controls();
-  sync_stroke_paint_controls();
+      for (auto* spin : {layer_opacity_spin, layer_fill_opacity_spin, stroke_opacity_spin, density_spin}) {
+      QSignalBlocker blocker(spin);
+      spin->setValue(spin == layer_opacity_spin ? static_cast<int>(std::lround(state->settings.layer_opacity * 100.0F))
+                     : spin == layer_fill_opacity_spin ? static_cast<int>(std::lround(state->settings.fill_opacity * 100.0F))
+                     : spin == stroke_opacity_spin ? static_cast<int>(std::lround(state->settings.stroke.opacity * 100.0))
+                     : static_cast<int>(std::lround(state->settings.density * 100.0 / 255.0)));
+    }
+    {
+      QSignalBlocker feather_blocker(feather_spin);
+      feather_spin->setValue(state->settings.feather);
+      QSignalBlocker width_blocker(stroke_width_spin);
+      stroke_width_spin->setValue(state->settings.stroke.width);
+      QSignalBlocker check_blocker(stroke_check);
+      stroke_check->setChecked(state->settings.stroke.enabled);
+    }
+    fill_color_button->setIcon(color_swatch_icon(state->settings.fill.color));
+    stroke_color_button->setIcon(color_swatch_icon(state->settings.stroke.content.color));
+    sync_gradient_controls();
+    sync_stroke_paint_controls();
+  };
+  sync_all_controls();
   // Measure the page while EVERY per-kind row is still visible, so switching
   // a paint kind later never widens the columns past the viewport (a hidden
   // horizontal bar would clip the steppers) and the dialog never changes
@@ -896,6 +918,18 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   refresh_stroke_rows();
 
   // --- Wiring ---
+  QObject::connect(reset_button, &QPushButton::clicked, &dialog, [=] {
+    // Factory appearance; the geometry the dialog opened with stays.
+    auto restored = reset_defaults;
+    restored.geometry = state->settings.geometry;
+    state->settings = std::move(restored);
+    state->stroke_paint_touched = true;
+    state->custom_dashes.clear();
+    sync_all_controls();
+    refresh_fill_rows();
+    refresh_stroke_rows();
+    notify();
+  });
   QObject::connect(fill_kind_combo, &QComboBox::currentIndexChanged, &dialog, [=](int) {
     state->settings.fill.kind =
         static_cast<VectorFillKind>(fill_kind_combo->currentData().toInt());

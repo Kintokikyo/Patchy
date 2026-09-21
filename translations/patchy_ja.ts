@@ -8211,6 +8211,10 @@ Mixed selection</source>
         <source>Below 100% the fill shows through everywhere, like Photoshop&apos;s vector mask density</source>
         <translation>100% 未満では Photoshop のベクトルマスクの濃度のように塗りが全体に透けて見えます</translation>
     </message>
+    <message>
+        <source>Restore the default fill, stroke, opacity, and edge (the geometry stays)</source>
+        <translation>塗り・線・不透明度・エッジを初期設定に戻します（形状はそのまま）</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -16696,6 +16700,46 @@ Clipped to the layer below</source>
     <message>
         <source>Finish the transform first: press Enter to apply it or Esc to cancel it</source>
         <translation>先に変形を終了してください: Enter で適用、Esc でキャンセル</translation>
+    </message>
+    <message>
+        <source>Shape Appearance...</source>
+        <translation>シェイプの外観...</translation>
+    </message>
+    <message>
+        <source>Edit the active shape layer&apos;s fill, stroke, opacity, and edge</source>
+        <translation>アクティブなシェイプレイヤーの塗り、線、不透明度、エッジを編集</translation>
+    </message>
+    <message>
+        <source>Appearance...</source>
+        <translation>外観...</translation>
+    </message>
+    <message>
+        <source>Edit Appearance...</source>
+        <translation>外観を編集...</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>なし</translation>
+    </message>
+    <message>
+        <source>gradient</source>
+        <translation>グラデーション</translation>
+    </message>
+    <message>
+        <source>pattern</source>
+        <translation>パターン</translation>
+    </message>
+    <message>
+        <source>%1 px %2</source>
+        <translation>%1 px %2</translation>
+    </message>
+    <message>
+        <source>off</source>
+        <translation>オフ</translation>
+    </message>
+    <message>
+        <source>Shape: Fill %1 | Stroke %2 | Feather %3 px | Density %4%</source>
+        <translation>シェイプ: 塗り %1 | 線 %2 | ぼかし %3 px | 濃度 %4%</translation>
     </message>
 </context>
 <context>

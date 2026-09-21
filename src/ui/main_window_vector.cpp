@@ -797,9 +797,20 @@ bool MainWindow::edit_active_shape_appearance(bool record_undo) {
     close_async_pixel_preview(preview_state);
     restore_original_layer();
   });
+  // Reset restores the factory appearance with the solid fill in the current
+  // foreground color (Seth, September 2026); accepting afterwards also resets
+  // the sticky options-bar defaults, which sync from the layer.
+  ShapeAppearanceSettings reset_defaults;
+  reset_defaults.fill.kind = VectorFillKind::Solid;
+  reset_defaults.fill.color = RgbColor{static_cast<std::uint8_t>(foreground.red()),
+                                       static_cast<std::uint8_t>(foreground.green()),
+                                       static_cast<std::uint8_t>(foreground.blue())};
+  reset_defaults.stroke.enabled = false;
+  reset_defaults.stroke.width = 3.0;
+  reset_defaults.stroke.alignment = VectorStrokeAlignment::Inside;
   const auto accepted = request_shape_appearance_settings(
-      this, preview_changed, std::move(initial), &gradient_library(), &pattern_library(),
-      &doc.metadata().patterns,
+      this, preview_changed, std::move(initial), std::move(reset_defaults), &gradient_library(),
+      &pattern_library(), &doc.metadata().patterns,
       RgbColor{static_cast<std::uint8_t>(foreground.red()),
                static_cast<std::uint8_t>(foreground.green()),
                static_cast<std::uint8_t>(foreground.blue())},
@@ -852,6 +863,7 @@ bool MainWindow::edit_active_shape_appearance(bool record_undo) {
   }
   refresh_layer_list();
   refresh_layer_controls();
+  refresh_options_bar();  // the sticky Fill/Stroke/W/H mirrors follow the edited layer now
   statusBar()->showMessage(tr("Updated the shape appearance"));
   return true;
 }
@@ -1702,6 +1714,9 @@ void MainWindow::sync_vector_shape_size_spins() {
   if (vector_shape_link_size_button_ != nullptr) {
     vector_shape_link_size_button_->setEnabled(live);
   }
+  if (vector_appearance_button_ != nullptr) {
+    vector_appearance_button_->setEnabled(live);
+  }
   vector_shape_size_ratio_ = live && height > 1e-9 ? width / height : 1.0;
 }
 
@@ -2346,6 +2361,10 @@ void MainWindow::simplify_target_path() {
 }
 
 void MainWindow::refresh_combine_shapes_action_states() {
+  if (layer_shape_appearance_action_ != nullptr) {
+    layer_shape_appearance_action_->setEnabled(has_active_document() && !preview_dialog_edit_locked() &&
+                                               editable_active_vector_shape_layer() != nullptr);
+  }
   const bool enabled =
       has_active_document() && !preview_dialog_edit_locked() &&
       combine_shape_candidates(std::as_const(document()).layers(), selected_or_active_layer_ids()).refusal ==

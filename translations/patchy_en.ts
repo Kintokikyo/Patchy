@@ -8225,6 +8225,10 @@ RGB: %2, %3, %4</source>
         <source>Below 100% the fill shows through everywhere, like Photoshop&apos;s vector mask density</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Restore the default fill, stroke, opacity, and edge (the geometry stays)</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -16691,6 +16695,46 @@ Y: %2
     </message>
     <message>
         <source>Finish the transform first: press Enter to apply it or Esc to cancel it</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shape Appearance...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit the active shape layer&apos;s fill, stroke, opacity, and edge</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Appearance...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit Appearance...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>gradient</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>pattern</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 px %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>off</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shape: Fill %1 | Stroke %2 | Feather %3 px | Density %4%</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

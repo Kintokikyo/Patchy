@@ -46,9 +46,12 @@ struct ShapeAppearanceSettings {
 // choices may reference library-only pattern ids - the caller adopts them
 // into the document PatternStore when applying. foreground/background resolve
 // gradient presets that defer stops to the current tool colors.
+// `reset_defaults` is what the Reset button restores (fill, stroke, opacity,
+// edge; the geometry in `initial` is kept).
 [[nodiscard]] std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
     QWidget* parent, std::function<void(const ShapeAppearanceSettings&)> preview_changed,
-    ShapeAppearanceSettings initial, GradientLibrary* gradient_library,
+    ShapeAppearanceSettings initial, ShapeAppearanceSettings reset_defaults,
+    GradientLibrary* gradient_library,
     PatternLibrary* pattern_library, const PatternStore* document_patterns, RgbColor foreground,
     RgbColor background);
 

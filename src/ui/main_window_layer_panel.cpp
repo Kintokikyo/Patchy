@@ -3865,6 +3865,36 @@ void MainWindow::refresh_document_info() {
     } else {
       set_property_label_text(active_layer_text_label_, QString());
     }
+    const auto* shape = layer_is_vector_shape(*layer) ? std::as_const(*layer).vector_shape() : nullptr;
+    if (shape != nullptr) {
+      const auto paint_name = [this](const VectorFill& paint) {
+        switch (paint.kind) {
+          case VectorFillKind::None:
+            return tr("none");
+          case VectorFillKind::Gradient:
+            return tr("gradient");
+          case VectorFillKind::Pattern:
+            return tr("pattern");
+          case VectorFillKind::Solid:
+            break;
+        }
+        return QColor(paint.color.red, paint.color.green, paint.color.blue).name(QColor::HexRgb);
+      };
+      const auto stroke = shape->stroke.enabled
+                              ? tr("%1 px %2").arg(shape->stroke.width, 0, 'f', 1).arg(paint_name(shape->stroke.content))
+                              : tr("off");
+      set_property_label_text(active_layer_shape_label_,
+                              tr("Shape: Fill %1 | Stroke %2 | Feather %3 px | Density %4%")
+                                  .arg(paint_name(shape->fill))
+                                  .arg(stroke)
+                                  .arg(shape->feather, 0, 'f', 1)
+                                  .arg(static_cast<int>(std::lround(shape->density * 100.0 / 255.0))));
+    } else {
+      set_property_label_text(active_layer_shape_label_, QString());
+    }
+    if (properties_edit_appearance_button_ != nullptr) {
+      properties_edit_appearance_button_->setVisible(shape != nullptr && vector_lock_reason(*layer).empty());
+    }
   }
 
   if (active_tool_info_label_ != nullptr && canvas_ != nullptr) {

@@ -152,6 +152,10 @@ void CanvasWidget::set_shape_create_requested_callback(
   shape_create_requested_callback_ = std::move(callback);
 }
 
+void CanvasWidget::set_shape_appearance_requested_callback(std::function<void()> callback) {
+  shape_appearance_requested_callback_ = std::move(callback);
+}
+
 void CanvasWidget::set_fill_opacity(int opacity) noexcept {
   fill_opacity_ = std::clamp(opacity, 1, 100);
 }

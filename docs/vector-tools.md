@@ -174,18 +174,7 @@ ui_paths_panel_actions_follow_row_selection pins it):
 
 ## Path free transform
 
-Ctrl+T with Path Select or Direct Select active (and a targetable path)
-starts a PATH transform session instead of the layer one: a rotated-box
-overlay over the path, or over the Direct Select anchor subset (PS's Free
-Transform Points), with the usual move/scale/rotate, arrow nudges,
-Enter/Esc, tool-switch commit, document-switch cancel. The commit is ONE
-apply_path_edit undo entry ("Transform path") routed to the active target
-(panel path, vector mask, shape layer with live annotations dropped, or
-work path), then re-rasterizes. Lives in canvas_widget_vector_tools.cpp
-(path_transform_*), separate from the pixel session; begin_path_transform
-is called ONLY from transform_active_layer_dialog. Corner-handle aspect
-locking and Shift share the pixel session's rules and predicate
-([tools.md](tools.md)).
+Moved to [vector-commands.md](vector-commands.md).
 
 ## Geometry operations
 
@@ -201,9 +190,14 @@ layers.
 
 ## Appearance editing and fill layers
 
-The vector badge, row double-click, and the context menu's Edit Shape
-Appearance open fill and stroke controls: paint kind, width,
-alignment, caps, joins, and dash presets. Custom preserves PSD dash arrays.
+The Shape Appearance dialog opens from the vector badge, the row
+double-click, the context menu, the options-bar Appearance... button (Shape
+mode, and Path Select / Direct Select with an editable shape), Layer > Shape >
+Shape Appearance... (`layer.shape_appearance`), the Properties panel's Edit
+Appearance... button, and a Path Select / Direct Select double-click on the
+shape's geometry. Its Reset button restores the factory appearance with the
+fill in the current foreground color (geometry stays). Controls: paint kind,
+width, alignment, caps, joins, and dash presets. Custom preserves PSD dash arrays.
 `pattern_linked` anchors at the effects reference point when on and document
 origin when off; offsets add either way (PatternTileSampler).
 

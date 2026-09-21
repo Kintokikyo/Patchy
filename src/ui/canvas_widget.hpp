@@ -616,6 +616,9 @@ public:
   // degenerate shape (Photoshop's Create <Shape> dialog; the click point is
   // passed in document coordinates).
   void set_shape_create_requested_callback(std::function<void(CanvasTool, QPointF)> callback);
+  // A Path Select / Direct Select double-click on the target shape layer's
+  // geometry (anchor, segment, or a painted pixel) opens its appearance editor.
+  void set_shape_appearance_requested_callback(std::function<void()> callback);
   // Pen tool (canvas_widget_vector_tools.cpp - the tablet-input TU is
   // canvas_widget_pen.cpp): a committed path arrives as one subpath.
   void set_vector_path_committed_callback(
@@ -1822,6 +1825,8 @@ private:
   std::function<void(patchy::LiveShapeKind, QRectF, QPointF, QPointF)> vector_shape_drawn_callback_;
   std::function<void(patchy::VectorPath, bool, VectorPathSource)> vector_path_committed_callback_;
   std::function<void(CanvasTool, QPointF)> shape_create_requested_callback_;
+  // Path Select / Direct Select double-click on a shape layer's geometry.
+  std::function<void()> shape_appearance_requested_callback_;
   std::function<std::optional<ShapePreviewAppearance>()> shape_preview_appearance_callback_;
   int polygon_sides_{5};
   int polygon_star_inset_{0};

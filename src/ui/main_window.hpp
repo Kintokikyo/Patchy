@@ -1461,6 +1461,7 @@ private:
   std::optional<LayerId> paths_panel_last_active_layer_;
   QAction* path_new_action_{nullptr};
   QAction* path_simplify_action_{nullptr};
+  QAction* layer_shape_appearance_action_{nullptr};
   // Unite / Subtract Front / Intersect / Exclude, enabled with a combinable
   // multi-selection (refresh_combine_shapes_action_states).
   std::array<QAction*, 4> layer_combine_actions_{};
@@ -1616,6 +1617,8 @@ private:
   QLabel* active_layer_mask_label_{nullptr};
   QLabel* active_layer_adjustment_label_{nullptr};
   QLabel* active_layer_text_label_{nullptr};
+  QLabel* active_layer_shape_label_{nullptr};
+  QPushButton* properties_edit_appearance_button_{nullptr};
   QLabel* active_tool_info_label_{nullptr};
   QLabel* canvas_info_label_{nullptr};
   QAction* undo_action_{nullptr};
@@ -1838,6 +1841,7 @@ private:
   QDoubleSpinBox* vector_shape_width_spin_{nullptr};
   QDoubleSpinBox* vector_shape_height_spin_{nullptr};
   QPushButton* vector_shape_link_size_button_{nullptr};
+  QPushButton* vector_appearance_button_{nullptr};
   QTimer* vector_shape_size_apply_timer_{nullptr};
   double vector_shape_size_ratio_{1.0};  // width / height at the last sync (link button)
   // Per-mode refinement of the shape tools' options bar, applied after the

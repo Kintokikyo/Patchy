@@ -1720,6 +1720,15 @@ void MainWindow::create_docks() {
   active_layer_mask_label_ = add_properties_label(QStringLiteral("activeLayerMaskLabel"));
   active_layer_adjustment_label_ = add_properties_label(QStringLiteral("activeLayerAdjustmentLabel"));
   active_layer_text_label_ = add_properties_label(QStringLiteral("activeLayerTextLabel"));
+  active_layer_shape_label_ = add_properties_label(QStringLiteral("activeLayerShapeLabel"));
+  properties_edit_appearance_button_ = new QPushButton(tr("Edit Appearance..."), properties_panel);
+  properties_edit_appearance_button_->setObjectName(QStringLiteral("propertiesEditAppearanceButton"));
+  bind_widget_text(properties_edit_appearance_button_, QT_TR_NOOP("Edit Appearance..."));
+  properties_edit_appearance_button_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+  properties_edit_appearance_button_->hide();
+  properties_layout->addWidget(properties_edit_appearance_button_);
+  connect(properties_edit_appearance_button_, &QPushButton::clicked, this,
+          [this] { edit_active_shape_appearance(); });
   active_tool_info_label_ = add_properties_label(QStringLiteral("activeToolInfoLabel"));
   properties_layout->addStretch(0);
   properties_scroll->setWidget(properties_panel);

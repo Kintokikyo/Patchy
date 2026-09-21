@@ -2699,6 +2699,33 @@ void CanvasWidget::mouseDoubleClickEvent(QMouseEvent* event) {
       event->accept();
       return;
     }
+    // Path Select / Direct Select: a double-click on the target shape layer's
+    // geometry (anchor, segment, or a painted pixel) opens its appearance
+    // editor, the way a text layer's double-click opens its editor.
+    if ((tool_ == CanvasTool::PathSelect || tool_ == CanvasTool::DirectSelect) &&
+        layer_edit_target_ != LayerEditTarget::VectorMask && !active_document_path_.has_value() &&
+        shape_appearance_requested_callback_) {
+      if (const auto* layer = path_edit_target_layer(); layer != nullptr && layer->vector_shape() != nullptr) {
+        bool hit = path_anchor_at(event->position()).first >= 0;
+        if (!hit) {
+          std::pair<int, int> segment;
+          double segment_t = 0.0;
+          hit = path_segment_at(event->position(), segment, segment_t);
+        }
+        if (!hit) {
+          const auto bounds = layer->bounds();
+          const auto local = document_point - QPoint(bounds.x, bounds.y);
+          const auto& pixels = std::as_const(*layer).pixels();
+          hit = local.x() >= 0 && local.y() >= 0 && local.x() < pixels.width() && local.y() < pixels.height() &&
+                pixels.format().channels >= 4 && pixels.pixel(local.x(), local.y())[3] > 0;
+        }
+        if (hit) {
+          shape_appearance_requested_callback_();
+          event->accept();
+          return;
+        }
+      }
+    }
   }
   QWidget::mouseDoubleClickEvent(event);
 }

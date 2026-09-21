@@ -218,3 +218,18 @@ the released layers top to bottom.
 See [svg.md](svg.md) (UI behavior): `Edit > Copy as SVG` puts the selected
 layers on the clipboard as image/svg+xml and text; Paste reads it back in
 place.
+
+## Path free transform
+
+Ctrl+T with Path Select or Direct Select active (and a targetable path)
+starts a PATH transform session instead of the layer one: a rotated-box
+overlay over the path, or over the Direct Select anchor subset (PS's Free
+Transform Points), with the usual move/scale/rotate, arrow nudges,
+Enter/Esc, tool-switch commit, document-switch cancel. The commit is ONE
+apply_path_edit undo entry ("Transform path") routed to the active target
+(panel path, vector mask, shape layer with live annotations dropped, or
+work path), then re-rasterizes. Lives in canvas_widget_vector_tools.cpp
+(path_transform_*), separate from the pixel session; begin_path_transform
+is called ONLY from transform_active_layer_dialog. Corner-handle aspect
+locking and Shift share the pixel session's rules and predicate
+([tools.md](tools.md)).

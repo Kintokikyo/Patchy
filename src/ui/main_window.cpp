@@ -7442,6 +7442,11 @@ void MainWindow::configure_canvas(CanvasWidget* canvas) {
   canvas->set_text_requested_callback([this](QPoint point, QRect requested_text_box) {
     add_text_at(point, requested_text_box);
   });
+  canvas->set_shape_appearance_requested_callback([this, canvas] {
+    if (canvas == canvas_) {
+      edit_active_shape_appearance();
+    }
+  });
   canvas->set_crop_commit_requested_callback([this, canvas](QRect rect, double angle_degrees) {
     if (canvas != canvas_) {
       return;

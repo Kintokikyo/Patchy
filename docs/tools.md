@@ -32,6 +32,7 @@ Photoshop-style interactive crop (hotkey C; `tools.crop`). Session code in canva
 - Options-bar Style/Width/Height are deliberately session-only (mirrored via `current_shape_*`, never persisted). The row is registered pixel-only: the vector modes hide it and show the active shape's W / H instead ([vector-tools.md](vector-tools.md)). With Style Normal the Width/Height spins are greyed out (the marquee's twin row greys the same way); Fixed Ratio and Fixed Size enable them.
 - A Pixels-mode click keeps the legacy 1 px commit (its `begin_edit` snapshot is pushed at press); the vector modes open the Create dialog instead. Coverage: `ui_shape_tap_*`, `ui_shape_style_row_is_pixel_only_and_greys_size_at_normal`.
 - Alt = draw-from-center, so Rectangle/Ellipse are exempt from the Alt temporary-eyedropper (the two meanings fight).
+- Mode is always the first options-bar item for the shape tools (built before the shared brush controls), so switching to Pixels never shifts it. Coverage: `ui_options_bar_mode_combo_stays_first_for_shape_tools`.
 - ALL constraint math lives in `CanvasWidget::shape_drag_rect()` — it intentionally duplicates `marquee_selection_rect()` (selection-only concerns, separately pinned). Do not merge them.
 - The Fill command has its OWN persisted Opacity/Soft (`tools/fillOpacity`/`tools/fillSoftness`, default 100/0); tests laying down setup color call `use_solid_fill_settings(canvas)`.
 - Coverage: `ui_shape_fill_and_corner_radius_apply_to_new_documents` also pins the `current_*` mirror pattern from [ui-conventions.md](ui-conventions.md).

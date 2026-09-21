@@ -1213,6 +1213,45 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
       {CanvasTool::Brush, CanvasTool::MixerBrush, CanvasTool::Clone, CanvasTool::Healing, CanvasTool::Smudge,
        CanvasTool::Eraser});
 
+  // Mode sits FIRST for the shape tools so it never moves when the Pixels-mode
+  // brush controls below appear (Seth, September 2026).
+  // Shape | Path | Pixels for the vector-capable draw tools (Shape is the
+  // Photoshop-parity default; Pixels is the legacy raster behavior). The
+  // vector appearance/combine widgets below register for the same tools and
+  // refresh_vector_tool_options_visibility() refines them per mode.
+  add_option_label(QT_TR_NOOP("Mode:"), {CanvasTool::Line, CanvasTool::Rectangle, CanvasTool::Ellipse, CanvasTool::Pen,
+                     CanvasTool::Polygon, CanvasTool::CustomShape});
+  vector_mode_combo_ = new QComboBox(toolbar);
+  vector_mode_combo_->setObjectName(QStringLiteral("vectorModeCombo"));
+  vector_mode_combo_->addItems({tr("Shape"), tr("Path"), tr("Pixels")});
+  vector_mode_combo_->setCurrentIndex(0);
+  vector_mode_combo_->setFixedWidth(76);
+  bind_tooltip(vector_mode_combo_, QT_TR_NOOP("What the shape tools create: a shape layer, work-path subpaths, or raster pixels"));
+  QPointer<QComboBox> vector_mode_combo_pointer(vector_mode_combo_);
+  register_retranslation([vector_mode_combo_pointer] {
+    if (vector_mode_combo_pointer == nullptr || vector_mode_combo_pointer->count() < 3) {
+      return;
+    }
+    QSignalBlocker blocker(vector_mode_combo_pointer);
+    // MainWindow::tr (not QObject::tr): "Pixels"/"Subtract" exist in the
+    // QObject context with unrelated meanings (color mode, blend mode).
+    vector_mode_combo_pointer->setItemText(0, MainWindow::tr("Shape"));
+    vector_mode_combo_pointer->setItemText(1, MainWindow::tr("Path"));
+    vector_mode_combo_pointer->setItemText(2, MainWindow::tr("Pixels"));
+  });
+  add_option_widget(vector_mode_combo_, {CanvasTool::Line, CanvasTool::Rectangle, CanvasTool::Ellipse, CanvasTool::Pen,
+                     CanvasTool::Polygon, CanvasTool::CustomShape});
+  connect(vector_mode_combo_, &QComboBox::currentIndexChanged, this, [this](int index) {
+    current_vector_tool_mode_ = index == 1   ? VectorToolMode::Path
+                                : index == 2 ? VectorToolMode::Pixels
+                                             : VectorToolMode::Shape;
+    if (canvas_ != nullptr) {
+      canvas_->set_vector_tool_mode(current_vector_tool_mode_);
+      schedule_save_tool_settings();
+    }
+    refresh_options_bar();
+  });
+
   // The raster brush controls double as the shape tools' Pixels-mode options;
   // refresh_vector_tool_options_visibility hides them in the vector modes.
   vector_pixel_only_option_widgets_.push_back(add_option_label(
@@ -2205,42 +2244,6 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     }
   });
 
-  // Shape | Path | Pixels for the vector-capable draw tools (Shape is the
-  // Photoshop-parity default; Pixels is the legacy raster behavior). The
-  // vector appearance/combine widgets below register for the same tools and
-  // refresh_vector_tool_options_visibility() refines them per mode.
-  add_option_label(QT_TR_NOOP("Mode:"), {CanvasTool::Line, CanvasTool::Rectangle, CanvasTool::Ellipse, CanvasTool::Pen,
-                     CanvasTool::Polygon, CanvasTool::CustomShape});
-  vector_mode_combo_ = new QComboBox(toolbar);
-  vector_mode_combo_->setObjectName(QStringLiteral("vectorModeCombo"));
-  vector_mode_combo_->addItems({tr("Shape"), tr("Path"), tr("Pixels")});
-  vector_mode_combo_->setCurrentIndex(0);
-  vector_mode_combo_->setFixedWidth(76);
-  bind_tooltip(vector_mode_combo_, QT_TR_NOOP("What the shape tools create: a shape layer, work-path subpaths, or raster pixels"));
-  QPointer<QComboBox> vector_mode_combo_pointer(vector_mode_combo_);
-  register_retranslation([vector_mode_combo_pointer] {
-    if (vector_mode_combo_pointer == nullptr || vector_mode_combo_pointer->count() < 3) {
-      return;
-    }
-    QSignalBlocker blocker(vector_mode_combo_pointer);
-    // MainWindow::tr (not QObject::tr): "Pixels"/"Subtract" exist in the
-    // QObject context with unrelated meanings (color mode, blend mode).
-    vector_mode_combo_pointer->setItemText(0, MainWindow::tr("Shape"));
-    vector_mode_combo_pointer->setItemText(1, MainWindow::tr("Path"));
-    vector_mode_combo_pointer->setItemText(2, MainWindow::tr("Pixels"));
-  });
-  add_option_widget(vector_mode_combo_, {CanvasTool::Line, CanvasTool::Rectangle, CanvasTool::Ellipse, CanvasTool::Pen,
-                     CanvasTool::Polygon, CanvasTool::CustomShape});
-  connect(vector_mode_combo_, &QComboBox::currentIndexChanged, this, [this](int index) {
-    current_vector_tool_mode_ = index == 1   ? VectorToolMode::Path
-                                : index == 2 ? VectorToolMode::Pixels
-                                             : VectorToolMode::Shape;
-    if (canvas_ != nullptr) {
-      canvas_->set_vector_tool_mode(current_vector_tool_mode_);
-      schedule_save_tool_settings();
-    }
-    refresh_options_bar();
-  });
 
   // The appearance controls also register for the path-select tools: there
   // they show only while an editable shape layer is active and live-edit it
@@ -2260,6 +2263,18 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   vector_shape_mode_option_widgets_.push_back(vector_fill_swatch_button_);
   connect(vector_fill_swatch_button_, &QToolButton::clicked, this,
           [this] { show_vector_paint_menu(false); });
+  // The full appearance editor for the active shape layer; the badge and the
+  // row double-click reach it too, this button makes it discoverable.
+  vector_appearance_button_ = new QPushButton(tr("Appearance..."), toolbar);
+  vector_appearance_button_->setObjectName(QStringLiteral("vectorAppearanceButton"));
+  bind_widget_text(vector_appearance_button_, QT_TR_NOOP("Appearance..."));
+  bind_tooltip(vector_appearance_button_, QT_TR_NOOP("Edit the active shape layer's fill, stroke, opacity, and edge"));
+  vector_appearance_button_->setProperty("optionsBarButton", true);
+  vector_appearance_button_->setMinimumHeight(24);
+  vector_appearance_button_->setMaximumHeight(26);
+  add_option_widget(vector_appearance_button_, vector_appearance_tools);
+  vector_shape_mode_option_widgets_.push_back(vector_appearance_button_);
+  connect(vector_appearance_button_, &QPushButton::clicked, this, [this] { edit_active_shape_appearance(); });
 
   auto* vector_stroke_check = new CheckGlyphBox(tr("Stroke"), toolbar);
 

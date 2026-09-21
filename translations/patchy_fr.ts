@@ -8234,6 +8234,10 @@ RVB : %2, %3, %4</translation>
         <source>Below 100% the fill shows through everywhere, like Photoshop&apos;s vector mask density</source>
         <translation>Sous 100 %, le fond transparaît partout, comme la densité du masque vectoriel de Photoshop</translation>
     </message>
+    <message>
+        <source>Restore the default fill, stroke, opacity, and edge (the geometry stays)</source>
+        <translation>Rétablir le fond, le contour, l&apos;opacité et le bord par défaut (la géométrie reste)</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -16734,6 +16738,46 @@ Y : %2
     <message>
         <source>Finish the transform first: press Enter to apply it or Esc to cancel it</source>
         <translation>Terminez d&apos;abord la transformation : Entrée l&apos;applique, Échap l&apos;annule</translation>
+    </message>
+    <message>
+        <source>Shape Appearance...</source>
+        <translation>Apparence de la forme...</translation>
+    </message>
+    <message>
+        <source>Edit the active shape layer&apos;s fill, stroke, opacity, and edge</source>
+        <translation>Modifier le fond, le contour, l&apos;opacité et le bord du calque de forme actif</translation>
+    </message>
+    <message>
+        <source>Appearance...</source>
+        <translation>Apparence...</translation>
+    </message>
+    <message>
+        <source>Edit Appearance...</source>
+        <translation>Modifier l&apos;apparence...</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>aucun</translation>
+    </message>
+    <message>
+        <source>gradient</source>
+        <translation>dégradé</translation>
+    </message>
+    <message>
+        <source>pattern</source>
+        <translation>motif</translation>
+    </message>
+    <message>
+        <source>%1 px %2</source>
+        <translation>%1 px %2</translation>
+    </message>
+    <message>
+        <source>off</source>
+        <translation>désactivé</translation>
+    </message>
+    <message>
+        <source>Shape: Fill %1 | Stroke %2 | Feather %3 px | Density %4%</source>
+        <translation>Forme : Fond %1 | Contour %2 | Contour progressif %3 px | Densité %4 %</translation>
     </message>
 </context>
 <context>

@@ -777,6 +777,19 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   auto* layer_shape_menu = layer_menu->addMenu(tr("Shape"));
   layer_shape_menu->setObjectName(QStringLiteral("layerShapeMenu"));
   bind_widget_text(layer_shape_menu, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Shape"));
+  layer_shape_appearance_action_ = layer_shape_menu->addAction(tr("Shape Appearance..."));
+  layer_shape_appearance_action_->setObjectName(QStringLiteral("layerShapeAppearanceAction"));
+  layer_shape_appearance_action_->setProperty("patchy.channelViewBlocked", true);
+  layer_shape_appearance_action_->setStatusTip(tr("Edit the active shape layer's fill, stroke, opacity, and edge"));
+  bind_action_text(layer_shape_appearance_action_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Shape Appearance..."));
+  bind_translated_status_tip(layer_shape_appearance_action_,
+                             "Edit the active shape layer's fill, stroke, opacity, and edge");
+  apply_bound_translation(layer_shape_appearance_action_);
+  register_hotkey(layer_shape_appearance_action_, "layer.shape_appearance");
+  connect(layer_shape_appearance_action_, &QAction::triggered, this, [this] { edit_active_shape_appearance(); });
+  register_document_action(layer_shape_appearance_action_);
+  layer_shape_appearance_action_->setEnabled(false);
+  layer_shape_menu->addSeparator();
   path_simplify_action_ = layer_shape_menu->addAction(tr("Simplify Path..."));
   path_simplify_action_->setObjectName(QStringLiteral("pathSimplifyAction"));
   path_simplify_action_->setProperty("patchy.channelViewBlocked", true);

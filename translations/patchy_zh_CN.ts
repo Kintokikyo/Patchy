@@ -8211,6 +8211,10 @@ RGB：%2, %3, %4</translation>
         <source>Below 100% the fill shows through everywhere, like Photoshop&apos;s vector mask density</source>
         <translation>低于 100% 时填充会像 Photoshop 的矢量蒙版浓度一样在整个画布上透出</translation>
     </message>
+    <message>
+        <source>Restore the default fill, stroke, opacity, and edge (the geometry stays)</source>
+        <translation>恢复默认的填充、描边、不透明度和边缘（几何形状保持不变）</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -16696,6 +16700,46 @@ Y: %2
     <message>
         <source>Finish the transform first: press Enter to apply it or Esc to cancel it</source>
         <translation>请先完成变换：按 Enter 应用，按 Esc 取消</translation>
+    </message>
+    <message>
+        <source>Shape Appearance...</source>
+        <translation>形状外观...</translation>
+    </message>
+    <message>
+        <source>Edit the active shape layer&apos;s fill, stroke, opacity, and edge</source>
+        <translation>编辑当前形状图层的填充、描边、不透明度和边缘</translation>
+    </message>
+    <message>
+        <source>Appearance...</source>
+        <translation>外观...</translation>
+    </message>
+    <message>
+        <source>Edit Appearance...</source>
+        <translation>编辑外观...</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>无</translation>
+    </message>
+    <message>
+        <source>gradient</source>
+        <translation>渐变</translation>
+    </message>
+    <message>
+        <source>pattern</source>
+        <translation>图案</translation>
+    </message>
+    <message>
+        <source>%1 px %2</source>
+        <translation>%1 px %2</translation>
+    </message>
+    <message>
+        <source>off</source>
+        <translation>关闭</translation>
+    </message>
+    <message>
+        <source>Shape: Fill %1 | Stroke %2 | Feather %3 px | Density %4%</source>
+        <translation>形状：填充 %1 | 描边 %2 | 羽化 %3 px | 浓度 %4%</translation>
     </message>
 </context>
 <context>

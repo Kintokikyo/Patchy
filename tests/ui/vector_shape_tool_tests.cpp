@@ -3515,6 +3515,172 @@ void ui_shape_appearance_spins_have_step_buttons() {
   CHECK(std::abs(content->origination[0].right - 301.0) < 0.5);
 }
 
+void ui_shape_appearance_reset_restores_factory_defaults() {
+  VectorSettingsGuard settings_guard;
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  require_action(window, "toolRectAction")->trigger();  // the options-bar mirrors need the real tool
+  QApplication::processEvents();
+  const auto layer_id = make_rect_shape_layer(window, *canvas);  // (100,100)-(300,220)
+  canvas->set_primary_color(Qt::red);
+
+  bool reset_seen = false;
+  QTimer::singleShot(0, [&] {
+    auto* dialog = patchy::test::ui::find_top_level_dialog(QStringLiteral("shapeAppearanceDialog"));
+    CHECK(dialog != nullptr);
+    if (dialog == nullptr) {
+      return;
+    }
+    auto* fill_kind = dialog->findChild<QComboBox*>(QStringLiteral("shapeFillKindCombo"));
+    auto* stroke_check = dialog->findChild<QCheckBox*>(QStringLiteral("shapeStrokeCheck"));
+    auto* stroke_paint = dialog->findChild<QComboBox*>(QStringLiteral("shapeStrokePaintCombo"));
+    auto* stroke_width = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("shapeStrokeWidthSpin"));
+    auto* stroke_opacity = dialog->findChild<QSpinBox*>(QStringLiteral("shapeStrokeOpacitySpin"));
+    auto* feather = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("shapeFeatherSpin"));
+    auto* density = dialog->findChild<QSpinBox*>(QStringLiteral("shapeDensitySpin"));
+    auto* opacity = dialog->findChild<QSpinBox*>(QStringLiteral("shapeLayerOpacitySpin"));
+    auto* width = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("shapeGeometryWidthSpin"));
+    auto* reset = dialog->findChild<QPushButton*>(QStringLiteral("shapeAppearanceResetButton"));
+    CHECK(fill_kind != nullptr && stroke_check != nullptr && stroke_paint != nullptr &&
+          stroke_width != nullptr && stroke_opacity != nullptr && feather != nullptr &&
+          density != nullptr && opacity != nullptr && width != nullptr && reset != nullptr);
+    fill_kind->setCurrentIndex(fill_kind->findData(static_cast<int>(patchy::VectorFillKind::Pattern)));
+    stroke_check->setChecked(true);
+    stroke_paint->setCurrentIndex(stroke_paint->findData(static_cast<int>(patchy::VectorFillKind::Gradient)));
+    stroke_width->setValue(12.0);
+    stroke_opacity->setValue(40);
+    feather->setValue(4.0);
+    density->setValue(60);
+    opacity->setValue(50);
+    width->setValue(400.0);
+    QApplication::processEvents();
+    reset->click();
+    QApplication::processEvents();
+    reset_seen = true;
+    CHECK(fill_kind->currentData().toInt() == static_cast<int>(patchy::VectorFillKind::Solid));
+    CHECK(!stroke_check->isChecked());
+    CHECK(stroke_paint->currentData().toInt() == static_cast<int>(patchy::VectorFillKind::Solid));
+    CHECK(std::abs(stroke_width->value() - 3.0) < 1e-9);
+    CHECK(stroke_opacity->value() == 100);
+    CHECK(std::abs(feather->value()) < 1e-9);
+    CHECK(density->value() == 100);
+    CHECK(opacity->value() == 100);
+    CHECK(std::abs(width->value() - 400.0) < 1e-9);  // geometry survives the reset
+    dialog->accept();
+  });
+  patchy::ui::MainWindowTestAccess::edit_active_shape_appearance(window);
+  QApplication::processEvents();
+  CHECK(reset_seen);
+  auto* layer = document.find_layer(layer_id);
+  CHECK(layer != nullptr);
+  const auto* content = layer->vector_shape();
+  CHECK(content != nullptr);
+  CHECK(content->fill.kind == patchy::VectorFillKind::Solid);
+  CHECK(content->fill.color.red == 255 && content->fill.color.green == 0 && content->fill.color.blue == 0);
+  CHECK(!content->stroke.enabled);
+  CHECK(std::abs(content->stroke.width - 3.0) < 1e-9);
+  CHECK(content->stroke.alignment == patchy::VectorStrokeAlignment::Inside);
+  CHECK(std::abs(content->feather) < 1e-9);
+  CHECK(content->density == 255);
+  CHECK(std::abs(layer->opacity() - 1.0F) < 1e-6F);
+  CHECK(content->origination.size() == 1 && std::abs(content->origination[0].right - 500.0) < 0.5);
+  // The options-bar defaults synced from the reset layer: the next shape is red.
+  canvas->set_tool(patchy::ui::CanvasTool::Rectangle);
+  shape_drag(*canvas, QPoint(600, 500), QPoint(700, 600));
+  const auto* next = document.find_layer(*document.active_layer_id())->vector_shape();
+  CHECK(next != nullptr && next->fill.kind == patchy::VectorFillKind::Solid && next->fill.color.red == 255 &&
+        next->fill.color.green == 0);
+}
+
+void ui_options_bar_mode_combo_stays_first_for_shape_tools() {
+  VectorSettingsGuard settings_guard;
+  patchy::ui::MainWindow window;
+  show_window(window);
+  require_action(window, "toolRectAction")->trigger();
+  QApplication::processEvents();
+  auto* mode_combo = window.findChild<QComboBox*>(QStringLiteral("vectorModeCombo"));
+  auto* brush_opacity = window.findChild<QSpinBox*>(QStringLiteral("brushOpacitySpin"));
+  auto* fill_swatch = window.findChild<QToolButton*>(QStringLiteral("vectorFillSwatchButton"));
+  CHECK(mode_combo != nullptr && brush_opacity != nullptr && fill_swatch != nullptr);
+  const auto shape_position = mode_combo->mapTo(&window, QPoint(0, 0));
+  CHECK(!brush_opacity->isVisible());
+  CHECK(shape_position.x() < fill_swatch->mapTo(&window, QPoint(0, 0)).x());
+
+  mode_combo->setCurrentIndex(2);  // Pixels: the brush trio appears AFTER Mode
+  QApplication::processEvents();
+  CHECK(brush_opacity->isVisible());
+  CHECK(mode_combo->mapTo(&window, QPoint(0, 0)) == shape_position);
+  CHECK(shape_position.x() < brush_opacity->mapTo(&window, QPoint(0, 0)).x());
+
+  mode_combo->setCurrentIndex(0);
+  QApplication::processEvents();
+  CHECK(mode_combo->mapTo(&window, QPoint(0, 0)) == shape_position);
+}
+
+void ui_shape_appearance_entry_points_open_the_dialog() {
+  VectorSettingsGuard settings_guard;
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  make_rect_shape_layer(window, *canvas);  // (100,100)-(300,220)
+
+  const auto opens_dialog = [&](const std::function<void()>& trigger) {
+    bool seen = false;
+    QTimer::singleShot(0, [&seen] {
+      auto* dialog = patchy::test::ui::find_top_level_dialog(QStringLiteral("shapeAppearanceDialog"));
+      seen = dialog != nullptr;
+      if (dialog != nullptr) {
+        dialog->reject();
+      }
+    });
+    trigger();
+    QApplication::processEvents();
+    return seen;
+  };
+
+  // (a) Options-bar button in Shape mode.
+  require_action(window, "toolRectAction")->trigger();
+  QApplication::processEvents();
+  auto* appearance_button = window.findChild<QPushButton*>(QStringLiteral("vectorAppearanceButton"));
+  CHECK(appearance_button != nullptr && appearance_button->isVisible() && appearance_button->isEnabled());
+  CHECK(opens_dialog([&] { appearance_button->click(); }));
+
+  // (b) Layer > Shape > Shape Appearance...
+  auto* menu_action = require_action(window, "layerShapeAppearanceAction");
+  CHECK(menu_action->isEnabled());
+  CHECK(opens_dialog([&] { menu_action->trigger(); }));
+
+  // (c) Properties panel button.
+  auto* properties_button = window.findChild<QPushButton*>(QStringLiteral("propertiesEditAppearanceButton"));
+  CHECK(properties_button != nullptr && !properties_button->isHidden());
+  auto* shape_label = window.findChild<QLabel*>(QStringLiteral("activeLayerShapeLabel"));
+  CHECK(shape_label != nullptr && shape_label->text().contains(QStringLiteral("Stroke off")));
+  CHECK(opens_dialog([&] { properties_button->click(); }));
+
+  // (d) Path Select double-click on the shape; empty canvas does nothing.
+  require_action(window, "toolPathSelectAction")->trigger();
+  QApplication::processEvents();
+  CHECK(appearance_button->isVisible() && appearance_button->isEnabled());
+  CHECK(opens_dialog([&] {
+    send_double_click(*canvas, canvas->widget_position_for_document_point(QPoint(200, 160)));
+  }));
+  CHECK(!opens_dialog([&] {
+    send_double_click(*canvas, canvas->widget_position_for_document_point(QPoint(700, 600)));
+  }));
+
+  // Without a shape layer the entry points go quiet (a fresh pixel layer
+  // becomes active).
+  require_action(window, "layerNewAction")->trigger();
+  QApplication::processEvents();
+  require_action(window, "toolRectAction")->trigger();
+  QApplication::processEvents();
+  CHECK(!appearance_button->isEnabled());
+  CHECK(!menu_action->isEnabled());
+  CHECK(properties_button->isHidden());
+}
+
 std::vector<patchy::test::TestCase> vector_shape_tool_tests() {
   return {
       {"ui_shape_tool_creates_shape_layer_and_undoes", ui_shape_tool_creates_shape_layer_and_undoes},
@@ -3606,5 +3772,11 @@ std::vector<patchy::test::TestCase> vector_shape_tool_tests() {
       {"ui_shape_appearance_dialog_fits_1080p_and_has_two_columns",
        ui_shape_appearance_dialog_fits_1080p_and_has_two_columns},
       {"ui_shape_appearance_spins_have_step_buttons", ui_shape_appearance_spins_have_step_buttons},
+      {"ui_shape_appearance_reset_restores_factory_defaults",
+       ui_shape_appearance_reset_restores_factory_defaults},
+      {"ui_options_bar_mode_combo_stays_first_for_shape_tools",
+       ui_options_bar_mode_combo_stays_first_for_shape_tools},
+      {"ui_shape_appearance_entry_points_open_the_dialog",
+       ui_shape_appearance_entry_points_open_the_dialog},
   };
 }
