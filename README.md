@@ -138,7 +138,7 @@ These are corpus-specific results, not universal product ratings. See the [full 
 
 ## Download
 
-**Latest release: 0.96** · September 17, 2026 · [Release notes](#whats-new)
+**Latest release: 0.97** · September 21, 2026 · [Release notes](#whats-new)
 
 Windows releases are code signed by Seth A. Robinson; the macOS app is signed and
 notarized (Robinson Technologies Corporation).
@@ -151,12 +151,11 @@ notarized (Robinson Technologies Corporation).
 | Linux                     | Flatpak bundle              | [PatchyLinux.flatpak](https://rtsoft.com/files/PatchyLinux.flatpak) (31 MB)                   |
 | Any modern browser        | Nothing to install          | [rtsoft.com/patchy](https://www.rtsoft.com/patchy/) (slower and less capable)                 |
 
-Linux one-line install (paste into a terminal; adds the Flathub remote for your user
-if it is missing, fetches the bundle, and installs it for your user with the shared KDE
-runtime, no root needed):
+Linux one-line install (paste into a terminal; fetches the bundle and installs it for
+your user, pulling the shared KDE runtime from Flathub automatically, no root needed):
 
 ```sh
-flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo && curl -L -o /tmp/PatchyLinux.flatpak https://rtsoft.com/files/PatchyLinux.flatpak && flatpak install --user -y /tmp/PatchyLinux.flatpak
+curl -L -o /tmp/PatchyLinux.flatpak https://rtsoft.com/files/PatchyLinux.flatpak && flatpak install --user -y /tmp/PatchyLinux.flatpak
 ```
 
 Optional: opening iPhone HEIC photos on Linux uses the shared Freedesktop codec
@@ -200,27 +199,25 @@ flatpak install --user -y flathub org.freedesktop.Platform.ffmpeg-full//24.08
 
 ## What's New
 
+### 0.97 - September 21, 2026
+
+- Vertical text: type layers can be laid out vertically (tategaki style) with a toggle in the Type tool's options bar, and paragraphs can run right-to-left. A "Rotate Latin (vertical text)" checkbox in the Character panel lays Latin letters on their side the way Photoshop's Standard Vertical Roman Alignment does. Both round-trip through PSD so Photoshop lays the text out the same way, and scripts can set them
+- Typing with an IME (Japanese and others) previews the composition inline and the candidate window follows the caret instead of covering the text. Characters the current font cannot draw, such as kana typed into Arial, switch to a font that can, so the PSD reopens in Photoshop with real glyphs
+- Character panel: the leading field is editable again (entering a value turns Auto leading off, as in Photoshop), the numeric fields gain -/+ step buttons, tracking is written the way Photoshop expects so it re-lays out tracked type correctly, and the Type tool's initial size scales with the document
+- Layer mask Density and Feather set in Photoshop now render correctly and survive a round trip through Patchy, for both painted and vector masks, and the vector-mask feather matches Photoshop's blur
+- PSD files where a layer has both a painted mask and a vector mask now load the painted mask correctly
+- New Add Layer Mask button in the Layers panel footer
+- Free Transform takes a linked layer mask along with the layer and previews masked layers faster, with much less per-frame work on painted masks during the drag
+- Every Layer Style slider, including Blend If, gains -/+ step buttons
+- PSD text set in a font that Windows reports under a different name (Balmoral LET Plain, for example) now resolves to the installed family instead of showing as missing
+- The Linux Flatpak installs without root or a preconfigured Flathub remote
+
 ### 0.96 - September 17, 2026
 
 - Canvas Size preserves each layer's off-canvas pixels and masks when shrinking or enlarging the canvas. An optional "Also crop each actual layer to the canvas area" checkbox enables destructive cropping and starts unchecked every time the dialog opens
 - Clipping masks above layer groups now use the group's combined transparency correctly
 - Merge Visible to New Layer (Copy) preserves transparency in the merged copy
 - Switching languages updates menus, panels, tool options, and the start screen consistently
-
-### 0.95 - September 16, 2026
-
-- The interface now supports German, Spanish, French, Italian, Japanese, and Simplified and Traditional Chinese alongside English. It follows your system language or your choice in File > Preferences.  I had to add 20 mb to the filesize to include fonts to do this proper, but.. I think that's ok in the grand scheme of things.\
-  \
-  Note: LLM translation is never perfect, so if you notice any glaring language errors in your native language please let me know or submit a pull request with your fixes on its language file.  Oh, English now has it's own language file too.
-
- 
-
-- Starting a Move drag on a large document prepares the preview in the background, with a moving outline and an animated "Rendering preview..." indicator while it catches up. Repeated drags reuse more of the preview work, and rapid moves no longer pile up full renders
-- Fixed some weirdness with dragging down the Layers panel's eye column, the Character panel works without selecting text, double clicking the T icon for a text object now edits it instead of zooming in to it
-- New adjustment layers appear directly above the topmost selected layer, and include a default mask even if nothing is selected.
-- Paste centers copied selection pixels and clipboard images in the visible canvas area, keeping them inside the document when they fit. Edit > Paste in Place (Ctrl+Shift+V) restores copied selection pixels to their original coordinates, including across documents, with the same edge limits.  Pastes now appear directly above the topmost selected layer.
-- The Move tool works better with stuff that is off the canvas, previously it hard to move them
-- Optimized working with large files, it's more responsible thanks to now allowing movement before preview data is generated and various improvements to how caching works
 
 [Older releases](RELEASE-HISTORY.md)
 
@@ -336,7 +333,7 @@ I mean, that's kind of the power of open source.
 
 Whatever AI you use, tell it (or more likely, it is reading this right now) to read AGENTS.md before doing anything else. It contains the build and repository-wide rules, then routes feature work to the relevant document under `docs/`.
 
-There are 1000+ regression and benchmarking tests. AGENTS.md links agents to the testing guide that explains how to select and run them.\
+There are 2200+ regression and benchmarking tests. AGENTS.md links agents to the testing guide that explains how to select and run them.\
 \
 If you have a bug fix or feature you think should be in this repo, please look at the actual code and fully TEST IT YOURSELF before submitting the PR.  If you're using AI, use a good one (Fable+ class), we don't want barely working slop.\
 \

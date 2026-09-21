@@ -23,9 +23,9 @@ root (GitHub issue 14, CachyOS, September 2026):
   exact error from the issue.
 - Every documented command uses `--user`. Without it flatpak targets the system
   installation and asks polkit for root, which is the permission error normal users hit.
-  The `remote-add --user --if-not-exists flathub` step is still needed for bundles built
-  before the `--runtime-repo` flag, and it lets the codec line below resolve `flathub` in
-  the user installation. Keep `README.md`, `main_window_files.cpp`
+  The documented commands carry no `remote-add` step: every published bundle from 0.97
+  on has `--runtime-repo`, and the `flathub` remote flatpak creates from it is what the
+  codec line below resolves in the user installation. Keep `README.md`, `main_window_files.cpp`
   (`show_update_available`), the HEIC hint in `heif_document_io.cpp`, and the
   `app_shell_tests.cpp` assertion in step.
 

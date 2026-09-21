@@ -1657,9 +1657,10 @@ void ui_update_available_dialog_warns_to_close_patchy_before_installing() {
     CHECK(dialog->text().contains(QStringLiteral("drag the new Patchy into Applications")));
 #elif defined(Q_OS_LINUX)
     // The command must work with no root and no preconfigured remote (GitHub issue 14):
-    // it adds the Flathub user remote, fetches the bundle, and installs per user.
-    CHECK(dialog->text().contains(QStringLiteral(
-        "flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo && ")));
+    // it fetches the bundle and installs per user; the bundle's --runtime-repo metadata
+    // makes flatpak add the Flathub remote and pull the runtime itself, so no
+    // remote-add step is shown.
+    CHECK(!dialog->text().contains(QStringLiteral("flatpak remote-add")));
     CHECK(dialog->text().contains(
         QStringLiteral("curl -L -o /tmp/PatchyLinux.flatpak https://rtsoft.com/files/PatchyLinux.flatpak && ")));
     CHECK(dialog->text().contains(QStringLiteral("flatpak install --user -y /tmp/PatchyLinux.flatpak")));

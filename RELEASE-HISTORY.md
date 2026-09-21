@@ -3,6 +3,21 @@
 Older Patchy release notes are collected here. The two most recent releases
 remain in [README.md](README.md#whats-new).
 
+## 0.95 - September 16, 2026
+
+- The interface now supports German, Spanish, French, Italian, Japanese, and Simplified and Traditional Chinese alongside English. It follows your system language or your choice in File > Preferences.  I had to add 20 mb to the filesize to include fonts to do this proper, but.. I think that's ok in the grand scheme of things.\
+  \
+  Note: LLM translation is never perfect, so if you notice any glaring language errors in your native language please let me know or submit a pull request with your fixes on its language file.  Oh, English now has it's own language file too.
+
+ 
+
+- Starting a Move drag on a large document prepares the preview in the background, with a moving outline and an animated "Rendering preview..." indicator while it catches up. Repeated drags reuse more of the preview work, and rapid moves no longer pile up full renders
+- Fixed some weirdness with dragging down the Layers panel's eye column, the Character panel works without selecting text, double clicking the T icon for a text object now edits it instead of zooming in to it
+- New adjustment layers appear directly above the topmost selected layer, and include a default mask even if nothing is selected.
+- Paste centers copied selection pixels and clipboard images in the visible canvas area, keeping them inside the document when they fit. Edit > Paste in Place (Ctrl+Shift+V) restores copied selection pixels to their original coordinates, including across documents, with the same edge limits.  Pastes now appear directly above the topmost selected layer.
+- The Move tool works better with stuff that is off the canvas, previously it hard to move them
+- Optimized working with large files, it's more responsible thanks to now allowing movement before preview data is generated and various improvements to how caching works
+
 ## 0.94 - September 11, 2026
 
 - Paste clears the selection, so the marquee that produced the copy no longer stays over the pasted layer. Undo of the paste brings it back
