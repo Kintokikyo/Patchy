@@ -2532,15 +2532,12 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
     // (Photoshop's Create <Shape> dialog) instead of committing a degenerate
     // shape. Line has no such dialog in Photoshop, and a Fixed Size click
     // already places the exact W x H shape, so both keep the drag commit.
-    // Both endpoints snap identically for a click, so the document extent
-    // scaled to widget pixels is the click test, not the raw event delta.
-    const auto click_extent =
-        static_cast<double>(std::max(std::abs(shape_current_.x() - shape_start_.x()),
-                                     std::abs(shape_current_.y() - shape_start_.y()))) *
-        zoom_;
+    // Only a release on the press's own document pixel counts as a click
+    // (Seth, September 2026): any real extent, however small on screen, is a
+    // deliberate drag and commits the shape. Both endpoints snap identically
+    // for a click, so the document points are the test, not the event delta.
     const bool tap_requests_dimensions =
-        shape_create_requested_callback_ &&
-        click_extent < static_cast<double>(QApplication::startDragDistance()) &&
+        shape_create_requested_callback_ && shape_current_ == shape_start_ &&
         (tool_ == CanvasTool::Polygon || tool_ == CanvasTool::CustomShape ||
          ((tool_ == CanvasTool::Rectangle || tool_ == CanvasTool::Ellipse) &&
           shape_style_ != MarqueeStyle::FixedSize));

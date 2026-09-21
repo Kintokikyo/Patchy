@@ -2802,6 +2802,56 @@ void ui_shape_tap_opens_create_dialog_and_places_rectangle() {
   CHECK(document.layers().size() == initial_layers + 1);
 }
 
+// Only a release on the press's own document pixel is a click: a drag that is
+// tiny on screen (under the platform drag distance) still commits its shape
+// and never opens the Create <Shape> dialog.
+void ui_shape_tiny_drag_commits_without_create_dialog() {
+  VectorSettingsGuard settings_guard;
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  const auto initial_layers = document.layers().size();
+
+  canvas->set_tool(patchy::ui::CanvasTool::Ellipse);
+  const QPoint from(300, 300);
+  const QPoint to(304, 303);
+  // The drag must sit under the drag distance for this to pin the rule.
+  CHECK(4.0 * canvas->zoom() < static_cast<double>(QApplication::startDragDistance()));
+
+  const auto press_point = canvas->widget_position_for_document_point(from);
+  const auto release_point = canvas->widget_position_for_document_point(to);
+  send_mouse(*canvas, QEvent::MouseButtonPress, press_point, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseMove, release_point, Qt::NoButton, Qt::LeftButton);
+  // Hang guard: a regression that opens the modal dialog gets it dismissed.
+  bool dialog_opened = false;
+  QTimer::singleShot(0, [&dialog_opened] {
+    if (auto* dialog = patchy::test::ui::find_top_level_dialog(QStringLiteral("shapeCreateDialog"));
+        dialog != nullptr) {
+      dialog_opened = true;
+      dialog->reject();
+    }
+  });
+  QMouseEvent release(QEvent::MouseButtonRelease, release_point, canvas->mapToGlobal(release_point),
+                      Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+  QApplication::sendEvent(canvas, &release);
+  QApplication::processEvents();
+
+  CHECK(!dialog_opened);
+  CHECK(document.layers().size() == initial_layers + 1);
+  auto* layer = document.find_layer(*document.active_layer_id());
+  CHECK(layer != nullptr);
+  const auto* content = layer != nullptr ? layer->vector_shape() : nullptr;
+  CHECK(content != nullptr && content->origination.size() == 1);
+  if (content != nullptr && content->origination.size() == 1) {
+    CHECK(content->origination[0].kind == patchy::LiveShapeKind::Ellipse);
+    const auto width = content->origination[0].right - content->origination[0].left;
+    const auto height = content->origination[0].bottom - content->origination[0].top;
+    CHECK(width >= 3.0 && width <= 5.0);
+    CHECK(height >= 2.0 && height <= 4.0);
+  }
+}
+
 void ui_shape_tap_creates_ellipse_polygon_and_custom_shape() {
   VectorSettingsGuard settings_guard;
   patchy::ui::MainWindow window;
@@ -3754,6 +3804,8 @@ std::vector<patchy::test::TestCase> vector_shape_tool_tests() {
       {"ui_path_transform_is_cancelled_on_layer_target_change", ui_path_transform_is_cancelled_on_layer_target_change},
       {"ui_shape_tap_opens_create_dialog_and_places_rectangle",
        ui_shape_tap_opens_create_dialog_and_places_rectangle},
+      {"ui_shape_tiny_drag_commits_without_create_dialog",
+       ui_shape_tiny_drag_commits_without_create_dialog},
       {"ui_shape_tap_creates_ellipse_polygon_and_custom_shape",
        ui_shape_tap_creates_ellipse_polygon_and_custom_shape},
       {"ui_shape_tap_line_fixed_size_and_path_mode", ui_shape_tap_line_fixed_size_and_path_mode},

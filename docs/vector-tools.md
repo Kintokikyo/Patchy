@@ -36,8 +36,8 @@ From Center (the click is the top-left corner, else the center), and
 per-corner radii for rectangles prefilled from the options-bar Radius. The
 result commits exactly like a drag (mode routing, Combine, vector-mask
 target, naming) through `commit_live_shape` / `handle_vector_path_committed`;
-values are remembered per tool for the session. The click test is the drag's
-document extent times zoom against QApplication::startDragDistance. Line has
+values are remembered per tool for the session. The click test is a release on
+the press's own document pixel; any real extent commits as a drag. Line has
 no dialog (Photoshop has none), a Fixed Size style click still places its
 W x H, and Pixels mode keeps its legacy click. The options-bar W / H spins
 (`vectorShapeWidthSpin`/`vectorShapeHeightSpin`, a link button for

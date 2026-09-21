@@ -104,7 +104,7 @@ namespace {
 constexpr int kSettleTimeoutMs = 30'000;
 constexpr quint32 kStressSeedBase = 0x5EED0001U;
 // Keep in sync with the scenario's step() calls; drives the progress dialog.
-constexpr int kTotalStepCount = 59;
+constexpr int kTotalStepCount = 60;
 
 // Reference step durations in ms, measured on the calibration machine at the
 // preset named in the tag, in a release build. Only the rating depends on
@@ -866,23 +866,24 @@ private:
 
   void drag(QPoint from, QPoint to, int move_steps) { drag_path({from, to}, move_steps); }
 
-  // Vector shape-tool drag. The shape tools read a release whose on-screen
-  // extent is under the platform drag distance as a bare click and answer with
-  // the modal Create Shape dialog, which nobody answers in a scripted run.
-  // Small props at the smoke scale (or any preset in a small window) fall
-  // under it at fit-to-view, so zoom in on such a drag and refit after. Full
-  // size runs in a normal window never take the zoom path, so their timings
+  // Vector shape-tool drag. Snapping works in SCREEN pixels (8 px per axis),
+  // so a drag that is small on screen can have both ends snap to the same
+  // target; the shape tools read that zero-extent release as a bare click and
+  // answer with the modal Create Shape dialog, which nobody answers in a
+  // scripted run. Small props at the smoke scale (or any preset in a small
+  // window) fall under it at fit-to-view, so zoom in on such a drag and refit
+  // after. Full-size runs in a normal window stay above it, so their timings
   // are unchanged.
   void shape_drag(QPoint from, QPoint to) {
+    constexpr double kSnapSafeScreenExtent = 18.0;  // just over two snap tolerances
     const int extent = std::max(std::abs(to.x() - from.x()), std::abs(to.y() - from.y()));
-    const bool reads_as_click =
-        extent > 0 && extent * canvas()->zoom() < 2.0 * QApplication::startDragDistance();
-    if (reads_as_click) {
+    const bool snap_can_collapse = extent > 0 && extent * canvas()->zoom() < kSnapSafeScreenExtent;
+    if (snap_can_collapse) {
       canvas()->zoom_to_document_rect(QRect(from, to).normalized().adjusted(-extent, -extent, extent, extent));
       pump();
     }
     drag(from, to, 4);
-    if (reads_as_click) {
+    if (snap_can_collapse) {
       canvas()->fit_to_view();
       pump();
     }

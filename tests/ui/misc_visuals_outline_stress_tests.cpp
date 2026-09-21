@@ -909,6 +909,12 @@ void ui_stress_test_smoke_preset_writes_report() {
   options.report_dir = report_dir.path();
   const auto report = patchy::ui::MainWindowTestAccess::run_stress_scenario(window, options);
 
+  if (!report.success) {
+    // The warnings name the failing step (e.g. the runner's modal guard).
+    for (const auto& warning : report.warnings) {
+      std::cerr << "  stress warning: " << warning.toStdString() << '\n';
+    }
+  }
   CHECK(report.success);
   CHECK(!report.steps.empty());
   for (const auto& step : report.steps) {
