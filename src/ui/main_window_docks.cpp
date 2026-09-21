@@ -1218,6 +1218,7 @@ void MainWindow::create_docks() {
   layer_list_->setDragDropMode(QAbstractItemView::InternalMove);
   layer_list_->setContextMenuPolicy(Qt::CustomContextMenu);
   connect(layer_list_, &QListWidget::itemSelectionChanged, this, [this] { set_active_layer_from_selection(); });
+  layer_list->set_escape_callback([this] { deselect_all_layers(); });
   layer_list->set_item_double_click_callback([this](QListWidgetItem*) {
     auto& doc = document();
     const auto active = doc.active_layer_id();

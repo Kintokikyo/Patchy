@@ -1192,7 +1192,9 @@ void ui_move_show_transform_controls_click_shows_passive_transform() {
   send_mouse(*canvas, QEvent::MouseButtonRelease, outside, Qt::LeftButton, Qt::NoButton);
   QApplication::processEvents();
   CHECK(!canvas->free_transform_active());
-  CHECK(canvas->active_layer_document_rect() == before);
+  // An empty click with Auto-Select on deselects every layer (which also drops
+  // the passive box); the next click on the artwork re-selects it.
+  CHECK(!canvas->active_layer_document_rect().has_value());
 
   send_mouse(*canvas, QEvent::MouseButtonPress, click, Qt::LeftButton, Qt::LeftButton);
   send_mouse(*canvas, QEvent::MouseButtonRelease, click, Qt::LeftButton, Qt::NoButton);

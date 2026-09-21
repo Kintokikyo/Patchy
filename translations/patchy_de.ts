@@ -16912,6 +16912,10 @@ Y: %2
         <source>Export cancelled</source>
         <translation>Export abgebrochen</translation>
     </message>
+    <message>
+        <source>Deselect La&amp;yers</source>
+        <translation>Ebenen&amp;auswahl aufheben</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

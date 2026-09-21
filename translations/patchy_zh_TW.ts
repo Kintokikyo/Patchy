@@ -16871,6 +16871,10 @@ Y：%2
         <source>Export cancelled</source>
         <translation>已取消匯出</translation>
     </message>
+    <message>
+        <source>Deselect La&amp;yers</source>
+        <translation>取消選取圖層(&amp;Y)</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

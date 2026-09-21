@@ -972,7 +972,8 @@ public:
   // truth) to make exactly these layers selected with active_id current; the
   // host pushes the result back through set_selected_layer_ids. Move-tool
   // modifier clicks and rectangle selection use this; unset, the canvas applies the selection to
-  // itself directly.
+  // itself directly. Empty layer_ids means "deselect every layer" (the host
+  // also clears the document's active layer); active_id is unused then.
   void set_layer_selection_requested_callback(std::function<void(std::vector<LayerId>, LayerId)> callback);
   // Commit of a pending crop rect + box angle (document geometry lives on
   // MainWindow).
@@ -1303,6 +1304,9 @@ private:
   [[nodiscard]] Layer* topmost_text_layer_at(QPoint document_point) const noexcept;
   void activate_layer(Layer& layer);
   void request_layer_selection(std::vector<LayerId> layer_ids, LayerId active_id);
+  // Escape with nothing to cancel, and Move-tool empty clicks/rectangles:
+  // clear the layer selection and the active layer (no history entry).
+  void request_layer_deselection();
   void show_move_layer_context_menu(QPoint widget_point, QPoint global_position);
   void close_move_layer_context_menu();
   void begin_move_drag(const std::vector<LayerId>& layer_ids, QPoint document_point, QPoint widget_point);

@@ -2716,8 +2716,45 @@ void MainWindow::reveal_layer_in_layer_list(LayerId id) {
   report_layer_selection_count(selected_layer_ids());
 }
 
+void MainWindow::deselect_all_layers() {
+  if (!has_active_document() || layer_list_ == nullptr) {
+    return;
+  }
+  if (preview_dialog_edit_locked()) {
+    show_preview_dialog_edit_lock_message();
+    return;
+  }
+  finish_active_text_editor();
+  {
+    // QItemSelectionModel::clear() emits selectionChanged before it drops the
+    // current index, so an unblocked set_active_layer_from_selection would
+    // re-assert the old active layer from the still-current row.
+    const QSignalBlocker blocker(layer_list_);
+    if (auto* selection_model = layer_list_->selectionModel(); selection_model != nullptr) {
+      selection_model->clear();
+    }
+  }
+  document().clear_active_layer();
+  if (canvas_ != nullptr) {
+    canvas_->set_layer_edit_target(CanvasWidget::LayerEditTarget::Content);
+    canvas_->set_selected_layer_ids({});
+    canvas_->set_panel_selected_layer_ids({});
+    update_layer_target_styles(layer_list_, std::nullopt, canvas_->layer_edit_target());
+  }
+  report_layer_selection_count({});
+  refresh_combine_shapes_action_states();
+  restyle_layer_rows(layer_list_);
+  refresh_layer_controls();
+  refresh_options_bar();
+  refresh_paths_panel();
+}
+
 void MainWindow::select_layers_in_layer_list(const std::vector<LayerId>& ids, LayerId active_id) {
-  if (layer_list_ == nullptr || ids.empty()) {
+  if (layer_list_ == nullptr) {
+    return;
+  }
+  if (ids.empty()) {
+    deselect_all_layers();
     return;
   }
 

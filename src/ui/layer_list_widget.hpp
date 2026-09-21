@@ -90,6 +90,8 @@ public:
   void set_drag_blocked(bool blocked);
   // Invoked once per refused drag attempt so the owner can explain why.
   void set_drag_blocked_callback(std::function<void()> callback);
+  // Plain Escape with the list focused (Select > Deselect Layers).
+  void set_escape_callback(std::function<void()> callback);
   [[nodiscard]] std::optional<LayerDropRequest> take_drop_request();
   void refresh_row_widths();
   bool handle_drag_wheel_at_global_position(QPoint global_position, int primary_delta);
@@ -100,6 +102,7 @@ protected:
   bool nativeEventFilter(const QByteArray& event_type, void* message, qintptr* result) override;
   void setSelection(const QRect& rect, QItemSelectionModel::SelectionFlags command) override;
   bool viewportEvent(QEvent* event) override;
+  void keyPressEvent(QKeyEvent* event) override;
   QMimeData* mimeData(const QList<QListWidgetItem*>& items) const override;
   void startDrag(Qt::DropActions supported_actions) override;
   void dragEnterEvent(QDragEnterEvent* event) override;
@@ -204,6 +207,7 @@ private:
   std::optional<LayerDropRequest> pending_drop_request_;
   std::function<void()> drop_finished_callback_;
   std::function<void()> drag_blocked_callback_;
+  std::function<void()> escape_callback_;
   std::function<bool(LayerId, LayerId)> clip_boundary_can_toggle_;
   std::function<void(LayerId)> clip_boundary_toggle_;
   std::function<void(LayerId)> visibility_isolate_callback_;

@@ -1138,6 +1138,23 @@ void CanvasWidget::request_layer_selection(std::vector<LayerId> layer_ids, Layer
   set_selected_layer_ids(std::move(layer_ids));
 }
 
+void CanvasWidget::request_layer_deselection() {
+  if (layer_selection_requested_callback_) {
+    // Empty ids are the deselect-all contract; the host clears the panel rows
+    // and the document's active layer, then pushes {} back.
+    layer_selection_requested_callback_({}, LayerId{});
+    return;
+  }
+  if (document_ != nullptr) {
+    document_->clear_active_layer();
+  }
+  if (layer_edit_target_ != LayerEditTarget::Content) {
+    set_layer_edit_target(LayerEditTarget::Content);
+  }
+  set_selected_layer_ids({});
+  update();
+}
+
 void CanvasWidget::set_status_callback(std::function<void(QString)> callback) {
   status_callback_ = std::move(callback);
 }

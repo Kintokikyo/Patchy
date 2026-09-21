@@ -265,6 +265,10 @@ void CanvasWidget::finish_move_layer_selection(QMouseEvent* event) {
     const auto box = QRectF(gesture.anchor_document, document_position_f(event->position())).normalized()
                          .intersected(QRectF(0, 0, document_->width(), document_->height()));
     if (box.isEmpty()) {
+      // A rectangle drawn entirely on the pasteboard keeps the selection:
+      // matching is clipped to the document, so the box may well enclose
+      // off-canvas artwork this pass cannot see. Only in-document empty
+      // rectangles and empty clicks deselect (below).
       return;
     }
     std::vector<LayerId> matches;
@@ -286,6 +290,9 @@ void CanvasWidget::finish_move_layer_selection(QMouseEvent* event) {
     };
     collect(collect, std::as_const(*document_).layers(), kLayerLockNone);
     if (matches.empty()) {
+      if (!gesture.additive) {
+        request_layer_deselection();
+      }
       return;
     }
     if (!gesture.additive) {
@@ -321,6 +328,11 @@ void CanvasWidget::finish_move_layer_selection(QMouseEvent* event) {
       }
     }
   } else {
+    // A plain click on empty space (inside the document or on the pasteboard)
+    // that never became a rectangle: deselect every layer. Shift keeps it.
+    if (!gesture.additive) {
+      request_layer_deselection();
+    }
     return;
   }
   request_layer_selection(std::move(ids), *active);

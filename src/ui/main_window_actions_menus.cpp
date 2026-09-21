@@ -555,6 +555,13 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   auto* clear_selection_action = edit_menu->addAction(tr("&Clear Selection"));
   auto* reselect_action = edit_menu->addAction(tr("&Reselect"));
   auto* inverse_selection_action = edit_menu->addAction(tr("&Inverse"));
+  auto* deselect_layers_action = new QAction(tr("Deselect La&yers"), this);
+  deselect_layers_action->setObjectName(QStringLiteral("selectDeselectLayersAction"));
+  bind_action_text(deselect_layers_action, QT_TR_NOOP("Deselect La&yers"));
+  deselect_layers_action->setIcon(simple_icon(QStringLiteral("DL")));
+  register_hotkey(deselect_layers_action, "select.deselect_layers");
+  connect(deselect_layers_action, &QAction::triggered, this, [this] { deselect_all_layers(); });
+  register_document_action(deselect_layers_action);
   quick_mask_action_ = new QAction(tr("Edit in &Quick Mask Mode"), this);
   quick_mask_action_->setObjectName(QStringLiteral("selectQuickMaskAction"));
   quick_mask_action_->setCheckable(true);
@@ -664,6 +671,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   select_menu->addAction(clear_selection_action);
   select_menu->addAction(reselect_action);
   select_menu->addAction(inverse_selection_action);
+  select_menu->addAction(deselect_layers_action);
   select_menu->addSeparator();
   select_menu->addAction(quick_mask_action_);
   select_menu->addSeparator();

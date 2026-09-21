@@ -502,7 +502,7 @@ void ui_move_auto_select_selected_member_drag_keeps_multi_selection() {
   save_widget_artifact("ui_move_auto_select_selected_member_drag", window);
 }
 
-void ui_move_auto_select_blank_drag_keeps_multi_selection() {
+void ui_move_auto_select_blank_drag_deselects_multi_selection() {
   patchy::Document document(120, 90, patchy::PixelFormat::rgba8());
 
   patchy::Layer red(document.allocate_layer_id(), "Selected Red",
@@ -548,11 +548,12 @@ void ui_move_auto_select_blank_drag_keeps_multi_selection() {
   CHECK(!color_close(canvas_pixel(*canvas, QPoint(36, 36)), QColor(220, 40, 40), 40));
   CHECK(!color_close(canvas_pixel(*canvas, QPoint(66, 36)), QColor(40, 90, 220), 40));
 
-  red_item = require_layer_item(*layer_list, QStringLiteral("Selected Red"));
-  blue_item = require_layer_item(*layer_list, QStringLiteral("Selected Blue"));
-  CHECK(layer_list->selectedItems().size() == 2);
-  CHECK(red_item->isSelected());
-  CHECK(blue_item->isSelected());
+  // A plain rectangle that catches nothing deselects every layer (nothing
+  // moved, nothing in history) and clears the active layer with it.
+  CHECK(layer_list->selectedItems().isEmpty());
+  CHECK(layer_list->currentItem() == nullptr);
+  CHECK(!patchy::ui::MainWindowTestAccess::document(window).active_layer_id().has_value());
+  CHECK(window.statusBar()->currentMessage() == QStringLiteral("0 layers selected"));
 }
 
 void ui_move_ctrl_click_toggles_layer_selection() {
@@ -630,7 +631,7 @@ void ui_move_ctrl_click_toggles_layer_selection() {
   CHECK(layer_list->currentItem() != target_item);
   CHECK(color_close(canvas_pixel(*canvas, QPoint(88, 57)), QColor(40, 180, 90), 40));
 
-  // Ctrl+click that hits no layer leaves the selection alone and stays silent.
+  // Ctrl+click that hits no layer deselects every layer (no error message).
   window.statusBar()->clearMessage();
   const auto blank_point = canvas->widget_position_for_document_point(QPoint(120, 90));
   send_mouse(*canvas, QEvent::MouseButtonPress, blank_point, Qt::LeftButton, Qt::LeftButton,
@@ -638,8 +639,10 @@ void ui_move_ctrl_click_toggles_layer_selection() {
   send_mouse(*canvas, QEvent::MouseButtonRelease, blank_point, Qt::LeftButton, Qt::NoButton,
              Qt::ControlModifier);
   QApplication::processEvents();
-  CHECK(layer_list->selectedItems().size() == 2);
-  CHECK(window.statusBar()->currentMessage().isEmpty());
+  CHECK(layer_list->selectedItems().isEmpty());
+  CHECK(layer_list->currentItem() == nullptr);
+  CHECK(!patchy::ui::MainWindowTestAccess::document(window).active_layer_id().has_value());
+  CHECK(window.statusBar()->currentMessage() == QStringLiteral("0 layers selected"));
 
   // Removing the only selected layer is a no-op.
   layer_list->clearSelection();
@@ -826,7 +829,11 @@ struct MoveSelectionScene {
 
   void select(std::vector<patchy::LayerId> ids, patchy::LayerId active) {
     selected = std::move(ids);
-    document.set_active_layer(active);
+    if (selected.empty()) {
+      document.clear_active_layer();  // the host's deselect-all contract
+    } else {
+      document.set_active_layer(active);
+    }
     canvas.set_selected_layer_ids(selected);
   }
 
@@ -1014,8 +1021,12 @@ void ui_move_rectangle_matches_overlap_and_latches_modifiers() {
   // A rectangle may include just a sliver of a layer.
   scene.box(QPoint(38, 18), QPoint(36, 25));
   scene.expect({scene.red});
+  // An in-document rectangle that catches nothing deselects every layer; a
+  // rectangle entirely on the pasteboard (clipped away) keeps the selection.
   scene.box(QPoint(2, 95), QPoint(10, 110));
-  scene.expect({scene.red});
+  scene.expect({});
+  CHECK(!scene.document.active_layer_id().has_value());
+  scene.select({scene.red}, scene.red);
   scene.box(QPoint(-20, -20), QPoint(-5, 80), Qt::ControlModifier);
   scene.expect({scene.red});
   scene.canvas.set_auto_select_layer(false);
@@ -1153,6 +1164,211 @@ void ui_move_pending_click_cancel_and_empty_document_are_safe() {
   scene.canvas.set_document(nullptr);
   scene.click(QPoint(25, 25), Qt::ControlModifier);
   CHECK(!scene.canvas.pointer_gesture_active());
+}
+
+void ui_move_escape_deselects_layers_without_gesture() {
+  MoveSelectionScene scene;
+  scene.select({scene.red, scene.green}, scene.green);
+  send_key(scene.canvas, Qt::Key_Escape);
+  scene.expect({});
+  CHECK(!scene.document.active_layer_id().has_value());
+  CHECK(!scene.canvas.pointer_gesture_active());
+  // With nothing selected a second Escape is harmless.
+  send_key(scene.canvas, Qt::Key_Escape);
+  scene.expect({});
+
+  // A live selection rectangle: Escape only cancels the gesture.
+  scene.select({scene.green}, scene.green);
+  const auto start = scene.point(QPoint(10, 10));
+  const auto end = scene.point(QPoint(80, 40));
+  send_mouse(scene.canvas, QEvent::MouseButtonPress, start, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(scene.canvas, QEvent::MouseMove, end, Qt::NoButton, Qt::LeftButton);
+  CHECK(scene.canvas.pointer_gesture_active());
+  send_key(scene.canvas, Qt::Key_Escape);
+  CHECK(!scene.canvas.pointer_gesture_active());
+  send_mouse(scene.canvas, QEvent::MouseButtonRelease, end, Qt::LeftButton, Qt::NoButton);
+  scene.expect({scene.green});
+  CHECK(scene.document.active_layer_id() == scene.green);
+
+  CHECK(scene.selection_edits == 0);
+
+  // A live marquee drag (no Escape branch of its own) keeps the selection.
+  scene.canvas.set_tool(patchy::ui::CanvasTool::Marquee);
+  send_mouse(scene.canvas, QEvent::MouseButtonPress, start, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(scene.canvas, QEvent::MouseMove, end, Qt::NoButton, Qt::LeftButton);
+  CHECK(scene.canvas.pointer_gesture_active());
+  send_key(scene.canvas, Qt::Key_Escape);
+  scene.expect({scene.green});
+  send_mouse(scene.canvas, QEvent::MouseButtonRelease, end, Qt::LeftButton, Qt::NoButton);
+  scene.expect({scene.green});
+  scene.canvas.set_tool(patchy::ui::CanvasTool::Move);
+
+  // Free Transform: the first Escape cancels the transform and keeps the
+  // selection; the next one, with nothing left to cancel, deselects.
+  scene.select({scene.red}, scene.red);
+  CHECK(scene.canvas.begin_free_transform());
+  CHECK(scene.canvas.free_transform_active());
+  send_key(scene.canvas, Qt::Key_Escape);
+  CHECK(!scene.canvas.free_transform_active());
+  scene.expect({scene.red});
+  CHECK(scene.document.active_layer_id() == scene.red);
+  send_key(scene.canvas, Qt::Key_Escape);
+  scene.expect({});
+
+  // Only a bare Escape deselects.
+  scene.select({scene.green}, scene.green);
+  send_key(scene.canvas, Qt::Key_Escape, Qt::ShiftModifier);
+  scene.expect({scene.green});
+  CHECK(scene.document.find_layer(scene.red)->bounds().x == 20);
+}
+
+void ui_move_empty_click_and_rectangle_deselect_layers() {
+  MoveSelectionScene scene;
+  // A plain click on empty space (the position-locked Background counts).
+  scene.click(QPoint(60, 60), Qt::NoModifier);
+  scene.expect({});
+  CHECK(!scene.document.active_layer_id().has_value());
+  // A click on the pasteboard outside the document.
+  scene.select({scene.red, scene.blue}, scene.blue);
+  scene.click(QPoint(-30, -30), Qt::NoModifier);
+  scene.expect({});
+  // Ctrl (temporary Auto-Select) on empty space deselects too.
+  scene.select({scene.green}, scene.green);
+  scene.click(QPoint(60, 60), Qt::ControlModifier);
+  scene.expect({});
+  // An in-document rectangle that catches nothing deselects; one drawn
+  // entirely on the pasteboard keeps the selection (it may enclose off-canvas
+  // artwork the document-clipped matcher cannot see).
+  scene.select({scene.green}, scene.green);
+  scene.box(QPoint(45, 45), QPoint(60, 60));
+  scene.expect({});
+  scene.select({scene.green}, scene.green);
+  scene.box(QPoint(-40, -40), QPoint(-10, -10));
+  scene.expect({scene.green});
+  // Shift (additive) empty clicks and rectangles keep the selection.
+  scene.select({scene.green}, scene.green);
+  scene.click(QPoint(60, 60), Qt::ShiftModifier);
+  scene.expect({scene.green});
+  scene.box(QPoint(45, 45), QPoint(60, 60), Qt::ShiftModifier);
+  scene.expect({scene.green});
+  scene.box(QPoint(-40, -40), QPoint(-10, -10), Qt::ShiftModifier);
+  scene.expect({scene.green});
+  CHECK(scene.document.active_layer_id() == scene.green);
+  // With Auto-Select off a blank click is a zero-length move of the selected
+  // layers, never a deselect.
+  scene.canvas.set_auto_select_layer(false);
+  scene.click(QPoint(60, 60), Qt::NoModifier);
+  scene.expect({scene.green});
+  scene.click(QPoint(-30, -30), Qt::NoModifier);
+  scene.expect({scene.green});
+  // A blank click with nothing selected is harmless.
+  scene.canvas.set_auto_select_layer(true);
+  scene.select({}, patchy::LayerId{});
+  scene.click(QPoint(60, 60), Qt::NoModifier);
+  scene.expect({});
+  CHECK(!scene.canvas.pointer_gesture_active());
+  CHECK(scene.document.find_layer(scene.red)->bounds().x == 20);
+  CHECK(scene.document.find_layer(scene.green)->bounds().x == 110);
+  CHECK(scene.content_edits == 0);
+  CHECK(scene.selection_edits == 0);
+}
+
+void ui_move_deselect_layers_clears_panel_rows_and_active_layer() {
+  patchy::Document document(120, 90, patchy::PixelFormat::rgba8());
+  auto& background = document.add_pixel_layer("Background",
+      solid_pixels(120, 90, patchy::PixelFormat::rgba8(), QColor(Qt::white)));
+  patchy::set_layer_locks_position(background, true);
+  patchy::Layer red(document.allocate_layer_id(), "Red",
+                    solid_pixels(12, 12, patchy::PixelFormat::rgba8(), QColor(220, 40, 40, 255)));
+  red.set_bounds(patchy::Rect{18, 18, 12, 12});
+  const auto red_id = red.id();
+  document.add_layer(std::move(red));
+  patchy::Layer blue(document.allocate_layer_id(), "Blue",
+                     solid_pixels(12, 12, patchy::PixelFormat::rgba8(), QColor(40, 90, 220, 255)));
+  blue.set_bounds(patchy::Rect{48, 18, 12, 12});
+  const auto blue_id = blue.id();
+  document.add_layer(std::move(blue));
+  document.set_active_layer(blue_id);
+
+  patchy::ui::MainWindow window;
+  show_window(window);
+  window.add_document_session(std::move(document), QStringLiteral("Deselect Layers"));
+  QApplication::processEvents();
+  auto* canvas = require_canvas(window);
+  auto* layer_list = window.findChild<QListWidget*>(QStringLiteral("layerList"));
+  auto* history = window.findChild<QListWidget*>(QStringLiteral("historyList"));
+  CHECK(layer_list != nullptr && history != nullptr);
+  auto& doc = patchy::ui::MainWindowTestAccess::document(window);
+  const auto history_count = history->count();
+  require_action_by_text(window, QStringLiteral("Move"))->trigger();
+  canvas->set_auto_select_layer(true);
+  canvas->set_show_transform_controls(false);
+  canvas->set_snap_enabled(false);
+
+  const auto select_both = [&] {
+    layer_list->clearSelection();
+    auto* blue_item = require_layer_item(*layer_list, QStringLiteral("Blue"));
+    layer_list->setCurrentItem(blue_item);
+    blue_item->setSelected(true);
+    require_layer_item(*layer_list, QStringLiteral("Red"))->setSelected(true);
+    QApplication::processEvents();
+    CHECK(layer_list->selectedItems().size() == 2);
+    CHECK(doc.active_layer_id() == blue_id);
+  };
+  const auto expect_deselected = [&] {
+    QApplication::processEvents();
+    CHECK(layer_list->selectedItems().isEmpty());
+    CHECK(layer_list->currentItem() == nullptr);
+    CHECK(!doc.active_layer_id().has_value());
+    CHECK(window.statusBar()->currentMessage() == QStringLiteral("0 layers selected"));
+  };
+
+  // Escape on the canvas.
+  select_both();
+  send_key(*canvas, Qt::Key_Escape);
+  expect_deselected();
+  // The empty state survives a panel rebuild (a null active layer selects no row).
+  patchy::ui::MainWindowTestAccess::refresh_layer_ui(window);
+  expect_deselected();
+
+  // Painting with nothing selected is refused with a status error, not a crash.
+  canvas->set_tool(patchy::ui::CanvasTool::Brush);
+  const auto brush_point = canvas->widget_position_for_document_point(QPoint(60, 60));
+  send_mouse(*canvas, QEvent::MouseButtonPress, brush_point, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, brush_point, Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  auto* status_bar = qobject_cast<patchy::ui::ZoomStatusBar*>(window.statusBar());
+  CHECK(status_bar != nullptr && status_bar->error_message_active());
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(60, 60)), QColor(Qt::white), 8));
+  CHECK(history->count() == history_count);
+
+  // A Move-tool empty click, the menu command, and Escape in the layer list
+  // all reach the same state.
+  canvas->set_tool(patchy::ui::CanvasTool::Move);
+  select_both();
+  const auto empty = canvas->widget_position_for_document_point(QPoint(90, 70));
+  send_mouse(*canvas, QEvent::MouseButtonPress, empty, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, empty, Qt::LeftButton, Qt::NoButton);
+  expect_deselected();
+  select_both();
+  auto* deselect_action = require_hotkey_action(window, QStringLiteral("select.deselect_layers"));
+  CHECK(deselect_action->isEnabled());
+  deselect_action->trigger();
+  expect_deselected();
+  select_both();
+  send_key(*layer_list, Qt::Key_Escape);
+  expect_deselected();
+
+  // Selecting a row again restores a normal active layer.
+  layer_list->setCurrentItem(require_layer_item(*layer_list, QStringLiteral("Red")),
+                             QItemSelectionModel::ClearAndSelect);
+  QApplication::processEvents();
+  CHECK(doc.active_layer_id() == red_id);
+  CHECK(layer_list->selectedItems().size() == 1);
+  CHECK(window.statusBar()->currentMessage() == QStringLiteral("1 layer selected"));
+  CHECK(doc.find_layer(red_id)->bounds().x == 18);
+  CHECK(doc.find_layer(blue_id)->bounds().x == 48);
+  CHECK(history->count() == history_count);
 }
 
 void ui_move_rectangle_reveals_collapsed_and_filtered_layers() {
@@ -1456,7 +1672,11 @@ void ui_move_tool_grabs_transparent_pixel_inside_layer_rect() {
   canvas.set_selected_layer_ids(selected);
   canvas.set_layer_selection_requested_callback([&](std::vector<patchy::LayerId> ids, patchy::LayerId active) {
     selected = std::move(ids);
-    document.set_active_layer(active);
+    if (selected.empty()) {
+      document.clear_active_layer();
+    } else {
+      document.set_active_layer(active);
+    }
     canvas.set_selected_layer_ids(selected);
   });
   int content_edits = 0;
@@ -1486,7 +1706,7 @@ void ui_move_tool_grabs_transparent_pixel_inside_layer_rect() {
   CHECK(content_edits == 1);
 
   // Outside every layer's rect a drag still draws the layer-selection
-  // rectangle and moves nothing.
+  // rectangle and moves nothing; catching nothing, it deselects.
   const auto blank_start = canvas.widget_position_for_document_point(QPoint(20, 100));
   const auto blank_end = canvas.widget_position_for_document_point(QPoint(30, 110));
   send_mouse(canvas, QEvent::MouseButtonPress, blank_start, Qt::LeftButton, Qt::LeftButton);
@@ -1494,6 +1714,8 @@ void ui_move_tool_grabs_transparent_pixel_inside_layer_rect() {
   CHECK(canvas.pointer_gesture_active());
   send_mouse(canvas, QEvent::MouseButtonRelease, blank_end, Qt::LeftButton, Qt::NoButton);
   QApplication::processEvents();
+  CHECK(selected.empty());
+  CHECK(!document.active_layer_id().has_value());
   CHECK(document.find_layer(sprite_id)->bounds().x == delta.x());
   CHECK(document.find_layer(sprite_id)->bounds().y == delta.y());
   CHECK(content_edits == 1);
@@ -4205,8 +4427,8 @@ std::vector<patchy::test::TestCase> move_tool_processing_overlay_tests() {
       {"ui_move_auto_select_drag_replaces_multi_selection", ui_move_auto_select_drag_replaces_multi_selection},
       {"ui_move_auto_select_selected_member_drag_keeps_multi_selection",
        ui_move_auto_select_selected_member_drag_keeps_multi_selection},
-      {"ui_move_auto_select_blank_drag_keeps_multi_selection",
-       ui_move_auto_select_blank_drag_keeps_multi_selection},
+      {"ui_move_auto_select_blank_drag_deselects_multi_selection",
+       ui_move_auto_select_blank_drag_deselects_multi_selection},
       {"ui_move_tool_grabs_transparent_pixel_inside_layer_rect",
        ui_move_tool_grabs_transparent_pixel_inside_layer_rect},
       {"ui_move_tool_prefers_selected_layer_rect_over_topmost_rect",
@@ -4229,6 +4451,10 @@ std::vector<patchy::test::TestCase> move_tool_processing_overlay_tests() {
        ui_move_rectangle_cancellation_preserves_pixels_selection_and_history},
       {"ui_move_rectangle_theme_and_passive_handle_priority", ui_move_rectangle_theme_and_passive_handle_priority},
       {"ui_move_pending_click_cancel_and_empty_document_are_safe", ui_move_pending_click_cancel_and_empty_document_are_safe},
+      {"ui_move_escape_deselects_layers_without_gesture", ui_move_escape_deselects_layers_without_gesture},
+      {"ui_move_empty_click_and_rectangle_deselect_layers", ui_move_empty_click_and_rectangle_deselect_layers},
+      {"ui_move_deselect_layers_clears_panel_rows_and_active_layer",
+       ui_move_deselect_layers_clears_panel_rows_and_active_layer},
       {"ui_move_rectangle_reveals_collapsed_and_filtered_layers", ui_move_rectangle_reveals_collapsed_and_filtered_layers},
       {"ui_move_tool_uses_opaque_bounds_for_transparent_layer",
        ui_move_tool_uses_opaque_bounds_for_transparent_layer},

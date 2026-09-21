@@ -16871,6 +16871,10 @@ Clipped to the layer below</source>
         <source>Export cancelled</source>
         <translation>書き出しをキャンセルしました</translation>
     </message>
+    <message>
+        <source>Deselect La&amp;yers</source>
+        <translation>レイヤーの選択を解除(&amp;Y)</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

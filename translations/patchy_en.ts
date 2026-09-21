@@ -16870,6 +16870,10 @@ Y: %2
         <source>Export cancelled</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Deselect La&amp;yers</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

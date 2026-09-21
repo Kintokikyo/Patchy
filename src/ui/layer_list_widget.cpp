@@ -15,6 +15,7 @@
 #include <QDropEvent>
 #include <QEvent>
 #include <QItemSelection>
+#include <QKeyEvent>
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QPainter>
@@ -421,6 +422,20 @@ void LayerListWidget::set_drag_blocked(bool blocked) {
 
 void LayerListWidget::set_drag_blocked_callback(std::function<void()> callback) {
   drag_blocked_callback_ = std::move(callback);
+}
+
+void LayerListWidget::set_escape_callback(std::function<void()> callback) {
+  escape_callback_ = std::move(callback);
+}
+
+void LayerListWidget::keyPressEvent(QKeyEvent* event) {
+  if (event->key() == Qt::Key_Escape && event->modifiers() == Qt::NoModifier && !event->isAutoRepeat() &&
+      escape_callback_) {
+    escape_callback_();
+    event->accept();
+    return;
+  }
+  QListWidget::keyPressEvent(event);
 }
 
 std::optional<LayerDropRequest> LayerListWidget::take_drop_request() {

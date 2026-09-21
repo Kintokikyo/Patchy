@@ -3150,6 +3150,20 @@ void CanvasWidget::keyPressEvent(QKeyEvent* event) {
       return;
     }
   }
+  // Lowest-priority Escape: every cancelable session above (gestures, pen
+  // and path editing, magnetic lasso, guides, warp, free transform, crop, text
+  // rect) returned already, so a plain Escape that reaches here has nothing
+  // to cancel and deselects the layers instead (Photoshop-style two-stage
+  // Escape for path anchors: the first press clears anchors, the second
+  // deselects). Live drags without their own Escape branch (marquee, lasso,
+  // move, shape, quick select) keep the selection intact.
+  if (event->key() == Qt::Key_Escape && event->modifiers() == Qt::NoModifier && !event->isAutoRepeat() &&
+      document_ != nullptr && !pointer_gesture_active() && !transforming_layer_ && !warping_layer_ &&
+      (!selected_layer_ids_.empty() || document_->active_layer_id().has_value())) {
+    request_layer_deselection();
+    event->accept();
+    return;
+  }
   QWidget::keyPressEvent(event);
 }
 
