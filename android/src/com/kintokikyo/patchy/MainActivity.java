@@ -9,6 +9,7 @@ import android.database.Cursor;
 
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.io.IOException;
 
 import org.qtproject.qt.android.bindings.QtActivity;
@@ -98,6 +99,43 @@ public class MainActivity extends QtActivity {
                 e
         );
 
+        return false;
+    }
+    }
+    
+    public boolean copyUriToLocalFile(String uriString, String localPath) {
+    Log.i("PatchyAndroid", "copyUriToLocalFile start");
+    Log.i("PatchyAndroid", "URI: " + uriString);
+    Log.i("PatchyAndroid", "Local path: " + localPath);
+
+    Uri uri = Uri.parse(uriString);
+
+    try (InputStream inputStream =
+             getContentResolver().openInputStream(uri);
+         FileOutputStream outputStream =
+             new FileOutputStream(localPath)) {
+
+        if (inputStream == null) {
+            Log.e("PatchyAndroid", "ContentResolver returned null InputStream");
+            return false;
+        }
+
+        byte[] buffer = new byte[1024 * 1024];
+        int bytesRead;
+
+        while ((bytesRead = inputStream.read(buffer)) != -1) {
+            outputStream.write(buffer, 0, bytesRead);
+        }
+
+        outputStream.flush();
+
+        Log.i("PatchyAndroid", "copyUriToLocalFile success");
+        return true;
+
+    } catch (Exception e) {
+        Log.e("PatchyAndroid",
+              "copyUriToLocalFile failed: " + e.getMessage(),
+              e);
         return false;
     }
     }
