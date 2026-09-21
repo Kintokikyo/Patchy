@@ -30,6 +30,23 @@ launch. Selecting an editable shape layer syncs the controls (also shown for
 Path Select / Direct Select); edits apply live (one "Shape appearance" undo
 per gesture, width spin debounced) and stick as next-shape defaults.
 
+A bare click (no drag) with Rectangle, Ellipse, Polygon, or Custom Shape
+opens the Create <Shape> dialog (shape_create_dialog.cpp): Width, Height,
+From Center (the click is the top-left corner, else the center), and
+per-corner radii for rectangles prefilled from the options-bar Radius. The
+result commits exactly like a drag (mode routing, Combine, vector-mask
+target, naming) through `commit_live_shape` / `handle_vector_path_committed`;
+values are remembered per tool for the session. The click test is the drag's
+document extent times zoom against QApplication::startDragDistance. Line has
+no dialog (Photoshop has none), a Fixed Size style click still places its
+W x H, and Pixels mode keeps its legacy click. The options-bar W / H spins
+(`vectorShapeWidthSpin`/`vectorShapeHeightSpin`, a link button for
+proportional edits) mirror the active shape layer's path bounds in Shape mode
+and under Path Select / Direct Select; a debounced edit scales the shape
+about its top-left through `transform_layer_vector_data` (live shapes stay
+live, other shapes scale their paths; one "Shape size" undo per edit). The
+Style / Width / Height row shows in Pixels mode only ([tools.md](tools.md)).
+
 ## Pen tool
 
 The Pen (P) draws bezier paths by anchor: click places a corner,
@@ -115,7 +132,9 @@ outside 2000..2997 never enter the saved set, path-range stream entries
 normalize to ascending id order after upserts.
 
 While any row is selected its outline draws with EVERY tool;
-anchors/handles stay path-tool-only. Under a path tool the overlay also
+anchors/handles stay path-tool-only. A layer-owned outline follows its
+layer's Move drag or Free Transform preview
+([interactive-previews.md](interactive-previews.md)). Under a path tool the overlay also
 outlines every Layers-panel-selected shape layer with hollow anchors
 (`set_panel_selected_layer_ids`, pushed from `refresh_layer_controls`);
 only the target path gets filled anchors, handles, and edits. View > Show Target Path (Ctrl+Shift+H,
@@ -466,37 +485,9 @@ Resource-id constants live in src/core/document_path.hpp.
 - PSB: all vector keys use the 8BIM signature + 4-byte length form (none are
   in the 8-byte LARGE_KEYS set). Fixture: photoshop-shape.psb.
 
-## Fixture inventory (test-fixtures/psd, self-authored via COM, July 2026)
+## Fixture inventory
 
-Each .psd has a sibling .bmp, Photoshop's own flatten (24-bit, white
-background layer), for render-parity tests; the embedded composites are
-headless-stale (ps-compat.md).
-
-- photoshop-shape-solid.psd/bmp: curved shape, SoCo red; pins knot in/out
-  order via render.
-- photoshop-shape-gradient.psd/bmp: GdFl linear 37 deg, 3 color + 3
-  transparency stops with midpoints.
-- photoshop-shape-pattern.psd/bmp: PtFl, 8x8 checker in the Patt block.
-- photoshop-shape-strokes.psd/bmp: six stroked layers (alignments, caps,
-  joins, dashed open curve, stroke-only / fillEnabled false).
-- photoshop-shape-boolean.psd/bmp: four subpaths add/subtract/intersect/xor
-  (sequential-combine ground truth).
-- photoshop-shape-first-ops.psd/bmp: single-subpath layers with op
-  subtract/intersect/xor (initial-accumulator semantics).
-- photoshop-shape-live-rect.psd/bmp: live rounded rect (radii 4/8/12/16),
-  live ellipse, live line w4 (vogk per kind; vowv presence).
-- photoshop-vector-mask-on-pixel.psd/bmp: pixel layer + vector mask; no mask
-  channel or section.
-- photoshop-both-masks.psd/bmp: raster + vector masks on one layer; second
-  layer at density 60% + feather 1.5 px (parameters + baked -2, flags 0x18).
-- photoshop-vector-mask-feather.psd/bmp: vector feather 4 (path on the
-  canvas corner) and 8.
-- photoshop-user-mask-params.psd/bmp: raster-mask feather 3 + density 50%,
-  feather 6.5, density 25%.
-- photoshop-saved-paths.psd/bmp: "Alpha Path" (rect, clipping path), "Beta
-  Path" (donut), work path; resources 2000/2001/1025/2999.
-- photoshop-shape.psb/photoshop-shape-psb.bmp: PSB variant of the solid
-  shape.
+Moved to [vector-fixtures.md](vector-fixtures.md) (self-authored COM fixtures under test-fixtures/psd and what each pins).
 
 ## Patents and trademarks (assessed July 2026)
 

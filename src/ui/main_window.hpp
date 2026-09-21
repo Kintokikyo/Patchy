@@ -872,6 +872,12 @@ private:
   // drag arrives here with edge-coordinate bounds (Line passes its endpoints).
   void handle_vector_shape_drawn(patchy::LiveShapeKind kind, QRectF bounds, QPointF line_start,
                                  QPointF line_end);
+  // Shared tail of a live-shape commit (drag or Create dialog): box corners,
+  // the line hull, then the vector-mask / Path / Shape routing.
+  void commit_live_shape(patchy::LiveShapeParams params);
+  // A tapped Rectangle/Ellipse/Polygon/Custom Shape tool asks for dimensions
+  // (shape_create_dialog.hpp); the accepted shape commits like a drag.
+  void handle_shape_create_requested(CanvasTool tool, QPointF document_point);
   void create_shape_layer_from_drag(const patchy::LiveShapeParams& params);
   void add_drag_to_work_path(const patchy::LiveShapeParams& params);
   void create_or_extend_shape_layer(std::vector<patchy::PathSubpath> subpaths,
@@ -904,6 +910,25 @@ private:
   void sync_shape_appearance_options_from_active_layer();
   bool apply_options_bar_appearance_to_active_shape();
   void schedule_vector_appearance_apply();
+  // Options-bar W / H of the active shape layer (Photoshop's readouts): the
+  // spins mirror its path bounds and a debounced edit scales the shape about
+  // its top-left corner (live shapes stay live under an axis-aligned scale).
+  void sync_vector_shape_size_spins();
+  bool apply_options_bar_size_to_active_shape();
+  void schedule_vector_shape_size_apply();
+  // Per-mode visibility of the shape tools' options widgets, evaluated once
+  // per refresh so refresh_options_bar sets each widget's FINAL state in a
+  // single setVisible (a show-then-hide pass wrapped the bar for one frame).
+  struct VectorOptionModeRules {
+    bool refine{false};       // a shape or path-select tool is active
+    bool select_tool{false};  // Path Select / Direct Select
+    bool live_shape{false};   // an editable shape layer is active
+    bool vector_mode{false};
+    bool shape_mode{false};
+  };
+  [[nodiscard]] VectorOptionModeRules vector_option_mode_rules();
+  [[nodiscard]] bool vector_option_widget_visible(const VectorOptionModeRules& rules,
+                                                  QWidget* widget) const;
   [[nodiscard]] QBrush vector_fill_preview_brush(const patchy::VectorFill& fill) const;
   // Fill/stroke editing (main_window_vector.cpp): the live-preview appearance
   // dialog for the active shape layer, and Layer > New Fill Layer creation
@@ -1789,6 +1814,14 @@ private:
   int current_vector_combine_index_{0};
   QComboBox* vector_mode_combo_{nullptr};
   QComboBox* custom_shape_combo_{nullptr};
+  // Last accepted Create <Shape> dialog values per tool (session-only, like
+  // Photoshop's remembered dialog values); keyed by the CanvasTool value.
+  struct ShapeCreateMemory {
+    double width{100.0};
+    double height{100.0};
+    bool from_center{false};
+  };
+  std::unordered_map<int, ShapeCreateMemory> shape_create_memory_;
   bool current_line_arrow_start_{false};
   bool current_line_arrow_end_{false};
   QToolButton* vector_fill_swatch_button_{nullptr};
@@ -1796,6 +1829,11 @@ private:
   // Debounces live-editing bursts (stroke-width spin / its popup slider) into
   // one undo entry + one rasterize.
   QTimer* vector_appearance_apply_timer_{nullptr};
+  QDoubleSpinBox* vector_shape_width_spin_{nullptr};
+  QDoubleSpinBox* vector_shape_height_spin_{nullptr};
+  QPushButton* vector_shape_link_size_button_{nullptr};
+  QTimer* vector_shape_size_apply_timer_{nullptr};
+  double vector_shape_size_ratio_{1.0};  // width / height at the last sync (link button)
   // Per-mode refinement of the shape tools' options bar, applied after the
   // per-tool pass in refresh_options_bar: raster-only controls hide in the
   // vector modes, appearance controls show only in Shape mode, combine/weight

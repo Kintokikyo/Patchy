@@ -29,7 +29,8 @@ Photoshop-style interactive crop (hotkey C; `tools.crop`). Session code in canva
 ## Shape tools (Rectangle/Ellipse/Line)
 
 - Rectangle/ellipse honor brush Opacity/Soft through the signed-distance renderer in pixel_tools.cpp.
-- Options-bar Style/Width/Height are deliberately session-only (mirrored via `current_shape_*`, never persisted).
+- Options-bar Style/Width/Height are deliberately session-only (mirrored via `current_shape_*`, never persisted). The row is registered pixel-only: the vector modes hide it and show the active shape's W / H instead ([vector-tools.md](vector-tools.md)). With Style Normal the Width/Height spins are greyed out (the marquee's twin row greys the same way); Fixed Ratio and Fixed Size enable them.
+- A Pixels-mode click keeps the legacy 1 px commit (its `begin_edit` snapshot is pushed at press); the vector modes open the Create dialog instead. Coverage: `ui_shape_tap_*`, `ui_shape_style_row_is_pixel_only_and_greys_size_at_normal`.
 - Alt = draw-from-center, so Rectangle/Ellipse are exempt from the Alt temporary-eyedropper (the two meanings fight).
 - ALL constraint math lives in `CanvasWidget::shape_drag_rect()` — it intentionally duplicates `marquee_selection_rect()` (selection-only concerns, separately pinned). Do not merge them.
 - The Fill command has its OWN persisted Opacity/Soft (`tools/fillOpacity`/`tools/fillSoftness`, default 100/0); tests laying down setup color call `use_solid_fill_settings(canvas)`.

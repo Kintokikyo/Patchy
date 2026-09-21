@@ -1027,6 +1027,10 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   configure_toolbar_spinbox(fixed_height, 78);
   add_option_widget(fixed_height, {CanvasTool::Marquee, CanvasTool::EllipticalMarquee});
   const auto apply_marquee_settings = [this, style_combo, fixed_width, fixed_height] {
+    // Normal ignores the size fields, so they grey out (Fixed Ratio reads
+    // them as the ratio, Fixed Size as the size).
+    fixed_width->setEnabled(style_combo->currentIndex() != 0);
+    fixed_height->setEnabled(style_combo->currentIndex() != 0);
     switch (style_combo->currentIndex()) {
       case 1:
         current_marquee_style_ = CanvasWidget::MarqueeStyle::FixedRatio;
@@ -1054,6 +1058,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   connect(fixed_height, &QSpinBox::valueChanged, this, [apply_marquee_settings](int) {
     apply_marquee_settings();
   });
+  apply_marquee_settings();
   add_option_separator({CanvasTool::Marquee, CanvasTool::EllipticalMarquee, CanvasTool::Lasso,
                         CanvasTool::MagneticLasso, CanvasTool::MagicWand});
 
@@ -2296,6 +2301,60 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     schedule_vector_appearance_apply();
   });
 
+  // W / H of the ACTIVE shape layer (Photoshop's options-bar readouts): they
+  // mirror the selected shape's bounds and resize it live (top-left anchored,
+  // axis-aligned scale, so live shapes stay live); disabled without one.
+  const auto make_shape_size_spin = [this, toolbar, &vector_appearance_tools,
+                                     add_option_widget](const char* name, const char* tooltip) {
+    auto* spin = new QDoubleSpinBox(toolbar);
+    spin->setObjectName(QLatin1String(name));
+    spin->setRange(0.0, 60000.0);
+    spin->setDecimals(1);
+    spin->setSpecialValueText(QStringLiteral(" "));  // 0 = no shape to show
+    spin->setSuffix(pixel_suffix());
+    spin->setKeyboardTracking(false);
+    spin->setEnabled(false);
+    bind_tooltip(spin, tooltip);
+    configure_toolbar_spinbox(spin, 84);
+    add_option_widget(spin, vector_appearance_tools);
+    vector_shape_mode_option_widgets_.push_back(spin);
+    return spin;
+  };
+  vector_shape_mode_option_widgets_.push_back(
+      add_option_label(QT_TR_NOOP("W:"), vector_appearance_tools));
+  vector_shape_width_spin_ =
+      make_shape_size_spin("vectorShapeWidthSpin", QT_TR_NOOP("Width of the active shape"));
+  vector_shape_link_size_button_ = new QPushButton(toolbar);
+  vector_shape_link_size_button_->setObjectName(QStringLiteral("vectorShapeLinkSizeButton"));
+  vector_shape_link_size_button_->setCheckable(true);
+  vector_shape_link_size_button_->setChecked(false);
+  vector_shape_link_size_button_->setIcon(simple_icon(QStringLiteral("link"), QColor(220, 226, 235)));
+  bind_tooltip(vector_shape_link_size_button_, QT_TR_NOOP("Keep the shape's width and height in proportion"));
+  vector_shape_link_size_button_->setFixedWidth(28);
+  vector_shape_link_size_button_->setEnabled(false);
+  add_option_widget(vector_shape_link_size_button_, vector_appearance_tools);
+  vector_shape_mode_option_widgets_.push_back(vector_shape_link_size_button_);
+  vector_shape_mode_option_widgets_.push_back(
+      add_option_label(QT_TR_NOOP("H:"), vector_appearance_tools));
+  vector_shape_height_spin_ =
+      make_shape_size_spin("vectorShapeHeightSpin", QT_TR_NOOP("Height of the active shape"));
+  connect(vector_shape_width_spin_, &QDoubleSpinBox::valueChanged, this, [this](double value) {
+    if (vector_shape_link_size_button_ != nullptr && vector_shape_link_size_button_->isChecked() &&
+        vector_shape_height_spin_ != nullptr && vector_shape_size_ratio_ > 0.0) {
+      QSignalBlocker blocker(vector_shape_height_spin_);
+      vector_shape_height_spin_->setValue(value / vector_shape_size_ratio_);
+    }
+    schedule_vector_shape_size_apply();
+  });
+  connect(vector_shape_height_spin_, &QDoubleSpinBox::valueChanged, this, [this](double value) {
+    if (vector_shape_link_size_button_ != nullptr && vector_shape_link_size_button_->isChecked() &&
+        vector_shape_width_spin_ != nullptr && vector_shape_size_ratio_ > 0.0) {
+      QSignalBlocker blocker(vector_shape_width_spin_);
+      vector_shape_width_spin_->setValue(value * vector_shape_size_ratio_);
+    }
+    schedule_vector_shape_size_apply();
+  });
+
   vector_vector_mode_option_widgets_.push_back(
       add_option_label(QT_TR_NOOP("Weight:"), {CanvasTool::Line}));
   auto* vector_line_weight = new QSpinBox(toolbar);
@@ -2472,7 +2531,10 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
 
   // Style / Width / Height for the shape draw tools, mirroring the marquee's
   // Normal / Fixed Ratio / Fixed Size options (session-only, like the marquee's).
-  add_option_label(QT_TR_NOOP("Style:"), {CanvasTool::Rectangle, CanvasTool::Ellipse});
+  // Pixels-mode only: the vector modes show the active shape's W / H instead,
+  // and a tap opens the Create dialog (docs/vector-tools.md).
+  vector_pixel_only_option_widgets_.push_back(
+      add_option_label(QT_TR_NOOP("Style:"), {CanvasTool::Rectangle, CanvasTool::Ellipse}));
   auto* shape_style_combo = new QComboBox(toolbar);
   shape_style_combo->setObjectName(QStringLiteral("shapeStyleCombo"));
   shape_style_combo->addItems({tr("Normal"), tr("Fixed Ratio"), tr("Fixed Size")});
@@ -2489,7 +2551,9 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     shape_style_combo_pointer->setItemText(2, QObject::tr("Fixed Size"));
   });
   add_option_widget(shape_style_combo, {CanvasTool::Rectangle, CanvasTool::Ellipse});
-  add_option_label(QT_TR_NOOP("Width:"), {CanvasTool::Rectangle, CanvasTool::Ellipse});
+  vector_pixel_only_option_widgets_.push_back(shape_style_combo);
+  vector_pixel_only_option_widgets_.push_back(
+      add_option_label(QT_TR_NOOP("Width:"), {CanvasTool::Rectangle, CanvasTool::Ellipse}));
   auto* shape_fixed_width = new QSpinBox(toolbar);
   shape_fixed_width->setObjectName(QStringLiteral("shapeFixedWidthSpin"));
   shape_fixed_width->setRange(1, 30000);
@@ -2497,7 +2561,9 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   shape_fixed_width->setSuffix(pixel_suffix());
   configure_toolbar_spinbox(shape_fixed_width, 78);
   add_option_widget(shape_fixed_width, {CanvasTool::Rectangle, CanvasTool::Ellipse});
-  add_option_label(QT_TR_NOOP("Height:"), {CanvasTool::Rectangle, CanvasTool::Ellipse});
+  vector_pixel_only_option_widgets_.push_back(shape_fixed_width);
+  vector_pixel_only_option_widgets_.push_back(
+      add_option_label(QT_TR_NOOP("Height:"), {CanvasTool::Rectangle, CanvasTool::Ellipse}));
   auto* shape_fixed_height = new QSpinBox(toolbar);
   shape_fixed_height->setObjectName(QStringLiteral("shapeFixedHeightSpin"));
   shape_fixed_height->setRange(1, 30000);
@@ -2505,7 +2571,12 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   shape_fixed_height->setSuffix(pixel_suffix());
   configure_toolbar_spinbox(shape_fixed_height, 78);
   add_option_widget(shape_fixed_height, {CanvasTool::Rectangle, CanvasTool::Ellipse});
+  vector_pixel_only_option_widgets_.push_back(shape_fixed_height);
   const auto apply_shape_style_settings = [this, shape_style_combo, shape_fixed_width, shape_fixed_height] {
+    // Normal ignores the size fields, so they grey out (Fixed Ratio reads
+    // them as the ratio, Fixed Size as the size).
+    shape_fixed_width->setEnabled(shape_style_combo->currentIndex() != 0);
+    shape_fixed_height->setEnabled(shape_style_combo->currentIndex() != 0);
     switch (shape_style_combo->currentIndex()) {
       case 1:
         current_shape_style_ = CanvasWidget::MarqueeStyle::FixedRatio;
@@ -2533,6 +2604,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   connect(shape_fixed_height, &QSpinBox::valueChanged, this, [apply_shape_style_settings](int) {
     apply_shape_style_settings();
   });
+  apply_shape_style_settings();
 
   // Fill tool / Fill hotkey settings (independent of the brush; default 100% opacity, 0 softness).
   add_option_label(QT_TR_NOOP("Opacity:"), {CanvasTool::Fill});

@@ -28,6 +28,7 @@
 #include <QPolygon>
 #include <QRect>
 #include <QRectF>
+#include <QTransform>
 #include <QRegion>
 #include <QSize>
 #include <QString>
@@ -610,6 +611,11 @@ public:
   [[nodiscard]] VectorToolMode vector_tool_mode() const noexcept;
   void set_vector_shape_drawn_callback(
       std::function<void(patchy::LiveShapeKind, QRectF, QPointF, QPointF)> callback);
+  // A bare click (no drag) with Rectangle/Ellipse/Polygon/Custom Shape in a
+  // vector mode asks the host for dimensions instead of committing a
+  // degenerate shape (Photoshop's Create <Shape> dialog; the click point is
+  // passed in document coordinates).
+  void set_shape_create_requested_callback(std::function<void(CanvasTool, QPointF)> callback);
   // Pen tool (canvas_widget_vector_tools.cpp - the tablet-input TU is
   // canvas_widget_pen.cpp): a committed path arrives as one subpath.
   void set_vector_path_committed_callback(
@@ -1499,6 +1505,16 @@ private:
   bool handle_path_transform_key(QKeyEvent* event);
   void draw_path_transform_overlay(QPainter& painter);
   void draw_path_edit_overlay(QPainter& painter);
+  // Display-only mapping for a layer whose pixels are being previewed by a
+  // Move drag or a Free Transform session: the path overlay follows the
+  // preview instead of sitting at the committed position until release.
+  // Hit-testing keeps document coordinates (the session owns the mouse).
+  [[nodiscard]] QTransform free_transform_preview_delta() const;
+  [[nodiscard]] QTransform layer_preview_transform(patchy::LayerId id) const;
+  // Document-space bounds of the overlay-drawn layer paths that currently
+  // ride a preview transform (mapped through it, padded for anchor squares);
+  // empty when nothing is previewing. Unioned into the drag repaint rects.
+  [[nodiscard]] QRectF path_overlay_preview_document_rect() const;
   [[nodiscard]] patchy::PathSubpath polygon_drag_subpath(QPointF center, QPointF radius_point) const;
   void commit_polygon_drag(QPointF center, QPointF radius_point);
   void commit_custom_shape_drag(QRectF bounds);
@@ -1805,6 +1821,7 @@ private:
   VectorToolMode vector_tool_mode_{VectorToolMode::Shape};
   std::function<void(patchy::LiveShapeKind, QRectF, QPointF, QPointF)> vector_shape_drawn_callback_;
   std::function<void(patchy::VectorPath, bool, VectorPathSource)> vector_path_committed_callback_;
+  std::function<void(CanvasTool, QPointF)> shape_create_requested_callback_;
   std::function<std::optional<ShapePreviewAppearance>()> shape_preview_appearance_callback_;
   int polygon_sides_{5};
   int polygon_star_inset_{0};

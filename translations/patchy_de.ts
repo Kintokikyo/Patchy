@@ -8174,6 +8174,46 @@ RGB: %2, %3, %4</translation>
         <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</source>
         <translation>Dieses HEIC-Bild kann nicht dekodiert werden. Die HEIC-Dekodierung benötigt die Flatpak-Codec-Erweiterung. Installieren Sie sie mit: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</translation>
     </message>
+    <message>
+        <source>Create Ellipse</source>
+        <translation>Ellipse erstellen</translation>
+    </message>
+    <message>
+        <source>Create Polygon</source>
+        <translation>Polygon erstellen</translation>
+    </message>
+    <message>
+        <source>Create Custom Shape</source>
+        <translation>Eigene Form erstellen</translation>
+    </message>
+    <message>
+        <source>Create Rectangle</source>
+        <translation>Rechteck erstellen</translation>
+    </message>
+    <message>
+        <source>From Center</source>
+        <translation>Von der Mitte</translation>
+    </message>
+    <message>
+        <source>Corner Radii</source>
+        <translation>Eckenradien</translation>
+    </message>
+    <message>
+        <source>Top left:</source>
+        <translation>Oben links:</translation>
+    </message>
+    <message>
+        <source>Top right:</source>
+        <translation>Oben rechts:</translation>
+    </message>
+    <message>
+        <source>Bottom right:</source>
+        <translation>Unten rechts:</translation>
+    </message>
+    <message>
+        <source>Bottom left:</source>
+        <translation>Unten links:</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -16650,6 +16690,26 @@ Y: %2
     <message>
         <source>Line spacing (Photoshop leading). Entering a value turns Auto leading off.</source>
         <translation>Zeilenabstand (Photoshop-Zeilenabstand). Ein eingegebener Wert schaltet den automatischen Zeilenabstand aus.</translation>
+    </message>
+    <message>
+        <source>Width of the active shape</source>
+        <translation>Breite der aktiven Form</translation>
+    </message>
+    <message>
+        <source>Keep the shape&apos;s width and height in proportion</source>
+        <translation>Breite und Höhe der Form proportional halten</translation>
+    </message>
+    <message>
+        <source>Height of the active shape</source>
+        <translation>Höhe der aktiven Form</translation>
+    </message>
+    <message>
+        <source>Pick a custom shape first</source>
+        <translation>Wählen Sie zuerst eine eigene Form</translation>
+    </message>
+    <message>
+        <source>Shape size</source>
+        <translation>Formgröße</translation>
     </message>
 </context>
 <context>

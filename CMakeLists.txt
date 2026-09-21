@@ -1021,6 +1021,8 @@ ${PATCHY_LUPDATE_MANIFEST_SOURCES}
       src/ui/default_custom_shapes.cpp
       src/ui/shape_appearance_dialog.hpp
       src/ui/shape_appearance_dialog.cpp
+      src/ui/shape_create_dialog.hpp
+      src/ui/shape_create_dialog.cpp
       src/ui/measurement_units.hpp
       src/ui/measurement_units.cpp
       src/ui/new_document_dialog.hpp

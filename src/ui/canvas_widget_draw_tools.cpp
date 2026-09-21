@@ -147,6 +147,11 @@ void CanvasWidget::set_vector_shape_drawn_callback(
   vector_shape_drawn_callback_ = std::move(callback);
 }
 
+void CanvasWidget::set_shape_create_requested_callback(
+    std::function<void(CanvasTool, QPointF)> callback) {
+  shape_create_requested_callback_ = std::move(callback);
+}
+
 void CanvasWidget::set_fill_opacity(int opacity) noexcept {
   fill_opacity_ = std::clamp(opacity, 1, 100);
 }

@@ -1974,6 +1974,10 @@ QRect CanvasWidget::transform_preview_document_rect() const {
                                             transform_scale_x_sign_, transform_scale_y_sign_);
     rect = rect.united(delta.mapRect(QRectF(transform_multi_snapshot_rect_)).toAlignedRect().adjusted(-1, -1, 1, 1));
   }
+  // The path overlay of a transformed shape layer rides the same delta.
+  if (const auto overlay = path_overlay_preview_document_rect(); !overlay.isEmpty()) {
+    rect = rect.united(overlay.toAlignedRect());
+  }
   return rect;
 }
 
@@ -2040,6 +2044,14 @@ void CanvasWidget::refresh_free_transform_preview_caches() {
 
 bool CanvasWidget::free_transform_active() const noexcept {
   return transforming_layer_;
+}
+
+QTransform CanvasWidget::free_transform_preview_delta() const {
+  if (!transforming_layer_) {
+    return {};
+  }
+  return free_transform_delta(transform_original_rect_, transform_current_rect_, transform_angle_,
+                              transform_scale_x_sign_, transform_scale_y_sign_);
 }
 
 void CanvasWidget::set_transform_interpolation(TransformInterpolation interpolation) noexcept {

@@ -8151,6 +8151,46 @@ RGB：%2, %3, %4</translation>
         <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</source>
         <translation>無法解碼此 HEIC 影像。HEIC 解碼需要 Flatpak 編解碼器擴充功能；請以下列指令安裝：flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</translation>
     </message>
+    <message>
+        <source>Create Ellipse</source>
+        <translation>建立橢圓</translation>
+    </message>
+    <message>
+        <source>Create Polygon</source>
+        <translation>建立多邊形</translation>
+    </message>
+    <message>
+        <source>Create Custom Shape</source>
+        <translation>建立自訂形狀</translation>
+    </message>
+    <message>
+        <source>Create Rectangle</source>
+        <translation>建立矩形</translation>
+    </message>
+    <message>
+        <source>From Center</source>
+        <translation>從中心</translation>
+    </message>
+    <message>
+        <source>Corner Radii</source>
+        <translation>圓角半徑</translation>
+    </message>
+    <message>
+        <source>Top left:</source>
+        <translation>左上:</translation>
+    </message>
+    <message>
+        <source>Top right:</source>
+        <translation>右上:</translation>
+    </message>
+    <message>
+        <source>Bottom right:</source>
+        <translation>右下:</translation>
+    </message>
+    <message>
+        <source>Bottom left:</source>
+        <translation>左下:</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -16612,6 +16652,26 @@ Y：%2
     <message>
         <source>Line spacing (Photoshop leading). Entering a value turns Auto leading off.</source>
         <translation>行距（Photoshop 行距）。輸入數值會關閉自動行距。</translation>
+    </message>
+    <message>
+        <source>Width of the active shape</source>
+        <translation>目前形狀的寬度</translation>
+    </message>
+    <message>
+        <source>Keep the shape&apos;s width and height in proportion</source>
+        <translation>保持形狀的寬高比例</translation>
+    </message>
+    <message>
+        <source>Height of the active shape</source>
+        <translation>目前形狀的高度</translation>
+    </message>
+    <message>
+        <source>Pick a custom shape first</source>
+        <translation>請先選擇一個自訂形狀</translation>
+    </message>
+    <message>
+        <source>Shape size</source>
+        <translation>形狀大小</translation>
     </message>
 </context>
 <context>

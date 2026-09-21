@@ -8165,6 +8165,46 @@ RGB: %2, %3, %4</source>
         <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Create Ellipse</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Create Polygon</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Create Custom Shape</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Create Rectangle</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>From Center</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Corner Radii</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Top left:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Top right:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bottom right:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bottom left:</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -16607,6 +16647,26 @@ Y: %2
     </message>
     <message>
         <source>Line spacing (Photoshop leading). Entering a value turns Auto leading off.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Width of the active shape</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Keep the shape&apos;s width and height in proportion</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Height of the active shape</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pick a custom shape first</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shape size</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

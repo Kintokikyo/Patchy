@@ -812,6 +812,73 @@ QPointF CanvasWidget::path_point_to_screen(double x, double y) const {
   return QPointF(origin.x() + x * zoom_, origin.y() + y * zoom_);
 }
 
+QTransform CanvasWidget::layer_preview_transform(LayerId id) const {
+  if (moving_layer_ && !move_preview_delta_.isNull()) {
+    for (const auto& moving : moving_layers_) {
+      if (moving.id == id) {
+        return QTransform::fromTranslate(move_preview_delta_.x(), move_preview_delta_.y());
+      }
+    }
+  }
+  if (transforming_layer_) {
+    if (transform_layer_id_.has_value() && *transform_layer_id_ == id) {
+      return free_transform_preview_delta();
+    }
+    for (const auto& target : transform_targets_) {
+      if (target.id == id) {
+        return free_transform_preview_delta();
+      }
+    }
+  }
+  return {};
+}
+
+QRectF CanvasWidget::path_overlay_preview_document_rect() const {
+  if ((!moving_layer_ && !transforming_layer_) || path_transform_active_ ||
+      !target_path_visible_ || !selection_edges_visible_ || pen_session_active_ ||
+      document_ == nullptr) {
+    return {};
+  }
+  const bool editing = path_edit_tool_active();
+  if (!editing && !panel_path_targeted_) {
+    return {};
+  }
+  QRectF dirty;
+  const auto add_layer = [this, &dirty](const Layer& layer, const VectorPath& path) {
+    const auto transform = layer_preview_transform(layer.id());
+    if (transform.isIdentity()) {
+      return;
+    }
+    const auto bounds = path.bounds();
+    if (!bounds.has_value()) {
+      return;
+    }
+    const QRectF rect(QPointF(bounds->left, bounds->top), QPointF(bounds->right, bounds->bottom));
+    // Anchor squares and handle knobs extend a few widget pixels past the path.
+    const auto pad = 4.0 / std::max(zoom_, 1e-6);
+    dirty = dirty.united(rect.adjusted(-pad, -pad, pad, pad))
+                .united(transform.mapRect(rect).adjusted(-pad, -pad, pad, pad));
+  };
+  if (layer_edit_target_ == LayerEditTarget::VectorMask) {
+    if (const auto* layer = vector_mask_target_layer(); layer != nullptr) {
+      add_layer(*layer, layer->vector_mask()->path);
+    }
+  } else if (!active_document_path_.has_value()) {
+    if (const auto* layer = path_edit_target_layer(); layer != nullptr) {
+      add_layer(*layer, layer->vector_shape()->path);
+    }
+  }
+  if (editing) {
+    for (const auto id : panel_selected_layer_ids_) {
+      const auto* layer = std::as_const(*document_).find_layer(id);
+      if (layer != nullptr && layer->vector_shape() != nullptr) {
+        add_layer(*layer, layer->vector_shape()->path);
+      }
+    }
+  }
+  return dirty;
+}
+
 std::pair<int, int> CanvasWidget::path_anchor_at(QPointF widget_point) const {
   const auto* path = path_edit_target_path();
   if (path == nullptr) {
@@ -1899,27 +1966,44 @@ void CanvasWidget::draw_path_edit_overlay(QPainter& painter) {
   painter.setRenderHint(QPainter::Antialiasing, true);
   const QColor accent(116, 192, 255);
 
-  const auto build_outline = [this](const VectorPath& source) {
+  // A layer-owned target path rides its layer's Move/Free Transform preview
+  // (display only); document paths (work path, saved rows) stay put.
+  QTransform target_transform;
+  if (layer_edit_target_ == LayerEditTarget::VectorMask) {
+    if (const auto* layer = vector_mask_target_layer(); layer != nullptr) {
+      target_transform = layer_preview_transform(layer->id());
+    }
+  } else if (!active_document_path_.has_value()) {
+    if (const auto* layer = path_edit_target_layer();
+        layer != nullptr && &layer->vector_shape()->path == path) {
+      target_transform = layer_preview_transform(layer->id());
+    }
+  }
+  const auto to_screen = [this](const QTransform& transform, double x, double y) {
+    const auto mapped = transform.map(QPointF(x, y));
+    return path_point_to_screen(mapped.x(), mapped.y());
+  };
+  const auto build_outline = [&to_screen](const VectorPath& source, const QTransform& transform) {
     QPainterPath outline;
     for (const auto& subpath : source.subpaths) {
       if (subpath.anchors.empty()) {
         continue;
       }
-      outline.moveTo(path_point_to_screen(subpath.anchors[0].anchor_x, subpath.anchors[0].anchor_y));
+      outline.moveTo(to_screen(transform, subpath.anchors[0].anchor_x, subpath.anchors[0].anchor_y));
       const auto anchor_count = subpath.anchors.size();
       const auto segment_count = subpath.closed ? anchor_count : anchor_count - 1;
       for (std::size_t i = 0; i < segment_count; ++i) {
         const auto& a = subpath.anchors[i];
         const auto& b = subpath.anchors[(i + 1) % anchor_count];
-        outline.cubicTo(path_point_to_screen(a.out_x, a.out_y), path_point_to_screen(b.in_x, b.in_y),
-                        path_point_to_screen(b.anchor_x, b.anchor_y));
+        outline.cubicTo(to_screen(transform, a.out_x, a.out_y), to_screen(transform, b.in_x, b.in_y),
+                        to_screen(transform, b.anchor_x, b.anchor_y));
       }
     }
     return outline;
   };
   painter.setPen(QPen(accent, 1.2));
   painter.setBrush(Qt::NoBrush);
-  painter.drawPath(build_outline(*path));
+  painter.drawPath(build_outline(*path, target_transform));
 
   if (!editing) {
     painter.restore();
@@ -1939,15 +2023,16 @@ void CanvasWidget::draw_path_edit_overlay(QPainter& painter) {
       if (&extra == path || extra.subpaths.empty()) {
         continue;  // the editing target already drew
       }
+      const auto extra_transform = layer_preview_transform(id);
       painter.setPen(QPen(accent, 1.2));
       painter.setBrush(Qt::NoBrush);
-      painter.drawPath(build_outline(extra));
+      painter.drawPath(build_outline(extra, extra_transform));
       const auto selected_it = extra_selected_anchors_.find(id);
       for (int s = 0; s < static_cast<int>(extra.subpaths.size()); ++s) {
         const auto& subpath = extra.subpaths[static_cast<std::size_t>(s)];
         for (int a = 0; a < static_cast<int>(subpath.anchors.size()); ++a) {
           const auto& anchor = subpath.anchors[static_cast<std::size_t>(a)];
-          const auto center = path_point_to_screen(anchor.anchor_x, anchor.anchor_y);
+          const auto center = to_screen(extra_transform, anchor.anchor_x, anchor.anchor_y);
           const bool selected = selected_it != extra_selected_anchors_.end() &&
                                 selected_it->second.contains({s, a});
           painter.setPen(QPen(selected ? accent : QColor(30, 34, 40), 1.0));
@@ -1967,9 +2052,9 @@ void CanvasWidget::draw_path_edit_overlay(QPainter& painter) {
       continue;
     }
     const auto& anchor = path->subpaths[s].anchors[a];
-    const auto center = path_point_to_screen(anchor.anchor_x, anchor.anchor_y);
-    const auto in_screen = path_point_to_screen(anchor.in_x, anchor.in_y);
-    const auto out_screen = path_point_to_screen(anchor.out_x, anchor.out_y);
+    const auto center = to_screen(target_transform, anchor.anchor_x, anchor.anchor_y);
+    const auto in_screen = to_screen(target_transform, anchor.in_x, anchor.in_y);
+    const auto out_screen = to_screen(target_transform, anchor.out_x, anchor.out_y);
     painter.drawLine(in_screen, center);
     painter.drawLine(center, out_screen);
     painter.setBrush(accent);
@@ -1982,8 +2067,8 @@ void CanvasWidget::draw_path_edit_overlay(QPainter& painter) {
   for (int s = 0; s < static_cast<int>(path->subpaths.size()); ++s) {
     const auto& subpath = path->subpaths[static_cast<std::size_t>(s)];
     for (int a = 0; a < static_cast<int>(subpath.anchors.size()); ++a) {
-      const auto center = path_point_to_screen(subpath.anchors[static_cast<std::size_t>(a)].anchor_x,
-                                               subpath.anchors[static_cast<std::size_t>(a)].anchor_y);
+      const auto center = to_screen(target_transform, subpath.anchors[static_cast<std::size_t>(a)].anchor_x,
+                                    subpath.anchors[static_cast<std::size_t>(a)].anchor_y);
       const bool selected = path_selected_anchors_.contains({s, a});
       painter.setPen(QPen(selected ? accent : QColor(30, 34, 40), 1.0));
       painter.setBrush(selected ? QBrush(accent) : QBrush(Qt::white));

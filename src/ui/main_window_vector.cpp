@@ -14,6 +14,7 @@
 #include "core/layer_render_utils.hpp"
 #include "core/layer_tree.hpp"
 #include "core/pattern_resource.hpp"
+#include "core/pixel_tools.hpp"
 #include "core/vector_live_shapes.hpp"
 #include "core/vector_raster.hpp"
 #include "core/vector_shape.hpp"
@@ -33,6 +34,7 @@
 #include "ui/photo_pattern_presets.hpp"
 #include "ui/qt_geometry.hpp"
 #include "ui/shape_appearance_dialog.hpp"
+#include "ui/shape_create_dialog.hpp"
 #include "ui/localization.hpp"
 #include "ui/measurement_units.hpp"
 
@@ -43,6 +45,7 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDoubleSpinBox>
+#include <QPushButton>
 #include <QElapsedTimer>
 #include <QEventLoop>
 #include <QFile>
@@ -179,6 +182,11 @@ void MainWindow::handle_vector_shape_drawn(LiveShapeKind kind, QRectF bounds, QP
       params.corner_radii = {radius, radius, radius, radius};
     }
   }
+  commit_live_shape(std::move(params));
+}
+
+void MainWindow::commit_live_shape(LiveShapeParams params) {
+  const auto kind = params.kind;
   populate_live_shape_box_corners(params);
   if (kind == LiveShapeKind::Line) {
     // The line's bbox is the generated quad's hull (the drag endpoints sit on
@@ -205,6 +213,74 @@ void MainWindow::handle_vector_shape_drawn(LiveShapeKind kind, QRectF bounds, QP
   } else {
     create_shape_layer_from_drag(params);
   }
+}
+
+void MainWindow::handle_shape_create_requested(CanvasTool tool, QPointF document_point) {
+  if (!has_active_document() || canvas_ == nullptr) {
+    return;
+  }
+  auto& memory = shape_create_memory_[static_cast<int>(tool)];
+  ShapeCreateRequest request;
+  request.tool = tool;
+  request.width = memory.width;
+  request.height = memory.height;
+  request.from_center = memory.from_center;
+  const auto radius = static_cast<double>(std::max(0, current_shape_corner_radius_));
+  request.corner_radii = {radius, radius, radius, radius};
+  const auto result = request_shape_create_settings(this, request);
+  if (!result.has_value() || !has_active_document() || canvas_ == nullptr) {
+    return;
+  }
+  memory.width = result->width;
+  memory.height = result->height;
+  memory.from_center = result->from_center;
+  // Photoshop's placement: the click is the top-left corner, or the center.
+  const QPointF top_left =
+      result->from_center
+          ? document_point - QPointF(result->width / 2.0, result->height / 2.0)
+          : document_point;
+  const QRectF bounds(top_left, QSizeF(result->width, result->height));
+  if (tool == CanvasTool::Rectangle || tool == CanvasTool::Ellipse) {
+    LiveShapeParams params;
+    params.kind = tool == CanvasTool::Rectangle ? LiveShapeKind::Rectangle : LiveShapeKind::Ellipse;
+    params.resolution = document().print_settings().horizontal_ppi;
+    params.left = bounds.left();
+    params.top = bounds.top();
+    params.right = bounds.right();
+    params.bottom = bounds.bottom();
+    if (tool == CanvasTool::Rectangle &&
+        std::any_of(result->corner_radii.begin(), result->corner_radii.end(),
+                    [](double value) { return value > 0.0; })) {
+      params.kind = LiveShapeKind::RoundedRectangle;
+      params.corner_radii = result->corner_radii;
+    }
+    commit_live_shape(std::move(params));
+    return;
+  }
+  VectorPath path;
+  if (tool == CanvasTool::Polygon) {
+    // Unit polygon (first vertex pointing up) scaled into the box, so W and H
+    // may differ, like Photoshop's Create Polygon dialog.
+    auto subpath = generate_polygon_subpath(0.0, 0.0, 1.0, -std::acos(-1.0) / 2.0,
+                                            canvas_->polygon_sides(),
+                                            canvas_->polygon_star_inset());
+    if (subpath.anchors.empty()) {
+      return;
+    }
+    path.subpaths.push_back(std::move(subpath));
+    transform_vector_path(path, {bounds.width() / 2.0, 0.0, 0.0, bounds.height() / 2.0,
+                                 bounds.center().x(), bounds.center().y()});
+    handle_vector_path_committed(std::move(path), true, VectorPathSource::Polygon);
+    return;
+  }
+  const auto* custom = canvas_->custom_shape_path();
+  if (custom == nullptr || custom->empty()) {
+    show_status_error(tr("Pick a custom shape first"));
+    return;
+  }
+  path = *custom;
+  transform_vector_path(path, {bounds.width(), 0.0, 0.0, bounds.height(), bounds.x(), bounds.y()});
+  handle_vector_path_committed(std::move(path), true, VectorPathSource::CustomShape);
 }
 
 void MainWindow::create_shape_layer_from_drag(const LiveShapeParams& params) {
@@ -451,19 +527,17 @@ void MainWindow::refresh_vector_tool_options_visibility() {
                           current_tool_ == CanvasTool::CustomShape;
   const bool select_tool = current_tool_ == CanvasTool::PathSelect ||
                            current_tool_ == CanvasTool::DirectSelect;
+  // Visibility itself is decided per widget in refresh_options_bar through
+  // vector_option_widget_visible (one final setVisible per widget); this pass
+  // only syncs control state.
   if (select_tool) {
     // The appearance controls live-edit the selected shape layer; they only
     // show while one is editable (the Combine combo keeps its per-tool
     // visibility for plain path selections).
-    const bool live = editable_active_vector_shape_layer() != nullptr;
-    for (auto* widget : vector_shape_mode_option_widgets_) {
-      if (widget != nullptr) {
-        widget->setVisible(live);
-      }
-    }
-    if (live) {
+    if (editable_active_vector_shape_layer() != nullptr) {
       sync_shape_appearance_options_from_active_layer();
     }
+    sync_vector_shape_size_spins();
     update_vector_swatch_icons();
     return;
   }
@@ -494,28 +568,13 @@ void MainWindow::refresh_vector_tool_options_visibility() {
       vector_mode_combo_->setCurrentIndex(display_index);
     }
   }
-  const bool vector_mode = effective_mode != VectorToolMode::Pixels;
   const bool shape_mode = effective_mode == VectorToolMode::Shape;
-  for (auto* widget : vector_pixel_only_option_widgets_) {
-    if (widget != nullptr && vector_mode) {
-      widget->setVisible(false);
-    }
-  }
-  for (auto* widget : vector_shape_mode_option_widgets_) {
-    if (widget != nullptr && !shape_mode) {
-      widget->setVisible(false);
-    }
-  }
-  for (auto* widget : vector_vector_mode_option_widgets_) {
-    if (widget != nullptr && !vector_mode) {
-      widget->setVisible(false);
-    }
-  }
   if (shape_mode) {
     // Photoshop-style: with a shape layer selected the bar reflects (and
     // edits) that layer, and its appearance sticks as the next-shape default.
     sync_shape_appearance_options_from_active_layer();
   }
+  sync_vector_shape_size_spins();
   update_vector_swatch_icons();
 }
 
@@ -1546,6 +1605,158 @@ void MainWindow::schedule_vector_appearance_apply() {
             [this] { apply_options_bar_appearance_to_active_shape(); });
   }
   vector_appearance_apply_timer_->start();
+}
+
+MainWindow::VectorOptionModeRules MainWindow::vector_option_mode_rules() {
+  VectorOptionModeRules rules;
+  const bool shape_tool = current_tool_ == CanvasTool::Line ||
+                          current_tool_ == CanvasTool::Rectangle ||
+                          current_tool_ == CanvasTool::Ellipse ||
+                          current_tool_ == CanvasTool::Pen ||
+                          current_tool_ == CanvasTool::Polygon ||
+                          current_tool_ == CanvasTool::CustomShape;
+  rules.select_tool = current_tool_ == CanvasTool::PathSelect ||
+                      current_tool_ == CanvasTool::DirectSelect;
+  rules.refine = shape_tool || rules.select_tool;
+  if (rules.select_tool) {
+    rules.live_shape = editable_active_vector_shape_layer() != nullptr;
+    return rules;
+  }
+  // Pen/Polygon/Custom Shape never rasterize: a persisted Pixels mode behaves
+  // as Path for them (refresh_vector_tool_options_visibility shows the
+  // effective mode without rewriting the setting).
+  const bool vector_only_tool = current_tool_ == CanvasTool::Pen ||
+                                current_tool_ == CanvasTool::Polygon ||
+                                current_tool_ == CanvasTool::CustomShape;
+  const auto effective_mode =
+      vector_only_tool && current_vector_tool_mode_ == VectorToolMode::Pixels
+          ? VectorToolMode::Path
+          : current_vector_tool_mode_;
+  rules.vector_mode = effective_mode != VectorToolMode::Pixels;
+  rules.shape_mode = effective_mode == VectorToolMode::Shape;
+  return rules;
+}
+
+bool MainWindow::vector_option_widget_visible(const VectorOptionModeRules& rules,
+                                              QWidget* widget) const {
+  if (!rules.refine || widget == nullptr) {
+    return true;
+  }
+  const auto in = [widget](const std::vector<QWidget*>& widgets) {
+    return std::find(widgets.begin(), widgets.end(), widget) != widgets.end();
+  };
+  if (rules.select_tool) {
+    // Appearance controls only while an editable shape layer is active; the
+    // Combine combo keeps its per-tool visibility for plain path selections.
+    return !in(vector_shape_mode_option_widgets_) || rules.live_shape;
+  }
+  if (in(vector_pixel_only_option_widgets_) && rules.vector_mode) {
+    return false;
+  }
+  if (in(vector_shape_mode_option_widgets_) && !rules.shape_mode) {
+    return false;
+  }
+  if (in(vector_vector_mode_option_widgets_) && !rules.vector_mode) {
+    return false;
+  }
+  return true;
+}
+
+void MainWindow::sync_vector_shape_size_spins() {
+  if (vector_shape_width_spin_ == nullptr || vector_shape_height_spin_ == nullptr) {
+    return;
+  }
+  // A pending debounced edit outranks a passive sync (see the appearance sync).
+  if (vector_shape_size_apply_timer_ != nullptr && vector_shape_size_apply_timer_->isActive()) {
+    return;
+  }
+  std::optional<VectorPathBounds> bounds;
+  if (vector_appearance_controls_live()) {
+    if (const auto* layer = editable_active_vector_shape_layer(); layer != nullptr) {
+      if (const auto* content = std::as_const(*layer).vector_shape(); content != nullptr) {
+        bounds = content->path.bounds();
+      }
+    }
+  }
+  const bool live = bounds.has_value();
+  const double width = live ? bounds->right - bounds->left : 0.0;
+  const double height = live ? bounds->bottom - bounds->top : 0.0;
+  for (auto* spin : {vector_shape_width_spin_, vector_shape_height_spin_}) {
+    QSignalBlocker blocker(spin);
+    spin->setValue(spin == vector_shape_width_spin_ ? width : height);
+    spin->setEnabled(live);
+  }
+  if (vector_shape_link_size_button_ != nullptr) {
+    vector_shape_link_size_button_->setEnabled(live);
+  }
+  vector_shape_size_ratio_ = live && height > 1e-9 ? width / height : 1.0;
+}
+
+bool MainWindow::apply_options_bar_size_to_active_shape() {
+  if (canvas_ == nullptr || vector_shape_width_spin_ == nullptr ||
+      vector_shape_height_spin_ == nullptr || !vector_appearance_controls_live()) {
+    return false;
+  }
+  auto* layer = editable_active_vector_shape_layer();
+  if (layer == nullptr) {
+    return false;
+  }
+  const auto* content = std::as_const(*layer).vector_shape();
+  if (content == nullptr) {
+    return false;
+  }
+  const auto bounds = content->path.bounds();
+  if (!bounds.has_value()) {
+    return false;
+  }
+  const double old_width = bounds->right - bounds->left;
+  const double old_height = bounds->bottom - bounds->top;
+  const double new_width = vector_shape_width_spin_->value();
+  const double new_height = vector_shape_height_spin_->value();
+  if (old_width < 1e-6 || old_height < 1e-6 || new_width < 0.5 || new_height < 0.5) {
+    sync_vector_shape_size_spins();  // nothing sensible to scale to; show the truth
+    return false;
+  }
+  if (std::abs(new_width - old_width) < 0.05 && std::abs(new_height - old_height) < 0.05) {
+    return false;  // no-op; also keeps stale debounced applies harmless
+  }
+  const double scale_x = new_width / old_width;
+  const double scale_y = new_height / old_height;
+  // Top-left anchored axis-aligned scale: transform_layer_vector_data keeps
+  // live-shape annotations for exactly this matrix family.
+  const std::array<double, 6> matrix{scale_x, 0.0, 0.0, scale_y,
+                                     bounds->left - bounds->left * scale_x,
+                                     bounds->top - bounds->top * scale_y};
+  const auto layer_id = layer->id();
+  auto& doc = document();
+  push_undo_snapshot(tr("Shape size"));
+  auto* target = doc.find_layer(layer_id);
+  if (target == nullptr) {
+    return false;
+  }
+  const auto old_effect_rect =
+      to_qrect(layer_bounds_with_effects(std::as_const(*target), std::as_const(*target).bounds()));
+  transform_layer_vector_data(doc, *target, matrix, Rect::from_size(doc.width(), doc.height()));
+  canvas_->document_changed_effect_bounds(old_effect_rect.united(
+      to_qrect(layer_bounds_with_effects(std::as_const(*target), std::as_const(*target).bounds()))));
+  refresh_layer_thumbnails();
+  refresh_paths_panel();
+  sync_vector_shape_size_spins();
+  return true;
+}
+
+void MainWindow::schedule_vector_shape_size_apply() {
+  if (!vector_appearance_controls_live() || editable_active_vector_shape_layer() == nullptr) {
+    return;
+  }
+  if (vector_shape_size_apply_timer_ == nullptr) {
+    vector_shape_size_apply_timer_ = new QTimer(this);
+    vector_shape_size_apply_timer_->setSingleShot(true);
+    vector_shape_size_apply_timer_->setInterval(250);
+    connect(vector_shape_size_apply_timer_, &QTimer::timeout, this,
+            [this] { apply_options_bar_size_to_active_shape(); });
+  }
+  vector_shape_size_apply_timer_->start();
 }
 
 void MainWindow::show_vector_paint_menu(bool for_stroke) {

@@ -8151,6 +8151,46 @@ Mixed selection</source>
         <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</source>
         <translation>この HEIC 画像をデコードできません。HEIC のデコードには Flatpak のコーデック拡張が必要です。次のコマンドでインストールしてください: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</translation>
     </message>
+    <message>
+        <source>Create Ellipse</source>
+        <translation>楕円を作成</translation>
+    </message>
+    <message>
+        <source>Create Polygon</source>
+        <translation>多角形を作成</translation>
+    </message>
+    <message>
+        <source>Create Custom Shape</source>
+        <translation>カスタムシェイプを作成</translation>
+    </message>
+    <message>
+        <source>Create Rectangle</source>
+        <translation>長方形を作成</translation>
+    </message>
+    <message>
+        <source>From Center</source>
+        <translation>中心から</translation>
+    </message>
+    <message>
+        <source>Corner Radii</source>
+        <translation>角の半径</translation>
+    </message>
+    <message>
+        <source>Top left:</source>
+        <translation>左上:</translation>
+    </message>
+    <message>
+        <source>Top right:</source>
+        <translation>右上:</translation>
+    </message>
+    <message>
+        <source>Bottom right:</source>
+        <translation>右下:</translation>
+    </message>
+    <message>
+        <source>Bottom left:</source>
+        <translation>左下:</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -16612,6 +16652,26 @@ Clipped to the layer below</source>
     <message>
         <source>Line spacing (Photoshop leading). Entering a value turns Auto leading off.</source>
         <translation>行送り（Photoshop の行送り）。値を入力すると自動行送りがオフになります。</translation>
+    </message>
+    <message>
+        <source>Width of the active shape</source>
+        <translation>アクティブなシェイプの幅</translation>
+    </message>
+    <message>
+        <source>Keep the shape&apos;s width and height in proportion</source>
+        <translation>シェイプの幅と高さの比率を保つ</translation>
+    </message>
+    <message>
+        <source>Height of the active shape</source>
+        <translation>アクティブなシェイプの高さ</translation>
+    </message>
+    <message>
+        <source>Pick a custom shape first</source>
+        <translation>先にカスタムシェイプを選んでください</translation>
+    </message>
+    <message>
+        <source>Shape size</source>
+        <translation>シェイプのサイズ</translation>
     </message>
 </context>
 <context>

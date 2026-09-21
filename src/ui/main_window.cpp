@@ -7464,6 +7464,12 @@ void MainWindow::configure_canvas(CanvasWidget* canvas) {
         }
         handle_vector_shape_drawn(kind, bounds, line_start, line_end);
       });
+  canvas->set_shape_create_requested_callback([this, canvas](CanvasTool tool, QPointF document_point) {
+    if (canvas != canvas_) {
+      return;
+    }
+    handle_shape_create_requested(tool, document_point);
+  });
   canvas->set_vector_path_committed_callback(
       [this, canvas](patchy::VectorPath path, bool closed, VectorPathSource source) {
         if (canvas != canvas_) {

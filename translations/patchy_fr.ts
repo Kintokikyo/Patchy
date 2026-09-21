@@ -8174,6 +8174,46 @@ RVB : %2, %3, %4</translation>
         <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</source>
         <translation>Impossible de décoder cette image HEIC. Le décodage HEIC nécessite l&apos;extension de codecs Flatpak ; installez-la avec : flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</translation>
     </message>
+    <message>
+        <source>Create Ellipse</source>
+        <translation>Créer une ellipse</translation>
+    </message>
+    <message>
+        <source>Create Polygon</source>
+        <translation>Créer un polygone</translation>
+    </message>
+    <message>
+        <source>Create Custom Shape</source>
+        <translation>Créer une forme personnalisée</translation>
+    </message>
+    <message>
+        <source>Create Rectangle</source>
+        <translation>Créer un rectangle</translation>
+    </message>
+    <message>
+        <source>From Center</source>
+        <translation>Depuis le centre</translation>
+    </message>
+    <message>
+        <source>Corner Radii</source>
+        <translation>Rayons des angles</translation>
+    </message>
+    <message>
+        <source>Top left:</source>
+        <translation>Haut gauche :</translation>
+    </message>
+    <message>
+        <source>Top right:</source>
+        <translation>Haut droit :</translation>
+    </message>
+    <message>
+        <source>Bottom right:</source>
+        <translation>Bas droit :</translation>
+    </message>
+    <message>
+        <source>Bottom left:</source>
+        <translation>Bas gauche :</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -16650,6 +16690,26 @@ Y : %2
     <message>
         <source>Line spacing (Photoshop leading). Entering a value turns Auto leading off.</source>
         <translation>Interligne (leading de Photoshop). Saisir une valeur désactive l&apos;interligne automatique.</translation>
+    </message>
+    <message>
+        <source>Width of the active shape</source>
+        <translation>Largeur de la forme active</translation>
+    </message>
+    <message>
+        <source>Keep the shape&apos;s width and height in proportion</source>
+        <translation>Conserver les proportions entre largeur et hauteur de la forme</translation>
+    </message>
+    <message>
+        <source>Height of the active shape</source>
+        <translation>Hauteur de la forme active</translation>
+    </message>
+    <message>
+        <source>Pick a custom shape first</source>
+        <translation>Choisissez d&apos;abord une forme personnalisée</translation>
+    </message>
+    <message>
+        <source>Shape size</source>
+        <translation>Taille de la forme</translation>
     </message>
 </context>
 <context>

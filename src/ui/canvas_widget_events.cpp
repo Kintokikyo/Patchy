@@ -1479,11 +1479,20 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
     }
     clear_move_hover_outline();
     const auto old_delta = move_preview_delta_;
+    const auto overlay_before = path_overlay_preview_document_rect();
     const auto constrained_delta = axis_constrained_move_delta(document_point - move_start_, event->modifiers());
     move_preview_delta_ = axis_constrained_move_delta(snapped_move_delta(constrained_delta), event->modifiers());
     if (move_preview_delta_ == old_delta || document_ == nullptr || moving_layers_.empty()) {
       last_mouse_position_ = event->pos();
       return;
+    }
+    // The path overlay of a moving shape layer follows the drag; its old and
+    // new extents join whichever bounded repaint the branches below choose.
+    if (const auto overlay_after = path_overlay_preview_document_rect();
+        !overlay_before.isEmpty() || !overlay_after.isEmpty()) {
+      update(widget_rect_for_document_rect(overlay_before.united(overlay_after))
+                 .toAlignedRect()
+                 .adjusted(-2, -2, 2, 2));
     }
     // Cold preparation on large documents must not occupy the input handler.
     // Keep a moving outline until the snapshot worker supplies the base/proxy.
@@ -2512,6 +2521,22 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
       shape_from = rect.topLeft();
       shape_end = rect.bottomRight();
     }
+    // A bare click (no drag) in a vector mode asks the host for dimensions
+    // (Photoshop's Create <Shape> dialog) instead of committing a degenerate
+    // shape. Line has no such dialog in Photoshop, and a Fixed Size click
+    // already places the exact W x H shape, so both keep the drag commit.
+    // Both endpoints snap identically for a click, so the document extent
+    // scaled to widget pixels is the click test, not the raw event delta.
+    const auto click_extent =
+        static_cast<double>(std::max(std::abs(shape_current_.x() - shape_start_.x()),
+                                     std::abs(shape_current_.y() - shape_start_.y()))) *
+        zoom_;
+    const bool tap_requests_dimensions =
+        shape_create_requested_callback_ &&
+        click_extent < static_cast<double>(QApplication::startDragDistance()) &&
+        (tool_ == CanvasTool::Polygon || tool_ == CanvasTool::CustomShape ||
+         ((tool_ == CanvasTool::Rectangle || tool_ == CanvasTool::Ellipse) &&
+          shape_style_ != MarqueeStyle::FixedSize));
     // Polygon and Custom Shape commit canvas-side (they carry their own
     // geometry options) through the committed-path callback.
     if ((tool_ == CanvasTool::Polygon || tool_ == CanvasTool::CustomShape) && !quick_mask_active_ &&
@@ -2521,6 +2546,10 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
       drawing_shape_ = false;
       clear_brush_stroke_tracking();
       update();
+      if (tap_requests_dimensions) {
+        shape_create_requested_callback_(tool_, QPointF(shape_start_));
+        return;
+      }
       if (tool_ == CanvasTool::Polygon) {
         commit_polygon_drag(QPointF(shape_start_), QPointF(shape_current_));
       } else {
@@ -2542,6 +2571,10 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
       drawing_shape_ = false;
       clear_brush_stroke_tracking();
       update();
+      if (tap_requests_dimensions) {
+        shape_create_requested_callback_(tool_, QPointF(shape_start_));
+        return;
+      }
       const auto kind = tool_ == CanvasTool::Line        ? patchy::LiveShapeKind::Line
                         : tool_ == CanvasTool::Rectangle ? patchy::LiveShapeKind::Rectangle
                                                          : patchy::LiveShapeKind::Ellipse;

@@ -2376,20 +2376,49 @@ void MainWindow::refresh_options_bar() {
   const bool free_transform_session = edit_allowed && transform_state.has_value() && transform_state->active;
   const bool warp_session = edit_allowed && canvas_ != nullptr && canvas_->warp_transform_active();
   const bool transform_session_active = free_transform_session || warp_session;
-  for (const auto& [widget, tools] : option_actions_) {
-    if (widget == nullptr) {
-      continue;
-    }
+  // Every widget gets ONE setVisible with its final state, hides before shows.
+  // Showing a child of a visible parent activates the parent layouts
+  // synchronously (Qt), so a show-then-hide pass (per-tool show, then the
+  // per-mode hide of the shape tools' raster-only controls) wrapped the bar
+  // onto a second row and pushed the canvas down for one painted frame.
+  const auto mode_rules = vector_option_mode_rules();
+  const auto final_visibility = [&](QWidget* widget, const std::vector<CanvasTool>& tools) {
     // A transform/warp session owns the options bar (Photoshop behavior): the
     // tool's own controls are unusable while one runs (the canvas consumes every
     // click), so they hide instead of stacking next to the session controls and
     // wrapping the bar onto a second row (which shifted the canvas down).
     const auto tool_matches = tools.empty() || std::find(tools.begin(), tools.end(), current_tool_) != tools.end();
-    const auto visible = tool_matches && !transform_session_active;
-    widget->setVisible(visible);
+    return tool_matches && !transform_session_active && vector_option_widget_visible(mode_rules, widget);
+  };
+  for (const auto& [widget, tools] : option_actions_) {
+    if (widget != nullptr && !final_visibility(widget, tools) && !widget->isHidden()) {
+      widget->setVisible(false);
+      if (auto* button = qobject_cast<QToolButton*>(widget);
+          button != nullptr && button->defaultAction() != nullptr) {
+        button->defaultAction()->setVisible(false);
+      }
+    }
+  }
+  for (const auto& [widget, tools] : option_actions_) {
+    if (widget == nullptr) {
+      continue;
+    }
+    const auto visible = final_visibility(widget, tools);
+    if (visible != !widget->isHidden()) {
+      widget->setVisible(visible);
+    }
     auto enabled = edit_allowed;
     if (widget->objectName() == QStringLiteral("mixerMixSpin")) {
       enabled = enabled && current_mixer_wet_ > 0;
+    }
+    // Style Normal ignores the size fields, so they stay greyed across refreshes.
+    if (widget->objectName() == QStringLiteral("shapeFixedWidthSpin") ||
+        widget->objectName() == QStringLiteral("shapeFixedHeightSpin")) {
+      enabled = enabled && current_shape_style_ != CanvasWidget::MarqueeStyle::Normal;
+    }
+    if (widget->objectName() == QStringLiteral("selectionFixedWidthSpin") ||
+        widget->objectName() == QStringLiteral("selectionFixedHeightSpin")) {
+      enabled = enabled && current_marquee_style_ != CanvasWidget::MarqueeStyle::Normal;
     }
     if (widget == brush_dynamics_button_ && brush_dynamics_button_ != nullptr) {
       // Enabled once a model is loaded (bitmap tip or the Round session); only the brief

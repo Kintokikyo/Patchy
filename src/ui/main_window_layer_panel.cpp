@@ -3462,6 +3462,7 @@ void MainWindow::refresh_layer_controls() {
     canvas_->set_panel_selected_layer_ids(has_active_document() ? selected_or_active_layer_ids()
                                                                 : std::vector<LayerId>{});
   }
+  sync_vector_shape_size_spins();  // the W / H readouts follow the active shape
   if (!updating_layer_controls_) {
     finish_pending_layer_opacity_edit();
     finish_pending_layer_fill_opacity_edit();
