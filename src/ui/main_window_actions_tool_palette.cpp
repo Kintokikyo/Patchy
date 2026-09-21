@@ -816,6 +816,13 @@ void MainWindow::build_tool_palette(ActionBuildContext& ctx) {
     button->setDefaultAction(default_action);
     button->setToolTip(default_action->toolTip());
     palette->addWidget(button);
+    // Press-and-hold opens the flyout after SH_ToolButton_PopupDelay (the
+    // InteractionHintsStyle in main.cpp). A left double-click is the second
+    // way in: Qt would otherwise route the pair's second press back to
+    // mousePressEvent and restart the hold timer, so swallow it and open the
+    // menu through the same showMenu() path the timer uses. The first click
+    // of the pair still selects the default tool, as in Photoshop.
+    button->installEventFilter(new MouseDoubleClickFilter([button] { button->showMenu(); }, button));
     for (auto* action : actions) {
       QObject::connect(action, &QAction::triggered, button, [button, menu, action] {
         button->setDefaultAction(action);
