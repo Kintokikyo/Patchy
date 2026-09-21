@@ -252,12 +252,18 @@ int qInitResources_icons();
 namespace patchy::ui {
 
 void MainWindow::add_document_session(Document document, QString title, QString path,
-                                      QString initial_history_label) {
-  // The thumbnail cache is scoped to the active document; layer ids restart
-  // per document, so entries must never leak across tabs.
-  layer_thumbnail_cache_.clear();
-  channel_thumbnail_cache_.clear();
+                                      QString initial_history_label, SessionActivation activation) {
+  // A background session needs an active document to stay behind; with none, it is
+  // simply the first session and activates like any other.
+  const bool background = activation == SessionActivation::Background && canvas_ != nullptr;
+  if (!background) {
+    // The thumbnail cache is scoped to the active document; layer ids restart
+    // per document, so entries must never leak across tabs.
+    layer_thumbnail_cache_.clear();
+    channel_thumbnail_cache_.clear();
+  }
   auto session = std::make_unique<DocumentSession>();
+  session->fit_view_on_first_activation = background;
   session->session_id = next_session_id_++;
   session->document = std::move(document);
   if (session->document.guides().empty() && session->document.grid_settings().horizontal_cycle_32 == 576 &&
@@ -392,11 +398,19 @@ void MainWindow::add_document_session(Document document, QString title, QString 
         bind_tooltip(button, QT_TR_NOOP("Close Tab"));
       }
     }
-    document_tabs_->setCurrentIndex(tab_index);
+    if (!background) {
+      document_tabs_->setCurrentIndex(tab_index);
+    }
   }
   // Publish only after insertion: QStackedWidget may send FocusIn even with
   // tab signals blocked, and that must not activate a half-installed session.
   sessions_.push_back(std::move(session));
+  if (background) {
+    // The active document, its panels, and the current tab are untouched: selecting
+    // the tab later runs activate_document_canvas, which does everything skipped here.
+    refresh_document_tab_titles();
+    return;
+  }
   // Unreachable while the preview-dialog edit lock is held: every document
   // creation entry point (File > New/Open, open_document_path, drag & drop,
   // scanner import) refuses up front, so this tail may assume the new session
@@ -611,6 +625,20 @@ void MainWindow::activate_document_canvas(CanvasWidget* canvas, const std::funct
   update_document_action_state();
   refresh_document_window_title();
   refresh_document_tab_active_state();
+  if (auto* activated = session_for_canvas(canvas_); activated != nullptr && activated->fit_view_on_first_activation) {
+    // A session added in the background has never been shown. Fit now, and once more
+    // after the event loop has given the newly shown page its real geometry (the
+    // stacked layout sizes a page when it becomes current, which can be a posted
+    // layout request rather than this call stack).
+    activated->fit_view_on_first_activation = false;
+    canvas_->fit_to_view();
+    const auto session_id = activated->session_id;
+    QTimer::singleShot(0, this, [this, session_id] {
+      if (auto* settled = session_with_id(session_id); settled != nullptr && settled->canvas == canvas_) {
+        canvas_->fit_to_view();
+      }
+    });
+  }
 }
 
 void MainWindow::refresh_document_tab_active_state() {

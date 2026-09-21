@@ -44,7 +44,10 @@ Startup creates no document. The start panel in `src/ui/start_panel.cpp` overlay
 `add_document_session` initializes history and hides the start panel before adding
 the tab with signals blocked, then explicitly calls `activate_document_canvas`
 once. That activation owns the initial panel refresh; file-open callers must not
-repeat it after fitting the view. Row-build progress and its edit guard are
+repeat it after fitting the view. `SessionActivation::Background` (the pages of a
+multi-page PDF after the first) stops after publishing the session: no tab switch and
+no activation, so the active document is untouched, and the session fits its view on
+its first activation instead. Row-build progress and its edit guard are
 documented in [performance.md](performance.md).
 
 Session data must outlive canvas event delivery. `~MainWindow` detaches every canvas with `set_document(nullptr)` before member destruction frees Documents. `close_document_session` destroys the canvas before erasing the session because QWidget destruction can deliver focus-out events to child widgets. Preserve both orders. References into `SmartObjectStore` do not survive `add_embedded`.

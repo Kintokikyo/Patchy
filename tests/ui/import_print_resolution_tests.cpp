@@ -3392,6 +3392,42 @@ void ui_pdf_import_dialog_opens_pages_as_documents() {
             .endsWith(QStringLiteral("ui_pdf_import_documents.pdf - Page 1")));
   CHECK(patchy::ui::MainWindowTestAccess::session_title(window, sessions_before + 1)
             .endsWith(QStringLiteral("ui_pdf_import_documents.pdf - Page 2")));
+
+  // Pages after the first open in the BACKGROUND: a tab each, but page 1 never stopped
+  // being the current tab and the active canvas. Selecting page 2's tab (the real user
+  // path, through the tab widget) activates it and fits its never-shown canvas.
+  auto* tabs = window.findChild<QTabWidget*>(QStringLiteral("documentTabs"));
+  CHECK(tabs != nullptr);
+  if (tabs == nullptr) {
+    return;
+  }
+  CHECK(tabs->count() == static_cast<int>(sessions_before + 2));
+  auto* first_canvas = patchy::ui::MainWindowTestAccess::canvas(window);
+  CHECK(tabs->currentWidget() == first_canvas);
+  CHECK(patchy::ui::MainWindowTestAccess::document_for_canvas(window, first_canvas) == &first);
+  const int second_tab = tabs->count() - 1;
+  tabs->setCurrentIndex(second_tab);
+  QApplication::processEvents();
+  QApplication::processEvents();
+  auto* second_canvas = patchy::ui::MainWindowTestAccess::canvas(window);
+  CHECK(second_canvas != first_canvas);
+  CHECK(patchy::ui::MainWindowTestAccess::document_for_canvas(window, second_canvas) == &second);
+  CHECK(&patchy::ui::MainWindowTestAccess::document(window) == &second);
+  // Fitted to the size it actually has: fitting again changes nothing.
+  const double fitted_zoom = second_canvas->zoom();
+  second_canvas->fit_to_view();
+  CHECK(std::abs(second_canvas->zoom() - fitted_zoom) < 1e-9);
+  // A 72 x 144 px page in a window-sized canvas fits well above 100%: the 640 x 480
+  // default size of a never-shown widget would not have produced this zoom.
+  CHECK(fitted_zoom > 1.0);
+  // Going back and forth does not refit a view the user may have changed.
+  second_canvas->set_zoom(0.5);
+  tabs->setCurrentIndex(static_cast<int>(sessions_before));
+  QApplication::processEvents();
+  tabs->setCurrentIndex(second_tab);
+  QApplication::processEvents();
+  QApplication::processEvents();
+  CHECK(std::abs(patchy::ui::MainWindowTestAccess::canvas(window)->zoom() - 0.5) < 1e-9);
 }
 
 // A two-page editable PDF: a blue rectangle on page 1, a red one on page 2.

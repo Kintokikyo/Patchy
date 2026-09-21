@@ -138,8 +138,14 @@ public:
 #endif
   // initial_history_label names the new session's first history state ("Open",
   // an import label, ...); empty means a generic "New document".
+  // Background adds the session and its tab without making it the active document: no
+  // panel rebuild, no composite, no tab switch. For the pages of a multi-page import
+  // after the first, where activating 84 documents only to land back on page 1 was pure
+  // cost. The session fits its view the first time it IS activated.
+  enum class SessionActivation { Activate, Background };
   void add_document_session(Document document, QString title, QString path = {},
-                            QString initial_history_label = {});
+                            QString initial_history_label = {},
+                            SessionActivation activation = SessionActivation::Activate);
   void open_command_line_files(const QStringList& paths);
   // Bring this already-running window to the foreground and open the files a second launch handed off
   // via the single-instance channel (see src/app/main.cpp).
@@ -248,6 +254,9 @@ private:
     Document document;
     QString title;
     QString path;
+    // Added in the background (SessionActivation::Background): its canvas has never been
+    // shown, so it has no real size to fit to yet. The first activation fits it.
+    bool fit_view_on_first_activation{false};
     std::optional<ImageSaveOptions> image_save_options;
     QString image_save_options_path;
     QString image_save_options_extension;

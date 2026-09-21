@@ -1683,8 +1683,7 @@ void MainWindow::open_document_path(QString path) {
 
 // The pages after the first of a PDF opened as separate documents. Each becomes a
 // pathless session (the PDF is a read-only source, so page 1 saves through Save As
-// too); the first page's session is re-activated afterwards so the status message
-// and focus land on it.
+// too), added in the background so page 1 stays the active document throughout.
 void MainWindow::open_extra_imported_page_sessions(const QString& file_name,
                                                   std::vector<PdfImportedDocument> pages) {
   if (pages.empty()) {
@@ -1694,7 +1693,7 @@ void MainWindow::open_extra_imported_page_sessions(const QString& file_name,
   const auto first_session_id = first_session != nullptr ? first_session->session_id : 0;
   // Text and image passes and the session setup all run here on the UI thread; a
   // progress dialog plus an event pump per page keeps the window painting and lets
-  // each new tab show up as it is made instead of all at once at the end.
+  // each new tab show up in the tab bar as it is made instead of all at once at the end.
   const int page_count = static_cast<int>(pages.size()) + 1;
   QProgressDialog progress(tr("Opening page %1 of %2...").arg(2).arg(page_count), QString(), 0, page_count, this);
   progress.setObjectName(QStringLiteral("pdfPagesProgressDialog"));
@@ -1719,19 +1718,21 @@ void MainWindow::open_extra_imported_page_sessions(const QString& file_name,
       render_pending_pdf_image_layers(page.document);
     }
     {
+      // In the background: page 1 stays the active document, and each of these fits
+      // its view when its tab is first selected. Activating every page (a layer-panel
+      // rebuild, a full composite, and a paint each) only to come back to page 1 was
+      // about a tenth of a second per page.
       const UiProfileScope profile_scope("pdf_pages.add_session", profile_detail);
       add_document_session(std::move(page.document), tr("%1 - %2").arg(file_name, page.title), QString(),
-                           tr("Open"));
-    }
-    {
-      const UiProfileScope profile_scope("pdf_pages.fit", profile_detail);
-      canvas_->fit_to_view();
+                           tr("Open"), SessionActivation::Background);
     }
     const UiProfileScope profile_scope("pdf_pages.pump", profile_detail);
     QApplication::processEvents(QEventLoop::AllEvents);
   }
   progress.setValue(page_count);
-  if (auto* first = session_with_id(first_session_id); first != nullptr) {
+  // Nothing above moved the active document, but an event pumped along the way could
+  // have: land on page 1 either way.
+  if (auto* first = session_with_id(first_session_id); first != nullptr && first != active_session()) {
     activate_document_session(*first);
   }
 }
