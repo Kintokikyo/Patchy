@@ -150,6 +150,10 @@ VectorShapeContent vector_shape_part_content(const VectorShapeContent& shape, co
   result.stroke = part.stroke;
   result.path_disabled = part.path_disabled;
   result.path_inverted = part.path_inverted;
+  result.density = shape.density;
+  result.feather = shape.feather;
+  result.density = shape.density;
+  result.feather = shape.feather;
   const std::set<std::int32_t> groups(part.groups.begin(), part.groups.end());
   for (const auto& path : shape.path.subpaths) {
     if (groups.contains(path.shape_group)) { result.path.subpaths.push_back(path); }

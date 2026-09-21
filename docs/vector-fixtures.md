@@ -34,3 +34,25 @@ headless-stale (ps-compat.md).
 - photoshop-shape.psb/photoshop-shape-psb.bmp: PSB variant of the solid
   shape.
 
+## Known render divergences (July 2026)
+
+- GdFl with UNEVENLY spaced stops: PS parametrizes its smoothness spline
+  non-uniformly by stop location; Patchy's uniform per-segment catmull
+  differs by a few /255 there (gradient fixture: mean 1.2, max 8).
+- Stroke dashes: arc-length integration differs, so a few dash-edge pixels
+  flip (mean ~0.3 on the strokes fixture).
+- ROTATED pattern fills: the placement mapping is pinned exactly
+  (R(angle) @ (p - anchor) / scale), but PS resamples rotated tiles with a
+  soft per-cell filter: cell-edge deltas are large, the structure matches; psd_pattern_params_probe_render_parity_if_available
+  checks confident-cell agreement (>= 97%), not pixel means. Patchy's
+  crisper render is deliberate.
+
+- photoshop-shape-feather.psd/bmp (September 2026): three SHAPE layers with
+  vector-mask parameters on their own path: feather 4 on a rect touching the
+  canvas top-left, feather 8 on a rect with a 6 px inside stroke, density 60%
+  on a plain rect. Authored by local-test-fixtures/vector-probe/author-shape-feather.jsx.
+  Acceptance (2026-09-21): PS 27.9 opened Patchy's rewrite
+  (test-artifacts/psd_shape_feather_rewritten.psd, dumped by
+  psd_shape_layer_feather_and_density_match_photoshop) without prompts, read
+  feather 4/8 and density 153 back through executeActionGet, and its flatten
+  matched the capture within 6/255 at the probe points.

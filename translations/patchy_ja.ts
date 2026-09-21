@@ -8191,6 +8191,26 @@ Mixed selection</source>
         <source>Bottom left:</source>
         <translation>左下:</translation>
     </message>
+    <message>
+        <source>Fill Opacity:</source>
+        <translation>塗りの不透明度:</translation>
+    </message>
+    <message>
+        <source>Keep width and height in proportion</source>
+        <translation>幅と高さの比率を保つ</translation>
+    </message>
+    <message>
+        <source>Softens the whole shape, stroke included, like Photoshop&apos;s vector mask feather</source>
+        <translation>Photoshop のベクトルマスクのぼかしのように、線を含むシェイプ全体をやわらかくします</translation>
+    </message>
+    <message>
+        <source>Feather:</source>
+        <translation>ぼかし:</translation>
+    </message>
+    <message>
+        <source>Below 100% the fill shows through everywhere, like Photoshop&apos;s vector mask density</source>
+        <translation>100% 未満では Photoshop のベクトルマスクの濃度のように塗りが全体に透けて見えます</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

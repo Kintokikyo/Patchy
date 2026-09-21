@@ -8,6 +8,7 @@
 #include "core/vector_raster.hpp"
 #include "ui/qt_geometry.hpp"
 #include <algorithm>
+#include <cmath>
 #include <functional>
 #include <set>
 
@@ -74,6 +75,8 @@ QJSValue ScriptLayerObject::getShape() const {
       result["path"] = path_json(shape->path); result["liveShapes"] = live_json(shape->origination);
       result["fill"] = paint_json(shape->fill); result["stroke"] = stroke_json(shape->stroke);
       result["pathDisabled"] = shape->path_disabled; result["pathInverted"] = shape->path_inverted;
+      result["feather"] = shape->feather;
+      result["density"] = static_cast<int>(std::lround(shape->density * 100.0 / 255.0));
       result["isFillLayer"] = shape->path.empty();
       QJsonArray parts;
       for (const auto& part : shape->parts) {
@@ -111,7 +114,7 @@ QJSValue ScriptDocumentObject::addFillLayer(const QString& name, const QJSValue&
 void ScriptLayerObject::updateShape(const QJSValue& changes) {
   guarded(host_, [&] {
     const auto args = object(changes);
-    keys(args, {"geometry", "group", "path", "fill", "stroke", "pathDisabled", "pathInverted"});
+    keys(args, {"geometry", "group", "path", "fill", "stroke", "pathDisabled", "pathInverted", "feather", "density"});
     if (args.contains("geometry") && args.contains("path")) { invalid("geometry/path"); }
     if (args.contains("group") && !args.contains("geometry")) { invalid("group"); }
     const auto& original = layer(host_, session_id_, layer_id_, true);
@@ -160,6 +163,9 @@ void ScriptLayerObject::updateShape(const QJSValue& changes) {
     if (args.contains("stroke")) { content.stroke = stroke(host_, child_object(args, "stroke"), patterns, content.stroke); }
     content.path_disabled = boolean(args, "pathDisabled", content.path_disabled);
     content.path_inverted = boolean(args, "pathInverted", content.path_inverted);
+    // The vector-mask convention: density 0..100 percent, feather px.
+    content.density = static_cast<std::uint8_t>(std::lround(number(args, "density", content.density * 100.0 / 255.0, 0, 100) * 255.0 / 100.0));
+    content.feather = number(args, "feather", content.feather, 0, 1000);
     const auto& old = *original.vector_shape();
     update_vector_part_appearance(content, old.fill, old.stroke);
     for (auto& part : content.parts) {
@@ -167,7 +173,8 @@ void ScriptLayerObject::updateShape(const QJSValue& changes) {
       if (content.path_inverted != old.path_inverted) { part.path_inverted = content.path_inverted; }
     }
     if (old.path == content.path && old.origination == content.origination && old.fill == content.fill && old.stroke == content.stroke &&
-        old.path_disabled == content.path_disabled && old.path_inverted == content.path_inverted) { return; }
+        old.path_disabled == content.path_disabled && old.path_inverted == content.path_inverted &&
+        old.density == content.density && old.feather == content.feather) { return; }
     Layer prepared = original;
     prepared.set_vector_shape(std::move(content)); mark_layer_vector_block_dirty(prepared);
     update_vector_shape_raster(prepared, Rect::from_size(old_doc.width(), old_doc.height()), &patterns);

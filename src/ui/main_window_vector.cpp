@@ -601,6 +601,10 @@ bool MainWindow::edit_active_shape_appearance(bool record_undo) {
   const auto layer_id = *active;
   const Layer original_layer = *layer;
   ShapeAppearanceSettings initial{layer->vector_shape()->fill, layer->vector_shape()->stroke, {}};
+  initial.layer_opacity = layer->opacity();
+  initial.fill_opacity = layer->fill_opacity();
+  initial.feather = layer->vector_shape()->feather;
+  initial.density = layer->vector_shape()->density;
   // Geometry is editable for single-live-shape layers whose every subpath
   // belongs to that origination group (the regeneration replaces the whole
   // group; anything else keeps the section hidden).
@@ -626,6 +630,8 @@ bool MainWindow::edit_active_shape_appearance(bool record_undo) {
     const auto previous_stroke = content.stroke;
     content.fill = settings.fill;
     content.stroke = settings.stroke;
+    content.feather = settings.feather;
+    content.density = settings.density;
     update_vector_part_appearance(content, previous_fill, previous_stroke);
     if (settings.geometry.has_value() && content.origination.size() == 1) {
       // Regenerate the live shape from the edited parameters; the shape STAYS
@@ -676,6 +682,8 @@ bool MainWindow::edit_active_shape_appearance(bool record_undo) {
     const auto old_effect_rect =
         to_qrect(layer_bounds_with_effects(std::as_const(*target), std::as_const(*target).bounds()));
     target->set_vector_shape(std::move(content));
+    target->set_opacity(settings.layer_opacity);
+    target->set_fill_opacity(settings.fill_opacity);
     target->metadata()[kLayerMetadataVectorRasterStatus] = kVectorRasterStatusPatchy;
     update_vector_shape_raster(*target, Rect::from_size(target_doc.width(), target_doc.height()),
                                &target_doc.metadata().patterns);
@@ -703,6 +711,8 @@ bool MainWindow::edit_active_shape_appearance(bool record_undo) {
     auto content = assemble_content(request.settings, *target->vector_shape());
     ensure_vector_fill_patterns(target_doc, content, pattern_library());
     target->set_vector_shape(content);
+    target->set_opacity(request.settings.layer_opacity);
+    target->set_fill_opacity(request.settings.fill_opacity);
     target->metadata()[kLayerMetadataVectorRasterStatus] = kVectorRasterStatusPatchy;
     const auto canvas_rect = Rect::from_size(target_doc.width(), target_doc.height());
     auto patterns = std::make_shared<const PatternStore>(target_doc.metadata().patterns);

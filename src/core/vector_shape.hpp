@@ -214,6 +214,12 @@ struct VectorShapeContent {
   // inverted one fills the complement.
   bool path_disabled{false};
   bool path_inverted{false};
+  // Photoshop's vector-mask parameters on the shape's own path (mask-data
+  // parameter bits 2/3, photoshop-shape-feather.psd): density < 255 shows the
+  // fill everywhere at (255 - density)/255, and feather (px) gaussian-blurs
+  // the whole rendered shape, stroke included, unclamped at the canvas.
+  std::uint8_t density{255};
+  double feather{0.0};
   VectorFill fill{};
   VectorStroke stroke{};
   std::vector<LiveShapeParams> origination;

@@ -8191,6 +8191,26 @@ RGB：%2, %3, %4</translation>
         <source>Bottom left:</source>
         <translation>左下:</translation>
     </message>
+    <message>
+        <source>Fill Opacity:</source>
+        <translation>填色不透明度:</translation>
+    </message>
+    <message>
+        <source>Keep width and height in proportion</source>
+        <translation>保持寬高比例</translation>
+    </message>
+    <message>
+        <source>Softens the whole shape, stroke included, like Photoshop&apos;s vector mask feather</source>
+        <translation>像 Photoshop 的向量遮色片羽化一樣柔化整個形狀（包括筆畫）</translation>
+    </message>
+    <message>
+        <source>Feather:</source>
+        <translation>羽化:</translation>
+    </message>
+    <message>
+        <source>Below 100% the fill shows through everywhere, like Photoshop&apos;s vector mask density</source>
+        <translation>低於 100% 時填色會像 Photoshop 的向量遮色片濃度一樣在整個畫布上透出</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

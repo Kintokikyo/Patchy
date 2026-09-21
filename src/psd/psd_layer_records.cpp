@@ -205,6 +205,37 @@ const UnknownPsdBlock* find_layer_block(const Layer& layer, std::string_view key
   return nullptr;
 }
 
+// A shape layer's own path carries Photoshop's vector-mask parameters too
+// (photoshop-shape-feather.psd: the same mask-data parameters form and
+// derived plane as a vector mask on a pixel layer). Returns the mask whose
+// non-default density/feather need the parameters form, from either slot.
+std::optional<LayerVectorMask> parameterized_vector_mask(const Layer& layer) {
+  if (const auto* mask = layer.vector_mask();
+      mask != nullptr && (mask->density != 255 || mask->feather > 0.0)) {
+    return *mask;
+  }
+  const auto* shape = layer.vector_shape();
+  if (shape == nullptr || shape->path.empty() || (shape->density == 255 && !(shape->feather > 0.0))) {
+    return std::nullopt;
+  }
+  LayerVectorMask mask;
+  mask.path = shape->path;
+  mask.disabled = shape->path_disabled;
+  mask.inverted = shape->path_inverted;
+  mask.density = shape->density;
+  mask.feather = shape->feather;
+  return mask;
+}
+
+// Photoshop writes only the parameter bits that are set (feather alone is a
+// 28-byte section, density alone 20, both 28), so mirror that.
+std::uint8_t vector_parameter_flags(const LayerVectorMask& mask) {
+  std::uint8_t flags = 0;
+  if (mask.density != 255) { flags |= 0x04U; }
+  if (mask.feather > 0.0) { flags |= 0x08U; }
+  return flags;
+}
+
 EncodedLayer encode_layer(const Layer& layer, bool large_document) {
   if (layer.kind() != LayerKind::Pixel) {
     throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Layered PSD export currently supports pixel and group layers only"));
@@ -259,10 +290,9 @@ EncodedLayer encode_layer(const Layer& layer, bool large_document) {
   // which Photoshop pairs with a baked "derived" user-mask plane (docs/
   // vector-tools.md). Only when no real raster mask occupies the slot.
   CoverageBuffer derived_plane;
-  if (const auto* vector_mask = layer.vector_mask();
-      vector_mask != nullptr && !layer.mask().has_value() &&
-      (vector_mask->density != 255 || vector_mask->feather > 0.0)) {
-    derived_plane = vector_mask_derived_plane(*vector_mask);
+  if (const auto parameters = parameterized_vector_mask(layer);
+      parameters.has_value() && !layer.mask().has_value()) {
+    derived_plane = vector_mask_derived_plane(*parameters);
     if (!derived_plane.bounds.empty()) {
       channel_ids.push_back(kChannelUserMask);
     }
@@ -310,8 +340,8 @@ EncodedLayer encode_adjustment_layer(const Layer& layer, bool large_document) {
     }
     encoded.channels.push_back(encode_channel(kChannelUserMask, mask.pixels.width(), mask.pixels.height(),
                                               mask.pixels.data(), large_document));
-  } else if (const auto* mask = layer.vector_mask(); mask && (mask->density != 255 || mask->feather > 0.0)) {
-    const auto plane = vector_mask_derived_plane(*mask);
+  } else if (const auto parameters = parameterized_vector_mask(layer); parameters.has_value()) {
+    const auto plane = vector_mask_derived_plane(*parameters);
     if (!plane.bounds.empty()) {
       encoded.channels.push_back(encode_channel(kChannelUserMask, plane.pixels.width(), plane.pixels.height(),
                                                 plane.pixels.data(), large_document));
@@ -346,8 +376,8 @@ EncodedLayer encode_group(const Layer& layer, bool large_document) {
     }
     encoded.channels.push_back(encode_channel(kChannelUserMask, mask.pixels.width(), mask.pixels.height(),
                                               mask.pixels.data(), large_document));
-  } else if (const auto* mask = layer.vector_mask(); mask && (mask->density != 255 || mask->feather > 0.0)) {
-    const auto plane = vector_mask_derived_plane(*mask);
+  } else if (const auto parameters = parameterized_vector_mask(layer); parameters.has_value()) {
+    const auto plane = vector_mask_derived_plane(*parameters);
     if (!plane.bounds.empty()) {
       encoded.channels.push_back(encode_channel(kChannelUserMask, plane.pixels.width(), plane.pixels.height(),
                                                 plane.pixels.data(), large_document));
@@ -725,12 +755,12 @@ void write_layer_record(BigEndianWriter& writer, const EncodedLayer& encoded, bo
     if (mask.disabled) {
       mask_flags |= 0x02U;
     }
-    const auto* vector_mask = encoded.layer->vector_mask();
-    const bool vector_parameters = vector_mask && (vector_mask->density != 255 || vector_mask->feather > 0.0);
+    const auto vector_mask = parameterized_vector_mask(*encoded.layer);
     // Parameter flags, values in bit order: bit 0 user density (u8), bit 1
-    // user feather (f64), bits 2/3 the vector pair. Photoshop sets the user
-    // bits one by one (PS 27.9 capture, photoshop-user-mask-params.psd).
-    std::uint8_t parameter_flags = vector_parameters ? 0x0CU : 0U;
+    // user feather (f64), bits 2/3 the vector pair. Photoshop sets every
+    // bit one by one (PS 27.9 captures photoshop-user-mask-params.psd and
+    // photoshop-shape-feather.psd).
+    std::uint8_t parameter_flags = vector_mask.has_value() ? vector_parameter_flags(*vector_mask) : 0U;
     if (mask.density != 255) { parameter_flags |= 0x01U; }
     if (mask.feather > 0.0) { parameter_flags |= 0x02U; }
     if (parameter_flags != 0) { mask_flags |= 0x10U; }
@@ -739,23 +769,23 @@ void write_layer_record(BigEndianWriter& writer, const EncodedLayer& encoded, bo
       mask_data.write_u8(parameter_flags);
       if ((parameter_flags & 0x01U) != 0) { mask_data.write_u8(mask.density); }
       if ((parameter_flags & 0x02U) != 0) { write_f64(mask_data, mask.feather); }
-      if (vector_parameters) {
-        mask_data.write_u8(vector_mask->density);
-        write_f64(mask_data, vector_mask->feather);
-      }
+      if ((parameter_flags & 0x04U) != 0) { mask_data.write_u8(vector_mask->density); }
+      if ((parameter_flags & 0x08U) != 0) { write_f64(mask_data, vector_mask->feather); }
       // Photoshop pads the section to a multiple of 4 (27 -> 28 for feather
       // alone); the 20- and 28-byte forms need none.
       while (mask_data.bytes().size() % 4U != 0) { mask_data.write_u8(0); }
     } else { mask_data.write_u16(0); }
     write_length_prefixed_block(extra, mask_data.bytes());
-  } else if (const auto* vector_mask =
-                 encoded.layer != nullptr ? encoded.layer->vector_mask() : nullptr;
-             vector_mask != nullptr && encoded.kind != EncodedLayerKind::GroupBoundary &&
-             (vector_mask->density != 255 || vector_mask->feather > 0.0)) {
-    // Non-default vector-mask parameters: the 28-byte mask-parameters form
-    // with the derived-plane rect, section flags bit 3 (rendered from other
-    // data) + bit 4 (parameters present), then vector density (u8 raw) and
-    // vector feather (f64) — the PS 27.8 capture layout.
+  } else if (const auto vector_mask = encoded.layer != nullptr
+                                          ? parameterized_vector_mask(*encoded.layer)
+                                          : std::optional<LayerVectorMask>{};
+             vector_mask.has_value() && encoded.kind != EncodedLayerKind::GroupBoundary) {
+    // Non-default vector-mask parameters (vector mask or the shape's own
+    // path): the mask-parameters form with the derived-plane rect, section
+    // flags bit 3 (rendered from other data) + bit 4 (parameters present),
+    // then the SET parameters only, vector density (u8 raw) before vector
+    // feather (f64), padded to a multiple of 4 - the PS 27.8/27.9 layouts
+    // (both set = 28 bytes, feather alone 27 -> 28, density alone 20).
     const auto plane = vector_mask_derived_plane(*vector_mask);
     BigEndianWriter mask_data;
     mask_data.write_u32(static_cast<std::uint32_t>(plane.bounds.y));
@@ -764,9 +794,11 @@ void write_layer_record(BigEndianWriter& writer, const EncodedLayer& encoded, bo
     mask_data.write_u32(static_cast<std::uint32_t>(plane.bounds.x + plane.bounds.width));
     mask_data.write_u8(0);     // default color
     mask_data.write_u8(0x18);  // bit 3 derived + bit 4 parameters
-    mask_data.write_u8(0x0C);  // parameter flags: vector density + vector feather
-    mask_data.write_u8(vector_mask->density);
-    write_f64(mask_data, vector_mask->feather);
+    const auto parameter_flags = vector_parameter_flags(*vector_mask);
+    mask_data.write_u8(parameter_flags);
+    if ((parameter_flags & 0x04U) != 0) { mask_data.write_u8(vector_mask->density); }
+    if ((parameter_flags & 0x08U) != 0) { write_f64(mask_data, vector_mask->feather); }
+    while (mask_data.bytes().size() % 4U != 0) { mask_data.write_u8(0); }
     write_length_prefixed_block(extra, mask_data.bytes());
   } else {
     extra.write_u32(0);  // layer mask data

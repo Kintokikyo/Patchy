@@ -11,6 +11,7 @@
 #include "ui/gradient_library.hpp"
 #include "ui/pattern_library.hpp"
 #include "ui/measurement_units.hpp"
+#include "ui/action_icons.hpp"
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -26,6 +27,8 @@
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QSpinBox>
+#include <QSize>
+#include <QToolButton>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -111,6 +114,34 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
     }
   };
 
+  // --- Layer (opacity and fill opacity, the Layers panel values) ---
+  auto* layer_group = new QGroupBox(QObject::tr("Layer"), &dialog);
+  auto* layer_layout = new QVBoxLayout(layer_group);
+  layer_layout->setContentsMargins(10, 8, 10, 8);
+  layer_layout->setSpacing(4);
+  auto* layer_form = new QFormLayout();
+  layer_form->setHorizontalSpacing(10);
+  layer_form->setVerticalSpacing(8);
+  layer_layout->addLayout(layer_form);
+  auto* layer_opacity_spin = add_dialog_slider_spin_row(
+      layer_form, layer_group, QObject::tr("Opacity:"), QStringLiteral("shapeLayerOpacitySlider"),
+      QStringLiteral("shapeLayerOpacitySpin"), 0, 100,
+      static_cast<int>(std::lround(state->settings.layer_opacity * 100.0F)), QStringLiteral("%"));
+  auto* layer_fill_opacity_spin = add_dialog_slider_spin_row(
+      layer_form, layer_group, QObject::tr("Fill Opacity:"),
+      QStringLiteral("shapeLayerFillOpacitySlider"), QStringLiteral("shapeLayerFillOpacitySpin"), 0,
+      100, static_cast<int>(std::lround(state->settings.fill_opacity * 100.0F)), QStringLiteral("%"));
+  QObject::connect(layer_opacity_spin, &QSpinBox::valueChanged, &dialog, [state, notify](int value) {
+    state->settings.layer_opacity = static_cast<float>(value) / 100.0F;
+    notify();
+  });
+  QObject::connect(layer_fill_opacity_spin, &QSpinBox::valueChanged, &dialog,
+                   [state, notify](int value) {
+    state->settings.fill_opacity = static_cast<float>(value) / 100.0F;
+    notify();
+  });
+  dialog_layout->addWidget(layer_group);
+
   // --- Geometry (single live-shape layers only) ---
   if (state->settings.geometry.has_value()) {
     const auto kind = state->settings.geometry->kind;
@@ -171,7 +202,39 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
       geometry_form->addRow(QObject::tr("X:"), x_spin);
       geometry_form->addRow(QObject::tr("Y:"), y_spin);
       geometry_form->addRow(QObject::tr("Width:"), width_spin);
+      // Link keeps the aspect ratio: editing one dimension moves the other by
+      // the ratio captured when the link was switched on.
+      auto* link_button = new QToolButton(geometry_group);
+      link_button->setObjectName(QStringLiteral("shapeGeometryLinkButton"));
+      link_button->setCheckable(true);
+      link_button->setIcon(simple_icon(QStringLiteral("link"), QColor(220, 226, 235)));
+      link_button->setIconSize(QSize(18, 18));
+      link_button->setToolTip(QObject::tr("Keep width and height in proportion"));
+      geometry_form->addRow(QString(), link_button);
       geometry_form->addRow(QObject::tr("Height:"), height_spin);
+      auto link_ratio = std::make_shared<double>(1.0);
+      QObject::connect(link_button, &QToolButton::toggled, &dialog,
+                       [link_ratio, width_spin, height_spin](bool checked) {
+        if (checked) {
+          *link_ratio = height_spin->value() > 1e-9 ? width_spin->value() / height_spin->value() : 1.0;
+        }
+      });
+      // Connected before apply_box below, so the paired spin is already
+      // updated when the geometry applies.
+      QObject::connect(width_spin, &QDoubleSpinBox::valueChanged, &dialog,
+                       [link_button, link_ratio, height_spin](double value) {
+        if (link_button->isChecked() && *link_ratio > 1e-9) {
+          QSignalBlocker blocker(height_spin);
+          height_spin->setValue(value / *link_ratio);
+        }
+      });
+      QObject::connect(height_spin, &QDoubleSpinBox::valueChanged, &dialog,
+                       [link_button, link_ratio, width_spin](double value) {
+        if (link_button->isChecked()) {
+          QSignalBlocker blocker(width_spin);
+          width_spin->setValue(value * *link_ratio);
+        }
+      });
       std::array<QDoubleSpinBox*, 4> radius_spins{nullptr, nullptr, nullptr, nullptr};
       if (kind == LiveShapeKind::Rectangle || kind == LiveShapeKind::RoundedRectangle) {
         // Model order TL, TR, BR, BL; a radius on a plain rect promotes it to
@@ -353,6 +416,43 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
 
   dialog_layout->addWidget(fill_group);
 
+  // --- Edge: the shape's vector-mask Feather / Density (Photoshop's
+  // Properties-panel pair on a shape layer; docs/vector-tools.md) ---
+  auto* edge_group = new QGroupBox(QObject::tr("Edge"), &dialog);
+  auto* edge_layout = new QVBoxLayout(edge_group);
+  edge_layout->setContentsMargins(10, 8, 10, 8);
+  edge_layout->setSpacing(4);
+  auto* edge_form = new QFormLayout();
+  edge_form->setHorizontalSpacing(10);
+  edge_form->setVerticalSpacing(8);
+  edge_layout->addLayout(edge_form);
+  auto* feather_spin = new QDoubleSpinBox(edge_group);
+  feather_spin->setObjectName(QStringLiteral("shapeFeatherSpin"));
+  feather_spin->setRange(0.0, 1000.0);
+  feather_spin->setDecimals(1);
+  feather_spin->setSuffix(pixel_suffix());
+  feather_spin->setValue(state->settings.feather);
+  feather_spin->setToolTip(QObject::tr("Softens the whole shape, stroke included, like Photoshop's vector mask feather"));
+  configure_dialog_spinbox(feather_spin, 80);
+  edge_form->addRow(QObject::tr("Feather:"), feather_spin);
+  auto* density_spin = new QSpinBox(edge_group);
+  density_spin->setObjectName(QStringLiteral("shapeDensitySpin"));
+  density_spin->setRange(0, 100);
+  density_spin->setSuffix(percent_suffix());
+  density_spin->setValue(static_cast<int>(std::lround(state->settings.density * 100.0 / 255.0)));
+  density_spin->setToolTip(QObject::tr("Below 100% the fill shows through everywhere, like Photoshop's vector mask density"));
+  configure_dialog_spinbox(density_spin, 80);
+  edge_form->addRow(QObject::tr("Density:"), density_spin);
+  QObject::connect(feather_spin, &QDoubleSpinBox::valueChanged, &dialog, [state, notify](double value) {
+    state->settings.feather = value;
+    notify();
+  });
+  QObject::connect(density_spin, &QSpinBox::valueChanged, &dialog, [state, notify](int value) {
+    state->settings.density = static_cast<std::uint8_t>(std::lround(value * 255.0 / 100.0));
+    notify();
+  });
+  dialog_layout->addWidget(edge_group);
+
   // --- Stroke ---
   auto* stroke_group = new QGroupBox(QObject::tr("Stroke"), &dialog);
   auto* stroke_layout = new QVBoxLayout(stroke_group);
@@ -376,6 +476,19 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   stroke_width_spin->setValue(state->settings.stroke.width);
   configure_dialog_spinbox(stroke_width_spin, 80);
   stroke_form->addRow(QObject::tr("Width:"), stroke_width_spin);
+
+  // vstk strokeStyleOpacity: the stroke's own transparency.
+  auto* stroke_opacity_spin = new QSpinBox(stroke_group);
+  stroke_opacity_spin->setObjectName(QStringLiteral("shapeStrokeOpacitySpin"));
+  stroke_opacity_spin->setRange(0, 100);
+  stroke_opacity_spin->setSuffix(percent_suffix());
+  stroke_opacity_spin->setValue(static_cast<int>(std::lround(state->settings.stroke.opacity * 100.0)));
+  configure_dialog_spinbox(stroke_opacity_spin, 80);
+  stroke_form->addRow(QObject::tr("Opacity:"), stroke_opacity_spin);
+  QObject::connect(stroke_opacity_spin, &QSpinBox::valueChanged, &dialog, [state, notify](int value) {
+    state->settings.stroke.opacity = value / 100.0;
+    notify();
+  });
 
   // Stroke paint: solid color, gradient, or pattern (vstk strokeStyleContent
   // takes the same three content shapes as the fill). A PSD-authored gradient
@@ -574,7 +687,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
     set_row_visible(stroke_pattern_offset_y_spin, pattern_paint);
     set_row_visible(stroke_pattern_align_check, pattern_paint);
     for (QWidget* field :
-         std::initializer_list<QWidget*>{stroke_width_spin, stroke_paint_combo,
+         std::initializer_list<QWidget*>{stroke_width_spin, stroke_opacity_spin, stroke_paint_combo,
                                          stroke_color_button, stroke_gradient_combo,
                                          stroke_gradient_type_combo, stroke_gradient_angle_spin,
                                          stroke_gradient_scale_spin, stroke_gradient_reverse_check,

@@ -8214,6 +8214,26 @@ RVB : %2, %3, %4</translation>
         <source>Bottom left:</source>
         <translation>Bas gauche :</translation>
     </message>
+    <message>
+        <source>Fill Opacity:</source>
+        <translation>Opacité du fond :</translation>
+    </message>
+    <message>
+        <source>Keep width and height in proportion</source>
+        <translation>Conserver les proportions entre largeur et hauteur</translation>
+    </message>
+    <message>
+        <source>Softens the whole shape, stroke included, like Photoshop&apos;s vector mask feather</source>
+        <translation>Adoucit toute la forme, contour compris, comme le contour progressif du masque vectoriel de Photoshop</translation>
+    </message>
+    <message>
+        <source>Feather:</source>
+        <translation>Contour progressif :</translation>
+    </message>
+    <message>
+        <source>Below 100% the fill shows through everywhere, like Photoshop&apos;s vector mask density</source>
+        <translation>Sous 100 %, le fond transparaît partout, comme la densité du masque vectoriel de Photoshop</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

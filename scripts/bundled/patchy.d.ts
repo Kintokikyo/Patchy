@@ -231,7 +231,9 @@ interface PatchyLayer {
   getShape(): PatchyShapeState | null;
   /** Partial update. geometry and path are mutually exclusive; group targets one existing shape group. */
   updateShape(changes: {geometry?: PatchyVectorGeometry; group?: number; path?: PatchyVectorPath;
-    fill?: PatchyVectorPaint; stroke?: PatchyVectorStroke; pathDisabled?: boolean; pathInverted?: boolean}): void;
+    fill?: PatchyVectorPaint; stroke?: PatchyVectorStroke; pathDisabled?: boolean; pathInverted?: boolean;
+    /** Photoshop's vector-mask Feather (px, 0..1000) and Density (0..100) on the shape's own path. */
+    feather?: number; density?: number}): void;
   /** Affine [a,b,c,d,tx,ty]: x'=a*x+c*y+tx, y'=b*x+d*y+ty. Native stroke width stays fixed unless strokeScale is supplied. */
   transformShape(matrix: PatchyVectorMatrix, options?: {strokeScale?: number}): void;
   getVectorMask(): PatchyVectorMask | null;
@@ -834,6 +836,8 @@ interface PatchyShapeState {
   liveShapes?: {group: number; geometry: PatchyVectorGeometry}[];
   fill?: PatchyVectorPaint; stroke?: PatchyVectorStroke;
   pathDisabled?: boolean; pathInverted?: boolean; isFillLayer?: boolean;
+  /** Vector-mask Feather (px) and Density (0..100) on the shape's own path. */
+  feather?: number; density?: number;
   /** Independent paints in a merged vector layer; empty on ordinary shapes.
    * Read-only snapshots. Group numbers refer to path.subpaths[].group.
    * Whole-layer appearance updates change only the edited fields in every part. */

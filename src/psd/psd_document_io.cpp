@@ -768,6 +768,21 @@ std::vector<Layer> read_layer_info_records(BigEndianReader& layer_reader, std::i
         content.path_disabled = vector_mask_block->disabled;
         content.path_inverted = vector_mask_block->inverted;
       }
+      if (record.mask.has_value()) {
+        // The shape's own path carries the vector-mask parameters too
+        // (photoshop-shape-feather.psd); Photoshop's baked bit-3 plane is
+        // plain coverage and never becomes a raster mask on the shape.
+        if (record.mask->vector_density.has_value()) {
+          content.density = *record.mask->vector_density;
+        }
+        if (const auto feather = record.mask->vector_feather.value_or(0.0);
+            feather > 0.0 && feather <= 1000.0) {
+          content.feather = feather;
+        }
+        if (record.mask->from_rendering) {
+          decoded_mask.reset();
+        }
+      }
       if (vector_origination.has_value()) {
         content.origination = std::move(*vector_origination);
       }

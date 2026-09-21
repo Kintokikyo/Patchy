@@ -8214,6 +8214,26 @@ RGB: %2, %3, %4</translation>
         <source>Bottom left:</source>
         <translation>Unten links:</translation>
     </message>
+    <message>
+        <source>Fill Opacity:</source>
+        <translation>Flächendeckkraft:</translation>
+    </message>
+    <message>
+        <source>Keep width and height in proportion</source>
+        <translation>Breite und Höhe proportional halten</translation>
+    </message>
+    <message>
+        <source>Softens the whole shape, stroke included, like Photoshop&apos;s vector mask feather</source>
+        <translation>Weicht die ganze Form einschließlich Kontur auf, wie die Vektormasken-Kante in Photoshop</translation>
+    </message>
+    <message>
+        <source>Feather:</source>
+        <translation>Weiche Kante:</translation>
+    </message>
+    <message>
+        <source>Below 100% the fill shows through everywhere, like Photoshop&apos;s vector mask density</source>
+        <translation>Unter 100 % scheint die Füllung überall durch, wie die Vektormasken-Dichte in Photoshop</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

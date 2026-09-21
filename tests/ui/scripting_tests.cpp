@@ -154,6 +154,28 @@ void ui_script_mutations_ride_single_undo_entry() {
   CHECK(layer_named(patchy::ui::MainWindowTestAccess::document(window), "Scripted") == nullptr);
 }
 
+void ui_script_shape_feather_and_density() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  CHECK(run_script(window, QStringLiteral(R"JS(
+    var doc = app.activeDocument;
+    var layer = doc.addShape('Soft', {type: 'rectangle', x: 20, y: 20, width: 60, height: 40});
+    layer.updateShape({feather: 4, density: 60});
+    var state = layer.getShape();
+    console.log('feather=' + state.feather + ' density=' + state.density);
+  )JS")));
+  CHECK(backlog_contains(window, QStringLiteral("feather=4 density=60")));
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  const auto* layer = layer_named(document, "Soft");
+  CHECK(layer != nullptr && layer->vector_shape() != nullptr);
+  CHECK(std::abs(layer->vector_shape()->feather - 4.0) < 1e-9);
+  CHECK(layer->vector_shape()->density == 153);
+  // Density floors the whole canvas at 40%.
+  CHECK(layer->bounds().x == 0);
+  const auto far_alpha = static_cast<int>(std::as_const(*layer).pixels().pixel(2, 2)[3]);
+  CHECK(far_alpha >= 98 && far_alpha <= 106);
+}
+
 void ui_script_stale_layer_wrapper_throws() {
   patchy::ui::MainWindow window;
   show_window(window);
@@ -2823,6 +2845,7 @@ std::vector<patchy::test::TestCase> scripting_tests() {
       {"ui_script_automation_pressure_seed_selection_palette", ui_script_automation_pressure_seed_selection_palette},
       {"ui_script_mutations_ride_single_undo_entry", ui_script_mutations_ride_single_undo_entry},
       {"ui_script_stale_layer_wrapper_throws", ui_script_stale_layer_wrapper_throws},
+      {"ui_script_shape_feather_and_density", ui_script_shape_feather_and_density},
       {"ui_script_pixels_roundtrip_and_palette_snap", ui_script_pixels_roundtrip_and_palette_snap},
       {"ui_script_get_pixels_reads_rgb_layers", ui_script_get_pixels_reads_rgb_layers},
       {"ui_script_fill_rect_partial_updates", ui_script_fill_rect_partial_updates},

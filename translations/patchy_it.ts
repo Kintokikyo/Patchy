@@ -8214,6 +8214,26 @@ RGB: %2, %3, %4</translation>
         <source>Bottom left:</source>
         <translation>In basso a sinistra:</translation>
     </message>
+    <message>
+        <source>Fill Opacity:</source>
+        <translation>Opacità riempimento:</translation>
+    </message>
+    <message>
+        <source>Keep width and height in proportion</source>
+        <translation>Mantieni proporzionali larghezza e altezza</translation>
+    </message>
+    <message>
+        <source>Softens the whole shape, stroke included, like Photoshop&apos;s vector mask feather</source>
+        <translation>Sfuma l&apos;intera forma, traccia inclusa, come la sfumatura della maschera vettoriale di Photoshop</translation>
+    </message>
+    <message>
+        <source>Feather:</source>
+        <translation>Sfuma:</translation>
+    </message>
+    <message>
+        <source>Below 100% the fill shows through everywhere, like Photoshop&apos;s vector mask density</source>
+        <translation>Sotto il 100% il riempimento traspare ovunque, come la densità della maschera vettoriale di Photoshop</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

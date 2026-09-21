@@ -183,3 +183,8 @@ non-positive values or with no document) and `patchy.ui.fitOnScreen()`. They wor
 connector sessions, where `app.runCommand('view.fit_on_screen')` is refused, and only
 affect window captures, never document previews. Pinned by `ui_script_ui_view_zoom` and
 the connector run in `tests/mcp_client_tests.py`.
+
+2026-09-21 (additive, still 1): `PatchyShapeState.feather` (px) and `.density` (0..100),
+plus `layer.updateShape({feather, density})`: Photoshop's vector-mask Feather / Density on a
+shape layer's own path, the same convention as `setVectorMask`. Pinned by
+`ui_script_shape_feather_and_density`.

@@ -150,8 +150,8 @@ bool shape_layer_exportable_as_vector(const Layer& layer, const PatternStore& pa
     return false;
   }
   const auto& shape = *layer.vector_shape();
-  if (shape.path_disabled || shape.path_inverted) {
-    return false;
+  if (shape.path_disabled || shape.path_inverted || shape.density != 255 || shape.feather > 0.0) {
+    return false;  // density/feather have no SVG representation
   }
   if (!gradient_type_supported(shape.fill) || !gradient_type_supported(shape.stroke.content)) {
     return false;

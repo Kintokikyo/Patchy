@@ -209,8 +209,13 @@ origin when off; offsets add either way (PatternTileSampler).
 
 Geometry appears when one modeled origination covers every subpath: rect bounds
 and corner radii, ellipse bounds, or line endpoints/weight. A radius promotes a
-rect to rounded. generate_live_shape_subpaths preserves live shape parameters.
-Dialogs are the patent-cleared route; on-canvas gizmos stay excluded.
+rect to rounded; a link button (`shapeGeometryLinkButton`) keeps W/H in the
+ratio captured when it was switched on. generate_live_shape_subpaths preserves
+live shape parameters. Dialogs are the patent-cleared route; on-canvas gizmos
+stay excluded. The dialog also edits the layer's Opacity and Fill opacity (the
+Layers panel values), the stroke's own opacity (vstk strokeStyleOpacity), and
+the shape's Feather / Density (Edge group); all PSD-native, one "Shape
+appearance" undo entry. The options bar stays as is (Photoshop parity).
 
 Edits preview live and restore on cancel or exception; a PSD-read gradient/pattern
 stroke paint stays untouched unless re-picked. The preview
@@ -391,19 +396,6 @@ src/core/vector_live_shapes.hpp.
   endpoint_smoothing flag; the vector fill painter passes it, layer styles
   keep their default.
 
-### Known render divergences (July 2026)
-
-- GdFl with UNEVENLY spaced stops: PS parametrizes its smoothness spline
-  non-uniformly by stop location; Patchy's uniform per-segment catmull
-  differs by a few /255 there (gradient fixture: mean 1.2, max 8).
-- Stroke dashes: arc-length integration differs, so a few dash-edge pixels
-  flip (mean ~0.3 on the strokes fixture).
-- ROTATED pattern fills: the placement mapping is pinned exactly
-  (R(angle) @ (p - anchor) / scale), but PS resamples rotated tiles with a
-  soft per-cell filter: cell-edge deltas are large, the structure matches; psd_pattern_params_probe_render_parity_if_available
-  checks confident-cell agreement (>= 97%), not pixel means. Patchy's
-  crisper render is deliberate.
-
 ### Stroke rasterization (winding, lattice, bounds)
 
 - The stroker builds the band as a union of per-segment quads plus join/cap
@@ -449,6 +441,14 @@ canvas-clamped: a path ending on the canvas edge fades there
 - Vector-mask-ONLY layer: no mask section or channel.
 - Raster + vector masks: the 20-byte section holds the raster mask
   (channel -2); the vector mask stays in vmsk.
+- A SHAPE layer's own path carries the same parameters
+  (photoshop-shape-feather.psd, PS 27.9): section flags 0x18, derived plane =
+  plain path coverage (hull +-1), and only the SET parameter bits (feather
+  alone 27 -> 28 bytes padded, density alone 20). Model:
+  `VectorShapeContent::feather/density` (reader drops the derived plane).
+  Render (BMP-pinned): feather blurs the WHOLE rendered shape, stroke
+  included, unclamped at the canvas (`feather_shape_raster`); density shows
+  the fill everywhere at (255 - density)/255 (`apply_shape_density`).
 - Density/feather use the parameters form: section flags bit 4, then a
   parameter flags byte (bit 0 user density u8, bit 1 user feather f64, bit 2
   vector density u8 raw, bit 3 vector feather f64 BE), values in that order.
@@ -485,9 +485,9 @@ Resource-id constants live in src/core/document_path.hpp.
 - PSB: all vector keys use the 8BIM signature + 4-byte length form (none are
   in the 8-byte LARGE_KEYS set). Fixture: photoshop-shape.psb.
 
-## Fixture inventory
+## Fixture inventory and known render divergences
 
-Moved to [vector-fixtures.md](vector-fixtures.md) (self-authored COM fixtures under test-fixtures/psd and what each pins).
+Recorded in [vector-fixtures.md](vector-fixtures.md).
 
 ## Patents and trademarks (assessed July 2026)
 

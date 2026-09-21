@@ -25,6 +25,7 @@
 #include <QTimer>
 #include <QMouseEvent>
 #include <QToolBar>
+#include <QToolButton>
 #include <QPushButton>
 #include <QEvent>
 
@@ -3246,6 +3247,133 @@ void ui_layer_dialogs_refuse_during_transform() {
   CHECK(appearance_seen);
 }
 
+void ui_shape_appearance_dialog_edits_opacity_feather_and_stroke_opacity() {
+  VectorSettingsGuard settings_guard;
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  const auto layer_id = make_rect_shape_layer(window, *canvas);  // (100,100)-(300,220)
+  const auto history_before = patchy::ui::MainWindowTestAccess::active_session_undo_depth(window);
+
+  QTimer::singleShot(0, [&] {
+    auto* dialog = patchy::test::ui::find_top_level_dialog(QStringLiteral("shapeAppearanceDialog"));
+    CHECK(dialog != nullptr);
+    if (dialog == nullptr) {
+      return;
+    }
+    auto* opacity = dialog->findChild<QSpinBox*>(QStringLiteral("shapeLayerOpacitySpin"));
+    auto* fill_opacity = dialog->findChild<QSpinBox*>(QStringLiteral("shapeLayerFillOpacitySpin"));
+    auto* stroke_check = dialog->findChild<QCheckBox*>(QStringLiteral("shapeStrokeCheck"));
+    auto* stroke_opacity = dialog->findChild<QSpinBox*>(QStringLiteral("shapeStrokeOpacitySpin"));
+    auto* feather = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("shapeFeatherSpin"));
+    auto* density = dialog->findChild<QSpinBox*>(QStringLiteral("shapeDensitySpin"));
+    CHECK(opacity != nullptr && fill_opacity != nullptr && stroke_check != nullptr &&
+          stroke_opacity != nullptr && feather != nullptr && density != nullptr);
+    CHECK(opacity->value() == 100 && fill_opacity->value() == 100 && density->value() == 100);
+    CHECK(!stroke_opacity->isEnabled());  // greys with the stroke
+    opacity->setValue(50);
+    fill_opacity->setValue(40);
+    stroke_check->setChecked(true);
+    CHECK(stroke_opacity->isEnabled());
+    stroke_opacity->setValue(30);
+    feather->setValue(4.0);
+    density->setValue(60);
+    QApplication::processEvents();
+    dialog->accept();
+  });
+  patchy::ui::MainWindowTestAccess::edit_active_shape_appearance(window);
+  QApplication::processEvents();
+  auto* layer = document.find_layer(layer_id);
+  CHECK(layer != nullptr);
+  CHECK(std::abs(layer->opacity() - 0.5F) < 0.01F);
+  CHECK(std::abs(layer->fill_opacity() - 0.4F) < 0.01F);
+  const auto* content = layer->vector_shape();
+  CHECK(content != nullptr);
+  CHECK(content->stroke.enabled);
+  CHECK(std::abs(content->stroke.opacity - 0.3) < 1e-6);
+  CHECK(std::abs(content->feather - 4.0) < 1e-9);
+  CHECK(content->density == 153);
+  CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == history_before + 1);
+  // The Layers panel mirrors the new opacity, and the edge is soft: partial
+  // alpha on the path edge, and the density floor far from the shape.
+  auto* panel_opacity = window.findChild<QSpinBox*>(QStringLiteral("layerOpacitySpin"));
+  CHECK(panel_opacity != nullptr && panel_opacity->value() == 50);
+  const auto bounds = layer->bounds();
+  CHECK(bounds.x == 0 && bounds.width == document.width());  // density floors the whole canvas
+  const auto edge_alpha = static_cast<int>(layer->pixels().pixel(100 - bounds.x, 160 - bounds.y)[3]);
+  CHECK(edge_alpha > 130 && edge_alpha < 230);  // half coverage over the 40% floor
+  const auto far_alpha = static_cast<int>(layer->pixels().pixel(20 - bounds.x, 20 - bounds.y)[3]);
+  CHECK(far_alpha >= 95 && far_alpha <= 110);
+
+  // Cancel restores everything, including the layer opacity.
+  QTimer::singleShot(0, [&] {
+    auto* dialog = patchy::test::ui::find_top_level_dialog(QStringLiteral("shapeAppearanceDialog"));
+    CHECK(dialog != nullptr);
+    if (dialog == nullptr) {
+      return;
+    }
+    auto* opacity = dialog->findChild<QSpinBox*>(QStringLiteral("shapeLayerOpacitySpin"));
+    CHECK(opacity != nullptr && opacity->value() == 50);
+    opacity->setValue(10);
+    dialog->findChild<QDoubleSpinBox*>(QStringLiteral("shapeFeatherSpin"))->setValue(20.0);
+    QApplication::processEvents();
+    dialog->reject();
+  });
+  patchy::ui::MainWindowTestAccess::edit_active_shape_appearance(window);
+  QApplication::processEvents();
+  layer = document.find_layer(layer_id);
+  CHECK(std::abs(layer->opacity() - 0.5F) < 0.01F);
+  CHECK(std::abs(layer->vector_shape()->feather - 4.0) < 1e-9);
+
+  require_action_by_text(window, QStringLiteral("Undo"))->trigger();
+  QApplication::processEvents();
+  layer = document.find_layer(layer_id);
+  CHECK(std::abs(layer->opacity() - 1.0F) < 0.01F);
+  CHECK(std::abs(layer->vector_shape()->feather) < 1e-9);
+  CHECK(layer->vector_shape()->density == 255);
+}
+
+void ui_shape_geometry_link_keeps_aspect() {
+  VectorSettingsGuard settings_guard;
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  const auto layer_id = make_rect_shape_layer(window, *canvas);  // 200 x 120
+
+  QTimer::singleShot(0, [&] {
+    auto* dialog = patchy::test::ui::find_top_level_dialog(QStringLiteral("shapeAppearanceDialog"));
+    CHECK(dialog != nullptr);
+    if (dialog == nullptr) {
+      return;
+    }
+    auto* link = dialog->findChild<QToolButton*>(QStringLiteral("shapeGeometryLinkButton"));
+    auto* width = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("shapeGeometryWidthSpin"));
+    auto* height = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("shapeGeometryHeightSpin"));
+    CHECK(link != nullptr && width != nullptr && height != nullptr);
+    CHECK(!link->isChecked());
+    // Unlinked: height stays put.
+    width->setValue(300.0);
+    CHECK(std::abs(height->value() - 120.0) < 1e-9);
+    width->setValue(200.0);
+    link->setChecked(true);  // ratio 200:120 captured here
+    width->setValue(400.0);
+    CHECK(std::abs(height->value() - 240.0) < 0.05);
+    height->setValue(60.0);
+    CHECK(std::abs(width->value() - 100.0) < 0.05);
+    width->setValue(400.0);
+    QApplication::processEvents();
+    dialog->accept();
+  });
+  patchy::ui::MainWindowTestAccess::edit_active_shape_appearance(window);
+  QApplication::processEvents();
+  const auto* content = document.find_layer(layer_id)->vector_shape();
+  CHECK(content != nullptr && content->origination.size() == 1);
+  CHECK(std::abs(content->origination[0].right - 500.0) < 0.5);
+  CHECK(std::abs(content->origination[0].bottom - 340.0) < 0.5);
+}
+
 std::vector<patchy::test::TestCase> vector_shape_tool_tests() {
   return {
       {"ui_shape_tool_creates_shape_layer_and_undoes", ui_shape_tool_creates_shape_layer_and_undoes},
@@ -3331,5 +3459,8 @@ std::vector<patchy::test::TestCase> vector_shape_tool_tests() {
       {"ui_path_overlay_follows_move_drag", ui_path_overlay_follows_move_drag},
       {"ui_path_overlay_follows_free_transform", ui_path_overlay_follows_free_transform},
       {"ui_layer_dialogs_refuse_during_transform", ui_layer_dialogs_refuse_during_transform},
+      {"ui_shape_appearance_dialog_edits_opacity_feather_and_stroke_opacity",
+       ui_shape_appearance_dialog_edits_opacity_feather_and_stroke_opacity},
+      {"ui_shape_geometry_link_keeps_aspect", ui_shape_geometry_link_keeps_aspect},
   };
 }

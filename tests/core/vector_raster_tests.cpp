@@ -1094,8 +1094,58 @@ void stroke_sub_lattice_dashes_are_bounded() {
                    solid.pixels.data().begin(), solid.pixels.data().end()));
 }
 
+// Shape-layer Feather / Density (photoshop-shape-feather.psd): feather blurs
+// the whole rendered shape, stroke included, past the path; density shows the
+// fill everywhere at (255 - density)/255.
+void raster_shape_feather_softens_edge_and_density_floors_alpha() {
+  const Rect canvas{0, 0, 48, 48};
+  patchy::VectorShapeContent content;
+  content.path.subpaths = {rect_subpath(8, 8, 40, 40, PathCombineOp::Add, 0)};
+  content.fill.kind = patchy::VectorFillKind::Solid;
+  content.fill.color = patchy::RgbColor{214, 40, 40};
+  content.stroke.enabled = true;
+  content.stroke.width = 4.0;
+  content.stroke.alignment = patchy::VectorStrokeAlignment::Inside;
+  content.stroke.content.kind = patchy::VectorFillKind::Solid;
+  content.stroke.content.color = patchy::RgbColor{0, 0, 0};
+
+  const auto crisp = patchy::rasterize_vector_shape(content, canvas, nullptr, nullptr);
+  const auto crisp_stroke = crisp.pixels.pixel(10 - crisp.bounds.x, 24 - crisp.bounds.y);
+  CHECK(crisp_stroke[0] == 0 && crisp_stroke[3] == 255);
+
+  content.feather = 4.0;
+  const auto soft = patchy::rasterize_vector_shape(content, canvas, nullptr, nullptr);
+  CHECK(soft.bounds.x >= 0 && soft.bounds.x < 8);  // grows past the path, clipped to the canvas
+  CHECK(soft.bounds.x + soft.bounds.width <= 48);
+  const auto alpha_at = [&soft](int x, int y) {
+    return static_cast<int>(soft.pixels.pixel(x - soft.bounds.x, y - soft.bounds.y)[3]);
+  };
+  CHECK(alpha_at(24, 24) == 255);
+  const auto edge = alpha_at(8, 24);
+  CHECK(edge > 90 && edge < 170);  // ~half coverage on the path edge
+  const auto outside = alpha_at(4, 24);
+  CHECK(outside > 20 && outside < edge);
+  CHECK(alpha_at(0, 24) < 40);
+  // The stroke smears with the fill instead of staying a crisp black band.
+  const auto soft_stroke = soft.pixels.pixel(10 - soft.bounds.x, 24 - soft.bounds.y);
+  CHECK(soft_stroke[0] > 40);
+  // The split planes stay in lockstep with the baked pixels.
+  CHECK(soft.fill_pixels.empty() || soft.fill_pixels.width() == soft.pixels.width());
+
+  content.feather = 0.0;
+  content.stroke.enabled = false;
+  content.density = 153;  // 60%
+  const auto dense = patchy::rasterize_vector_shape(content, canvas, nullptr, nullptr);
+  CHECK(dense.bounds.x == 0 && dense.bounds.y == 0 && dense.bounds.width == 48 && dense.bounds.height == 48);
+  const auto far_alpha = static_cast<int>(dense.pixels.pixel(45, 45)[3]);
+  CHECK(far_alpha >= 98 && far_alpha <= 106);
+  CHECK(dense.pixels.pixel(24, 24)[3] == 255);
+}
+
 std::vector<patchy::test::TestCase> vector_raster_tests() {
   return {
+      {"raster_shape_feather_softens_edge_and_density_floors_alpha",
+       raster_shape_feather_softens_edge_and_density_floors_alpha},
       {"raster_axis_aligned_rect_coverage_is_exact", raster_axis_aligned_rect_coverage_is_exact},
       {"raster_half_plane_diagonal_ramp", raster_half_plane_diagonal_ramp},
       {"raster_area_sum_matches_analytic", raster_area_sum_matches_analytic},

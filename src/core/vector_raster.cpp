@@ -1097,6 +1097,120 @@ CoverageBuffer crop_coverage(const CoverageBuffer& coverage, Rect clip) {
   return cropped;
 }
 
+// Shape-layer density (photoshop-shape-feather.psd, the density-60 layer
+// tinted the whole canvas): the fill shows everywhere at (255 - density)/255,
+// the vector-mask rule applied to the shape's own coverage over `domain`.
+CoverageBuffer apply_shape_density(const CoverageBuffer& coverage, std::uint8_t density, Rect domain) {
+  CoverageBuffer result;
+  if (domain.empty()) {
+    return result;
+  }
+  result.bounds = domain;
+  result.pixels = PixelBuffer(domain.width, domain.height, PixelFormat::gray8());
+  const auto floor_value = static_cast<unsigned>(255U - density);
+  for (std::int32_t y = 0; y < domain.height; ++y) {
+    auto* row = result.pixels.row(y).data();
+    for (std::int32_t x = 0; x < domain.width; ++x) {
+      const auto value = coverage_at(coverage, domain.x + x, domain.y + y);
+      row[x] = static_cast<std::uint8_t>((value * density + floor_value * 255U + 127U) / 255U);
+    }
+  }
+  return result;
+}
+
+// Shape-layer feather: Photoshop blurs the whole rendered shape, fill AND
+// stroke (the probe's dark inside stroke became a soft smear), with the
+// vector-mask gaussian, unclamped at the canvas. Straight-alpha RGBA planes
+// blur premultiplied, then the result is cropped back to the canvas.
+PixelBuffer feather_rgba_plane(const PixelBuffer& pixels, Rect bounds, Rect expanded,
+                               const std::array<std::int32_t, 3>& radii) {
+  const auto width = static_cast<std::size_t>(expanded.width);
+  const auto count = width * static_cast<std::size_t>(expanded.height);
+  std::array<std::vector<std::uint16_t>, 4> planes;
+  for (auto& plane : planes) {
+    plane.assign(count, 0);
+  }
+  for (std::int32_t y = 0; y < bounds.height; ++y) {
+    const auto* row = pixels.data().data() + static_cast<std::size_t>(y) * pixels.stride_bytes();
+    const auto target_y = bounds.y - expanded.y + y;
+    if (target_y < 0 || target_y >= expanded.height) {
+      continue;
+    }
+    for (std::int32_t x = 0; x < bounds.width; ++x) {
+      const auto target_x = bounds.x - expanded.x + x;
+      if (target_x < 0 || target_x >= expanded.width) {
+        continue;
+      }
+      const auto index = static_cast<std::size_t>(target_y) * width + static_cast<std::size_t>(target_x);
+      const unsigned alpha = row[x * 4 + 3];
+      planes[3][index] = static_cast<std::uint16_t>(alpha * 257U);
+      for (int channel = 0; channel < 3; ++channel) {
+        planes[static_cast<std::size_t>(channel)][index] =
+            static_cast<std::uint16_t>((row[x * 4 + channel] * alpha * 257U + 127U) / 255U);
+      }
+    }
+  }
+  for (auto& plane : planes) {
+    mask_feather_blur(plane, expanded.width, expanded.height, radii);
+  }
+  PixelBuffer blurred(expanded.width, expanded.height, PixelFormat::rgba8());
+  for (std::int32_t y = 0; y < expanded.height; ++y) {
+    auto* out = blurred.data().data() + static_cast<std::size_t>(y) * blurred.stride_bytes();
+    for (std::int32_t x = 0; x < expanded.width; ++x) {
+      const auto index = static_cast<std::size_t>(y) * width + static_cast<std::size_t>(x);
+      const unsigned alpha16 = planes[3][index];
+      const auto alpha = static_cast<std::uint8_t>((alpha16 + 128U) / 257U);
+      for (int channel = 0; channel < 3; ++channel) {
+        const unsigned value16 = planes[static_cast<std::size_t>(channel)][index];
+        out[x * 4 + channel] = alpha16 > 0 ? static_cast<std::uint8_t>(std::min<unsigned>(255U, (value16 * 255U + alpha16 / 2U) / alpha16)) : 0;
+      }
+      out[x * 4 + 3] = alpha;
+    }
+  }
+  return blurred;
+}
+
+PixelBuffer crop_rgba(const PixelBuffer& pixels, Rect bounds, Rect clip) {
+  PixelBuffer cropped(clip.width, clip.height, PixelFormat::rgba8());
+  for (std::int32_t y = 0; y < clip.height; ++y) {
+    const auto* source = pixels.data().data() +
+                         static_cast<std::size_t>(clip.y - bounds.y + y) * pixels.stride_bytes() +
+                         static_cast<std::size_t>(clip.x - bounds.x) * 4;
+    std::memcpy(cropped.data().data() + static_cast<std::size_t>(y) * cropped.stride_bytes(), source,
+                static_cast<std::size_t>(clip.width) * 4);
+  }
+  return cropped;
+}
+
+void feather_shape_raster(ShapeRasterResult& result, const std::array<std::int32_t, 3>& radii, Rect domain,
+                          Rect canvas) {
+  const std::int32_t reach = radii[0] + radii[1] + radii[2];
+  if (reach <= 0 || result.bounds.empty()) {
+    return;
+  }
+  Rect expanded{result.bounds.x - reach, result.bounds.y - reach, result.bounds.width + 2 * reach,
+                result.bounds.height + 2 * reach};
+  expanded = intersect_rects(expanded, domain);
+  const auto clip = intersect_rects(expanded, canvas);
+  if (expanded.empty() || clip.empty()) {
+    result.bounds = {};
+    result.pixels = PixelBuffer();
+    result.fill_pixels = PixelBuffer();
+    result.stroke_pixels = PixelBuffer();
+    return;
+  }
+  const auto process = [&](PixelBuffer& pixels) {
+    if (pixels.empty()) {
+      return;
+    }
+    pixels = crop_rgba(feather_rgba_plane(pixels, result.bounds, expanded, radii), expanded, clip);
+  };
+  process(result.pixels);
+  process(result.fill_pixels);
+  process(result.stroke_pixels);
+  result.bounds = clip;
+}
+
 }  // namespace
 
 void update_vector_mask_raster(Layer& layer, Rect canvas) {
@@ -1286,7 +1400,16 @@ ShapeRasterResult rasterize_vector_shape(const VectorShapeContent& content, Rect
     return result;
   }
   VectorRasterOptions options;
-  options.clip = canvas;
+  // Feather rasterizes `reach` pixels past the canvas so every in-canvas pixel
+  // blurs real coverage (unclamped, the vector-mask recipe), then crops back.
+  const auto feather_radii = content.feather > 0.05 ? mask_feather_box_radii(content.feather)
+                                                    : std::array<std::int32_t, 3>{};
+  const std::int32_t feather_reach = feather_radii[0] + feather_radii[1] + feather_radii[2];
+  const Rect raster_domain =
+      feather_reach > 0 ? Rect{canvas.x - feather_reach, canvas.y - feather_reach,
+                               canvas.width + 2 * feather_reach, canvas.height + 2 * feather_reach}
+                        : canvas;
+  options.clip = raster_domain;
 
   const bool fill_on = content.stroke.fill_enabled && content.fill.kind != VectorFillKind::None;
   CoverageBuffer fill_coverage;
@@ -1299,9 +1422,12 @@ ShapeRasterResult rasterize_vector_shape(const VectorShapeContent& content, Rect
       LayerVectorMask inverter;
       inverter.path = content.path;
       inverter.inverted = true;
-      fill_coverage = rasterize_vector_mask_coverage(inverter, canvas);
+      fill_coverage = rasterize_vector_mask_coverage(inverter, raster_domain);
     } else {
       fill_coverage = rasterize_vector_path(content.path, options);
+    }
+    if (content.density != 255) {
+      fill_coverage = apply_shape_density(fill_coverage, content.density, raster_domain);
     }
   }
   const bool stroke_on =
@@ -1416,6 +1542,9 @@ ShapeRasterResult rasterize_vector_shape(const VectorShapeContent& content, Rect
         dest[3] = static_cast<std::uint8_t>(std::clamp<long>(std::lround(out_alpha * 255.0), 0L, 255L));
       }
     }
+  }
+  if (feather_reach > 0) {
+    feather_shape_raster(result, feather_radii, raster_domain, canvas);
   }
   return result;
 }

@@ -26,6 +26,12 @@ struct ShapeAppearanceSettings {
   VectorFill fill;
   VectorStroke stroke;
   std::optional<LiveShapeParams> geometry;
+  // Layer transparency (the Layers panel values) and the shape's vector-mask
+  // Feather / Density (VectorShapeContent::feather/density), all PSD-native.
+  float layer_opacity{1.0F};
+  float fill_opacity{1.0F};
+  double feather{0.0};
+  std::uint8_t density{255};
 };
 
 // GRD presets may defer stops to the tool colors; shape fills store concrete

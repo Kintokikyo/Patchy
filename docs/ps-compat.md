@@ -42,9 +42,10 @@ Drive PS from PowerShell: `(New-Object -ComObject Photoshop.Application).DoJavaS
 ## Write rules pinned against PS (silent corruption otherwise)
 
 Vector automation uses group masks for an extra mask around shape artwork: a
-shape's native vector-path slot is already its geometry. Folder records write
-vmsk and optional derived density/feather planes. Raster-plus-vector masks retain
-vector parameters in their shared mask-data section. See [vector-automation.md](vector-automation.md).
+shape's native vector-path slot is already its geometry. Vector-mask density/feather (a
+shape's own path included) write the mask-data parameters form with only the SET bits plus
+the derived plain-coverage plane (PS 27.9 captures, [vector-tools.md](vector-tools.md)). See
+[vector-automation.md](vector-automation.md).
 Authored None paints write disabled `vstk` fill/stroke flags, including shapes
 with both paints off. PSD paint descriptors still carry a placeholder color;
 the flags prevent that color from appearing on reopen.
