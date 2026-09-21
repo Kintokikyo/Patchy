@@ -6959,10 +6959,6 @@ RGB: %2, %3, %4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>%1 page(s), first page %2 x %3 px</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Editable import brings in one page; page %1 was imported.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8227,6 +8223,104 @@ RGB: %2, %3, %4</source>
     </message>
     <message>
         <source>Restore the default fill, stroke, opacity, and edge (the geometry stays)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export Multi-Page PDF</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pages</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>One page per open document</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move Up</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move Down</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>One page per top-level layer group of the current document (%n group(s))</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>One page per top-level layer group (the current document has none)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Draw ungrouped layers on every page</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Keep layers as editable objects</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shapes and text stay editable; blend modes, adjustment layers, and layer styles flatten to images on each page.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lossless images</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n page(s) will be written.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Check at least one document.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 pages opened as separate documents.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Separate documents</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Layers in one document</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pages become:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 document(s), first page %2 x %3 px</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 layer(s), first page %2 x %3 px</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Editable import was not possible for page %1 (%2); it was flattened instead.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Portrait</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Landscape</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Orientation</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -16737,6 +16831,25 @@ Y: %2
         <source>Shape: Fill %1 | Stroke %2 | Feather %3 px | Density %4%</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Export &amp;Multi-Page PDF...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 - %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export Multi-Page PDF</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Exported %n page(s) to %1</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -17978,6 +18091,22 @@ Y: %2
     </message>
     <message>
         <source>direction must be &apos;auto&apos;, &apos;ltr&apos; or &apos;rtl&apos;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>exportPdf needs one open document or an array of them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>exportPdf needs an output path.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not export %1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>One of the documents is no longer open.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

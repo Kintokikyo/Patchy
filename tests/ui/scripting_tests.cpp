@@ -10,6 +10,7 @@
 #include "core/layer_metadata.hpp"
 #include "core/palette.hpp"
 #include "formats/document_flatten.hpp"
+#include "formats/pdf_document_io.hpp"
 #include <QJsonArray>
 #include <QJsonObject>
 #include "ui/canvas_widget.hpp"
@@ -66,6 +67,8 @@
 #include <QTextBrowser>
 #include <QTimer>
 #include <QToolTip>
+
+#include <span>
 #include <QTreeWidget>
 #include <QTemporaryDir>
 #include <QTreeWidgetItem>
@@ -2828,8 +2831,49 @@ void ui_script_layer_duplicate_to_document() {
   CHECK(backlog_contains(window, QStringLiteral("dup-ok true true")));
 }
 
+// app.exportPdf: several documents become the pages of one file; bad arguments throw
+// instead of writing anything.
+void ui_script_export_pdf_writes_pages() {
+  patchy::test::ui::ensure_artifact_dir();
+  patchy::ui::MainWindow window;
+  show_window(window);
+  const auto path = QDir::current().filePath(QStringLiteral("test-artifacts/ui_script_export_pages.pdf"));
+  QFile::remove(path);
+  CHECK(run_script(window, QStringLiteral(R"JS(
+    var a = app.newDocument(300, 150);
+    a.activeLayer.fill('#ff0000');
+    var b = app.newDocument(150, 300);
+    b.activeLayer.fill('#0000ff');
+    if (!app.exportPdf([a, b], %1, { lossless: true })) throw new Error('export failed');
+    var threw = false;
+    try { app.exportPdf([], %1); } catch (e) { threw = true; }
+    if (!threw) throw new Error('empty list accepted');
+    threw = false;
+    try { app.exportPdf('nope', %1); } catch (e) { threw = true; }
+    if (!threw) throw new Error('non-document accepted');
+    console.log('pdf-ok');
+  )JS")
+                                .arg(QString::fromUtf8(QJsonDocument(QJsonArray{path}).toJson(QJsonDocument::Compact))
+                                         .chopped(1)
+                                         .mid(1))));
+  CHECK(backlog_contains(window, QStringLiteral("pdf-ok")));
+  QFile file(path);
+  CHECK(file.open(QIODevice::ReadOnly));
+  const QByteArray bytes = file.readAll();
+  const std::span<const std::uint8_t> span(reinterpret_cast<const std::uint8_t*>(bytes.constData()),
+                                           static_cast<std::size_t>(bytes.size()));
+  CHECK(patchy::pdf::page_count(span) == 2);
+  // A script document carries the core 300 ppi default, so 300 x 150 px is a 72 x 36 pt
+  // page; read back at 300 px per inch it is 300 x 150 again, and page 2 is 150 x 300.
+  const auto first = patchy::pdf::page_size_in_pixels(span, 0, 300.0 / 72.0);
+  const auto second = patchy::pdf::page_size_in_pixels(span, 1, 300.0 / 72.0);
+  CHECK(first[0] == 300 && first[1] == 150);
+  CHECK(second[0] == 150 && second[1] == 300);
+}
+
 std::vector<patchy::test::TestCase> scripting_tests() {
   return {
+      {"ui_script_export_pdf_writes_pages", ui_script_export_pdf_writes_pages},
       {"ui_script_palette_validation_and_history", ui_script_palette_validation_and_history},
       {"ui_script_palette_unicode_files_and_indexed_png", ui_script_palette_unicode_files_and_indexed_png},
       {"ui_script_palette_named_controls_and_rename", ui_script_palette_named_controls_and_rename},

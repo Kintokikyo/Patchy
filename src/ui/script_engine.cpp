@@ -16,6 +16,7 @@
 #include "ui/dialog_utils.hpp"
 #include "ui/main_window.hpp"
 #include "ui/mcp_activity.hpp"
+#include "ui/pdf_export.hpp"
 #include <QScopedValueRollback>
 #include "ui/qt_geometry.hpp"
 #include "ui/script_api.hpp"
@@ -1026,6 +1027,32 @@ bool ScriptEngineHost::save_session_to_path(std::int64_t session_id, const QStri
   }
   window_.activate_document_session(*session);
   return window_.save_document_to_path(path, std::nullopt, /*flatten_confirmed=*/true);
+}
+
+bool ScriptEngineHost::export_sessions_to_pdf(const std::vector<std::int64_t>& session_ids, const QString& path,
+                                              const PdfExportOptions& options, QString* error) {
+  pump_progress_indicator();
+  std::vector<const Document*> pages;
+  pages.reserve(session_ids.size());
+  for (const auto session_id : session_ids) {
+    const auto* session = window_.session_with_id(session_id);
+    if (session == nullptr) {
+      if (error != nullptr) {
+        *error = tr("One of the documents is no longer open.");
+      }
+      return false;
+    }
+    pages.push_back(&session->document);
+  }
+  try {
+    write_multipage_pdf_file(pages, path, options, nullptr);
+  } catch (const std::exception& exception) {
+    if (error != nullptr) {
+      *error = QString::fromUtf8(exception.what());
+    }
+    return false;
+  }
+  return true;
 }
 
 bool ScriptEngineHost::close_session(std::int64_t session_id) {

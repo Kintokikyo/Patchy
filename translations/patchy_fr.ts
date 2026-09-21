@@ -6968,10 +6968,6 @@ RVB : %2, %3, %4</translation>
         <translation>Sélectionnez au moins une page.</translation>
     </message>
     <message>
-        <source>%1 page(s), first page %2 x %3 px</source>
-        <translation>%1 page(s), première page %2 x %3 px</translation>
-    </message>
-    <message>
         <source>Editable import brings in one page; page %1 was imported.</source>
         <translation>L&apos;importation modifiable ne prend qu&apos;une page ; la page %1 a été importée.</translation>
     </message>
@@ -8237,6 +8233,104 @@ RVB : %2, %3, %4</translation>
     <message>
         <source>Restore the default fill, stroke, opacity, and edge (the geometry stays)</source>
         <translation>Rétablir le fond, le contour, l&apos;opacité et le bord par défaut (la géométrie reste)</translation>
+    </message>
+    <message>
+        <source>Export Multi-Page PDF</source>
+        <translation>Exporter un PDF multipage</translation>
+    </message>
+    <message>
+        <source>Pages</source>
+        <translation>Pages</translation>
+    </message>
+    <message>
+        <source>One page per open document</source>
+        <translation>Une page par document ouvert</translation>
+    </message>
+    <message>
+        <source>Move Up</source>
+        <translation>Monter</translation>
+    </message>
+    <message>
+        <source>Move Down</source>
+        <translation>Descendre</translation>
+    </message>
+    <message numerus="yes">
+        <source>One page per top-level layer group of the current document (%n group(s))</source>
+        <translation>
+            <numerusform>Une page par groupe de calques de premier niveau du document actuel (%n groupe)</numerusform>
+            <numerusform>Une page par groupe de calques de premier niveau du document actuel (%n groupes)</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>One page per top-level layer group (the current document has none)</source>
+        <translation>Une page par groupe de calques de premier niveau (le document actuel n'en a aucun)</translation>
+    </message>
+    <message>
+        <source>Draw ungrouped layers on every page</source>
+        <translation>Dessiner les calques non groupés sur chaque page</translation>
+    </message>
+    <message>
+        <source>Keep layers as editable objects</source>
+        <translation>Conserver les calques comme objets modifiables</translation>
+    </message>
+    <message>
+        <source>Shapes and text stay editable; blend modes, adjustment layers, and layer styles flatten to images on each page.</source>
+        <translation>Les formes et le texte restent modifiables ; les modes de fusion, les calques de réglage et les styles de calque sont aplatis en images sur chaque page.</translation>
+    </message>
+    <message>
+        <source>Lossless images</source>
+        <translation>Images sans perte</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n page(s) will be written.</source>
+        <translation>
+            <numerusform>%n page sera écrite.</numerusform>
+            <numerusform>%n pages seront écrites.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Check at least one document.</source>
+        <translation>Cochez au moins un document.</translation>
+    </message>
+    <message>
+        <source>%1 pages opened as separate documents.</source>
+        <translation>%1 pages ouvertes comme documents séparés.</translation>
+    </message>
+    <message>
+        <source>Separate documents</source>
+        <translation>Documents séparés</translation>
+    </message>
+    <message>
+        <source>Layers in one document</source>
+        <translation>Calques dans un seul document</translation>
+    </message>
+    <message>
+        <source>Pages become:</source>
+        <translation>Les pages deviennent :</translation>
+    </message>
+    <message>
+        <source>%1 document(s), first page %2 x %3 px</source>
+        <translation>%1 document(s), première page %2 x %3 px</translation>
+    </message>
+    <message>
+        <source>%1 layer(s), first page %2 x %3 px</source>
+        <translation>%1 calque(s), première page %2 x %3 px</translation>
+    </message>
+    <message>
+        <source>Editable import was not possible for page %1 (%2); it was flattened instead.</source>
+        <translation>L'import modifiable n'a pas été possible pour la page %1 (%2) ; elle a été aplatie à la place.</translation>
+    </message>
+    <message>
+        <source>Portrait</source>
+        <translation>Portrait</translation>
+    </message>
+    <message>
+        <source>Landscape</source>
+        <translation>Paysage</translation>
+    </message>
+    <message>
+        <source>Orientation</source>
+        <translation>Orientation</translation>
     </message>
 </context>
 <context>
@@ -16779,6 +16873,25 @@ Y : %2
         <source>Shape: Fill %1 | Stroke %2 | Feather %3 px | Density %4%</source>
         <translation>Forme : Fond %1 | Contour %2 | Contour progressif %3 px | Densité %4 %</translation>
     </message>
+    <message>
+        <source>Export &amp;Multi-Page PDF...</source>
+        <translation>Exporter un PDF &amp;multipage...</translation>
+    </message>
+    <message>
+        <source>%1 - %2</source>
+        <translation>%1 - %2</translation>
+    </message>
+    <message>
+        <source>Export Multi-Page PDF</source>
+        <translation>Exporter un PDF multipage</translation>
+    </message>
+    <message numerus="yes">
+        <source>Exported %n page(s) to %1</source>
+        <translation>
+            <numerusform>%n page exportée vers %1</numerusform>
+            <numerusform>%n pages exportées vers %1</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -18021,6 +18134,22 @@ Y : %2
     <message>
         <source>direction must be &apos;auto&apos;, &apos;ltr&apos; or &apos;rtl&apos;.</source>
         <translation>direction doit valoir &apos;auto&apos;, &apos;ltr&apos; ou &apos;rtl&apos;.</translation>
+    </message>
+    <message>
+        <source>exportPdf needs one open document or an array of them.</source>
+        <translation>exportPdf a besoin d'un document ouvert ou d'un tableau de documents.</translation>
+    </message>
+    <message>
+        <source>exportPdf needs an output path.</source>
+        <translation>exportPdf a besoin d'un chemin de sortie.</translation>
+    </message>
+    <message>
+        <source>Could not export %1: %2</source>
+        <translation>Impossible d'exporter %1 : %2</translation>
+    </message>
+    <message>
+        <source>One of the documents is no longer open.</source>
+        <translation>L'un des documents n'est plus ouvert.</translation>
     </message>
 </context>
 <context>

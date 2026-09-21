@@ -83,6 +83,8 @@ struct LayerDropRequest;
 
 namespace patchy::ui {
 
+struct PdfImportedDocument;
+
 namespace user_fonts {
 struct AddFontsResult;
 }
@@ -580,6 +582,7 @@ private:
   // resample their smart-object source through the placement quad.
   void render_pending_pdf_text_layers(Document& target);
   void render_pending_pdf_image_layers(Document& target);
+  void open_extra_imported_page_sessions(const QString& file_name, std::vector<PdfImportedDocument> pages);
   // Reloads the session's file from disk in place (tab position, float window,
   // and session identity survive; undo history and unsaved changes do not).
   void reopen_document_session(DocumentSession& target_session);
@@ -645,6 +648,7 @@ private:
   // preference alone and never shows the question.
   std::optional<bool> resolve_pdf_layer_choice(bool for_export, bool allow_prompt);
   void export_flat_image();
+  void export_multipage_pdf();
   void page_setup();
   void print_document();
   void show_preferences();

@@ -260,6 +260,9 @@ public:
                                      const QString& filter = QString());
   // Registered app commands by stable hotkey command id (docs/scripting.md).
   Q_INVOKABLE bool runCommand(const QString& commandId);
+  // One PDF with a page per document: exportPdf([docA, docB], "out.pdf", { lossless,
+  // editableLayers, missingFontsAsImages }). A single document is accepted too.
+  Q_INVOKABLE bool exportPdf(const QJSValue& documents, const QString& path, const QJSValue& options = QJSValue());
   Q_INVOKABLE QStringList commandIds();
 
 private:

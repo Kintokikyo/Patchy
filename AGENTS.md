@@ -40,6 +40,8 @@ Required release handoff steps:
 
    CMakeLists.txt owns the MSVC Release codegen flags (`/Zi /GL` on compiles, `/DEBUG:FULL /INCREMENTAL:NO /LTCG` on links), so every configure emits `patchy.pdb` (for symbolizing WER dumps from `%LOCALAPPDATA%\CrashDumps`) and link-time optimized binaries. Never hand-edit `build\release\CMakeCache.txt`. To symbolize a dump from an older build, rebuild that commit in a temporary worktree; full links reproduce the binary layout.
 
+   A git worktree has no `.deps`: configure its release preset once with `--preset release -DCMAKE_PREFIX_PATH=D:/projects/AI/codex/Patchy/.deps/Qt/6.8.3/msvc2022_64` (the main checkout's Qt) before the build command above; the build itself is unchanged.
+
    A running `build\release\patchy.exe` locks the link step (`LNK1104`). Ask Seth to close it; never force-kill it because he may have unsaved work.
 
    A running `build\release\patchy-mcp.exe` is handled by the `patchy-mcp` target's PRE_LINK step, which renames the locked connector aside as `patchy-mcp.stale-<stamp>.exe`; never kill the connector and never package a `.stale-` file. See [docs/release-process.md](docs/release-process.md).

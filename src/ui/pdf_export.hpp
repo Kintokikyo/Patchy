@@ -2,11 +2,14 @@
 
 #include "core/document.hpp"
 
+#include <QPageSize>
 #include <QString>
 
+#include <span>
 #include <string>
 #include <vector>
 
+class QPainter;
 class QPdfWriter;
 
 namespace patchy::ui {
@@ -41,7 +44,26 @@ struct PdfExportOptions {
 void write_pdf_document_file(const Document& document, const QString& path, const PdfExportOptions& options = {},
                              std::vector<std::string>* notices = nullptr);
 
+// A multi-page PDF, one page per document in order, each page sized from its own
+// pixels and PPI exactly as the single-page writer sizes its page (File > Export
+// Multi-Page PDF and app.exportPdf). Flat or editable per `options`, the same way per
+// page; editable-mode losses land in `notices`. Throws std::runtime_error on an empty
+// list, a null or empty document, or a file that cannot be written.
+void write_multipage_pdf_file(std::span<const Document* const> pages, const QString& path,
+                              const PdfExportOptions& options = {}, std::vector<std::string>* notices = nullptr);
+
+// "Print a folder as a page": one copy of the document per visible top-level layer
+// group, with every other top-level layer hidden except, when
+// `include_ungrouped_layers`, the non-group root layers (a shared background). Top of
+// the layer stack first, so groups named Page 1, Page 2, ... in the panel come out in
+// reading order. Empty when the document has no visible top-level group.
+[[nodiscard]] std::vector<Document> documents_for_top_level_groups(const Document& document,
+                                                                   bool include_ungrouped_layers);
+
 namespace pdf_detail {
+// The page a document exports to: pixels / PPI inches per axis, exact match, shrunk
+// to the 14400 pt cap when larger.
+[[nodiscard]] QPageSize document_page_size(const Document& document);
 // Page sized from the document (pixels / PPI inches per axis, exact-match size, zero
 // margins, the 14400 pt cap) and the device resolution pinned to the document PPI so the
 // painter's logical grid is one unit per document pixel. Shared by both export modes.
@@ -49,6 +71,15 @@ void configure_document_page(QPdfWriter& writer, const Document& document);
 // The editable-layers writer.
 void write_editable_pdf_document_file(const Document& document, const QString& path, const PdfExportOptions& options,
                                       std::vector<std::string>* notices);
+// The editable walk onto a painter that is already begun on a PDF device: sets the
+// window to the document's pixel grid and draws every layer. One page's worth; the
+// multi-page writer calls it per page.
+void paint_editable_document(QPainter& painter, const Document& document, const PdfExportOptions& options,
+                             std::vector<std::string>* notices);
+// The glyph-run merge (formats/pdf_text_merge.hpp) over a file Qt just wrote, so
+// importers see words rather than one object per letter. A file the pass cannot
+// handle is left as written. Run after every editable export.
+void apply_text_merge_post_pass(const QString& path);
 }  // namespace pdf_detail
 
 }  // namespace patchy::ui

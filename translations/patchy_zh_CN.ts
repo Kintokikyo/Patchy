@@ -6951,10 +6951,6 @@ RGB：%2, %3, %4</translation>
         <translation>请至少选择一个页面。</translation>
     </message>
     <message>
-        <source>%1 page(s), first page %2 x %3 px</source>
-        <translation>%1 页，第一页 %2 x %3 px</translation>
-    </message>
-    <message>
         <source>Editable import brings in one page; page %1 was imported.</source>
         <translation>可编辑导入只会导入一页；已导入第 %1 页。</translation>
     </message>
@@ -8214,6 +8210,102 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Restore the default fill, stroke, opacity, and edge (the geometry stays)</source>
         <translation>恢复默认的填充、描边、不透明度和边缘（几何形状保持不变）</translation>
+    </message>
+    <message>
+        <source>Export Multi-Page PDF</source>
+        <translation>导出多页 PDF</translation>
+    </message>
+    <message>
+        <source>Pages</source>
+        <translation>页面</translation>
+    </message>
+    <message>
+        <source>One page per open document</source>
+        <translation>每个打开的文档一页</translation>
+    </message>
+    <message>
+        <source>Move Up</source>
+        <translation>上移</translation>
+    </message>
+    <message>
+        <source>Move Down</source>
+        <translation>下移</translation>
+    </message>
+    <message numerus="yes">
+        <source>One page per top-level layer group of the current document (%n group(s))</source>
+        <translation>
+            <numerusform>当前文档的每个顶层图层组一页 (%n 个组)</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>One page per top-level layer group (the current document has none)</source>
+        <translation>每个顶层图层组一页 (当前文档没有图层组)</translation>
+    </message>
+    <message>
+        <source>Draw ungrouped layers on every page</source>
+        <translation>在每一页上绘制未分组的图层</translation>
+    </message>
+    <message>
+        <source>Keep layers as editable objects</source>
+        <translation>将图层保留为可编辑对象</translation>
+    </message>
+    <message>
+        <source>Shapes and text stay editable; blend modes, adjustment layers, and layer styles flatten to images on each page.</source>
+        <translation>形状和文本保持可编辑;混合模式、调整图层和图层样式在每一页上拼合为图像。</translation>
+    </message>
+    <message>
+        <source>Lossless images</source>
+        <translation>无损图像</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n page(s) will be written.</source>
+        <translation>
+            <numerusform>将写入 %n 页。</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Check at least one document.</source>
+        <translation>请至少勾选一个文档。</translation>
+    </message>
+    <message>
+        <source>%1 pages opened as separate documents.</source>
+        <translation>已将 %1 页作为单独的文档打开。</translation>
+    </message>
+    <message>
+        <source>Separate documents</source>
+        <translation>单独的文档</translation>
+    </message>
+    <message>
+        <source>Layers in one document</source>
+        <translation>同一文档中的图层</translation>
+    </message>
+    <message>
+        <source>Pages become:</source>
+        <translation>页面变为:</translation>
+    </message>
+    <message>
+        <source>%1 document(s), first page %2 x %3 px</source>
+        <translation>%1 个文档,第一页 %2 x %3 px</translation>
+    </message>
+    <message>
+        <source>%1 layer(s), first page %2 x %3 px</source>
+        <translation>%1 个图层,第一页 %2 x %3 px</translation>
+    </message>
+    <message>
+        <source>Editable import was not possible for page %1 (%2); it was flattened instead.</source>
+        <translation>第 %1 页无法以可编辑方式导入 (%2),已改为拼合。</translation>
+    </message>
+    <message>
+        <source>Portrait</source>
+        <translation>纵向</translation>
+    </message>
+    <message>
+        <source>Landscape</source>
+        <translation>横向</translation>
+    </message>
+    <message>
+        <source>Orientation</source>
+        <translation>方向</translation>
     </message>
 </context>
 <context>
@@ -16741,6 +16833,24 @@ Y: %2
         <source>Shape: Fill %1 | Stroke %2 | Feather %3 px | Density %4%</source>
         <translation>形状：填充 %1 | 描边 %2 | 羽化 %3 px | 浓度 %4%</translation>
     </message>
+    <message>
+        <source>Export &amp;Multi-Page PDF...</source>
+        <translation>导出多页 PDF(&amp;M)...</translation>
+    </message>
+    <message>
+        <source>%1 - %2</source>
+        <translation>%1 - %2</translation>
+    </message>
+    <message>
+        <source>Export Multi-Page PDF</source>
+        <translation>导出多页 PDF</translation>
+    </message>
+    <message numerus="yes">
+        <source>Exported %n page(s) to %1</source>
+        <translation>
+            <numerusform>已将 %n 页导出到 %1</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -17982,6 +18092,22 @@ Y: %2
     <message>
         <source>direction must be &apos;auto&apos;, &apos;ltr&apos; or &apos;rtl&apos;.</source>
         <translation>direction 必须为 &apos;auto&apos;、&apos;ltr&apos; 或 &apos;rtl&apos;。</translation>
+    </message>
+    <message>
+        <source>exportPdf needs one open document or an array of them.</source>
+        <translation>exportPdf 需要一个打开的文档或文档数组。</translation>
+    </message>
+    <message>
+        <source>exportPdf needs an output path.</source>
+        <translation>exportPdf 需要一个输出路径。</translation>
+    </message>
+    <message>
+        <source>Could not export %1: %2</source>
+        <translation>无法导出 %1:%2</translation>
+    </message>
+    <message>
+        <source>One of the documents is no longer open.</source>
+        <translation>其中一个文档已不再打开。</translation>
     </message>
 </context>
 <context>

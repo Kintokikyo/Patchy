@@ -151,6 +151,8 @@
 #include <QPushButton>
 #include <QStackedWidget>
 #include <QRadioButton>
+#include <QRegularExpression>
+#include <QScopeGuard>
 #include <QSpinBox>
 #include <QStringList>
 #include <QScrollBar>
@@ -1294,6 +1296,70 @@ void ui_print_layout_and_pdf_output_work() {
   CHECK(patchy::ui::default_print_pdf_filename(QStringLiteral("photo.psd")) == QStringLiteral("photo.pdf"));
   CHECK(patchy::ui::default_print_pdf_filename(QStringLiteral("Untitled-2")) == QStringLiteral("Untitled-2.pdf"));
   CHECK(patchy::ui::default_print_pdf_filename(QString()) == QObject::tr("Untitled") + QStringLiteral(".pdf"));
+
+  // A custom sheet (100 x 200 mm) from the in-app Paper controls: exact, never snapped
+  // to a named size, margins carried over, and written without any printer driver.
+  const auto custom_size = patchy::ui::custom_page_size_points(QSizeF(100.0 / 25.4 * 72.0, 200.0 / 25.4 * 72.0));
+  CHECK(custom_size.isValid());
+  CHECK(custom_size.id() == QPageSize::Custom);
+  const auto custom = patchy::ui::page_layout_with_size(page_layout, custom_size, QPageLayout::Portrait);
+  CHECK(custom.isValid());
+  CHECK(std::abs(custom.fullRect(QPageLayout::Point).width() - 283.46) < 0.5);
+  CHECK(std::abs(custom.fullRect(QPageLayout::Point).height() - 566.93) < 0.5);
+  CHECK(std::abs(custom.margins(QPageLayout::Point).left() - 36.0) < 0.01);
+  const auto custom_landscape = patchy::ui::page_layout_with_size(page_layout, custom_size, QPageLayout::Landscape);
+  CHECK(std::abs(custom_landscape.fullRect(QPageLayout::Point).width() - 566.93) < 0.5);
+  // A sheet too small for the margins keeps the sheet and drops the margins.
+  const auto tiny = patchy::ui::page_layout_with_size(
+      page_layout, patchy::ui::custom_page_size_points(QSizeF(20.0, 20.0)), QPageLayout::Portrait);
+  CHECK(tiny.isValid());
+  CHECK(std::abs(tiny.fullRect(QPageLayout::Point).width() - 20.0) < 0.5);
+  CHECK(!tiny.paintRect(QPageLayout::Point).isEmpty());
+  CHECK(!patchy::ui::custom_page_size_points(QSizeF(0.0, 10.0)).isValid());
+  CHECK(patchy::ui::print_page_size_choices().back() == QPageSize::Custom);
+
+  const auto custom_pdf_path = QStringLiteral("test-artifacts/ui_print_output_custom.pdf");
+  QFile::remove(custom_pdf_path);
+  settings.scale_mode = patchy::ui::PrintScaleMode::FitToPage;
+  CHECK(patchy::ui::write_print_pdf(custom_pdf_path, document, settings, custom, QStringLiteral("photo.psd")));
+  QFile custom_file(custom_pdf_path);
+  CHECK(custom_file.open(QIODevice::ReadOnly));
+  const QByteArray custom_bytes = custom_file.readAll();
+  const QRegularExpression media_box(QStringLiteral("/MediaBox\\s*\\[\\s*([-\\d.]+)\\s+([-\\d.]+)\\s+([-\\d.]+)\\s+([-\\d.]+)\\s*\\]"));
+  const auto match = media_box.match(QString::fromLatin1(custom_bytes));
+  CHECK(match.hasMatch());
+  if (match.hasMatch()) {
+    CHECK(std::abs(match.captured(3).toDouble() - match.captured(1).toDouble() - 283.46) < 1.0);
+    CHECK(std::abs(match.captured(4).toDouble() - match.captured(2).toDouble() - 566.93) < 1.0);
+  }
+}
+
+// The accepted page layout persists across runs (settings group "print"): a custom
+// sheet round-trips exactly, a named sheet by id, and a missing store gives Letter.
+void ui_print_page_layout_persists() {
+  auto settings = patchy::ui::app_settings();
+  settings.remove(QStringLiteral("print"));
+  const auto restore = qScopeGuard([] { patchy::ui::app_settings().remove(QStringLiteral("print")); });
+  const auto letter = patchy::ui::load_stored_print_page_layout();
+  CHECK(letter.pageSize().id() == QPageSize::Letter);
+
+  const auto custom = patchy::ui::page_layout_with_size(
+      patchy::ui::default_print_page_layout(),
+      patchy::ui::custom_page_size_points(QSizeF(300.0 / 25.4 * 72.0, 600.0 / 25.4 * 72.0)),
+      QPageLayout::Landscape);
+  patchy::ui::store_print_page_layout(custom);
+  const auto restored = patchy::ui::load_stored_print_page_layout();
+  CHECK(restored.pageSize().id() == QPageSize::Custom);
+  CHECK(restored.orientation() == QPageLayout::Landscape);
+  CHECK(std::abs(restored.pageSize().size(QPageSize::Point).width() - 300.0 / 25.4 * 72.0) < 0.5);
+  CHECK(std::abs(restored.pageSize().size(QPageSize::Point).height() - 600.0 / 25.4 * 72.0) < 0.5);
+  CHECK(std::abs(restored.margins(QPageLayout::Point).top() - 36.0) < 0.01);
+
+  patchy::ui::store_print_page_layout(
+      patchy::ui::page_layout_with_size(custom, QPageSize(QPageSize::A4), QPageLayout::Portrait));
+  const auto a4 = patchy::ui::load_stored_print_page_layout();
+  CHECK(a4.pageSize().id() == QPageSize::A4);
+  CHECK(a4.orientation() == QPageLayout::Portrait);
 }
 
 #if defined(PATCHY_HAVE_QT_PDF)
@@ -1368,6 +1434,153 @@ void ui_pdf_export_page_size_and_round_trip() {
   CHECK(rendered.size() == QSize(600, 300));
   CHECK(color_close(rendered.pixelColor(300, 150), QColor(200, 20, 30), 1));
   CHECK(color_close(rendered.pixelColor(5, 5), QColor(200, 20, 30), 1));
+}
+
+// One page per document, each at its own size; read back through Patchy's Qt-free
+// parser for the structure and through PDFium for the pixels.
+void ui_pdf_export_multipage_writes_one_page_per_document() {
+  ensure_artifact_dir();
+  const std::array<QColor, 3> colors{QColor(200, 20, 30), QColor(20, 200, 30), QColor(30, 20, 200)};
+  const std::array<QSize, 3> sizes{QSize(144, 72), QSize(72, 144), QSize(100, 100)};
+  std::vector<patchy::Document> documents;
+  for (std::size_t index = 0; index < 3; ++index) {
+    patchy::Document document(sizes[index].width(), sizes[index].height(), patchy::PixelFormat::rgba8());
+    document.print_settings().horizontal_ppi = 72.0;
+    document.print_settings().vertical_ppi = 72.0;
+    document.add_pixel_layer("Page", solid_pixels(sizes[index].width(), sizes[index].height(),
+                                                  patchy::PixelFormat::rgba8(), colors[index]));
+    documents.push_back(std::move(document));
+  }
+  std::vector<const patchy::Document*> pages;
+  for (const auto& document : documents) {
+    pages.push_back(&document);
+  }
+
+  const auto path = QStringLiteral("test-artifacts/ui_pdf_export_multipage.pdf");
+  QFile::remove(path);
+  patchy::ui::write_multipage_pdf_file(pages, path, patchy::ui::PdfExportOptions{true});
+  QFile file(path);
+  CHECK(file.open(QIODevice::ReadOnly));
+  const QByteArray bytes = file.readAll();
+  const std::span<const std::uint8_t> span(reinterpret_cast<const std::uint8_t*>(bytes.constData()),
+                                           static_cast<std::size_t>(bytes.size()));
+  CHECK(patchy::pdf::page_count(span) == 3);
+  for (int page = 0; page < 3; ++page) {
+    const auto pixels = patchy::pdf::page_size_in_pixels(span, page, 1.0);
+    CHECK(pixels[0] == sizes[static_cast<std::size_t>(page)].width());
+    CHECK(pixels[1] == sizes[static_cast<std::size_t>(page)].height());
+  }
+
+  QPdfDocument reader;
+  CHECK(reader.load(path) == QPdfDocument::Error::None);
+  CHECK(reader.pageCount() == 3);
+  for (int page = 0; page < 3; ++page) {
+    const auto expected = sizes[static_cast<std::size_t>(page)];
+    CHECK(std::abs(reader.pagePointSize(page).width() - expected.width()) < 0.5);
+    CHECK(std::abs(reader.pagePointSize(page).height() - expected.height()) < 0.5);
+    const QImage rendered = reader.render(page, expected);
+    CHECK(!rendered.isNull());
+    if (!rendered.isNull()) {
+      CHECK(color_close(rendered.pixelColor(expected.width() / 2, expected.height() / 2),
+                        colors[static_cast<std::size_t>(page)], 2));
+      CHECK(color_close(rendered.pixelColor(2, expected.height() - 3), colors[static_cast<std::size_t>(page)], 2));
+    }
+  }
+
+  // Empty and unusable inputs refuse instead of writing a broken file.
+  bool threw = false;
+  try {
+    patchy::ui::write_multipage_pdf_file(std::span<const patchy::Document* const>(), path);
+  } catch (const std::exception&) {
+    threw = true;
+  }
+  CHECK(threw);
+}
+
+// "Print a folder as a page": every visible top-level group becomes a page, top of the
+// stack first, and ungrouped root layers ride along on every page when asked.
+void ui_pdf_export_multipage_groups_become_pages() {
+  ensure_artifact_dir();
+  patchy::Document document(100, 100, patchy::PixelFormat::rgba8());
+  document.print_settings().horizontal_ppi = 72.0;
+  document.print_settings().vertical_ppi = 72.0;
+  document.add_pixel_layer("Background", solid_pixels(100, 100, patchy::PixelFormat::rgba8(), QColor(0, 255, 0)));
+  {
+    patchy::Layer group(document.allocate_layer_id(), "Page A", patchy::LayerKind::Group);
+    patchy::Layer red(document.allocate_layer_id(), "Red",
+                      solid_pixels(100, 100, patchy::PixelFormat::rgba8(), QColor(255, 0, 0)));
+    red.set_opacity(0.5F);
+    group.add_child(std::move(red));
+    document.add_layer(std::move(group));
+  }
+  {
+    patchy::Layer hidden(document.allocate_layer_id(), "Hidden", patchy::LayerKind::Group);
+    hidden.set_visible(false);
+    document.add_layer(std::move(hidden));
+  }
+  {
+    patchy::Layer group(document.allocate_layer_id(), "Page B", patchy::LayerKind::Group);
+    patchy::Layer blue(document.allocate_layer_id(), "Blue",
+                       solid_pixels(100, 100, patchy::PixelFormat::rgba8(), QColor(0, 0, 255)));
+    blue.set_opacity(0.5F);
+    group.add_child(std::move(blue));
+    document.add_layer(std::move(group));
+  }
+
+  const auto with_background = patchy::ui::documents_for_top_level_groups(document, true);
+  CHECK(with_background.size() == 2);
+  if (with_background.size() != 2) {
+    return;
+  }
+  // Top of the stack first: Page B, then Page A. Only the page's group and the
+  // ungrouped background stay visible.
+  const auto visible_names = [](const patchy::Document& page) {
+    QStringList names;
+    for (const auto& layer : page.layers()) {
+      if (layer.visible()) {
+        names.push_back(QString::fromStdString(layer.name()));
+      }
+    }
+    return names;
+  };
+  CHECK(visible_names(with_background[0]) == (QStringList{QStringLiteral("Background"), QStringLiteral("Page B")}));
+  CHECK(visible_names(with_background[1]) == (QStringList{QStringLiteral("Background"), QStringLiteral("Page A")}));
+  const auto without_background = patchy::ui::documents_for_top_level_groups(document, false);
+  CHECK(without_background.size() == 2);
+  if (without_background.size() != 2) {
+    return;
+  }
+  CHECK(visible_names(without_background[0]) == QStringList{QStringLiteral("Page B")});
+
+  const auto render_first_page = [](const std::vector<patchy::Document>& pages, const QString& path) {
+    std::vector<const patchy::Document*> pointers;
+    for (const auto& page : pages) {
+      pointers.push_back(&page);
+    }
+    QFile::remove(path);
+    patchy::ui::write_multipage_pdf_file(pointers, path);
+    QPdfDocument reader;
+    CHECK(reader.load(path) == QPdfDocument::Error::None);
+    CHECK(reader.pageCount() == 2);
+    return reader.render(0, QSize(100, 100));
+  };
+  const QImage shared = render_first_page(with_background, QStringLiteral("test-artifacts/ui_pdf_export_groups.pdf"));
+  CHECK(!shared.isNull());
+  if (!shared.isNull()) {
+    // Half-opaque blue over the green background: opaque, green and blue halves.
+    const auto pixel = shared.pixelColor(50, 50);
+    CHECK(pixel.alpha() == 255);
+    CHECK(pixel.blue() > 100 && pixel.green() > 100 && pixel.red() < 30);
+  }
+  const QImage alone =
+      render_first_page(without_background, QStringLiteral("test-artifacts/ui_pdf_export_groups_alone.pdf"));
+  CHECK(!alone.isNull());
+  if (!alone.isNull()) {
+    // Without the background the page is half-opaque blue over nothing.
+    const auto pixel = alone.pixelColor(50, 50);
+    CHECK(pixel.alpha() < 200);
+    CHECK(pixel.blue() > 200 && pixel.green() < 30);
+  }
 }
 
 void ui_pdf_export_writes_transparency_as_soft_mask() {
@@ -1489,6 +1702,53 @@ patchy::Layer solid_rect_shape_layer(patchy::Document& document, const char* nam
 // text with an embedded font, a pixel layer as an image, and the page still looks like
 // the canvas. Verified through two decoders that are not the writer: Patchy's own Qt-free
 // reader for the structure, PDFium for the pixels.
+// Editable mode per page: a real vector shape on every page of the file, verified
+// through the Qt-free reader.
+void ui_pdf_export_multipage_editable_keeps_text_on_every_page() {
+  ensure_artifact_dir();
+  std::vector<patchy::Document> documents;
+  for (int index = 0; index < 2; ++index) {
+    patchy::Document document(200, 100, patchy::PixelFormat::rgba8());
+    document.print_settings().horizontal_ppi = 72.0;
+    document.print_settings().vertical_ppi = 72.0;
+    document.add_pixel_layer("Fill", solid_pixels(200, 100, patchy::PixelFormat::rgba8(), QColor(255, 255, 255)));
+    const patchy::RgbColor color = index == 0 ? patchy::RgbColor{255, 0, 0} : patchy::RgbColor{0, 0, 255};
+    document.add_layer(solid_rect_shape_layer(document, "Box", 20, 20, 80, 60, color, 0.0));
+    documents.push_back(std::move(document));
+  }
+  std::vector<const patchy::Document*> pages;
+  for (const auto& document : documents) {
+    pages.push_back(&document);
+  }
+  const auto path = QStringLiteral("test-artifacts/ui_pdf_export_multipage_editable.pdf");
+  QFile::remove(path);
+  patchy::ui::PdfExportOptions options;
+  options.editable_layers = true;
+  std::vector<std::string> notices;
+  patchy::ui::write_multipage_pdf_file(pages, path, options, &notices);
+
+  QFile file(path);
+  CHECK(file.open(QIODevice::ReadOnly));
+  const QByteArray bytes = file.readAll();
+  const std::span<const std::uint8_t> span(reinterpret_cast<const std::uint8_t*>(bytes.constData()),
+                                           static_cast<std::size_t>(bytes.size()));
+  CHECK(patchy::pdf::page_count(span) == 2);
+  for (int page = 0; page < 2; ++page) {
+    patchy::pdf::VectorReadOptions read_options;
+    read_options.page = page;
+    read_options.pixels_per_point = 1.0;
+    const auto vectors = patchy::pdf::read_page_as_vectors(span, read_options);
+    int shapes = 0;
+    for (const auto& layer : vectors.document.layers()) {
+      if (patchy::layer_is_vector_shape(layer) && layer.vector_shape() != nullptr) {
+        ++shapes;
+        CHECK(layer.vector_shape()->fill.color.red == (page == 0 ? 255 : 0));
+      }
+    }
+    CHECK(shapes >= 1);
+  }
+}
+
 void ui_pdf_export_editable_keeps_layers_and_matches_composite() {
   ensure_artifact_dir();
   patchy::Document built(300, 200, patchy::PixelFormat::rgba8());
@@ -2271,7 +2531,13 @@ void ui_pdf_import_dialog_opens_selected_pages() {
     }
     CHECK(pages->count() == 2);
     // This test pins the FLATTEN path (layer-per-page raster); the mode persists in
-    // settings and editable is the default, so it is selected explicitly.
+    // settings and editable is the default, so it is selected explicitly. Likewise the
+    // pages target: separate documents is the default, layers is what this pins.
+    auto* pages_target = dialog->findChild<QComboBox*>(QStringLiteral("pdfImportPagesTargetCombo"));
+    CHECK(pages_target != nullptr);
+    if (pages_target != nullptr) {
+      pages_target->setCurrentIndex(std::max(0, pages_target->findData(QStringLiteral("layers"))));
+    }
     mode->setCurrentIndex(std::max(0, mode->findData(QStringLiteral("flatten"))));
     resolution->setValue(72);
     pages->selectAll();
@@ -2289,6 +2555,160 @@ void ui_pdf_import_dialog_opens_selected_pages() {
   CHECK(opened.height() == 144);
   CHECK(opened.layers().size() == 2);
   CHECK(patchy::ui::MainWindowTestAccess::active_session_path(window) == path);
+}
+
+// The default target: every selected page opens as its own document, page 1 first and
+// active, each at its own size, titled after the file and page.
+void ui_pdf_import_dialog_opens_pages_as_documents() {
+  const auto path = QStringLiteral("test-artifacts/ui_pdf_import_documents.pdf");
+  QFile::remove(path);
+  {
+    QFile file(path);
+    CHECK(file.open(QIODevice::WriteOnly));
+    file.write(two_page_pdf_bytes());
+  }
+  patchy::ui::MainWindow window;
+  show_window(window);
+  const auto sessions_before = patchy::ui::MainWindowTestAccess::session_count(window);
+
+  auto clicked = std::make_shared<bool>(false);
+  auto step = std::make_shared<std::function<bool()>>();
+  *step = [clicked] {
+    auto* dialog = find_top_level_dialog(QStringLiteral("pdfImportDialog"));
+    if (dialog == nullptr) {
+      return false;
+    }
+    auto* pages = dialog->findChild<QListWidget*>(QStringLiteral("pdfImportPagesList"));
+    auto* resolution = dialog->findChild<QSpinBox*>(QStringLiteral("pdfImportResolutionSpin"));
+    auto* mode = dialog->findChild<QComboBox*>(QStringLiteral("pdfImportModeCombo"));
+    auto* pages_target = dialog->findChild<QComboBox*>(QStringLiteral("pdfImportPagesTargetCombo"));
+    auto* size_label = dialog->findChild<QLabel*>(QStringLiteral("pdfImportSizeLabel"));
+    auto* import_button = dialog->findChild<QPushButton*>(QStringLiteral("pdfImportButton"));
+    if (pages == nullptr || resolution == nullptr || mode == nullptr || pages_target == nullptr ||
+        size_label == nullptr || import_button == nullptr) {
+      return false;
+    }
+    mode->setCurrentIndex(std::max(0, mode->findData(QStringLiteral("flatten"))));
+    pages_target->setCurrentIndex(std::max(0, pages_target->findData(QStringLiteral("documents"))));
+    resolution->setValue(72);
+    pages->selectAll();
+    QApplication::processEvents();
+    CHECK(size_label->text().startsWith(QStringLiteral("2 document")));
+    import_button->click();
+    *clicked = true;
+    return true;
+  };
+  drive_modal_dialog(step);
+  patchy::ui::MainWindowTestAccess::open_document_path(window, path);
+  CHECK(*clicked);
+
+  CHECK(patchy::ui::MainWindowTestAccess::session_count(window) == sessions_before + 2);
+  if (patchy::ui::MainWindowTestAccess::session_count(window) != sessions_before + 2) {
+    return;
+  }
+  // Page 1 (144 x 72 pt at 72 ppi) is the active session and carries the file path;
+  // page 2 (72 x 144) is its own pathless session.
+  auto& first = patchy::ui::MainWindowTestAccess::session_document(window, sessions_before);
+  auto& second = patchy::ui::MainWindowTestAccess::session_document(window, sessions_before + 1);
+  CHECK(&patchy::ui::MainWindowTestAccess::document(window) == &first);
+  CHECK(patchy::ui::MainWindowTestAccess::active_session_path(window) == path);
+  CHECK(first.width() == 144 && first.height() == 72);
+  CHECK(second.width() == 72 && second.height() == 144);
+  CHECK(first.layers().size() == 1 && second.layers().size() == 1);
+  CHECK(first.layers().size() == 1 && first.layers()[0].name() == "Page 1");
+  CHECK(second.layers().size() == 1 && second.layers()[0].name() == "Page 2");
+  CHECK(second.layers().size() == 1 && second.layers()[0].visible());
+  CHECK(std::abs(second.print_settings().horizontal_ppi - 72.0) < 0.01);
+  CHECK(patchy::ui::MainWindowTestAccess::session_title(window, sessions_before)
+            .endsWith(QStringLiteral("ui_pdf_import_documents.pdf - Page 1")));
+  CHECK(patchy::ui::MainWindowTestAccess::session_title(window, sessions_before + 1)
+            .endsWith(QStringLiteral("ui_pdf_import_documents.pdf - Page 2")));
+}
+
+// A two-page editable PDF: a blue rectangle on page 1, a red one on page 2.
+QByteArray two_page_editable_pdf_bytes() {
+  const std::string first = "0 0 1 rg 10 20 100 50 re f";
+  const std::string second = "1 0 0 rg 5 5 40 40 re f";
+  const std::vector<std::string> objects = {
+      "<</Type/Catalog/Pages 2 0 R>>",
+      "<</Type/Pages/Kids[3 0 R 5 0 R]/Count 2>>",
+      "<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 100]/Contents 4 0 R>>",
+      "<</Length " + std::to_string(first.size()) + ">>\nstream\n" + first + "\nendstream",
+      "<</Type/Page/Parent 2 0 R/MediaBox[0 0 50 50]/Contents 6 0 R>>",
+      "<</Length " + std::to_string(second.size()) + ">>\nstream\n" + second + "\nendstream",
+  };
+  std::string pdf = "%PDF-1.7\n";
+  std::vector<std::size_t> offsets;
+  for (std::size_t index = 0; index < objects.size(); ++index) {
+    offsets.push_back(pdf.size());
+    pdf += std::to_string(index + 1) + " 0 obj\n" + objects[index] + "\nendobj\n";
+  }
+  const std::size_t xref_offset = pdf.size();
+  pdf += "xref\n0 " + std::to_string(objects.size() + 1) + "\n0000000000 65535 f \n";
+  for (const auto offset : offsets) {
+    pdf += QStringLiteral("%1 00000 n \n").arg(offset, 10, 10, QLatin1Char('0')).toStdString();
+  }
+  pdf += "trailer\n<</Size " + std::to_string(objects.size() + 1) +
+         "/Root 1 0 R>>\nstartxref\n" + std::to_string(xref_offset) + "\n%%EOF\n";
+  return QByteArray::fromStdString(pdf);
+}
+
+// Editable import used to bring in one page no matter the selection; with separate
+// documents every selected page gets the vector reader.
+void ui_pdf_import_editable_opens_every_selected_page() {
+  const auto path = QStringLiteral("test-artifacts/ui_pdf_import_editable_pages.pdf");
+  QFile::remove(path);
+  {
+    QFile file(path);
+    CHECK(file.open(QIODevice::WriteOnly));
+    file.write(two_page_editable_pdf_bytes());
+  }
+  patchy::ui::MainWindow window;
+  show_window(window);
+  const auto sessions_before = patchy::ui::MainWindowTestAccess::session_count(window);
+
+  auto clicked = std::make_shared<bool>(false);
+  auto step = std::make_shared<std::function<bool()>>();
+  *step = [clicked] {
+    auto* dialog = find_top_level_dialog(QStringLiteral("pdfImportDialog"));
+    if (dialog == nullptr) {
+      return false;
+    }
+    auto* pages = dialog->findChild<QListWidget*>(QStringLiteral("pdfImportPagesList"));
+    auto* resolution = dialog->findChild<QSpinBox*>(QStringLiteral("pdfImportResolutionSpin"));
+    auto* mode = dialog->findChild<QComboBox*>(QStringLiteral("pdfImportModeCombo"));
+    auto* pages_target = dialog->findChild<QComboBox*>(QStringLiteral("pdfImportPagesTargetCombo"));
+    auto* import_button = dialog->findChild<QPushButton*>(QStringLiteral("pdfImportButton"));
+    if (pages == nullptr || resolution == nullptr || mode == nullptr || pages_target == nullptr ||
+        import_button == nullptr) {
+      return false;
+    }
+    mode->setCurrentIndex(std::max(0, mode->findData(QStringLiteral("editable"))));
+    pages_target->setCurrentIndex(std::max(0, pages_target->findData(QStringLiteral("documents"))));
+    resolution->setValue(72);
+    pages->selectAll();
+    import_button->click();
+    *clicked = true;
+    return true;
+  };
+  drive_modal_dialog(step);
+  patchy::ui::MainWindowTestAccess::open_document_path(window, path);
+  CHECK(*clicked);
+
+  CHECK(patchy::ui::MainWindowTestAccess::session_count(window) == sessions_before + 2);
+  if (patchy::ui::MainWindowTestAccess::session_count(window) != sessions_before + 2) {
+    return;
+  }
+  auto& first = patchy::ui::MainWindowTestAccess::session_document(window, sessions_before);
+  auto& second = patchy::ui::MainWindowTestAccess::session_document(window, sessions_before + 1);
+  CHECK(&patchy::ui::MainWindowTestAccess::document(window) == &first);
+  CHECK(first.width() == 200 && first.height() == 100);
+  CHECK(second.width() == 50 && second.height() == 50);
+  CHECK(first.layers().size() == 1 && patchy::layer_is_vector_shape(first.layers()[0]));
+  CHECK(second.layers().size() == 1 && patchy::layer_is_vector_shape(second.layers()[0]));
+  if (second.layers().size() == 1 && second.layers()[0].vector_shape() != nullptr) {
+    CHECK(second.layers()[0].vector_shape()->fill.color.red == 255);
+  }
 }
 
 // A one-page PDF with a filled rectangle and a text run, xref offsets computed.
@@ -2470,6 +2890,97 @@ void ui_pdf_local_brochure_editable_import_composites_if_available() {
 }
 #endif  // PATCHY_HAVE_QT_PDF
 
+// File > Export Multi-Page PDF: the dialog lists every open document (checked, in
+// order), offers the group source only when the active document has a top-level group,
+// and gates the controls per source.
+void ui_multipage_pdf_dialog_lists_documents_and_groups() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  {
+    auto& document = patchy::ui::MainWindowTestAccess::document(window);
+    patchy::Layer group(document.allocate_layer_id(), "Page 1", patchy::LayerKind::Group);
+    document.add_layer(std::move(group));
+  }
+  patchy::ui::MainWindowTestAccess::create_default_document(window);
+  const auto session_count = patchy::ui::MainWindowTestAccess::session_count(window);
+  CHECK(session_count >= 2);
+  // The second (group-less) document is active now; the groups source must be off.
+  auto seen = std::make_shared<int>(0);
+  QTimer::singleShot(0, [&window, seen] {
+    auto* dialog = find_top_level_dialog(QStringLiteral("multiPagePdfExportDialog"));
+    CHECK(dialog != nullptr);
+    if (dialog == nullptr) {
+      return;
+    }
+    auto* list = dialog->findChild<QListWidget*>(QStringLiteral("multiPagePdfDocumentsList"));
+    auto* groups = dialog->findChild<QRadioButton*>(QStringLiteral("multiPagePdfGroupsRadio"));
+    auto* documents_radio = dialog->findChild<QRadioButton*>(QStringLiteral("multiPagePdfDocumentsRadio"));
+    auto* ungrouped = dialog->findChild<QCheckBox*>(QStringLiteral("multiPagePdfUngroupedCheck"));
+    auto* summary = dialog->findChild<QLabel*>(QStringLiteral("multiPagePdfSummaryLabel"));
+    auto* export_button = dialog->findChild<QPushButton*>(QStringLiteral("multiPagePdfExportButton"));
+    CHECK(list != nullptr && groups != nullptr && documents_radio != nullptr && ungrouped != nullptr &&
+          summary != nullptr && export_button != nullptr);
+    if (list == nullptr || groups == nullptr || documents_radio == nullptr || ungrouped == nullptr ||
+        summary == nullptr || export_button == nullptr) {
+      dialog->reject();
+      return;
+    }
+    CHECK(static_cast<std::size_t>(list->count()) == patchy::ui::MainWindowTestAccess::session_count(window));
+    CHECK(documents_radio->isChecked());
+    CHECK(!groups->isEnabled());
+    CHECK(!ungrouped->isEnabled());
+    CHECK(export_button->isEnabled());
+    CHECK(summary->text().contains(QString::number(list->count())));
+    // Unchecking every document disables Export.
+    for (int row = 0; row < list->count(); ++row) {
+      list->item(row)->setCheckState(Qt::Unchecked);
+    }
+    QApplication::processEvents();
+    CHECK(!export_button->isEnabled());
+    list->item(0)->setCheckState(Qt::Checked);
+    QApplication::processEvents();
+    CHECK(export_button->isEnabled());
+    CHECK(summary->text().contains(QStringLiteral("1")));
+    *seen = 1;
+    dialog->reject();
+  });
+  require_action(window, "fileExportMultiPagePdfAction")->trigger();
+  CHECK(*seen == 1);
+
+  // Back on the document with the group: the group source is offered and gates the
+  // list off and the ungrouped checkbox on.
+  patchy::ui::MainWindowTestAccess::activate_session(window, 0);
+  QApplication::processEvents();
+  CHECK(&patchy::ui::MainWindowTestAccess::document(window) ==
+        &patchy::ui::MainWindowTestAccess::session_document(window, 0));
+  QTimer::singleShot(0, [seen] {
+    auto* dialog = find_top_level_dialog(QStringLiteral("multiPagePdfExportDialog"));
+    CHECK(dialog != nullptr);
+    if (dialog == nullptr) {
+      return;
+    }
+    auto* list = dialog->findChild<QListWidget*>(QStringLiteral("multiPagePdfDocumentsList"));
+    auto* groups = dialog->findChild<QRadioButton*>(QStringLiteral("multiPagePdfGroupsRadio"));
+    auto* ungrouped = dialog->findChild<QCheckBox*>(QStringLiteral("multiPagePdfUngroupedCheck"));
+    auto* summary = dialog->findChild<QLabel*>(QStringLiteral("multiPagePdfSummaryLabel"));
+    if (list == nullptr || groups == nullptr || ungrouped == nullptr || summary == nullptr) {
+      CHECK(false);
+      dialog->reject();
+      return;
+    }
+    CHECK(groups->isEnabled());
+    groups->setChecked(true);
+    QApplication::processEvents();
+    CHECK(!list->isEnabled());
+    CHECK(ungrouped->isEnabled());
+    CHECK(summary->text().contains(QStringLiteral("1")));
+    *seen = 2;
+    dialog->reject();
+  });
+  require_action(window, "fileExportMultiPagePdfAction")->trigger();
+  CHECK(*seen == 2);
+}
+
 void ui_print_dialog_exposes_printer_and_visible_checkboxes() {
   patchy::ui::MainWindow window;
   show_window(window);
@@ -2548,6 +3059,49 @@ void ui_print_dialog_exposes_printer_and_visible_checkboxes() {
       QApplication::processEvents();
       CHECK(scale->isEnabled());
       CHECK(std::abs(scale->value() - 100.0) < 0.01);
+      // Paper controls: Letter portrait to start, the custom size spins locked until
+      // Custom is chosen, then editable and pre-filled with the sheet on screen.
+      auto* page_size = dialog->findChild<QComboBox*>(QStringLiteral("printPageSizeCombo"));
+      auto* orientation = dialog->findChild<QComboBox*>(QStringLiteral("printOrientationCombo"));
+      auto* page_width = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("printPageWidthSpin"));
+      auto* page_height = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("printPageHeightSpin"));
+      CHECK(page_size != nullptr && orientation != nullptr && page_width != nullptr && page_height != nullptr);
+      if (page_size != nullptr && orientation != nullptr && page_width != nullptr && page_height != nullptr) {
+        CHECK(page_size->currentData().toInt() == static_cast<int>(QPageSize::Letter));
+        CHECK(orientation->currentData().toInt() == static_cast<int>(QPageLayout::Portrait));
+        CHECK(!page_width->isEnabled());
+        CHECK(std::abs(page_width->value() - 8.5) < 0.01);
+        CHECK(std::abs(page_height->value() - 11.0) < 0.01);
+        page_size->setCurrentIndex(page_size->findData(static_cast<int>(QPageSize::Custom)));
+        QApplication::processEvents();
+        CHECK(page_width->isEnabled());
+        CHECK(std::abs(page_width->value() - 8.5) < 0.01);
+        page_width->setValue(4.0);
+        page_height->setValue(3.25);
+        QApplication::processEvents();
+        CHECK(page_size->currentData().toInt() == static_cast<int>(QPageSize::Custom));
+        CHECK(std::abs(page_width->value() - 4.0) < 0.01);
+        // The 3.41 x 2.56 in document no longer fits a 4 x 3.25 in sheet inside its
+        // margins at actual size; the placement math sees the new sheet at once.
+        scale_to_fit->setChecked(true);
+        QApplication::processEvents();
+        CHECK(scale->value() < 100.0);
+        scale_to_fit->setChecked(false);
+        // Units switch the custom spins' unit; the sheet itself is unchanged.
+        units->setCurrentIndex(units->findData(QStringLiteral("mm")));
+        QApplication::processEvents();
+        CHECK(std::abs(page_width->value() - 101.6) < 0.1);
+        units->setCurrentIndex(units->findData(QStringLiteral("in")));
+        orientation->setCurrentIndex(orientation->findData(static_cast<int>(QPageLayout::Landscape)));
+        QApplication::processEvents();
+        CHECK(orientation->currentData().toInt() == static_cast<int>(QPageLayout::Landscape));
+        // Back to Letter portrait so nothing leaks into the next test.
+        orientation->setCurrentIndex(orientation->findData(static_cast<int>(QPageLayout::Portrait)));
+        page_size->setCurrentIndex(page_size->findData(static_cast<int>(QPageSize::Letter)));
+        QApplication::processEvents();
+        CHECK(!page_width->isEnabled());
+        CHECK(std::abs(page_width->value() - 8.5) < 0.01);
+      }
       CHECK(window.styleSheet().contains(QStringLiteral("QCheckBox::indicator:checked")));
       CHECK(window.styleSheet().contains(QStringLiteral("checkmark.svg")));
       CHECK(window.styleSheet().contains(QStringLiteral("border-color: #9ccfff")));
@@ -3445,8 +3999,15 @@ std::vector<patchy::test::TestCase> import_print_resolution_tests() {
       {"ui_qimage_multiply_uses_empty_backdrop_as_transparent",
        ui_qimage_multiply_uses_empty_backdrop_as_transparent},
       {"ui_print_layout_and_pdf_output_work", ui_print_layout_and_pdf_output_work},
+      {"ui_print_page_layout_persists", ui_print_page_layout_persists},
+      {"ui_multipage_pdf_dialog_lists_documents_and_groups", ui_multipage_pdf_dialog_lists_documents_and_groups},
 #if defined(PATCHY_HAVE_QT_PDF)
       {"ui_pdf_export_page_size_and_round_trip", ui_pdf_export_page_size_and_round_trip},
+      {"ui_pdf_export_multipage_writes_one_page_per_document",
+       ui_pdf_export_multipage_writes_one_page_per_document},
+      {"ui_pdf_export_multipage_groups_become_pages", ui_pdf_export_multipage_groups_become_pages},
+      {"ui_pdf_export_multipage_editable_keeps_text_on_every_page",
+       ui_pdf_export_multipage_editable_keeps_text_on_every_page},
       {"ui_pdf_export_writes_transparency_as_soft_mask", ui_pdf_export_writes_transparency_as_soft_mask},
       {"ui_pdf_export_editable_keeps_layers_and_matches_composite",
        ui_pdf_export_editable_keeps_layers_and_matches_composite},
@@ -3463,6 +4024,8 @@ std::vector<patchy::test::TestCase> import_print_resolution_tests() {
       {"ui_pdf_save_follows_layer_policy", ui_pdf_save_follows_layer_policy},
       {"ui_pdf_import_builds_one_layer_per_page", ui_pdf_import_builds_one_layer_per_page},
       {"ui_pdf_import_dialog_opens_selected_pages", ui_pdf_import_dialog_opens_selected_pages},
+      {"ui_pdf_import_dialog_opens_pages_as_documents", ui_pdf_import_dialog_opens_pages_as_documents},
+      {"ui_pdf_import_editable_opens_every_selected_page", ui_pdf_import_editable_opens_every_selected_page},
       {"ui_pdf_import_editable_mode_builds_vector_and_text_layers",
        ui_pdf_import_editable_mode_builds_vector_and_text_layers},
       {"ui_pdf_local_brochure_editable_import_composites_if_available",

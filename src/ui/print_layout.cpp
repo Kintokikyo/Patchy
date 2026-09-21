@@ -1,5 +1,6 @@
 #include "ui/print_dialog.hpp"
 
+#include "ui/app_settings.hpp"
 #include "ui/image_document_io.hpp"
 #include "ui/print_internal.hpp"
 
@@ -74,6 +75,95 @@ void draw_crop_marks(QPainter& painter, const QRectF& target) {
 QPageLayout default_print_page_layout() {
   return QPageLayout(QPageSize(QPageSize::Letter), QPageLayout::Portrait, QMarginsF(0.5, 0.5, 0.5, 0.5),
                      QPageLayout::Inch);
+}
+
+std::vector<QPageSize::PageSizeId> print_page_size_choices() {
+  return {QPageSize::Letter, QPageSize::Legal,  QPageSize::Tabloid, QPageSize::Executive, QPageSize::A3,
+          QPageSize::A4,     QPageSize::A5,     QPageSize::A6,      QPageSize::B4,        QPageSize::B5,
+          QPageSize::Custom};
+}
+
+QPageSize custom_page_size_points(QSizeF points) {
+  if (!(points.width() > 0.0) || !(points.height() > 0.0)) {
+    return {};
+  }
+  return QPageSize(points, QPageSize::Point, QString(), QPageSize::ExactMatch);
+}
+
+QPageLayout page_layout_with_size(const QPageLayout& layout, const QPageSize& size,
+                                  QPageLayout::Orientation orientation) {
+  auto result = valid_page_layout(layout);
+  if (!size.isValid()) {
+    return result;
+  }
+  // The zero minimum margins drop whatever printer minimums the layout was born
+  // with: an in-app sheet has no printer, so the whole sheet is addressable.
+  result.setPageSize(size, QMarginsF(0.0, 0.0, 0.0, 0.0));
+  result.setOrientation(orientation);
+  result.setMargins(layout.margins(result.units()));
+  if (!result.isValid() || result.paintRect(QPageLayout::Point).isEmpty()) {
+    result.setMargins(QMarginsF(0.0, 0.0, 0.0, 0.0));
+  }
+  return result;
+}
+
+namespace {
+
+constexpr const char* kPrintPageSizeIdKey = "print/pageSizeId";
+constexpr const char* kPrintOrientationKey = "print/orientation";
+constexpr const char* kPrintCustomWidthKey = "print/customWidthPoints";
+constexpr const char* kPrintCustomHeightKey = "print/customHeightPoints";
+constexpr const char* kPrintMarginLeftKey = "print/marginLeftPoints";
+constexpr const char* kPrintMarginTopKey = "print/marginTopPoints";
+constexpr const char* kPrintMarginRightKey = "print/marginRightPoints";
+constexpr const char* kPrintMarginBottomKey = "print/marginBottomPoints";
+
+}  // namespace
+
+QPageLayout load_stored_print_page_layout() {
+  auto settings = app_settings();
+  if (!settings.contains(QLatin1String(kPrintPageSizeIdKey))) {
+    return default_print_page_layout();
+  }
+  const int id = settings.value(QLatin1String(kPrintPageSizeIdKey)).toInt();
+  QPageSize size;
+  if (id == static_cast<int>(QPageSize::Custom)) {
+    size = custom_page_size_points(QSizeF(settings.value(QLatin1String(kPrintCustomWidthKey)).toDouble(),
+                                          settings.value(QLatin1String(kPrintCustomHeightKey)).toDouble()));
+  } else if (id >= 0 && id < static_cast<int>(QPageSize::LastPageSize)) {
+    size = QPageSize(static_cast<QPageSize::PageSizeId>(id));
+  }
+  if (!size.isValid()) {
+    return default_print_page_layout();
+  }
+  const auto orientation = settings.value(QLatin1String(kPrintOrientationKey), 0).toInt() == 1
+                               ? QPageLayout::Landscape
+                               : QPageLayout::Portrait;
+  const QMarginsF margins(settings.value(QLatin1String(kPrintMarginLeftKey), 36.0).toDouble(),
+                          settings.value(QLatin1String(kPrintMarginTopKey), 36.0).toDouble(),
+                          settings.value(QLatin1String(kPrintMarginRightKey), 36.0).toDouble(),
+                          settings.value(QLatin1String(kPrintMarginBottomKey), 36.0).toDouble());
+  QPageLayout layout(size, orientation, margins, QPageLayout::Point);
+  if (!layout.isValid() || layout.paintRect(QPageLayout::Point).isEmpty()) {
+    return default_print_page_layout();
+  }
+  return layout;
+}
+
+void store_print_page_layout(const QPageLayout& layout) {
+  const auto valid = valid_page_layout(layout);
+  auto settings = app_settings();
+  const auto size = valid.pageSize();
+  settings.setValue(QLatin1String(kPrintPageSizeIdKey), static_cast<int>(size.id()));
+  const auto sheet = size.size(QPageSize::Point);
+  settings.setValue(QLatin1String(kPrintCustomWidthKey), sheet.width());
+  settings.setValue(QLatin1String(kPrintCustomHeightKey), sheet.height());
+  settings.setValue(QLatin1String(kPrintOrientationKey), valid.orientation() == QPageLayout::Landscape ? 1 : 0);
+  const auto margins = valid.margins(QPageLayout::Point);
+  settings.setValue(QLatin1String(kPrintMarginLeftKey), margins.left());
+  settings.setValue(QLatin1String(kPrintMarginTopKey), margins.top());
+  settings.setValue(QLatin1String(kPrintMarginRightKey), margins.right());
+  settings.setValue(QLatin1String(kPrintMarginBottomKey), margins.bottom());
 }
 
 PrintSettings default_print_settings(const Document& document, std::optional<QRect> selection_bounds) {

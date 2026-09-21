@@ -32,6 +32,7 @@
 #include <QPrinterInfo>
 #include <QPushButton>
 #include <QDir>
+#include <QSignalBlocker>
 #include <QSizePolicy>
 #include <QSpinBox>
 #include <QStandardPaths>
@@ -61,6 +62,8 @@ namespace {
 using print_detail::document_horizontal_ppi;
 using print_detail::document_vertical_ppi;
 using print_detail::valid_page_layout;
+
+constexpr double kPointsPerInch = 72.0;
 
 QString default_documents_path(QString filename) {
   auto directory = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
@@ -844,6 +847,35 @@ bool run_print_dialog(QWidget* parent, const Document& document, const QString& 
   output_layout->addWidget(system_dialog);
   side_layout->addWidget(output_group);
 
+  // Paper without a printer driver: the sheet, its orientation, and a custom size.
+  // Page Setup (the OS dialog) still edits the same layout; these controls mirror
+  // whatever it returns, Custom when the sheet is not a listed one.
+  auto* paper_group = new QGroupBox(QObject::tr("Paper"), side);
+  auto* paper_form = new QFormLayout(paper_group);
+  auto* page_size_combo = new QComboBox(paper_group);
+  page_size_combo->setObjectName(QStringLiteral("printPageSizeCombo"));
+  for (const auto id : print_page_size_choices()) {
+    page_size_combo->addItem(id == QPageSize::Custom ? QObject::tr("Custom") : QPageSize::name(id),
+                             static_cast<int>(id));
+  }
+  paper_form->addRow(QObject::tr("Size"), page_size_combo);
+  auto* orientation_combo = new QComboBox(paper_group);
+  orientation_combo->setObjectName(QStringLiteral("printOrientationCombo"));
+  orientation_combo->addItem(QObject::tr("Portrait"), static_cast<int>(QPageLayout::Portrait));
+  orientation_combo->addItem(QObject::tr("Landscape"), static_cast<int>(QPageLayout::Landscape));
+  paper_form->addRow(QObject::tr("Orientation"), orientation_combo);
+  auto* page_width = new QDoubleSpinBox(paper_group);
+  page_width->setObjectName(QStringLiteral("printPageWidthSpin"));
+  page_width->setDecimals(2);
+  configure_dialog_spinbox(page_width);
+  auto* page_height = new QDoubleSpinBox(paper_group);
+  page_height->setObjectName(QStringLiteral("printPageHeightSpin"));
+  page_height->setDecimals(2);
+  configure_dialog_spinbox(page_height);
+  paper_form->addRow(QObject::tr("Width"), page_width);
+  paper_form->addRow(QObject::tr("Height"), page_height);
+  side_layout->addWidget(paper_group);
+
   auto* settings_group = new QGroupBox(QObject::tr("Position and Size"), side);
   auto* form = new QFormLayout(settings_group);
   auto* area = new QComboBox(settings_group);
@@ -947,6 +979,37 @@ bool run_print_dialog(QWidget* parent, const Document& document, const QString& 
   buttons->addButton(QDialogButtonBox::Cancel);
   side_layout->addWidget(buttons);
 
+  // Layout -> paper controls. The custom spins always show the current sheet (in the
+  // units combo's unit) so switching to Custom starts from the sheet on screen. An
+  // exact-match custom sheet that happens to equal a named size reports that size's
+  // id, so "the user chose Custom" is remembered separately: without it, picking
+  // Custom while Letter is showing would snap straight back to Letter.
+  bool custom_sheet_chosen = current_layout.pageSize().id() == QPageSize::Custom;
+  const auto sync_paper_controls = [&] {
+    const QSignalBlocker block_size(page_size_combo);
+    const QSignalBlocker block_orientation(orientation_combo);
+    const QSignalBlocker block_width(page_width);
+    const QSignalBlocker block_height(page_height);
+    const auto size = current_layout.pageSize();
+    int size_index = custom_sheet_chosen ? -1 : page_size_combo->findData(static_cast<int>(size.id()));
+    if (size_index < 0) {
+      size_index = page_size_combo->findData(static_cast<int>(QPageSize::Custom));
+    }
+    page_size_combo->setCurrentIndex(std::max(0, size_index));
+    orientation_combo->setCurrentIndex(
+        std::max(0, orientation_combo->findData(static_cast<int>(current_layout.orientation()))));
+    const bool custom = page_size_combo->currentData().toInt() == static_cast<int>(QPageSize::Custom);
+    const auto factor = unit_factor_from_inches(units);
+    const auto sheet_points = size.size(QPageSize::Point);
+    for (auto* spin : {page_width, page_height}) {
+      spin->setSuffix(unit_suffix(units));
+      spin->setRange(0.1 * factor, 200.0 * factor);
+      spin->setEnabled(custom);
+    }
+    page_width->setValue(sheet_points.width() / kPointsPerInch * factor);
+    page_height->setValue(sheet_points.height() / kPointsPerInch * factor);
+  };
+
   const auto sync_settings = [&] {
     settings.area_mode = static_cast<PrintAreaMode>(area->currentData().toInt());
     settings.scale_mode = scale_to_fit->isChecked() ? PrintScaleMode::FitToPage : PrintScaleMode::CustomScale;
@@ -976,7 +1039,31 @@ bool run_print_dialog(QWidget* parent, const Document& document, const QString& 
                                        units));
     preview->update();
   };
+  sync_paper_controls();
   sync_settings();
+
+  // Paper controls -> layout. A custom sheet is exact (no snapping to a named size).
+  const auto apply_paper_controls = [&] {
+    const auto id = static_cast<QPageSize::PageSizeId>(page_size_combo->currentData().toInt());
+    const auto orientation = static_cast<QPageLayout::Orientation>(orientation_combo->currentData().toInt());
+    custom_sheet_chosen = id == QPageSize::Custom;
+    QPageSize size;
+    if (id == QPageSize::Custom) {
+      const auto factor = unit_factor_from_inches(units);
+      size = custom_page_size_points(QSizeF(page_width->value() / factor * kPointsPerInch,
+                                            page_height->value() / factor * kPointsPerInch));
+    } else {
+      size = QPageSize(id);
+    }
+    current_layout = page_layout_with_size(current_layout, size, orientation);
+    sync_paper_controls();
+    sync_settings();
+  };
+  QObject::connect(page_size_combo, &QComboBox::currentIndexChanged, &dialog, apply_paper_controls);
+  QObject::connect(orientation_combo, &QComboBox::currentIndexChanged, &dialog, apply_paper_controls);
+  QObject::connect(page_width, &QDoubleSpinBox::valueChanged, &dialog, apply_paper_controls);
+  QObject::connect(page_height, &QDoubleSpinBox::valueChanged, &dialog, apply_paper_controls);
+  QObject::connect(units, &QComboBox::currentIndexChanged, &dialog, sync_paper_controls);
 
   QObject::connect(area, &QComboBox::currentIndexChanged, &dialog, sync_settings);
   QObject::connect(scale_to_fit, &QCheckBox::toggled, &dialog, [scale, sync_settings](bool checked) {
@@ -1022,6 +1109,8 @@ bool run_print_dialog(QWidget* parent, const Document& document, const QString& 
     setup_dialog.setObjectName(QStringLiteral("printPageSetupDialog"));
     if (exec_dialog(setup_dialog) == QDialog::Accepted) {
       current_layout = printer->pageLayout();
+      custom_sheet_chosen = current_layout.pageSize().id() == QPageSize::Custom;
+      sync_paper_controls();
       sync_settings();
     }
   });
@@ -1054,6 +1143,8 @@ bool run_print_dialog(QWidget* parent, const Document& document, const QString& 
     if (combo_index >= 0) {
       printer_combo->setCurrentIndex(combo_index);
     }
+    custom_sheet_chosen = current_layout.pageSize().id() == QPageSize::Custom;
+    sync_paper_controls();
     sync_settings();
     // Copies are not double-counted: paint_printer_page either hands the count to a
     // driver that duplicates jobs itself or repaints the page N times in one job.

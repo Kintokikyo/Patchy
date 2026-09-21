@@ -5773,10 +5773,6 @@ Mixed selection</source>
         <translation>ページを 1 つ以上選択してください。</translation>
     </message>
     <message>
-        <source>%1 page(s), first page %2 x %3 px</source>
-        <translation>%1 ページ、最初のページ %2 x %3 px</translation>
-    </message>
-    <message>
         <source>Import as:</source>
         <translation>読み込み形式:</translation>
     </message>
@@ -8214,6 +8210,102 @@ Mixed selection</source>
     <message>
         <source>Restore the default fill, stroke, opacity, and edge (the geometry stays)</source>
         <translation>塗り・線・不透明度・エッジを初期設定に戻します（形状はそのまま）</translation>
+    </message>
+    <message>
+        <source>Export Multi-Page PDF</source>
+        <translation>複数ページ PDF を書き出し</translation>
+    </message>
+    <message>
+        <source>Pages</source>
+        <translation>ページ</translation>
+    </message>
+    <message>
+        <source>One page per open document</source>
+        <translation>開いているドキュメントごとに 1 ページ</translation>
+    </message>
+    <message>
+        <source>Move Up</source>
+        <translation>上へ</translation>
+    </message>
+    <message>
+        <source>Move Down</source>
+        <translation>下へ</translation>
+    </message>
+    <message numerus="yes">
+        <source>One page per top-level layer group of the current document (%n group(s))</source>
+        <translation>
+            <numerusform>現在のドキュメントの最上位レイヤーグループごとに 1 ページ (%n 個のグループ)</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>One page per top-level layer group (the current document has none)</source>
+        <translation>最上位レイヤーグループごとに 1 ページ (現在のドキュメントにはありません)</translation>
+    </message>
+    <message>
+        <source>Draw ungrouped layers on every page</source>
+        <translation>グループ化されていないレイヤーをすべてのページに描画</translation>
+    </message>
+    <message>
+        <source>Keep layers as editable objects</source>
+        <translation>レイヤーを編集可能なオブジェクトとして保持</translation>
+    </message>
+    <message>
+        <source>Shapes and text stay editable; blend modes, adjustment layers, and layer styles flatten to images on each page.</source>
+        <translation>シェイプとテキストは編集可能なまま残ります。描画モード、調整レイヤー、レイヤースタイルは各ページで画像に統合されます。</translation>
+    </message>
+    <message>
+        <source>Lossless images</source>
+        <translation>ロスレス画像</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n page(s) will be written.</source>
+        <translation>
+            <numerusform>%n ページを書き込みます。</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Check at least one document.</source>
+        <translation>少なくとも 1 つのドキュメントを選択してください。</translation>
+    </message>
+    <message>
+        <source>%1 pages opened as separate documents.</source>
+        <translation>%1 ページを個別のドキュメントとして開きました。</translation>
+    </message>
+    <message>
+        <source>Separate documents</source>
+        <translation>個別のドキュメント</translation>
+    </message>
+    <message>
+        <source>Layers in one document</source>
+        <translation>1 つのドキュメント内のレイヤー</translation>
+    </message>
+    <message>
+        <source>Pages become:</source>
+        <translation>ページの扱い:</translation>
+    </message>
+    <message>
+        <source>%1 document(s), first page %2 x %3 px</source>
+        <translation>%1 ドキュメント、最初のページ %2 x %3 px</translation>
+    </message>
+    <message>
+        <source>%1 layer(s), first page %2 x %3 px</source>
+        <translation>%1 レイヤー、最初のページ %2 x %3 px</translation>
+    </message>
+    <message>
+        <source>Editable import was not possible for page %1 (%2); it was flattened instead.</source>
+        <translation>ページ %1 の編集可能な読み込みはできませんでした (%2)。代わりに統合しました。</translation>
+    </message>
+    <message>
+        <source>Portrait</source>
+        <translation>縦</translation>
+    </message>
+    <message>
+        <source>Landscape</source>
+        <translation>横</translation>
+    </message>
+    <message>
+        <source>Orientation</source>
+        <translation>方向</translation>
     </message>
 </context>
 <context>
@@ -16741,6 +16833,24 @@ Clipped to the layer below</source>
         <source>Shape: Fill %1 | Stroke %2 | Feather %3 px | Density %4%</source>
         <translation>シェイプ: 塗り %1 | 線 %2 | ぼかし %3 px | 濃度 %4%</translation>
     </message>
+    <message>
+        <source>Export &amp;Multi-Page PDF...</source>
+        <translation>複数ページ PDF を書き出し(&amp;M)...</translation>
+    </message>
+    <message>
+        <source>%1 - %2</source>
+        <translation>%1 - %2</translation>
+    </message>
+    <message>
+        <source>Export Multi-Page PDF</source>
+        <translation>複数ページ PDF を書き出し</translation>
+    </message>
+    <message numerus="yes">
+        <source>Exported %n page(s) to %1</source>
+        <translation>
+            <numerusform>%n ページを %1 に書き出しました</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -17982,6 +18092,22 @@ Clipped to the layer below</source>
     <message>
         <source>direction must be &apos;auto&apos;, &apos;ltr&apos; or &apos;rtl&apos;.</source>
         <translation>direction は &apos;auto&apos;、&apos;ltr&apos;、&apos;rtl&apos; のいずれかでなければなりません。</translation>
+    </message>
+    <message>
+        <source>exportPdf needs one open document or an array of them.</source>
+        <translation>exportPdf には開いているドキュメント、またはその配列が必要です。</translation>
+    </message>
+    <message>
+        <source>exportPdf needs an output path.</source>
+        <translation>exportPdf には出力パスが必要です。</translation>
+    </message>
+    <message>
+        <source>Could not export %1: %2</source>
+        <translation>%1 を書き出せませんでした: %2</translation>
+    </message>
+    <message>
+        <source>One of the documents is no longer open.</source>
+        <translation>ドキュメントの 1 つがすでに閉じられています。</translation>
     </message>
 </context>
 <context>

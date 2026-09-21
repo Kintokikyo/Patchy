@@ -361,6 +361,14 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   auto* save_action = file_menu->addAction(tr("&Save"));
   auto* save_as_action = file_menu->addAction(tr("Save &As..."));
   auto* export_flat_action = file_menu->addAction(tr("Export &Flat Image..."));
+  // Several open documents, or the top-level groups of this one, as the pages of one
+  // PDF (issue 19: heavy print jobs need real pages, not page-per-layer stacks).
+  auto* export_multipage_pdf_action = file_menu->addAction(tr("Export &Multi-Page PDF..."));
+  bind_action_text(export_multipage_pdf_action, QT_TR_NOOP("Export &Multi-Page PDF..."));
+  export_multipage_pdf_action->setObjectName(QStringLiteral("fileExportMultiPagePdfAction"));
+  register_hotkey(export_multipage_pdf_action, "file.export_multipage_pdf");
+  connect(export_multipage_pdf_action, &QAction::triggered, this, [this] { export_multipage_pdf(); });
+  register_document_action(export_multipage_pdf_action);
   auto* export_sprite_sheet_action = file_menu->addAction(tr("Export Layers as Sprite S&heet..."));
   bind_action_text(export_sprite_sheet_action, QT_TR_NOOP("Export Layers as Sprite S&heet..."));
   export_sprite_sheet_action->setObjectName(QStringLiteral("fileExportSpriteSheetAction"));

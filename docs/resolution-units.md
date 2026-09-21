@@ -70,7 +70,18 @@ pre-checks. "Print Using System Dialog..." hands off to the OS print dialog (Chr
 prints on accept with Patchy's position, scale, and crop-mark settings, and adopts the
 printer, paper, orientation, and copies chosen there; cancelling returns to Patchy's dialog.
 The OS dialog shows no preview for Win32 apps on Windows 11 (see [platform.md](platform.md));
-Patchy's own dialog keeps the preview pane.
+Patchy's own dialog keeps the preview pane. The Paper group (September 2026, issue 19) sets
+the sheet without a printer driver: a size combo (`print_page_size_choices`: Letter, Legal,
+Tabloid, Executive, A3 to A6, B4, B5, Custom), orientation, and custom width/height spins in
+the units combo's unit, enabled only for Custom and pre-filled with the sheet on screen.
+Custom sheets are `QPageSize::ExactMatch` points (`custom_page_size_points`), never snapped
+to a named size; `page_layout_with_size` keeps the margins and drops them when the sheet
+cannot hold them. Page Setup and the system dialog still edit the same layout and the
+controls mirror what they return (Custom when the sheet is not listed). Save PDF writes the
+custom sheet through `QPrinter::PdfFormat` with no driver involved. The accepted layout
+persists in the `print` settings group (`load_stored_print_page_layout` /
+`store_print_page_layout`; Letter when nothing is stored) and seeds `print_page_layout_`
+at startup.
 
 ## Rulers and the units preference
 
