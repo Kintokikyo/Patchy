@@ -754,6 +754,7 @@ private:
     result.baseline_ms = baseline_for_step(result.id);
     step_timed_out_ = false;
     inputs_this_step_ = 0;
+    current_step_id_ = id;
 
     const auto diag_before =
         canvas() != nullptr ? canvas()->render_cache_diagnostics() : CanvasWidget::RenderCacheDiagnostics{};
@@ -864,6 +865,28 @@ private:
   }
 
   void drag(QPoint from, QPoint to, int move_steps) { drag_path({from, to}, move_steps); }
+
+  // Vector shape-tool drag. The shape tools read a release whose on-screen
+  // extent is under the platform drag distance as a bare click and answer with
+  // the modal Create Shape dialog, which nobody answers in a scripted run.
+  // Small props at the smoke scale (or any preset in a small window) fall
+  // under it at fit-to-view, so zoom in on such a drag and refit after. Full
+  // size runs in a normal window never take the zoom path, so their timings
+  // are unchanged.
+  void shape_drag(QPoint from, QPoint to) {
+    const int extent = std::max(std::abs(to.x() - from.x()), std::abs(to.y() - from.y()));
+    const bool reads_as_click =
+        extent > 0 && extent * canvas()->zoom() < 2.0 * QApplication::startDragDistance();
+    if (reads_as_click) {
+      canvas()->zoom_to_document_rect(QRect(from, to).normalized().adjusted(-extent, -extent, extent, extent));
+      pump();
+    }
+    drag(from, to, 4);
+    if (reads_as_click) {
+      canvas()->fit_to_view();
+      pump();
+    }
+  }
 
   // ---- scene helpers ------------------------------------------------------
 
@@ -1005,7 +1028,7 @@ private:
     canvas()->set_vector_tool_mode(VectorToolMode::Shape);
     set_vector_appearance(fill, stroke_enabled, stroke_width, stroke_color);
     w.current_shape_corner_radius_ = corner_radius;
-    drag(document_rect.topLeft(), document_rect.bottomRight(), 4);
+    shape_drag(document_rect.topLeft(), document_rect.bottomRight());
     if (!name.isEmpty()) {
       rename_active_layer_to(name);
     }
@@ -1412,6 +1435,8 @@ private:
   int step_index_{0};
   bool cancel_requested_{false};
   QProgressDialog* progress_{nullptr};
+  const char* current_step_id_{""};
+  bool unexpected_modal_{false};
 
   // Layer ids captured while building the scene; the move matrix and style
   // steps target them later.
@@ -2366,7 +2391,7 @@ void StressTestRunner::phase_arcade_vector() {
     canvas()->set_polygon_sides(5);
     canvas()->set_polygon_star_inset(55);
     // Center-out drag: the first vertex tracks the cursor.
-    drag(pt(1.045, 0.155), pt(1.045, 0.155) + QPoint(at(0.022), -at(0.022)), 4);
+    shape_drag(pt(1.045, 0.155), pt(1.045, 0.155) + QPoint(at(0.022), -at(0.022)));
     rename_active_layer_to(QStringLiteral("Star"));
 
     const auto& entries = w.custom_shape_library().entries();
@@ -2384,11 +2409,11 @@ void StressTestRunner::phase_arcade_vector() {
       set_vector_appearance(solid_vector_fill(QColor(226, 130, 60)));
       canvas()->set_custom_shape_path(std::make_shared<VectorPath>(pick->path));
       const auto stamp_a = rect(1.30, 0.13, 0.05, 0.05);
-      drag(stamp_a.topLeft(), stamp_a.bottomRight(), 4);
+      shape_drag(stamp_a.topLeft(), stamp_a.bottomRight());
       set_vector_appearance(solid_vector_fill(QColor(120, 200, 120)));
       canvas()->set_custom_shape_path(std::make_shared<VectorPath>(entries.front().path));
       const auto stamp_b = rect(1.36, 0.13, 0.05, 0.05);
-      drag(stamp_b.topLeft(), stamp_b.bottomRight(), 4);
+      shape_drag(stamp_b.topLeft(), stamp_b.bottomRight());
     }
 
     w.activate_tool(CanvasTool::Line);
@@ -2860,6 +2885,30 @@ StressReport StressTestRunner::run() {
   progress.setValue(0);
   progress_ = &progress;
 
+  // No scripted step may open a modal dialog: nothing answers it, so the run
+  // would park in its event loop forever (a shape drag read as a click did
+  // exactly that). The timer still fires inside that nested loop; dismiss the
+  // dialog, fail the run, and name the step. Progress dialogs (PSD save/load)
+  // close themselves and are left alone.
+  QTimer modal_guard;
+  modal_guard.setInterval(250);
+  QObject::connect(&modal_guard, &QTimer::timeout, &modal_guard, [this] {
+    auto* modal = QApplication::activeModalWidget();
+    if (modal == nullptr || qobject_cast<QProgressDialog*>(modal) != nullptr) {
+      return;
+    }
+    unexpected_modal_ = true;
+    report_.warnings.append(QStringLiteral("Step %1 opened modal dialog \"%2\" (%3); dismissed")
+                                .arg(QLatin1String(current_step_id_), modal->windowTitle(),
+                                     modal->objectName()));
+    if (auto* dialog = qobject_cast<QDialog*>(modal); dialog != nullptr) {
+      dialog->reject();
+    } else {
+      modal->close();
+    }
+  });
+  modal_guard.start();
+
   phase_setup();
   report_.window_size = w.size();
   report_.canvas_viewport = canvas() != nullptr ? canvas()->size() : QSize();
@@ -2878,6 +2927,7 @@ StressReport StressTestRunner::run() {
   phase_vector_io();
   phase_composite();
 
+  modal_guard.stop();
   progress_ = nullptr;
   progress.close();
   if (cancel_requested_) {
@@ -2911,7 +2961,7 @@ StressReport StressTestRunner::run() {
   }
 
   report_.cancelled = cancel_requested_;
-  report_.success = !cancel_requested_;
+  report_.success = !cancel_requested_ && !unexpected_modal_;
   return report_;
 }
 
