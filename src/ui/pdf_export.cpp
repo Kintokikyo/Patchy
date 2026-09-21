@@ -3,6 +3,7 @@
 #include "core/layer.hpp"
 #include "ui/image_document_io.hpp"
 #include "ui/print_internal.hpp"
+#include "ui/ui_profile.hpp"
 
 #include <QFile>
 #include <QImage>
@@ -17,6 +18,7 @@
 #include <cmath>
 #include <cstddef>
 #include <stdexcept>
+#include <string>
 
 namespace patchy::ui {
 namespace {
@@ -65,7 +67,11 @@ void write_pdf_document_file(const Document& document, const QString& path, cons
     pdf_detail::write_editable_pdf_document_file(document, path, options, notices);
     return;
   }
-  const QImage image = flat_export_qimage(document, true);
+  QImage image;
+  {
+    const UiProfileScope profile_scope("pdf_export.composite");
+    image = flat_export_qimage(document, true);
+  }
   if (image.isNull()) {
     throw std::runtime_error("The document could not be rendered for PDF export.");
   }
@@ -81,7 +87,11 @@ void write_pdf_document_file(const Document& document, const QString& path, cons
   // composite as JPEG quality 94; without it every PDF export would be lossy.
   painter.setRenderHint(QPainter::LosslessImageRendering, options.lossless);
   painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
-  painter.drawImage(painter.viewport(), image);
+  {
+    const UiProfileScope profile_scope("pdf_export.draw_image");
+    painter.drawImage(painter.viewport(), image);
+  }
+  const UiProfileScope profile_scope("pdf_export.finish");
   painter.end();
 }
 
@@ -109,6 +119,8 @@ bool write_multipage_pdf_file(std::span<const Document* const> pages, const QStr
   }
   for (std::size_t index = 0; index < pages.size(); ++index) {
     const Document& document = *pages[index];
+    const std::string profile_detail = "page=" + std::to_string(index + 1);
+    const UiProfileScope page_scope("pdf_export.page", profile_detail);
     if (progress && !progress(static_cast<int>(index) + 1, static_cast<int>(pages.size()))) {
       painter.end();
       QFile::remove(path);
@@ -116,6 +128,7 @@ bool write_multipage_pdf_file(std::span<const Document* const> pages, const QStr
     }
     if (index > 0) {
       // A size set right before newPage() applies to the page it starts.
+      const UiProfileScope profile_scope("pdf_export.new_page", profile_detail);
       writer.setPageSize(pdf_detail::document_page_size(document));
       if (!writer.newPage()) {
         painter.end();
@@ -128,18 +141,26 @@ bool write_multipage_pdf_file(std::span<const Document* const> pages, const QStr
     if (options.editable_layers) {
       pdf_detail::paint_editable_document(painter, document, options, notices);
     } else {
-      const QImage image = flat_export_qimage(document, true);
+      QImage image;
+      {
+        const UiProfileScope profile_scope("pdf_export.composite", profile_detail);
+        image = flat_export_qimage(document, true);
+      }
       if (image.isNull()) {
         painter.end();
         throw std::runtime_error("The document could not be rendered for PDF export.");
       }
       painter.setRenderHint(QPainter::LosslessImageRendering, options.lossless);
       painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
+      const UiProfileScope profile_scope("pdf_export.draw_image", profile_detail);
       painter.drawImage(QRect(0, 0, document.width(), document.height()), image);
     }
     painter.restore();
   }
-  painter.end();
+  {
+    const UiProfileScope profile_scope("pdf_export.finish");
+    painter.end();
+  }
   if (options.editable_layers) {
     pdf_detail::apply_text_merge_post_pass(path);
   }

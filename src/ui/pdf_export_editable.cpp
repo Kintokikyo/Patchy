@@ -9,6 +9,7 @@
 #include "formats/vector_export_plan.hpp"
 #include "ui/edit_conversions.hpp"
 #include "ui/text_layer_painter.hpp"
+#include "ui/ui_profile.hpp"
 
 #include <QBrush>
 #include <QColor>
@@ -24,6 +25,7 @@
 #include <QTransform>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <span>
 #include <stdexcept>
@@ -315,12 +317,16 @@ struct Writer {
     for (auto& layer : layers) {
       scratch.add_layer(std::move(layer));
     }
+    const auto flatten_started = std::chrono::steady_clock::now();
     const auto pixels = flatten_document_rgba8(scratch);
     const auto bounds = vector_export::opaque_bounds(pixels);
     if (!bounds.has_value()) {
       return;  // nothing visible, nothing to embed
     }
     const QImage image = qimage_from_pixel_buffer(vector_export::crop_pixels(pixels, *bounds));
+    log_ui_profile("pdf_export.raster_chunk_flatten",
+                   std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - flatten_started).count());
+    const UiProfileScope profile_scope("pdf_export.raster_chunk_draw");
     painter.save();
     painter.setOpacity(opacity);
     painter.drawImage(QRectF(bounds->x, bounds->y, bounds->width, bounds->height), image);
@@ -493,6 +499,7 @@ void apply_text_merge_post_pass(const QString& path) {
   // Qt wrote every glyph as its own Tj; fold each line of text back into one TJ run so
   // importers see words, not letters (formats/pdf_text_merge.hpp). A file that does not
   // match the pass's expectations is left as Qt wrote it.
+  const UiProfileScope profile_scope("pdf_export.text_merge");
   QFile file(path);
   if (!file.open(QIODevice::ReadOnly)) {
     return;

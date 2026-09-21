@@ -2,6 +2,7 @@
 #include "core/layer_render_utils.hpp"
 #include "core/rect_utils.hpp"
 #include "core/worker_budget.hpp"
+#include "formats/pdf_document_io.hpp"
 #include "psd/psd_document_io.hpp"
 #include "ui/qt_paths.hpp"
 #include "ui/background_workers.hpp"
@@ -10,19 +11,31 @@
 #include "ui/image_document_io.hpp"
 #include "ui/layer_list_widget.hpp"
 #include "ui/main_window.hpp"
+#include "ui/pdf_export.hpp"
+#include "ui/pdf_import.hpp"
 
 #include <QApplication>
 #include <QByteArray>
+#include <QComboBox>
 #include <QDialog>
+#include <QFile>
+#include <QFileInfo>
 #include <QItemSelectionModel>
 #include <QKeyEvent>
 #include <QListWidget>
 #include <QMouseEvent>
 #include <QImage>
 #include <QPainter>
+#if __has_include(<QPdfDocument>)
+#include <QPdfDocument>
+#include <QPdfDocumentRenderOptions>
+#define PATCHY_PERF_HAVE_QPDF 1
+#endif
+#include <QPushButton>
 #include <QRect>
 #include <QRegion>
 #include <QScopeGuard>
+#include <QSettings>
 #include <QTabWidget>
 #include <QTimer>
 
@@ -39,6 +52,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -1227,6 +1241,266 @@ void masked_layer_rotate_perf() {
   }
 }
 
+// PDF open and export timing (September 2026 report: an 86 MB, 85-page scanned
+// PDF took minutes to open and saved as 700 MB). The file comes from argv[2],
+// else PATCHY_PERF_PDF, else local-test-fixtures/pdf; PATCHY_PERF_PDF_PAGES
+// caps the page count (default 8, "all" for every page). PATCHY_UI_PROFILE=1
+// adds the per-stage lines from the import and export code itself.
+std::filesystem::path perf_pdf_path(int argc, char* argv[]) {
+  if (argc > 2) {
+    return patchy::ui::to_filesystem_path(QString::fromLocal8Bit(argv[2]));
+  }
+  const auto env_path = qgetenv("PATCHY_PERF_PDF");
+  if (!env_path.isEmpty()) {
+    return patchy::ui::to_filesystem_path(env_path);
+  }
+  return patchy::test::local_format_fixture_path("pdf", "C2_Kyoto_House_Plans_Compressed.pdf");
+}
+
+int perf_pdf_page_cap() {
+  const auto value = qgetenv("PATCHY_PERF_PDF_PAGES");
+  if (value.isEmpty()) {
+    return 8;
+  }
+  if (value == "all") {
+    return 1 << 20;
+  }
+  return std::max(1, value.toInt());
+}
+
+// The import dialog and the open path persist settings and recent files; keep a perf
+// run out of the real user store.
+void isolate_perf_settings() {
+  ensure_artifact_dir();
+  QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("test-artifacts/perf-settings"));
+}
+
+void drive_perf_dialog(const std::shared_ptr<std::function<bool()>>& step, int attempts = 200000) {
+  QTimer::singleShot(25, [step, attempts] {
+    if ((*step)()) {
+      return;
+    }
+    if (attempts > 0) {
+      drive_perf_dialog(step, attempts - 1);
+    }
+  });
+}
+
+int pdf_page_count(const QString& path) {
+#ifdef PATCHY_PERF_HAVE_QPDF
+  QPdfDocument pdf;
+  if (pdf.load(path) == QPdfDocument::Error::None) {
+    return pdf.pageCount();
+  }
+#else
+  (void)path;
+#endif
+  return 1;
+}
+
+void pdf_open_perf_if_available(int argc, char* argv[]) {
+  const auto fs_path = perf_pdf_path(argc, argv);
+  if (!std::filesystem::exists(fs_path)) {
+    std::cout << "[SKIP] pdf fixture missing: " << fs_path.string() << '\n';
+    return;
+  }
+  if (!patchy::ui::pdf_import_is_available()) {
+    std::cout << "[SKIP] this build has no Qt PDF\n";
+    return;
+  }
+  isolate_perf_settings();
+  const QString path = patchy::ui::to_qstring(fs_path);
+  const int total_pages = pdf_page_count(path);
+  const int pages = std::min(total_pages, perf_pdf_page_cap());
+  std::cout << "[PERF] pdfopen file_bytes=" << QFileInfo(path).size() << " total_pages=" << total_pages
+            << " measured_pages=" << pages << '\n';
+
+#ifdef PATCHY_PERF_HAVE_QPDF
+  {
+    QPdfDocument pdf;
+    const auto load_ms = elapsed_ms([&] { (void)pdf.load(path); });
+    std::cout << "[PERF] pdfopen qpdf_load ms=" << load_ms << '\n';
+    double thumbs_ms = 0.0;
+    for (int page = 0; page < pages; ++page) {
+      const QSizeF points = pdf.pagePointSize(page);
+      const int width = std::max(1, static_cast<int>(std::lround(96.0 * points.width() / points.height())));
+      thumbs_ms += elapsed_ms([&] { (void)pdf.render(page, QSize(width, 96)); });
+    }
+    std::cout << "[PERF] pdfopen thumbnails pages=" << pages << " ms=" << thumbs_ms
+              << " per_page_ms=" << thumbs_ms / pages << " projected_all_pages_ms=" << thumbs_ms / pages * total_pages
+              << '\n';
+    // Where a full-size render spends its time: one page at full, half, and quarter
+    // size, with and without smoothing, run twice so the second pass is warm.
+    const QSizeF points = pdf.pagePointSize(0);
+    const QSize full(static_cast<int>(std::lround(points.width() / 72.0 * 300.0)),
+                     static_cast<int>(std::lround(points.height() / 72.0 * 300.0)));
+    QPdfDocumentRenderOptions aliased;
+    aliased.setRenderFlags(QPdfDocumentRenderOptions::RenderFlag::ImageAliased |
+                           QPdfDocumentRenderOptions::RenderFlag::TextAliased |
+                           QPdfDocumentRenderOptions::RenderFlag::PathAliased);
+    for (int pass = 0; pass < 2; ++pass) {
+      const auto full_ms = elapsed_ms([&] { (void)pdf.render(0, full); });
+      const auto aliased_ms = elapsed_ms([&] { (void)pdf.render(0, full, aliased); });
+      const auto half_ms = elapsed_ms([&] { (void)pdf.render(0, full / 2); });
+      const auto quarter_ms = elapsed_ms([&] { (void)pdf.render(0, full / 4); });
+      const auto other_ms = elapsed_ms([&] { (void)pdf.render(std::min(1, total_pages - 1), full); });
+      std::cout << "[PERF] pdfopen render_variants pass=" << pass << " full_ms=" << full_ms
+                << " full_aliased_ms=" << aliased_ms << " half_ms=" << half_ms << " quarter_ms=" << quarter_ms
+                << " other_page_full_ms=" << other_ms << '\n';
+    }
+    QImage scratch;
+    const auto alloc_ms = elapsed_ms([&] {
+      scratch = QImage(full, QImage::Format_ARGB32_Premultiplied);
+      scratch.fill(Qt::transparent);
+    });
+    std::cout << "[PERF] pdfopen alloc_fill_full_argb ms=" << alloc_ms << '\n';
+  }
+#endif
+
+  {
+    QFile file(path);
+    CHECK(file.open(QIODevice::ReadOnly));
+    QByteArray bytes;
+    const auto read_ms = elapsed_ms([&] { bytes = file.readAll(); });
+    std::cout << "[PERF] pdfopen read_file ms=" << read_ms << '\n';
+    const std::span<const std::uint8_t> span(reinterpret_cast<const std::uint8_t*>(bytes.constData()),
+                                             static_cast<std::size_t>(bytes.size()));
+    double vector_ms = 0.0;
+    int failed = 0;
+    int layers = 0;
+    for (int page = 0; page < pages; ++page) {
+      patchy::pdf::VectorReadOptions options;
+      options.page = page;
+      options.pixels_per_point = 300.0 / 72.0;
+      vector_ms += elapsed_ms([&] {
+        try {
+          const auto result = patchy::pdf::read_page_as_vectors(span, options);
+          layers += static_cast<int>(result.document.layers().size());
+        } catch (const std::exception&) {
+          ++failed;
+        }
+      });
+    }
+    std::cout << "[PERF] pdfopen vector_reader pages=" << pages << " ms=" << vector_ms
+              << " per_page_ms=" << vector_ms / pages << " failed_pages=" << failed << " layers=" << layers << '\n';
+  }
+
+  {
+    patchy::ui::PdfImportOptions options;
+    for (int page = 0; page < pages; ++page) {
+      options.pages.push_back(page);
+    }
+    options.separate_documents = true;
+    QString error;
+    std::optional<patchy::ui::PdfImportResult> result;
+    const auto raster_ms =
+        elapsed_ms([&] { result = patchy::ui::load_pdf_document(path, options, QString(), &error); });
+    CHECK(result.has_value());
+    std::cout << "[PERF] pdfopen raster_import pages=" << pages << " ms=" << raster_ms
+              << " per_page_ms=" << raster_ms / pages << '\n';
+  }
+
+  // The real thing: File > Open through the import dialog with its stored defaults
+  // (editable, separate documents), the first `pages` pages selected.
+  {
+    patchy::ui::MainWindow window;
+    window.resize(1600, 1000);
+    window.show();
+    QApplication::processEvents();
+    const auto started = Clock::now();
+    auto dialog_shown_ms = std::make_shared<double>(-1.0);
+    auto step = std::make_shared<std::function<bool()>>();
+    *step = [pages, started, dialog_shown_ms] {
+      QDialog* dialog = nullptr;
+      for (auto* widget : QApplication::topLevelWidgets()) {
+        if (widget->objectName() == QStringLiteral("pdfImportDialog") && widget->isVisible()) {
+          dialog = qobject_cast<QDialog*>(widget);
+        }
+      }
+      if (dialog == nullptr) {
+        return false;
+      }
+      *dialog_shown_ms = std::chrono::duration<double, std::milli>(Clock::now() - started).count();
+      auto* list = dialog->findChild<QListWidget*>(QStringLiteral("pdfImportPagesList"));
+      auto* import_button = dialog->findChild<QPushButton*>(QStringLiteral("pdfImportButton"));
+      if (list == nullptr || import_button == nullptr) {
+        return false;
+      }
+      list->clearSelection();
+      for (int row = 0; row < std::min(pages, list->count()); ++row) {
+        list->item(row)->setSelected(true);
+      }
+      import_button->click();
+      return true;
+    };
+    drive_perf_dialog(step);
+    const auto open_ms = elapsed_ms([&] {
+      patchy::ui::MainWindowTestAccess::open_document_path(window, path);
+      QApplication::processEvents();
+    });
+    std::cout << "[PERF] pdfopen gui_open pages=" << pages << " dialog_shown_ms=" << *dialog_shown_ms
+              << " total_ms=" << open_ms << " after_dialog_ms=" << open_ms - *dialog_shown_ms
+              << " after_dialog_per_page_ms=" << (open_ms - *dialog_shown_ms) / pages << '\n';
+  }
+}
+
+void pdf_save_perf_if_available(int argc, char* argv[]) {
+  const auto fs_path = perf_pdf_path(argc, argv);
+  if (!std::filesystem::exists(fs_path)) {
+    std::cout << "[SKIP] pdf fixture missing: " << fs_path.string() << '\n';
+    return;
+  }
+  if (!patchy::ui::pdf_import_is_available()) {
+    std::cout << "[SKIP] this build has no Qt PDF\n";
+    return;
+  }
+  isolate_perf_settings();
+  const QString path = patchy::ui::to_qstring(fs_path);
+  const int total_pages = pdf_page_count(path);
+  const int pages = std::min(total_pages, perf_pdf_page_cap());
+
+  patchy::ui::PdfImportOptions import_options;
+  for (int page = 0; page < pages; ++page) {
+    import_options.pages.push_back(page);
+  }
+  import_options.separate_documents = true;
+  QString error;
+  auto imported = patchy::ui::load_pdf_document(path, import_options, QString(), &error);
+  CHECK(imported.has_value());
+  std::vector<const patchy::Document*> documents{&imported->document};
+  for (const auto& extra : imported->extra_documents) {
+    documents.push_back(&extra.document);
+  }
+  const double source_bytes_per_page = static_cast<double>(QFileInfo(path).size()) / total_pages;
+  std::cout << "[PERF] pdfsave pages=" << documents.size() << " source_bytes_per_page=" << source_bytes_per_page
+            << '\n';
+
+  struct Mode {
+    const char* name;
+    patchy::ui::PdfExportOptions options;
+  };
+  std::vector<Mode> modes;
+  modes.push_back({"flat_lossless", patchy::ui::PdfExportOptions{true, false}});
+  modes.push_back({"flat_lossy", patchy::ui::PdfExportOptions{false, false}});
+  modes.push_back({"editable_lossless", patchy::ui::PdfExportOptions{true, true}});
+  for (const auto& mode : modes) {
+    const auto out = QStringLiteral("test-artifacts/perf_pdfsave_%1.pdf").arg(QLatin1String(mode.name));
+    QFile::remove(out);
+    std::vector<std::string> notices;
+    const auto ms = elapsed_ms([&] {
+      CHECK(patchy::ui::write_multipage_pdf_file(documents, out, mode.options, &notices));
+    });
+    const auto bytes = QFileInfo(out).size();
+    std::cout << "[PERF] pdfsave " << mode.name << " pages=" << documents.size() << " ms=" << ms
+              << " per_page_ms=" << ms / static_cast<double>(documents.size()) << " bytes=" << bytes
+              << " bytes_per_page=" << bytes / static_cast<qint64>(documents.size())
+              << " vs_source=" << (bytes / static_cast<double>(documents.size())) / source_bytes_per_page << "x\n";
+    if (!qEnvironmentVariableIsSet("PATCHY_PERF_PDF_KEEP")) {
+      QFile::remove(out);
+    }
+  }
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -1253,6 +1527,15 @@ int main(int argc, char* argv[]) {
     }
     if (argc > 1 && std::string_view(argv[1]) == "manylayers") {
       many_layers_select_and_move_perf_if_available();
+      return 0;
+    }
+    // Explicit only (never part of the default run): minutes on the 85-page fixture.
+    if (argc > 1 && std::string_view(argv[1]) == "pdfopen") {
+      pdf_open_perf_if_available(argc, argv);
+      return 0;
+    }
+    if (argc > 1 && std::string_view(argv[1]) == "pdfsave") {
+      pdf_save_perf_if_available(argc, argv);
       return 0;
     }
     template_psd_dirty_move_perf_if_available();

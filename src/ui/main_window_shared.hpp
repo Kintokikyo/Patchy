@@ -15,6 +15,7 @@
 #include "core/smart_filter_effects.hpp"
 #include "ui/canvas_widget.hpp"
 #include "ui/filter_workflows.hpp"
+#include "ui/ui_profile.hpp"
 
 #include <QEventLoop>
 #include <QRect>
@@ -232,26 +233,7 @@ void update_layer_target_styles(QListWidget* list, std::optional<LayerId> active
 [[nodiscard]] bool layer_can_rasterize(const Layer& layer);
 [[nodiscard]] bool layer_can_rasterize_layer_style(const Layer& layer);
 
-// PATCHY_UI_PROFILE stderr timing lines (no-op unless the env var is set).
-void log_ui_profile(std::string_view stage, double elapsed_ms, std::string_view detail = {});
-
-// Scoped variant for functions with several returns: logs on destruction.
-class UiProfileScope {
- public:
-  explicit UiProfileScope(std::string_view stage)
-      : stage_(stage), started_(std::chrono::steady_clock::now()) {}
-  UiProfileScope(const UiProfileScope&) = delete;
-  UiProfileScope& operator=(const UiProfileScope&) = delete;
-  ~UiProfileScope() {
-    log_ui_profile(stage_, std::chrono::duration<double, std::milli>(
-                               std::chrono::steady_clock::now() - started_)
-                               .count());
-  }
-
- private:
-  std::string_view stage_;
-  std::chrono::steady_clock::time_point started_;
-};
+// PATCHY_UI_PROFILE timing (log_ui_profile, UiProfileScope) lives in ui/ui_profile.hpp.
 
 // File-dialog directory memory, shared by the open/save flows in
 // main_window_files.cpp and the smart-object export/relink/replace/place

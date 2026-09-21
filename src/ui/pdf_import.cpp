@@ -4,6 +4,7 @@
 #include "ui/dialog_utils.hpp"
 #include "ui/image_document_io.hpp"
 #include "ui/image_sequence_dialog.hpp"
+#include "ui/ui_profile.hpp"
 
 #include "formats/pdf_document_io.hpp"
 
@@ -42,6 +43,7 @@
 #include <chrono>
 #include <cmath>
 #include <future>
+#include <string>
 
 // The real PDF importer, built only where the optional Qt PDF add-on is present (see
 // pdf_import_stub.cpp for the other half). Qt PDF wraps PDFium; Patchy only ever renders
@@ -208,7 +210,12 @@ std::optional<PdfImportResult> render_pages(QPdfDocument& pdf, const PdfImportOp
     if (!size.isValid()) {
       continue;
     }
-    QImage image = pdf.render(page, size, render);
+    const std::string profile_detail = "page=" + std::to_string(page + 1);
+    QImage image;
+    {
+      const UiProfileScope profile_scope("pdf_import.render", profile_detail);
+      image = pdf.render(page, size, render);
+    }
     if (image.isNull()) {
       if (error != nullptr) {
         *error = QObject::tr("Page %1 of %2 could not be rendered.").arg(page + 1).arg(file_name);
@@ -216,6 +223,7 @@ std::optional<PdfImportResult> render_pages(QPdfDocument& pdf, const PdfImportOp
       return std::nullopt;
     }
     if (options.trim_to_bounding_box) {
+      const UiProfileScope profile_scope("pdf_import.trim", profile_detail);
       image = trimmed_to_content(image);
     }
     frames.push_back(std::move(image));
@@ -235,6 +243,7 @@ std::optional<PdfImportResult> render_pages(QPdfDocument& pdf, const PdfImportOp
     // caller opens one session per entry, page 1 first.
     for (std::size_t index = 0; index < frames.size(); ++index) {
       const auto& title = layer_names.at(static_cast<qsizetype>(index));
+      const UiProfileScope profile_scope("pdf_import.to_document");
       Document page_document = document_from_qimage(frames[index], title.toStdString());
       page_document.print_settings().horizontal_ppi = resolution_ppi;
       page_document.print_settings().vertical_ppi = resolution_ppi;
@@ -344,6 +353,7 @@ std::optional<PdfImportResult> run_pdf_import_dialog(QWidget* parent, const QStr
   pages_list->setIconSize(QSize(kThumbnailHeight, kThumbnailHeight));
   // Thumbnails render at a fixed small size regardless of the chosen import resolution:
   // this is a page picker, not a preview of output quality.
+  const auto thumbnails_started = std::chrono::steady_clock::now();
   for (int page = 0; page < pdf.pageCount(); ++page) {
     auto* item = new QListWidgetItem(QObject::tr("Page %1").arg(page + 1), pages_list);
     const QSizeF page_points = pdf.pagePointSize(page);
@@ -356,6 +366,9 @@ std::optional<PdfImportResult> run_pdf_import_dialog(QWidget* parent, const QStr
       }
     }
   }
+  log_ui_profile("pdf_import.thumbnails",
+                 std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - thumbnails_started).count(),
+                 "pages=" + std::to_string(pdf.pageCount()));
   if (pages_list->count() > 0) {
     pages_list->item(0)->setSelected(true);
     pages_list->setCurrentRow(0);
@@ -517,7 +530,10 @@ std::optional<PdfImportResult> run_pdf_import_dialog(QWidget* parent, const QStr
   if (editable) {
     QFile file(path);
     if (file.open(QIODevice::ReadOnly)) {
+      const auto read_started = std::chrono::steady_clock::now();
       const QByteArray bytes = file.readAll();
+      log_ui_profile("pdf_import.read_file",
+                     std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - read_started).count());
       const std::span<const std::uint8_t> byte_span(reinterpret_cast<const std::uint8_t*>(bytes.constData()),
                                                     static_cast<std::size_t>(bytes.size()));
       // The vector reader builds one page per call. Separate-documents mode calls it
@@ -544,7 +560,9 @@ std::optional<PdfImportResult> run_pdf_import_dialog(QWidget* parent, const QStr
         vector_options.password = accepted_password.toStdString();
         const auto title = QObject::tr("Page %1").arg(page + 1);
         std::optional<Document> page_document;
+        const std::string profile_detail = "page=" + std::to_string(page + 1);
         try {
+          const UiProfileScope profile_scope("pdf_import.vector_page", profile_detail);
           // The Qt-free reader is safe on a worker; pumping here keeps the progress
           // dialog painting and its Cancel button live during a slow page.
           auto future = launch_async([byte_span, vector_options] {
@@ -574,6 +592,7 @@ std::optional<PdfImportResult> run_pdf_import_dialog(QWidget* parent, const QStr
           PdfImportOptions page_options = options;
           page_options.pages = {page};
           page_options.progress = {};  // this page is already counted
+          const UiProfileScope profile_scope("pdf_import.raster_fallback", profile_detail);
           QString page_error;
           auto rendered = render_pages(pdf, page_options, file_name, &page_error);
           if (!rendered.has_value()) {

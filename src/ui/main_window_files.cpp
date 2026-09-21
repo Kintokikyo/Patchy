@@ -1619,12 +1619,18 @@ void MainWindow::open_document_path(QString path) {
     const auto first_title = loaded->extra_documents.empty() || loaded->document_title.isEmpty()
                                  ? loaded_file_name
                                  : tr("%1 - %2").arg(loaded_file_name, loaded->document_title);
-    add_document_session(std::move(loaded->document), first_title, session_path, tr("Open"));
+    {
+      const UiProfileScope profile_scope("open.add_session");
+      add_document_session(std::move(loaded->document), first_title, session_path, tr("Open"));
+    }
     if (!unattended_automation() && is_photoshop_document_extension(loaded->extension) &&
         app_settings().value(QStringLiteral("imports/showPsdWarningsAndInfo"), false).toBool()) {
       show_compatibility_report(this, document(), loaded_file_name);
     }
-    canvas_->fit_to_view();
+    {
+      const UiProfileScope profile_scope("open.fit_to_view");
+      canvas_->fit_to_view();
+    }
     open_extra_imported_page_sessions(loaded_file_name, std::move(loaded->extra_documents));
     if (!unattended_automation()) {
       // Unattended runs must not block on the adoption offer.
@@ -1706,11 +1712,22 @@ void MainWindow::open_extra_imported_page_sessions(const QString& file_name,
     progress.setLabelText(tr("Opening page %1 of %2...").arg(position).arg(page_count));
     progress.setValue(position - 1);
     QApplication::processEvents(QEventLoop::AllEvents);
-    render_pending_pdf_text_layers(page.document);
-    render_pending_pdf_image_layers(page.document);
-    add_document_session(std::move(page.document), tr("%1 - %2").arg(file_name, page.title), QString(),
-                         tr("Open"));
-    canvas_->fit_to_view();
+    const std::string profile_detail = "page=" + std::to_string(position);
+    {
+      const UiProfileScope profile_scope("pdf_pages.pending_layers", profile_detail);
+      render_pending_pdf_text_layers(page.document);
+      render_pending_pdf_image_layers(page.document);
+    }
+    {
+      const UiProfileScope profile_scope("pdf_pages.add_session", profile_detail);
+      add_document_session(std::move(page.document), tr("%1 - %2").arg(file_name, page.title), QString(),
+                           tr("Open"));
+    }
+    {
+      const UiProfileScope profile_scope("pdf_pages.fit", profile_detail);
+      canvas_->fit_to_view();
+    }
+    const UiProfileScope profile_scope("pdf_pages.pump", profile_detail);
     QApplication::processEvents(QEventLoop::AllEvents);
   }
   progress.setValue(page_count);

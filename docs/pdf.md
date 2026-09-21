@@ -26,3 +26,21 @@ One page sized `pixels / document PPI` inches per axis via `print_detail::docume
 - **PDFium renders onto a TRANSPARENT page**, not white, and "Trim to content" compares full ARGB so vector and scanned borders both trim. **Qt PDF exposes no crop-box selection**: `pagePointSize` is CropBox intersected with MediaBox; Art/Bleed/Trim boxes are unreachable, so Photoshop's Crop To menu cannot be reproduced (the post-render trim plus a notice stands in). Raster pages cap at 20000 px per axis with a notice. The document adopts the chosen PPI, so PDF must never join `kDensitylessFormats`.
 - **PDF is a read-only SOURCE** even though the writer exists: `is_read_only_source_extension` lists it explicitly, because an import is a rasterization at one resolution (and even the editable export loses adjustment layers, blend modes, and styles), so Save must never replace a multi-page vector file with a re-render. Save routes to Save As defaulting `.psd`; Save As and Export to `.pdf` still work.
 - Fixtures are synthesized byte by byte in-test (xref offsets computed, never hand-counted); export verification reads Patchy's output back through decoders that are not the writer.
+
+## Performance and profiling
+
+`PATCHY_UI_PROFILE=1` prints per-page stage timings to stderr (`ui/ui_profile.hpp`): `pdf_import.{thumbnails,read_file,vector_page,render,raster_fallback,trim,to_document}`, `open.{add_session,fit_to_view}`, `pdf_pages.{pending_layers,add_session,fit,pump}`, and `pdf_export.{page,composite,draw_image,new_page,raster_chunk_flatten,raster_chunk_draw,text_merge,finish}`. `patchy_perf_tests.exe pdfopen [file]` and `pdfsave [file]` time the whole flow (file from the argument, else `PATCHY_PERF_PDF`, else `local-test-fixtures/pdf/C2_Kyoto_House_Plans_Compressed.pdf`; `[SKIP]` when absent; `PATCHY_PERF_PDF_PAGES=<n|all>` caps the pages, default 8; `PATCHY_PERF_PDF_KEEP=1` keeps the written files). Both run with isolated settings and are never part of the default perf run.
+
+Reference file: 86 MB, 85 pages, each one 3496x5019 8-bit gray JPEG 2000 image (about 1 MB per page), imported at 300 ppi. Per page, 12900KS, September 2026 baseline:
+
+| Step | Time | Note |
+|---|---|---|
+| PDFium render (`QPdfDocument::render`) | 490 ms on a P-core, to 1100 ms at below-normal priority | about 85% of the open. Decode-bound: smoothing flags change nothing, half size still costs 290 ms. PDFium is single-threaded behind Qt PDF's global lock, and no other JPEG 2000 decoder is linked, so this is the in-process floor |
+| Failed editable attempt (86 MB copy + parse) | 20 ms | the JPX image is skipped, the page throws, PDFium renders it anyway |
+| Thumbnail | 14 ms (1.8 s for all 85, before the dialog shows) | PDFium decodes JPX at reduced resolution for small targets |
+| `document_from_qimage` | 32 ms | |
+| Session add + first paint pump | 110 ms | every page is activated |
+| Export, flat lossless | 2000 ms, 8.9 MB per page (8.8x the source) | composite is 29 ms; the rest is Qt converting and deflating RGB |
+| Export, flat JPEG 94 | 280 ms, 2.9 MB per page | RGB even for gray content |
+| Export, editable lossless (the multi-page default) | 3100 ms | adds a 1000 ms single-threaded `flatten_document_rgba8` per raster page |
+| Text-merge post-pass | 69 ms per 71 MB | runs even when no text was written |

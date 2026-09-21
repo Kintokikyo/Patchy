@@ -1038,6 +1038,7 @@ ${PATCHY_LUPDATE_MANIFEST_SOURCES}
       src/ui/pattern_manager_dialog.cpp
       src/ui/ui_font.hpp
       src/ui/ui_font.cpp
+      src/ui/ui_profile.hpp
       src/ui/pdf_export.hpp
       src/ui/pdf_export.cpp
       src/ui/pdf_export_editable.cpp
@@ -1738,6 +1739,11 @@ if(PATCHY_BUILD_TESTS)
       tests/perf_tests.cpp
     )
     target_link_libraries(patchy_perf_tests PRIVATE patchy_ui)
+    # The pdfopen scenario times QPdfDocument directly (the cost of the import dialog
+    # thumbnails); patchy_ui links Qt PDF privately.
+    if(TARGET Qt6::Pdf)
+      target_link_libraries(patchy_perf_tests PRIVATE Qt6::Pdf)
+    endif()
     patchy_configure_target(patchy_perf_tests)
     target_compile_definitions(patchy_perf_tests PRIVATE PATCHY_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
     patchy_copy_translations(patchy_perf_tests)
