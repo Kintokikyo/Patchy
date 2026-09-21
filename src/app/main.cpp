@@ -205,7 +205,8 @@ bool forward_to_running_instance(const QStringList& files) {
 //   the cursor in chunks.
 // - Tool-button flyouts (DelayedPopup, e.g. the marquee/shape buttons in the
 //   tool palette): open after a short Photoshop-like hold instead of Qt's much
-//   longer default.
+//   longer default (600 ms). A left double-click opens them too; that lives in
+//   configure_tool_flyout (main_window_actions_tool_palette.cpp).
 class InteractionHintsStyle : public QProxyStyle {
  public:
   using QProxyStyle::QProxyStyle;
@@ -216,7 +217,7 @@ class InteractionHintsStyle : public QProxyStyle {
       return Qt::LeftButton;
     }
     if (hint == SH_ToolButton_PopupDelay) {
-      return 300;  // ms; roughly Photoshop's press-and-hold flyout delay
+      return 200;  // ms; press-and-hold flyout delay (300 felt sluggish)
     }
 #ifdef Q_OS_MACOS
     // Form layouts consult the style: QMacStyle keeps fields at their size hint

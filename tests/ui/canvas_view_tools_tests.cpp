@@ -1022,6 +1022,37 @@ void ui_stamp_and_gradient_flyouts_swap_tools() {
   }
 }
 
+void ui_tool_flyout_double_click_opens_menu() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto* button = window.findChild<QToolButton*>(QStringLiteral("marqueeToolButton"));
+  CHECK(button != nullptr);
+  auto* menu = button->menu();
+  CHECK(menu != nullptr);
+  const QPoint center(button->width() / 2, button->height() / 2);
+
+  // A plain click selects the default tool and never shows the flyout.
+  click_widget_like_a_user(*button, center);
+  process_events_for(20);
+  CHECK(!menu->isVisible());
+  CHECK(canvas->tool() == patchy::ui::CanvasTool::Marquee);
+
+  // The second press of a double-click arrives as MouseButtonDblClick; the
+  // flyout filter opens the menu through showMenu(), which blocks in exec(),
+  // so a queued timer records the visible menu and closes it.
+  bool shown = false;
+  QTimer::singleShot(0, [&] {
+    shown = menu->isVisible();
+    menu->close();
+  });
+  send_double_click(*button, center);
+  CHECK(shown);
+  CHECK(!menu->isVisible());
+  CHECK(canvas->tool() == patchy::ui::CanvasTool::Marquee);
+  CHECK(button->defaultAction() == require_action(window, "toolMarqueeAction"));
+}
+
 void ui_shape_flyout_and_zoom_tool_work() {
   patchy::ui::MainWindow window;
   show_window(window);
@@ -2654,6 +2685,7 @@ std::vector<patchy::test::TestCase> canvas_view_tools_tests() {
        ui_zoomed_out_canvas_uses_downsampled_display_mip},
       {"ui_shape_flyout_and_zoom_tool_work", ui_shape_flyout_and_zoom_tool_work},
       {"ui_stamp_and_gradient_flyouts_swap_tools", ui_stamp_and_gradient_flyouts_swap_tools},
+      {"ui_tool_flyout_double_click_opens_menu", ui_tool_flyout_double_click_opens_menu},
       {"ui_tool_palette_icons_render_sheet", ui_tool_palette_icons_render_sheet},
       {"ui_filled_shape_preview_clears_after_commit", ui_filled_shape_preview_clears_after_commit},
       {"ui_options_bar_tracks_active_tool", ui_options_bar_tracks_active_tool},
