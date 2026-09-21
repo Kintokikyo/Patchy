@@ -1164,7 +1164,44 @@ OpenDocumentResult load_document_from_path(QString path) {
     std::vector<std::string> psd_notices;
     psd::ReadOptions psd_options{true, false, true};
     psd_options.notices = &psd_notices;
-    opened = psd::DocumentIo::read_file(to_filesystem_path(path), psd_options);
+
+    QString psd_read_path = path;
+
+  #ifdef Q_OS_ANDROID
+    std::optional<QTemporaryFile> temporary_psd_file;
+
+    if (is_android_content_uri(path)) {
+        const QString temporary_extension =
+            extension == QStringLiteral("psb")
+                ? QStringLiteral("psb")
+                : QStringLiteral("psd");
+
+        temporary_psd_file.emplace(
+            QDir::tempPath() +
+            QStringLiteral("/patchy-psd-XXXXXX.") +
+            temporary_extension);
+
+        if (!temporary_psd_file->open()) {
+            throw std::runtime_error(
+                QStringLiteral(
+                    "Cannot create temporary file for Android PSD import: %1")
+                    .arg(temporary_psd_file->errorString())
+                    .toStdString());
+        }
+
+        psd_read_path = temporary_psd_file->fileName();
+
+        temporary_psd_file->close();
+
+        read_file_from_android_uri(
+            path,
+            psd_read_path);
+    }
+  #endif
+
+    opened = psd::DocumentIo::read_file(
+        to_filesystem_path(psd_read_path),
+        psd_options);
     for (const auto& notice : psd_notices) {
       import_notices.push_back(translated_file_message(notice));
     }
