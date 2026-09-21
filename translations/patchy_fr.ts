@@ -4399,14 +4399,6 @@
         <translation>Options PDF</translation>
     </message>
     <message>
-        <source>Lossless image data (larger file)</source>
-        <translation>Données d&apos;image sans perte (fichier plus volumineux)</translation>
-    </message>
-    <message>
-        <source>Unchecked, the page is compressed as JPEG at Qt&apos;s fixed quality.</source>
-        <translation>Si cette option est désactivée, la page est compressée en JPEG à la qualité fixe de Qt.</translation>
-    </message>
-    <message>
         <source>Layers are kept as editable objects (paths, text, images). The PDF may not look exactly like the canvas: blend modes, adjustment layers, group opacity, layer styles, and pixel masks have no editable PDF form here and are flattened into images where needed.</source>
         <translation>Les calques sont conservés comme objets modifiables (tracés, texte, images). Le PDF peut différer de la zone de travail : les modes de fusion, les calques de réglage, l&apos;opacité des groupes, les styles de calque et les masques de pixels n&apos;ont pas de forme PDF modifiable ici et sont aplatis en images si nécessaire.</translation>
     </message>
@@ -8277,10 +8269,6 @@ RVB : %2, %3, %4</translation>
         <source>Shapes and text stay editable; blend modes, adjustment layers, and layer styles flatten to images on each page.</source>
         <translation>Les formes et le texte restent modifiables ; les modes de fusion, les calques de réglage et les styles de calque sont aplatis en images sur chaque page.</translation>
     </message>
-    <message>
-        <source>Lossless images</source>
-        <translation>Images sans perte</translation>
-    </message>
     <message numerus="yes">
         <source>%n page(s) will be written.</source>
         <translation>
@@ -8339,6 +8327,50 @@ RVB : %2, %3, %4</translation>
     <message>
         <source>Importing page %1 of %2...</source>
         <translation>Import de la page %1 sur %2...</translation>
+    </message>
+    <message>
+        <source>The PDF file could not be opened for writing.</source>
+        <translation>Impossible d&apos;ouvrir le fichier PDF en écriture.</translation>
+    </message>
+    <message>
+        <source>The document could not be rendered for PDF export.</source>
+        <translation>Impossible de générer le rendu du document pour l&apos;export PDF.</translation>
+    </message>
+    <message>
+        <source>The PDF file could not be written.</source>
+        <translation>Impossible d&apos;écrire le fichier PDF.</translation>
+    </message>
+    <message>
+        <source>The PDF would be too large to write (over 9 GB).</source>
+        <translation>Le PDF serait trop volumineux pour être écrit (plus de 9 Go).</translation>
+    </message>
+    <message>
+        <source>There are no pages to export.</source>
+        <translation>Il n&apos;y a aucune page à exporter.</translation>
+    </message>
+    <message>
+        <source>Lossless (largest file)</source>
+        <translation>Sans perte (fichier le plus volumineux)</translation>
+    </message>
+    <message>
+        <source>High quality JPEG</source>
+        <translation>JPEG de haute qualité</translation>
+    </message>
+    <message>
+        <source>Medium quality JPEG</source>
+        <translation>JPEG de qualité moyenne</translation>
+    </message>
+    <message>
+        <source>Low quality JPEG (smallest file)</source>
+        <translation>JPEG de basse qualité (fichier le plus léger)</translation>
+    </message>
+    <message>
+        <source>How image data is stored in the PDF. Gray pages are written as one channel either way. Pages that keep editable shapes or text use a fixed high JPEG quality for every lossy choice.</source>
+        <translation>Détermine comment les données d&apos;image sont stockées dans le PDF. Les pages grises sont écrites sur un seul canal dans tous les cas. Les pages qui conservent des formes ou du texte modifiables utilisent une qualité JPEG élevée fixe pour tous les choix avec perte.</translation>
+    </message>
+    <message>
+        <source>Image quality:</source>
+        <translation>Qualité d&apos;image :</translation>
     </message>
 </context>
 <context>
@@ -18174,6 +18206,10 @@ Y : %2
     <message>
         <source>One of the documents is no longer open.</source>
         <translation>L&apos;un des documents n&apos;est plus ouvert.</translation>
+    </message>
+    <message>
+        <source>exportPdf imageQuality must be &quot;lossless&quot;, &quot;high&quot;, &quot;medium&quot;, or &quot;low&quot;.</source>
+        <translation>exportPdf imageQuality doit être &quot;lossless&quot;, &quot;high&quot;, &quot;medium&quot; ou &quot;low&quot;.</translation>
     </message>
 </context>
 <context>

@@ -2155,7 +2155,8 @@ void write_flat_image_file(const Document& document, const QString& path, const 
     // The layered writer needs the real document (export_stand_in_document would flatten
     // it first); vectors and text scale by the page, so the export transforms do not apply.
     write_pdf_document_file(document, path,
-                            PdfExportOptions{options.pdf_lossless, true, options.pdf_missing_fonts_as_images},
+                            PdfExportOptions{options.pdf_lossless, true, options.pdf_missing_fonts_as_images,
+                                             options.pdf_jpeg_quality},
                             notices);
     return;
   }
@@ -2235,7 +2236,8 @@ void write_flat_image_file(const Document& document, const QString& path, const 
     return;
   }
   if (lower == "pdf") {
-    write_pdf_document_file(document, path, PdfExportOptions{options.pdf_lossless, false}, notices);
+    write_pdf_document_file(document, path,
+                            PdfExportOptions{options.pdf_lossless, false, false, options.pdf_jpeg_quality}, notices);
     return;
   }
   if (is_bmp_extension(extension_bytes)) {

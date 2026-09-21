@@ -7,6 +7,7 @@
 #include "ui/dialog_utils.hpp"
 #include "ui/theme_qss.hpp"
 #include "ui/measurement_units.hpp"
+#include "ui/pdf_export.hpp"
 
 #include <QButtonGroup>
 #include <QCheckBox>
@@ -593,6 +594,22 @@ bool image_save_options_apply_to_extension(const QString& extension) {
          is_jxr_extension(extension) || is_rttex_extension(extension);
 }
 
+void populate_pdf_image_quality_combo(QComboBox& combo, const QString& current_id) {
+  combo.clear();
+  combo.addItem(QObject::tr("Lossless (largest file)"), QStringLiteral("lossless"));
+  combo.addItem(QObject::tr("High quality JPEG"), QStringLiteral("high"));
+  combo.addItem(QObject::tr("Medium quality JPEG"), QStringLiteral("medium"));
+  combo.addItem(QObject::tr("Low quality JPEG (smallest file)"), QStringLiteral("low"));
+  combo.setToolTip(QObject::tr("How image data is stored in the PDF. Gray pages are written as one channel "
+                               "either way. Pages that keep editable shapes or text use a fixed high JPEG "
+                               "quality for every lossy choice."));
+  int index = combo.findData(current_id);
+  if (index < 0) {
+    index = combo.findData(QLatin1String(kDefaultPdfImageQualityId));
+  }
+  combo.setCurrentIndex(std::max(0, index));
+}
+
 ImageSaveOptions load_image_save_option_defaults() {
   auto settings = app_settings();
   ImageSaveOptions options;
@@ -632,7 +649,12 @@ ImageSaveOptions load_image_save_option_defaults() {
   options.ico_resample = ico_resample_from_key(
       settings.value(QStringLiteral("saveOptions/icoResample"), ico_resample_key(options.ico_resample)).toString(),
       options.ico_resample);
-  options.pdf_lossless = settings.value(QStringLiteral("saveOptions/pdfLossless"), options.pdf_lossless).toBool();
+  {
+    PdfExportOptions pdf_quality;
+    apply_pdf_image_quality(stored_pdf_image_quality_id(), pdf_quality);
+    options.pdf_lossless = pdf_quality.lossless;
+    options.pdf_jpeg_quality = pdf_quality.jpeg_quality;
+  }
   options.pdf_missing_fonts_as_images =
       settings.value(QStringLiteral("saveOptions/pdfMissingFontsAsImages"), options.pdf_missing_fonts_as_images)
           .toBool();
@@ -678,7 +700,7 @@ void save_image_save_option_defaults(const ImageSaveOptions& options) {
     settings.setValue(QStringLiteral("saveOptions/icoSizes"), tokens.join(QLatin1Char(',')));
   }
   settings.setValue(QStringLiteral("saveOptions/icoResample"), ico_resample_key(options.ico_resample));
-  settings.setValue(QStringLiteral("saveOptions/pdfLossless"), options.pdf_lossless);
+  store_pdf_image_quality_id(pdf_image_quality_id(options.pdf_lossless, options.pdf_jpeg_quality));
   settings.setValue(QStringLiteral("saveOptions/pdfMissingFontsAsImages"), options.pdf_missing_fonts_as_images);
   settings.setValue(QStringLiteral("saveOptions/gifFrameDelayCs"), std::clamp(options.gif_frame_delay_cs, 0, 0xffff));
   settings.setValue(QStringLiteral("saveOptions/jxrQuality"), std::clamp(options.jxr_quality, 1, 100));
@@ -1197,13 +1219,15 @@ std::optional<ImageSaveOptions> prompt_image_save_options(QWidget* parent, const
     dialog.setObjectName(QStringLiteral("pdfSaveOptionsDialog"));
     auto* content = create_options_dialog_chrome(dialog, QObject::tr("PDF Options"));
 
-    auto* lossless = new QCheckBox(QObject::tr("Lossless image data (larger file)"), &dialog);
-    lossless->setObjectName(QStringLiteral("pdfLosslessCheck"));
-    lossless->setChecked(options.pdf_lossless);
-    // Qt's PDF engine offers no quality setting on its lossy path, so this really is one
-    // choice: pixel-exact Flate, or Qt's fixed JPEG quality-94 encode.
-    lossless->setToolTip(QObject::tr("Unchecked, the page is compressed as JPEG at Qt's fixed quality."));
-    content->addWidget(lossless);
+    auto* quality_row = new QHBoxLayout();
+    auto* quality_label = new QLabel(QObject::tr("Image quality:"), &dialog);
+    auto* quality = new QComboBox(&dialog);
+    quality->setObjectName(QStringLiteral("pdfImageQualityCombo"));
+    populate_pdf_image_quality_combo(*quality, pdf_image_quality_id(options.pdf_lossless, options.pdf_jpeg_quality));
+    quality_label->setBuddy(quality);
+    quality_row->addWidget(quality_label);
+    quality_row->addWidget(quality, 1);
+    content->addLayout(quality_row);
 
     // Editable layers (decided before this dialog by MainWindow::resolve_pdf_layer_choice:
     // the flatten-or-keep question or the remembered policy) trade fidelity for
@@ -1255,7 +1279,12 @@ std::optional<ImageSaveOptions> prompt_image_save_options(QWidget* parent, const
     if (exec_dialog(dialog) != QDialog::Accepted) {
       return std::nullopt;
     }
-    options.pdf_lossless = lossless->isChecked();
+    {
+      PdfExportOptions pdf_quality;
+      apply_pdf_image_quality(quality->currentData().toString(), pdf_quality);
+      options.pdf_lossless = pdf_quality.lossless;
+      options.pdf_jpeg_quality = pdf_quality.jpeg_quality;
+    }
     if (keep_layers) {
       options.pdf_missing_fonts_as_images = missing_fonts_as_images->isChecked();
     }

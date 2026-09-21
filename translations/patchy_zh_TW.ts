@@ -4392,14 +4392,6 @@
         <translation>PDF 選項</translation>
     </message>
     <message>
-        <source>Lossless image data (larger file)</source>
-        <translation>無失真影像資料（檔案較大）</translation>
-    </message>
-    <message>
-        <source>Unchecked, the page is compressed as JPEG at Qt&apos;s fixed quality.</source>
-        <translation>不勾選時，頁面會以 Qt 的固定品質壓縮為 JPEG。</translation>
-    </message>
-    <message>
         <source>Layers are kept as editable objects (paths, text, images). The PDF may not look exactly like the canvas: blend modes, adjustment layers, group opacity, layer styles, and pixel masks have no editable PDF form here and are flattened into images where needed.</source>
         <translation>圖層會保留為可編輯的物件（路徑、文字、影像）。PDF 的外觀可能和版面不完全相同：混合模式、調整圖層、群組不透明度、圖層樣式和像素遮色片在此沒有可編輯的 PDF 形式，必要時會平面化為影像。</translation>
     </message>
@@ -8253,10 +8245,6 @@ RGB：%2, %3, %4</translation>
         <source>Shapes and text stay editable; blend modes, adjustment layers, and layer styles flatten to images on each page.</source>
         <translation>形狀和文字保持可編輯;混合模式、調整圖層和圖層樣式會在每一頁上平面化為影像。</translation>
     </message>
-    <message>
-        <source>Lossless images</source>
-        <translation>無損影像</translation>
-    </message>
     <message numerus="yes">
         <source>%n page(s) will be written.</source>
         <translation>
@@ -8314,6 +8302,50 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Importing page %1 of %2...</source>
         <translation>正在匯入第 %1 頁,共 %2 頁...</translation>
+    </message>
+    <message>
+        <source>The PDF file could not be opened for writing.</source>
+        <translation>無法開啟 PDF 檔案進行寫入。</translation>
+    </message>
+    <message>
+        <source>The document could not be rendered for PDF export.</source>
+        <translation>無法為 PDF 匯出算繪文件。</translation>
+    </message>
+    <message>
+        <source>The PDF file could not be written.</source>
+        <translation>無法寫入 PDF 檔案。</translation>
+    </message>
+    <message>
+        <source>The PDF would be too large to write (over 9 GB).</source>
+        <translation>PDF 過大，無法寫入（超過 9 GB）。</translation>
+    </message>
+    <message>
+        <source>There are no pages to export.</source>
+        <translation>沒有可匯出的頁面。</translation>
+    </message>
+    <message>
+        <source>Lossless (largest file)</source>
+        <translation>無失真（檔案最大）</translation>
+    </message>
+    <message>
+        <source>High quality JPEG</source>
+        <translation>高品質 JPEG</translation>
+    </message>
+    <message>
+        <source>Medium quality JPEG</source>
+        <translation>中等品質 JPEG</translation>
+    </message>
+    <message>
+        <source>Low quality JPEG (smallest file)</source>
+        <translation>低品質 JPEG（檔案最小）</translation>
+    </message>
+    <message>
+        <source>How image data is stored in the PDF. Gray pages are written as one channel either way. Pages that keep editable shapes or text use a fixed high JPEG quality for every lossy choice.</source>
+        <translation>影像資料在 PDF 中的儲存方式。無論選擇哪一項，灰階頁面都以單一色版寫入。保留可編輯形狀或文字的頁面，對每種有損選項都使用固定的高 JPEG 品質。</translation>
+    </message>
+    <message>
+        <source>Image quality:</source>
+        <translation>影像品質:</translation>
     </message>
 </context>
 <context>
@@ -18132,6 +18164,10 @@ Y：%2
     <message>
         <source>One of the documents is no longer open.</source>
         <translation>其中一個文件已不再開啟。</translation>
+    </message>
+    <message>
+        <source>exportPdf imageQuality must be &quot;lossless&quot;, &quot;high&quot;, &quot;medium&quot;, or &quot;low&quot;.</source>
+        <translation>exportPdf 的 imageQuality 必須是 &quot;lossless&quot;、&quot;high&quot;、&quot;medium&quot; 或 &quot;low&quot;。</translation>
     </message>
 </context>
 <context>

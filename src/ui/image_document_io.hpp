@@ -39,9 +39,12 @@ struct ImageSaveOptions {
   IcoResample ico_resample{IcoResample::Auto};
   int cur_hotspot_x{0};
   int cur_hotspot_y{0};
-  // PDF: lossless keeps the composite pixel-exact (Flate); unchecked hands the page to
-  // Qt's fixed JPEG quality-94 encode. See PdfExportOptions in ui/pdf_export.hpp.
+  // PDF image data: pixel-exact Flate, or JPEG at pdf_jpeg_quality. The pair is one of
+  // the pdf_image_quality_presets (ui/pdf_export.hpp) and persists by preset id as
+  // saveOptions/pdfImageQuality; load_image_save_option_defaults answers "high" when
+  // nothing is stored, while this struct default stays lossless for scripts and the CLI.
   bool pdf_lossless{true};
+  int pdf_jpeg_quality{90};
   // PDF: keep layers as editable objects (paths, real text, images) instead of one
   // flattened image. Per save, never a persisted default: MainWindow::resolve_pdf_layer_choice
   // sets it from the saveOptions/pdfLayerPolicy preference or the flatten-or-keep question.

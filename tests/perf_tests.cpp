@@ -1480,9 +1480,17 @@ void pdf_save_perf_if_available(int argc, char* argv[]) {
     patchy::ui::PdfExportOptions options;
   };
   std::vector<Mode> modes;
-  modes.push_back({"flat_lossless", patchy::ui::PdfExportOptions{true, false}});
-  modes.push_back({"flat_lossy", patchy::ui::PdfExportOptions{false, false}});
-  modes.push_back({"editable_lossless", patchy::ui::PdfExportOptions{true, true}});
+  // The dialog default (editable on, the "high" preset), then each preset flat.
+  for (const auto& preset : patchy::ui::pdf_image_quality_presets()) {
+    patchy::ui::PdfExportOptions options;
+    patchy::ui::apply_pdf_image_quality(QLatin1String(preset.id), options);
+    if (QLatin1String(preset.id) == QLatin1String(patchy::ui::kDefaultPdfImageQualityId)) {
+      auto editable = options;
+      editable.editable_layers = true;
+      modes.push_back({"editable_default", editable});
+    }
+    modes.push_back({preset.id, options});
+  }
   for (const auto& mode : modes) {
     const auto out = QStringLiteral("test-artifacts/perf_pdfsave_%1.pdf").arg(QLatin1String(mode.name));
     QFile::remove(out);

@@ -5635,10 +5635,6 @@ Mixed selection</source>
         <translation>PDF オプション</translation>
     </message>
     <message>
-        <source>Lossless image data (larger file)</source>
-        <translation>可逆圧縮の画像データ (ファイルサイズ大)</translation>
-    </message>
-    <message>
         <source>Layers are kept as editable objects (paths, text, images). The PDF may not look exactly like the canvas: blend modes, adjustment layers, group opacity, layer styles, and pixel masks have no editable PDF form here and are flattened into images where needed.</source>
         <translation>レイヤーは編集可能なオブジェクト (パス、テキスト、画像) として保持されます。PDF はキャンバスと完全には同じ見た目にならない場合があります。描画モード、調整レイヤー、グループの不透明度、レイヤースタイル、ピクセルマスクは編集可能な PDF 形式にできないため、必要に応じて画像に統合されます。</translation>
     </message>
@@ -5647,10 +5643,6 @@ Mixed selection</source>
         <translation>
             <numerusform> (ほか %n 件のエクスポートノート)</numerusform>
         </translation>
-    </message>
-    <message>
-        <source>Unchecked, the page is compressed as JPEG at Qt&apos;s fixed quality.</source>
-        <translation>オフの場合、ページは Qt 固定品質の JPEG で圧縮されます。</translation>
     </message>
     <message>
         <source>When a font is missing, export that text as an image instead of substituting a font</source>
@@ -8253,10 +8245,6 @@ Mixed selection</source>
         <source>Shapes and text stay editable; blend modes, adjustment layers, and layer styles flatten to images on each page.</source>
         <translation>シェイプとテキストは編集可能なまま残ります。描画モード、調整レイヤー、レイヤースタイルは各ページで画像に統合されます。</translation>
     </message>
-    <message>
-        <source>Lossless images</source>
-        <translation>ロスレス画像</translation>
-    </message>
     <message numerus="yes">
         <source>%n page(s) will be written.</source>
         <translation>
@@ -8314,6 +8302,50 @@ Mixed selection</source>
     <message>
         <source>Importing page %1 of %2...</source>
         <translation>ページ %1 / %2 を読み込み中...</translation>
+    </message>
+    <message>
+        <source>The PDF file could not be opened for writing.</source>
+        <translation>PDF ファイルを書き込み用に開けませんでした。</translation>
+    </message>
+    <message>
+        <source>The document could not be rendered for PDF export.</source>
+        <translation>PDF 書き出し用にドキュメントをレンダリングできませんでした。</translation>
+    </message>
+    <message>
+        <source>The PDF file could not be written.</source>
+        <translation>PDF ファイルを書き込めませんでした。</translation>
+    </message>
+    <message>
+        <source>The PDF would be too large to write (over 9 GB).</source>
+        <translation>PDF が大きすぎて書き込めません (9 GB 超)。</translation>
+    </message>
+    <message>
+        <source>There are no pages to export.</source>
+        <translation>書き出すページがありません。</translation>
+    </message>
+    <message>
+        <source>Lossless (largest file)</source>
+        <translation>可逆圧縮 (ファイルサイズ最大)</translation>
+    </message>
+    <message>
+        <source>High quality JPEG</source>
+        <translation>高画質 JPEG</translation>
+    </message>
+    <message>
+        <source>Medium quality JPEG</source>
+        <translation>中画質 JPEG</translation>
+    </message>
+    <message>
+        <source>Low quality JPEG (smallest file)</source>
+        <translation>低画質 JPEG (ファイルサイズ最小)</translation>
+    </message>
+    <message>
+        <source>How image data is stored in the PDF. Gray pages are written as one channel either way. Pages that keep editable shapes or text use a fixed high JPEG quality for every lossy choice.</source>
+        <translation>PDF 内に画像データを保存する方法です。グレーのページはどの設定でも 1 チャンネルで書き込まれます。編集可能なシェイプやテキストを保持するページでは、非可逆のどの設定でも固定の高品質 JPEG が使われます。</translation>
+    </message>
+    <message>
+        <source>Image quality:</source>
+        <translation>画質:</translation>
     </message>
 </context>
 <context>
@@ -18132,6 +18164,10 @@ Clipped to the layer below</source>
     <message>
         <source>One of the documents is no longer open.</source>
         <translation>ドキュメントの 1 つがすでに閉じられています。</translation>
+    </message>
+    <message>
+        <source>exportPdf imageQuality must be &quot;lossless&quot;, &quot;high&quot;, &quot;medium&quot;, or &quot;low&quot;.</source>
+        <translation>exportPdf の imageQuality は &quot;lossless&quot;、&quot;high&quot;、&quot;medium&quot;、&quot;low&quot; のいずれかでなければなりません。</translation>
     </message>
 </context>
 <context>

@@ -442,6 +442,7 @@ add_library(patchy_formats
   src/formats/pdf_crypt.cpp
   src/formats/pdf_document_io.cpp
   src/formats/pdf_file.cpp
+  src/formats/pdf_image_writer.cpp
   src/formats/pdf_png_writer.cpp
   src/formats/pdf_filters.cpp
   src/formats/pdf_fonts.cpp

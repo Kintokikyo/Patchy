@@ -98,6 +98,8 @@ struct Writer {
   std::vector<std::string>* notices{};
   QPainter& painter;
   const PdfExportOptions& options;
+  // Set once a layer goes out as real text: only then is the glyph-run merge worth running.
+  bool text_drawn{false};
 
   void notice(std::string value) {
     if (notices != nullptr && std::find(notices->begin(), notices->end(), value) == notices->end()) {
@@ -306,6 +308,7 @@ struct Writer {
     apply_vector_mask(layer);
     const bool drawn = draw_text_layer_to_painter(layer, painter, options.missing_fonts_as_images, &note);
     painter.restore();
+    text_drawn = text_drawn || drawn;
     return drawn;
   }
 
@@ -458,9 +461,9 @@ struct Writer {
 }  // namespace
 
 void paint_editable_document(QPainter& painter, const Document& document, const PdfExportOptions& options,
-                             std::vector<std::string>* notices) {
+                             std::vector<std::string>* notices, bool* text_drawn) {
   if (document_has_compound_vectors(document)) {
-    paint_editable_document(painter, expand_compound_vectors(document, true), options, notices);
+    paint_editable_document(painter, expand_compound_vectors(document, true), options, notices, text_drawn);
     return;
   }
   if (document.width() <= 0 || document.height() <= 0) {
@@ -476,6 +479,9 @@ void paint_editable_document(QPainter& painter, const Document& document, const 
 
   Writer layer_writer{document, notices, painter, options};
   layer_writer.run();
+  if (text_drawn != nullptr && layer_writer.text_drawn) {
+    *text_drawn = true;
+  }
 }
 
 void write_editable_pdf_document_file(const Document& document, const QString& path, const PdfExportOptions& options,
@@ -490,9 +496,14 @@ void write_editable_pdf_document_file(const Document& document, const QString& p
   if (!painter.begin(&writer)) {
     throw std::runtime_error("The PDF file could not be opened for writing.");
   }
-  paint_editable_document(painter, document, options, notices);
+  bool text_drawn = false;
+  paint_editable_document(painter, document, options, notices, &text_drawn);
   painter.end();
-  apply_text_merge_post_pass(path);
+  // The pass rewrites glyph runs; a file with no text has none, and reading a large
+  // image-only file back just to find that out is slow.
+  if (text_drawn) {
+    apply_text_merge_post_pass(path);
+  }
 }
 
 void apply_text_merge_post_pass(const QString& path) {

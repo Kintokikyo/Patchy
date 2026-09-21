@@ -545,15 +545,23 @@ interface PatchyApp {
    * Writes one PDF with a page per document, in array order, each page sized
    * from that document's pixels and resolution. A single document is accepted
    * in place of the array. options.lossless (default true) keeps images
-   * lossless; options.editableLayers (default false) keeps shapes and text as
-   * PDF objects the way Save As PDF's "Keep Layers Editable" does;
-   * options.missingFontsAsImages embeds text in uninstalled fonts as pixels.
-   * Returns true on success and throws on bad arguments or a write failure.
+   * lossless, false writes JPEG; options.imageQuality picks a preset instead
+   * ("lossless", "high", "medium", "low") and wins over lossless. Gray pages
+   * are written as one channel. options.editableLayers (default false) keeps
+   * shapes and text as PDF objects the way Save As PDF's "Keep Layers
+   * Editable" does; options.missingFontsAsImages embeds text in uninstalled
+   * fonts as pixels. Returns true on success and throws on bad arguments or a
+   * write failure.
    */
   exportPdf(
     documents: PatchyDocument | PatchyDocument[],
     path: string,
-    options?: { lossless?: boolean; editableLayers?: boolean; missingFontsAsImages?: boolean },
+    options?: {
+      lossless?: boolean;
+      imageQuality?: "lossless" | "high" | "medium" | "low";
+      editableLayers?: boolean;
+      missingFontsAsImages?: boolean;
+    },
   ): boolean;
 }
 

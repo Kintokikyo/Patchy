@@ -2839,6 +2839,8 @@ void ui_script_export_pdf_writes_pages() {
   show_window(window);
   const auto path = QDir::current().filePath(QStringLiteral("test-artifacts/ui_script_export_pages.pdf"));
   QFile::remove(path);
+  const auto preset_path = QDir::current().filePath(QStringLiteral("test-artifacts/ui_script_export_preset.pdf"));
+  QFile::remove(preset_path);
   CHECK(run_script(window, QStringLiteral(R"JS(
     var a = app.newDocument(300, 150);
     a.activeLayer.fill('#ff0000');
@@ -2851,15 +2853,32 @@ void ui_script_export_pdf_writes_pages() {
     threw = false;
     try { app.exportPdf('nope', %1); } catch (e) { threw = true; }
     if (!threw) throw new Error('non-document accepted');
+    // imageQuality names a preset and wins over lossless; an unknown id throws.
+    if (!app.exportPdf(a, %2, { lossless: true, imageQuality: 'medium' })) throw new Error('preset export failed');
+    threw = false;
+    try { app.exportPdf(a, %2, { imageQuality: 'ultra' }); } catch (e) { threw = true; }
+    if (!threw) throw new Error('unknown imageQuality accepted');
     console.log('pdf-ok');
   )JS")
                                 .arg(QString::fromUtf8(QJsonDocument(QJsonArray{path}).toJson(QJsonDocument::Compact))
                                          .chopped(1)
+                                         .mid(1),
+                                     QString::fromUtf8(
+                                         QJsonDocument(QJsonArray{preset_path}).toJson(QJsonDocument::Compact))
+                                         .chopped(1)
                                          .mid(1))));
   CHECK(backlog_contains(window, QStringLiteral("pdf-ok")));
+  {
+    QFile preset_file(preset_path);
+    CHECK(preset_file.open(QIODevice::ReadOnly));
+    const QByteArray preset_bytes = preset_file.readAll();
+    CHECK(preset_bytes.contains("/DCTDecode"));
+    CHECK(!preset_bytes.contains("/FlateDecode"));
+  }
   QFile file(path);
   CHECK(file.open(QIODevice::ReadOnly));
   const QByteArray bytes = file.readAll();
+  CHECK(bytes.contains("/FlateDecode"));  // lossless: true
   const std::span<const std::uint8_t> span(reinterpret_cast<const std::uint8_t*>(bytes.constData()),
                                            static_cast<std::size_t>(bytes.size()));
   CHECK(patchy::pdf::page_count(span) == 2);

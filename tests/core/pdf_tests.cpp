@@ -7,12 +7,14 @@
 #include "formats/pdf_file.hpp"
 #include "formats/pdf_fonts.hpp"
 #include "formats/pdf_filters.hpp"
+#include "formats/pdf_image_writer.hpp"
 #include "formats/pdf_syntax.hpp"
 #include "formats/pdf_text_merge.hpp"
 
 #include "local_psd_fixtures.hpp"
 #include "pdf_encrypted_fixture.hpp"
 #include "test_harness.hpp"
+#include "unicode_path_names.hpp"
 
 #include "formats/miniz/miniz.h"
 
@@ -21,6 +23,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <iterator>
 #include <span>
 #include <string>
 #include <string_view>
@@ -1906,6 +1909,276 @@ void pdf_local_brochure_imports_as_editable_layers_if_available() {
   }
 }
 
+
+// --- formats/pdf_image_writer -------------------------------------------------
+
+template <typename Call>
+bool writer_call_throws(Call&& call) {
+  try {
+    call();
+  } catch (const std::exception&) {
+    return true;
+  }
+  return false;
+}
+
+std::vector<std::uint8_t> read_whole_file(const std::filesystem::path& path) {
+  std::ifstream file(path, std::ios::binary);
+  return std::vector<std::uint8_t>(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+}
+
+// An image stream the reader hands back byte for byte: a fake JPEG. The writer never
+// looks inside the bytes, and the file layer stops at an image codec, so stream_data
+// returns exactly what went in. 0x0A / 0x0D inside prove the stream is binary safe.
+patchy::pdf::ImageStream fake_jpeg_stream(int width, int height, std::uint8_t seed) {
+  patchy::pdf::ImageStream image;
+  image.width = width;
+  image.height = height;
+  image.filter = "DCTDecode";
+  image.color_space = "/DeviceGray";
+  image.bytes = {0xFF, 0xD8, seed, 0x0A, 0x0D, 0x00, 0x25, 0xFF, 0xD9};
+  return image;
+}
+
+void pdf_image_writer_formats_numbers_without_a_locale() {
+  using patchy::pdf::format_pdf_number;
+  CHECK(format_pdf_number(0.0) == "0");
+  CHECK(format_pdf_number(-0.0) == "0");
+  CHECK(format_pdf_number(-0.00001) == "0");
+  CHECK(format_pdf_number(144.0) == "144");
+  CHECK(format_pdf_number(838.32) == "838.32");
+  CHECK(format_pdf_number(0.5) == "0.5");
+  CHECK(format_pdf_number(-12.25) == "-12.25");
+  CHECK(format_pdf_number(1.00004) == "1");
+  CHECK(format_pdf_number(1.00005) == "1.0001");
+  CHECK(format_pdf_number(14400.0) == "14400");
+  CHECK(format_pdf_number(0.0625) == "0.0625");
+}
+
+// Pages, sizes, image dictionaries, and the stream bytes all come back through the
+// reader, which shares no code with the writer.
+void pdf_image_writer_round_trips_through_the_reader() {
+  std::filesystem::create_directories("test-artifacts");
+  const std::filesystem::path path = "test-artifacts/pdf_image_writer_round_trip.pdf";
+  std::filesystem::remove(path);
+  {
+    patchy::pdf::ImageWriter writer(path);
+    patchy::pdf::ImagePage first;
+    first.width_points = 144.0;
+    first.height_points = 72.5;
+    first.image = fake_jpeg_stream(600, 300, 0x11);
+    writer.add_page(first);
+
+    patchy::pdf::ImagePage second;
+    second.width_points = 72.0;
+    second.height_points = 144.0;
+    second.image = fake_jpeg_stream(300, 600, 0x22);
+    second.image.color_space = "/DeviceRGB";
+    second.image.decode = "[1 0 1 0 1 0]";
+    patchy::pdf::ImageStream mask;
+    mask.width = 300;
+    mask.height = 600;
+    mask.filter = "DCTDecode";
+    mask.bytes = {0xFF, 0xD8, 0x33, 0xFF, 0xD9};
+    second.soft_mask = mask;
+    writer.add_page(second);
+    CHECK(writer.page_count() == 2);
+    writer.finish();
+  }
+  CHECK(std::filesystem::exists(path));
+
+  std::vector<std::string> notices;
+  auto file = patchy::pdf::File::open(read_whole_file(path), &notices);
+  CHECK(file.has_value());
+  if (!file.has_value()) {
+    return;
+  }
+  // A clean file: nothing had to be repaired or rebuilt.
+  CHECK(notices.empty());
+  CHECK(file->version() == "1.7");
+  CHECK(file->pages().size() == 2);
+  if (file->pages().size() != 2) {
+    return;
+  }
+  const auto& first = file->pages()[0];
+  CHECK(std::abs(first.media_box[2] - 144.0) < 1e-9);
+  CHECK(std::abs(first.media_box[3] - 72.5) < 1e-9);
+  const auto& first_image = file->get(file->get(first.resources, "XObject"), "Im0");
+  CHECK(first_image.is_stream());
+  CHECK(file->get(first_image, "Width").integer() == 600);
+  CHECK(file->get(first_image, "Height").integer() == 300);
+  CHECK(file->get(first_image, "ColorSpace").name() == "DeviceGray");
+  CHECK(file->get(first_image, "BitsPerComponent").integer() == 8);
+  CHECK(file->get(first_image, "SMask").is_null());
+  const auto first_data = file->stream_data(first_image);
+  CHECK(first_data.image_codec == patchy::pdf::FilterKind::Dct);
+  CHECK(first_data.data == fake_jpeg_stream(600, 300, 0x11).bytes);
+  const auto content = file->stream_data(file->get(first.dict, "Contents"));
+  CHECK(as_text(content.data) == "q 144 0 0 72.5 0 0 cm /Im0 Do Q\n");
+
+  const auto& second = file->pages()[1];
+  CHECK(std::abs(second.media_box[2] - 72.0) < 1e-9);
+  CHECK(std::abs(second.media_box[3] - 144.0) < 1e-9);
+  const auto& second_image = file->get(file->get(second.resources, "XObject"), "Im0");
+  CHECK(file->get(second_image, "ColorSpace").name() == "DeviceRGB");
+  CHECK(file->numbers(file->get(second_image, "Decode")).size() == 6);
+  CHECK(file->stream_data(second_image).data == fake_jpeg_stream(300, 600, 0x22).bytes);
+  const auto& soft_mask = file->get(second_image, "SMask");
+  CHECK(soft_mask.is_stream());
+  CHECK(file->get(soft_mask, "ColorSpace").name() == "DeviceGray");
+  CHECK(file->get(soft_mask, "Width").integer() == 300);
+  CHECK((file->stream_data(soft_mask).data == std::vector<std::uint8_t>{0xFF, 0xD8, 0x33, 0xFF, 0xD9}));
+
+  // Deterministic: the same pages give the same bytes (no dates, no ids).
+  const std::filesystem::path again = "test-artifacts/pdf_image_writer_round_trip_again.pdf";
+  {
+    patchy::pdf::ImageWriter writer(again);
+    patchy::pdf::ImagePage page;
+    page.width_points = 10.0;
+    page.height_points = 10.0;
+    page.image = fake_jpeg_stream(4, 4, 0x44);
+    writer.add_page(page);
+    writer.finish();
+  }
+  const auto once = read_whole_file(again);
+  {
+    patchy::pdf::ImageWriter writer(again);
+    patchy::pdf::ImagePage page;
+    page.width_points = 10.0;
+    page.height_points = 10.0;
+    page.image = fake_jpeg_stream(4, 4, 0x44);
+    writer.add_page(page);
+    writer.finish();
+  }
+  CHECK(once == read_whole_file(again));
+}
+
+// A Flate gray image with the PNG Up predictor, the form the exporter writes for
+// lossless pages, imports through the editable reader as one image layer.
+void pdf_image_writer_flate_page_imports_as_an_image() {
+  std::filesystem::create_directories("test-artifacts");
+  const std::filesystem::path path = "test-artifacts/pdf_image_writer_flate.pdf";
+  constexpr int kWidth = 8;
+  constexpr int kHeight = 4;
+  // Rows of Up-filtered gray: the first row literal, every later row all zero deltas.
+  std::vector<std::uint8_t> filtered;
+  for (int y = 0; y < kHeight; ++y) {
+    filtered.push_back(2);
+    for (int x = 0; x < kWidth; ++x) {
+      filtered.push_back(y == 0 ? static_cast<std::uint8_t>(x * 30) : 0);
+    }
+  }
+  mz_ulong bound = mz_compressBound(static_cast<mz_ulong>(filtered.size()));
+  std::vector<std::uint8_t> compressed(bound);
+  CHECK(mz_compress(compressed.data(), &bound, filtered.data(), static_cast<mz_ulong>(filtered.size())) == MZ_OK);
+  compressed.resize(bound);
+  {
+    patchy::pdf::ImageWriter writer(path);
+    patchy::pdf::ImagePage page;
+    page.width_points = 80.0;
+    page.height_points = 40.0;
+    page.image.width = kWidth;
+    page.image.height = kHeight;
+    page.image.filter = "FlateDecode";
+    page.image.decode_parms = "<< /Predictor 12 /Colors 1 /BitsPerComponent 8 /Columns 8 >>";
+    page.image.color_space = "/DeviceGray";
+    page.image.bytes = compressed;
+    writer.add_page(page);
+    writer.finish();
+  }
+  const auto bytes = read_whole_file(path);
+  auto file = patchy::pdf::File::open(bytes, nullptr);
+  CHECK(file.has_value());
+  if (file.has_value() && file->pages().size() == 1) {
+    const auto& image = file->get(file->get(file->pages()[0].resources, "XObject"), "Im0");
+    const auto data = file->stream_data(image);
+    CHECK(data.error.empty());
+    CHECK(data.data.size() == static_cast<std::size_t>(kWidth * kHeight));
+    if (data.data.size() == static_cast<std::size_t>(kWidth * kHeight)) {
+      CHECK(data.data[3] == 90);                // first row literal
+      CHECK(data.data[kWidth * 3 + 3] == 90);   // and carried down by the predictor
+    }
+  }
+  patchy::pdf::VectorReadOptions options;
+  const auto result = patchy::pdf::read_page_as_vectors(bytes, options);
+  CHECK(result.image_layers == 1);
+  CHECK(result.document.width() == 80);
+  CHECK(result.document.height() == 40);
+}
+
+void pdf_image_writer_removes_unfinished_files_and_refuses_bad_pages() {
+  std::filesystem::create_directories("test-artifacts");
+  const std::filesystem::path path = "test-artifacts/pdf_image_writer_unfinished.pdf";
+  {
+    patchy::pdf::ImageWriter writer(path);
+    patchy::pdf::ImagePage page;
+    page.width_points = 10.0;
+    page.height_points = 10.0;
+    page.image = fake_jpeg_stream(4, 4, 0x55);
+    writer.add_page(page);
+    CHECK(std::filesystem::exists(path));
+    // No finish(): a cancelled or failed export must not leave half a file behind.
+  }
+  CHECK(!std::filesystem::exists(path));
+  {
+    patchy::pdf::ImageWriter writer(path);
+    writer.abort();
+    writer.abort();
+    CHECK(!std::filesystem::exists(path));
+  }
+  {
+    patchy::pdf::ImageWriter writer(path);
+    patchy::pdf::ImagePage page;
+    page.width_points = 10.0;
+    page.height_points = 10.0;
+    page.image = fake_jpeg_stream(4, 4, 0x66);
+    page.image.color_space.clear();  // only JPXDecode may omit it
+    CHECK(writer_call_throws([&] { writer.add_page(page); }));
+    page.image.filter = "JPXDecode";
+    writer.add_page(page);
+    page.image.bytes.clear();
+    CHECK(writer_call_throws([&] { writer.add_page(page); }));
+    page = {};
+    CHECK(writer_call_throws([&] { writer.add_page(page); }));
+  }
+  {
+    patchy::pdf::ImageWriter writer(path);
+    CHECK(writer_call_throws([&] { writer.finish(); }));  // no pages
+  }
+  CHECK(!std::filesystem::exists(path));
+  // A directory that does not exist cannot be opened.
+  CHECK(writer_call_throws([&] { patchy::pdf::ImageWriter(std::filesystem::path("test-artifacts/no-such-dir/x.pdf")); }));
+}
+
+// AGENTS.md: every file-writing entry point gets a Unicode-path test.
+void pdf_image_writer_writes_unicode_paths() {
+  const auto dir = patchy::test::unicode_artifact_dir(u8"pdf-image-writer");
+  for (const auto stem : patchy::test::kUnicodePathStems) {
+    auto path = dir / patchy::test::unicode_path_piece(stem);
+    path += ".pdf";
+    {
+      patchy::pdf::ImageWriter writer(path);
+      patchy::pdf::ImagePage page;
+      page.width_points = 20.0;
+      page.height_points = 30.0;
+      page.image = fake_jpeg_stream(2, 3, 0x77);
+      writer.add_page(page);
+      writer.finish();
+    }
+    CHECK(std::filesystem::exists(path));
+    auto file = patchy::pdf::File::open(read_whole_file(path), nullptr);
+    CHECK(file.has_value() && file->pages().size() == 1);
+  }
+  // An unfinished file under a Unicode name is removed by the same path it was made by.
+  auto abandoned = dir / patchy::test::unicode_path_piece(patchy::test::kUnicodeCombinedStem);
+  abandoned += ".pdf";
+  {
+    patchy::pdf::ImageWriter writer(abandoned);
+    CHECK(std::filesystem::exists(abandoned));
+  }
+  CHECK(!std::filesystem::exists(abandoned));
+}
+
 }  // namespace
 
 std::vector<patchy::test::TestCase> pdf_tests() {
@@ -1952,5 +2225,10 @@ std::vector<patchy::test::TestCase> pdf_tests() {
       {"pdf_vector_import_reports_what_it_cannot_model", pdf_vector_import_reports_what_it_cannot_model},
       {"pdf_vector_import_refuses_what_it_must", pdf_vector_import_refuses_what_it_must},
       {"pdf_local_brochure_imports_as_editable_layers_if_available", pdf_local_brochure_imports_as_editable_layers_if_available},
+      {"pdf_image_writer_formats_numbers_without_a_locale", pdf_image_writer_formats_numbers_without_a_locale},
+      {"pdf_image_writer_round_trips_through_the_reader", pdf_image_writer_round_trips_through_the_reader},
+      {"pdf_image_writer_flate_page_imports_as_an_image", pdf_image_writer_flate_page_imports_as_an_image},
+      {"pdf_image_writer_removes_unfinished_files_and_refuses_bad_pages", pdf_image_writer_removes_unfinished_files_and_refuses_bad_pages},
+      {"pdf_image_writer_writes_unicode_paths", pdf_image_writer_writes_unicode_paths},
   };
 }

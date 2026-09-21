@@ -2,9 +2,11 @@
 
 #include "ui/app_settings.hpp"
 #include "ui/dialog_utils.hpp"
+#include "ui/image_save_options_dialog.hpp"
 
 #include <QAbstractItemView>
 #include <QCheckBox>
+#include <QComboBox>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QGroupBox>
@@ -24,8 +26,6 @@ namespace {
 constexpr auto kSourceKey = "exportOptions/multiPagePdfSource";
 constexpr auto kUngroupedKey = "exportOptions/multiPagePdfUngroupedLayers";
 constexpr auto kEditableKey = "exportOptions/multiPagePdfEditableLayers";
-// Shared with the single-page PDF Options dialog: one image-quality preference.
-constexpr auto kLosslessKey = "saveOptions/pdfLossless";
 constexpr auto kMissingFontsKey = "saveOptions/pdfMissingFontsAsImages";
 
 void move_selected_item(QListWidget* list, int delta) {
@@ -116,10 +116,16 @@ std::optional<MultiPagePdfExportChoice> run_multipage_pdf_export_dialog(
   editable_note->setObjectName(QStringLiteral("multiPagePdfEditableNote"));
   editable_note->setWordWrap(true);
   options_layout->addWidget(editable_note);
-  auto* lossless = new QCheckBox(QObject::tr("Lossless images"), options_group);
-  lossless->setObjectName(QStringLiteral("multiPagePdfLosslessCheck"));
-  lossless->setChecked(settings.value(QLatin1String(kLosslessKey), true).toBool());
-  options_layout->addWidget(lossless);
+  // Shared with the single-page PDF Options dialog: one image-quality preference.
+  auto* quality_row = new QHBoxLayout();
+  auto* quality_label = new QLabel(QObject::tr("Image quality:"), options_group);
+  auto* quality = new QComboBox(options_group);
+  quality->setObjectName(QStringLiteral("multiPagePdfImageQualityCombo"));
+  populate_pdf_image_quality_combo(*quality, stored_pdf_image_quality_id());
+  quality_label->setBuddy(quality);
+  quality_row->addWidget(quality_label);
+  quality_row->addWidget(quality, 1);
+  options_layout->addLayout(quality_row);
   layout->addWidget(options_group);
 
   auto* summary = new QLabel(&dialog);
@@ -184,7 +190,7 @@ std::optional<MultiPagePdfExportChoice> run_multipage_pdf_export_dialog(
   choice.source = groups_radio->isChecked() ? MultiPagePdfSource::TopLevelGroups : MultiPagePdfSource::OpenDocuments;
   choice.session_ids = checked_session_ids();
   choice.include_ungrouped_layers = ungrouped->isChecked();
-  choice.options.lossless = lossless->isChecked();
+  apply_pdf_image_quality(quality->currentData().toString(), choice.options);
   choice.options.editable_layers = editable->isChecked();
   choice.options.missing_fonts_as_images = settings.value(QLatin1String(kMissingFontsKey), false).toBool();
   settings.setValue(QLatin1String(kSourceKey), choice.source == MultiPagePdfSource::TopLevelGroups
@@ -192,7 +198,7 @@ std::optional<MultiPagePdfExportChoice> run_multipage_pdf_export_dialog(
                                                    : QStringLiteral("documents"));
   settings.setValue(QLatin1String(kUngroupedKey), choice.include_ungrouped_layers);
   settings.setValue(QLatin1String(kEditableKey), choice.options.editable_layers);
-  settings.setValue(QLatin1String(kLosslessKey), choice.options.lossless);
+  store_pdf_image_quality_id(quality->currentData().toString());
   return choice;
 }
 

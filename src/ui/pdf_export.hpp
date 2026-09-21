@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/document.hpp"
+#include "formats/pdf_image_writer.hpp"
 
 #include <QPageSize>
 #include <QString>
@@ -10,6 +11,7 @@
 #include <string>
 #include <vector>
 
+class QImage;
 class QPainter;
 class QPdfWriter;
 
@@ -20,10 +22,13 @@ namespace patchy::ui {
 // The paper-relative flow (page layout, margins, crop marks, scale-to-fit) stays in
 // print_dialog.hpp's write_print_pdf.
 //
-// Qt's PDF engine re-encodes every non-grayscale image as JPEG quality 94 unless the
-// painter asks for QPainter::LosslessImageRendering, and it exposes no quality knob,
-// so the image choice really is one bool. Lossless is the default: an image editor's
-// PDF export must not silently degrade pixels.
+// Image data. A page that is one image (flat mode always, editable mode when the page
+// holds a single pixel layer) goes through Patchy's own writer (formats/pdf_image_writer):
+// Flate when `lossless`, else JPEG at `jpeg_quality`, in one channel when the pixels are
+// gray. A page with real vector or text objects goes through Qt's PDF engine, which
+// knows only Flate RGB (lossless) or JPEG at a fixed quality 94 and ignores the quality.
+// The struct default is lossless because scripts and the command line must not degrade
+// pixels unasked; the dialogs default to the "high" preset (pdf_image_quality_presets).
 struct PdfExportOptions {
   bool lossless{true};
   // Keep layers as editable objects instead of one flattened image: shape layers become
@@ -36,7 +41,32 @@ struct PdfExportOptions {
   // instead of being drawn as real text in a substitute face (the default keeps it text,
   // with a notice naming the missing font). Persists as saveOptions/pdfMissingFontsAsImages.
   bool missing_fonts_as_images{false};
+  // JPEG quality 1..100 for the lossy choice. New fields go after the three bools:
+  // callers aggregate-initialize them positionally.
+  int jpeg_quality{90};
+  // Write one-channel image data when every visible pixel is gray (R == G == B).
+  bool auto_grayscale{true};
 };
+
+// The image-quality choices the PDF dialogs and app.exportPdf offer. The ids are
+// persisted (saveOptions/pdfImageQuality) and scripted, so they never change.
+struct PdfImageQualityPreset {
+  const char* id;
+  bool lossless;
+  int jpeg_quality;
+};
+[[nodiscard]] std::span<const PdfImageQualityPreset> pdf_image_quality_presets();
+inline constexpr const char* kDefaultPdfImageQualityId = "high";
+// Sets lossless and jpeg_quality from a preset id; false (options untouched) when the
+// id is unknown.
+bool apply_pdf_image_quality(const QString& id, PdfExportOptions& options);
+// The preset an option pair corresponds to (lossless wins; else the nearest quality).
+[[nodiscard]] QString pdf_image_quality_id(bool lossless, int jpeg_quality);
+// The stored dialog preference. saveOptions/pdfLossless is older and was rewritten to
+// true after every flat save of any format, so only a stored FALSE there says anything
+// (and it says "JPEG"); with the new key absent the answer is the default preset.
+[[nodiscard]] QString stored_pdf_image_quality_id();
+void store_pdf_image_quality_id(const QString& id);
 
 // Writes a one-page PDF of the document. Flat mode holds the flattened composite
 // (document alpha becomes a PDF /SMask); editable mode walks the layer stack (see
@@ -80,11 +110,21 @@ void write_editable_pdf_document_file(const Document& document, const QString& p
 // The editable walk onto a painter that is already begun on a PDF device: sets the
 // window to the document's pixel grid and draws every layer. One page's worth; the
 // multi-page writer calls it per page.
+// `text_drawn` (optional) is set, never cleared, when a layer went out as real text.
 void paint_editable_document(QPainter& painter, const Document& document, const PdfExportOptions& options,
-                             std::vector<std::string>* notices);
+                             std::vector<std::string>* notices, bool* text_drawn = nullptr);
+// True when the document's visible content is exactly one pixel layer (no shape, text,
+// or second layer anywhere): an editable export of it could only ever be one image, so
+// it takes the image writer and its codecs instead of Qt's engine.
+[[nodiscard]] bool document_is_single_raster_layer(const Document& document);
+// One page for the image writer: the composite encoded per `options` (gray detection,
+// JPEG or Flate, an /SMask only when some pixel is not opaque), sized like
+// document_page_size. Safe on a worker thread.
+[[nodiscard]] pdf::ImagePage encode_page_image(const QImage& composite, double width_points, double height_points,
+                                               const PdfExportOptions& options);
 // The glyph-run merge (formats/pdf_text_merge.hpp) over a file Qt just wrote, so
 // importers see words rather than one object per letter. A file the pass cannot
-// handle is left as written. Run after every editable export.
+// handle is left as written. Run after an editable export that drew text.
 void apply_text_merge_post_pass(const QString& path);
 }  // namespace pdf_detail
 

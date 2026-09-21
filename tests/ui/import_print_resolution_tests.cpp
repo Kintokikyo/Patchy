@@ -2248,6 +2248,346 @@ void ui_font_bootstrap_never_registers_installed_families() {
   CHECK(patchy::ui::windows_ui_font_candidates().size() == 3);
 }
 
+// --- image pages: Patchy's own PDF writer ------------------------------------------
+
+namespace {
+
+// A horizontal ramp with a little vertical variation: gray when `gray`, else with
+// distinct channels, so a channel mix-up cannot pass by accident.
+patchy::PixelBuffer ramp_pixels(int width, int height, bool gray) {
+  auto pixels = solid_pixels(width, height, patchy::PixelFormat::rgba8(), QColor(0, 0, 0));
+  for (std::int32_t y = 0; y < height; ++y) {
+    auto row = pixels.row(y);
+    for (std::int32_t x = 0; x < width; ++x) {
+      const auto value = static_cast<std::uint8_t>((x * 255) / std::max(1, width - 1));
+      const auto other = static_cast<std::uint8_t>((y * 255) / std::max(1, height - 1));
+      row[static_cast<std::size_t>(x) * 4 + 0] = value;
+      row[static_cast<std::size_t>(x) * 4 + 1] = gray ? value : other;
+      row[static_cast<std::size_t>(x) * 4 + 2] = gray ? value : static_cast<std::uint8_t>(255 - value);
+      row[static_cast<std::size_t>(x) * 4 + 3] = 255;
+    }
+  }
+  return pixels;
+}
+
+patchy::Document ramp_document(int width, int height, bool gray) {
+  patchy::Document document(width, height, patchy::PixelFormat::rgba8());
+  document.print_settings().horizontal_ppi = 100.0;
+  document.print_settings().vertical_ppi = 100.0;
+  document.add_pixel_layer("Ramp", ramp_pixels(width, height, gray));
+  return document;
+}
+
+QImage render_pdf_page(const QString& path, int page, QSize size) {
+  QPdfDocument reader;
+  CHECK(reader.load(path) == QPdfDocument::Error::None);
+  return reader.render(page, size);
+}
+
+}  // namespace
+
+// The codec and colour space that land in the file, and the pixels a decoder that is
+// not the writer (PDFium) reads back. File sizes are never asserted: they flip with the
+// content.
+void ui_pdf_export_image_pages_pick_codec_and_channels() {
+  ensure_artifact_dir();
+  const auto gray = ramp_document(200, 100, true);
+  const auto color = ramp_document(200, 100, false);
+  const QImage gray_reference = patchy::ui::flat_export_qimage(gray, true);
+  const QImage color_reference = patchy::ui::flat_export_qimage(color, true);
+
+  // Gray, lossy: one-channel JPEG, no mask (every pixel is opaque).
+  {
+    const auto path = QStringLiteral("test-artifacts/ui_pdf_image_gray_jpeg.pdf");
+    QFile::remove(path);
+    patchy::ui::PdfExportOptions options;
+    CHECK(patchy::ui::apply_pdf_image_quality(QStringLiteral("high"), options));
+    patchy::ui::write_pdf_document_file(gray, path, options);
+    const auto bytes = read_file_bytes(path);
+    CHECK(bytes.contains("/DCTDecode"));
+    CHECK(bytes.contains("/DeviceGray"));
+    CHECK(!bytes.contains("/DeviceRGB"));
+    CHECK(!bytes.contains("/SMask"));
+    CHECK(!bytes.contains("/FlateDecode"));
+    CHECK(bytes.contains("/Producer (Patchy)"));
+    CHECK(mean_rgb_delta_over_white(render_pdf_page(path, 0, QSize(200, 100)), gray_reference) < 2.0);
+  }
+  // Gray, lossless: one-channel Flate, pixel exact.
+  {
+    const auto path = QStringLiteral("test-artifacts/ui_pdf_image_gray_flate.pdf");
+    QFile::remove(path);
+    patchy::ui::write_pdf_document_file(gray, path, patchy::ui::PdfExportOptions{true});
+    const auto bytes = read_file_bytes(path);
+    CHECK(bytes.contains("/FlateDecode"));
+    CHECK(bytes.contains("/DeviceGray"));
+    CHECK(!bytes.contains("/DeviceRGB"));
+    CHECK(!bytes.contains("/DCTDecode"));
+    CHECK(mean_rgb_delta_over_white(render_pdf_page(path, 0, QSize(200, 100)), gray_reference) < 0.01);
+  }
+  // Colour stays three channels in both modes; auto_grayscale off keeps a gray page RGB.
+  {
+    const auto path = QStringLiteral("test-artifacts/ui_pdf_image_color_flate.pdf");
+    QFile::remove(path);
+    patchy::ui::write_pdf_document_file(color, path, patchy::ui::PdfExportOptions{true});
+    const auto bytes = read_file_bytes(path);
+    CHECK(bytes.contains("/DeviceRGB"));
+    CHECK(!bytes.contains("/DeviceGray"));
+    CHECK(mean_rgb_delta_over_white(render_pdf_page(path, 0, QSize(200, 100)), color_reference) < 0.01);
+
+    const auto lossy_path = QStringLiteral("test-artifacts/ui_pdf_image_color_jpeg.pdf");
+    QFile::remove(lossy_path);
+    patchy::ui::PdfExportOptions lossy{false};
+    lossy.jpeg_quality = 90;
+    patchy::ui::write_pdf_document_file(color, lossy_path, lossy);
+    const auto lossy_bytes = read_file_bytes(lossy_path);
+    CHECK(lossy_bytes.contains("/DCTDecode"));
+    CHECK(lossy_bytes.contains("/DeviceRGB"));
+    CHECK(mean_rgb_delta_over_white(render_pdf_page(lossy_path, 0, QSize(200, 100)), color_reference) < 4.0);
+
+    const auto forced_path = QStringLiteral("test-artifacts/ui_pdf_image_gray_forced_rgb.pdf");
+    QFile::remove(forced_path);
+    patchy::ui::PdfExportOptions forced{true};
+    forced.auto_grayscale = false;
+    patchy::ui::write_pdf_document_file(gray, forced_path, forced);
+    CHECK(read_file_bytes(forced_path).contains("/DeviceRGB"));
+  }
+  // A lower quality writes fewer bytes for the same page: the knob is wired through.
+  {
+    const auto high_path = QStringLiteral("test-artifacts/ui_pdf_image_q_high.pdf");
+    const auto low_path = QStringLiteral("test-artifacts/ui_pdf_image_q_low.pdf");
+    patchy::ui::PdfExportOptions high;
+    patchy::ui::PdfExportOptions low;
+    CHECK(patchy::ui::apply_pdf_image_quality(QStringLiteral("high"), high));
+    CHECK(patchy::ui::apply_pdf_image_quality(QStringLiteral("low"), low));
+    patchy::ui::write_pdf_document_file(color, high_path, high);
+    patchy::ui::write_pdf_document_file(color, low_path, low);
+    CHECK(QFileInfo(low_path).size() < QFileInfo(high_path).size());
+  }
+  // The lossless page also reads back through Patchy's own Qt-free reader as one image.
+  {
+    const auto bytes = read_file_bytes(QStringLiteral("test-artifacts/ui_pdf_image_gray_flate.pdf"));
+    const std::span<const std::uint8_t> span(reinterpret_cast<const std::uint8_t*>(bytes.constData()),
+                                             static_cast<std::size_t>(bytes.size()));
+    patchy::pdf::VectorReadOptions read_options;
+    read_options.pixels_per_point = 100.0 / 72.0;
+    const auto result = patchy::pdf::read_page_as_vectors(span, read_options);
+    CHECK(result.image_layers == 1);
+    CHECK(result.shape_layers == 0);
+    CHECK(result.document.width() == 200);
+    CHECK(result.document.height() == 100);
+  }
+}
+
+// Editable mode routes by content: a page that is one pixel layer can only ever be one
+// image, so it takes the image writer (and its codecs); a page with a shape keeps Qt's
+// engine, and in a multi-page file one such page sends every page that way.
+void ui_pdf_export_editable_routes_single_raster_pages_to_image_writer() {
+  ensure_artifact_dir();
+  const auto raster = ramp_document(120, 80, true);
+  CHECK(patchy::ui::pdf_detail::document_is_single_raster_layer(raster));
+
+  patchy::Document with_shape(120, 80, patchy::PixelFormat::rgba8());
+  with_shape.add_pixel_layer("Ramp", ramp_pixels(120, 80, true));
+  with_shape.add_layer(solid_rect_shape_layer(with_shape, "Box", 10, 10, 60, 40, {200, 30, 30}, 0.0));
+  CHECK(!patchy::ui::pdf_detail::document_is_single_raster_layer(with_shape));
+
+  patchy::Document two_layers(120, 80, patchy::PixelFormat::rgba8());
+  two_layers.add_pixel_layer("Bottom", ramp_pixels(120, 80, true));
+  two_layers.add_pixel_layer("Top", ramp_pixels(120, 80, false));
+  CHECK(!patchy::ui::pdf_detail::document_is_single_raster_layer(two_layers));
+  // A hidden second layer is not content: the page is one image again.
+  two_layers.layers()[1].set_visible(false);
+  CHECK(patchy::ui::pdf_detail::document_is_single_raster_layer(two_layers));
+  patchy::Document empty(120, 80, patchy::PixelFormat::rgba8());
+  CHECK(!patchy::ui::pdf_detail::document_is_single_raster_layer(empty));
+
+  patchy::ui::PdfExportOptions editable;
+  CHECK(patchy::ui::apply_pdf_image_quality(QStringLiteral("medium"), editable));
+  editable.editable_layers = true;
+
+  const auto raster_path = QStringLiteral("test-artifacts/ui_pdf_editable_raster_page.pdf");
+  QFile::remove(raster_path);
+  patchy::ui::write_pdf_document_file(raster, raster_path, editable);
+  const auto raster_bytes = read_file_bytes(raster_path);
+  CHECK(raster_bytes.contains("/Producer (Patchy)"));
+  CHECK(raster_bytes.contains("/DeviceGray"));
+  CHECK(raster_bytes.contains("/DCTDecode"));
+
+  const auto shape_path = QStringLiteral("test-artifacts/ui_pdf_editable_shape_page.pdf");
+  QFile::remove(shape_path);
+  patchy::ui::write_pdf_document_file(with_shape, shape_path, editable);
+  CHECK(!read_file_bytes(shape_path).contains("/Producer (Patchy)"));
+
+  const auto all_raster_path = QStringLiteral("test-artifacts/ui_pdf_editable_all_raster.pdf");
+  const auto mixed_path = QStringLiteral("test-artifacts/ui_pdf_editable_mixed.pdf");
+  QFile::remove(all_raster_path);
+  QFile::remove(mixed_path);
+  const std::array<const patchy::Document*, 2> all_raster{&raster, &raster};
+  const std::array<const patchy::Document*, 2> mixed{&raster, &with_shape};
+  CHECK(patchy::ui::write_multipage_pdf_file(all_raster, all_raster_path, editable));
+  CHECK(patchy::ui::write_multipage_pdf_file(mixed, mixed_path, editable));
+  CHECK(read_file_bytes(all_raster_path).contains("/Producer (Patchy)"));
+  CHECK(!read_file_bytes(mixed_path).contains("/Producer (Patchy)"));
+  QPdfDocument reader;
+  CHECK(reader.load(all_raster_path) == QPdfDocument::Error::None);
+  CHECK(reader.pageCount() == 2);
+  CHECK(reader.load(mixed_path) == QPdfDocument::Error::None);
+  CHECK(reader.pageCount() == 2);
+  // The mixed file still holds the shape as a path.
+  const auto mixed_bytes = read_file_bytes(mixed_path);
+  const std::span<const std::uint8_t> mixed_span(reinterpret_cast<const std::uint8_t*>(mixed_bytes.constData()),
+                                                 static_cast<std::size_t>(mixed_bytes.size()));
+  patchy::pdf::VectorReadOptions second_page;
+  second_page.page = 1;
+  CHECK(patchy::pdf::read_page_as_vectors(mixed_span, second_page).shape_layers >= 1);
+}
+
+// Many pages through the encode window (more pages than workers in flight), in order,
+// each at its own size, and a cancel that leaves no file behind.
+void ui_pdf_export_image_pages_keep_order_and_cancel_cleanly() {
+  ensure_artifact_dir();
+  std::vector<patchy::Document> documents;
+  for (int index = 0; index < 9; ++index) {
+    patchy::Document document(40 + index * 10, 60, patchy::PixelFormat::rgba8());
+    document.print_settings().horizontal_ppi = 72.0;
+    document.print_settings().vertical_ppi = 72.0;
+    const auto shade = 20 + index * 25;
+    document.add_pixel_layer("Page", solid_pixels(document.width(), 60, patchy::PixelFormat::rgba8(),
+                                                  QColor(shade, shade, shade)));
+    documents.push_back(std::move(document));
+  }
+  std::vector<const patchy::Document*> pages;
+  for (const auto& document : documents) {
+    pages.push_back(&document);
+  }
+  const auto path = QStringLiteral("test-artifacts/ui_pdf_image_pages_order.pdf");
+  QFile::remove(path);
+  std::vector<int> reported;
+  CHECK(patchy::ui::write_multipage_pdf_file(pages, path, patchy::ui::PdfExportOptions{true}, nullptr,
+                                             [&reported](int page, int count) {
+                                               CHECK(count == 9);
+                                               reported.push_back(page);
+                                               return true;
+                                             }));
+  CHECK((reported == std::vector<int>{1, 2, 3, 4, 5, 6, 7, 8, 9}));
+  QPdfDocument reader;
+  CHECK(reader.load(path) == QPdfDocument::Error::None);
+  CHECK(reader.pageCount() == 9);
+  for (int index = 0; index < reader.pageCount(); ++index) {
+    CHECK(std::abs(reader.pagePointSize(index).width() - (40.0 + index * 10.0)) < 0.5);
+    const auto shade = 20 + index * 25;
+    const QImage rendered = reader.render(index, QSize(40 + index * 10, 60));
+    CHECK(color_close(rendered.pixelColor(20, 30), QColor(shade, shade, shade), 1));
+  }
+
+  const auto cancelled_path = QStringLiteral("test-artifacts/ui_pdf_image_pages_cancelled.pdf");
+  QFile::remove(cancelled_path);
+  CHECK(!patchy::ui::write_multipage_pdf_file(pages, cancelled_path, patchy::ui::PdfExportOptions{true}, nullptr,
+                                              [](int page, int) { return page < 6; }));
+  CHECK(!QFileInfo::exists(cancelled_path));
+}
+
+// The preset ids are persisted and scripted. The older saveOptions/pdfLossless bool was
+// rewritten to true after every flat save of any format, so it cannot be read as a
+// choice: with the new key absent the answer is the default preset.
+void ui_pdf_image_quality_presets_and_settings() {
+  const auto presets = patchy::ui::pdf_image_quality_presets();
+  CHECK(presets.size() == 4);
+  CHECK(QLatin1String(presets[0].id) == QLatin1String("lossless"));
+  CHECK(QLatin1String(presets[1].id) == QLatin1String("high"));
+  CHECK(QLatin1String(presets[2].id) == QLatin1String("medium"));
+  CHECK(QLatin1String(presets[3].id) == QLatin1String("low"));
+
+  patchy::ui::PdfExportOptions options;
+  CHECK(options.lossless);  // the struct default serves scripts and the CLI
+  CHECK(patchy::ui::apply_pdf_image_quality(QStringLiteral("medium"), options));
+  CHECK(!options.lossless);
+  CHECK(options.jpeg_quality == 75);
+  CHECK(!patchy::ui::apply_pdf_image_quality(QStringLiteral("ultra"), options));
+  CHECK(options.jpeg_quality == 75);  // an unknown id changes nothing
+  CHECK(patchy::ui::pdf_image_quality_id(true, 10) == QStringLiteral("lossless"));
+  CHECK(patchy::ui::pdf_image_quality_id(false, 94) == QStringLiteral("high"));
+  CHECK(patchy::ui::pdf_image_quality_id(false, 70) == QStringLiteral("medium"));
+  CHECK(patchy::ui::pdf_image_quality_id(false, 1) == QStringLiteral("low"));
+
+  auto settings = patchy::ui::app_settings();
+  const auto previous_quality = settings.value(QStringLiteral("saveOptions/pdfImageQuality"));
+  const auto previous_lossless = settings.value(QStringLiteral("saveOptions/pdfLossless"));
+  const auto restore = qScopeGuard([previous_quality, previous_lossless] {
+    auto restored = patchy::ui::app_settings();
+    for (const auto& [key, value] : {std::pair{QStringLiteral("saveOptions/pdfImageQuality"), previous_quality},
+                                     std::pair{QStringLiteral("saveOptions/pdfLossless"), previous_lossless}}) {
+      if (value.isValid()) {
+        restored.setValue(key, value);
+      } else {
+        restored.remove(key);
+      }
+    }
+  });
+
+  settings.remove(QStringLiteral("saveOptions/pdfImageQuality"));
+  settings.setValue(QStringLiteral("saveOptions/pdfLossless"), true);
+  CHECK(patchy::ui::stored_pdf_image_quality_id() == QStringLiteral("high"));
+  auto defaults = patchy::ui::load_image_save_option_defaults();
+  CHECK(!defaults.pdf_lossless);
+  CHECK(defaults.pdf_jpeg_quality == 90);
+
+  settings.setValue(QStringLiteral("saveOptions/pdfImageQuality"), QStringLiteral("nonsense"));
+  CHECK(patchy::ui::stored_pdf_image_quality_id() == QStringLiteral("high"));
+
+  patchy::ui::store_pdf_image_quality_id(QStringLiteral("lossless"));
+  CHECK(settings.value(QStringLiteral("saveOptions/pdfImageQuality")).toString() == QStringLiteral("lossless"));
+  CHECK(settings.value(QStringLiteral("saveOptions/pdfLossless")).toBool());  // older builds read this
+  CHECK(patchy::ui::load_image_save_option_defaults().pdf_lossless);
+
+  // Saving the defaults after any flat save round-trips the choice instead of resetting it.
+  defaults = patchy::ui::load_image_save_option_defaults();
+  defaults.pdf_lossless = false;
+  defaults.pdf_jpeg_quality = 50;
+  patchy::ui::save_image_save_option_defaults(defaults);
+  CHECK(patchy::ui::stored_pdf_image_quality_id() == QStringLiteral("low"));
+  CHECK(!settings.value(QStringLiteral("saveOptions/pdfLossless")).toBool());
+  CHECK(patchy::ui::load_image_save_option_defaults().pdf_jpeg_quality == 50);
+  patchy::ui::store_pdf_image_quality_id(QStringLiteral("ultra"));  // ignored
+  CHECK(patchy::ui::stored_pdf_image_quality_id() == QStringLiteral("low"));
+}
+
+// The PDF Options dialog offers the presets, starts on the options it was given, and
+// returns the pair the chosen preset stands for.
+void ui_pdf_options_dialog_offers_image_quality_presets() {
+  patchy::ui::ImageSaveOptions defaults;
+  defaults.pdf_lossless = false;
+  defaults.pdf_jpeg_quality = 90;
+  bool saw_dialog = false;
+  QTimer::singleShot(0, [&saw_dialog] {
+    auto* dialog = find_top_level_dialog(QStringLiteral("pdfSaveOptionsDialog"));
+    CHECK(dialog != nullptr);
+    if (dialog == nullptr) {
+      return;
+    }
+    auto* quality = dialog->findChild<QComboBox*>(QStringLiteral("pdfImageQualityCombo"));
+    CHECK(quality != nullptr);
+    CHECK(dialog->findChild<QCheckBox*>(QStringLiteral("pdfLosslessCheck")) == nullptr);
+    if (quality == nullptr) {
+      dialog->reject();
+      return;
+    }
+    CHECK(quality->count() == 4);
+    CHECK(quality->currentData().toString() == QStringLiteral("high"));
+    CHECK(quality->findData(QStringLiteral("lossless")) == 0);
+    quality->setCurrentIndex(quality->findData(QStringLiteral("medium")));
+    saw_dialog = true;
+    dialog->accept();
+  });
+  const auto chosen = patchy::ui::prompt_image_save_options(nullptr, QStringLiteral("pdf"), defaults);
+  CHECK(saw_dialog);
+  CHECK(chosen.has_value());
+  if (chosen.has_value()) {
+    CHECK(!chosen->pdf_lossless);
+    CHECK(chosen->pdf_jpeg_quality == 75);
+  }
+}
+
 // The PDF Options dialog after the flatten-or-keep choice: the fidelity warning is
 // visible exactly when layers are kept, and the export Scale combo (pixel-only) grays out
 // with it; the choice itself is never persisted as a save default.
@@ -2961,6 +3301,11 @@ void ui_multipage_pdf_dialog_lists_documents_and_groups() {
     auto* editable = dialog->findChild<QCheckBox*>(QStringLiteral("multiPagePdfEditableCheck"));
     // Editable layers are the default for a fresh install.
     CHECK(editable != nullptr && editable->isChecked());
+    // The image-quality presets replaced the lossless checkbox (shared with PDF Options).
+    auto* quality = dialog->findChild<QComboBox*>(QStringLiteral("multiPagePdfImageQualityCombo"));
+    CHECK(quality != nullptr && quality->count() == 4);
+    CHECK(quality != nullptr && quality->currentData().toString() == patchy::ui::stored_pdf_image_quality_id());
+    CHECK(dialog->findChild<QCheckBox*>(QStringLiteral("multiPagePdfLosslessCheck")) == nullptr);
     CHECK(list != nullptr && groups != nullptr && documents_radio != nullptr && ungrouped != nullptr &&
           summary != nullptr && export_button != nullptr);
     if (list == nullptr || groups == nullptr || documents_radio == nullptr || ungrouped == nullptr ||
@@ -4062,6 +4407,11 @@ std::vector<patchy::test::TestCase> import_print_resolution_tests() {
        ui_pdf_export_editable_flattens_blend_modes_with_notice},
       {"ui_font_bootstrap_never_registers_installed_families",
        ui_font_bootstrap_never_registers_installed_families},
+      {"ui_pdf_export_image_pages_pick_codec_and_channels", ui_pdf_export_image_pages_pick_codec_and_channels},
+      {"ui_pdf_export_editable_routes_single_raster_pages_to_image_writer", ui_pdf_export_editable_routes_single_raster_pages_to_image_writer},
+      {"ui_pdf_export_image_pages_keep_order_and_cancel_cleanly", ui_pdf_export_image_pages_keep_order_and_cancel_cleanly},
+      {"ui_pdf_image_quality_presets_and_settings", ui_pdf_image_quality_presets_and_settings},
+      {"ui_pdf_options_dialog_offers_image_quality_presets", ui_pdf_options_dialog_offers_image_quality_presets},
       {"ui_pdf_options_dialog_shows_editable_warning", ui_pdf_options_dialog_shows_editable_warning},
       {"ui_pdf_layer_choice_dialog_and_preference", ui_pdf_layer_choice_dialog_and_preference},
       {"ui_pdf_save_follows_layer_policy", ui_pdf_save_follows_layer_policy},

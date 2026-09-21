@@ -4399,14 +4399,6 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Lossless image data (larger file)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Unchecked, the page is compressed as JPEG at Qt&apos;s fixed quality.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Layers are kept as editable objects (paths, text, images). The PDF may not look exactly like the canvas: blend modes, adjustment layers, group opacity, layer styles, and pixel masks have no editable PDF form here and are flattened into images where needed.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8268,10 +8260,6 @@ RGB: %2, %3, %4</source>
         <source>Shapes and text stay editable; blend modes, adjustment layers, and layer styles flatten to images on each page.</source>
         <translation type="unfinished"></translation>
     </message>
-    <message>
-        <source>Lossless images</source>
-        <translation type="unfinished"></translation>
-    </message>
     <message numerus="yes">
         <source>%n page(s) will be written.</source>
         <translation type="unfinished">
@@ -8329,6 +8317,50 @@ RGB: %2, %3, %4</source>
     </message>
     <message>
         <source>Importing page %1 of %2...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The PDF file could not be opened for writing.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The document could not be rendered for PDF export.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The PDF file could not be written.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The PDF would be too large to write (over 9 GB).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>There are no pages to export.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lossless (largest file)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>High quality JPEG</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Medium quality JPEG</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Low quality JPEG (smallest file)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How image data is stored in the PDF. Gray pages are written as one channel either way. Pages that keep editable shapes or text use a fixed high JPEG quality for every lossy choice.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Image quality:</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -18131,6 +18163,10 @@ Y: %2
     </message>
     <message>
         <source>One of the documents is no longer open.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>exportPdf imageQuality must be &quot;lossless&quot;, &quot;high&quot;, &quot;medium&quot;, or &quot;low&quot;.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

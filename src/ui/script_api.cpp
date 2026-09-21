@@ -1668,6 +1668,14 @@ bool ScriptAppObject::exportPdf(const QJSValue& documents, const QString& path, 
     if (const auto value = options.property(QStringLiteral("missingFontsAsImages")); value.isBool()) {
       export_options.missing_fonts_as_images = value.toBool();
     }
+    // A preset id; it names both halves of the choice, so it wins over `lossless`.
+    if (const auto value = options.property(QStringLiteral("imageQuality")); value.isString()) {
+      if (!apply_pdf_image_quality(value.toString(), export_options)) {
+        host_.throw_js_error(ScriptEngineHost::tr(
+            "exportPdf imageQuality must be \"lossless\", \"high\", \"medium\", or \"low\"."));
+        return false;
+      }
+    }
   }
   QString error;
   if (!host_.export_sessions_to_pdf(session_ids, path, export_options, &error)) {
