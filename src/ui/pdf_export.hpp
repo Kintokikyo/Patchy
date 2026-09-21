@@ -5,6 +5,7 @@
 #include <QPageSize>
 #include <QString>
 
+#include <functional>
 #include <span>
 #include <string>
 #include <vector>
@@ -47,10 +48,15 @@ void write_pdf_document_file(const Document& document, const QString& path, cons
 // A multi-page PDF, one page per document in order, each page sized from its own
 // pixels and PPI exactly as the single-page writer sizes its page (File > Export
 // Multi-Page PDF and app.exportPdf). Flat or editable per `options`, the same way per
-// page; editable-mode losses land in `notices`. Throws std::runtime_error on an empty
-// list, a null or empty document, or a file that cannot be written.
-void write_multipage_pdf_file(std::span<const Document* const> pages, const QString& path,
-                              const PdfExportOptions& options = {}, std::vector<std::string>* notices = nullptr);
+// page; editable-mode losses land in `notices`. `progress` is called before each page
+// (1-based page, page count); returning false cancels: the partial file is removed and
+// the function returns false. Returns true when the file was written. Throws
+// std::runtime_error on an empty list, a null or empty document, or a file that
+// cannot be written.
+using PdfPageProgress = std::function<bool(int page, int page_count)>;
+bool write_multipage_pdf_file(std::span<const Document* const> pages, const QString& path,
+                              const PdfExportOptions& options = {}, std::vector<std::string>* notices = nullptr,
+                              const PdfPageProgress& progress = {});
 
 // "Print a folder as a page": one copy of the document per visible top-level layer
 // group, with every other top-level layer hidden except, when

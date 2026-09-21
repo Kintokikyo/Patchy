@@ -8263,7 +8263,7 @@ RVB : %2, %3, %4</translation>
     </message>
     <message>
         <source>One page per top-level layer group (the current document has none)</source>
-        <translation>Une page par groupe de calques de premier niveau (le document actuel n'en a aucun)</translation>
+        <translation>Une page par groupe de calques de premier niveau (le document actuel n&apos;en a aucun)</translation>
     </message>
     <message>
         <source>Draw ungrouped layers on every page</source>
@@ -8318,7 +8318,7 @@ RVB : %2, %3, %4</translation>
     </message>
     <message>
         <source>Editable import was not possible for page %1 (%2); it was flattened instead.</source>
-        <translation>L'import modifiable n'a pas été possible pour la page %1 (%2) ; elle a été aplatie à la place.</translation>
+        <translation>L&apos;import modifiable n&apos;a pas été possible pour la page %1 (%2) ; elle a été aplatie à la place.</translation>
     </message>
     <message>
         <source>Portrait</source>
@@ -8331,6 +8331,14 @@ RVB : %2, %3, %4</translation>
     <message>
         <source>Orientation</source>
         <translation>Orientation</translation>
+    </message>
+    <message>
+        <source>Import stopped after %1 of %2 pages.</source>
+        <translation>Import arrêté après %1 pages sur %2.</translation>
+    </message>
+    <message>
+        <source>Importing page %1 of %2...</source>
+        <translation>Import de la page %1 sur %2...</translation>
     </message>
 </context>
 <context>
@@ -16892,6 +16900,18 @@ Y : %2
             <numerusform>%n pages exportées vers %1</numerusform>
         </translation>
     </message>
+    <message>
+        <source>Opening page %1 of %2...</source>
+        <translation>Ouverture de la page %1 sur %2...</translation>
+    </message>
+    <message>
+        <source>Writing page %1 of %2...</source>
+        <translation>Écriture de la page %1 sur %2...</translation>
+    </message>
+    <message>
+        <source>Export cancelled</source>
+        <translation>Export annulé</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -18137,19 +18157,19 @@ Y : %2
     </message>
     <message>
         <source>exportPdf needs one open document or an array of them.</source>
-        <translation>exportPdf a besoin d'un document ouvert ou d'un tableau de documents.</translation>
+        <translation>exportPdf a besoin d&apos;un document ouvert ou d&apos;un tableau de documents.</translation>
     </message>
     <message>
         <source>exportPdf needs an output path.</source>
-        <translation>exportPdf a besoin d'un chemin de sortie.</translation>
+        <translation>exportPdf a besoin d&apos;un chemin de sortie.</translation>
     </message>
     <message>
         <source>Could not export %1: %2</source>
-        <translation>Impossible d'exporter %1 : %2</translation>
+        <translation>Impossible d&apos;exporter %1 : %2</translation>
     </message>
     <message>
         <source>One of the documents is no longer open.</source>
-        <translation>L'un des documents n'est plus ouvert.</translation>
+        <translation>L&apos;un des documents n&apos;est plus ouvert.</translation>
     </message>
 </context>
 <context>

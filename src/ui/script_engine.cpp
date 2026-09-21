@@ -1045,7 +1045,7 @@ bool ScriptEngineHost::export_sessions_to_pdf(const std::vector<std::int64_t>& s
     pages.push_back(&session->document);
   }
   try {
-    write_multipage_pdf_file(pages, path, options, nullptr);
+    (void)write_multipage_pdf_file(pages, path, options, nullptr);
   } catch (const std::exception& exception) {
     if (error != nullptr) {
       *error = QString::fromUtf8(exception.what());

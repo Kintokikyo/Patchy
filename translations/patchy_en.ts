@@ -8323,6 +8323,14 @@ RGB: %2, %3, %4</source>
         <source>Orientation</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Import stopped after %1 of %2 pages.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Importing page %1 of %2...</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -16849,6 +16857,18 @@ Y: %2
             <numerusform></numerusform>
             <numerusform></numerusform>
         </translation>
+    </message>
+    <message>
+        <source>Opening page %1 of %2...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Writing page %1 of %2...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export cancelled</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

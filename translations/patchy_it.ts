@@ -8318,7 +8318,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Editable import was not possible for page %1 (%2); it was flattened instead.</source>
-        <translation>L'importazione modificabile non è stata possibile per la pagina %1 (%2); è stata unita al suo posto.</translation>
+        <translation>L&apos;importazione modificabile non è stata possibile per la pagina %1 (%2); è stata unita al suo posto.</translation>
     </message>
     <message>
         <source>Portrait</source>
@@ -8331,6 +8331,14 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Orientation</source>
         <translation>Orientamento</translation>
+    </message>
+    <message>
+        <source>Import stopped after %1 of %2 pages.</source>
+        <translation>Importazione interrotta dopo %1 pagine su %2.</translation>
+    </message>
+    <message>
+        <source>Importing page %1 of %2...</source>
+        <translation>Importazione della pagina %1 di %2...</translation>
     </message>
 </context>
 <context>
@@ -16891,6 +16899,18 @@ Y: %2
             <numerusform>%n pagina esportata in %1</numerusform>
             <numerusform>%n pagine esportate in %1</numerusform>
         </translation>
+    </message>
+    <message>
+        <source>Opening page %1 of %2...</source>
+        <translation>Apertura della pagina %1 di %2...</translation>
+    </message>
+    <message>
+        <source>Writing page %1 of %2...</source>
+        <translation>Scrittura della pagina %1 di %2...</translation>
+    </message>
+    <message>
+        <source>Export cancelled</source>
+        <translation>Esportazione annullata</translation>
     </message>
 </context>
 <context>

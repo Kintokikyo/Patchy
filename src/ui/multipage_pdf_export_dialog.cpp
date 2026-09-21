@@ -105,7 +105,9 @@ std::optional<MultiPagePdfExportChoice> run_multipage_pdf_export_dialog(
   auto* options_layout = new QVBoxLayout(options_group);
   auto* editable = new QCheckBox(QObject::tr("Keep layers as editable objects"), options_group);
   editable->setObjectName(QStringLiteral("multiPagePdfEditableCheck"));
-  editable->setChecked(settings.value(QLatin1String(kEditableKey), false).toBool());
+  // On by default: a multi-page PDF is a print or handoff document, and text and
+  // shapes that stay editable are worth more there than pixel-exact blends.
+  editable->setChecked(settings.value(QLatin1String(kEditableKey), true).toBool());
   options_layout->addWidget(editable);
   auto* editable_note = new QLabel(
       QObject::tr("Shapes and text stay editable; blend modes, adjustment layers, and layer styles flatten to "

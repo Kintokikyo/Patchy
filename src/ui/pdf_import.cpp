@@ -7,7 +7,10 @@
 
 #include "formats/pdf_document_io.hpp"
 
+#include "ui/background_workers.hpp"
+
 #include <QAbstractItemView>
+#include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QFile>
@@ -26,6 +29,7 @@
 #include <QPdfDocument>
 #include <QPdfDocumentRenderOptions>
 #include <QPixmap>
+#include <QProgressDialog>
 #include <QPushButton>
 #include <QRect>
 #include <QSize>
@@ -35,7 +39,9 @@
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <future>
 
 // The real PDF importer, built only where the optional Qt PDF add-on is present (see
 // pdf_import_stub.cpp for the other half). Qt PDF wraps PDFium; Patchy only ever renders
@@ -187,9 +193,16 @@ std::optional<PdfImportResult> render_pages(QPdfDocument& pdf, const PdfImportOp
   frames.reserve(pages.size());
   layer_names.reserve(static_cast<qsizetype>(pages.size()));
   bool clamped = false;
+  bool stopped = false;
+  int position = 0;
   for (const int page : pages) {
+    ++position;
     if (page < 0 || page >= pdf.pageCount()) {
       continue;
+    }
+    if (options.progress && !options.progress(position, static_cast<int>(pages.size()))) {
+      stopped = true;
+      break;
     }
     const QSize size = rendered_page_size(pdf.pagePointSize(page), resolution_ppi, &clamped);
     if (!size.isValid()) {
@@ -266,6 +279,12 @@ std::optional<PdfImportResult> render_pages(QPdfDocument& pdf, const PdfImportOp
   if (clamped) {
     result.notices.push_back(
         QObject::tr("A page was too large to render at %1 ppi and was scaled down.").arg(resolution_ppi).toStdString());
+  }
+  if (stopped) {
+    result.notices.push_back(QObject::tr("Import stopped after %1 of %2 pages.")
+                                 .arg(page_count)
+                                 .arg(static_cast<int>(pages.size()))
+                                 .toStdString());
   }
   return result;
 }
@@ -473,6 +492,27 @@ std::optional<PdfImportResult> run_pdf_import_dialog(QWidget* parent, const QStr
   settings.setValue(settings_key("AntiAlias"), options.anti_alias);
   settings.setValue(settings_key("TrimToContent"), options.trim_to_bounding_box);
 
+  // A multi-page import runs on the UI thread page by page (QPdfDocument renders here;
+  // the vector reader runs on a worker while this pumps events), so the dialog is what
+  // keeps the app visibly alive. Cancel keeps the pages already imported.
+  const int selected_count = static_cast<int>(std::max<std::size_t>(1, options.pages.size()));
+  QProgressDialog progress(QObject::tr("Importing page %1 of %2...").arg(1).arg(selected_count),
+                           QObject::tr("Cancel"), 0, selected_count, parent);
+  progress.setObjectName(QStringLiteral("pdfImportProgressDialog"));
+  progress.setWindowTitle(QObject::tr("Import PDF - %1").arg(file_name));
+  progress.setWindowModality(Qt::WindowModal);
+  progress.setMinimumDuration(0);
+  progress.setAutoClose(false);
+  progress.setAutoReset(false);
+  remember_dialog_position(progress);
+  progress.setValue(0);
+  options.progress = [&progress, selected_count](int position, int count) {
+    progress.setLabelText(QObject::tr("Importing page %1 of %2...").arg(position).arg(count));
+    progress.setValue(std::min(position - 1, selected_count));
+    QApplication::processEvents(QEventLoop::AllEvents);
+    return !progress.wasCanceled();
+  };
+
   QString editable_failure;
   if (editable) {
     QFile file(path);
@@ -490,7 +530,14 @@ std::optional<PdfImportResult> run_pdf_import_dialog(QWidget* parent, const QStr
       PdfImportResult result;
       bool first_page_done = false;
       bool unmodelled = false;
+      bool stopped = false;
+      int position = 0;
       for (const int page : editable_pages) {
+        ++position;
+        if (!options.progress(position, static_cast<int>(editable_pages.size()))) {
+          stopped = true;
+          break;
+        }
         pdf::VectorReadOptions vector_options;
         vector_options.page = page;
         vector_options.pixels_per_point = options.resolution_ppi / 72.0;
@@ -498,7 +545,15 @@ std::optional<PdfImportResult> run_pdf_import_dialog(QWidget* parent, const QStr
         const auto title = QObject::tr("Page %1").arg(page + 1);
         std::optional<Document> page_document;
         try {
-          auto vectors = pdf::read_page_as_vectors(byte_span, vector_options);
+          // The Qt-free reader is safe on a worker; pumping here keeps the progress
+          // dialog painting and its Cancel button live during a slow page.
+          auto future = launch_async([byte_span, vector_options] {
+            return pdf::read_page_as_vectors(byte_span, vector_options);
+          });
+          while (future.wait_for(std::chrono::milliseconds(15)) != std::future_status::ready) {
+            QApplication::processEvents(QEventLoop::AllEvents, 15);
+          }
+          auto vectors = future.get();
           page_document = std::move(vectors.document);
           unmodelled = unmodelled || vectors.has_unmodelled_content;
           for (auto& notice : vectors.notices) {
@@ -518,6 +573,7 @@ std::optional<PdfImportResult> run_pdf_import_dialog(QWidget* parent, const QStr
           // page flattens (with the notice) and the rest stay editable.
           PdfImportOptions page_options = options;
           page_options.pages = {page};
+          page_options.progress = {};  // this page is already counted
           QString page_error;
           auto rendered = render_pages(pdf, page_options, file_name, &page_error);
           if (!rendered.has_value()) {
@@ -546,6 +602,12 @@ std::optional<PdfImportResult> run_pdf_import_dialog(QWidget* parent, const QStr
                                        .toStdString());
         } else if (options.separate_documents && editable_pages.size() > 1) {
           result.notices.push_back(QObject::tr("%1 pages opened as separate documents.")
+                                       .arg(1 + result.extra_documents.size())
+                                       .toStdString());
+        }
+        if (stopped) {
+          result.notices.push_back(QObject::tr("Import stopped after %1 of %2 pages.")
+                                       .arg(1 + result.extra_documents.size())
                                        .arg(editable_pages.size())
                                        .toStdString());
         }

@@ -8307,6 +8307,14 @@ RGB：%2, %3, %4</translation>
         <source>Orientation</source>
         <translation>方向</translation>
     </message>
+    <message>
+        <source>Import stopped after %1 of %2 pages.</source>
+        <translation>导入在第 %1 页(共 %2 页)后停止。</translation>
+    </message>
+    <message>
+        <source>Importing page %1 of %2...</source>
+        <translation>正在导入第 %1 页,共 %2 页...</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -16850,6 +16858,18 @@ Y: %2
         <translation>
             <numerusform>已将 %n 页导出到 %1</numerusform>
         </translation>
+    </message>
+    <message>
+        <source>Opening page %1 of %2...</source>
+        <translation>正在打开第 %1 页,共 %2 页...</translation>
+    </message>
+    <message>
+        <source>Writing page %1 of %2...</source>
+        <translation>正在写入第 %1 页,共 %2 页...</translation>
+    </message>
+    <message>
+        <source>Export cancelled</source>
+        <translation>已取消导出</translation>
     </message>
 </context>
 <context>

@@ -1686,13 +1686,34 @@ void MainWindow::open_extra_imported_page_sessions(const QString& file_name,
   }
   auto* first_session = active_session();
   const auto first_session_id = first_session != nullptr ? first_session->session_id : 0;
+  // Text and image passes and the session setup all run here on the UI thread; a
+  // progress dialog plus an event pump per page keeps the window painting and lets
+  // each new tab show up as it is made instead of all at once at the end.
+  const int page_count = static_cast<int>(pages.size()) + 1;
+  QProgressDialog progress(tr("Opening page %1 of %2...").arg(2).arg(page_count), QString(), 0, page_count, this);
+  progress.setObjectName(QStringLiteral("pdfPagesProgressDialog"));
+  progress.setWindowTitle(tr("Opening %1").arg(file_name));
+  progress.setWindowModality(Qt::WindowModal);
+  progress.setMinimumDuration(0);
+  progress.setCancelButton(nullptr);
+  progress.setAutoClose(false);
+  progress.setAutoReset(false);
+  remember_dialog_position(progress);
+  progress.setValue(1);
+  int position = 1;
   for (auto& page : pages) {
+    ++position;
+    progress.setLabelText(tr("Opening page %1 of %2...").arg(position).arg(page_count));
+    progress.setValue(position - 1);
+    QApplication::processEvents(QEventLoop::AllEvents);
     render_pending_pdf_text_layers(page.document);
     render_pending_pdf_image_layers(page.document);
     add_document_session(std::move(page.document), tr("%1 - %2").arg(file_name, page.title), QString(),
                          tr("Open"));
     canvas_->fit_to_view();
+    QApplication::processEvents(QEventLoop::AllEvents);
   }
+  progress.setValue(page_count);
   if (auto* first = session_with_id(first_session_id); first != nullptr) {
     activate_document_session(*first);
   }
@@ -3198,11 +3219,33 @@ void MainWindow::export_multipage_pdf() {
         }
       }
     }
+    const int page_count = static_cast<int>(pages.size());
+    QProgressDialog progress(tr("Writing page %1 of %2...").arg(1).arg(page_count), tr("Cancel"), 0, page_count,
+                             this);
+    progress.setObjectName(QStringLiteral("multiPagePdfProgressDialog"));
+    progress.setWindowTitle(tr("Export Multi-Page PDF"));
+    progress.setWindowModality(Qt::WindowModal);
+    progress.setMinimumDuration(0);
+    progress.setAutoClose(false);
+    progress.setAutoReset(false);
+    remember_dialog_position(progress);
+    progress.setValue(0);
     std::vector<std::string> writer_notices;
-    write_multipage_pdf_file(pages, path, choice->options, &writer_notices);
+    const bool completed =
+        write_multipage_pdf_file(pages, path, choice->options, &writer_notices, [&progress](int page, int count) {
+          progress.setLabelText(tr("Writing page %1 of %2...").arg(page).arg(count));
+          progress.setValue(page - 1);
+          QApplication::processEvents(QEventLoop::AllEvents);
+          return !progress.wasCanceled();
+        });
+    progress.close();
+    if (!completed) {
+      statusBar()->showMessage(tr("Export cancelled"));
+      return;
+    }
     offer_browser_download_for_saved_file(path);
     remember_save_directory_for_path(path);
-    statusBar()->showMessage(tr("Exported %n page(s) to %1", nullptr, static_cast<int>(pages.size())).arg(path) +
+    statusBar()->showMessage(tr("Exported %n page(s) to %1", nullptr, page_count).arg(path) +
                              export_notes_suffix_for(writer_notices));
   } catch (const std::exception& error) {
     show_critical_message(this, tr("Export failed"), translated_file_message(error.what()),

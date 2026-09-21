@@ -8307,6 +8307,14 @@ Mixed selection</source>
         <source>Orientation</source>
         <translation>方向</translation>
     </message>
+    <message>
+        <source>Import stopped after %1 of %2 pages.</source>
+        <translation>%2 ページ中 %1 ページで読み込みを停止しました。</translation>
+    </message>
+    <message>
+        <source>Importing page %1 of %2...</source>
+        <translation>ページ %1 / %2 を読み込み中...</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -16850,6 +16858,18 @@ Clipped to the layer below</source>
         <translation>
             <numerusform>%n ページを %1 に書き出しました</numerusform>
         </translation>
+    </message>
+    <message>
+        <source>Opening page %1 of %2...</source>
+        <translation>ページ %1 / %2 を開いています...</translation>
+    </message>
+    <message>
+        <source>Writing page %1 of %2...</source>
+        <translation>ページ %1 / %2 を書き込み中...</translation>
+    </message>
+    <message>
+        <source>Export cancelled</source>
+        <translation>書き出しをキャンセルしました</translation>
     </message>
 </context>
 <context>

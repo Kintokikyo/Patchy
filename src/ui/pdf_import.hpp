@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <span>
 #include <string>
@@ -40,6 +41,10 @@ struct PdfImportOptions {
   // instead of one layer per page on a single canvas. The first page is
   // PdfImportResult::document; the rest ride extra_documents in selection order.
   bool separate_documents{false};
+  // Called before each selected page is read (1-based position in the selection,
+  // selection size). Returning false stops the import after the pages already done,
+  // which are kept, with a notice saying where it stopped. Empty = no reporting.
+  std::function<bool(int position, int count)> progress;
 };
 
 // One page opened as its own document. `title` is the page label ("Page 3"); the

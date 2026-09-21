@@ -1487,6 +1487,20 @@ void ui_pdf_export_multipage_writes_one_page_per_document() {
     }
   }
 
+  // Progress runs once per page in order; cancelling removes the partial file.
+  std::vector<int> progress_pages;
+  const auto cancel_path = QStringLiteral("test-artifacts/ui_pdf_export_multipage_cancel.pdf");
+  QFile::remove(cancel_path);
+  CHECK(!patchy::ui::write_multipage_pdf_file(pages, cancel_path, {}, nullptr, [&progress_pages](int page, int count) {
+    CHECK(count == 3);
+    progress_pages.push_back(page);
+    return page < 2;
+  }));
+  CHECK(progress_pages == (std::vector<int>{1, 2}));
+  CHECK(!QFileInfo::exists(cancel_path));
+  CHECK(patchy::ui::write_multipage_pdf_file(pages, cancel_path, {}, nullptr, [](int, int) { return true; }));
+  CHECK(QFileInfo::exists(cancel_path));
+
   // Empty and unusable inputs refuse instead of writing a broken file.
   bool threw = false;
   try {
@@ -2470,6 +2484,31 @@ void ui_pdf_import_builds_one_layer_per_page() {
   CHECK(!result->notices.empty());
   CHECK(result->notices.front().find("rasterized") != std::string::npos);
 
+  // Progress reports every selected page in order; cancelling keeps the pages done so
+  // far and says where it stopped.
+  patchy::ui::PdfImportOptions separate;
+  separate.pages = {0, 1};
+  separate.resolution_ppi = 72;
+  separate.separate_documents = true;
+  std::vector<std::pair<int, int>> reported;
+  separate.progress = [&reported](int position, int count) {
+    reported.emplace_back(position, count);
+    return position < 2;
+  };
+  auto partial = patchy::ui::load_pdf_document(path, separate, QString(), &error);
+  CHECK(partial.has_value());
+  if (partial.has_value()) {
+    CHECK(reported == (std::vector<std::pair<int, int>>{{1, 2}, {2, 2}}));
+    CHECK(partial->document.width() == 144);
+    CHECK(partial->extra_documents.empty());
+    CHECK(partial->document_title == QStringLiteral("Page 1"));
+    bool stopped_notice = false;
+    for (const auto& notice : partial->notices) {
+      stopped_notice = stopped_notice || notice.find("stopped after 1 of 2") != std::string::npos;
+    }
+    CHECK(stopped_notice);
+  }
+
   // A single-page selection still works and names the layer after the real page number.
   patchy::ui::PdfImportOptions second_only;
   second_only.pages = {1};
@@ -2894,6 +2933,7 @@ void ui_pdf_local_brochure_editable_import_composites_if_available() {
 // order), offers the group source only when the active document has a top-level group,
 // and gates the controls per source.
 void ui_multipage_pdf_dialog_lists_documents_and_groups() {
+  patchy::ui::app_settings().remove(QStringLiteral("exportOptions/multiPagePdfEditableLayers"));
   patchy::ui::MainWindow window;
   show_window(window);
   {
@@ -2918,6 +2958,9 @@ void ui_multipage_pdf_dialog_lists_documents_and_groups() {
     auto* ungrouped = dialog->findChild<QCheckBox*>(QStringLiteral("multiPagePdfUngroupedCheck"));
     auto* summary = dialog->findChild<QLabel*>(QStringLiteral("multiPagePdfSummaryLabel"));
     auto* export_button = dialog->findChild<QPushButton*>(QStringLiteral("multiPagePdfExportButton"));
+    auto* editable = dialog->findChild<QCheckBox*>(QStringLiteral("multiPagePdfEditableCheck"));
+    // Editable layers are the default for a fresh install.
+    CHECK(editable != nullptr && editable->isChecked());
     CHECK(list != nullptr && groups != nullptr && documents_radio != nullptr && ungrouped != nullptr &&
           summary != nullptr && export_button != nullptr);
     if (list == nullptr || groups == nullptr || documents_radio == nullptr || ungrouped == nullptr ||

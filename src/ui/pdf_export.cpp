@@ -4,6 +4,7 @@
 #include "ui/image_document_io.hpp"
 #include "ui/print_internal.hpp"
 
+#include <QFile>
 #include <QImage>
 #include <QMarginsF>
 #include <QPageSize>
@@ -84,8 +85,9 @@ void write_pdf_document_file(const Document& document, const QString& path, cons
   painter.end();
 }
 
-void write_multipage_pdf_file(std::span<const Document* const> pages, const QString& path,
-                              const PdfExportOptions& options, std::vector<std::string>* notices) {
+bool write_multipage_pdf_file(std::span<const Document* const> pages, const QString& path,
+                              const PdfExportOptions& options, std::vector<std::string>* notices,
+                              const PdfPageProgress& progress) {
   if (pages.empty()) {
     throw std::runtime_error("There are no pages to export.");
   }
@@ -107,6 +109,11 @@ void write_multipage_pdf_file(std::span<const Document* const> pages, const QStr
   }
   for (std::size_t index = 0; index < pages.size(); ++index) {
     const Document& document = *pages[index];
+    if (progress && !progress(static_cast<int>(index) + 1, static_cast<int>(pages.size()))) {
+      painter.end();
+      QFile::remove(path);
+      return false;
+    }
     if (index > 0) {
       // A size set right before newPage() applies to the page it starts.
       writer.setPageSize(pdf_detail::document_page_size(document));
@@ -136,6 +143,7 @@ void write_multipage_pdf_file(std::span<const Document* const> pages, const QStr
   if (options.editable_layers) {
     pdf_detail::apply_text_merge_post_pass(path);
   }
+  return true;
 }
 
 std::vector<Document> documents_for_top_level_groups(const Document& document, bool include_ungrouped_layers) {
