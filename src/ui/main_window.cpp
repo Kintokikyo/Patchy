@@ -11968,6 +11968,18 @@ bool MainWindow::show_preview_dialog_edit_lock_message() {
   return true;
 }
 
+bool MainWindow::refuse_layer_dialog_during_transform() {
+  if (canvas_ == nullptr) {
+    return false;
+  }
+  if (!canvas_->free_transform_active() && !canvas_->warp_transform_active() &&
+      !canvas_->path_transform_active()) {
+    return false;
+  }
+  show_status_error(tr("Finish the transform first: press Enter to apply it or Esc to cancel it"));
+  return true;
+}
+
 void MainWindow::register_document_action(QAction* action) {
   if (action == nullptr) {
     return;

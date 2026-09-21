@@ -16711,6 +16711,10 @@ Y : %2
         <source>Shape size</source>
         <translation>Taille de la forme</translation>
     </message>
+    <message>
+        <source>Finish the transform first: press Enter to apply it or Esc to cancel it</source>
+        <translation>Terminez d&apos;abord la transformation : Entrée l&apos;applique, Échap l&apos;annule</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

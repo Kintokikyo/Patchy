@@ -16673,6 +16673,10 @@ Clipped to the layer below</source>
         <source>Shape size</source>
         <translation>シェイプのサイズ</translation>
     </message>
+    <message>
+        <source>Finish the transform first: press Enter to apply it or Esc to cancel it</source>
+        <translation>先に変形を終了してください: Enter で適用、Esc でキャンセル</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

@@ -16673,6 +16673,10 @@ Y: %2
         <source>Shape size</source>
         <translation>形状大小</translation>
     </message>
+    <message>
+        <source>Finish the transform first: press Enter to apply it or Esc to cancel it</source>
+        <translation>请先完成变换：按 Enter 应用，按 Esc 取消</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

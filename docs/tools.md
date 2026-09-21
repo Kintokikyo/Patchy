@@ -42,6 +42,7 @@ Corner handles scale proportionally on their own and Shift releases the lock, ma
 
 - Both sessions decide through one predicate, `CanvasWidget::transform_drag_keeps_aspect(modifiers)` (canvas_widget_transform.cpp): `shift == shift_keeps_transform_aspect_`. The pixel session calls it from `update_free_transform_preview`, the path session from `handle_path_transform_move` (canvas_widget_vector_tools.cpp). The two resize algorithms differ deliberately (anchor plus ratio versus box-local dominant axis); the shared predicate is what stops their modifier semantics drifting apart. Never reintroduce an inline `Qt::ShiftModifier` test for a resize.
 - Edge handles (Top/Right/Bottom/Left) scale one axis in every mode. Only corners consult the predicate.
+- While a Free Transform, Warp, or path transform session is pending, the Shape Appearance, Layer Style, and adjustment-layer dialogs refuse to open (`refuse_layer_dialog_during_transform`, a status hint to press Enter or Esc first). Their edits used to land under the baked session preview and only surface at commit (September 2026). Coverage: `ui_layer_dialogs_refuse_during_transform`.
 - Shift on the rotate handle still snaps to 15 degrees in both sessions and both modes; it is a separate modifier test in the same functions.
 - The options-bar link button (`freeTransformLinkScaleButton`) mirrors the W% and H% spin boxes only. It does not reach handle drags.
 - The session start status line reports the active pairing, so both sentences are translated strings.

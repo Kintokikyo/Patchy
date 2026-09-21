@@ -343,6 +343,12 @@ private:
   };
 
   friend class MainWindowTestAccess;
+  // Layer dialogs (Shape Appearance, Layer Style, adjustment settings) refuse
+  // to open while a Free Transform, Warp, or path transform session is
+  // pending: their edits would land under the session's baked preview and
+  // only surface at commit. Returns true (after a status message) when a
+  // session blocks the dialog, like Photoshop greying those commands out.
+  bool refuse_layer_dialog_during_transform();
   // Drives the profiling stress test through MainWindow's private API
   // (main_window_stress_test.cpp).
   friend class StressTestRunner;

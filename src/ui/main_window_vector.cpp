@@ -584,6 +584,9 @@ bool MainWindow::edit_active_shape_appearance(bool record_undo) {
     show_preview_dialog_edit_lock_message();
     return false;
   }
+  if (refuse_layer_dialog_during_transform()) {
+    return false;
+  }
   auto& doc = document();
   const auto active = doc.active_layer_id();
   auto* layer = active.has_value() ? doc.find_layer(*active) : nullptr;

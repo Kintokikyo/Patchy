@@ -3186,6 +3186,66 @@ void ui_path_overlay_follows_free_transform() {
   CHECK(accent_overlay_near(*canvas, QPoint(300, 160)));
 }
 
+void ui_layer_dialogs_refuse_during_transform() {
+  VectorSettingsGuard settings_guard;
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  const auto layer_id = make_rect_shape_layer(window, *canvas);
+
+  auto* free_transform_action = window.findChild<QAction*>(QStringLiteral("editFreeTransformAction"));
+  CHECK(free_transform_action != nullptr);
+  free_transform_action->trigger();
+  QApplication::processEvents();
+  CHECK(canvas->free_transform_active());
+
+  // Shape Appearance refuses with a status hint and opens nothing; the layer
+  // is untouched and the session survives.
+  bool appearance_seen = false;
+  QTimer::singleShot(0, [&appearance_seen] {
+    appearance_seen =
+        patchy::test::ui::find_top_level_dialog(QStringLiteral("shapeAppearanceDialog")) != nullptr;
+  });
+  patchy::ui::MainWindowTestAccess::edit_active_shape_appearance(window);
+  QApplication::processEvents();
+  CHECK(!appearance_seen);
+  CHECK(canvas->free_transform_active());
+  CHECK(window.statusBar()->currentMessage().contains(QStringLiteral("transform")));
+  CHECK(!document.find_layer(layer_id)->vector_shape()->stroke.enabled);
+
+  // Layer Style (Blending Options) refuses the same way.
+  bool style_seen = false;
+  QTimer::singleShot(0, [&style_seen] {
+    for (auto* widget : QApplication::topLevelWidgets()) {
+      if (qobject_cast<QDialog*>(widget) != nullptr && widget->isVisible() &&
+          widget->windowTitle().contains(QStringLiteral("Layer Style"))) {
+        style_seen = true;
+      }
+    }
+  });
+  require_action(window, "layerBlendingOptionsAction")->trigger();
+  QApplication::processEvents();
+  CHECK(!style_seen);
+  CHECK(canvas->free_transform_active());
+
+  // After the session ends, the dialog opens again (and cancels cleanly).
+  send_key(*canvas, Qt::Key_Escape);
+  QApplication::processEvents();
+  CHECK(!canvas->free_transform_active());
+  appearance_seen = false;
+  QTimer::singleShot(0, [&appearance_seen] {
+    auto* dialog = patchy::test::ui::find_top_level_dialog(QStringLiteral("shapeAppearanceDialog"));
+    appearance_seen = dialog != nullptr;
+    if (dialog != nullptr) {
+      dialog->reject();
+    }
+  });
+  patchy::ui::MainWindowTestAccess::edit_active_shape_appearance(window);
+  QApplication::processEvents();
+  CHECK(appearance_seen);
+}
+
 std::vector<patchy::test::TestCase> vector_shape_tool_tests() {
   return {
       {"ui_shape_tool_creates_shape_layer_and_undoes", ui_shape_tool_creates_shape_layer_and_undoes},
@@ -3270,5 +3330,6 @@ std::vector<patchy::test::TestCase> vector_shape_tool_tests() {
        ui_options_bar_never_shows_pixel_widgets_in_shape_mode},
       {"ui_path_overlay_follows_move_drag", ui_path_overlay_follows_move_drag},
       {"ui_path_overlay_follows_free_transform", ui_path_overlay_follows_free_transform},
+      {"ui_layer_dialogs_refuse_during_transform", ui_layer_dialogs_refuse_during_transform},
   };
 }

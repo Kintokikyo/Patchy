@@ -2282,6 +2282,9 @@ void MainWindow::edit_active_layer_style() {
     show_preview_dialog_edit_lock_message();
     return;
   }
+  if (refuse_layer_dialog_during_transform()) {
+    return;
+  }
   if (canvas_ != nullptr &&
       canvas_->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor")) != nullptr) {
     finish_active_text_editor();

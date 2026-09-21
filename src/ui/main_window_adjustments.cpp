@@ -675,6 +675,9 @@ void MainWindow::edit_active_adjustment_layer() {
     show_preview_dialog_edit_lock_message();
     return;
   }
+  if (refuse_layer_dialog_during_transform()) {
+    return;
+  }
   auto& doc = document();
   const auto active = doc.active_layer_id();
   auto* layer = active.has_value() ? doc.find_layer(*active) : nullptr;

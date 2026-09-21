@@ -16669,6 +16669,10 @@ Y: %2
         <source>Shape size</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Finish the transform first: press Enter to apply it or Esc to cancel it</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
