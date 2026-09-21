@@ -4,11 +4,11 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
-#include <map>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 // A streaming PDF writer for pages that are one image each. Qt-free.
@@ -99,8 +99,10 @@ private:
   // Byte offset of object N at index N; index 0 is the free-list head.
   std::vector<std::uint64_t> offsets_;
   std::vector<std::uint32_t> page_objects_;
-  // Profiles already written, by content, so 85 pages of one scanner share one object.
-  std::map<std::vector<std::uint8_t>, std::uint32_t> icc_objects_;
+  // Profiles already written, matched by content, so 85 pages of one scanner share one
+  // object. A short list, not a map keyed on the bytes: GCC 13 reports a false
+  // -Wstringop-overread through vector's operator<=>, and a file holds a handful at most.
+  std::vector<std::pair<std::shared_ptr<const std::vector<std::uint8_t>>, std::uint32_t>> icc_objects_;
   bool finished_{false};
   bool open_{false};
 };

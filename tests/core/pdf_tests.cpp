@@ -2185,14 +2185,20 @@ void pdf_image_writer_writes_unicode_paths() {
 
 // --- PageReader, the page probe, and pass-through capture -----------------------
 
+// Stream bytes with an end-of-line pair and a NUL inside. The array's own size gives the
+// length: a std::string built from the literal alone would stop at the NUL.
+std::string fake_scan_text() {
+  static constexpr char kBytes[] = "\xFF\xD8" "scan-bytes\n\r\x00with binary" "\xFF\xD9";
+  return std::string(kBytes, sizeof(kBytes) - 1);
+}
+
 // A page that is one image. `image_dict_extra` adds entries to the image XObject,
 // `content` is the page content, `page_extra` adds page entries (/Rotate, /Annots).
 // The image bytes are a fake JPEG: nothing on this path decodes them.
 std::vector<std::uint8_t> image_page_pdf(std::string_view filter, std::string_view color_space,
                                          std::string_view content, std::string_view page_extra = {},
                                          std::string_view image_dict_extra = {}) {
-  const std::string image_bytes = "\xFF\xD8" "scan-bytes\n\r\x00with binary" "\xFF\xD9";
-  const std::string image_data(image_bytes.data(), 2 + 10 + 2 + 1 + 11 + 2);
+  const std::string image_data = fake_scan_text();
   std::string image = "<</Type/XObject/Subtype/Image/Width 300/Height 400/BitsPerComponent 8";
   if (!color_space.empty()) {
     image += "/ColorSpace" + std::string(color_space);
@@ -2215,9 +2221,7 @@ std::vector<std::uint8_t> image_page_pdf(std::string_view filter, std::string_vi
 }
 
 std::vector<std::uint8_t> fake_scan_bytes() {
-  const std::string image_bytes = "\xFF\xD8" "scan-bytes\n\r\x00with binary" "\xFF\xD9";
-  const std::string image_data(image_bytes.data(), 2 + 10 + 2 + 1 + 11 + 2);
-  return bytes_of(image_data);
+  return bytes_of(fake_scan_text());
 }
 
 void pdf_page_reader_matches_single_page_reads() {

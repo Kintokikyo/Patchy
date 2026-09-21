@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <stdexcept>
 #include <system_error>
 
@@ -103,15 +104,19 @@ std::uint32_t ImageWriter::icc_profile_object(const ImageStream& image) {
   if (image.icc_profile == nullptr || image.icc_profile->empty()) {
     return 0U;
   }
-  if (const auto found = icc_objects_.find(*image.icc_profile); found != icc_objects_.end()) {
-    return found->second;
+  const auto& profile = *image.icc_profile;
+  for (const auto& [written, number] : icc_objects_) {
+    if (written == image.icc_profile ||
+        (written->size() == profile.size() && std::memcmp(written->data(), profile.data(), profile.size()) == 0)) {
+      return number;
+    }
   }
   const auto number = begin_object();
   write("<< /N " + std::to_string(image.icc_components) + " /Length " + std::to_string(image.icc_profile->size()) +
         " >>\nstream\n");
   write(*image.icc_profile);
   write("\nendstream\nendobj\n");
-  icc_objects_.emplace(*image.icc_profile, number);
+  icc_objects_.emplace_back(image.icc_profile, number);
   return number;
 }
 
