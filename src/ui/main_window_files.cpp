@@ -405,6 +405,58 @@ void write_file_to_android_uri(const QString& local_path,
     }
 }
 
+bool read_file_from_android_uri(const QString& uri_string,
+                                const QString& local_path) {
+
+    const QJniObject context =
+        QNativeInterface::QAndroidApplication::context();
+
+    if (!context.isValid()) {
+        throw std::runtime_error(
+            "Android context is unavailable");
+    }
+
+    const QJniObject local_path_java =
+        QJniObject::fromString(local_path);
+
+    const QUrl android_uri(uri_string);
+
+    if (!android_uri.isValid()) {
+        throw std::runtime_error(
+            "Android source URI is invalid");
+    }
+
+    const QString encoded_uri =
+        QString::fromUtf8(
+            android_uri.toEncoded(QUrl::FullyEncoded));
+
+    const QJniObject uri_string_java =
+        QJniObject::fromString(encoded_uri);
+
+    const jboolean result =
+        context.callMethod<jboolean>(
+            "copyUriToLocalFile",
+            "(Ljava/lang/String;Ljava/lang/String;)Z",
+            uri_string_java.object<jstring>(),
+            local_path_java.object<jstring>());
+
+    QJniEnvironment env;
+
+    if (env.checkAndClearExceptions(
+            QJniEnvironment::OutputMode::Silent)) {
+
+        throw std::runtime_error(
+            "Android Java read helper failed");
+    }
+
+    if (!result) {
+        throw std::runtime_error(
+            "Android could not read the source file");
+    }
+
+    return true;
+}
+
 std::optional<QString> pick_android_directory() {
 
     const QJniObject context =
