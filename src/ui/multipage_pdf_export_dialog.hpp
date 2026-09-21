@@ -41,9 +41,11 @@ struct MultiPagePdfExportChoice {
 
 // `documents` lists every open session; `active_session_id` names the one whose groups
 // the TopLevelGroups source would page (that source is offered only when
-// `top_level_group_count` is at least one). nullopt when cancelled.
+// `top_level_group_count` is at least one). `original_image_data_available` says some
+// open document still carries the image data it was imported from a PDF with, which is
+// the only time the "keep original image data" checkbox is shown. nullopt when cancelled.
 [[nodiscard]] std::optional<MultiPagePdfExportChoice> run_multipage_pdf_export_dialog(
     QWidget* parent, const std::vector<MultiPagePdfDocumentEntry>& documents, std::int64_t active_session_id,
-    int top_level_group_count);
+    int top_level_group_count, bool original_image_data_available = false);
 
 }  // namespace patchy::ui

@@ -15,6 +15,8 @@
 #include <cmath>
 #include <iomanip>
 #include <locale>
+#include <memory>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 
@@ -487,9 +489,212 @@ std::array<int, 2> page_size_in_pixels(std::span<const std::uint8_t> bytes, int 
   return page_pixel_size(file->pages()[static_cast<std::size_t>(page)], pixels_per_point);
 }
 
-VectorReadResult read_page_as_vectors(std::span<const std::uint8_t> bytes, const VectorReadOptions& options) {
-  std::vector<std::string> open_notices;
-  auto file = File::open({bytes.begin(), bytes.end()}, &open_notices, options.password);
+namespace {
+
+std::optional<Affine> inverted(const Affine& matrix) {
+  const double det = formats::determinant(matrix);
+  if (!(std::abs(det) > 1e-12)) {
+    return std::nullopt;
+  }
+  const double a = matrix.d / det;
+  const double b = -matrix.b / det;
+  const double c = -matrix.c / det;
+  const double d = matrix.a / det;
+  return Affine{a, b, c, d, -(a * matrix.e + c * matrix.f), -(b * matrix.e + d * matrix.f)};
+}
+
+// True when the clip cannot hide any of the canvas: no clip at all, or nothing but
+// axis-aligned rectangles that each contain it (the `0 0 w h re W n` every producer
+// writes). Anything else might cut the image, so it answers false.
+bool clip_leaves_canvas_whole(const VectorPath& clip, double width, double height) {
+  constexpr double kSlack = 0.5;
+  for (const auto& subpath : clip.subpaths) {
+    if (subpath.anchors.size() != 4U) {
+      return false;
+    }
+    double left = subpath.anchors[0].anchor_x;
+    double right = left;
+    double top = subpath.anchors[0].anchor_y;
+    double bottom = top;
+    for (const auto& anchor : subpath.anchors) {
+      if (anchor.in_x != anchor.anchor_x || anchor.in_y != anchor.anchor_y || anchor.out_x != anchor.anchor_x ||
+          anchor.out_y != anchor.anchor_y) {
+        return false;  // a curve
+      }
+      left = std::min(left, anchor.anchor_x);
+      right = std::max(right, anchor.anchor_x);
+      top = std::min(top, anchor.anchor_y);
+      bottom = std::max(bottom, anchor.anchor_y);
+    }
+    for (const auto& anchor : subpath.anchors) {
+      const bool on_x = anchor.anchor_x == left || anchor.anchor_x == right;
+      const bool on_y = anchor.anchor_y == top || anchor.anchor_y == bottom;
+      if (!on_x || !on_y) {
+        return false;  // not axis-aligned
+      }
+    }
+    if (left > kSlack || top > kSlack || right < width - kSlack || bottom < height - kSlack) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Counts what a page paints and remembers the last image that hides everything before it.
+class ProbeSink final : public ContentSink {
+public:
+  ProbeSink(const File& file, double width, double height) : file_(file), width_(width), height_(height) {}
+
+  void on_path(const PaintedPath&) override { ++probe_.painted_paths; }
+  void on_text(const TextRun&) override { ++probe_.text_runs; }
+  void on_shading(std::shared_ptr<const ResolvedShading>, const VectorPath&) override { ++probe_.shadings; }
+  void on_notice(const std::string&) override {}
+
+  void on_image(const PlacedImage& image) override {
+    const bool undecodable =
+        image.codec == FilterKind::Jpx || image.codec == FilterKind::CcittFax || image.codec == FilterKind::Jbig2;
+    const bool whole_page = covers_canvas(image) && clip_leaves_canvas_whole(image.clip, width_, height_);
+    if (whole_page && is_opaque(image)) {
+      // Everything painted so far is under this image and cannot be seen.
+      probe_ = PageProbe{};
+      undecodable_area_ = 0.0;
+      cover_ = image;
+    }
+    ++probe_.images;
+    if (undecodable) {
+      ++probe_.undecodable_images;
+      undecodable_area_ += std::min(std::abs(formats::determinant(image.transform)), width_ * height_);
+    }
+  }
+
+  // `cover` is set only when the page's visible content is that one image.
+  [[nodiscard]] PageProbe finish(std::optional<PlacedImage>& cover) {
+    probe_.undecodable_coverage =
+        width_ * height_ > 0.0 ? std::min(1.0, undecodable_area_ / (width_ * height_)) : 0.0;
+    const bool sole = cover_.has_value() && probe_.images == 1 && probe_.painted_paths == 0 &&
+                      probe_.text_runs == 0 && probe_.shadings == 0;
+    cover = sole ? cover_ : std::nullopt;
+    return probe_;
+  }
+
+private:
+  // Every canvas corner must land inside the image's unit square.
+  [[nodiscard]] bool covers_canvas(const PlacedImage& image) const {
+    const auto inverse = inverted(image.transform);
+    if (!inverse.has_value()) {
+      return false;
+    }
+    constexpr double kSlack = 1e-3;  // a thousandth of the image: under a pixel on any real scan
+    for (const auto& corner : {std::pair{0.0, 0.0}, std::pair{width_, 0.0}, std::pair{0.0, height_},
+                               std::pair{width_, height_}}) {
+      const auto unit = formats::map_point(*inverse, corner.first, corner.second);
+      if (unit[0] < -kSlack || unit[0] > 1.0 + kSlack || unit[1] < -kSlack || unit[1] > 1.0 + kSlack) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  [[nodiscard]] bool is_opaque(const PlacedImage& image) const {
+    if (image.is_stencil || image.alpha < 0.999 || image.blend != BlendMode::Normal || !image.source.is_stream()) {
+      return false;
+    }
+    if (!file_.get(image.source, "SMask").is_null() || !file_.get(image.source, "Mask").is_null()) {
+      return false;
+    }
+    // A JPEG 2000 codestream can carry its own alpha channel (clause 8.9.5.1).
+    return file_.get(image.source, "SMaskInData").integer(0) == 0;
+  }
+
+  const File& file_;
+  double width_;
+  double height_;
+  PageProbe probe_;
+  double undecodable_area_{0.0};
+  std::optional<PlacedImage> cover_;
+};
+
+// The cover image as something an export can write back, or null when any part of it
+// is outside what the image writer reproduces exactly.
+std::shared_ptr<const PdfSourcePage> source_page_from(const File& file, const Page& page, const PlacedImage& image,
+                                                      const Affine& base_transform) {
+  if (image.codec != FilterKind::Dct && image.codec != FilterKind::Jpx) {
+    return nullptr;
+  }
+  auto source = std::make_shared<PdfSourcePage>();
+  source->filter = image.codec == FilterKind::Dct ? "DCTDecode" : "JPXDecode";
+  source->image_width = image.width;
+  source->image_height = image.height;
+  source->bits_per_component = static_cast<int>(file.get(image.source, "BitsPerComponent").integer(8));
+
+  const auto& color_space = file.get(image.source, "ColorSpace");
+  if (color_space.is_name()) {
+    if (color_space.name() == "DeviceGray") {
+      source->color_space = "/DeviceGray";
+    } else if (color_space.name() == "DeviceRGB") {
+      source->color_space = "/DeviceRGB";
+    } else {
+      return nullptr;  // CMYK JPEGs need producer-specific /Decode handling; patterns and the rest never apply
+    }
+  } else if (const auto* array = color_space.array(); array != nullptr) {
+    if (array->size() != 2U || file.resolve((*array)[0]).name() != "ICCBased") {
+      return nullptr;  // Indexed, Cal*, Lab, Separation: not reproduced here
+    }
+    const auto& profile_stream = file.resolve((*array)[1]);
+    const auto components = static_cast<int>(file.get(profile_stream, "N").integer(0));
+    auto profile = file.stream_data(profile_stream);
+    if ((components != 1 && components != 3) || !profile.error.empty() || profile.data.empty() ||
+        profile.image_codec != FilterKind::None) {
+      return nullptr;
+    }
+    source->icc_profile = std::make_shared<const std::vector<std::uint8_t>>(std::move(profile.data));
+    source->icc_components = components;
+    source->color_space = "[/ICCBased]";
+  } else if (!(color_space.is_null() && image.codec == FilterKind::Jpx)) {
+    return nullptr;
+  }
+
+  if (const auto& decode = file.get(image.source, "Decode"); !decode.is_null()) {
+    const auto numbers = file.numbers(decode);
+    if (numbers.empty()) {
+      return nullptr;
+    }
+    std::string text = "[";
+    for (std::size_t index = 0; index < numbers.size(); ++index) {
+      text += (index == 0 ? "" : " ") + format_number(numbers[index]);
+    }
+    source->decode = text + "]";
+  }
+
+  auto data = file.stream_data(image.source);
+  if (!data.error.empty() || data.data.empty() || data.image_codec != image.codec) {
+    return nullptr;
+  }
+  source->image_bytes = std::make_shared<const std::vector<std::uint8_t>>(std::move(data.data));
+
+  // The placement in the page's own (unrotated) space, crop-box corner at the origin,
+  // so the exported page can repeat the source's /Rotate and matrix instead of guessing.
+  const auto to_user = inverted(base_transform);
+  if (!to_user.has_value()) {
+    return nullptr;
+  }
+  Affine placement = formats::multiply(*to_user, image.transform);
+  placement.e -= page.crop_box[0];
+  placement.f -= page.crop_box[1];
+  source->image_matrix = {placement.a, placement.b, placement.c, placement.d, placement.e, placement.f};
+  source->page_width_points = page.crop_box[2] - page.crop_box[0];
+  source->page_height_points = page.crop_box[3] - page.crop_box[1];
+  source->rotate = page.rotate;
+  if (!(source->page_width_points > 0.0) || !(source->page_height_points > 0.0)) {
+    return nullptr;
+  }
+  return source;
+}
+
+}  // namespace
+
+PageReader::PageReader(std::vector<std::uint8_t> bytes, std::string_view password) {
+  auto file = File::open(std::move(bytes), &open_notices_, password);
   if (!file.has_value()) {
     throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "This file is not a readable PDF."));
   }
@@ -497,14 +702,52 @@ VectorReadResult read_page_as_vectors(std::span<const std::uint8_t> bytes, const
     // Emitting ciphertext as if it were artwork would be worse than refusing.
     throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "This PDF is password protected."));
   }
-  if (file->pages().empty()) {
+  file_ = std::make_unique<File>(std::move(*file));
+}
+
+PageReader::~PageReader() = default;
+PageReader::PageReader(PageReader&&) noexcept = default;
+PageReader& PageReader::operator=(PageReader&&) noexcept = default;
+
+int PageReader::page_count() const noexcept {
+  return static_cast<int>(file_->pages().size());
+}
+
+PageProbe PageReader::probe_page(int page_index) const {
+  if (page_index < 0 || page_index >= page_count()) {
+    return {};
+  }
+  try {
+    const auto& page = file_->pages()[static_cast<std::size_t>(page_index)];
+    // One pixel per point: the probe only compares shapes, so any scale would do.
+    const bool swapped = page.rotate == 90 || page.rotate == 270;
+    const double crop_width = page.crop_box[2] - page.crop_box[0];
+    const double crop_height = page.crop_box[3] - page.crop_box[1];
+    ProbeSink sink(*file_, swapped ? crop_height : crop_width, swapped ? crop_width : crop_height);
+    probe_page_content(*file_, page, 1.0, sink);
+    std::optional<PlacedImage> cover;
+    PageProbe probe = sink.finish(cover);
+    if (const auto* annotations = file_->get(page.dict, "Annots").array(); annotations != nullptr) {
+      probe.has_annotations = !annotations->empty();
+    }
+    if (cover.has_value()) {
+      probe.source_page = source_page_from(*file_, page, *cover, page_base_transform(page, 1.0));
+    }
+    return probe;
+  } catch (const std::exception&) {
+    return {};
+  }
+}
+
+VectorReadResult PageReader::read_page(const VectorReadOptions& options) const {
+  if (file_->pages().empty()) {
     throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "This PDF has no pages."));
   }
-  if (options.page < 0 || options.page >= static_cast<int>(file->pages().size())) {
+  if (options.page < 0 || options.page >= static_cast<int>(file_->pages().size())) {
     throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "The requested PDF page does not exist."));
   }
 
-  const auto& page = file->pages()[static_cast<std::size_t>(options.page)];
+  const auto& page = file_->pages()[static_cast<std::size_t>(options.page)];
   const double scale = options.pixels_per_point > 0.0 ? options.pixels_per_point : 1.0;
   const auto size = page_pixel_size(page, scale);
   if (size[0] > kMaximumCanvasPixels || size[1] > kMaximumCanvasPixels) {
@@ -519,9 +762,9 @@ VectorReadResult read_page_as_vectors(std::span<const std::uint8_t> bytes, const
 
   const Rect canvas{0, 0, size[0], size[1]};
   LayerSink sink(result.document, canvas, options);
-  execute_page(*file, page, scale, sink);
+  execute_page(*file_, page, scale, sink);
 
-  result.notices = std::move(open_notices);
+  result.notices = open_notices_;
   for (auto& text : sink.take_notices()) {
     result.notices.push_back(std::move(text));
   }
@@ -537,6 +780,11 @@ VectorReadResult read_page_as_vectors(std::span<const std::uint8_t> bytes, const
     result.document.set_active_layer(*default_layer);
   }
   return result;
+}
+
+VectorReadResult read_page_as_vectors(std::span<const std::uint8_t> bytes, const VectorReadOptions& options) {
+  const PageReader reader(std::vector<std::uint8_t>(bytes.begin(), bytes.end()), options.password);
+  return reader.read_page(options);
 }
 
 }  // namespace patchy::pdf

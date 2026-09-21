@@ -51,6 +51,7 @@
 #include "formats/aseprite_document_io.hpp"
 #include "formats/ico_document_io.hpp"
 #include "formats/pdf_document_io.hpp"
+#include "formats/pdf_file.hpp"
 #include "formats/tga_document_io.hpp"
 #include "ui/image_document_io.hpp"
 #include "ui/image_save_options_dialog.hpp"
@@ -2588,6 +2589,319 @@ void ui_pdf_options_dialog_offers_image_quality_presets() {
   }
 }
 
+// --- pass-through of an imported page's original image ------------------------------
+
+namespace {
+
+QByteArray gray_jpeg_bytes(int width, int height, int quality) {
+  QImage image(width, height, QImage::Format_Grayscale8);
+  for (int y = 0; y < height; ++y) {
+    auto* row = image.scanLine(y);
+    for (int x = 0; x < width; ++x) {
+      row[x] = static_cast<uchar>(((x * 3) ^ (y * 5)) & 0xFF);
+    }
+  }
+  QByteArray bytes;
+  QBuffer buffer(&bytes);
+  buffer.open(QIODevice::WriteOnly);
+  QImageWriter writer(&buffer, "JPEG");
+  writer.setQuality(quality);
+  CHECK(writer.write(image));
+  return bytes;
+}
+
+// A scanned PDF in miniature: every page is one gray JPEG over the whole page. Page
+// boxes are in points; `rotate` goes on every page.
+QByteArray scanned_pdf_bytes(const std::vector<QByteArray>& jpegs, QSize pixels, QSizeF points, int rotate) {
+  std::vector<QByteArray> objects;
+  objects.push_back("<</Type/Catalog/Pages 2 0 R>>");
+  QByteArray kids;
+  for (std::size_t index = 0; index < jpegs.size(); ++index) {
+    kids += QByteArray::number(static_cast<int>(3 + index * 3)) + " 0 R ";
+  }
+  objects.push_back("<</Type/Pages/Kids[" + kids + "]/Count " + QByteArray::number(static_cast<int>(jpegs.size())) +
+                    ">>");
+  for (std::size_t index = 0; index < jpegs.size(); ++index) {
+    const int first = static_cast<int>(3 + index * 3);
+    const QByteArray content = "q " + QByteArray::number(points.width()) + " 0 0 " +
+                               QByteArray::number(points.height()) + " 0 0 cm /Im0 Do Q";
+    objects.push_back("<</Type/Page/Parent 2 0 R/MediaBox[0 0 " + QByteArray::number(points.width()) + " " +
+                      QByteArray::number(points.height()) + "]/Rotate " + QByteArray::number(rotate) +
+                      "/Resources<</XObject<</Im0 " + QByteArray::number(first + 2) + " 0 R>>>>/Contents " +
+                      QByteArray::number(first + 1) + " 0 R>>");
+    objects.push_back("<</Length " + QByteArray::number(content.size()) + ">>\nstream\n" + content + "\nendstream");
+    objects.push_back("<</Type/XObject/Subtype/Image/Width " + QByteArray::number(pixels.width()) + "/Height " +
+                      QByteArray::number(pixels.height()) +
+                      "/ColorSpace/DeviceGray/BitsPerComponent 8/Filter/DCTDecode/Length " +
+                      QByteArray::number(jpegs[index].size()) + ">>\nstream\n" + jpegs[index] + "\nendstream");
+  }
+  QByteArray pdf = QByteArrayLiteral("%PDF-1.4\n");
+  std::vector<qsizetype> offsets;
+  for (std::size_t index = 0; index < objects.size(); ++index) {
+    offsets.push_back(pdf.size());
+    pdf += QByteArray::number(static_cast<int>(index + 1)) + " 0 obj\n" + objects[index] + "\nendobj\n";
+  }
+  const auto xref_offset = pdf.size();
+  pdf += "xref\n0 " + QByteArray::number(static_cast<int>(objects.size() + 1)) + "\n0000000000 65535 f \n";
+  for (const auto offset : offsets) {
+    pdf += QStringLiteral("%1 00000 n \n").arg(offset, 10, 10, QLatin1Char('0')).toLatin1();
+  }
+  pdf += "trailer\n<</Size " + QByteArray::number(static_cast<int>(objects.size() + 1)) +
+         "/Root 1 0 R>>\nstartxref\n" + QByteArray::number(xref_offset) + "\n%%EOF\n";
+  return pdf;
+}
+
+// The image XObject streams of a written PDF, in page order, through Patchy's Qt-free
+// reader (which shares nothing with either writer).
+std::vector<QByteArray> page_image_streams(const QString& path, std::vector<int>* rotations = nullptr) {
+  const QByteArray bytes = read_file_bytes(path);
+  auto file = patchy::pdf::File::open(
+      std::vector<std::uint8_t>(bytes.begin(), bytes.end()), nullptr);
+  std::vector<QByteArray> streams;
+  if (!file.has_value()) {
+    return streams;
+  }
+  for (const auto& page : file->pages()) {
+    if (rotations != nullptr) {
+      rotations->push_back(page.rotate);
+    }
+    const auto* xobjects = file->get(page.resources, "XObject").dictionary();
+    if (xobjects == nullptr || xobjects->empty()) {
+      streams.emplace_back();
+      continue;
+    }
+    const auto data = file->stream_data(file->resolve(xobjects->begin()->second));
+    streams.emplace_back(reinterpret_cast<const char*>(data.data.data()), static_cast<qsizetype>(data.data.size()));
+  }
+  return streams;
+}
+
+}  // namespace
+
+// The point of the whole feature: a scanned PDF opened and exported again comes out
+// with the image bytes it went in with. An edited page re-encodes, and only that page;
+// undoing the edit brings its original bytes back.
+void ui_pdf_pass_through_keeps_original_image_bytes() {
+  ensure_artifact_dir();
+  const std::vector<QByteArray> jpegs{gray_jpeg_bytes(300, 200, 60), gray_jpeg_bytes(300, 200, 35)};
+  CHECK(jpegs[0] != jpegs[1]);
+  const auto source_path = QStringLiteral("test-artifacts/ui_pdf_pass_through_source.pdf");
+  {
+    QFile file(source_path);
+    CHECK(file.open(QIODevice::WriteOnly));
+    file.write(scanned_pdf_bytes(jpegs, QSize(300, 200), QSizeF(144.0, 96.0), 90));
+  }
+
+  patchy::ui::PdfImportOptions import_options;
+  import_options.pages = {0, 1};
+  import_options.resolution_ppi = 150;
+  import_options.separate_documents = true;
+  QString error;
+  auto imported = patchy::ui::load_pdf_document(source_path, import_options, QString(), &error);
+  CHECK(imported.has_value());
+  if (!imported.has_value() || imported->extra_documents.size() != 1) {
+    CHECK(false);
+    return;
+  }
+  auto& first = imported->document;
+  auto& second = imported->extra_documents.front().document;
+  // /Rotate 90 swaps the axes: 96 x 144 pt at 150 ppi.
+  CHECK(first.width() == 200 && first.height() == 300);
+  const auto first_source = std::as_const(first).metadata().pdf_source_page;
+  CHECK(first_source != nullptr);
+  if (first_source == nullptr) {
+    return;
+  }
+  CHECK(first_source->composite_hash_valid);
+  CHECK(first_source->filter == "DCTDecode");
+  CHECK(first_source->rotate == 90);
+  CHECK(first_source->document_width == 200 && first_source->document_height == 300);
+  CHECK(std::as_const(second).metadata().pdf_source_page != nullptr);
+
+  const std::array<const patchy::Document*, 2> pages{&first, &second};
+  patchy::ui::PdfExportOptions options;
+  CHECK(patchy::ui::apply_pdf_image_quality(QStringLiteral("low"), options));
+  options.editable_layers = true;  // the Export Multi-Page PDF default
+  CHECK(options.keep_original_image_data);
+
+  const auto out_path = QStringLiteral("test-artifacts/ui_pdf_pass_through_out.pdf");
+  QFile::remove(out_path);
+  CHECK(patchy::ui::write_multipage_pdf_file(pages, out_path, options));
+  std::vector<int> rotations;
+  auto streams = page_image_streams(out_path, &rotations);
+  CHECK(streams.size() == 2);
+  if (streams.size() != 2) {
+    return;
+  }
+  CHECK(streams[0] == jpegs[0]);
+  CHECK(streams[1] == jpegs[1]);
+  CHECK((rotations == std::vector<int>{90, 90}));
+  // And it still looks like the source to a decoder that is neither writer.
+  const QImage original = render_pdf_page(source_path, 0, QSize(200, 300));
+  const QImage round_trip = render_pdf_page(out_path, 0, QSize(200, 300));
+  CHECK(mean_rgb_delta_over_white(original, round_trip) < 0.01);
+
+  // A second generation passes through too: the written file probes like the source.
+  auto reimported = patchy::ui::load_pdf_document(out_path, import_options, QString(), &error);
+  CHECK(reimported.has_value());
+  if (reimported.has_value()) {
+    const auto again = std::as_const(reimported->document).metadata().pdf_source_page;
+    CHECK(again != nullptr && again->image_bytes != nullptr &&
+          QByteArray(reinterpret_cast<const char*>(again->image_bytes->data()),
+                     static_cast<qsizetype>(again->image_bytes->size())) == jpegs[0]);
+  }
+
+  // Edit one pixel of page 1: that page re-encodes (gray JPEG at the chosen quality),
+  // page 2 still passes through.
+  {
+    auto& layer = first.layers().front();
+    auto row = layer.pixels().row(10);
+    const auto before = row[40];
+    row[40] = static_cast<std::uint8_t>(before ^ 0xFFU);
+    row[41] = row[40];
+    row[42] = row[40];
+    const auto edited_path = QStringLiteral("test-artifacts/ui_pdf_pass_through_edited.pdf");
+    QFile::remove(edited_path);
+    CHECK(patchy::ui::write_multipage_pdf_file(pages, edited_path, options));
+    const auto edited = page_image_streams(edited_path);
+    CHECK(edited.size() == 2);
+    if (edited.size() == 2) {
+      CHECK(edited[0] != jpegs[0]);
+      CHECK(edited[0].startsWith("\xFF\xD8"));  // a fresh JPEG, not the source's
+      CHECK(edited[1] == jpegs[1]);
+    }
+    // Undo: the same pixels as at import are the same page again.
+    row[40] = before;
+    row[41] = before;
+    row[42] = before;
+    const auto undone_path = QStringLiteral("test-artifacts/ui_pdf_pass_through_undone.pdf");
+    QFile::remove(undone_path);
+    CHECK(patchy::ui::write_multipage_pdf_file(pages, undone_path, options));
+    const auto undone = page_image_streams(undone_path);
+    CHECK(undone.size() == 2 && undone[0] == jpegs[0]);
+  }
+
+  // A hidden extra layer changes nothing anyone can see; a visible one does.
+  {
+    first.add_pixel_layer("Note", solid_pixels(200, 300, patchy::PixelFormat::rgba8(), QColor(255, 0, 0, 90)));
+    first.layers().back().set_visible(false);
+    const auto hidden_path = QStringLiteral("test-artifacts/ui_pdf_pass_through_hidden_layer.pdf");
+    QFile::remove(hidden_path);
+    patchy::ui::write_pdf_document_file(first, hidden_path, options);
+    const auto hidden = page_image_streams(hidden_path);
+    CHECK(hidden.size() == 1 && hidden[0] == jpegs[0]);
+    first.layers().back().set_visible(true);
+    const auto visible_path = QStringLiteral("test-artifacts/ui_pdf_pass_through_visible_layer.pdf");
+    QFile::remove(visible_path);
+    patchy::ui::write_pdf_document_file(first, visible_path, options);
+    CHECK(!read_file_bytes(visible_path).contains(jpegs[0]));
+    first.layers().back().set_visible(false);
+  }
+
+  // Off means off, and a changed resolution is a different page even with the same pixels.
+  {
+    auto forced = options;
+    forced.keep_original_image_data = false;
+    const auto forced_path = QStringLiteral("test-artifacts/ui_pdf_pass_through_forced.pdf");
+    QFile::remove(forced_path);
+    patchy::ui::write_pdf_document_file(second, forced_path, forced);
+    const auto streams_forced = page_image_streams(forced_path);
+    CHECK(streams_forced.size() == 1 && streams_forced[0] != jpegs[1]);
+
+    second.print_settings().horizontal_ppi = 300.0;
+    second.print_settings().vertical_ppi = 300.0;
+    const auto resized_path = QStringLiteral("test-artifacts/ui_pdf_pass_through_resized.pdf");
+    QFile::remove(resized_path);
+    patchy::ui::write_pdf_document_file(second, resized_path, options);
+    const auto streams_resized = page_image_streams(resized_path);
+    CHECK(streams_resized.size() == 1 && streams_resized[0] != jpegs[1]);
+  }
+}
+
+// Imports that are not "this document is that page" keep no original data: a trimmed
+// page, and several pages stacked as layers.
+void ui_pdf_pass_through_is_not_captured_for_trimmed_or_stacked_pages() {
+  ensure_artifact_dir();
+  // A white border around a dark block, so the trim has something to remove.
+  QImage bordered(300, 200, QImage::Format_Grayscale8);
+  bordered.fill(255);
+  for (int y = 40; y < 160; ++y) {
+    std::memset(bordered.scanLine(y) + 60, 30, 180);
+  }
+  QByteArray jpeg;
+  {
+    QBuffer buffer(&jpeg);
+    buffer.open(QIODevice::WriteOnly);
+    QImageWriter writer(&buffer, "JPEG");
+    writer.setQuality(95);
+    CHECK(writer.write(bordered));
+  }
+  const auto source_path = QStringLiteral("test-artifacts/ui_pdf_pass_through_trim_source.pdf");
+  {
+    QFile file(source_path);
+    CHECK(file.open(QIODevice::WriteOnly));
+    file.write(scanned_pdf_bytes({jpeg, jpeg}, QSize(300, 200), QSizeF(144.0, 96.0), 0));
+  }
+  QString error;
+  patchy::ui::PdfImportOptions trimmed;
+  trimmed.pages = {0};
+  trimmed.resolution_ppi = 150;
+  trimmed.separate_documents = true;
+  trimmed.trim_to_bounding_box = true;
+  const auto trimmed_result = patchy::ui::load_pdf_document(source_path, trimmed, QString(), &error);
+  CHECK(trimmed_result.has_value());
+  if (trimmed_result.has_value()) {
+    CHECK(trimmed_result->document.width() < 300);
+    CHECK(std::as_const(trimmed_result->document).metadata().pdf_source_page == nullptr);
+  }
+  patchy::ui::PdfImportOptions stacked;
+  stacked.pages = {0, 1};
+  stacked.resolution_ppi = 150;
+  const auto stacked_result = patchy::ui::load_pdf_document(source_path, stacked, QString(), &error);
+  CHECK(stacked_result.has_value());
+  if (stacked_result.has_value()) {
+    CHECK(stacked_result->document.layers().size() == 2);
+    CHECK(std::as_const(stacked_result->document).metadata().pdf_source_page == nullptr);
+  }
+  // One page as a layer IS that page.
+  stacked.pages = {1};
+  const auto single = patchy::ui::load_pdf_document(source_path, stacked, QString(), &error);
+  CHECK(single.has_value() && std::as_const(single->document).metadata().pdf_source_page != nullptr);
+}
+
+// The checkbox is a question only for a document that still carries original data.
+void ui_pdf_options_dialog_offers_keep_original_only_with_source_data() {
+  for (const bool available : {true, false}) {
+    patchy::ui::ImageSaveOptions defaults;
+    defaults.pdf_original_image_data_available = available;
+    defaults.pdf_keep_original_images = true;
+    bool saw_dialog = false;
+    QTimer::singleShot(0, [&saw_dialog, available] {
+      auto* dialog = find_top_level_dialog(QStringLiteral("pdfSaveOptionsDialog"));
+      CHECK(dialog != nullptr);
+      if (dialog == nullptr) {
+        return;
+      }
+      auto* keep = dialog->findChild<QCheckBox*>(QStringLiteral("pdfKeepOriginalCheck"));
+      CHECK(keep != nullptr);
+      if (keep != nullptr) {
+        CHECK(keep->isVisible() == available);
+        CHECK(keep->isChecked());
+        keep->setChecked(false);
+      }
+      saw_dialog = true;
+      dialog->accept();
+    });
+    const auto chosen = patchy::ui::prompt_image_save_options(nullptr, QStringLiteral("pdf"), defaults);
+    CHECK(saw_dialog);
+    CHECK(chosen.has_value());
+    if (chosen.has_value()) {
+      // The hidden checkbox of a document with no original data changes nothing.
+      CHECK(chosen->pdf_keep_original_images == !available);
+    }
+  }
+}
+
 // The PDF Options dialog after the flatten-or-keep choice: the fidelity warning is
 // visible exactly when layers are kept, and the export Scale combo (pixel-only) grays out
 // with it; the choice itself is never persisted as a save default.
@@ -2879,6 +3193,82 @@ void drive_modal_dialog(const std::shared_ptr<std::function<bool()>>& step, int 
       drive_modal_dialog(step, attempts - 1);
     }
   });
+}
+
+// The page picker shows before any thumbnail exists (every thumbnail is a PDFium page
+// render, and a long scanned PDF used to render them all first), fills them in from a
+// timer, and says how much memory the selection will take when that is a real number.
+void ui_pdf_import_dialog_fills_thumbnails_lazily_and_estimates_memory() {
+  ensure_artifact_dir();
+  const auto path = QStringLiteral("test-artifacts/ui_pdf_import_lazy_thumbnails.pdf");
+  {
+    QFile file(path);
+    CHECK(file.open(QIODevice::WriteOnly));
+    // Two 200 x 200 inch pages: at 300 ppi each clamps to 20000 x 20000 px, 1.5 GB of RGBA.
+    const std::vector<QByteArray> jpegs{gray_jpeg_bytes(64, 64, 80), gray_jpeg_bytes(64, 64, 70)};
+    file.write(scanned_pdf_bytes(jpegs, QSize(64, 64), QSizeF(14400.0, 14400.0), 0));
+  }
+  patchy::ui::MainWindow window;
+  show_window(window);
+
+  constexpr int kPendingRole = Qt::UserRole + 1;
+  auto first_look = std::make_shared<bool>(false);
+  auto done = std::make_shared<bool>(false);
+  auto step = std::make_shared<std::function<bool()>>();
+  *step = [first_look, done] {
+    auto* dialog = find_top_level_dialog(QStringLiteral("pdfImportDialog"));
+    if (dialog == nullptr) {
+      return false;
+    }
+    auto* pages = dialog->findChild<QListWidget*>(QStringLiteral("pdfImportPagesList"));
+    auto* size_label = dialog->findChild<QLabel*>(QStringLiteral("pdfImportSizeLabel"));
+    auto* resolution = dialog->findChild<QSpinBox*>(QStringLiteral("pdfImportResolutionSpin"));
+    if (pages == nullptr || size_label == nullptr || resolution == nullptr) {
+      return false;
+    }
+    if (!*first_look) {
+      *first_look = true;
+      CHECK(pages->count() == 2);
+      // Every row has its placeholder icon from the start, so text never shifts.
+      for (int row = 0; row < pages->count(); ++row) {
+        CHECK(!pages->item(row)->icon().isNull());
+      }
+      resolution->setValue(300);
+      pages->selectAll();
+      CHECK(size_label->text().contains(QStringLiteral("20000")));
+      CHECK(size_label->text().contains(QStringLiteral("GB")));
+      resolution->setValue(12);
+      CHECK(!size_label->text().contains(QStringLiteral("GB")));  // 2400 px pages: not worth a line
+    }
+    for (int row = 0; row < pages->count(); ++row) {
+      if (pages->item(row)->data(kPendingRole).toBool()) {
+        return false;  // the timer has not reached this row yet
+      }
+    }
+    // With nothing left to render the timer stops itself, one tick after the last row.
+    auto* timer = dialog->findChild<QTimer*>(QStringLiteral("pdfImportThumbnailTimer"));
+    if (timer == nullptr || timer->isActive()) {
+      return false;
+    }
+    // Filled in: a rendered thumbnail is not the transparent placeholder.
+    const QImage thumbnail = pages->item(0)->icon().pixmap(96, 96).toImage();
+    bool any_opaque = false;
+    for (int y = 0; y < thumbnail.height() && !any_opaque; ++y) {
+      for (int x = 0; x < thumbnail.width() && !any_opaque; ++x) {
+        any_opaque = qAlpha(thumbnail.pixel(x, y)) != 0;
+      }
+    }
+    CHECK(any_opaque);
+    *done = true;
+    dialog->reject();
+    return true;
+  };
+  drive_modal_dialog(step);
+  const auto sessions_before = patchy::ui::MainWindowTestAccess::session_count(window);
+  patchy::ui::MainWindowTestAccess::open_document_path(window, path);
+  CHECK(*first_look);
+  CHECK(*done);
+  CHECK(patchy::ui::MainWindowTestAccess::session_count(window) == sessions_before);  // cancelled: nothing opened
 }
 
 void ui_pdf_import_dialog_opens_selected_pages() {
@@ -4412,6 +4802,11 @@ std::vector<patchy::test::TestCase> import_print_resolution_tests() {
       {"ui_pdf_export_image_pages_keep_order_and_cancel_cleanly", ui_pdf_export_image_pages_keep_order_and_cancel_cleanly},
       {"ui_pdf_image_quality_presets_and_settings", ui_pdf_image_quality_presets_and_settings},
       {"ui_pdf_options_dialog_offers_image_quality_presets", ui_pdf_options_dialog_offers_image_quality_presets},
+      {"ui_pdf_pass_through_keeps_original_image_bytes", ui_pdf_pass_through_keeps_original_image_bytes},
+      {"ui_pdf_pass_through_is_not_captured_for_trimmed_or_stacked_pages", ui_pdf_pass_through_is_not_captured_for_trimmed_or_stacked_pages},
+      {"ui_pdf_import_dialog_fills_thumbnails_lazily_and_estimates_memory",
+       ui_pdf_import_dialog_fills_thumbnails_lazily_and_estimates_memory},
+      {"ui_pdf_options_dialog_offers_keep_original_only_with_source_data", ui_pdf_options_dialog_offers_keep_original_only_with_source_data},
       {"ui_pdf_options_dialog_shows_editable_warning", ui_pdf_options_dialog_shows_editable_warning},
       {"ui_pdf_layer_choice_dialog_and_preference", ui_pdf_layer_choice_dialog_and_preference},
       {"ui_pdf_save_follows_layer_policy", ui_pdf_save_follows_layer_policy},

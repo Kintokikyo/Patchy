@@ -8347,6 +8347,28 @@ Mixed selection</source>
         <source>Image quality:</source>
         <translation>画質:</translation>
     </message>
+    <message>
+        <source>Keep original image data for unchanged PDF pages</source>
+        <translation>変更されていない PDF ページの元の画像データを保持</translation>
+    </message>
+    <message>
+        <source>A page that was imported from a PDF and has not visibly changed is written with the image data it came with: no quality loss and the original file size. Unchecked, every page is encoded again at the quality above.</source>
+        <translation>PDF から読み込まれ、見た目が変わっていないページは、元の画像データのまま書き込まれます: 画質の劣化はなく、ファイルサイズも元のままです。オフにすると、すべてのページが上の画質で再エンコードされます。</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n scanned page(s) had nothing to keep editable and were imported as flattened images.</source>
+        <translation>
+            <numerusform>%n ページのスキャンページには編集可能として保持できる内容がなかったため、統合画像として読み込みました。</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>About %1 GB of memory, more than half of this computer&apos;s %2 GB. Fewer pages or a lower resolution will open faster.</source>
+        <translation>約 %1 GB のメモリを使用します。このコンピューターの %2 GB の半分を超えています。ページ数を減らすか解像度を下げると、より速く開けます。</translation>
+    </message>
+    <message>
+        <source>About %1 GB of memory.</source>
+        <translation>約 %1 GB のメモリを使用します。</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

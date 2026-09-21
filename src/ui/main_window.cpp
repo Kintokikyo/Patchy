@@ -62,6 +62,7 @@
 #include "ui/palette_panel.hpp"
 #include "ui/paths_panel.hpp"
 #include "ui/pattern_library.hpp"
+#include "ui/pdf_export.hpp"
 #include "ui/photo_pattern_presets.hpp"
 #include "ui/style_library.hpp"
 #include "ui/print_dialog.hpp"
@@ -10112,6 +10113,13 @@ void MainWindow::render_pending_pdf_image_layers(Document& target) {
     }
   };
   process(process, target.layers());
+  // An editable page that is one image carries its source bytes from the reader, but its
+  // pixels only exist now: fingerprint the composite so an unchanged page can export
+  // those bytes. Flattened pages arrive already stamped.
+  if (const auto source = std::as_const(target).metadata().pdf_source_page;
+      source != nullptr && !source->composite_hash_valid) {
+    attach_pdf_source_page(target, source);
+  }
 }
 
 std::vector<LayerId> MainWindow::rasterize_target_layer_ids(std::vector<LayerId> selected_ids) const {

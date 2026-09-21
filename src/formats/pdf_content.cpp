@@ -750,7 +750,23 @@ private:
       return;
     }
 
+    placed.source = image_object;
     const bool stencil = file_.get_any(image_object, "ImageMask", "IM").boolean(false);
+    if (!options_.decode_images) {
+      // The chain names the codec without touching the bytes.
+      const auto chain = file_.filter_chain(image_object);
+      if (!chain.empty()) {
+        const auto last = chain.back().kind;
+        if (last == FilterKind::Dct || last == FilterKind::Jpx || last == FilterKind::CcittFax ||
+            last == FilterKind::Jbig2) {
+          placed.codec = last;
+        }
+      }
+      placed.is_stencil = stencil;
+      sink_.on_image(placed);
+      ++primitives_;
+      return;
+    }
     const auto data = file_.stream_data(image_object);
     if (data.image_codec != FilterKind::None) {
       // JPEG and JPEG 2000 go to Qt still encoded, so nothing is transcoded and the
@@ -1520,7 +1536,20 @@ void execute_content(const File& file, std::span<const std::uint8_t> content, co
   interpreter.run(content, resources, 0);
 }
 
+namespace {
+void run_page(const File& file, const Page& page, double pixels_per_point, ContentSink& sink, bool decode_images);
+}  // namespace
+
 void execute_page(const File& file, const Page& page, double pixels_per_point, ContentSink& sink) {
+  run_page(file, page, pixels_per_point, sink, true);
+}
+
+void probe_page_content(const File& file, const Page& page, double pixels_per_point, ContentSink& sink) {
+  run_page(file, page, pixels_per_point, sink, false);
+}
+
+namespace {
+void run_page(const File& file, const Page& page, double pixels_per_point, ContentSink& sink, bool decode_images) {
   // /Contents may be an array whose members only parse when joined: a producer is
   // free to split an operator across two streams (clause 7.7.3.3).
   std::vector<std::uint8_t> content;
@@ -1546,7 +1575,9 @@ void execute_page(const File& file, const Page& page, double pixels_per_point, C
 
   ContentOptions options;
   options.base_transform = page_base_transform(page, pixels_per_point);
+  options.decode_images = decode_images;
   execute_content(file, content, page.resources, options, sink);
 }
+}  // namespace
 
 }  // namespace patchy::pdf

@@ -5,11 +5,13 @@
 #include "core/layer.hpp"
 #include "core/palette.hpp"
 #include "core/pattern_resource.hpp"
+#include "core/pdf_source_page.hpp"
 #include "core/smart_filter_effects.hpp"
 #include "core/smart_object.hpp"
 
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -46,6 +48,10 @@ struct DocumentMetadata {
   std::vector<std::uint8_t> raw_psd_global_layer_mask_info;
   std::vector<std::uint8_t> raw_psd_image_resources;
   std::optional<PixelBuffer> psd_flat_composite;
+  // The encoded image an imported PDF page was made of, so an export can write it back
+  // untouched while the page is unchanged. Session-only and never serialized: see
+  // core/pdf_source_page.hpp.
+  std::shared_ptr<const PdfSourcePage> pdf_source_page;
 };
 
 struct DocumentPrintSettings {

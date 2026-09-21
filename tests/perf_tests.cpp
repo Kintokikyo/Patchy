@@ -1481,9 +1481,17 @@ void pdf_save_perf_if_available(int argc, char* argv[]) {
   };
   std::vector<Mode> modes;
   // The dialog default (editable on, the "high" preset), then each preset flat.
+  {
+    // What an untouched import exports as: every page's original bytes.
+    patchy::ui::PdfExportOptions pass_through;
+    patchy::ui::apply_pdf_image_quality(QLatin1String(patchy::ui::kDefaultPdfImageQualityId), pass_through);
+    pass_through.editable_layers = true;
+    modes.push_back({"pass_through_default", pass_through});
+  }
   for (const auto& preset : patchy::ui::pdf_image_quality_presets()) {
     patchy::ui::PdfExportOptions options;
     patchy::ui::apply_pdf_image_quality(QLatin1String(preset.id), options);
+    options.keep_original_image_data = false;  // time the encoders, not the pass-through
     if (QLatin1String(preset.id) == QLatin1String(patchy::ui::kDefaultPdfImageQualityId)) {
       auto editable = options;
       editable.editable_layers = true;

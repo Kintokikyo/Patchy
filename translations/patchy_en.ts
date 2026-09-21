@@ -8363,6 +8363,29 @@ RGB: %2, %3, %4</source>
         <source>Image quality:</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Keep original image data for unchanged PDF pages</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A page that was imported from a PDF and has not visibly changed is written with the image data it came with: no quality loss and the original file size. Unchecked, every page is encoded again at the quality above.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n scanned page(s) had nothing to keep editable and were imported as flattened images.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>About %1 GB of memory, more than half of this computer&apos;s %2 GB. Fewer pages or a lower resolution will open faster.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>About %1 GB of memory.</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

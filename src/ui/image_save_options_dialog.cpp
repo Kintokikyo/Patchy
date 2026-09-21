@@ -610,6 +610,16 @@ void populate_pdf_image_quality_combo(QComboBox& combo, const QString& current_i
   combo.setCurrentIndex(std::max(0, index));
 }
 
+QString pdf_keep_original_images_label() {
+  return QObject::tr("Keep original image data for unchanged PDF pages");
+}
+
+QString pdf_keep_original_images_tooltip() {
+  return QObject::tr("A page that was imported from a PDF and has not visibly changed is written with the "
+                     "image data it came with: no quality loss and the original file size. Unchecked, every "
+                     "page is encoded again at the quality above.");
+}
+
 ImageSaveOptions load_image_save_option_defaults() {
   auto settings = app_settings();
   ImageSaveOptions options;
@@ -658,6 +668,8 @@ ImageSaveOptions load_image_save_option_defaults() {
   options.pdf_missing_fonts_as_images =
       settings.value(QStringLiteral("saveOptions/pdfMissingFontsAsImages"), options.pdf_missing_fonts_as_images)
           .toBool();
+  options.pdf_keep_original_images =
+      settings.value(QStringLiteral("saveOptions/pdfKeepOriginalImages"), options.pdf_keep_original_images).toBool();
   options.gif_frame_delay_cs = std::clamp(
       settings.value(QStringLiteral("saveOptions/gifFrameDelayCs"), options.gif_frame_delay_cs).toInt(), 0, 0xffff);
   options.jxr_quality =
@@ -702,6 +714,7 @@ void save_image_save_option_defaults(const ImageSaveOptions& options) {
   settings.setValue(QStringLiteral("saveOptions/icoResample"), ico_resample_key(options.ico_resample));
   store_pdf_image_quality_id(pdf_image_quality_id(options.pdf_lossless, options.pdf_jpeg_quality));
   settings.setValue(QStringLiteral("saveOptions/pdfMissingFontsAsImages"), options.pdf_missing_fonts_as_images);
+  settings.setValue(QStringLiteral("saveOptions/pdfKeepOriginalImages"), options.pdf_keep_original_images);
   settings.setValue(QStringLiteral("saveOptions/gifFrameDelayCs"), std::clamp(options.gif_frame_delay_cs, 0, 0xffff));
   settings.setValue(QStringLiteral("saveOptions/jxrQuality"), std::clamp(options.jxr_quality, 1, 100));
   settings.setValue(QStringLiteral("saveOptions/jxrLossless"), options.jxr_lossless);
@@ -1229,6 +1242,15 @@ std::optional<ImageSaveOptions> prompt_image_save_options(QWidget* parent, const
     quality_row->addWidget(quality, 1);
     content->addLayout(quality_row);
 
+    // Only a document that came out of a PDF as one image per page has original data to
+    // keep; everywhere else the checkbox would be a question about nothing.
+    auto* keep_original = new QCheckBox(pdf_keep_original_images_label(), &dialog);
+    keep_original->setObjectName(QStringLiteral("pdfKeepOriginalCheck"));
+    keep_original->setChecked(options.pdf_keep_original_images);
+    keep_original->setToolTip(pdf_keep_original_images_tooltip());
+    keep_original->setVisible(options.pdf_original_image_data_available);
+    content->addWidget(keep_original);
+
     // Editable layers (decided before this dialog by MainWindow::resolve_pdf_layer_choice:
     // the flatten-or-keep question or the remembered policy) trade fidelity for
     // structure, which the banner says out loud while the choice is on.
@@ -1284,6 +1306,9 @@ std::optional<ImageSaveOptions> prompt_image_save_options(QWidget* parent, const
       apply_pdf_image_quality(quality->currentData().toString(), pdf_quality);
       options.pdf_lossless = pdf_quality.lossless;
       options.pdf_jpeg_quality = pdf_quality.jpeg_quality;
+    }
+    if (options.pdf_original_image_data_available) {
+      options.pdf_keep_original_images = keep_original->isChecked();
     }
     if (keep_layers) {
       options.pdf_missing_fonts_as_images = missing_fonts_as_images->isChecked();

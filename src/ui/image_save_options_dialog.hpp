@@ -16,6 +16,9 @@ namespace patchy::ui {
 // preset id) and selects `current_id`, or the default preset when that id is unknown.
 // Shared by the PDF Options and Export Multi-Page PDF dialogs.
 void populate_pdf_image_quality_combo(QComboBox& combo, const QString& current_id);
+// The "keep original image data" checkbox text, shared by the same two dialogs.
+[[nodiscard]] QString pdf_keep_original_images_label();
+[[nodiscard]] QString pdf_keep_original_images_tooltip();
 
 [[nodiscard]] bool image_save_options_apply_to_extension(const QString& extension);
 [[nodiscard]] ImageSaveOptions load_image_save_option_defaults();

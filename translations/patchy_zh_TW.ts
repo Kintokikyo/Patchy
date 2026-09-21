@@ -8347,6 +8347,28 @@ RGB：%2, %3, %4</translation>
         <source>Image quality:</source>
         <translation>影像品質:</translation>
     </message>
+    <message>
+        <source>Keep original image data for unchanged PDF pages</source>
+        <translation>為未變更的 PDF 頁面保留原始影像資料</translation>
+    </message>
+    <message>
+        <source>A page that was imported from a PDF and has not visibly changed is written with the image data it came with: no quality loss and the original file size. Unchecked, every page is encoded again at the quality above.</source>
+        <translation>從 PDF 匯入且外觀沒有變化的頁面，會以其原有的影像資料寫入: 沒有品質損失，檔案大小也與原來相同。取消勾選後，每個頁面都會依上方的品質重新編碼。</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n scanned page(s) had nothing to keep editable and were imported as flattened images.</source>
+        <translation>
+            <numerusform>%n 個掃描頁面沒有可保持可編輯的內容，已作為平面化影像匯入。</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>About %1 GB of memory, more than half of this computer&apos;s %2 GB. Fewer pages or a lower resolution will open faster.</source>
+        <translation>約需 %1 GB 記憶體，超過這台電腦 %2 GB 的一半。減少頁數或降低解析度可以更快開啟。</translation>
+    </message>
+    <message>
+        <source>About %1 GB of memory.</source>
+        <translation>約需 %1 GB 記憶體。</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

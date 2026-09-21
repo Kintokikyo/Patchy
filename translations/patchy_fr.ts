@@ -8372,6 +8372,29 @@ RVB : %2, %3, %4</translation>
         <source>Image quality:</source>
         <translation>Qualité d&apos;image :</translation>
     </message>
+    <message>
+        <source>Keep original image data for unchanged PDF pages</source>
+        <translation>Conserver les données d&apos;image d&apos;origine des pages PDF inchangées</translation>
+    </message>
+    <message>
+        <source>A page that was imported from a PDF and has not visibly changed is written with the image data it came with: no quality loss and the original file size. Unchecked, every page is encoded again at the quality above.</source>
+        <translation>Une page importée d&apos;un PDF et qui n&apos;a pas changé visiblement est écrite avec ses données d&apos;image d&apos;origine : aucune perte de qualité et la taille de fichier d&apos;origine. Si l&apos;option est décochée, chaque page est réencodée avec la qualité ci-dessus.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n scanned page(s) had nothing to keep editable and were imported as flattened images.</source>
+        <translation>
+            <numerusform>%n page numérisée ne contenait rien à garder modifiable et a été importée comme image aplatie.</numerusform>
+            <numerusform>%n pages numérisées ne contenaient rien à garder modifiable et ont été importées comme images aplaties.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>About %1 GB of memory, more than half of this computer&apos;s %2 GB. Fewer pages or a lower resolution will open faster.</source>
+        <translation>Environ %1 Go de mémoire, soit plus de la moitié des %2 Go de cet ordinateur. Moins de pages ou une résolution plus faible s&apos;ouvriront plus vite.</translation>
+    </message>
+    <message>
+        <source>About %1 GB of memory.</source>
+        <translation>Environ %1 Go de mémoire.</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

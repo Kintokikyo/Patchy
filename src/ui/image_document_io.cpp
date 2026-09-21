@@ -2154,10 +2154,10 @@ void write_flat_image_file(const Document& document, const QString& path, const 
   if (lower == "pdf" && options.pdf_editable_layers) {
     // The layered writer needs the real document (export_stand_in_document would flatten
     // it first); vectors and text scale by the page, so the export transforms do not apply.
-    write_pdf_document_file(document, path,
-                            PdfExportOptions{options.pdf_lossless, true, options.pdf_missing_fonts_as_images,
-                                             options.pdf_jpeg_quality},
-                            notices);
+    PdfExportOptions pdf_options{options.pdf_lossless, true, options.pdf_missing_fonts_as_images,
+                                 options.pdf_jpeg_quality};
+    pdf_options.keep_original_image_data = options.pdf_keep_original_images;
+    write_pdf_document_file(document, path, pdf_options, notices);
     return;
   }
   if (lower == "gif" && options.gif_animate) {
@@ -2236,8 +2236,9 @@ void write_flat_image_file(const Document& document, const QString& path, const 
     return;
   }
   if (lower == "pdf") {
-    write_pdf_document_file(document, path,
-                            PdfExportOptions{options.pdf_lossless, false, false, options.pdf_jpeg_quality}, notices);
+    PdfExportOptions pdf_options{options.pdf_lossless, false, false, options.pdf_jpeg_quality};
+    pdf_options.keep_original_image_data = options.pdf_keep_original_images;
+    write_pdf_document_file(document, path, pdf_options, notices);
     return;
   }
   if (is_bmp_extension(extension_bytes)) {

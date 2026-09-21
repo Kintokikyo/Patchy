@@ -1,8 +1,11 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <map>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -34,15 +37,26 @@ struct ImageStream {
   std::string decode_parms;
   std::string color_space;  // may be empty only for JPXDecode, which carries its own
   std::string decode;
+  // An ICC profile (decoded bytes) and its component count. When set it IS the colour
+  // space: the writer emits the profile stream once per distinct profile, shares it
+  // across pages, and ignores `color_space`.
+  std::shared_ptr<const std::vector<std::uint8_t>> icc_profile;
+  int icc_components{0};
   int bits_per_component{8};
   int width{0};
   int height{0};
 };
 
 struct ImagePage {
-  // Page size in points (1/72 inch). The image is drawn over the whole page.
+  // Page size in points (1/72 inch), before `rotate`.
   double width_points{0.0};
   double height_points{0.0};
+  // /Rotate: 0, 90, 180, or 270 degrees clockwise when displayed.
+  int rotate{0};
+  // Where the image's unit square lands on the page (a b c d e f). Unset draws the
+  // image over the whole page; a page carried over from another PDF repeats the
+  // placement it had there, which may be a little larger than the page.
+  std::optional<std::array<double, 6>> image_matrix;
   ImageStream image;
   // An 8-bit DeviceGray alpha channel the size of the image, for pages with
   // transparency. Its color_space and bits_per_component are forced.
@@ -73,7 +87,9 @@ public:
 private:
   std::uint32_t begin_object();
   void begin_reserved_object(std::uint32_t number);
-  void write_image_object(const ImageStream& image, std::uint32_t soft_mask_object, bool is_soft_mask);
+  void write_image_object(const ImageStream& image, std::uint32_t soft_mask_object, bool is_soft_mask,
+                          std::uint32_t icc_object);
+  std::uint32_t icc_profile_object(const ImageStream& image);
   void write(std::string_view text);
   void write(const std::vector<std::uint8_t>& bytes);
 
@@ -83,6 +99,8 @@ private:
   // Byte offset of object N at index N; index 0 is the free-list head.
   std::vector<std::uint64_t> offsets_;
   std::vector<std::uint32_t> page_objects_;
+  // Profiles already written, by content, so 85 pages of one scanner share one object.
+  std::map<std::vector<std::uint8_t>, std::uint32_t> icc_objects_;
   bool finished_{false};
   bool open_{false};
 };

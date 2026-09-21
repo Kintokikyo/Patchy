@@ -6,7 +6,9 @@
 #include <QPageSize>
 #include <QString>
 
+#include <cstdint>
 #include <functional>
+#include <memory>
 #include <span>
 #include <string>
 #include <vector>
@@ -46,7 +48,24 @@ struct PdfExportOptions {
   int jpeg_quality{90};
   // Write one-channel image data when every visible pixel is gray (R == G == B).
   bool auto_grayscale{true};
+  // A page imported from a PDF that was one image, and whose composite still hashes to
+  // what the import produced, is written with that image's ORIGINAL encoded bytes
+  // (DocumentMetadata::pdf_source_page): no re-encode, no quality loss, the source's
+  // size. Off forces every page through the chosen quality. Persists as
+  // saveOptions/pdfKeepOriginalImages.
+  bool keep_original_image_data{true};
 };
+
+// The "did this page change since import" fingerprint: the size and RGBA bytes of
+// flat_export_qimage(document, true). Import stamps it, export compares it, so an undo
+// back to the imported pixels passes through again and any visible edit does not.
+[[nodiscard]] std::uint64_t pdf_composite_hash(const QImage& composite);
+// Stamps the document's size, resolution, and composite hash onto `source` (a
+// PageProbe::source_page) and stores it as the document's pdf_source_page.
+void attach_pdf_source_page(Document& document, const std::shared_ptr<const PdfSourcePage>& source);
+// True when the document still is what its pdf_source_page stands for. `composite` is
+// flat_export_qimage(document, true), passed in because the caller already has it.
+[[nodiscard]] bool document_matches_pdf_source(const Document& document, const QImage& composite);
 
 // The image-quality choices the PDF dialogs and app.exportPdf offer. The ids are
 // persisted (saveOptions/pdfImageQuality) and scripted, so they never change.
@@ -122,6 +141,8 @@ void paint_editable_document(QPainter& painter, const Document& document, const 
 // document_page_size. Safe on a worker thread.
 [[nodiscard]] pdf::ImagePage encode_page_image(const QImage& composite, double width_points, double height_points,
                                                const PdfExportOptions& options);
+// The page an unchanged import writes: the source's bytes, page box, /Rotate, and placement.
+[[nodiscard]] pdf::ImagePage source_image_page(const PdfSourcePage& source);
 // The glyph-run merge (formats/pdf_text_merge.hpp) over a file Qt just wrote, so
 // importers see words rather than one object per letter. A file the pass cannot
 // handle is left as written. Run after an editable export that drew text.

@@ -628,6 +628,12 @@ ImageSaveOptions MainWindow::image_save_defaults_for_document() {
     options.bmp_palette_mode = bmp::BmpPaletteMode::Exact;
   }
   if (has_active_document()) {
+    // PDF Options shows its "keep original image data" checkbox only for a document that
+    // still carries the image it was imported from a PDF with.
+    options.pdf_original_image_data_available =
+        std::as_const(document()).metadata().pdf_source_page != nullptr;
+  }
+  if (has_active_document()) {
     // Icon export: preselect only the sizes the document can fill without upscaling (keep
     // at least the smallest), and prefill the cursor hotspot from a CUR import's metadata.
     const auto max_side = std::max(document().width(), document().height());

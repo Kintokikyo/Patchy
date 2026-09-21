@@ -99,13 +99,32 @@ void ImageWriter::begin_reserved_object(std::uint32_t number) {
   write(std::to_string(number) + " 0 obj\n");
 }
 
-void ImageWriter::write_image_object(const ImageStream& image, std::uint32_t soft_mask_object, bool is_soft_mask) {
+std::uint32_t ImageWriter::icc_profile_object(const ImageStream& image) {
+  if (image.icc_profile == nullptr || image.icc_profile->empty()) {
+    return 0U;
+  }
+  if (const auto found = icc_objects_.find(*image.icc_profile); found != icc_objects_.end()) {
+    return found->second;
+  }
+  const auto number = begin_object();
+  write("<< /N " + std::to_string(image.icc_components) + " /Length " + std::to_string(image.icc_profile->size()) +
+        " >>\nstream\n");
+  write(*image.icc_profile);
+  write("\nendstream\nendobj\n");
+  icc_objects_.emplace(*image.icc_profile, number);
+  return number;
+}
+
+void ImageWriter::write_image_object(const ImageStream& image, std::uint32_t soft_mask_object, bool is_soft_mask,
+                                     std::uint32_t icc_object) {
   std::string dict = "<< /Type /XObject /Subtype /Image /Width " + std::to_string(image.width) + " /Height " +
                      std::to_string(image.height);
   if (is_soft_mask) {
     dict += " /ColorSpace /DeviceGray /BitsPerComponent 8";
   } else {
-    if (!image.color_space.empty()) {
+    if (icc_object != 0U) {
+      dict += " /ColorSpace [/ICCBased " + std::to_string(icc_object) + " 0 R]";
+    } else if (!image.color_space.empty()) {
       dict += " /ColorSpace " + image.color_space;
     }
     // JPXDecode ignores the entry (the codestream carries its own depth), but writing
@@ -136,8 +155,12 @@ void ImageWriter::add_page(const ImagePage& page) {
     throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "The PDF file could not be written."));
   }
   const auto& image = page.image;
+  const bool has_profile = image.icc_profile != nullptr && !image.icc_profile->empty();
   if (image.width <= 0 || image.height <= 0 || image.bytes.empty() || !(page.width_points > 0.0) ||
-      !(page.height_points > 0.0) || (image.color_space.empty() && image.filter != "JPXDecode")) {
+      !(page.height_points > 0.0) ||
+      (page.rotate != 0 && page.rotate != 90 && page.rotate != 180 && page.rotate != 270) ||
+      (has_profile && image.icc_components != 1 && image.icc_components != 3) ||
+      (image.color_space.empty() && !has_profile && image.filter != "JPXDecode")) {
     throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "The document could not be rendered for PDF export."));
   }
   if (page.soft_mask.has_value() &&
@@ -150,21 +173,31 @@ void ImageWriter::add_page(const ImagePage& page) {
   std::uint32_t soft_mask_object = 0;
   if (page.soft_mask.has_value()) {
     soft_mask_object = begin_object();
-    write_image_object(*page.soft_mask, 0U, true);
+    write_image_object(*page.soft_mask, 0U, true, 0U);
   }
+  const auto icc_object = icc_profile_object(image);
   const auto image_object = begin_object();
-  write_image_object(image, soft_mask_object, false);
+  write_image_object(image, soft_mask_object, false, icc_object);
 
-  // The unit square of image space, scaled to the page: the image covers it exactly.
-  const std::string content =
-      "q " + format_pdf_number(width) + " 0 0 " + format_pdf_number(height) + " 0 0 cm /Im0 Do Q\n";
+  // The unit square of image space, scaled to the page (the image covers it exactly),
+  // or the placement the caller carried over.
+  std::string content = "q ";
+  if (page.image_matrix.has_value()) {
+    for (const double value : *page.image_matrix) {
+      content += format_pdf_number(value) + " ";
+    }
+  } else {
+    content += format_pdf_number(width) + " 0 0 " + format_pdf_number(height) + " 0 0 ";
+  }
+  content += "cm /Im0 Do Q\n";
   const auto content_object = begin_object();
   write("<< /Length " + std::to_string(content.size()) + " >>\nstream\n" + content + "endstream\nendobj\n");
 
   const auto page_object = begin_object();
   write("<< /Type /Page /Parent " + std::to_string(kPagesObject) + " 0 R /MediaBox [0 0 " + format_pdf_number(width) +
-        " " + format_pdf_number(height) + "] /Resources << /XObject << /Im0 " + std::to_string(image_object) +
-        " 0 R >> >> /Contents " + std::to_string(content_object) + " 0 R >>\nendobj\n");
+        " " + format_pdf_number(height) + "]" + (page.rotate != 0 ? " /Rotate " + std::to_string(page.rotate) : "") +
+        " /Resources << /XObject << /Im0 " + std::to_string(image_object) + " 0 R >> >> /Contents " +
+        std::to_string(content_object) + " 0 R >>\nendobj\n");
   page_objects_.push_back(page_object);
 
   if (!file_) {

@@ -198,4 +198,6 @@ shape layer's own path, the same convention as `setVectorMask`. Pinned by
 `"high"`, `"medium"`, `"low"`; an unknown id throws), which wins over `lossless`. Image
 pages now go through Patchy's own PDF writer: `lossless: false` means JPEG quality 90
 (it was Qt's fixed 94), and gray pages are written as one channel in every mode. The
-default stays lossless. Pinned by `ui_script_export_pdf_writes_pages`.
+default stays lossless. `keepOriginalImageData` (default true) writes a page that was
+imported from a PDF as one image, and has not visibly changed since, with that image's
+original bytes. Pinned by `ui_script_export_pdf_writes_pages`.

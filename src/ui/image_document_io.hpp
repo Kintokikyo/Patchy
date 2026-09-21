@@ -45,6 +45,13 @@ struct ImageSaveOptions {
   // nothing is stored, while this struct default stays lossless for scripts and the CLI.
   bool pdf_lossless{true};
   int pdf_jpeg_quality{90};
+  // PDF: a page imported from a PDF and not visibly changed since is written with its
+  // original image bytes (PdfExportOptions::keep_original_image_data). Persists as
+  // saveOptions/pdfKeepOriginalImages. pdf_original_image_data_available is per save and
+  // never persisted: the caller sets it when the document carries such data, and the PDF
+  // Options dialog shows the checkbox only then.
+  bool pdf_keep_original_images{true};
+  bool pdf_original_image_data_available{false};
   // PDF: keep layers as editable objects (paths, real text, images) instead of one
   // flattened image. Per save, never a persisted default: MainWindow::resolve_pdf_layer_choice
   // sets it from the saveOptions/pdfLayerPolicy preference or the flatten-or-keep question.

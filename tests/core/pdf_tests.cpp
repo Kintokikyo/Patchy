@@ -1,4 +1,5 @@
 #include "core/layer_metadata.hpp"
+#include "core/pdf_source_page.hpp"
 #include "core/smart_object.hpp"
 #include "formats/pdf_content.hpp"
 #include "formats/pdf_crypt.hpp"
@@ -18,12 +19,14 @@
 
 #include "formats/miniz/miniz.h"
 
+#include <array>
 #include <cstdint>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <memory>
 #include <span>
 #include <string>
 #include <string_view>
@@ -2179,6 +2182,248 @@ void pdf_image_writer_writes_unicode_paths() {
   CHECK(!std::filesystem::exists(abandoned));
 }
 
+
+// --- PageReader, the page probe, and pass-through capture -----------------------
+
+// A page that is one image. `image_dict_extra` adds entries to the image XObject,
+// `content` is the page content, `page_extra` adds page entries (/Rotate, /Annots).
+// The image bytes are a fake JPEG: nothing on this path decodes them.
+std::vector<std::uint8_t> image_page_pdf(std::string_view filter, std::string_view color_space,
+                                         std::string_view content, std::string_view page_extra = {},
+                                         std::string_view image_dict_extra = {}) {
+  const std::string image_bytes = "\xFF\xD8" "scan-bytes\n\r\x00with binary" "\xFF\xD9";
+  const std::string image_data(image_bytes.data(), 2 + 10 + 2 + 1 + 11 + 2);
+  std::string image = "<</Type/XObject/Subtype/Image/Width 300/Height 400/BitsPerComponent 8";
+  if (!color_space.empty()) {
+    image += "/ColorSpace" + std::string(color_space);
+  }
+  image += "/Filter/" + std::string(filter) + std::string(image_dict_extra) + "/Length " +
+           std::to_string(image_data.size()) + ">>\nstream\n" + image_data + "\nendstream";
+  return build_pdf({
+      "<</Type/Catalog/Pages 2 0 R>>",
+      "<</Type/Pages/Kids[3 0 R]/Count 1>>",
+      "<</Type/Page/Parent 2 0 R/MediaBox[0 0 150 200]/Resources<</XObject<</Im0 5 0 R>>/Font<</F1 6 0 R>>>>"
+      "/Contents 4 0 R" + std::string(page_extra) + ">>",
+      "<</Length " + std::to_string(content.size()) + ">>\nstream\n" + std::string(content) + "\nendstream",
+      image,
+      "<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>",
+      // A 1-component ICC "profile" and a soft mask, for the variants that point at them.
+      "<</N 1/Length 12>>\nstream\nfake-profile\nendstream",
+      "<</Type/XObject/Subtype/Image/Width 2/Height 2/ColorSpace/DeviceGray/BitsPerComponent 8/Length 4>>\n"
+      "stream\nabcd\nendstream",
+  });
+}
+
+std::vector<std::uint8_t> fake_scan_bytes() {
+  const std::string image_bytes = "\xFF\xD8" "scan-bytes\n\r\x00with binary" "\xFF\xD9";
+  const std::string image_data(image_bytes.data(), 2 + 10 + 2 + 1 + 11 + 2);
+  return bytes_of(image_data);
+}
+
+void pdf_page_reader_matches_single_page_reads() {
+  const auto bytes = two_page_pdf();
+  const patchy::pdf::PageReader reader(bytes);
+  CHECK(reader.page_count() == 2);
+  for (int page = 0; page < 2; ++page) {
+    patchy::pdf::VectorReadOptions options;
+    options.page = page;
+    options.pixels_per_point = 2.0;
+    const auto once = patchy::pdf::read_page_as_vectors(bytes, options);
+    const auto shared = reader.read_page(options);
+    CHECK(once.document.width() == shared.document.width());
+    CHECK(once.document.height() == shared.document.height());
+    CHECK(once.document.layers().size() == shared.document.layers().size());
+    CHECK(once.shape_layers == shared.shape_layers);
+    CHECK(once.notices == shared.notices);
+  }
+  // Reading a page twice from one reader gives the same thing: the caches hold no state
+  // a second read trips over.
+  patchy::pdf::VectorReadOptions options;
+  CHECK(reader.read_page(options).shape_layers == reader.read_page(options).shape_layers);
+  options.page = 9;
+  CHECK(writer_call_throws([&] { (void)reader.read_page(options); }));
+  CHECK(reader.probe_page(9).images == 0);  // out of range probes as empty, never throws
+  CHECK(writer_call_throws([] { patchy::pdf::PageReader not_a_pdf(bytes_of("plain text")); }));
+}
+
+// The shape of the reference scan: a rotated page, an image placed a little larger than
+// the page, a background rectangle under it. The probe sees one image and hands back
+// everything an export needs to repeat it byte for byte.
+void pdf_probe_captures_a_full_page_scan() {
+  const auto bytes =
+      image_page_pdf("DCTDecode", "/DeviceGray", "1 1 1 rg 0 0 150 200 re f q 150.72 0 0 200.48 -0.36 -0.24 cm /Im0 Do Q",
+                     "/Rotate 270");
+  const patchy::pdf::PageReader reader(bytes);
+  const auto probe = reader.probe_page(0);
+  CHECK(probe.images == 1);
+  CHECK(probe.painted_paths == 0);  // the rectangle is under the image: not content
+  CHECK(probe.undecodable_images == 0);
+  CHECK(!probe.only_undecodable_images());
+  CHECK(probe.source_page != nullptr);
+  if (probe.source_page == nullptr) {
+    return;
+  }
+  const auto& source = *probe.source_page;
+  CHECK(source.filter == "DCTDecode");
+  CHECK(source.color_space == "/DeviceGray");
+  CHECK(source.image_width == 300 && source.image_height == 400);
+  CHECK(source.bits_per_component == 8);
+  CHECK(source.rotate == 270);
+  CHECK(std::abs(source.page_width_points - 150.0) < 1e-9);
+  CHECK(std::abs(source.page_height_points - 200.0) < 1e-9);
+  CHECK(std::abs(source.image_matrix[0] - 150.72) < 1e-6);
+  CHECK(std::abs(source.image_matrix[1]) < 1e-6);
+  CHECK(std::abs(source.image_matrix[2]) < 1e-6);
+  CHECK(std::abs(source.image_matrix[3] - 200.48) < 1e-6);
+  CHECK(std::abs(source.image_matrix[4] + 0.36) < 1e-6);
+  CHECK(std::abs(source.image_matrix[5] + 0.24) < 1e-6);
+  CHECK(source.image_bytes != nullptr && *source.image_bytes == fake_scan_bytes());
+  CHECK(!source.composite_hash_valid);  // the importer owns the pixels and stamps the hash
+
+  // A crop box moves the origin: the matrix is relative to the crop corner.
+  const auto cropped = image_page_pdf("DCTDecode", "/DeviceRGB", "q 100 0 0 150 20 30 cm /Im0 Do Q",
+                                      "/CropBox[20 30 120 180]");
+  const auto cropped_probe = patchy::pdf::PageReader(cropped).probe_page(0);
+  CHECK(cropped_probe.source_page != nullptr);
+  if (cropped_probe.source_page != nullptr) {
+    CHECK(cropped_probe.source_page->color_space == "/DeviceRGB");
+    CHECK(std::abs(cropped_probe.source_page->page_width_points - 100.0) < 1e-9);
+    CHECK(std::abs(cropped_probe.source_page->image_matrix[4]) < 1e-6);
+    CHECK(std::abs(cropped_probe.source_page->image_matrix[5]) < 1e-6);
+  }
+
+  // An ICC-based image keeps its profile; JPEG 2000 may have no colour space at all.
+  const auto icc = patchy::pdf::PageReader(image_page_pdf("DCTDecode", "[/ICCBased 7 0 R]",
+                                                          "q 150 0 0 200 0 0 cm /Im0 Do Q"))
+                       .probe_page(0);
+  CHECK(icc.source_page != nullptr);
+  if (icc.source_page != nullptr) {
+    CHECK(icc.source_page->icc_components == 1);
+    CHECK(icc.source_page->icc_profile != nullptr && as_text(*icc.source_page->icc_profile) == "fake-profile");
+  }
+  const auto jpx = patchy::pdf::PageReader(image_page_pdf("JPXDecode", "", "q 150 0 0 200 0 0 cm /Im0 Do Q"))
+                       .probe_page(0);
+  CHECK(jpx.source_page != nullptr && jpx.source_page->filter == "JPXDecode" &&
+        jpx.source_page->color_space.empty());
+  // A codec the editable reader cannot decode, covering the page: this is what sends a
+  // scanned page to the flatten path instead of importing it "editable" and empty.
+  CHECK(jpx.undecodable_images == 1);
+  CHECK(jpx.only_undecodable_images());
+  CHECK(jpx.undecodable_coverage > 0.99);
+}
+
+// Everything that must NOT pass through: the export would silently lose it.
+void pdf_probe_refuses_pages_that_are_more_than_one_image() {
+  const auto probe_of = [](const std::vector<std::uint8_t>& bytes) {
+    return patchy::pdf::PageReader(bytes).probe_page(0);
+  };
+  const std::string cover = "q 150 0 0 200 0 0 cm /Im0 Do Q";
+  // Something painted over the image.
+  const auto with_rect = probe_of(image_page_pdf("DCTDecode", "/DeviceGray", cover + " 1 0 0 rg 10 10 20 20 re f"));
+  CHECK(with_rect.source_page == nullptr && with_rect.painted_paths == 1);
+  const auto with_text = probe_of(image_page_pdf("DCTDecode", "/DeviceGray", cover + " BT /F1 12 Tf 10 10 Td (Hi) Tj ET"));
+  CHECK(with_text.source_page == nullptr && with_text.text_runs == 1);
+  // Invisible text (an OCR layer, render mode 3) changes nothing anyone can see.
+  const auto with_ocr =
+      probe_of(image_page_pdf("DCTDecode", "/DeviceGray", cover + " BT 3 Tr /F1 12 Tf 10 10 Td (Hi) Tj ET"));
+  CHECK(with_ocr.source_page != nullptr);
+  // An image that does not cover the page, a transparent one, a masked one, a clipped one.
+  CHECK(probe_of(image_page_pdf("DCTDecode", "/DeviceGray", "q 100 0 0 200 0 0 cm /Im0 Do Q")).source_page == nullptr);
+  CHECK(probe_of(image_page_pdf("DCTDecode", "/DeviceGray", cover, "", "/SMask 8 0 R")).source_page == nullptr);
+  CHECK(probe_of(image_page_pdf("JPXDecode", "", cover, "", "/SMaskInData 1")).source_page == nullptr);
+  CHECK(probe_of(image_page_pdf("DCTDecode", "/DeviceGray", "10 10 50 50 re W n " + cover)).source_page == nullptr);
+  // A clip that is the whole page is what most producers write, and hides nothing.
+  CHECK(probe_of(image_page_pdf("DCTDecode", "/DeviceGray", "0 0 150 200 re W n " + cover)).source_page != nullptr);
+  // Colour spaces the writer does not reproduce, and codecs it does not carry.
+  CHECK(probe_of(image_page_pdf("DCTDecode", "/DeviceCMYK", cover)).source_page == nullptr);
+  CHECK(probe_of(image_page_pdf("DCTDecode", "[/Indexed/DeviceRGB 1 <000000ffffff>]", cover)).source_page == nullptr);
+  const auto ccitt = probe_of(image_page_pdf("CCITTFaxDecode", "/DeviceGray", cover));
+  CHECK(ccitt.source_page == nullptr);
+  CHECK(ccitt.only_undecodable_images());  // still a scan: it flattens
+  // Annotations are reported so an importer that draws them can refuse.
+  CHECK(probe_of(image_page_pdf("DCTDecode", "/DeviceGray", cover, "/Annots[6 0 R]")).has_annotations);
+  CHECK(!probe_of(image_page_pdf("DCTDecode", "/DeviceGray", cover)).has_annotations);
+  // Two images.
+  CHECK(probe_of(image_page_pdf("DCTDecode", "/DeviceGray", cover + " q 10 0 0 10 5 5 cm /Im0 Do Q")).source_page ==
+        nullptr);
+}
+
+// /Rotate, a carried placement matrix, and one shared ICC profile for every page.
+void pdf_image_writer_repeats_rotation_placement_and_profile() {
+  std::filesystem::create_directories("test-artifacts");
+  const std::filesystem::path path = "test-artifacts/pdf_image_writer_source_page.pdf";
+  const auto profile = std::make_shared<const std::vector<std::uint8_t>>(bytes_of("fake-profile"));
+  {
+    patchy::pdf::ImageWriter writer(path);
+    for (int index = 0; index < 3; ++index) {
+      patchy::pdf::ImagePage page;
+      page.width_points = 150.0;
+      page.height_points = 200.0;
+      page.rotate = 270;
+      page.image_matrix = std::array<double, 6>{150.72, 0.0, 0.0, 200.48, -0.36, -0.24};
+      page.image = fake_jpeg_stream(300, 400, static_cast<std::uint8_t>(index));
+      page.image.color_space.clear();
+      page.image.icc_profile = profile;
+      page.image.icc_components = 1;
+      writer.add_page(page);
+    }
+    patchy::pdf::ImagePage bad;
+    bad.width_points = 10.0;
+    bad.height_points = 10.0;
+    bad.image = fake_jpeg_stream(4, 4, 9);
+    bad.rotate = 45;
+    CHECK(writer_call_throws([&] { writer.add_page(bad); }));
+    writer.finish();
+  }
+  const auto bytes = read_whole_file(path);
+  // One profile object for three pages.
+  const std::string text = as_text(bytes);
+  std::size_t profiles = 0;
+  for (std::size_t at = text.find("fake-profile"); at != std::string::npos; at = text.find("fake-profile", at + 1)) {
+    ++profiles;
+  }
+  CHECK(profiles == 1);
+
+  auto file = patchy::pdf::File::open(bytes, nullptr);
+  CHECK(file.has_value() && file->pages().size() == 3);
+  if (!file.has_value() || file->pages().size() != 3) {
+    return;
+  }
+  const auto& page = file->pages()[2];
+  CHECK(page.rotate == 270);
+  const auto content = file->stream_data(file->get(page.dict, "Contents"));
+  CHECK(as_text(content.data) == "q 150.72 0 0 200.48 -0.36 -0.24 cm /Im0 Do Q\n");
+  // And the probe reads the written page back into the same description: a second
+  // generation passes through as well as the first.
+  const auto probe = patchy::pdf::PageReader(bytes).probe_page(2);
+  CHECK(probe.source_page != nullptr);
+  if (probe.source_page != nullptr) {
+    CHECK(probe.source_page->rotate == 270);
+    CHECK(probe.source_page->icc_components == 1);
+    CHECK(std::abs(probe.source_page->image_matrix[4] + 0.36) < 1e-6);
+    CHECK(*probe.source_page->image_bytes == fake_jpeg_stream(300, 400, 2).bytes);
+  }
+}
+
+void pdf_pixel_hash_tells_changed_bytes_apart() {
+  std::vector<std::uint8_t> bytes(1003);
+  for (std::size_t index = 0; index < bytes.size(); ++index) {
+    bytes[index] = static_cast<std::uint8_t>(index * 7U);
+  }
+  const auto base = patchy::hash_pixel_bytes(bytes);
+  CHECK(base == patchy::hash_pixel_bytes(bytes));
+  CHECK(base != patchy::hash_pixel_bytes(bytes, 1));
+  for (const std::size_t at : {std::size_t{0}, std::size_t{500}, std::size_t{1000}, std::size_t{1002}}) {
+    auto changed = bytes;
+    changed[at] ^= 1U;
+    CHECK(patchy::hash_pixel_bytes(changed) != base);
+  }
+  auto shorter = bytes;
+  shorter.pop_back();
+  CHECK(patchy::hash_pixel_bytes(shorter) != base);
+  CHECK(patchy::hash_pixel_bytes({}) == patchy::hash_pixel_bytes({}));
+}
+
 }  // namespace
 
 std::vector<patchy::test::TestCase> pdf_tests() {
@@ -2230,5 +2475,10 @@ std::vector<patchy::test::TestCase> pdf_tests() {
       {"pdf_image_writer_flate_page_imports_as_an_image", pdf_image_writer_flate_page_imports_as_an_image},
       {"pdf_image_writer_removes_unfinished_files_and_refuses_bad_pages", pdf_image_writer_removes_unfinished_files_and_refuses_bad_pages},
       {"pdf_image_writer_writes_unicode_paths", pdf_image_writer_writes_unicode_paths},
+      {"pdf_page_reader_matches_single_page_reads", pdf_page_reader_matches_single_page_reads},
+      {"pdf_probe_captures_a_full_page_scan", pdf_probe_captures_a_full_page_scan},
+      {"pdf_probe_refuses_pages_that_are_more_than_one_image", pdf_probe_refuses_pages_that_are_more_than_one_image},
+      {"pdf_image_writer_repeats_rotation_placement_and_profile", pdf_image_writer_repeats_rotation_placement_and_profile},
+      {"pdf_pixel_hash_tells_changed_bytes_apart", pdf_pixel_hash_tells_changed_bytes_apart},
   };
 }

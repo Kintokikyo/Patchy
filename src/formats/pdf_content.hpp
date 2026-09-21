@@ -127,6 +127,10 @@ struct PlacedImage {
   FilterKind codec{FilterKind::None};
   std::vector<std::uint8_t> encoded;
   std::vector<std::uint8_t> rgba;
+  // The image XObject itself (null for an inline image), so a sink can read entries the
+  // interpreter does not model (/SMask, /Decode, the colour space as written) or fetch
+  // the stream on its own terms.
+  Object source;
   // A stencil mask paints the current fill colour through a 1-bit mask.
   bool is_stencil{false};
   Paint stencil_fill;
@@ -157,6 +161,11 @@ struct ContentOptions {
   int maximum_form_depth{12};
   // Stops runaway content; a real page is far below this.
   std::size_t maximum_primitives{200000};
+  // False skips reading and decoding image XObject streams: on_image still fires with the
+  // transform, size, `source`, and `codec` (from the filter chain alone), but `encoded`
+  // and `rgba` stay empty. For probing what a page is made of without paying for its
+  // pixels; a full-page scan is tens of megabytes decoded.
+  bool decode_images{true};
 };
 
 // Runs one content stream. `resources` is the page's or form's resource dictionary.
@@ -167,6 +176,8 @@ void execute_content(const File& file, std::span<const std::uint8_t> content, co
 // sense joined) and runs it with the transform that maps the page's crop box onto a
 // document of `pixels_per_point` scale.
 void execute_page(const File& file, const Page& page, double pixels_per_point, ContentSink& sink);
+// The same walk with image decoding off (ContentOptions::decode_images).
+void probe_page_content(const File& file, const Page& page, double pixels_per_point, ContentSink& sink);
 
 // The transform from PDF user space to document pixels for a page, including the
 // y flip, the crop-box origin, and /Rotate.

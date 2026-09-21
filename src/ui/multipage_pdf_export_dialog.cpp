@@ -27,6 +27,7 @@ constexpr auto kSourceKey = "exportOptions/multiPagePdfSource";
 constexpr auto kUngroupedKey = "exportOptions/multiPagePdfUngroupedLayers";
 constexpr auto kEditableKey = "exportOptions/multiPagePdfEditableLayers";
 constexpr auto kMissingFontsKey = "saveOptions/pdfMissingFontsAsImages";
+constexpr auto kKeepOriginalKey = "saveOptions/pdfKeepOriginalImages";
 
 void move_selected_item(QListWidget* list, int delta) {
   const int row = list->currentRow();
@@ -43,7 +44,7 @@ void move_selected_item(QListWidget* list, int delta) {
 
 std::optional<MultiPagePdfExportChoice> run_multipage_pdf_export_dialog(
     QWidget* parent, const std::vector<MultiPagePdfDocumentEntry>& documents, std::int64_t active_session_id,
-    int top_level_group_count) {
+    int top_level_group_count, bool original_image_data_available) {
   auto settings = app_settings();
   const bool groups_available = top_level_group_count > 0;
   const bool stored_groups =
@@ -126,6 +127,12 @@ std::optional<MultiPagePdfExportChoice> run_multipage_pdf_export_dialog(
   quality_row->addWidget(quality_label);
   quality_row->addWidget(quality, 1);
   options_layout->addLayout(quality_row);
+  auto* keep_original = new QCheckBox(pdf_keep_original_images_label(), options_group);
+  keep_original->setObjectName(QStringLiteral("multiPagePdfKeepOriginalCheck"));
+  keep_original->setChecked(settings.value(QLatin1String(kKeepOriginalKey), true).toBool());
+  keep_original->setToolTip(pdf_keep_original_images_tooltip());
+  keep_original->setVisible(original_image_data_available);
+  options_layout->addWidget(keep_original);
   layout->addWidget(options_group);
 
   auto* summary = new QLabel(&dialog);
@@ -199,6 +206,11 @@ std::optional<MultiPagePdfExportChoice> run_multipage_pdf_export_dialog(
   settings.setValue(QLatin1String(kUngroupedKey), choice.include_ungrouped_layers);
   settings.setValue(QLatin1String(kEditableKey), choice.options.editable_layers);
   store_pdf_image_quality_id(quality->currentData().toString());
+  choice.options.keep_original_image_data = settings.value(QLatin1String(kKeepOriginalKey), true).toBool();
+  if (original_image_data_available) {
+    choice.options.keep_original_image_data = keep_original->isChecked();
+    settings.setValue(QLatin1String(kKeepOriginalKey), choice.options.keep_original_image_data);
+  }
   return choice;
 }
 

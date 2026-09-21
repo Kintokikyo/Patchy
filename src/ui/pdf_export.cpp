@@ -181,6 +181,18 @@ bool write_image_pages(std::span<const Document* const> pages, const QString& pa
     if (image.isNull()) {
       throw std::runtime_error("The document could not be rendered for PDF export.");
     }
+    if (options.keep_original_image_data && document_matches_pdf_source(document, image)) {
+      // Nothing visible changed since this page came out of a PDF: its own bytes go
+      // back, in order behind whatever is still encoding.
+      const UiProfileScope profile_scope("pdf_export.pass_through", profile_detail);
+      std::promise<pdf::ImagePage> ready;
+      ready.set_value(pdf_detail::source_image_page(*document.metadata().pdf_source_page));
+      pending.push_back(ready.get_future());
+      if (pending.size() >= window) {
+        write_oldest();
+      }
+      continue;
+    }
     const QSizeF points = document_page_points(document);
     if (window < 2U) {
       const UiProfileScope profile_scope("pdf_export.encode", profile_detail);
@@ -264,7 +276,75 @@ void store_pdf_image_quality_id(const QString& id) {
   settings.setValue(QStringLiteral("saveOptions/pdfLossless"), probe.lossless);
 }
 
+std::uint64_t pdf_composite_hash(const QImage& composite) {
+  const QImage rgba =
+      composite.format() == QImage::Format_RGBA8888 ? composite : composite.convertToFormat(QImage::Format_RGBA8888);
+  const std::uint64_t seed =
+      (static_cast<std::uint64_t>(static_cast<std::uint32_t>(rgba.width())) << 32U) |
+      static_cast<std::uint64_t>(static_cast<std::uint32_t>(rgba.height()));
+  const auto row_bytes = static_cast<std::size_t>(rgba.width()) * 4U;
+  if (static_cast<std::size_t>(rgba.bytesPerLine()) == row_bytes) {
+    return hash_pixel_bytes({rgba.constBits(), row_bytes * static_cast<std::size_t>(rgba.height())}, seed);
+  }
+  std::uint64_t hash = seed;  // padded rows: chain the rows so the padding never counts
+  for (int y = 0; y < rgba.height(); ++y) {
+    hash = hash_pixel_bytes({rgba.constScanLine(y), row_bytes}, hash);
+  }
+  return hash;
+}
+
+void attach_pdf_source_page(Document& document, const std::shared_ptr<const PdfSourcePage>& source) {
+  if (source == nullptr || source->image_bytes == nullptr || source->image_bytes->empty()) {
+    return;
+  }
+  const QImage composite = flat_export_qimage(document, true);
+  if (composite.isNull()) {
+    return;
+  }
+  auto stamped = std::make_shared<PdfSourcePage>(*source);  // the byte payloads stay shared
+  stamped->document_width = document.width();
+  stamped->document_height = document.height();
+  stamped->horizontal_ppi = document.print_settings().horizontal_ppi;
+  stamped->vertical_ppi = document.print_settings().vertical_ppi;
+  stamped->composite_hash = pdf_composite_hash(composite);
+  stamped->composite_hash_valid = true;
+  document.metadata().pdf_source_page = std::move(stamped);
+}
+
+bool document_matches_pdf_source(const Document& document, const QImage& composite) {
+  const auto& source = document.metadata().pdf_source_page;
+  if (source == nullptr || !source->composite_hash_valid || source->image_bytes == nullptr ||
+      source->image_bytes->empty()) {
+    return false;
+  }
+  // A changed resolution changes the page the pixels stand for even when they do not change.
+  if (document.width() != source->document_width || document.height() != source->document_height ||
+      document.print_settings().horizontal_ppi != source->horizontal_ppi ||
+      document.print_settings().vertical_ppi != source->vertical_ppi) {
+    return false;
+  }
+  return pdf_composite_hash(composite) == source->composite_hash;
+}
+
 namespace pdf_detail {
+
+pdf::ImagePage source_image_page(const PdfSourcePage& source) {
+  pdf::ImagePage page;
+  page.width_points = source.page_width_points;
+  page.height_points = source.page_height_points;
+  page.rotate = source.rotate;
+  page.image_matrix = source.image_matrix;
+  page.image.bytes = *source.image_bytes;
+  page.image.filter = source.filter;
+  page.image.color_space = source.icc_profile != nullptr ? std::string() : source.color_space;
+  page.image.decode = source.decode;
+  page.image.bits_per_component = source.bits_per_component;
+  page.image.width = source.image_width;
+  page.image.height = source.image_height;
+  page.image.icc_profile = source.icc_profile;
+  page.image.icc_components = source.icc_components;
+  return page;
+}
 
 bool document_is_single_raster_layer(const Document& document) {
   int leaves = 0;

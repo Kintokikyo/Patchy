@@ -1668,6 +1668,9 @@ bool ScriptAppObject::exportPdf(const QJSValue& documents, const QString& path, 
     if (const auto value = options.property(QStringLiteral("missingFontsAsImages")); value.isBool()) {
       export_options.missing_fonts_as_images = value.toBool();
     }
+    if (const auto value = options.property(QStringLiteral("keepOriginalImageData")); value.isBool()) {
+      export_options.keep_original_image_data = value.toBool();
+    }
     // A preset id; it names both halves of the choice, so it wins over `lossless`.
     if (const auto value = options.property(QStringLiteral("imageQuality")); value.isString()) {
       if (!apply_pdf_image_quality(value.toString(), export_options)) {

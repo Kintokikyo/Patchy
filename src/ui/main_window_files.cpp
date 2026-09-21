@@ -3203,7 +3203,12 @@ void MainWindow::export_multipage_pdf() {
       ++group_count;
     }
   }
-  const auto choice = run_multipage_pdf_export_dialog(this, entries, session().session_id, group_count);
+  const bool original_image_data_available =
+      std::any_of(sessions_.begin(), sessions_.end(), [](const auto& candidate) {
+        return candidate != nullptr && std::as_const(candidate->document).metadata().pdf_source_page != nullptr;
+      });
+  const auto choice = run_multipage_pdf_export_dialog(this, entries, session().session_id, group_count,
+                                                      original_image_data_available);
   if (!choice.has_value()) {
     return;
   }

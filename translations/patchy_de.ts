@@ -8372,6 +8372,29 @@ RGB: %2, %3, %4</translation>
         <source>Image quality:</source>
         <translation>Bildqualität:</translation>
     </message>
+    <message>
+        <source>Keep original image data for unchanged PDF pages</source>
+        <translation>Originale Bilddaten für unveränderte PDF-Seiten beibehalten</translation>
+    </message>
+    <message>
+        <source>A page that was imported from a PDF and has not visibly changed is written with the image data it came with: no quality loss and the original file size. Unchecked, every page is encoded again at the quality above.</source>
+        <translation>Eine Seite, die aus einer PDF-Datei importiert wurde und sich nicht sichtbar geändert hat, wird mit ihren ursprünglichen Bilddaten geschrieben: kein Qualitätsverlust und die ursprüngliche Dateigröße. Deaktiviert wird jede Seite mit der oben gewählten Qualität neu kodiert.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n scanned page(s) had nothing to keep editable and were imported as flattened images.</source>
+        <translation>
+            <numerusform>%n gescannte Seite enthielt nichts Bearbeitbares und wurde als reduziertes Bild importiert.</numerusform>
+            <numerusform>%n gescannte Seiten enthielten nichts Bearbeitbares und wurden als reduzierte Bilder importiert.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>About %1 GB of memory, more than half of this computer&apos;s %2 GB. Fewer pages or a lower resolution will open faster.</source>
+        <translation>Etwa %1 GB Arbeitsspeicher, mehr als die Hälfte der %2 GB dieses Computers. Weniger Seiten oder eine niedrigere Auflösung werden schneller geöffnet.</translation>
+    </message>
+    <message>
+        <source>About %1 GB of memory.</source>
+        <translation>Etwa %1 GB Arbeitsspeicher.</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

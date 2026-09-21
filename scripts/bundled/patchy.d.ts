@@ -547,7 +547,9 @@ interface PatchyApp {
    * in place of the array. options.lossless (default true) keeps images
    * lossless, false writes JPEG; options.imageQuality picks a preset instead
    * ("lossless", "high", "medium", "low") and wins over lossless. Gray pages
-   * are written as one channel. options.editableLayers (default false) keeps
+   * are written as one channel. options.keepOriginalImageData (default true)
+   * writes a page that was imported from a PDF and has not visibly changed
+   * with the image data it came with. options.editableLayers (default false) keeps
    * shapes and text as PDF objects the way Save As PDF's "Keep Layers
    * Editable" does; options.missingFontsAsImages embeds text in uninstalled
    * fonts as pixels. Returns true on success and throws on bad arguments or a
@@ -559,6 +561,7 @@ interface PatchyApp {
     options?: {
       lossless?: boolean;
       imageQuality?: "lossless" | "high" | "medium" | "low";
+      keepOriginalImageData?: boolean;
       editableLayers?: boolean;
       missingFontsAsImages?: boolean;
     },
