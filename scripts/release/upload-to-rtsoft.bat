@@ -34,11 +34,11 @@ if defined FAILED (
   echo  Those downloads are stale or broken on rtsoft.com.
   echo  Fix the cause and re-run, and do not announce the release.
   echo ==========================================================
-  pause
+  if not defined NO_PAUSE pause
   exit /b 1
 )
 echo ==========================================================
 echo  All release uploads verified on rtsoft.com.
 echo ==========================================================
-pause
+if not defined NO_PAUSE pause
 exit /b 0
