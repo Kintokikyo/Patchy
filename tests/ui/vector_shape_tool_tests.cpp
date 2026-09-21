@@ -20,6 +20,10 @@
 #include <QListWidget>
 #include <QMenu>
 #include <QSpinBox>
+#include <QGroupBox>
+#include <QDialogButtonBox>
+#include <QScreen>
+#include <QScrollArea>
 #include <QStandardItemModel>
 #include <QStatusBar>
 #include <QTimer>
@@ -3374,6 +3378,143 @@ void ui_shape_geometry_link_keeps_aspect() {
   CHECK(std::abs(content->origination[0].bottom - 340.0) < 0.5);
 }
 
+void ui_shape_appearance_dialog_fits_1080p_and_has_two_columns() {
+  VectorSettingsGuard settings_guard;
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto* radius_spin = window.findChild<QSpinBox*>(QStringLiteral("shapeCornerRadiusSpin"));
+  CHECK(radius_spin != nullptr);
+  radius_spin->setValue(12);  // rounded rect: the tallest Geometry group
+  canvas->set_tool(patchy::ui::CanvasTool::Rectangle);
+  shape_drag(*canvas, QPoint(100, 100), QPoint(300, 220));
+
+  bool checked = false;
+  QTimer::singleShot(0, [&] {
+    auto* dialog = patchy::test::ui::find_top_level_dialog(QStringLiteral("shapeAppearanceDialog"));
+    CHECK(dialog != nullptr);
+    if (dialog == nullptr) {
+      return;
+    }
+    // At open (solid fill, stroke off) the dialog hugs its visible rows.
+    {
+      auto* opened_page = dialog->findChild<QWidget*>(QStringLiteral("shapeAppearancePage"));
+      CHECK(opened_page != nullptr);
+      if (opened_page != nullptr) {
+        CHECK(dialog->height() <= opened_page->sizeHint().height() + 80);
+      }
+      // Solid fill + stroke off: the left column's 12 rows set the height,
+      // well under the all-rows-visible measurement (about 900 px).
+      CHECK(dialog->height() <= 720);
+    }
+    // Worst case: pattern fill rows plus a gradient stroke.
+    auto* fill_kind = dialog->findChild<QComboBox*>(QStringLiteral("shapeFillKindCombo"));
+    auto* stroke_check = dialog->findChild<QCheckBox*>(QStringLiteral("shapeStrokeCheck"));
+    auto* stroke_paint = dialog->findChild<QComboBox*>(QStringLiteral("shapeStrokePaintCombo"));
+    CHECK(fill_kind != nullptr && stroke_check != nullptr && stroke_paint != nullptr);
+    fill_kind->setCurrentIndex(fill_kind->findData(static_cast<int>(patchy::VectorFillKind::Pattern)));
+    stroke_check->setChecked(true);
+    stroke_paint->setCurrentIndex(stroke_paint->findData(static_cast<int>(patchy::VectorFillKind::Gradient)));
+    QApplication::processEvents();
+    // Fits a 1080p screen (about 1040 px usable) even in the worst case, and
+    // never grows past the screen it is on.
+    CHECK(dialog->height() <= 1000);
+    CHECK(dialog->width() <= 900);
+    // Sized to the VISIBLE rows at open (solid fill, stroke off): no empty band
+    // from rows hidden after the width measurement.
+    auto* page = dialog->findChild<QWidget*>(QStringLiteral("shapeAppearancePage"));
+    CHECK(page != nullptr);
+    if (const auto* screen = dialog->screen(); screen != nullptr) {
+      CHECK(dialog->height() <= screen->availableGeometry().height());
+    }
+    CHECK(dialog->findChild<QScrollArea*>(QStringLiteral("shapeAppearanceScroll")) != nullptr);
+    // Two columns: Layer / Geometry / Edge left, Fill / Stroke right.
+    auto* feather = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("shapeFeatherSpin"));
+    auto* stroke_width = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("shapeStrokeWidthSpin"));
+    auto* opacity = dialog->findChild<QSpinBox*>(QStringLiteral("shapeLayerOpacitySpin"));
+    CHECK(feather != nullptr && stroke_width != nullptr && opacity != nullptr);
+    CHECK(feather->mapTo(dialog, QPoint(0, 0)).x() < stroke_width->mapTo(dialog, QPoint(0, 0)).x());
+    CHECK(opacity->mapTo(dialog, QPoint(0, 0)).x() < fill_kind->mapTo(dialog, QPoint(0, 0)).x());
+    // The right column's steppers stay inside the viewport after the paint
+    // kinds switched (the width was measured with every row visible).
+    auto* scroll = dialog->findChild<QScrollArea*>(QStringLiteral("shapeAppearanceScroll"));
+    auto* angle_increase =
+        dialog->findChild<QPushButton*>(QStringLiteral("shapeStrokeGradientAngleSpinIncreaseButton"));
+    CHECK(scroll != nullptr && angle_increase != nullptr && angle_increase->isVisible());
+    const auto right_edge = angle_increase->mapTo(scroll->viewport(), QPoint(angle_increase->width(), 0)).x();
+    CHECK(right_edge <= scroll->viewport()->width());
+    // The buttons sit under the scroll area and stay visible.
+    auto* buttons = dialog->findChild<QDialogButtonBox*>();
+    CHECK(buttons != nullptr && buttons->isVisible());
+    CHECK(buttons->mapTo(dialog, QPoint(0, 0)).y() + buttons->height() <= dialog->height());
+    checked = true;
+    dialog->reject();
+  });
+  patchy::ui::MainWindowTestAccess::edit_active_shape_appearance(window);
+  QApplication::processEvents();
+  CHECK(checked);
+}
+
+void ui_shape_appearance_spins_have_step_buttons() {
+  VectorSettingsGuard settings_guard;
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  const auto layer_id = make_rect_shape_layer(window, *canvas);  // (100,100)-(300,220)
+
+  int spins_checked = 0;
+  QTimer::singleShot(0, [&] {
+    auto* dialog = patchy::test::ui::find_top_level_dialog(QStringLiteral("shapeAppearanceDialog"));
+    CHECK(dialog != nullptr);
+    if (dialog == nullptr) {
+      return;
+    }
+    const auto check_buttons = [&](const QString& name) {
+      auto* decrease = dialog->findChild<QPushButton*>(name + QStringLiteral("DecreaseButton"));
+      auto* increase = dialog->findChild<QPushButton*>(name + QStringLiteral("IncreaseButton"));
+      CHECK(decrease != nullptr && increase != nullptr);
+      if (decrease == nullptr || increase == nullptr) {
+        return;
+      }
+      CHECK(!decrease->icon().isNull() && !increase->icon().isNull());
+      CHECK(decrease->autoRepeat() && increase->autoRepeat());
+      ++spins_checked;
+    };
+    for (const auto* spin : dialog->findChildren<QSpinBox*>()) {
+      check_buttons(spin->objectName());
+    }
+    for (const auto* spin : dialog->findChildren<QDoubleSpinBox*>()) {
+      check_buttons(spin->objectName());
+    }
+    // A hidden pattern row hides its buttons with it (fill is Solid here).
+    auto* pattern_scale = dialog->findChild<QSpinBox*>(QStringLiteral("shapePatternScaleSpin"));
+    auto* pattern_scale_increase =
+        dialog->findChild<QPushButton*>(QStringLiteral("shapePatternScaleSpinIncreaseButton"));
+    CHECK(pattern_scale != nullptr && !pattern_scale->isVisible());
+    CHECK(pattern_scale_increase != nullptr && !pattern_scale_increase->isVisible());
+    // A disabled stroke greys its buttons too (stroke off by default).
+    auto* stroke_width_increase =
+        dialog->findChild<QPushButton*>(QStringLiteral("shapeStrokeWidthSpinIncreaseButton"));
+    CHECK(stroke_width_increase != nullptr && !stroke_width_increase->isEnabled());
+    // Stepping the width by one grows the live rect by one pixel.
+    auto* width = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("shapeGeometryWidthSpin"));
+    auto* width_increase = dialog->findChild<QPushButton*>(QStringLiteral("shapeGeometryWidthSpinIncreaseButton"));
+    CHECK(width != nullptr && width_increase != nullptr);
+    const auto before = width->value();
+    width_increase->click();
+    CHECK(std::abs(width->value() - (before + 1.0)) < 1e-9);
+    QApplication::processEvents();
+    dialog->accept();
+  });
+  patchy::ui::MainWindowTestAccess::edit_active_shape_appearance(window);
+  QApplication::processEvents();
+  CHECK(spins_checked >= 17);
+  const auto* content = document.find_layer(layer_id)->vector_shape();
+  CHECK(content != nullptr && content->origination.size() == 1);
+  CHECK(std::abs(content->origination[0].right - 301.0) < 0.5);
+}
+
 std::vector<patchy::test::TestCase> vector_shape_tool_tests() {
   return {
       {"ui_shape_tool_creates_shape_layer_and_undoes", ui_shape_tool_creates_shape_layer_and_undoes},
@@ -3462,5 +3603,8 @@ std::vector<patchy::test::TestCase> vector_shape_tool_tests() {
       {"ui_shape_appearance_dialog_edits_opacity_feather_and_stroke_opacity",
        ui_shape_appearance_dialog_edits_opacity_feather_and_stroke_opacity},
       {"ui_shape_geometry_link_keeps_aspect", ui_shape_geometry_link_keeps_aspect},
+      {"ui_shape_appearance_dialog_fits_1080p_and_has_two_columns",
+       ui_shape_appearance_dialog_fits_1080p_and_has_two_columns},
+      {"ui_shape_appearance_spins_have_step_buttons", ui_shape_appearance_spins_have_step_buttons},
   };
 }

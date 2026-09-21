@@ -11,11 +11,14 @@
 #include "ui/gradient_library.hpp"
 #include "ui/pattern_library.hpp"
 #include "ui/measurement_units.hpp"
+#include "ui/theme_qss.hpp"
 #include "ui/action_icons.hpp"
 
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDialog>
+#include <QEvent>
+#include <QCoreApplication>
 #include <QDialogButtonBox>
 #include <QDoubleSpinBox>
 #include <QFormLayout>
@@ -27,6 +30,12 @@
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QSpinBox>
+#include <QAbstractSpinBox>
+#include <QHBoxLayout>
+#include <QGuiApplication>
+#include <QScreen>
+#include <QScrollBar>
+#include <QScrollArea>
 #include <QSize>
 #include <QToolButton>
 #include <QVBoxLayout>
@@ -34,6 +43,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <map>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -105,6 +115,54 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   dialog.setWindowTitle(QObject::tr("Shape Appearance"));
   auto* dialog_layout = new QVBoxLayout(&dialog);
 
+  // Two columns (Layer / Geometry / Edge left, Fill / Stroke right) inside a
+  // scroll area: the worst case (rounded rect, pattern fill, gradient stroke)
+  // then fits a 1080p screen, and on a shorter screen the page scrolls
+  // instead of running OK/Cancel off the bottom (the brush dynamics recipe;
+  // desktop place_dialog only clamps a dialog's position, never its size).
+  auto* scroll = new QScrollArea(&dialog);
+  scroll->setObjectName(QStringLiteral("shapeAppearanceScroll"));
+  scroll->setWidgetResizable(true);
+  scroll->setFrameShape(QFrame::NoFrame);
+  scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  auto* page = new QWidget(scroll);
+  page->setObjectName(QStringLiteral("shapeAppearancePage"));
+  auto* columns = new QHBoxLayout(page);
+  columns->setContentsMargins(0, 0, 0, 0);
+  columns->setSpacing(10);
+  // Each column is a widget with its own top-level layout, not a sub-layout:
+  // Qt propagates size-hint changes (rows hiding per paint kind) across
+  // widget boundaries through updateGeometry, while a nested sub-layout keeps
+  // a stale cached hint until its parent layout re-activates.
+  auto* left_widget = new QWidget(page);
+  left_widget->setObjectName(QStringLiteral("shapeAppearanceLeftColumn"));
+  auto* left_column = new QVBoxLayout(left_widget);
+  left_column->setContentsMargins(0, 0, 0, 0);
+  left_column->setSpacing(8);
+  auto* right_widget = new QWidget(page);
+  right_widget->setObjectName(QStringLiteral("shapeAppearanceRightColumn"));
+  auto* right_column = new QVBoxLayout(right_widget);
+  right_column->setContentsMargins(0, 0, 0, 0);
+  right_column->setSpacing(8);
+  columns->addWidget(left_widget, 1);
+  columns->addWidget(right_widget, 1);
+  scroll->setWidget(page);
+  dialog_layout->addWidget(scroll, 1);
+  append_themed_style(dialog, QStringLiteral("QScrollArea#shapeAppearanceScroll,"
+                                             "QWidget#shapeAppearancePage, QWidget#shapeAppearanceLeftColumn,QWidget#shapeAppearanceRightColumn { background: transparent; }"));
+
+  // Every numeric field gets compact - / + steppers. The row widgets are
+  // tracked so the per-kind visibility and enabled toggles below act on the
+  // whole row (spin plus buttons) and its label.
+  std::map<QWidget*, QWidget*> field_rows;
+  const auto add_spin_row = [&field_rows](QFormLayout* form, const QString& label,
+                                          QAbstractSpinBox* spin) {
+    auto* row = wrap_spin_with_step_buttons(spin, form->parentWidget(), label);
+    field_rows[spin] = row;
+    form->addRow(label, row);
+    return row;
+  };
+
   auto state = std::make_shared<DialogState>();
   state->settings = std::move(initial);
 
@@ -115,7 +173,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   };
 
   // --- Layer (opacity and fill opacity, the Layers panel values) ---
-  auto* layer_group = new QGroupBox(QObject::tr("Layer"), &dialog);
+  auto* layer_group = new QGroupBox(QObject::tr("Layer"), left_widget);
   auto* layer_layout = new QVBoxLayout(layer_group);
   layer_layout->setContentsMargins(10, 8, 10, 8);
   layer_layout->setSpacing(4);
@@ -126,11 +184,13 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   auto* layer_opacity_spin = add_dialog_slider_spin_row(
       layer_form, layer_group, QObject::tr("Opacity:"), QStringLiteral("shapeLayerOpacitySlider"),
       QStringLiteral("shapeLayerOpacitySpin"), 0, 100,
-      static_cast<int>(std::lround(state->settings.layer_opacity * 100.0F)), QStringLiteral("%"));
+      static_cast<int>(std::lround(state->settings.layer_opacity * 100.0F)), QStringLiteral("%"), 72,
+      /*row_spacing=*/8, /*step_buttons=*/true);
   auto* layer_fill_opacity_spin = add_dialog_slider_spin_row(
       layer_form, layer_group, QObject::tr("Fill Opacity:"),
       QStringLiteral("shapeLayerFillOpacitySlider"), QStringLiteral("shapeLayerFillOpacitySpin"), 0,
-      100, static_cast<int>(std::lround(state->settings.fill_opacity * 100.0F)), QStringLiteral("%"));
+      100, static_cast<int>(std::lround(state->settings.fill_opacity * 100.0F)), QStringLiteral("%"), 72,
+      /*row_spacing=*/8, /*step_buttons=*/true);
   QObject::connect(layer_opacity_spin, &QSpinBox::valueChanged, &dialog, [state, notify](int value) {
     state->settings.layer_opacity = static_cast<float>(value) / 100.0F;
     notify();
@@ -140,12 +200,12 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
     state->settings.fill_opacity = static_cast<float>(value) / 100.0F;
     notify();
   });
-  dialog_layout->addWidget(layer_group);
+  left_column->addWidget(layer_group);
 
   // --- Geometry (single live-shape layers only) ---
   if (state->settings.geometry.has_value()) {
     const auto kind = state->settings.geometry->kind;
-    auto* geometry_group = new QGroupBox(QObject::tr("Geometry"), &dialog);
+    auto* geometry_group = new QGroupBox(QObject::tr("Geometry"), left_widget);
     auto* geometry_layout = new QVBoxLayout(geometry_group);
     geometry_layout->setContentsMargins(10, 8, 10, 8);
     geometry_layout->setSpacing(4);
@@ -170,11 +230,11 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
       auto* end_x = make_spin("shapeGeometryLineEndXSpin", -30000, 30000, geometry.line_end_x);
       auto* end_y = make_spin("shapeGeometryLineEndYSpin", -30000, 30000, geometry.line_end_y);
       auto* weight = make_spin("shapeGeometryLineWeightSpin", 0.5, 1000, geometry.line_weight);
-      geometry_form->addRow(QObject::tr("Start X:"), start_x);
-      geometry_form->addRow(QObject::tr("Start Y:"), start_y);
-      geometry_form->addRow(QObject::tr("End X:"), end_x);
-      geometry_form->addRow(QObject::tr("End Y:"), end_y);
-      geometry_form->addRow(QObject::tr("Weight:"), weight);
+      add_spin_row(geometry_form, QObject::tr("Start X:"), start_x);
+      add_spin_row(geometry_form, QObject::tr("Start Y:"), start_y);
+      add_spin_row(geometry_form, QObject::tr("End X:"), end_x);
+      add_spin_row(geometry_form, QObject::tr("End Y:"), end_y);
+      add_spin_row(geometry_form, QObject::tr("Weight:"), weight);
       const auto apply_line = [state, notify, start_x, start_y, end_x, end_y, weight] {
         auto& params = *state->settings.geometry;
         params.line_start_x = start_x->value();
@@ -199,9 +259,9 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
           make_spin("shapeGeometryWidthSpin", 0.5, 60000, geometry.right - geometry.left);
       auto* height_spin =
           make_spin("shapeGeometryHeightSpin", 0.5, 60000, geometry.bottom - geometry.top);
-      geometry_form->addRow(QObject::tr("X:"), x_spin);
-      geometry_form->addRow(QObject::tr("Y:"), y_spin);
-      geometry_form->addRow(QObject::tr("Width:"), width_spin);
+      add_spin_row(geometry_form, QObject::tr("X:"), x_spin);
+      add_spin_row(geometry_form, QObject::tr("Y:"), y_spin);
+      add_spin_row(geometry_form, QObject::tr("Width:"), width_spin);
       // Link keeps the aspect ratio: editing one dimension moves the other by
       // the ratio captured when the link was switched on.
       auto* link_button = new QToolButton(geometry_group);
@@ -211,7 +271,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
       link_button->setIconSize(QSize(18, 18));
       link_button->setToolTip(QObject::tr("Keep width and height in proportion"));
       geometry_form->addRow(QString(), link_button);
-      geometry_form->addRow(QObject::tr("Height:"), height_spin);
+      add_spin_row(geometry_form, QObject::tr("Height:"), height_spin);
       auto link_ratio = std::make_shared<double>(1.0);
       QObject::connect(link_button, &QToolButton::toggled, &dialog,
                        [link_ratio, width_spin, height_spin](bool checked) {
@@ -248,7 +308,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
         for (std::size_t corner = 0; corner < 4; ++corner) {
           radius_spins[corner] =
               make_spin(names[corner], 0, 30000, geometry.corner_radii[corner]);
-          geometry_form->addRow(labels[corner], radius_spins[corner]);
+          add_spin_row(geometry_form, labels[corner], radius_spins[corner]);
         }
       }
       const auto apply_box = [state, notify, x_spin, y_spin, width_spin, height_spin,
@@ -280,11 +340,11 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
         }
       }
     }
-    dialog_layout->addWidget(geometry_group);
+    left_column->addWidget(geometry_group);
   }
 
   // --- Fill ---
-  auto* fill_group = new QGroupBox(QObject::tr("Fill"), &dialog);
+  auto* fill_group = new QGroupBox(QObject::tr("Fill"), right_widget);
   auto* fill_layout = new QVBoxLayout(fill_group);
   fill_layout->setContentsMargins(10, 8, 10, 8);
   fill_layout->setSpacing(4);
@@ -356,14 +416,14 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   gradient_angle_spin->setRange(-180, 180);
   gradient_angle_spin->setSuffix(degree_suffix());
   configure_dialog_spinbox(gradient_angle_spin, 72);
-  fill_form->addRow(QObject::tr("Angle:"), gradient_angle_spin);
+  add_spin_row(fill_form, QObject::tr("Angle:"), gradient_angle_spin);
 
   auto* gradient_scale_spin = new QSpinBox(fill_group);
   gradient_scale_spin->setObjectName(QStringLiteral("shapeGradientScaleSpin"));
   gradient_scale_spin->setRange(10, 1000);
   gradient_scale_spin->setSuffix(percent_suffix());
   configure_dialog_spinbox(gradient_scale_spin, 72);
-  fill_form->addRow(QObject::tr("Scale:"), gradient_scale_spin);
+  add_spin_row(fill_form, QObject::tr("Scale:"), gradient_scale_spin);
 
   auto* gradient_reverse_check = new QCheckBox(QObject::tr("Reverse"), fill_group);
   gradient_reverse_check->setObjectName(QStringLiteral("shapeGradientReverseCheck"));
@@ -379,7 +439,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   pattern_scale_spin->setRange(1, 1000);
   pattern_scale_spin->setSuffix(percent_suffix());
   configure_dialog_spinbox(pattern_scale_spin, 72);
-  fill_form->addRow(QObject::tr("Scale:"), pattern_scale_spin);
+  add_spin_row(fill_form, QObject::tr("Scale:"), pattern_scale_spin);
 
   // Pattern placement (PtFl Angl / phase / Algn; rendered by the shared
   // PatternTileSampler and round-tripped through the PSD writer).
@@ -389,7 +449,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   pattern_angle_spin->setDecimals(1);
   pattern_angle_spin->setSuffix(degree_suffix());
   configure_dialog_spinbox(pattern_angle_spin, 72);
-  fill_form->addRow(QObject::tr("Angle:"), pattern_angle_spin);
+  add_spin_row(fill_form, QObject::tr("Angle:"), pattern_angle_spin);
 
   auto* pattern_offset_x_spin = new QDoubleSpinBox(fill_group);
   pattern_offset_x_spin->setObjectName(QStringLiteral("shapePatternOffsetXSpin"));
@@ -397,7 +457,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   pattern_offset_x_spin->setDecimals(1);
   pattern_offset_x_spin->setSuffix(pixel_suffix());
   configure_dialog_spinbox(pattern_offset_x_spin, 80);
-  fill_form->addRow(QObject::tr("Offset X:"), pattern_offset_x_spin);
+  add_spin_row(fill_form, QObject::tr("Offset X:"), pattern_offset_x_spin);
 
   auto* pattern_offset_y_spin = new QDoubleSpinBox(fill_group);
   pattern_offset_y_spin->setObjectName(QStringLiteral("shapePatternOffsetYSpin"));
@@ -405,7 +465,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   pattern_offset_y_spin->setDecimals(1);
   pattern_offset_y_spin->setSuffix(pixel_suffix());
   configure_dialog_spinbox(pattern_offset_y_spin, 80);
-  fill_form->addRow(QObject::tr("Offset Y:"), pattern_offset_y_spin);
+  add_spin_row(fill_form, QObject::tr("Offset Y:"), pattern_offset_y_spin);
 
   auto* pattern_align_check = new QCheckBox(QObject::tr("Align with layer"), fill_group);
   pattern_align_check->setObjectName(QStringLiteral("shapePatternAlignCheck"));
@@ -414,11 +474,11 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
                   "document origin"));
   fill_form->addRow(QString(), pattern_align_check);
 
-  dialog_layout->addWidget(fill_group);
+  right_column->addWidget(fill_group);
 
   // --- Edge: the shape's vector-mask Feather / Density (Photoshop's
   // Properties-panel pair on a shape layer; docs/vector-tools.md) ---
-  auto* edge_group = new QGroupBox(QObject::tr("Edge"), &dialog);
+  auto* edge_group = new QGroupBox(QObject::tr("Edge"), left_widget);
   auto* edge_layout = new QVBoxLayout(edge_group);
   edge_layout->setContentsMargins(10, 8, 10, 8);
   edge_layout->setSpacing(4);
@@ -434,7 +494,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   feather_spin->setValue(state->settings.feather);
   feather_spin->setToolTip(QObject::tr("Softens the whole shape, stroke included, like Photoshop's vector mask feather"));
   configure_dialog_spinbox(feather_spin, 80);
-  edge_form->addRow(QObject::tr("Feather:"), feather_spin);
+  add_spin_row(edge_form, QObject::tr("Feather:"), feather_spin);
   auto* density_spin = new QSpinBox(edge_group);
   density_spin->setObjectName(QStringLiteral("shapeDensitySpin"));
   density_spin->setRange(0, 100);
@@ -442,7 +502,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   density_spin->setValue(static_cast<int>(std::lround(state->settings.density * 100.0 / 255.0)));
   density_spin->setToolTip(QObject::tr("Below 100% the fill shows through everywhere, like Photoshop's vector mask density"));
   configure_dialog_spinbox(density_spin, 80);
-  edge_form->addRow(QObject::tr("Density:"), density_spin);
+  add_spin_row(edge_form, QObject::tr("Density:"), density_spin);
   QObject::connect(feather_spin, &QDoubleSpinBox::valueChanged, &dialog, [state, notify](double value) {
     state->settings.feather = value;
     notify();
@@ -451,10 +511,10 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
     state->settings.density = static_cast<std::uint8_t>(std::lround(value * 255.0 / 100.0));
     notify();
   });
-  dialog_layout->addWidget(edge_group);
+  left_column->addWidget(edge_group);
 
   // --- Stroke ---
-  auto* stroke_group = new QGroupBox(QObject::tr("Stroke"), &dialog);
+  auto* stroke_group = new QGroupBox(QObject::tr("Stroke"), right_widget);
   auto* stroke_layout = new QVBoxLayout(stroke_group);
   stroke_layout->setContentsMargins(10, 8, 10, 8);
   stroke_layout->setSpacing(4);
@@ -475,7 +535,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   stroke_width_spin->setSuffix(pixel_suffix());
   stroke_width_spin->setValue(state->settings.stroke.width);
   configure_dialog_spinbox(stroke_width_spin, 80);
-  stroke_form->addRow(QObject::tr("Width:"), stroke_width_spin);
+  add_spin_row(stroke_form, QObject::tr("Width:"), stroke_width_spin);
 
   // vstk strokeStyleOpacity: the stroke's own transparency.
   auto* stroke_opacity_spin = new QSpinBox(stroke_group);
@@ -484,7 +544,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   stroke_opacity_spin->setSuffix(percent_suffix());
   stroke_opacity_spin->setValue(static_cast<int>(std::lround(state->settings.stroke.opacity * 100.0)));
   configure_dialog_spinbox(stroke_opacity_spin, 80);
-  stroke_form->addRow(QObject::tr("Opacity:"), stroke_opacity_spin);
+  add_spin_row(stroke_form, QObject::tr("Opacity:"), stroke_opacity_spin);
   QObject::connect(stroke_opacity_spin, &QSpinBox::valueChanged, &dialog, [state, notify](int value) {
     state->settings.stroke.opacity = value / 100.0;
     notify();
@@ -530,14 +590,14 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   stroke_gradient_angle_spin->setRange(-180, 180);
   stroke_gradient_angle_spin->setSuffix(degree_suffix());
   configure_dialog_spinbox(stroke_gradient_angle_spin, 72);
-  stroke_form->addRow(QObject::tr("Angle:"), stroke_gradient_angle_spin);
+  add_spin_row(stroke_form, QObject::tr("Angle:"), stroke_gradient_angle_spin);
 
   auto* stroke_gradient_scale_spin = new QSpinBox(stroke_group);
   stroke_gradient_scale_spin->setObjectName(QStringLiteral("shapeStrokeGradientScaleSpin"));
   stroke_gradient_scale_spin->setRange(10, 1000);
   stroke_gradient_scale_spin->setSuffix(percent_suffix());
   configure_dialog_spinbox(stroke_gradient_scale_spin, 72);
-  stroke_form->addRow(QObject::tr("Scale:"), stroke_gradient_scale_spin);
+  add_spin_row(stroke_form, QObject::tr("Scale:"), stroke_gradient_scale_spin);
 
   auto* stroke_gradient_reverse_check = new QCheckBox(QObject::tr("Reverse"), stroke_group);
   stroke_gradient_reverse_check->setObjectName(
@@ -554,7 +614,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   stroke_pattern_scale_spin->setRange(1, 1000);
   stroke_pattern_scale_spin->setSuffix(percent_suffix());
   configure_dialog_spinbox(stroke_pattern_scale_spin, 72);
-  stroke_form->addRow(QObject::tr("Scale:"), stroke_pattern_scale_spin);
+  add_spin_row(stroke_form, QObject::tr("Scale:"), stroke_pattern_scale_spin);
 
   auto* stroke_pattern_angle_spin = new QDoubleSpinBox(stroke_group);
   stroke_pattern_angle_spin->setObjectName(QStringLiteral("shapeStrokePatternAngleSpin"));
@@ -562,7 +622,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   stroke_pattern_angle_spin->setDecimals(1);
   stroke_pattern_angle_spin->setSuffix(degree_suffix());
   configure_dialog_spinbox(stroke_pattern_angle_spin, 72);
-  stroke_form->addRow(QObject::tr("Angle:"), stroke_pattern_angle_spin);
+  add_spin_row(stroke_form, QObject::tr("Angle:"), stroke_pattern_angle_spin);
 
   auto* stroke_pattern_offset_x_spin = new QDoubleSpinBox(stroke_group);
   stroke_pattern_offset_x_spin->setObjectName(QStringLiteral("shapeStrokePatternOffsetXSpin"));
@@ -570,7 +630,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   stroke_pattern_offset_x_spin->setDecimals(1);
   stroke_pattern_offset_x_spin->setSuffix(pixel_suffix());
   configure_dialog_spinbox(stroke_pattern_offset_x_spin, 80);
-  stroke_form->addRow(QObject::tr("Offset X:"), stroke_pattern_offset_x_spin);
+  add_spin_row(stroke_form, QObject::tr("Offset X:"), stroke_pattern_offset_x_spin);
 
   auto* stroke_pattern_offset_y_spin = new QDoubleSpinBox(stroke_group);
   stroke_pattern_offset_y_spin->setObjectName(QStringLiteral("shapeStrokePatternOffsetYSpin"));
@@ -578,7 +638,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   stroke_pattern_offset_y_spin->setDecimals(1);
   stroke_pattern_offset_y_spin->setSuffix(pixel_suffix());
   configure_dialog_spinbox(stroke_pattern_offset_y_spin, 80);
-  stroke_form->addRow(QObject::tr("Offset Y:"), stroke_pattern_offset_y_spin);
+  add_spin_row(stroke_form, QObject::tr("Offset Y:"), stroke_pattern_offset_y_spin);
 
   auto* stroke_pattern_align_check = new QCheckBox(QObject::tr("Align with layer"), stroke_group);
   stroke_pattern_align_check->setObjectName(QStringLiteral("shapeStrokePatternAlignCheck"));
@@ -619,8 +679,10 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   stroke_dash_combo->addItem(QObject::tr("Dotted"));
   stroke_form->addRow(QObject::tr("Dashes:"), stroke_dash_combo);
 
-  dialog_layout->addWidget(stroke_group);
+  right_column->addWidget(stroke_group);
 
+  left_column->addStretch(1);
+  right_column->addStretch(1);
   auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
   QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
   QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
@@ -632,7 +694,10 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
     const bool solid = kind == VectorFillKind::Solid;
     const bool gradient = kind == VectorFillKind::Gradient;
     const bool pattern = kind == VectorFillKind::Pattern;
-    const auto set_row = [fill_form](QWidget* field, bool visible) {
+    const auto set_row = [fill_form, field_rows](QWidget* field, bool visible) {
+      if (const auto row = field_rows.find(field); row != field_rows.end()) {
+        field = row->second;
+      }
       field->setVisible(visible);
       if (auto* label = fill_form->labelForField(field); label != nullptr) {
         label->setVisible(visible);
@@ -657,13 +722,19 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   // The per-paint-kind rows additionally hide like the fill section's.
   const auto refresh_stroke_rows = [=] {
     const bool enabled = stroke_check->isChecked();
-    const auto set_row = [stroke_form](QWidget* field, bool row_enabled) {
+    const auto set_row = [stroke_form, field_rows](QWidget* field, bool row_enabled) {
+      if (const auto row = field_rows.find(field); row != field_rows.end()) {
+        field = row->second;
+      }
       field->setEnabled(row_enabled);
       if (auto* label = stroke_form->labelForField(field); label != nullptr) {
         label->setEnabled(row_enabled);
       }
     };
-    const auto set_row_visible = [stroke_form](QWidget* field, bool visible) {
+    const auto set_row_visible = [stroke_form, field_rows](QWidget* field, bool visible) {
+      if (const auto row = field_rows.find(field); row != field_rows.end()) {
+        field = row->second;
+      }
       field->setVisible(visible);
       if (auto* label = stroke_form->labelForField(field); label != nullptr) {
         label->setVisible(visible);
@@ -811,6 +882,16 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   }
   sync_gradient_controls();
   sync_stroke_paint_controls();
+  // Measure the page while EVERY per-kind row is still visible, so switching
+  // a paint kind later never widens the columns past the viewport (a hidden
+  // horizontal bar would clip the steppers) and the dialog never changes
+  // width under the pointer - the Layer Style stroke-page rule.
+  page->layout()->activate();
+  // Reserve the vertical scrollbar's width too: a paint-kind switch that
+  // makes the page taller than the dialog adds the bar, which would otherwise
+  // steal those pixels from the rows and clip the right column's steppers.
+  scroll->setMinimumWidth(page->minimumSizeHint().width() +
+                          scroll->verticalScrollBar()->sizeHint().width());
   refresh_fill_rows();
   refresh_stroke_rows();
 
@@ -1067,6 +1148,42 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   for (auto* spin : dialog.findChildren<QSpinBox*>()) {
     spin->setKeyboardTracking(false);
   }
+
+  // Size from the page's own hint (QScrollArea::sizeHint caps at ~24 font
+  // heights, which would show a needless scrollbar on any normal screen) and
+  // cap at the available screen height; the scrollbar earns its width only
+  // when the cap applies. Resizing here, before remember_dialog_position,
+  // keeps the centering and on-screen clamp working from the real size.
+  // The width measurement above cached every widget's hint inside its parent
+  // layout's item (QWidgetItemV2) with all rows visible; the per-kind hides
+  // since then invalidated layouts but not those caches, which only a
+  // widget's own updateGeometry clears (the dialog is not shown yet, so the
+  // posted layout requests have not run). Clear them so the height below
+  // counts the visible rows only.
+  for (auto* child : page->findChildren<QWidget*>()) {
+    child->updateGeometry();
+  }
+  for (auto* layout : page->findChildren<QLayout*>()) {
+    layout->invalidate();
+  }
+  page->layout()->activate();
+  const auto page_hint = page->sizeHint();
+  const auto margins = dialog_layout->contentsMargins();
+  int width = std::max(page_hint.width(), scroll->minimumWidth()) + margins.left() + margins.right();
+  int height = page_hint.height() + buttons->sizeHint().height() + dialog_layout->spacing() +
+               margins.top() + margins.bottom();
+  const QScreen* screen = parent != nullptr ? parent->screen() : nullptr;
+  if (screen == nullptr) {
+    screen = QGuiApplication::primaryScreen();
+  }
+  if (screen != nullptr) {
+    const auto available = screen->availableGeometry();
+    const auto max_height = std::max(320, available.height() - 40);
+    if (height > max_height) {
+      height = max_height;  // the bar's width is already reserved above
+    }
+  }
+  dialog.resize(width, height);
 
   if (run_non_modal_dialog(dialog) != QDialog::Accepted) {
     return std::nullopt;

@@ -215,7 +215,8 @@ live shape parameters. Dialogs are the patent-cleared route; on-canvas gizmos
 stay excluded. The dialog also edits the layer's Opacity and Fill opacity (the
 Layers panel values), the stroke's own opacity (vstk strokeStyleOpacity), and
 the shape's Feather / Density (Edge group); all PSD-native, one "Shape
-appearance" undo entry. The options bar stays as is (Photoshop parity).
+appearance" undo entry. Layout: two columns in a scroll area capped to the
+screen height, every numeric field with - / + steppers.
 
 Edits preview live and restore on cancel or exception; a PSD-read gradient/pattern
 stroke paint stays untouched unless re-picked. The preview

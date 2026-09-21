@@ -2451,7 +2451,7 @@ void shot_readme_shape_appearance() {
     angle_spin->setValue(90);
     dash_combo->setCurrentIndex(1);  // Dashed
     QApplication::processEvents();
-    const QPoint dialog_offset(800, 88);
+    const QPoint dialog_offset(440, 60);  // the two-column dialog is ~800 px wide
     dialog->move(window.geometry().topLeft() + dialog_offset);
     QApplication::processEvents();
     CHECK(process_events_until(

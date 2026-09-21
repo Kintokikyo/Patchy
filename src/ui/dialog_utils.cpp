@@ -1177,7 +1177,15 @@ void SpinStepButtons::sync(const QSpinBox& spin) const {
   increase->setEnabled(spin.value() < spin.maximum());
 }
 
-SpinStepButtons add_spin_step_buttons(QSpinBox* spin, QBoxLayout* layout, const QString& field_name) {
+void SpinStepButtons::sync(const QDoubleSpinBox& spin) const {
+  decrease->setEnabled(spin.value() > spin.minimum());
+  increase->setEnabled(spin.value() < spin.maximum());
+}
+
+namespace {
+
+template <typename Spin, typename Value>
+SpinStepButtons add_spin_step_buttons_impl(Spin* spin, QBoxLayout* layout, const QString& field_name) {
   auto name = field_name.trimmed();
   if (name.endsWith(QLatin1Char(':'))) {
     name.chop(1);
@@ -1200,12 +1208,38 @@ SpinStepButtons add_spin_step_buttons(QSpinBox* spin, QBoxLayout* layout, const 
                                  QObject::tr("Decrease %1").arg(name));
   buttons.increase = make_button(QStringLiteral("+"), QStringLiteral("IncreaseButton"),
                                  QObject::tr("Increase %1").arg(name));
-  QObject::connect(buttons.decrease, &QPushButton::clicked, spin, &QSpinBox::stepDown);
-  QObject::connect(buttons.increase, &QPushButton::clicked, spin, &QSpinBox::stepUp);
-  QObject::connect(spin, qOverload<int>(&QSpinBox::valueChanged), spin,
-                   [buttons, spin](int) { buttons.sync(*spin); });
+  QObject::connect(buttons.decrease, &QPushButton::clicked, spin, &QAbstractSpinBox::stepDown);
+  QObject::connect(buttons.increase, &QPushButton::clicked, spin, &QAbstractSpinBox::stepUp);
+  QObject::connect(spin, qOverload<Value>(&Spin::valueChanged), spin,
+                   [buttons, spin](Value) { buttons.sync(*spin); });
   buttons.sync(*spin);
   return buttons;
+}
+
+}  // namespace
+
+SpinStepButtons add_spin_step_buttons(QSpinBox* spin, QBoxLayout* layout, const QString& field_name) {
+  return add_spin_step_buttons_impl<QSpinBox, int>(spin, layout, field_name);
+}
+
+SpinStepButtons add_spin_step_buttons(QDoubleSpinBox* spin, QBoxLayout* layout,
+                                      const QString& field_name) {
+  return add_spin_step_buttons_impl<QDoubleSpinBox, double>(spin, layout, field_name);
+}
+
+QWidget* wrap_spin_with_step_buttons(QAbstractSpinBox* spin, QWidget* parent,
+                                     const QString& field_name) {
+  auto* row = new QWidget(parent);
+  auto* layout = new QHBoxLayout(row);
+  layout->setContentsMargins(0, 0, 0, 0);
+  layout->setSpacing(2);
+  layout->addWidget(spin, 1);
+  if (auto* integer = qobject_cast<QSpinBox*>(spin); integer != nullptr) {
+    add_spin_step_buttons(integer, layout, field_name);
+  } else if (auto* real = qobject_cast<QDoubleSpinBox*>(spin); real != nullptr) {
+    add_spin_step_buttons(real, layout, field_name);
+  }
+  return row;
 }
 
 VisibleSizeGrip::VisibleSizeGrip(QWidget* parent) : QSizeGrip(parent) {

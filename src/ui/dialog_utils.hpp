@@ -13,6 +13,7 @@
 class QAction;
 class QBoxLayout;
 class QDialog;
+class QAbstractSpinBox;
 class QDoubleSpinBox;
 class QFormLayout;
 class QMenu;
@@ -62,6 +63,7 @@ struct SpinStepButtons {
 
   // Disables whichever button cannot move the value any further.
   void sync(const QSpinBox& spin) const;
+  void sync(const QDoubleSpinBox& spin) const;
 };
 // Appends compact - / + push buttons after `spin` in `layout`. They step the spin
 // box, auto-repeat while held, and disable at the range ends. Object names are
@@ -69,6 +71,13 @@ struct SpinStepButtons {
 // find them. `field_name` is the field's label ("Size"; a trailing colon is dropped)
 // and feeds the "Decrease %1" / "Increase %1" accessible names and tooltips.
 SpinStepButtons add_spin_step_buttons(QSpinBox* spin, QBoxLayout* layout, const QString& field_name);
+SpinStepButtons add_spin_step_buttons(QDoubleSpinBox* spin, QBoxLayout* layout,
+                                      const QString& field_name);
+// Wraps a QSpinBox/QDoubleSpinBox in a tight "[spin] - +" row widget (for
+// QFormLayout::addRow(label, row)); the buttons come from add_spin_step_buttons.
+// Hide or disable the ROW, not the spin, so the buttons follow.
+QWidget* wrap_spin_with_step_buttons(QAbstractSpinBox* spin, QWidget* parent,
+                                     const QString& field_name);
 // Adds a "label: [slider ------] [spin]" form row whose slider and spin box mirror
 // each other. Object names are passed explicitly (never derived here): UI tests look
 // these widgets up by exact objectName, so each call site keeps its own naming
