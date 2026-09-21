@@ -1745,7 +1745,7 @@ QString get_open_file_name(QWidget* parent, const QString& caption, const QStrin
   QFileDialog dialog(parent, caption, QString(), filter);
   configure_file_dialog(dialog, object_name, dir, QFileDialog::AcceptOpen, QFileDialog::ExistingFile, selected_filter);
   #ifdef Q_OS_ANDROID
-    dialog.setMimeTypeFilters({QStringLiteral("application/octet-stream")});
+    dialog.setNameFilter(QStringLiteral("*"));
   #endif
   if (filter_details == FilterNameDetails::Hidden) {
     dialog.setOption(QFileDialog::HideNameFilterDetails, true);
@@ -1772,7 +1772,7 @@ QStringList get_open_file_names(QWidget* parent, const QString& caption, const Q
   QFileDialog dialog(parent, caption, QString(), filter);
   configure_file_dialog(dialog, object_name, dir, QFileDialog::AcceptOpen, QFileDialog::ExistingFiles, selected_filter);
   #ifdef Q_OS_ANDROID
-    dialog.setMimeTypeFilters({QStringLiteral("application/octet-stream")});
+    dialog.setNameFilter(QStringLiteral("*"));
   #endif
   if (filter_details == FilterNameDetails::Hidden) {
     dialog.setOption(QFileDialog::HideNameFilterDetails, true);
