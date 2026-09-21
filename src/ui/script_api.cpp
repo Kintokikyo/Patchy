@@ -7,6 +7,8 @@
 
 #include "ui/script_api.hpp"
 
+#include "ui/pdf_export.hpp"
+
 #include "core/image_trace.hpp"
 #include "core/layer_tree.hpp"
 #include "core/vector_shape.hpp"
@@ -1625,6 +1627,54 @@ QString ScriptAppObject::chooseOpenFile(const QString& title, const QString& fil
 QString ScriptAppObject::chooseSaveFile(const QString& title, const QString& filter) {
   const ScriptApiCall api_call(host_);
   return host_.choose_save_file(title, filter);
+}
+
+bool ScriptAppObject::exportPdf(const QJSValue& documents, const QString& path, const QJSValue& options) {
+  const ScriptApiCall api_call(host_);
+  std::vector<std::int64_t> session_ids;
+  const auto add_document = [&](const QJSValue& value) {
+    const auto* wrapper = qobject_cast<ScriptDocumentObject*>(value.toQObject());
+    if (wrapper == nullptr) {
+      return false;
+    }
+    session_ids.push_back(wrapper->session_id());
+    return true;
+  };
+  bool well_formed = true;
+  if (documents.isArray()) {
+    const auto count = documents.property(QStringLiteral("length")).toUInt();
+    for (quint32 index = 0; index < count && well_formed; ++index) {
+      well_formed = add_document(documents.property(index));
+    }
+  } else {
+    well_formed = add_document(documents);
+  }
+  if (!well_formed || session_ids.empty()) {
+    host_.throw_js_error(ScriptEngineHost::tr("exportPdf needs one open document or an array of them."));
+    return false;
+  }
+  if (path.trimmed().isEmpty()) {
+    host_.throw_js_error(ScriptEngineHost::tr("exportPdf needs an output path."));
+    return false;
+  }
+  PdfExportOptions export_options;
+  if (options.isObject()) {
+    if (const auto value = options.property(QStringLiteral("lossless")); value.isBool()) {
+      export_options.lossless = value.toBool();
+    }
+    if (const auto value = options.property(QStringLiteral("editableLayers")); value.isBool()) {
+      export_options.editable_layers = value.toBool();
+    }
+    if (const auto value = options.property(QStringLiteral("missingFontsAsImages")); value.isBool()) {
+      export_options.missing_fonts_as_images = value.toBool();
+    }
+  }
+  QString error;
+  if (!host_.export_sessions_to_pdf(session_ids, path, export_options, &error)) {
+    host_.throw_js_error(ScriptEngineHost::tr("Could not export %1: %2").arg(QDir::toNativeSeparators(path), error));
+    return false;
+  }
+  return true;
 }
 
 bool ScriptAppObject::runCommand(const QString& commandId) {

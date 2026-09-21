@@ -1041,6 +1041,8 @@ ${PATCHY_LUPDATE_MANIFEST_SOURCES}
       src/ui/pdf_export.hpp
       src/ui/pdf_export.cpp
       src/ui/pdf_export_editable.cpp
+      src/ui/multipage_pdf_export_dialog.hpp
+      src/ui/multipage_pdf_export_dialog.cpp
       src/ui/text_layer_painter.hpp
       src/ui/pdf_import.hpp
       src/ui/photo_pattern_presets.hpp

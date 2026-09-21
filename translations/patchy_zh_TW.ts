@@ -6951,10 +6951,6 @@ RGB：%2, %3, %4</translation>
         <translation>請至少選取一個頁面。</translation>
     </message>
     <message>
-        <source>%1 page(s), first page %2 x %3 px</source>
-        <translation>%1 頁，第一頁 %2 x %3 px</translation>
-    </message>
-    <message>
         <source>Editable import brings in one page; page %1 was imported.</source>
         <translation>可編輯匯入一次只會帶入一頁，已匯入第 %1 頁。</translation>
     </message>
@@ -8190,6 +8186,102 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Bottom left:</source>
         <translation>左下:</translation>
+    </message>
+    <message>
+        <source>Export Multi-Page PDF</source>
+        <translation>匯出多頁 PDF</translation>
+    </message>
+    <message>
+        <source>Pages</source>
+        <translation>頁面</translation>
+    </message>
+    <message>
+        <source>One page per open document</source>
+        <translation>每個開啟的文件一頁</translation>
+    </message>
+    <message>
+        <source>Move Up</source>
+        <translation>上移</translation>
+    </message>
+    <message>
+        <source>Move Down</source>
+        <translation>下移</translation>
+    </message>
+    <message numerus="yes">
+        <source>One page per top-level layer group of the current document (%n group(s))</source>
+        <translation>
+            <numerusform>目前文件的每個頂層圖層群組一頁 (%n 個群組)</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>One page per top-level layer group (the current document has none)</source>
+        <translation>每個頂層圖層群組一頁 (目前文件沒有圖層群組)</translation>
+    </message>
+    <message>
+        <source>Draw ungrouped layers on every page</source>
+        <translation>在每一頁上繪製未分組的圖層</translation>
+    </message>
+    <message>
+        <source>Keep layers as editable objects</source>
+        <translation>將圖層保留為可編輯物件</translation>
+    </message>
+    <message>
+        <source>Shapes and text stay editable; blend modes, adjustment layers, and layer styles flatten to images on each page.</source>
+        <translation>形狀和文字保持可編輯;混合模式、調整圖層和圖層樣式會在每一頁上平面化為影像。</translation>
+    </message>
+    <message>
+        <source>Lossless images</source>
+        <translation>無損影像</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n page(s) will be written.</source>
+        <translation>
+            <numerusform>將寫入 %n 頁。</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Check at least one document.</source>
+        <translation>請至少勾選一個文件。</translation>
+    </message>
+    <message>
+        <source>%1 pages opened as separate documents.</source>
+        <translation>已將 %1 頁作為個別文件開啟。</translation>
+    </message>
+    <message>
+        <source>Separate documents</source>
+        <translation>個別文件</translation>
+    </message>
+    <message>
+        <source>Layers in one document</source>
+        <translation>同一文件中的圖層</translation>
+    </message>
+    <message>
+        <source>Pages become:</source>
+        <translation>頁面變為:</translation>
+    </message>
+    <message>
+        <source>%1 document(s), first page %2 x %3 px</source>
+        <translation>%1 個文件,第一頁 %2 x %3 px</translation>
+    </message>
+    <message>
+        <source>%1 layer(s), first page %2 x %3 px</source>
+        <translation>%1 個圖層,第一頁 %2 x %3 px</translation>
+    </message>
+    <message>
+        <source>Editable import was not possible for page %1 (%2); it was flattened instead.</source>
+        <translation>第 %1 頁無法以可編輯方式匯入 (%2),已改為平面化。</translation>
+    </message>
+    <message>
+        <source>Portrait</source>
+        <translation>直向</translation>
+    </message>
+    <message>
+        <source>Landscape</source>
+        <translation>橫向</translation>
+    </message>
+    <message>
+        <source>Orientation</source>
+        <translation>方向</translation>
     </message>
 </context>
 <context>
@@ -16677,6 +16769,24 @@ Y：%2
         <source>Finish the transform first: press Enter to apply it or Esc to cancel it</source>
         <translation>請先完成變形：按 Enter 套用，按 Esc 取消</translation>
     </message>
+    <message>
+        <source>Export &amp;Multi-Page PDF...</source>
+        <translation>匯出多頁 PDF(&amp;M)...</translation>
+    </message>
+    <message>
+        <source>%1 - %2</source>
+        <translation>%1 - %2</translation>
+    </message>
+    <message>
+        <source>Export Multi-Page PDF</source>
+        <translation>匯出多頁 PDF</translation>
+    </message>
+    <message numerus="yes">
+        <source>Exported %n page(s) to %1</source>
+        <translation>
+            <numerusform>已將 %n 頁匯出至 %1</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -17918,6 +18028,22 @@ Y：%2
     <message>
         <source>direction must be &apos;auto&apos;, &apos;ltr&apos; or &apos;rtl&apos;.</source>
         <translation>direction 必須為 &apos;auto&apos;、&apos;ltr&apos; 或 &apos;rtl&apos;。</translation>
+    </message>
+    <message>
+        <source>exportPdf needs one open document or an array of them.</source>
+        <translation>exportPdf 需要一個開啟的文件或文件陣列。</translation>
+    </message>
+    <message>
+        <source>exportPdf needs an output path.</source>
+        <translation>exportPdf 需要一個輸出路徑。</translation>
+    </message>
+    <message>
+        <source>Could not export %1: %2</source>
+        <translation>無法匯出 %1:%2</translation>
+    </message>
+    <message>
+        <source>One of the documents is no longer open.</source>
+        <translation>其中一個文件已不再開啟。</translation>
     </message>
 </context>
 <context>

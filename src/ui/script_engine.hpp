@@ -98,6 +98,8 @@ private:
 // (script_api.hpp) reach MainWindow only through the service methods here; they
 // hold session ids + LayerIds, never pointers (sessions close and the layers
 // vector reallocates). See docs/scripting.md.
+struct PdfExportOptions;
+
 class ScriptEngineHost : public QObject {
   Q_OBJECT
 
@@ -178,6 +180,10 @@ public:
   std::int64_t open_document_file(const QString& path);  // 0 on failure
   std::int64_t create_document(int width, int height);
   bool save_session_to_path(std::int64_t session_id, const QString& path);
+  // app.exportPdf: the sessions as the pages of one PDF, in order. False with *error
+  // set when a session is gone or the writer refuses.
+  bool export_sessions_to_pdf(const std::vector<std::int64_t>& session_ids, const QString& path,
+                              const PdfExportOptions& options, QString* error);
   bool close_session(std::int64_t session_id);
   void activate_session(std::int64_t session_id);
   // layer.duplicate(targetDocument): copies the layers into another open

@@ -6248,7 +6248,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
   register_builtin_filters(filters_);
   install_ico_png_codec();
   install_rttex_jpeg_codec();
-  print_page_layout_ = default_print_page_layout();
+  print_page_layout_ = load_stored_print_page_layout();
   if (use_custom_window_chrome()) {
     setWindowFlag(Qt::FramelessWindowHint, true);
   }

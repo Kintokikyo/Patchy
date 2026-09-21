@@ -451,21 +451,14 @@ struct Writer {
 
 }  // namespace
 
-void write_editable_pdf_document_file(const Document& document, const QString& path, const PdfExportOptions& options,
-                                      std::vector<std::string>* notices) {
+void paint_editable_document(QPainter& painter, const Document& document, const PdfExportOptions& options,
+                             std::vector<std::string>* notices) {
   if (document_has_compound_vectors(document)) {
-    write_editable_pdf_document_file(expand_compound_vectors(document, true), path, options, notices);
+    paint_editable_document(painter, expand_compound_vectors(document, true), options, notices);
     return;
   }
   if (document.width() <= 0 || document.height() <= 0) {
     throw std::runtime_error("The document could not be rendered for PDF export.");
-  }
-  QPdfWriter writer(path);
-  configure_document_page(writer, document);
-
-  QPainter painter;
-  if (!painter.begin(&writer)) {
-    throw std::runtime_error("The PDF file could not be opened for writing.");
   }
   painter.setRenderHint(QPainter::LosslessImageRendering, options.lossless);
   painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
@@ -477,8 +470,26 @@ void write_editable_pdf_document_file(const Document& document, const QString& p
 
   Writer layer_writer{document, notices, painter, options};
   layer_writer.run();
-  painter.end();
+}
 
+void write_editable_pdf_document_file(const Document& document, const QString& path, const PdfExportOptions& options,
+                                      std::vector<std::string>* notices) {
+  if (document.width() <= 0 || document.height() <= 0) {
+    throw std::runtime_error("The document could not be rendered for PDF export.");
+  }
+  QPdfWriter writer(path);
+  configure_document_page(writer, document);
+
+  QPainter painter;
+  if (!painter.begin(&writer)) {
+    throw std::runtime_error("The PDF file could not be opened for writing.");
+  }
+  paint_editable_document(painter, document, options, notices);
+  painter.end();
+  apply_text_merge_post_pass(path);
+}
+
+void apply_text_merge_post_pass(const QString& path) {
   // Qt wrote every glyph as its own Tj; fold each line of text back into one TJ run so
   // importers see words, not letters (formats/pdf_text_merge.hpp). A file that does not
   // match the pass's expectations is left as Qt wrote it.

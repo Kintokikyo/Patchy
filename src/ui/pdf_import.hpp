@@ -36,12 +36,27 @@ struct PdfImportOptions {
   // and Trim boxes behind Photoshop's full Crop To menu are not reachable through its
   // public API, so this is Patchy's own post-render trim rather than a real BleedBox.
   bool trim_to_bounding_box{false};
+  // Every selected page becomes its own document (Photoshop's Import PDF behavior)
+  // instead of one layer per page on a single canvas. The first page is
+  // PdfImportResult::document; the rest ride extra_documents in selection order.
+  bool separate_documents{false};
+};
+
+// One page opened as its own document. `title` is the page label ("Page 3"); the
+// caller composes the session title from it and the file name.
+struct PdfImportedDocument {
+  Document document;
+  QString title;
 };
 
 struct PdfImportResult {
   Document document;
   // Plain-English import notes, surfaced through the same path as FormatReadResult::notices.
   std::vector<std::string> notices;
+  // Set only for separate_documents imports: the first page's label, and every page
+  // after it as its own document.
+  QString document_title;
+  std::vector<PdfImportedDocument> extra_documents;
 };
 
 // True when this build linked Qt PDF, i.e. when opening a .pdf can work at all.

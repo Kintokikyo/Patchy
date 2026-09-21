@@ -252,6 +252,19 @@ public:
     return window.sessions_.size();
   }
 
+  // Sessions in creation order (the multi-page PDF open adds one per page).
+  static Document& session_document(MainWindow& window, std::size_t index) {
+    return window.sessions_.at(index)->document;
+  }
+
+  static QString session_title(MainWindow& window, std::size_t index) {
+    return window.sessions_.at(index)->title;
+  }
+
+  static void activate_session(MainWindow& window, std::size_t index) {
+    window.activate_document_session(*window.sessions_.at(index));
+  }
+
   static bool active_session_is_floated(MainWindow& window) {
     return window.session().float_window != nullptr;
   }

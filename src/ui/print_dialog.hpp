@@ -3,12 +3,14 @@
 #include "core/document.hpp"
 
 #include <QPageLayout>
+#include <QPageSize>
 #include <QRect>
 #include <QRectF>
 #include <QSizeF>
 #include <QString>
 
 #include <optional>
+#include <vector>
 
 class QPainter;
 class QWidget;
@@ -49,6 +51,22 @@ struct PrintPlacement {
 };
 
 [[nodiscard]] QPageLayout default_print_page_layout();
+// The in-app paper controls (print_layout.cpp, portable): sheet sizes the Print
+// dialog offers without a printer driver, Custom last. Page Setup through the OS
+// dialog still works; these exist because a PDF written from the dialog needs no
+// driver and a driver-backed setup cannot express an arbitrary sheet.
+[[nodiscard]] std::vector<QPageSize::PageSizeId> print_page_size_choices();
+// An exact sheet in points (QPageSize::ExactMatch, so a nearly-A4 sheet never snaps
+// to A4); invalid when either edge is not positive.
+[[nodiscard]] QPageSize custom_page_size_points(QSizeF points);
+// `layout` with another sheet and orientation. Margins and units are kept; margins
+// the new sheet cannot hold collapse to zero so the result is always valid.
+[[nodiscard]] QPageLayout page_layout_with_size(const QPageLayout& layout, const QPageSize& size,
+                                                QPageLayout::Orientation orientation);
+// The user's last accepted page layout (settings group "print"); the Letter default
+// when nothing is stored or the stored sheet is unusable.
+[[nodiscard]] QPageLayout load_stored_print_page_layout();
+void store_print_page_layout(const QPageLayout& layout);
 [[nodiscard]] PrintSettings default_print_settings(const Document& document, std::optional<QRect> selection_bounds);
 [[nodiscard]] PrintPlacement calculate_print_placement(const Document& document, const PrintSettings& settings,
                                                        const QPageLayout& page_layout);

@@ -539,6 +539,20 @@ interface PatchyApp {
   runCommand(commandId: string): boolean;
   /** Every registered command id, sorted. */
   commandIds(): string[];
+  /**
+   * Writes one PDF with a page per document, in array order, each page sized
+   * from that document's pixels and resolution. A single document is accepted
+   * in place of the array. options.lossless (default true) keeps images
+   * lossless; options.editableLayers (default false) keeps shapes and text as
+   * PDF objects the way Save As PDF's "Keep Layers Editable" does;
+   * options.missingFontsAsImages embeds text in uninstalled fonts as pixels.
+   * Returns true on success and throws on bad arguments or a write failure.
+   */
+  exportPdf(
+    documents: PatchyDocument | PatchyDocument[],
+    path: string,
+    options?: { lossless?: boolean; editableLayers?: boolean; missingFontsAsImages?: boolean },
+  ): boolean;
 }
 
 /** One field of a patchy.ui.showDialog / showOptions form. */

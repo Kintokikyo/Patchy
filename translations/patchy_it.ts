@@ -6968,10 +6968,6 @@ RGB: %2, %3, %4</translation>
         <translation>Seleziona almeno una pagina.</translation>
     </message>
     <message>
-        <source>%1 page(s), first page %2 x %3 px</source>
-        <translation>%1 pagine, prima pagina %2 x %3 px</translation>
-    </message>
-    <message>
         <source>Editable import brings in one page; page %1 was imported.</source>
         <translation>L&apos;importazione modificabile include una sola pagina; è stata importata la pagina %1.</translation>
     </message>
@@ -8213,6 +8209,104 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Bottom left:</source>
         <translation>In basso a sinistra:</translation>
+    </message>
+    <message>
+        <source>Export Multi-Page PDF</source>
+        <translation>Esporta PDF multipagina</translation>
+    </message>
+    <message>
+        <source>Pages</source>
+        <translation>Pagine</translation>
+    </message>
+    <message>
+        <source>One page per open document</source>
+        <translation>Una pagina per documento aperto</translation>
+    </message>
+    <message>
+        <source>Move Up</source>
+        <translation>Sposta su</translation>
+    </message>
+    <message>
+        <source>Move Down</source>
+        <translation>Sposta giù</translation>
+    </message>
+    <message numerus="yes">
+        <source>One page per top-level layer group of the current document (%n group(s))</source>
+        <translation>
+            <numerusform>Una pagina per gruppo di livelli di primo livello del documento corrente (%n gruppo)</numerusform>
+            <numerusform>Una pagina per gruppo di livelli di primo livello del documento corrente (%n gruppi)</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>One page per top-level layer group (the current document has none)</source>
+        <translation>Una pagina per gruppo di livelli di primo livello (il documento corrente non ne ha)</translation>
+    </message>
+    <message>
+        <source>Draw ungrouped layers on every page</source>
+        <translation>Disegna i livelli non raggruppati su ogni pagina</translation>
+    </message>
+    <message>
+        <source>Keep layers as editable objects</source>
+        <translation>Mantieni i livelli come oggetti modificabili</translation>
+    </message>
+    <message>
+        <source>Shapes and text stay editable; blend modes, adjustment layers, and layer styles flatten to images on each page.</source>
+        <translation>Forme e testo restano modificabili; metodi di fusione, livelli di regolazione e stili di livello vengono uniti in immagini su ogni pagina.</translation>
+    </message>
+    <message>
+        <source>Lossless images</source>
+        <translation>Immagini senza perdita</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n page(s) will be written.</source>
+        <translation>
+            <numerusform>Verrà scritta %n pagina.</numerusform>
+            <numerusform>Verranno scritte %n pagine.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Check at least one document.</source>
+        <translation>Seleziona almeno un documento.</translation>
+    </message>
+    <message>
+        <source>%1 pages opened as separate documents.</source>
+        <translation>%1 pagine aperte come documenti separati.</translation>
+    </message>
+    <message>
+        <source>Separate documents</source>
+        <translation>Documenti separati</translation>
+    </message>
+    <message>
+        <source>Layers in one document</source>
+        <translation>Livelli in un unico documento</translation>
+    </message>
+    <message>
+        <source>Pages become:</source>
+        <translation>Le pagine diventano:</translation>
+    </message>
+    <message>
+        <source>%1 document(s), first page %2 x %3 px</source>
+        <translation>%1 documento/i, prima pagina %2 x %3 px</translation>
+    </message>
+    <message>
+        <source>%1 layer(s), first page %2 x %3 px</source>
+        <translation>%1 livello/i, prima pagina %2 x %3 px</translation>
+    </message>
+    <message>
+        <source>Editable import was not possible for page %1 (%2); it was flattened instead.</source>
+        <translation>L'importazione modificabile non è stata possibile per la pagina %1 (%2); è stata unita al suo posto.</translation>
+    </message>
+    <message>
+        <source>Portrait</source>
+        <translation>Verticale</translation>
+    </message>
+    <message>
+        <source>Landscape</source>
+        <translation>Orizzontale</translation>
+    </message>
+    <message>
+        <source>Orientation</source>
+        <translation>Orientamento</translation>
     </message>
 </context>
 <context>
@@ -16715,6 +16809,25 @@ Y: %2
         <source>Finish the transform first: press Enter to apply it or Esc to cancel it</source>
         <translation>Completa prima la trasformazione: Invio la applica, Esc la annulla</translation>
     </message>
+    <message>
+        <source>Export &amp;Multi-Page PDF...</source>
+        <translation>Esporta PDF &amp;multipagina...</translation>
+    </message>
+    <message>
+        <source>%1 - %2</source>
+        <translation>%1 - %2</translation>
+    </message>
+    <message>
+        <source>Export Multi-Page PDF</source>
+        <translation>Esporta PDF multipagina</translation>
+    </message>
+    <message numerus="yes">
+        <source>Exported %n page(s) to %1</source>
+        <translation>
+            <numerusform>%n pagina esportata in %1</numerusform>
+            <numerusform>%n pagine esportate in %1</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -17957,6 +18070,22 @@ Y: %2
     <message>
         <source>direction must be &apos;auto&apos;, &apos;ltr&apos; or &apos;rtl&apos;.</source>
         <translation>direction deve essere &apos;auto&apos;, &apos;ltr&apos; o &apos;rtl&apos;.</translation>
+    </message>
+    <message>
+        <source>exportPdf needs one open document or an array of them.</source>
+        <translation>exportPdf richiede un documento aperto o un array di documenti.</translation>
+    </message>
+    <message>
+        <source>exportPdf needs an output path.</source>
+        <translation>exportPdf richiede un percorso di output.</translation>
+    </message>
+    <message>
+        <source>Could not export %1: %2</source>
+        <translation>Impossibile esportare %1: %2</translation>
+    </message>
+    <message>
+        <source>One of the documents is no longer open.</source>
+        <translation>Uno dei documenti non è più aperto.</translation>
     </message>
 </context>
 <context>

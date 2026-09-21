@@ -1,0 +1,49 @@
+#pragma once
+
+#include "ui/pdf_export.hpp"
+
+#include <QString>
+
+#include <cstdint>
+#include <optional>
+#include <vector>
+
+class QWidget;
+
+namespace patchy::ui {
+
+// File > Export Multi-Page PDF: which pages go into the file and how. The writing
+// itself is write_multipage_pdf_file (pdf_export.hpp); MainWindow resolves the choice
+// into documents because only it owns the sessions.
+
+// One open document as the dialog lists it.
+struct MultiPagePdfDocumentEntry {
+  QString title;
+  std::int64_t session_id{0};
+};
+
+enum class MultiPagePdfSource {
+  // Every checked open document, one page each, in the list's order.
+  OpenDocuments,
+  // Every visible top-level layer group of the active document, one page each, top
+  // of the layer stack first ("print a folder as a page").
+  TopLevelGroups,
+};
+
+struct MultiPagePdfExportChoice {
+  MultiPagePdfSource source{MultiPagePdfSource::OpenDocuments};
+  // OpenDocuments: the checked sessions in page order.
+  std::vector<std::int64_t> session_ids;
+  // TopLevelGroups: ungrouped root layers (a shared background, say) draw on every page.
+  bool include_ungrouped_layers{true};
+  PdfExportOptions options;
+};
+
+// `documents` lists every open session; `active_session_id` names the one whose groups
+// the TopLevelGroups source would page (that source is offered only when
+// `top_level_group_count` is at least one). nullopt when cancelled.
+[[nodiscard]] std::optional<MultiPagePdfExportChoice> run_multipage_pdf_export_dialog(
+    QWidget* parent, const std::vector<MultiPagePdfDocumentEntry>& documents, std::int64_t active_session_id,
+    int top_level_group_count);
+
+}  // namespace patchy::ui

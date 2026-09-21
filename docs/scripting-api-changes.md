@@ -1,5 +1,10 @@
 # Scripting API compatibility
 
+2026-09-21 (API 1): `app.exportPdf(documents, path, options?)` writes a multi-page PDF
+with one page per document (`lossless`, `editableLayers`, `missingFontsAsImages`
+options), the same writer as File > Export Multi-Page PDF. Additive; apiVersion
+unchanged. See [pdf.md](pdf.md).
+
 2026-09-20 (API 1): vertical type and paragraph direction. `doc.addTextLayer` takes
 `orientation` (`"horizontal"` | `"vertical"`) and `direction` (`"auto"` | `"ltr"` |
 `"rtl"`); text layers expose `textOrientation` and `textDirection` (read/write, a write

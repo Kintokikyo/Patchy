@@ -2,6 +2,7 @@
 
 #include "ui/app_settings.hpp"
 #include "ui/dialog_utils.hpp"
+#include "ui/image_document_io.hpp"
 #include "ui/image_sequence_dialog.hpp"
 
 #include "formats/pdf_document_io.hpp"
@@ -215,21 +216,42 @@ std::optional<PdfImportResult> render_pages(QPdfDocument& pdf, const PdfImportOp
   }
 
   const int page_count = static_cast<int>(frames.size());
-  auto document = document_from_frames(std::move(frames), layer_names);
-  if (!document.has_value()) {
-    if (error != nullptr) {
-      *error = QObject::tr("%1 could not be turned into a document.").arg(file_name);
+  PdfImportResult result;
+  if (options.separate_documents) {
+    // Photoshop's behavior: every page is its own document at its own size. The
+    // caller opens one session per entry, page 1 first.
+    for (std::size_t index = 0; index < frames.size(); ++index) {
+      const auto& title = layer_names.at(static_cast<qsizetype>(index));
+      Document page_document = document_from_qimage(frames[index], title.toStdString());
+      page_document.print_settings().horizontal_ppi = resolution_ppi;
+      page_document.print_settings().vertical_ppi = resolution_ppi;
+      if (index == 0) {
+        result.document = std::move(page_document);
+        result.document_title = title;
+      } else {
+        result.extra_documents.push_back({std::move(page_document), title});
+      }
     }
-    return std::nullopt;
+  } else {
+    auto document = document_from_frames(std::move(frames), layer_names);
+    if (!document.has_value()) {
+      if (error != nullptr) {
+        *error = QObject::tr("%1 could not be turned into a document.").arg(file_name);
+      }
+      return std::nullopt;
+    }
+    document->print_settings().horizontal_ppi = resolution_ppi;
+    document->print_settings().vertical_ppi = resolution_ppi;
+    result.document = std::move(*document);
   }
-  document->print_settings().horizontal_ppi = resolution_ppi;
-  document->print_settings().vertical_ppi = resolution_ppi;
 
-  PdfImportResult result{std::move(*document), {}};
   result.notices.push_back(QObject::tr("PDF content was rasterized at %1 ppi; text and vectors are pixels now.")
                                .arg(resolution_ppi)
                                .toStdString());
-  if (page_count > 1) {
+  if (page_count > 1 && options.separate_documents) {
+    result.notices.push_back(
+        QObject::tr("%1 pages opened as separate documents.").arg(page_count).toStdString());
+  } else if (page_count > 1) {
     result.notices.push_back(
         QObject::tr("%1 pages imported as layers; only the first starts visible.").arg(page_count).toStdString());
   } else if (pdf.pageCount() > 1) {
@@ -287,6 +309,8 @@ std::optional<PdfImportResult> run_pdf_import_dialog(QWidget* parent, const QStr
   options.annotations = settings.value(settings_key("Annotations"), options.annotations).toBool();
   options.anti_alias = settings.value(settings_key("AntiAlias"), options.anti_alias).toBool();
   options.trim_to_bounding_box = settings.value(settings_key("TrimToContent"), options.trim_to_bounding_box).toBool();
+  options.separate_documents =
+      settings.value(settings_key("PagesTarget"), QStringLiteral("documents")).toString() != QStringLiteral("layers");
 
   QDialog dialog(parent);
   dialog.setObjectName(QStringLiteral("pdfImportDialog"));
@@ -339,6 +363,17 @@ std::optional<PdfImportResult> run_pdf_import_dialog(QWidget* parent, const QStr
   const auto stored_mode = settings.value(settings_key("Mode"), QStringLiteral("editable")).toString();
   mode->setCurrentIndex(std::max(0, mode->findData(stored_mode)));
   form->addRow(new QLabel(QObject::tr("Import as:"), &dialog), mode);
+  // Separate documents is Photoshop's Import PDF behavior and the default; layers on
+  // one canvas remains for flip-book style uses (it is what the image-sequence and
+  // animated-GIF imports do too).
+  auto* pages_target = new QComboBox(&dialog);
+  pages_target->setObjectName(QStringLiteral("pdfImportPagesTargetCombo"));
+  pages_target->addItem(QObject::tr("Separate documents"), QStringLiteral("documents"));
+  pages_target->addItem(QObject::tr("Layers in one document"), QStringLiteral("layers"));
+  pages_target->setCurrentIndex(
+      std::max(0, pages_target->findData(options.separate_documents ? QStringLiteral("documents")
+                                                                    : QStringLiteral("layers"))));
+  form->addRow(new QLabel(QObject::tr("Pages become:"), &dialog), pages_target);
   auto* resolution = new QSpinBox(&dialog);
   resolution->setObjectName(QStringLiteral("pdfImportResolutionSpin"));
   resolution->setRange(kMinResolutionPpi, kMaxResolutionPpi);
@@ -397,13 +432,16 @@ std::optional<PdfImportResult> run_pdf_import_dialog(QWidget* parent, const QStr
       return;
     }
     const QSize size = rendered_page_size(pdf.pagePointSize(pages.front()), resolution->value(), nullptr);
-    size_label->setText(QObject::tr("%1 page(s), first page %2 x %3 px")
+    const bool separate = pages_target->currentData().toString() == QStringLiteral("documents");
+    size_label->setText((separate ? QObject::tr("%1 document(s), first page %2 x %3 px")
+                                  : QObject::tr("%1 layer(s), first page %2 x %3 px"))
                             .arg(pages.size())
                             .arg(size.width())
                             .arg(size.height()));
   };
   QObject::connect(pages_list, &QListWidget::itemSelectionChanged, &dialog, sync_size_label);
   QObject::connect(resolution, &QSpinBox::valueChanged, &dialog, sync_size_label);
+  QObject::connect(pages_target, &QComboBox::currentIndexChanged, &dialog, sync_size_label);
   // The render toggles only shape the raster path; graying them out in editable
   // mode says so without a second dialog layout.
   const auto sync_mode_controls = [mode, annotations, anti_alias, trim] {
@@ -426,8 +464,10 @@ std::optional<PdfImportResult> run_pdf_import_dialog(QWidget* parent, const QStr
   options.annotations = annotations->isChecked();
   options.anti_alias = anti_alias->isChecked();
   options.trim_to_bounding_box = trim->isChecked();
+  options.separate_documents = pages_target->currentData().toString() == QStringLiteral("documents");
   const bool editable = mode->currentData().toString() == QStringLiteral("editable");
   settings.setValue(settings_key("Mode"), mode->currentData().toString());
+  settings.setValue(settings_key("PagesTarget"), pages_target->currentData().toString());
   settings.setValue(settings_key("Resolution"), options.resolution_ppi);
   settings.setValue(settings_key("Annotations"), options.annotations);
   settings.setValue(settings_key("AntiAlias"), options.anti_alias);
@@ -438,35 +478,84 @@ std::optional<PdfImportResult> run_pdf_import_dialog(QWidget* parent, const QStr
     QFile file(path);
     if (file.open(QIODevice::ReadOnly)) {
       const QByteArray bytes = file.readAll();
-      pdf::VectorReadOptions vector_options;
-      vector_options.page = options.pages.empty() ? 0 : options.pages.front();
-      vector_options.pixels_per_point = options.resolution_ppi / 72.0;
-      vector_options.password = accepted_password.toStdString();
-      try {
-        auto vectors = pdf::read_page_as_vectors(
-            std::span(reinterpret_cast<const std::uint8_t*>(bytes.constData()),
-                      static_cast<std::size_t>(bytes.size())),
-            vector_options);
-        PdfImportResult result{std::move(vectors.document), std::move(vectors.notices)};
-        // The editable importer builds one page per document; saying which page and
-        // why the others were left keeps a multi-select honest.
-        if (options.pages.size() > 1) {
+      const std::span<const std::uint8_t> byte_span(reinterpret_cast<const std::uint8_t*>(bytes.constData()),
+                                                    static_cast<std::size_t>(bytes.size()));
+      // The vector reader builds one page per call. Separate-documents mode calls it
+      // once per selected page; layers mode keeps page 1 only, because editable text
+      // and shapes from several pages cannot honestly share one canvas.
+      std::vector<int> editable_pages = options.pages.empty() ? std::vector<int>{0} : options.pages;
+      if (!options.separate_documents && editable_pages.size() > 1) {
+        editable_pages.resize(1);
+      }
+      PdfImportResult result;
+      bool first_page_done = false;
+      bool unmodelled = false;
+      for (const int page : editable_pages) {
+        pdf::VectorReadOptions vector_options;
+        vector_options.page = page;
+        vector_options.pixels_per_point = options.resolution_ppi / 72.0;
+        vector_options.password = accepted_password.toStdString();
+        const auto title = QObject::tr("Page %1").arg(page + 1);
+        std::optional<Document> page_document;
+        try {
+          auto vectors = pdf::read_page_as_vectors(byte_span, vector_options);
+          page_document = std::move(vectors.document);
+          unmodelled = unmodelled || vectors.has_unmodelled_content;
+          for (auto& notice : vectors.notices) {
+            if (std::find(result.notices.begin(), result.notices.end(), notice) == result.notices.end()) {
+              result.notices.push_back(std::move(notice));
+            }
+          }
+        } catch (const std::exception& exception) {
+          editable_failure = QString::fromUtf8(exception.what());
+          if (editable_failure == QStringLiteral("This PDF is password protected.")) {
+            editable_failure = QObject::tr("This PDF is password protected.");
+          }
+          if (!options.separate_documents) {
+            break;  // the whole import falls back to the raster path below
+          }
+          // One page the vector reader cannot model does not sink the others: that
+          // page flattens (with the notice) and the rest stay editable.
+          PdfImportOptions page_options = options;
+          page_options.pages = {page};
+          QString page_error;
+          auto rendered = render_pages(pdf, page_options, file_name, &page_error);
+          if (!rendered.has_value()) {
+            break;
+          }
+          page_document = std::move(rendered->document);
+          result.notices.push_back(QObject::tr("Editable import was not possible for page %1 (%2); it was "
+                                               "flattened instead.")
+                                       .arg(page + 1)
+                                       .arg(editable_failure)
+                                       .toStdString());
+          editable_failure.clear();
+        }
+        if (!first_page_done) {
+          result.document = std::move(*page_document);
+          result.document_title = options.separate_documents ? title : QString();
+          first_page_done = true;
+        } else {
+          result.extra_documents.push_back({std::move(*page_document), title});
+        }
+      }
+      if (first_page_done && editable_failure.isEmpty()) {
+        if (!options.separate_documents && options.pages.size() > 1) {
           result.notices.push_back(QObject::tr("Editable import brings in one page; page %1 was imported.")
-                                       .arg(vector_options.page + 1)
+                                       .arg(editable_pages.front() + 1)
+                                       .toStdString());
+        } else if (options.separate_documents && editable_pages.size() > 1) {
+          result.notices.push_back(QObject::tr("%1 pages opened as separate documents.")
+                                       .arg(editable_pages.size())
                                        .toStdString());
         }
-        if (vectors.has_unmodelled_content) {
+        if (unmodelled) {
           result.notices.push_back(
               QObject::tr("Some artwork could not be kept editable; reimport with \"Flattened image per "
                           "page\" for an exact copy.")
                   .toStdString());
         }
         return result;
-      } catch (const std::exception& exception) {
-        editable_failure = QString::fromUtf8(exception.what());
-        if (editable_failure == QStringLiteral("This PDF is password protected.")) {
-          editable_failure = QObject::tr("This PDF is password protected.");
-        }
       }
     } else {
       editable_failure = file.errorString();

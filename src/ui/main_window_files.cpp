@@ -69,6 +69,8 @@
 #include "ui/palette_convert_dialog.hpp"
 #include "ui/palette_panel.hpp"
 #include "ui/pattern_library.hpp"
+#include "ui/multipage_pdf_export_dialog.hpp"
+#include "ui/pdf_export.hpp"
 #include "ui/pdf_import.hpp"
 #include "ui/photo_pattern_presets.hpp"
 #include "ui/style_library.hpp"
@@ -825,6 +827,10 @@ struct OpenDocumentResult {
   // User-facing notes about features the reader dropped or approximated (for example
   // "imported the first frame only"); shown in the Import Notes dialog after the open.
   QStringList import_notices;
+  // A multi-page PDF opened as separate documents: the first page's label ("Page 1")
+  // and every further page as its own document. Empty for every other open.
+  QString document_title;
+  std::vector<PdfImportedDocument> extra_documents;
 };
 
 std::vector<std::uint8_t> read_all_file_bytes(const QString& path) {
@@ -1182,10 +1188,17 @@ std::optional<OpenDocumentResult> load_document_interactive(QWidget* parent, con
     for (const auto& notice : outcome->notices) {
       notices.push_back(QString::fromStdString(notice));
     }
-    OpenDocumentResult loaded{std::move(outcome->document), info.fileName(), extension, std::move(notices)};
+    OpenDocumentResult loaded{std::move(outcome->document), info.fileName(), extension, std::move(notices),
+                              std::move(outcome->document_title), std::move(outcome->extra_documents)};
     if (const auto default_layer_id = default_non_group_layer_id(loaded.document.layers());
         default_layer_id.has_value()) {
       loaded.document.set_active_layer(*default_layer_id);
+    }
+    for (auto& page : loaded.extra_documents) {
+      if (const auto default_layer_id = default_non_group_layer_id(page.document.layers());
+          default_layer_id.has_value()) {
+        page.document.set_active_layer(*default_layer_id);
+      }
     }
     return loaded;
   }
@@ -1601,12 +1614,18 @@ void MainWindow::open_document_path(QString path) {
     // sandbox path.
     const auto session_path = browser_transfer ? QString() : path;
     const auto loaded_file_name = loaded->file_name;
-    add_document_session(std::move(loaded->document), loaded_file_name, session_path, tr("Open"));
+    // A PDF opened as separate documents titles every tab with its page, page 1
+    // included, so the tabs read "file.pdf - Page 1", "file.pdf - Page 2", ...
+    const auto first_title = loaded->extra_documents.empty() || loaded->document_title.isEmpty()
+                                 ? loaded_file_name
+                                 : tr("%1 - %2").arg(loaded_file_name, loaded->document_title);
+    add_document_session(std::move(loaded->document), first_title, session_path, tr("Open"));
     if (!unattended_automation() && is_photoshop_document_extension(loaded->extension) &&
         app_settings().value(QStringLiteral("imports/showPsdWarningsAndInfo"), false).toBool()) {
       show_compatibility_report(this, document(), loaded_file_name);
     }
     canvas_->fit_to_view();
+    open_extra_imported_page_sessions(loaded_file_name, std::move(loaded->extra_documents));
     if (!unattended_automation()) {
       // Unattended runs must not block on the adoption offer.
       maybe_offer_indexed_palette_adoption();
@@ -1653,6 +1672,29 @@ void MainWindow::open_document_path(QString path) {
     } else {
       show_open_failed_message_box(this, translated_file_message(error.what()));
     }
+  }
+}
+
+// The pages after the first of a PDF opened as separate documents. Each becomes a
+// pathless session (the PDF is a read-only source, so page 1 saves through Save As
+// too); the first page's session is re-activated afterwards so the status message
+// and focus land on it.
+void MainWindow::open_extra_imported_page_sessions(const QString& file_name,
+                                                  std::vector<PdfImportedDocument> pages) {
+  if (pages.empty()) {
+    return;
+  }
+  auto* first_session = active_session();
+  const auto first_session_id = first_session != nullptr ? first_session->session_id : 0;
+  for (auto& page : pages) {
+    render_pending_pdf_text_layers(page.document);
+    render_pending_pdf_image_layers(page.document);
+    add_document_session(std::move(page.document), tr("%1 - %2").arg(file_name, page.title), QString(),
+                         tr("Open"));
+    canvas_->fit_to_view();
+  }
+  if (auto* first = session_with_id(first_session_id); first != nullptr) {
+    activate_document_session(*first);
   }
 }
 
@@ -1724,6 +1766,7 @@ void MainWindow::reopen_document_session(DocumentSession& target_session) {
     update_undo_redo_actions();
     update_document_action_state();
     refresh_document_tab_titles();
+    open_extra_imported_page_sessions(loaded->file_name, std::move(loaded->extra_documents));
     if (loaded->import_notices.isEmpty()) {
       statusBar()->showMessage(tr("Reopened %1").arg(path));
     } else {
@@ -3100,8 +3143,76 @@ void MainWindow::export_flat_image() {
   }
 }
 
+// File > Export Multi-Page PDF: the pages are whole open documents or the top-level
+// groups of the active one; the dialog picks, this resolves sessions to documents and
+// writes through write_multipage_pdf_file.
+void MainWindow::export_multipage_pdf() {
+  if (!has_active_document()) {
+    show_status_error(tr("No document"));
+    return;
+  }
+  finish_active_text_editor();
+  std::vector<MultiPagePdfDocumentEntry> entries;
+  entries.reserve(sessions_.size());
+  for (const auto& candidate : sessions_) {
+    if (candidate != nullptr) {
+      entries.push_back({candidate->title.isEmpty() ? tr("Untitled") : candidate->title, candidate->session_id});
+    }
+  }
+  int group_count = 0;
+  for (const auto& layer : std::as_const(document()).layers()) {
+    if (layer.kind() == LayerKind::Group && layer.visible()) {
+      ++group_count;
+    }
+  }
+  const auto choice = run_multipage_pdf_export_dialog(this, entries, session().session_id, group_count);
+  if (!choice.has_value()) {
+    return;
+  }
+
+  const auto base_name = QFileInfo(session().title.isEmpty() ? tr("Untitled") : session().title).completeBaseName();
+  auto path = get_save_file_name(this, tr("Export Multi-Page PDF"),
+                                 file_dialog_initial_path(QString(), base_name + QStringLiteral(".pdf")),
+                                 QStringLiteral("%1 (*.pdf)").arg(QCoreApplication::translate("QObject", "PDF Document")),
+                                 nullptr, QStringLiteral("exportMultiPagePdfFileDialog"));
+  if (path.isEmpty()) {
+    return;
+  }
+  if (!path.endsWith(QStringLiteral(".pdf"), Qt::CaseInsensitive)) {
+    path += QStringLiteral(".pdf");
+  }
+
+  try {
+    std::vector<Document> group_pages;
+    std::vector<const Document*> pages;
+    if (choice->source == MultiPagePdfSource::TopLevelGroups) {
+      group_pages = documents_for_top_level_groups(std::as_const(document()), choice->include_ungrouped_layers);
+      pages.reserve(group_pages.size());
+      for (const auto& page : group_pages) {
+        pages.push_back(&page);
+      }
+    } else {
+      for (const auto session_id : choice->session_ids) {
+        if (const auto* page_session = session_with_id(session_id); page_session != nullptr) {
+          pages.push_back(&page_session->document);
+        }
+      }
+    }
+    std::vector<std::string> writer_notices;
+    write_multipage_pdf_file(pages, path, choice->options, &writer_notices);
+    offer_browser_download_for_saved_file(path);
+    remember_save_directory_for_path(path);
+    statusBar()->showMessage(tr("Exported %n page(s) to %1", nullptr, static_cast<int>(pages.size())).arg(path) +
+                             export_notes_suffix_for(writer_notices));
+  } catch (const std::exception& error) {
+    show_critical_message(this, tr("Export failed"), translated_file_message(error.what()),
+                          QStringLiteral("exportFailedMessageBox"));
+  }
+}
+
 void MainWindow::page_setup() {
   run_page_setup_dialog(this, &print_page_layout_);
+  store_print_page_layout(print_page_layout_);
 }
 
 void MainWindow::print_document() {
@@ -3114,6 +3225,7 @@ void MainWindow::print_document() {
     selection_bounds = canvas_->selected_document_rect();
   }
   if (run_print_dialog(this, document(), session().title, selection_bounds, &print_page_layout_)) {
+    store_print_page_layout(print_page_layout_);
     statusBar()->showMessage(tr("Print output created"));
   }
 }

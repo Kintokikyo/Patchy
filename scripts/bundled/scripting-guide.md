@@ -320,6 +320,7 @@ Field types: `number`, `slider`, `checkbox`, `choice`, `text`, `color`, `folder`
 | `app.chooseFolder(title)` | Folder picker; `""` when cancelled or unattended. |
 | `app.chooseOpenFile(title, filter)` / `app.chooseSaveFile(title, filter)` | File pickers; the filter uses Qt syntax like `"Images (*.png *.jpg)"`. |
 | `app.runCommand(id)` | Triggers a menu command by its stable id, e.g. `app.runCommand("file.scripts.editor")`. `app.commandIds()` lists them all. Returns false for unknown or disabled commands and for `edit.undo`, `edit.redo`, and `file.quit`. |
+| `app.exportPdf(documents, path, options)` | Writes one PDF with a page per document (an array, or one document), each page sized from that document's pixels and resolution. Options: `lossless` (default true), `editableLayers` (keep shapes and text as PDF objects, default false), `missingFontsAsImages`. Throws on bad arguments or a write failure. A folder of files becomes a PDF by opening each with `app.open` and passing the documents here. |
 | `app.undoEnabled` | Set `false` before the first edit to skip the undo snapshot for speed (games, huge batches). Those edits cannot be undone. Resets to `true` each run. |
 | `app.version` / `app.apiVersion` | Patchy's version string and the scripting API version (currently 1). |
 
