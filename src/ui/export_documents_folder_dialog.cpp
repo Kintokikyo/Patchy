@@ -149,13 +149,13 @@ std::optional<ExportDocumentsFolderChoice> run_export_documents_folder_dialog(
     return naming;
   };
   const auto sync = [&] {
-    const auto ids = checked_session_ids(*list);
+    const auto ids = selected_session_ids(*list);
     const int count = static_cast<int>(ids.size());
     const bool folder_ok = !folder_edit->text().trimmed().isEmpty();
     export_button->setEnabled(count > 0 && folder_ok);
     if (count == 0) {
       preview->clear();
-      summary->setText(QObject::tr("Check at least one document."));
+      summary->setText(QObject::tr("Select at least one document."));
       return;
     }
     const std::vector<QString> placeholders(static_cast<std::size_t>(count));
@@ -175,8 +175,8 @@ std::optional<ExportDocumentsFolderChoice> run_export_documents_folder_dialog(
                                : QObject::tr("Choose a folder."));
   };
   sync();
-  QObject::connect(list, &QListWidget::itemChanged, &dialog, sync);
-  for (auto* button : {order.move_up, order.move_down, order.auto_sort, order.reverse}) {
+  QObject::connect(list, &QListWidget::itemSelectionChanged, &dialog, sync);
+  for (auto* button : {order.select_all, order.move_up, order.move_down, order.auto_sort, order.reverse}) {
     QObject::connect(button, &QPushButton::clicked, &dialog, sync);
   }
   QObject::connect(folder_edit, &QLineEdit::textChanged, &dialog, sync);
@@ -212,7 +212,7 @@ std::optional<ExportDocumentsFolderChoice> run_export_documents_folder_dialog(
   }
 
   ExportDocumentsFolderChoice choice;
-  choice.session_ids = checked_session_ids(*list);
+  choice.session_ids = selected_session_ids(*list);
   choice.folder = QDir(folder_edit->text().trimmed()).absolutePath();
   choice.extension = format_combo->currentData().toString();
   choice.naming = current_naming();

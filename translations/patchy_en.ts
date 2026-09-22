@@ -8264,10 +8264,6 @@ RGB: %2, %3, %4</source>
         </translation>
     </message>
     <message>
-        <source>Check at least one document.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>%1 pages opened as separate documents.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8431,6 +8427,14 @@ RGB: %2, %3, %4</source>
     </message>
     <message>
         <source>Choose a folder.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select All</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select at least one document.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

@@ -1336,6 +1336,29 @@ std::vector<DividePhotosFormatChoice> divide_photos_format_choices() {
   return choices;
 }
 
+// Export Documents to Folder format rows: the divide-photos flat formats plus the
+// layer-keeping writers (PSD, Aseprite), which the folder export routes through the
+// same layered writers as Save As instead of write_flat_image_file.
+std::vector<ExportDocumentsFormatChoice> export_documents_format_choices() {
+  std::vector<ExportDocumentsFormatChoice> choices;
+  for (const auto& entry : file_format_entries()) {
+    if (entry.save_extensions.isEmpty()) {
+      continue;
+    }
+    const QString& extension = entry.save_extensions.front();
+    const bool layered = is_photoshop_document_extension(extension) || extension == QStringLiteral("aseprite");
+    if (!layered && !entry.in_export_dialog) {
+      continue;
+    }
+    if (extension == QStringLiteral("svg") || extension == QStringLiteral("ico") ||
+        extension == QStringLiteral("cur")) {
+      continue;
+    }
+    choices.push_back({translate_data_text(entry.display_name), extension});
+  }
+  return choices;
+}
+
 // prefix + zero-padded index + "." + extension; pads to 3 digits and grows
 // naturally past 999 (the image_sequence_file_names formatting).
 QString divide_photo_file_name(const QString& prefix, int index, const QString& extension) {
@@ -3457,8 +3480,9 @@ void MainWindow::export_multipage_pdf() {
 }
 
 // File > Export Documents to Folder: the checked open documents, in the dialog's
-// order, as numbered flattened image files; the dialog picks, this resolves sessions
-// to documents and writes through write_flat_image_file.
+// order, as numbered image files; the dialog picks, this resolves sessions to
+// documents and writes them: PSD/PSB and Aseprite through the layered writers Save
+// As uses, everything else flattened through write_flat_image_file.
 void MainWindow::export_documents_to_folder() {
   if (!has_active_document()) {
     show_status_error(tr("No document"));
@@ -3473,7 +3497,7 @@ void MainWindow::export_documents_to_folder() {
     }
   }
   const auto choice = run_export_documents_folder_dialog(this, entries, session().session_id,
-                                                         divide_photos_format_choices(), last_save_directory());
+                                                         export_documents_format_choices(), last_save_directory());
   if (!choice.has_value()) {
     return;
   }
@@ -3550,6 +3574,20 @@ std::optional<QStringList> MainWindow::export_document_sessions_to_folder(
     // to 1x so the shared saveOptions/exportScale can never rescale a page batch.
     auto image_options = load_image_save_option_defaults();
     image_options.export_scale = 1;
+    if (is_pdf_extension(extension) &&
+        std::any_of(pages.begin(), pages.end(), [](const DocumentSession* page) {
+          return flat_save_discards_layers(std::as_const(page->document));
+        })) {
+      // Flatten or keep layers editable, decided once for the whole batch the way Save As
+      // and Export Flat Image decide it: the remembered policy, or the question. A page
+      // that is already one plain pixel layer comes out the same either way.
+      const auto pdf_editable_layers =
+          resolve_pdf_layer_choice(/*for_export*/ true, /*allow_prompt*/ !unattended_automation());
+      if (!pdf_editable_layers.has_value()) {
+        return std::nullopt;
+      }
+      image_options.pdf_editable_layers = *pdf_editable_layers;
+    }
 
     // On the UI thread with an event pump per file: the pages are live session
     // documents, so no worker may read them while the window stays interactive.
@@ -3574,9 +3612,19 @@ std::optional<QStringList> MainWindow::export_document_sessions_to_folder(
         statusBar()->showMessage(tr("Export cancelled after %1 of %2 images").arg(index).arg(count));
         return std::nullopt;
       }
-      write_flat_image_file(std::as_const(pages[static_cast<std::size_t>(index)]->document), targets.at(index),
-                            extension, image_options);
-      written.push_back(targets.at(index));
+      const auto& page_document = std::as_const(pages[static_cast<std::size_t>(index)]->document);
+      const auto& target = targets.at(index);
+      if (is_photoshop_document_extension(extension)) {
+        // Layered, like Save As: a page batch of PSDs keeps every document's layer tree.
+        psd::DocumentIo::write_layered_rgb8_file(page_document, to_filesystem_path(target),
+                                                 psd::WriteOptions{extension == QStringLiteral("psb")});
+      } else if (extension == QStringLiteral("aseprite") || extension == QStringLiteral("ase")) {
+        // Layered too; unattended, so the Save As Fill Opacity warning does not apply.
+        aseprite::DocumentIo::write_file(page_document, to_filesystem_path(target));
+      } else {
+        write_flat_image_file(page_document, target, extension, image_options);
+      }
+      written.push_back(target);
     }
     progress.setValue(count);
     progress.close();

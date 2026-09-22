@@ -8248,10 +8248,6 @@ Mixed selection</source>
         </translation>
     </message>
     <message>
-        <source>Check at least one document.</source>
-        <translation>少なくとも 1 つのドキュメントを選択してください。</translation>
-    </message>
-    <message>
         <source>%1 pages opened as separate documents.</source>
         <translation>%1 ページを個別のドキュメントとして開きました。</translation>
     </message>
@@ -8414,6 +8410,14 @@ Mixed selection</source>
     <message>
         <source>Choose a folder.</source>
         <translation>フォルダーを選択してください。</translation>
+    </message>
+    <message>
+        <source>Select All</source>
+        <translation>すべてを選択</translation>
+    </message>
+    <message>
+        <source>Select at least one document.</source>
+        <translation>少なくとも 1 つのドキュメントを選択してください。</translation>
     </message>
 </context>
 <context>

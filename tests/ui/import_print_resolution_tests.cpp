@@ -3745,13 +3745,12 @@ void ui_multipage_pdf_dialog_lists_documents_and_groups() {
     CHECK(!ungrouped->isEnabled());
     CHECK(export_button->isEnabled());
     CHECK(summary->text().contains(QString::number(list->count())));
-    // Unchecking every document disables Export.
-    for (int row = 0; row < list->count(); ++row) {
-      list->item(row)->setCheckState(Qt::Unchecked);
-    }
+    // Every document starts selected; deselecting them all disables Export.
+    CHECK(list->selectedItems().size() == list->count());
+    list->clearSelection();
     QApplication::processEvents();
     CHECK(!export_button->isEnabled());
-    list->item(0)->setCheckState(Qt::Checked);
+    list->item(0)->setSelected(true);
     QApplication::processEvents();
     CHECK(export_button->isEnabled());
     CHECK(summary->text().contains(QStringLiteral("1")));

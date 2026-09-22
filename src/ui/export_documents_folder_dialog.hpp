@@ -14,9 +14,9 @@ class QWidget;
 
 namespace patchy::ui {
 
-// File > Export Documents to Folder: every checked open document, in list order,
-// written as one flattened numbered image each (prefix + zero-padded number +
-// extension) into a folder. The document-level sibling of Export Layers as Image
+// File > Export Documents to Folder: every selected open document, in list order,
+// written as one numbered image file each (prefix + zero-padded number + extension)
+// into a folder; flat formats flatten, PSD/PSB and Aseprite keep their layers. The document-level sibling of Export Layers as Image
 // Sequence, and the half of the PDF round trip that turns tabs back into page files.
 // MainWindow resolves the choice into documents and writes them
 // (export_document_sessions_to_folder) because only it owns the sessions.
@@ -25,7 +25,7 @@ namespace patchy::ui {
 enum class ExportDocumentsExistingFiles : int { AddNumbering = 0, Overwrite = 1 };
 
 struct ExportDocumentsFolderChoice {
-  std::vector<std::int64_t> session_ids;  // the checked sessions in list order
+  std::vector<std::int64_t> session_ids;  // the selected sessions in list order
   QString folder;                         // absolute, already created by the dialog
   QString extension;                      // token, e.g. "png"
   ImageSequenceNaming naming;             // numbered mode only (use_layer_names stays false)
@@ -33,7 +33,8 @@ struct ExportDocumentsFolderChoice {
 };
 
 // The format rows are the divide-photos choices (flat-image export formats minus
-// SVG and the icon/cursor formats), built by the caller from the format registry.
+// SVG and the icon/cursor formats) plus the layer-keeping PSD and Aseprite writers,
+// built by the caller from the format registry (export_documents_format_choices).
 using ExportDocumentsFormatChoice = DividePhotosFormatChoice;
 
 // `documents` lists every open session; `active_session_id` names the current row.

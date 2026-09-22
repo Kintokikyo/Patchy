@@ -5,12 +5,16 @@
 // (docs/import.md, docs/pdf.md, docs/ui-conventions.md).
 
 #include "core/document.hpp"
+#include "formats/aseprite_document_io.hpp"
+#include "formats/pdf_document_io.hpp"
+#include "psd/psd_document_io.hpp"
 #include "ui/app_settings.hpp"
 #include "ui/document_order_list.hpp"
 #include "ui/export_documents_folder_dialog.hpp"
 #include "ui/image_document_io.hpp"
 #include "ui/image_sequence_dialog.hpp"
 #include "ui/main_window.hpp"
+#include "ui/qt_paths.hpp"
 
 #include "test_harness.hpp"
 #include "ui_test_access.hpp"
@@ -28,6 +32,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
+#include <QItemSelectionModel>
 #include <QLabel>
 #include <QLineEdit>
 #include <QKeySequence>
@@ -47,6 +52,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <utility>
 #include <vector>
 
@@ -345,6 +351,164 @@ void ui_export_documents_to_folder_writes_numbered_files() {
   CHECK(QDir(temp.path()).entryList(QDir::Files).size() == 6);
 }
 
+// PSD and Aseprite rows write through the layered writers: every page keeps its
+// layer tree instead of the flattened composite the image formats get.
+void ui_export_documents_to_folder_writes_layered_psd_and_aseprite() {
+  SettingsValueRestorer last_save_restorer(QStringLiteral("lastSaveDirectory"));
+  QTemporaryDir temp;
+  CHECK(temp.isValid());
+  patchy::ui::MainWindow window;
+  show_window(window);
+  const auto base = MainWindowTestAccess::session_count(window);
+  auto two_layers = solid_document(10, 6, QColor(255, 0, 0));
+  two_layers.add_pixel_layer("Top", patchy::PixelBuffer(10, 6, patchy::PixelFormat::rgba8()));
+  window.add_document_session(std::move(two_layers), QStringLiteral("Layered"));
+  window.add_document_session(solid_document(12, 6, QColor(0, 255, 0)), QStringLiteral("Flat"));
+  const std::vector<std::int64_t> ids = {MainWindowTestAccess::session_id(window, base),
+                                         MainWindowTestAccess::session_id(window, base + 1)};
+  patchy::ui::ImageSequenceNaming naming;
+  naming.prefix = QStringLiteral("doc_");
+  naming.start = 1;
+  naming.padding = 3;
+
+  const auto psd_written = MainWindowTestAccess::export_document_sessions_to_folder(
+      window, ids, temp.path(), QStringLiteral("psd"), naming, patchy::ui::ExportDocumentsExistingFiles::AddNumbering);
+  CHECK(psd_written.has_value());
+  CHECK(psd_written.has_value() && psd_written->size() == 2);
+  if (psd_written.has_value() && psd_written->size() == 2) {
+    CHECK(QFileInfo(psd_written->at(0)).fileName() == QStringLiteral("doc_001.psd"));
+    const auto layered = patchy::psd::DocumentIo::read_file(patchy::ui::to_filesystem_path(psd_written->at(0)));
+    CHECK(layered.width() == 10);
+    CHECK(layered.layers().size() == 2U);
+    CHECK(layered.layers().size() == 2U && layered.layers().back().name() == "Top");
+    const auto flat = patchy::psd::DocumentIo::read_file(patchy::ui::to_filesystem_path(psd_written->at(1)));
+    CHECK(flat.width() == 12);
+    CHECK(flat.layers().size() == 1U);
+  }
+
+  const auto ase_written = MainWindowTestAccess::export_document_sessions_to_folder(
+      window, ids, temp.path(), QStringLiteral("aseprite"), naming,
+      patchy::ui::ExportDocumentsExistingFiles::AddNumbering);
+  CHECK(ase_written.has_value());
+  CHECK(ase_written.has_value() && ase_written->size() == 2);
+  if (ase_written.has_value() && ase_written->size() == 2) {
+    // Numbering is per extension: the PSDs do not push the Aseprite files past 001.
+    CHECK(QFileInfo(ase_written->at(0)).fileName() == QStringLiteral("doc_001.aseprite"));
+    const auto layered =
+        patchy::aseprite::DocumentIo::read_file(patchy::ui::to_filesystem_path(ase_written->at(0)));
+    CHECK(layered.width() == 10);
+    CHECK(layered.layers().size() == 2U);
+    CHECK(layered.layers().size() == 2U && layered.layers().back().name() == "Top");
+  }
+  // The sessions are untouched: nothing got a path.
+  CHECK(MainWindowTestAccess::active_session_path(window).isEmpty());
+}
+
+// PDF pages ask flatten-or-editable once per batch, like Save As: the remembered
+// policy answers silently, "ask" raises pdfLayersMessageBox, and Cancel writes nothing.
+void ui_export_documents_to_folder_pdf_layer_choice() {
+  SettingsValueRestorer last_save_restorer(QStringLiteral("lastSaveDirectory"));
+  SettingsValueRestorer policy_restorer(QStringLiteral("saveOptions/pdfLayerPolicy"));
+  QTemporaryDir temp;
+  CHECK(temp.isValid());
+  patchy::ui::MainWindow window;
+  show_window(window);
+  const auto base = MainWindowTestAccess::session_count(window);
+  // Red page with an opaque blue band across the top rows: two images in editable mode.
+  auto two_layers = solid_document(20, 12, QColor(255, 0, 0));
+  {
+    patchy::PixelBuffer band(20, 12, patchy::PixelFormat::rgba8());
+    for (int y = 0; y < 4; ++y) {
+      auto row = band.row(y);
+      for (int x = 0; x < 20; ++x) {
+        row[static_cast<std::size_t>(x) * 4U + 0U] = 0;
+        row[static_cast<std::size_t>(x) * 4U + 1U] = 0;
+        row[static_cast<std::size_t>(x) * 4U + 2U] = 255;
+        row[static_cast<std::size_t>(x) * 4U + 3U] = 255;
+      }
+    }
+    two_layers.add_pixel_layer("Band", std::move(band));
+  }
+  window.add_document_session(std::move(two_layers), QStringLiteral("Layered"));
+  const std::vector<std::int64_t> ids = {MainWindowTestAccess::session_id(window, base)};
+  patchy::ui::ImageSequenceNaming naming;
+  naming.prefix = QStringLiteral("doc_");
+  naming.start = 1;
+  naming.padding = 3;
+  const auto layer_count = [](const QString& path) {
+    QFile file(path);
+    CHECK(file.open(QIODevice::ReadOnly));
+    const QByteArray bytes = file.readAll();
+    const std::span<const std::uint8_t> span(reinterpret_cast<const std::uint8_t*>(bytes.constData()),
+                                             static_cast<std::size_t>(bytes.size()));
+    patchy::pdf::VectorReadOptions read_options;
+    read_options.pixels_per_point = 1.0;
+    return patchy::pdf::read_page_as_vectors(span, read_options).document.layers().size();
+  };
+  const auto export_pdf = [&] {
+    return MainWindowTestAccess::export_document_sessions_to_folder(
+        window, ids, temp.path(), QStringLiteral("pdf"), naming, patchy::ui::ExportDocumentsExistingFiles::AddNumbering);
+  };
+  auto settings = patchy::ui::app_settings();
+
+  // A remembered policy answers without a prompt.
+  settings.setValue(QStringLiteral("saveOptions/pdfLayerPolicy"), QStringLiteral("editable"));
+  const auto editable = export_pdf();
+  CHECK(editable.has_value());
+  if (editable.has_value()) {
+    CHECK(QFileInfo(editable->front()).fileName() == QStringLiteral("doc_001.pdf"));
+    CHECK(layer_count(editable->front()) >= 2U);
+  }
+  settings.setValue(QStringLiteral("saveOptions/pdfLayerPolicy"), QStringLiteral("flatten"));
+  const auto flattened = export_pdf();
+  CHECK(flattened.has_value());
+  if (flattened.has_value()) {
+    CHECK(QFileInfo(flattened->front()).fileName() == QStringLiteral("doc_002.pdf"));
+    CHECK(layer_count(flattened->front()) == 1U);
+  }
+
+  // "ask" raises the question once for the batch; Cancel writes nothing.
+  settings.setValue(QStringLiteral("saveOptions/pdfLayerPolicy"), QStringLiteral("ask"));
+  const auto drive = [](const char* button_text, std::shared_ptr<bool> seen) {
+    QTimer::singleShot(0, [button_text, seen] {
+      auto* box = qobject_cast<QMessageBox*>(find_top_level_dialog(QStringLiteral("pdfLayersMessageBox")));
+      CHECK(box != nullptr);
+      if (box == nullptr) {
+        return;
+      }
+      *seen = true;
+      if (button_text == nullptr) {
+        box->reject();
+        return;
+      }
+      for (auto* button : box->buttons()) {
+        if (button->text().contains(QString::fromUtf8(button_text))) {
+          button->click();
+          return;
+        }
+      }
+      CHECK(false);  // button not found
+    });
+  };
+  auto cancelled = std::make_shared<bool>(false);
+  drive(nullptr, cancelled);
+  const auto none = export_pdf();
+  CHECK(*cancelled);
+  CHECK(!none.has_value());
+  CHECK(QDir(temp.path()).entryList(QDir::Files).size() == 2);
+  auto answered = std::make_shared<bool>(false);
+  drive("Keep Layers Editable", answered);
+  const auto asked = export_pdf();
+  CHECK(*answered);
+  CHECK(asked.has_value());
+  if (asked.has_value()) {
+    CHECK(QFileInfo(asked->front()).fileName() == QStringLiteral("doc_003.pdf"));
+    CHECK(layer_count(asked->front()) >= 2U);
+  }
+  // The question was not remembered: the policy is still "ask".
+  CHECK(settings.value(QStringLiteral("saveOptions/pdfLayerPolicy")).toString() == QStringLiteral("ask"));
+}
+
 void ui_export_documents_dialog_round_trip() {
   ExportDocumentsSettingsGuard settings_guard;
   SettingsValueRestorer last_save_restorer(QStringLiteral("lastSaveDirectory"));
@@ -392,14 +556,21 @@ void ui_export_documents_dialog_round_trip() {
     CHECK(start_spin->value() == 1);
     CHECK(padding_spin->value() == 3);
     CHECK(format_combo->currentData().toString() == QStringLiteral("png"));
+    // The layer-keeping formats are offered alongside the flat ones.
+    CHECK(format_combo->findData(QStringLiteral("psd")) >= 0);
+    CHECK(format_combo->findData(QStringLiteral("aseprite")) >= 0);
+    CHECK(format_combo->findData(QStringLiteral("svg")) < 0);
+    CHECK(format_combo->findData(QStringLiteral("ico")) < 0);
     CHECK(preview->text().contains(QStringLiteral("page_001.png")));
     folder_edit->setText(QDir::toNativeSeparators(temp.path()));
     CHECK(export_button->isEnabled());
-    // Drop the startup document, reverse the rest, and rename the set.
-    list->item(0)->setCheckState(Qt::Unchecked);
+    // Every document starts selected; drop the startup document, reverse the rest,
+    // and rename the set.
+    CHECK(list->selectedItems().size() == list->count());
+    list->item(0)->setSelected(false);
     reverse->click();
     CHECK(list->item(0)->text() == QStringLiteral("Blue"));
-    CHECK(list->item(list->count() - 1)->checkState() == Qt::Unchecked);
+    CHECK(!list->item(list->count() - 1)->isSelected());
     prefix_edit->setText(QStringLiteral("pg"));
     start_spin->setValue(7);
     padding_spin->setValue(2);
@@ -459,9 +630,12 @@ void ui_document_order_auto_sort_and_reverse() {
     auto* auto_sort = dialog->findChild<QPushButton*>(QStringLiteral("multiPagePdfAutoSortButton"));
     auto* reverse = dialog->findChild<QPushButton*>(QStringLiteral("multiPagePdfReverseButton"));
     auto* move_up = dialog->findChild<QPushButton*>(QStringLiteral("multiPagePdfMoveUpButton"));
+    auto* select_all = dialog->findChild<QPushButton*>(QStringLiteral("multiPagePdfSelectAllButton"));
     auto* summary = dialog->findChild<QLabel*>(QStringLiteral("multiPagePdfSummaryLabel"));
-    CHECK(list != nullptr && auto_sort != nullptr && reverse != nullptr && move_up != nullptr && summary != nullptr);
-    if (list == nullptr || auto_sort == nullptr || reverse == nullptr || move_up == nullptr || summary == nullptr) {
+    CHECK(list != nullptr && auto_sort != nullptr && reverse != nullptr && move_up != nullptr &&
+          select_all != nullptr && summary != nullptr);
+    if (list == nullptr || auto_sort == nullptr || reverse == nullptr || move_up == nullptr ||
+        select_all == nullptr || summary == nullptr) {
       dialog->reject();
       return;
     }
@@ -479,9 +653,10 @@ void ui_document_order_auto_sort_and_reverse() {
     // Creation order: the startup document, then Page 10, Page 2, Page 1.
     CHECK(row_of(page10) == static_cast<int>(base));
     CHECK(row_of(page1) == static_cast<int>(base) + 2);
-    // The unchecked state and the current row ride along with their rows.
-    list->item(row_of(page2))->setCheckState(Qt::Unchecked);
-    list->setCurrentRow(row_of(page10));
+    // The deselected state and the current row ride along with their rows.
+    CHECK(list->selectedItems().size() == list->count());
+    list->item(row_of(page2))->setSelected(false);
+    list->setCurrentItem(list->item(row_of(page10)), QItemSelectionModel::NoUpdate);
     CHECK(auto_sort->isEnabled());
     auto_sort->click();
     CHECK(static_cast<std::size_t>(list->count()) == base + 3);
@@ -489,20 +664,45 @@ void ui_document_order_auto_sort_and_reverse() {
     // startup document sorts by its own title wherever that lands.
     CHECK(row_of(page1) < row_of(page2));
     CHECK(row_of(page2) < row_of(page10));
-    CHECK(list->item(row_of(page2))->checkState() == Qt::Unchecked);
-    CHECK(list->item(row_of(page10))->checkState() == Qt::Checked);
+    CHECK(!list->item(row_of(page2))->isSelected());
+    CHECK(list->item(row_of(page10))->isSelected());
     CHECK(list->currentItem() != nullptr && list->currentItem()->text() == page10);
     CHECK(summary->text().contains(QString::number(list->count() - 1)));
     reverse->click();
     CHECK(row_of(page10) < row_of(page2));
     CHECK(row_of(page2) < row_of(page1));
-    CHECK(list->item(row_of(page2))->checkState() == Qt::Unchecked);
+    CHECK(!list->item(row_of(page2))->isSelected());
     CHECK(list->currentItem() != nullptr && list->currentItem()->text() == page10);
-    // Move Up is off on the first row and comes back below it.
-    list->setCurrentRow(0);
+    // Move Up is off while the first row is selected and comes back below it. A
+    // plain click is ClearAndSelect (setCurrentRow on a multi-select list only adds).
+    const auto click_row = [list](int row) {
+      list->setCurrentItem(list->item(row), QItemSelectionModel::ClearAndSelect);
+    };
+    click_row(0);
+    CHECK(list->selectedItems().size() == 1);
     CHECK(!move_up->isEnabled());
-    list->setCurrentRow(1);
+    click_row(1);
     CHECK(move_up->isEnabled());
+    // A multi-row selection moves as a block and stays selected; a run against the
+    // top edge stays put.
+    click_row(2);
+    list->item(3)->setSelected(true);
+    const QString third = list->item(2)->text();
+    const QString fourth = list->item(3)->text();
+    move_up->click();
+    CHECK(list->item(1)->text() == third);
+    CHECK(list->item(2)->text() == fourth);
+    CHECK(list->item(1)->isSelected() && list->item(2)->isSelected() && !list->item(0)->isSelected());
+    CHECK(list->currentItem() != nullptr && list->currentItem()->text() == third);
+    move_up->click();
+    CHECK(list->item(0)->text() == third);
+    CHECK(!move_up->isEnabled());
+    // Select All brings every row back and grays itself out.
+    CHECK(select_all->isEnabled());
+    select_all->click();
+    CHECK(list->selectedItems().size() == list->count());
+    CHECK(!select_all->isEnabled());
+    CHECK(summary->text().contains(QString::number(list->count())));
     seen = true;
     dialog->reject();
   });
@@ -563,6 +763,9 @@ std::vector<patchy::test::TestCase> folder_open_export_tests() {
       {"ui_folder_actions_and_commands_registered", ui_folder_actions_and_commands_registered},
       {"ui_file_export_menu_actions_registered", ui_file_export_menu_actions_registered},
       {"ui_export_documents_to_folder_writes_numbered_files", ui_export_documents_to_folder_writes_numbered_files},
+      {"ui_export_documents_to_folder_writes_layered_psd_and_aseprite",
+       ui_export_documents_to_folder_writes_layered_psd_and_aseprite},
+      {"ui_export_documents_to_folder_pdf_layer_choice", ui_export_documents_to_folder_pdf_layer_choice},
       {"ui_export_documents_dialog_round_trip", ui_export_documents_dialog_round_trip},
       {"ui_document_order_auto_sort_and_reverse", ui_document_order_auto_sort_and_reverse},
   };

@@ -8273,10 +8273,6 @@ RGB: %2, %3, %4</translation>
         </translation>
     </message>
     <message>
-        <source>Check at least one document.</source>
-        <translation>Seleziona almeno un documento.</translation>
-    </message>
-    <message>
         <source>%1 pages opened as separate documents.</source>
         <translation>%1 pagine aperte come documenti separati.</translation>
     </message>
@@ -8441,6 +8437,14 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Choose a folder.</source>
         <translation>Scegli una cartella.</translation>
+    </message>
+    <message>
+        <source>Select All</source>
+        <translation>Seleziona tutto</translation>
+    </message>
+    <message>
+        <source>Select at least one document.</source>
+        <translation>Seleziona almeno un documento.</translation>
     </message>
 </context>
 <context>

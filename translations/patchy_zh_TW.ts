@@ -8248,10 +8248,6 @@ RGB：%2, %3, %4</translation>
         </translation>
     </message>
     <message>
-        <source>Check at least one document.</source>
-        <translation>請至少勾選一個文件。</translation>
-    </message>
-    <message>
         <source>%1 pages opened as separate documents.</source>
         <translation>已將 %1 頁作為個別文件開啟。</translation>
     </message>
@@ -8414,6 +8410,14 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Choose a folder.</source>
         <translation>請選擇一個資料夾。</translation>
+    </message>
+    <message>
+        <source>Select All</source>
+        <translation>全選</translation>
+    </message>
+    <message>
+        <source>Select at least one document.</source>
+        <translation>請至少選取一個文件。</translation>
     </message>
 </context>
 <context>

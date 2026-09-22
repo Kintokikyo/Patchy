@@ -8273,10 +8273,6 @@ RVB : %2, %3, %4</translation>
         </translation>
     </message>
     <message>
-        <source>Check at least one document.</source>
-        <translation>Cochez au moins un document.</translation>
-    </message>
-    <message>
         <source>%1 pages opened as separate documents.</source>
         <translation>%1 pages ouvertes comme documents séparés.</translation>
     </message>
@@ -8441,6 +8437,14 @@ RVB : %2, %3, %4</translation>
     <message>
         <source>Choose a folder.</source>
         <translation>Choisissez un dossier.</translation>
+    </message>
+    <message>
+        <source>Select All</source>
+        <translation>Tout sélectionner</translation>
+    </message>
+    <message>
+        <source>Select at least one document.</source>
+        <translation>Sélectionnez au moins un document.</translation>
     </message>
 </context>
 <context>

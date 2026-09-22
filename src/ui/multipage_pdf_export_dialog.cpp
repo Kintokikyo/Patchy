@@ -123,17 +123,18 @@ std::optional<MultiPagePdfExportChoice> run_multipage_pdf_export_dialog(
     sync_document_order_controls(order, !by_groups);
     ungrouped->setEnabled(by_groups);
     editable_note->setEnabled(editable->isChecked());
-    const int page_count = by_groups ? top_level_group_count : static_cast<int>(checked_session_ids(*list).size());
+    const int page_count = by_groups ? top_level_group_count : static_cast<int>(selected_session_ids(*list).size());
     export_button->setEnabled(page_count > 0);
     summary->setText(page_count > 0 ? QObject::tr("%n page(s) will be written.", nullptr, page_count)
-                                    : QObject::tr("Check at least one document."));
+                                    : QObject::tr("Select at least one document."));
   };
   (groups_available && stored_groups ? groups_radio : documents_radio)->setChecked(true);
   sync();
   QObject::connect(documents_radio, &QRadioButton::toggled, &dialog, sync);
   QObject::connect(groups_radio, &QRadioButton::toggled, &dialog, sync);
-  QObject::connect(list, &QListWidget::itemChanged, &dialog, sync);
+  QObject::connect(list, &QListWidget::itemSelectionChanged, &dialog, sync);
   QObject::connect(list, &QListWidget::currentRowChanged, &dialog, sync);
+  QObject::connect(order.select_all, &QPushButton::clicked, &dialog, sync);
   QObject::connect(editable, &QCheckBox::toggled, &dialog, sync);
 
   remember_dialog_position(dialog);
@@ -143,7 +144,7 @@ std::optional<MultiPagePdfExportChoice> run_multipage_pdf_export_dialog(
 
   MultiPagePdfExportChoice choice;
   choice.source = groups_radio->isChecked() ? MultiPagePdfSource::TopLevelGroups : MultiPagePdfSource::OpenDocuments;
-  choice.session_ids = checked_session_ids(*list);
+  choice.session_ids = selected_session_ids(*list);
   choice.include_ungrouped_layers = ungrouped->isChecked();
   apply_pdf_image_quality(quality->currentData().toString(), choice.options);
   choice.options.editable_layers = editable->isChecked();
