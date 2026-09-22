@@ -2373,6 +2373,12 @@ void MainWindow::register_option_action(QWidget* widget, std::initializer_list<C
 
 void MainWindow::refresh_options_bar() {
 #ifdef Q_OS_ANDROID
+  QLayout* main_layout = layout();
+
+  if (main_layout != nullptr) {
+    main_layout->setEnabled(false);
+  }
+  
   setUpdatesEnabled(false);
 #endif
   // Runs on every passive transform-box change (each Move-tool press), so it
@@ -2666,6 +2672,11 @@ void MainWindow::refresh_options_bar() {
                                                    : CanvasWidget::SelectionMode::Replace);
   sync_text_alignment_buttons_from_editor();
 #ifdef Q_OS_ANDROID
+  if (main_layout != nullptr) {
+    main_layout->setEnabled(true);
+    main_layout->activate();
+  }
+
   setUpdatesEnabled(true);
   update();
 #endif
