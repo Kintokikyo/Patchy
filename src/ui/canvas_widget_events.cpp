@@ -901,6 +901,8 @@ void CanvasWidget::mousePressEvent(QMouseEvent* event) {
     // before the interior move because the handles overlap the interior edge.
     marquee_resize_handle_ = handle;
     marquee_resize_start_rect_ = marquee_shape_->rect;
+    marquee_resize_current_rect_ = marquee_shape_->rect;
+    spacebar_repositioning_drag_rect_ = false;
     selection_edges_visible_ = true;
     selection_press_widget_position_ = event->pos();
     capture_selection_before_edit();
@@ -1686,7 +1688,11 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
   } else if (marquee_resize_handle_ != TransformHandle::None) {
     clear_move_hover_outline();
     update_marquee_resize_drag(document_point, event->modifiers());
-    set_transform_cursor_for_handle(marquee_resize_handle_);
+    if (spacebar_repositioning_drag_rect_) {
+      setCursor(Qt::SizeAllCursor);
+    } else {
+      set_transform_cursor_for_handle(marquee_resize_handle_);
+    }
     emit_info_for_widget_position(event->pos());
     update();
   } else if (selecting_) {
@@ -2334,6 +2340,7 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
       record_selection_history(tr("Resize Selection"), selection_snapshot_before_edit());
     }
     marquee_resize_handle_ = TransformHandle::None;
+    spacebar_repositioning_drag_rect_ = false;
     clear_selection_before_edit();
     emit_info_for_widget_position(event->pos());
     update_tool_cursor();
@@ -3123,6 +3130,14 @@ void CanvasWidget::keyPressEvent(QKeyEvent* event) {
       spacebar_reposition_origin_document_position_ = spacebar_reposition_last_document_position_;
       spacebar_reposition_start_selection_start_ = selection_start_;
       spacebar_reposition_start_selection_current_ = selection_current_;
+      setCursor(Qt::SizeAllCursor);
+    } else if (marquee_resize_handle_ != TransformHandle::None) {
+      // Space during a handle drag slides the whole selection, like the drag-out.
+      spacebar_repositioning_drag_rect_ = true;
+      spacebar_reposition_origin_document_position_ = document_position(last_mouse_position_);
+      spacebar_reposition_last_document_position_ = spacebar_reposition_origin_document_position_;
+      spacebar_reposition_start_marquee_rect_ = marquee_resize_current_rect_;
+      spacebar_reposition_start_marquee_start_rect_ = marquee_resize_start_rect_;
       setCursor(Qt::SizeAllCursor);
     } else if (drawing_shape_ || crop_dragging_out_) {
       spacebar_repositioning_drag_rect_ = true;

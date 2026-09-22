@@ -1780,6 +1780,7 @@ private:
   [[nodiscard]] TransformHandle marquee_resize_handle_at(QPoint widget_point,
                                                           Qt::KeyboardModifiers modifiers) const;
   void update_marquee_resize_drag(QPoint document_point, Qt::KeyboardModifiers modifiers);
+  void apply_marquee_resize_rect(QRect rect);
   void draw_marquee_resize_handles(QPainter& painter) const;
   [[nodiscard]] QImage lasso_selection_mask(const QPolygon& polygon, QRect& bounds) const;
   [[nodiscard]] QImage lasso_selection_mask(const QPolygonF& polygon, QRect& bounds) const;
@@ -2337,6 +2338,11 @@ private:
   // A handle drag on the remembered marquee shape (None when idle).
   TransformHandle marquee_resize_handle_{TransformHandle::None};
   QRect marquee_resize_start_rect_;
+  // The rect the drag last applied; Space repositions from here and moves
+  // marquee_resize_start_rect_ along so the resize resumes in place.
+  QRect marquee_resize_current_rect_;
+  QRect spacebar_reposition_start_marquee_rect_;
+  QRect spacebar_reposition_start_marquee_start_rect_;
   bool selection_edges_visible_{true};
   bool quick_mask_active_{false};
   PixelBuffer quick_mask_pixels_;

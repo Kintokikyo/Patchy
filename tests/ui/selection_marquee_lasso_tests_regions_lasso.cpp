@@ -1112,6 +1112,64 @@ void ui_elliptical_marquee_handle_drag_keeps_ellipse() {
   CHECK(canvas->selected_document_region().contains(resized->center()));
 }
 
+void ui_marquee_handle_drag_space_repositions_then_resumes() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto* undo_action = require_action_by_text(window, QStringLiteral("Undo"));
+  canvas->set_tool(patchy::ui::CanvasTool::Marquee);
+  canvas->set_snap_enabled(false);
+
+  drag(*canvas, canvas->widget_position_for_document_point(QPoint(40, 40)),
+       canvas->widget_position_for_document_point(QPoint(100, 80)));
+  const auto original = canvas->selected_document_rect();
+  CHECK(original.has_value());
+
+  // Start widening by the right edge.
+  const auto right_handle = marquee_handle_position(*canvas, *original, 2, 1);
+  const auto mid_y = original->y() + original->height() / 2;
+  send_mouse(*canvas, QEvent::MouseButtonPress, right_handle, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseMove,
+             canvas->widget_position_for_document_point(QPoint(original->x() + original->width() + 30, mid_y)),
+             Qt::NoButton, Qt::LeftButton);
+  const auto widened = canvas->selected_document_rect();
+  CHECK(widened.has_value());
+  CHECK(within_one(widened->width(), original->width() + 30));
+
+  // Space held: the pointer now slides the whole rect, size intact.
+  send_key_press(*canvas, Qt::Key_Space);
+  CHECK(canvas->cursor().shape() == Qt::SizeAllCursor);
+  send_mouse(*canvas, QEvent::MouseMove,
+             canvas->widget_position_for_document_point(
+                 QPoint(original->x() + original->width() + 30 + 20, mid_y + 15)),
+             Qt::NoButton, Qt::LeftButton);
+  const auto slid = canvas->selected_document_rect();
+  CHECK(slid.has_value());
+  CHECK(slid->size() == widened->size());
+  CHECK(slid->topLeft() == widened->topLeft() + QPoint(20, 15));
+
+  // Space released: the same drag resumes as a resize from the slid position,
+  // the right edge tracking the pointer and the left edge staying put.
+  send_key_release(*canvas, Qt::Key_Space);
+  const auto final_pointer = canvas->widget_position_for_document_point(
+      QPoint(original->x() + original->width() + 30 + 20 + 10, mid_y + 15));
+  send_mouse(*canvas, QEvent::MouseMove, final_pointer, Qt::NoButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, final_pointer, Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  const auto resumed = canvas->selected_document_rect();
+  CHECK(resumed.has_value());
+  CHECK(resumed->topLeft() == slid->topLeft());
+  CHECK(resumed->height() == slid->height());
+  CHECK(within_one(resumed->width(), slid->width() + 10));
+  CHECK(window.statusBar()->currentMessage() == QStringLiteral("Resize Selection"));
+
+  // One history entry covers the slide and the resize.
+  undo_action->trigger();
+  QApplication::processEvents();
+  CHECK(canvas->selected_document_rect() == original);
+  save_widget_artifact("ui_marquee_handle_space_reposition", *canvas);
+}
+
 void ui_marquee_feathered_resize_rerasterizes_soft_edge() {
   patchy::ui::MainWindow window;
   show_window(window);
@@ -1490,6 +1548,8 @@ std::vector<patchy::test::TestCase> selection_marquee_lasso_tests_part2() {
       {"ui_lasso_click_deselects", ui_lasso_click_deselects},
       {"ui_marquee_drag_moves_selection", ui_marquee_drag_moves_selection},
       {"ui_marquee_edge_handle_drag_resizes_selection", ui_marquee_edge_handle_drag_resizes_selection},
+      {"ui_marquee_handle_drag_space_repositions_then_resumes",
+       ui_marquee_handle_drag_space_repositions_then_resumes},
       {"ui_marquee_corner_handle_drag_and_shift_aspect", ui_marquee_corner_handle_drag_and_shift_aspect},
       {"ui_elliptical_marquee_handle_drag_keeps_ellipse", ui_elliptical_marquee_handle_drag_keeps_ellipse},
       {"ui_marquee_feathered_resize_rerasterizes_soft_edge", ui_marquee_feathered_resize_rerasterizes_soft_edge},

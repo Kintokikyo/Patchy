@@ -1285,6 +1285,15 @@ void CanvasWidget::update_marquee_resize_drag(QPoint document_point, Qt::Keyboar
   if (marquee_resize_handle_ == TransformHandle::None || !marquee_shape_before_edit_.has_value()) {
     return;
   }
+  if (spacebar_repositioning_drag_rect_) {
+    // Space held mid-drag slides the whole rect (the drag-out rule). The start
+    // rect follows so releasing Space resumes the resize where the rect now is.
+    const auto raw_delta = document_point - spacebar_reposition_origin_document_position_;
+    const auto delta = snapped_rect_delta(spacebar_reposition_start_marquee_rect_, raw_delta);
+    marquee_resize_start_rect_ = spacebar_reposition_start_marquee_start_rect_.translated(delta);
+    apply_marquee_resize_rect(spacebar_reposition_start_marquee_rect_.translated(delta));
+    return;
+  }
   const auto point = snapped_document_point(document_point);
   const auto start = marquee_resize_start_rect_;
   const auto handle = marquee_resize_handle_;
@@ -1336,7 +1345,11 @@ void CanvasWidget::update_marquee_resize_drag(QPoint document_point, Qt::Keyboar
     rect = QRect(std::min(left, right), std::min(top, bottom), std::max(1, std::abs(right - left)),
                  std::max(1, std::abs(bottom - top)));
   }
+  apply_marquee_resize_rect(rect);
+}
 
+void CanvasWidget::apply_marquee_resize_rect(QRect rect) {
+  marquee_resize_current_rect_ = rect;
   auto shape = *marquee_shape_before_edit_;
   shape.rect = rect;
   apply_marquee_shape(shape);
