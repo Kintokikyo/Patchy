@@ -8,6 +8,11 @@ import android.provider.DocumentsContract;
 import android.database.Cursor;
 import android.util.Log;
 
+import android.graphics.Rect;
+import android.view.View;
+import java.util.ArrayList;
+import java.util.List;
+
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
@@ -380,6 +385,64 @@ public class MainActivity extends QtActivity {
                 "CUSTOM MAIN ACTIVITY onCreate()");
 
         super.onCreate(savedInstanceState);
+        getWindow().getDecorView().post(() -> {
+        disableCaptionDragForTopArea();
+        });
+    }
+    
+    private void disableCaptionDragForTopArea() {
+
+    View decorView = getWindow().getDecorView();
+
+    if (android.os.Build.VERSION.SDK_INT >= 30) {
+
+        ArrayList<Rect> exclusionRects =
+                new ArrayList<>();
+
+        /*
+         * Ambil tinggi caption bar Android.
+         */
+        android.view.WindowInsets insets =
+                decorView.getRootWindowInsets();
+
+        int captionHeight = 0;
+
+        if (insets != null) {
+            captionHeight =
+                    insets.getInsets(
+                            android.view.WindowInsets.Type.captionBar()
+                    ).top;
+        }
+
+        /*
+         * Beri area input prioritas pada bagian atas.
+         *
+         * Untuk tes pertama kita beri sedikit ruang
+         * di bawah caption bar juga.
+         */
+        int extraArea =
+                (int) (80 * getResources()
+                        .getDisplayMetrics().density);
+
+        int exclusionHeight =
+                captionHeight + extraArea;
+
+        if (exclusionHeight > 0) {
+
+            exclusionRects.add(
+                    new Rect(
+                            0,
+                            0,
+                            decorView.getWidth(),
+                            exclusionHeight
+                    )
+            );
+
+            decorView.setSystemGestureExclusionRects(
+                    exclusionRects
+                );
+            }
+        }
     }
 
     @Override
