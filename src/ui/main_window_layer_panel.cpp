@@ -3904,7 +3904,7 @@ void MainWindow::refresh_document_info() {
     }
     const auto* shape = layer_is_vector_shape(*layer) ? std::as_const(*layer).vector_shape() : nullptr;
     if (shape != nullptr) {
-      const auto paint_name = [this](const VectorFill& paint) {
+      const auto paint_name = [](const VectorFill& paint) {
         switch (paint.kind) {
           case VectorFillKind::None:
             return tr("none");
