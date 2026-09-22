@@ -969,6 +969,21 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
         "border-radius: 3px; color: @warning_banner_text; padding: 7px 9px; }"));
     root->addWidget(warning);
   }
+  // Patchy-only marker (docs/ui-conventions.md): the calm info banner is shown
+  // while the loaded Drop Shadow has Continuous on. Photoshop opens such a
+  // file without complaint and renders a plain shadow at Distance instead.
+  const auto continuous_shadow_explanation =
+      patchy_only_explanation(QObject::tr("renders a regular drop shadow at the Distance value"));
+  auto* patchy_only_banner = new QLabel(continuous_shadow_explanation, &dialog);
+  patchy_only_banner->setObjectName(QStringLiteral("layerStylePatchyOnlyBanner"));
+  patchy_only_banner->setWordWrap(true);
+  patchy_only_banner->setProperty("infoBanner", true);
+  set_themed_style(*patchy_only_banner, QStringLiteral(
+      "QLabel#layerStylePatchyOnlyBanner { background: @info_banner_bg; border: "
+      "1px solid @info_banner_border; "
+      "border-radius: 3px; color: @info_banner_text; padding: 7px 9px; }"));
+  patchy_only_banner->setVisible(false);
+  root->addWidget(patchy_only_banner);
   QLabel* blend_if_unsupported_warning = nullptr;
   QPushButton* replace_blend_if_button = nullptr;
   if (blend_if_payload_status == BlendIfPayloadStatus::Unsupported) {
@@ -2837,8 +2852,10 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
   auto* shadow_angle = add_slider_spin_row(shadow_form, shadow_group, QObject::tr("Angle"),
                                            QStringLiteral("layerStyleDropShadowAngleSpin"), -180, 180,
                                            static_cast<int>(std::round(shadow.angle_degrees)));
+  // 0..2000 like Photopea's long-shadow range; Photoshop's own dialog stops
+  // at 30000, so any value here round-trips through DrSh.
   auto* shadow_distance = add_slider_spin_row(shadow_form, shadow_group, QObject::tr("Distance"),
-                                              QStringLiteral("layerStyleDropShadowDistanceSpin"), 0, 1000,
+                                              QStringLiteral("layerStyleDropShadowDistanceSpin"), 0, 2000,
                                               static_cast<int>(std::round(shadow.distance)));
   auto* shadow_size = add_slider_spin_row(shadow_form, shadow_group, QObject::tr("Size"),
                                           QStringLiteral("layerStyleDropShadowSizeSpin"), 0, 1000,
@@ -2846,6 +2863,35 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
   auto* shadow_spread = add_slider_spin_row(shadow_form, shadow_group, QObject::tr("Spread"),
                                             QStringLiteral("layerStyleDropShadowSpreadSpin"), 0, 100,
                                             static_cast<int>(std::round(shadow.spread)), QStringLiteral("%"));
+  auto* shadow_continuous_row = new QWidget(shadow_group);
+  auto* shadow_continuous_layout = new QHBoxLayout(shadow_continuous_row);
+  shadow_continuous_layout->setContentsMargins(0, 0, 0, 0);
+  shadow_continuous_layout->setSpacing(8);
+  auto* shadow_continuous = new QCheckBox(QObject::tr("Continuous (long shadow)"), shadow_continuous_row);
+  shadow_continuous->setObjectName(QStringLiteral("layerStyleDropShadowContinuousCheck"));
+  shadow_continuous->setChecked(shadow.continuous);
+  shadow_continuous->setToolTip(
+      QObject::tr("Extend the shadow from the layer all the way out to Distance, the flat long-shadow look") +
+      QStringLiteral("\n\n") + continuous_shadow_explanation);
+  shadow_continuous_layout->addWidget(shadow_continuous);
+  shadow_continuous_layout->addWidget(make_patchy_only_badge(shadow_continuous_row, continuous_shadow_explanation));
+  shadow_continuous_layout->addStretch(1);
+  shadow_form->addRow(QString(), shadow_continuous_row);
+  auto* shadow_fade = add_slider_spin_row(shadow_form, shadow_group, QObject::tr("Fade"),
+                                          QStringLiteral("layerStyleDropShadowFadeSpin"), 0, 100,
+                                          static_cast<int>(std::round(shadow.fade)), QStringLiteral("%"));
+  shadow_fade->setToolTip(QObject::tr("How much the long shadow fades out by its far end"));
+  // The slider, field, and step buttons share one row widget; Fade only means
+  // something while the sweep is on, and the banner follows the same state.
+  auto* shadow_fade_row = shadow_fade->parentWidget();
+  const auto sync_continuous_controls = [shadow_continuous, shadow_fade_row, patchy_only_banner] {
+    const bool on = shadow_continuous->isChecked();
+    if (shadow_fade_row != nullptr) {
+      shadow_fade_row->setEnabled(on);
+    }
+    patchy_only_banner->setVisible(on);
+  };
+  sync_continuous_controls();
   auto* shadow_conceals = new QCheckBox(QObject::tr("Layer Knocks Out Drop Shadow"), shadow_group);
   shadow_conceals->setObjectName(QStringLiteral("layerStyleDropShadowConcealsCheck"));
   shadow_conceals->setChecked(shadow.layer_conceals);
@@ -3178,6 +3224,8 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
         target.size = static_cast<float>(shadow_size->value());
         target.spread = static_cast<float>(shadow_spread->value());
         target.layer_conceals = shadow_conceals->isChecked();
+        target.continuous = shadow_continuous->isChecked();
+        target.fade = static_cast<float>(shadow_fade->value());
         target.color = RgbColor{static_cast<std::uint8_t>(shadow_red->value()),
                                 static_cast<std::uint8_t>(shadow_green->value()),
                                 static_cast<std::uint8_t>(shadow_blue->value())};
@@ -3401,6 +3449,9 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
         shadow_size->setValue(static_cast<int>(std::round(value.size)));
         shadow_spread->setValue(static_cast<int>(std::round(value.spread)));
         shadow_conceals->setChecked(value.layer_conceals);
+        shadow_continuous->setChecked(value.continuous);
+        shadow_fade->setValue(static_cast<int>(std::round(value.fade)));
+        sync_continuous_controls();
         shadow_red->setValue(value.color.red);
         shadow_green->setValue(value.color.green);
         shadow_blue->setValue(value.color.blue);
@@ -3827,7 +3878,7 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
                      inner_glow_range, inner_glow_red, inner_glow_green, inner_glow_blue, satin_opacity,
                      satin_angle, satin_distance,
                      satin_size, satin_red, satin_green, satin_blue, shadow_opacity, shadow_angle, shadow_distance,
-                     shadow_size, shadow_spread, shadow_red,
+                     shadow_size, shadow_spread, shadow_fade, shadow_red,
                      shadow_green, shadow_blue, inner_shadow_opacity, inner_shadow_angle, inner_shadow_distance,
                      inner_shadow_size, inner_shadow_choke, inner_shadow_red, inner_shadow_green, inner_shadow_blue}) {
     QObject::connect(spin, qOverload<int>(&QSpinBox::valueChanged), &dialog,
@@ -4148,6 +4199,10 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
                    [&emit_preview](int) { emit_preview(true); });
   QObject::connect(shadow_conceals, &QCheckBox::toggled, &dialog,
                    [&emit_preview](bool) { emit_preview(true); });
+  QObject::connect(shadow_continuous, &QCheckBox::toggled, &dialog, [&emit_preview, sync_continuous_controls](bool) {
+    sync_continuous_controls();
+    emit_preview(true);
+  });
   QObject::connect(inner_shadow_blend, &QComboBox::currentIndexChanged, &dialog,
                    [&emit_preview](int) { emit_preview(true); });
   QObject::connect(stroke_position, &QComboBox::currentIndexChanged, &dialog,

@@ -364,6 +364,9 @@ const ThemePalette& dark_palette() {
       .warning_banner_bg = rgb(0x4a3a1f),
       .warning_banner_border = rgb(0x9a7430),
       .warning_banner_text = rgb(0xffe0a3),
+      .info_banner_bg = rgb(0x1f3346),
+      .info_banner_border = rgb(0x3f6f9a),
+      .info_banner_text = rgb(0xbfe0ff),
       .swatch_border = rgb(0x9aa4b2),
 
       // Shared button and surface families.
@@ -989,6 +992,9 @@ std::span<const ThemePaletteRole> theme_palette_roles() {
       PATCHY_THEME_ROLE(warning_banner_bg),
       PATCHY_THEME_ROLE(warning_banner_border),
       PATCHY_THEME_ROLE(warning_banner_text),
+      PATCHY_THEME_ROLE(info_banner_bg),
+      PATCHY_THEME_ROLE(info_banner_border),
+      PATCHY_THEME_ROLE(info_banner_text),
       PATCHY_THEME_ROLE(swatch_border),
 
       PATCHY_THEME_ROLE(primary_bg),

@@ -38,6 +38,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -695,6 +696,19 @@ void apply_patchy_palette_resource(Document& document, std::span<const std::uint
   }
 }
 
+namespace {
+
+bool layer_has_continuous_drop_shadow(const Layer& layer) {
+  const auto& style = std::as_const(layer).layer_style();
+  return std::any_of(style.drop_shadows.begin(), style.drop_shadows.end(),
+                     [](const LayerDropShadow& shadow) { return shadow.continuous; });
+}
+
+}  // namespace
+
+// Besides compound vectors, this also assigns a native 'lyid' to every layer
+// whose long-shadow fields must travel in resource 4212 (the resource keys by
+// that id), so the prepared copy is the one the resource writer sees.
 std::optional<Document> prepare_compound_vector_psd(const Document& document) {
   std::optional<Document> prepared;
   if (document_has_compound_vectors(document)) { prepared = expand_compound_vectors(document, true); }
@@ -707,7 +721,10 @@ std::optional<Document> prepare_compound_vector_psd(const Document& document) {
   const auto collect = [&](const auto& self, const std::vector<Layer>& layers) -> void {
     for (const auto& layer : layers) {
       if (const auto id = photoshop_layer_id(layer)) { ++native_ids[*id]; }
-      if (compound_vector_group_kind(layer) != CompoundVectorGroupKind::None) { marked.push_back(layer.id()); }
+      if (compound_vector_group_kind(layer) != CompoundVectorGroupKind::None ||
+          layer_has_continuous_drop_shadow(layer)) {
+        marked.push_back(layer.id());
+      }
       self(self, layer.children());
     }
   };
@@ -728,6 +745,57 @@ std::optional<Document> prepare_compound_vector_psd(const Document& document) {
     set_photoshop_layer_id(*prepared->find_layer(id), native_id);
   }
   return prepared;
+}
+
+void apply_long_shadow_resource(Document& document, std::span<const std::uint8_t> payload) {
+  constexpr std::size_t kEntrySize = 12;
+  if (payload.size() < 12) { return; }
+  BigEndianReader reader(payload);
+  if (reader.read_u32() != kPatchyLongShadowsMagic || reader.read_u16() != 1 || reader.read_u16() != 0) { return; }
+  const auto count = reader.read_u32();
+  if (count > 32767 || reader.remaining() != static_cast<std::size_t>(count) * kEntrySize) { return; }
+  struct Entry {
+    std::uint16_t index;
+    bool continuous;
+    float fade;
+  };
+  std::map<std::uint32_t, std::vector<Entry>> entries;
+  std::set<std::pair<std::uint32_t, std::uint16_t>> seen;
+  for (std::uint32_t i = 0; i < count; ++i) {
+    const auto id = reader.read_u32();
+    const auto index = reader.read_u16();
+    const auto flags = reader.read_u16();
+    const auto fade_fixed = reader.read_u32();
+    if (id == 0 || (flags & ~kPatchyLongShadowFlagContinuous) != 0 || fade_fixed > (100U << 16U) ||
+        !seen.emplace(id, index).second) {
+      return;
+    }
+    entries[id].push_back(Entry{index, (flags & kPatchyLongShadowFlagContinuous) != 0,
+                                static_cast<float>(fade_fixed) / 65536.0F});
+  }
+  std::map<std::uint32_t, std::vector<LayerId>> layers_by_native_id;
+  const auto collect = [&](const auto& self, const std::vector<Layer>& layers) -> void {
+    for (const auto& layer : layers) {
+      if (const auto id = photoshop_layer_id(layer); id && entries.contains(*id)) {
+        layers_by_native_id[*id].push_back(layer.id());
+      }
+      self(self, layer.children());
+    }
+  };
+  collect(collect, std::as_const(document).layers());
+  for (const auto& [id, list] : entries) {
+    const auto found = layers_by_native_id.find(id);
+    if (found == layers_by_native_id.end() || found->second.size() != 1) { continue; }
+    auto* layer = document.find_layer(found->second.front());
+    if (layer == nullptr) { continue; }
+    auto& shadows = layer->layer_style().drop_shadows;
+    for (const auto& entry : list) {
+      if (entry.index < shadows.size()) {
+        shadows[entry.index].continuous = entry.continuous;
+        shadows[entry.index].fade = entry.fade;
+      }
+    }
+  }
 }
 
 void apply_compound_vector_resource(Document& document, std::span<const std::uint8_t> payload) {
@@ -856,6 +924,43 @@ std::vector<std::uint8_t> image_resources_for_document(const Document& document,
       if (resource.id != kImageResourcePatchyCompoundVectors || resource.payload.size() < 8) { return false; }
       BigEndianReader reader(resource.payload);
       return reader.read_u32() == kPatchyCompoundVectorsMagic && reader.read_u16() == 1;
+    });
+  }
+  // Long-shadow fields (resource 4212), keyed by the native layer id that
+  // prepare_compound_vector_psd guarantees for every continuous shadow.
+  BigEndianWriter long_shadow_entries;
+  std::uint32_t long_shadow_count = 0;
+  const auto collect_long_shadows = [&](const auto& self, const std::vector<Layer>& layers) -> void {
+    for (const auto& layer : layers) {
+      if (const auto id = photoshop_layer_id(layer); id && layer_has_continuous_drop_shadow(layer)) {
+        const auto& shadows = std::as_const(layer).layer_style().drop_shadows;
+        for (std::size_t index = 0; index < shadows.size() && index < 0xFFFFU; ++index) {
+          if (!shadows[index].continuous) { continue; }
+          long_shadow_entries.write_u32(*id);
+          long_shadow_entries.write_u16(static_cast<std::uint16_t>(index));
+          long_shadow_entries.write_u16(kPatchyLongShadowFlagContinuous);
+          const auto fade = std::clamp(shadows[index].fade, 0.0F, 100.0F);
+          long_shadow_entries.write_u32(static_cast<std::uint32_t>(std::lround(fade * 65536.0F)));
+          ++long_shadow_count;
+        }
+      }
+      self(self, layer.children());
+    }
+  };
+  collect_long_shadows(collect_long_shadows, document.layers());
+  if (long_shadow_count > 0) {
+    BigEndianWriter payload;
+    payload.write_u32(kPatchyLongShadowsMagic);
+    payload.write_u16(1);
+    payload.write_u16(0);
+    payload.write_u32(long_shadow_count);
+    payload.write_bytes(long_shadow_entries.bytes());
+    upsert_image_resource(*parsed, kImageResourcePatchyLongShadows, payload.bytes());
+  } else {
+    std::erase_if(*parsed, [](const auto& resource) {
+      if (resource.id != kImageResourcePatchyLongShadows || resource.payload.size() < 8) { return false; }
+      BigEndianReader reader(resource.payload);
+      return reader.read_u32() == kPatchyLongShadowsMagic && reader.read_u16() == 1;
     });
   }
   return write_image_resources(*parsed);

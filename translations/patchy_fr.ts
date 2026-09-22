@@ -8446,6 +8446,30 @@ RVB : %2, %3, %4</translation>
         <source>Select at least one document.</source>
         <translation>Sélectionnez au moins un document.</translation>
     </message>
+    <message>
+        <source>Patchy</source>
+        <translation>Patchy</translation>
+    </message>
+    <message>
+        <source>Patchy-only setting. The file still opens in Photoshop without any warning, but Photoshop %1 and drops this setting if it re-saves the file.</source>
+        <translation>Réglage propre à Patchy. Le fichier s&apos;ouvre toujours dans Photoshop sans aucun avertissement, mais Photoshop %1 et abandonne ce réglage s&apos;il réenregistre le fichier.</translation>
+    </message>
+    <message>
+        <source>renders a regular drop shadow at the Distance value</source>
+        <translation>affiche une ombre portée ordinaire à la valeur de Distance</translation>
+    </message>
+    <message>
+        <source>Continuous (long shadow)</source>
+        <translation>Continue (ombre longue)</translation>
+    </message>
+    <message>
+        <source>Extend the shadow from the layer all the way out to Distance, the flat long-shadow look</source>
+        <translation>Étend l&apos;ombre depuis le calque jusqu&apos;à la Distance complète, le style plat des ombres longues</translation>
+    </message>
+    <message>
+        <source>How much the long shadow fades out by its far end</source>
+        <translation>À quel point l&apos;ombre longue s&apos;estompe vers son extrémité</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

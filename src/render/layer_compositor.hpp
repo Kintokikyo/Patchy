@@ -795,7 +795,12 @@ void render_drop_shadow(Target& destination, const Layer& layer, const PixelBuff
   const auto radius = layer_style_falloff_radius(shadow.size);
   const auto shifted_bounds =
       Rect{source_bounds->x + offset_x, source_bounds->y + offset_y, source_bounds->width, source_bounds->height};
-  const auto effect_bounds = outset_rect(shifted_bounds, radius + 2);
+  // Patchy's continuous (long) shadow extrudes the matte from the layer out to
+  // the offset, so it spans both rectangles; a zero offset degenerates to the
+  // plain shadow and keeps that exact path.
+  const bool continuous = shadow.continuous && (offset_x != 0 || offset_y != 0);
+  const auto effect_bounds =
+      outset_rect(continuous ? unite_rect(*source_bounds, shifted_bounds) : shifted_bounds, radius + 2);
   const auto draw_rect = intersect_rect(clip, effect_bounds);
   if (draw_rect.empty()) {
     return;
@@ -803,13 +808,22 @@ void render_drop_shadow(Target& destination, const Layer& layer, const PixelBuff
 
   // radius + 2 apron: spread expansion (spread_radius + 1px ramp) plus the remaining
   // blur reach size + 2 at most, so a clipped window renders identically to a full one.
-  const auto legacy_mask_bounds = clipped_mask_bounds(effect_bounds, draw_rect, radius + 2);
+  // The sweep reads the matte up to the full offset behind every pixel, so the
+  // continuous apron adds that reach as well.
+  const auto sweep_reach = continuous ? std::max(std::abs(offset_x), std::abs(offset_y)) : 0;
+  const auto legacy_mask_bounds = clipped_mask_bounds(effect_bounds, draw_rect, radius + 2 + sweep_reach);
   const auto [entry, mask_bounds] = style_mask_for_render(
       masks, layer, StyleMaskKind::DropShadow, effect_index, effect_bounds, effect_bounds, legacy_mask_bounds,
       bounds, layer_mask_bounds, [&](Rect domain) {
         StyleMaskEntry computed;
-        computed.primary =
-            layer_alpha_mask(source, layer, bounds, domain, -offset_x, -offset_y, layer_mask_bounds);
+        if (continuous) {
+          computed.primary = layer_alpha_mask(source, layer, bounds, domain, 0, 0, layer_mask_bounds);
+          sweep_layer_style_mask_in_place(computed.primary, domain.width, domain.height, offset_x, offset_y,
+                                          shadow.fade);
+        } else {
+          computed.primary =
+              layer_alpha_mask(source, layer, bounds, domain, -offset_x, -offset_y, layer_mask_bounds);
+        }
         prepare_layer_style_soft_mask(computed.primary, domain.width, domain.height, shadow.size, shadow.spread);
         return computed;
       });

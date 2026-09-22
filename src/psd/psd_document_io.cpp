@@ -1348,6 +1348,9 @@ Document DocumentIo::read(std::span<const std::uint8_t> bytes, ReadOptions optio
   if (const auto compound = find_image_resource_payload(image_resources, kImageResourcePatchyCompoundVectors)) {
     apply_compound_vector_resource(document, *compound);
   }
+  if (const auto long_shadows = find_image_resource_payload(image_resources, kImageResourcePatchyLongShadows)) {
+    apply_long_shadow_resource(document, *long_shadows);
+  }
   collapse_compound_vector_groups(document);
   parse_document_path_resources(document, image_resources);
 

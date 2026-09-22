@@ -535,6 +535,69 @@ void compositor_drop_shadow_preserves_connected_antialias_alpha() {
   CHECK(antialias_shadow[2] < 210);
 }
 
+// Patchy's continuous (long) shadow: the matte is swept from the layer out to
+// the offset, so a hard shadow forms one unbroken band, Fade thins it toward
+// the far end, and a diagonal offset follows its digital line.
+void compositor_continuous_drop_shadow_sweeps_to_offset_and_fades() {
+  const auto render = [](bool continuous, float fade, float angle, float distance, patchy::Rect bounds) {
+    patchy::Document document(48, 16, patchy::PixelFormat::rgb8());
+    document.add_pixel_layer("Base", solid_rgb(48, 16, 255, 255, 255));
+    patchy::Layer layer(document.allocate_layer_id(), "Bar",
+                        solid_rgba(bounds.width, bounds.height, 220, 20, 20, 255));
+    auto& source = document.add_layer(std::move(layer));
+    source.set_bounds(bounds);
+    patchy::LayerDropShadow shadow;
+    shadow.enabled = true;
+    shadow.blend_mode = patchy::BlendMode::Normal;
+    shadow.color = patchy::RgbColor{0, 0, 0};
+    shadow.opacity = 1.0F;
+    shadow.angle_degrees = angle;
+    shadow.distance = distance;
+    shadow.size = 0.0F;
+    shadow.spread = 0.0F;
+    shadow.continuous = continuous;
+    shadow.fade = fade;
+    source.layer_style().drop_shadows.push_back(shadow);
+    return patchy::Compositor{}.flatten_rgb8(document);
+  };
+  const auto red = [](const patchy::PixelBuffer& pixels, int x, int y) { return static_cast<int>(pixels.pixel(x, y)[0]); };
+
+  // Angle 180 casts toward +x: a 2x4 bar at x 4..5 swept 20 px fills x 6..25.
+  const auto bar = patchy::Rect{4, 4, 2, 4};
+  const auto plain = render(false, 0.0F, 180.0F, 20.0F, bar);
+  CHECK(red(plain, 15, 5) == 255);
+  CHECK(red(plain, 24, 5) < 20);
+  CHECK(red(plain, 25, 5) < 20);
+  const auto swept = render(true, 0.0F, 180.0F, 20.0F, bar);
+  for (int x = 6; x <= 25; ++x) {
+    CHECK(red(swept, x, 5) < 20);
+    CHECK(red(swept, x, 7) < 20);
+  }
+  CHECK(red(swept, 26, 5) == 255);
+  CHECK(red(swept, 3, 5) == 255);
+  CHECK(red(swept, 15, 3) == 255);
+  CHECK(red(swept, 15, 8) == 255);
+  // Fade 100: near the layer the sweep is still almost solid, by the far end
+  // it has nearly vanished, and it never overshoots the plain reach.
+  const auto faded = render(true, 100.0F, 180.0F, 20.0F, bar);
+  CHECK(red(faded, 7, 5) < 60);
+  CHECK(red(faded, 15, 5) > red(faded, 7, 5));
+  CHECK(red(faded, 24, 5) > 200);
+  CHECK(red(faded, 26, 5) == 255);
+  // Angle 135 casts toward +x +y: a 3x3 square at (2, 2) swept by (10, 10)
+  // darkens the diagonal band and nothing beside it.
+  const auto diagonal = render(true, 0.0F, 135.0F, 14.0F, patchy::Rect{2, 2, 3, 3});
+  CHECK(red(diagonal, 8, 8) < 20);
+  CHECK(red(diagonal, 13, 13) < 20);
+  CHECK(red(diagonal, 8, 3) == 255);
+  CHECK(red(diagonal, 3, 8) == 255);
+  CHECK(red(diagonal, 15, 15) == 255);
+  // A zero offset degenerates to the plain path: the shadow hides under the
+  // opaque layer, so the backdrop beside it stays untouched.
+  const auto zero = render(true, 0.0F, 180.0F, 0.0F, bar);
+  CHECK(red(zero, 6, 5) == 255);
+}
+
 void compositor_drop_shadow_soft_mask_has_smooth_falloff() {
   patchy::Document document(180, 120, patchy::PixelFormat::rgb8());
   document.add_pixel_layer("Base", solid_rgb(180, 120, 255, 255, 255));
@@ -1136,6 +1199,8 @@ std::vector<patchy::test::TestCase> compositor_layer_styles_tests() {
        compositor_drop_shadow_preserves_connected_antialias_alpha},
       {"compositor_drop_shadow_soft_mask_has_smooth_falloff",
        compositor_drop_shadow_soft_mask_has_smooth_falloff},
+      {"compositor_continuous_drop_shadow_sweeps_to_offset_and_fades",
+       compositor_continuous_drop_shadow_sweeps_to_offset_and_fades},
       {"compositor_outer_glow_preserves_source_alpha",
        compositor_outer_glow_preserves_source_alpha},
       {"compositor_outer_glow_antialias_strength_does_not_create_streaks",

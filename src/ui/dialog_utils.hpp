@@ -17,6 +17,7 @@ class QDialog;
 class QAbstractSpinBox;
 class QDoubleSpinBox;
 class QFormLayout;
+class QLabel;
 class QMenu;
 class QPushButton;
 class QSpinBox;
@@ -58,6 +59,15 @@ void configure_dialog_spinbox(QDoubleSpinBox* spin, int width = 92);
 // prefix, and applies sub-control rules unreliably to children created after the stylesheet.
 [[nodiscard]] ThemedQss dialog_spinbox_button_style();
 void configure_compact_symbol_button(QPushButton* button);
+// A small "Patchy" pill placed beside a control whose setting Photoshop cannot
+// represent (the Patchy-only marker convention in docs/ui-conventions.md).
+// `explanation` becomes the badge's tooltip; callers put the same text on the
+// control itself so hovering either one explains what Photoshop will do.
+[[nodiscard]] QLabel* make_patchy_only_badge(QWidget* parent, const QString& explanation);
+// The shared wording for Patchy-only options that Photoshop ignores safely
+// (the file opens without warnings; the setting is dropped on a Photoshop
+// resave). `photoshop_behavior` completes the sentence "Photoshop ...".
+[[nodiscard]] QString patchy_only_explanation(const QString& photoshop_behavior);
 struct SpinStepButtons {
   QPushButton* decrease{nullptr};
   QPushButton* increase{nullptr};

@@ -1827,4 +1827,27 @@ void hide_menu_action_icons(QMenu* menu) {
   }
 }
 
+QLabel* make_patchy_only_badge(QWidget* parent, const QString& explanation) {
+  auto* badge = new QLabel(QObject::tr("Patchy"), parent);
+  badge->setObjectName(QStringLiteral("patchyOnlyBadge"));
+  badge->setProperty("patchyOnly", true);
+  badge->setAlignment(Qt::AlignCenter);
+  badge->setToolTip(explanation);
+  badge->setCursor(Qt::WhatsThisCursor);
+  auto font = badge->font();
+  scale_font_size(font, 0.85);
+  font.setBold(true);
+  badge->setFont(font);
+  set_themed_style(*badge, QStringLiteral(
+      "QLabel#patchyOnlyBadge { background: @accent_checked_bg; border: 1px solid @accent_checked_border; "
+      "border-radius: 8px; color: @text_on_accent; padding: 1px 7px; }"));
+  return badge;
+}
+
+QString patchy_only_explanation(const QString& photoshop_behavior) {
+  return QObject::tr("Patchy-only setting. The file still opens in Photoshop without any warning, but "
+                     "Photoshop %1 and drops this setting if it re-saves the file.")
+      .arg(photoshop_behavior);
+}
+
 }  // namespace patchy::ui

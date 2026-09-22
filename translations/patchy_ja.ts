@@ -8419,6 +8419,30 @@ Mixed selection</source>
         <source>Select at least one document.</source>
         <translation>少なくとも 1 つのドキュメントを選択してください。</translation>
     </message>
+    <message>
+        <source>Patchy</source>
+        <translation>Patchy</translation>
+    </message>
+    <message>
+        <source>Patchy-only setting. The file still opens in Photoshop without any warning, but Photoshop %1 and drops this setting if it re-saves the file.</source>
+        <translation>Patchy 専用の設定です。ファイルは警告なしで Photoshop で開けますが、Photoshop は%1、再保存するとこの設定は失われます。</translation>
+    </message>
+    <message>
+        <source>renders a regular drop shadow at the Distance value</source>
+        <translation>「距離」の値で通常のドロップシャドウを描画し</translation>
+    </message>
+    <message>
+        <source>Continuous (long shadow)</source>
+        <translation>連続 (ロングシャドウ)</translation>
+    </message>
+    <message>
+        <source>Extend the shadow from the layer all the way out to Distance, the flat long-shadow look</source>
+        <translation>レイヤーから「距離」の位置まで影を伸ばして、フラットなロングシャドウにします</translation>
+    </message>
+    <message>
+        <source>How much the long shadow fades out by its far end</source>
+        <translation>ロングシャドウが先端に向かってどれだけ薄くなるか</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

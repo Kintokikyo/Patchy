@@ -289,6 +289,16 @@ struct LayerDropShadow {
   // Photoshop's "Use Global Light". Only meaningful while importing: the PSD reader
   // resolves the document's global angle into angle_degrees and clears this flag.
   bool use_global_light{false};
+  // Patchy-only "long shadow": the shadow covers every offset from the layer
+  // out to `distance` along the angle instead of one shifted copy. Photoshop
+  // has no equivalent; the PSD writer keeps the standard DrSh (Photoshop shows
+  // a plain shadow at Distance) and carries these two fields in the private
+  // image resource 4212 (psd/psd_io_internal.hpp).
+  bool continuous{false};
+  // Percent 0..100: how far the swept shadow's opacity falls by the far end
+  // (0 = uniform, 100 = fades to nothing at Distance). Only used while
+  // `continuous` is set.
+  float fade{0.0F};
 };
 
 struct LayerInnerShadow {

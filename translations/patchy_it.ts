@@ -8446,6 +8446,30 @@ RGB: %2, %3, %4</translation>
         <source>Select at least one document.</source>
         <translation>Seleziona almeno un documento.</translation>
     </message>
+    <message>
+        <source>Patchy</source>
+        <translation>Patchy</translation>
+    </message>
+    <message>
+        <source>Patchy-only setting. The file still opens in Photoshop without any warning, but Photoshop %1 and drops this setting if it re-saves the file.</source>
+        <translation>Impostazione esclusiva di Patchy. Il file si apre comunque in Photoshop senza alcun avviso, ma Photoshop %1 e scarta questa impostazione se salva di nuovo il file.</translation>
+    </message>
+    <message>
+        <source>renders a regular drop shadow at the Distance value</source>
+        <translation>mostra un&apos;ombra esterna normale al valore di Distanza</translation>
+    </message>
+    <message>
+        <source>Continuous (long shadow)</source>
+        <translation>Continua (ombra lunga)</translation>
+    </message>
+    <message>
+        <source>Extend the shadow from the layer all the way out to Distance, the flat long-shadow look</source>
+        <translation>Estende l&apos;ombra dal livello fino alla Distanza completa, il look piatto dell&apos;ombra lunga</translation>
+    </message>
+    <message>
+        <source>How much the long shadow fades out by its far end</source>
+        <translation>Quanto l&apos;ombra lunga sfuma verso la sua estremità</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

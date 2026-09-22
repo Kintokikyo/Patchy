@@ -265,6 +265,88 @@ void psd_generated_drop_shadow_marks_angle_as_local() {
   CHECK(*(found + kLfx2UglgItem.size()) == 0U);
 }
 
+// Patchy's continuous (long) shadow travels in plug-in image resource 4212
+// beside a standard DrSh (Photoshop shows a plain shadow at Distance).
+void psd_continuous_drop_shadow_uses_plugin_resource() {
+  using namespace patchy;
+  const auto image_resources_of = [](const std::vector<std::uint8_t>& bytes) {
+    psd::BigEndianReader reader(bytes);
+    (void)psd::read_header(reader);
+    reader.skip(reader.read_u32());
+    return reader.read_bytes(reader.read_u32());
+  };
+  Document document(48, 32, PixelFormat::rgb8());
+  document.add_pixel_layer("Base", solid_rgb(48, 32, 255, 255, 255));
+  auto square = solid_rgba(48, 32, 10, 120, 220, 0);
+  for (std::int32_t y = 6; y < 16; ++y) {
+    for (std::int32_t x = 6; x < 16; ++x) {
+      square.pixel(x, y)[3] = 255;
+    }
+  }
+  auto& layer = document.add_layer(Layer(document.allocate_layer_id(), "Long", std::move(square)));
+  LayerDropShadow shadow;
+  shadow.enabled = true;
+  shadow.angle_degrees = 150.0F;
+  shadow.distance = 30.0F;
+  shadow.continuous = true;
+  shadow.fade = 37.5F;  // exact in 16.16
+  layer.layer_style().drop_shadows.push_back(shadow);
+  LayerDropShadow plain;
+  plain.enabled = true;
+  plain.distance = 3.0F;
+  layer.layer_style().drop_shadows.push_back(plain);
+
+  const auto bytes = psd::DocumentIo::write_layered_rgb8(document);
+  // Artifacts for the Photoshop COM check (docs/ps-compat.md) and a visual look.
+  test::write_rgb8_bmp_artifact("continuous_drop_shadow_render", Compositor{}.flatten_rgb8(document));
+  {
+    std::ofstream file(std::filesystem::path("test-artifacts") / "continuous_drop_shadow.psd", std::ios::binary);
+    file.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+  }
+  const auto resource = psd::find_image_resource_payload(image_resources_of(bytes), 4212);
+  CHECK(resource.has_value());
+  CHECK(resource->size() == 12U + 12U);  // header plus the one continuous entry
+  const auto reread = psd::DocumentIo::read(bytes);
+  CHECK(reread.layers().size() == 2);
+  const auto& shadows = reread.layers()[1].layer_style().drop_shadows;
+  CHECK(shadows.size() == 2);
+  CHECK(shadows[0].continuous);
+  CHECK(std::abs(shadows[0].fade - 37.5F) < 0.001F);
+  CHECK(std::abs(shadows[0].distance - 30.0F) < 0.001F);  // DrSh keeps Distance for Photoshop
+  CHECK(!shadows[1].continuous);
+  CHECK(shadows[1].fade == 0.0F);
+  // A resave keeps the resource and its bytes.
+  const auto resaved = psd::DocumentIo::write_layered_rgb8(reread);
+  CHECK(psd::find_image_resource_payload(image_resources_of(resaved), 4212) == resource);
+
+  // Malformed records are ignored as a whole rather than partially applied.
+  const auto reset = [](Document& target) {
+    for (auto& entry : target.layers()[1].layer_style().drop_shadows) {
+      entry.continuous = false;
+      entry.fade = 0.0F;
+    }
+  };
+  auto probe = psd::DocumentIo::read(bytes);
+  reset(probe);
+  psd::apply_long_shadow_resource(probe, *resource);
+  CHECK(std::as_const(probe).layers()[1].layer_style().drop_shadows[0].continuous);
+  for (const auto& [offset, value, why] : {std::tuple{5, 2, "future version"}, std::tuple{11, 9, "bad count"},
+                                           std::tuple{19, 4, "unknown flag"}, std::tuple{20, 200, "fade above 100%"}}) {
+    reset(probe);
+    auto corrupt = *resource;
+    corrupt[static_cast<std::size_t>(offset)] = static_cast<std::uint8_t>(value);
+    psd::apply_long_shadow_resource(probe, corrupt);
+    CHECK(!std::as_const(probe).layers()[1].layer_style().drop_shadows[0].continuous);
+    (void)why;
+  }
+
+  // Without a continuous shadow no resource is written, so byte canaries and
+  // Photoshop-authored files stay untouched.
+  reset(document);
+  const auto plain_bytes = psd::DocumentIo::write_layered_rgb8(document);
+  CHECK(!psd::find_image_resource_payload(image_resources_of(plain_bytes), 4212).has_value());
+}
+
 void psd_drop_shadow_resolves_photoshop_global_light() {
   patchy::Document document(4, 4, patchy::PixelFormat::rgb8());
   // Global light angle resource (1037) holding -60 degrees.
@@ -1406,6 +1488,7 @@ std::vector<patchy::test::TestCase> psd_writer_stability_tests() {
        psd_photoshop_unlinked_mask_fixture_reads_unlinked},
       {"psd_generated_drop_shadow_marks_angle_as_local",
        psd_generated_drop_shadow_marks_angle_as_local},
+      {"psd_continuous_drop_shadow_uses_plugin_resource", psd_continuous_drop_shadow_uses_plugin_resource},
       {"psd_drop_shadow_resolves_photoshop_global_light",
        psd_drop_shadow_resolves_photoshop_global_light},
       {"psd_photoshop_global_light_shadow_fixture_resolves_angle",

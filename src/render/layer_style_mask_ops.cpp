@@ -495,6 +495,108 @@ void prepare_photoshop_soft_effect_mask(std::vector<float>& mask, int width, int
 
 }  // namespace
 
+namespace {
+
+// Floor division for the digital-line intercepts (C++ integer division
+// truncates toward zero, which would bend lines with negative slopes).
+constexpr int floor_div(int numerator, int denominator) noexcept {
+  const auto quotient = numerator / denominator;
+  const auto remainder = numerator % denominator;
+  return (remainder != 0 && ((remainder < 0) != (denominator < 0))) ? quotient - 1 : quotient;
+}
+
+// One digital line family: `major` runs 0..major_extent-1 in the sweep
+// direction, `minor(major)` is the rounded cross-axis position of the line
+// through the origin, and every pixel belongs to exactly one intercept.
+struct SweepAxes {
+  int major_extent{0};
+  int minor_extent{0};
+  bool major_is_x{true};
+  bool reverse_major{false};
+  int minor_step{0};  // signed cross-axis offset over the full sweep
+};
+
+std::size_t sweep_index(const SweepAxes& axes, int width, int major, int minor) noexcept {
+  const auto along = axes.reverse_major ? axes.major_extent - 1 - major : major;
+  const auto x = axes.major_is_x ? along : minor;
+  const auto y = axes.major_is_x ? minor : along;
+  return static_cast<std::size_t>(y) * static_cast<std::size_t>(width) + static_cast<std::size_t>(x);
+}
+
+}  // namespace
+
+void sweep_layer_style_mask_in_place(std::vector<float>& mask, int width, int height, int offset_x,
+                                     int offset_y, float fade_percent) {
+  const auto length = std::max(std::abs(offset_x), std::abs(offset_y));
+  if (length <= 0 || width <= 0 || height <= 0) {
+    return;
+  }
+  SweepAxes axes;
+  axes.major_is_x = std::abs(offset_x) >= std::abs(offset_y);
+  axes.major_extent = axes.major_is_x ? width : height;
+  axes.minor_extent = axes.major_is_x ? height : width;
+  const auto major_offset = axes.major_is_x ? offset_x : offset_y;
+  axes.minor_step = axes.major_is_x ? offset_y : offset_x;
+  axes.reverse_major = major_offset < 0;
+
+  // Cross-axis position of the line through the origin after u major steps
+  // in the sweep direction, rounded half up: floor((2 u step + L) / (2 L)).
+  // u already counts along the offset's sign, so the minor axis follows the
+  // offset's own sign unchanged.
+  std::vector<int> line_minor(static_cast<std::size_t>(axes.major_extent));
+  int min_minor = 0;
+  int max_minor = 0;
+  for (int u = 0; u < axes.major_extent; ++u) {
+    const auto value = floor_div(2 * u * axes.minor_step + length, 2 * length);
+    line_minor[static_cast<std::size_t>(u)] = value;
+    min_minor = std::min(min_minor, value);
+    max_minor = std::max(max_minor, value);
+  }
+
+  const auto fade = std::clamp(fade_percent, 0.0F, 100.0F) / 100.0F;
+  struct Sample {
+    int position;
+    float value;
+  };
+  std::vector<Sample> deque;
+  deque.reserve(static_cast<std::size_t>(axes.major_extent));
+  for (int intercept = -max_minor; intercept < axes.minor_extent - min_minor; ++intercept) {
+    deque.clear();
+    std::size_t front = 0;
+    int since_hit = length + 1;
+    for (int u = 0; u < axes.major_extent; ++u) {
+      const auto minor = intercept + line_minor[static_cast<std::size_t>(u)];
+      // Off the buffer the matte is zero; the zero still enters the window so
+      // deque positions and the fade counter stay aligned with u.
+      const bool in_range = minor >= 0 && minor < axes.minor_extent;
+      const auto index = in_range ? sweep_index(axes, width, u, minor) : std::size_t{0};
+      const auto sample = in_range ? mask[index] : 0.0F;
+      while (deque.size() > front && deque.back().value <= sample) {
+        deque.pop_back();
+      }
+      deque.push_back(Sample{u, sample});
+      while (front < deque.size() && deque[front].position < u - length) {
+        ++front;
+      }
+      if (sample > 0.0F) {
+        since_hit = 0;
+      } else if (since_hit <= length) {
+        ++since_hit;
+      }
+      if (!in_range) {
+        continue;
+      }
+      auto swept = deque[front].value;
+      if (fade > 0.0F && swept > 0.0F) {
+        const auto factor =
+            1.0F - fade * (static_cast<float>(std::min(since_hit, length)) / static_cast<float>(length));
+        swept *= std::max(0.0F, factor);
+      }
+      mask[index] = swept;
+    }
+  }
+}
+
 // Photoshop's drop-shadow falloff is the shared spread-expand + tent pipeline
 // above (re-calibrated July 2026: 'dsdw' probes at sizes 5/10/12/17 and
 // spreads 0/8/18 matched the tent byte-for-byte where the historical

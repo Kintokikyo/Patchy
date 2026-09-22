@@ -8419,6 +8419,30 @@ RGB：%2, %3, %4</translation>
         <source>Select at least one document.</source>
         <translation>请至少选择一个文档。</translation>
     </message>
+    <message>
+        <source>Patchy</source>
+        <translation>Patchy</translation>
+    </message>
+    <message>
+        <source>Patchy-only setting. The file still opens in Photoshop without any warning, but Photoshop %1 and drops this setting if it re-saves the file.</source>
+        <translation>Patchy 专属设置。该文件仍可在 Photoshop 中正常打开且没有任何警告，但 Photoshop %1，并且在重新保存文件时会丢弃此设置。</translation>
+    </message>
+    <message>
+        <source>renders a regular drop shadow at the Distance value</source>
+        <translation>会按“距离”值渲染普通投影</translation>
+    </message>
+    <message>
+        <source>Continuous (long shadow)</source>
+        <translation>连续 (长阴影)</translation>
+    </message>
+    <message>
+        <source>Extend the shadow from the layer all the way out to Distance, the flat long-shadow look</source>
+        <translation>将阴影从图层一直延伸到“距离”处，呈现扁平化的长阴影效果</translation>
+    </message>
+    <message>
+        <source>How much the long shadow fades out by its far end</source>
+        <translation>长阴影向远端淡出的程度</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

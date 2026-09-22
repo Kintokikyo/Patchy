@@ -78,6 +78,19 @@ float stroke_band_coverage(float distance, float band) noexcept;
 void box_blur_mask_into(const std::vector<float>& input, std::vector<float>& horizontal,
                         std::vector<float>& output, int width, int height, int radius);
 
+// Long ("continuous") drop shadow sweep: every pixel takes the maximum of the
+// matte samples on the digital line behind it, from its own position back to
+// the full offset, so the matte is extruded along (offset_x, offset_y). The
+// grid is partitioned into digital lines along the major axis (each pixel is
+// visited exactly once) and each line runs a monotone-deque trailing maximum
+// of max(|offset_x|, |offset_y|) + 1 samples, so the cost is O(width * height)
+// and independent of the offset length. `fade_percent` (0..100) scales the
+// swept value by 1 - fade * t / L, where t is the distance along the line since
+// the last matte sample above zero: 0 keeps the sweep uniform, 100 fades it to
+// nothing by the far end. Integer bookkeeping only; a zero offset is a no-op.
+void sweep_layer_style_mask_in_place(std::vector<float>& mask, int width, int height, int offset_x,
+                                     int offset_y, float fade_percent);
+
 void blur_mask_in_place(std::vector<float>& mask, int width, int height, int radius, int passes);
 
 int layer_style_falloff_radius(float size) noexcept;

@@ -405,6 +405,11 @@ struct ThemePalette {
   QColor warning_banner_bg;
   QColor warning_banner_border;
   QColor warning_banner_text;
+  // Calm informational banner (a Patchy-only option is active; nothing is
+  // broken), distinct from the amber warning family above.
+  QColor info_banner_bg;
+  QColor info_banner_border;
+  QColor info_banner_text;
   QColor swatch_border;
 
   // Shared button and surface families used by more than one dialog. These were

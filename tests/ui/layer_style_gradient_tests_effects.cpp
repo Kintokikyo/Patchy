@@ -1580,6 +1580,59 @@ void ui_layer_style_outer_glow_technique_and_range_map_to_settings() {
   CHECK(result.spread == 8.0F);
 }
 
+// The Patchy-only Continuous option: its badge sits beside the checkbox, the
+// info banner and the Fade row follow the checkbox, and both values round
+// trip through the dialog.
+void ui_layer_style_continuous_shadow_controls_map_to_settings_and_mark_patchy_only() {
+  patchy::Document document(96, 72, patchy::PixelFormat::rgba8());
+  patchy::Layer layer(document.allocate_layer_id(), "Long Shadow",
+                      solid_pixels(48, 36, patchy::PixelFormat::rgba8(), QColor(80, 140, 220, 255)));
+  patchy::LayerDropShadow shadow;
+  shadow.enabled = true;
+  shadow.distance = 40.0F;
+  layer.layer_style().drop_shadows.push_back(shadow);
+
+  QTimer::singleShot(0, [] {
+    auto* dialog = qobject_cast<QDialog*>(find_top_level_dialog(QStringLiteral("patchyLayerStyleDialog")));
+    CHECK(dialog != nullptr);
+    auto* categories = dialog->findChild<QListWidget*>(QStringLiteral("layerStyleCategoryList"));
+    auto* continuous = dialog->findChild<QCheckBox*>(QStringLiteral("layerStyleDropShadowContinuousCheck"));
+    auto* fade = dialog->findChild<QSpinBox*>(QStringLiteral("layerStyleDropShadowFadeSpin"));
+    auto* banner = dialog->findChild<QLabel*>(QStringLiteral("layerStylePatchyOnlyBanner"));
+    auto* badge = continuous == nullptr ? nullptr
+                                        : continuous->parentWidget()->findChild<QLabel*>(QStringLiteral("patchyOnlyBadge"));
+    CHECK(categories != nullptr);
+    CHECK(continuous != nullptr);
+    CHECK(fade != nullptr);
+    CHECK(banner != nullptr);
+    CHECK(badge != nullptr);
+    CHECK(!badge->toolTip().isEmpty());
+    CHECK(continuous->toolTip().contains(QStringLiteral("Photoshop")));
+    const auto shadow_items = categories->findItems(QStringLiteral("Drop Shadow"), Qt::MatchExactly);
+    CHECK(!shadow_items.empty());
+    categories->setCurrentItem(shadow_items.front());
+    QApplication::processEvents();
+    CHECK(!continuous->isChecked());
+    CHECK(!banner->isVisible());
+    CHECK(!fade->isEnabled());
+    continuous->setChecked(true);
+    QApplication::processEvents();
+    CHECK(banner->isVisible());
+    CHECK(fade->isEnabled());
+    fade->setValue(40);
+    QTimer::singleShot(80, dialog, [dialog] { dialog->accept(); });
+  });
+
+  const auto settings = patchy::ui::request_layer_style_settings(nullptr, layer, {});
+  CHECK(settings.has_value());
+  CHECK(settings->style.drop_shadows.size() == 1);
+  const auto& result = settings->style.drop_shadows.front();
+  CHECK(result.enabled);
+  CHECK(result.continuous);
+  CHECK(result.fade == 40.0F);
+  CHECK(result.distance == 40.0F);
+}
+
 void ui_layer_style_inner_glow_technique_and_range_map_to_settings() {
   patchy::Document document(96, 72, patchy::PixelFormat::rgba8());
   patchy::Layer layer(document.allocate_layer_id(), "Glow Styled",
@@ -1920,6 +1973,8 @@ std::vector<patchy::test::TestCase> layer_style_gradient_tests_part1() {
       {"ui_layer_style_satin_controls_map_to_settings", ui_layer_style_satin_controls_map_to_settings},
       {"ui_layer_style_outer_glow_technique_and_range_map_to_settings",
        ui_layer_style_outer_glow_technique_and_range_map_to_settings},
+      {"ui_layer_style_continuous_shadow_controls_map_to_settings_and_mark_patchy_only",
+       ui_layer_style_continuous_shadow_controls_map_to_settings_and_mark_patchy_only},
       {"ui_layer_style_inner_glow_technique_and_range_map_to_settings",
        ui_layer_style_inner_glow_technique_and_range_map_to_settings},
       {"ui_layer_style_pattern_warning_follows_resolvability",

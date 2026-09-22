@@ -73,6 +73,15 @@ constexpr std::uint32_t kPatchyPaletteMagic = 0x50746350U;  // 'PtcP'
 // then count pairs {u32 Photoshop lyid, u32 CompoundVectorGroupKind}.
 constexpr std::uint16_t kImageResourcePatchyCompoundVectors = 4211;
 constexpr std::uint32_t kPatchyCompoundVectorsMagic = 0x50746356U;  // 'PtcV'
+// Plug-in image resource: 'PtcS', u16 version 1, u16 reserved 0, u32 count,
+// then count 12-byte entries {u32 Photoshop lyid, u16 drop-shadow index in the
+// layer's lfx2 order, u16 flags (bit 0 = continuous), u32 fade percent as
+// 16.16 fixed point}. Carries the Patchy-only long-shadow fields of
+// LayerDropShadow beside a standard DrSh, which Photoshop renders as a plain
+// shadow at Distance. Photoshop may drop the resource when it re-saves.
+constexpr std::uint16_t kImageResourcePatchyLongShadows = 4212;
+constexpr std::uint32_t kPatchyLongShadowsMagic = 0x50746353U;  // 'PtcS'
+constexpr std::uint16_t kPatchyLongShadowFlagContinuous = 0x0001U;
 constexpr float kDefaultGlobalLightAngle = 120.0F;
 constexpr float kDefaultGlobalLightAltitude = 30.0F;
 constexpr std::int32_t kDefaultGridCycle32 = 576;
@@ -609,6 +618,10 @@ grid_guides_from_resource(std::span<const std::uint8_t> payload);
 void apply_patchy_palette_resource(Document& document, std::span<const std::uint8_t> payload);
 std::optional<Document> prepare_compound_vector_psd(const Document& document);
 void apply_compound_vector_resource(Document& document, std::span<const std::uint8_t> payload);
+// Resource 4212: restores LayerDropShadow::continuous/fade onto the drop
+// shadows already parsed from lfx2, matched by unique 'lyid' and index. Any
+// malformed field rejects the whole record.
+void apply_long_shadow_resource(Document& document, std::span<const std::uint8_t> payload);
 std::vector<std::uint8_t> image_resources_for_document(const Document& document,
                                                        std::span<const CompositeChannelInfo> channels);
 

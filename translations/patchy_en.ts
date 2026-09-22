@@ -8437,6 +8437,30 @@ RGB: %2, %3, %4</source>
         <source>Select at least one document.</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Patchy</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Patchy-only setting. The file still opens in Photoshop without any warning, but Photoshop %1 and drops this setting if it re-saves the file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>renders a regular drop shadow at the Distance value</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Continuous (long shadow)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Extend the shadow from the layer all the way out to Distance, the flat long-shadow look</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How much the long shadow fades out by its far end</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

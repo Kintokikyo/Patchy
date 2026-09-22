@@ -548,8 +548,10 @@ bool layer_style_has_regeneratable_outer_text_effect(const LayerStyle& style) no
     return false;
   }
   for (const auto& shadow : style.drop_shadows) {
+    // A continuous (long) shadow is Patchy-only, so Photoshop's own preview
+    // never matches it either.
     if (shadow.enabled && shadow.opacity > 0.0F &&
-        (shadow.size >= 64.0F || (shadow.size >= 32.0F && shadow.distance >= 16.0F))) {
+        (shadow.continuous || shadow.size >= 64.0F || (shadow.size >= 32.0F && shadow.distance >= 16.0F))) {
       return true;
     }
   }
