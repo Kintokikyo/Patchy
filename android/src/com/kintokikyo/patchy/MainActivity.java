@@ -394,55 +394,79 @@ public class MainActivity extends QtActivity {
 
     View decorView = getWindow().getDecorView();
 
-    if (android.os.Build.VERSION.SDK_INT >= 30) {
+    if (android.os.Build.VERSION.SDK_INT < 35) {
+        return;
+    }
+
+    decorView.setOnApplyWindowInsetsListener((view, insets) -> {
 
         ArrayList<Rect> exclusionRects =
                 new ArrayList<>();
 
-        /*
-         * Ambil tinggi caption bar Android.
-         */
-        android.view.WindowInsets insets =
-                decorView.getRootWindowInsets();
+        android.view.WindowInsets.Type type =
+                android.view.WindowInsets.Type.captionBar();
 
-        int captionHeight = 0;
+        List<Rect> systemRects =
+                insets.getBoundingRects(type);
 
-        if (insets != null) {
-            captionHeight =
-                    insets.getInsets(
-                            android.view.WindowInsets.Type.captionBar()
-                    ).top;
+        Log.i(
+                "PATCHY_CAPTION",
+                "caption bounds count = " + systemRects.size()
+        );
+
+        for (Rect rect : systemRects) {
+
+            Log.i(
+                    "PATCHY_CAPTION",
+                    "system caption rect = "
+                            + rect.left + ","
+                            + rect.top + " - "
+                            + rect.right + ","
+                            + rect.bottom
+            );
         }
 
         /*
-         * Beri area input prioritas pada bagian atas.
+         * Request priority input for the caption area.
          *
-         * Untuk tes pertama kita beri sedikit ruang
-         * di bawah caption bar juga.
+         * The menu bar is located in the top part of
+         * the Patchy window, so mark that area as an
+         * interactive region.
          */
-        int extraArea =
-                (int) (80 * getResources()
-                        .getDisplayMetrics().density);
 
-        int exclusionHeight =
-                captionHeight + extraArea;
+        int captionHeight =
+                insets.getInsets(
+                        android.view.WindowInsets.Type.captionBar()
+                ).top;
 
-        if (exclusionHeight > 0) {
+        if (captionHeight > 0) {
 
             exclusionRects.add(
                     new Rect(
                             0,
                             0,
-                            decorView.getWidth(),
-                            exclusionHeight
+                            view.getWidth(),
+                            captionHeight
                     )
             );
 
-            decorView.setSystemGestureExclusionRects(
+            view.setSystemGestureExclusionRects(
                     exclusionRects
-                );
-            }
+            );
+
+            Log.i(
+                    "PATCHY_CAPTION",
+                    "exclusion rect = 0,0,"
+                            + view.getWidth()
+                            + ","
+                            + captionHeight
+            );
         }
+
+        return insets;
+    });
+
+    decorView.requestApplyInsets();
     }
 
     @Override
