@@ -2372,6 +2372,9 @@ void MainWindow::register_option_action(QWidget* widget, std::initializer_list<C
 }
 
 void MainWindow::refresh_options_bar() {
+#ifdef Q_OS_ANDROID
+  setUpdatesEnabled(false);
+#endif
   // Runs on every passive transform-box change (each Move-tool press), so it
   // reports under PATCHY_UI_PROFILE=1 like the other per-interaction refreshes.
   const UiProfileScope profile_scope("refresh_options_bar");
@@ -2512,9 +2515,9 @@ void MainWindow::refresh_options_bar() {
     // Visibility changes alter how many controls there are, so recompute the
     // wrapped height and let the toolbar grow or shrink accordingly.
     options_flow_container_->layout()->invalidate();
-  #ifndef Q_OS_ANDROID
+  //#ifndef Q_OS_ANDROID
     options_flow_container_->updateGeometry();
-  #endif
+  //#endif
   }
   sync_transform_controls_from_canvas();
 
@@ -2662,6 +2665,10 @@ void MainWindow::refresh_options_bar() {
   update_selection_mode_buttons(canvas_ != nullptr ? canvas_->selection_mode()
                                                    : CanvasWidget::SelectionMode::Replace);
   sync_text_alignment_buttons_from_editor();
+#ifdef Q_OS_ANDROID
+  setUpdatesEnabled(true);
+  update();
+#endif
 }
 
 void MainWindow::update_selection_mode_buttons(CanvasWidget::SelectionMode mode) {
