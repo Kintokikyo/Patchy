@@ -1079,31 +1079,65 @@ void ui_tool_flyout_bar_tracks_selected_group() {
   auto* palette = window.findChild<QToolBar*>(QStringLiteral("toolPalette"));
   auto* bar = window.findChild<QToolBar*>(QStringLiteral("toolFlyoutBar"));
   CHECK(palette != nullptr && bar != nullptr);
-  CHECK(bar->isMovable());
-  CHECK(bar->isFloatable());
+  CHECK(!bar->isMovable());
+  CHECK(!bar->isFloatable());
+  CHECK(bar->parentWidget() == &window);
+  CHECK(!bar->isWindow());
   CHECK(!bar->isVisible());
 
   require_action(window, "toolMarqueeAction")->trigger();
   QApplication::processEvents();
   CHECK(canvas->tool() == patchy::ui::CanvasTool::Marquee);
   CHECK(bar->isVisible());
-  const auto palette_right_global = palette->mapToGlobal(QPoint(palette->width(), 0)).x();
-  CHECK(bar->frameGeometry().left() >= palette_right_global - 1);
-  CHECK(bar->actions().size() == 2);
-  CHECK(bar->actions()[0]->objectName() == QStringLiteral("toolMarqueeAction"));
-  CHECK(bar->actions()[1]->objectName() == QStringLiteral("toolEllipticalMarqueeAction"));
+  const auto* screen = window.screen() != nullptr ? window.screen() : QGuiApplication::primaryScreen();
+  CHECK(screen != nullptr);
+  const auto palette_right_global = palette->mapToGlobal(QPoint(palette->width() + 2, 0));
+  const int centered_y = screen->availableGeometry().center().y() - bar->height() / 2;
+  const auto bar_global = bar->mapToGlobal(QPoint());
+  CHECK(bar_global.x() == palette_right_global.x());
+  CHECK(bar_global.y() == centered_y);
+  CHECK(bar->actions().size() == 3);
+  CHECK(bar->actions()[0]->objectName() == QStringLiteral("toolFlyoutDragHandleAction"));
+  CHECK(bar->actions()[1]->objectName() == QStringLiteral("toolMarqueeAction"));
+  CHECK(bar->actions()[2]->objectName() == QStringLiteral("toolEllipticalMarqueeAction"));
 
   require_action(window, "toolRectAction")->trigger();
   QApplication::processEvents();
   CHECK(canvas->tool() == patchy::ui::CanvasTool::Rectangle);
   CHECK(bar->isVisible());
-  CHECK(bar->actions().size() == 5);
-  CHECK(bar->actions()[0]->objectName() == QStringLiteral("toolLineAction"));
-  CHECK(bar->actions()[4]->objectName() == QStringLiteral("toolCustomShapeAction"));
+  CHECK(bar->actions().size() == 6);
+  CHECK(bar->actions()[0]->objectName() == QStringLiteral("toolFlyoutDragHandleAction"));
+  CHECK(bar->actions()[1]->objectName() == QStringLiteral("toolLineAction"));
+  CHECK(bar->actions()[5]->objectName() == QStringLiteral("toolCustomShapeAction"));
 
   require_action(window, "toolMoveAction")->trigger();
   QApplication::processEvents();
   CHECK(!bar->isVisible());
+}
+
+void ui_tool_flyout_bar_remembers_attached_position() {
+  SettingsValueRestorer saved_position(QStringLiteral("window/toolFlyoutPosition"));
+  auto settings = patchy::ui::app_settings();
+  settings.setValue(QStringLiteral("window/toolFlyoutPosition"), QPoint(72, 84));
+  settings.sync();
+
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* bar = window.findChild<QToolBar*>(QStringLiteral("toolFlyoutBar"));
+  auto* handle = window.findChild<QWidget*>(QStringLiteral("toolFlyoutDragHandle"));
+  CHECK(bar != nullptr && handle != nullptr);
+  require_action(window, "toolMarqueeAction")->trigger();
+  QApplication::processEvents();
+  CHECK(bar->pos() == QPoint(72, 84));
+
+  const auto start = handle->rect().center();
+  const auto end = start + QPoint(24, 18);
+  send_mouse(*handle, QEvent::MouseButtonPress, start, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*handle, QEvent::MouseMove, end, Qt::NoButton, Qt::LeftButton);
+  send_mouse(*handle, QEvent::MouseButtonRelease, end, Qt::LeftButton, Qt::NoButton);
+  CHECK(bar->pos() == QPoint(96, 102));
+  CHECK(patchy::ui::app_settings().value(QStringLiteral("window/toolFlyoutPosition")).toPoint() ==
+        QPoint(96, 102));
 }
 
 void ui_shape_flyout_and_zoom_tool_work() {
@@ -2741,6 +2775,7 @@ std::vector<patchy::test::TestCase> canvas_view_tools_tests() {
       {"ui_tool_flyout_double_click_opens_menu", ui_tool_flyout_double_click_opens_menu},
       {"ui_tool_flyout_right_click_opens_menu", ui_tool_flyout_right_click_opens_menu},
       {"ui_tool_flyout_bar_tracks_selected_group", ui_tool_flyout_bar_tracks_selected_group},
+      {"ui_tool_flyout_bar_remembers_attached_position", ui_tool_flyout_bar_remembers_attached_position},
       {"ui_tool_palette_icons_render_sheet", ui_tool_palette_icons_render_sheet},
       {"ui_filled_shape_preview_clears_after_commit", ui_filled_shape_preview_clears_after_commit},
       {"ui_options_bar_tracks_active_tool", ui_options_bar_tracks_active_tool},

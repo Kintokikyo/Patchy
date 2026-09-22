@@ -541,6 +541,139 @@ private:
   std::function<void()> open_menu_;
 };
 
+constexpr auto kToolFlyoutPositionKey = "window/toolFlyoutPosition";
+
+class ToolFlyoutPositionController final : public QObject {
+public:
+  ToolFlyoutPositionController(QMainWindow* window, QToolBar* palette, QToolBar* bar)
+      : QObject(bar), window_(window), palette_(palette), bar_(bar) {}
+
+  void prepare_for_group() {
+    bar_->adjustSize();
+    if (!position_initialized_) {
+      const auto stored = app_settings().value(QString::fromLatin1(kToolFlyoutPositionKey));
+      const auto position = stored.canConvert<QPoint>() ? stored.toPoint() : default_position();
+      if (stored.canConvert<QPoint>() && position_is_visible(position)) {
+        bar_->move(position);
+      } else {
+        move_to_clamped(default_position());
+        save_position();
+      }
+      position_initialized_ = true;
+      return;
+    }
+    move_to_clamped(bar_->pos());
+  }
+
+  void begin_drag(const QPoint& global_position) {
+    drag_offset_ = global_position - bar_->mapToGlobal(QPoint());
+  }
+
+  void drag_to(const QPoint& global_position) {
+    const auto position = window_->mapFromGlobal(global_position - drag_offset_);
+    move_to_clamped(position);
+  }
+
+  void finish_drag() { save_position(); }
+
+private:
+  [[nodiscard]] QPoint default_position() const {
+    const auto palette_global = palette_->mapToGlobal(QPoint(palette_->width() + 2, 0));
+    auto* target_screen = window_->screen();
+    if (target_screen == nullptr) {
+      target_screen = QGuiApplication::primaryScreen();
+    }
+    if (target_screen == nullptr) {
+      return window_->mapFromGlobal(palette_global);
+    }
+    const auto available = target_screen->availableGeometry();
+    const int centered_y = available.center().y() - bar_->height() / 2;
+    return window_->mapFromGlobal(QPoint(palette_global.x(), centered_y));
+  }
+
+  [[nodiscard]] bool position_is_visible(const QPoint& position) const {
+    const QRect local_geometry(position, bar_->size());
+    if (!window_->rect().contains(local_geometry)) {
+      return false;
+    }
+    const QRect global_geometry(window_->mapToGlobal(position), bar_->size());
+    for (const auto* screen : QGuiApplication::screens()) {
+      if (screen != nullptr && screen->availableGeometry().contains(global_geometry)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void move_to_clamped(QPoint position) {
+    const QRect bounds = window_->rect();
+    const int max_x = std::max(0, bounds.width() - bar_->width());
+    const int max_y = std::max(0, bounds.height() - bar_->height());
+    position.setX(std::clamp(position.x(), 0, max_x));
+    position.setY(std::clamp(position.y(), 0, max_y));
+    bar_->move(position);
+    bar_->raise();
+  }
+
+  void save_position() const {
+    auto settings = app_settings();
+    settings.setValue(QString::fromLatin1(kToolFlyoutPositionKey), bar_->pos());
+    settings.sync();
+  }
+
+  QMainWindow* window_{nullptr};
+  QToolBar* palette_{nullptr};
+  QToolBar* bar_{nullptr};
+  QPoint drag_offset_;
+  bool position_initialized_{false};
+};
+
+class ToolFlyoutDragHandle final : public QWidget {
+public:
+  ToolFlyoutDragHandle(ToolFlyoutPositionController* controller, QWidget* parent)
+      : QWidget(parent), controller_(controller) {
+    setCursor(Qt::SizeAllCursor);
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    setFixedHeight(6);
+  }
+
+protected:
+  void mousePressEvent(QMouseEvent* event) override {
+    if (event->button() == Qt::LeftButton && controller_ != nullptr) {
+      dragging_ = true;
+      controller_->begin_drag(event->globalPosition().toPoint());
+      event->accept();
+      return;
+    }
+    QWidget::mousePressEvent(event);
+  }
+
+  void mouseMoveEvent(QMouseEvent* event) override {
+    if (dragging_ && controller_ != nullptr && (event->buttons() & Qt::LeftButton) != 0) {
+      controller_->drag_to(event->globalPosition().toPoint());
+      event->accept();
+      return;
+    }
+    QWidget::mouseMoveEvent(event);
+  }
+
+  void mouseReleaseEvent(QMouseEvent* event) override {
+    if (dragging_ && event->button() == Qt::LeftButton) {
+      dragging_ = false;
+      if (controller_ != nullptr) {
+        controller_->finish_drag();
+      }
+      event->accept();
+      return;
+    }
+    QWidget::mouseReleaseEvent(event);
+  }
+
+private:
+  QPointer<ToolFlyoutPositionController> controller_;
+  bool dragging_{false};
+};
+
 // Stock QToolBar collapses an expanded overflow bar half a second after the
 // pointer leaves it, which makes the palette's second column nearly
 // unreachable. Swallowing Leave while the extension button is checked turns
@@ -814,21 +947,27 @@ void MainWindow::build_tool_palette(ActionBuildContext& ctx) {
   tool_palette->setMinimumWidth(kToolPaletteCollapsedMinWidth);
   addToolBar(Qt::LeftToolBarArea, tool_palette);
 
-  // One optional group bar is reused for every flyout group. It floats beside
-  // the palette by default, but remains a real QToolBar so users can move it
-  // and keep that placement while switching tool groups.
+  // One optional group bar is reused for every flyout group. It is a child of
+  // the main window, so it follows the window without creating a title bar or
+  // a taskbar entry. Its narrow grip owns the only movement behavior.
   auto* tool_flyout_bar = new QToolBar(tr("Tool Palette"), this);
   tool_flyout_bar->setObjectName(QStringLiteral("toolFlyoutBar"));
   tool_flyout_bar->setOrientation(Qt::Vertical);
-  tool_flyout_bar->setMovable(true);
-  tool_flyout_bar->setFloatable(true);
+  tool_flyout_bar->setMovable(false);
+  tool_flyout_bar->setFloatable(false);
   tool_flyout_bar->setAllowedAreas(Qt::AllToolBarAreas);
   tool_flyout_bar->setToolButtonStyle(Qt::ToolButtonIconOnly);
   tool_flyout_bar->setIconSize(QSize(20, 20));
   tool_flyout_bar->setProperty("toolFlyoutBar", true);
-  tool_flyout_bar->setWindowFlags(Qt::Tool | Qt::WindowTitleHint | Qt::WindowCloseButtonHint);
+  tool_flyout_bar->setWindowFlags(Qt::Widget);
   tool_flyout_bar->setAttribute(Qt::WA_QuitOnClose, false);
   tool_flyout_bar->setVisible(false);
+  auto* tool_flyout_position_controller =
+      new ToolFlyoutPositionController(this, tool_palette, tool_flyout_bar);
+  auto* tool_flyout_drag_handle = new ToolFlyoutDragHandle(tool_flyout_position_controller, tool_flyout_bar);
+  tool_flyout_drag_handle->setObjectName(QStringLiteral("toolFlyoutDragHandle"));
+  auto* tool_flyout_drag_action = tool_flyout_bar->addWidget(tool_flyout_drag_handle);
+  tool_flyout_drag_action->setObjectName(QStringLiteral("toolFlyoutDragHandleAction"));
   tool_flyout_menus_.clear();
 
   auto* tool_group = new QActionGroup(this);
@@ -1054,7 +1193,9 @@ void MainWindow::build_tool_palette(ActionBuildContext& ctx) {
         },
         zoom_button));
   }
-  connect(tool_group, &QActionGroup::triggered, this, [this, tool_palette, tool_flyout_bar](QAction* action) {
+  connect(tool_group, &QActionGroup::triggered,
+          this, [this, tool_palette, tool_flyout_bar, tool_flyout_drag_action,
+                 tool_flyout_position_controller](QAction* action) {
     if (canvas_ == nullptr) {
       return;
     }
@@ -1074,16 +1215,17 @@ void MainWindow::build_tool_palette(ActionBuildContext& ctx) {
     if (flyout == tool_flyout_menus_.end() || flyout->second == nullptr) {
       tool_flyout_bar->hide();
     } else {
-      tool_flyout_bar->clear();
+      for (auto* existing_action : tool_flyout_bar->actions()) {
+        if (existing_action != tool_flyout_drag_action) {
+          tool_flyout_bar->removeAction(existing_action);
+        }
+      }
       for (auto* group_action : flyout->second->actions()) {
         tool_flyout_bar->addAction(group_action);
       }
-      tool_flyout_bar->adjustSize();
-      if (!tool_flyout_bar->property("toolFlyoutPositioned").toBool()) {
-        tool_flyout_bar->move(tool_palette->mapToGlobal(QPoint(tool_palette->width() + 2, 0)));
-        tool_flyout_bar->setProperty("toolFlyoutPositioned", true);
-      }
+      tool_flyout_position_controller->prepare_for_group();
       tool_flyout_bar->show();
+      tool_flyout_bar->raise();
     }
     set_eraser_brush_settings_active(selected == CanvasTool::Eraser);
     if (selected != CanvasTool::Text ||

@@ -442,6 +442,11 @@ QString photoshop_style_template() {
       padding: 3px 4px;
       spacing: 1px;
     }
+    QToolBar#toolFlyoutBar QWidget#toolFlyoutDragHandle {
+      background: @tool_palette_separator;
+      min-height: 6px;
+      max-height: 6px;
+    }
     QToolBar#toolFlyoutBar QToolButton {
       min-width: 28px;
       max-width: 28px;
