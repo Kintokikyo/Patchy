@@ -9372,10 +9372,6 @@ RGB: %2, %3, %4</translation>
         <translation>Arrastre la selección hasta donde deba ir la copia</translation>
     </message>
     <message>
-        <source>Drag the selection to a clean area to sample from</source>
-        <translation>Arrastre la selección hasta una zona limpia de la que tomar la muestra</translation>
-    </message>
-    <message>
         <source>Select All is unavailable in Quick Mask mode</source>
         <translation>Seleccionar todo no está disponible en el modo Máscara rápida</translation>
     </message>
@@ -9862,6 +9858,70 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Change: %1</source>
         <translation>Cambio: %1</translation>
+    </message>
+    <message>
+        <source>Drag the selection to a clean area to sample from, or press Enter to remove the object automatically</source>
+        <translation>Arrastre la selección hasta una zona limpia de la que tomar la muestra, o pulse Enter para eliminar el objeto automáticamente</translation>
+    </message>
+    <message>
+        <source>Remove Object needs an open document</source>
+        <translation>Eliminar objeto necesita un documento abierto</translation>
+    </message>
+    <message>
+        <source>Remove Object needs a selection: select the area to remove first</source>
+        <translation>Eliminar objeto necesita una selección: seleccione primero la zona que desea eliminar</translation>
+    </message>
+    <message>
+        <source>Remove Object needs a selection on the canvas</source>
+        <translation>Eliminar objeto necesita una selección dentro del lienzo</translation>
+    </message>
+    <message>
+        <source>Remove Object needs an editable pixel layer</source>
+        <translation>Eliminar objeto necesita una capa de píxeles editable</translation>
+    </message>
+    <message>
+        <source>Remove Object needs unselected pixels around the selection to sample</source>
+        <translation>Eliminar objeto necesita píxeles no seleccionados alrededor de la selección para tomar muestras</translation>
+    </message>
+    <message>
+        <source>Remove Object could not read the document pixels</source>
+        <translation>Eliminar objeto no pudo leer los píxeles del documento</translation>
+    </message>
+    <message>
+        <source>Remove Object</source>
+        <translation>Eliminar objeto</translation>
+    </message>
+    <message>
+        <source>Remove Object needs a pixel layer</source>
+        <translation>Eliminar objeto necesita una capa de píxeles</translation>
+    </message>
+    <message>
+        <source>Removed object with source %1 of %2. Run again to try another.</source>
+        <translation>Objeto eliminado con la fuente %1 de %2. Ejecute de nuevo para probar otra.</translation>
+    </message>
+    <message>
+        <source>Removed object with content-aware fill (%1 patches)</source>
+        <translation>Objeto eliminado con relleno según el contenido (%1 parches)</translation>
+    </message>
+    <message>
+        <source>Remove Object found no clean source patches nearby; used the nearest edge instead (source %1 of %2)</source>
+        <translation>Eliminar objeto no encontró parches de origen limpios cerca; se usó el borde más cercano en su lugar (fuente %1 de %2)</translation>
+    </message>
+    <message>
+        <source>Removing object...</source>
+        <translation>Eliminando objeto...</translation>
+    </message>
+    <message>
+        <source>Removing object... %1%</source>
+        <translation>Eliminando objeto... %1%</translation>
+    </message>
+    <message>
+        <source>Align Layers</source>
+        <translation>Alinear capas</translation>
+    </message>
+    <message>
+        <source>Distribute Layers</source>
+        <translation>Distribuir capas</translation>
     </message>
     <message>
         <source>Resize Selection</source>
@@ -12210,10 +12270,6 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Convert Point: click a point to switch it between corner and smooth.</source>
         <translation>Convertir punto: haga clic en un punto para alternarlo entre vértice y suavizado.</translation>
-    </message>
-    <message>
-        <source>Patch: draw around the area to fix, then drag the selection to a clean source area</source>
-        <translation>Parche: dibuje alrededor del área que desea corregir y luego arrastre la selección hasta un área de origen limpia</translation>
     </message>
     <message>
         <source>Marquee Tools</source>
@@ -17141,6 +17197,144 @@ Y: %2
         <translation>Pivote:</translation>
     </message>
     <message>
+        <source>Remove &amp;Object</source>
+        <translation>Eliminar &amp;objeto</translation>
+    </message>
+    <message>
+        <source>Remove Object</source>
+        <translation>Eliminar objeto</translation>
+    </message>
+    <message>
+        <source>Patch: draw around the area to fix, then drag the selection to a clean source area, or press Enter to remove the object automatically</source>
+        <translation>Parche: dibuje alrededor del área que desea corregir y luego arrastre la selección hasta un área de origen limpia, o pulse Enter para eliminar el objeto automáticamente</translation>
+    </message>
+    <message>
+        <source>Fill the selection from its surroundings with the content-aware search (Enter)</source>
+        <translation>Rellenar la selección a partir de su entorno con la búsqueda según el contenido (Enter)</translation>
+    </message>
+    <message>
+        <source>&amp;Align</source>
+        <translation>&amp;Alinear</translation>
+    </message>
+    <message>
+        <source>&amp;Distribute</source>
+        <translation>&amp;Distribuir</translation>
+    </message>
+    <message>
+        <source>Snap</source>
+        <translation>Ajustar</translation>
+    </message>
+    <message>
+        <source>Align &amp;Left Edges</source>
+        <translation>Alinear bordes &amp;izquierdos</translation>
+    </message>
+    <message>
+        <source>Align &amp;Horizontal Centers</source>
+        <translation>Alinear centros &amp;horizontales</translation>
+    </message>
+    <message>
+        <source>Align &amp;Right Edges</source>
+        <translation>Alinear bordes &amp;derechos</translation>
+    </message>
+    <message>
+        <source>Align &amp;Top Edges</source>
+        <translation>Alinear bordes &amp;superiores</translation>
+    </message>
+    <message>
+        <source>Align &amp;Vertical Centers</source>
+        <translation>Alinear centros &amp;verticales</translation>
+    </message>
+    <message>
+        <source>Align &amp;Bottom Edges</source>
+        <translation>Alinear bordes in&amp;feriores</translation>
+    </message>
+    <message>
+        <source>Align To: &amp;Selection</source>
+        <translation>Alinear con: &amp;Selección</translation>
+    </message>
+    <message>
+        <source>Align To: &amp;Canvas</source>
+        <translation>Alinear con: &amp;Lienzo</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Left Edges</source>
+        <translation>Distribuir bordes &amp;izquierdos</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Horizontal Centers</source>
+        <translation>Distribuir centros &amp;horizontales</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Right Edges</source>
+        <translation>Distribuir bordes &amp;derechos</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Top Edges</source>
+        <translation>Distribuir bordes &amp;superiores</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Vertical Centers</source>
+        <translation>Distribuir centros &amp;verticales</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Bottom Edges</source>
+        <translation>Distribuir bordes in&amp;feriores</translation>
+    </message>
+    <message>
+        <source>Distribute Horizontal &amp;Spacing</source>
+        <translation>Distribuir e&amp;spaciado horizontal</translation>
+    </message>
+    <message>
+        <source>Distribute Vertical S&amp;pacing</source>
+        <translation>Distribuir es&amp;paciado vertical</translation>
+    </message>
+    <message>
+        <source>Snap moved layers to other layers, guides, the grid, and the canvas (View &gt; Snap). Choose the targets under View &gt; Snap To.</source>
+        <translation>Ajustar las capas movidas a otras capas, guías, la cuadrícula y el lienzo (Vista &gt; Ajustar). Elija los objetivos en Vista &gt; Ajustar a.</translation>
+    </message>
+    <message>
+        <source>Distribute layers and choose what to align to</source>
+        <translation>Distribuir capas y elegir con qué alinear</translation>
+    </message>
+    <message>
+        <source>Finish the current drag before aligning layers</source>
+        <translation>Termine el arrastre actual antes de alinear capas</translation>
+    </message>
+    <message>
+        <source>Return to the layer view to align layers</source>
+        <translation>Vuelva a la vista de capas para alinear capas</translation>
+    </message>
+    <message>
+        <source>Select a movable layer to align</source>
+        <translation>Seleccione una capa movible para alinear</translation>
+    </message>
+    <message>
+        <source>The selected layers are already aligned</source>
+        <translation>Las capas seleccionadas ya están alineadas</translation>
+    </message>
+    <message numerus="yes">
+        <source>Aligned %n layer(s)</source>
+        <translation>
+            <numerusform>%n capa alineada</numerusform>
+            <numerusform>%n capas alineadas</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Select at least three layers to distribute</source>
+        <translation>Seleccione al menos tres capas para distribuir</translation>
+    </message>
+    <message>
+        <source>The selected layers are already distributed</source>
+        <translation>Las capas seleccionadas ya están distribuidas</translation>
+    </message>
+    <message numerus="yes">
+        <source>Distributed %n layer(s)</source>
+        <translation>
+            <numerusform>%n capa distribuida</numerusform>
+            <numerusform>%n capas distribuidas</numerusform>
+        </translation>
+    </message>
+    <message>
         <source>Rectangular Marquee: drag to select. Drag a handle to resize the selection, or drag inside it to move it.</source>
         <translation>Marco rectangular: arrastre para seleccionar. Arrastre un tirador para cambiar el tamaño de la selección, o arrastre dentro de ella para moverla.</translation>
     </message>
@@ -18410,6 +18604,62 @@ Y: %2
     <message>
         <source>exportPdf imageQuality must be &quot;lossless&quot;, &quot;high&quot;, &quot;medium&quot;, or &quot;low&quot;.</source>
         <translation>exportPdf imageQuality debe ser &quot;lossless&quot;, &quot;high&quot;, &quot;medium&quot; o &quot;low&quot;.</translation>
+    </message>
+    <message>
+        <source>removeObject: unknown option %1.</source>
+        <translation>removeObject: opción desconocida %1.</translation>
+    </message>
+    <message>
+        <source>removeObject needs the document&apos;s active layer (set doc.activeLayer first).</source>
+        <translation>removeObject necesita la capa activa del documento (establezca doc.activeLayer primero).</translation>
+    </message>
+    <message>
+        <source>removeObject needs a selection.</source>
+        <translation>removeObject necesita una selección.</translation>
+    </message>
+    <message>
+        <source>removeObject: method must be contentAware or nearestEdge.</source>
+        <translation>removeObject: method debe ser contentAware o nearestEdge.</translation>
+    </message>
+    <message>
+        <source>%1: options must be an object.</source>
+        <translation>%1: options debe ser un objeto.</translation>
+    </message>
+    <message>
+        <source>%1: layers must be a nonempty array of layers of this document.</source>
+        <translation>%1: layers debe ser un array no vacío de capas de este documento.</translation>
+    </message>
+    <message>
+        <source>%1: alignTo must be &quot;selection&quot; or &quot;canvas&quot;.</source>
+        <translation>%1: alignTo debe ser &quot;selection&quot; o &quot;canvas&quot;.</translation>
+    </message>
+    <message>
+        <source>%1: unknown option %2.</source>
+        <translation>%1: opción desconocida %2.</translation>
+    </message>
+    <message>
+        <source>alignLayers: unknown edge %1 (left, hcenter, right, top, vcenter, bottom)</source>
+        <translation>alignLayers: borde desconocido %1 (left, hcenter, right, top, vcenter, bottom)</translation>
+    </message>
+    <message>
+        <source>distributeLayers: unknown mode %1 (left, hcenter, right, top, vcenter, bottom, hspacing, vspacing)</source>
+        <translation>distributeLayers: modo desconocido %1 (left, hcenter, right, top, vcenter, bottom, hspacing, vspacing)</translation>
+    </message>
+    <message>
+        <source>%1 needs layers of this document.</source>
+        <translation>%1 necesita capas de este documento.</translation>
+    </message>
+    <message>
+        <source>%1: finish the pending transform first.</source>
+        <translation>%1: termine primero la transformación pendiente.</translation>
+    </message>
+    <message>
+        <source>alignLayers needs at least one movable layer.</source>
+        <translation>alignLayers necesita al menos una capa movible.</translation>
+    </message>
+    <message>
+        <source>distributeLayers needs at least three movable layers.</source>
+        <translation>distributeLayers necesita al menos tres capas movibles.</translation>
     </message>
 </context>
 <context>

@@ -365,6 +365,16 @@ void CanvasWidget::begin_processing_operation(QString message, int delay_ms_over
   ++processing_operation_depth_;
 }
 
+void CanvasWidget::set_processing_operation_message(QString message) {
+  if (processing_operation_depth_ <= 0) {
+    return;
+  }
+  processing_overlay_message_ = message.isEmpty() ? tr("Processing...") : std::move(message);
+  if (processing_overlay_visible_) {
+    update();
+  }
+}
+
 void CanvasWidget::tick_processing_operation() {
   if (processing_operation_depth_ <= 0) {
     return;
@@ -1087,6 +1097,7 @@ void CanvasWidget::paintEvent(QPaintEvent* event) {
   }
   draw_grid_overlay(painter, target_rect, exposed_rect);
   draw_guides_overlay(painter);
+  draw_move_snap_guides(painter);
   painter.setPen(theme().canvas_document_border);
   const auto border_rect = target_rect.adjusted(0.5, 0.5, -0.5, -0.5);
   if (!border_rect.isEmpty()) {

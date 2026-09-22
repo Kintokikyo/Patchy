@@ -5,12 +5,13 @@
 #include <cmath>
 #include <cstddef>
 #include <limits>
+#include <vector>
 
 namespace patchy {
 
 // The mapping is deliberately a fixed rigid operation derived from the
-// footprint mask alone (no patch search, no synthesis, no content-driven
-// selection) - see the header and docs/legal-constraints.md. Candidate
+// footprint mask alone (no pixel content is read; the header says what a
+// content-driven search may and may not be). Candidate
 // directions are examined in a fixed order and scored ONLY by mask-geometry
 // validity (how many covered cells would map back into the footprint or off
 // the canvas), so results are identical across toolchains: integer sums, an
@@ -33,7 +34,7 @@ std::pair<std::int32_t, std::int32_t> SpotHealSourceMap::map(std::int32_t x, std
 }
 
 SpotHealSourceMap spot_heal_source_map(const std::uint8_t* mask, Rect bounds, std::int32_t canvas_width,
-                                       std::int32_t canvas_height, std::int32_t margin) {
+                                       std::int32_t canvas_height, std::int32_t margin, std::int32_t attempt) {
   SpotHealSourceMap result;
   if (mask == nullptr || bounds.width <= 0 || bounds.height <= 0 || canvas_width <= 0 ||
       canvas_height <= 0) {
@@ -124,7 +125,11 @@ SpotHealSourceMap spot_heal_source_map(const std::uint8_t* mask, Rect bounds, st
   // Fixed candidate order: nearest-boundary direction, its opposite, the two
   // perpendiculars. For each, a reflection first, then a translation. Score =
   // covered cells whose mapped source lands off-canvas or back inside the
-  // footprint; first candidate with zero violations wins, else the fewest.
+  // footprint. Every candidate is scored so the eligible set is well defined:
+  // all zero-violation candidates in order, or, when none is clean, the single
+  // first-fewest one. `attempt` indexes that set (wrapping): attempt 0 is the
+  // first clean candidate, the historical pick, and a user's repeat walks the
+  // alternatives. Nothing here reads a pixel.
   const std::array<std::array<double, 2>, 4> directions{{
       {{best_dx, best_dy}},
       {{-best_dx, -best_dy}},
@@ -149,8 +154,19 @@ SpotHealSourceMap spot_heal_source_map(const std::uint8_t* mask, Rect bounds, st
     return violations;
   };
 
-  SpotHealSourceMap best;
-  auto best_violations = std::numeric_limits<std::int64_t>::max();
+  std::vector<SpotHealSourceMap> eligible;
+  eligible.reserve(directions.size() * 2U);
+  SpotHealSourceMap fewest;
+  auto fewest_violations = std::numeric_limits<std::int64_t>::max();
+  const auto consider = [&](const SpotHealSourceMap& candidate) {
+    const auto violations = violations_for(candidate);
+    if (violations == 0) {
+      eligible.push_back(candidate);
+    } else if (violations < fewest_violations) {
+      fewest_violations = violations;
+      fewest = candidate;
+    }
+  };
   for (const auto& direction : directions) {
     const auto ux = direction[0];
     const auto uy = direction[1];
@@ -163,14 +179,7 @@ SpotHealSourceMap spot_heal_source_map(const std::uint8_t* mask, Rect bounds, st
     mirrored.direction_y = uy;
     mirrored.anchor_x = centroid_x + ux * (rim + static_cast<double>(margin));
     mirrored.anchor_y = centroid_y + uy * (rim + static_cast<double>(margin));
-    const auto mirrored_violations = violations_for(mirrored);
-    if (mirrored_violations < best_violations) {
-      best_violations = mirrored_violations;
-      best = mirrored;
-    }
-    if (best_violations == 0) {
-      return best;
-    }
+    consider(mirrored);
 
     // Translation fallback: push the whole footprint clear of its own extent
     // along the direction.
@@ -192,16 +201,16 @@ SpotHealSourceMap spot_heal_source_map(const std::uint8_t* mask, Rect bounds, st
     translated.direction_x = ux;
     translated.direction_y = uy;
     translated.shift = 2.0 * max_extent + static_cast<double>(margin) + 1.0;
-    const auto translated_violations = violations_for(translated);
-    if (translated_violations < best_violations) {
-      best_violations = translated_violations;
-      best = translated;
-    }
-    if (best_violations == 0) {
-      return best;
-    }
+    consider(translated);
   }
-  return best;
+  if (eligible.empty()) {
+    eligible.push_back(fewest);
+  }
+  const auto count = static_cast<std::int32_t>(eligible.size());
+  const auto index = ((attempt % count) + count) % count;
+  auto chosen = eligible[static_cast<std::size_t>(index)];
+  chosen.candidate_count = count;
+  return chosen;
 }
 
 }  // namespace patchy

@@ -122,10 +122,12 @@ one path). Panel deselection of a layer drops its point selection
 
 ## Path context menu
 
-Right-click under a path tool: the press records `path_context_press_pos_`
-and starts the universal pan; a release within `startDragDistance` opens
-`canvasPathContextMenu` (`show_path_context_menu`, public for tests),
-otherwise the gesture was a pan. Entries (object names `pathMenu*Action`):
+Right-click under a path tool: the press records `context_press_pos_` (the
+right button never pans); a release within `startDragDistance` opens
+`canvasPathContextMenu` (`show_path_context_menu`, public for tests, reached
+through `show_canvas_context_menu`, which falls back to the shared canvas menu
+when the path menu has no target), otherwise the gesture opened nothing.
+Entries (object names `pathMenu*Action`):
 Add Anchor Point (over a segment), Delete Anchor Point and Convert Point
 (over an anchor), Delete Selected Points and Deselect Points (with a
 selection), Free Transform Points (Direct Select with a selection) or Free

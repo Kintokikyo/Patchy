@@ -286,6 +286,21 @@ interface PatchyLayer {
    */
   applyFilter(filterId: string, params?: Record<string, number | boolean | string>): void;
   /**
+   * Edit > Remove Object: fills the document selection from its surroundings.
+   * `method` "contentAware" (default) is the deterministic exemplar fill (an
+   * exhaustive best-patch search over the nearby image, no AI); it falls back
+   * to "nearestEdge" when no clean source patch is in reach. "nearestEdge" is
+   * the selection form of Spot Healing (a mirrored patch of the nearby
+   * texture blended by the healing membrane); calling it again on the same
+   * selection tries the next source candidate, and `attempt` picks one
+   * explicitly (0-based, wrapping). The layer must be the document's active
+   * layer and a selection must exist. Returns the method that ran, the number
+   * of patches copied (content-aware), and the 1-based source used plus the
+   * candidate count (nearest edge).
+   */
+  removeObject(options?: { method?: "contentAware" | "nearestEdge"; attempt?: number }):
+      { method: "contentAware" | "nearestEdge"; patches: number; source: number; sourceCount: number };
+  /**
    * A copy of the layer's pixels (empty layers report width/height 0). Layers
    * that store opaque 8-bit RGB (photos opened from JPEG and similar) are
    * returned expanded to RGBA with alpha 255.
@@ -481,6 +496,18 @@ interface PatchyDocument {
   mergeLayers(layers: PatchyLayer[], options?: {
     keepVectors?: boolean; withinGroups?: boolean; separateVectorTypes?: boolean;
   }): PatchyLayer[];
+  /** Layer > Arrange > Align: lines the layers' edges or centers up with the reference
+   *  (the selection when one exists and alignTo is "selection", the canvas when alignTo is
+   *  "canvas" or only one layer is given, else the layers' union). A group counts as one
+   *  unit. Defaults: the layer selection, alignTo "selection". Returns the layers moved;
+   *  rides the run's single undo entry. */
+  alignLayers(edge: "left" | "hcenter" | "right" | "top" | "vcenter" | "bottom",
+    options?: {layers?: PatchyLayer[]; alignTo?: "selection" | "canvas"}): number;
+  /** Layer > Arrange > Distribute over three or more units: feature modes keep the outermost
+   *  units and space the others evenly; "hspacing" / "vspacing" share one equal gap. Throws
+   *  with fewer than three movable units. Returns the layers moved. */
+  distributeLayers(mode: "left" | "hcenter" | "right" | "top" | "vcenter" | "bottom" | "hspacing" | "vspacing",
+    options?: {layers?: PatchyLayer[]}): number;
   flatten(): void;
   resizeImage(width: number, height: number): void;
   resizeCanvas(width: number, height: number): void;

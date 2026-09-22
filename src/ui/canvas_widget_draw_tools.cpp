@@ -847,6 +847,103 @@ void CanvasWidget::clear_drag_readout() {
   }
 }
 
+namespace {
+
+// Alignment guides extend a little past the two boxes they bridge, like
+// Photoshop's, so a line landing exactly on an edge still reads as a line.
+constexpr int kSnapGuideOverhangPixels = 4;
+
+bool snap_match_draws_line(const std::optional<CanvasWidget::SnapMatch>& match) {
+  // Guides already draw themselves and the grid has no single line to show.
+  return match.has_value() && match->kind != CanvasWidget::SnapMatch::Kind::Guide &&
+         match->kind != CanvasWidget::SnapMatch::Kind::Grid;
+}
+
+}  // namespace
+
+QRect CanvasWidget::move_snap_guides_widget_rect() const {
+  if (!moving_layer_ || document_ == nullptr) {
+    return {};
+  }
+  QRect rect;
+  const auto extent = [](const SnapMatch& match, bool vertical) {
+    const auto lo = vertical ? std::min(match.source_span.top(), match.target_span.top())
+                             : std::min(match.source_span.left(), match.target_span.left());
+    const auto hi = vertical ? std::max(match.source_span.bottom(), match.target_span.bottom())
+                             : std::max(match.source_span.right(), match.target_span.right());
+    return std::pair<double, double>{lo, hi};
+  };
+  if (snap_match_draws_line(move_snap_x_)) {
+    const auto [top, bottom] = extent(*move_snap_x_, true);
+    const auto x = widget_position_f(QPointF(move_snap_x_->position, 0.0)).x();
+    const auto y0 = widget_position_f(QPointF(0.0, top)).y() - kSnapGuideOverhangPixels;
+    const auto y1 = widget_position_f(QPointF(0.0, bottom)).y() + kSnapGuideOverhangPixels;
+    rect = rect.united(QRectF(x - 1.5, y0, 3.0, y1 - y0).toAlignedRect());
+  }
+  if (snap_match_draws_line(move_snap_y_)) {
+    const auto [left, right] = extent(*move_snap_y_, false);
+    const auto y = widget_position_f(QPointF(0.0, move_snap_y_->position)).y();
+    const auto x0 = widget_position_f(QPointF(left, 0.0)).x() - kSnapGuideOverhangPixels;
+    const auto x1 = widget_position_f(QPointF(right, 0.0)).x() + kSnapGuideOverhangPixels;
+    rect = rect.united(QRectF(x0, y - 1.5, x1 - x0, 3.0).toAlignedRect());
+  }
+  // A document-edge line at deep zoom is enormous; only the visible part matters.
+  return rect.intersected(this->rect());
+}
+
+void CanvasWidget::draw_move_snap_guides(QPainter& painter) const {
+  if (!moving_layer_ || document_ == nullptr ||
+      (!snap_match_draws_line(move_snap_x_) && !snap_match_draws_line(move_snap_y_))) {
+    return;
+  }
+  painter.save();
+  QPen pen(theme().canvas_snap_guide, 1.0, Qt::SolidLine);
+  pen.setCosmetic(true);
+  painter.setPen(pen);
+  // Crisp 1 px lines on the pixel-aligned view, like the guides overlay.
+  const auto pixel_aligned_coordinate = [](double coordinate, double zoom) {
+    return uses_pixel_aligned_view(zoom) ? std::round(coordinate) : coordinate;
+  };
+  if (snap_match_draws_line(move_snap_x_)) {
+    const auto& match = *move_snap_x_;
+    const auto top = std::min(match.source_span.top(), match.target_span.top());
+    const auto bottom = std::max(match.source_span.bottom(), match.target_span.bottom());
+    const auto x = pixel_aligned_coordinate(widget_position_f(QPointF(match.position, 0.0)).x(), zoom_);
+    const auto y0 = widget_position_f(QPointF(0.0, top)).y() - kSnapGuideOverhangPixels;
+    const auto y1 = widget_position_f(QPointF(0.0, bottom)).y() + kSnapGuideOverhangPixels;
+    painter.drawLine(QPointF(x, y0), QPointF(x, y1));
+  }
+  if (snap_match_draws_line(move_snap_y_)) {
+    const auto& match = *move_snap_y_;
+    const auto left = std::min(match.source_span.left(), match.target_span.left());
+    const auto right = std::max(match.source_span.right(), match.target_span.right());
+    const auto y = pixel_aligned_coordinate(widget_position_f(QPointF(0.0, match.position)).y(), zoom_);
+    const auto x0 = widget_position_f(QPointF(left, 0.0)).x() - kSnapGuideOverhangPixels;
+    const auto x1 = widget_position_f(QPointF(right, 0.0)).x() + kSnapGuideOverhangPixels;
+    painter.drawLine(QPointF(x0, y), QPointF(x1, y));
+  }
+  painter.restore();
+}
+
+void CanvasWidget::update_move_snap_guides_region() {
+  const auto next = move_snap_guides_widget_rect();
+  const auto dirty = move_snap_guides_dirty_rect_.united(next);
+  move_snap_guides_dirty_rect_ = next;
+  if (!dirty.isEmpty()) {
+    update(dirty.adjusted(-2, -2, 2, 2));
+  }
+}
+
+void CanvasWidget::clear_move_snap_guides() {
+  move_snap_x_.reset();
+  move_snap_y_.reset();
+  const auto dirty = move_snap_guides_dirty_rect_;
+  move_snap_guides_dirty_rect_ = QRect();
+  if (!dirty.isEmpty()) {
+    update(dirty.adjusted(-2, -2, 2, 2));
+  }
+}
+
 void CanvasWidget::draw_text_rect_preview(QPainter& painter) const {
   if (!dragging_text_rect_) {
     return;

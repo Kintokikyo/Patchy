@@ -3,9 +3,11 @@
 #include "ui/script_stroke.hpp"
 
 #include "core/document.hpp"
+#include "core/layer_alignment.hpp"
 #include "core/magnetic_lasso.hpp"
 #include "core/pattern_resource.hpp"
 #include "core/pixel_tools.hpp"
+#include "core/spot_heal.hpp"
 #include "core/stroke_stabilizer.hpp"
 #include "core/warp_mesh.hpp"
 #include "ui/curves_clipping_preview.hpp"
@@ -21,6 +23,7 @@
 #include <QElapsedTimer>
 #include <QEvent>
 #include <QImage>
+#include <QList>
 #include <QPixmap>
 #include <QPoint>
 #include <QPointF>
@@ -51,6 +54,7 @@
 #include <utility>
 #include <vector>
 
+class QAction;
 class QPainter;
 class QMenu;
 class QEvent;
@@ -600,6 +604,66 @@ public:
   [[nodiscard]] std::optional<DragReadout> transform_drag_readout() const;
   // Widget-space panel rect of the readout; empty when nothing is shown.
   [[nodiscard]] QRect drag_readout_widget_rect() const;
+
+  // One axis of a Move-drag snap: which target line the moving set landed on,
+  // where it is in document space, and the two extents an alignment guide
+  // bridges (docs/alignment.md). Guides draw themselves and grid snaps draw
+  // nothing, so only Document / Selection / Layer matches paint a line.
+  struct SnapMatch {
+    enum class Kind { Guide, Grid, Document, Selection, Layer };
+    Kind kind{Kind::Document};
+    double position{0.0};   // document coordinate of the matched line
+    QRectF source_span{};   // union of the moving rects carrying the matched feature
+    QRectF target_span{};   // the matched layer rect, selection rect, or document rect
+  };
+  struct MoveSnapResult {
+    QPoint delta{};
+    std::optional<SnapMatch> x{};
+    std::optional<SnapMatch> y{};
+  };
+  // One snap target line: its document position, the extent it belongs to
+  // (for the alignment guide), and what kind of target it is.
+  struct SnapCandidate {
+    double position{0.0};
+    QRectF span{};
+    SnapMatch::Kind kind{SnapMatch::Kind::Document};
+  };
+  // The alignment guides currently shown for the live Move drag (x = vertical
+  // line, y = horizontal line); both empty outside a snapped drag.
+  [[nodiscard]] const std::optional<SnapMatch>& move_snap_match_x() const noexcept { return move_snap_x_; }
+  [[nodiscard]] const std::optional<SnapMatch>& move_snap_match_y() const noexcept { return move_snap_y_; }
+
+  // One Align/Distribute unit: a selected root (a folder moves as one block)
+  // with the movable leaves under it and the union of their Move rects.
+  struct AlignmentUnit {
+    LayerId root{};
+    std::vector<LayerId> leaf_ids{};
+    Rect bounds{};
+  };
+  // Units for `root_ids` (normalized through root_drop_layer_ids; empty means
+  // the canvas's layer selection with the movable_layer_ids fallbacks). Roots
+  // with no movable leaf or no measurable rect are dropped.
+  [[nodiscard]] std::vector<AlignmentUnit> alignment_units(const std::vector<LayerId>& root_ids) const;
+  // How many units alignment_units(root_ids) would return, without measuring
+  // rects (the enable-state refresh calls this on every selection change).
+  [[nodiscard]] int alignment_unit_count(const std::vector<LayerId>& root_ids) const;
+  struct LayerAlignmentResult {
+    int unit_count{0};
+    int moved_layers{0};
+    QRegion dirty{};
+  };
+  // Layer > Arrange > Align: lines the units' `edge` up with the reference rect
+  // (the selection bounds when one exists and `align_to_canvas` is false, the
+  // document when `align_to_canvas` is set or only one unit exists, else the
+  // units' union). One "Align Layers" history entry unless `record_history` is
+  // false (the script route rides the run's snapshot). Callers repaint `dirty`.
+  [[nodiscard]] LayerAlignmentResult align_layers(AlignEdge edge, bool align_to_canvas,
+                                                  const std::vector<LayerId>& root_ids,
+                                                  bool record_history = true);
+  // Layer > Arrange > Distribute over three or more units; see
+  // compute_distribute_deltas for the layout rules.
+  [[nodiscard]] LayerAlignmentResult distribute_layers(DistributeMode mode, const std::vector<LayerId>& root_ids,
+                                                       bool record_history = true);
   void set_show_transform_drag_values(bool enabled) noexcept;
   [[nodiscard]] bool show_transform_drag_values() const noexcept;
   void set_fill_shapes(bool fill_shapes) noexcept;
@@ -626,6 +690,27 @@ public:
   // Run a selection-changing command (Select All, Deselect, Invert, ...) and push
   // an undo entry for it if the selection actually changed.
   void run_selection_command(QString label, const std::function<void()>& command);
+  // Edit > Remove Object: fill the current selection from its surroundings
+  // (canvas_widget_spot_healing.cpp). ContentAware is the exhaustive exemplar
+  // fill of core/exemplar_inpaint.hpp (deterministic; falls back to
+  // NearestEdge when no clean source patch is in reach). NearestEdge is the
+  // selection form of Spot Healing: one shape-derived mirror or shift, where
+  // `attempt` < 0 continues the canvas's own cycle (running again on the same
+  // selection walks the geometry-only candidates) and >= 0 forces that
+  // candidate (wrapping) and becomes the cycle's position. `record_history`
+  // false runs the pixel-edit prechecks without the history push, for callers
+  // that already own an undo snapshot (the script API).
+  enum class RemoveObjectMethod { ContentAware, NearestEdge };
+  struct RemoveObjectResult {
+    bool applied{false};
+    RemoveObjectMethod method{RemoveObjectMethod::ContentAware};  // the method that ran (fallback included)
+    int source_index{0};  // NearestEdge: 1-based candidate that was used
+    int source_count{0};  // NearestEdge: candidates available
+    std::int64_t patches{0};  // ContentAware: source patches copied
+    QString error;  // the refusal (also reported to the status bar) when !applied
+  };
+  RemoveObjectResult remove_object_in_selection(RemoveObjectMethod method = RemoveObjectMethod::ContentAware,
+                                                int attempt = -1, bool record_history = true);
   void set_marquee_style(MarqueeStyle style) noexcept;
   [[nodiscard]] MarqueeStyle marquee_style() const noexcept;
   void set_marquee_fixed_size(int width, int height) noexcept;
@@ -693,6 +778,12 @@ public:
   // Returns false when nothing was shown (no target path, a Pen session, a
   // path transform, or a non-path tool).
   bool show_path_context_menu(QPointF widget_point, QPoint global_position);
+  // The canvas right-click menu (a right release within the drag distance of
+  // its press): the Move tool's layers-under-the-pointer section, then the
+  // host's selection commands when the click landed on the selection; path
+  // tools get their own menu above. Public so tests can open it without the
+  // gesture. Returns false when nothing was shown.
+  bool show_canvas_context_menu(QPoint widget_point, QPoint global_position);
   // Path editing (PathSelect / DirectSelect / Pen add-delete) on the active
   // shape layer's path or the work path.
   [[nodiscard]] bool path_edit_has_selection() const noexcept;
@@ -847,6 +938,9 @@ public:
   // 0 so the first tick shows the overlay (the script busy indicator).
   void begin_processing_operation(QString message = {}, int delay_ms_override = -1);
   void tick_processing_operation();
+  // Replace the running operation's overlay text (a percentage, say); shown
+  // by the next tick or repaint.
+  void set_processing_operation_message(QString message);
   void end_processing_operation();
   // Non-blocking counterpart for background preview renders (filter and
   // adjustment dialogs): while at least one preview worker is in flight and
@@ -1017,6 +1111,10 @@ public:
   // options bar and info panel can resync.
   void set_crop_session_changed_callback(std::function<void()> callback);
   void set_status_callback(std::function<void(QString)> callback);
+  // The commands the host offers in the canvas context menu when a right-click
+  // lands on the selection (Remove Object, Fill, Stroke, ...); a nullptr entry
+  // is a separator. The actions stay owned by the host.
+  void set_selection_context_actions_callback(std::function<QList<QAction*>()> callback);
   // Blocking refusals (the tool action did NOT happen) report through this
   // callback so the host can present them as errors; unset, they fall back to
   // the plain status callback.
@@ -1303,11 +1401,23 @@ private:
   [[nodiscard]] QPointF widget_position_f(QPointF document_position) const;
   [[nodiscard]] QPoint snapped_document_point(QPoint point) const;
   [[nodiscard]] QPointF snapped_document_point_f(QPointF point) const;
+  // Every enabled snap target except the grid, in the order guides, document,
+  // selection, layers (the tie-break order every snap path shares). Layers
+  // whose id is in `exclude_ids` (the moving set) contribute nothing.
+  void collect_snap_candidates(const std::vector<LayerId>& exclude_ids, std::vector<SnapCandidate>& x_candidates,
+                               std::vector<SnapCandidate>& y_candidates) const;
   void append_snap_target_candidates(std::vector<double>& x_candidates,
                                      std::vector<double>& y_candidates) const;
   [[nodiscard]] QPoint snapped_rect_delta(QRect source_rect, QPoint raw_delta) const;
   [[nodiscard]] QPoint snapped_marquee_current_point(QPoint anchor, QPoint current) const;
   [[nodiscard]] QPoint snapped_move_delta(QPoint raw_delta) const;
+  [[nodiscard]] MoveSnapResult snapped_move_delta_with_matches(QPoint raw_delta) const;
+  // Alignment-guide overlay bookkeeping (the drag-readout pattern: bounded
+  // repaints over the previous and next widget rects, cleared on release).
+  [[nodiscard]] QRect move_snap_guides_widget_rect() const;
+  void update_move_snap_guides_region();
+  void clear_move_snap_guides();
+  void draw_move_snap_guides(QPainter& painter) const;
   [[nodiscard]] int guide_at_widget_position(QPoint widget_position) const;
   [[nodiscard]] GuideOrientation guide_orientation_from_ruler(QPoint widget_position) const noexcept;
   [[nodiscard]] bool widget_position_in_ruler(QPoint widget_position) const noexcept;
@@ -1352,8 +1462,10 @@ private:
   // Escape with nothing to cancel, and Move-tool empty clicks/rectangles:
   // clear the layer selection and the active layer (no history entry).
   void request_layer_deselection();
-  void show_move_layer_context_menu(QPoint widget_point, QPoint global_position);
-  void close_move_layer_context_menu();
+  // Move-tool section of the canvas context menu (canvas_widget_move.cpp):
+  // the hit leaf layers under the pointer. Returns whether any entry was added.
+  bool add_move_layer_menu_entries(QMenu& menu, QPoint widget_point);
+  void close_canvas_context_menu();
   void begin_move_drag(const std::vector<LayerId>& layer_ids, QPoint document_point, QPoint widget_point);
   void begin_move_layer_selection(QMouseEvent* event, const Layer* clicked_layer, bool rectangle_allowed);
   bool update_move_layer_selection(QMouseEvent* event);
@@ -1597,13 +1709,22 @@ private:
   // heal is computed ONCE in finish_spot_heal_stroke() after the gesture ends,
   // from one coherent rigid source mapping (core/spot_heal.hpp, footprint
   // shape only) plus the classic healing membrane of the expired US 6587592
-  // (core/heal_membrane.hpp). No patch search, synthesis, content-driven
-  // source selection, or gradient-domain compositing of source gradients may
-  // be added here - see docs/legal-constraints.md (PatchMatch family
-  // US 8285055/8340463/8355592, US 9058699, live-classification US 8050498).
+  // (core/heal_membrane.hpp). No PatchMatch-style offset propagation or
+  // perturbation, reshuffling, or gradient-domain compositing of source
+  // gradients may be added here, and a content-driven source search must
+  // follow the exhaustive exemplar boundary in docs/legal-constraints.md
+  // (US 8285055/8340463/8355592, US 9058699, live-classification US 8050498).
   void begin_spot_heal_stroke(QPoint document_point, std::optional<QPointF> connect_from);
   void extend_spot_heal_stroke(QPoint document_point);
   void finish_spot_heal_stroke();
+  // The release-time heal shared by the Spot Healing stroke and Remove Object:
+  // `mask` (row-major coverage over `bounds`) is healed from `snapshot`
+  // through `source_map` plus the membrane, written to `layer` and reported
+  // to the edit target. `clip_to_selection` multiplies in the selection
+  // coverage (a stroke); Remove Object's mask IS the selection. Returns the
+  // written rect (empty when nothing was written).
+  QRect heal_mask_from_surroundings(QRect bounds, const std::vector<std::uint8_t>& mask, const QImage& snapshot,
+                                    const SpotHealSourceMap& source_map, Layer& layer, bool clip_to_selection);
   void cancel_spot_heal_stroke();
   void stamp_spot_heal_segment(QPoint from, QPoint to);
   void draw_spot_heal_stroke_overlay(QPainter& painter) const;
@@ -1625,10 +1746,11 @@ private:
   // only a raw translated copy of the frozen snapshot; the heal is computed
   // ONCE in commit_patch_tool_drag() on release, with the user-dragged offset
   // as the only source choice, through the classic healing membrane of the
-  // expired US 6587592 (core/heal_membrane.hpp). No patch search, synthesis,
-  // content-driven source selection, gradient-domain compositing of source
-  // gradients, or live per-move classification may be added here - see
-  // docs/legal-constraints.md (PatchMatch family US 8285055/8340463/8355592,
+  // expired US 6587592 (core/heal_membrane.hpp). No PatchMatch-style offset
+  // propagation or perturbation, reshuffling, gradient-domain compositing of
+  // source gradients, or live per-move classification may be added here, and
+  // a content-driven source search must follow the exhaustive exemplar
+  // boundary in docs/legal-constraints.md (US 8285055/8340463/8355592,
   // US 9058699, live-classification US 8050498).
   [[nodiscard]] bool begin_patch_tool_drag(QPoint document_point);
   void update_patch_tool_drag(QPoint document_point);
@@ -1716,6 +1838,19 @@ private:
   void combine_selection_from_mask(QRect candidate_bounds, QImage candidate_alpha);
   void combine_selection_from_mask(QRegion candidate, QRect candidate_bounds, QImage candidate_alpha);
   [[nodiscard]] std::vector<LayerId> movable_layer_ids() const;
+  // Appends the movable leaves under `root` (position locks inherited from
+  // `ancestor_flags`, no duplicates) to `ids`: the shared walk behind
+  // movable_layer_ids and alignment_units.
+  void collect_movable_leaf_ids(const Layer& root, LayerLockFlags ancestor_flags, std::vector<LayerId>& ids) const;
+  // The selected roots alignment_units works from: `root_ids` normalized, or
+  // the canvas selection (falling back to the active layer) when empty.
+  [[nodiscard]] std::vector<LayerId> alignment_root_ids(const std::vector<LayerId>& root_ids) const;
+  // Moves each listed layer by its own delta in one history entry: the shared
+  // body of arrow-key nudges (move_active_layer_by) and Align/Distribute. Null
+  // deltas are skipped; all-null pushes no history. Returns the dirty region
+  // (partial when a Smart Filter re-render fails, mirroring the nudge path).
+  [[nodiscard]] QRegion offset_layers(const std::vector<std::pair<LayerId, QPoint>>& deltas,
+                                      const QString& undo_label, bool record_history = true);
   [[nodiscard]] std::optional<QRect> move_hover_outline_rect_at(QPoint widget_position,
                                                                 Qt::KeyboardModifiers modifiers) const;
   void update_move_hover_outline(QPoint widget_position, Qt::KeyboardModifiers modifiers);
@@ -1910,9 +2045,6 @@ private:
   bool pen_auto_add_delete_{true};
   PenHoverAction path_hover_hint_action_{PenHoverAction::Draw};
   PathHoverTarget path_hover_hint_target_{PathHoverTarget::None};
-  // Right-button press position under a path tool; a release without a drag
-  // opens the path context menu (a drag stays the universal pan).
-  std::optional<QPoint> path_context_press_pos_;
   // Ctrl-drag of an in-progress session anchor: index into pen_anchors_, -1 idle.
   int pen_session_drag_anchor_{-1};
   QPointF pen_session_drag_last_document_{};
@@ -2063,8 +2195,10 @@ private:
   int selection_feather_radius_{0};
   bool selection_antialias_{true};
   bool panning_{false};
-  std::optional<QPoint> move_context_press_pos_;
-  QPointer<QMenu> move_layer_context_menu_;
+  // Right-button press position; a release without a drag opens the canvas
+  // context menu (canvas_widget_move.cpp). The right button never pans.
+  std::optional<QPoint> context_press_pos_;
+  QPointer<QMenu> canvas_context_menu_;
   bool spacebar_panning_{false};
   bool spacebar_repositioning_drag_rect_{false};
   QPoint spacebar_reposition_last_document_position_{};
@@ -2127,6 +2261,12 @@ private:
   QPolygonF spot_heal_stroke_points_;
   QPoint spot_heal_last_document_point_;
   QImage spot_heal_source_cache_;
+  // Remove Object repeat cycle: the same selection (bounds plus a hash of its
+  // coverage) run again advances to the next geometry-only source candidate.
+  int remove_object_attempt_{0};
+  bool remove_object_has_last_{false};
+  QRect remove_object_last_bounds_;
+  std::uint64_t remove_object_last_mask_hash_{0};
   // Crop tool session state (canvas_widget_crop.cpp). All rects/points are in
   // document space; crop_rect_ may extend past the canvas (commit expands).
   bool crop_session_active_{false};
@@ -2419,6 +2559,11 @@ private:
   QRect drag_readout_dirty_rect_{};
   std::optional<QRectF> move_readout_base_rect_{};
   QString drag_readout_status_text_{};
+  // Alignment guides of the live Move drag (docs/alignment.md) and the widget
+  // rect they last painted, for the bounded repaint union.
+  std::optional<SnapMatch> move_snap_x_{};
+  std::optional<SnapMatch> move_snap_y_{};
+  QRect move_snap_guides_dirty_rect_{};
   QImage transform_base_cache_{};
   std::vector<QImage> transform_base_display_mip_cache_{};
   qint64 transform_base_display_mip_source_key_{0};
@@ -2534,6 +2679,7 @@ private:
   std::function<void(LayerId)> active_layer_changed_callback_;
   std::function<void(std::vector<LayerId>, LayerId)> layer_selection_requested_callback_;
   std::function<void(QString)> status_callback_;
+  std::function<QList<QAction*>()> selection_context_actions_callback_;
   bool vector_preview_enabled_{false};
   std::uint64_t vector_preview_generation_{1};
   std::uint64_t vector_preview_completed_generation_{0};

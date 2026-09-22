@@ -9363,10 +9363,6 @@ RGB: %2, %3, %4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Drag the selection to a clean area to sample from</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Select All is unavailable in Quick Mask mode</source>
         <translation type="unfinished"></translation>
     </message>
@@ -9852,6 +9848,70 @@ RGB: %2, %3, %4</source>
     </message>
     <message>
         <source>Change: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Drag the selection to a clean area to sample from, or press Enter to remove the object automatically</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove Object needs an open document</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove Object needs a selection: select the area to remove first</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove Object needs a selection on the canvas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove Object needs an editable pixel layer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove Object needs unselected pixels around the selection to sample</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove Object could not read the document pixels</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove Object</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove Object needs a pixel layer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Removed object with source %1 of %2. Run again to try another.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Removed object with content-aware fill (%1 patches)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove Object found no clean source patches nearby; used the nearest edge instead (source %1 of %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Removing object...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Removing object... %1%</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Align Layers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Distribute Layers</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -12200,10 +12260,6 @@ RGB: %2, %3, %4</source>
     </message>
     <message>
         <source>Convert Point: click a point to switch it between corner and smooth.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Patch: draw around the area to fix, then drag the selection to a clean source area</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -17097,6 +17153,144 @@ Y: %2
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Remove &amp;Object</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove Object</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Patch: draw around the area to fix, then drag the selection to a clean source area, or press Enter to remove the object automatically</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fill the selection from its surroundings with the content-aware search (Enter)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Align</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Distribute</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Snap</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Align &amp;Left Edges</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Align &amp;Horizontal Centers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Align &amp;Right Edges</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Align &amp;Top Edges</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Align &amp;Vertical Centers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Align &amp;Bottom Edges</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Align To: &amp;Selection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Align To: &amp;Canvas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Left Edges</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Horizontal Centers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Right Edges</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Top Edges</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Vertical Centers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Bottom Edges</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Distribute Horizontal &amp;Spacing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Distribute Vertical S&amp;pacing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Snap moved layers to other layers, guides, the grid, and the canvas (View &gt; Snap). Choose the targets under View &gt; Snap To.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Distribute layers and choose what to align to</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Finish the current drag before aligning layers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Return to the layer view to align layers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select a movable layer to align</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The selected layers are already aligned</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Aligned %n layer(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Select at least three layers to distribute</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The selected layers are already distributed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Distributed %n layer(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
         <source>Rectangular Marquee: drag to select. Drag a handle to resize the selection, or drag inside it to move it.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -18365,6 +18559,62 @@ Y: %2
     </message>
     <message>
         <source>exportPdf imageQuality must be &quot;lossless&quot;, &quot;high&quot;, &quot;medium&quot;, or &quot;low&quot;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>removeObject: unknown option %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>removeObject needs the document&apos;s active layer (set doc.activeLayer first).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>removeObject needs a selection.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>removeObject: method must be contentAware or nearestEdge.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1: options must be an object.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1: layers must be a nonempty array of layers of this document.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1: alignTo must be &quot;selection&quot; or &quot;canvas&quot;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1: unknown option %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>alignLayers: unknown edge %1 (left, hcenter, right, top, vcenter, bottom)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>distributeLayers: unknown mode %1 (left, hcenter, right, top, vcenter, bottom, hspacing, vspacing)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 needs layers of this document.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1: finish the pending transform first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>alignLayers needs at least one movable layer.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>distributeLayers needs at least three movable layers.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

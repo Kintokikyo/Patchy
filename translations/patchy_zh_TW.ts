@@ -9345,10 +9345,6 @@ RGB：%2, %3, %4</translation>
         <translation>將選取範圍拖曳到副本要放置的位置</translation>
     </message>
     <message>
-        <source>Drag the selection to a clean area to sample from</source>
-        <translation>將選取範圍拖曳到要取樣的乾淨區域</translation>
-    </message>
-    <message>
         <source>Select All is unavailable in Quick Mask mode</source>
         <translation>在快速遮色片模式中無法使用全部選取</translation>
     </message>
@@ -9835,6 +9831,70 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Change: %1</source>
         <translation>變化: %1</translation>
+    </message>
+    <message>
+        <source>Drag the selection to a clean area to sample from, or press Enter to remove the object automatically</source>
+        <translation>將選取範圍拖曳到要取樣的乾淨區域,或按 Enter 自動移除物件</translation>
+    </message>
+    <message>
+        <source>Remove Object needs an open document</source>
+        <translation>移除物件需要開啟的文件</translation>
+    </message>
+    <message>
+        <source>Remove Object needs a selection: select the area to remove first</source>
+        <translation>移除物件需要選取範圍:請先選取要移除的區域</translation>
+    </message>
+    <message>
+        <source>Remove Object needs a selection on the canvas</source>
+        <translation>移除物件需要版面上的選取範圍</translation>
+    </message>
+    <message>
+        <source>Remove Object needs an editable pixel layer</source>
+        <translation>移除物件需要可編輯的像素圖層</translation>
+    </message>
+    <message>
+        <source>Remove Object needs unselected pixels around the selection to sample</source>
+        <translation>移除物件需要選取範圍周圍未選取的像素做為取樣來源</translation>
+    </message>
+    <message>
+        <source>Remove Object could not read the document pixels</source>
+        <translation>移除物件無法讀取文件像素</translation>
+    </message>
+    <message>
+        <source>Remove Object</source>
+        <translation>移除物件</translation>
+    </message>
+    <message>
+        <source>Remove Object needs a pixel layer</source>
+        <translation>移除物件需要像素圖層</translation>
+    </message>
+    <message>
+        <source>Removed object with source %1 of %2. Run again to try another.</source>
+        <translation>已使用來源 %1/%2 移除物件。再次執行可嘗試其他來源。</translation>
+    </message>
+    <message>
+        <source>Removed object with content-aware fill (%1 patches)</source>
+        <translation>已使用內容感知填色移除物件 (%1 個修補片)</translation>
+    </message>
+    <message>
+        <source>Remove Object found no clean source patches nearby; used the nearest edge instead (source %1 of %2)</source>
+        <translation>移除物件在附近找不到乾淨的來源修補片,改用最近邊緣 (來源 %1/%2)</translation>
+    </message>
+    <message>
+        <source>Removing object...</source>
+        <translation>正在移除物件...</translation>
+    </message>
+    <message>
+        <source>Removing object... %1%</source>
+        <translation>正在移除物件... %1%</translation>
+    </message>
+    <message>
+        <source>Align Layers</source>
+        <translation>對齊圖層</translation>
+    </message>
+    <message>
+        <source>Distribute Layers</source>
+        <translation>分佈圖層</translation>
     </message>
     <message>
         <source>Resize Selection</source>
@@ -12183,10 +12243,6 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Convert Point: click a point to switch it between corner and smooth.</source>
         <translation>轉換錨點:按一下錨點可在轉角與平滑之間切換。</translation>
-    </message>
-    <message>
-        <source>Patch: draw around the area to fix, then drag the selection to a clean source area</source>
-        <translation>修補:在要修復的區域周圍描繪,然後將選取範圍拖曳到乾淨的來源區域</translation>
     </message>
     <message>
         <source>Marquee Tools</source>
@@ -17096,6 +17152,142 @@ Y：%2
         <translation>軸心:</translation>
     </message>
     <message>
+        <source>Remove &amp;Object</source>
+        <translation>移除物件(&amp;O)</translation>
+    </message>
+    <message>
+        <source>Remove Object</source>
+        <translation>移除物件</translation>
+    </message>
+    <message>
+        <source>Patch: draw around the area to fix, then drag the selection to a clean source area, or press Enter to remove the object automatically</source>
+        <translation>修補:在要修復的區域周圍描繪,然後將選取範圍拖曳到乾淨的來源區域,或按 Enter 自動移除物件</translation>
+    </message>
+    <message>
+        <source>Fill the selection from its surroundings with the content-aware search (Enter)</source>
+        <translation>使用內容感知搜尋以周圍內容填滿選取範圍 (Enter)</translation>
+    </message>
+    <message>
+        <source>&amp;Align</source>
+        <translation>對齊(&amp;A)</translation>
+    </message>
+    <message>
+        <source>&amp;Distribute</source>
+        <translation>分佈(&amp;D)</translation>
+    </message>
+    <message>
+        <source>Snap</source>
+        <translation>靠齊</translation>
+    </message>
+    <message>
+        <source>Align &amp;Left Edges</source>
+        <translation>左邊緣對齊(&amp;L)</translation>
+    </message>
+    <message>
+        <source>Align &amp;Horizontal Centers</source>
+        <translation>水平居中對齊(&amp;H)</translation>
+    </message>
+    <message>
+        <source>Align &amp;Right Edges</source>
+        <translation>右邊緣對齊(&amp;R)</translation>
+    </message>
+    <message>
+        <source>Align &amp;Top Edges</source>
+        <translation>頂邊緣對齊(&amp;T)</translation>
+    </message>
+    <message>
+        <source>Align &amp;Vertical Centers</source>
+        <translation>垂直居中對齊(&amp;V)</translation>
+    </message>
+    <message>
+        <source>Align &amp;Bottom Edges</source>
+        <translation>底邊緣對齊(&amp;B)</translation>
+    </message>
+    <message>
+        <source>Align To: &amp;Selection</source>
+        <translation>對齊至: 選取範圍(&amp;S)</translation>
+    </message>
+    <message>
+        <source>Align To: &amp;Canvas</source>
+        <translation>對齊至: 版面(&amp;C)</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Left Edges</source>
+        <translation>依左邊緣分佈(&amp;L)</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Horizontal Centers</source>
+        <translation>依水平中心分佈(&amp;H)</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Right Edges</source>
+        <translation>依右邊緣分佈(&amp;R)</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Top Edges</source>
+        <translation>依頂邊緣分佈(&amp;T)</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Vertical Centers</source>
+        <translation>依垂直中心分佈(&amp;V)</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Bottom Edges</source>
+        <translation>依底邊緣分佈(&amp;B)</translation>
+    </message>
+    <message>
+        <source>Distribute Horizontal &amp;Spacing</source>
+        <translation>水平間距分佈(&amp;S)</translation>
+    </message>
+    <message>
+        <source>Distribute Vertical S&amp;pacing</source>
+        <translation>垂直間距分佈(&amp;P)</translation>
+    </message>
+    <message>
+        <source>Snap moved layers to other layers, guides, the grid, and the canvas (View &gt; Snap). Choose the targets under View &gt; Snap To.</source>
+        <translation>將移動的圖層靠齊至其他圖層、參考線、格點和版面 (檢視 &gt; 靠齊)。在 檢視 &gt; 靠齊至 中選擇目標。</translation>
+    </message>
+    <message>
+        <source>Distribute layers and choose what to align to</source>
+        <translation>分佈圖層並選擇對齊目標</translation>
+    </message>
+    <message>
+        <source>Finish the current drag before aligning layers</source>
+        <translation>請先完成目前的拖曳，再對齊圖層</translation>
+    </message>
+    <message>
+        <source>Return to the layer view to align layers</source>
+        <translation>請返回圖層檢視以對齊圖層</translation>
+    </message>
+    <message>
+        <source>Select a movable layer to align</source>
+        <translation>請選擇一個可移動的圖層進行對齊</translation>
+    </message>
+    <message>
+        <source>The selected layers are already aligned</source>
+        <translation>所選圖層已對齊</translation>
+    </message>
+    <message numerus="yes">
+        <source>Aligned %n layer(s)</source>
+        <translation>
+            <numerusform>已對齊 %n 個圖層</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Select at least three layers to distribute</source>
+        <translation>請至少選擇三個圖層進行分佈</translation>
+    </message>
+    <message>
+        <source>The selected layers are already distributed</source>
+        <translation>所選圖層已分佈</translation>
+    </message>
+    <message numerus="yes">
+        <source>Distributed %n layer(s)</source>
+        <translation>
+            <numerusform>已分佈 %n 個圖層</numerusform>
+        </translation>
+    </message>
+    <message>
         <source>Rectangular Marquee: drag to select. Drag a handle to resize the selection, or drag inside it to move it.</source>
         <translation>矩形選取畫面:拖曳以選取。拖曳控制點可調整選取範圍大小，在選取範圍內拖曳可移動它。</translation>
     </message>
@@ -18364,6 +18556,62 @@ Y：%2
     <message>
         <source>exportPdf imageQuality must be &quot;lossless&quot;, &quot;high&quot;, &quot;medium&quot;, or &quot;low&quot;.</source>
         <translation>exportPdf 的 imageQuality 必須是 &quot;lossless&quot;、&quot;high&quot;、&quot;medium&quot; 或 &quot;low&quot;。</translation>
+    </message>
+    <message>
+        <source>removeObject: unknown option %1.</source>
+        <translation>removeObject：不明的選項 %1。</translation>
+    </message>
+    <message>
+        <source>removeObject needs the document&apos;s active layer (set doc.activeLayer first).</source>
+        <translation>removeObject 需要文件的作用中圖層（請先設定 doc.activeLayer）。</translation>
+    </message>
+    <message>
+        <source>removeObject needs a selection.</source>
+        <translation>removeObject 需要選取範圍。</translation>
+    </message>
+    <message>
+        <source>removeObject: method must be contentAware or nearestEdge.</source>
+        <translation>removeObject：method 必須是 contentAware 或 nearestEdge。</translation>
+    </message>
+    <message>
+        <source>%1: options must be an object.</source>
+        <translation>%1: options 必須是一個物件。</translation>
+    </message>
+    <message>
+        <source>%1: layers must be a nonempty array of layers of this document.</source>
+        <translation>%1: layers 必須是此文件圖層的非空陣列。</translation>
+    </message>
+    <message>
+        <source>%1: alignTo must be &quot;selection&quot; or &quot;canvas&quot;.</source>
+        <translation>%1: alignTo 必須為 &quot;selection&quot; 或 &quot;canvas&quot;。</translation>
+    </message>
+    <message>
+        <source>%1: unknown option %2.</source>
+        <translation>%1: 未知選項 %2。</translation>
+    </message>
+    <message>
+        <source>alignLayers: unknown edge %1 (left, hcenter, right, top, vcenter, bottom)</source>
+        <translation>alignLayers: 未知邊緣 %1 (left, hcenter, right, top, vcenter, bottom)</translation>
+    </message>
+    <message>
+        <source>distributeLayers: unknown mode %1 (left, hcenter, right, top, vcenter, bottom, hspacing, vspacing)</source>
+        <translation>distributeLayers: 未知模式 %1 (left, hcenter, right, top, vcenter, bottom, hspacing, vspacing)</translation>
+    </message>
+    <message>
+        <source>%1 needs layers of this document.</source>
+        <translation>%1 需要此文件的圖層。</translation>
+    </message>
+    <message>
+        <source>%1: finish the pending transform first.</source>
+        <translation>%1: 請先完成待處理的變形。</translation>
+    </message>
+    <message>
+        <source>alignLayers needs at least one movable layer.</source>
+        <translation>alignLayers 需要至少一個可移動的圖層。</translation>
+    </message>
+    <message>
+        <source>distributeLayers needs at least three movable layers.</source>
+        <translation>distributeLayers 需要至少三個可移動的圖層。</translation>
     </message>
 </context>
 <context>

@@ -276,7 +276,7 @@ void CanvasWidget::set_document_for_history_restore(Document* document, bool nor
 
 void CanvasWidget::set_document_internal(Document* document, bool preserve_frame_for_same_size,
                                          bool normal_composite_unchanged) {
-  close_move_layer_context_menu();
+  close_canvas_context_menu();
   invalidate_vector_preview();
   cancel_pointer_gestures();
   painting_ = false;
@@ -425,7 +425,7 @@ void CanvasWidget::set_tool(CanvasTool tool) {
   const auto tool_changed = tool_ != tool;
   const auto old_transform_controls_rect = move_transform_controls_rect();
   if (tool_changed) {
-    close_move_layer_context_menu();
+    close_canvas_context_menu();
     if (pen_session_active_) {
       // Switching away commits the open path (Photoshop keeps the work): the
       // callback routes it to a shape layer or the work path.
@@ -435,7 +435,6 @@ void CanvasWidget::set_tool(CanvasTool tool) {
     pen_session_drag_anchor_ = -1;
     path_hover_hint_action_ = PenHoverAction::Draw;
     path_hover_hint_target_ = PathHoverTarget::None;
-    path_context_press_pos_.reset();
     cancel_magnetic_lasso();
     cancel_spot_heal_stroke();
     cancel_patch_tool_drag();
@@ -451,6 +450,7 @@ void CanvasWidget::set_tool(CanvasTool tool) {
     moving_layers_.clear();
     move_readout_base_rect_.reset();
     drag_readout_dirty_rect_ = QRect();
+    clear_move_snap_guides();
     move_preview_delta_ = QPoint();
     move_preview_patches_.clear();
     move_preview_patches_delta_.reset();
@@ -486,7 +486,7 @@ void CanvasWidget::set_edit_locked(bool locked) noexcept {
   }
   edit_locked_ = locked;
   if (edit_locked_) {
-    close_move_layer_context_menu();
+    close_canvas_context_menu();
     clear_move_hover_outline();
     cancel_move_layer_selection();
     move_drag_pending_ = false;
@@ -494,6 +494,7 @@ void CanvasWidget::set_edit_locked(bool locked) noexcept {
     moving_layers_.clear();
     move_readout_base_rect_.reset();
     drag_readout_dirty_rect_ = QRect();
+    clear_move_snap_guides();
     move_preview_delta_ = QPoint();
     move_preview_patches_.clear();
     move_preview_patches_delta_.reset();

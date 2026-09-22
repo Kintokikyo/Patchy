@@ -9797,10 +9797,6 @@ Mixed selection</source>
         <translation>選択範囲を複製先の位置へドラッグしてください</translation>
     </message>
     <message>
-        <source>Drag the selection to a clean area to sample from</source>
-        <translation>選択範囲をサンプル元のきれいな領域へドラッグしてください</translation>
-    </message>
-    <message>
         <source>Patch</source>
         <translation>パッチ</translation>
     </message>
@@ -9835,6 +9831,70 @@ Mixed selection</source>
     <message>
         <source>Change: %1</source>
         <translation>変化: %1</translation>
+    </message>
+    <message>
+        <source>Drag the selection to a clean area to sample from, or press Enter to remove the object automatically</source>
+        <translation>選択範囲をサンプル元のきれいな領域へドラッグするか、Enter キーを押してオブジェクトを自動的に除去してください</translation>
+    </message>
+    <message>
+        <source>Remove Object needs an open document</source>
+        <translation>オブジェクトを除去には開いているドキュメントが必要です</translation>
+    </message>
+    <message>
+        <source>Remove Object needs a selection: select the area to remove first</source>
+        <translation>オブジェクトを除去には選択範囲が必要です。先に除去する領域を選択してください</translation>
+    </message>
+    <message>
+        <source>Remove Object needs a selection on the canvas</source>
+        <translation>オブジェクトを除去にはキャンバス上の選択範囲が必要です</translation>
+    </message>
+    <message>
+        <source>Remove Object needs an editable pixel layer</source>
+        <translation>オブジェクトを除去には編集可能なピクセルレイヤーが必要です</translation>
+    </message>
+    <message>
+        <source>Remove Object needs unselected pixels around the selection to sample</source>
+        <translation>オブジェクトを除去には選択範囲の周囲にサンプルできる未選択のピクセルが必要です</translation>
+    </message>
+    <message>
+        <source>Remove Object could not read the document pixels</source>
+        <translation>オブジェクトを除去はドキュメントのピクセルを読み取れませんでした</translation>
+    </message>
+    <message>
+        <source>Remove Object</source>
+        <translation>オブジェクトを除去</translation>
+    </message>
+    <message>
+        <source>Remove Object needs a pixel layer</source>
+        <translation>オブジェクトを除去にはピクセルレイヤーが必要です</translation>
+    </message>
+    <message>
+        <source>Removed object with source %1 of %2. Run again to try another.</source>
+        <translation>ソース %1/%2 でオブジェクトを除去しました。もう一度実行すると別のソースを試せます。</translation>
+    </message>
+    <message>
+        <source>Removed object with content-aware fill (%1 patches)</source>
+        <translation>コンテンツに応じた塗りつぶしでオブジェクトを除去しました (%1 パッチ)</translation>
+    </message>
+    <message>
+        <source>Remove Object found no clean source patches nearby; used the nearest edge instead (source %1 of %2)</source>
+        <translation>オブジェクトを除去は近くにきれいなソースパッチを見つけられなかったため、代わりに最寄りの端を使用しました (ソース %1/%2)</translation>
+    </message>
+    <message>
+        <source>Removing object...</source>
+        <translation>オブジェクトを除去しています...</translation>
+    </message>
+    <message>
+        <source>Removing object... %1%</source>
+        <translation>オブジェクトを除去しています... %1%</translation>
+    </message>
+    <message>
+        <source>Align Layers</source>
+        <translation>レイヤーを整列</translation>
+    </message>
+    <message>
+        <source>Distribute Layers</source>
+        <translation>レイヤーを分布</translation>
     </message>
     <message>
         <source>Resize Selection</source>
@@ -15300,10 +15360,6 @@ Clipped to the layer below</source>
         <translation>領域を置き換えず、サンプルしたテクスチャのみを重ねます。無地の背景にはっきりした模様があるソースで最も効果的です</translation>
     </message>
     <message>
-        <source>Patch: draw around the area to fix, then drag the selection to a clean source area</source>
-        <translation>パッチ: 修復したい部分を囲んでから、選択範囲をきれいなサンプル元へドラッグしてください</translation>
-    </message>
-    <message>
         <source>Ratio:</source>
         <translation>比率:</translation>
     </message>
@@ -17096,6 +17152,142 @@ Clipped to the layer below</source>
         <translation>基準点:</translation>
     </message>
     <message>
+        <source>Remove &amp;Object</source>
+        <translation>オブジェクトを除去(&amp;O)</translation>
+    </message>
+    <message>
+        <source>Remove Object</source>
+        <translation>オブジェクトを除去</translation>
+    </message>
+    <message>
+        <source>Patch: draw around the area to fix, then drag the selection to a clean source area, or press Enter to remove the object automatically</source>
+        <translation>パッチ: 修復したい部分を囲んでから、選択範囲をきれいなサンプル元へドラッグするか、Enter キーを押してオブジェクトを自動的に除去してください</translation>
+    </message>
+    <message>
+        <source>Fill the selection from its surroundings with the content-aware search (Enter)</source>
+        <translation>コンテンツに応じた検索で周囲から選択範囲を塗りつぶします (Enter)</translation>
+    </message>
+    <message>
+        <source>&amp;Align</source>
+        <translation>整列(&amp;A)</translation>
+    </message>
+    <message>
+        <source>&amp;Distribute</source>
+        <translation>分布(&amp;D)</translation>
+    </message>
+    <message>
+        <source>Snap</source>
+        <translation>スナップ</translation>
+    </message>
+    <message>
+        <source>Align &amp;Left Edges</source>
+        <translation>左端を整列(&amp;L)</translation>
+    </message>
+    <message>
+        <source>Align &amp;Horizontal Centers</source>
+        <translation>水平方向の中央を整列(&amp;H)</translation>
+    </message>
+    <message>
+        <source>Align &amp;Right Edges</source>
+        <translation>右端を整列(&amp;R)</translation>
+    </message>
+    <message>
+        <source>Align &amp;Top Edges</source>
+        <translation>上端を整列(&amp;T)</translation>
+    </message>
+    <message>
+        <source>Align &amp;Vertical Centers</source>
+        <translation>垂直方向の中央を整列(&amp;V)</translation>
+    </message>
+    <message>
+        <source>Align &amp;Bottom Edges</source>
+        <translation>下端を整列(&amp;B)</translation>
+    </message>
+    <message>
+        <source>Align To: &amp;Selection</source>
+        <translation>整列の基準: 選択範囲(&amp;S)</translation>
+    </message>
+    <message>
+        <source>Align To: &amp;Canvas</source>
+        <translation>整列の基準: カンバス(&amp;C)</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Left Edges</source>
+        <translation>左端を分布(&amp;L)</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Horizontal Centers</source>
+        <translation>水平方向の中央を分布(&amp;H)</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Right Edges</source>
+        <translation>右端を分布(&amp;R)</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Top Edges</source>
+        <translation>上端を分布(&amp;T)</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Vertical Centers</source>
+        <translation>垂直方向の中央を分布(&amp;V)</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Bottom Edges</source>
+        <translation>下端を分布(&amp;B)</translation>
+    </message>
+    <message>
+        <source>Distribute Horizontal &amp;Spacing</source>
+        <translation>水平方向の間隔を分布(&amp;S)</translation>
+    </message>
+    <message>
+        <source>Distribute Vertical S&amp;pacing</source>
+        <translation>垂直方向の間隔を分布(&amp;P)</translation>
+    </message>
+    <message>
+        <source>Snap moved layers to other layers, guides, the grid, and the canvas (View &gt; Snap). Choose the targets under View &gt; Snap To.</source>
+        <translation>移動したレイヤーを他のレイヤー、ガイド、グリッド、カンバスにスナップします (表示 &gt; スナップ)。スナップ先は 表示 &gt; スナップ先 で選択します。</translation>
+    </message>
+    <message>
+        <source>Distribute layers and choose what to align to</source>
+        <translation>レイヤーを分布し、整列の基準を選択します</translation>
+    </message>
+    <message>
+        <source>Finish the current drag before aligning layers</source>
+        <translation>レイヤーを整列する前に現在のドラッグを終了してください</translation>
+    </message>
+    <message>
+        <source>Return to the layer view to align layers</source>
+        <translation>レイヤーを整列するにはレイヤー表示に戻ってください</translation>
+    </message>
+    <message>
+        <source>Select a movable layer to align</source>
+        <translation>整列する移動可能なレイヤーを選択してください</translation>
+    </message>
+    <message>
+        <source>The selected layers are already aligned</source>
+        <translation>選択したレイヤーはすでに整列しています</translation>
+    </message>
+    <message numerus="yes">
+        <source>Aligned %n layer(s)</source>
+        <translation>
+            <numerusform>%n 個のレイヤーを整列しました</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Select at least three layers to distribute</source>
+        <translation>分布するには 3 つ以上のレイヤーを選択してください</translation>
+    </message>
+    <message>
+        <source>The selected layers are already distributed</source>
+        <translation>選択したレイヤーはすでに分布しています</translation>
+    </message>
+    <message numerus="yes">
+        <source>Distributed %n layer(s)</source>
+        <translation>
+            <numerusform>%n 個のレイヤーを分布しました</numerusform>
+        </translation>
+    </message>
+    <message>
         <source>Rectangular Marquee: drag to select. Drag a handle to resize the selection, or drag inside it to move it.</source>
         <translation>長方形選択: ドラッグして選択します。ハンドルをドラッグすると選択範囲のサイズを変更し、内側をドラッグすると移動します。</translation>
     </message>
@@ -18364,6 +18556,62 @@ Clipped to the layer below</source>
     <message>
         <source>exportPdf imageQuality must be &quot;lossless&quot;, &quot;high&quot;, &quot;medium&quot;, or &quot;low&quot;.</source>
         <translation>exportPdf の imageQuality は &quot;lossless&quot;、&quot;high&quot;、&quot;medium&quot;、&quot;low&quot; のいずれかでなければなりません。</translation>
+    </message>
+    <message>
+        <source>removeObject: unknown option %1.</source>
+        <translation>removeObject: 不明なオプション %1。</translation>
+    </message>
+    <message>
+        <source>removeObject needs the document&apos;s active layer (set doc.activeLayer first).</source>
+        <translation>removeObject にはドキュメントのアクティブレイヤーが必要です (先に doc.activeLayer を設定してください)。</translation>
+    </message>
+    <message>
+        <source>removeObject needs a selection.</source>
+        <translation>removeObject には選択範囲が必要です。</translation>
+    </message>
+    <message>
+        <source>removeObject: method must be contentAware or nearestEdge.</source>
+        <translation>removeObject: method は contentAware または nearestEdge でなければなりません。</translation>
+    </message>
+    <message>
+        <source>%1: options must be an object.</source>
+        <translation>%1: options はオブジェクトである必要があります。</translation>
+    </message>
+    <message>
+        <source>%1: layers must be a nonempty array of layers of this document.</source>
+        <translation>%1: layers はこのドキュメントのレイヤーの空でない配列である必要があります。</translation>
+    </message>
+    <message>
+        <source>%1: alignTo must be &quot;selection&quot; or &quot;canvas&quot;.</source>
+        <translation>%1: alignTo は &quot;selection&quot; または &quot;canvas&quot; である必要があります。</translation>
+    </message>
+    <message>
+        <source>%1: unknown option %2.</source>
+        <translation>%1: 不明なオプション %2 です。</translation>
+    </message>
+    <message>
+        <source>alignLayers: unknown edge %1 (left, hcenter, right, top, vcenter, bottom)</source>
+        <translation>alignLayers: 不明な辺 %1 です (left, hcenter, right, top, vcenter, bottom)</translation>
+    </message>
+    <message>
+        <source>distributeLayers: unknown mode %1 (left, hcenter, right, top, vcenter, bottom, hspacing, vspacing)</source>
+        <translation>distributeLayers: 不明なモード %1 です (left, hcenter, right, top, vcenter, bottom, hspacing, vspacing)</translation>
+    </message>
+    <message>
+        <source>%1 needs layers of this document.</source>
+        <translation>%1 にはこのドキュメントのレイヤーが必要です。</translation>
+    </message>
+    <message>
+        <source>%1: finish the pending transform first.</source>
+        <translation>%1: 先に保留中の変形を終了してください。</translation>
+    </message>
+    <message>
+        <source>alignLayers needs at least one movable layer.</source>
+        <translation>alignLayers には移動可能なレイヤーが 1 つ以上必要です。</translation>
+    </message>
+    <message>
+        <source>distributeLayers needs at least three movable layers.</source>
+        <translation>distributeLayers には移動可能なレイヤーが 3 つ以上必要です。</translation>
     </message>
 </context>
 <context>

@@ -474,7 +474,7 @@ const char* tool_activation_hint_source(CanvasTool tool) {
     case CanvasTool::ConvertPoint:
       return QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Convert Point: click a point to switch it between corner and smooth.");
     case CanvasTool::PatchTool:
-      return QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Patch: draw around the area to fix, then drag the selection to a clean source area");
+      return QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Patch: draw around the area to fix, then drag the selection to a clean source area, or press Enter to remove the object automatically");
     case CanvasTool::Marquee:
       return QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Rectangular Marquee: drag to select. Drag a handle to resize the selection, or drag "
              "inside it to move it.");

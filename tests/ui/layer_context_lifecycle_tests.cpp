@@ -201,8 +201,10 @@ namespace {
 
 using namespace patchy::test::ui;
 
+// The canvas context menu (one builder for the Move tool's layer section and
+// the selection section; docs/ui-conventions.md).
 QMenu* move_layer_menu(patchy::ui::CanvasWidget& canvas) {
-  for (auto* menu : canvas.findChildren<QMenu*>(QStringLiteral("canvasMoveLayerContextMenu"))) {
+  for (auto* menu : canvas.findChildren<QMenu*>(QStringLiteral("canvasContextMenu"))) {
     if (menu->isVisible()) {
       return menu;
     }
@@ -375,6 +377,106 @@ void ui_move_layer_menu_respects_pixels_masks_and_visibility() {
   }
 }
 
+// A right drag under a painting tool moves nothing: no pan, no paint, no menu.
+void ui_right_drag_does_not_pan_canvas() {
+  patchy::Document document(400, 300, patchy::PixelFormat::rgba8());
+  auto& layer = document.add_pixel_layer(
+      "Paint", solid_pixels(400, 300, patchy::PixelFormat::rgba8(), QColor(0, 0, 0, 0)));
+  const auto layer_id = layer.id();
+  patchy::ui::CanvasWidget canvas;
+  canvas.resize(300, 220);
+  canvas.set_document(&document);
+  canvas.set_zoom(1.0);
+  canvas.set_tool(patchy::ui::CanvasTool::Brush);
+  canvas.set_primary_color(Qt::black);
+  canvas.set_brush_size(20);
+  canvas.show();
+  QApplication::processEvents();
+  const auto origin = canvas.widget_position_for_document_point(QPoint());
+  const auto start = canvas.widget_position_for_document_point(QPoint(200, 150));
+  send_mouse(canvas, QEvent::MouseButtonPress, start, Qt::RightButton, Qt::RightButton);
+  send_mouse(canvas, QEvent::MouseMove, start + QPoint(40, 30), Qt::NoButton, Qt::RightButton);
+  send_mouse(canvas, QEvent::MouseButtonRelease, start + QPoint(40, 30), Qt::RightButton, Qt::NoButton);
+  QApplication::processEvents();
+  CHECK(canvas.widget_position_for_document_point(QPoint()) == origin);
+  CHECK(move_layer_menu(canvas) == nullptr);
+  int painted = 0;
+  const auto& pixels = document.find_layer(layer_id)->pixels();
+  for (std::int32_t y = 0; y < pixels.height(); ++y) {
+    for (std::int32_t x = 0; x < pixels.width(); ++x) {
+      painted += pixels.pixel(x, y)[3] > 0U ? 1 : 0;
+    }
+  }
+  CHECK(painted == 0);
+  // The middle button still pans.
+  send_mouse(canvas, QEvent::MouseButtonPress, start, Qt::MiddleButton, Qt::MiddleButton);
+  send_mouse(canvas, QEvent::MouseMove, start + QPoint(40, 30), Qt::NoButton, Qt::MiddleButton);
+  send_mouse(canvas, QEvent::MouseButtonRelease, start + QPoint(40, 30), Qt::MiddleButton, Qt::NoButton);
+  CHECK(canvas.widget_position_for_document_point(QPoint()) == origin + QPoint(40, 30));
+}
+
+// A right-click on the selection offers the host's selection commands, led by
+// Remove Object; off the selection (and without a Move-tool layer hit) there
+// is nothing to offer; with the Move tool the layer section comes first.
+void ui_selection_context_menu_offers_remove_object() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_tool(patchy::ui::CanvasTool::Marquee);
+  drag(*canvas, canvas->widget_position_for_document_point(QPoint(20, 20)),
+       canvas->widget_position_for_document_point(QPoint(80, 80)));
+  QApplication::processEvents();
+  CHECK(canvas->has_selection());
+
+  const auto menu_has_remove = [](QMenu& menu) {
+    for (auto* action : menu.actions()) {
+      if (action->objectName() == QStringLiteral("editRemoveObjectAction")) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  auto* menu = right_click_move_canvas(*canvas, QPoint(50, 50));
+  CHECK(menu != nullptr);
+  if (menu != nullptr) {
+    CHECK(menu_has_remove(*menu));
+    CHECK(!menu->actions().isEmpty() &&
+          menu->actions().front()->objectName() == QStringLiteral("editRemoveObjectAction"));
+    menu->close();
+    QApplication::processEvents();
+  }
+
+  CHECK(right_click_move_canvas(*canvas, QPoint(300, 300)) == nullptr);
+
+  canvas->set_tool(patchy::ui::CanvasTool::Move);
+  menu = right_click_move_canvas(*canvas, QPoint(50, 50));
+  CHECK(menu != nullptr);
+  if (menu != nullptr) {
+    CHECK(menu_has_remove(*menu));
+    const auto* front = menu->actions().front();
+    CHECK(front->isCheckable() || front->objectName() == QStringLiteral("editRemoveObjectAction"));
+    menu->close();
+    QApplication::processEvents();
+  }
+
+  // Picking Remove Object from the menu runs the command: one history entry.
+  canvas->set_tool(patchy::ui::CanvasTool::Marquee);
+  const auto depth = patchy::ui::MainWindowTestAccess::active_session_undo_depth(window);
+  menu = right_click_move_canvas(*canvas, QPoint(50, 50));
+  CHECK(menu != nullptr);
+  if (menu != nullptr) {
+    for (auto* action : menu->actions()) {
+      if (action->objectName() == QStringLiteral("editRemoveObjectAction")) {
+        action->trigger();
+      }
+    }
+    menu->close();
+    QApplication::processEvents();
+  }
+  CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == depth + 1);
+}
+
 void ui_move_layer_menu_preserves_pan_and_cancels_stale_clicks() {
   patchy::Document document(1000, 800, patchy::PixelFormat::rgba8());
   const auto bottom_id = document.add_pixel_layer("Bottom",
@@ -402,12 +504,23 @@ void ui_move_layer_menu_preserves_pan_and_cancels_stale_clicks() {
   move_layer_menu(canvas)->close();
   QApplication::processEvents();
 
+  // A right drag neither pans (the right button is the context-menu button;
+  // panning is the middle button) nor opens the menu, even when the pointer
+  // returns to its starting point before release.
   send_mouse(canvas, QEvent::MouseButtonPress, start, Qt::RightButton, Qt::RightButton);
   send_mouse(canvas, QEvent::MouseMove, start + QPoint(40, 30), Qt::NoButton, Qt::RightButton);
-  CHECK(canvas.widget_position_for_document_point(QPoint()) == origin + QPoint(40, 30));
+  CHECK(canvas.widget_position_for_document_point(QPoint()) == origin);
   send_mouse(canvas, QEvent::MouseMove, start, Qt::NoButton, Qt::RightButton);
   send_mouse(canvas, QEvent::MouseButtonRelease, start, Qt::RightButton, Qt::NoButton);
   CHECK(move_layer_menu(canvas) == nullptr);
+  send_mouse(canvas, QEvent::MouseButtonPress, start, Qt::MiddleButton, Qt::MiddleButton);
+  send_mouse(canvas, QEvent::MouseMove, start + QPoint(40, 30), Qt::NoButton, Qt::MiddleButton);
+  CHECK(canvas.widget_position_for_document_point(QPoint()) == origin + QPoint(40, 30));
+  send_mouse(canvas, QEvent::MouseButtonRelease, start + QPoint(40, 30), Qt::MiddleButton, Qt::NoButton);
+  send_mouse(canvas, QEvent::MouseButtonPress, start + QPoint(40, 30), Qt::MiddleButton, Qt::MiddleButton);
+  send_mouse(canvas, QEvent::MouseMove, start, Qt::NoButton, Qt::MiddleButton);
+  send_mouse(canvas, QEvent::MouseButtonRelease, start, Qt::MiddleButton, Qt::NoButton);
+  CHECK(canvas.widget_position_for_document_point(QPoint()) == origin);
 
   canvas.set_tool(patchy::ui::CanvasTool::Pan);
   CHECK(right_click_move_canvas(canvas, QPoint(500, 400)) == nullptr);
@@ -2332,6 +2445,8 @@ std::vector<patchy::test::TestCase> layer_context_lifecycle_tests() {
        ui_move_layer_menu_respects_pixels_masks_and_visibility},
       {"ui_move_layer_menu_preserves_pan_and_cancels_stale_clicks",
        ui_move_layer_menu_preserves_pan_and_cancels_stale_clicks},
+      {"ui_right_drag_does_not_pan_canvas", ui_right_drag_does_not_pan_canvas},
+      {"ui_selection_context_menu_offers_remove_object", ui_selection_context_menu_offers_remove_object},
       {"ui_layer_style_color_overlay_patch_double_click_opens_picker",
        ui_layer_style_color_overlay_patch_double_click_opens_picker},
       {"ui_layer_context_menu_exposes_blending_options_dialog",

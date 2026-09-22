@@ -100,6 +100,10 @@ public:
   Q_INVOKABLE void fill(const QString& color);
   Q_INVOKABLE void fillRect(int x, int y, int width, int height, const QString& color);
   Q_INVOKABLE void applyFilter(const QString& filterId, const QJSValue& params = QJSValue());
+  // Edit > Remove Object on the document selection; the layer must be the
+  // document's active layer. Options {method, attempt}; returns {method,
+  // patches, source, sourceCount}.
+  Q_INVOKABLE QJSValue removeObject(const QJSValue& options = QJSValue());
   Q_INVOKABLE QJSValue getPixels();
   Q_INVOKABLE void setPixels(const QJSValue& imageData);
   // Trace Image to Shapes: returns the new group layer (inserted above this
@@ -210,6 +214,13 @@ public:
   // one with op "unite" | "subtract" | "intersect" | "exclude"; returns it.
   Q_INVOKABLE QJSValue combineShapes(const QJSValue& layers, const QString& op);
   Q_INVOKABLE QJSValue mergeLayers(const QJSValue& layers, const QJSValue& options = QJSValue());
+  // Layer > Arrange > Align / Distribute. `edge` is "left" | "hcenter" |
+  // "right" | "top" | "vcenter" | "bottom" (Distribute adds "hspacing" |
+  // "vspacing"); options {layers?: PatchyLayer[], alignTo?: "selection" |
+  // "canvas"} default to the layer selection and "selection". Both return the
+  // number of layers moved and ride the run's single undo entry.
+  Q_INVOKABLE int alignLayers(const QString& edge, const QJSValue& options = QJSValue());
+  Q_INVOKABLE int distributeLayers(const QString& mode, const QJSValue& options = QJSValue());
   Q_INVOKABLE void flatten();
   Q_INVOKABLE void resizeImage(int width, int height);
   Q_INVOKABLE void resizeCanvas(int width, int height);

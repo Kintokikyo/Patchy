@@ -59,6 +59,7 @@ struct ActionBuildContext {
   QAction* border_selection_action{nullptr};
   QAction* layer_transparency_action{nullptr};
   QAction* stroke_selection_action{nullptr};
+  QAction* remove_object_action{nullptr};
   QAction* define_brush_tip_action{nullptr};
   QAction* add_layer_action{nullptr};
   QAction* add_folder_action{nullptr};
@@ -69,6 +70,8 @@ struct ActionBuildContext {
   QMenu* vector_mask_menu{nullptr};
   QMenu* layer_smart_objects_menu{nullptr};
   QMenu* layer_arrange_menu{nullptr};
+  QMenu* layer_align_menu{nullptr};
+  QMenu* layer_distribute_menu{nullptr};
   QAction* layer_via_copy_action{nullptr};
   QAction* layer_via_cut_action{nullptr};
   QAction* add_mask_action{nullptr};

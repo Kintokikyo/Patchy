@@ -1084,6 +1084,7 @@ void MainWindow::set_active_layer_from_selection() {
   // A pure multi-selection change (same active layer) still decides whether
   // Combine Shapes applies.
   refresh_combine_shapes_action_states();
+  refresh_layer_alignment_action_states();
   selection_progress();
   if (layer_list_->currentItem() == nullptr) {
     return;
@@ -1767,6 +1768,8 @@ void MainWindow::load_tool_settings() {
       settings.value(QStringLiteral("tools/magneticLassoFrequency"), canvas_->magnetic_lasso_frequency()).toInt());
   canvas_->set_show_transform_controls(
       settings.value(QStringLiteral("tools/showTransformControls"), true).toBool());
+  set_align_to_canvas(settings.value(QStringLiteral("tools/alignTo"), QStringLiteral("selection")).toString() ==
+                      QStringLiteral("canvas"));
   const auto transform_interpolation =
       settings.value(QStringLiteral("tools/transformInterpolation"),
                      static_cast<int>(CanvasWidget::TransformInterpolation::Bicubic))
@@ -2066,6 +2069,8 @@ void MainWindow::save_tool_settings() const {
   settings.setValue(QStringLiteral("tools/magneticLassoEdgeContrast"), canvas_->magnetic_lasso_edge_contrast());
   settings.setValue(QStringLiteral("tools/magneticLassoFrequency"), canvas_->magnetic_lasso_frequency());
   settings.setValue(QStringLiteral("tools/showTransformControls"), canvas_->show_transform_controls());
+  settings.setValue(QStringLiteral("tools/alignTo"),
+                    align_to_canvas_ ? QStringLiteral("canvas") : QStringLiteral("selection"));
   settings.setValue(QStringLiteral("tools/transformInterpolation"), static_cast<int>(canvas_->transform_interpolation()));
   settings.setValue(QStringLiteral("tools/cloneAligned"), canvas_->clone_aligned());
   settings.setValue(QStringLiteral("tools/retouchSampleAllLayers"), canvas_->retouch_sample_all_layers());
@@ -2425,7 +2430,11 @@ void MainWindow::refresh_options_bar() {
       // pre-initialization state has neither.
       enabled = enabled && brush_dynamics_button_->has_active_tip();
     }
-    widget->setEnabled(enabled);
+    // Buttons that mirror a menu QAction (the Move tool's Align row) take their
+    // enabled state from that action's own refresh, never from the tool row.
+    if (!widget->property("optionsBarMirrorsAction").toBool()) {
+      widget->setEnabled(enabled);
+    }
     // Buttons backed by a default action mirror that action's state, so keep the
     // action in sync too (otherwise it can override the widget flags we just set).
     if (auto* button = qobject_cast<QToolButton*>(widget);

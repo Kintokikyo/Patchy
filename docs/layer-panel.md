@@ -101,8 +101,10 @@ placement, masks, preview toggling, cancellation, and undo/redo. The
 
 ## Move-tool layer menu
 
-A right-click on the canvas with Move active opens `canvasMoveLayerContextMenu`
-on release. It lists the hit leaf layers from top to bottom, including occluded
+A right-click on the canvas with Move active opens `canvasContextMenu` on
+release (the right button never pans; the Move-tool layer entries are the first
+section of the shared canvas context menu, see "Canvas right-click menu" in
+[tools.md](tools.md)). It lists the hit leaf layers from top to bottom, including occluded
 layers and children of collapsed or filtered folders. Folder paths distinguish
 nested names. Picking a row replaces the layer selection; **Select All Layers
 Here** appears for multiple hits and selects them with the topmost active. This

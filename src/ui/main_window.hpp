@@ -2,6 +2,7 @@
 
 #include "core/adjustment_layer.hpp"
 #include "core/document.hpp"
+#include "core/layer_alignment.hpp"
 #include "core/smart_filter.hpp"
 #include "core/text_warp.hpp"
 #include "filters/filter_registry.hpp"
@@ -1106,6 +1107,17 @@ private:
   void refresh_quick_mask_ui();
   void flip_active_layer_horizontal();
   void flip_active_layer_vertical();
+  // Layer > Arrange > Align / Distribute on the selected layers (a selected
+  // folder moves as one unit); also the Move tool's options-bar buttons.
+  // docs/alignment.md owns the Align To rule and the refusal set.
+  void align_selected_layers(AlignEdge edge);
+  void distribute_selected_layers(DistributeMode mode);
+  void set_align_to_canvas(bool align_to_canvas);
+  [[nodiscard]] bool align_to_canvas() const noexcept { return align_to_canvas_; }
+  // Enables Align with at least one alignable unit and Distribute with three,
+  // per selection change (the refresh_combine_shapes_action_states sibling).
+  void refresh_layer_alignment_action_states();
+  [[nodiscard]] bool refuse_layer_alignment_command();
   void crop_to_selection();
   // Commit of the Crop tool's pending rect; may expand the canvas, and a
   // nonzero box angle straightens the rotated box.
@@ -1505,6 +1517,14 @@ private:
   // Unite / Subtract Front / Intersect / Exclude, enabled with a combinable
   // multi-selection (refresh_combine_shapes_action_states).
   std::array<QAction*, 4> layer_combine_actions_{};
+  // Layer > Arrange > Align (AlignEdge order) and Distribute (DistributeMode
+  // order); the Move tool's options-bar buttons wrap these same QActions.
+  std::array<QAction*, 6> layer_align_actions_{};
+  std::array<QAction*, 8> layer_distribute_actions_{};
+  QAction* layer_align_to_selection_action_{nullptr};
+  QAction* layer_align_to_canvas_action_{nullptr};
+  // Align To: Canvas (true) or Selection (false); persisted as tools/alignTo.
+  bool align_to_canvas_{false};
   QAction* path_fill_action_{nullptr};
   QAction* path_stroke_action_{nullptr};
   QAction* path_make_selection_action_{nullptr};
@@ -1531,6 +1551,11 @@ private:
   QAction* selection_subtract_mode_action_{nullptr};
   QAction* selection_intersect_mode_action_{nullptr};
   QAction* quick_mask_action_{nullptr};
+  // Edit > Remove Object, shared with the Patch options-bar button and the
+  // canvas context menu, whose selection section is this list (nullptr =
+  // separator; the actions are the menus' own).
+  QAction* remove_object_action_{nullptr};
+  QList<QAction*> selection_context_actions_;
   // View > Seamless Tiling in Window: per-canvas state, so the check syncs on tab switch.
   QAction* tiling_mode_action_{nullptr};
   QPushButton* primary_color_button_{nullptr};
@@ -1538,6 +1563,9 @@ private:
   QDialog* color_dialog_{nullptr};
   QCheckBox* move_auto_select_check_{nullptr};
   QCheckBox* move_show_transform_controls_check_{nullptr};
+  // Mirrors View > Snap (view_snap_action_) on the Move tool's options bar.
+  QCheckBox* move_snap_check_{nullptr};
+  QToolButton* move_align_more_button_{nullptr};
   QComboBox* transform_reference_combo_{nullptr};
   // Unit-entry fields: X/Y native px, W/H native percent (of the original extent),
   // Angle native degrees; each accepts any typed unit token (Photoshop behavior).
@@ -1562,6 +1590,7 @@ private:
   QDoubleSpinBox* crop_ratio_h_spin_{nullptr};
   QPushButton* crop_ratio_clear_button_{nullptr};
   QPushButton* crop_apply_button_{nullptr};
+  QPushButton* patch_remove_object_button_{nullptr};
   QPushButton* crop_cancel_button_{nullptr};
   QCheckBox* clone_aligned_check_{nullptr};
   QCheckBox* retouch_sample_all_layers_check_{nullptr};

@@ -598,6 +598,20 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   auto* border_selection_action = new QAction(tr("&Border..."), this);
   auto* layer_transparency_action = new QAction(tr("Load Layer &Transparency"), this);
   auto* stroke_selection_action = edit_menu->addAction(tr("&Stroke Selection"));
+  // Remove Object: the content-aware exemplar fill of the selection (no
+  // dialog). Also the first entry of the canvas context menu's selection
+  // section. The nearest-edge mirror has no menu entry (Seth, September 2026:
+  // confusing next to this one); it stays as the automatic fallback and the
+  // script API's "nearestEdge" method.
+  auto* remove_object_action = edit_menu->addAction(tr("Remove &Object"));
+  remove_object_action->setObjectName(QStringLiteral("editRemoveObjectAction"));
+  remove_object_action->setIcon(simple_icon(QStringLiteral("RO")));
+  register_hotkey(remove_object_action, "edit.remove_object");
+  connect(remove_object_action, &QAction::triggered, this, [this] {
+    if (canvas_ != nullptr) {
+      canvas_->remove_object_in_selection();
+    }
+  });
   auto* define_brush_tip_action = edit_menu->addAction(tr("Define Brush Tip from Selection"));
   define_brush_tip_action->setObjectName(QStringLiteral("editDefineBrushTipAction"));
   register_hotkey(define_brush_tip_action, "edit.define_brush_tip");
@@ -680,14 +694,14 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
                        quick_mask_action_,
                        grow_selection_action, similar_selection_action, expand_selection_action,
                        contract_selection_action, border_selection_action, layer_transparency_action,
-                       stroke_selection_action}) {
+                       stroke_selection_action, remove_object_action}) {
     register_document_action(action);
   }
   for (auto* action : {select_all_action, clear_selection_action, reselect_action,
                        grow_selection_action, similar_selection_action,
                        expand_selection_action, contract_selection_action,
                        border_selection_action, layer_transparency_action,
-                       stroke_selection_action}) {
+                       stroke_selection_action, remove_object_action}) {
     action->setProperty("patchy.quickMaskBlocked", true);
   }
   select_menu->addAction(select_all_action);
@@ -706,6 +720,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   select_menu->addAction(layer_transparency_action);
   select_menu->addSeparator();
   select_menu->addAction(stroke_selection_action);
+  select_menu->addAction(remove_object_action);
 
   // The Layer menu groups the new-layer, mask, and arrange sets into submenus
   // so the whole menu fits a short browser viewport in the wasm build;
@@ -889,6 +904,99 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   layer_arrange_menu->addSeparator();
   auto* flip_h_action = layer_arrange_menu->addAction(tr("Flip Layer &Horizontal"));
   auto* flip_v_action = layer_arrange_menu->addAction(tr("Flip Layer &Vertical"));
+  // Align / Distribute nest under Arrange: the Layer menu sits at its 23-row
+  // cap (ui_main_window_renders_color_controls). The Move tool's options-bar
+  // buttons wrap these same QActions (docs/alignment.md).
+  layer_arrange_menu->addSeparator();
+  auto* layer_align_menu = layer_arrange_menu->addMenu(tr("&Align"));
+  layer_align_menu->setObjectName(QStringLiteral("layerAlignMenu"));
+  auto* layer_distribute_menu = layer_arrange_menu->addMenu(tr("&Distribute"));
+  layer_distribute_menu->setObjectName(QStringLiteral("layerDistributeMenu"));
+  {
+    struct AlignSpec {
+      AlignEdge edge;
+      const char* text;
+      const char* object_name;
+      const char* command_id;
+    };
+    const AlignSpec align_specs[] = {
+        {AlignEdge::Left, QT_TR_NOOP("Align &Left Edges"), "layerAlignLeftAction", "layer.align_left"},
+        {AlignEdge::HorizontalCenter, QT_TR_NOOP("Align &Horizontal Centers"), "layerAlignHCenterAction",
+         "layer.align_horizontal_centers"},
+        {AlignEdge::Right, QT_TR_NOOP("Align &Right Edges"), "layerAlignRightAction", "layer.align_right"},
+        {AlignEdge::Top, QT_TR_NOOP("Align &Top Edges"), "layerAlignTopAction", "layer.align_top"},
+        {AlignEdge::VerticalCenter, QT_TR_NOOP("Align &Vertical Centers"), "layerAlignVCenterAction",
+         "layer.align_vertical_centers"},
+        {AlignEdge::Bottom, QT_TR_NOOP("Align &Bottom Edges"), "layerAlignBottomAction", "layer.align_bottom"},
+    };
+    for (const auto& spec : align_specs) {
+      auto* action = layer_align_menu->addAction(tr(spec.text));
+      bind_action_text(action, spec.text);
+      action->setObjectName(QLatin1String(spec.object_name));
+      action->setIcon(align_edge_icon(spec.edge));
+      register_hotkey(action, spec.command_id);
+      connect(action, &QAction::triggered, this, [this, edge = spec.edge] { align_selected_layers(edge); });
+      register_document_action(action);
+      layer_align_actions_[static_cast<std::size_t>(spec.edge)] = action;
+    }
+    layer_align_menu->addSeparator();
+    auto* align_to_group = new QActionGroup(this);
+    align_to_group->setExclusive(true);
+    layer_align_to_selection_action_ = layer_align_menu->addAction(tr("Align To: &Selection"));
+    bind_action_text(layer_align_to_selection_action_, QT_TR_NOOP("Align To: &Selection"));
+    layer_align_to_selection_action_->setObjectName(QStringLiteral("layerAlignToSelectionAction"));
+    layer_align_to_selection_action_->setCheckable(true);
+    layer_align_to_selection_action_->setChecked(true);
+    align_to_group->addAction(layer_align_to_selection_action_);
+    register_hotkey(layer_align_to_selection_action_, "layer.align_to_selection");
+    layer_align_to_canvas_action_ = layer_align_menu->addAction(tr("Align To: &Canvas"));
+    bind_action_text(layer_align_to_canvas_action_, QT_TR_NOOP("Align To: &Canvas"));
+    layer_align_to_canvas_action_->setObjectName(QStringLiteral("layerAlignToCanvasAction"));
+    layer_align_to_canvas_action_->setCheckable(true);
+    align_to_group->addAction(layer_align_to_canvas_action_);
+    register_hotkey(layer_align_to_canvas_action_, "layer.align_to_canvas");
+    connect(layer_align_to_canvas_action_, &QAction::toggled, this,
+            [this](bool checked) { set_align_to_canvas(checked); });
+    register_document_action(layer_align_to_selection_action_);
+    register_document_action(layer_align_to_canvas_action_);
+
+    struct DistributeSpec {
+      DistributeMode mode;
+      const char* text;
+      const char* object_name;
+      const char* command_id;
+    };
+    const DistributeSpec distribute_specs[] = {
+        {DistributeMode::Left, QT_TR_NOOP("Distribute &Left Edges"), "layerDistributeLeftAction",
+         "layer.distribute_left"},
+        {DistributeMode::HorizontalCenter, QT_TR_NOOP("Distribute &Horizontal Centers"),
+         "layerDistributeHCenterAction", "layer.distribute_horizontal_centers"},
+        {DistributeMode::Right, QT_TR_NOOP("Distribute &Right Edges"), "layerDistributeRightAction",
+         "layer.distribute_right"},
+        {DistributeMode::Top, QT_TR_NOOP("Distribute &Top Edges"), "layerDistributeTopAction",
+         "layer.distribute_top"},
+        {DistributeMode::VerticalCenter, QT_TR_NOOP("Distribute &Vertical Centers"),
+         "layerDistributeVCenterAction", "layer.distribute_vertical_centers"},
+        {DistributeMode::Bottom, QT_TR_NOOP("Distribute &Bottom Edges"), "layerDistributeBottomAction",
+         "layer.distribute_bottom"},
+        {DistributeMode::HorizontalSpacing, QT_TR_NOOP("Distribute Horizontal &Spacing"),
+         "layerDistributeHSpacingAction", "layer.distribute_horizontal_spacing"},
+        {DistributeMode::VerticalSpacing, QT_TR_NOOP("Distribute Vertical S&pacing"),
+         "layerDistributeVSpacingAction", "layer.distribute_vertical_spacing"},
+    };
+    for (const auto& spec : distribute_specs) {
+      if (spec.mode == DistributeMode::HorizontalSpacing) {
+        layer_distribute_menu->addSeparator();
+      }
+      auto* action = layer_distribute_menu->addAction(tr(spec.text));
+      bind_action_text(action, spec.text);
+      action->setObjectName(QLatin1String(spec.object_name));
+      register_hotkey(action, spec.command_id);
+      connect(action, &QAction::triggered, this, [this, mode = spec.mode] { distribute_selected_layers(mode); });
+      register_document_action(action);
+      layer_distribute_actions_[static_cast<std::size_t>(spec.mode)] = action;
+    }
+  }
   add_layer_action->setObjectName(QStringLiteral("layerNewAction"));
   add_folder_action->setObjectName(QStringLiteral("layerNewFolderAction"));
   layer_via_copy_action->setObjectName(QStringLiteral("layerViaCopyAction"));
@@ -1775,7 +1883,16 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   ctx.border_selection_action = border_selection_action;
   ctx.layer_transparency_action = layer_transparency_action;
   ctx.stroke_selection_action = stroke_selection_action;
+  ctx.remove_object_action = remove_object_action;
   ctx.define_brush_tip_action = define_brush_tip_action;
+  remove_object_action_ = remove_object_action;
+  // The canvas context menu's selection section (a right-click on the
+  // selection): the menus' own QActions, so hotkeys and enable state stay in
+  // step; nullptr is a separator.
+  selection_context_actions_ = {remove_object_action, nullptr,
+                                fill_layer_action,    clear_layer_action,
+                                stroke_selection_action, nullptr,
+                                clear_selection_action, inverse_selection_action};
   ctx.add_layer_action = add_layer_action;
   ctx.add_folder_action = add_folder_action;
   ctx.layer_new_menu = layer_new_menu;
@@ -1785,6 +1902,8 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   ctx.vector_mask_menu = vector_mask_menu;
   ctx.layer_smart_objects_menu = layer_smart_objects_menu;
   ctx.layer_arrange_menu = layer_arrange_menu;
+  ctx.layer_align_menu = layer_align_menu;
+  ctx.layer_distribute_menu = layer_distribute_menu;
   ctx.layer_via_copy_action = layer_via_copy_action;
   ctx.layer_via_cut_action = layer_via_cut_action;
   ctx.add_mask_action = add_mask_action;

@@ -9372,10 +9372,6 @@ RVB : %2, %3, %4</translation>
         <translation>Faites glisser la sélection à l&apos;endroit où placer la copie</translation>
     </message>
     <message>
-        <source>Drag the selection to a clean area to sample from</source>
-        <translation>Faites glisser la sélection vers une zone propre à échantillonner</translation>
-    </message>
-    <message>
         <source>Select All is unavailable in Quick Mask mode</source>
         <translation>Tout sélectionner n&apos;est pas disponible en mode Masque</translation>
     </message>
@@ -9862,6 +9858,70 @@ RVB : %2, %3, %4</translation>
     <message>
         <source>Change: %1</source>
         <translation>Variation : %1</translation>
+    </message>
+    <message>
+        <source>Drag the selection to a clean area to sample from, or press Enter to remove the object automatically</source>
+        <translation>Faites glisser la sélection vers une zone propre à échantillonner, ou appuyez sur Entrée pour supprimer l&apos;objet automatiquement</translation>
+    </message>
+    <message>
+        <source>Remove Object needs an open document</source>
+        <translation>Supprimer l&apos;objet a besoin d&apos;un document ouvert</translation>
+    </message>
+    <message>
+        <source>Remove Object needs a selection: select the area to remove first</source>
+        <translation>Supprimer l&apos;objet a besoin d&apos;une sélection : sélectionnez d&apos;abord la zone à supprimer</translation>
+    </message>
+    <message>
+        <source>Remove Object needs a selection on the canvas</source>
+        <translation>Supprimer l&apos;objet a besoin d&apos;une sélection dans la zone de travail</translation>
+    </message>
+    <message>
+        <source>Remove Object needs an editable pixel layer</source>
+        <translation>Supprimer l&apos;objet a besoin d&apos;un calque de pixels modifiable</translation>
+    </message>
+    <message>
+        <source>Remove Object needs unselected pixels around the selection to sample</source>
+        <translation>Supprimer l&apos;objet a besoin de pixels non sélectionnés autour de la sélection pour l&apos;échantillonnage</translation>
+    </message>
+    <message>
+        <source>Remove Object could not read the document pixels</source>
+        <translation>Supprimer l&apos;objet n&apos;a pas pu lire les pixels du document</translation>
+    </message>
+    <message>
+        <source>Remove Object</source>
+        <translation>Supprimer l&apos;objet</translation>
+    </message>
+    <message>
+        <source>Remove Object needs a pixel layer</source>
+        <translation>Supprimer l&apos;objet a besoin d&apos;un calque de pixels</translation>
+    </message>
+    <message>
+        <source>Removed object with source %1 of %2. Run again to try another.</source>
+        <translation>Objet supprimé avec la source %1 sur %2. Relancez pour en essayer une autre.</translation>
+    </message>
+    <message>
+        <source>Removed object with content-aware fill (%1 patches)</source>
+        <translation>Objet supprimé avec le remplissage d&apos;après le contenu (%1 pièces)</translation>
+    </message>
+    <message>
+        <source>Remove Object found no clean source patches nearby; used the nearest edge instead (source %1 of %2)</source>
+        <translation>Supprimer l&apos;objet n&apos;a trouvé aucune pièce source propre à proximité ; le bord le plus proche a été utilisé à la place (source %1 sur %2)</translation>
+    </message>
+    <message>
+        <source>Removing object...</source>
+        <translation>Suppression de l&apos;objet...</translation>
+    </message>
+    <message>
+        <source>Removing object... %1%</source>
+        <translation>Suppression de l&apos;objet... %1%</translation>
+    </message>
+    <message>
+        <source>Align Layers</source>
+        <translation>Aligner les calques</translation>
+    </message>
+    <message>
+        <source>Distribute Layers</source>
+        <translation>Répartir les calques</translation>
     </message>
     <message>
         <source>Resize Selection</source>
@@ -12210,10 +12270,6 @@ RVB : %2, %3, %4</translation>
     <message>
         <source>Convert Point: click a point to switch it between corner and smooth.</source>
         <translation>Conversion de point : cliquez sur un point pour passer de sommet à lissé et inversement.</translation>
-    </message>
-    <message>
-        <source>Patch: draw around the area to fix, then drag the selection to a clean source area</source>
-        <translation>Pièce : entourez la zone à corriger, puis faites glisser la sélection vers une zone source propre</translation>
     </message>
     <message>
         <source>Marquee Tools</source>
@@ -17141,6 +17197,144 @@ Y : %2
         <translation>Pivot :</translation>
     </message>
     <message>
+        <source>Remove &amp;Object</source>
+        <translation>Supprimer l&apos;&amp;objet</translation>
+    </message>
+    <message>
+        <source>Remove Object</source>
+        <translation>Supprimer l&apos;objet</translation>
+    </message>
+    <message>
+        <source>Patch: draw around the area to fix, then drag the selection to a clean source area, or press Enter to remove the object automatically</source>
+        <translation>Pièce : entourez la zone à corriger, puis faites glisser la sélection vers une zone source propre, ou appuyez sur Entrée pour supprimer l&apos;objet automatiquement</translation>
+    </message>
+    <message>
+        <source>Fill the selection from its surroundings with the content-aware search (Enter)</source>
+        <translation>Remplir la sélection à partir de son entourage avec la recherche d&apos;après le contenu (Enter)</translation>
+    </message>
+    <message>
+        <source>&amp;Align</source>
+        <translation>&amp;Aligner</translation>
+    </message>
+    <message>
+        <source>&amp;Distribute</source>
+        <translation>&amp;Répartir</translation>
+    </message>
+    <message>
+        <source>Snap</source>
+        <translation>Magnétisme</translation>
+    </message>
+    <message>
+        <source>Align &amp;Left Edges</source>
+        <translation>Aligner les bords &amp;gauches</translation>
+    </message>
+    <message>
+        <source>Align &amp;Horizontal Centers</source>
+        <translation>Aligner les centres &amp;horizontaux</translation>
+    </message>
+    <message>
+        <source>Align &amp;Right Edges</source>
+        <translation>Aligner les bords &amp;droits</translation>
+    </message>
+    <message>
+        <source>Align &amp;Top Edges</source>
+        <translation>Aligner les bords &amp;supérieurs</translation>
+    </message>
+    <message>
+        <source>Align &amp;Vertical Centers</source>
+        <translation>Aligner les centres &amp;verticaux</translation>
+    </message>
+    <message>
+        <source>Align &amp;Bottom Edges</source>
+        <translation>Aligner les bords &amp;inférieurs</translation>
+    </message>
+    <message>
+        <source>Align To: &amp;Selection</source>
+        <translation>Aligner sur : &amp;Sélection</translation>
+    </message>
+    <message>
+        <source>Align To: &amp;Canvas</source>
+        <translation>Aligner sur : &amp;Zone de travail</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Left Edges</source>
+        <translation>Répartir les bords &amp;gauches</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Horizontal Centers</source>
+        <translation>Répartir les centres &amp;horizontaux</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Right Edges</source>
+        <translation>Répartir les bords &amp;droits</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Top Edges</source>
+        <translation>Répartir les bords &amp;supérieurs</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Vertical Centers</source>
+        <translation>Répartir les centres &amp;verticaux</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Bottom Edges</source>
+        <translation>Répartir les bords &amp;inférieurs</translation>
+    </message>
+    <message>
+        <source>Distribute Horizontal &amp;Spacing</source>
+        <translation>Répartir l&apos;e&amp;spacement horizontal</translation>
+    </message>
+    <message>
+        <source>Distribute Vertical S&amp;pacing</source>
+        <translation>Répartir l&apos;es&amp;pacement vertical</translation>
+    </message>
+    <message>
+        <source>Snap moved layers to other layers, guides, the grid, and the canvas (View &gt; Snap). Choose the targets under View &gt; Snap To.</source>
+        <translation>Magnétiser les calques déplacés sur les autres calques, les repères, la grille et la zone de travail (Affichage &gt; Magnétisme). Choisissez les cibles dans Affichage &gt; Magnétisme sur.</translation>
+    </message>
+    <message>
+        <source>Distribute layers and choose what to align to</source>
+        <translation>Répartir les calques et choisir la référence d&apos;alignement</translation>
+    </message>
+    <message>
+        <source>Finish the current drag before aligning layers</source>
+        <translation>Terminez le déplacement en cours avant d&apos;aligner les calques</translation>
+    </message>
+    <message>
+        <source>Return to the layer view to align layers</source>
+        <translation>Revenez à la vue des calques pour aligner les calques</translation>
+    </message>
+    <message>
+        <source>Select a movable layer to align</source>
+        <translation>Sélectionnez un calque déplaçable à aligner</translation>
+    </message>
+    <message>
+        <source>The selected layers are already aligned</source>
+        <translation>Les calques sélectionnés sont déjà alignés</translation>
+    </message>
+    <message numerus="yes">
+        <source>Aligned %n layer(s)</source>
+        <translation>
+            <numerusform>%n calque aligné</numerusform>
+            <numerusform>%n calques alignés</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Select at least three layers to distribute</source>
+        <translation>Sélectionnez au moins trois calques à répartir</translation>
+    </message>
+    <message>
+        <source>The selected layers are already distributed</source>
+        <translation>Les calques sélectionnés sont déjà répartis</translation>
+    </message>
+    <message numerus="yes">
+        <source>Distributed %n layer(s)</source>
+        <translation>
+            <numerusform>%n calque réparti</numerusform>
+            <numerusform>%n calques répartis</numerusform>
+        </translation>
+    </message>
+    <message>
         <source>Rectangular Marquee: drag to select. Drag a handle to resize the selection, or drag inside it to move it.</source>
         <translation>Rectangle de sélection : faites glisser pour sélectionner. Faites glisser une poignée pour redimensionner la sélection, ou faites glisser à l&apos;intérieur pour la déplacer.</translation>
     </message>
@@ -18410,6 +18604,62 @@ Y : %2
     <message>
         <source>exportPdf imageQuality must be &quot;lossless&quot;, &quot;high&quot;, &quot;medium&quot;, or &quot;low&quot;.</source>
         <translation>exportPdf imageQuality doit être &quot;lossless&quot;, &quot;high&quot;, &quot;medium&quot; ou &quot;low&quot;.</translation>
+    </message>
+    <message>
+        <source>removeObject: unknown option %1.</source>
+        <translation>removeObject : option inconnue %1.</translation>
+    </message>
+    <message>
+        <source>removeObject needs the document&apos;s active layer (set doc.activeLayer first).</source>
+        <translation>removeObject requiert le calque actif du document (définissez d&apos;abord doc.activeLayer).</translation>
+    </message>
+    <message>
+        <source>removeObject needs a selection.</source>
+        <translation>removeObject requiert une sélection.</translation>
+    </message>
+    <message>
+        <source>removeObject: method must be contentAware or nearestEdge.</source>
+        <translation>removeObject : method doit être contentAware ou nearestEdge.</translation>
+    </message>
+    <message>
+        <source>%1: options must be an object.</source>
+        <translation>%1 : options doit être un objet.</translation>
+    </message>
+    <message>
+        <source>%1: layers must be a nonempty array of layers of this document.</source>
+        <translation>%1 : layers doit être un tableau non vide de calques de ce document.</translation>
+    </message>
+    <message>
+        <source>%1: alignTo must be &quot;selection&quot; or &quot;canvas&quot;.</source>
+        <translation>%1 : alignTo doit valoir &quot;selection&quot; ou &quot;canvas&quot;.</translation>
+    </message>
+    <message>
+        <source>%1: unknown option %2.</source>
+        <translation>%1 : option inconnue %2.</translation>
+    </message>
+    <message>
+        <source>alignLayers: unknown edge %1 (left, hcenter, right, top, vcenter, bottom)</source>
+        <translation>alignLayers : bord inconnu %1 (left, hcenter, right, top, vcenter, bottom)</translation>
+    </message>
+    <message>
+        <source>distributeLayers: unknown mode %1 (left, hcenter, right, top, vcenter, bottom, hspacing, vspacing)</source>
+        <translation>distributeLayers : mode inconnu %1 (left, hcenter, right, top, vcenter, bottom, hspacing, vspacing)</translation>
+    </message>
+    <message>
+        <source>%1 needs layers of this document.</source>
+        <translation>%1 nécessite des calques de ce document.</translation>
+    </message>
+    <message>
+        <source>%1: finish the pending transform first.</source>
+        <translation>%1 : terminez d&apos;abord la transformation en attente.</translation>
+    </message>
+    <message>
+        <source>alignLayers needs at least one movable layer.</source>
+        <translation>alignLayers nécessite au moins un calque déplaçable.</translation>
+    </message>
+    <message>
+        <source>distributeLayers needs at least three movable layers.</source>
+        <translation>distributeLayers nécessite au moins trois calques déplaçables.</translation>
     </message>
 </context>
 <context>

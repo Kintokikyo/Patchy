@@ -7553,6 +7553,7 @@ void MainWindow::configure_canvas(CanvasWidget* canvas) {
     refresh_paths_panel();
   });
   canvas->set_status_callback([this](QString message) { statusBar()->showMessage(message); });
+  canvas->set_selection_context_actions_callback([this] { return selection_context_actions_; });
   canvas->set_vector_preview_status_callback([this, canvas](QString message, bool notice) {
     if (canvas == canvas_) {
       refresh_vector_preview_action();
@@ -12073,6 +12074,16 @@ void MainWindow::update_document_action_state() {
                            QStringLiteral("edit.copy_merged"), QStringLiteral("edit.paste"),
                            QStringLiteral("edit.free_transform"), QStringLiteral("edit.warp_transform"),
                            QStringLiteral("layer.flip_horizontal"), QStringLiteral("layer.flip_vertical"),
+                           QStringLiteral("layer.align_left"), QStringLiteral("layer.align_horizontal_centers"),
+                           QStringLiteral("layer.align_right"), QStringLiteral("layer.align_top"),
+                           QStringLiteral("layer.align_vertical_centers"), QStringLiteral("layer.align_bottom"),
+                           QStringLiteral("layer.distribute_left"),
+                           QStringLiteral("layer.distribute_horizontal_centers"),
+                           QStringLiteral("layer.distribute_right"), QStringLiteral("layer.distribute_top"),
+                           QStringLiteral("layer.distribute_vertical_centers"),
+                           QStringLiteral("layer.distribute_bottom"),
+                           QStringLiteral("layer.distribute_horizontal_spacing"),
+                           QStringLiteral("layer.distribute_vertical_spacing"),
                            QStringLiteral("tools.move"), QStringLiteral("tools.clone"),
                            QStringLiteral("tools.smudge"), QStringLiteral("tools.type"),
                            QStringLiteral("image.levels"), QStringLiteral("image.curves"),
@@ -12115,7 +12126,8 @@ void MainWindow::update_document_action_state() {
                QStringLiteral("select.contract"),
                QStringLiteral("select.border"),
                QStringLiteral("select.layer_transparency"),
-               QStringLiteral("edit.stroke_selection")}) {
+               QStringLiteral("edit.stroke_selection"),
+               QStringLiteral("edit.remove_object")}) {
         set_command_enabled(id, false);
       }
     }

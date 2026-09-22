@@ -310,7 +310,6 @@ bool McpActivity::eventFilter(QObject* watched, QEvent* event) {
     }
     if (canvas && event->type() == QEvent::MouseButtonPress &&
         (pointer->button() == Qt::MiddleButton ||
-         (pointer->button() == Qt::RightButton && pointer->modifiers() == Qt::NoModifier) ||
          (pointer->button() == Qt::LeftButton && space_down_))) {
       if (canvas->begin_pan_at_global_position(pointer->globalPosition().toPoint())) {
         panning_canvas_ = canvas; pan_button_ = pointer->button();

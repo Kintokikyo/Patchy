@@ -47,6 +47,7 @@
 #include "core/pattern_presets.hpp"
 #include "core/style_contour.hpp"
 #include "core/style_presets.hpp"
+#include "core/exemplar_inpaint.hpp"
 #include "core/heal_membrane.hpp"
 #include "core/pixel_tools.hpp"
 #include "core/quick_select.hpp"
@@ -922,6 +923,145 @@ void spot_heal_source_map_stays_in_canvas_at_edges() {
   CHECK(spot_heal_map_violations(disc, bounds, map, canvas, canvas) == 0);
 }
 
+// Remove Object's repeat cycle: `attempt` indexes the clean candidates in
+// their fixed order and wraps; attempt 0 is the historical pick, and a
+// footprint with no clean candidate exposes exactly one best-effort choice.
+void spot_heal_source_map_attempt_cycles_valid_candidates() {
+  constexpr std::int32_t canvas = 128;
+  const patchy::Rect bounds{40, 40, 48, 48};
+  // A centered disc with room on every side: several candidates are clean.
+  const auto disc = spot_heal_disc_mask(bounds.width, bounds.height, 24, 24, 10);
+  const auto first = patchy::spot_heal_source_map(disc.data(), bounds, canvas, canvas);
+  CHECK(first.valid);
+  CHECK(first.candidate_count >= 2);
+  const auto explicit_zero = patchy::spot_heal_source_map(disc.data(), bounds, canvas, canvas, 2, 0);
+  CHECK(explicit_zero.mirrored == first.mirrored && explicit_zero.map(60, 60) == first.map(60, 60));
+  const auto second = patchy::spot_heal_source_map(disc.data(), bounds, canvas, canvas, 2, 1);
+  CHECK(second.valid);
+  CHECK(second.candidate_count == first.candidate_count);
+  CHECK(second.map(60, 60) != first.map(60, 60));
+  for (std::int32_t attempt = 0; attempt < first.candidate_count; ++attempt) {
+    const auto map = patchy::spot_heal_source_map(disc.data(), bounds, canvas, canvas, 2, attempt);
+    CHECK(map.valid);
+    CHECK(spot_heal_map_violations(disc, bounds, map, canvas, canvas) == 0);
+  }
+  const auto wrapped =
+      patchy::spot_heal_source_map(disc.data(), bounds, canvas, canvas, 2, first.candidate_count);
+  CHECK(wrapped.mirrored == first.mirrored && wrapped.map(60, 60) == first.map(60, 60));
+
+  // A footprint filling the whole canvas but one cell: no candidate is clean,
+  // so the cycle holds the single first-fewest mapping.
+  constexpr std::int32_t edge = 24;
+  const patchy::Rect full_bounds{0, 0, edge, edge};
+  std::vector<std::uint8_t> crowded(static_cast<std::size_t>(edge) * edge, 255U);
+  crowded[static_cast<std::size_t>(edge - 1) * edge + (edge - 1)] = 0U;
+  const auto best_effort = patchy::spot_heal_source_map(crowded.data(), full_bounds, edge, edge);
+  CHECK(best_effort.valid);
+  CHECK(best_effort.candidate_count == 1);
+  const auto best_effort_again = patchy::spot_heal_source_map(crowded.data(), full_bounds, edge, edge, 2, 3);
+  CHECK(best_effort_again.mirrored == best_effort.mirrored &&
+        best_effort_again.map(10, 10) == best_effort.map(10, 10));
+}
+
+// The exhaustive exemplar fill on a periodic texture: exact source patches
+// exist, so the hole is restored to the pattern byte for byte, the result is
+// identical across runs (fixed scan orders, first-index tie-breaks), pixels
+// outside the hole are untouched, and a hole that swallows every clean source
+// patch reports !filled with the image unchanged.
+void exemplar_inpaint_restores_periodic_stripes_deterministically() {
+  constexpr std::int32_t width = 96;
+  constexpr std::int32_t height = 64;
+  std::vector<std::uint8_t> image(static_cast<std::size_t>(width) * height * 4U);
+  for (std::int32_t y = 0; y < height; ++y) {
+    for (std::int32_t x = 0; x < width; ++x) {
+      auto* px = image.data() + (static_cast<std::size_t>(y) * width + x) * 4U;
+      const bool a = (x / 8) % 2 == 0;
+      px[0] = a ? 30 : 220;
+      px[1] = a ? 60 : 180;
+      px[2] = a ? 200 : 40;
+      px[3] = 255;
+    }
+  }
+  const patchy::Rect hole_bounds{30, 20, 20, 20};
+  std::vector<std::uint8_t> hole(static_cast<std::size_t>(hole_bounds.width) * hole_bounds.height, 255U);
+  auto damaged = image;
+  for (std::int32_t y = 0; y < hole_bounds.height; ++y) {
+    for (std::int32_t x = 0; x < hole_bounds.width; ++x) {
+      auto* px = damaged.data() + (static_cast<std::size_t>(hole_bounds.y + y) * width + hole_bounds.x + x) * 4U;
+      px[0] = px[1] = px[2] = 0;
+    }
+  }
+  patchy::ExemplarInpaintOptions options;
+  options.patch_size = 9;
+  options.search_radius = 32;
+  auto first = damaged;
+  std::int64_t ticks = 0;
+  std::int64_t last_done = -1;
+  std::int64_t reported_total = 0;
+  const auto result = patchy::exemplar_inpaint(first.data(), width, height, hole.data(), hole_bounds, options,
+                                               [&](std::int64_t done, std::int64_t total) {
+                                                 ++ticks;
+                                                 CHECK(done > last_done);
+                                                 last_done = done;
+                                                 reported_total = total;
+                                               });
+  CHECK(result.filled);
+  CHECK(result.patches > 0);
+  CHECK(ticks == result.patches);
+  CHECK(reported_total == static_cast<std::int64_t>(hole_bounds.width) * hole_bounds.height);
+  CHECK(last_done == reported_total);
+  // The single-threaded scan is byte-identical to the fan-out.
+  auto serial = damaged;
+  auto serial_options = options;
+  serial_options.single_threaded = true;
+  CHECK(patchy::exemplar_inpaint(serial.data(), width, height, hole.data(), hole_bounds, serial_options).filled);
+  CHECK(serial == first);
+  CHECK(first == image);
+  auto second = damaged;
+  const auto rerun = patchy::exemplar_inpaint(second.data(), width, height, hole.data(), hole_bounds, options);
+  CHECK(rerun.filled && rerun.patches == result.patches);
+  CHECK(second == first);
+
+  // A hole much deeper than the search radius: every target still reaches a
+  // clean source past the hole edge (the window grows with the target's
+  // distance to the edge), so a uniform image fills exactly.
+  {
+    constexpr std::int32_t deep_w = 400;
+    constexpr std::int32_t deep_h = 300;
+    std::vector<std::uint8_t> uniform(static_cast<std::size_t>(deep_w) * deep_h * 4U);
+    for (std::size_t i = 0; i < uniform.size(); i += 4U) {
+      uniform[i] = 90;
+      uniform[i + 1U] = 120;
+      uniform[i + 2U] = 150;
+      uniform[i + 3U] = 255;
+    }
+    const patchy::Rect deep_bounds{50, 50, 300, 200};
+    std::vector<std::uint8_t> deep_hole(static_cast<std::size_t>(deep_bounds.width) * deep_bounds.height, 255U);
+    auto deep = uniform;
+    for (std::int32_t y = 0; y < deep_bounds.height; ++y) {
+      for (std::int32_t x = 0; x < deep_bounds.width; ++x) {
+        deep[(static_cast<std::size_t>(deep_bounds.y + y) * deep_w + deep_bounds.x + x) * 4U] = 0;
+      }
+    }
+    patchy::ExemplarInpaintOptions deep_options;
+    deep_options.patch_size = 9;
+    deep_options.search_radius = 32;
+    const auto deep_result = patchy::exemplar_inpaint(deep.data(), deep_w, deep_h, deep_hole.data(), deep_bounds,
+                                                      deep_options);
+    CHECK(deep_result.filled);
+    CHECK(deep == uniform);
+  }
+
+  // Nothing but a 4-pixel border is known: no 9x9 source patch is clean.
+  const patchy::Rect crowded_bounds{4, 4, width - 8, height - 8};
+  std::vector<std::uint8_t> crowded_hole(static_cast<std::size_t>(crowded_bounds.width) * crowded_bounds.height, 255U);
+  auto crowded = image;
+  const auto refused = patchy::exemplar_inpaint(crowded.data(), width, height, crowded_hole.data(), crowded_bounds,
+                                                options);
+  CHECK(!refused.filled);
+  CHECK(crowded == image);
+}
+
 void heal_membrane_interpolates_boundary_offsets() {
   constexpr std::int32_t size = 32;
   // Interior disc; Dirichlet cells everywhere else.
@@ -1034,6 +1174,10 @@ std::vector<patchy::test::TestCase> infra_selection_tests() {
        magnetic_lasso_node_budget_falls_back_to_straight_line},
       {"spot_heal_source_map_is_coherent_and_outside", spot_heal_source_map_is_coherent_and_outside},
       {"spot_heal_source_map_stays_in_canvas_at_edges", spot_heal_source_map_stays_in_canvas_at_edges},
+      {"spot_heal_source_map_attempt_cycles_valid_candidates",
+       spot_heal_source_map_attempt_cycles_valid_candidates},
+      {"exemplar_inpaint_restores_periodic_stripes_deterministically",
+       exemplar_inpaint_restores_periodic_stripes_deterministically},
       {"heal_membrane_interpolates_boundary_offsets", heal_membrane_interpolates_boundary_offsets},
       {"cli_headless_flag_matches_exact_token", cli_headless_flag_matches_exact_token},
   };

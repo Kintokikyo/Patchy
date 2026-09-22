@@ -14,6 +14,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include "ui/canvas_widget.hpp"
+#include "ui/canvas_widget_shared.hpp"
 #include "ui/color_panel.hpp"
 #include "ui/palette_panel.hpp"
 #include "ui/qt_paths.hpp"
@@ -30,6 +31,7 @@
 #include "ui/sound_effects.hpp"
 #include "ui/theme_manager.hpp"
 
+#include "local_psd_fixtures.hpp"
 #include "test_harness.hpp"
 #include "ui/ui_test_access.hpp"
 #include "ui_test_support.hpp"
@@ -76,6 +78,8 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
+#include <filesystem>
+#include <iostream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -534,6 +538,127 @@ void ui_script_fill_rect_partial_updates() {
   )JS")));
   CHECK(backlog_contains(window, QStringLiteral("alloc=20,30,8x4")));
   CHECK(backlog_contains(window, QStringLiteral("painted=255 cleared=0 kept=255,255")));
+}
+
+// layer.removeObject: the selection form of Spot Healing through the script
+// API. Uniform surroundings heal the marked pixels to the base color exactly;
+// a repeat walks the source cycle, an explicit attempt pins it, and a missing
+// selection throws.
+void ui_script_remove_object_heals_selection() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  CHECK(run_script(window, QStringLiteral(R"JS(
+    var doc = app.activeDocument;
+    var layer = doc.addLayer('Heal');
+    layer.fillRect(0, 0, 64, 64, '#2850a0');
+    layer.fillRect(30, 30, 4, 4, '#ffffff');
+    doc.activeLayer = layer;
+    doc.selection.selectRect(28, 28, 8, 8);
+    var r0 = layer.removeObject();
+    console.log('method=' + r0.method + ' patches=' + (r0.patches > 0));
+    var r1 = layer.removeObject({method: 'nearestEdge'});
+    var r2 = layer.removeObject({method: 'nearestEdge'});
+    var r3 = layer.removeObject({method: 'nearestEdge', attempt: 0});
+    console.log('sources=' + r1.source + ',' + r2.source + ',' + r3.source + ' of ' + r1.sourceCount);
+    var px = new Uint8Array(layer.getPixels().data);
+    var i = (31 * 64 + 31) * 4;
+    console.log('healed=' + px[i] + ',' + px[i + 1] + ',' + px[i + 2] + ',' + px[i + 3]);
+    doc.selection.deselect();
+    try {
+      layer.removeObject();
+      console.log('no-throw');
+    } catch (e) {
+      console.log('refused=' + (e.message.length > 0));
+    }
+  )JS")));
+  CHECK(backlog_contains(window, QStringLiteral("method=contentAware patches=true")));
+  CHECK(backlog_contains(window, QStringLiteral("sources=1,2,1 of ")));
+  CHECK(backlog_contains(window, QStringLiteral("healed=40,80,160,255")));
+  CHECK(backlog_contains(window, QStringLiteral("refused=true")));
+  CHECK(!backlog_contains(window, QStringLiteral("no-throw")));
+}
+
+// A big photo (about 98 MB RGBA) healed with removeObject and then re-opened
+// from the same file, the headless door_reopen.js scenario: the first document's
+// deferred refresh and background composite must not touch memory the second
+// open frees (September 2026 crash, about one run in two). Needs the local
+// fixture copied per AGENTS.md; skips without it.
+void ui_script_remove_object_then_reopen_large_document() {
+  const auto fixture = patchy::test::local_format_fixture_path("remove-object-reopen", "door.jpg");
+  if (!std::filesystem::exists(fixture)) {
+    std::cout << "[SKIP] local remove-object-reopen fixture missing\n";
+    return;
+  }
+  patchy::ui::MainWindow window;
+  show_window(window);
+  const auto path = QDir::fromNativeSeparators(patchy::ui::to_qstring(fixture));
+  auto& host = start_script(window, QStringLiteral(R"JS(
+    var path = '%1';
+    var doc = app.open(path);
+    var layer = doc.activeLayer;
+    doc.selection.selectRect(1830, 1720, 900, 470);
+    var r = layer.removeObject();
+    doc.selection.deselect();
+    var again = app.open(path);
+    console.log('reopen=' + again.width + 'x' + again.height + ' method=' + r.method);
+  )JS").arg(path));
+  wait_for_run_end(host, 120000);
+  CHECK(!host.run_active());
+  CHECK(!host.last_run_had_error());
+  // The method is whatever the fill decides for this photo; the reopen is the point.
+  CHECK(backlog_contains(window, QStringLiteral("reopen=4284x5712 method=")));
+  CHECK(patchy::ui::MainWindowTestAccess::session_count(window) == 3);
+  // Let every deferred refresh and background composite of both documents land
+  // while the sessions are still alive.
+  patchy::test::ui::process_events_for(1500);
+}
+
+void ui_script_align_and_distribute_layers() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  CHECK(run_script(window, QStringLiteral(R"JS(
+    var doc = app.activeDocument;
+    var a = doc.addLayer('A'); a.fillRect(10, 10, 20, 20, '#ff0000');
+    var b = doc.addLayer('B'); b.fillRect(60, 40, 30, 10, '#00ff00');
+    var c = doc.addLayer('C'); c.fillRect(100, 90, 20, 30, '#0000ff');
+    var moved = doc.alignLayers('left', {layers: [a, b, c]});
+    console.log('aligned=' + moved);
+    moved = doc.alignLayers('left', {layers: [a, b, c]});
+    console.log('again=' + moved);
+    moved = doc.distributeLayers('vcenter', {layers: [a, b, c]});
+    console.log('distributed=' + moved);
+    moved = doc.alignLayers('hcenter', {layers: [b], alignTo: 'canvas'});
+    console.log('canvas=' + moved);
+    try { doc.distributeLayers('left', {layers: [a, b]}); console.log('no-throw'); }
+    catch (e) { console.log('refused=' + (e.message.indexOf('three') >= 0)); }
+    try { doc.alignLayers('middle'); console.log('no-throw'); }
+    catch (e) { console.log('bad-edge=' + (e.message.indexOf('middle') >= 0)); }
+    try { doc.alignLayers('left', {bogus: 1}); console.log('no-throw'); }
+    catch (e) { console.log('bad-option=' + (e.message.indexOf('bogus') >= 0)); }
+  )JS")));
+  // Align works on the layers' opaque rects (A already sits at the union's left
+  // edge, so two layers move); vcenter distribute puts B's center at
+  // (20 + 105) / 2 = 62.5 -> 63 (top 58); the canvas hcenter centers B's 30 px.
+  CHECK(backlog_contains(window, QStringLiteral("aligned=2")));
+  CHECK(backlog_contains(window, QStringLiteral("again=0")));
+  CHECK(backlog_contains(window, QStringLiteral("distributed=1")));
+  CHECK(backlog_contains(window, QStringLiteral("canvas=1")));
+  const auto& document = std::as_const(patchy::ui::MainWindowTestAccess::document(window));
+  const auto opaque = [&](const char* name) {
+    const auto* layer = layer_named(document, name);
+    return layer != nullptr ? patchy::ui::move_layer_outline_bounds(*layer).value_or(patchy::Rect{})
+                            : patchy::Rect{};
+  };
+  CHECK(opaque("A").x == 10 && opaque("C").x == 10);
+  CHECK(opaque("A").y == 10 && opaque("C").y == 90);
+  CHECK(opaque("B").y == 58);
+  CHECK(opaque("B").x == document.width() / 2 - 15);
+  CHECK(backlog_contains(window, QStringLiteral("refused=true")));
+  CHECK(backlog_contains(window, QStringLiteral("bad-edge=true")));
+  CHECK(backlog_contains(window, QStringLiteral("bad-option=true")));
+  CHECK(!backlog_contains(window, QStringLiteral("no-throw")));
+  // Every mutation rode the run's single history entry.
+  CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == 1);
 }
 
 void ui_script_canvas_window_receives_space_key() {
@@ -2912,6 +3037,10 @@ std::vector<patchy::test::TestCase> scripting_tests() {
       {"ui_script_pixels_roundtrip_and_palette_snap", ui_script_pixels_roundtrip_and_palette_snap},
       {"ui_script_get_pixels_reads_rgb_layers", ui_script_get_pixels_reads_rgb_layers},
       {"ui_script_fill_rect_partial_updates", ui_script_fill_rect_partial_updates},
+      {"ui_script_remove_object_heals_selection", ui_script_remove_object_heals_selection},
+      {"ui_script_remove_object_then_reopen_large_document",
+       ui_script_remove_object_then_reopen_large_document},
+      {"ui_script_align_and_distribute_layers", ui_script_align_and_distribute_layers},
       {"ui_script_canvas_window_receives_space_key", ui_script_canvas_window_receives_space_key},
       {"ui_script_canvas_window_dismisses_stop_panel",
        ui_script_canvas_window_dismisses_stop_panel},

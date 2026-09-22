@@ -8,6 +8,7 @@
 
 #include "core/document.hpp"
 #include "core/layer.hpp"
+#include "core/layer_alignment.hpp"
 
 #include <QColor>
 #include <QElapsedTimer>
@@ -235,6 +236,19 @@ public:
   // session's selection; unchanged without a selection.
   [[nodiscard]] PixelBuffer pixels_limited_to_selection(std::int64_t session_id, const PixelBuffer& pixels,
                                                         Rect bounds) const;
+  // Edit > Remove Object on the session's selection through its canvas; the
+  // layer must be the document's active layer. The pixel edit rides this
+  // run's undo snapshot. False (with a JS error thrown) on refusal.
+  bool remove_object_in_selection(std::int64_t session_id, LayerId layer_id, bool content_aware, int attempt,
+                                  bool* used_content_aware, int* source, int* source_count,
+                                  std::int64_t* patches);
+  // Layer > Arrange > Align / Distribute over `root_ids` (empty = the
+  // session's layer selection) through its canvas, riding this run's undo
+  // snapshot. Returns the number of layers moved; -1 with a JS error thrown
+  // on refusal (no movable unit, fewer than three units to distribute).
+  int align_layers(std::int64_t session_id, const std::vector<LayerId>& root_ids, AlignEdge edge,
+                   bool align_to_canvas);
+  int distribute_layers(std::int64_t session_id, const std::vector<LayerId>& root_ids, DistributeMode mode);
 
   // Text layers, driven through the real inline-editor pipeline (the
   // cli_append_text_to_text_layers technique) so rasters render normally.
