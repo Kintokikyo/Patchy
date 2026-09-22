@@ -353,6 +353,9 @@ public:
 protected:
   void resizeEvent(QResizeEvent* event) override {
     QWidget::resizeEvent(event);
+  #ifdef Q_OS_ANDROID
+    return;
+  #endif
     // Width changed: the wrapped height may differ, so ask the toolbar to relayout.
     updateGeometry();
   }
