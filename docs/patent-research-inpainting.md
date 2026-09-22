@@ -18,7 +18,7 @@ GitHub issue #23 asked for a lightweight, non-AI Remove Object and linked cheind
 
 ## The cleared design
 
-Implemented 2026-09-22 in `src/core/exemplar_inpaint.cpp` as Edit > Remove Object's default (content-aware) method; the shape-derived mirror stays available as Remove Object (Nearest Edge). Design record in [healing.md](healing.md).
+Implemented 2026-09-22 in `src/core/exemplar_inpaint.cpp` as Edit > Remove Object's only menu method; the shape-derived mirror stays as its automatic fallback and as the script API's `nearestEdge` method (its menu entry was removed 2026-09-23). Design record in [healing.md](healing.md).
 
 Fill the hole from its boundary inward in a fixed deterministic priority order (Criminisi's confidence times data term, or a simpler fixed order); for each target patch, scan every candidate source patch in a bounded window of the same image at the working resolution, score with an integer distance metric (L1 or SSD over the known pixels, fixed tie-breaks, splitmix64 only if any randomness is ever wanted for tie variety), copy the best match, update the front. Each patch's search is independent of every other patch's chosen offset. The shipped metric adds a fixed per-pixel penalty on the source offset (a geometric preference for nearby sources), and the shipped tone match is the expired-patent membrane on the low-pass band (frequency separation), not gradient-domain compositing. Not in the first implementation without their own check: patch rotation, scale, or mirror adaptation; gradient-domain color adaptation; a user-painted sampling region (Photoshop's 2018+ Content-Aware Fill workspace has unreviewed Adobe filings); anything that seeds, propagates, perturbs, prunes, or upsamples offsets.
 

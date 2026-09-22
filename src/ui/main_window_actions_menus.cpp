@@ -598,9 +598,11 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   auto* border_selection_action = new QAction(tr("&Border..."), this);
   auto* layer_transparency_action = new QAction(tr("Load Layer &Transparency"), this);
   auto* stroke_selection_action = edit_menu->addAction(tr("&Stroke Selection"));
-  // Remove Object: the selection form of Spot Healing (no dialog; running it
-  // again on the same selection tries the next source). Also the first entry
-  // of the canvas context menu's selection section.
+  // Remove Object: the content-aware exemplar fill of the selection (no
+  // dialog). Also the first entry of the canvas context menu's selection
+  // section. The nearest-edge mirror has no menu entry (Seth, September 2026:
+  // confusing next to this one); it stays as the automatic fallback and the
+  // script API's "nearestEdge" method.
   auto* remove_object_action = edit_menu->addAction(tr("Remove &Object"));
   remove_object_action->setObjectName(QStringLiteral("editRemoveObjectAction"));
   remove_object_action->setIcon(simple_icon(QStringLiteral("RO")));
@@ -608,17 +610,6 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   connect(remove_object_action, &QAction::triggered, this, [this] {
     if (canvas_ != nullptr) {
       canvas_->remove_object_in_selection();
-    }
-  });
-  // The shape-derived variant (Spot Healing's mirror of the nearest edge):
-  // instant, and repeating it walks the geometry-only source candidates.
-  auto* remove_object_nearest_edge_action = edit_menu->addAction(tr("Remove Object (Nearest &Edge)"));
-  remove_object_nearest_edge_action->setObjectName(QStringLiteral("editRemoveObjectNearestEdgeAction"));
-  remove_object_nearest_edge_action->setIcon(simple_icon(QStringLiteral("RE")));
-  register_hotkey(remove_object_nearest_edge_action, "edit.remove_object_nearest_edge");
-  connect(remove_object_nearest_edge_action, &QAction::triggered, this, [this] {
-    if (canvas_ != nullptr) {
-      canvas_->remove_object_in_selection(CanvasWidget::RemoveObjectMethod::NearestEdge);
     }
   });
   auto* define_brush_tip_action = edit_menu->addAction(tr("Define Brush Tip from Selection"));
@@ -703,14 +694,14 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
                        quick_mask_action_,
                        grow_selection_action, similar_selection_action, expand_selection_action,
                        contract_selection_action, border_selection_action, layer_transparency_action,
-                       stroke_selection_action, remove_object_action, remove_object_nearest_edge_action}) {
+                       stroke_selection_action, remove_object_action}) {
     register_document_action(action);
   }
   for (auto* action : {select_all_action, clear_selection_action, reselect_action,
                        grow_selection_action, similar_selection_action,
                        expand_selection_action, contract_selection_action,
                        border_selection_action, layer_transparency_action,
-                       stroke_selection_action, remove_object_action, remove_object_nearest_edge_action}) {
+                       stroke_selection_action, remove_object_action}) {
     action->setProperty("patchy.quickMaskBlocked", true);
   }
   select_menu->addAction(select_all_action);
@@ -730,7 +721,6 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   select_menu->addSeparator();
   select_menu->addAction(stroke_selection_action);
   select_menu->addAction(remove_object_action);
-  select_menu->addAction(remove_object_nearest_edge_action);
 
   // The Layer menu groups the new-layer, mask, and arrange sets into submenus
   // so the whole menu fits a short browser viewport in the wasm build;
@@ -1801,17 +1791,15 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   ctx.layer_transparency_action = layer_transparency_action;
   ctx.stroke_selection_action = stroke_selection_action;
   ctx.remove_object_action = remove_object_action;
-  ctx.remove_object_nearest_edge_action = remove_object_nearest_edge_action;
   ctx.define_brush_tip_action = define_brush_tip_action;
   remove_object_action_ = remove_object_action;
   // The canvas context menu's selection section (a right-click on the
   // selection): the menus' own QActions, so hotkeys and enable state stay in
   // step; nullptr is a separator.
-  selection_context_actions_ = {remove_object_action,    remove_object_nearest_edge_action,
-                                nullptr,                 fill_layer_action,
-                                clear_layer_action,      stroke_selection_action,
-                                nullptr,                 clear_selection_action,
-                                inverse_selection_action};
+  selection_context_actions_ = {remove_object_action, nullptr,
+                                fill_layer_action,    clear_layer_action,
+                                stroke_selection_action, nullptr,
+                                clear_selection_action, inverse_selection_action};
   ctx.add_layer_action = add_layer_action;
   ctx.add_folder_action = add_folder_action;
   ctx.layer_new_menu = layer_new_menu;

@@ -17197,10 +17197,6 @@ Y: %2
         <translation>Toppa: disegna attorno all&apos;area da correggere, poi trascina la selezione su un&apos;area sorgente pulita, oppure premi Invio per rimuovere l&apos;oggetto automaticamente</translation>
     </message>
     <message>
-        <source>Remove Object (Nearest &amp;Edge)</source>
-        <translation>Rimuovi oggetto (bordo più vic&amp;ino)</translation>
-    </message>
-    <message>
         <source>Fill the selection from its surroundings with the content-aware search (Enter)</source>
         <translation>Riempi la selezione usando ciò che la circonda con la ricerca in base al contenuto (Enter)</translation>
     </message>

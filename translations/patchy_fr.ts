@@ -17197,10 +17197,6 @@ Y : %2
         <translation>Pièce : entourez la zone à corriger, puis faites glisser la sélection vers une zone source propre, ou appuyez sur Entrée pour supprimer l&apos;objet automatiquement</translation>
     </message>
     <message>
-        <source>Remove Object (Nearest &amp;Edge)</source>
-        <translation>Supprimer l&apos;objet (bord le plus proch&amp;e)</translation>
-    </message>
-    <message>
         <source>Fill the selection from its surroundings with the content-aware search (Enter)</source>
         <translation>Remplir la sélection à partir de son entourage avec la recherche d&apos;après le contenu (Enter)</translation>
     </message>

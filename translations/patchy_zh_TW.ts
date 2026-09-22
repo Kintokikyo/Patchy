@@ -17152,10 +17152,6 @@ Y：%2
         <translation>修補:在要修復的區域周圍描繪,然後將選取範圍拖曳到乾淨的來源區域,或按 Enter 自動移除物件</translation>
     </message>
     <message>
-        <source>Remove Object (Nearest &amp;Edge)</source>
-        <translation>移除物件 (最近邊緣)(&amp;E)</translation>
-    </message>
-    <message>
         <source>Fill the selection from its surroundings with the content-aware search (Enter)</source>
         <translation>使用內容感知搜尋以周圍內容填滿選取範圍 (Enter)</translation>
     </message>

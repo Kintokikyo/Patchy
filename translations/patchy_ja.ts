@@ -17152,10 +17152,6 @@ Clipped to the layer below</source>
         <translation>パッチ: 修復したい部分を囲んでから、選択範囲をきれいなサンプル元へドラッグするか、Enter キーを押してオブジェクトを自動的に除去してください</translation>
     </message>
     <message>
-        <source>Remove Object (Nearest &amp;Edge)</source>
-        <translation>オブジェクトを除去 (最寄りの端)(&amp;E)</translation>
-    </message>
-    <message>
         <source>Fill the selection from its surroundings with the content-aware search (Enter)</source>
         <translation>コンテンツに応じた検索で周囲から選択範囲を塗りつぶします (Enter)</translation>
     </message>

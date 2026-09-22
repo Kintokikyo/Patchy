@@ -12117,8 +12117,7 @@ void MainWindow::update_document_action_state() {
                QStringLiteral("select.border"),
                QStringLiteral("select.layer_transparency"),
                QStringLiteral("edit.stroke_selection"),
-               QStringLiteral("edit.remove_object"),
-               QStringLiteral("edit.remove_object_nearest_edge")}) {
+               QStringLiteral("edit.remove_object")}) {
         set_command_enabled(id, false);
       }
     }

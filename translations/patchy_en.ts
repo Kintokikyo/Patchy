@@ -17153,10 +17153,6 @@ Y: %2
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Remove Object (Nearest &amp;Edge)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Fill the selection from its surroundings with the content-aware search (Enter)</source>
         <translation type="unfinished"></translation>
     </message>

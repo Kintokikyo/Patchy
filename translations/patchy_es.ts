@@ -17197,10 +17197,6 @@ Y: %2
         <translation>Parche: dibuje alrededor del área que desea corregir y luego arrastre la selección hasta un área de origen limpia, o pulse Enter para eliminar el objeto automáticamente</translation>
     </message>
     <message>
-        <source>Remove Object (Nearest &amp;Edge)</source>
-        <translation>Eliminar objeto (borde más c&amp;ercano)</translation>
-    </message>
-    <message>
         <source>Fill the selection from its surroundings with the content-aware search (Enter)</source>
         <translation>Rellenar la selección a partir de su entorno con la búsqueda según el contenido (Enter)</translation>
     </message>

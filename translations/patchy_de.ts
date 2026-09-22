@@ -17197,10 +17197,6 @@ Y: %2
         <translation>Ausbessern: Umfahren Sie den zu korrigierenden Bereich und ziehen Sie die Auswahl dann auf einen sauberen Quellbereich, oder drücken Sie Enter, um das Objekt automatisch zu entfernen</translation>
     </message>
     <message>
-        <source>Remove Object (Nearest &amp;Edge)</source>
-        <translation>Objekt entfernen (nächste &amp;Kante)</translation>
-    </message>
-    <message>
         <source>Fill the selection from its surroundings with the content-aware search (Enter)</source>
         <translation>Die Auswahl mit der inhaltsbasierten Suche aus ihrer Umgebung füllen (Enter)</translation>
     </message>
