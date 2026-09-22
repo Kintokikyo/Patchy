@@ -59,6 +59,8 @@ struct ActionBuildContext {
   QAction* border_selection_action{nullptr};
   QAction* layer_transparency_action{nullptr};
   QAction* stroke_selection_action{nullptr};
+  QAction* remove_object_action{nullptr};
+  QAction* remove_object_nearest_edge_action{nullptr};
   QAction* define_brush_tip_action{nullptr};
   QAction* add_layer_action{nullptr};
   QAction* add_folder_action{nullptr};

@@ -678,6 +678,54 @@ void ScriptLayerObject::applyFilter(const QString& filterId, const QJSValue& par
   host_.apply_filter_to_layer(session_id_, layer_id_, filterId, params);
 }
 
+// Remove Object through the session's canvas, which is why the layer has to
+// be the active one: the fill writes through the canvas's edit target.
+// `method` is "contentAware" (default, the exhaustive exemplar fill) or
+// "nearestEdge" (the shape-derived mirror); `attempt` (0-based, wrapping)
+// picks the nearest-edge candidate, otherwise the canvas's repeat cycle applies.
+QJSValue ScriptLayerObject::removeObject(const QJSValue& options) {
+  const ScriptApiCall api_call(host_);
+  int attempt = -1;
+  bool content_aware = true;
+  if (options.isObject()) {
+    QJSValueIterator it(options);
+    while (it.hasNext()) {
+      it.next();
+      if (it.name() == QLatin1String("attempt")) {
+        attempt = std::max(0, it.value().toInt());
+      } else if (it.name() == QLatin1String("method")) {
+        const auto method = it.value().toString();
+        if (method == QLatin1String("contentAware")) {
+          content_aware = true;
+        } else if (method == QLatin1String("nearestEdge")) {
+          content_aware = false;
+        } else {
+          host_.throw_js_error(ScriptEngineHost::tr("removeObject: method must be contentAware or nearestEdge."));
+          return QJSValue();
+        }
+      } else {
+        host_.throw_js_error(ScriptEngineHost::tr("removeObject: unknown option %1.").arg(it.name()));
+        return QJSValue();
+      }
+    }
+  }
+  bool used_content_aware = false;
+  int source = 0;
+  int source_count = 0;
+  std::int64_t patches = 0;
+  if (!host_.remove_object_in_selection(session_id_, layer_id_, content_aware, attempt, &used_content_aware, &source,
+                                        &source_count, &patches)) {
+    return QJSValue();
+  }
+  auto result = host_.engine()->newObject();
+  result.setProperty(QStringLiteral("method"),
+                     used_content_aware ? QStringLiteral("contentAware") : QStringLiteral("nearestEdge"));
+  result.setProperty(QStringLiteral("patches"), static_cast<double>(patches));
+  result.setProperty(QStringLiteral("source"), source);
+  result.setProperty(QStringLiteral("sourceCount"), source_count);
+  return result;
+}
+
 QJSValue ScriptLayerObject::traceToShapes(const QJSValue& options) {
   const ScriptApiCall api_call(host_);
   ImageTraceOptions trace_options;

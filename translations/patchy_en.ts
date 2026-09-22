@@ -9363,10 +9363,6 @@ RGB: %2, %3, %4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Drag the selection to a clean area to sample from</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Select All is unavailable in Quick Mask mode</source>
         <translation type="unfinished"></translation>
     </message>
@@ -9852,6 +9848,62 @@ RGB: %2, %3, %4</source>
     </message>
     <message>
         <source>Change: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Drag the selection to a clean area to sample from, or press Enter to remove the object automatically</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove Object needs an open document</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove Object needs a selection: select the area to remove first</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove Object needs a selection on the canvas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove Object needs an editable pixel layer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove Object needs unselected pixels around the selection to sample</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove Object could not read the document pixels</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove Object</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove Object needs a pixel layer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Removed object with source %1 of %2. Run again to try another.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Removed object with content-aware fill (%1 patches)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove Object found no clean source patches nearby; used the nearest edge instead (source %1 of %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Removing object...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Removing object... %1%</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -12196,10 +12248,6 @@ RGB: %2, %3, %4</source>
     </message>
     <message>
         <source>Convert Point: click a point to switch it between corner and smooth.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Patch: draw around the area to fix, then drag the selection to a clean source area</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -17092,6 +17140,26 @@ Y: %2
         <source>Pivot:</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Remove &amp;Object</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove Object</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Patch: draw around the area to fix, then drag the selection to a clean source area, or press Enter to remove the object automatically</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove Object (Nearest &amp;Edge)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fill the selection from its surroundings with the content-aware search (Enter)</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -18353,6 +18421,22 @@ Y: %2
     </message>
     <message>
         <source>exportPdf imageQuality must be &quot;lossless&quot;, &quot;high&quot;, &quot;medium&quot;, or &quot;low&quot;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>removeObject: unknown option %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>removeObject needs the document&apos;s active layer (set doc.activeLayer first).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>removeObject needs a selection.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>removeObject: method must be contentAware or nearestEdge.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

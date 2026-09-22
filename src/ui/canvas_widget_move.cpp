@@ -133,24 +133,72 @@ std::vector<std::pair<LayerId, Rect>> move_proxy_shifted_bounds(const Document& 
 
 }  // namespace
 
-void CanvasWidget::close_move_layer_context_menu() {
-  move_context_press_pos_.reset();
-  if (move_layer_context_menu_) {
-    move_layer_context_menu_->close();
-    move_layer_context_menu_->deleteLater();
-    move_layer_context_menu_.clear();
+void CanvasWidget::close_canvas_context_menu() {
+  context_press_pos_.reset();
+  if (canvas_context_menu_) {
+    canvas_context_menu_->close();
+    canvas_context_menu_->deleteLater();
+    canvas_context_menu_.clear();
   }
 }
 
-void CanvasWidget::show_move_layer_context_menu(QPoint widget_point, QPoint global_position) {
-  close_move_layer_context_menu();
+// The canvas right-click menu (a right release within the drag distance of
+// its press; canvas_widget_events.cpp). One builder, two sections: the Move
+// tool's layers-under-the-pointer entries, then the host's selection commands
+// (Remove Object, Fill, ...) when the click landed on the selection. Path
+// tools keep their own menu. A popup, not exec: the entries revalidate their
+// target when picked, so a stale menu after a tool or document change is inert.
+bool CanvasWidget::show_canvas_context_menu(QPoint widget_point, QPoint global_position) {
+  close_canvas_context_menu();
+  if (document_ == nullptr || pointer_gesture_active() || transforming_layer_ || warping_layer_ ||
+      path_transform_active_) {
+    return false;
+  }
+  if (path_edit_tool_active() && show_path_context_menu(QPointF(widget_point), global_position)) {
+    return true;
+  }
+  auto* menu = new QMenu(this);
+  menu->setObjectName(QStringLiteral("canvasContextMenu"));
+  canvas_context_menu_ = menu;
+  connect(menu, &QMenu::aboutToHide, menu, &QObject::deleteLater);
+  add_move_layer_menu_entries(*menu, widget_point);
+  const auto document_point = document_position(widget_point);
+  if (has_selection() && selection_alpha_at(document_point) != 0U && selection_context_actions_callback_) {
+    const auto actions = selection_context_actions_callback_();
+    bool any_action = false;
+    for (auto* action : actions) {
+      any_action = any_action || action != nullptr;
+    }
+    if (any_action) {
+      if (!menu->isEmpty()) {
+        menu->addSeparator();
+      }
+      for (auto* action : actions) {
+        if (action == nullptr) {
+          menu->addSeparator();
+        } else {
+          menu->addAction(action);
+        }
+      }
+    }
+  }
+  if (menu->isEmpty()) {
+    canvas_context_menu_.clear();
+    menu->deleteLater();
+    return false;
+  }
+  menu->popup(global_position);
+  return true;
+}
+
+bool CanvasWidget::add_move_layer_menu_entries(QMenu& menu, QPoint widget_point) {
   if (document_ == nullptr || tool_ != CanvasTool::Move || edit_locked_ || pointer_gesture_active() ||
       transforming_layer_ || warping_layer_ || path_transform_active_) {
-    return;
+    return false;
   }
   const auto point = document_position(widget_point);
   if (!document_contains(point)) {
-    return;
+    return false;
   }
 
   // Walk the whole stack once, including occluded leaves and collapsed folders.
@@ -175,15 +223,12 @@ void CanvasWidget::show_move_layer_context_menu(QPoint widget_point, QPoint glob
   };
   collect(collect, std::as_const(*document_).layers(), QString());
   if (matches.empty()) {
-    return;
+    return false;
   }
 
-  auto* menu = new QMenu(this);
-  menu->setObjectName(QStringLiteral("canvasMoveLayerContextMenu"));
-  move_layer_context_menu_ = menu;
-  connect(menu, &QMenu::aboutToHide, menu, &QObject::deleteLater);
-  const auto select = [this, menu, source_document = document_](std::vector<LayerId> ids, LayerId active) {
-    if (move_layer_context_menu_ != menu || document_ != source_document || !isVisible() ||
+  auto* menu_ptr = &menu;
+  const auto select = [this, menu_ptr, source_document = document_](std::vector<LayerId> ids, LayerId active) {
+    if (canvas_context_menu_ != menu_ptr || document_ != source_document || !isVisible() ||
         tool_ != CanvasTool::Move || edit_locked_ || pointer_gesture_active() ||
         transforming_layer_ || warping_layer_ || path_transform_active_) {
       return;
@@ -204,20 +249,20 @@ void CanvasWidget::show_move_layer_context_menu(QPoint widget_point, QPoint glob
   for (const auto& [id, name] : matches) {
     auto label = name;
     label.replace(QStringLiteral("&"), QStringLiteral("&&"));
-    auto* action = menu->addAction(label);
+    auto* action = menu.addAction(label);
     action->setData(QVariant::fromValue<qulonglong>(id));
     action->setCheckable(true);
     action->setChecked(selected.contains(id));
-    connect(action, &QAction::triggered, menu, [select, id] { select({id}, id); });
+    connect(action, &QAction::triggered, menu_ptr, [select, id] { select({id}, id); });
     ids.push_back(id);
   }
   if (ids.size() > 1U) {
-    menu->addSeparator();
-    auto* action = menu->addAction(tr("Select All Layers Here"));
+    menu.addSeparator();
+    auto* action = menu.addAction(tr("Select All Layers Here"));
     action->setObjectName(QStringLiteral("moveMenuSelectAllLayersAction"));
-    connect(action, &QAction::triggered, menu, [select, ids] { select(ids, ids.front()); });
+    connect(action, &QAction::triggered, menu_ptr, [select, ids] { select(ids, ids.front()); });
   }
-  menu->popup(global_position);
+  return true;
 }
 
 void CanvasWidget::begin_move_layer_selection(QMouseEvent* event, const Layer* clicked_layer,

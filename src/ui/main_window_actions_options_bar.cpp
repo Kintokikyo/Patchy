@@ -1990,6 +1990,21 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     }
   });
 
+  // Patch tool: Remove Object heals the drawn selection automatically, the
+  // same command as Edit > Remove Object and the Enter key.
+  patch_remove_object_button_ = new QPushButton(tr("Remove Object"), toolbar);
+  patch_remove_object_button_->setObjectName(QStringLiteral("patchRemoveObjectButton"));
+  bind_widget_text(patch_remove_object_button_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Remove Object"));
+  bind_tooltip(patch_remove_object_button_,
+               QT_TRANSLATE_NOOP("patchy::ui::MainWindow",
+                                 "Fill the selection from its surroundings with the content-aware search (Enter)"));
+  add_option_widget(patch_remove_object_button_, {CanvasTool::PatchTool});
+  connect(patch_remove_object_button_, &QPushButton::clicked, this, [this] {
+    if (remove_object_action_ != nullptr) {
+      remove_object_action_->trigger();
+    }
+  });
+
   retouch_sample_all_layers_check_ = new CheckGlyphBox(tr("Sample All Layers"), toolbar);
   retouch_sample_all_layers_check_->setObjectName(QStringLiteral("retouchSampleAllLayersCheck"));
   retouch_sample_all_layers_check_->setChecked(canvas_defaults->retouch_sample_all_layers());

@@ -1,5 +1,11 @@
 # Scripting API compatibility
 
+2026-09-22 (API 1): `layer.removeObject(options?)` runs Edit > Remove Object on the
+document selection. `{method}` is `"contentAware"` (default, the exhaustive exemplar
+fill) or `"nearestEdge"` (the selection form of Spot Healing, where `{attempt}` picks
+the source candidate); the call returns `{method, patches, source, sourceCount}`. The
+layer must be the active layer. Additive; apiVersion unchanged. See [healing.md](healing.md).
+
 2026-09-21 (API 1): `app.exportPdf(documents, path, options?)` writes a multi-page PDF
 with one page per document (`lossless`, `editableLayers`, `missingFontsAsImages`
 options), the same writer as File > Export Multi-Page PDF. Additive; apiVersion

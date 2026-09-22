@@ -517,9 +517,10 @@ void ui_path_context_menu_edits_anchors() {
   CHECK(!canvas->path_transform_active());
 
   // The gesture: a right click without a drag opens the menu, a right drag
-  // pans instead.
+  // opens nothing (and moves nothing: the right button no longer pans).
   bool menu_seen = false;
   const auto empty = canvas->widget_position_for_document_point(QPoint(500, 400));
+  const auto origin_before_drag = canvas->widget_position_for_document_point(QPoint());
   send_mouse(*canvas, QEvent::MouseButtonPress, empty, Qt::RightButton, Qt::RightButton);
   // Armed between press and release: send_mouse pumps events after the press,
   // which would fire the finder before the release opens the menu.
@@ -532,6 +533,7 @@ void ui_path_context_menu_edits_anchors() {
   send_mouse(*canvas, QEvent::MouseButtonRelease, empty + QPoint(40, 30), Qt::RightButton,
              Qt::NoButton);
   QApplication::processEvents();
+  CHECK(canvas->widget_position_for_document_point(QPoint()) == origin_before_drag);
   for (auto* widget : QApplication::topLevelWidgets()) {
     auto* menu = qobject_cast<QMenu*>(widget);
     CHECK(menu == nullptr || menu->objectName() != QStringLiteral("canvasPathContextMenu") ||

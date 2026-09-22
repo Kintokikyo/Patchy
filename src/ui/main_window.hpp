@@ -1531,6 +1531,11 @@ private:
   QAction* selection_subtract_mode_action_{nullptr};
   QAction* selection_intersect_mode_action_{nullptr};
   QAction* quick_mask_action_{nullptr};
+  // Edit > Remove Object, shared with the Patch options-bar button and the
+  // canvas context menu, whose selection section is this list (nullptr =
+  // separator; the actions are the menus' own).
+  QAction* remove_object_action_{nullptr};
+  QList<QAction*> selection_context_actions_;
   // View > Seamless Tiling in Window: per-canvas state, so the check syncs on tab switch.
   QAction* tiling_mode_action_{nullptr};
   QPushButton* primary_color_button_{nullptr};
@@ -1562,6 +1567,7 @@ private:
   QDoubleSpinBox* crop_ratio_h_spin_{nullptr};
   QPushButton* crop_ratio_clear_button_{nullptr};
   QPushButton* crop_apply_button_{nullptr};
+  QPushButton* patch_remove_object_button_{nullptr};
   QPushButton* crop_cancel_button_{nullptr};
   QCheckBox* clone_aligned_check_{nullptr};
   QCheckBox* retouch_sample_all_layers_check_{nullptr};

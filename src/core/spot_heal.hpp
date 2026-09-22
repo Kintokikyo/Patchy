@@ -7,20 +7,28 @@
 
 namespace patchy {
 
-// Spot Healing source geometry: ONE coherent rigid mapping for the whole
-// stroke footprint, chosen from the mask's SHAPE alone. The footprint is
-// reflected across the line just past its nearest boundary (or translated
-// clear of itself when the reflection would land back inside), so the sampled
-// texture stays spatially coherent instead of smearing per pixel. Candidate
-// directions are tried in a FIXED order with mask-geometry validity counts;
-// pixel content is never read, so there is no patch search or
-// synthesis-by-example (Adobe's PatchMatch family US 8285055 / US 8340463 /
-// US 8355592 stays untouched, into 2031). The tone blend on top is the
-// classic healing membrane of the expired US 6587592 (core/heal_membrane.hpp).
-// See docs/legal-constraints.md before changing anything here.
+// Spot Healing / Remove Object source geometry: ONE coherent rigid mapping for
+// the whole footprint (a brush stroke or a selection), chosen from the mask's
+// SHAPE alone. The footprint is reflected across the line just past its
+// nearest boundary (or translated clear of itself when the reflection would
+// land back inside), so the sampled texture stays spatially coherent instead
+// of smearing per pixel. Candidate directions are tried in a FIXED order with
+// mask-geometry validity counts; pixel content is never read here. The only
+// other input is `attempt`, the user's repeat count, which walks the
+// geometrically valid candidates in their fixed order. Any content-driven
+// source search added later must be the exhaustive exemplar search that
+// docs/legal-constraints.md clears ("Content-aware fill and exemplar
+// inpainting"), never PatchMatch-style offset propagation or perturbation
+// (Adobe US 8285055 / US 8340463 / US 8355592, into 2031). The tone blend on
+// top is the classic healing membrane of the expired US 6587592
+// (core/heal_membrane.hpp). See docs/legal-constraints.md before changing
+// anything here.
 struct SpotHealSourceMap {
   bool valid{false};
   bool mirrored{false};  // reflection across the rim line; false = translation
+  // How many candidates were eligible for `attempt` to choose among (the
+  // zero-violation ones, or 1 when only a best-effort candidate exists).
+  std::int32_t candidate_count{0};
   // Unit outward direction (toward the sampling side) and the anchor point on
   // the reflection line, both in document space; `shift` is the translation
   // distance when not mirrored.
@@ -36,11 +44,13 @@ struct SpotHealSourceMap {
 
 // `mask` is row-major 8-bit coverage over `bounds` (0 = outside the
 // footprint). `bounds` must already be clipped to the canvas. `margin` is how
-// far past the boundary the mapped region starts. Deterministic: integer
-// centroid/extent math plus IEEE sqrt of integer inputs, fixed candidate
-// order, first-fewest-violations tie-break.
+// far past the boundary the mapped region starts. `attempt` picks among the
+// eligible candidates (wrapping; 0 = the first clean one, the historical
+// result, so callers that never pass it are unchanged). Deterministic:
+// integer centroid/extent math plus IEEE sqrt of integer inputs, fixed
+// candidate order, first-fewest-violations tie-break.
 [[nodiscard]] SpotHealSourceMap spot_heal_source_map(const std::uint8_t* mask, Rect bounds,
                                                      std::int32_t canvas_width, std::int32_t canvas_height,
-                                                     std::int32_t margin = 2);
+                                                     std::int32_t margin = 2, std::int32_t attempt = 0);
 
 }  // namespace patchy

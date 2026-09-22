@@ -385,8 +385,10 @@ bool CanvasWidget::dispatch_tablet_as_mouse(QTabletEvent* event, const PenInputS
   Qt::MouseButton button = Qt::NoButton;
   Qt::MouseButtons buttons = Qt::NoButton;
   if (pan) {
-    button = event->type() == QEvent::TabletMove ? Qt::NoButton : Qt::RightButton;
-    buttons = event->type() == QEvent::TabletRelease ? Qt::NoButton : Qt::RightButton;
+    // Panning is synthesized as the MIDDLE mouse button: the right button is
+    // the canvas context-menu button and no longer pans.
+    button = event->type() == QEvent::TabletMove ? Qt::NoButton : Qt::MiddleButton;
+    buttons = event->type() == QEvent::TabletRelease ? Qt::NoButton : Qt::MiddleButton;
   } else {
     switch (event->type()) {
       case QEvent::TabletPress:

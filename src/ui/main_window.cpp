@@ -7553,6 +7553,7 @@ void MainWindow::configure_canvas(CanvasWidget* canvas) {
     refresh_paths_panel();
   });
   canvas->set_status_callback([this](QString message) { statusBar()->showMessage(message); });
+  canvas->set_selection_context_actions_callback([this] { return selection_context_actions_; });
   canvas->set_vector_preview_status_callback([this, canvas](QString message, bool notice) {
     if (canvas == canvas_) {
       refresh_vector_preview_action();
@@ -12115,7 +12116,9 @@ void MainWindow::update_document_action_state() {
                QStringLiteral("select.contract"),
                QStringLiteral("select.border"),
                QStringLiteral("select.layer_transparency"),
-               QStringLiteral("edit.stroke_selection")}) {
+               QStringLiteral("edit.stroke_selection"),
+               QStringLiteral("edit.remove_object"),
+               QStringLiteral("edit.remove_object_nearest_edge")}) {
         set_command_enabled(id, false);
       }
     }

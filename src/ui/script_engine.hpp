@@ -235,6 +235,12 @@ public:
   // session's selection; unchanged without a selection.
   [[nodiscard]] PixelBuffer pixels_limited_to_selection(std::int64_t session_id, const PixelBuffer& pixels,
                                                         Rect bounds) const;
+  // Edit > Remove Object on the session's selection through its canvas; the
+  // layer must be the document's active layer. The pixel edit rides this
+  // run's undo snapshot. False (with a JS error thrown) on refusal.
+  bool remove_object_in_selection(std::int64_t session_id, LayerId layer_id, bool content_aware, int attempt,
+                                  bool* used_content_aware, int* source, int* source_count,
+                                  std::int64_t* patches);
 
   // Text layers, driven through the real inline-editor pipeline (the
   // cli_append_text_to_text_layers technique) so rasters render normally.

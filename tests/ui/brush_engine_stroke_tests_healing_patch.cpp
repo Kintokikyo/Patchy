@@ -1,8 +1,8 @@
 // Part 2 of the brush-engine stroke UI test group (see
-// brush_engine_stroke_tests.cpp): Spot Healing, the Patch tool, and the
-// retouch Sample All Layers option. The heal commits are pinned byte-exact on
-// synthetic documents whose uniform surroundings make the frequency-separation
-// math collapse to known values.
+// brush_engine_stroke_tests.cpp): Spot Healing, Remove Object, the Patch tool,
+// and the retouch Sample All Layers option. The heal commits are pinned
+// byte-exact on synthetic documents whose uniform surroundings make the
+// frequency-separation math collapse to known values.
 
 #include "core/document.hpp"
 #include "ui/app_settings.hpp"
@@ -10,6 +10,7 @@
 #include "ui/main_window.hpp"
 
 #include "test_harness.hpp"
+#include "ui_test_access.hpp"
 #include "ui_test_groups.hpp"
 #include "ui_test_support.hpp"
 
@@ -18,6 +19,7 @@
 #include <QColor>
 #include <QComboBox>
 #include <QPoint>
+#include <QPushButton>
 
 #include <algorithm>
 #include <cmath>
@@ -160,6 +162,165 @@ void ui_spot_healing_escape_cancels_without_pixel_changes() {
 
   const auto* untouched = layer.pixels().pixel(16, 12);
   CHECK(untouched[0] == 200 && untouched[1] == 200 && untouched[2] == 200 && untouched[3] == 255);
+}
+
+// A hard rectangular selection through the public snapshot API (the script
+// engine's select_region recipe), independent of any marquee gesture.
+void select_document_rect(patchy::ui::CanvasWidget& canvas, QRect rect) {
+  auto snapshot = canvas.capture_selection_snapshot();
+  snapshot.selection = QRegion(rect);
+  snapshot.display_region = snapshot.selection;
+  snapshot.mask_bounds = QRect();
+  snapshot.mask_alpha = QImage();
+  canvas.apply_selection_snapshot(snapshot);
+  QApplication::processEvents();
+}
+
+using RemoveObjectMethod = patchy::ui::CanvasWidget::RemoveObjectMethod;
+
+// Edit > Remove Object (Nearest Edge): the selection is the footprint;
+// uniform surroundings collapse the heal to the base color exactly. Repeating
+// on the same selection walks the source candidates, a new selection restarts
+// the cycle, an explicit attempt pins it, and no selection is a refusal.
+void ui_remove_object_heals_selection_and_cycles_sources() {
+  patchy::Document document(64, 32, patchy::PixelFormat::rgba8());
+  auto pixels = solid_pixels(64, 32, patchy::PixelFormat::rgba8(), QColor(40, 80, 120, 255));
+  for (std::int32_t y = 14; y <= 17; ++y) {
+    for (std::int32_t x = 30; x <= 33; ++x) {
+      auto* px = pixels.pixel(x, y);
+      px[0] = 200;
+      px[1] = 200;
+      px[2] = 200;
+    }
+  }
+  auto& layer = document.add_pixel_layer("Object", std::move(pixels));
+
+  patchy::ui::CanvasWidget canvas;
+  canvas.resize(256, 128);
+  canvas.set_document(&document);
+  canvas.set_tool(patchy::ui::CanvasTool::Marquee);
+  canvas.show();
+  canvas.set_zoom(2.0);
+  QApplication::processEvents();
+
+  select_document_rect(canvas, QRect(28, 12, 8, 8));
+  CHECK(canvas.selected_document_region().contains(QPoint(31, 15)));
+  CHECK(!canvas.selected_document_region().contains(QPoint(40, 15)));
+
+  const auto first = canvas.remove_object_in_selection(RemoveObjectMethod::NearestEdge);
+  CHECK(first.applied);
+  CHECK(first.method == RemoveObjectMethod::NearestEdge);
+  CHECK(first.source_index == 1);
+  CHECK(first.source_count >= 2);
+  for (const auto point : {QPoint(30, 14), QPoint(31, 15), QPoint(33, 17)}) {
+    const auto* healed = layer.pixels().pixel(point.x(), point.y());
+    CHECK(healed[0] == 40 && healed[1] == 80 && healed[2] == 120 && healed[3] == 255);
+  }
+  const auto* outside = layer.pixels().pixel(40, 15);
+  CHECK(outside[0] == 40 && outside[1] == 80 && outside[2] == 120 && outside[3] == 255);
+  // The selection stays put (Patch Source-mode parity).
+  CHECK(canvas.selected_document_region().contains(QPoint(31, 15)));
+
+  const auto second = canvas.remove_object_in_selection(RemoveObjectMethod::NearestEdge);
+  CHECK(second.applied);
+  CHECK(second.source_index == 2);
+  CHECK(second.source_count == first.source_count);
+  const auto pinned = canvas.remove_object_in_selection(RemoveObjectMethod::NearestEdge, 0);
+  CHECK(pinned.applied);
+  CHECK(pinned.source_index == 1);
+
+  select_document_rect(canvas, QRect(8, 8, 8, 8));
+  const auto fresh = canvas.remove_object_in_selection(RemoveObjectMethod::NearestEdge);
+  CHECK(fresh.applied);
+  CHECK(fresh.source_index == 1);
+
+  canvas.clear_selection();
+  const auto refused = canvas.remove_object_in_selection();
+  CHECK(!refused.applied);
+  CHECK(!refused.error.isEmpty());
+}
+
+// Edit > Remove Object (the content-aware default): on a periodic texture the
+// exhaustive exemplar search finds exact source patches, so the marked block
+// is restored to the pattern (the tone match that follows the fill may move
+// a value by a few levels, since a box blur of a period-8 stripe is not
+// constant) and nothing outside the selection moves.
+void ui_remove_object_content_aware_restores_stripes() {
+  constexpr std::int32_t width = 96;
+  constexpr std::int32_t height = 48;
+  patchy::Document document(width, height, patchy::PixelFormat::rgba8());
+  auto pixels = solid_pixels(width, height, patchy::PixelFormat::rgba8(), QColor(0, 0, 0, 255));
+  const auto stripe = [](std::int32_t x) { return (x / 8) % 2 == 0 ? QColor(30, 60, 200) : QColor(220, 180, 40); };
+  for (std::int32_t y = 0; y < height; ++y) {
+    for (std::int32_t x = 0; x < width; ++x) {
+      auto* px = pixels.pixel(x, y);
+      const auto color = stripe(x);
+      px[0] = static_cast<std::uint8_t>(color.red());
+      px[1] = static_cast<std::uint8_t>(color.green());
+      px[2] = static_cast<std::uint8_t>(color.blue());
+    }
+  }
+  for (std::int32_t y = 14; y <= 29; ++y) {
+    for (std::int32_t x = 32; x <= 47; ++x) {
+      auto* px = pixels.pixel(x, y);
+      px[0] = px[1] = px[2] = 255;
+    }
+  }
+  auto& layer = document.add_pixel_layer("Stripes", std::move(pixels));
+
+  patchy::ui::CanvasWidget canvas;
+  canvas.resize(256, 128);
+  canvas.set_document(&document);
+  canvas.set_tool(patchy::ui::CanvasTool::Marquee);
+  canvas.show();
+  QApplication::processEvents();
+  select_document_rect(canvas, QRect(30, 12, 20, 20));
+
+  const auto result = canvas.remove_object_in_selection();
+  CHECK(result.applied);
+  CHECK(result.method == RemoveObjectMethod::ContentAware);
+  CHECK(result.patches > 0);
+  for (std::int32_t y = 12; y < 32; ++y) {
+    for (std::int32_t x = 30; x < 50; ++x) {
+      const auto* px = layer.pixels().pixel(x, y);
+      const auto expected = stripe(x);
+      CHECK(std::abs(int(px[0]) - expected.red()) <= 8 && std::abs(int(px[1]) - expected.green()) <= 8 &&
+            std::abs(int(px[2]) - expected.blue()) <= 8 && px[3] == 255);
+    }
+  }
+  const auto* outside = layer.pixels().pixel(60, 20);
+  CHECK(outside[0] == stripe(60).red() && outside[1] == stripe(60).green() && outside[2] == stripe(60).blue());
+}
+
+// The menu action and the Patch options-bar button share one history entry
+// per run, and Undo restores the pixels.
+void ui_remove_object_action_is_undoable() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_tool(patchy::ui::CanvasTool::Marquee);
+  drag(*canvas, canvas->widget_position_for_document_point(QPoint(20, 20)),
+       canvas->widget_position_for_document_point(QPoint(60, 60)));
+  QApplication::processEvents();
+  CHECK(canvas->has_selection());
+
+  const auto depth = patchy::ui::MainWindowTestAccess::active_session_undo_depth(window);
+  require_action(window, "editRemoveObjectAction")->trigger();
+  QApplication::processEvents();
+  CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == depth + 1);
+  patchy::ui::MainWindowTestAccess::undo(window);
+  QApplication::processEvents();
+  CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == depth);
+
+  canvas->set_tool(patchy::ui::CanvasTool::PatchTool);
+  QApplication::processEvents();
+  auto* button = window.findChild<QPushButton*>(QStringLiteral("patchRemoveObjectButton"));
+  CHECK(button != nullptr);
+  if (button != nullptr) {
+    button->click();
+    QApplication::processEvents();
+    CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == depth + 1);
+  }
 }
 
 // Draws the Patch tool's freehand outline as a rectangle-ish loop and returns
@@ -358,6 +519,39 @@ void ui_patch_tool_click_inside_is_noop_and_escape_cancels() {
   CHECK(drop_area[0] == 40 && drop_area[1] == 80 && drop_area[2] == 120 && drop_area[3] == 255);
 }
 
+// Enter with a Patch outline and no drag is the automatic heal (Remove
+// Object) of the drawn region.
+void ui_patch_tool_enter_removes_object() {
+  patchy::Document document(64, 24, patchy::PixelFormat::rgba8());
+  auto pixels = solid_pixels(64, 24, patchy::PixelFormat::rgba8(), QColor(40, 80, 120, 255));
+  for (std::int32_t y = 9; y <= 11; ++y) {
+    for (std::int32_t x = 9; x <= 11; ++x) {
+      auto* px = pixels.pixel(x, y);
+      px[0] = 220;
+      px[1] = 220;
+      px[2] = 220;
+    }
+  }
+  auto& layer = document.add_pixel_layer("Patch", std::move(pixels));
+
+  patchy::ui::CanvasWidget canvas;
+  canvas.resize(256, 96);
+  canvas.set_document(&document);
+  canvas.set_tool(patchy::ui::CanvasTool::PatchTool);
+  canvas.show();
+  canvas.set_zoom(4.0);
+  QApplication::processEvents();
+
+  draw_patch_outline(canvas, QPoint(6, 6), QPoint(15, 15));
+  CHECK(canvas.selected_document_region().contains(QPoint(10, 10)));
+  CHECK(layer.pixels().pixel(10, 10)[0] == 220);
+  send_key(canvas, Qt::Key_Return);
+  QApplication::processEvents();
+  const auto* healed = layer.pixels().pixel(10, 10);
+  CHECK(healed[0] == 40 && healed[1] == 80 && healed[2] == 120 && healed[3] == 255);
+  CHECK(canvas.selected_document_region().contains(QPoint(10, 10)));
+}
+
 // Destination mode dropped onto strongly contrasting content: the membrane
 // must shift the copied texture to the drop area's tone (uniform boundary
 // offsets solve to a constant), never emit unbounded per-pixel values.
@@ -484,6 +678,8 @@ void ui_spot_healing_and_patch_texture_gallery() {
   };
   stamp_blemish(QPoint(64, 60), 11);
   stamp_blemish(QPoint(64, 116), 9);
+  // A third one for Remove Object (a marquee around it).
+  stamp_blemish(QPoint(220, 120), 10);
   document.add_pixel_layer("Texture", std::move(pixels));
 
   patchy::ui::CanvasWidget canvas;
@@ -527,6 +723,18 @@ void ui_spot_healing_and_patch_texture_gallery() {
   QApplication::processEvents();
   save_widget_artifact("ui_patch_transparent_gallery_after", canvas);
   canvas.set_patch_tool_transparent(false);
+
+  // Remove Object on a marquee around the third blemish: the content-aware
+  // exemplar fill first, then the nearest-edge mirror on the same selection.
+  canvas.set_tool(patchy::ui::CanvasTool::Marquee);
+  select_document_rect(canvas, QRect(206, 106, 29, 29));
+  const auto content_aware = canvas.remove_object_in_selection();
+  CHECK(content_aware.applied);
+  CHECK(content_aware.method == RemoveObjectMethod::ContentAware);
+  save_widget_artifact("ui_remove_object_gallery_content_aware", canvas);
+  CHECK(canvas.remove_object_in_selection(RemoveObjectMethod::NearestEdge).applied);
+  save_widget_artifact("ui_remove_object_gallery_nearest_edge", canvas);
+  canvas.clear_selection();
 }
 
 void ui_patch_options_sync_canvas_and_persist() {
@@ -579,6 +787,11 @@ std::vector<patchy::test::TestCase> brush_engine_stroke_tests_part2() {
       {"ui_spot_healing_click_heals_blemish_on_release", ui_spot_healing_click_heals_blemish_on_release},
       {"ui_spot_healing_escape_cancels_without_pixel_changes",
        ui_spot_healing_escape_cancels_without_pixel_changes},
+      {"ui_remove_object_heals_selection_and_cycles_sources",
+       ui_remove_object_heals_selection_and_cycles_sources},
+      {"ui_remove_object_content_aware_restores_stripes", ui_remove_object_content_aware_restores_stripes},
+      {"ui_remove_object_action_is_undoable", ui_remove_object_action_is_undoable},
+      {"ui_patch_tool_enter_removes_object", ui_patch_tool_enter_removes_object},
       {"ui_patch_tool_source_drag_heals_region_on_release",
        ui_patch_tool_source_drag_heals_region_on_release},
       {"ui_patch_tool_destination_mode_copies_detail_and_moves_selection",

@@ -100,6 +100,10 @@ public:
   Q_INVOKABLE void fill(const QString& color);
   Q_INVOKABLE void fillRect(int x, int y, int width, int height, const QString& color);
   Q_INVOKABLE void applyFilter(const QString& filterId, const QJSValue& params = QJSValue());
+  // Edit > Remove Object on the document selection; the layer must be the
+  // document's active layer. Options {method, attempt}; returns {method,
+  // patches, source, sourceCount}.
+  Q_INVOKABLE QJSValue removeObject(const QJSValue& options = QJSValue());
   Q_INVOKABLE QJSValue getPixels();
   Q_INVOKABLE void setPixels(const QJSValue& imageData);
   // Trace Image to Shapes: returns the new group layer (inserted above this

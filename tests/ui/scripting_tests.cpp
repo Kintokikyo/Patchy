@@ -536,6 +536,44 @@ void ui_script_fill_rect_partial_updates() {
   CHECK(backlog_contains(window, QStringLiteral("painted=255 cleared=0 kept=255,255")));
 }
 
+// layer.removeObject: the selection form of Spot Healing through the script
+// API. Uniform surroundings heal the marked pixels to the base color exactly;
+// a repeat walks the source cycle, an explicit attempt pins it, and a missing
+// selection throws.
+void ui_script_remove_object_heals_selection() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  CHECK(run_script(window, QStringLiteral(R"JS(
+    var doc = app.activeDocument;
+    var layer = doc.addLayer('Heal');
+    layer.fillRect(0, 0, 64, 64, '#2850a0');
+    layer.fillRect(30, 30, 4, 4, '#ffffff');
+    doc.activeLayer = layer;
+    doc.selection.selectRect(28, 28, 8, 8);
+    var r0 = layer.removeObject();
+    console.log('method=' + r0.method + ' patches=' + (r0.patches > 0));
+    var r1 = layer.removeObject({method: 'nearestEdge'});
+    var r2 = layer.removeObject({method: 'nearestEdge'});
+    var r3 = layer.removeObject({method: 'nearestEdge', attempt: 0});
+    console.log('sources=' + r1.source + ',' + r2.source + ',' + r3.source + ' of ' + r1.sourceCount);
+    var px = new Uint8Array(layer.getPixels().data);
+    var i = (31 * 64 + 31) * 4;
+    console.log('healed=' + px[i] + ',' + px[i + 1] + ',' + px[i + 2] + ',' + px[i + 3]);
+    doc.selection.deselect();
+    try {
+      layer.removeObject();
+      console.log('no-throw');
+    } catch (e) {
+      console.log('refused=' + (e.message.length > 0));
+    }
+  )JS")));
+  CHECK(backlog_contains(window, QStringLiteral("method=contentAware patches=true")));
+  CHECK(backlog_contains(window, QStringLiteral("sources=1,2,1 of ")));
+  CHECK(backlog_contains(window, QStringLiteral("healed=40,80,160,255")));
+  CHECK(backlog_contains(window, QStringLiteral("refused=true")));
+  CHECK(!backlog_contains(window, QStringLiteral("no-throw")));
+}
+
 void ui_script_canvas_window_receives_space_key() {
   patchy::ui::MainWindow window;
   show_window(window);
@@ -2912,6 +2950,7 @@ std::vector<patchy::test::TestCase> scripting_tests() {
       {"ui_script_pixels_roundtrip_and_palette_snap", ui_script_pixels_roundtrip_and_palette_snap},
       {"ui_script_get_pixels_reads_rgb_layers", ui_script_get_pixels_reads_rgb_layers},
       {"ui_script_fill_rect_partial_updates", ui_script_fill_rect_partial_updates},
+      {"ui_script_remove_object_heals_selection", ui_script_remove_object_heals_selection},
       {"ui_script_canvas_window_receives_space_key", ui_script_canvas_window_receives_space_key},
       {"ui_script_canvas_window_dismisses_stop_panel",
        ui_script_canvas_window_dismisses_stop_panel},

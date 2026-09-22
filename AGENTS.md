@@ -91,7 +91,7 @@ Read these before acting in the named area:
 | Tests, offscreen behavior, visual QA, app screenshots, suite failure diagnosis | [docs/testing.md](docs/testing.md) |
 | Platform-guarded code, macOS/Linux behavior, remote builds | [docs/platform.md](docs/platform.md) |
 | WebAssembly builds, the wasm-core preset, emsdk provisioning | [docs/wasm.md](docs/wasm.md); wasm memory/telemetry in [docs/wasm-memory.md](docs/wasm-memory.md); wasm input/focus/hotkeys in [docs/wasm-input.md](docs/wasm-input.md) |
-| Patents, licensing, trademarks, bundled assets, or a feature adjacent to a legal boundary | [docs/legal-constraints.md](docs/legal-constraints.md), with the underlying research record in [docs/patent-research.md](docs/patent-research.md) |
+| Patents, licensing, trademarks, bundled assets, or a feature adjacent to a legal boundary | [docs/legal-constraints.md](docs/legal-constraints.md), with the underlying research record in [docs/patent-research.md](docs/patent-research.md) and [docs/patent-research-inpainting.md](docs/patent-research-inpainting.md) |
 | PSD descriptors, layer styles, COM verification, write/corruption rules | [docs/ps-compat.md](docs/ps-compat.md) |
 | Adjustment/auto-adjustment calibration (Brightness/Contrast, Curves, Hue/Saturation) | [docs/adjustments-calibration.md](docs/adjustments-calibration.md) |
 | Layer-effect render calibration (Blend If, Satin, Stroke, shadows/glows, interior effects) | [docs/layer-effects-render.md](docs/layer-effects-render.md) |

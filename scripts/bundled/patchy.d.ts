@@ -286,6 +286,21 @@ interface PatchyLayer {
    */
   applyFilter(filterId: string, params?: Record<string, number | boolean | string>): void;
   /**
+   * Edit > Remove Object: fills the document selection from its surroundings.
+   * `method` "contentAware" (default) is the deterministic exemplar fill (an
+   * exhaustive best-patch search over the nearby image, no AI); it falls back
+   * to "nearestEdge" when no clean source patch is in reach. "nearestEdge" is
+   * the selection form of Spot Healing (a mirrored patch of the nearby
+   * texture blended by the healing membrane); calling it again on the same
+   * selection tries the next source candidate, and `attempt` picks one
+   * explicitly (0-based, wrapping). The layer must be the document's active
+   * layer and a selection must exist. Returns the method that ran, the number
+   * of patches copied (content-aware), and the 1-based source used plus the
+   * candidate count (nearest edge).
+   */
+  removeObject(options?: { method?: "contentAware" | "nearestEdge"; attempt?: number }):
+      { method: "contentAware" | "nearestEdge"; patches: number; source: number; sourceCount: number };
+  /**
    * A copy of the layer's pixels (empty layers report width/height 0). Layers
    * that store opaque 8-bit RGB (photos opened from JPEG and similar) are
    * returned expanded to RGBA with alpha 255.

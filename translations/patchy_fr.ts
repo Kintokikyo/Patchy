@@ -9372,10 +9372,6 @@ RVB : %2, %3, %4</translation>
         <translation>Faites glisser la sélection à l&apos;endroit où placer la copie</translation>
     </message>
     <message>
-        <source>Drag the selection to a clean area to sample from</source>
-        <translation>Faites glisser la sélection vers une zone propre à échantillonner</translation>
-    </message>
-    <message>
         <source>Select All is unavailable in Quick Mask mode</source>
         <translation>Tout sélectionner n&apos;est pas disponible en mode Masque</translation>
     </message>
@@ -9862,6 +9858,62 @@ RVB : %2, %3, %4</translation>
     <message>
         <source>Change: %1</source>
         <translation>Variation : %1</translation>
+    </message>
+    <message>
+        <source>Drag the selection to a clean area to sample from, or press Enter to remove the object automatically</source>
+        <translation>Faites glisser la sélection vers une zone propre à échantillonner, ou appuyez sur Entrée pour supprimer l&apos;objet automatiquement</translation>
+    </message>
+    <message>
+        <source>Remove Object needs an open document</source>
+        <translation>Supprimer l&apos;objet a besoin d&apos;un document ouvert</translation>
+    </message>
+    <message>
+        <source>Remove Object needs a selection: select the area to remove first</source>
+        <translation>Supprimer l&apos;objet a besoin d&apos;une sélection : sélectionnez d&apos;abord la zone à supprimer</translation>
+    </message>
+    <message>
+        <source>Remove Object needs a selection on the canvas</source>
+        <translation>Supprimer l&apos;objet a besoin d&apos;une sélection dans la zone de travail</translation>
+    </message>
+    <message>
+        <source>Remove Object needs an editable pixel layer</source>
+        <translation>Supprimer l&apos;objet a besoin d&apos;un calque de pixels modifiable</translation>
+    </message>
+    <message>
+        <source>Remove Object needs unselected pixels around the selection to sample</source>
+        <translation>Supprimer l&apos;objet a besoin de pixels non sélectionnés autour de la sélection pour l&apos;échantillonnage</translation>
+    </message>
+    <message>
+        <source>Remove Object could not read the document pixels</source>
+        <translation>Supprimer l&apos;objet n&apos;a pas pu lire les pixels du document</translation>
+    </message>
+    <message>
+        <source>Remove Object</source>
+        <translation>Supprimer l&apos;objet</translation>
+    </message>
+    <message>
+        <source>Remove Object needs a pixel layer</source>
+        <translation>Supprimer l&apos;objet a besoin d&apos;un calque de pixels</translation>
+    </message>
+    <message>
+        <source>Removed object with source %1 of %2. Run again to try another.</source>
+        <translation>Objet supprimé avec la source %1 sur %2. Relancez pour en essayer une autre.</translation>
+    </message>
+    <message>
+        <source>Removed object with content-aware fill (%1 patches)</source>
+        <translation>Objet supprimé avec le remplissage d&apos;après le contenu (%1 pièces)</translation>
+    </message>
+    <message>
+        <source>Remove Object found no clean source patches nearby; used the nearest edge instead (source %1 of %2)</source>
+        <translation>Supprimer l&apos;objet n&apos;a trouvé aucune pièce source propre à proximité ; le bord le plus proche a été utilisé à la place (source %1 sur %2)</translation>
+    </message>
+    <message>
+        <source>Removing object...</source>
+        <translation>Suppression de l&apos;objet...</translation>
+    </message>
+    <message>
+        <source>Removing object... %1%</source>
+        <translation>Suppression de l&apos;objet... %1%</translation>
     </message>
 </context>
 <context>
@@ -12206,10 +12258,6 @@ RVB : %2, %3, %4</translation>
     <message>
         <source>Convert Point: click a point to switch it between corner and smooth.</source>
         <translation>Conversion de point : cliquez sur un point pour passer de sommet à lissé et inversement.</translation>
-    </message>
-    <message>
-        <source>Patch: draw around the area to fix, then drag the selection to a clean source area</source>
-        <translation>Pièce : entourez la zone à corriger, puis faites glisser la sélection vers une zone source propre</translation>
     </message>
     <message>
         <source>Marquee Tools</source>
@@ -17136,6 +17184,26 @@ Y : %2
         <source>Pivot:</source>
         <translation>Pivot :</translation>
     </message>
+    <message>
+        <source>Remove &amp;Object</source>
+        <translation>Supprimer l&apos;&amp;objet</translation>
+    </message>
+    <message>
+        <source>Remove Object</source>
+        <translation>Supprimer l&apos;objet</translation>
+    </message>
+    <message>
+        <source>Patch: draw around the area to fix, then drag the selection to a clean source area, or press Enter to remove the object automatically</source>
+        <translation>Pièce : entourez la zone à corriger, puis faites glisser la sélection vers une zone source propre, ou appuyez sur Entrée pour supprimer l&apos;objet automatiquement</translation>
+    </message>
+    <message>
+        <source>Remove Object (Nearest &amp;Edge)</source>
+        <translation>Supprimer l&apos;objet (bord le plus proch&amp;e)</translation>
+    </message>
+    <message>
+        <source>Fill the selection from its surroundings with the content-aware search (Enter)</source>
+        <translation>Remplir la sélection à partir de son entourage avec la recherche d&apos;après le contenu (Enter)</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -18398,6 +18466,22 @@ Y : %2
     <message>
         <source>exportPdf imageQuality must be &quot;lossless&quot;, &quot;high&quot;, &quot;medium&quot;, or &quot;low&quot;.</source>
         <translation>exportPdf imageQuality doit être &quot;lossless&quot;, &quot;high&quot;, &quot;medium&quot; ou &quot;low&quot;.</translation>
+    </message>
+    <message>
+        <source>removeObject: unknown option %1.</source>
+        <translation>removeObject : option inconnue %1.</translation>
+    </message>
+    <message>
+        <source>removeObject needs the document&apos;s active layer (set doc.activeLayer first).</source>
+        <translation>removeObject requiert le calque actif du document (définissez d&apos;abord doc.activeLayer).</translation>
+    </message>
+    <message>
+        <source>removeObject needs a selection.</source>
+        <translation>removeObject requiert une sélection.</translation>
+    </message>
+    <message>
+        <source>removeObject: method must be contentAware or nearestEdge.</source>
+        <translation>removeObject : method doit être contentAware ou nearestEdge.</translation>
     </message>
 </context>
 <context>

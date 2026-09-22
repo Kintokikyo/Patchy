@@ -127,6 +127,7 @@ add_library(patchy_core
   src/core/smart_filter_effects.cpp
   src/core/smart_object.cpp
   src/core/spot_heal.cpp
+  src/core/exemplar_inpaint.cpp
   src/core/stroke_stabilizer.cpp
   src/core/style_contour.cpp
   src/core/style_presets.cpp

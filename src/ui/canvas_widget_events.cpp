@@ -346,14 +346,14 @@ void CanvasWidget::mousePressEvent(QMouseEvent* event) {
   setFocus(Qt::MouseFocusReason);
   last_mouse_position_ = event->pos();
   emit_info_for_widget_position(event->pos());
-  move_context_press_pos_.reset();
+  context_press_pos_.reset();
   if (event->button() == Qt::LeftButton) {
     // A new press also retires a pending selection whose release was lost.
     cancel_move_layer_selection();
   }
 
   // Right-click on a ruler opens the unit menu (Photoshop's gesture); it must win
-  // over the right-button drag-to-pan below.
+  // over the canvas context-menu press below.
   if (event->button() == Qt::RightButton && rulers_visible_ && widget_position_in_ruler(event->pos())) {
     show_ruler_unit_menu(event->globalPosition().toPoint());
     event->accept();
@@ -371,7 +371,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent* event) {
   }
 
   // Photoshop-style brush resize: Alt+Right-drag adjusts size (horizontal)
-  // and softness (vertical). Must win over the right-button pan below. Pen
+  // and softness (vertical). Must win over the context-menu press below. Pen
   // barrel buttons get the same Alt chord in dispatch_tablet_as_mouse; without
   // Alt their synthesized right presses keep the configured pen action, so the
   // tablet path is excluded here.
@@ -397,7 +397,8 @@ void CanvasWidget::mousePressEvent(QMouseEvent* event) {
   // arrive as plain mouse presses, not tablet events, so resolve the
   // configured pen-button action here. Gated on the pen actually hovering
   // (tablet events streamed a moment ago), which a bare mouse never
-  // satisfies, so a real mouse keeps the classic middle/right drag-to-pan.
+  // satisfies, so a real mouse keeps the classic middle drag-to-pan and the
+  // right-click context menu.
   if (!handling_tablet_event_ && pen_input_settings_.enabled && !painting_ && !drawing_shape_ &&
       !spacebar_panning_ && (event->modifiers() & Qt::AltModifier) == 0 &&
       (event->button() == Qt::RightButton || event->button() == Qt::MiddleButton) &&
@@ -428,25 +429,29 @@ void CanvasWidget::mousePressEvent(QMouseEvent* event) {
       event->accept();
       return;
     }
-    // PanCanvas falls through to the standard drag-to-pan below.
+    // PanCanvas: the configured pen button pans, whichever button it is.
+    panning_ = true;
+    setCursor(Qt::ClosedHandCursor);
+    event->accept();
+    return;
   }
 
-  if (spacebar_panning_ || tool_ == CanvasTool::Pan || (event->buttons() & Qt::MiddleButton) != 0 ||
-      (event->buttons() & Qt::RightButton) != 0) {
-    // A right press under a path tool may become the path context menu: the
-    // release decides (no drag = menu, a drag = the pan that starts here).
-    path_context_press_pos_.reset();
-    if (event->button() == Qt::RightButton && path_edit_tool_active() && document_ != nullptr &&
-        !spacebar_panning_ && !handling_tablet_event_ && !pen_session_active_ &&
-        !path_transform_active_ && (event->modifiers() & Qt::AltModifier) == 0) {
-      path_context_press_pos_ = event->pos();
+  if (event->button() == Qt::RightButton) {
+    // The right button is the context-menu button (it no longer pans; panning
+    // is the middle button, the spacebar, or the Pan tool). The press only
+    // records where it landed and the release decides: no drag opens the
+    // canvas context menu (show_canvas_context_menu), a drag opens nothing.
+    if (event->buttons() == Qt::RightButton && document_ != nullptr && !spacebar_panning_ &&
+        !handling_tablet_event_ && !pen_recently_in_proximity() && !pointer_gesture_active() &&
+        !transforming_layer_ && !warping_layer_ && !path_transform_active_ &&
+        (event->modifiers() & Qt::AltModifier) == 0) {
+      context_press_pos_ = event->pos();
     }
-    if (event->button() == Qt::RightButton && event->buttons() == Qt::RightButton &&
-        tool_ == CanvasTool::Move && document_ != nullptr && !edit_locked_ &&
-        !spacebar_panning_ && !handling_tablet_event_ && !pen_recently_in_proximity() &&
-        !pointer_gesture_active() && !transforming_layer_ && !warping_layer_ && !path_transform_active_) {
-      move_context_press_pos_ = event->pos();
-    }
+    event->accept();
+    return;
+  }
+
+  if (spacebar_panning_ || tool_ == CanvasTool::Pan || (event->buttons() & Qt::MiddleButton) != 0) {
     panning_ = true;
     setCursor(Qt::ClosedHandCursor);
     return;
@@ -1244,16 +1249,20 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
     event->accept();
     return;
   }
+  if (!panning_ && (event->buttons() & Qt::RightButton) != 0 && (event->buttons() & Qt::LeftButton) == 0) {
+    // A held right button drives nothing but the context click: crossing the
+    // drag threshold retires it, even if the pointer returns to its starting
+    // point before release.
+    if (context_press_pos_ &&
+        (event->pos() - *context_press_pos_).manhattanLength() >= QApplication::startDragDistance()) {
+      context_press_pos_.reset();
+    }
+    last_mouse_position_ = event->pos();
+    event->accept();
+    return;
+  }
   if (panning_) {
     clear_move_hover_outline();
-    if (move_context_press_pos_) {
-      if ((event->pos() - *move_context_press_pos_).manhattanLength() < QApplication::startDragDistance()) {
-        return;
-      }
-      // Crossing the threshold commits to panning, even if the pointer returns
-      // to its starting point before release.
-      move_context_press_pos_.reset();
-    }
     const auto delta = event->pos() - last_mouse_position_;
     const auto old_pan = pan_;
     pan_ += QPointF(delta);
@@ -1848,24 +1857,21 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
     event->accept();
     return;
   }
+  if (event->button() == Qt::RightButton && !panning_) {
+    // The context click resolves here: a release within the drag distance of
+    // its press opens the canvas context menu; anything else was nothing.
+    const auto context_press = context_press_pos_;
+    context_press_pos_.reset();
+    if (context_press.has_value() &&
+        (event->pos() - *context_press).manhattanLength() < QApplication::startDragDistance()) {
+      show_canvas_context_menu(*context_press, event->globalPosition().toPoint());
+    }
+    event->accept();
+    return;
+  }
   if (panning_) {
     panning_ = false;
     update_tool_cursor();
-    const auto context_press = path_context_press_pos_;
-    path_context_press_pos_.reset();
-    const auto move_context_press = move_context_press_pos_;
-    move_context_press_pos_.reset();
-    if (event->button() == Qt::RightButton && move_context_press.has_value() &&
-        (event->pos() - *move_context_press).manhattanLength() < QApplication::startDragDistance()) {
-      show_move_layer_context_menu(*move_context_press, event->globalPosition().toPoint());
-      event->accept();
-      return;
-    }
-    if (event->button() == Qt::RightButton && context_press.has_value() &&
-        (event->pos() - *context_press).manhattanLength() < QApplication::startDragDistance()) {
-      show_path_context_menu(event->position(), event->globalPosition().toPoint());
-      event->accept();
-    }
     return;
   }
 
@@ -2470,7 +2476,8 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
       // what to do with the freshly drawn region.
       status_callback_(patch_tool_mode_ == PatchToolMode::Destination
                            ? tr("Drag the selection to where the copy should go")
-                           : tr("Drag the selection to a clean area to sample from"));
+                           : tr("Drag the selection to a clean area to sample from, or press Enter to "
+                                "remove the object automatically"));
     }
     selection_before_edit_ = QRegion();
     selection_display_region_before_edit_ = QRegion();
@@ -2776,6 +2783,20 @@ void CanvasWidget::keyPressEvent(QKeyEvent* event) {
     // Same contract as the spot-heal cancel: nothing was written yet.
     cancel_patch_tool_drag();
     update();
+    event->accept();
+    return;
+  }
+
+  if (tool_ == CanvasTool::PatchTool && event->modifiers() == Qt::NoModifier &&
+      (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter)) {
+    // Enter is the Patch tool's keyboard path: commit a live drag the way the
+    // release does, or, with a selection and no drag, run Remove Object (the
+    // automatic heal of the selection; canvas_widget_spot_healing.cpp).
+    if (patch_tool_dragging_) {
+      release_patch_tool_drag(document_position(last_mouse_position_));
+    } else if (has_selection()) {
+      remove_object_in_selection();
+    }
     event->accept();
     return;
   }
@@ -3323,7 +3344,7 @@ bool CanvasWidget::handle_opacity_digit_key(int key, Qt::KeyboardModifiers modif
 
 void CanvasWidget::cancel_pointer_gestures() {
   const bool cancel_move = move_drag_pending_ || moving_layer_;
-  move_context_press_pos_.reset();
+  context_press_pos_.reset();
   cancel_move_layer_selection();
   if (selecting_ || lassoing_ || quick_selecting_ || moving_selection_) {
     restore_selection_before_edit();

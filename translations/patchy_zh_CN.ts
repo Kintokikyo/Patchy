@@ -9345,10 +9345,6 @@ RGB：%2, %3, %4</translation>
         <translation>将选区拖到副本应放置的位置</translation>
     </message>
     <message>
-        <source>Drag the selection to a clean area to sample from</source>
-        <translation>将选区拖到干净的区域以从中取样</translation>
-    </message>
-    <message>
         <source>Select All is unavailable in Quick Mask mode</source>
         <translation>快速蒙版模式下无法使用全选</translation>
     </message>
@@ -9835,6 +9831,62 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Change: %1</source>
         <translation>变化: %1</translation>
+    </message>
+    <message>
+        <source>Drag the selection to a clean area to sample from, or press Enter to remove the object automatically</source>
+        <translation>将选区拖到干净的区域以从中取样，或按 Enter 自动移除对象</translation>
+    </message>
+    <message>
+        <source>Remove Object needs an open document</source>
+        <translation>移除对象需要打开的文档</translation>
+    </message>
+    <message>
+        <source>Remove Object needs a selection: select the area to remove first</source>
+        <translation>移除对象需要选区：请先选择要移除的区域</translation>
+    </message>
+    <message>
+        <source>Remove Object needs a selection on the canvas</source>
+        <translation>移除对象需要画布上的选区</translation>
+    </message>
+    <message>
+        <source>Remove Object needs an editable pixel layer</source>
+        <translation>移除对象需要可编辑的像素图层</translation>
+    </message>
+    <message>
+        <source>Remove Object needs unselected pixels around the selection to sample</source>
+        <translation>移除对象需要选区周围有未选中的像素以供取样</translation>
+    </message>
+    <message>
+        <source>Remove Object could not read the document pixels</source>
+        <translation>移除对象无法读取文档像素</translation>
+    </message>
+    <message>
+        <source>Remove Object</source>
+        <translation>移除对象</translation>
+    </message>
+    <message>
+        <source>Remove Object needs a pixel layer</source>
+        <translation>移除对象需要像素图层</translation>
+    </message>
+    <message>
+        <source>Removed object with source %1 of %2. Run again to try another.</source>
+        <translation>已使用来源 %1/%2 移除对象。再次运行可尝试其他来源。</translation>
+    </message>
+    <message>
+        <source>Removed object with content-aware fill (%1 patches)</source>
+        <translation>已使用内容识别填充移除对象（%1 个补丁）</translation>
+    </message>
+    <message>
+        <source>Remove Object found no clean source patches nearby; used the nearest edge instead (source %1 of %2)</source>
+        <translation>移除对象在附近未找到干净的来源补丁，改用最近边缘（来源 %1/%2）</translation>
+    </message>
+    <message>
+        <source>Removing object...</source>
+        <translation>正在移除对象...</translation>
+    </message>
+    <message>
+        <source>Removing object... %1%</source>
+        <translation>正在移除对象... %1%</translation>
     </message>
 </context>
 <context>
@@ -12179,10 +12231,6 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Convert Point: click a point to switch it between corner and smooth.</source>
         <translation>转换点：单击锚点可在角点和平滑点之间切换。</translation>
-    </message>
-    <message>
-        <source>Patch: draw around the area to fix, then drag the selection to a clean source area</source>
-        <translation>修补：围绕要修复的区域绘制，然后将选区拖到干净的源区域</translation>
     </message>
     <message>
         <source>Marquee Tools</source>
@@ -17091,6 +17139,26 @@ Y: %2
         <source>Pivot:</source>
         <translation>轴心:</translation>
     </message>
+    <message>
+        <source>Remove &amp;Object</source>
+        <translation>移除对象(&amp;O)</translation>
+    </message>
+    <message>
+        <source>Remove Object</source>
+        <translation>移除对象</translation>
+    </message>
+    <message>
+        <source>Patch: draw around the area to fix, then drag the selection to a clean source area, or press Enter to remove the object automatically</source>
+        <translation>修补：围绕要修复的区域绘制，然后将选区拖到干净的源区域，或按 Enter 自动移除对象</translation>
+    </message>
+    <message>
+        <source>Remove Object (Nearest &amp;Edge)</source>
+        <translation>移除对象（最近边缘）(&amp;E)</translation>
+    </message>
+    <message>
+        <source>Fill the selection from its surroundings with the content-aware search (Enter)</source>
+        <translation>使用内容识别搜索以周围内容填充选区 (Enter)</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -18352,6 +18420,22 @@ Y: %2
     <message>
         <source>exportPdf imageQuality must be &quot;lossless&quot;, &quot;high&quot;, &quot;medium&quot;, or &quot;low&quot;.</source>
         <translation>exportPdf 的 imageQuality 必须是 &quot;lossless&quot;、&quot;high&quot;、&quot;medium&quot; 或 &quot;low&quot;。</translation>
+    </message>
+    <message>
+        <source>removeObject: unknown option %1.</source>
+        <translation>removeObject：未知选项 %1。</translation>
+    </message>
+    <message>
+        <source>removeObject needs the document&apos;s active layer (set doc.activeLayer first).</source>
+        <translation>removeObject 需要文档的当前图层（请先设置 doc.activeLayer）。</translation>
+    </message>
+    <message>
+        <source>removeObject needs a selection.</source>
+        <translation>removeObject 需要选区。</translation>
+    </message>
+    <message>
+        <source>removeObject: method must be contentAware or nearestEdge.</source>
+        <translation>removeObject：method 必须是 contentAware 或 nearestEdge。</translation>
     </message>
 </context>
 <context>

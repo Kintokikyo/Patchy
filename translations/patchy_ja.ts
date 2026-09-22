@@ -9797,10 +9797,6 @@ Mixed selection</source>
         <translation>選択範囲を複製先の位置へドラッグしてください</translation>
     </message>
     <message>
-        <source>Drag the selection to a clean area to sample from</source>
-        <translation>選択範囲をサンプル元のきれいな領域へドラッグしてください</translation>
-    </message>
-    <message>
         <source>Patch</source>
         <translation>パッチ</translation>
     </message>
@@ -9835,6 +9831,62 @@ Mixed selection</source>
     <message>
         <source>Change: %1</source>
         <translation>変化: %1</translation>
+    </message>
+    <message>
+        <source>Drag the selection to a clean area to sample from, or press Enter to remove the object automatically</source>
+        <translation>選択範囲をサンプル元のきれいな領域へドラッグするか、Enter キーを押してオブジェクトを自動的に除去してください</translation>
+    </message>
+    <message>
+        <source>Remove Object needs an open document</source>
+        <translation>オブジェクトを除去には開いているドキュメントが必要です</translation>
+    </message>
+    <message>
+        <source>Remove Object needs a selection: select the area to remove first</source>
+        <translation>オブジェクトを除去には選択範囲が必要です。先に除去する領域を選択してください</translation>
+    </message>
+    <message>
+        <source>Remove Object needs a selection on the canvas</source>
+        <translation>オブジェクトを除去にはキャンバス上の選択範囲が必要です</translation>
+    </message>
+    <message>
+        <source>Remove Object needs an editable pixel layer</source>
+        <translation>オブジェクトを除去には編集可能なピクセルレイヤーが必要です</translation>
+    </message>
+    <message>
+        <source>Remove Object needs unselected pixels around the selection to sample</source>
+        <translation>オブジェクトを除去には選択範囲の周囲にサンプルできる未選択のピクセルが必要です</translation>
+    </message>
+    <message>
+        <source>Remove Object could not read the document pixels</source>
+        <translation>オブジェクトを除去はドキュメントのピクセルを読み取れませんでした</translation>
+    </message>
+    <message>
+        <source>Remove Object</source>
+        <translation>オブジェクトを除去</translation>
+    </message>
+    <message>
+        <source>Remove Object needs a pixel layer</source>
+        <translation>オブジェクトを除去にはピクセルレイヤーが必要です</translation>
+    </message>
+    <message>
+        <source>Removed object with source %1 of %2. Run again to try another.</source>
+        <translation>ソース %1/%2 でオブジェクトを除去しました。もう一度実行すると別のソースを試せます。</translation>
+    </message>
+    <message>
+        <source>Removed object with content-aware fill (%1 patches)</source>
+        <translation>コンテンツに応じた塗りつぶしでオブジェクトを除去しました (%1 パッチ)</translation>
+    </message>
+    <message>
+        <source>Remove Object found no clean source patches nearby; used the nearest edge instead (source %1 of %2)</source>
+        <translation>オブジェクトを除去は近くにきれいなソースパッチを見つけられなかったため、代わりに最寄りの端を使用しました (ソース %1/%2)</translation>
+    </message>
+    <message>
+        <source>Removing object...</source>
+        <translation>オブジェクトを除去しています...</translation>
+    </message>
+    <message>
+        <source>Removing object... %1%</source>
+        <translation>オブジェクトを除去しています... %1%</translation>
     </message>
 </context>
 <context>
@@ -15296,10 +15348,6 @@ Clipped to the layer below</source>
         <translation>領域を置き換えず、サンプルしたテクスチャのみを重ねます。無地の背景にはっきりした模様があるソースで最も効果的です</translation>
     </message>
     <message>
-        <source>Patch: draw around the area to fix, then drag the selection to a clean source area</source>
-        <translation>パッチ: 修復したい部分を囲んでから、選択範囲をきれいなサンプル元へドラッグしてください</translation>
-    </message>
-    <message>
         <source>Ratio:</source>
         <translation>比率:</translation>
     </message>
@@ -17091,6 +17139,26 @@ Clipped to the layer below</source>
         <source>Pivot:</source>
         <translation>基準点:</translation>
     </message>
+    <message>
+        <source>Remove &amp;Object</source>
+        <translation>オブジェクトを除去(&amp;O)</translation>
+    </message>
+    <message>
+        <source>Remove Object</source>
+        <translation>オブジェクトを除去</translation>
+    </message>
+    <message>
+        <source>Patch: draw around the area to fix, then drag the selection to a clean source area, or press Enter to remove the object automatically</source>
+        <translation>パッチ: 修復したい部分を囲んでから、選択範囲をきれいなサンプル元へドラッグするか、Enter キーを押してオブジェクトを自動的に除去してください</translation>
+    </message>
+    <message>
+        <source>Remove Object (Nearest &amp;Edge)</source>
+        <translation>オブジェクトを除去 (最寄りの端)(&amp;E)</translation>
+    </message>
+    <message>
+        <source>Fill the selection from its surroundings with the content-aware search (Enter)</source>
+        <translation>コンテンツに応じた検索で周囲から選択範囲を塗りつぶします (Enter)</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -18352,6 +18420,22 @@ Clipped to the layer below</source>
     <message>
         <source>exportPdf imageQuality must be &quot;lossless&quot;, &quot;high&quot;, &quot;medium&quot;, or &quot;low&quot;.</source>
         <translation>exportPdf の imageQuality は &quot;lossless&quot;、&quot;high&quot;、&quot;medium&quot;、&quot;low&quot; のいずれかでなければなりません。</translation>
+    </message>
+    <message>
+        <source>removeObject: unknown option %1.</source>
+        <translation>removeObject: 不明なオプション %1。</translation>
+    </message>
+    <message>
+        <source>removeObject needs the document&apos;s active layer (set doc.activeLayer first).</source>
+        <translation>removeObject にはドキュメントのアクティブレイヤーが必要です (先に doc.activeLayer を設定してください)。</translation>
+    </message>
+    <message>
+        <source>removeObject needs a selection.</source>
+        <translation>removeObject には選択範囲が必要です。</translation>
+    </message>
+    <message>
+        <source>removeObject: method must be contentAware or nearestEdge.</source>
+        <translation>removeObject: method は contentAware または nearestEdge でなければなりません。</translation>
     </message>
 </context>
 <context>

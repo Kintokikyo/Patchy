@@ -5,13 +5,14 @@
 // translated copy of a frozen snapshot, and all healing runs ONCE on release
 // using the classic healing membrane of the expired US 6587592
 // (core/heal_membrane.hpp): boundary tone differences interpolated across the
-// interior, plus the dragged source texture. No patch search, no
-// synthesis-by-example, no reshuffling, no content-driven source selection,
-// no gradient-domain compositing of source gradients, and no live per-move
-// classification may be added: those families are claimed by Adobe's active
-// PatchMatch patents (US 8285055, US 8340463, US 8355592, into 2031),
-// US 9058699 (to 2029), and US 8050498 (to Nov 3, 2029). See
-// docs/legal-constraints.md and the dated record in docs/patent-research.md.
+// interior, plus the dragged source texture. No PatchMatch-style offset
+// propagation or perturbation, no reshuffling, no gradient-domain compositing
+// of source gradients, and no live per-move classification may be added:
+// those are claimed by Adobe's active patents (US 8285055, US 8340463,
+// US 8355592, into 2031), US 9058699 (to 2029), and US 8050498 (to Nov 3,
+// 2029). A content-driven source search, if ever added, must be the exhaustive
+// exemplar search docs/legal-constraints.md clears; see the dated records in
+// docs/patent-research.md and docs/patent-research-inpainting.md.
 
 #include "ui/canvas_widget.hpp"
 #include "ui/canvas_widget_shared.hpp"
