@@ -3786,6 +3786,7 @@ void MainWindow::refresh_layer_controls() {
 
 void MainWindow::refresh_document_info() {
   const UiProfileScope profile_scope("refresh_document_info");
+  sync_vector_shape_size_spins();
   refresh_palette_panel();
   schedule_palette_compliance_check();
   if (zoom_status_edit_ != nullptr) {
@@ -3805,7 +3806,7 @@ void MainWindow::refresh_document_info() {
     set_property_label_text(document_info_label_, tr("No document"));
     set_property_label_text(active_layer_info_label_, tr("Layer: No active layer"));
     for (auto* label : {active_layer_geometry_label_, active_layer_mask_label_, active_layer_adjustment_label_,
-                        active_layer_text_label_, active_tool_info_label_}) {
+                        active_layer_text_label_, active_layer_shape_label_, active_tool_info_label_}) {
       set_property_label_text(label, QString());
     }
     if (canvas_info_label_ != nullptr) {
@@ -3842,7 +3843,7 @@ void MainWindow::refresh_document_info() {
   if (layer == nullptr) {
     set_property_label_text(active_layer_info_label_, tr("Layer: No active layer"));
     for (auto* label : {active_layer_geometry_label_, active_layer_mask_label_, active_layer_adjustment_label_,
-                        active_layer_text_label_}) {
+                        active_layer_text_label_, active_layer_shape_label_}) {
       set_property_label_text(label, QString());
     }
   } else {

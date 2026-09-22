@@ -119,6 +119,7 @@ struct ActionBuildContext {
 
   // Written by build_tool_palette(), read by bind_action_translations().
   QToolBar* tool_palette{nullptr};
+  QToolBar* tool_flyout_bar{nullptr};
   QAction* default_colors_action{nullptr};
   QAction* swap_colors_action{nullptr};
 

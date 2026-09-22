@@ -3069,6 +3069,50 @@ void ui_shape_size_spins_reflect_and_resize_active_shape() {
   CHECK(!width_spin->isEnabled());
 }
 
+void ui_shape_size_controls_follow_move_and_properties_selection() {
+  VectorSettingsGuard settings_guard;
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+
+  require_action(window, "toolRectAction")->trigger();
+  QApplication::processEvents();
+  canvas->setFocus(Qt::MouseFocusReason);
+  shape_drag(*canvas, QPoint(100, 100), QPoint(300, 220));
+  const auto layer_id = *document.active_layer_id();
+
+  require_action(window, "toolMoveAction")->trigger();
+  QApplication::processEvents();
+  auto* options_width = window.findChild<QDoubleSpinBox*>(QStringLiteral("vectorShapeWidthSpin"));
+  auto* options_height = window.findChild<QDoubleSpinBox*>(QStringLiteral("vectorShapeHeightSpin"));
+  auto* properties_panel = window.findChild<QWidget*>(QStringLiteral("propertiesShapeSizePanel"));
+  auto* properties_width = window.findChild<QDoubleSpinBox*>(QStringLiteral("propertiesShapeWidthSpin"));
+  auto* properties_height = window.findChild<QDoubleSpinBox*>(QStringLiteral("propertiesShapeHeightSpin"));
+  CHECK(options_width != nullptr && options_height != nullptr);
+  CHECK(properties_panel != nullptr && properties_width != nullptr && properties_height != nullptr);
+  CHECK(options_width->isVisible() && options_width->isEnabled());
+  CHECK(!properties_panel->isHidden() && properties_panel->isEnabled());
+  CHECK(std::abs(options_width->value() - 200.0) < 0.5);
+  CHECK(std::abs(properties_width->value() - 200.0) < 0.5);
+  CHECK(std::abs(properties_height->value() - 120.0) < 0.5);
+
+  properties_width->setValue(360.0);
+  process_events_for(450);
+  auto* layer = document.find_layer(layer_id);
+  CHECK(layer != nullptr);
+  CHECK(std::abs(layer->bounds().width - 360.0) <= 1.0);
+  CHECK(std::abs(options_width->value() - 360.0) < 0.5);
+  CHECK(std::abs(properties_width->value() - 360.0) < 0.5);
+
+  options_height->setValue(60.0);
+  process_events_for(450);
+  layer = document.find_layer(layer_id);
+  CHECK(layer != nullptr);
+  CHECK(std::abs(layer->bounds().height - 60.0) <= 1.0);
+  CHECK(std::abs(properties_height->value() - 60.0) < 0.5);
+}
+
 void ui_shape_style_row_is_pixel_only_and_greys_size_at_normal() {
   VectorSettingsGuard settings_guard;
   patchy::ui::MainWindow window;
@@ -3811,6 +3855,8 @@ std::vector<patchy::test::TestCase> vector_shape_tool_tests() {
       {"ui_shape_tap_line_fixed_size_and_path_mode", ui_shape_tap_line_fixed_size_and_path_mode},
       {"ui_shape_size_spins_reflect_and_resize_active_shape",
        ui_shape_size_spins_reflect_and_resize_active_shape},
+      {"ui_shape_size_controls_follow_move_and_properties_selection",
+       ui_shape_size_controls_follow_move_and_properties_selection},
       {"ui_shape_style_row_is_pixel_only_and_greys_size_at_normal",
        ui_shape_style_row_is_pixel_only_and_greys_size_at_normal},
       {"ui_options_bar_never_shows_pixel_widgets_in_shape_mode",

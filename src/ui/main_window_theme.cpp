@@ -436,6 +436,19 @@ QString photoshop_style_template() {
       max-height: 24px;
       padding: 1px;
     }
+    QToolBar#toolFlyoutBar {
+      background: @tool_palette_bg;
+      border: 1px solid @tool_palette_border;
+      padding: 3px 4px;
+      spacing: 1px;
+    }
+    QToolBar#toolFlyoutBar QToolButton {
+      min-width: 28px;
+      max-width: 28px;
+      min-height: 24px;
+      max-height: 24px;
+      padding: 1px;
+    }
     QToolBar#toolPalette QPushButton {
       min-width: 26px;
       max-width: 26px;

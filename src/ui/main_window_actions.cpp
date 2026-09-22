@@ -294,12 +294,17 @@ void MainWindow::create_actions() {
 // toggle-view actions in the Window menu.
 void MainWindow::bind_action_translations(ActionBuildContext& ctx) {
   ctx.window_menu->addAction(ctx.tool_palette->toggleViewAction());
+  ctx.window_menu->addAction(ctx.tool_flyout_bar->toggleViewAction());
   ctx.window_menu->addAction(ctx.options_toolbar->toggleViewAction());
   // The "Options" toggle would otherwise be captured by macOS's menu-text heuristic
   // (any menubar action containing "options" gets relocated as a Preferences item).
   ctx.tool_palette->toggleViewAction()->setMenuRole(QAction::NoRole);
+  ctx.tool_flyout_bar->toggleViewAction()->setMenuRole(QAction::NoRole);
   ctx.options_toolbar->toggleViewAction()->setMenuRole(QAction::NoRole);
   bind_widget_text(ctx.tool_palette, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Tool Palette"));
+  bind_widget_text(ctx.tool_flyout_bar, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Tool Palette"));
+  bind_action_text(ctx.tool_flyout_bar->toggleViewAction(), QT_TR_NOOP("Tool Palette"));
+  bind_tooltip(ctx.tool_flyout_bar->toggleViewAction(), QT_TR_NOOP("Tool Palette"));
   bind_widget_text(ctx.options_toolbar, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Options"));
   const std::vector<std::pair<QAction*, const char*>> translated_actions = {
       {ctx.new_action, QT_TR_NOOP("&New")},

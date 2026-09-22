@@ -958,6 +958,8 @@ private:
   // spins mirror its path bounds and a debounced edit scales the shape about
   // its top-left corner (live shapes stay live under an axis-aligned scale).
   void sync_vector_shape_size_spins();
+  void handle_vector_shape_size_value_changed(bool width_changed, double value);
+  [[nodiscard]] bool vector_shape_size_controls_live();
   bool apply_options_bar_size_to_active_shape();
   void schedule_vector_shape_size_apply();
   // Per-mode visibility of the shape tools' options widgets, evaluated once
@@ -1450,6 +1452,9 @@ private:
     QPixmap thumbnail;
   };
   std::unordered_map<ChannelId, ChannelThumbnailCacheEntry> channel_thumbnail_cache_;
+  // Flyout actions stay in their existing menus and action group. This map
+  // lets the selected action populate the optional movable tool-group bar.
+  std::unordered_map<QAction*, QMenu*> tool_flyout_menus_;
   // Saved/work path thumbnails, keyed on DocumentPath::content_revision (the
   // documented cache key) plus the canvas extent; refresh_paths_panel now
   // rides layer activation and every shape drag, so rows must not
@@ -1660,6 +1665,10 @@ private:
   QLabel* active_layer_adjustment_label_{nullptr};
   QLabel* active_layer_text_label_{nullptr};
   QLabel* active_layer_shape_label_{nullptr};
+  QWidget* properties_shape_size_panel_{nullptr};
+  QDoubleSpinBox* properties_shape_width_spin_{nullptr};
+  QDoubleSpinBox* properties_shape_height_spin_{nullptr};
+  QPushButton* properties_shape_link_size_button_{nullptr};
   QPushButton* properties_edit_appearance_button_{nullptr};
   QLabel* active_tool_info_label_{nullptr};
   QLabel* canvas_info_label_{nullptr};
@@ -1892,6 +1901,7 @@ private:
   // in both vector modes.
   std::vector<QWidget*> vector_pixel_only_option_widgets_;
   std::vector<QWidget*> vector_shape_mode_option_widgets_;
+  std::vector<QWidget*> vector_shape_size_option_widgets_;
   std::vector<QWidget*> vector_vector_mode_option_widgets_;
   int current_healing_diffusion_{5};
   QString current_pattern_stamp_pattern_id_;

@@ -1722,6 +1722,59 @@ void MainWindow::create_docks() {
   active_layer_adjustment_label_ = add_properties_label(QStringLiteral("activeLayerAdjustmentLabel"));
   active_layer_text_label_ = add_properties_label(QStringLiteral("activeLayerTextLabel"));
   active_layer_shape_label_ = add_properties_label(QStringLiteral("activeLayerShapeLabel"));
+
+  properties_shape_size_panel_ = new QWidget(properties_panel);
+  properties_shape_size_panel_->setObjectName(QStringLiteral("propertiesShapeSizePanel"));
+  properties_shape_size_panel_->hide();
+  auto* properties_shape_size_form = new QFormLayout(properties_shape_size_panel_);
+  properties_shape_size_form->setContentsMargins(0, 2, 0, 2);
+  properties_shape_size_form->setSpacing(4);
+  const auto add_shape_size_label = [this](const char* source) {
+    auto* label = new QLabel(properties_shape_size_panel_);
+    bind_widget_text(label, source);
+    return label;
+  };
+  properties_shape_width_spin_ = new UnitSpinBox(SpinUnit::Pixels, properties_shape_size_panel_);
+  properties_shape_width_spin_->setObjectName(QStringLiteral("propertiesShapeWidthSpin"));
+  properties_shape_width_spin_->setRange(0.1, 60000.0);
+  properties_shape_width_spin_->setDecimals(1);
+  properties_shape_width_spin_->setSingleStep(1.0);
+  properties_shape_width_spin_->setKeyboardTracking(false);
+  properties_shape_width_spin_->setEnabled(false);
+  configure_dialog_spinbox(properties_shape_width_spin_, 92);
+  properties_shape_size_form->addRow(add_shape_size_label(QT_TR_NOOP("Width:")), properties_shape_width_spin_);
+
+  properties_shape_height_spin_ = new UnitSpinBox(SpinUnit::Pixels, properties_shape_size_panel_);
+  properties_shape_height_spin_->setObjectName(QStringLiteral("propertiesShapeHeightSpin"));
+  properties_shape_height_spin_->setRange(0.1, 60000.0);
+  properties_shape_height_spin_->setDecimals(1);
+  properties_shape_height_spin_->setSingleStep(1.0);
+  properties_shape_height_spin_->setKeyboardTracking(false);
+  properties_shape_height_spin_->setEnabled(false);
+  configure_dialog_spinbox(properties_shape_height_spin_, 92);
+  properties_shape_size_form->addRow(add_shape_size_label(QT_TR_NOOP("Height:")), properties_shape_height_spin_);
+
+  properties_shape_link_size_button_ = new QPushButton(properties_shape_size_panel_);
+  properties_shape_link_size_button_->setObjectName(QStringLiteral("propertiesShapeLinkSizeButton"));
+  properties_shape_link_size_button_->setCheckable(true);
+  properties_shape_link_size_button_->setIcon(simple_icon(QStringLiteral("link")));
+  properties_shape_link_size_button_->setFixedWidth(28);
+  bind_tooltip(properties_shape_link_size_button_,
+               QT_TR_NOOP("Keep the shape's width and height in proportion"));
+  properties_shape_link_size_button_->setEnabled(false);
+  properties_shape_size_form->addRow(QString(), properties_shape_link_size_button_);
+  properties_layout->addWidget(properties_shape_size_panel_);
+  connect(properties_shape_width_spin_, &QDoubleSpinBox::valueChanged, this,
+          [this](double value) { handle_vector_shape_size_value_changed(true, value); });
+  connect(properties_shape_height_spin_, &QDoubleSpinBox::valueChanged, this,
+          [this](double value) { handle_vector_shape_size_value_changed(false, value); });
+  connect(properties_shape_link_size_button_, &QPushButton::toggled, this, [this](bool checked) {
+    if (vector_shape_link_size_button_ != nullptr) {
+      const QSignalBlocker blocker(vector_shape_link_size_button_);
+      vector_shape_link_size_button_->setChecked(checked);
+    }
+  });
+
   properties_edit_appearance_button_ = new QPushButton(tr("Edit Appearance..."), properties_panel);
   properties_edit_appearance_button_->setObjectName(QStringLiteral("propertiesEditAppearanceButton"));
   bind_widget_text(properties_edit_appearance_button_, QT_TR_NOOP("Edit Appearance..."));

@@ -510,6 +510,37 @@ private:
   std::function<void()> callback_;
 };
 
+class ToolFlyoutEventFilter final : public QObject {
+public:
+  ToolFlyoutEventFilter(std::function<void()> open_menu, QObject* parent)
+      : QObject(parent), open_menu_(std::move(open_menu)) {}
+
+protected:
+  bool eventFilter(QObject* watched, QEvent* event) override {
+    if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseButtonDblClick) {
+      auto* mouse_event = static_cast<QMouseEvent*>(event);
+      if (mouse_event->button() == Qt::RightButton && event->type() == QEvent::MouseButtonPress) {
+        if (open_menu_) {
+          open_menu_();
+        }
+        mouse_event->accept();
+        return true;
+      }
+      if (mouse_event->button() == Qt::LeftButton && event->type() == QEvent::MouseButtonDblClick) {
+        if (open_menu_) {
+          open_menu_();
+        }
+        mouse_event->accept();
+        return true;
+      }
+    }
+    return QObject::eventFilter(watched, event);
+  }
+
+private:
+  std::function<void()> open_menu_;
+};
+
 // Stock QToolBar collapses an expanded overflow bar half a second after the
 // pointer leaves it, which makes the palette's second column nearly
 // unreachable. Swallowing Leave while the extension button is checked turns
@@ -783,6 +814,23 @@ void MainWindow::build_tool_palette(ActionBuildContext& ctx) {
   tool_palette->setMinimumWidth(kToolPaletteCollapsedMinWidth);
   addToolBar(Qt::LeftToolBarArea, tool_palette);
 
+  // One optional group bar is reused for every flyout group. It floats beside
+  // the palette by default, but remains a real QToolBar so users can move it
+  // and keep that placement while switching tool groups.
+  auto* tool_flyout_bar = new QToolBar(tr("Tool Palette"), this);
+  tool_flyout_bar->setObjectName(QStringLiteral("toolFlyoutBar"));
+  tool_flyout_bar->setOrientation(Qt::Vertical);
+  tool_flyout_bar->setMovable(true);
+  tool_flyout_bar->setFloatable(true);
+  tool_flyout_bar->setAllowedAreas(Qt::AllToolBarAreas);
+  tool_flyout_bar->setToolButtonStyle(Qt::ToolButtonIconOnly);
+  tool_flyout_bar->setIconSize(QSize(20, 20));
+  tool_flyout_bar->setProperty("toolFlyoutBar", true);
+  tool_flyout_bar->setWindowFlags(Qt::Tool | Qt::WindowTitleHint | Qt::WindowCloseButtonHint);
+  tool_flyout_bar->setAttribute(Qt::WA_QuitOnClose, false);
+  tool_flyout_bar->setVisible(false);
+  tool_flyout_menus_.clear();
+
   auto* tool_group = new QActionGroup(this);
   tool_group->setExclusive(true);
   tool_action_group_ = tool_group;
@@ -806,9 +854,9 @@ void MainWindow::build_tool_palette(ActionBuildContext& ctx) {
         register_document_action(action);
         return action;
       };
-  const auto configure_tool_flyout = [](QToolBar* palette, QMenu* menu, QToolButton* button,
-                                        QAction* default_action,
-                                        std::initializer_list<QAction*> actions) {
+  const auto configure_tool_flyout = [this, tool_flyout_bar](QToolBar* palette, QMenu* menu,
+                                                              QToolButton* button, QAction* default_action,
+                                                              std::initializer_list<QAction*> actions) {
     button->setProperty("toolFlyout", true);
     button->setToolButtonStyle(Qt::ToolButtonIconOnly);
     button->setPopupMode(QToolButton::DelayedPopup);
@@ -822,8 +870,9 @@ void MainWindow::build_tool_palette(ActionBuildContext& ctx) {
     // mousePressEvent and restart the hold timer, so swallow it and open the
     // menu through the same showMenu() path the timer uses. The first click
     // of the pair still selects the default tool, as in Photoshop.
-    button->installEventFilter(new MouseDoubleClickFilter([button] { button->showMenu(); }, button));
+    button->installEventFilter(new ToolFlyoutEventFilter([button] { button->showMenu(); }, button));
     for (auto* action : actions) {
+      tool_flyout_menus_[action] = menu;
       QObject::connect(action, &QAction::triggered, button, [button, menu, action] {
         button->setDefaultAction(action);
         button->setMenu(menu);
@@ -1005,7 +1054,7 @@ void MainWindow::build_tool_palette(ActionBuildContext& ctx) {
         },
         zoom_button));
   }
-  connect(tool_group, &QActionGroup::triggered, this, [this](QAction* action) {
+  connect(tool_group, &QActionGroup::triggered, this, [this, tool_palette, tool_flyout_bar](QAction* action) {
     if (canvas_ == nullptr) {
       return;
     }
@@ -1021,6 +1070,21 @@ void MainWindow::build_tool_palette(ActionBuildContext& ctx) {
     }
     current_tool_ = selected;
     canvas_->set_tool(selected);
+    const auto flyout = tool_flyout_menus_.find(action);
+    if (flyout == tool_flyout_menus_.end() || flyout->second == nullptr) {
+      tool_flyout_bar->hide();
+    } else {
+      tool_flyout_bar->clear();
+      for (auto* group_action : flyout->second->actions()) {
+        tool_flyout_bar->addAction(group_action);
+      }
+      tool_flyout_bar->adjustSize();
+      if (!tool_flyout_bar->property("toolFlyoutPositioned").toBool()) {
+        tool_flyout_bar->move(tool_palette->mapToGlobal(QPoint(tool_palette->width() + 2, 0)));
+        tool_flyout_bar->setProperty("toolFlyoutPositioned", true);
+      }
+      tool_flyout_bar->show();
+    }
     set_eraser_brush_settings_active(selected == CanvasTool::Eraser);
     if (selected != CanvasTool::Text ||
         canvas_->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor")) == nullptr) {
@@ -1090,6 +1154,7 @@ void MainWindow::build_tool_palette(ActionBuildContext& ctx) {
 
   // Export the cross-phase locals bind_action_translations() still needs.
   ctx.tool_palette = tool_palette;
+  ctx.tool_flyout_bar = tool_flyout_bar;
   ctx.default_colors_action = default_colors_action;
   ctx.swap_colors_action = swap_colors_action;
 }
