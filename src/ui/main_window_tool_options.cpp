@@ -2512,7 +2512,9 @@ void MainWindow::refresh_options_bar() {
     // Visibility changes alter how many controls there are, so recompute the
     // wrapped height and let the toolbar grow or shrink accordingly.
     options_flow_container_->layout()->invalidate();
+  #ifndef Q_OS_ANDROID
     options_flow_container_->updateGeometry();
+  #endif
   }
   sync_transform_controls_from_canvas();
 
