@@ -158,7 +158,7 @@ emit native `<rect>`/`<ellipse>`/`<line>` (round-trips back to live).
   keep Photoshop's save-a-copy semantics, and a modified svg-opened document
   routes Save to Save As (.psd default). Writer notices ride the save/export
   status message.
-- Export Flat Image routes svg to the same structure-preserving writer and
+- File > Export > Flat Image routes svg to the same structure-preserving writer and
   skips the raster options prompt (vectors scale client-side).
 - Edit > Define Custom Shape from SVG File: one stampable library shape per
   file (geometry merged, paint ignored, unit-normalized, combine ops

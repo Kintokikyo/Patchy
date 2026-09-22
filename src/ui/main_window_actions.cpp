@@ -308,7 +308,7 @@ void MainWindow::bind_action_translations(ActionBuildContext& ctx) {
       {recent_folders_menu_->menuAction(), QT_TR_NOOP("Open Recent &Folder")},
       {ctx.save_action, QT_TR_NOOP("&Save")},
       {ctx.save_as_action, QT_TR_NOOP("Save &As...")},
-      {ctx.export_flat_action, QT_TR_NOOP("Export &Flat Image...")},
+      {ctx.export_flat_action, QT_TR_NOOP("&Flat Image...")},
       {ctx.page_setup_action, QT_TR_NOOP("Page Set&up...")},
       {ctx.print_action, QT_TR_NOOP("&Print...")},
       {ctx.close_action, QT_TR_NOOP("&Close")},

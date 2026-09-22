@@ -8393,7 +8393,7 @@ RVB : %2, %3, %4</translation>
     </message>
     <message>
         <source>Image or Photoshop files, or folders of images, to open.</source>
-        <translation>Fichiers image ou Photoshop, ou dossiers d'images, à ouvrir.</translation>
+        <translation>Fichiers image ou Photoshop, ou dossiers d&apos;images, à ouvrir.</translation>
     </message>
     <message>
         <source>Auto Sort</source>
@@ -8405,7 +8405,7 @@ RVB : %2, %3, %4</translation>
     </message>
     <message>
         <source>Reverse the current order.</source>
-        <translation>Inverse l'ordre actuel.</translation>
+        <translation>Inverse l&apos;ordre actuel.</translation>
     </message>
     <message>
         <source>Export Documents to Folder</source>
@@ -10256,10 +10256,6 @@ RVB : %2, %3, %4</translation>
         <translation>Enregistrer &amp;sous...</translation>
     </message>
     <message>
-        <source>Export &amp;Flat Image...</source>
-        <translation>&amp;Exporter l&apos;image aplatie...</translation>
-    </message>
-    <message>
         <source>Page Set&amp;up...</source>
         <translation>&amp;Format d&apos;impression...</translation>
     </message>
@@ -10862,18 +10858,6 @@ RVB : %2, %3, %4</translation>
     <message>
         <source>Place &amp;Embedded...</source>
         <translation>Importer &amp;et incorporer...</translation>
-    </message>
-    <message>
-        <source>Export Layers as Sprite S&amp;heet...</source>
-        <translation>Exporter les calques en &amp;planche de sprites...</translation>
-    </message>
-    <message>
-        <source>Export Layers as Image Se&amp;quence...</source>
-        <translation>Exporter les calques en &amp;séquence d&apos;images...</translation>
-    </message>
-    <message>
-        <source>Export Layers as Animated &amp;GIF...</source>
-        <translation>Exporter les calques en &amp;GIF animé...</translation>
     </message>
     <message>
         <source>Scrip&amp;ts</source>
@@ -16984,10 +16968,6 @@ Y : %2
         <translation>Forme : Fond %1 | Contour %2 | Contour progressif %3 px | Densité %4 %</translation>
     </message>
     <message>
-        <source>Export &amp;Multi-Page PDF...</source>
-        <translation>Exporter un PDF &amp;multipage...</translation>
-    </message>
-    <message>
         <source>%1 - %2</source>
         <translation>%1 - %2</translation>
     </message>
@@ -17023,10 +17003,6 @@ Y : %2
         <translation>Ouvrir un &amp;dossier...</translation>
     </message>
     <message>
-        <source>Export Documents to Fo&amp;lder...</source>
-        <translation>Exporter &amp;les documents vers un dossier...</translation>
-    </message>
-    <message>
         <source>Open Folder</source>
         <translation>Ouvrir un dossier</translation>
     </message>
@@ -17036,7 +17012,7 @@ Y : %2
     </message>
     <message>
         <source>Opening image %1 of %2...</source>
-        <translation>Ouverture de l'image %1 sur %2...</translation>
+        <translation>Ouverture de l&apos;image %1 sur %2...</translation>
     </message>
     <message>
         <source>Opened %1 of %2 images from %3</source>
@@ -17052,15 +17028,15 @@ Y : %2
     <message numerus="yes">
         <source> (%n could not be opened)</source>
         <translation>
-            <numerusform> (%n n'a pas pu être ouvert)</numerusform>
-            <numerusform> (%n n'ont pas pu être ouverts)</numerusform>
+            <numerusform> (%n n&apos;a pas pu être ouvert)</numerusform>
+            <numerusform> (%n n&apos;ont pas pu être ouverts)</numerusform>
         </translation>
     </message>
     <message>
         <source>These files could not be opened:
 
 %1</source>
-        <translation>Ces fichiers n'ont pas pu être ouverts :
+        <translation>Ces fichiers n&apos;ont pas pu être ouverts :
 
 %1</translation>
     </message>
@@ -17074,11 +17050,39 @@ Y : %2
     </message>
     <message>
         <source>Writing image %1 of %2...</source>
-        <translation>Écriture de l'image %1 sur %2...</translation>
+        <translation>Écriture de l&apos;image %1 sur %2...</translation>
     </message>
     <message>
         <source>Export cancelled after %1 of %2 images</source>
         <translation>Export annulé après %1 images sur %2</translation>
+    </message>
+    <message>
+        <source>&amp;Flat Image...</source>
+        <translation>&amp;Image aplatie...</translation>
+    </message>
+    <message>
+        <source>E&amp;xport</source>
+        <translation>E&amp;xporter</translation>
+    </message>
+    <message>
+        <source>&amp;Multi-Page PDF...</source>
+        <translation>PDF &amp;multipage...</translation>
+    </message>
+    <message>
+        <source>&amp;Documents to Folder...</source>
+        <translation>&amp;Documents vers un dossier...</translation>
+    </message>
+    <message>
+        <source>Layers as Sprite S&amp;heet...</source>
+        <translation>Calques en &amp;planche de sprites...</translation>
+    </message>
+    <message>
+        <source>Layers as Image Se&amp;quence...</source>
+        <translation>Calques en &amp;séquence d&apos;images...</translation>
+    </message>
+    <message>
+        <source>Layers as Animated &amp;GIF...</source>
+        <translation>Calques en &amp;GIF animé...</translation>
     </message>
 </context>
 <context>

@@ -10256,10 +10256,6 @@ RGB: %2, %3, %4</translation>
         <translation>Speichern &amp;unter...</translation>
     </message>
     <message>
-        <source>Export &amp;Flat Image...</source>
-        <translation>&amp;Reduziertes Bild exportieren...</translation>
-    </message>
-    <message>
         <source>Page Set&amp;up...</source>
         <translation>Seite &amp;einrichten...</translation>
     </message>
@@ -10862,18 +10858,6 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Place &amp;Embedded...</source>
         <translation>&amp;Eingebettet platzieren...</translation>
-    </message>
-    <message>
-        <source>Export Layers as Sprite S&amp;heet...</source>
-        <translation>Ebenen als Sprite-S&amp;heet exportieren...</translation>
-    </message>
-    <message>
-        <source>Export Layers as Image Se&amp;quence...</source>
-        <translation>Ebenen als Bildse&amp;quenz exportieren...</translation>
-    </message>
-    <message>
-        <source>Export Layers as Animated &amp;GIF...</source>
-        <translation>Ebenen als animiertes &amp;GIF exportieren...</translation>
     </message>
     <message>
         <source>Scrip&amp;ts</source>
@@ -16984,10 +16968,6 @@ Y: %2
         <translation>Form: Füllung %1 | Kontur %2 | Weiche Kante %3 px | Dichte %4 %</translation>
     </message>
     <message>
-        <source>Export &amp;Multi-Page PDF...</source>
-        <translation>&amp;Mehrseitige PDF exportieren...</translation>
-    </message>
-    <message>
         <source>%1 - %2</source>
         <translation>%1 - %2</translation>
     </message>
@@ -17021,10 +17001,6 @@ Y: %2
     <message>
         <source>Open Fol&amp;der...</source>
         <translation>Or&amp;dner öffnen...</translation>
-    </message>
-    <message>
-        <source>Export Documents to Fo&amp;lder...</source>
-        <translation>Dokumente in Ordner e&amp;xportieren...</translation>
     </message>
     <message>
         <source>Open Folder</source>
@@ -17079,6 +17055,34 @@ Y: %2
     <message>
         <source>Export cancelled after %1 of %2 images</source>
         <translation>Export nach %1 von %2 Bildern abgebrochen</translation>
+    </message>
+    <message>
+        <source>&amp;Flat Image...</source>
+        <translation>&amp;Reduziertes Bild...</translation>
+    </message>
+    <message>
+        <source>E&amp;xport</source>
+        <translation>E&amp;xportieren</translation>
+    </message>
+    <message>
+        <source>&amp;Multi-Page PDF...</source>
+        <translation>&amp;Mehrseitige PDF...</translation>
+    </message>
+    <message>
+        <source>&amp;Documents to Folder...</source>
+        <translation>&amp;Dokumente in Ordner...</translation>
+    </message>
+    <message>
+        <source>Layers as Sprite S&amp;heet...</source>
+        <translation>Ebenen als Sprite-S&amp;heet...</translation>
+    </message>
+    <message>
+        <source>Layers as Image Se&amp;quence...</source>
+        <translation>Ebenen als Bildse&amp;quenz...</translation>
+    </message>
+    <message>
+        <source>Layers as Animated &amp;GIF...</source>
+        <translation>Ebenen als animiertes &amp;GIF...</translation>
     </message>
 </context>
 <context>

@@ -1,7 +1,8 @@
 // File > Open Folder (every image in a folder as its own tab, also a dropped or
-// command-line directory), File > Export Documents to Folder (the checked open
-// documents as numbered image files), and the shared document-order list's Auto
-// Sort / Reverse buttons (docs/import.md, docs/pdf.md).
+// command-line directory), File > Export > Documents to Folder (the checked open
+// documents as numbered image files), the shared document-order list's Auto
+// Sort / Reverse buttons, and the shape of the File > Export submenu itself
+// (docs/import.md, docs/pdf.md, docs/ui-conventions.md).
 
 #include "core/document.hpp"
 #include "ui/app_settings.hpp"
@@ -29,7 +30,9 @@
 #include <QImage>
 #include <QLabel>
 #include <QLineEdit>
+#include <QKeySequence>
 #include <QListWidget>
+#include <QMenu>
 #include <QMessageBox>
 #include <QMimeData>
 #include <QProgressDialog>
@@ -44,6 +47,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <utility>
 #include <vector>
 
 using patchy::test::ui::find_top_level_dialog;
@@ -506,6 +510,49 @@ void ui_document_order_auto_sort_and_reverse() {
   CHECK(seen);
 }
 
+// Every export command lives under File > Export, with the verb carried by the
+// submenu title instead of repeated on each row (docs/ui-conventions.md).
+void ui_file_export_menu_actions_registered() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+
+  auto* export_menu = window.findChild<QMenu*>(QStringLiteral("fileExportMenu"));
+  CHECK(export_menu != nullptr);
+  if (export_menu == nullptr) {
+    return;
+  }
+  const std::vector<std::pair<const char*, const char*>> exports = {
+      {"fileExportFlatAction", "file.export_flat"},
+      {"fileExportMultiPagePdfAction", "file.export_multipage_pdf"},
+      {"fileExportDocumentsToFolderAction", "file.export_documents_to_folder"},
+      {"fileExportSpriteSheetAction", "file.export_sprite_sheet"},
+      {"fileExportImageSequenceAction", "file.export_image_sequence"},
+      {"fileExportAnimatedGifAction", "file.export_animated_gif"},
+  };
+  // The File menu itself holds the submenu, never the commands.
+  auto* file_menu = qobject_cast<QMenu*>(export_menu->parentWidget());
+  CHECK(file_menu != nullptr);
+  for (const auto& [object_name, command_id] : exports) {
+    auto* action = require_action(window, object_name);
+    CHECK(export_menu->actions().contains(action));
+    if (file_menu != nullptr) {
+      CHECK(!file_menu->actions().contains(action));
+    }
+    // Command ids are persisted identifiers; regrouping the menu never moves one.
+    const auto* command = window.hotkey_registry().find_command(QString::fromLatin1(command_id));
+    CHECK(command != nullptr);
+    CHECK(command != nullptr && command->action == action);
+  }
+  CHECK(require_action(window, "fileExportFlatAction")->text() == QStringLiteral("&Flat Image..."));
+  CHECK(require_action(window, "fileExportDocumentsToFolderAction")->text() ==
+        QStringLiteral("&Documents to Folder..."));
+  CHECK(require_action(window, "fileExportAnimatedGifAction")->text() ==
+        QStringLiteral("Layers as Animated &GIF..."));
+  // Photoshop's Save for Web key survives the move into the submenu.
+  CHECK(require_action(window, "fileExportFlatAction")->shortcut() ==
+        QKeySequence(Qt::CTRL | Qt::ALT | Qt::SHIFT | Qt::Key_S));
+}
+
 }  // namespace
 
 std::vector<patchy::test::TestCase> folder_open_export_tests() {
@@ -514,6 +561,7 @@ std::vector<patchy::test::TestCase> folder_open_export_tests() {
       {"ui_open_folder_empty_reports_status", ui_open_folder_empty_reports_status},
       {"ui_open_folder_drop_and_cli_expand_directories", ui_open_folder_drop_and_cli_expand_directories},
       {"ui_folder_actions_and_commands_registered", ui_folder_actions_and_commands_registered},
+      {"ui_file_export_menu_actions_registered", ui_file_export_menu_actions_registered},
       {"ui_export_documents_to_folder_writes_numbered_files", ui_export_documents_to_folder_writes_numbered_files},
       {"ui_export_documents_dialog_round_trip", ui_export_documents_dialog_round_trip},
       {"ui_document_order_auto_sort_and_reverse", ui_document_order_auto_sort_and_reverse},

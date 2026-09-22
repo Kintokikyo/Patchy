@@ -10189,10 +10189,6 @@ Mixed selection</source>
         <translation>%2 から %1 フレームを読み込みました</translation>
     </message>
     <message>
-        <source>Export Layers as Sprite S&amp;heet...</source>
-        <translation>レイヤーをスプライトシートに書き出し(&amp;H)...</translation>
-    </message>
-    <message>
         <source>Export Sprite Sheet</source>
         <translation>スプライトシートの書き出し</translation>
     </message>
@@ -10211,14 +10207,6 @@ Mixed selection</source>
     <message>
         <source>&amp;Image Sequence to Layers...</source>
         <translation>画像シーケンスをレイヤーへ(&amp;I)...</translation>
-    </message>
-    <message>
-        <source>Export Layers as Image Se&amp;quence...</source>
-        <translation>レイヤーを画像シーケンスとして書き出し(&amp;Q)...</translation>
-    </message>
-    <message>
-        <source>Export Layers as Animated &amp;GIF...</source>
-        <translation>レイヤーをアニメーション GIF として書き出し(&amp;G)...</translation>
     </message>
     <message>
         <source>Animation Preview</source>
@@ -10487,10 +10475,6 @@ Mixed selection</source>
     <message>
         <source>Save &amp;As...</source>
         <translation>名前を付けて保存(&amp;A)...</translation>
-    </message>
-    <message>
-        <source>Export &amp;Flat Image...</source>
-        <translation>統合画像を書き出し(&amp;F)...</translation>
     </message>
     <message>
         <source>Page Set&amp;up...</source>
@@ -16942,10 +16926,6 @@ Clipped to the layer below</source>
         <translation>シェイプ: 塗り %1 | 線 %2 | ぼかし %3 px | 濃度 %4%</translation>
     </message>
     <message>
-        <source>Export &amp;Multi-Page PDF...</source>
-        <translation>複数ページ PDF を書き出し(&amp;M)...</translation>
-    </message>
-    <message>
         <source>%1 - %2</source>
         <translation>%1 - %2</translation>
     </message>
@@ -16978,10 +16958,6 @@ Clipped to the layer below</source>
     <message>
         <source>Open Fol&amp;der...</source>
         <translation>フォルダーを開く(&amp;D)...</translation>
-    </message>
-    <message>
-        <source>Export Documents to Fo&amp;lder...</source>
-        <translation>ドキュメントをフォルダーに書き出し(&amp;L)...</translation>
     </message>
     <message>
         <source>Open Folder</source>
@@ -17034,6 +17010,34 @@ Clipped to the layer below</source>
     <message>
         <source>Export cancelled after %1 of %2 images</source>
         <translation>%2 個中 %1 個の画像で書き出しをキャンセルしました</translation>
+    </message>
+    <message>
+        <source>&amp;Flat Image...</source>
+        <translation>統合画像(&amp;F)...</translation>
+    </message>
+    <message>
+        <source>E&amp;xport</source>
+        <translation>書き出し(&amp;X)</translation>
+    </message>
+    <message>
+        <source>&amp;Multi-Page PDF...</source>
+        <translation>複数ページ PDF(&amp;M)...</translation>
+    </message>
+    <message>
+        <source>&amp;Documents to Folder...</source>
+        <translation>ドキュメントをフォルダーへ(&amp;D)...</translation>
+    </message>
+    <message>
+        <source>Layers as Sprite S&amp;heet...</source>
+        <translation>レイヤーをスプライトシートへ(&amp;H)...</translation>
+    </message>
+    <message>
+        <source>Layers as Image Se&amp;quence...</source>
+        <translation>レイヤーを画像シーケンスへ(&amp;Q)...</translation>
+    </message>
+    <message>
+        <source>Layers as Animated &amp;GIF...</source>
+        <translation>レイヤーをアニメーション GIF へ(&amp;G)...</translation>
     </message>
 </context>
 <context>

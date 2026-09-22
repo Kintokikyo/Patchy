@@ -8405,7 +8405,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Reverse the current order.</source>
-        <translation>Inverte l'ordine attuale.</translation>
+        <translation>Inverte l&apos;ordine attuale.</translation>
     </message>
     <message>
         <source>Export Documents to Folder</source>
@@ -10256,10 +10256,6 @@ RGB: %2, %3, %4</translation>
         <translation>Salva con &amp;nome...</translation>
     </message>
     <message>
-        <source>Export &amp;Flat Image...</source>
-        <translation>Esporta immagine uni&amp;ficata...</translation>
-    </message>
-    <message>
         <source>Page Set&amp;up...</source>
         <translation>&amp;Imposta pagina...</translation>
     </message>
@@ -10862,18 +10858,6 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Place &amp;Embedded...</source>
         <translation>Inserisci &amp;elementi incorporati...</translation>
-    </message>
-    <message>
-        <source>Export Layers as Sprite S&amp;heet...</source>
-        <translation>Esporta livelli come sprite s&amp;heet...</translation>
-    </message>
-    <message>
-        <source>Export Layers as Image Se&amp;quence...</source>
-        <translation>Esporta livelli come se&amp;quenza di immagini...</translation>
-    </message>
-    <message>
-        <source>Export Layers as Animated &amp;GIF...</source>
-        <translation>Esporta livelli come &amp;GIF animata...</translation>
     </message>
     <message>
         <source>Scrip&amp;ts</source>
@@ -16984,10 +16968,6 @@ Y: %2
         <translation>Forma: Riempimento %1 | Traccia %2 | Sfumatura %3 px | Densità %4%</translation>
     </message>
     <message>
-        <source>Export &amp;Multi-Page PDF...</source>
-        <translation>Esporta PDF &amp;multipagina...</translation>
-    </message>
-    <message>
         <source>%1 - %2</source>
         <translation>%1 - %2</translation>
     </message>
@@ -17023,10 +17003,6 @@ Y: %2
         <translation>Apri car&amp;tella...</translation>
     </message>
     <message>
-        <source>Export Documents to Fo&amp;lder...</source>
-        <translation>Esporta documenti in una carte&amp;lla...</translation>
-    </message>
-    <message>
         <source>Open Folder</source>
         <translation>Apri cartella</translation>
     </message>
@@ -17036,7 +17012,7 @@ Y: %2
     </message>
     <message>
         <source>Opening image %1 of %2...</source>
-        <translation>Apertura dell'immagine %1 di %2...</translation>
+        <translation>Apertura dell&apos;immagine %1 di %2...</translation>
     </message>
     <message>
         <source>Opened %1 of %2 images from %3</source>
@@ -17074,11 +17050,39 @@ Y: %2
     </message>
     <message>
         <source>Writing image %1 of %2...</source>
-        <translation>Scrittura dell'immagine %1 di %2...</translation>
+        <translation>Scrittura dell&apos;immagine %1 di %2...</translation>
     </message>
     <message>
         <source>Export cancelled after %1 of %2 images</source>
         <translation>Esportazione annullata dopo %1 immagini su %2</translation>
+    </message>
+    <message>
+        <source>&amp;Flat Image...</source>
+        <translation>Immagine uni&amp;ficata...</translation>
+    </message>
+    <message>
+        <source>E&amp;xport</source>
+        <translation>E&amp;sporta</translation>
+    </message>
+    <message>
+        <source>&amp;Multi-Page PDF...</source>
+        <translation>PDF &amp;multipagina...</translation>
+    </message>
+    <message>
+        <source>&amp;Documents to Folder...</source>
+        <translation>&amp;Documenti in una cartella...</translation>
+    </message>
+    <message>
+        <source>Layers as Sprite S&amp;heet...</source>
+        <translation>Livelli come sprite s&amp;heet...</translation>
+    </message>
+    <message>
+        <source>Layers as Image Se&amp;quence...</source>
+        <translation>Livelli come se&amp;quenza di immagini...</translation>
+    </message>
+    <message>
+        <source>Layers as Animated &amp;GIF...</source>
+        <translation>Livelli come &amp;GIF animata...</translation>
     </message>
 </context>
 <context>

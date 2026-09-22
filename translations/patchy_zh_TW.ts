@@ -10229,10 +10229,6 @@ RGB：%2, %3, %4</translation>
         <translation>另存新檔(&amp;A)...</translation>
     </message>
     <message>
-        <source>Export &amp;Flat Image...</source>
-        <translation>轉存平面化影像(&amp;F)...</translation>
-    </message>
-    <message>
         <source>Page Set&amp;up...</source>
         <translation>版面設定(&amp;u)...</translation>
     </message>
@@ -10835,18 +10831,6 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Place &amp;Embedded...</source>
         <translation>置入嵌入的物件(&amp;E)...</translation>
-    </message>
-    <message>
-        <source>Export Layers as Sprite S&amp;heet...</source>
-        <translation>將圖層轉存為精靈圖(&amp;h)...</translation>
-    </message>
-    <message>
-        <source>Export Layers as Image Se&amp;quence...</source>
-        <translation>將圖層轉存為影像序列(&amp;q)...</translation>
-    </message>
-    <message>
-        <source>Export Layers as Animated &amp;GIF...</source>
-        <translation>將圖層轉存為動畫 GIF(&amp;G)...</translation>
     </message>
     <message>
         <source>Scrip&amp;ts</source>
@@ -16942,10 +16926,6 @@ Y：%2
         <translation>形狀：填色 %1 | 筆畫 %2 | 羽化 %3 px | 濃度 %4%</translation>
     </message>
     <message>
-        <source>Export &amp;Multi-Page PDF...</source>
-        <translation>匯出多頁 PDF(&amp;M)...</translation>
-    </message>
-    <message>
         <source>%1 - %2</source>
         <translation>%1 - %2</translation>
     </message>
@@ -16978,10 +16958,6 @@ Y：%2
     <message>
         <source>Open Fol&amp;der...</source>
         <translation>開啟資料夾(&amp;D)...</translation>
-    </message>
-    <message>
-        <source>Export Documents to Fo&amp;lder...</source>
-        <translation>匯出文件至資料夾(&amp;L)...</translation>
     </message>
     <message>
         <source>Open Folder</source>
@@ -17034,6 +17010,34 @@ Y：%2
     <message>
         <source>Export cancelled after %1 of %2 images</source>
         <translation>已在匯出 %2 個影像中的 %1 個後取消</translation>
+    </message>
+    <message>
+        <source>&amp;Flat Image...</source>
+        <translation>平面化影像(&amp;F)...</translation>
+    </message>
+    <message>
+        <source>E&amp;xport</source>
+        <translation>匯出(&amp;X)</translation>
+    </message>
+    <message>
+        <source>&amp;Multi-Page PDF...</source>
+        <translation>多頁 PDF(&amp;M)...</translation>
+    </message>
+    <message>
+        <source>&amp;Documents to Folder...</source>
+        <translation>文件至資料夾(&amp;D)...</translation>
+    </message>
+    <message>
+        <source>Layers as Sprite S&amp;heet...</source>
+        <translation>圖層至精靈圖(&amp;H)...</translation>
+    </message>
+    <message>
+        <source>Layers as Image Se&amp;quence...</source>
+        <translation>圖層至影像序列(&amp;Q)...</translation>
+    </message>
+    <message>
+        <source>Layers as Animated &amp;GIF...</source>
+        <translation>圖層至動畫 GIF(&amp;G)...</translation>
     </message>
 </context>
 <context>

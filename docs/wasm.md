@@ -217,9 +217,9 @@ onto setTimeout before qtloader runs (harness below).
   Single-instance QLocalServer
   off. Update check off (the site redeploy is the update mechanism; the
   GitHub fetch would fail CORS). Script sounds no-op. Scanner import off.
-  Export Layers as Image Sequence hidden. Multi-file pickers degrade to one
-  pick. Browser imports stay out of Recents because their source is released
-  after load. Script-editor plain Save downloads nothing (Save As does).
+  File > Export > Layers as Image Sequence hidden. Multi-file pickers degrade
+  to one pick. Browser imports stay out of Recents because their source is
+  released after load. Script-editor plain Save downloads nothing (Save As does).
 - **Assets.** `--preload-file` mounts staged copies at `/fonts`,
   `/translations`, `/scripts` inside `patchy.data`; `applicationDirPath()`
   is `/`, so existing directory probes work unchanged. The `qtbase_<code>.qm`

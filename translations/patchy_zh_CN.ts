@@ -10229,10 +10229,6 @@ RGB：%2, %3, %4</translation>
         <translation>存储为(&amp;A)...</translation>
     </message>
     <message>
-        <source>Export &amp;Flat Image...</source>
-        <translation>导出平面图像(&amp;F)...</translation>
-    </message>
-    <message>
         <source>Page Set&amp;up...</source>
         <translation>页面设置(&amp;U)...</translation>
     </message>
@@ -10835,18 +10831,6 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Place &amp;Embedded...</source>
         <translation>置入嵌入对象(&amp;E)...</translation>
-    </message>
-    <message>
-        <source>Export Layers as Sprite S&amp;heet...</source>
-        <translation>将图层导出为精灵表(&amp;H)...</translation>
-    </message>
-    <message>
-        <source>Export Layers as Image Se&amp;quence...</source>
-        <translation>将图层导出为图像序列(&amp;Q)...</translation>
-    </message>
-    <message>
-        <source>Export Layers as Animated &amp;GIF...</source>
-        <translation>将图层导出为 GIF 动画(&amp;G)...</translation>
     </message>
     <message>
         <source>Scrip&amp;ts</source>
@@ -16942,10 +16926,6 @@ Y: %2
         <translation>形状：填充 %1 | 描边 %2 | 羽化 %3 px | 浓度 %4%</translation>
     </message>
     <message>
-        <source>Export &amp;Multi-Page PDF...</source>
-        <translation>导出多页 PDF(&amp;M)...</translation>
-    </message>
-    <message>
         <source>%1 - %2</source>
         <translation>%1 - %2</translation>
     </message>
@@ -16978,10 +16958,6 @@ Y: %2
     <message>
         <source>Open Fol&amp;der...</source>
         <translation>打开文件夹(&amp;D)...</translation>
-    </message>
-    <message>
-        <source>Export Documents to Fo&amp;lder...</source>
-        <translation>导出文档到文件夹(&amp;L)...</translation>
     </message>
     <message>
         <source>Open Folder</source>
@@ -17034,6 +17010,34 @@ Y: %2
     <message>
         <source>Export cancelled after %1 of %2 images</source>
         <translation>已在导出 %2 张图像中的 %1 张后取消</translation>
+    </message>
+    <message>
+        <source>&amp;Flat Image...</source>
+        <translation>平面图像(&amp;F)...</translation>
+    </message>
+    <message>
+        <source>E&amp;xport</source>
+        <translation>导出(&amp;X)</translation>
+    </message>
+    <message>
+        <source>&amp;Multi-Page PDF...</source>
+        <translation>多页 PDF(&amp;M)...</translation>
+    </message>
+    <message>
+        <source>&amp;Documents to Folder...</source>
+        <translation>文档到文件夹(&amp;D)...</translation>
+    </message>
+    <message>
+        <source>Layers as Sprite S&amp;heet...</source>
+        <translation>图层到精灵表(&amp;H)...</translation>
+    </message>
+    <message>
+        <source>Layers as Image Se&amp;quence...</source>
+        <translation>图层到图像序列(&amp;Q)...</translation>
+    </message>
+    <message>
+        <source>Layers as Animated &amp;GIF...</source>
+        <translation>图层到 GIF 动画(&amp;G)...</translation>
     </message>
 </context>
 <context>

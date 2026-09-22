@@ -10247,10 +10247,6 @@ RGB: %2, %3, %4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Export &amp;Flat Image...</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Page Set&amp;up...</source>
         <translation type="unfinished"></translation>
     </message>
@@ -10852,18 +10848,6 @@ RGB: %2, %3, %4</source>
     </message>
     <message>
         <source>Place &amp;Embedded...</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Export Layers as Sprite S&amp;heet...</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Export Layers as Image Se&amp;quence...</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Export Layers as Animated &amp;GIF...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -16942,10 +16926,6 @@ Y: %2
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Export &amp;Multi-Page PDF...</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>%1 - %2</source>
         <translation type="unfinished"></translation>
     </message>
@@ -16978,10 +16958,6 @@ Y: %2
     </message>
     <message>
         <source>Open Fol&amp;der...</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Export Documents to Fo&amp;lder...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -17034,6 +17010,34 @@ Y: %2
     </message>
     <message>
         <source>Export cancelled after %1 of %2 images</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Flat Image...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>E&amp;xport</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Multi-Page PDF...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Documents to Folder...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Layers as Sprite S&amp;heet...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Layers as Image Se&amp;quence...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Layers as Animated &amp;GIF...</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

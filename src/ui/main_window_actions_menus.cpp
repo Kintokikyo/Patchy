@@ -367,38 +367,45 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   register_document_action(place_embedded_action);
   auto* save_action = file_menu->addAction(tr("&Save"));
   auto* save_as_action = file_menu->addAction(tr("Save &As..."));
-  auto* export_flat_action = file_menu->addAction(tr("Export &Flat Image..."));
+  // The export commands sit in their own submenu, the way Import does: the verb
+  // belongs to the submenu title so no row has to repeat it.
+  auto* export_menu = file_menu->addMenu(tr("E&xport"));
+  bind_widget_text(export_menu, QT_TR_NOOP("E&xport"));
+  export_menu->setObjectName(QStringLiteral("fileExportMenu"));
+  auto* export_flat_action = export_menu->addAction(tr("&Flat Image..."));
   // Several open documents, or the top-level groups of this one, as the pages of one
   // PDF (issue 19: heavy print jobs need real pages, not page-per-layer stacks).
-  auto* export_multipage_pdf_action = file_menu->addAction(tr("Export &Multi-Page PDF..."));
-  bind_action_text(export_multipage_pdf_action, QT_TR_NOOP("Export &Multi-Page PDF..."));
+  auto* export_multipage_pdf_action = export_menu->addAction(tr("&Multi-Page PDF..."));
+  bind_action_text(export_multipage_pdf_action, QT_TR_NOOP("&Multi-Page PDF..."));
   export_multipage_pdf_action->setObjectName(QStringLiteral("fileExportMultiPagePdfAction"));
   register_hotkey(export_multipage_pdf_action, "file.export_multipage_pdf");
   connect(export_multipage_pdf_action, &QAction::triggered, this, [this] { export_multipage_pdf(); });
   register_document_action(export_multipage_pdf_action);
   // The checked open documents as numbered image files in a folder.
-  auto* export_documents_folder_action = file_menu->addAction(tr("Export Documents to Fo&lder..."));
-  bind_action_text(export_documents_folder_action, QT_TR_NOOP("Export Documents to Fo&lder..."));
+  auto* export_documents_folder_action = export_menu->addAction(tr("&Documents to Folder..."));
+  bind_action_text(export_documents_folder_action, QT_TR_NOOP("&Documents to Folder..."));
   export_documents_folder_action->setObjectName(QStringLiteral("fileExportDocumentsToFolderAction"));
   register_hotkey(export_documents_folder_action, "file.export_documents_to_folder");
   connect(export_documents_folder_action, &QAction::triggered, this, [this] { export_documents_to_folder(); });
   register_document_action(export_documents_folder_action);
-  auto* export_sprite_sheet_action = file_menu->addAction(tr("Export Layers as Sprite S&heet..."));
-  bind_action_text(export_sprite_sheet_action, QT_TR_NOOP("Export Layers as Sprite S&heet..."));
+  // Above the line: whole documents. Below it: the layers of the active one.
+  export_menu->addSeparator();
+  auto* export_sprite_sheet_action = export_menu->addAction(tr("Layers as Sprite S&heet..."));
+  bind_action_text(export_sprite_sheet_action, QT_TR_NOOP("Layers as Sprite S&heet..."));
   export_sprite_sheet_action->setObjectName(QStringLiteral("fileExportSpriteSheetAction"));
   register_hotkey(export_sprite_sheet_action, "file.export_sprite_sheet");
   connect(export_sprite_sheet_action, &QAction::triggered, this, [this] { export_sprite_sheet(); });
   register_document_action(export_sprite_sheet_action);
-  auto* export_image_sequence_action = file_menu->addAction(tr("Export Layers as Image Se&quence..."));
-  bind_action_text(export_image_sequence_action, QT_TR_NOOP("Export Layers as Image Se&quence..."));
+  auto* export_image_sequence_action = export_menu->addAction(tr("Layers as Image Se&quence..."));
+  bind_action_text(export_image_sequence_action, QT_TR_NOOP("Layers as Image Se&quence..."));
   export_image_sequence_action->setObjectName(QStringLiteral("fileExportImageSequenceAction"));
   register_hotkey(export_image_sequence_action, "file.export_image_sequence");
   connect(export_image_sequence_action, &QAction::triggered, this, [this] { export_image_sequence(); });
   register_document_action(export_image_sequence_action);
   // Stays visible on wasm, unlike the sequence export below: an animation is one file,
   // so the browser handoff is a single download.
-  auto* export_animated_gif_action = file_menu->addAction(tr("Export Layers as Animated &GIF..."));
-  bind_action_text(export_animated_gif_action, QT_TR_NOOP("Export Layers as Animated &GIF..."));
+  auto* export_animated_gif_action = export_menu->addAction(tr("Layers as Animated &GIF..."));
+  bind_action_text(export_animated_gif_action, QT_TR_NOOP("Layers as Animated &GIF..."));
   export_animated_gif_action->setObjectName(QStringLiteral("fileExportAnimatedGifAction"));
   register_hotkey(export_animated_gif_action, "file.export_animated_gif");
   connect(export_animated_gif_action, &QAction::triggered, this, [this] { export_animated_gif(); });
