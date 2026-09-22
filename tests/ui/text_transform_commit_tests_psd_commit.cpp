@@ -610,7 +610,10 @@ std::optional<PhotoshopTextCommitProbe> run_photoshop_text_commit_probe(const st
     const auto bounds_now = live_layer->bounds();
     live_document.set_active_layer(layer_id);
     require_action_by_text(window, QStringLiteral("Type"))->trigger();
-    const QPoint click_doc(bounds_now.x + bounds_now.width / 2, bounds_now.y + 12);
+    // Stay inside short layers: a 12 px heading ends at y + 11, and the widget
+    // round trip at a fractional pan can land one row low, which turns the
+    // click into a new text layer instead of a re-edit.
+    const QPoint click_doc(bounds_now.x + bounds_now.width / 2, bounds_now.y + std::min(12, bounds_now.height / 2));
     const auto hit_point = canvas->widget_position_for_document_point(click_doc);
     accept_missing_psd_text_font_warning_if_present();
     send_mouse(*canvas, QEvent::MouseButtonPress, hit_point, Qt::LeftButton, Qt::LeftButton);
@@ -2206,7 +2209,7 @@ void ui_psd_text_caret_follows_photoshop_leading() {
   const auto bounds_now = source->bounds();
   live_document.set_active_layer(layer_id);
   require_action_by_text(window, QStringLiteral("Type"))->trigger();
-  const QPoint click_doc(bounds_now.x + bounds_now.width / 2, bounds_now.y + 12);
+  const QPoint click_doc(bounds_now.x + bounds_now.width / 2, bounds_now.y + std::min(12, bounds_now.height / 2));
   const auto hit_point = canvas->widget_position_for_document_point(click_doc);
   accept_missing_psd_text_font_warning_if_present();
   send_mouse(*canvas, QEvent::MouseButtonPress, hit_point, Qt::LeftButton, Qt::LeftButton);
@@ -2341,7 +2344,7 @@ void ui_psd_text_click_returns_to_the_caret_it_drew() {
   const auto bounds_now = source->bounds();
   live_document.set_active_layer(layer_id);
   require_action_by_text(window, QStringLiteral("Type"))->trigger();
-  const QPoint click_doc(bounds_now.x + bounds_now.width / 2, bounds_now.y + 12);
+  const QPoint click_doc(bounds_now.x + bounds_now.width / 2, bounds_now.y + std::min(12, bounds_now.height / 2));
   const auto hit_point = canvas->widget_position_for_document_point(click_doc);
   accept_missing_psd_text_font_warning_if_present();
   send_mouse(*canvas, QEvent::MouseButtonPress, hit_point, Qt::LeftButton, Qt::LeftButton);

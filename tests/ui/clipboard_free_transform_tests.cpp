@@ -627,8 +627,11 @@ void ui_external_clipboard_paste_in_place_falls_back_to_view_center() {
   QApplication::clipboard()->setImage(image);
   QApplication::processEvents();
   auto* canvas = require_canvas(window);
-  canvas->zoom_to_document_rect(QRect(180, 120, 400, 300));
   for (const auto* action : {"editPasteAction", "editPasteInPlaceAction"}) {
+    // A paste activates the Move tool, whose options row can differ in height
+    // from the previous tool's and resize the viewport, so re-frame the view
+    // before each paste: the check is about the fallback to the view center.
+    canvas->zoom_to_document_rect(QRect(180, 120, 400, 300));
     require_action(window, action)->trigger();
     CHECK(canvas->active_layer_document_rect() == QRect(340, 240, 80, 60));
   }
