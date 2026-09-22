@@ -1170,6 +1170,66 @@ void ui_marquee_handle_drag_space_repositions_then_resumes() {
   save_widget_artifact("ui_marquee_handle_space_reposition", *canvas);
 }
 
+void ui_marquee_gestures_never_snap_to_their_own_selection() {
+  // Snapping stays at its defaults (all targets on): the live selection must not
+  // be a target for the gesture that is writing it, or 1 px pointer steps would
+  // snap the rect back to its previous position every move.
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_tool(patchy::ui::CanvasTool::Marquee);
+  canvas->set_zoom(1.0);
+  const auto at = [canvas](int x, int y) { return canvas->widget_position_for_document_point(QPoint(x, y)); };
+
+  // Drag-out in 1 px steps lands exactly where the pointer stops (the drag-out
+  // rect includes both the anchor and the current pixel).
+  send_mouse(*canvas, QEvent::MouseButtonPress, at(40, 40), Qt::LeftButton, Qt::LeftButton);
+  for (int step = 1; step <= 60; ++step) {
+    send_mouse(*canvas, QEvent::MouseMove, at(40 + step, 40 + std::min(step, 40)), Qt::NoButton, Qt::LeftButton);
+  }
+  CHECK(canvas->selected_document_rect() == QRect(40, 40, 61, 41));
+
+  // Space slide in 1 px steps moves by exactly the pointer delta.
+  send_key_press(*canvas, Qt::Key_Space);
+  for (int step = 1; step <= 20; ++step) {
+    send_mouse(*canvas, QEvent::MouseMove, at(100 + step, 80 + step), Qt::NoButton, Qt::LeftButton);
+  }
+  CHECK(canvas->selected_document_rect() == QRect(60, 60, 61, 41));
+  send_key_release(*canvas, Qt::Key_Space);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, at(120, 100), Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  CHECK(canvas->selected_document_rect() == QRect(60, 60, 61, 41));
+
+  // Handle resize in 1 px steps (the moved edge takes the pointer coordinate
+  // on the exclusive right edge), then a Space slide inside the same drag.
+  send_mouse(*canvas, QEvent::MouseButtonPress, marquee_handle_position(*canvas, QRect(60, 60, 61, 41), 2, 1),
+             Qt::LeftButton, Qt::LeftButton);
+  for (int step = 1; step <= 20; ++step) {
+    send_mouse(*canvas, QEvent::MouseMove, at(121 + step, 80), Qt::NoButton, Qt::LeftButton);
+  }
+  CHECK(canvas->selected_document_rect() == QRect(60, 60, 81, 41));
+  send_key_press(*canvas, Qt::Key_Space);
+  for (int step = 1; step <= 10; ++step) {
+    send_mouse(*canvas, QEvent::MouseMove, at(141 + step, 80 + step), Qt::NoButton, Qt::LeftButton);
+  }
+  CHECK(canvas->selected_document_rect() == QRect(70, 70, 81, 41));
+  send_key_release(*canvas, Qt::Key_Space);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, at(151, 90), Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  CHECK(canvas->selected_document_rect() == QRect(70, 70, 81, 41));
+
+  // A committed selection is still a target for other gestures: a fresh
+  // Add-mode drag-out 3 px short of the existing right edge (151) snaps to it.
+  send_mouse(*canvas, QEvent::MouseButtonPress, at(200, 200), Qt::LeftButton, Qt::LeftButton, Qt::ShiftModifier);
+  send_mouse(*canvas, QEvent::MouseMove, at(154, 240), Qt::NoButton, Qt::LeftButton, Qt::ShiftModifier);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, at(154, 240), Qt::LeftButton, Qt::NoButton, Qt::ShiftModifier);
+  QApplication::processEvents();
+  const auto added = canvas->selected_document_rect();
+  CHECK(added.has_value());
+  CHECK(added->left() == 70);
+  CHECK(canvas->selected_document_region().contains(QPoint(152, 220)));
+}
+
 void ui_marquee_feathered_resize_rerasterizes_soft_edge() {
   patchy::ui::MainWindow window;
   show_window(window);
@@ -1550,6 +1610,8 @@ std::vector<patchy::test::TestCase> selection_marquee_lasso_tests_part2() {
       {"ui_marquee_edge_handle_drag_resizes_selection", ui_marquee_edge_handle_drag_resizes_selection},
       {"ui_marquee_handle_drag_space_repositions_then_resumes",
        ui_marquee_handle_drag_space_repositions_then_resumes},
+      {"ui_marquee_gestures_never_snap_to_their_own_selection",
+       ui_marquee_gestures_never_snap_to_their_own_selection},
       {"ui_marquee_corner_handle_drag_and_shift_aspect", ui_marquee_corner_handle_drag_and_shift_aspect},
       {"ui_elliptical_marquee_handle_drag_keeps_ellipse", ui_elliptical_marquee_handle_drag_keeps_ellipse},
       {"ui_marquee_feathered_resize_rerasterizes_soft_edge", ui_marquee_feathered_resize_rerasterizes_soft_edge},

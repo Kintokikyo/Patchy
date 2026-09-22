@@ -514,7 +514,10 @@ void CanvasWidget::collect_snap_candidates(const std::vector<LayerId>& exclude_i
     y_candidates.push_back(SnapCandidate{height * 0.5, document_span, SnapKind::Document});
     y_candidates.push_back(SnapCandidate{height, document_span, SnapKind::Document});
   }
-  if (snap_to_selection_ && !selection_.isEmpty()) {
+  // The selection a marquee gesture is writing must not be its own target:
+  // every move would otherwise snap back to where the rect was one event ago
+  // and the drag would stutter in tolerance-sized jumps.
+  if (snap_to_selection_ && !selection_.isEmpty() && !selection_is_live_gesture_output()) {
     append_rect_snap_candidates(selection_.boundingRect(), SnapKind::Selection, x_candidates, y_candidates);
   }
   if (snap_to_layers_) {

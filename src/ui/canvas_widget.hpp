@@ -1781,6 +1781,13 @@ private:
                                                           Qt::KeyboardModifiers modifiers) const;
   void update_marquee_resize_drag(QPoint document_point, Qt::KeyboardModifiers modifiers);
   void apply_marquee_resize_rect(QRect rect);
+  // True while a gesture rewrites selection_ on every pointer move (a Replace
+  // marquee drag-out or a handle resize); Add/Subtract/Intersect drag-outs keep
+  // the existing selection until release, so it stays a snap target for them.
+  [[nodiscard]] bool selection_is_live_gesture_output() const noexcept {
+    return (selecting_ && selection_operation_ == SelectionMode::Replace) ||
+           marquee_resize_handle_ != TransformHandle::None;
+  }
   void draw_marquee_resize_handles(QPainter& painter) const;
   [[nodiscard]] QImage lasso_selection_mask(const QPolygon& polygon, QRect& bounds) const;
   [[nodiscard]] QImage lasso_selection_mask(const QPolygonF& polygon, QRect& bounds) const;
