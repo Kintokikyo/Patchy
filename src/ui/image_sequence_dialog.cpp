@@ -1,10 +1,10 @@
 #include "ui/image_sequence_dialog.hpp"
 
 #include "ui/dialog_utils.hpp"
+#include "ui/document_order_list.hpp"
 #include "ui/image_document_io.hpp"
 
 #include <QButtonGroup>
-#include <QCollator>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDir>
@@ -66,9 +66,7 @@ QString sanitized_file_name(const QString& name) {
 }
 
 QStringList sorted_sequence_paths(QStringList paths) {
-  QCollator collator;
-  collator.setNumericMode(true);
-  collator.setCaseSensitivity(Qt::CaseInsensitive);
+  const auto collator = natural_name_collator();
   std::sort(paths.begin(), paths.end(), [&collator](const QString& a, const QString& b) {
     const auto compared = collator.compare(QFileInfo(a).fileName(), QFileInfo(b).fileName());
     if (compared != 0) {

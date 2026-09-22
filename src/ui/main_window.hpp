@@ -99,6 +99,8 @@ using BrightnessContrastSettings = BrightnessContrastAdjustment;
 struct ScannerAcquireResult;
 struct UpdateInfo;
 enum class DividePhotosExistingFiles : int;
+enum class ExportDocumentsExistingFiles : int;
+struct ImageSequenceNaming;
 // create_actions() build-phase context (main_window_actions_internal.hpp).
 struct ActionBuildContext;
 class BrushDynamicsButton;
@@ -579,6 +581,14 @@ private:
   void rerender_text_layers_through_transforms(DocumentSession& target);
   void open_document();
   void open_document_path(QString path);
+  // File > Open Folder: every supported image directly inside the picked folder
+  // (natural name order, PDFs excluded) opens as its own document, the first one
+  // active and the rest as background tabs. Also the target of a dropped or
+  // command-line directory.
+  void open_folder();
+  // The testable core of open_folder; returns how many documents opened (0 when
+  // the folder holds no supported image, with a status-bar message).
+  int open_folder_path(const QString& directory);
   // SVG post-open pass: renders text layers the Qt-free reader marked
   // kLayerMetadataSvgPendingText through the internal text pipeline and
   // positions them from their baseline point + text-anchor. Defined in
@@ -658,6 +668,20 @@ private:
   std::optional<bool> resolve_pdf_layer_choice(bool for_export, bool allow_prompt);
   void export_flat_image();
   void export_multipage_pdf();
+  // File > Export Documents to Folder: the checked open documents as numbered
+  // flattened image files (the document-level sibling of export_image_sequence).
+  void export_documents_to_folder();
+  // Writes each listed session's flattened composite as prefix + zero-padded
+  // number + "." + extension into folder. Add mode takes the next free index per
+  // file; Overwrite mode numbers from naming.start and asks once (naming the first
+  // colliding file) before writing anything. Per-format remembered defaults with
+  // the export scale pinned to 1x; a cancellable progress dialog covers the loop
+  // (files already written stay). Returns the written absolute paths in order,
+  // nullopt on decline, cancel, or failure.
+  std::optional<QStringList> export_document_sessions_to_folder(const std::vector<std::int64_t>& session_ids,
+                                                                const QString& folder, const QString& extension,
+                                                                const ImageSequenceNaming& naming,
+                                                                ExportDocumentsExistingFiles existing_files);
   void page_setup();
   void print_document();
   void show_preferences();

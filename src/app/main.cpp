@@ -427,7 +427,8 @@ int main(int argc, char* argv[]) {
   parser.addHelpOption();
   parser.addVersionOption();
   parser.addPositionalArgument(QStringLiteral("files"),
-                               QCoreApplication::translate("QObject", "Image or Photoshop files to open."),
+                               QCoreApplication::translate("QObject",
+                                                           "Image or Photoshop files, or folders of images, to open."),
                                QStringLiteral("[files...]"));
   // Listed first in --help. The platform switch itself already happened above
   // (headless_flag_present); this entry documents the flag and keeps the parser

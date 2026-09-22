@@ -114,10 +114,6 @@
         <translation>Patchy 光栅图像编辑器。</translation>
     </message>
     <message>
-        <source>Image or Photoshop files to open.</source>
-        <translation>要打开的图像或 Photoshop 文件。</translation>
-    </message>
-    <message>
         <source>Run without a display (Qt offscreen platform) and never reuse a running instance. Needs --run-script, --export, --stress-test, or --screenshot; exits 2 otherwise.</source>
         <translation>在无显示器的情况下运行(Qt offscreen 平台)，且从不复用正在运行的实例。需要 --run-script、--export、--stress-test 或 --screenshot；否则以代码 2 退出。</translation>
     </message>
@@ -8368,6 +8364,56 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>About %1 GB of memory.</source>
         <translation>约需 %1 GB 内存。</translation>
+    </message>
+    <message>
+        <source>Image or Photoshop files, or folders of images, to open.</source>
+        <translation>要打开的图像或 Photoshop 文件，或图像文件夹。</translation>
+    </message>
+    <message>
+        <source>Auto Sort</source>
+        <translation>自动排序</translation>
+    </message>
+    <message>
+        <source>Order the documents by name, numbering-aware (2 before 10).</source>
+        <translation>按名称对文档排序，并识别编号（2 排在 10 之前）。</translation>
+    </message>
+    <message>
+        <source>Reverse the current order.</source>
+        <translation>反转当前顺序。</translation>
+    </message>
+    <message>
+        <source>Export Documents to Folder</source>
+        <translation>导出文档到文件夹</translation>
+    </message>
+    <message>
+        <source>Documents</source>
+        <translation>文档</translation>
+    </message>
+    <message>
+        <source>Digits</source>
+        <translation>位数</translation>
+    </message>
+    <message>
+        <source>Start at</source>
+        <translation>起始编号</translation>
+    </message>
+    <message>
+        <source>Add continues numbering after the files already in the folder; Overwrite starts at the chosen number and asks before replacing anything.</source>
+        <translation>“添加”会在文件夹中已有文件之后继续编号；“覆盖”从所选编号开始，并在替换任何文件前询问。</translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation>导出</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n file(s) will be written.</source>
+        <translation>
+            <numerusform>将写入 %n 个文件。</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Choose a folder.</source>
+        <translation>请选择一个文件夹。</translation>
     </message>
 </context>
 <context>
@@ -16928,6 +16974,66 @@ Y: %2
     <message>
         <source>Deselect La&amp;yers</source>
         <translation>取消选择图层(&amp;Y)</translation>
+    </message>
+    <message>
+        <source>Open Fol&amp;der...</source>
+        <translation>打开文件夹(&amp;D)...</translation>
+    </message>
+    <message>
+        <source>Export Documents to Fo&amp;lder...</source>
+        <translation>导出文档到文件夹(&amp;L)...</translation>
+    </message>
+    <message>
+        <source>Open Folder</source>
+        <translation>打开文件夹</translation>
+    </message>
+    <message>
+        <source>No supported images in %1</source>
+        <translation>%1 中没有支持的图像</translation>
+    </message>
+    <message>
+        <source>Opening image %1 of %2...</source>
+        <translation>正在打开第 %1 张图像,共 %2 张...</translation>
+    </message>
+    <message>
+        <source>Opened %1 of %2 images from %3</source>
+        <translation>已从 %3 打开 %2 张图像中的 %1 张</translation>
+    </message>
+    <message numerus="yes">
+        <source>Opened %n image(s) from %1</source>
+        <translation>
+            <numerusform>已从 %1 打开 %n 张图像</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source> (%n could not be opened)</source>
+        <translation>
+            <numerusform> (%n 个无法打开)</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>These files could not be opened:
+
+%1</source>
+        <translation>无法打开以下文件:
+
+%1</translation>
+    </message>
+    <message>
+        <source>Export Documents to Folder</source>
+        <translation>导出文档到文件夹</translation>
+    </message>
+    <message>
+        <source>%1 already exists. Overwrite existing files?</source>
+        <translation>%1 已存在。是否覆盖现有文件？</translation>
+    </message>
+    <message>
+        <source>Writing image %1 of %2...</source>
+        <translation>正在写入第 %1 张图像,共 %2 张...</translation>
+    </message>
+    <message>
+        <source>Export cancelled after %1 of %2 images</source>
+        <translation>已在导出 %2 张图像中的 %1 张后取消</translation>
     </message>
 </context>
 <context>

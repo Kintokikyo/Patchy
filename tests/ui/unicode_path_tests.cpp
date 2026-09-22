@@ -8,7 +8,9 @@
 // test lists the directory so a mojibake sibling fails even when the reader happens
 // to find its own mangled name again.
 
+#include "ui/export_documents_folder_dialog.hpp"
 #include "ui/image_document_io.hpp"
+#include "ui/image_sequence_dialog.hpp"
 #include "ui/main_window.hpp"
 #include "ui/qt_paths.hpp"
 
@@ -536,6 +538,73 @@ void ui_unicode_divide_photos_folder_save() {
   CHECK(patchy::ui::MainWindowTestAccess::document(window).height() == 8);
 }
 
+// File > Open Folder reads a directory listing and opens every file in it, so a
+// Unicode folder name and Unicode file names both cross the Qt path boundary; the
+// sessions must end up with the real names, not mojibake.
+void ui_unicode_open_folder_reads_unicode_names() {
+  SettingsValueRestorer recent_folders_restorer(QStringLiteral("recentFolders"));
+  SettingsValueRestorer recent_files_restorer(QStringLiteral("recentFiles"));
+  SettingsValueRestorer last_open_restorer(QStringLiteral("lastOpenDirectory"));
+  const auto dir = unicode_dir(QStringLiteral("open-folder"));
+  QStringList names;
+  for (int i = 0; i < 2; ++i) {
+    const auto name = q(kUnicodePathStems[static_cast<std::size_t>(i)]) + QStringLiteral(".png");
+    QImage image(8 + i * 4, 6, QImage::Format_RGBA8888);
+    image.fill(QColor(10, 20, 30, 255));
+    CHECK(image.save(dir + QLatin1Char('/') + name));
+    names.push_back(name);
+  }
+  check_dir_holds_only(dir, names);
+
+  patchy::ui::MainWindow window;
+  show_window(window);
+  const auto before = patchy::ui::MainWindowTestAccess::session_count(window);
+  CHECK(patchy::ui::MainWindowTestAccess::open_folder_path(window, dir) == 2);
+  QApplication::processEvents();
+  CHECK(patchy::ui::MainWindowTestAccess::session_count(window) == before + 2);
+  bool found_first = false;
+  bool found_second = false;
+  for (std::size_t index = before; index < before + 2; ++index) {
+    const auto title = nfc(patchy::ui::MainWindowTestAccess::session_title(window, index));
+    found_first = found_first || title == nfc(names[0]);
+    found_second = found_second || title == nfc(names[1]);
+  }
+  CHECK(found_first);
+  CHECK(found_second);
+  CHECK(nfc(patchy::ui::MainWindowTestAccess::active_session_path(window)).contains(nfc(q(kUnicodeDirName))));
+}
+
+// File > Export Documents to Folder writes files, so it gets the standard coverage:
+// a Unicode folder AND a Unicode filename prefix, then one output reopened.
+void ui_unicode_export_documents_to_folder() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  const auto dir = unicode_dir(QStringLiteral("export-documents"));
+  const auto base = patchy::ui::MainWindowTestAccess::session_count(window);
+  window.add_document_session(small_document(), QStringLiteral("One"));
+  {
+    QImage wider(16, 6, QImage::Format_RGBA8888);
+    wider.fill(QColor(200, 100, 50, 255));
+    window.add_document_session(patchy::ui::document_from_qimage(wider, "Two"), QStringLiteral("Two"));
+  }
+  patchy::ui::ImageSequenceNaming naming;
+  naming.prefix = q(kUnicodePathStems[0]) + QStringLiteral("_");
+  naming.start = 1;
+  naming.padding = 3;
+  const auto written = patchy::ui::MainWindowTestAccess::export_document_sessions_to_folder(
+      window,
+      {patchy::ui::MainWindowTestAccess::session_id(window, base),
+       patchy::ui::MainWindowTestAccess::session_id(window, base + 1)},
+      dir, QStringLiteral("png"), naming, patchy::ui::ExportDocumentsExistingFiles::AddNumbering);
+  CHECK(written.has_value());
+  CHECK(written.has_value() && written->size() == 2);
+  check_dir_holds_only(dir, {naming.prefix + QStringLiteral("001.png"), naming.prefix + QStringLiteral("002.png")});
+  patchy::ui::MainWindowTestAccess::open_document_path(window,
+                                                       dir + QLatin1Char('/') + naming.prefix + QStringLiteral("002.png"));
+  QApplication::processEvents();
+  CHECK(patchy::ui::MainWindowTestAccess::document(window).width() == 16);
+  CHECK(patchy::ui::MainWindowTestAccess::document(window).height() == 6);
+}
 
 void ui_save_as_aborts_when_the_owning_document_changes() {
   const auto dir = unicode_dir(QStringLiteral("save-as-session-guard"));
@@ -574,6 +643,8 @@ std::vector<patchy::test::TestCase> unicode_path_tests() {
       {"ui_unicode_recent_history_merges_unattended_work_and_refreshes", ui_unicode_recent_history_merges_unattended_work_and_refreshes},
       {"ui_unicode_legacy_plugin_probe_from_unicode_dir", ui_unicode_legacy_plugin_probe_from_unicode_dir},
       {"ui_unicode_divide_photos_folder_save", ui_unicode_divide_photos_folder_save},
+      {"ui_unicode_open_folder_reads_unicode_names", ui_unicode_open_folder_reads_unicode_names},
+      {"ui_unicode_export_documents_to_folder", ui_unicode_export_documents_to_folder},
       {"ui_save_as_aborts_when_the_owning_document_changes", ui_save_as_aborts_when_the_owning_document_changes},
   };
 }

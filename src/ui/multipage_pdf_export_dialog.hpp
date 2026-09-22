@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ui/document_order_list.hpp"
 #include "ui/pdf_export.hpp"
 
 #include <QString>
@@ -16,11 +17,8 @@ namespace patchy::ui {
 // itself is write_multipage_pdf_file (pdf_export.hpp); MainWindow resolves the choice
 // into documents because only it owns the sessions.
 
-// One open document as the dialog lists it.
-struct MultiPagePdfDocumentEntry {
-  QString title;
-  std::int64_t session_id{0};
-};
+// One open document as the dialog lists it (the shared document-order row).
+using MultiPagePdfDocumentEntry = DocumentOrderEntry;
 
 enum class MultiPagePdfSource {
   // Every checked open document, one page each, in the list's order.

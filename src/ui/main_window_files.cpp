@@ -70,6 +70,7 @@
 #include "ui/palette_panel.hpp"
 #include "ui/pattern_library.hpp"
 #include "ui/multipage_pdf_export_dialog.hpp"
+#include "ui/export_documents_folder_dialog.hpp"
 #include "ui/pdf_export.hpp"
 #include "ui/pdf_import.hpp"
 #include "ui/photo_pattern_presets.hpp"
@@ -775,6 +776,48 @@ QStringList supported_local_open_paths(const QMimeData* mime_data) {
   return paths;
 }
 
+// Dropped local directories, in drop order. Their contents are read only when
+// the drop lands (open_folder_path), never per drag-move over the window.
+QStringList dropped_directory_paths(const QMimeData* mime_data) {
+  QStringList directories;
+  if (mime_data == nullptr || !mime_data->hasUrls()) {
+    return directories;
+  }
+  for (const auto& url : mime_data->urls()) {
+    if (!url.isLocalFile()) {
+      continue;
+    }
+    const auto path = QDir::toNativeSeparators(url.toLocalFile());
+    if (QFileInfo(path).isDir() && !directories.contains(path)) {
+      directories.push_back(path);
+    }
+  }
+  return directories;
+}
+
+// The images directly inside a folder that Open Folder (and a dropped or
+// command-line directory) opens: every file is_supported_open_path accepts except
+// PDFs (each would raise the Import PDF page picker, and a folder scan is for
+// images), in natural name order (page-2 before page-10). Never recursive.
+QStringList supported_image_paths_in_folder(const QString& directory) {
+  QStringList paths;
+  const QFileInfo info(directory);
+  if (!info.isDir()) {
+    return paths;
+  }
+  const auto entries = QDir(info.absoluteFilePath()).entryInfoList(QDir::Files | QDir::Readable, QDir::NoSort);
+  for (const auto& entry : entries) {
+    if (is_pdf_extension(entry.suffix().toLower())) {
+      continue;
+    }
+    const auto path = QDir::toNativeSeparators(entry.absoluteFilePath());
+    if (is_supported_open_path(path)) {
+      paths.push_back(path);
+    }
+  }
+  return sorted_sequence_paths(std::move(paths));
+}
+
 // Dropped fonts (or a zip of fonts) register into the session instead of
 // opening as documents; same isLocalFile filtering as the open paths.
 QStringList font_or_zip_local_paths(const QMimeData* mime_data) {
@@ -1316,6 +1359,131 @@ void MainWindow::open_document() {
   }
 }
 
+void MainWindow::open_folder() {
+  if (preview_dialog_edit_locked()) {
+    show_preview_dialog_edit_lock_message();
+    return;
+  }
+  const auto directory =
+      QFileDialog::getExistingDirectory(this, tr("Open Folder"), last_open_directory(), QFileDialog::ShowDirsOnly);
+  if (directory.isEmpty()) {
+    return;
+  }
+  open_folder_path(directory);
+}
+
+// The first image opens through open_document_path (activation, fit, recent file,
+// import notes, exactly as a single open); the rest mirror the pages of a PDF opened
+// as separate documents (open_extra_imported_page_sessions): background sessions
+// under a progress dialog with an event pump per file, so the window keeps painting
+// and each tab shows up as it is made. Unlike PDF pages the files are independent,
+// so the dialog has a Cancel button and one unreadable file never stops the rest.
+int MainWindow::open_folder_path(const QString& directory) {
+  if (preview_dialog_edit_locked()) {
+    show_preview_dialog_edit_lock_message();
+    return 0;
+  }
+  const auto native_directory = QDir::toNativeSeparators(QFileInfo(directory).absoluteFilePath());
+  const auto paths = supported_image_paths_in_folder(directory);
+  if (paths.isEmpty()) {
+    show_status_error(tr("No supported images in %1").arg(native_directory));
+    return 0;
+  }
+  const int total = static_cast<int>(paths.size());
+  auto folder_name = QFileInfo(QDir(directory).absolutePath()).fileName();
+  if (folder_name.isEmpty()) {
+    folder_name = native_directory;  // a drive root has no file name
+  }
+  QProgressDialog progress(tr("Opening image %1 of %2...").arg(1).arg(total), tr("Cancel"), 0, total, this);
+  progress.setObjectName(QStringLiteral("openFolderProgressDialog"));
+  progress.setWindowTitle(tr("Opening %1").arg(folder_name));
+  progress.setWindowModality(Qt::WindowModal);
+  progress.setMinimumDuration(0);
+  progress.setAutoClose(false);
+  progress.setAutoReset(false);
+  remember_dialog_position(progress);
+  progress.setValue(0);
+
+  std::int64_t first_session_id = 0;
+  int opened = 0;
+  bool cancelled = false;
+  QStringList failed;
+  for (int index = 0; index < total; ++index) {
+    const auto& path = paths[index];
+    progress.setLabelText(tr("Opening image %1 of %2...").arg(index + 1).arg(total));
+    progress.setValue(index);
+    QApplication::processEvents(QEventLoop::AllEvents);
+    if (progress.wasCanceled()) {
+      cancelled = true;
+      break;
+    }
+    if (first_session_id == 0) {
+      // Until one file has opened, each goes through the full single-open path so
+      // the first success becomes the active document.
+      const auto* before = active_session();
+      const auto before_id = before != nullptr ? before->session_id : 0;
+      open_document_path(path);
+      const auto* after = active_session();
+      if (after != nullptr && after->session_id != before_id) {
+        first_session_id = after->session_id;
+        ++opened;
+      } else {
+        failed.push_back(QFileInfo(path).fileName());
+      }
+      continue;
+    }
+    try {
+      const bool allow_raw_dialog = !script_engine_host_ || !script_engine_host_->run_active() ||
+                                    script_engine_host_->manual_edit_pause();
+      auto loaded = load_document_interactive(this, path, !unattended_automation(), allow_raw_dialog);
+      if (!loaded.has_value()) {
+        continue;  // cancelled in a per-file dialog (a raw develop, say)
+      }
+      render_pending_svg_text_layers(loaded->document);
+      render_pending_af_text_layers(loaded->document);
+      render_pending_pdf_text_layers(loaded->document);
+      render_pending_pdf_image_layers(loaded->document);
+      add_document_session(std::move(loaded->document), loaded->file_name, path, tr("Open"),
+                           SessionActivation::Background);
+      ++opened;
+    } catch (const std::exception& error) {
+      failed.push_back(QFileInfo(path).fileName());
+      if (unattended_automation()) {
+        fprintf(stderr, "Open failed: %s (%s)\n", error.what(), path.toUtf8().constData());
+      }
+    }
+    QApplication::processEvents(QEventLoop::AllEvents);
+  }
+  progress.setValue(total);
+  progress.close();
+  // Nothing above moved the active document after the first open, but an event
+  // pumped along the way could have: land on the first image either way.
+  if (auto* first = session_with_id(first_session_id); first != nullptr && first != active_session()) {
+    activate_document_session(*first);
+  }
+  if (opened > 0) {
+    // The folder itself is the thing to come back to; one recent-file entry per
+    // image would flush the list.
+    add_recent_folder(directory);
+    if (!unattended_automation()) {
+      remember_open_directory_for_path(paths.front());
+    }
+  }
+  auto status = cancelled ? tr("Opened %1 of %2 images from %3").arg(opened).arg(total).arg(native_directory)
+                          : tr("Opened %n image(s) from %1", nullptr, opened).arg(native_directory);
+  if (!failed.isEmpty()) {
+    status += tr(" (%n could not be opened)", nullptr, static_cast<int>(failed.size()));
+    if (!unattended_automation()) {
+      show_information_message(this, tr("Open Folder"),
+                               tr("These files could not be opened:\n\n%1").arg(failed.join(QLatin1Char('\n'))),
+                               QStringLiteral("openFolderFailedMessageBox"));
+    }
+  }
+  statusBar()->showMessage(status);
+  update_undo_redo_actions();
+  return opened;
+}
+
 bool MainWindow::accept_open_file_drag(QDropEvent* event) {
   if (preview_dialog_edit_locked()) {
     if (event != nullptr) {
@@ -1325,7 +1493,8 @@ bool MainWindow::accept_open_file_drag(QDropEvent* event) {
     return false;
   }
   if (event == nullptr || (supported_local_open_paths(event->mimeData()).isEmpty() &&
-                           font_or_zip_local_paths(event->mimeData()).isEmpty())) {
+                           font_or_zip_local_paths(event->mimeData()).isEmpty() &&
+                           dropped_directory_paths(event->mimeData()).isEmpty())) {
     if (event != nullptr) {
       event->ignore();
     }
@@ -1355,7 +1524,8 @@ bool MainWindow::open_dropped_files(QDropEvent* event) {
 
   const auto paths = supported_local_open_paths(event->mimeData());
   const auto font_paths = font_or_zip_local_paths(event->mimeData());
-  if (paths.isEmpty() && font_paths.isEmpty()) {
+  const auto directories = dropped_directory_paths(event->mimeData());
+  if (paths.isEmpty() && font_paths.isEmpty() && directories.isEmpty()) {
     event->ignore();
     show_status_error(tr("Drop a supported image, Photoshop document, or font"));
     return false;
@@ -1372,7 +1542,7 @@ bool MainWindow::open_dropped_files(QDropEvent* event) {
   // Windows Explorer waits for its OLE drop call to return, including any nested
   // RAW/PDF/import dialog loop entered here. Own the paths, never the event or
   // its source-owned mime data, and cancel delivery if this window is destroyed.
-  QTimer::singleShot(0, this, [this, paths, font_paths] {
+  QTimer::singleShot(0, this, [this, paths, font_paths, directories] {
     if (shutting_down_ || !isVisible()) {
       return;
     }
@@ -1385,6 +1555,10 @@ bool MainWindow::open_dropped_files(QDropEvent* event) {
     }
     for (const auto& path : paths) {
       open_document_path(path);
+    }
+    // A dropped folder opens like File > Open Folder: its images as tabs.
+    for (const auto& directory : directories) {
+      open_folder_path(directory);
     }
   });
   return true;
@@ -1433,7 +1607,13 @@ void MainWindow::open_command_line_files(const QStringList& paths) {
     if (path.isEmpty()) {
       continue;
     }
-    open_document_path(QFileInfo(path).absoluteFilePath());
+    const QFileInfo info(path);
+    // A directory argument opens its images as tabs (File > Open Folder).
+    if (info.isDir()) {
+      open_folder_path(info.absoluteFilePath());
+      continue;
+    }
+    open_document_path(info.absoluteFilePath());
   }
 }
 
@@ -3273,6 +3453,139 @@ void MainWindow::export_multipage_pdf() {
   } catch (const std::exception& error) {
     show_critical_message(this, tr("Export failed"), translated_file_message(error.what()),
                           QStringLiteral("exportFailedMessageBox"));
+  }
+}
+
+// File > Export Documents to Folder: the checked open documents, in the dialog's
+// order, as numbered flattened image files; the dialog picks, this resolves sessions
+// to documents and writes through write_flat_image_file.
+void MainWindow::export_documents_to_folder() {
+  if (!has_active_document()) {
+    show_status_error(tr("No document"));
+    return;
+  }
+  finish_active_text_editor();
+  std::vector<DocumentOrderEntry> entries;
+  entries.reserve(sessions_.size());
+  for (const auto& candidate : sessions_) {
+    if (candidate != nullptr) {
+      entries.push_back({candidate->title.isEmpty() ? tr("Untitled") : candidate->title, candidate->session_id});
+    }
+  }
+  const auto choice = run_export_documents_folder_dialog(this, entries, session().session_id,
+                                                         divide_photos_format_choices(), last_save_directory());
+  if (!choice.has_value()) {
+    return;
+  }
+  const auto written = export_document_sessions_to_folder(choice->session_ids, choice->folder, choice->extension,
+                                                          choice->naming, choice->existing_files);
+  if (!written.has_value()) {
+    return;
+  }
+  statusBar()->showMessage(
+      tr("Exported %1 images to %2").arg(written->size()).arg(QDir::toNativeSeparators(choice->folder)));
+}
+
+std::optional<QStringList> MainWindow::export_document_sessions_to_folder(
+    const std::vector<std::int64_t>& session_ids, const QString& folder, const QString& extension,
+    const ImageSequenceNaming& naming, ExportDocumentsExistingFiles existing_files) {
+  std::vector<DocumentSession*> pages;
+  pages.reserve(session_ids.size());
+  for (const auto session_id : session_ids) {
+    if (auto* page_session = session_with_id(session_id); page_session != nullptr) {
+      pages.push_back(page_session);
+    }
+  }
+  if (pages.empty() || folder.trimmed().isEmpty()) {
+    return std::nullopt;
+  }
+  try {
+    // The dialog already created the folder; direct callers (tests) may not have.
+    QDir().mkpath(folder);
+    const QDir directory(folder);
+    // prefix + zero-padded number + "." + extension (the image_sequence_file_names
+    // formatting, one name at a time so Add mode can skip past existing files).
+    const auto file_name_for = [&naming, &extension](int number) {
+      ImageSequenceNaming one = naming;
+      one.use_layer_names = false;
+      one.start = number;
+      return image_sequence_file_names(std::vector<QString>(1), one, extension).front();
+    };
+    QStringList targets;
+    targets.reserve(static_cast<qsizetype>(pages.size()));
+    if (existing_files == ExportDocumentsExistingFiles::AddNumbering) {
+      // Never overwrite: each file takes the next free number, so a batch lands
+      // after whatever the folder already holds.
+      int number = naming.start;
+      for (std::size_t i = 0; i < pages.size(); ++i) {
+        while (QFileInfo::exists(directory.filePath(file_name_for(number)))) {
+          ++number;
+        }
+        targets.push_back(directory.filePath(file_name_for(number)));
+        ++number;
+      }
+    } else {
+      QString first_conflict;
+      for (std::size_t i = 0; i < pages.size(); ++i) {
+        const auto name = file_name_for(naming.start + static_cast<int>(i));
+        const auto target = directory.filePath(name);
+        if (first_conflict.isEmpty() && QFileInfo::exists(target)) {
+          first_conflict = name;
+        }
+        targets.push_back(target);
+      }
+      // One confirmation for the whole batch, before anything is written; the
+      // first colliding name stands in for the rest.
+      if (!first_conflict.isEmpty()) {
+        const auto answer = show_warning_message(
+            this, tr("Export Documents to Folder"), tr("%1 already exists. Overwrite existing files?").arg(first_conflict),
+            QMessageBox::Yes | QMessageBox::No, QMessageBox::No, QStringLiteral("exportDocumentsOverwriteMessageBox"));
+        if (answer != QMessageBox::Yes) {
+          return std::nullopt;
+        }
+      }
+    }
+
+    // Per-format remembered defaults, applied silently; the export scale is pinned
+    // to 1x so the shared saveOptions/exportScale can never rescale a page batch.
+    auto image_options = load_image_save_option_defaults();
+    image_options.export_scale = 1;
+
+    // On the UI thread with an event pump per file: the pages are live session
+    // documents, so no worker may read them while the window stays interactive.
+    const int count = static_cast<int>(pages.size());
+    QProgressDialog progress(tr("Writing image %1 of %2...").arg(1).arg(count), tr("Cancel"), 0, count, this);
+    progress.setObjectName(QStringLiteral("exportDocumentsProgressDialog"));
+    progress.setWindowTitle(tr("Export Documents to Folder"));
+    progress.setWindowModality(Qt::WindowModal);
+    progress.setMinimumDuration(0);
+    progress.setAutoClose(false);
+    progress.setAutoReset(false);
+    remember_dialog_position(progress);
+    progress.setValue(0);
+    QStringList written;
+    for (int index = 0; index < count; ++index) {
+      progress.setLabelText(tr("Writing image %1 of %2...").arg(index + 1).arg(count));
+      progress.setValue(index);
+      QApplication::processEvents(QEventLoop::AllEvents);
+      if (progress.wasCanceled()) {
+        // Files already written stay: a partial page set is still useful.
+        progress.close();
+        statusBar()->showMessage(tr("Export cancelled after %1 of %2 images").arg(index).arg(count));
+        return std::nullopt;
+      }
+      write_flat_image_file(std::as_const(pages[static_cast<std::size_t>(index)]->document), targets.at(index),
+                            extension, image_options);
+      written.push_back(targets.at(index));
+    }
+    progress.setValue(count);
+    progress.close();
+    remember_save_directory_for_path(written.front());
+    return written;
+  } catch (const std::exception& error) {
+    show_critical_message(this, tr("Export failed"), translated_file_message(error.what()),
+                          QStringLiteral("exportFailedMessageBox"));
+    return std::nullopt;
   }
 }
 

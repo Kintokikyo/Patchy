@@ -8,6 +8,7 @@
 #include "ui/custom_shape_library.hpp"
 #include "ui/divide_photos_dialog.hpp"
 #include "ui/document_float_window.hpp"
+#include "ui/export_documents_folder_dialog.hpp"
 #include "ui/main_window.hpp"
 
 #include <QPoint>
@@ -39,6 +40,28 @@ public:
 
   static void open_document_path(MainWindow& window, QString path) {
     window.open_document_path(std::move(path));
+  }
+
+  static int open_folder_path(MainWindow& window, const QString& directory) {
+    return window.open_folder_path(directory);
+  }
+
+  static bool accept_open_file_drag(MainWindow& window, QDropEvent* event) {
+    return window.accept_open_file_drag(event);
+  }
+
+  static bool open_dropped_files(MainWindow& window, QDropEvent* event) {
+    return window.open_dropped_files(event);
+  }
+
+  static std::optional<QStringList> export_document_sessions_to_folder(
+      MainWindow& window, const std::vector<std::int64_t>& session_ids, const QString& folder,
+      const QString& extension, const ImageSequenceNaming& naming, ExportDocumentsExistingFiles existing_files) {
+    return window.export_document_sessions_to_folder(session_ids, folder, extension, naming, existing_files);
+  }
+
+  static std::int64_t session_id(MainWindow& window, std::size_t index) {
+    return window.sessions_.at(index)->session_id;
   }
 
   static void refresh_document_info(MainWindow& window) {

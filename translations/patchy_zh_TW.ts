@@ -114,10 +114,6 @@
         <translation>Patchy 點陣圖影像編輯器。</translation>
     </message>
     <message>
-        <source>Image or Photoshop files to open.</source>
-        <translation>要開啟的影像或 Photoshop 檔案。</translation>
-    </message>
-    <message>
         <source>Run without a display (Qt offscreen platform) and never reuse a running instance. Needs --run-script, --export, --stress-test, or --screenshot; exits 2 otherwise.</source>
         <translation>在無顯示器的情況下執行 (Qt offscreen 平台)，且絕不重複使用執行中的實體。需要搭配 --run-script、--export、--stress-test 或 --screenshot；否則以代碼 2 結束。</translation>
     </message>
@@ -8368,6 +8364,56 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>About %1 GB of memory.</source>
         <translation>約需 %1 GB 記憶體。</translation>
+    </message>
+    <message>
+        <source>Image or Photoshop files, or folders of images, to open.</source>
+        <translation>要開啟的影像或 Photoshop 檔案，或影像資料夾。</translation>
+    </message>
+    <message>
+        <source>Auto Sort</source>
+        <translation>自動排序</translation>
+    </message>
+    <message>
+        <source>Order the documents by name, numbering-aware (2 before 10).</source>
+        <translation>依名稱排序文件，並辨識編號（2 排在 10 之前）。</translation>
+    </message>
+    <message>
+        <source>Reverse the current order.</source>
+        <translation>反轉目前順序。</translation>
+    </message>
+    <message>
+        <source>Export Documents to Folder</source>
+        <translation>匯出文件至資料夾</translation>
+    </message>
+    <message>
+        <source>Documents</source>
+        <translation>文件</translation>
+    </message>
+    <message>
+        <source>Digits</source>
+        <translation>位數</translation>
+    </message>
+    <message>
+        <source>Start at</source>
+        <translation>起始編號</translation>
+    </message>
+    <message>
+        <source>Add continues numbering after the files already in the folder; Overwrite starts at the chosen number and asks before replacing anything.</source>
+        <translation>「新增」會在資料夾中既有檔案之後繼續編號；「覆寫」從所選編號開始，並在取代任何檔案前詢問。</translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation>匯出</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n file(s) will be written.</source>
+        <translation>
+            <numerusform>將寫入 %n 個檔案。</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Choose a folder.</source>
+        <translation>請選擇一個資料夾。</translation>
     </message>
 </context>
 <context>
@@ -16928,6 +16974,66 @@ Y：%2
     <message>
         <source>Deselect La&amp;yers</source>
         <translation>取消選取圖層(&amp;Y)</translation>
+    </message>
+    <message>
+        <source>Open Fol&amp;der...</source>
+        <translation>開啟資料夾(&amp;D)...</translation>
+    </message>
+    <message>
+        <source>Export Documents to Fo&amp;lder...</source>
+        <translation>匯出文件至資料夾(&amp;L)...</translation>
+    </message>
+    <message>
+        <source>Open Folder</source>
+        <translation>開啟資料夾</translation>
+    </message>
+    <message>
+        <source>No supported images in %1</source>
+        <translation>%1 中沒有支援的影像</translation>
+    </message>
+    <message>
+        <source>Opening image %1 of %2...</source>
+        <translation>正在開啟第 %1 個影像,共 %2 個...</translation>
+    </message>
+    <message>
+        <source>Opened %1 of %2 images from %3</source>
+        <translation>已從 %3 開啟 %2 個影像中的 %1 個</translation>
+    </message>
+    <message numerus="yes">
+        <source>Opened %n image(s) from %1</source>
+        <translation>
+            <numerusform>已從 %1 開啟 %n 個影像</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source> (%n could not be opened)</source>
+        <translation>
+            <numerusform> (%n 個無法開啟)</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>These files could not be opened:
+
+%1</source>
+        <translation>無法開啟下列檔案:
+
+%1</translation>
+    </message>
+    <message>
+        <source>Export Documents to Folder</source>
+        <translation>匯出文件至資料夾</translation>
+    </message>
+    <message>
+        <source>%1 already exists. Overwrite existing files?</source>
+        <translation>%1 已經存在。要覆寫現有的檔案嗎？</translation>
+    </message>
+    <message>
+        <source>Writing image %1 of %2...</source>
+        <translation>正在寫入第 %1 個影像,共 %2 個...</translation>
+    </message>
+    <message>
+        <source>Export cancelled after %1 of %2 images</source>
+        <translation>已在匯出 %2 個影像中的 %1 個後取消</translation>
     </message>
 </context>
 <context>

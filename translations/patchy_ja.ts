@@ -248,10 +248,6 @@ RGB: %2, %3, %4</translation>
         <translation>Patchy ラスター画像エディター。</translation>
     </message>
     <message>
-        <source>Image or Photoshop files to open.</source>
-        <translation>開く画像または Photoshop ファイル。</translation>
-    </message>
-    <message>
         <source>Run the profiling stress test and exit (preset: quick, small, standard, or huge).</source>
         <translation>プロファイリング ストレステストを実行して終了します (プリセット: quick、small、standard、huge)。</translation>
     </message>
@@ -8368,6 +8364,56 @@ Mixed selection</source>
     <message>
         <source>About %1 GB of memory.</source>
         <translation>約 %1 GB のメモリを使用します。</translation>
+    </message>
+    <message>
+        <source>Image or Photoshop files, or folders of images, to open.</source>
+        <translation>開く画像ファイル、Photoshop ファイル、または画像のフォルダー。</translation>
+    </message>
+    <message>
+        <source>Auto Sort</source>
+        <translation>自動並べ替え</translation>
+    </message>
+    <message>
+        <source>Order the documents by name, numbering-aware (2 before 10).</source>
+        <translation>番号を考慮してドキュメントを名前順に並べ替えます (10 より 2 が先)。</translation>
+    </message>
+    <message>
+        <source>Reverse the current order.</source>
+        <translation>現在の順序を反転します。</translation>
+    </message>
+    <message>
+        <source>Export Documents to Folder</source>
+        <translation>ドキュメントをフォルダーに書き出し</translation>
+    </message>
+    <message>
+        <source>Documents</source>
+        <translation>ドキュメント</translation>
+    </message>
+    <message>
+        <source>Digits</source>
+        <translation>桁数</translation>
+    </message>
+    <message>
+        <source>Start at</source>
+        <translation>開始番号</translation>
+    </message>
+    <message>
+        <source>Add continues numbering after the files already in the folder; Overwrite starts at the chosen number and asks before replacing anything.</source>
+        <translation>「追加」はフォルダー内の既存ファイルの後から番号を続け、「上書き」は指定した番号から始めて、置き換える前に確認します。</translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation>書き出し</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n file(s) will be written.</source>
+        <translation>
+            <numerusform>%n 個のファイルを書き込みます。</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Choose a folder.</source>
+        <translation>フォルダーを選択してください。</translation>
     </message>
 </context>
 <context>
@@ -16928,6 +16974,66 @@ Clipped to the layer below</source>
     <message>
         <source>Deselect La&amp;yers</source>
         <translation>レイヤーの選択を解除(&amp;Y)</translation>
+    </message>
+    <message>
+        <source>Open Fol&amp;der...</source>
+        <translation>フォルダーを開く(&amp;D)...</translation>
+    </message>
+    <message>
+        <source>Export Documents to Fo&amp;lder...</source>
+        <translation>ドキュメントをフォルダーに書き出し(&amp;L)...</translation>
+    </message>
+    <message>
+        <source>Open Folder</source>
+        <translation>フォルダーを開く</translation>
+    </message>
+    <message>
+        <source>No supported images in %1</source>
+        <translation>%1 に対応する画像がありません</translation>
+    </message>
+    <message>
+        <source>Opening image %1 of %2...</source>
+        <translation>画像 %1 / %2 を開いています...</translation>
+    </message>
+    <message>
+        <source>Opened %1 of %2 images from %3</source>
+        <translation>%3 から %2 個中 %1 個の画像を開きました</translation>
+    </message>
+    <message numerus="yes">
+        <source>Opened %n image(s) from %1</source>
+        <translation>
+            <numerusform>%1 から %n 個の画像を開きました</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source> (%n could not be opened)</source>
+        <translation>
+            <numerusform> (%n 個を開けませんでした)</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>These files could not be opened:
+
+%1</source>
+        <translation>次のファイルを開けませんでした:
+
+%1</translation>
+    </message>
+    <message>
+        <source>Export Documents to Folder</source>
+        <translation>ドキュメントをフォルダーに書き出し</translation>
+    </message>
+    <message>
+        <source>%1 already exists. Overwrite existing files?</source>
+        <translation>%1 は既に存在します。既存のファイルを上書きしますか?</translation>
+    </message>
+    <message>
+        <source>Writing image %1 of %2...</source>
+        <translation>画像 %1 / %2 を書き込み中...</translation>
+    </message>
+    <message>
+        <source>Export cancelled after %1 of %2 images</source>
+        <translation>%2 個中 %1 個の画像で書き出しをキャンセルしました</translation>
     </message>
 </context>
 <context>

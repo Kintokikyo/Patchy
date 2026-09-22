@@ -296,6 +296,13 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
 
   auto* new_action = file_menu->addAction(tr("&New"));
   auto* open_action = file_menu->addAction(tr("&Open..."));
+  // A whole folder of images as tabs (the other half of the PDF round trip: pages
+  // exported to a folder come back as one document each).
+  auto* open_folder_action = file_menu->addAction(tr("Open Fol&der..."));
+  bind_action_text(open_folder_action, QT_TR_NOOP("Open Fol&der..."));
+  open_folder_action->setObjectName(QStringLiteral("fileOpenFolderAction"));
+  register_hotkey(open_folder_action, "file.open_folder");
+  connect(open_folder_action, &QAction::triggered, this, [this] { open_folder(); });
   recent_files_menu_ = file_menu->addMenu(tr("Open &Recent File"));
   recent_files_menu_->setObjectName(QStringLiteral("fileOpenRecentMenu"));
   configure_recent_files_context_menu(recent_files_menu_);
@@ -369,6 +376,13 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   register_hotkey(export_multipage_pdf_action, "file.export_multipage_pdf");
   connect(export_multipage_pdf_action, &QAction::triggered, this, [this] { export_multipage_pdf(); });
   register_document_action(export_multipage_pdf_action);
+  // The checked open documents as numbered image files in a folder.
+  auto* export_documents_folder_action = file_menu->addAction(tr("Export Documents to Fo&lder..."));
+  bind_action_text(export_documents_folder_action, QT_TR_NOOP("Export Documents to Fo&lder..."));
+  export_documents_folder_action->setObjectName(QStringLiteral("fileExportDocumentsToFolderAction"));
+  register_hotkey(export_documents_folder_action, "file.export_documents_to_folder");
+  connect(export_documents_folder_action, &QAction::triggered, this, [this] { export_documents_to_folder(); });
+  register_document_action(export_documents_folder_action);
   auto* export_sprite_sheet_action = file_menu->addAction(tr("Export Layers as Sprite S&heet..."));
   bind_action_text(export_sprite_sheet_action, QT_TR_NOOP("Export Layers as Sprite S&heet..."));
   export_sprite_sheet_action->setObjectName(QStringLiteral("fileExportSpriteSheetAction"));
@@ -396,8 +410,10 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   // dialogs), and an image-sequence export would mean one browser download per
   // layer, which browsers refuse as download spam. The actions stay registered
   // so hotkey ids and wiring are stable; hidden actions do not render in the
-  // menu.
+  // menu. A browser has no host folders to open or write into either.
   export_image_sequence_action->setVisible(false);
+  export_documents_folder_action->setVisible(false);
+  open_folder_action->setVisible(false);
   page_setup_action->setVisible(false);
   print_action->setVisible(false);
 #endif

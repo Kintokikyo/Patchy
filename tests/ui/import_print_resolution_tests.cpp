@@ -3786,6 +3786,13 @@ void ui_multipage_pdf_dialog_lists_documents_and_groups() {
     groups->setChecked(true);
     QApplication::processEvents();
     CHECK(!list->isEnabled());
+    // The whole order control (Move Up/Down, Auto Sort, Reverse) grays out with it.
+    for (const auto* button_name : {"multiPagePdfMoveUpButton", "multiPagePdfMoveDownButton",
+                                    "multiPagePdfAutoSortButton", "multiPagePdfReverseButton"}) {
+      auto* button = dialog->findChild<QPushButton*>(QLatin1String(button_name));
+      CHECK(button != nullptr);
+      CHECK(button != nullptr && !button->isEnabled());
+    }
     CHECK(ungrouped->isEnabled());
     CHECK(summary->text().contains(QStringLiteral("1")));
     *seen = 2;

@@ -1043,6 +1043,10 @@ ${PATCHY_LUPDATE_MANIFEST_SOURCES}
       src/ui/pdf_export.hpp
       src/ui/pdf_export.cpp
       src/ui/pdf_export_editable.cpp
+      src/ui/document_order_list.hpp
+      src/ui/document_order_list.cpp
+      src/ui/export_documents_folder_dialog.hpp
+      src/ui/export_documents_folder_dialog.cpp
       src/ui/multipage_pdf_export_dialog.hpp
       src/ui/multipage_pdf_export_dialog.cpp
       src/ui/text_layer_painter.hpp
@@ -1680,6 +1684,7 @@ if(PATCHY_BUILD_TESTS)
       tests/ui/warp_tests.cpp
       tests/ui/import_print_resolution_tests.cpp
       tests/ui/divide_photos_tests.cpp
+      tests/ui/folder_open_export_tests.cpp
       tests/ui/image_adjustments_curves_tests.cpp
       tests/ui/selection_engines_tests.cpp
       tests/ui/misc_visuals_outline_stress_tests.cpp

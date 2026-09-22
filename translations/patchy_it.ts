@@ -114,10 +114,6 @@
         <translation>Editor di immagini raster Patchy.</translation>
     </message>
     <message>
-        <source>Image or Photoshop files to open.</source>
-        <translation>File immagine o Photoshop da aprire.</translation>
-    </message>
-    <message>
         <source>Run without a display (Qt offscreen platform) and never reuse a running instance. Needs --run-script, --export, --stress-test, or --screenshot; exits 2 otherwise.</source>
         <translation>Esegue senza display (piattaforma Qt offscreen) e non riutilizza mai un&apos;istanza in esecuzione. Richiede --run-script, --export, --stress-test o --screenshot; altrimenti esce con codice 2.</translation>
     </message>
@@ -8394,6 +8390,57 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>About %1 GB of memory.</source>
         <translation>Circa %1 GB di memoria.</translation>
+    </message>
+    <message>
+        <source>Image or Photoshop files, or folders of images, to open.</source>
+        <translation>File immagine o Photoshop, o cartelle di immagini, da aprire.</translation>
+    </message>
+    <message>
+        <source>Auto Sort</source>
+        <translation>Ordina automaticamente</translation>
+    </message>
+    <message>
+        <source>Order the documents by name, numbering-aware (2 before 10).</source>
+        <translation>Ordina i documenti per nome, tenendo conto della numerazione (2 prima di 10).</translation>
+    </message>
+    <message>
+        <source>Reverse the current order.</source>
+        <translation>Inverte l'ordine attuale.</translation>
+    </message>
+    <message>
+        <source>Export Documents to Folder</source>
+        <translation>Esporta documenti in una cartella</translation>
+    </message>
+    <message>
+        <source>Documents</source>
+        <translation>Documenti</translation>
+    </message>
+    <message>
+        <source>Digits</source>
+        <translation>Cifre</translation>
+    </message>
+    <message>
+        <source>Start at</source>
+        <translation>Inizia da</translation>
+    </message>
+    <message>
+        <source>Add continues numbering after the files already in the folder; Overwrite starts at the chosen number and asks before replacing anything.</source>
+        <translation>Aggiungi continua la numerazione dopo i file già presenti nella cartella; Sovrascrivi inizia dal numero scelto e chiede conferma prima di sostituire qualsiasi cosa.</translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation>Esporta</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n file(s) will be written.</source>
+        <translation>
+            <numerusform>Verrà scritto %n file.</numerusform>
+            <numerusform>Verranno scritti %n file.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Choose a folder.</source>
+        <translation>Scegli una cartella.</translation>
     </message>
 </context>
 <context>
@@ -16970,6 +17017,68 @@ Y: %2
     <message>
         <source>Deselect La&amp;yers</source>
         <translation>Deseleziona li&amp;velli</translation>
+    </message>
+    <message>
+        <source>Open Fol&amp;der...</source>
+        <translation>Apri car&amp;tella...</translation>
+    </message>
+    <message>
+        <source>Export Documents to Fo&amp;lder...</source>
+        <translation>Esporta documenti in una carte&amp;lla...</translation>
+    </message>
+    <message>
+        <source>Open Folder</source>
+        <translation>Apri cartella</translation>
+    </message>
+    <message>
+        <source>No supported images in %1</source>
+        <translation>Nessuna immagine supportata in %1</translation>
+    </message>
+    <message>
+        <source>Opening image %1 of %2...</source>
+        <translation>Apertura dell'immagine %1 di %2...</translation>
+    </message>
+    <message>
+        <source>Opened %1 of %2 images from %3</source>
+        <translation>Aperte %1 immagini su %2 da %3</translation>
+    </message>
+    <message numerus="yes">
+        <source>Opened %n image(s) from %1</source>
+        <translation>
+            <numerusform>Aperta %n immagine da %1</numerusform>
+            <numerusform>Aperte %n immagini da %1</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source> (%n could not be opened)</source>
+        <translation>
+            <numerusform> (%n non è stato possibile aprirlo)</numerusform>
+            <numerusform> (%n non è stato possibile aprirli)</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>These files could not be opened:
+
+%1</source>
+        <translation>Impossibile aprire questi file:
+
+%1</translation>
+    </message>
+    <message>
+        <source>Export Documents to Folder</source>
+        <translation>Esporta documenti in una cartella</translation>
+    </message>
+    <message>
+        <source>%1 already exists. Overwrite existing files?</source>
+        <translation>%1 esiste già. Sovrascrivere i file esistenti?</translation>
+    </message>
+    <message>
+        <source>Writing image %1 of %2...</source>
+        <translation>Scrittura dell'immagine %1 di %2...</translation>
+    </message>
+    <message>
+        <source>Export cancelled after %1 of %2 images</source>
+        <translation>Esportazione annullata dopo %1 immagini su %2</translation>
     </message>
 </context>
 <context>

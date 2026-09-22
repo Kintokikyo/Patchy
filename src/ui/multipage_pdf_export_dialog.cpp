@@ -4,7 +4,6 @@
 #include "ui/dialog_utils.hpp"
 #include "ui/image_save_options_dialog.hpp"
 
-#include <QAbstractItemView>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDialog>
@@ -13,7 +12,6 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QListWidget>
-#include <QListWidgetItem>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QVBoxLayout>
@@ -28,17 +26,6 @@ constexpr auto kUngroupedKey = "exportOptions/multiPagePdfUngroupedLayers";
 constexpr auto kEditableKey = "exportOptions/multiPagePdfEditableLayers";
 constexpr auto kMissingFontsKey = "saveOptions/pdfMissingFontsAsImages";
 constexpr auto kKeepOriginalKey = "saveOptions/pdfKeepOriginalImages";
-
-void move_selected_item(QListWidget* list, int delta) {
-  const int row = list->currentRow();
-  const int target = row + delta;
-  if (row < 0 || target < 0 || target >= list->count()) {
-    return;
-  }
-  auto* item = list->takeItem(row);
-  list->insertItem(target, item);
-  list->setCurrentItem(item);
-}
 
 }  // namespace
 
@@ -63,30 +50,11 @@ std::optional<MultiPagePdfExportChoice> run_multipage_pdf_export_dialog(
   documents_radio->setObjectName(QStringLiteral("multiPagePdfDocumentsRadio"));
   source_layout->addWidget(documents_radio);
 
-  auto* list_row = new QHBoxLayout();
-  auto* list = new QListWidget(source_group);
-  list->setObjectName(QStringLiteral("multiPagePdfDocumentsList"));
-  list->setSelectionMode(QAbstractItemView::SingleSelection);
-  for (const auto& entry : documents) {
-    auto* item = new QListWidgetItem(entry.title, list);
-    item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
-    item->setCheckState(Qt::Checked);
-    item->setData(Qt::UserRole, QVariant::fromValue(static_cast<qlonglong>(entry.session_id)));
-    if (entry.session_id == active_session_id) {
-      list->setCurrentItem(item);
-    }
-  }
-  list_row->addWidget(list, 1);
-  auto* order_buttons = new QVBoxLayout();
-  auto* move_up = new QPushButton(QObject::tr("Move Up"), source_group);
-  move_up->setObjectName(QStringLiteral("multiPagePdfMoveUpButton"));
-  auto* move_down = new QPushButton(QObject::tr("Move Down"), source_group);
-  move_down->setObjectName(QStringLiteral("multiPagePdfMoveDownButton"));
-  order_buttons->addWidget(move_up);
-  order_buttons->addWidget(move_down);
-  order_buttons->addStretch(1);
-  list_row->addLayout(order_buttons);
-  source_layout->addLayout(list_row);
+  // The shared ordered checklist: Move Up/Down, Auto Sort (numbering-aware), Reverse.
+  const auto order = build_document_order_controls(source_group, QStringLiteral("multiPagePdf"), documents,
+                                                   active_session_id);
+  auto* list = order.list;
+  source_layout->addWidget(order.row);
 
   auto* groups_radio = new QRadioButton(
       groups_available ? QObject::tr("One page per top-level layer group of the current document (%n group(s))",
@@ -150,24 +118,12 @@ std::optional<MultiPagePdfExportChoice> run_multipage_pdf_export_dialog(
   QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
   layout->addWidget(buttons);
 
-  const auto checked_session_ids = [list] {
-    std::vector<std::int64_t> ids;
-    for (int row = 0; row < list->count(); ++row) {
-      const auto* item = list->item(row);
-      if (item->checkState() == Qt::Checked) {
-        ids.push_back(static_cast<std::int64_t>(item->data(Qt::UserRole).toLongLong()));
-      }
-    }
-    return ids;
-  };
   const auto sync = [&] {
     const bool by_groups = groups_radio->isChecked();
-    list->setEnabled(!by_groups);
-    move_up->setEnabled(!by_groups && list->currentRow() > 0);
-    move_down->setEnabled(!by_groups && list->currentRow() >= 0 && list->currentRow() + 1 < list->count());
+    sync_document_order_controls(order, !by_groups);
     ungrouped->setEnabled(by_groups);
     editable_note->setEnabled(editable->isChecked());
-    const int page_count = by_groups ? top_level_group_count : static_cast<int>(checked_session_ids().size());
+    const int page_count = by_groups ? top_level_group_count : static_cast<int>(checked_session_ids(*list).size());
     export_button->setEnabled(page_count > 0);
     summary->setText(page_count > 0 ? QObject::tr("%n page(s) will be written.", nullptr, page_count)
                                     : QObject::tr("Check at least one document."));
@@ -179,14 +135,6 @@ std::optional<MultiPagePdfExportChoice> run_multipage_pdf_export_dialog(
   QObject::connect(list, &QListWidget::itemChanged, &dialog, sync);
   QObject::connect(list, &QListWidget::currentRowChanged, &dialog, sync);
   QObject::connect(editable, &QCheckBox::toggled, &dialog, sync);
-  QObject::connect(move_up, &QPushButton::clicked, &dialog, [list, sync] {
-    move_selected_item(list, -1);
-    sync();
-  });
-  QObject::connect(move_down, &QPushButton::clicked, &dialog, [list, sync] {
-    move_selected_item(list, +1);
-    sync();
-  });
 
   remember_dialog_position(dialog);
   if (exec_dialog(dialog) != QDialog::Accepted) {
@@ -195,7 +143,7 @@ std::optional<MultiPagePdfExportChoice> run_multipage_pdf_export_dialog(
 
   MultiPagePdfExportChoice choice;
   choice.source = groups_radio->isChecked() ? MultiPagePdfSource::TopLevelGroups : MultiPagePdfSource::OpenDocuments;
-  choice.session_ids = checked_session_ids();
+  choice.session_ids = checked_session_ids(*list);
   choice.include_ungrouped_layers = ungrouped->isChecked();
   apply_pdf_image_quality(quality->currentData().toString(), choice.options);
   choice.options.editable_layers = editable->isChecked();

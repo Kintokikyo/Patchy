@@ -239,6 +239,7 @@ int main(int argc, char* argv[]) {
            warp_tests,
            import_print_resolution_tests,
            divide_photos_tests,
+           folder_open_export_tests,
            image_adjustments_curves_tests,
            selection_engines_tests,
            misc_visuals_outline_stress_tests,

@@ -40,6 +40,7 @@ std::vector<patchy::test::TestCase> smart_object_tests();
 std::vector<patchy::test::TestCase> warp_tests();
 std::vector<patchy::test::TestCase> import_print_resolution_tests();
 std::vector<patchy::test::TestCase> divide_photos_tests();
+std::vector<patchy::test::TestCase> folder_open_export_tests();
 std::vector<patchy::test::TestCase> image_adjustments_curves_tests();
 std::vector<patchy::test::TestCase> selection_engines_tests();
 std::vector<patchy::test::TestCase> misc_visuals_outline_stress_tests();

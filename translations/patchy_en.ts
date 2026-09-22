@@ -114,10 +114,6 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Image or Photoshop files to open.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Run without a display (Qt offscreen platform) and never reuse a running instance. Needs --run-script, --export, --stress-test, or --screenshot; exits 2 otherwise.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8384,6 +8380,57 @@ RGB: %2, %3, %4</source>
     </message>
     <message>
         <source>About %1 GB of memory.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Image or Photoshop files, or folders of images, to open.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Auto Sort</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Order the documents by name, numbering-aware (2 before 10).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reverse the current order.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export Documents to Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Documents</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Digits</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start at</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add continues numbering after the files already in the folder; Overwrite starts at the chosen number and asks before replacing anything.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n file(s) will be written.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Choose a folder.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -16927,6 +16974,66 @@ Y: %2
     </message>
     <message>
         <source>Deselect La&amp;yers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open Fol&amp;der...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export Documents to Fo&amp;lder...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No supported images in %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Opening image %1 of %2...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Opened %1 of %2 images from %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Opened %n image(s) from %1</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source> (%n could not be opened)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>These files could not be opened:
+
+%1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export Documents to Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 already exists. Overwrite existing files?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Writing image %1 of %2...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export cancelled after %1 of %2 images</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
