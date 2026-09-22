@@ -449,6 +449,7 @@ void CanvasWidget::set_tool(CanvasTool tool) {
     moving_layers_.clear();
     move_readout_base_rect_.reset();
     drag_readout_dirty_rect_ = QRect();
+    clear_move_snap_guides();
     move_preview_delta_ = QPoint();
     move_preview_patches_.clear();
     move_preview_patches_delta_.reset();
@@ -492,6 +493,7 @@ void CanvasWidget::set_edit_locked(bool locked) noexcept {
     moving_layers_.clear();
     move_readout_base_rect_.reset();
     drag_readout_dirty_rect_ = QRect();
+    clear_move_snap_guides();
     move_preview_delta_ = QPoint();
     move_preview_patches_.clear();
     move_preview_patches_delta_.reset();

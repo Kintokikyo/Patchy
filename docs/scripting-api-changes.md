@@ -1,5 +1,12 @@
 # Scripting API compatibility
 
+2026-09-22 (API 1): `doc.alignLayers(edge, options?)` and `doc.distributeLayers(mode,
+options?)` run Layer > Arrange > Align / Distribute (`edge` ids `left`, `hcenter`, `right`,
+`top`, `vcenter`, `bottom`; Distribute adds `hspacing`, `vspacing`; options `layers` and,
+for Align, `alignTo: "selection" | "canvas"`). Both return the number of layers moved and
+ride the run's single undo entry. Additive; apiVersion unchanged. See
+[alignment.md](alignment.md).
+
 2026-09-22 (API 1): `layer.removeObject(options?)` runs Edit > Remove Object on the
 document selection. `{method}` is `"contentAware"` (default, the exhaustive exemplar
 fill) or `"nearestEdge"` (the selection form of Spot Healing, where `{attempt}` picks

@@ -14,6 +14,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include "ui/canvas_widget.hpp"
+#include "ui/canvas_widget_shared.hpp"
 #include "ui/color_panel.hpp"
 #include "ui/palette_panel.hpp"
 #include "ui/qt_paths.hpp"
@@ -610,6 +611,54 @@ void ui_script_remove_object_then_reopen_large_document() {
   // Let every deferred refresh and background composite of both documents land
   // while the sessions are still alive.
   patchy::test::ui::process_events_for(1500);
+}
+
+void ui_script_align_and_distribute_layers() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  CHECK(run_script(window, QStringLiteral(R"JS(
+    var doc = app.activeDocument;
+    var a = doc.addLayer('A'); a.fillRect(10, 10, 20, 20, '#ff0000');
+    var b = doc.addLayer('B'); b.fillRect(60, 40, 30, 10, '#00ff00');
+    var c = doc.addLayer('C'); c.fillRect(100, 90, 20, 30, '#0000ff');
+    var moved = doc.alignLayers('left', {layers: [a, b, c]});
+    console.log('aligned=' + moved);
+    moved = doc.alignLayers('left', {layers: [a, b, c]});
+    console.log('again=' + moved);
+    moved = doc.distributeLayers('vcenter', {layers: [a, b, c]});
+    console.log('distributed=' + moved);
+    moved = doc.alignLayers('hcenter', {layers: [b], alignTo: 'canvas'});
+    console.log('canvas=' + moved);
+    try { doc.distributeLayers('left', {layers: [a, b]}); console.log('no-throw'); }
+    catch (e) { console.log('refused=' + (e.message.indexOf('three') >= 0)); }
+    try { doc.alignLayers('middle'); console.log('no-throw'); }
+    catch (e) { console.log('bad-edge=' + (e.message.indexOf('middle') >= 0)); }
+    try { doc.alignLayers('left', {bogus: 1}); console.log('no-throw'); }
+    catch (e) { console.log('bad-option=' + (e.message.indexOf('bogus') >= 0)); }
+  )JS")));
+  // Align works on the layers' opaque rects (A already sits at the union's left
+  // edge, so two layers move); vcenter distribute puts B's center at
+  // (20 + 105) / 2 = 62.5 -> 63 (top 58); the canvas hcenter centers B's 30 px.
+  CHECK(backlog_contains(window, QStringLiteral("aligned=2")));
+  CHECK(backlog_contains(window, QStringLiteral("again=0")));
+  CHECK(backlog_contains(window, QStringLiteral("distributed=1")));
+  CHECK(backlog_contains(window, QStringLiteral("canvas=1")));
+  const auto& document = std::as_const(patchy::ui::MainWindowTestAccess::document(window));
+  const auto opaque = [&](const char* name) {
+    const auto* layer = layer_named(document, name);
+    return layer != nullptr ? patchy::ui::move_layer_outline_bounds(*layer).value_or(patchy::Rect{})
+                            : patchy::Rect{};
+  };
+  CHECK(opaque("A").x == 10 && opaque("C").x == 10);
+  CHECK(opaque("A").y == 10 && opaque("C").y == 90);
+  CHECK(opaque("B").y == 58);
+  CHECK(opaque("B").x == document.width() / 2 - 15);
+  CHECK(backlog_contains(window, QStringLiteral("refused=true")));
+  CHECK(backlog_contains(window, QStringLiteral("bad-edge=true")));
+  CHECK(backlog_contains(window, QStringLiteral("bad-option=true")));
+  CHECK(!backlog_contains(window, QStringLiteral("no-throw")));
+  // Every mutation rode the run's single history entry.
+  CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == 1);
 }
 
 void ui_script_canvas_window_receives_space_key() {
@@ -2991,6 +3040,7 @@ std::vector<patchy::test::TestCase> scripting_tests() {
       {"ui_script_remove_object_heals_selection", ui_script_remove_object_heals_selection},
       {"ui_script_remove_object_then_reopen_large_document",
        ui_script_remove_object_then_reopen_large_document},
+      {"ui_script_align_and_distribute_layers", ui_script_align_and_distribute_layers},
       {"ui_script_canvas_window_receives_space_key", ui_script_canvas_window_receives_space_key},
       {"ui_script_canvas_window_dismisses_stop_panel",
        ui_script_canvas_window_dismisses_stop_panel},

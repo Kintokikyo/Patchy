@@ -2743,6 +2743,7 @@ void MainWindow::deselect_all_layers() {
   }
   report_layer_selection_count({});
   refresh_combine_shapes_action_states();
+  refresh_layer_alignment_action_states();
   restyle_layer_rows(layer_list_);
   refresh_layer_controls();
   refresh_options_bar();
@@ -3528,6 +3529,7 @@ void MainWindow::refresh_layer_controls() {
     }
     refresh_layer_style_action_states();
     refresh_combine_shapes_action_states();
+    refresh_layer_alignment_action_states();
     if (layer_rasterize_action_ != nullptr) {
       layer_rasterize_action_->setEnabled(false);
     }
@@ -3643,6 +3645,7 @@ void MainWindow::refresh_layer_controls() {
   }
   refresh_layer_style_action_states();
   refresh_combine_shapes_action_states();
+  refresh_layer_alignment_action_states();
   const auto active_pixels_locked = layer_id_locks_image_pixels(layer->id());
   // The rasterize actions act on the whole selection, folders expanded to
   // their contents, so their enabled state weighs the same set of layers.

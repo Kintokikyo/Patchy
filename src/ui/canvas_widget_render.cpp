@@ -1097,6 +1097,7 @@ void CanvasWidget::paintEvent(QPaintEvent* event) {
   }
   draw_grid_overlay(painter, target_rect, exposed_rect);
   draw_guides_overlay(painter);
+  draw_move_snap_guides(painter);
   painter.setPen(theme().canvas_document_border);
   const auto border_rect = target_rect.adjusted(0.5, 0.5, -0.5, -0.5);
   if (!border_rect.isEmpty()) {

@@ -315,6 +315,24 @@ public:
     window.undo();
   }
 
+  // Layer > Arrange > Align / Distribute entry points and their persisted
+  // Align To choice (docs/alignment.md).
+  static void align_selected_layers(MainWindow& window, AlignEdge edge) {
+    window.align_selected_layers(edge);
+  }
+
+  static void distribute_selected_layers(MainWindow& window, DistributeMode mode) {
+    window.distribute_selected_layers(mode);
+  }
+
+  static bool align_to_canvas(MainWindow& window) {
+    return window.align_to_canvas();
+  }
+
+  static void save_tool_settings(MainWindow& window) {
+    window.save_tool_settings();
+  }
+
   static void redo(MainWindow& window) {
     window.redo();
   }

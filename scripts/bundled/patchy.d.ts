@@ -496,6 +496,18 @@ interface PatchyDocument {
   mergeLayers(layers: PatchyLayer[], options?: {
     keepVectors?: boolean; withinGroups?: boolean; separateVectorTypes?: boolean;
   }): PatchyLayer[];
+  /** Layer > Arrange > Align: lines the layers' edges or centers up with the reference
+   *  (the selection when one exists and alignTo is "selection", the canvas when alignTo is
+   *  "canvas" or only one layer is given, else the layers' union). A group counts as one
+   *  unit. Defaults: the layer selection, alignTo "selection". Returns the layers moved;
+   *  rides the run's single undo entry. */
+  alignLayers(edge: "left" | "hcenter" | "right" | "top" | "vcenter" | "bottom",
+    options?: {layers?: PatchyLayer[]; alignTo?: "selection" | "canvas"}): number;
+  /** Layer > Arrange > Distribute over three or more units: feature modes keep the outermost
+   *  units and space the others evenly; "hspacing" / "vspacing" share one equal gap. Throws
+   *  with fewer than three movable units. Returns the layers moved. */
+  distributeLayers(mode: "left" | "hcenter" | "right" | "top" | "vcenter" | "bottom" | "hspacing" | "vspacing",
+    options?: {layers?: PatchyLayer[]}): number;
   flatten(): void;
   resizeImage(width: number, height: number): void;
   resizeCanvas(width: number, height: number): void;

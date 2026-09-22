@@ -3580,6 +3580,115 @@ void MainWindow::border_selection_dialog() {
   }
 }
 
+bool MainWindow::refuse_layer_alignment_command() {
+  if (canvas_ == nullptr || !has_active_document()) {
+    return true;
+  }
+  if (preview_dialog_edit_locked()) {
+    return show_preview_dialog_edit_lock_message();
+  }
+  if (refuse_layer_dialog_during_transform()) {
+    return true;
+  }
+  if (canvas_->pointer_gesture_active()) {
+    show_status_error(tr("Finish the current drag before aligning layers"));
+    return true;
+  }
+  const auto target = canvas_->layer_edit_target();
+  if (target == CanvasWidget::LayerEditTarget::DocumentChannel ||
+      target == CanvasWidget::LayerEditTarget::ComponentRed ||
+      target == CanvasWidget::LayerEditTarget::ComponentGreen ||
+      target == CanvasWidget::LayerEditTarget::ComponentBlue) {
+    show_status_error(tr("Return to the layer view to align layers"));
+    return true;
+  }
+  return false;
+}
+
+void MainWindow::align_selected_layers(AlignEdge edge) {
+  if (refuse_layer_alignment_command()) {
+    return;
+  }
+  const auto result = canvas_->align_layers(edge, align_to_canvas_, {});
+  if (result.unit_count == 0) {
+    show_status_error(tr("Select a movable layer to align"));
+    return;
+  }
+  if (result.moved_layers == 0) {
+    statusBar()->showMessage(tr("The selected layers are already aligned"));
+    return;
+  }
+  canvas_->document_changed_effect_bounds(result.dirty);
+  // The row rebuild collapses a multi-selection to the active row; put the
+  // selection back so a second Align/Distribute works on the same set.
+  const auto selected_ids = selected_layer_ids();
+  const auto active_id = document().active_layer_id();
+  refresh_layer_list();
+  if (selected_ids.size() > 1U) {
+    select_layers_in_layer_list(selected_ids, active_id.value_or(selected_ids.front()));
+  }
+  refresh_layer_controls();
+  statusBar()->showMessage(tr("Aligned %n layer(s)", nullptr, result.moved_layers));
+}
+
+void MainWindow::distribute_selected_layers(DistributeMode mode) {
+  if (refuse_layer_alignment_command()) {
+    return;
+  }
+  const auto result = canvas_->distribute_layers(mode, {});
+  if (result.unit_count < 3) {
+    show_status_error(tr("Select at least three layers to distribute"));
+    return;
+  }
+  if (result.moved_layers == 0) {
+    statusBar()->showMessage(tr("The selected layers are already distributed"));
+    return;
+  }
+  canvas_->document_changed_effect_bounds(result.dirty);
+  // The row rebuild collapses a multi-selection to the active row; put the
+  // selection back so a second Align/Distribute works on the same set.
+  const auto selected_ids = selected_layer_ids();
+  const auto active_id = document().active_layer_id();
+  refresh_layer_list();
+  if (selected_ids.size() > 1U) {
+    select_layers_in_layer_list(selected_ids, active_id.value_or(selected_ids.front()));
+  }
+  refresh_layer_controls();
+  statusBar()->showMessage(tr("Distributed %n layer(s)", nullptr, result.moved_layers));
+}
+
+void MainWindow::set_align_to_canvas(bool align_to_canvas) {
+  if (align_to_canvas_ == align_to_canvas) {
+    return;
+  }
+  align_to_canvas_ = align_to_canvas;
+  if (layer_align_to_canvas_action_ != nullptr && layer_align_to_canvas_action_->isChecked() != align_to_canvas) {
+    QSignalBlocker blocker(layer_align_to_canvas_action_);
+    layer_align_to_canvas_action_->setChecked(align_to_canvas);
+  }
+  if (layer_align_to_selection_action_ != nullptr &&
+      layer_align_to_selection_action_->isChecked() == align_to_canvas) {
+    QSignalBlocker blocker(layer_align_to_selection_action_);
+    layer_align_to_selection_action_->setChecked(!align_to_canvas);
+  }
+  schedule_save_tool_settings();
+}
+
+void MainWindow::refresh_layer_alignment_action_states() {
+  const bool document_ready = has_active_document() && canvas_ != nullptr && !preview_dialog_edit_locked();
+  const int units = document_ready ? canvas_->alignment_unit_count({}) : 0;
+  for (auto* action : layer_align_actions_) {
+    if (action != nullptr) {
+      action->setEnabled(document_ready && units >= 1);
+    }
+  }
+  for (auto* action : layer_distribute_actions_) {
+    if (action != nullptr) {
+      action->setEnabled(document_ready && units >= 3);
+    }
+  }
+}
+
 void MainWindow::flip_active_layer_horizontal() {
   if (canvas_ != nullptr) {
     const auto target = canvas_->layer_edit_target();

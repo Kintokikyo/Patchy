@@ -1967,6 +1967,9 @@ void ui_move_tool_moves_selected_folder_tree() {
   require_action_by_text(window, QStringLiteral("Move"))->trigger();
   canvas->set_show_transform_controls(false);
   canvas->set_auto_select_layer(false);
+  // The moved tree passes within 8 px of the document center; this test is
+  // about folder movement, not snapping (docs/alignment.md).
+  canvas->set_snap_enabled(false);
   const auto start = canvas->widget_position_for_document_point(QPoint(80, 60));
   send_mouse(*canvas, QEvent::MouseButtonPress, start, Qt::LeftButton, Qt::LeftButton);
   send_mouse(*canvas, QEvent::MouseMove, start + QPoint(18, 12), Qt::NoButton, Qt::LeftButton);
@@ -2021,6 +2024,9 @@ void ui_move_tool_moves_selected_masked_folder_tree() {
   require_action_by_text(window, QStringLiteral("Move"))->trigger();
   canvas->set_show_transform_controls(false);
   canvas->set_auto_select_layer(false);
+  // The moved tree passes within 8 px of the document center; this test is
+  // about folder movement, not snapping (docs/alignment.md).
+  canvas->set_snap_enabled(false);
   const auto start = canvas->widget_position_for_document_point(QPoint(80, 60));
   send_mouse(*canvas, QEvent::MouseButtonPress, start, Qt::LeftButton, Qt::LeftButton);
   send_mouse(*canvas, QEvent::MouseMove, start + QPoint(18, 12), Qt::NoButton, Qt::LeftButton);

@@ -1571,6 +1571,89 @@ bool ScriptEngineHost::remove_object_in_selection(std::int64_t session_id, Layer
   return true;
 }
 
+namespace {
+
+// The Align/Distribute preamble both services share: the session must be
+// open, and every requested root must still exist in its document.
+bool alignment_session_ready(ScriptEngineHost& host, CanvasWidget* canvas, const Document* document,
+                             const std::vector<LayerId>& root_ids, const char* verb) {
+  if (canvas == nullptr || document == nullptr) {
+    host.throw_js_error(ScriptEngineHost::tr("The document is no longer open."));
+    return false;
+  }
+  for (const auto id : root_ids) {
+    if (document->find_layer(id) == nullptr) {
+      host.throw_js_error(ScriptEngineHost::tr("%1 needs layers of this document.").arg(QLatin1String(verb)));
+      return false;
+    }
+  }
+  if (canvas->free_transform_active() || canvas->warp_transform_active() || canvas->path_transform_active()) {
+    host.throw_js_error(
+        ScriptEngineHost::tr("%1: finish the pending transform first.").arg(QLatin1String(verb)));
+    return false;
+  }
+  return true;
+}
+
+}  // namespace
+
+int ScriptEngineHost::align_layers(std::int64_t session_id, const std::vector<LayerId>& root_ids, AlignEdge edge,
+                                   bool align_to_canvas) {
+  pump_progress_indicator();
+  auto* initial_session = window_.session_with_id(session_id);
+  auto* canvas = initial_session != nullptr ? initial_session->canvas : nullptr;
+  const Document* document = initial_session != nullptr ? &std::as_const(initial_session->document) : nullptr;
+  if (!alignment_session_ready(*this, canvas, document, root_ids, "alignLayers")) {
+    return -1;
+  }
+  if (canvas->alignment_unit_count(root_ids) == 0) {
+    throw_js_error(tr("alignLayers needs at least one movable layer."));
+    return -1;
+  }
+  if (!prepare_mutation(session_id)) {
+    return -1;
+  }
+  // prepare_mutation may pump input; re-resolve the session before mutating.
+  auto* session = window_.session_with_id(session_id);
+  if (session == nullptr || session->canvas != canvas) {
+    throw_js_error(tr("The document is no longer open."));
+    return -1;
+  }
+  const auto result = canvas->align_layers(edge, align_to_canvas, root_ids, /*record_history=*/false);
+  if (!result.dirty.isEmpty()) {
+    note_pixels_changed(session_id, result.dirty.boundingRect());
+  }
+  return result.moved_layers;
+}
+
+int ScriptEngineHost::distribute_layers(std::int64_t session_id, const std::vector<LayerId>& root_ids,
+                                        DistributeMode mode) {
+  pump_progress_indicator();
+  auto* initial_session = window_.session_with_id(session_id);
+  auto* canvas = initial_session != nullptr ? initial_session->canvas : nullptr;
+  const Document* document = initial_session != nullptr ? &std::as_const(initial_session->document) : nullptr;
+  if (!alignment_session_ready(*this, canvas, document, root_ids, "distributeLayers")) {
+    return -1;
+  }
+  if (canvas->alignment_unit_count(root_ids) < 3) {
+    throw_js_error(tr("distributeLayers needs at least three movable layers."));
+    return -1;
+  }
+  if (!prepare_mutation(session_id)) {
+    return -1;
+  }
+  auto* session = window_.session_with_id(session_id);
+  if (session == nullptr || session->canvas != canvas) {
+    throw_js_error(tr("The document is no longer open."));
+    return -1;
+  }
+  const auto result = canvas->distribute_layers(mode, root_ids, /*record_history=*/false);
+  if (!result.dirty.isEmpty()) {
+    note_pixels_changed(session_id, result.dirty.boundingRect());
+  }
+  return result.moved_layers;
+}
+
 // ---------------------------------------------------------------------------
 // Text layers (the cli_append_text_to_text_layers technique: drive the real
 // inline-editor pipeline so rasters render through the normal commit path)

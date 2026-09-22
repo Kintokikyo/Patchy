@@ -904,6 +904,99 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   layer_arrange_menu->addSeparator();
   auto* flip_h_action = layer_arrange_menu->addAction(tr("Flip Layer &Horizontal"));
   auto* flip_v_action = layer_arrange_menu->addAction(tr("Flip Layer &Vertical"));
+  // Align / Distribute nest under Arrange: the Layer menu sits at its 23-row
+  // cap (ui_main_window_renders_color_controls). The Move tool's options-bar
+  // buttons wrap these same QActions (docs/alignment.md).
+  layer_arrange_menu->addSeparator();
+  auto* layer_align_menu = layer_arrange_menu->addMenu(tr("&Align"));
+  layer_align_menu->setObjectName(QStringLiteral("layerAlignMenu"));
+  auto* layer_distribute_menu = layer_arrange_menu->addMenu(tr("&Distribute"));
+  layer_distribute_menu->setObjectName(QStringLiteral("layerDistributeMenu"));
+  {
+    struct AlignSpec {
+      AlignEdge edge;
+      const char* text;
+      const char* object_name;
+      const char* command_id;
+    };
+    const AlignSpec align_specs[] = {
+        {AlignEdge::Left, QT_TR_NOOP("Align &Left Edges"), "layerAlignLeftAction", "layer.align_left"},
+        {AlignEdge::HorizontalCenter, QT_TR_NOOP("Align &Horizontal Centers"), "layerAlignHCenterAction",
+         "layer.align_horizontal_centers"},
+        {AlignEdge::Right, QT_TR_NOOP("Align &Right Edges"), "layerAlignRightAction", "layer.align_right"},
+        {AlignEdge::Top, QT_TR_NOOP("Align &Top Edges"), "layerAlignTopAction", "layer.align_top"},
+        {AlignEdge::VerticalCenter, QT_TR_NOOP("Align &Vertical Centers"), "layerAlignVCenterAction",
+         "layer.align_vertical_centers"},
+        {AlignEdge::Bottom, QT_TR_NOOP("Align &Bottom Edges"), "layerAlignBottomAction", "layer.align_bottom"},
+    };
+    for (const auto& spec : align_specs) {
+      auto* action = layer_align_menu->addAction(tr(spec.text));
+      bind_action_text(action, spec.text);
+      action->setObjectName(QLatin1String(spec.object_name));
+      action->setIcon(align_edge_icon(spec.edge));
+      register_hotkey(action, spec.command_id);
+      connect(action, &QAction::triggered, this, [this, edge = spec.edge] { align_selected_layers(edge); });
+      register_document_action(action);
+      layer_align_actions_[static_cast<std::size_t>(spec.edge)] = action;
+    }
+    layer_align_menu->addSeparator();
+    auto* align_to_group = new QActionGroup(this);
+    align_to_group->setExclusive(true);
+    layer_align_to_selection_action_ = layer_align_menu->addAction(tr("Align To: &Selection"));
+    bind_action_text(layer_align_to_selection_action_, QT_TR_NOOP("Align To: &Selection"));
+    layer_align_to_selection_action_->setObjectName(QStringLiteral("layerAlignToSelectionAction"));
+    layer_align_to_selection_action_->setCheckable(true);
+    layer_align_to_selection_action_->setChecked(true);
+    align_to_group->addAction(layer_align_to_selection_action_);
+    register_hotkey(layer_align_to_selection_action_, "layer.align_to_selection");
+    layer_align_to_canvas_action_ = layer_align_menu->addAction(tr("Align To: &Canvas"));
+    bind_action_text(layer_align_to_canvas_action_, QT_TR_NOOP("Align To: &Canvas"));
+    layer_align_to_canvas_action_->setObjectName(QStringLiteral("layerAlignToCanvasAction"));
+    layer_align_to_canvas_action_->setCheckable(true);
+    align_to_group->addAction(layer_align_to_canvas_action_);
+    register_hotkey(layer_align_to_canvas_action_, "layer.align_to_canvas");
+    connect(layer_align_to_canvas_action_, &QAction::toggled, this,
+            [this](bool checked) { set_align_to_canvas(checked); });
+    register_document_action(layer_align_to_selection_action_);
+    register_document_action(layer_align_to_canvas_action_);
+
+    struct DistributeSpec {
+      DistributeMode mode;
+      const char* text;
+      const char* object_name;
+      const char* command_id;
+    };
+    const DistributeSpec distribute_specs[] = {
+        {DistributeMode::Left, QT_TR_NOOP("Distribute &Left Edges"), "layerDistributeLeftAction",
+         "layer.distribute_left"},
+        {DistributeMode::HorizontalCenter, QT_TR_NOOP("Distribute &Horizontal Centers"),
+         "layerDistributeHCenterAction", "layer.distribute_horizontal_centers"},
+        {DistributeMode::Right, QT_TR_NOOP("Distribute &Right Edges"), "layerDistributeRightAction",
+         "layer.distribute_right"},
+        {DistributeMode::Top, QT_TR_NOOP("Distribute &Top Edges"), "layerDistributeTopAction",
+         "layer.distribute_top"},
+        {DistributeMode::VerticalCenter, QT_TR_NOOP("Distribute &Vertical Centers"),
+         "layerDistributeVCenterAction", "layer.distribute_vertical_centers"},
+        {DistributeMode::Bottom, QT_TR_NOOP("Distribute &Bottom Edges"), "layerDistributeBottomAction",
+         "layer.distribute_bottom"},
+        {DistributeMode::HorizontalSpacing, QT_TR_NOOP("Distribute Horizontal &Spacing"),
+         "layerDistributeHSpacingAction", "layer.distribute_horizontal_spacing"},
+        {DistributeMode::VerticalSpacing, QT_TR_NOOP("Distribute Vertical S&pacing"),
+         "layerDistributeVSpacingAction", "layer.distribute_vertical_spacing"},
+    };
+    for (const auto& spec : distribute_specs) {
+      if (spec.mode == DistributeMode::HorizontalSpacing) {
+        layer_distribute_menu->addSeparator();
+      }
+      auto* action = layer_distribute_menu->addAction(tr(spec.text));
+      bind_action_text(action, spec.text);
+      action->setObjectName(QLatin1String(spec.object_name));
+      register_hotkey(action, spec.command_id);
+      connect(action, &QAction::triggered, this, [this, mode = spec.mode] { distribute_selected_layers(mode); });
+      register_document_action(action);
+      layer_distribute_actions_[static_cast<std::size_t>(spec.mode)] = action;
+    }
+  }
   add_layer_action->setObjectName(QStringLiteral("layerNewAction"));
   add_folder_action->setObjectName(QStringLiteral("layerNewFolderAction"));
   layer_via_copy_action->setObjectName(QStringLiteral("layerViaCopyAction"));
@@ -1809,6 +1902,8 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   ctx.vector_mask_menu = vector_mask_menu;
   ctx.layer_smart_objects_menu = layer_smart_objects_menu;
   ctx.layer_arrange_menu = layer_arrange_menu;
+  ctx.layer_align_menu = layer_align_menu;
+  ctx.layer_distribute_menu = layer_distribute_menu;
   ctx.layer_via_copy_action = layer_via_copy_action;
   ctx.layer_via_cut_action = layer_via_cut_action;
   ctx.add_mask_action = add_mask_action;

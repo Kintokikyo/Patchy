@@ -1519,6 +1519,115 @@ QJSValue ScriptDocumentObject::findLayer(const QString& name) {
   return found.has_value() ? make_layer_value(host_, session_id_, *found) : QJSValue();
 }
 
+namespace {
+
+// Shared option parsing for alignLayers / distributeLayers: an optional array
+// of this document's layer wrappers plus, for Align, the alignTo choice.
+struct AlignmentOptions {
+  std::vector<LayerId> layer_ids;
+  bool align_to_canvas{false};
+  bool valid{true};
+};
+
+AlignmentOptions parse_alignment_options(ScriptEngineHost& host, const Document& document, std::int64_t session_id,
+                                         const QJSValue& options, const char* verb, bool allow_align_to) {
+  AlignmentOptions parsed;
+  if (options.isUndefined() || options.isNull()) {
+    return parsed;
+  }
+  if (!options.isObject() || options.isArray() || options.isCallable()) {
+    host.throw_js_error(ScriptEngineHost::tr("%1: options must be an object.").arg(QLatin1String(verb)));
+    parsed.valid = false;
+    return parsed;
+  }
+  QJSValueIterator it(options);
+  while (it.hasNext()) {
+    it.next();
+    if (it.name() == QLatin1String("layers")) {
+      const auto layers = it.value();
+      const auto length = layers.isArray() ? layers.property(QStringLiteral("length")).toUInt() : 0U;
+      if (!layers.isArray() || length == 0) {
+        host.throw_js_error(
+            ScriptEngineHost::tr("%1: layers must be a nonempty array of layers of this document.")
+                .arg(QLatin1String(verb)));
+        parsed.valid = false;
+        return parsed;
+      }
+      for (quint32 i = 0; i < length; ++i) {
+        const auto* wrapper = qobject_cast<ScriptLayerObject*>(layers.property(i).toQObject());
+        if (wrapper == nullptr || wrapper->session_id() != session_id ||
+            document.find_layer(wrapper->layer_id()) == nullptr) {
+          host.throw_js_error(
+              ScriptEngineHost::tr("%1: layers must be a nonempty array of layers of this document.")
+                  .arg(QLatin1String(verb)));
+          parsed.valid = false;
+          return parsed;
+        }
+        parsed.layer_ids.push_back(wrapper->layer_id());
+      }
+    } else if (allow_align_to && it.name() == QLatin1String("alignTo")) {
+      const auto value = it.value().toString();
+      if (value == QLatin1String("canvas")) {
+        parsed.align_to_canvas = true;
+      } else if (value == QLatin1String("selection")) {
+        parsed.align_to_canvas = false;
+      } else {
+        host.throw_js_error(
+            ScriptEngineHost::tr("%1: alignTo must be \"selection\" or \"canvas\".").arg(QLatin1String(verb)));
+        parsed.valid = false;
+        return parsed;
+      }
+    } else {
+      host.throw_js_error(
+          ScriptEngineHost::tr("%1: unknown option %2.").arg(QLatin1String(verb), it.name()));
+      parsed.valid = false;
+      return parsed;
+    }
+  }
+  return parsed;
+}
+
+}  // namespace
+
+int ScriptDocumentObject::alignLayers(const QString& edge, const QJSValue& options) {
+  const ScriptApiCall api_call(host_);
+  const auto* document = read_document();
+  if (document == nullptr) {
+    return -1;
+  }
+  const auto parsed_edge = align_edge_from_id(edge.toStdString());
+  if (!parsed_edge.has_value()) {
+    host_.throw_js_error(ScriptEngineHost::tr("alignLayers: unknown edge %1 (left, hcenter, right, top, vcenter, bottom)")
+                             .arg(edge));
+    return -1;
+  }
+  const auto parsed = parse_alignment_options(host_, *document, session_id_, options, "alignLayers", true);
+  if (!parsed.valid) {
+    return -1;
+  }
+  return host_.align_layers(session_id_, parsed.layer_ids, *parsed_edge, parsed.align_to_canvas);
+}
+
+int ScriptDocumentObject::distributeLayers(const QString& mode, const QJSValue& options) {
+  const ScriptApiCall api_call(host_);
+  const auto* document = read_document();
+  if (document == nullptr) {
+    return -1;
+  }
+  const auto parsed_mode = distribute_mode_from_id(mode.toStdString());
+  if (!parsed_mode.has_value()) {
+    host_.throw_js_error(ScriptEngineHost::tr("distributeLayers: unknown mode %1 (left, hcenter, right, top, "
+                                              "vcenter, bottom, hspacing, vspacing)")
+                             .arg(mode));
+    return -1;
+  }
+  const auto parsed = parse_alignment_options(host_, *document, session_id_, options, "distributeLayers", false);
+  if (!parsed.valid) {
+    return -1;
+  }
+  return host_.distribute_layers(session_id_, parsed.layer_ids, *parsed_mode);
+}
+
 void ScriptDocumentObject::flatten() {
   const ScriptApiCall api_call(host_);
   auto* document = write_document();

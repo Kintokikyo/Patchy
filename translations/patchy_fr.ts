@@ -9915,6 +9915,14 @@ RVB : %2, %3, %4</translation>
         <source>Removing object... %1%</source>
         <translation>Suppression de l&apos;objet... %1%</translation>
     </message>
+    <message>
+        <source>Align Layers</source>
+        <translation>Aligner les calques</translation>
+    </message>
+    <message>
+        <source>Distribute Layers</source>
+        <translation>Répartir les calques</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::ChannelPanel</name>
@@ -17200,6 +17208,128 @@ Y : %2
         <source>Fill the selection from its surroundings with the content-aware search (Enter)</source>
         <translation>Remplir la sélection à partir de son entourage avec la recherche d&apos;après le contenu (Enter)</translation>
     </message>
+    <message>
+        <source>&amp;Align</source>
+        <translation>&amp;Aligner</translation>
+    </message>
+    <message>
+        <source>&amp;Distribute</source>
+        <translation>&amp;Répartir</translation>
+    </message>
+    <message>
+        <source>Snap</source>
+        <translation>Magnétisme</translation>
+    </message>
+    <message>
+        <source>Align &amp;Left Edges</source>
+        <translation>Aligner les bords &amp;gauches</translation>
+    </message>
+    <message>
+        <source>Align &amp;Horizontal Centers</source>
+        <translation>Aligner les centres &amp;horizontaux</translation>
+    </message>
+    <message>
+        <source>Align &amp;Right Edges</source>
+        <translation>Aligner les bords &amp;droits</translation>
+    </message>
+    <message>
+        <source>Align &amp;Top Edges</source>
+        <translation>Aligner les bords &amp;supérieurs</translation>
+    </message>
+    <message>
+        <source>Align &amp;Vertical Centers</source>
+        <translation>Aligner les centres &amp;verticaux</translation>
+    </message>
+    <message>
+        <source>Align &amp;Bottom Edges</source>
+        <translation>Aligner les bords &amp;inférieurs</translation>
+    </message>
+    <message>
+        <source>Align To: &amp;Selection</source>
+        <translation>Aligner sur : &amp;Sélection</translation>
+    </message>
+    <message>
+        <source>Align To: &amp;Canvas</source>
+        <translation>Aligner sur : &amp;Zone de travail</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Left Edges</source>
+        <translation>Répartir les bords &amp;gauches</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Horizontal Centers</source>
+        <translation>Répartir les centres &amp;horizontaux</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Right Edges</source>
+        <translation>Répartir les bords &amp;droits</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Top Edges</source>
+        <translation>Répartir les bords &amp;supérieurs</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Vertical Centers</source>
+        <translation>Répartir les centres &amp;verticaux</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Bottom Edges</source>
+        <translation>Répartir les bords &amp;inférieurs</translation>
+    </message>
+    <message>
+        <source>Distribute Horizontal &amp;Spacing</source>
+        <translation>Répartir l'e&amp;spacement horizontal</translation>
+    </message>
+    <message>
+        <source>Distribute Vertical S&amp;pacing</source>
+        <translation>Répartir l'es&amp;pacement vertical</translation>
+    </message>
+    <message>
+        <source>Snap moved layers to other layers, guides, the grid, and the canvas (View &gt; Snap). Choose the targets under View &gt; Snap To.</source>
+        <translation>Magnétiser les calques déplacés sur les autres calques, les repères, la grille et la zone de travail (Affichage &gt; Magnétisme). Choisissez les cibles dans Affichage &gt; Magnétisme sur.</translation>
+    </message>
+    <message>
+        <source>Distribute layers and choose what to align to</source>
+        <translation>Répartir les calques et choisir la référence d'alignement</translation>
+    </message>
+    <message>
+        <source>Finish the current drag before aligning layers</source>
+        <translation>Terminez le déplacement en cours avant d'aligner les calques</translation>
+    </message>
+    <message>
+        <source>Return to the layer view to align layers</source>
+        <translation>Revenez à la vue des calques pour aligner les calques</translation>
+    </message>
+    <message>
+        <source>Select a movable layer to align</source>
+        <translation>Sélectionnez un calque déplaçable à aligner</translation>
+    </message>
+    <message>
+        <source>The selected layers are already aligned</source>
+        <translation>Les calques sélectionnés sont déjà alignés</translation>
+    </message>
+    <message numerus="yes">
+        <source>Aligned %n layer(s)</source>
+        <translation>
+            <numerusform>%n calque aligné</numerusform>
+            <numerusform>%n calques alignés</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Select at least three layers to distribute</source>
+        <translation>Sélectionnez au moins trois calques à répartir</translation>
+    </message>
+    <message>
+        <source>The selected layers are already distributed</source>
+        <translation>Les calques sélectionnés sont déjà répartis</translation>
+    </message>
+    <message numerus="yes">
+        <source>Distributed %n layer(s)</source>
+        <translation>
+            <numerusform>%n calque réparti</numerusform>
+            <numerusform>%n calques répartis</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -18478,6 +18608,46 @@ Y : %2
     <message>
         <source>removeObject: method must be contentAware or nearestEdge.</source>
         <translation>removeObject : method doit être contentAware ou nearestEdge.</translation>
+    </message>
+    <message>
+        <source>%1: options must be an object.</source>
+        <translation>%1 : options doit être un objet.</translation>
+    </message>
+    <message>
+        <source>%1: layers must be a nonempty array of layers of this document.</source>
+        <translation>%1 : layers doit être un tableau non vide de calques de ce document.</translation>
+    </message>
+    <message>
+        <source>%1: alignTo must be &quot;selection&quot; or &quot;canvas&quot;.</source>
+        <translation>%1 : alignTo doit valoir "selection" ou "canvas".</translation>
+    </message>
+    <message>
+        <source>%1: unknown option %2.</source>
+        <translation>%1 : option inconnue %2.</translation>
+    </message>
+    <message>
+        <source>alignLayers: unknown edge %1 (left, hcenter, right, top, vcenter, bottom)</source>
+        <translation>alignLayers : bord inconnu %1 (left, hcenter, right, top, vcenter, bottom)</translation>
+    </message>
+    <message>
+        <source>distributeLayers: unknown mode %1 (left, hcenter, right, top, vcenter, bottom, hspacing, vspacing)</source>
+        <translation>distributeLayers : mode inconnu %1 (left, hcenter, right, top, vcenter, bottom, hspacing, vspacing)</translation>
+    </message>
+    <message>
+        <source>%1 needs layers of this document.</source>
+        <translation>%1 nécessite des calques de ce document.</translation>
+    </message>
+    <message>
+        <source>%1: finish the pending transform first.</source>
+        <translation>%1 : terminez d'abord la transformation en attente.</translation>
+    </message>
+    <message>
+        <source>alignLayers needs at least one movable layer.</source>
+        <translation>alignLayers nécessite au moins un calque déplaçable.</translation>
+    </message>
+    <message>
+        <source>distributeLayers needs at least three movable layers.</source>
+        <translation>distributeLayers nécessite au moins trois calques déplaçables.</translation>
     </message>
 </context>
 <context>

@@ -3,6 +3,7 @@
 #include "ui/script_stroke.hpp"
 
 #include "core/document.hpp"
+#include "core/layer_alignment.hpp"
 #include "core/magnetic_lasso.hpp"
 #include "core/pattern_resource.hpp"
 #include "core/pixel_tools.hpp"
@@ -589,6 +590,66 @@ public:
   [[nodiscard]] std::optional<DragReadout> transform_drag_readout() const;
   // Widget-space panel rect of the readout; empty when nothing is shown.
   [[nodiscard]] QRect drag_readout_widget_rect() const;
+
+  // One axis of a Move-drag snap: which target line the moving set landed on,
+  // where it is in document space, and the two extents an alignment guide
+  // bridges (docs/alignment.md). Guides draw themselves and grid snaps draw
+  // nothing, so only Document / Selection / Layer matches paint a line.
+  struct SnapMatch {
+    enum class Kind { Guide, Grid, Document, Selection, Layer };
+    Kind kind{Kind::Document};
+    double position{0.0};   // document coordinate of the matched line
+    QRectF source_span{};   // union of the moving rects carrying the matched feature
+    QRectF target_span{};   // the matched layer rect, selection rect, or document rect
+  };
+  struct MoveSnapResult {
+    QPoint delta{};
+    std::optional<SnapMatch> x{};
+    std::optional<SnapMatch> y{};
+  };
+  // One snap target line: its document position, the extent it belongs to
+  // (for the alignment guide), and what kind of target it is.
+  struct SnapCandidate {
+    double position{0.0};
+    QRectF span{};
+    SnapMatch::Kind kind{SnapMatch::Kind::Document};
+  };
+  // The alignment guides currently shown for the live Move drag (x = vertical
+  // line, y = horizontal line); both empty outside a snapped drag.
+  [[nodiscard]] const std::optional<SnapMatch>& move_snap_match_x() const noexcept { return move_snap_x_; }
+  [[nodiscard]] const std::optional<SnapMatch>& move_snap_match_y() const noexcept { return move_snap_y_; }
+
+  // One Align/Distribute unit: a selected root (a folder moves as one block)
+  // with the movable leaves under it and the union of their Move rects.
+  struct AlignmentUnit {
+    LayerId root{};
+    std::vector<LayerId> leaf_ids{};
+    Rect bounds{};
+  };
+  // Units for `root_ids` (normalized through root_drop_layer_ids; empty means
+  // the canvas's layer selection with the movable_layer_ids fallbacks). Roots
+  // with no movable leaf or no measurable rect are dropped.
+  [[nodiscard]] std::vector<AlignmentUnit> alignment_units(const std::vector<LayerId>& root_ids) const;
+  // How many units alignment_units(root_ids) would return, without measuring
+  // rects (the enable-state refresh calls this on every selection change).
+  [[nodiscard]] int alignment_unit_count(const std::vector<LayerId>& root_ids) const;
+  struct LayerAlignmentResult {
+    int unit_count{0};
+    int moved_layers{0};
+    QRegion dirty{};
+  };
+  // Layer > Arrange > Align: lines the units' `edge` up with the reference rect
+  // (the selection bounds when one exists and `align_to_canvas` is false, the
+  // document when `align_to_canvas` is set or only one unit exists, else the
+  // units' union). One "Align Layers" history entry unless `record_history` is
+  // false (the script route rides the run's snapshot). Callers repaint `dirty`.
+  [[nodiscard]] LayerAlignmentResult align_layers(AlignEdge edge, bool align_to_canvas,
+                                                  const std::vector<LayerId>& root_ids,
+                                                  bool record_history = true);
+  // Layer > Arrange > Distribute over three or more units; see
+  // compute_distribute_deltas for the layout rules.
+  [[nodiscard]] LayerAlignmentResult distribute_layers(DistributeMode mode, const std::vector<LayerId>& root_ids,
+                                                       bool record_history = true);
   void set_show_transform_drag_values(bool enabled) noexcept;
   [[nodiscard]] bool show_transform_drag_values() const noexcept;
   void set_fill_shapes(bool fill_shapes) noexcept;
@@ -1322,11 +1383,23 @@ private:
   [[nodiscard]] QPointF widget_position_f(QPointF document_position) const;
   [[nodiscard]] QPoint snapped_document_point(QPoint point) const;
   [[nodiscard]] QPointF snapped_document_point_f(QPointF point) const;
+  // Every enabled snap target except the grid, in the order guides, document,
+  // selection, layers (the tie-break order every snap path shares). Layers
+  // whose id is in `exclude_ids` (the moving set) contribute nothing.
+  void collect_snap_candidates(const std::vector<LayerId>& exclude_ids, std::vector<SnapCandidate>& x_candidates,
+                               std::vector<SnapCandidate>& y_candidates) const;
   void append_snap_target_candidates(std::vector<double>& x_candidates,
                                      std::vector<double>& y_candidates) const;
   [[nodiscard]] QPoint snapped_rect_delta(QRect source_rect, QPoint raw_delta) const;
   [[nodiscard]] QPoint snapped_marquee_current_point(QPoint anchor, QPoint current) const;
   [[nodiscard]] QPoint snapped_move_delta(QPoint raw_delta) const;
+  [[nodiscard]] MoveSnapResult snapped_move_delta_with_matches(QPoint raw_delta) const;
+  // Alignment-guide overlay bookkeeping (the drag-readout pattern: bounded
+  // repaints over the previous and next widget rects, cleared on release).
+  [[nodiscard]] QRect move_snap_guides_widget_rect() const;
+  void update_move_snap_guides_region();
+  void clear_move_snap_guides();
+  void draw_move_snap_guides(QPainter& painter) const;
   [[nodiscard]] int guide_at_widget_position(QPoint widget_position) const;
   [[nodiscard]] GuideOrientation guide_orientation_from_ruler(QPoint widget_position) const noexcept;
   [[nodiscard]] bool widget_position_in_ruler(QPoint widget_position) const noexcept;
@@ -1728,6 +1801,19 @@ private:
   void combine_selection_from_mask(QRect candidate_bounds, QImage candidate_alpha);
   void combine_selection_from_mask(QRegion candidate, QRect candidate_bounds, QImage candidate_alpha);
   [[nodiscard]] std::vector<LayerId> movable_layer_ids() const;
+  // Appends the movable leaves under `root` (position locks inherited from
+  // `ancestor_flags`, no duplicates) to `ids`: the shared walk behind
+  // movable_layer_ids and alignment_units.
+  void collect_movable_leaf_ids(const Layer& root, LayerLockFlags ancestor_flags, std::vector<LayerId>& ids) const;
+  // The selected roots alignment_units works from: `root_ids` normalized, or
+  // the canvas selection (falling back to the active layer) when empty.
+  [[nodiscard]] std::vector<LayerId> alignment_root_ids(const std::vector<LayerId>& root_ids) const;
+  // Moves each listed layer by its own delta in one history entry: the shared
+  // body of arrow-key nudges (move_active_layer_by) and Align/Distribute. Null
+  // deltas are skipped; all-null pushes no history. Returns the dirty region
+  // (partial when a Smart Filter re-render fails, mirroring the nudge path).
+  [[nodiscard]] QRegion offset_layers(const std::vector<std::pair<LayerId, QPoint>>& deltas,
+                                      const QString& undo_label, bool record_history = true);
   [[nodiscard]] std::optional<QRect> move_hover_outline_rect_at(QPoint widget_position,
                                                                 Qt::KeyboardModifiers modifiers) const;
   void update_move_hover_outline(QPoint widget_position, Qt::KeyboardModifiers modifiers);
@@ -2430,6 +2516,11 @@ private:
   QRect drag_readout_dirty_rect_{};
   std::optional<QRectF> move_readout_base_rect_{};
   QString drag_readout_status_text_{};
+  // Alignment guides of the live Move drag (docs/alignment.md) and the widget
+  // rect they last painted, for the bounded repaint union.
+  std::optional<SnapMatch> move_snap_x_{};
+  std::optional<SnapMatch> move_snap_y_{};
+  QRect move_snap_guides_dirty_rect_{};
   QImage transform_base_cache_{};
   std::vector<QImage> transform_base_display_mip_cache_{};
   qint64 transform_base_display_mip_source_key_{0};

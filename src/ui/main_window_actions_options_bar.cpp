@@ -595,6 +595,98 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
       canvas_->set_show_transform_controls(checked);
     }
   });
+  // Snap mirrors View > Snap: one persisted setting (view/snapEnabled), two
+  // surfaces. The action owns the state; the checkbox follows its toggled signal.
+  move_snap_check_ = new CheckGlyphBox(tr("Snap"), toolbar);
+  move_snap_check_->setObjectName(QStringLiteral("moveSnapCheck"));
+  bind_tooltip(move_snap_check_,
+               QT_TR_NOOP("Snap moved layers to other layers, guides, the grid, and the canvas (View > Snap). "
+                          "Choose the targets under View > Snap To."));
+  move_snap_check_->setChecked(view_snap_action_ != nullptr ? view_snap_action_->isChecked() : view_snap_enabled_);
+  add_option_widget(move_snap_check_, {CanvasTool::Move});
+  connect(move_snap_check_, &QCheckBox::toggled, this, [this](bool checked) {
+    if (view_snap_action_ != nullptr) {
+      view_snap_action_->setChecked(checked);
+    }
+  });
+  if (view_snap_action_ != nullptr) {
+    connect(view_snap_action_, &QAction::toggled, this, [this](bool checked) {
+      if (move_snap_check_ != nullptr) {
+        QSignalBlocker blocker(move_snap_check_);
+        move_snap_check_->setChecked(checked);
+      }
+    });
+  }
+  // Align buttons MIRROR the Layer > Arrange > Align QActions (docs/alignment.md)
+  // rather than wrapping them as default actions: refresh_options_bar hides
+  // and re-enables a button's default action with the tool row, which would
+  // override the menu commands' own enabled state whenever Move is not active.
+  add_option_separator({CanvasTool::Move});
+  const auto add_option_action_mirror = [this, options_content, options_flow](QAction* action,
+                                                                             const QString& object_name,
+                                                                             std::initializer_list<CanvasTool> tools) {
+    auto* button = new QToolButton(options_content);
+    button->setObjectName(object_name);
+    button->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    button->setIconSize(QSize(18, 18));
+    button->setAutoRaise(true);
+    button->setFocusPolicy(Qt::NoFocus);
+    button->setProperty("optionsBarButton", true);
+    // refresh_options_bar leaves the enabled state to the mirrored action.
+    button->setProperty("optionsBarMirrorsAction", true);
+    const auto sync = [button, action] {
+      button->setIcon(action->icon());
+      button->setToolTip(action->toolTip());
+      button->setEnabled(action->isEnabled());
+    };
+    sync();
+    connect(action, &QAction::changed, button, sync);
+    connect(button, &QToolButton::clicked, action, [action] { action->trigger(); });
+    options_flow->addWidget(button);
+    register_option_action(button, tools);
+    return button;
+  };
+  {
+    const char* const align_button_names[] = {"moveAlignLeftButton", "moveAlignHCenterButton",
+                                              "moveAlignRightButton", "moveAlignTopButton",
+                                              "moveAlignVCenterButton", "moveAlignBottomButton"};
+    for (std::size_t i = 0; i < layer_align_actions_.size(); ++i) {
+      if (layer_align_actions_[i] != nullptr) {
+        add_option_action_mirror(layer_align_actions_[i], QLatin1String(align_button_names[i]),
+                                 {CanvasTool::Move});
+      }
+    }
+  }
+  move_align_more_button_ = new QToolButton(toolbar);
+  move_align_more_button_->setObjectName(QStringLiteral("moveAlignMoreButton"));
+  // The brushSmoothingOptionsButton pattern: compact "..." text, InstantPopup,
+  // height pinned by the optionsBarMenuButton QSS rule so the 26 px row holds.
+  move_align_more_button_->setText(QStringLiteral("..."));
+  move_align_more_button_->setProperty("optionsBarMenuButton", true);
+  move_align_more_button_->setFocusPolicy(Qt::NoFocus);
+  bind_tooltip(move_align_more_button_, QT_TR_NOOP("Distribute layers and choose what to align to"));
+  move_align_more_button_->setPopupMode(QToolButton::InstantPopup);
+  {
+    auto* more_menu = new QMenu(move_align_more_button_);
+    more_menu->setObjectName(QStringLiteral("moveAlignMoreMenu"));
+    for (std::size_t i = 0; i < layer_distribute_actions_.size(); ++i) {
+      if (i == static_cast<std::size_t>(DistributeMode::HorizontalSpacing)) {
+        more_menu->addSeparator();
+      }
+      if (layer_distribute_actions_[i] != nullptr) {
+        more_menu->addAction(layer_distribute_actions_[i]);
+      }
+    }
+    more_menu->addSeparator();
+    if (layer_align_to_selection_action_ != nullptr) {
+      more_menu->addAction(layer_align_to_selection_action_);
+    }
+    if (layer_align_to_canvas_action_ != nullptr) {
+      more_menu->addAction(layer_align_to_canvas_action_);
+    }
+    move_align_more_button_->setMenu(more_menu);
+  }
+  add_option_widget(move_align_more_button_, {CanvasTool::Move});
 
   {
     auto* pivot_label = new QLabel(QCoreApplication::translate(kMainWindowTranslationContext, "Pivot:"), toolbar);

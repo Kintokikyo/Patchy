@@ -9915,6 +9915,14 @@ RGB: %2, %3, %4</translation>
         <source>Removing object... %1%</source>
         <translation>Eliminando objeto... %1%</translation>
     </message>
+    <message>
+        <source>Align Layers</source>
+        <translation>Alinear capas</translation>
+    </message>
+    <message>
+        <source>Distribute Layers</source>
+        <translation>Distribuir capas</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::ChannelPanel</name>
@@ -17200,6 +17208,128 @@ Y: %2
         <source>Fill the selection from its surroundings with the content-aware search (Enter)</source>
         <translation>Rellenar la selección a partir de su entorno con la búsqueda según el contenido (Enter)</translation>
     </message>
+    <message>
+        <source>&amp;Align</source>
+        <translation>&amp;Alinear</translation>
+    </message>
+    <message>
+        <source>&amp;Distribute</source>
+        <translation>&amp;Distribuir</translation>
+    </message>
+    <message>
+        <source>Snap</source>
+        <translation>Ajustar</translation>
+    </message>
+    <message>
+        <source>Align &amp;Left Edges</source>
+        <translation>Alinear bordes &amp;izquierdos</translation>
+    </message>
+    <message>
+        <source>Align &amp;Horizontal Centers</source>
+        <translation>Alinear centros &amp;horizontales</translation>
+    </message>
+    <message>
+        <source>Align &amp;Right Edges</source>
+        <translation>Alinear bordes &amp;derechos</translation>
+    </message>
+    <message>
+        <source>Align &amp;Top Edges</source>
+        <translation>Alinear bordes &amp;superiores</translation>
+    </message>
+    <message>
+        <source>Align &amp;Vertical Centers</source>
+        <translation>Alinear centros &amp;verticales</translation>
+    </message>
+    <message>
+        <source>Align &amp;Bottom Edges</source>
+        <translation>Alinear bordes in&amp;feriores</translation>
+    </message>
+    <message>
+        <source>Align To: &amp;Selection</source>
+        <translation>Alinear con: &amp;Selección</translation>
+    </message>
+    <message>
+        <source>Align To: &amp;Canvas</source>
+        <translation>Alinear con: &amp;Lienzo</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Left Edges</source>
+        <translation>Distribuir bordes &amp;izquierdos</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Horizontal Centers</source>
+        <translation>Distribuir centros &amp;horizontales</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Right Edges</source>
+        <translation>Distribuir bordes &amp;derechos</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Top Edges</source>
+        <translation>Distribuir bordes &amp;superiores</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Vertical Centers</source>
+        <translation>Distribuir centros &amp;verticales</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Bottom Edges</source>
+        <translation>Distribuir bordes in&amp;feriores</translation>
+    </message>
+    <message>
+        <source>Distribute Horizontal &amp;Spacing</source>
+        <translation>Distribuir e&amp;spaciado horizontal</translation>
+    </message>
+    <message>
+        <source>Distribute Vertical S&amp;pacing</source>
+        <translation>Distribuir es&amp;paciado vertical</translation>
+    </message>
+    <message>
+        <source>Snap moved layers to other layers, guides, the grid, and the canvas (View &gt; Snap). Choose the targets under View &gt; Snap To.</source>
+        <translation>Ajustar las capas movidas a otras capas, guías, la cuadrícula y el lienzo (Vista &gt; Ajustar). Elija los objetivos en Vista &gt; Ajustar a.</translation>
+    </message>
+    <message>
+        <source>Distribute layers and choose what to align to</source>
+        <translation>Distribuir capas y elegir con qué alinear</translation>
+    </message>
+    <message>
+        <source>Finish the current drag before aligning layers</source>
+        <translation>Termine el arrastre actual antes de alinear capas</translation>
+    </message>
+    <message>
+        <source>Return to the layer view to align layers</source>
+        <translation>Vuelva a la vista de capas para alinear capas</translation>
+    </message>
+    <message>
+        <source>Select a movable layer to align</source>
+        <translation>Seleccione una capa movible para alinear</translation>
+    </message>
+    <message>
+        <source>The selected layers are already aligned</source>
+        <translation>Las capas seleccionadas ya están alineadas</translation>
+    </message>
+    <message numerus="yes">
+        <source>Aligned %n layer(s)</source>
+        <translation>
+            <numerusform>%n capa alineada</numerusform>
+            <numerusform>%n capas alineadas</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Select at least three layers to distribute</source>
+        <translation>Seleccione al menos tres capas para distribuir</translation>
+    </message>
+    <message>
+        <source>The selected layers are already distributed</source>
+        <translation>Las capas seleccionadas ya están distribuidas</translation>
+    </message>
+    <message numerus="yes">
+        <source>Distributed %n layer(s)</source>
+        <translation>
+            <numerusform>%n capa distribuida</numerusform>
+            <numerusform>%n capas distribuidas</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -18478,6 +18608,46 @@ Y: %2
     <message>
         <source>removeObject: method must be contentAware or nearestEdge.</source>
         <translation>removeObject: method debe ser contentAware o nearestEdge.</translation>
+    </message>
+    <message>
+        <source>%1: options must be an object.</source>
+        <translation>%1: options debe ser un objeto.</translation>
+    </message>
+    <message>
+        <source>%1: layers must be a nonempty array of layers of this document.</source>
+        <translation>%1: layers debe ser un array no vacío de capas de este documento.</translation>
+    </message>
+    <message>
+        <source>%1: alignTo must be &quot;selection&quot; or &quot;canvas&quot;.</source>
+        <translation>%1: alignTo debe ser "selection" o "canvas".</translation>
+    </message>
+    <message>
+        <source>%1: unknown option %2.</source>
+        <translation>%1: opción desconocida %2.</translation>
+    </message>
+    <message>
+        <source>alignLayers: unknown edge %1 (left, hcenter, right, top, vcenter, bottom)</source>
+        <translation>alignLayers: borde desconocido %1 (left, hcenter, right, top, vcenter, bottom)</translation>
+    </message>
+    <message>
+        <source>distributeLayers: unknown mode %1 (left, hcenter, right, top, vcenter, bottom, hspacing, vspacing)</source>
+        <translation>distributeLayers: modo desconocido %1 (left, hcenter, right, top, vcenter, bottom, hspacing, vspacing)</translation>
+    </message>
+    <message>
+        <source>%1 needs layers of this document.</source>
+        <translation>%1 necesita capas de este documento.</translation>
+    </message>
+    <message>
+        <source>%1: finish the pending transform first.</source>
+        <translation>%1: termine primero la transformación pendiente.</translation>
+    </message>
+    <message>
+        <source>alignLayers needs at least one movable layer.</source>
+        <translation>alignLayers necesita al menos una capa movible.</translation>
+    </message>
+    <message>
+        <source>distributeLayers needs at least three movable layers.</source>
+        <translation>distributeLayers necesita al menos tres capas movibles.</translation>
     </message>
 </context>
 <context>

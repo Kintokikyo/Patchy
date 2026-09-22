@@ -9915,6 +9915,14 @@ RGB: %2, %3, %4</translation>
         <source>Removing object... %1%</source>
         <translation>Objekt wird entfernt... %1%</translation>
     </message>
+    <message>
+        <source>Align Layers</source>
+        <translation>Ebenen ausrichten</translation>
+    </message>
+    <message>
+        <source>Distribute Layers</source>
+        <translation>Ebenen verteilen</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::ChannelPanel</name>
@@ -17200,6 +17208,128 @@ Y: %2
         <source>Fill the selection from its surroundings with the content-aware search (Enter)</source>
         <translation>Die Auswahl mit der inhaltsbasierten Suche aus ihrer Umgebung füllen (Enter)</translation>
     </message>
+    <message>
+        <source>&amp;Align</source>
+        <translation>&amp;Ausrichten</translation>
+    </message>
+    <message>
+        <source>&amp;Distribute</source>
+        <translation>&amp;Verteilen</translation>
+    </message>
+    <message>
+        <source>Snap</source>
+        <translation>Ausrichten</translation>
+    </message>
+    <message>
+        <source>Align &amp;Left Edges</source>
+        <translation>&amp;Linke Kanten ausrichten</translation>
+    </message>
+    <message>
+        <source>Align &amp;Horizontal Centers</source>
+        <translation>&amp;Horizontale Mitten ausrichten</translation>
+    </message>
+    <message>
+        <source>Align &amp;Right Edges</source>
+        <translation>&amp;Rechte Kanten ausrichten</translation>
+    </message>
+    <message>
+        <source>Align &amp;Top Edges</source>
+        <translation>&amp;Obere Kanten ausrichten</translation>
+    </message>
+    <message>
+        <source>Align &amp;Vertical Centers</source>
+        <translation>&amp;Vertikale Mitten ausrichten</translation>
+    </message>
+    <message>
+        <source>Align &amp;Bottom Edges</source>
+        <translation>&amp;Untere Kanten ausrichten</translation>
+    </message>
+    <message>
+        <source>Align To: &amp;Selection</source>
+        <translation>Ausrichten an: &amp;Auswahl</translation>
+    </message>
+    <message>
+        <source>Align To: &amp;Canvas</source>
+        <translation>Ausrichten an: &amp;Arbeitsfläche</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Left Edges</source>
+        <translation>&amp;Linke Kanten verteilen</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Horizontal Centers</source>
+        <translation>&amp;Horizontale Mitten verteilen</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Right Edges</source>
+        <translation>&amp;Rechte Kanten verteilen</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Top Edges</source>
+        <translation>&amp;Obere Kanten verteilen</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Vertical Centers</source>
+        <translation>&amp;Vertikale Mitten verteilen</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Bottom Edges</source>
+        <translation>&amp;Untere Kanten verteilen</translation>
+    </message>
+    <message>
+        <source>Distribute Horizontal &amp;Spacing</source>
+        <translation>Horizontale Ab&amp;stände verteilen</translation>
+    </message>
+    <message>
+        <source>Distribute Vertical S&amp;pacing</source>
+        <translation>Vertikale A&amp;bstände verteilen</translation>
+    </message>
+    <message>
+        <source>Snap moved layers to other layers, guides, the grid, and the canvas (View &gt; Snap). Choose the targets under View &gt; Snap To.</source>
+        <translation>Verschobene Ebenen an anderen Ebenen, Hilfslinien, dem Raster und der Arbeitsfläche ausrichten (Ansicht &gt; Ausrichten). Die Ziele wählen Sie unter Ansicht &gt; Ausrichten an.</translation>
+    </message>
+    <message>
+        <source>Distribute layers and choose what to align to</source>
+        <translation>Ebenen verteilen und festlegen, woran ausgerichtet wird</translation>
+    </message>
+    <message>
+        <source>Finish the current drag before aligning layers</source>
+        <translation>Beenden Sie das Ziehen, bevor Sie Ebenen ausrichten</translation>
+    </message>
+    <message>
+        <source>Return to the layer view to align layers</source>
+        <translation>Wechseln Sie zur Ebenenansicht, um Ebenen auszurichten</translation>
+    </message>
+    <message>
+        <source>Select a movable layer to align</source>
+        <translation>Wählen Sie eine verschiebbare Ebene zum Ausrichten aus</translation>
+    </message>
+    <message>
+        <source>The selected layers are already aligned</source>
+        <translation>Die ausgewählten Ebenen sind bereits ausgerichtet</translation>
+    </message>
+    <message numerus="yes">
+        <source>Aligned %n layer(s)</source>
+        <translation>
+            <numerusform>%n Ebene ausgerichtet</numerusform>
+            <numerusform>%n Ebenen ausgerichtet</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Select at least three layers to distribute</source>
+        <translation>Wählen Sie mindestens drei Ebenen zum Verteilen aus</translation>
+    </message>
+    <message>
+        <source>The selected layers are already distributed</source>
+        <translation>Die ausgewählten Ebenen sind bereits verteilt</translation>
+    </message>
+    <message numerus="yes">
+        <source>Distributed %n layer(s)</source>
+        <translation>
+            <numerusform>%n Ebene verteilt</numerusform>
+            <numerusform>%n Ebenen verteilt</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -18478,6 +18608,46 @@ Y: %2
     <message>
         <source>removeObject: method must be contentAware or nearestEdge.</source>
         <translation>removeObject: method muss contentAware oder nearestEdge sein.</translation>
+    </message>
+    <message>
+        <source>%1: options must be an object.</source>
+        <translation>%1: options muss ein Objekt sein.</translation>
+    </message>
+    <message>
+        <source>%1: layers must be a nonempty array of layers of this document.</source>
+        <translation>%1: layers muss ein nicht leeres Array von Ebenen dieses Dokuments sein.</translation>
+    </message>
+    <message>
+        <source>%1: alignTo must be &quot;selection&quot; or &quot;canvas&quot;.</source>
+        <translation>%1: alignTo muss "selection" oder "canvas" sein.</translation>
+    </message>
+    <message>
+        <source>%1: unknown option %2.</source>
+        <translation>%1: unbekannte Option %2.</translation>
+    </message>
+    <message>
+        <source>alignLayers: unknown edge %1 (left, hcenter, right, top, vcenter, bottom)</source>
+        <translation>alignLayers: unbekannte Kante %1 (left, hcenter, right, top, vcenter, bottom)</translation>
+    </message>
+    <message>
+        <source>distributeLayers: unknown mode %1 (left, hcenter, right, top, vcenter, bottom, hspacing, vspacing)</source>
+        <translation>distributeLayers: unbekannter Modus %1 (left, hcenter, right, top, vcenter, bottom, hspacing, vspacing)</translation>
+    </message>
+    <message>
+        <source>%1 needs layers of this document.</source>
+        <translation>%1 benötigt Ebenen dieses Dokuments.</translation>
+    </message>
+    <message>
+        <source>%1: finish the pending transform first.</source>
+        <translation>%1: Schließen Sie zuerst die ausstehende Transformation ab.</translation>
+    </message>
+    <message>
+        <source>alignLayers needs at least one movable layer.</source>
+        <translation>alignLayers benötigt mindestens eine verschiebbare Ebene.</translation>
+    </message>
+    <message>
+        <source>distributeLayers needs at least three movable layers.</source>
+        <translation>distributeLayers benötigt mindestens drei verschiebbare Ebenen.</translation>
     </message>
 </context>
 <context>

@@ -9915,6 +9915,14 @@ RGB: %2, %3, %4</translation>
         <source>Removing object... %1%</source>
         <translation>Rimozione dell&apos;oggetto... %1%</translation>
     </message>
+    <message>
+        <source>Align Layers</source>
+        <translation>Allinea livelli</translation>
+    </message>
+    <message>
+        <source>Distribute Layers</source>
+        <translation>Distribuisci livelli</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::ChannelPanel</name>
@@ -17200,6 +17208,128 @@ Y: %2
         <source>Fill the selection from its surroundings with the content-aware search (Enter)</source>
         <translation>Riempi la selezione usando ciò che la circonda con la ricerca in base al contenuto (Enter)</translation>
     </message>
+    <message>
+        <source>&amp;Align</source>
+        <translation>&amp;Allinea</translation>
+    </message>
+    <message>
+        <source>&amp;Distribute</source>
+        <translation>&amp;Distribuisci</translation>
+    </message>
+    <message>
+        <source>Snap</source>
+        <translation>Aggancia</translation>
+    </message>
+    <message>
+        <source>Align &amp;Left Edges</source>
+        <translation>Allinea bordi &amp;sinistri</translation>
+    </message>
+    <message>
+        <source>Align &amp;Horizontal Centers</source>
+        <translation>Allinea centri &amp;orizzontali</translation>
+    </message>
+    <message>
+        <source>Align &amp;Right Edges</source>
+        <translation>Allinea bordi &amp;destri</translation>
+    </message>
+    <message>
+        <source>Align &amp;Top Edges</source>
+        <translation>Allinea bordi s&amp;uperiori</translation>
+    </message>
+    <message>
+        <source>Align &amp;Vertical Centers</source>
+        <translation>Allinea centri &amp;verticali</translation>
+    </message>
+    <message>
+        <source>Align &amp;Bottom Edges</source>
+        <translation>Allinea bordi &amp;inferiori</translation>
+    </message>
+    <message>
+        <source>Align To: &amp;Selection</source>
+        <translation>Allinea a: &amp;Selezione</translation>
+    </message>
+    <message>
+        <source>Align To: &amp;Canvas</source>
+        <translation>Allinea a: &amp;Tela</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Left Edges</source>
+        <translation>Distribuisci bordi &amp;sinistri</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Horizontal Centers</source>
+        <translation>Distribuisci centri &amp;orizzontali</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Right Edges</source>
+        <translation>Distribuisci bordi &amp;destri</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Top Edges</source>
+        <translation>Distribuisci bordi s&amp;uperiori</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Vertical Centers</source>
+        <translation>Distribuisci centri &amp;verticali</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Bottom Edges</source>
+        <translation>Distribuisci bordi &amp;inferiori</translation>
+    </message>
+    <message>
+        <source>Distribute Horizontal &amp;Spacing</source>
+        <translation>Distribuisci s&amp;paziatura orizzontale</translation>
+    </message>
+    <message>
+        <source>Distribute Vertical S&amp;pacing</source>
+        <translation>Distribuisci spa&amp;ziatura verticale</translation>
+    </message>
+    <message>
+        <source>Snap moved layers to other layers, guides, the grid, and the canvas (View &gt; Snap). Choose the targets under View &gt; Snap To.</source>
+        <translation>Aggancia i livelli spostati ad altri livelli, alle guide, alla griglia e alla tela (Vista &gt; Aggancia). Scegli i bersagli in Vista &gt; Aggancia a.</translation>
+    </message>
+    <message>
+        <source>Distribute layers and choose what to align to</source>
+        <translation>Distribuisci i livelli e scegli a cosa allineare</translation>
+    </message>
+    <message>
+        <source>Finish the current drag before aligning layers</source>
+        <translation>Completa il trascinamento in corso prima di allineare i livelli</translation>
+    </message>
+    <message>
+        <source>Return to the layer view to align layers</source>
+        <translation>Torna alla vista livelli per allineare i livelli</translation>
+    </message>
+    <message>
+        <source>Select a movable layer to align</source>
+        <translation>Seleziona un livello spostabile da allineare</translation>
+    </message>
+    <message>
+        <source>The selected layers are already aligned</source>
+        <translation>I livelli selezionati sono già allineati</translation>
+    </message>
+    <message numerus="yes">
+        <source>Aligned %n layer(s)</source>
+        <translation>
+            <numerusform>%n livello allineato</numerusform>
+            <numerusform>%n livelli allineati</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Select at least three layers to distribute</source>
+        <translation>Seleziona almeno tre livelli da distribuire</translation>
+    </message>
+    <message>
+        <source>The selected layers are already distributed</source>
+        <translation>I livelli selezionati sono già distribuiti</translation>
+    </message>
+    <message numerus="yes">
+        <source>Distributed %n layer(s)</source>
+        <translation>
+            <numerusform>%n livello distribuito</numerusform>
+            <numerusform>%n livelli distribuiti</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -18478,6 +18608,46 @@ Y: %2
     <message>
         <source>removeObject: method must be contentAware or nearestEdge.</source>
         <translation>removeObject: method deve essere contentAware o nearestEdge.</translation>
+    </message>
+    <message>
+        <source>%1: options must be an object.</source>
+        <translation>%1: options deve essere un oggetto.</translation>
+    </message>
+    <message>
+        <source>%1: layers must be a nonempty array of layers of this document.</source>
+        <translation>%1: layers deve essere un array non vuoto di livelli di questo documento.</translation>
+    </message>
+    <message>
+        <source>%1: alignTo must be &quot;selection&quot; or &quot;canvas&quot;.</source>
+        <translation>%1: alignTo deve essere "selection" o "canvas".</translation>
+    </message>
+    <message>
+        <source>%1: unknown option %2.</source>
+        <translation>%1: opzione sconosciuta %2.</translation>
+    </message>
+    <message>
+        <source>alignLayers: unknown edge %1 (left, hcenter, right, top, vcenter, bottom)</source>
+        <translation>alignLayers: bordo sconosciuto %1 (left, hcenter, right, top, vcenter, bottom)</translation>
+    </message>
+    <message>
+        <source>distributeLayers: unknown mode %1 (left, hcenter, right, top, vcenter, bottom, hspacing, vspacing)</source>
+        <translation>distributeLayers: modalità sconosciuta %1 (left, hcenter, right, top, vcenter, bottom, hspacing, vspacing)</translation>
+    </message>
+    <message>
+        <source>%1 needs layers of this document.</source>
+        <translation>%1 richiede livelli di questo documento.</translation>
+    </message>
+    <message>
+        <source>%1: finish the pending transform first.</source>
+        <translation>%1: completa prima la trasformazione in sospeso.</translation>
+    </message>
+    <message>
+        <source>alignLayers needs at least one movable layer.</source>
+        <translation>alignLayers richiede almeno un livello spostabile.</translation>
+    </message>
+    <message>
+        <source>distributeLayers needs at least three movable layers.</source>
+        <translation>distributeLayers richiede almeno tre livelli spostabili.</translation>
     </message>
 </context>
 <context>

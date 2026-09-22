@@ -92,7 +92,7 @@ Read these before acting in the named area:
 | Tests, offscreen behavior, visual QA, app screenshots, suite failure diagnosis | [docs/testing.md](docs/testing.md) |
 | Platform-guarded code, macOS/Linux behavior, remote builds | [docs/platform.md](docs/platform.md) |
 | WebAssembly builds, the wasm-core preset, emsdk provisioning | [docs/wasm.md](docs/wasm.md); wasm memory/telemetry in [docs/wasm-memory.md](docs/wasm-memory.md); wasm input/focus/hotkeys in [docs/wasm-input.md](docs/wasm-input.md) |
-| Patents, licensing, trademarks, bundled assets, or a feature adjacent to a legal boundary | [docs/legal-constraints.md](docs/legal-constraints.md), with the underlying research record in [docs/patent-research.md](docs/patent-research.md) and [docs/patent-research-inpainting.md](docs/patent-research-inpainting.md) |
+| Patents, licensing, trademarks, bundled assets, or a feature adjacent to a legal boundary | [docs/legal-constraints.md](docs/legal-constraints.md), with the underlying research record in [docs/patent-research.md](docs/patent-research.md), [docs/patent-research-inpainting.md](docs/patent-research-inpainting.md), and [docs/patent-research-alignment.md](docs/patent-research-alignment.md) |
 | PSD descriptors, layer styles, COM verification, write/corruption rules | [docs/ps-compat.md](docs/ps-compat.md) |
 | Adjustment/auto-adjustment calibration (Brightness/Contrast, Curves, Hue/Saturation) | [docs/adjustments-calibration.md](docs/adjustments-calibration.md) |
 | Layer-effect render calibration (Blend If, Satin, Stroke, shadows/glows, interior effects) | [docs/layer-effects-render.md](docs/layer-effects-render.md) |
@@ -135,6 +135,7 @@ Read the linked document before working on the feature. The document, not this i
 - **Bundled fonts, wasm font aliases, and user-added fonts:** [docs/fonts.md](docs/fonts.md).
 - **Selection tools:** [docs/selection-tools.md](docs/selection-tools.md) and [docs/legal-constraints.md](docs/legal-constraints.md).
 - **Shape tools, Free Transform modifiers, Merge Down, and tool icons:** [docs/tools.md](docs/tools.md).
+- **Move-tool alignment guides (snap targets, the magenta overlay, the Snap checkbox) and Layer > Arrange > Align / Distribute:** [docs/alignment.md](docs/alignment.md) and [docs/legal-constraints.md](docs/legal-constraints.md).
 - **Vector tools, shape layers, vector masks, and Paths:** [docs/vector-tools.md](docs/vector-tools.md) (PSD fixtures in [docs/vector-fixtures.md](docs/vector-fixtures.md)) and [docs/legal-constraints.md](docs/legal-constraints.md).
 - **Point-editing UI (anchor tools, hints, path context menu) and vector commands:** [docs/vector-commands.md](docs/vector-commands.md).
 - **SVG import/export:** [docs/svg.md](docs/svg.md).

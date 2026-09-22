@@ -9888,6 +9888,14 @@ RGB：%2, %3, %4</translation>
         <source>Removing object... %1%</source>
         <translation>正在移除物件... %1%</translation>
     </message>
+    <message>
+        <source>Align Layers</source>
+        <translation>對齊圖層</translation>
+    </message>
+    <message>
+        <source>Distribute Layers</source>
+        <translation>分佈圖層</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::ChannelPanel</name>
@@ -17155,6 +17163,126 @@ Y：%2
         <source>Fill the selection from its surroundings with the content-aware search (Enter)</source>
         <translation>使用內容感知搜尋以周圍內容填滿選取範圍 (Enter)</translation>
     </message>
+    <message>
+        <source>&amp;Align</source>
+        <translation>對齊(&amp;A)</translation>
+    </message>
+    <message>
+        <source>&amp;Distribute</source>
+        <translation>分佈(&amp;D)</translation>
+    </message>
+    <message>
+        <source>Snap</source>
+        <translation>靠齊</translation>
+    </message>
+    <message>
+        <source>Align &amp;Left Edges</source>
+        <translation>左邊緣對齊(&amp;L)</translation>
+    </message>
+    <message>
+        <source>Align &amp;Horizontal Centers</source>
+        <translation>水平居中對齊(&amp;H)</translation>
+    </message>
+    <message>
+        <source>Align &amp;Right Edges</source>
+        <translation>右邊緣對齊(&amp;R)</translation>
+    </message>
+    <message>
+        <source>Align &amp;Top Edges</source>
+        <translation>頂邊緣對齊(&amp;T)</translation>
+    </message>
+    <message>
+        <source>Align &amp;Vertical Centers</source>
+        <translation>垂直居中對齊(&amp;V)</translation>
+    </message>
+    <message>
+        <source>Align &amp;Bottom Edges</source>
+        <translation>底邊緣對齊(&amp;B)</translation>
+    </message>
+    <message>
+        <source>Align To: &amp;Selection</source>
+        <translation>對齊至: 選取範圍(&amp;S)</translation>
+    </message>
+    <message>
+        <source>Align To: &amp;Canvas</source>
+        <translation>對齊至: 版面(&amp;C)</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Left Edges</source>
+        <translation>依左邊緣分佈(&amp;L)</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Horizontal Centers</source>
+        <translation>依水平中心分佈(&amp;H)</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Right Edges</source>
+        <translation>依右邊緣分佈(&amp;R)</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Top Edges</source>
+        <translation>依頂邊緣分佈(&amp;T)</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Vertical Centers</source>
+        <translation>依垂直中心分佈(&amp;V)</translation>
+    </message>
+    <message>
+        <source>Distribute &amp;Bottom Edges</source>
+        <translation>依底邊緣分佈(&amp;B)</translation>
+    </message>
+    <message>
+        <source>Distribute Horizontal &amp;Spacing</source>
+        <translation>水平間距分佈(&amp;S)</translation>
+    </message>
+    <message>
+        <source>Distribute Vertical S&amp;pacing</source>
+        <translation>垂直間距分佈(&amp;P)</translation>
+    </message>
+    <message>
+        <source>Snap moved layers to other layers, guides, the grid, and the canvas (View &gt; Snap). Choose the targets under View &gt; Snap To.</source>
+        <translation>將移動的圖層靠齊至其他圖層、參考線、格點和版面 (檢視 &gt; 靠齊)。在 檢視 &gt; 靠齊至 中選擇目標。</translation>
+    </message>
+    <message>
+        <source>Distribute layers and choose what to align to</source>
+        <translation>分佈圖層並選擇對齊目標</translation>
+    </message>
+    <message>
+        <source>Finish the current drag before aligning layers</source>
+        <translation>請先完成目前的拖曳，再對齊圖層</translation>
+    </message>
+    <message>
+        <source>Return to the layer view to align layers</source>
+        <translation>請返回圖層檢視以對齊圖層</translation>
+    </message>
+    <message>
+        <source>Select a movable layer to align</source>
+        <translation>請選擇一個可移動的圖層進行對齊</translation>
+    </message>
+    <message>
+        <source>The selected layers are already aligned</source>
+        <translation>所選圖層已對齊</translation>
+    </message>
+    <message numerus="yes">
+        <source>Aligned %n layer(s)</source>
+        <translation>
+            <numerusform>已對齊 %n 個圖層</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Select at least three layers to distribute</source>
+        <translation>請至少選擇三個圖層進行分佈</translation>
+    </message>
+    <message>
+        <source>The selected layers are already distributed</source>
+        <translation>所選圖層已分佈</translation>
+    </message>
+    <message numerus="yes">
+        <source>Distributed %n layer(s)</source>
+        <translation>
+            <numerusform>已分佈 %n 個圖層</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -18432,6 +18560,46 @@ Y：%2
     <message>
         <source>removeObject: method must be contentAware or nearestEdge.</source>
         <translation>removeObject：method 必須是 contentAware 或 nearestEdge。</translation>
+    </message>
+    <message>
+        <source>%1: options must be an object.</source>
+        <translation>%1: options 必須是一個物件。</translation>
+    </message>
+    <message>
+        <source>%1: layers must be a nonempty array of layers of this document.</source>
+        <translation>%1: layers 必須是此文件圖層的非空陣列。</translation>
+    </message>
+    <message>
+        <source>%1: alignTo must be &quot;selection&quot; or &quot;canvas&quot;.</source>
+        <translation>%1: alignTo 必須為 "selection" 或 "canvas"。</translation>
+    </message>
+    <message>
+        <source>%1: unknown option %2.</source>
+        <translation>%1: 未知選項 %2。</translation>
+    </message>
+    <message>
+        <source>alignLayers: unknown edge %1 (left, hcenter, right, top, vcenter, bottom)</source>
+        <translation>alignLayers: 未知邊緣 %1 (left, hcenter, right, top, vcenter, bottom)</translation>
+    </message>
+    <message>
+        <source>distributeLayers: unknown mode %1 (left, hcenter, right, top, vcenter, bottom, hspacing, vspacing)</source>
+        <translation>distributeLayers: 未知模式 %1 (left, hcenter, right, top, vcenter, bottom, hspacing, vspacing)</translation>
+    </message>
+    <message>
+        <source>%1 needs layers of this document.</source>
+        <translation>%1 需要此文件的圖層。</translation>
+    </message>
+    <message>
+        <source>%1: finish the pending transform first.</source>
+        <translation>%1: 請先完成待處理的變形。</translation>
+    </message>
+    <message>
+        <source>alignLayers needs at least one movable layer.</source>
+        <translation>alignLayers 需要至少一個可移動的圖層。</translation>
+    </message>
+    <message>
+        <source>distributeLayers needs at least three movable layers.</source>
+        <translation>distributeLayers 需要至少三個可移動的圖層。</translation>
     </message>
 </context>
 <context>

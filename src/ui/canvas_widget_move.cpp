@@ -508,56 +508,219 @@ void CanvasWidget::begin_move_drag(const std::vector<LayerId>& layer_ids, QPoint
   move_preview_patches_scale_level_ = 0;
 }
 
+void CanvasWidget::collect_movable_leaf_ids(const Layer& root, LayerLockFlags ancestor_flags,
+                                           std::vector<LayerId>& ids) const {
+  const auto effective_flags = ancestor_flags | patchy::layer_lock_flags(root);
+  if (root.kind() == LayerKind::Group) {
+    for (const auto& child : root.children()) {
+      collect_movable_leaf_ids(child, effective_flags, ids);
+    }
+    return;
+  }
+  if (std::find(ids.begin(), ids.end(), root.id()) != ids.end()) {
+    return;
+  }
+  if (((effective_flags | patchy::layer_effective_lock_flags(document_->layers(), root.id())) &
+       kLayerLockPosition) != kLayerLockNone) {
+    return;
+  }
+  if (!layer_has_movable_pixels(root)) {
+    return;
+  }
+  ids.push_back(root.id());
+}
+
+std::vector<LayerId> CanvasWidget::alignment_root_ids(const std::vector<LayerId>& root_ids) const {
+  if (document_ == nullptr || layer_edit_target_ == LayerEditTarget::SmartFilterMask) {
+    return {};
+  }
+  const auto& layers = std::as_const(*document_).layers();
+  if (!root_ids.empty()) {
+    return root_drop_layer_ids(layers, root_ids);
+  }
+  if (!selected_layer_ids_.empty()) {
+    auto roots = root_drop_layer_ids(layers, selected_layer_ids_);
+    if (!roots.empty()) {
+      return roots;
+    }
+  }
+  if (const auto active = std::as_const(*document_).active_layer_id(); active.has_value()) {
+    return {*active};
+  }
+  return {};
+}
+
 std::vector<LayerId> CanvasWidget::movable_layer_ids() const {
   std::vector<LayerId> ids;
   if (document_ == nullptr || layer_edit_target_ == LayerEditTarget::SmartFilterMask) {
     return ids;
   }
-
-  const auto add_if_movable = [this, &ids](const Layer& layer, LayerLockFlags selected_ancestor_lock_flags) {
-    if (std::find(ids.begin(), ids.end(), layer.id()) != ids.end()) {
-      return;
-    }
-    if (((selected_ancestor_lock_flags | patchy::layer_effective_lock_flags(document_->layers(), layer.id())) &
-         kLayerLockPosition) != kLayerLockNone) {
-      return;
-    }
-    if (!layer_has_movable_pixels(layer)) {
-      return;
-    }
-    ids.push_back(layer.id());
-  };
-
-  const std::function<void(const Layer&, LayerLockFlags)> add_movable_layer_tree = [&](const Layer& layer,
-                                                                                       LayerLockFlags ancestor_flags) {
-    const auto effective_flags = ancestor_flags | patchy::layer_lock_flags(layer);
-    if (layer.kind() == LayerKind::Group) {
-      for (const auto& child : layer.children()) {
-        add_movable_layer_tree(child, effective_flags);
-      }
-      return;
-    }
-    add_if_movable(layer, effective_flags);
-  };
-
-  auto add_movable_by_id = [&](LayerId id) {
-    if (const auto* layer = document_->find_layer(id); layer != nullptr) {
-      add_movable_layer_tree(*layer, kLayerLockNone);
+  const auto add_movable_by_id = [&](LayerId id) {
+    if (const auto* layer = std::as_const(*document_).find_layer(id); layer != nullptr) {
+      collect_movable_leaf_ids(*layer, kLayerLockNone, ids);
     }
   };
-
   if (!selected_layer_ids_.empty()) {
     for (const auto id : root_drop_layer_ids(document_->layers(), selected_layer_ids_)) {
       add_movable_by_id(id);
     }
   }
-
   if (ids.empty()) {
     if (const auto active = document_->active_layer_id(); active.has_value()) {
       add_movable_by_id(*active);
     }
   }
   return ids;
+}
+
+namespace {
+
+// A leaf's Align rect: the Move rect (opaque raster extent or text frame), else
+// the render bounds, so 16-bit and other Move-rect-less layers still count.
+std::optional<Rect> alignment_leaf_rect(const Layer& layer) {
+  auto rect = move_layer_outline_bounds(layer);
+  if (rect.has_value() && !rect->empty()) {
+    return rect;
+  }
+  const auto render = layer_render_bounds(layer);
+  if (render.empty()) {
+    return std::nullopt;
+  }
+  return render;
+}
+
+// Per-leaf deltas for a set of units (every leaf of a unit moves by the unit's
+// delta), dropping the units that already sit where they belong.
+std::vector<std::pair<LayerId, QPoint>> alignment_layer_deltas(const std::vector<CanvasWidget::AlignmentUnit>& units,
+                                                               const std::vector<AlignmentOffset>& offsets) {
+  std::vector<std::pair<LayerId, QPoint>> deltas;
+  for (std::size_t i = 0; i < units.size() && i < offsets.size(); ++i) {
+    if (offsets[i].is_zero()) {
+      continue;
+    }
+    for (const auto leaf_id : units[i].leaf_ids) {
+      deltas.emplace_back(leaf_id, QPoint(offsets[i].dx, offsets[i].dy));
+    }
+  }
+  return deltas;
+}
+
+}  // namespace
+
+std::vector<CanvasWidget::AlignmentUnit> CanvasWidget::alignment_units(const std::vector<LayerId>& root_ids) const {
+  std::vector<AlignmentUnit> units;
+  if (document_ == nullptr) {
+    return units;
+  }
+  const auto& document = std::as_const(*document_);
+  for (const auto root_id : alignment_root_ids(root_ids)) {
+    const auto* root = document.find_layer(root_id);
+    if (root == nullptr) {
+      continue;
+    }
+    AlignmentUnit unit;
+    unit.root = root_id;
+    collect_movable_leaf_ids(*root, kLayerLockNone, unit.leaf_ids);
+    std::optional<Rect> bounds;
+    for (const auto leaf_id : unit.leaf_ids) {
+      const auto* leaf = document.find_layer(leaf_id);
+      if (leaf == nullptr) {
+        continue;
+      }
+      if (const auto rect = alignment_leaf_rect(*leaf); rect.has_value()) {
+        bounds = bounds.has_value() ? unite_rect(*bounds, *rect) : *rect;
+      }
+    }
+    if (unit.leaf_ids.empty() || !bounds.has_value() || bounds->empty()) {
+      continue;
+    }
+    unit.bounds = *bounds;
+    units.push_back(std::move(unit));
+  }
+  return units;
+}
+
+int CanvasWidget::alignment_unit_count(const std::vector<LayerId>& root_ids) const {
+  if (document_ == nullptr) {
+    return 0;
+  }
+  const auto& document = std::as_const(*document_);
+  int count = 0;
+  for (const auto root_id : alignment_root_ids(root_ids)) {
+    const auto* root = document.find_layer(root_id);
+    if (root == nullptr) {
+      continue;
+    }
+    std::vector<LayerId> leaf_ids;
+    collect_movable_leaf_ids(*root, kLayerLockNone, leaf_ids);
+    if (!leaf_ids.empty()) {
+      ++count;
+    }
+  }
+  return count;
+}
+
+CanvasWidget::LayerAlignmentResult CanvasWidget::align_layers(AlignEdge edge, bool align_to_canvas,
+                                                              const std::vector<LayerId>& root_ids,
+                                                              bool record_history) {
+  LayerAlignmentResult result;
+  if (document_ == nullptr) {
+    return result;
+  }
+  const auto units = alignment_units(root_ids);
+  result.unit_count = static_cast<int>(units.size());
+  if (units.empty()) {
+    return result;
+  }
+  // Photoshop's Align To rule: an active selection is the reference unless the
+  // user asked for the canvas; a lone unit has nothing else to line up with,
+  // so it aligns to the canvas; otherwise the units align among themselves.
+  Rect reference;
+  if (!align_to_canvas && !selection_.isEmpty()) {
+    reference = to_core_rect(selection_.boundingRect());
+  } else if (align_to_canvas || units.size() == 1U) {
+    reference = Rect::from_size(document_->width(), document_->height());
+  } else {
+    for (const auto& unit : units) {
+      reference = reference.empty() ? unit.bounds : unite_rect(reference, unit.bounds);
+    }
+  }
+  std::vector<Rect> rects;
+  rects.reserve(units.size());
+  for (const auto& unit : units) {
+    rects.push_back(unit.bounds);
+  }
+  const auto deltas = alignment_layer_deltas(units, compute_align_deltas(rects, reference, edge));
+  result.moved_layers = static_cast<int>(deltas.size());
+  if (!deltas.empty()) {
+    result.dirty = offset_layers(deltas, tr("Align Layers"), record_history);
+  }
+  return result;
+}
+
+CanvasWidget::LayerAlignmentResult CanvasWidget::distribute_layers(DistributeMode mode,
+                                                                   const std::vector<LayerId>& root_ids,
+                                                                   bool record_history) {
+  LayerAlignmentResult result;
+  if (document_ == nullptr) {
+    return result;
+  }
+  const auto units = alignment_units(root_ids);
+  result.unit_count = static_cast<int>(units.size());
+  if (units.size() < 3U) {
+    return result;
+  }
+  std::vector<Rect> rects;
+  rects.reserve(units.size());
+  for (const auto& unit : units) {
+    rects.push_back(unit.bounds);
+  }
+  const auto deltas = alignment_layer_deltas(units, compute_distribute_deltas(rects, mode));
+  result.moved_layers = static_cast<int>(deltas.size());
+  if (!deltas.empty()) {
+    result.dirty = offset_layers(deltas, tr("Distribute Layers"), record_history);
+  }
+  return result;
 }
 
 std::optional<QRect> CanvasWidget::move_hover_outline_rect_at(QPoint widget_position,
@@ -1154,18 +1317,40 @@ QRegion CanvasWidget::move_active_layer_by(QPoint delta) {
     return {};
   }
   const auto layer_ids = movable_layer_ids();
+  std::vector<std::pair<LayerId, QPoint>> deltas;
+  deltas.reserve(layer_ids.size());
+  for (const auto id : layer_ids) {
+    deltas.emplace_back(id, delta);
+  }
+  return offset_layers(deltas, layer_ids.size() >= 2U ? tr("Nudge layers") : tr("Nudge layer"));
+}
+
+QRegion CanvasWidget::offset_layers(const std::vector<std::pair<LayerId, QPoint>>& deltas,
+                                    const QString& undo_label, bool record_history) {
+  if (document_ == nullptr) {
+    return {};
+  }
+  std::vector<std::pair<LayerId, QPoint>> moves;
+  moves.reserve(deltas.size());
+  for (const auto& entry : deltas) {
+    if (!entry.second.isNull() && document_->find_layer(entry.first) != nullptr) {
+      moves.push_back(entry);
+    }
+  }
+  if (moves.empty()) {
+    return {};
+  }
   const bool rerender_smart_filters =
-      std::any_of(layer_ids.begin(), layer_ids.end(), [this](LayerId id) {
-        const auto* layer = document_->find_layer(id);
+      std::any_of(moves.begin(), moves.end(), [this](const std::pair<LayerId, QPoint>& move) {
+        const auto* layer = document_->find_layer(move.first);
         return layer != nullptr &&
                move_layer_requires_smart_filter_rerender(*layer);
       });
   std::optional<Document> rollback_document;
   if (rerender_smart_filters) {
     rollback_document.emplace(*document_);
-  } else if (before_edit_callback_) {
-    before_edit_callback_(layer_ids.size() >= 2U ? tr("Nudge layers")
-                                                  : tr("Nudge layer"));
+  } else if (record_history && before_edit_callback_) {
+    before_edit_callback_(undo_label);
   }
   QRegion dirty;
   // Same styled-ancestor blind spot as the drag path: a nudged child of a
@@ -1178,7 +1363,7 @@ QRegion CanvasWidget::move_active_layer_by(QPoint delta) {
     }
     return to_qrect(with_effects);
   };
-  for (const auto id : layer_ids) {
+  for (const auto& [id, delta] : moves) {
     auto* layer = document_->find_layer(id);
     if (layer == nullptr) {
       continue;
@@ -1206,9 +1391,8 @@ QRegion CanvasWidget::move_active_layer_by(QPoint delta) {
   if (rerender_smart_filters && rollback_document.has_value()) {
     auto committed_document = *document_;
     *document_ = std::move(*rollback_document);
-    if (before_edit_callback_) {
-      before_edit_callback_(layer_ids.size() >= 2U ? tr("Nudge layers")
-                                                    : tr("Nudge layer"));
+    if (record_history && before_edit_callback_) {
+      before_edit_callback_(undo_label);
     }
     *document_ = std::move(committed_document);
   }

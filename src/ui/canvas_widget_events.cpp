@@ -1493,9 +1493,15 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
     const auto old_delta = move_preview_delta_;
     const auto overlay_before = path_overlay_preview_document_rect();
     const auto constrained_delta = axis_constrained_move_delta(document_point - move_start_, event->modifiers());
-    move_preview_delta_ = axis_constrained_move_delta(snapped_move_delta(constrained_delta), event->modifiers());
+    const auto snap = snapped_move_delta_with_matches(constrained_delta);
+    move_preview_delta_ = axis_constrained_move_delta(snap.delta, event->modifiers());
+    // The second constraint zeroes any correction the pinned axis received, so
+    // that axis shows no alignment guide (docs/alignment.md).
+    move_snap_x_ = move_preview_delta_.x() == snap.delta.x() ? snap.x : std::nullopt;
+    move_snap_y_ = move_preview_delta_.y() == snap.delta.y() ? snap.y : std::nullopt;
     last_mouse_position_ = event->pos();
     update_drag_readout_region();
+    update_move_snap_guides_region();
     if (move_preview_delta_ == old_delta || document_ == nullptr || moving_layers_.empty()) {
       return;
     }
@@ -2231,6 +2237,7 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
     moving_layers_use_outline_preview_ = false;
     move_readout_base_rect_.reset();
     clear_drag_readout();
+    clear_move_snap_guides();
     reset_axis_constrained_stroke();
     update_move_transform_controls_dirty(std::nullopt);
     update_move_hover_outline(event->pos(), event->modifiers());
@@ -3361,6 +3368,7 @@ void CanvasWidget::cancel_pointer_gestures() {
   moving_layers_.clear();
   move_readout_base_rect_.reset();
   clear_drag_readout();
+  clear_move_snap_guides();
   move_preview_delta_ = {};
   move_preview_patches_.clear();
   move_preview_patches_delta_.reset();

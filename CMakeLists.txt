@@ -106,6 +106,7 @@ add_library(patchy_core
   src/core/heal_membrane.cpp
   src/core/image_trace.cpp
   src/core/layer.cpp
+  src/core/layer_alignment.cpp
   src/core/layer_metadata.cpp
   src/core/layer_render_utils.cpp
   src/core/layer_tree.cpp
@@ -1581,6 +1582,7 @@ if(PATCHY_BUILD_TESTS)
     tests/core/gradients_interior_effects_tests.cpp
     tests/core/image_trace_tests.cpp
     tests/core/infra_selection_tests.cpp
+    tests/core/layer_alignment_tests.cpp
     tests/core/layer_metadata_tests.cpp
     tests/core/palette_tests.cpp
     tests/core/pat_asl_abr_tests.cpp
@@ -1658,6 +1660,7 @@ if(PATCHY_BUILD_TESTS)
       tests/ui/layer_panel_organization_tests_animation.cpp
       tests/ui/layer_panel_organization_tests_cross_document.cpp
       tests/ui/move_tool_processing_overlay_tests.cpp
+      tests/ui/alignment_tests.cpp
       tests/ui/selection_marquee_lasso_tests.cpp
       tests/ui/selection_marquee_lasso_tests_marquee_geometry.cpp
       tests/ui/selection_marquee_lasso_tests_regions_lasso.cpp
