@@ -134,7 +134,11 @@ are translated).
 
 Unit suffixes go through `pixel_suffix()`, `inch_suffix()`, `percent_suffix()`,
 `degree_suffix()` or `measurement_unit_suffix()` in `src/ui/measurement_units.hpp`; no
-`setSuffix(QStringLiteral(...))` in `src/ui`.
+`setSuffix(QStringLiteral(...))` in `src/ui`. `UnitSpinBox` (`src/ui/unit_spin_box.hpp`)
+sets its suffix from the same helpers and its parser accepts the lowercased localized
+suffixes beside the English tokens, so a translated suffix round-trips when the display
+text is re-entered. Readout text (`format_pixels`, `format_percent`, `format_degrees`)
+appends the same suffixes to a locale-formatted number.
 
 ## Language selection
 

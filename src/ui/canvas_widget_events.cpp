@@ -169,7 +169,7 @@ bool CanvasWidget::eventFilter(QObject* watched, QEvent* event) {
   // harmless since it only shows once the pointer is back over the canvas.
   if ((event->type() == QEvent::KeyPress || event->type() == QEvent::KeyRelease) && isVisible() &&
       !selecting_ && !lassoing_ && !magnetic_lassoing_ && !quick_selecting_ && !moving_selection_ &&
-      !spacebar_panning_ && !panning_) {
+      !spacebar_panning_ && !panning_ && !dragging_transform_) {
     auto* key_event = static_cast<QKeyEvent*>(event);
     if (!key_event->isAutoRepeat() &&
         (key_event->key() == Qt::Key_Shift || key_event->key() == Qt::Key_Alt ||
@@ -1338,8 +1338,10 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
 
   if (dragging_transform_) {
     clear_move_hover_outline();
-    update_free_transform_preview(document_position_f(event->position()), event->modifiers());
+    // The readout anchors on the pointer, so record it before the preview
+    // update computes the readout's repaint rect.
     last_mouse_position_ = event->pos();
+    update_free_transform_preview(document_position_f(event->position()), event->modifiers());
     return;
   }
 
@@ -1471,6 +1473,7 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
       old_transform_controls_rect = move_transform_controls_rect();
       move_drag_pending_ = false;
       moving_layer_ = true;
+      move_readout_base_rect_ = moving_layers_readout_base_rect();
       if (move_press_reused_retained_caches_) {
         ++render_cache_diagnostics_.move_preview_cache_reuses;
         move_press_reused_retained_caches_ = false;
@@ -1482,8 +1485,9 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
     const auto overlay_before = path_overlay_preview_document_rect();
     const auto constrained_delta = axis_constrained_move_delta(document_point - move_start_, event->modifiers());
     move_preview_delta_ = axis_constrained_move_delta(snapped_move_delta(constrained_delta), event->modifiers());
+    last_mouse_position_ = event->pos();
+    update_drag_readout_region();
     if (move_preview_delta_ == old_delta || document_ == nullptr || moving_layers_.empty()) {
-      last_mouse_position_ = event->pos();
       return;
     }
     // The path overlay of a moving shape layer follows the drag; its old and
@@ -1922,9 +1926,11 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
   }
 
   if (dragging_transform_) {
+    last_mouse_position_ = event->pos();
     update_free_transform_preview(document_position_f(event->position()), event->modifiers());
     dragging_transform_ = false;
     transform_drag_handle_ = TransformHandle::None;
+    clear_drag_readout();
     if (transform_drag_uses_proxy_preview_) {
       // The latched drag skipped the composited patches; render them once at
       // the final geometry so the resting preview is accurate. The latch stays
@@ -2217,6 +2223,8 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
     move_preview_patches_.clear();
     move_preview_patches_delta_.reset();
     moving_layers_use_outline_preview_ = false;
+    move_readout_base_rect_.reset();
+    clear_drag_readout();
     reset_axis_constrained_stroke();
     update_move_transform_controls_dirty(std::nullopt);
     update_move_hover_outline(event->pos(), event->modifiers());
@@ -2901,6 +2909,18 @@ void CanvasWidget::keyPressEvent(QKeyEvent* event) {
     return;
   }
 
+  // Shift/Alt pressed mid-transform-drag: replay the drag at the last pointer
+  // position so a stationary cursor re-snaps (aspect lock, 15-degree rotate
+  // steps, Alt scale-about-reference). The event reports the modifier state
+  // before this key, so fold the pressed key in.
+  if (dragging_transform_ && (event->key() == Qt::Key_Shift || event->key() == Qt::Key_Alt) &&
+      !event->isAutoRepeat()) {
+    const auto bit = event->key() == Qt::Key_Shift ? Qt::ShiftModifier : Qt::AltModifier;
+    update_free_transform_preview(document_position_f(QPointF(last_mouse_position_)), event->modifiers() | bit);
+    event->accept();
+    return;
+  }
+
   // Shift pressed mid-anchor-drag arrives as a key event, not a mouse move;
   // replay the drag at the last raw pointer position so a stationary cursor
   // still snaps onto the constrained axis.
@@ -3212,6 +3232,15 @@ void CanvasWidget::keyReleaseEvent(QKeyEvent* event) {
     event->accept();
     return;
   }
+  // Shift/Alt released mid-transform-drag: replay without the released key so
+  // the box snaps back to the unconstrained geometry under a stationary cursor.
+  if (dragging_transform_ && (event->key() == Qt::Key_Shift || event->key() == Qt::Key_Alt) &&
+      !event->isAutoRepeat()) {
+    const auto bit = event->key() == Qt::Key_Shift ? Qt::ShiftModifier : Qt::AltModifier;
+    update_free_transform_preview(document_position_f(QPointF(last_mouse_position_)), event->modifiers() & ~bit);
+    event->accept();
+    return;
+  }
   // Shift released mid-anchor-drag: snap the selection back to the raw mouse
   // position without waiting for the next mouse move.
   if (path_drag_mode_ == PathEditDrag::Anchors && event->key() == Qt::Key_Shift &&
@@ -3309,6 +3338,8 @@ void CanvasWidget::cancel_pointer_gestures() {
   drawing_shape_ = dragging_text_rect_ = false;
   move_drag_pending_ = moving_layer_ = false;
   moving_layers_.clear();
+  move_readout_base_rect_.reset();
+  clear_drag_readout();
   move_preview_delta_ = {};
   move_preview_patches_.clear();
   move_preview_patches_delta_.reset();

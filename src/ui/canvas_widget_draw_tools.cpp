@@ -751,6 +751,98 @@ void CanvasWidget::draw_drag_size_readout(QPainter& painter) const {
   painter.drawText(text_position, readout);
 }
 
+QRect CanvasWidget::drag_readout_widget_rect() const {
+  const auto readout = transform_drag_readout();
+  if (!readout.has_value() || readout->canvas_lines.isEmpty()) {
+    return {};
+  }
+  const QFontMetrics metrics(font());
+  constexpr int kPadX = 8;
+  constexpr int kPadY = 5;
+  constexpr int kLineGap = 2;
+  int text_width = 0;
+  for (const auto& line : readout->canvas_lines) {
+    text_width = std::max(text_width, metrics.horizontalAdvance(line));
+  }
+  const int line_count = static_cast<int>(readout->canvas_lines.size());
+  const QSize size(text_width + 2 * kPadX, line_count * metrics.height() + (line_count - 1) * kLineGap + 2 * kPadY);
+  // Photoshop's placement: just below-right of the pointer (the same offset the
+  // W x H drag readout uses), kept inside the viewport and clear of the rulers.
+  QRect rect(last_mouse_position_ + QPoint(16, 24), size);
+  const int left = rulers_visible_ ? kLeftRulerWidth : 0;
+  const int top = rulers_visible_ ? kTopRulerHeight : 0;
+  const QRect bounds(left, top, std::max(1, width() - left), std::max(1, height() - top));
+  if (rect.right() > bounds.right() - 4) {
+    rect.moveRight(bounds.right() - 4);
+  }
+  if (rect.bottom() > bounds.bottom() - 4) {
+    rect.moveBottom(bounds.bottom() - 4);
+  }
+  if (rect.left() < bounds.left() + 4) {
+    rect.moveLeft(bounds.left() + 4);
+  }
+  if (rect.top() < bounds.top() + 4) {
+    rect.moveTop(bounds.top() + 4);
+  }
+  return rect;
+}
+
+void CanvasWidget::draw_transform_drag_readout(QPainter& painter) const {
+  const auto readout = transform_drag_readout();
+  const auto rect = drag_readout_widget_rect();
+  if (!readout.has_value() || rect.isEmpty()) {
+    return;
+  }
+  const QFontMetrics metrics(painter.fontMetrics());
+  constexpr int kPadX = 8;
+  constexpr int kPadY = 5;
+  constexpr int kLineGap = 2;
+  painter.save();
+  painter.setRenderHint(QPainter::Antialiasing, true);
+  QPainterPath panel_path;
+  panel_path.addRoundedRect(QRectF(rect), 4.0, 4.0);
+  auto hud_fill = theme().canvas_hud_bg;
+  hud_fill.setAlpha(236);
+  painter.fillPath(panel_path, hud_fill);
+  painter.setPen(QPen(theme().canvas_hud_border, 1.0));
+  painter.drawPath(panel_path);
+  painter.setPen(theme().canvas_hud_text);
+  int y = rect.top() + kPadY;
+  for (const auto& line : readout->canvas_lines) {
+    painter.drawText(QRect(rect.left() + kPadX, y, rect.width() - 2 * kPadX, metrics.height()),
+                     Qt::AlignLeft | Qt::AlignVCenter, line);
+    y += metrics.height() + kLineGap;
+  }
+  painter.restore();
+}
+
+void CanvasWidget::update_drag_readout_region() {
+  const auto next = drag_readout_widget_rect();
+  const auto dirty = drag_readout_dirty_rect_.united(next);
+  drag_readout_dirty_rect_ = next;
+  if (!dirty.isEmpty()) {
+    update(dirty.adjusted(-2, -2, 2, 2));
+  }
+  // Status-bar mirror, only when the text actually changes.
+  if (status_callback_) {
+    const auto readout = transform_drag_readout();
+    const auto text = readout.has_value() ? readout->lines.join(QStringLiteral("    ")) : QString();
+    if (!text.isEmpty() && text != drag_readout_status_text_) {
+      drag_readout_status_text_ = text;
+      status_callback_(text);
+    }
+  }
+}
+
+void CanvasWidget::clear_drag_readout() {
+  const auto dirty = drag_readout_dirty_rect_;
+  drag_readout_dirty_rect_ = QRect();
+  drag_readout_status_text_.clear();
+  if (!dirty.isEmpty()) {
+    update(dirty.adjusted(-2, -2, 2, 2));
+  }
+}
+
 void CanvasWidget::draw_text_rect_preview(QPainter& painter) const {
   if (!dragging_text_rect_) {
     return;

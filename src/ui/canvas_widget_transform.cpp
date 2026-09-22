@@ -65,6 +65,7 @@
 #include <chrono>
 #include <cstdint>
 #include <cmath>
+#include <optional>
 #include <cstdio>
 #include <cstring>
 #include <future>
@@ -2075,6 +2076,10 @@ void CanvasWidget::set_transform_reference_point(CanvasAnchor anchor) noexcept {
     return;
   }
   transform_reference_point_ = anchor;
+  if (transforming_layer_) {
+    // The marker moves to the new pivot; repaint the box without waiting for a drag.
+    update_transform_preview_region(transform_preview_document_rect());
+  }
   notify_transform_controls_changed();
 }
 
@@ -2090,10 +2095,90 @@ bool CanvasWidget::shift_keeps_transform_aspect() const noexcept {
   return shift_keeps_transform_aspect_;
 }
 
+void CanvasWidget::set_show_transform_drag_values(bool enabled) noexcept {
+  show_transform_drag_values_ = enabled;
+}
+
+bool CanvasWidget::show_transform_drag_values() const noexcept {
+  return show_transform_drag_values_;
+}
+
+std::optional<CanvasWidget::DragReadout> CanvasWidget::transform_drag_readout() const {
+  if (!show_transform_drag_values_) {
+    return std::nullopt;
+  }
+  DragReadout readout;
+  if (moving_layer_ && move_readout_base_rect_.has_value()) {
+    // Move drag: the reference point of the moving set's box, plus the delta.
+    const auto rect = move_readout_base_rect_->translated(QPointF(move_preview_delta_));
+    const auto position = rect.center() + anchor_offset_from_center(rect.size(), transform_reference_point_);
+    readout.lines << tr("X: %1  Y: %2").arg(format_pixels(position.x()), format_pixels(position.y()));
+    readout.lines << tr("Change X: %1  Y: %2")
+                         .arg(format_pixels(move_preview_delta_.x(), 0, true),
+                              format_pixels(move_preview_delta_.y(), 0, true));
+    // The canvas panel keeps the artwork clear: only the offset, no label.
+    readout.canvas_lines << tr("X: %1  Y: %2")
+                                .arg(format_pixels(move_preview_delta_.x(), 0, true),
+                                     format_pixels(move_preview_delta_.y(), 0, true));
+    return readout;
+  }
+  if (!dragging_transform_ || !transforming_layer_) {
+    return std::nullopt;
+  }
+  switch (transform_drag_handle_) {
+    case TransformHandle::Move: {
+      const auto position = transform_reference_position(transform_current_rect_, transform_angle_);
+      const auto delta = transform_current_rect_.center() - transform_drag_start_rect_.center();
+      readout.lines << tr("X: %1  Y: %2").arg(format_pixels(position.x(), 1), format_pixels(position.y(), 1));
+      readout.lines << tr("Change X: %1  Y: %2").arg(format_pixels(delta.x(), 1, true), format_pixels(delta.y(), 1, true));
+      readout.canvas_lines << tr("X: %1  Y: %2").arg(format_pixels(delta.x(), 1, true), format_pixels(delta.y(), 1, true));
+      return readout;
+    }
+    case TransformHandle::Rotate:
+      readout.lines << tr("Angle: %1").arg(format_degrees(transform_angle_));
+      readout.lines << tr("Change: %1").arg(format_degrees(transform_angle_ - transform_start_angle_, 1, true));
+      readout.canvas_lines << format_degrees(transform_angle_ - transform_start_angle_, 1, true);
+      return readout;
+    case TransformHandle::None:
+      return std::nullopt;
+    default: {
+      const auto original_width = std::max(1.0, transform_original_rect_.width());
+      const auto original_height = std::max(1.0, transform_original_rect_.height());
+      const auto width = transform_current_rect_.width();
+      const auto height = transform_current_rect_.height();
+      readout.lines << tr("W: %1  H: %2").arg(format_pixels(width, 1), format_pixels(height, 1));
+      const auto percentages = tr("%1 x %2")
+                                   .arg(format_percent(transform_scale_x_sign_ * width / original_width * 100.0),
+                                        format_percent(transform_scale_y_sign_ * height / original_height * 100.0));
+      readout.lines << percentages;
+      readout.canvas_lines << percentages;
+      return readout;
+    }
+  }
+  return std::nullopt;
+}
+
+std::optional<QRectF> CanvasWidget::moving_layers_readout_base_rect() const {
+  std::optional<QRectF> base;
+  for (const auto& moving_layer : moving_layers_) {
+    const auto bounds = moving_layer.original_opaque_bounds.value_or(moving_layer.original_bounds);
+    if (bounds.width <= 0 || bounds.height <= 0) {
+      continue;
+    }
+    const QRectF rect(bounds.x, bounds.y, bounds.width, bounds.height);
+    base = base.has_value() ? base->united(rect) : rect;
+  }
+  return base;
+}
+
 bool CanvasWidget::transform_drag_keeps_aspect(Qt::KeyboardModifiers modifiers) const noexcept {
   // Shift always selects whichever mode the preference does not, so the two
   // states stay reachable however the preference is set.
   return ((modifiers & Qt::ShiftModifier) != 0) == shift_keeps_transform_aspect_;
+}
+
+bool CanvasWidget::transform_drag_scales_about_reference(Qt::KeyboardModifiers modifiers) const noexcept {
+  return (modifiers & Qt::AltModifier) != 0;
 }
 
 std::optional<CanvasWidget::TransformControlsState> CanvasWidget::transform_controls_state() const {
@@ -2124,6 +2209,7 @@ std::optional<CanvasWidget::TransformControlsState> CanvasWidget::transform_cont
       (active ? transform_scale_y_sign_ : 1.0) * (rect->height() / original_rect.height()) * 100.0,
       angle,
       transform_interpolation_,
+      original_rect.size(),
   };
 }
 
@@ -2300,6 +2386,25 @@ void CanvasWidget::draw_free_transform(QPainter& painter) const {
   }
 
   draw_transform_controls(painter, transform_current_rect_, transform_angle_);
+
+  // Reference point marker (Photoshop's circle with a crosshair): the pivot the
+  // rotate handle, Alt scaling, and the numeric fields turn about. Session only,
+  // like Photoshop; the passive Move box stays a plain frame. Same halo-plus-bright
+  // treatment as the clone source marker so it reads on any art.
+  const auto reference = widget_position_f(transform_reference_position(transform_current_rect_, transform_angle_));
+  constexpr double kMarkerRadius = 4.5;
+  painter.save();
+  painter.setRenderHint(QPainter::Antialiasing, true);
+  painter.setBrush(Qt::NoBrush);
+  for (const auto& pen : {QPen(QColor(10, 14, 20, 200), 3.0), QPen(QColor(245, 248, 252, 235), 1.2)}) {
+    painter.setPen(pen);
+    painter.drawEllipse(reference, kMarkerRadius, kMarkerRadius);
+    painter.drawLine(QPointF(reference.x() - kMarkerRadius - 4.0, reference.y()),
+                     QPointF(reference.x() + kMarkerRadius + 4.0, reference.y()));
+    painter.drawLine(QPointF(reference.x(), reference.y() - kMarkerRadius - 4.0),
+                     QPointF(reference.x(), reference.y() + kMarkerRadius + 4.0));
+  }
+  painter.restore();
 }
 
 void CanvasWidget::draw_transform_controls(QPainter& painter, QRectF document_rect, double angle_degrees) const {
@@ -2333,6 +2438,7 @@ void CanvasWidget::draw_transform_controls(QPainter& painter, QRectF document_re
     painter.drawRect(handle_rect);
   }
   painter.restore();
+
 }
 
 void CanvasWidget::draw_move_transform_controls(QPainter& painter) const {
@@ -2391,49 +2497,73 @@ void CanvasWidget::update_free_transform_preview(QPointF document_point, Qt::Key
     transform_current_rect_ = rect;
     refresh_transform_preview_for_drag();
     update_transform_preview_region(previous_preview_rect);
+    update_drag_readout_region();
     notify_transform_controls_changed();
     return;
   }
 
   if (transform_drag_handle_ == TransformHandle::Rotate) {
-    const auto center = transform_drag_start_rect_.center();
-    const auto start = std::atan2(transform_drag_start_point_.y() - center.y(), transform_drag_start_point_.x() - center.x());
-    const auto now = std::atan2(document_point.y() - center.y(), document_point.x() - center.x());
-    auto degrees = transform_start_angle_ + ((now - start) * 180.0 / kPi);
-    if ((modifiers & Qt::ShiftModifier) != 0) {
-      degrees = std::round(degrees / 15.0) * 15.0;
+    // Pivot on the reference point (Photoshop): the point the options-bar combo
+    // names stays fixed and the box center swings around it. With a the anchor
+    // offset, C0 - pivot = -R(start)a, so the new center C1 = pivot - R(new)a and
+    // transform_reference_position(new rect, new angle) is the pivot again.
+    const auto pivot = transform_reference_position(transform_drag_start_rect_, transform_start_angle_);
+    const auto start_vector = transform_drag_start_point_ - pivot;
+    const auto now_vector = document_point - pivot;
+    if (std::hypot(start_vector.x(), start_vector.y()) > 1e-6 && std::hypot(now_vector.x(), now_vector.y()) > 1e-6) {
+      const auto start = std::atan2(start_vector.y(), start_vector.x());
+      const auto now = std::atan2(now_vector.y(), now_vector.x());
+      auto degrees = transform_start_angle_ + ((now - start) * 180.0 / kPi);
+      if ((modifiers & Qt::ShiftModifier) != 0) {
+        degrees = std::round(degrees / 15.0) * 15.0;
+      }
+      const auto center =
+          pivot + rotate_offset(transform_drag_start_rect_.center() - pivot, degrees - transform_start_angle_);
+      rect.moveCenter(center);
+      transform_current_rect_ = rect;
+      transform_angle_ = degrees;
     }
-    transform_angle_ = degrees;
     refresh_transform_preview_for_drag();
     update_transform_preview_region(previous_preview_rect);
+    update_drag_readout_region();
     notify_transform_controls_changed();
     return;
   }
 
+  // Scale handles run in the box's own frame: the (snapped) pointer is unrotated
+  // about the drag-start center, the edge/corner math happens on an axis-aligned
+  // local rect, and the resulting center rotates back out. At angle 0 this is
+  // the world-space math exactly, so unrotated drags are byte-identical.
+  const auto start_center = transform_drag_start_rect_.center();
+  const auto start_size = transform_drag_start_rect_.size();
+  const auto local_point = rotate_offset(document_point - start_center, -transform_start_angle_);
+  const QRectF start_local(-start_size.width() / 2.0, -start_size.height() / 2.0, start_size.width(),
+                           start_size.height());
+  auto local = start_local;
   switch (transform_drag_handle_) {
     case TransformHandle::TopLeft:
-      rect.setTopLeft(document_point);
+      local.setTopLeft(local_point);
       break;
     case TransformHandle::Top:
-      rect.setTop(document_point.y());
+      local.setTop(local_point.y());
       break;
     case TransformHandle::TopRight:
-      rect.setTopRight(document_point);
+      local.setTopRight(local_point);
       break;
     case TransformHandle::Right:
-      rect.setRight(document_point.x());
+      local.setRight(local_point.x());
       break;
     case TransformHandle::BottomRight:
-      rect.setBottomRight(document_point);
+      local.setBottomRight(local_point);
       break;
     case TransformHandle::Bottom:
-      rect.setBottom(document_point.y());
+      local.setBottom(local_point.y());
       break;
     case TransformHandle::BottomLeft:
-      rect.setBottomLeft(document_point);
+      local.setBottomLeft(local_point);
       break;
     case TransformHandle::Left:
-      rect.setLeft(document_point.x());
+      local.setLeft(local_point.x());
       break;
     case TransformHandle::None:
     case TransformHandle::Move:
@@ -2441,32 +2571,33 @@ void CanvasWidget::update_free_transform_preview(QPointF document_point, Qt::Key
       break;
   }
 
-  auto raw_rect = rect;
+  auto raw_rect = local;
   const auto corner_handle = transform_drag_handle_ == TransformHandle::TopLeft ||
                              transform_drag_handle_ == TransformHandle::TopRight ||
                              transform_drag_handle_ == TransformHandle::BottomRight ||
                              transform_drag_handle_ == TransformHandle::BottomLeft;
-  if (corner_handle && transform_drag_keeps_aspect(modifiers) && transform_drag_start_rect_.height() > 0.0) {
+  const bool keeps_aspect = corner_handle && transform_drag_keeps_aspect(modifiers) && start_size.height() > 0.0;
+  if (keeps_aspect) {
     QPointF anchor;
     switch (transform_drag_handle_) {
       case TransformHandle::TopLeft:
-        anchor = transform_drag_start_rect_.bottomRight();
+        anchor = start_local.bottomRight();
         break;
       case TransformHandle::TopRight:
-        anchor = transform_drag_start_rect_.bottomLeft();
+        anchor = start_local.bottomLeft();
         break;
       case TransformHandle::BottomLeft:
-        anchor = transform_drag_start_rect_.topRight();
+        anchor = start_local.topRight();
         break;
       case TransformHandle::BottomRight:
       default:
-        anchor = transform_drag_start_rect_.topLeft();
+        anchor = start_local.topLeft();
         break;
     }
 
-    const auto ratio = transform_drag_start_rect_.width() / transform_drag_start_rect_.height();
-    const auto dx = document_point.x() - anchor.x();
-    const auto dy = document_point.y() - anchor.y();
+    const auto ratio = start_size.width() / start_size.height();
+    const auto dx = local_point.x() - anchor.x();
+    const auto dy = local_point.y() - anchor.y();
     const auto sign_x = dx < 0.0 ? -1.0 : 1.0;
     const auto sign_y = dy < 0.0 ? -1.0 : 1.0;
     auto new_width = std::max(1.0, std::abs(dx));
@@ -2484,35 +2615,108 @@ void CanvasWidget::update_free_transform_preview(QPointF document_point, Qt::Key
     const QPointF locked_corner(anchor.x() + sign_x * new_width, anchor.y() + sign_y * new_height);
     switch (transform_drag_handle_) {
       case TransformHandle::TopLeft:
-        rect.setTopLeft(locked_corner);
+        local.setTopLeft(locked_corner);
         break;
       case TransformHandle::TopRight:
-        rect.setTopRight(locked_corner);
+        local.setTopRight(locked_corner);
         break;
       case TransformHandle::BottomLeft:
-        rect.setBottomLeft(locked_corner);
+        local.setBottomLeft(locked_corner);
         break;
       case TransformHandle::BottomRight:
       default:
-        rect.setBottomRight(locked_corner);
+        local.setBottomRight(locked_corner);
         break;
     }
-    raw_rect = rect;
+    raw_rect = local;
+  }
+
+  if (transform_drag_scales_about_reference(modifiers)) {
+    // Alt: scale about the reference point (Photoshop). Per moving axis the
+    // factor is how far the handle travelled relative to its distance from the
+    // reference; scaling the start box about r by f maps the center to r(1 - f).
+    // A reference sitting on the dragged edge has no symmetric meaning, so that
+    // axis keeps the plain result.
+    const auto reference = anchor_offset_from_center(start_size, transform_reference_point_);
+    const bool moves_x = transform_drag_handle_ != TransformHandle::Top && transform_drag_handle_ != TransformHandle::Bottom;
+    const bool moves_y = transform_drag_handle_ != TransformHandle::Left && transform_drag_handle_ != TransformHandle::Right;
+    const auto handle_start = [&]() -> QPointF {
+      switch (transform_drag_handle_) {
+        case TransformHandle::TopLeft:
+          return start_local.topLeft();
+        case TransformHandle::Top:
+          return QPointF(0.0, start_local.top());
+        case TransformHandle::TopRight:
+          return start_local.topRight();
+        case TransformHandle::Right:
+          return QPointF(start_local.right(), 0.0);
+        case TransformHandle::BottomRight:
+          return start_local.bottomRight();
+        case TransformHandle::Bottom:
+          return QPointF(0.0, start_local.bottom());
+        case TransformHandle::BottomLeft:
+          return start_local.bottomLeft();
+        case TransformHandle::Left:
+          return QPointF(start_local.left(), 0.0);
+        case TransformHandle::None:
+        case TransformHandle::Move:
+        case TransformHandle::Rotate:
+          break;
+      }
+      return QPointF();
+    }();
+    std::optional<double> factor_x;
+    std::optional<double> factor_y;
+    if (moves_x && std::abs(handle_start.x() - reference.x()) >= 1.0) {
+      factor_x = (local_point.x() - reference.x()) / (handle_start.x() - reference.x());
+    }
+    if (moves_y && std::abs(handle_start.y() - reference.y()) >= 1.0) {
+      factor_y = (local_point.y() - reference.y()) / (handle_start.y() - reference.y());
+    }
+    if (keeps_aspect) {
+      // One shared factor: the axis the pointer pulled harder wins.
+      std::optional<double> shared;
+      if (factor_x.has_value() && factor_y.has_value()) {
+        shared = std::abs(*factor_x) >= std::abs(*factor_y) ? *factor_x : *factor_y;
+      } else if (factor_x.has_value()) {
+        shared = *factor_x;
+      } else if (factor_y.has_value()) {
+        shared = *factor_y;
+      }
+      factor_x = shared;
+      factor_y = shared;
+    }
+    if (factor_x.has_value()) {
+      const auto width = start_size.width() * *factor_x;
+      const auto center_x = reference.x() * (1.0 - *factor_x);
+      raw_rect.setLeft(center_x - width / 2.0);
+      raw_rect.setRight(center_x + width / 2.0);
+    }
+    if (factor_y.has_value()) {
+      const auto height = start_size.height() * *factor_y;
+      const auto center_y = reference.y() * (1.0 - *factor_y);
+      raw_rect.setTop(center_y - height / 2.0);
+      raw_rect.setBottom(center_y + height / 2.0);
+    }
+    local = raw_rect;
   }
 
   transform_scale_x_sign_ = transform_drag_start_scale_x_sign_ * (raw_rect.width() < 0.0 ? -1.0 : 1.0);
   transform_scale_y_sign_ = transform_drag_start_scale_y_sign_ * (raw_rect.height() < 0.0 ? -1.0 : 1.0);
-  rect = rect.normalized();
+  local = local.normalized();
 
-  if (rect.width() < 1.0) {
-    rect.setWidth(1.0);
+  if (local.width() < 1.0) {
+    local.setWidth(1.0);
   }
-  if (rect.height() < 1.0) {
-    rect.setHeight(1.0);
+  if (local.height() < 1.0) {
+    local.setHeight(1.0);
   }
+  const auto center = start_center + rotate_offset(local.center(), transform_start_angle_);
+  rect = QRectF(center.x() - local.width() / 2.0, center.y() - local.height() / 2.0, local.width(), local.height());
   transform_current_rect_ = rect;
   refresh_transform_preview_for_drag();
   update_transform_preview_region(previous_preview_rect);
+  update_drag_readout_region();
   notify_transform_controls_changed();
 }
 

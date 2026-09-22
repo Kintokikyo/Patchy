@@ -351,13 +351,12 @@ std::optional<RotateCanvasSettings> request_rotate_canvas_settings(QWidget* pare
   layout->setSpacing(10);
   auto* form = new QFormLayout();
   form->setHorizontalSpacing(8);
-  auto* angle = new QDoubleSpinBox(&dialog);
+  auto* angle = new UnitSpinBox(SpinUnit::Degrees, &dialog);
   angle->setObjectName(QStringLiteral("rotateCanvasAngleSpin"));
   angle->setRange(0.0, 360.0);
   angle->setDecimals(2);
   angle->setSingleStep(1.0);
   angle->setValue(0.0);
-  angle->setSuffix(degree_suffix());
   configure_dialog_spinbox(angle);
   form->addRow(QObject::tr("Angle:"), angle);
   layout->addLayout(form);

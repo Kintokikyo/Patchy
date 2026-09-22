@@ -106,6 +106,29 @@ The four unit fields are captured into `DocumentPrintSettings` and written back 
 (defaults of 1 reproduce the historical bytes, so the writer canaries hold). Pinned by
 `psd_resolution_resource_units_are_display_only`.
 
+## Typed units in numeric fields
+
+`UnitSpinBox` / `UnitIntSpinBox` (`src/ui/unit_spin_box.{hpp,cpp}`) accept a unit token after
+the number, Photoshop-style, and convert into the field's native unit; the display always
+stays native. `parse_unit_entry` reads the number with the widget locale (group separators
+rejected, C locale fallback so "1.5" works under a comma locale) and maps the token:
+`px`/`pixel(s)`, `in`/`inch(es)`/`"`, `cm`, `mm`, `pt`/`point(s)`, `%`/`percent`/`pct`,
+`deg`/`degree(s)`/the degree sign, plus the localized suffixes. `convert_unit_entry` goes
+through pixels using `measurement_unit_to_pixels` / `pixels_to_measurement_unit` with the
+`UnitConversionContext` the field's provider supplies: `ppi` (the document's, via
+`text_size_ppi`; 300 with no document) and `percent_reference_pixels`, what 100% means
+for that field. Conventions: the transform X/Y fields (native px) take percent of the
+document width/height; the W/H fields (native percent) take pixels relative to the
+session's original extent (`TransformControlsState::original_size`); text size (native
+pt) takes px through the PPI; a degree field accepts only degrees; a percent typed into a
+field with no basis is refused. Converted values clamp to the range; plain numbers keep
+the stock spin-box typing rules. A switchable field (`set_display_unit_switchable`, the
+transform X/Y/W/H fields) also adopts a typed unit as its display unit, Photoshop-style:
+`value()` stays native, `textFromValue` converts for display, a plain number is then read in
+the shown unit, and a right-click lists the units (`display_unit_changed` lets the linked
+W/H pair follow each other). Coverage: the `unit_spin_box` UI test group and
+`ui_transform_fields_accept_unit_tokens`.
+
 ## Known limits / future work
 
 Type unit preference (pt vs px for the text tool), Info-panel cursor/selection readouts in

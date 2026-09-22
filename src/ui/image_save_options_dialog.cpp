@@ -308,15 +308,19 @@ ExportSectionWidgets add_export_options_section(QVBoxLayout* content, QDialog& d
   resize_layout->setSpacing(6);
   auto* resize_check = new QCheckBox(QObject::tr("Resize to:"), resize_row);
   resize_check->setObjectName(QStringLiteral("exportResizeCheck"));
-  auto* width_spin = new QSpinBox(resize_row);
+  auto* width_spin = new UnitIntSpinBox(SpinUnit::Pixels, resize_row);
+  width_spin->set_context_provider([document_size] {
+    return UnitConversionContext{300.0, static_cast<double>(document_size.width())};
+  });
   width_spin->setObjectName(QStringLiteral("exportResizeWidthSpin"));
   width_spin->setRange(1, kExportResizeMaxPixels);
-  width_spin->setSuffix(QObject::tr(" px"));
   configure_dialog_spinbox(width_spin, 88);
-  auto* height_spin = new QSpinBox(resize_row);
+  auto* height_spin = new UnitIntSpinBox(SpinUnit::Pixels, resize_row);
+  height_spin->set_context_provider([document_size] {
+    return UnitConversionContext{300.0, static_cast<double>(document_size.height())};
+  });
   height_spin->setObjectName(QStringLiteral("exportResizeHeightSpin"));
   height_spin->setRange(1, kExportResizeMaxPixels);
-  height_spin->setSuffix(QObject::tr(" px"));
   configure_dialog_spinbox(height_spin, 88);
   auto* percent_spin = new QDoubleSpinBox(resize_row);
   percent_spin->setObjectName(QStringLiteral("exportResizePercentSpin"));

@@ -1,0 +1,346 @@
+// Unit-entry spin boxes: "200 px", "50%", "2 in" typed into a numeric field convert
+// into the field's native unit (Photoshop's numeric-field behavior). The parser and
+// converter are exercised directly; the widget tests drive the line edit + Enter.
+
+#include "ui/measurement_units.hpp"
+#include "ui/unit_spin_box.hpp"
+
+#include "test_harness.hpp"
+#include "ui_test_groups.hpp"
+#include "ui_test_support.hpp"
+
+#include <QApplication>
+#include <QLineEdit>
+#include <QLocale>
+#include <QString>
+
+#include <cmath>
+#include <optional>
+#include <vector>
+
+namespace {
+
+using namespace patchy::test::ui;
+using patchy::ui::SpinUnit;
+using patchy::ui::UnitConversionContext;
+using patchy::ui::UnitEntry;
+using patchy::ui::UnitIntSpinBox;
+using patchy::ui::UnitSpinBox;
+
+bool close_to(double a, double b, double tolerance = 1e-6) {
+  return std::abs(a - b) <= tolerance;
+}
+
+// validate() is protected on QAbstractSpinBox; expose it for the state probes.
+struct ProbeSpin final : UnitSpinBox {
+  using UnitSpinBox::UnitSpinBox;
+  using UnitSpinBox::validate;
+};
+
+void commit_text(QAbstractSpinBox& spin, const QString& text) {
+  // lineEdit() is protected; the child lookup reaches the same editor.
+  auto* editor = spin.findChild<QLineEdit*>();
+  CHECK(editor != nullptr);
+  editor->setText(text);
+  send_key(spin, Qt::Key_Return);
+  QApplication::processEvents();
+}
+
+void unit_spin_box_parses_unit_tokens() {
+  const QLocale c = QLocale::c();
+  struct Case {
+    const char* text;
+    double value;
+    std::optional<SpinUnit> unit;
+  };
+  const std::vector<Case> cases = {
+      {"200", 200.0, std::nullopt},
+      {"200px", 200.0, SpinUnit::Pixels},
+      {"200 PX", 200.0, SpinUnit::Pixels},
+      {"200 pixels", 200.0, SpinUnit::Pixels},
+      {"2in", 2.0, SpinUnit::Inches},
+      {"2 inches", 2.0, SpinUnit::Inches},
+      {"2\"", 2.0, SpinUnit::Inches},
+      {"3 cm", 3.0, SpinUnit::Centimeters},
+      {"10mm", 10.0, SpinUnit::Millimeters},
+      {"36pt", 36.0, SpinUnit::Points},
+      {"36 points", 36.0, SpinUnit::Points},
+      {"50%", 50.0, SpinUnit::Percent},
+      {"50 percent", 50.0, SpinUnit::Percent},
+      {"45deg", 45.0, SpinUnit::Degrees},
+      {"45°", 45.0, SpinUnit::Degrees},
+      {"-12.5 px", -12.5, SpinUnit::Pixels},
+      {"+0.5in", 0.5, SpinUnit::Inches},
+  };
+  for (const auto& test : cases) {
+    const auto parsed = patchy::ui::parse_unit_entry(QString::fromUtf8(test.text), c);
+    CHECK(parsed.state == QValidator::Acceptable);
+    CHECK(close_to(parsed.entry.value, test.value));
+    CHECK(parsed.entry.unit == test.unit);
+    CHECK(parsed.has_unit_token == test.unit.has_value());
+  }
+
+  // The spin's own prefix and suffix are stripped, so the stock display text is a
+  // native number.
+  const auto native = patchy::ui::parse_unit_entry(QStringLiteral("100.00%"), c, QString(), QStringLiteral("%"));
+  CHECK(native.state == QValidator::Acceptable);
+  CHECK(!native.has_unit_token);
+  CHECK(close_to(native.entry.value, 100.0));
+
+  // Partial tokens and bare signs are still being typed.
+  for (const char* partial : {"", "-", ".", "2 i", "2 p", "45 de", "12 c"}) {
+    const auto parsed = patchy::ui::parse_unit_entry(QString::fromUtf8(partial), c);
+    CHECK(parsed.state == QValidator::Intermediate);
+  }
+  // Unknown tokens and a unit with no number are invalid.
+  for (const char* invalid : {"2 furlongs", "px", "12 xp", "1..2 px"}) {
+    const auto parsed = patchy::ui::parse_unit_entry(QString::fromUtf8(invalid), c);
+    CHECK(parsed.state == QValidator::Invalid);
+  }
+
+  // Locale decimal separators work, and "1.5" still parses under a comma locale
+  // because the C locale is the fallback.
+  const QLocale german(QLocale::German, QLocale::Germany);
+  const auto comma = patchy::ui::parse_unit_entry(QStringLiteral("1,5 cm"), german);
+  CHECK(comma.state == QValidator::Acceptable);
+  CHECK(close_to(comma.entry.value, 1.5));
+  CHECK(comma.entry.unit == SpinUnit::Centimeters);
+  const auto point = patchy::ui::parse_unit_entry(QStringLiteral("1.5 cm"), german);
+  CHECK(point.state == QValidator::Acceptable);
+  CHECK(close_to(point.entry.value, 1.5));
+}
+
+void unit_spin_box_converts_between_units() {
+  const UnitConversionContext at_300{300.0, 0.0};
+  const auto convert = [](double value, SpinUnit unit, SpinUnit native, const UnitConversionContext& context) {
+    return patchy::ui::convert_unit_entry(UnitEntry{value, unit}, native, context);
+  };
+  CHECK(close_to(convert(2.0, SpinUnit::Inches, SpinUnit::Pixels, at_300).value_or(-1.0), 600.0));
+  CHECK(close_to(convert(25.4, SpinUnit::Millimeters, SpinUnit::Pixels, at_300).value_or(-1.0), 300.0));
+  CHECK(close_to(convert(2.54, SpinUnit::Centimeters, SpinUnit::Pixels, at_300).value_or(-1.0), 300.0));
+  CHECK(close_to(convert(72.0, SpinUnit::Points, SpinUnit::Pixels, at_300).value_or(-1.0), 300.0));
+  // Native unit and no unit pass through untouched.
+  CHECK(close_to(convert(17.0, SpinUnit::Pixels, SpinUnit::Pixels, at_300).value_or(-1.0), 17.0));
+  CHECK(close_to(patchy::ui::convert_unit_entry(UnitEntry{17.0, std::nullopt}, SpinUnit::Degrees, at_300).value_or(-1.0),
+             17.0));
+  // Percent needs a basis: 50% of 800 px is 400 px, and 400 px of 800 is 50%.
+  const UnitConversionContext basis_800{300.0, 800.0};
+  CHECK(close_to(convert(50.0, SpinUnit::Percent, SpinUnit::Pixels, basis_800).value_or(-1.0), 400.0));
+  CHECK(close_to(convert(400.0, SpinUnit::Pixels, SpinUnit::Percent, basis_800).value_or(-1.0), 50.0));
+  CHECK(close_to(convert(2.0, SpinUnit::Inches, SpinUnit::Percent, basis_800).value_or(-1.0), 75.0));
+  CHECK(!convert(50.0, SpinUnit::Percent, SpinUnit::Pixels, at_300).has_value());
+  CHECK(!convert(400.0, SpinUnit::Pixels, SpinUnit::Percent, at_300).has_value());
+  // Points-native fields (text size) take pixels through the PPI.
+  const UnitConversionContext at_144{144.0, 0.0};
+  CHECK(close_to(convert(24.0, SpinUnit::Pixels, SpinUnit::Points, at_144).value_or(-1.0), 12.0));
+  // Angles never convert to or from lengths.
+  CHECK(!convert(2.0, SpinUnit::Inches, SpinUnit::Degrees, at_300).has_value());
+  CHECK(!convert(45.0, SpinUnit::Degrees, SpinUnit::Pixels, at_300).has_value());
+  // A bad PPI falls back to the document default instead of producing garbage.
+  const UnitConversionContext bad_ppi{0.0, 0.0};
+  CHECK(close_to(convert(1.0, SpinUnit::Inches, SpinUnit::Pixels, bad_ppi).value_or(-1.0), 300.0));
+}
+
+void unit_spin_box_pixel_field_accepts_percent_and_physical() {
+  UnitSpinBox spin(SpinUnit::Pixels);
+  spin.setRange(-30000.0, 30000.0);
+  spin.setDecimals(2);
+  spin.setKeyboardTracking(false);
+  spin.set_context_provider([] { return UnitConversionContext{300.0, 1024.0}; });
+  spin.setValue(10.0);
+  spin.show();
+  QApplication::processEvents();
+
+  commit_text(spin, QStringLiteral("2 in"));
+  CHECK(close_to(spin.value(), 600.0));
+  CHECK(spin.text() == QStringLiteral("600.00") + patchy::ui::pixel_suffix());
+  commit_text(spin, QStringLiteral("50%"));
+  CHECK(close_to(spin.value(), 512.0));
+  commit_text(spin, QStringLiteral("10 mm"));
+  CHECK(close_to(spin.value(), 118.11, 0.01));
+  commit_text(spin, QStringLiteral("36 pt"));
+  CHECK(close_to(spin.value(), 150.0));
+  // The display text itself (native suffix included) round-trips.
+  commit_text(spin, spin.text());
+  CHECK(close_to(spin.value(), 150.0));
+  // A converted value beyond the range clamps instead of being refused.
+  commit_text(spin, QStringLiteral("200 in"));
+  CHECK(close_to(spin.value(), 30000.0));
+}
+
+void unit_spin_box_percent_field_accepts_pixels() {
+  UnitSpinBox spin(SpinUnit::Percent);
+  spin.setRange(-10000.0, 10000.0);
+  spin.setDecimals(2);
+  spin.setKeyboardTracking(false);
+  spin.set_context_provider([] { return UnitConversionContext{300.0, 200.0}; });
+  spin.setValue(100.0);
+  spin.show();
+  QApplication::processEvents();
+
+  commit_text(spin, QStringLiteral("300 px"));
+  CHECK(close_to(spin.value(), 150.0));
+  commit_text(spin, QStringLiteral("1 in"));
+  CHECK(close_to(spin.value(), 150.0));
+  commit_text(spin, QStringLiteral("-100 px"));
+  CHECK(close_to(spin.value(), -50.0));
+  commit_text(spin, QStringLiteral("25%"));
+  CHECK(close_to(spin.value(), 25.0));
+  CHECK(spin.text() == QStringLiteral("25.00%"));
+}
+
+void unit_spin_box_rejects_incompatible_units() {
+  ProbeSpin angle(SpinUnit::Degrees);
+  angle.setRange(-3600.0, 3600.0);
+  angle.setDecimals(2);
+  angle.setKeyboardTracking(false);
+  angle.setValue(15.0);
+  angle.show();
+  QApplication::processEvents();
+  {
+    QString text = QStringLiteral("2 in");
+    int pos = static_cast<int>(text.size());
+    CHECK(angle.validate(text, pos) == QValidator::Invalid);
+  }
+  commit_text(angle, QStringLiteral("2 in"));
+  CHECK(close_to(angle.value(), 15.0));
+  commit_text(angle, QStringLiteral("90 deg"));
+  CHECK(close_to(angle.value(), 90.0));
+  commit_text(angle, QStringLiteral("45\u00b0"));
+  CHECK(close_to(angle.value(), 45.0));
+  CHECK(angle.text() == QStringLiteral("45.00") + patchy::ui::degree_suffix());
+
+  // A percent typed into a field without a percent basis is refused too.
+  UnitSpinBox pixels(SpinUnit::Pixels);
+  pixels.setRange(0.0, 1000.0);
+  pixels.setValue(40.0);
+  pixels.show();
+  QApplication::processEvents();
+  commit_text(pixels, QStringLiteral("50%"));
+  CHECK(close_to(pixels.value(), 40.0));
+}
+
+void unit_spin_box_plain_number_uses_native_unit() {
+  ProbeSpin spin(SpinUnit::Pixels);
+  spin.setRange(0.0, 100.0);
+  spin.setDecimals(0);
+  spin.setValue(10.0);
+  spin.show();
+  QApplication::processEvents();
+  commit_text(spin, QStringLiteral("42"));
+  CHECK(close_to(spin.value(), 42.0));
+  // Stock typing rules survive: a plain number past the maximum is refused
+  // keystroke by keystroke, exactly as a QDoubleSpinBox does.
+  {
+    QString text = QStringLiteral("500");
+    int pos = 3;
+    CHECK(spin.validate(text, pos) == QValidator::Invalid);
+  }
+  {
+    QString text = QStringLiteral("5 in");
+    int pos = 4;
+    CHECK(spin.validate(text, pos) == QValidator::Acceptable);
+  }
+}
+
+// Photoshop's W/H/X/Y fields: a typed unit becomes the field's display unit, the
+// stored value stays native, plain numbers are then read in the shown unit, and
+// a field that is not switchable keeps its native display.
+void unit_spin_box_display_unit_follows_typed_unit() {
+  UnitSpinBox spin(SpinUnit::Percent);
+  spin.setRange(-10000.0, 10000.0);
+  spin.setDecimals(2);
+  spin.setKeyboardTracking(false);
+  spin.set_context_provider([] { return UnitConversionContext{300.0, 200.0}; });
+  spin.set_display_unit_switchable(true);
+  spin.setValue(100.0);
+  spin.show();
+  QApplication::processEvents();
+  CHECK(spin.display_unit() == SpinUnit::Percent);
+
+  commit_text(spin, QStringLiteral("300 px"));
+  CHECK(close_to(spin.value(), 150.0));
+  CHECK(spin.display_unit() == SpinUnit::Pixels);
+  CHECK(spin.suffix() == patchy::ui::pixel_suffix());
+  CHECK(spin.text() == QStringLiteral("300.00") + patchy::ui::pixel_suffix());
+  // A plain number now means pixels.
+  commit_text(spin, QStringLiteral("150"));
+  CHECK(close_to(spin.value(), 75.0));
+  CHECK(spin.text() == QStringLiteral("150.00") + patchy::ui::pixel_suffix());
+  // setValue stays native and re-renders in the shown unit.
+  spin.setValue(50.0);
+  CHECK(spin.text() == QStringLiteral("100.00") + patchy::ui::pixel_suffix());
+  commit_text(spin, QStringLiteral("2 in"));
+  CHECK(close_to(spin.value(), 300.0));
+  CHECK(spin.display_unit() == SpinUnit::Inches);
+  CHECK(spin.text() == QStringLiteral("2.00") + patchy::ui::inch_suffix());
+  commit_text(spin, QStringLiteral("25%"));
+  CHECK(close_to(spin.value(), 25.0));
+  CHECK(spin.display_unit() == SpinUnit::Percent);
+  CHECK(spin.text() == QStringLiteral("25.00%"));
+  spin.set_display_unit(SpinUnit::Millimeters);
+  CHECK(spin.text() == QStringLiteral("4.23") + QStringLiteral(" ") +
+                           patchy::ui::measurement_unit_suffix(patchy::ui::MeasurementUnit::Millimeters));
+
+  UnitSpinBox fixed(SpinUnit::Percent);
+  fixed.setRange(-10000.0, 10000.0);
+  fixed.setDecimals(2);
+  fixed.set_context_provider([] { return UnitConversionContext{300.0, 200.0}; });
+  fixed.setValue(100.0);
+  fixed.show();
+  QApplication::processEvents();
+  commit_text(fixed, QStringLiteral("300 px"));
+  CHECK(close_to(fixed.value(), 150.0));
+  CHECK(fixed.display_unit() == SpinUnit::Percent);
+  CHECK(fixed.text() == QStringLiteral("150.00%"));
+}
+
+void unit_spin_box_keeps_translated_suffix() {
+  for (const auto unit : {SpinUnit::Pixels, SpinUnit::Inches, SpinUnit::Centimeters, SpinUnit::Millimeters,
+                          SpinUnit::Points, SpinUnit::Percent, SpinUnit::Degrees}) {
+    UnitSpinBox spin(unit);
+    CHECK(spin.suffix() == patchy::ui::spin_unit_suffix(unit));
+    CHECK(!spin.suffix().isEmpty());
+  }
+  UnitSpinBox pixels(SpinUnit::Pixels);
+  CHECK(pixels.suffix() == patchy::ui::pixel_suffix());
+  UnitSpinBox percent(SpinUnit::Percent);
+  CHECK(percent.suffix() == patchy::ui::percent_suffix());
+  UnitSpinBox degrees(SpinUnit::Degrees);
+  CHECK(degrees.suffix() == patchy::ui::degree_suffix());
+  UnitIntSpinBox whole(SpinUnit::Pixels);
+  CHECK(whole.suffix() == patchy::ui::pixel_suffix());
+}
+
+void unit_spin_box_int_rounds_converted_values() {
+  UnitIntSpinBox spin(SpinUnit::Pixels);
+  spin.setRange(0, 5000);
+  spin.set_context_provider([] { return UnitConversionContext{72.0, 400.0}; });
+  spin.setValue(7);
+  spin.show();
+  QApplication::processEvents();
+  commit_text(spin, QStringLiteral("1.5 in"));
+  CHECK(spin.value() == 108);
+  commit_text(spin, QStringLiteral("33.3%"));
+  CHECK(spin.value() == 133);
+  commit_text(spin, QStringLiteral("12"));
+  CHECK(spin.value() == 12);
+  commit_text(spin, QStringLiteral("9 deg"));
+  CHECK(spin.value() == 12);
+}
+
+}  // namespace
+
+std::vector<patchy::test::TestCase> unit_spin_box_tests() {
+  return {
+      {"unit_spin_box_parses_unit_tokens", unit_spin_box_parses_unit_tokens},
+      {"unit_spin_box_converts_between_units", unit_spin_box_converts_between_units},
+      {"unit_spin_box_pixel_field_accepts_percent_and_physical", unit_spin_box_pixel_field_accepts_percent_and_physical},
+      {"unit_spin_box_percent_field_accepts_pixels", unit_spin_box_percent_field_accepts_pixels},
+      {"unit_spin_box_rejects_incompatible_units", unit_spin_box_rejects_incompatible_units},
+      {"unit_spin_box_plain_number_uses_native_unit", unit_spin_box_plain_number_uses_native_unit},
+      {"unit_spin_box_keeps_translated_suffix", unit_spin_box_keeps_translated_suffix},
+      {"unit_spin_box_display_unit_follows_typed_unit", unit_spin_box_display_unit_follows_typed_unit},
+      {"unit_spin_box_int_rounds_converted_values", unit_spin_box_int_rounds_converted_values},
+  };
+}

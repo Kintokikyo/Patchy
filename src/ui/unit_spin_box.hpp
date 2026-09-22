@@ -1,0 +1,135 @@
+#pragma once
+
+#include <QContextMenuEvent>
+#include <QDoubleSpinBox>
+#include <QLocale>
+#include <QSpinBox>
+#include <QString>
+#include <QValidator>
+
+#include <functional>
+#include <optional>
+
+namespace patchy::ui {
+
+// Unit a numeric field natively displays. Deliberately separate from the persisted
+// MeasurementUnit (rulers, unit combos, settings tokens) so Degrees never leaks into
+// a settings token.
+enum class SpinUnit { Pixels, Inches, Centimeters, Millimeters, Points, Percent, Degrees };
+
+// What the user typed: a number plus an optional unit token. A missing unit means
+// "the field's native unit".
+struct UnitEntry {
+  double value{0.0};
+  std::optional<SpinUnit> unit;
+};
+
+struct UnitEntryParse {
+  // Acceptable: `entry` holds a complete number and (optional) unit token.
+  // Intermediate: empty, a bare sign, or a token that is a prefix of a known unit.
+  // Invalid: an unknown token or a malformed number.
+  QValidator::State state{QValidator::Invalid};
+  UnitEntry entry;
+  // True when a unit token (complete or partial) is present, so the caller knows
+  // the text is not something the stock spin box can handle.
+  bool has_unit_token{false};
+};
+
+// Parses "200", "200 px", "50%", "2in", "3,5 cm", "45°", ... The spin's own prefix and
+// suffix are stripped first so the stock display text parses as a native number.
+// Tokens are case-insensitive English abbreviations and names plus the localized
+// suffixes from measurement_units.hpp. The number is read with `locale` (group
+// separators rejected) and falls back to the C locale so "1.5" works everywhere.
+[[nodiscard]] UnitEntryParse parse_unit_entry(QString text, const QLocale& locale,
+                                              const QString& prefix = QString(),
+                                              const QString& suffix = QString());
+
+struct UnitConversionContext {
+  double ppi{300.0};                      // document resolution; sanitized on use
+  double percent_reference_pixels{0.0};   // what 100% means for THIS field; 0 = no basis
+};
+
+// Converts an entry into the field's native unit. nullopt when the typed unit is
+// incompatible (a length in a degree field, a percent without a basis, ...).
+[[nodiscard]] std::optional<double> convert_unit_entry(const UnitEntry& entry, SpinUnit native,
+                                                       const UnitConversionContext& context);
+
+// Localized display suffix for a native unit, exactly what the measurement_units.hpp
+// helpers produce (" px", " in", " cm", " mm", " pt", "%", the degree sign).
+[[nodiscard]] QString spin_unit_suffix(SpinUnit unit);
+
+// A QDoubleSpinBox that accepts a unit token after the number and converts it into
+// the field's native unit (Photoshop's numeric-field behavior). Plain numbers behave
+// exactly like the stock spin box; the display always shows the native unit.
+class UnitSpinBox : public QDoubleSpinBox {
+  Q_OBJECT
+
+ public:
+  using ContextProvider = std::function<UnitConversionContext()>;
+
+  explicit UnitSpinBox(SpinUnit native, QWidget* parent = nullptr);
+
+  [[nodiscard]] SpinUnit native_unit() const noexcept { return native_; }
+  void set_context_provider(ContextProvider provider);
+  [[nodiscard]] UnitConversionContext conversion_context() const;
+  // Re-applies the localized suffix after a language change.
+  void refresh_suffix();
+
+  // Presentation unit. value() stays in the native unit; the suffix and the number
+  // shown convert through the context, and a plain typed number is read in this
+  // unit. A percent display without a basis falls back to the native text.
+  void set_display_unit(SpinUnit unit);
+  [[nodiscard]] SpinUnit display_unit() const noexcept { return display_; }
+  // Photoshop's X/Y/W/H fields: a typed unit token becomes the display unit, and a
+  // right-click offers the unit list.
+  void set_display_unit_switchable(bool enabled);
+  [[nodiscard]] bool display_unit_switchable() const noexcept { return switchable_; }
+
+ signals:
+  void display_unit_changed(patchy::ui::SpinUnit unit);
+
+ protected:
+  QValidator::State validate(QString& input, int& pos) const override;
+  double valueFromText(const QString& text) const override;
+  QString textFromValue(double value) const override;
+  void fixup(QString& input) const override;
+  void contextMenuEvent(QContextMenuEvent* event) override;
+
+ private:
+  [[nodiscard]] UnitEntry effective_entry(UnitEntry entry) const;
+
+  SpinUnit native_;
+  SpinUnit display_;
+  bool switchable_{false};
+  ContextProvider context_provider_;
+  // Set by valueFromText (const) while a typed token is being committed; applied
+  // once the edit finishes so the field re-renders in the new unit.
+  mutable std::optional<SpinUnit> pending_display_unit_;
+};
+
+// Integer twin for the many whole-pixel fields; converted values round to the
+// nearest integer.
+class UnitIntSpinBox : public QSpinBox {
+  Q_OBJECT
+
+ public:
+  using ContextProvider = std::function<UnitConversionContext()>;
+
+  explicit UnitIntSpinBox(SpinUnit native, QWidget* parent = nullptr);
+
+  [[nodiscard]] SpinUnit native_unit() const noexcept { return native_; }
+  void set_context_provider(ContextProvider provider);
+  [[nodiscard]] UnitConversionContext conversion_context() const;
+  void refresh_suffix();
+
+ protected:
+  QValidator::State validate(QString& input, int& pos) const override;
+  int valueFromText(const QString& text) const override;
+  void fixup(QString& input) const override;
+
+ private:
+  SpinUnit native_;
+  ContextProvider context_provider_;
+};
+
+}  // namespace patchy::ui

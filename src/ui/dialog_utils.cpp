@@ -261,7 +261,7 @@ private:
 
   QString quick_label(double value) const {
     const int decimals = [&] {
-      if constexpr (std::is_same_v<SpinBox, QDoubleSpinBox>) {
+      if constexpr (std::is_base_of_v<QDoubleSpinBox, SpinBox>) {
         return spin_->decimals();
       } else {
         return 0;
@@ -989,10 +989,14 @@ void configure_dialog_spinbox(QDoubleSpinBox* spin, int width) {
   spin->setMinimumHeight(24);
 }
 
-QSpinBox* add_dialog_slider_spin_row(QFormLayout* form, QWidget* parent, const QString& label,
-                                     const QString& slider_object_name, const QString& spin_object_name,
-                                     int minimum, int maximum, int value, const QString& suffix,
-                                     int spin_width, int row_spacing, bool step_buttons) {
+namespace {
+
+// Shared body of the two add_dialog_slider_spin_row overloads: `spin` arrives
+// constructed (plain or unit-entry) and is reparented into the row.
+QSpinBox* add_dialog_slider_spin_row_with(QFormLayout* form, QWidget* parent, const QString& label,
+                                          const QString& slider_object_name, QSpinBox* spin, int minimum,
+                                          int maximum, int value, int spin_width, int row_spacing,
+                                          bool step_buttons) {
   auto* row = new QWidget(parent);
   auto* row_layout = new QHBoxLayout(row);
   row_layout->setContentsMargins(0, 0, 0, 0);
@@ -1003,13 +1007,9 @@ QSpinBox* add_dialog_slider_spin_row(QFormLayout* form, QWidget* parent, const Q
   slider->setObjectName(slider_object_name);
   slider->setRange(minimum, maximum);
   slider->setValue(value);
-  auto* spin = new QSpinBox(row);
-  spin->setObjectName(spin_object_name);
+  spin->setParent(row);
   spin->setRange(minimum, maximum);
   spin->setValue(value);
-  if (!suffix.isEmpty()) {
-    spin->setSuffix(suffix);
-  }
   configure_dialog_spinbox(spin, spin_width);
   row_layout->addWidget(slider, 1);
   if (step_buttons) {
@@ -1027,6 +1027,34 @@ QSpinBox* add_dialog_slider_spin_row(QFormLayout* form, QWidget* parent, const Q
   QObject::connect(slider, &QSlider::valueChanged, spin, &QSpinBox::setValue);
   QObject::connect(spin, qOverload<int>(&QSpinBox::valueChanged), slider, &QSlider::setValue);
   form->addRow(label, row);
+  return spin;
+}
+
+}  // namespace
+
+QSpinBox* add_dialog_slider_spin_row(QFormLayout* form, QWidget* parent, const QString& label,
+                                     const QString& slider_object_name, const QString& spin_object_name,
+                                     int minimum, int maximum, int value, const QString& suffix,
+                                     int spin_width, int row_spacing, bool step_buttons) {
+  auto* spin = new QSpinBox();
+  spin->setObjectName(spin_object_name);
+  if (!suffix.isEmpty()) {
+    spin->setSuffix(suffix);
+  }
+  return add_dialog_slider_spin_row_with(form, parent, label, slider_object_name, spin, minimum, maximum, value,
+                                         spin_width, row_spacing, step_buttons);
+}
+
+UnitIntSpinBox* add_dialog_slider_spin_row(QFormLayout* form, QWidget* parent, const QString& label,
+                                           const QString& slider_object_name, const QString& spin_object_name,
+                                           int minimum, int maximum, int value, SpinUnit unit,
+                                           UnitIntSpinBox::ContextProvider provider, int spin_width,
+                                           int row_spacing, bool step_buttons) {
+  auto* spin = new UnitIntSpinBox(unit);
+  spin->setObjectName(spin_object_name);
+  spin->set_context_provider(std::move(provider));
+  add_dialog_slider_spin_row_with(form, parent, label, slider_object_name, spin, minimum, maximum, value,
+                                  spin_width, row_spacing, step_buttons);
   return spin;
 }
 

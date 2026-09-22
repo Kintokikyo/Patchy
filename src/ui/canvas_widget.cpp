@@ -344,6 +344,8 @@ void CanvasWidget::set_document_internal(Document* document, bool preserve_frame
   move_drag_pending_ = false;
   moving_layer_ = false;
   moving_layers_.clear();
+  move_readout_base_rect_.reset();
+  drag_readout_dirty_rect_ = QRect();
   move_preview_delta_ = QPoint();
   move_preview_patches_.clear();
   move_preview_patches_delta_.reset();
@@ -446,6 +448,8 @@ void CanvasWidget::set_tool(CanvasTool tool) {
     move_drag_pending_ = false;
     moving_layer_ = false;
     moving_layers_.clear();
+    move_readout_base_rect_.reset();
+    drag_readout_dirty_rect_ = QRect();
     move_preview_delta_ = QPoint();
     move_preview_patches_.clear();
     move_preview_patches_delta_.reset();
@@ -487,6 +491,8 @@ void CanvasWidget::set_edit_locked(bool locked) noexcept {
     move_drag_pending_ = false;
     moving_layer_ = false;
     moving_layers_.clear();
+    move_readout_base_rect_.reset();
+    drag_readout_dirty_rect_ = QRect();
     move_preview_delta_ = QPoint();
     move_preview_patches_.clear();
     move_preview_patches_delta_.reset();

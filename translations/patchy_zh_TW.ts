@@ -9788,6 +9788,30 @@ RGB：%2, %3, %4</translation>
         <source>Cancelled the path transform</source>
         <translation>已取消路徑變形</translation>
     </message>
+    <message>
+        <source>X: %1  Y: %2</source>
+        <translation>X: %1  Y: %2</translation>
+    </message>
+    <message>
+        <source>Angle: %1</source>
+        <translation>角度: %1</translation>
+    </message>
+    <message>
+        <source>W: %1  H: %2</source>
+        <translation>寬: %1  高: %2</translation>
+    </message>
+    <message>
+        <source>%1 x %2</source>
+        <translation>%1 x %2</translation>
+    </message>
+    <message>
+        <source>Change X: %1  Y: %2</source>
+        <translation>變化 X: %1  Y: %2</translation>
+    </message>
+    <message>
+        <source>Change: %1</source>
+        <translation>變化: %1</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::ChannelPanel</name>
@@ -10047,10 +10071,6 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Slant the current face synthetically instead of switching to the family&apos;s italic face</source>
         <translation>以合成方式傾斜目前的字體,而不切換到字體家族的斜體字</translation>
-    </message>
-    <message>
-        <source> pt</source>
-        <translation> pt</translation>
     </message>
     <message>
         <source>Leading:</source>
@@ -15688,10 +15708,6 @@ Y：%2
         <translation>啟用靠齊</translation>
     </message>
     <message>
-        <source> px</source>
-        <translation> px</translation>
-    </message>
-    <message>
         <source>Lines</source>
         <translation>線條</translation>
     </message>
@@ -16672,10 +16688,6 @@ Y：%2
         <translation>數值越大，移除的錨點越多</translation>
     </message>
     <message>
-        <source> deg</source>
-        <translation> 度</translation>
-    </message>
-    <message>
         <source>Bends sharper than this angle stay corners</source>
         <translation>比此角度更銳利的轉折會保持為轉角</translation>
     </message>
@@ -17042,6 +17054,18 @@ Y：%2
     <message>
         <source>Layers as Animated &amp;GIF...</source>
         <translation>圖層至動畫 GIF(&amp;G)...</translation>
+    </message>
+    <message>
+        <source>Show transformation values while dragging</source>
+        <translation>拖曳時顯示變形數值</translation>
+    </message>
+    <message>
+        <source>Shows a small readout beside the pointer while moving, scaling, or rotating: the reference point&apos;s position and the offset, the width and height with the scale percentages, or the angle and how far it turned.</source>
+        <translation>在移動、縮放或旋轉時於指標旁顯示小型讀數：參考點的位置與偏移量、寬度與高度及縮放百分比，或角度及其轉動量。</translation>
+    </message>
+    <message>
+        <source>Pivot:</source>
+        <translation>軸心:</translation>
     </message>
 </context>
 <context>

@@ -62,10 +62,9 @@ std::optional<SpriteSheetExportOptions> prompt_sprite_sheet_export_options(QWidg
   configure_dialog_spinbox(columns, 88);
   form->addRow(new QLabel(QObject::tr("Columns:"), &dialog), columns);
 
-  auto* padding = new QSpinBox(&dialog);
+  auto* padding = new UnitIntSpinBox(SpinUnit::Pixels, &dialog);
   padding->setObjectName(QStringLiteral("spriteSheetPaddingSpin"));
   padding->setRange(0, 64);
-  padding->setSuffix(pixel_suffix());
   configure_dialog_spinbox(padding, 88);
   form->addRow(new QLabel(QObject::tr("Padding:"), &dialog), padding);
 

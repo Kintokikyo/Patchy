@@ -9815,6 +9815,30 @@ RVB : %2, %3, %4</translation>
         <source>Cancelled the path transform</source>
         <translation>Transformation du tracé annulée</translation>
     </message>
+    <message>
+        <source>X: %1  Y: %2</source>
+        <translation>X : %1  Y : %2</translation>
+    </message>
+    <message>
+        <source>Angle: %1</source>
+        <translation>Angle : %1</translation>
+    </message>
+    <message>
+        <source>W: %1  H: %2</source>
+        <translation>L : %1  H : %2</translation>
+    </message>
+    <message>
+        <source>%1 x %2</source>
+        <translation>%1 x %2</translation>
+    </message>
+    <message>
+        <source>Change X: %1  Y: %2</source>
+        <translation>Variation X : %1  Y : %2</translation>
+    </message>
+    <message>
+        <source>Change: %1</source>
+        <translation>Variation : %1</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::ChannelPanel</name>
@@ -10074,10 +10098,6 @@ RVB : %2, %3, %4</translation>
     <message>
         <source>Slant the current face synthetically instead of switching to the family&apos;s italic face</source>
         <translation>Incliner artificiellement la police actuelle au lieu de passer à la variante italique de la famille</translation>
-    </message>
-    <message>
-        <source> pt</source>
-        <translation> pt</translation>
     </message>
     <message>
         <source>Leading:</source>
@@ -15727,10 +15747,6 @@ Y : %2
         <translation>Activer le magnétisme</translation>
     </message>
     <message>
-        <source> px</source>
-        <translation> px</translation>
-    </message>
-    <message>
         <source>Lines</source>
         <translation>Lignes</translation>
     </message>
@@ -16713,10 +16729,6 @@ Y : %2
         <translation>Des valeurs plus élevées suppriment davantage de points</translation>
     </message>
     <message>
-        <source> deg</source>
-        <translation> °</translation>
-    </message>
-    <message>
         <source>Bends sharper than this angle stay corners</source>
         <translation>Les coudes plus aigus que cet angle restent des sommets</translation>
     </message>
@@ -17087,6 +17099,18 @@ Y : %2
     <message>
         <source>Layers as Animated &amp;GIF...</source>
         <translation>Calques en &amp;GIF animé...</translation>
+    </message>
+    <message>
+        <source>Show transformation values while dragging</source>
+        <translation>Afficher les valeurs de transformation pendant le glissement</translation>
+    </message>
+    <message>
+        <source>Shows a small readout beside the pointer while moving, scaling, or rotating: the reference point&apos;s position and the offset, the width and height with the scale percentages, or the angle and how far it turned.</source>
+        <translation>Affiche une petite lecture à côté du pointeur pendant le déplacement, la mise à l&apos;échelle ou la rotation : la position du point de référence et le décalage, la largeur et la hauteur avec les pourcentages d&apos;échelle, ou l&apos;angle et la rotation effectuée.</translation>
+    </message>
+    <message>
+        <source>Pivot:</source>
+        <translation>Pivot :</translation>
     </message>
 </context>
 <context>

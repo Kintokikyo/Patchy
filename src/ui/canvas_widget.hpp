@@ -32,6 +32,7 @@
 #include <QRegion>
 #include <QSize>
 #include <QString>
+#include <QStringList>
 #include <QWidget>
 
 #include <array>
@@ -297,6 +298,9 @@ public:
     double scale_y_percent{100.0};
     double rotation_degrees{0.0};
     TransformInterpolation interpolation{TransformInterpolation::Bicubic};
+    // Extent the scale percentages are relative to (the session's original rect, or
+    // the passive box itself), so unit entry can convert "200 px" into a percent.
+    QSizeF original_size{};
   };
 
   struct RenderCacheDiagnostics {
@@ -570,6 +574,20 @@ public:
   void cancel_magnetic_lasso();
   void set_show_transform_controls(bool enabled) noexcept;
   [[nodiscard]] bool show_transform_controls() const noexcept;
+  // Live readout beside the pointer during Move and Free Transform drags
+  // (Photoshop's "Show Transformation Values"): position of the reference point
+  // plus the delta while moving, W x H plus percentages while scaling, the angle
+  // plus its delta while rotating. Application preference, pushed in by
+  // MainWindow like the Shift-aspect pairing.
+  struct DragReadout {
+    QStringList lines;         // full text: current values plus the change (status bar)
+    QStringList canvas_lines;  // what the on-canvas panel shows: the change only
+  };
+  [[nodiscard]] std::optional<DragReadout> transform_drag_readout() const;
+  // Widget-space panel rect of the readout; empty when nothing is shown.
+  [[nodiscard]] QRect drag_readout_widget_rect() const;
+  void set_show_transform_drag_values(bool enabled) noexcept;
+  [[nodiscard]] bool show_transform_drag_values() const noexcept;
   void set_fill_shapes(bool fill_shapes) noexcept;
   [[nodiscard]] bool fill_shapes() const noexcept;
   void set_shape_corner_radius(int radius) noexcept;
@@ -768,6 +786,9 @@ public:
   // aspect ratio. Shared by the pixel and path transform sessions so the two can
   // never disagree about what Shift means.
   [[nodiscard]] bool transform_drag_keeps_aspect(Qt::KeyboardModifiers modifiers) const noexcept;
+  // Alt on a scale handle scales about the reference point instead of the
+  // opposite edge (Photoshop). Shared predicate so every session agrees.
+  [[nodiscard]] bool transform_drag_scales_about_reference(Qt::KeyboardModifiers modifiers) const noexcept;
   [[nodiscard]] std::optional<TransformControlsState> transform_controls_state() const;
   bool set_transform_controls_state(QPointF reference_position, double scale_x_percent,
                                     double scale_y_percent, double rotation_degrees);
@@ -1228,6 +1249,12 @@ private:
   // false when the tool/geometry has no appearance form (caller falls back).
   bool draw_shape_appearance_preview(QPainter& painter, const ShapePreviewAppearance& appearance);
   void draw_drag_size_readout(QPainter& painter) const;
+  void draw_transform_drag_readout(QPainter& painter) const;
+  // The readout sits outside the bounded drag repaints, so its old and new rects
+  // join them explicitly; release/cancel clear the last rect.
+  void update_drag_readout_region();
+  void clear_drag_readout();
+  [[nodiscard]] std::optional<QRectF> moving_layers_readout_base_rect() const;
   void draw_text_rect_preview(QPainter& painter) const;
   void draw_zoom_preview(QPainter& painter) const;
   void draw_selection_overlay(QPainter& painter) const;
@@ -2342,6 +2369,13 @@ private:
   // Application preference, pushed in from MainWindow; not per-session state, so
   // the session resets must leave it alone.
   bool shift_keeps_transform_aspect_{false};
+  bool show_transform_drag_values_{true};
+  // Drag readout bookkeeping: the last painted panel rect (for the bounded
+  // repaint union), the moving set's zero-delta extent captured when a Move
+  // drag starts, and the last status-bar mirror text.
+  QRect drag_readout_dirty_rect_{};
+  std::optional<QRectF> move_readout_base_rect_{};
+  QString drag_readout_status_text_{};
   QImage transform_base_cache_{};
   std::vector<QImage> transform_base_display_mip_cache_{};
   qint64 transform_base_display_mip_source_key_{0};

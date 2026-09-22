@@ -1026,6 +1026,8 @@ ${PATCHY_LUPDATE_MANIFEST_SOURCES}
       src/ui/shape_create_dialog.cpp
       src/ui/measurement_units.hpp
       src/ui/measurement_units.cpp
+      src/ui/unit_spin_box.hpp
+      src/ui/unit_spin_box.cpp
       src/ui/new_document_dialog.hpp
       src/ui/new_document_dialog.cpp
       src/ui/stress_test.hpp
@@ -1659,6 +1661,7 @@ if(PATCHY_BUILD_TESTS)
       tests/ui/selection_marquee_lasso_tests_marquee_geometry.cpp
       tests/ui/selection_marquee_lasso_tests_regions_lasso.cpp
       tests/ui/crop_tool_tests.cpp
+      tests/ui/unit_spin_box_tests.cpp
       tests/ui/clipboard_free_transform_tests.cpp
       tests/ui/group_transform_tests.cpp
       tests/ui/channels_panel_tests.cpp

@@ -147,6 +147,7 @@
 #include <QSettings>
 #include <QSlider>
 #include <QStandardItemModel>
+#include <QRegion>
 #include <QStatusBar>
 #include <QStyle>
 #include <QStyleOptionSlider>
@@ -909,6 +910,433 @@ void ui_transform_numeric_controls_apply_values() {
   CHECK(transformed_rect->width() > filled_rect->width());
   CHECK(transformed_rect->height() > filled_rect->height());
   CHECK(transformed_rect->center().x() > filled_rect->center().x() + 15);
+  CHECK(!canvas->free_transform_active());
+}
+
+// Photoshop accepts a unit token in every numeric field: the transform X/Y fields
+// display pixels but take "50%" (of the document extent) or "2 in" (through the
+// document PPI), the W/H percent fields take "200 px" relative to the original
+// extent, and the angle field refuses lengths.
+void ui_transform_fields_accept_unit_tokens() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  document.print_settings().horizontal_ppi = 300.0;
+  document.print_settings().vertical_ppi = 300.0;
+  const auto document_width = static_cast<double>(document.width());
+  const auto document_height = static_cast<double>(document.height());
+
+  canvas->set_tool(patchy::ui::CanvasTool::Marquee);
+  drag(*canvas, canvas->widget_position_for_document_point(QPoint(90, 80)),
+       canvas->widget_position_for_document_point(QPoint(150, 125)));
+  const auto filled_rect = canvas->selected_document_rect();
+  CHECK(filled_rect.has_value());
+  canvas->set_primary_color(QColor(40, 130, 230));
+  require_action(window, "layerFillForegroundAction")->trigger();
+  require_action(window, "editDeselectAction")->trigger();
+  QApplication::processEvents();
+
+  require_action_by_text(window, QStringLiteral("Move"))->trigger();
+  require_action(window, "editFreeTransformAction")->trigger();
+  QApplication::processEvents();
+  CHECK(canvas->free_transform_active());
+
+  auto* x = window.findChild<QDoubleSpinBox*>(QStringLiteral("freeTransformXSpin"));
+  auto* y = window.findChild<QDoubleSpinBox*>(QStringLiteral("freeTransformYSpin"));
+  auto* scale_x = window.findChild<QDoubleSpinBox*>(QStringLiteral("freeTransformScaleXSpin"));
+  auto* rotation = window.findChild<QDoubleSpinBox*>(QStringLiteral("freeTransformRotationSpin"));
+  CHECK(x != nullptr);
+  CHECK(y != nullptr);
+  CHECK(scale_x != nullptr);
+  CHECK(rotation != nullptr);
+  const auto commit_text = [](QDoubleSpinBox& spin, const QString& text) {
+    auto* editor = spin.findChild<QLineEdit*>();
+    CHECK(editor != nullptr);
+    editor->setText(text);
+    send_key(spin, Qt::Key_Return);
+    QApplication::processEvents();
+  };
+  const auto state = [canvas] {
+    const auto controls = canvas->transform_controls_state();
+    CHECK(controls.has_value());
+    return *controls;
+  };
+
+  commit_text(*x, QStringLiteral("50%"));
+  CHECK(std::abs(x->value() - document_width / 2.0) < 0.01);
+  CHECK(std::abs(state().reference_position.x() - document_width / 2.0) < 0.01);
+  commit_text(*y, QStringLiteral("25%"));
+  CHECK(std::abs(y->value() - document_height / 4.0) < 0.01);
+  CHECK(std::abs(state().reference_position.y() - document_height / 4.0) < 0.01);
+  commit_text(*x, QStringLiteral("2 in"));
+  CHECK(std::abs(x->value() - 600.0) < 0.01);
+  CHECK(std::abs(state().reference_position.x() - 600.0) < 0.01);
+  commit_text(*y, QStringLiteral("2.54 cm"));
+  CHECK(std::abs(y->value() - 300.0) < 0.01);
+
+  const auto original_width = state().original_size.width();
+  CHECK(original_width > 0.0);
+  commit_text(*scale_x, QStringLiteral("200 px"));
+  const auto expected_percent = 200.0 / original_width * 100.0;
+  CHECK(std::abs(scale_x->value() - expected_percent) < 0.01);
+  CHECK(std::abs(state().scale_x_percent - expected_percent) < 0.01);
+  // The field now displays pixels (Photoshop), the linked H field follows, and a
+  // plain number is read as pixels until a percent is typed again.
+  auto* scale_y = window.findChild<QDoubleSpinBox*>(QStringLiteral("freeTransformScaleYSpin"));
+  CHECK(scale_y != nullptr);
+  CHECK(scale_x->text() == QStringLiteral("200.00") + patchy::ui::pixel_suffix());
+  CHECK(scale_y->suffix() == patchy::ui::pixel_suffix());
+  commit_text(*scale_x, QStringLiteral("100"));
+  CHECK(std::abs(state().scale_x_percent - 100.0 / original_width * 100.0) < 0.01);
+  commit_text(*scale_x, QStringLiteral("100%"));
+  CHECK(std::abs(state().scale_x_percent - 100.0) < 0.01);
+  CHECK(scale_x->text() == QStringLiteral("100.00%"));
+  CHECK(scale_y->suffix() == patchy::ui::percent_suffix());
+  commit_text(*x, QStringLiteral("1 in"));
+  CHECK(x->text() == QStringLiteral("1.00") + patchy::ui::inch_suffix());
+  CHECK(std::abs(state().reference_position.x() - 300.0) < 0.01);
+  commit_text(*x, QStringLiteral("600 px"));
+  CHECK(x->text() == QStringLiteral("600.00") + patchy::ui::pixel_suffix());
+
+  commit_text(*rotation, QStringLiteral("2 in"));
+  CHECK(std::abs(rotation->value()) < 0.01);
+  CHECK(std::abs(state().rotation_degrees) < 0.01);
+  commit_text(*rotation, QStringLiteral("30 deg"));
+  CHECK(std::abs(rotation->value() - 30.0) < 0.01);
+  CHECK(std::abs(state().rotation_degrees - 30.0) < 0.01);
+  CHECK(rotation->text() == QStringLiteral("30.00") + patchy::ui::degree_suffix());
+
+  send_key(*canvas, Qt::Key_Escape);
+  QApplication::processEvents();
+  CHECK(!canvas->free_transform_active());
+}
+
+// Shared setup for the handle-drag tests: a filled 60 x 45 rect at (90, 80) and an
+// active Free Transform session on it (Move tool selected).
+std::optional<QRect> begin_probe_transform_session(patchy::ui::MainWindow& window, patchy::ui::CanvasWidget& canvas) {
+  canvas.set_tool(patchy::ui::CanvasTool::Marquee);
+  drag(canvas, canvas.widget_position_for_document_point(QPoint(90, 80)),
+       canvas.widget_position_for_document_point(QPoint(150, 125)));
+  const auto filled_rect = canvas.selected_document_rect();
+  CHECK(filled_rect.has_value());
+  canvas.set_primary_color(QColor(40, 130, 230));
+  require_action(window, "layerFillForegroundAction")->trigger();
+  require_action(window, "editDeselectAction")->trigger();
+  QApplication::processEvents();
+  require_action_by_text(window, QStringLiteral("Move"))->trigger();
+  require_action(window, "editFreeTransformAction")->trigger();
+  QApplication::processEvents();
+  CHECK(canvas.free_transform_active());
+  return filled_rect;
+}
+
+patchy::ui::CanvasWidget::TransformControlsState require_transform_state(patchy::ui::CanvasWidget& canvas) {
+  const auto state = canvas.transform_controls_state();
+  CHECK(state.has_value());
+  return state.value_or(patchy::ui::CanvasWidget::TransformControlsState{});
+}
+
+// The rotate handle turns the box about the reference point, not the center
+// (Photoshop). With the reference at Top Left, a quarter turn keeps that corner
+// pinned and the committed layer stays attached to it.
+void ui_transform_rotate_drag_pivots_on_reference_point() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  const auto filled_rect = begin_probe_transform_session(window, *canvas);
+  CHECK(filled_rect.has_value());
+
+  // Changing the pivot repaints the box at once (the marker moves), and the
+  // options bar labels the combo.
+  PaintRegionRecorder recorder(canvas);
+  canvas->installEventFilter(&recorder);
+  recorder.reset();
+  canvas->set_transform_reference_point(patchy::CanvasAnchor::TopLeft);
+  QApplication::processEvents();
+  canvas->removeEventFilter(&recorder);
+  const QRect box_widget_rect(canvas->widget_position_for_document_point(filled_rect->topLeft()),
+                              canvas->widget_position_for_document_point(filled_rect->bottomRight()));
+  CHECK(QRegion(box_widget_rect).subtracted(recorder.region()).isEmpty());
+  auto* pivot_label = window.findChild<QLabel*>(QStringLiteral("freeTransformPivotLabel"));
+  CHECK(pivot_label != nullptr);
+  CHECK(pivot_label->isVisible());
+  CHECK(pivot_label->text() == QStringLiteral("Pivot:"));
+  const auto before = require_transform_state(*canvas);
+  const QPointF pivot_document(filled_rect->x(), filled_rect->y());
+  CHECK(std::abs(before.reference_position.x() - pivot_document.x()) < 0.01);
+  CHECK(std::abs(before.reference_position.y() - pivot_document.y()) < 0.01);
+
+  // The rotate handle sits 32 widget px above the top-center handle. Drag it a
+  // quarter turn around the pivot (rotation commutes with the view's uniform
+  // scale, so the geometry can be built in widget space).
+  const auto pivot_widget = canvas->widget_position_for_document_point(QPoint(filled_rect->x(), filled_rect->y()));
+  const auto top_center = canvas->widget_position_for_document_point(
+      QPoint(filled_rect->x() + filled_rect->width() / 2, filled_rect->y()));
+  const QPoint handle(top_center.x(), top_center.y() - 32);
+  const auto vector = handle - pivot_widget;
+  const QPoint target(pivot_widget.x() - vector.y(), pivot_widget.y() + vector.x());
+  drag(*canvas, handle, target);
+  QApplication::processEvents();
+  CHECK(canvas->free_transform_active());
+
+  const auto after = require_transform_state(*canvas);
+  CHECK(std::abs(std::abs(after.rotation_degrees) - 90.0) < 1.5);
+  CHECK(std::abs(after.reference_position.x() - pivot_document.x()) < 0.5);
+  CHECK(std::abs(after.reference_position.y() - pivot_document.y()) < 0.5);
+  save_widget_artifact("ui_transform_rotate_about_top_left", window);
+
+  send_key(*canvas, Qt::Key_Return);
+  QApplication::processEvents();
+  CHECK(!canvas->free_transform_active());
+  const auto committed = canvas->active_layer_document_rect();
+  CHECK(committed.has_value());
+  // Width and height swap, and one corner of the result still touches the pivot.
+  CHECK(std::abs(committed->width() - filled_rect->height()) <= 2);
+  CHECK(std::abs(committed->height() - filled_rect->width()) <= 2);
+  const bool clockwise = std::abs(committed->right() + 1 - filled_rect->x()) <= 2 &&
+                         std::abs(committed->top() - filled_rect->y()) <= 2;
+  const bool counter_clockwise = std::abs(committed->left() - filled_rect->x()) <= 2 &&
+                                 std::abs(committed->bottom() + 1 - filled_rect->y()) <= 2;
+  CHECK(clockwise || counter_clockwise);
+}
+
+// Alt on a scale handle scales about the reference point: with Center the box
+// grows both ways and the center stays put; with the reference on the far edge
+// the result equals the plain drag.
+void ui_transform_alt_drag_scales_about_reference_point() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  const auto filled_rect = begin_probe_transform_session(window, *canvas);
+  CHECK(filled_rect.has_value());
+  const auto right_handle = canvas->widget_position_for_document_point(
+      QPoint(filled_rect->x() + filled_rect->width(), filled_rect->y() + filled_rect->height() / 2));
+
+  // Plain drag: the left edge anchors, the center shifts right.
+  const auto start = require_transform_state(*canvas);
+  drag(*canvas, right_handle, right_handle + QPoint(40, 0));
+  QApplication::processEvents();
+  const auto plain = require_transform_state(*canvas);
+  CHECK(plain.scale_x_percent > 110.0);
+  CHECK(std::abs(plain.scale_y_percent - 100.0) < 0.5);
+  CHECK(plain.reference_position.x() > start.reference_position.x() + 1.0);
+  send_key(*canvas, Qt::Key_Escape);
+  QApplication::processEvents();
+
+  // Alt drag with the Center reference: twice the growth, center unchanged.
+  begin_probe_transform_session(window, *canvas);
+  drag(*canvas, right_handle, right_handle + QPoint(40, 0), Qt::AltModifier);
+  QApplication::processEvents();
+  const auto symmetric = require_transform_state(*canvas);
+  const auto plain_growth = plain.scale_x_percent - 100.0;
+  CHECK(std::abs((symmetric.scale_x_percent - 100.0) - 2.0 * plain_growth) < 2.0);
+  CHECK(std::abs(symmetric.scale_y_percent - 100.0) < 0.5);
+  CHECK(std::abs(symmetric.reference_position.x() - start.reference_position.x()) < 0.5);
+  CHECK(std::abs(symmetric.reference_position.y() - start.reference_position.y()) < 0.5);
+  send_key(*canvas, Qt::Key_Escape);
+  QApplication::processEvents();
+
+  // Alt drag with the reference on the left edge: identical to the plain drag.
+  begin_probe_transform_session(window, *canvas);
+  canvas->set_transform_reference_point(patchy::CanvasAnchor::Left);
+  drag(*canvas, right_handle, right_handle + QPoint(40, 0), Qt::AltModifier);
+  QApplication::processEvents();
+  const auto anchored = require_transform_state(*canvas);
+  CHECK(std::abs(anchored.scale_x_percent - plain.scale_x_percent) < 1.0);
+  CHECK(std::abs(anchored.scale_y_percent - 100.0) < 0.5);
+  send_key(*canvas, Qt::Key_Escape);
+  QApplication::processEvents();
+  CHECK(!canvas->free_transform_active());
+}
+
+// Handle drags on an already-rotated box follow the box's own axes: after a
+// quarter turn the local Right handle sits below the box, and pulling it down
+// widens the box (local width) without touching its height.
+void ui_transform_handle_drag_on_rotated_box_uses_local_axes() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  const auto filled_rect = begin_probe_transform_session(window, *canvas);
+  CHECK(filled_rect.has_value());
+
+  const auto start = require_transform_state(*canvas);
+  CHECK(canvas->set_transform_controls_state(start.reference_position, 100.0, 100.0, 90.0));
+  QApplication::processEvents();
+  const auto rotated = require_transform_state(*canvas);
+  CHECK(std::abs(rotated.rotation_degrees - 90.0) < 0.01);
+
+  // Local +x rotated by 90 degrees points down the screen: the Right handle is
+  // half the width below the center.
+  const QPointF center(filled_rect->x() + filled_rect->width() / 2.0, filled_rect->y() + filled_rect->height() / 2.0);
+  const QPointF right_handle_document(center.x(), center.y() + filled_rect->width() / 2.0);
+  const auto right_handle = canvas->widget_position_for_document_point(right_handle_document.toPoint());
+  drag(*canvas, right_handle, right_handle + QPoint(0, 30));
+  QApplication::processEvents();
+  CHECK(canvas->free_transform_active());
+
+  const auto after = require_transform_state(*canvas);
+  CHECK(after.scale_x_percent > 115.0);
+  CHECK(std::abs(after.scale_y_percent - 100.0) < 0.5);
+  CHECK(std::abs(after.rotation_degrees - 90.0) < 0.01);
+  save_widget_artifact("ui_transform_rotated_box_local_axes", window);
+  send_key(*canvas, Qt::Key_Escape);
+  QApplication::processEvents();
+  CHECK(!canvas->free_transform_active());
+}
+
+// The drag readout (Photoshop's transformation values) appears beside the
+// pointer while a handle is dragged, reports the geometry, mirrors to the status
+// bar, and leaves no stale pixels behind after release.
+void ui_transform_drag_readout_shows_values() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  const auto filled_rect = begin_probe_transform_session(window, *canvas);
+  CHECK(filled_rect.has_value());
+  CHECK(canvas->show_transform_drag_values());
+  CHECK(!canvas->transform_drag_readout().has_value());
+
+  const auto corner = canvas->widget_position_for_document_point(
+      QPoint(filled_rect->x() + filled_rect->width(), filled_rect->y() + filled_rect->height()));
+  send_mouse(*canvas, QEvent::MouseButtonPress, corner, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseMove, corner + QPoint(20, 10), Qt::NoButton, Qt::LeftButton);
+  QApplication::processEvents();
+
+  const auto readout = canvas->transform_drag_readout();
+  CHECK(readout.has_value());
+  CHECK(readout->lines.size() == 2);
+  const auto state = require_transform_state(*canvas);
+  const auto width = state.scale_x_percent / 100.0 * state.original_size.width();
+  const auto height = state.scale_y_percent / 100.0 * state.original_size.height();
+  CHECK(readout->lines[0].contains(QStringLiteral("W:")));
+  CHECK(readout->lines[0].contains(patchy::ui::format_pixels(width, 1)));
+  CHECK(readout->lines[0].contains(patchy::ui::format_pixels(height, 1)));
+  CHECK(readout->lines[1].contains(patchy::ui::format_percent(state.scale_x_percent)));
+  // The canvas panel carries only the change line; the status bar gets both.
+  CHECK(readout->canvas_lines.size() == 1);
+  CHECK(readout->canvas_lines[0] == readout->lines[1]);
+  const auto panel = canvas->drag_readout_widget_rect();
+  CHECK(!panel.isEmpty());
+  CHECK(canvas->rect().contains(panel));
+  // Below-right of the pointer, like the marquee's W x H readout.
+  CHECK(panel.left() > corner.x() + 20);
+  CHECK(panel.top() > corner.y() + 10);
+  CHECK(window.statusBar()->currentMessage().contains(QStringLiteral("W:")));
+  save_widget_artifact("ui_transform_drag_readout", window);
+
+  // The release repaint must cover the panel: it sits outside the transform's
+  // bounded preview repaint, so record the real paint regions.
+  PaintRegionRecorder recorder(canvas);
+  canvas->installEventFilter(&recorder);
+  recorder.reset();
+  send_mouse(*canvas, QEvent::MouseButtonRelease, corner + QPoint(20, 10), Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  canvas->removeEventFilter(&recorder);
+  CHECK(QRegion(panel).subtracted(recorder.region()).isEmpty());
+  CHECK(!canvas->transform_drag_readout().has_value());
+  CHECK(canvas->drag_readout_widget_rect().isEmpty());
+
+  // Rotating reports the angle and its delta (fresh session, so the handle
+  // positions are the original rect's again).
+  send_key(*canvas, Qt::Key_Escape);
+  QApplication::processEvents();
+  begin_probe_transform_session(window, *canvas);
+  const auto top_center = canvas->widget_position_for_document_point(
+      QPoint(filled_rect->x() + filled_rect->width() / 2, filled_rect->y()));
+  const QPoint rotate_handle(top_center.x(), top_center.y() - 32);
+  send_mouse(*canvas, QEvent::MouseButtonPress, rotate_handle, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseMove, rotate_handle + QPoint(40, 0), Qt::NoButton, Qt::LeftButton);
+  QApplication::processEvents();
+  const auto rotating = canvas->transform_drag_readout();
+  CHECK(rotating.has_value());
+  CHECK(rotating->lines.size() == 2);
+  CHECK(rotating->lines[0].contains(QStringLiteral("Angle:")));
+  CHECK(rotating->lines[0].contains(patchy::ui::degree_suffix()));
+  CHECK(rotating->canvas_lines.size() == 1);
+  CHECK(rotating->canvas_lines[0].endsWith(patchy::ui::degree_suffix()));
+  send_mouse(*canvas, QEvent::MouseButtonRelease, rotate_handle + QPoint(40, 0), Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+
+  send_key(*canvas, Qt::Key_Escape);
+  QApplication::processEvents();
+  CHECK(!canvas->free_transform_active());
+}
+
+// The Move tool's readout reports the reference point's position (Top Left
+// here) after the drag plus the offset, and the bounded release repaint clears it.
+void ui_move_drag_readout_reports_reference_and_delta() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  const auto filled_rect = begin_probe_transform_session(window, *canvas);
+  CHECK(filled_rect.has_value());
+  send_key(*canvas, Qt::Key_Escape);
+  QApplication::processEvents();
+  CHECK(!canvas->free_transform_active());
+  canvas->set_transform_reference_point(patchy::CanvasAnchor::TopLeft);
+  const auto before = canvas->active_layer_document_rect();
+  CHECK(before.has_value());
+
+  const auto from = canvas->widget_position_for_document_point(QPoint(120, 100));
+  const auto to = canvas->widget_position_for_document_point(QPoint(150, 88));
+  send_mouse(*canvas, QEvent::MouseButtonPress, from, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseMove, to, Qt::NoButton, Qt::LeftButton);
+  QApplication::processEvents();
+
+  const auto readout = canvas->transform_drag_readout();
+  CHECK(readout.has_value());
+  CHECK(readout->lines.size() == 2);
+  CHECK(readout->lines[0].contains(patchy::ui::format_pixels(filled_rect->x() + 30.0)));
+  CHECK(readout->lines[0].contains(patchy::ui::format_pixels(filled_rect->y() - 12.0)));
+  CHECK(readout->lines[1].contains(patchy::ui::format_pixels(30.0, 0, true)));
+  CHECK(readout->lines[1].contains(patchy::ui::format_pixels(-12.0, 0, true)));
+  CHECK(readout->canvas_lines.size() == 1);
+  CHECK(readout->canvas_lines[0].contains(patchy::ui::format_pixels(30.0, 0, true)));
+  CHECK(!readout->canvas_lines[0].contains(readout->lines[0]));
+  const auto panel = canvas->drag_readout_widget_rect();
+  CHECK(!panel.isEmpty());
+  save_widget_artifact("ui_move_drag_readout", window);
+
+  PaintRegionRecorder recorder(canvas);
+  canvas->installEventFilter(&recorder);
+  recorder.reset();
+  send_mouse(*canvas, QEvent::MouseButtonRelease, to, Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  canvas->removeEventFilter(&recorder);
+  CHECK(QRegion(panel).subtracted(recorder.region()).isEmpty());
+  CHECK(!canvas->transform_drag_readout().has_value());
+  const auto moved = canvas->active_layer_document_rect();
+  CHECK(moved.has_value());
+  CHECK(moved->x() - before->x() == 30);
+  CHECK(moved->y() - before->y() == -12);
+}
+
+// Preferences > Application can hide the readout (view/showTransformValues).
+void ui_transform_readout_preference_hides_hud() {
+  SettingsValueRestorer restore_preference(QStringLiteral("view/showTransformValues"));
+  {
+    auto settings = patchy::ui::app_settings();
+    settings.setValue(QStringLiteral("view/showTransformValues"), false);
+    settings.sync();
+  }
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  CHECK(!canvas->show_transform_drag_values());
+  const auto filled_rect = begin_probe_transform_session(window, *canvas);
+  CHECK(filled_rect.has_value());
+  const auto corner = canvas->widget_position_for_document_point(
+      QPoint(filled_rect->x() + filled_rect->width(), filled_rect->y() + filled_rect->height()));
+  send_mouse(*canvas, QEvent::MouseButtonPress, corner, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseMove, corner + QPoint(20, 10), Qt::NoButton, Qt::LeftButton);
+  QApplication::processEvents();
+  CHECK(!canvas->transform_drag_readout().has_value());
+  CHECK(canvas->drag_readout_widget_rect().isEmpty());
+  send_mouse(*canvas, QEvent::MouseButtonRelease, corner + QPoint(20, 10), Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  send_key(*canvas, Qt::Key_Escape);
+  QApplication::processEvents();
   CHECK(!canvas->free_transform_active());
 }
 
@@ -1870,6 +2298,14 @@ std::vector<patchy::test::TestCase> clipboard_free_transform_tests() {
        ui_transform_shift_aspect_preference_restores_legacy},
       {"ui_free_transform_arrow_keys_nudge_bounding_box", ui_free_transform_arrow_keys_nudge_bounding_box},
       {"ui_transform_numeric_controls_apply_values", ui_transform_numeric_controls_apply_values},
+      {"ui_transform_fields_accept_unit_tokens", ui_transform_fields_accept_unit_tokens},
+      {"ui_transform_rotate_drag_pivots_on_reference_point", ui_transform_rotate_drag_pivots_on_reference_point},
+      {"ui_transform_alt_drag_scales_about_reference_point", ui_transform_alt_drag_scales_about_reference_point},
+      {"ui_transform_handle_drag_on_rotated_box_uses_local_axes",
+       ui_transform_handle_drag_on_rotated_box_uses_local_axes},
+      {"ui_transform_drag_readout_shows_values", ui_transform_drag_readout_shows_values},
+      {"ui_move_drag_readout_reports_reference_and_delta", ui_move_drag_readout_reports_reference_and_delta},
+      {"ui_transform_readout_preference_hides_hud", ui_transform_readout_preference_hides_hud},
       {"ui_free_transform_preview_follows_live_layer_style_changes",
        ui_free_transform_preview_follows_live_layer_style_changes},
       {"ui_options_bar_overflow_button_reveals_hidden_controls",

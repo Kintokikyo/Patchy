@@ -1,4 +1,5 @@
 #include "ui/filter_workflows.hpp"
+#include "ui/measurement_units.hpp"
 
 #include "core/rect_utils.hpp"
 #include "core/worker_budget.hpp"
@@ -235,11 +236,11 @@ double numeric_filter_value(const FilterParameterValue& value, double fallback =
 QString filter_parameter_suffix(FilterParameterUnit unit) {
   switch (unit) {
     case FilterParameterUnit::Percent:
-      return QStringLiteral("%");
+      return percent_suffix();
     case FilterParameterUnit::Pixels:
-      return QStringLiteral(" px");
+      return pixel_suffix();
     case FilterParameterUnit::Degrees:
-      return QStringLiteral(" deg");
+      return degree_suffix();
     case FilterParameterUnit::None:
       return {};
   }
@@ -500,7 +501,7 @@ std::optional<FilterInvocation> request_filter_settings(
     opacity_spin->setRange(0.0, 100.0);
     opacity_spin->setDecimals(0);
     opacity_spin->setSingleStep(1.0);
-    opacity_spin->setSuffix(QObject::tr("%"));
+    opacity_spin->setSuffix(percent_suffix());
     configure_dialog_spinbox(opacity_spin, 90);
     const auto initial_opacity = std::clamp(initial_blending.opacity, 0.0, 1.0);
     opacity_spin->setValue(initial_opacity * 100.0);

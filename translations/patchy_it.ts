@@ -9815,6 +9815,30 @@ RGB: %2, %3, %4</translation>
         <source>Cancelled the path transform</source>
         <translation>Trasformazione del tracciato annullata</translation>
     </message>
+    <message>
+        <source>X: %1  Y: %2</source>
+        <translation>X: %1  Y: %2</translation>
+    </message>
+    <message>
+        <source>Angle: %1</source>
+        <translation>Angolo: %1</translation>
+    </message>
+    <message>
+        <source>W: %1  H: %2</source>
+        <translation>L: %1  A: %2</translation>
+    </message>
+    <message>
+        <source>%1 x %2</source>
+        <translation>%1 x %2</translation>
+    </message>
+    <message>
+        <source>Change X: %1  Y: %2</source>
+        <translation>Variazione X: %1  Y: %2</translation>
+    </message>
+    <message>
+        <source>Change: %1</source>
+        <translation>Variazione: %1</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::ChannelPanel</name>
@@ -10074,10 +10098,6 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Slant the current face synthetically instead of switching to the family&apos;s italic face</source>
         <translation>Inclina sinteticamente il font corrente invece di passare al corsivo della famiglia</translation>
-    </message>
-    <message>
-        <source> pt</source>
-        <translation> pt</translation>
     </message>
     <message>
         <source>Leading:</source>
@@ -15727,10 +15747,6 @@ Y: %2
         <translation>Abilita effetto calamita</translation>
     </message>
     <message>
-        <source> px</source>
-        <translation> px</translation>
-    </message>
-    <message>
         <source>Lines</source>
         <translation>Linee</translation>
     </message>
@@ -16713,10 +16729,6 @@ Y: %2
         <translation>Valori più alti rimuovono più punti</translation>
     </message>
     <message>
-        <source> deg</source>
-        <translation> gradi</translation>
-    </message>
-    <message>
         <source>Bends sharper than this angle stay corners</source>
         <translation>Le pieghe più accentuate di questo angolo restano angoli</translation>
     </message>
@@ -17087,6 +17099,18 @@ Y: %2
     <message>
         <source>Layers as Animated &amp;GIF...</source>
         <translation>Livelli come &amp;GIF animata...</translation>
+    </message>
+    <message>
+        <source>Show transformation values while dragging</source>
+        <translation>Mostra i valori di trasformazione durante il trascinamento</translation>
+    </message>
+    <message>
+        <source>Shows a small readout beside the pointer while moving, scaling, or rotating: the reference point&apos;s position and the offset, the width and height with the scale percentages, or the angle and how far it turned.</source>
+        <translation>Mostra una piccola lettura accanto al puntatore durante spostamento, ridimensionamento o rotazione: la posizione del punto di riferimento e lo spostamento, larghezza e altezza con le percentuali di scala, oppure l&apos;angolo e di quanto ha ruotato.</translation>
+    </message>
+    <message>
+        <source>Pivot:</source>
+        <translation>Perno:</translation>
     </message>
 </context>
 <context>

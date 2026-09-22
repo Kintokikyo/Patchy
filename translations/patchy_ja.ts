@@ -9788,6 +9788,30 @@ Mixed selection</source>
         <source>Spot healing</source>
         <translation>スポット修復</translation>
     </message>
+    <message>
+        <source>X: %1  Y: %2</source>
+        <translation>X: %1  Y: %2</translation>
+    </message>
+    <message>
+        <source>Angle: %1</source>
+        <translation>角度: %1</translation>
+    </message>
+    <message>
+        <source>W: %1  H: %2</source>
+        <translation>幅: %1  高さ: %2</translation>
+    </message>
+    <message>
+        <source>%1 x %2</source>
+        <translation>%1 x %2</translation>
+    </message>
+    <message>
+        <source>Change X: %1  Y: %2</source>
+        <translation>変化 X: %1  Y: %2</translation>
+    </message>
+    <message>
+        <source>Change: %1</source>
+        <translation>変化: %1</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::ChannelPanel</name>
@@ -14124,14 +14148,6 @@ Y: %2
         <translation>スナップを有効化</translation>
     </message>
     <message>
-        <source> px</source>
-        <translation> px</translation>
-    </message>
-    <message>
-        <source> pt</source>
-        <translation> pt</translation>
-    </message>
-    <message>
         <source>Lines</source>
         <translation>線</translation>
     </message>
@@ -16314,10 +16330,6 @@ Clipped to the layer below</source>
         <translation>この角度より鋭い曲がりはコーナーのまま残ります</translation>
     </message>
     <message>
-        <source> deg</source>
-        <translation> 度</translation>
-    </message>
-    <message>
         <source>Corners:</source>
         <translation>コーナー:</translation>
     </message>
@@ -17042,6 +17054,18 @@ Clipped to the layer below</source>
     <message>
         <source>Layers as Animated &amp;GIF...</source>
         <translation>レイヤーをアニメーション GIF へ(&amp;G)...</translation>
+    </message>
+    <message>
+        <source>Show transformation values while dragging</source>
+        <translation>ドラッグ中に変形の値を表示</translation>
+    </message>
+    <message>
+        <source>Shows a small readout beside the pointer while moving, scaling, or rotating: the reference point&apos;s position and the offset, the width and height with the scale percentages, or the angle and how far it turned.</source>
+        <translation>移動、拡大縮小、回転の間、ポインターの横に小さな表示を出します。基準点の位置とオフセット、幅と高さと拡大縮小率、または角度と回転量を示します。</translation>
+    </message>
+    <message>
+        <source>Pivot:</source>
+        <translation>基準点:</translation>
     </message>
 </context>
 <context>

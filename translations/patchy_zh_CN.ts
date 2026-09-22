@@ -9788,6 +9788,30 @@ RGB：%2, %3, %4</translation>
         <source>Cancelled the path transform</source>
         <translation>已取消路径变换</translation>
     </message>
+    <message>
+        <source>X: %1  Y: %2</source>
+        <translation>X: %1  Y: %2</translation>
+    </message>
+    <message>
+        <source>Angle: %1</source>
+        <translation>角度: %1</translation>
+    </message>
+    <message>
+        <source>W: %1  H: %2</source>
+        <translation>宽: %1  高: %2</translation>
+    </message>
+    <message>
+        <source>%1 x %2</source>
+        <translation>%1 x %2</translation>
+    </message>
+    <message>
+        <source>Change X: %1  Y: %2</source>
+        <translation>变化 X: %1  Y: %2</translation>
+    </message>
+    <message>
+        <source>Change: %1</source>
+        <translation>变化: %1</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::ChannelPanel</name>
@@ -10047,10 +10071,6 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Slant the current face synthetically instead of switching to the family&apos;s italic face</source>
         <translation>以合成方式倾斜当前字体，而不切换到该字体系列的斜体字体</translation>
-    </message>
-    <message>
-        <source> pt</source>
-        <translation> pt</translation>
     </message>
     <message>
         <source>Leading:</source>
@@ -15688,10 +15708,6 @@ Y: %2
         <translation>启用对齐</translation>
     </message>
     <message>
-        <source> px</source>
-        <translation> px</translation>
-    </message>
-    <message>
         <source>Lines</source>
         <translation>直线</translation>
     </message>
@@ -16672,10 +16688,6 @@ Y: %2
         <translation>值越大，移除的点越多</translation>
     </message>
     <message>
-        <source> deg</source>
-        <translation> 度</translation>
-    </message>
-    <message>
         <source>Bends sharper than this angle stay corners</source>
         <translation>弯折角度比此值更尖锐的点保持为角点</translation>
     </message>
@@ -17042,6 +17054,18 @@ Y: %2
     <message>
         <source>Layers as Animated &amp;GIF...</source>
         <translation>图层到 GIF 动画(&amp;G)...</translation>
+    </message>
+    <message>
+        <source>Show transformation values while dragging</source>
+        <translation>拖动时显示变换数值</translation>
+    </message>
+    <message>
+        <source>Shows a small readout beside the pointer while moving, scaling, or rotating: the reference point&apos;s position and the offset, the width and height with the scale percentages, or the angle and how far it turned.</source>
+        <translation>在移动、缩放或旋转时在指针旁显示一个小读数：参考点的位置和偏移量、宽度和高度及缩放百分比，或角度及其转动量。</translation>
+    </message>
+    <message>
+        <source>Pivot:</source>
+        <translation>轴心:</translation>
     </message>
 </context>
 <context>

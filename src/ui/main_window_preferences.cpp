@@ -535,6 +535,15 @@ void MainWindow::show_preferences() {
          "current Photoshop. When on, corner handles resize freely and Shift keeps the aspect ratio."));
   transform_shift_aspect_check->setChecked(shift_keeps_transform_aspect_);
   application_form->addRow(transform_shift_aspect_check);
+  auto* transform_values_check =
+      new QCheckBox(tr("Show transformation values while dragging"), application_group);
+  transform_values_check->setObjectName(QStringLiteral("preferencesShowTransformValuesCheck"));
+  transform_values_check->setToolTip(
+      tr("Shows a small readout beside the pointer while moving, scaling, or rotating: the "
+         "reference point's position and the offset, the width and height with the scale "
+         "percentages, or the angle and how far it turned."));
+  transform_values_check->setChecked(show_transform_drag_values_);
+  application_form->addRow(transform_values_check);
   auto* zoom_thumbnails_check =
       new QCheckBox(tr("Zoom layer thumbnails to the layer content"), application_group);
   zoom_thumbnails_check->setObjectName(QStringLiteral("preferencesZoomLayerThumbnailsCheck"));
@@ -832,11 +841,10 @@ void MainWindow::show_preferences() {
   snap_check->setObjectName(QStringLiteral("preferencesSnapCheck"));
   snap_check->setChecked(view_snap_enabled_);
 
-  auto* grid_spacing_spin = new QDoubleSpinBox(view_group);
+  auto* grid_spacing_spin = new UnitSpinBox(SpinUnit::Pixels, view_group);
   grid_spacing_spin->setObjectName(QStringLiteral("preferencesGridSpacingSpin"));
   grid_spacing_spin->setRange(0.03125, 10000.0);
   grid_spacing_spin->setDecimals(3);
-  grid_spacing_spin->setSuffix(tr(" px"));
   grid_spacing_spin->setValue(static_cast<double>(view_grid_spacing_32_) / 32.0);
   auto* grid_subdivisions_spin = new QSpinBox(view_group);
   grid_subdivisions_spin->setObjectName(QStringLiteral("preferencesGridSubdivisionsSpin"));
@@ -1114,6 +1122,7 @@ void MainWindow::show_preferences() {
     pen_input_settings_.tilt_min_roundness_percent = pen_tilt_roundness_spin->value();
     wheel_zooms_ = pen_wheel_zoom_check->isChecked();
     shift_keeps_transform_aspect_ = transform_shift_aspect_check->isChecked();
+    show_transform_drag_values_ = transform_values_check->isChecked();
     if (zoom_layer_thumbnails_to_content_ != zoom_thumbnails_check->isChecked()) {
       zoom_layer_thumbnails_to_content_ = zoom_thumbnails_check->isChecked();
       // The mode is a shape input the revision-keyed cache does not track;
@@ -1203,11 +1212,17 @@ void MainWindow::new_guide_dialog() {
   orientation_combo->setObjectName(QStringLiteral("newGuideOrientationCombo"));
   orientation_combo->addItem(tr("Vertical"), static_cast<int>(GuideOrientation::Vertical));
   orientation_combo->addItem(tr("Horizontal"), static_cast<int>(GuideOrientation::Horizontal));
-  auto* position_spin = new QDoubleSpinBox(&dialog);
+  auto* position_spin = new UnitSpinBox(SpinUnit::Pixels, &dialog);
+  // Percent is relative to the document extent the guide runs across.
+  position_spin->set_context_provider([this, orientation_combo] {
+    const bool horizontal =
+        orientation_combo->currentData().toInt() == static_cast<int>(GuideOrientation::Horizontal);
+    return UnitConversionContext{sanitized_document_ppi(document().print_settings().horizontal_ppi),
+                                 static_cast<double>(horizontal ? document().height() : document().width())};
+  });
   position_spin->setObjectName(QStringLiteral("newGuidePositionSpin"));
   position_spin->setRange(0.0, std::max(document().width(), document().height()));
   position_spin->setDecimals(3);
-  position_spin->setSuffix(tr(" px"));
   position_spin->setValue(0.0);
   form->addRow(tr("Orientation:"), orientation_combo);
   form->addRow(tr("Position:"), position_spin);
@@ -1360,6 +1375,7 @@ void MainWindow::apply_pen_input_settings(CanvasWidget* canvas) const {
   canvas->set_pen_input_settings(pen_input_settings_);
   canvas->set_wheel_zooms(wheel_zooms_);
   canvas->set_shift_keeps_transform_aspect(shift_keeps_transform_aspect_);
+  canvas->set_show_transform_drag_values(show_transform_drag_values_);
 }
 
 void MainWindow::handle_pen_button_action(PenButtonAction action) {
@@ -1434,6 +1450,7 @@ void MainWindow::load_pen_input_settings() {
   wheel_zooms_ = settings.value(QStringLiteral("input/wheelZooms"), kWheelZoomsDefault).toBool();
   shift_keeps_transform_aspect_ =
       settings.value(QStringLiteral("input/shiftKeepsTransformAspect"), false).toBool();
+  show_transform_drag_values_ = settings.value(QStringLiteral("view/showTransformValues"), true).toBool();
   apply_pen_input_settings(canvas_);
 }
 
@@ -1456,6 +1473,7 @@ void MainWindow::save_pen_input_settings() const {
                     pen_input_settings_.tilt_min_roundness_percent);
   settings.setValue(QStringLiteral("input/wheelZooms"), wheel_zooms_);
   settings.setValue(QStringLiteral("input/shiftKeepsTransformAspect"), shift_keeps_transform_aspect_);
+  settings.setValue(QStringLiteral("view/showTransformValues"), show_transform_drag_values_);
 }
 
 void MainWindow::load_view_settings() {

@@ -1542,6 +1542,9 @@ void ui_move_preview_keeps_underlying_layers_steady_when_zoomed_out() {
   canvas.set_zoom(0.25);
   canvas.set_tool(patchy::ui::CanvasTool::Move);
   canvas.set_show_transform_controls(false);
+  // The whole-canvas comparison below must see only the preview pixels; the
+  // drag readout beside the pointer is a deliberate difference, so hide it.
+  canvas.set_show_transform_drag_values(false);
   canvas.set_auto_select_layer(false);
   canvas.set_snap_enabled(false);
   canvas.set_selected_layer_ids({layer_id});

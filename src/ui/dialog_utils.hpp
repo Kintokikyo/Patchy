@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ui/theme_qss.hpp"
+#include "ui/unit_spin_box.hpp"
 
 #include <QFont>
 #include <QString>
@@ -87,6 +88,14 @@ QSpinBox* add_dialog_slider_spin_row(QFormLayout* form, QWidget* parent, const Q
                                      const QString& slider_object_name, const QString& spin_object_name,
                                      int minimum, int maximum, int value, const QString& suffix = QString(),
                                      int spin_width = 72, int row_spacing = -1, bool step_buttons = false);
+// Same row with a unit-entry spin box: the suffix comes from the native unit and typed
+// unit tokens convert on entry (px/in/cm/mm/pt/%/deg; see unit_spin_box.hpp). `provider`
+// supplies the PPI and percent basis; leave it empty for a plain 300 ppi, no-percent field.
+UnitIntSpinBox* add_dialog_slider_spin_row(QFormLayout* form, QWidget* parent, const QString& label,
+                                           const QString& slider_object_name, const QString& spin_object_name,
+                                           int minimum, int maximum, int value, SpinUnit unit,
+                                           UnitIntSpinBox::ContextProvider provider = {}, int spin_width = 72,
+                                           int row_spacing = -1, bool step_buttons = false);
 // Moves a popup (already resized to its final size) directly below `anchor`:
 // clamps it inside the screen's available horizontal range and flips it above
 // the anchor when it would run past the bottom. Call before show().

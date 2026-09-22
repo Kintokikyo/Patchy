@@ -1102,6 +1102,7 @@ void CanvasWidget::paintEvent(QPaintEvent* event) {
   draw_crop_overlay(painter);
   draw_move_layer_selection(painter);
   draw_drag_size_readout(painter);
+  draw_transform_drag_readout(painter);
   draw_text_rect_preview(painter);
   if ((tool_ == CanvasTool::Clone || tool_ == CanvasTool::Healing) && clone_source_set_) {
     const auto center = widget_position_f(QPointF(clone_source_point_) + QPointF(0.5, 0.5));

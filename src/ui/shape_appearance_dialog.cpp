@@ -215,11 +215,10 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
     geometry_form->setVerticalSpacing(8);
     geometry_layout->addLayout(geometry_form);
     const auto make_spin = [&](const char* name, double minimum, double maximum, double value) {
-      auto* spin = new QDoubleSpinBox(geometry_group);
+      auto* spin = new UnitSpinBox(SpinUnit::Pixels, geometry_group);
       spin->setObjectName(QLatin1String(name));
       spin->setRange(minimum, maximum);
       spin->setDecimals(1);
-      spin->setSuffix(pixel_suffix());
       spin->setValue(value);
       configure_dialog_spinbox(spin, 72);
       return spin;
@@ -412,10 +411,9 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
                                static_cast<int>(LayerStyleGradientType::Diamond));
   fill_form->addRow(QObject::tr("Style:"), gradient_type_combo);
 
-  auto* gradient_angle_spin = new QSpinBox(fill_group);
+  auto* gradient_angle_spin = new UnitIntSpinBox(SpinUnit::Degrees, fill_group);
   gradient_angle_spin->setObjectName(QStringLiteral("shapeGradientAngleSpin"));
   gradient_angle_spin->setRange(-180, 180);
-  gradient_angle_spin->setSuffix(degree_suffix());
   configure_dialog_spinbox(gradient_angle_spin, 72);
   add_spin_row(fill_form, QObject::tr("Angle:"), gradient_angle_spin);
 
@@ -444,27 +442,24 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
 
   // Pattern placement (PtFl Angl / phase / Algn; rendered by the shared
   // PatternTileSampler and round-tripped through the PSD writer).
-  auto* pattern_angle_spin = new QDoubleSpinBox(fill_group);
+  auto* pattern_angle_spin = new UnitSpinBox(SpinUnit::Degrees, fill_group);
   pattern_angle_spin->setObjectName(QStringLiteral("shapePatternAngleSpin"));
   pattern_angle_spin->setRange(-180.0, 180.0);
   pattern_angle_spin->setDecimals(1);
-  pattern_angle_spin->setSuffix(degree_suffix());
   configure_dialog_spinbox(pattern_angle_spin, 72);
   add_spin_row(fill_form, QObject::tr("Angle:"), pattern_angle_spin);
 
-  auto* pattern_offset_x_spin = new QDoubleSpinBox(fill_group);
+  auto* pattern_offset_x_spin = new UnitSpinBox(SpinUnit::Pixels, fill_group);
   pattern_offset_x_spin->setObjectName(QStringLiteral("shapePatternOffsetXSpin"));
   pattern_offset_x_spin->setRange(-30000.0, 30000.0);
   pattern_offset_x_spin->setDecimals(1);
-  pattern_offset_x_spin->setSuffix(pixel_suffix());
   configure_dialog_spinbox(pattern_offset_x_spin, 80);
   add_spin_row(fill_form, QObject::tr("Offset X:"), pattern_offset_x_spin);
 
-  auto* pattern_offset_y_spin = new QDoubleSpinBox(fill_group);
+  auto* pattern_offset_y_spin = new UnitSpinBox(SpinUnit::Pixels, fill_group);
   pattern_offset_y_spin->setObjectName(QStringLiteral("shapePatternOffsetYSpin"));
   pattern_offset_y_spin->setRange(-30000.0, 30000.0);
   pattern_offset_y_spin->setDecimals(1);
-  pattern_offset_y_spin->setSuffix(pixel_suffix());
   configure_dialog_spinbox(pattern_offset_y_spin, 80);
   add_spin_row(fill_form, QObject::tr("Offset Y:"), pattern_offset_y_spin);
 
@@ -487,11 +482,10 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   edge_form->setHorizontalSpacing(10);
   edge_form->setVerticalSpacing(8);
   edge_layout->addLayout(edge_form);
-  auto* feather_spin = new QDoubleSpinBox(edge_group);
+  auto* feather_spin = new UnitSpinBox(SpinUnit::Pixels, edge_group);
   feather_spin->setObjectName(QStringLiteral("shapeFeatherSpin"));
   feather_spin->setRange(0.0, 1000.0);
   feather_spin->setDecimals(1);
-  feather_spin->setSuffix(pixel_suffix());
   feather_spin->setValue(state->settings.feather);
   feather_spin->setToolTip(QObject::tr("Softens the whole shape, stroke included, like Photoshop's vector mask feather"));
   configure_dialog_spinbox(feather_spin, 80);
@@ -529,11 +523,10 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   stroke_check->setChecked(state->settings.stroke.enabled);
   stroke_form->addRow(QString(), stroke_check);
 
-  auto* stroke_width_spin = new QDoubleSpinBox(stroke_group);
+  auto* stroke_width_spin = new UnitSpinBox(SpinUnit::Pixels, stroke_group);
   stroke_width_spin->setObjectName(QStringLiteral("shapeStrokeWidthSpin"));
   stroke_width_spin->setRange(0.1, 1000.0);
   stroke_width_spin->setDecimals(1);
-  stroke_width_spin->setSuffix(pixel_suffix());
   stroke_width_spin->setValue(state->settings.stroke.width);
   configure_dialog_spinbox(stroke_width_spin, 80);
   add_spin_row(stroke_form, QObject::tr("Width:"), stroke_width_spin);
@@ -586,10 +579,9 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
                                       static_cast<int>(LayerStyleGradientType::Diamond));
   stroke_form->addRow(QObject::tr("Style:"), stroke_gradient_type_combo);
 
-  auto* stroke_gradient_angle_spin = new QSpinBox(stroke_group);
+  auto* stroke_gradient_angle_spin = new UnitIntSpinBox(SpinUnit::Degrees, stroke_group);
   stroke_gradient_angle_spin->setObjectName(QStringLiteral("shapeStrokeGradientAngleSpin"));
   stroke_gradient_angle_spin->setRange(-180, 180);
-  stroke_gradient_angle_spin->setSuffix(degree_suffix());
   configure_dialog_spinbox(stroke_gradient_angle_spin, 72);
   add_spin_row(stroke_form, QObject::tr("Angle:"), stroke_gradient_angle_spin);
 
@@ -617,27 +609,24 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   configure_dialog_spinbox(stroke_pattern_scale_spin, 72);
   add_spin_row(stroke_form, QObject::tr("Scale:"), stroke_pattern_scale_spin);
 
-  auto* stroke_pattern_angle_spin = new QDoubleSpinBox(stroke_group);
+  auto* stroke_pattern_angle_spin = new UnitSpinBox(SpinUnit::Degrees, stroke_group);
   stroke_pattern_angle_spin->setObjectName(QStringLiteral("shapeStrokePatternAngleSpin"));
   stroke_pattern_angle_spin->setRange(-180.0, 180.0);
   stroke_pattern_angle_spin->setDecimals(1);
-  stroke_pattern_angle_spin->setSuffix(degree_suffix());
   configure_dialog_spinbox(stroke_pattern_angle_spin, 72);
   add_spin_row(stroke_form, QObject::tr("Angle:"), stroke_pattern_angle_spin);
 
-  auto* stroke_pattern_offset_x_spin = new QDoubleSpinBox(stroke_group);
+  auto* stroke_pattern_offset_x_spin = new UnitSpinBox(SpinUnit::Pixels, stroke_group);
   stroke_pattern_offset_x_spin->setObjectName(QStringLiteral("shapeStrokePatternOffsetXSpin"));
   stroke_pattern_offset_x_spin->setRange(-30000.0, 30000.0);
   stroke_pattern_offset_x_spin->setDecimals(1);
-  stroke_pattern_offset_x_spin->setSuffix(pixel_suffix());
   configure_dialog_spinbox(stroke_pattern_offset_x_spin, 80);
   add_spin_row(stroke_form, QObject::tr("Offset X:"), stroke_pattern_offset_x_spin);
 
-  auto* stroke_pattern_offset_y_spin = new QDoubleSpinBox(stroke_group);
+  auto* stroke_pattern_offset_y_spin = new UnitSpinBox(SpinUnit::Pixels, stroke_group);
   stroke_pattern_offset_y_spin->setObjectName(QStringLiteral("shapeStrokePatternOffsetYSpin"));
   stroke_pattern_offset_y_spin->setRange(-30000.0, 30000.0);
   stroke_pattern_offset_y_spin->setDecimals(1);
-  stroke_pattern_offset_y_spin->setSuffix(pixel_suffix());
   configure_dialog_spinbox(stroke_pattern_offset_y_spin, 80);
   add_spin_row(stroke_form, QObject::tr("Offset Y:"), stroke_pattern_offset_y_spin);
 

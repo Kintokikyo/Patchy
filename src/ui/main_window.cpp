@@ -9213,12 +9213,14 @@ void MainWindow::open_text_character_dialog() {
       tr("Lay Latin letters on their side along the column instead of upright (Photoshop's Standard Vertical Roman Alignment)"));
   layout->addRow(QString(), text_character_rotate_roman_);
 
-  text_character_leading_spin_ = new QDoubleSpinBox(dialog);
+  text_character_leading_spin_ = new UnitSpinBox(SpinUnit::Points, dialog);
   text_character_leading_spin_->setObjectName(QStringLiteral("textCharacterLeadingSpin"));
+  text_character_leading_spin_->set_context_provider([this] {
+    return UnitConversionContext{has_active_document() ? text_size_ppi(document()) : 300.0, 0.0};
+  });
   text_character_leading_spin_->setDecimals(2);
   text_character_leading_spin_->setRange(0.01, 10000.0);
   text_character_leading_spin_->setSingleStep(0.5);
-  text_character_leading_spin_->setSuffix(tr(" pt"));
   text_character_leading_spin_->setToolTip(tr("Line spacing (Photoshop leading). Entering a value turns Auto leading off."));
   configure_dialog_spinbox(text_character_leading_spin_);
   configure_text_character_spin(text_character_leading_spin_);

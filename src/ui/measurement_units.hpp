@@ -33,6 +33,13 @@ enum class MeasurementUnit {
 [[nodiscard]] QString percent_suffix();
 [[nodiscard]] QString degree_suffix();
 
+// Readout formatting for on-canvas and status text: locale number (no group
+// separators) plus the translated suffix. `show_sign` prefixes positive values with
+// "+" for deltas. Values within half a unit of zero print as 0, never "-0".
+[[nodiscard]] QString format_pixels(double pixels, int decimals = 0, bool show_sign = false);
+[[nodiscard]] QString format_percent(double percent, int decimals = 1, bool show_sign = false);
+[[nodiscard]] QString format_degrees(double degrees, int decimals = 1, bool show_sign = false);
+
 // Stable settings tokens ("px", "in", "cm", "mm", "pt", "percent"); tokens are
 // persisted in user settings, never rename them.
 [[nodiscard]] QString measurement_unit_settings_token(MeasurementUnit unit);

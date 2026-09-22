@@ -573,7 +573,10 @@ void MainWindow::retranslate_ui() {
     text_style_combo_->setItemText(0, tr("Regular"));
   }
   if (text_size_spin_ != nullptr) {
-    text_size_spin_->setSuffix(tr(" pt"));
+    text_size_spin_->refresh_suffix();
+  }
+  if (text_character_leading_spin_ != nullptr) {
+    text_character_leading_spin_->refresh_suffix();
   }
   rebuild_recent_files_menu();
   refresh_vector_preview_action();

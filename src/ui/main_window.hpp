@@ -12,6 +12,7 @@
 #include "ui/hotkey_registry.hpp"
 #include "ui/image_document_io.hpp"
 #include "ui/stress_test.hpp"
+#include "ui/unit_spin_box.hpp"
 
 #include <QBrush>
 #include <QByteArray>
@@ -1538,12 +1539,14 @@ private:
   QCheckBox* move_auto_select_check_{nullptr};
   QCheckBox* move_show_transform_controls_check_{nullptr};
   QComboBox* transform_reference_combo_{nullptr};
-  QDoubleSpinBox* transform_x_spin_{nullptr};
-  QDoubleSpinBox* transform_y_spin_{nullptr};
-  QDoubleSpinBox* transform_scale_x_spin_{nullptr};
-  QDoubleSpinBox* transform_scale_y_spin_{nullptr};
+  // Unit-entry fields: X/Y native px, W/H native percent (of the original extent),
+  // Angle native degrees; each accepts any typed unit token (Photoshop behavior).
+  UnitSpinBox* transform_x_spin_{nullptr};
+  UnitSpinBox* transform_y_spin_{nullptr};
+  UnitSpinBox* transform_scale_x_spin_{nullptr};
+  UnitSpinBox* transform_scale_y_spin_{nullptr};
   QPushButton* transform_link_scale_button_{nullptr};
-  QDoubleSpinBox* transform_rotation_spin_{nullptr};
+  UnitSpinBox* transform_rotation_spin_{nullptr};
   QComboBox* transform_interpolation_combo_{nullptr};
   // Shared session trio: warp-mode toggle + apply + cancel, shown for BOTH the
   // free-transform and warp sessions (Photoshop's options-bar layout).
@@ -1609,7 +1612,7 @@ private:
   QPushButton* gradient_presets_button_{nullptr};
   QPushButton* gradient_edit_stops_button_{nullptr};
   QFontComboBox* text_font_combo_{nullptr};
-  QDoubleSpinBox* text_size_spin_{nullptr};
+  UnitSpinBox* text_size_spin_{nullptr};
   QComboBox* text_style_combo_{nullptr};
   QComboBox* text_smoothing_combo_{nullptr};
   QPushButton* text_color_button_{nullptr};
@@ -1635,7 +1638,7 @@ private:
   QLabel* text_character_hint_label_{nullptr};
   QLabel* path_point_count_chip_{nullptr};
   QCheckBox* text_character_auto_leading_{nullptr};
-  QDoubleSpinBox* text_character_leading_spin_{nullptr};
+  UnitSpinBox* text_character_leading_spin_{nullptr};
   QSpinBox* text_character_tracking_spin_{nullptr};
   QSpinBox* text_character_h_scale_spin_{nullptr};
   QSpinBox* text_character_v_scale_spin_{nullptr};
@@ -1922,6 +1925,9 @@ private:
   CanvasWidget::PenInputSettings pen_input_settings_{};
   bool wheel_zooms_{kWheelZoomsDefault};
   bool shift_keeps_transform_aspect_{false};
+  // view/showTransformValues: the on-canvas readout beside the pointer during
+  // Move and Free Transform drags. Persisted identifier.
+  bool show_transform_drag_values_{true};
   bool zoom_layer_thumbnails_to_content_{true};
   std::vector<std::pair<QWidget*, std::vector<CanvasTool>>> option_actions_;
   std::vector<QWidget*> transform_option_actions_;

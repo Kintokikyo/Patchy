@@ -1,6 +1,7 @@
 #include "ui/liquify_dialog.hpp"
 
 #include "ui/dialog_utils.hpp"
+#include "ui/measurement_units.hpp"
 #include "ui/edit_conversions.hpp"
 #include "ui/image_document_io.hpp"
 #include "ui/modifier_names.hpp"
@@ -353,17 +354,17 @@ std::optional<LiquifyMesh> request_liquify(QWidget* parent,
       form, &dialog, QObject::tr("Size:"),
       QStringLiteral("liquifySizeSlider"),
       QStringLiteral("liquifySizeSpin"), 5, 2000, default_size,
-      QStringLiteral(" px"), 80);
+      SpinUnit::Pixels, {}, 80);
   auto* pressure = add_dialog_slider_spin_row(
       form, &dialog, QObject::tr("Pressure:"),
       QStringLiteral("liquifyPressureSlider"),
       QStringLiteral("liquifyPressureSpin"), 1, 100, 50,
-      QStringLiteral(" %"), 72);
+      percent_suffix(), 72);
   auto* density = add_dialog_slider_spin_row(
       form, &dialog, QObject::tr("Density:"),
       QStringLiteral("liquifyDensitySlider"),
       QStringLiteral("liquifyDensitySpin"), 1, 100, 50,
-      QStringLiteral(" %"), 72);
+      percent_suffix(), 72);
   controls->addLayout(form);
 
   auto* show_mask = new QCheckBox(QObject::tr("Show Freeze Mask"), &dialog);

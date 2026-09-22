@@ -642,14 +642,14 @@ std::optional<ImageTraceDialogResult> request_image_trace(QWidget* parent, std::
   auto* noise_spin = add_dialog_slider_spin_row(form, &dialog, QObject::tr("Noise:"),
                                                 QStringLiteral("imageTraceNoiseSlider"),
                                                 QStringLiteral("imageTraceNoiseSpin"), 1, 100, initial.noise,
-                                                QStringLiteral(" px"));
+                                                SpinUnit::Pixels);
   noise_spin->parentWidget()->setToolTip(
       QObject::tr("Regions smaller than this many pixels merge into their neighbors"));
 
   auto* smoothing_spin = add_dialog_slider_spin_row(
       form, &dialog, QObject::tr("Smoothing:"), QStringLiteral("imageTraceSmoothingSlider"),
       QStringLiteral("imageTraceSmoothingSpin"), 0, ImageTraceOptions::kMaxSmoothing, initial.smoothing,
-      QStringLiteral(" px"));
+      SpinUnit::Pixels);
   smoothing_spin->parentWidget()->setToolTip(
       QObject::tr("Blurs away grain and compression noise before colors are chosen"));
 
@@ -949,8 +949,8 @@ std::optional<ImageTraceDialogResult> request_image_trace(QWidget* parent, std::
   };
   QObject::connect(mode_combo, &QComboBox::currentIndexChanged, &dialog, [&](int) { on_control_changed(); });
   QObject::connect(method_combo, &QComboBox::currentIndexChanged, &dialog, [&](int) { on_control_changed(); });
-  for (auto* spin : {colors_spin, threshold_spin, paths_spin, corners_spin, noise_spin, smoothing_spin,
-                     merge_colors_spin, max_anchors_spin}) {
+  for (QSpinBox* spin : {colors_spin, threshold_spin, paths_spin, corners_spin, static_cast<QSpinBox*>(noise_spin),
+                         static_cast<QSpinBox*>(smoothing_spin), merge_colors_spin, max_anchors_spin}) {
     QObject::connect(spin, &QSpinBox::valueChanged, &dialog, [&](int) { on_control_changed(); });
   }
   for (auto* check : {snap_check, ignore_white_check}) {

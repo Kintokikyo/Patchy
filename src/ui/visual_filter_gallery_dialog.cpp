@@ -1,4 +1,5 @@
 #include "ui/visual_filter_gallery_dialog.hpp"
+#include "ui/measurement_units.hpp"
 
 #include "filters/smart_filter_recipe_mapping.hpp"
 #include "ui/app_settings.hpp"
@@ -545,7 +546,7 @@ VisualFilterGalleryResult request_visual_filter_gallery(
   opacity_spin->setRange(0.0, 100.0);
   opacity_spin->setDecimals(0);
   opacity_spin->setSingleStep(1.0);
-  opacity_spin->setSuffix(QObject::tr("%"));
+  opacity_spin->setSuffix(percent_suffix());
   opacity_spin->setValue(100.0);
   configure_dialog_spinbox(opacity_spin, 84);
   opacity_layout->addWidget(opacity_slider, 1);

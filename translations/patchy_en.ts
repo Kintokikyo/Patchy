@@ -9806,6 +9806,30 @@ RGB: %2, %3, %4</source>
         <source>Cancelled the path transform</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>X: %1  Y: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Angle: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>W: %1  H: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 x %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Change X: %1  Y: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Change: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::ChannelPanel</name>
@@ -10064,10 +10088,6 @@ RGB: %2, %3, %4</source>
     </message>
     <message>
         <source>Slant the current face synthetically instead of switching to the family&apos;s italic face</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source> pt</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -15685,10 +15705,6 @@ Y: %2
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source> px</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Lines</source>
         <translation type="unfinished"></translation>
     </message>
@@ -16671,10 +16687,6 @@ Y: %2
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source> deg</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Bends sharper than this angle stay corners</source>
         <translation type="unfinished"></translation>
     </message>
@@ -17042,6 +17054,18 @@ Y: %2
     </message>
     <message>
         <source>Layers as Animated &amp;GIF...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show transformation values while dragging</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shows a small readout beside the pointer while moving, scaling, or rotating: the reference point&apos;s position and the offset, the width and height with the scale percentages, or the angle and how far it turned.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pivot:</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

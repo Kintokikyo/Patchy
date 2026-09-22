@@ -516,7 +516,8 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   options_content->setObjectName(QStringLiteral("OptionsContent"));
   options_content->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
   auto* options_flow = new FlowLayout(options_content, 5, 4);
-  options_flow->setContentsMargins(0, 3, 0, 3);
+  // Side padding so the first control does not butt against the window edge.
+  options_flow->setContentsMargins(6, 3, 0, 3);
   options_content->setLayout(options_flow);
   toolbar->addWidget(options_content);
   options_flow_container_ = options_content;
@@ -595,6 +596,14 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     }
   });
 
+  {
+    auto* pivot_label = new QLabel(QCoreApplication::translate(kMainWindowTranslationContext, "Pivot:"), toolbar);
+    pivot_label->setObjectName(QStringLiteral("freeTransformPivotLabel"));
+    pivot_label->setProperty("optionLabel", true);
+    pivot_label->setAlignment(Qt::AlignVCenter);
+    bind_widget_text(pivot_label, QT_TR_NOOP("Pivot:"));
+    add_transform_option_widget(pivot_label);
+  }
   transform_reference_combo_ = new QComboBox(toolbar);
   transform_reference_combo_->setObjectName(QStringLiteral("freeTransformReferenceCombo"));
   bind_tooltip(transform_reference_combo_, QT_TR_NOOP("Reference point"));
@@ -636,32 +645,68 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     add_transform_option_widget(label);
     return label;
   };
+  // Unit-entry fields (Photoshop behavior): the display stays in the native unit,
+  // but "2 in", "50%" or "200 px" typed into any of them converts on entry. The
+  // context providers supply the document PPI and what 100% means per field: X/Y
+  // percent is relative to the document extent, W/H pixels are relative to the
+  // session's original extent.
   const auto make_transform_spin = [toolbar, add_transform_option_widget](const QString& object_name,
                                                                           double minimum, double maximum,
-                                                                          int decimals, const QString& suffix) {
-    auto* spin = new QDoubleSpinBox(toolbar);
+                                                                          int decimals, SpinUnit native) {
+    auto* spin = new UnitSpinBox(native, toolbar);
     spin->setObjectName(object_name);
     spin->setRange(minimum, maximum);
     spin->setDecimals(decimals);
     spin->setKeyboardTracking(false);
-    spin->setSuffix(suffix);
     spin->setMinimumWidth(82);
     configure_dialog_spinbox(spin, 82);
     add_transform_option_widget(spin);
     return spin;
   };
+  const auto document_ppi = [this]() -> double {
+    return has_active_document() ? text_size_ppi(document()) : 300.0;
+  };
+  const auto document_axis_context = [this, document_ppi](bool horizontal) {
+    return [this, document_ppi, horizontal]() -> UnitConversionContext {
+      UnitConversionContext context;
+      context.ppi = document_ppi();
+      if (has_active_document()) {
+        context.percent_reference_pixels =
+            static_cast<double>(horizontal ? document().width() : document().height());
+      }
+      return context;
+    };
+  };
+  const auto transform_extent_context = [this, document_ppi](bool horizontal) {
+    return [this, document_ppi, horizontal]() -> UnitConversionContext {
+      UnitConversionContext context;
+      context.ppi = document_ppi();
+      const auto state = canvas_ != nullptr ? canvas_->transform_controls_state()
+                                            : std::optional<CanvasWidget::TransformControlsState>{};
+      if (state.has_value()) {
+        context.percent_reference_pixels = horizontal ? state->original_size.width() : state->original_size.height();
+      }
+      return context;
+    };
+  };
 
   make_transform_label(QT_TR_NOOP("X:"));
   transform_x_spin_ = make_transform_spin(QStringLiteral("freeTransformXSpin"), -30000.0, 30000.0, 2,
-                                          QStringLiteral(" px"));
+                                          SpinUnit::Pixels);
+  transform_x_spin_->set_context_provider(document_axis_context(true));
+  transform_x_spin_->set_display_unit_switchable(true);
   bind_tooltip(transform_x_spin_, QT_TR_NOOP("Reference X position"));
   make_transform_label(QT_TR_NOOP("Y:"));
   transform_y_spin_ = make_transform_spin(QStringLiteral("freeTransformYSpin"), -30000.0, 30000.0, 2,
-                                          QStringLiteral(" px"));
+                                          SpinUnit::Pixels);
+  transform_y_spin_->set_context_provider(document_axis_context(false));
+  transform_y_spin_->set_display_unit_switchable(true);
   bind_tooltip(transform_y_spin_, QT_TR_NOOP("Reference Y position"));
   make_transform_label(QT_TR_NOOP("W:"));
   transform_scale_x_spin_ = make_transform_spin(QStringLiteral("freeTransformScaleXSpin"), -10000.0, 10000.0, 2,
-                                                 QStringLiteral("%"));
+                                                 SpinUnit::Percent);
+  transform_scale_x_spin_->set_context_provider(transform_extent_context(true));
+  transform_scale_x_spin_->set_display_unit_switchable(true);
   bind_tooltip(transform_scale_x_spin_, QT_TR_NOOP("Horizontal scale"));
   transform_link_scale_button_ = new QPushButton(toolbar);
   transform_link_scale_button_->setObjectName(QStringLiteral("freeTransformLinkScaleButton"));
@@ -673,12 +718,28 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   add_transform_option_widget(transform_link_scale_button_);
   make_transform_label(QT_TR_NOOP("H:"));
   transform_scale_y_spin_ = make_transform_spin(QStringLiteral("freeTransformScaleYSpin"), -10000.0, 10000.0, 2,
-                                                 QStringLiteral("%"));
+                                                 SpinUnit::Percent);
+  transform_scale_y_spin_->set_context_provider(transform_extent_context(false));
+  transform_scale_y_spin_->set_display_unit_switchable(true);
+  // The linked W/H pair reads as one control, so a unit switch on either side
+  // carries the other along (X and Y stay independent, like Photoshop).
+  connect(transform_scale_x_spin_, &UnitSpinBox::display_unit_changed, transform_scale_y_spin_,
+          &UnitSpinBox::set_display_unit);
+  connect(transform_scale_y_spin_, &UnitSpinBox::display_unit_changed, transform_scale_x_spin_,
+          &UnitSpinBox::set_display_unit);
   bind_tooltip(transform_scale_y_spin_, QT_TR_NOOP("Vertical scale"));
   make_transform_label(QT_TR_NOOP("Angle:"));
   transform_rotation_spin_ = make_transform_spin(QStringLiteral("freeTransformRotationSpin"), -3600.0, 3600.0, 2,
-                                                 QStringLiteral(" deg"));
+                                                 SpinUnit::Degrees);
   bind_tooltip(transform_rotation_spin_, QT_TR_NOOP("Rotation angle"));
+  register_retranslation([this] {
+    for (auto* spin : {transform_x_spin_, transform_y_spin_, transform_scale_x_spin_, transform_scale_y_spin_,
+                       transform_rotation_spin_}) {
+      if (spin != nullptr) {
+        spin->refresh_suffix();
+      }
+    }
+  });
   transform_interpolation_combo_ = new QComboBox(toolbar);
   transform_interpolation_combo_->setObjectName(QStringLiteral("freeTransformInterpolationCombo"));
   bind_tooltip(transform_interpolation_combo_, QT_TR_NOOP("Interpolation"));
@@ -947,10 +1008,9 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   bind_widget_text(feather_label, QT_TR_NOOP("Feather:"));
   feather_label->setAlignment(Qt::AlignCenter);
   feather_layout->addWidget(feather_label);
-  auto* feather = new QSpinBox(feather_group);
+  auto* feather = new UnitIntSpinBox(SpinUnit::Pixels, feather_group);
   feather->setObjectName(QStringLiteral("selectionFeatherSpin"));
   feather->setRange(0, 250);
-  feather->setSuffix(pixel_suffix());
   feather->setValue(current_selection_feather_radius_);
   configure_toolbar_spinbox(feather, 64);
   feather_layout->addWidget(feather);
@@ -979,11 +1039,10 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     apply_selection_edge_settings();
   });
   add_option_label(QT_TR_NOOP("Radius:"), {CanvasTool::Marquee});
-  auto* marquee_corner_radius = new QSpinBox(toolbar);
+  auto* marquee_corner_radius = new UnitIntSpinBox(SpinUnit::Pixels, toolbar);
   marquee_corner_radius->setObjectName(QStringLiteral("selectionCornerRadiusSpin"));
   marquee_corner_radius->setRange(0, 512);
   marquee_corner_radius->setValue(current_marquee_corner_radius_);
-  marquee_corner_radius->setSuffix(pixel_suffix());
   bind_tooltip(marquee_corner_radius, QT_TR_NOOP("Rounded-corner radius for the rectangular marquee (0 = sharp corners)"));
   configure_toolbar_spinbox(marquee_corner_radius, 64);
   add_option_widget(marquee_corner_radius, {CanvasTool::Marquee});
@@ -1011,19 +1070,19 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   });
   add_option_widget(style_combo, {CanvasTool::Marquee, CanvasTool::EllipticalMarquee});
   add_option_label(QT_TR_NOOP("Width:"), {CanvasTool::Marquee, CanvasTool::EllipticalMarquee});
-  auto* fixed_width = new QSpinBox(toolbar);
+  auto* fixed_width = new UnitIntSpinBox(SpinUnit::Pixels, toolbar);
+  fixed_width->set_context_provider(document_axis_context(true));
   fixed_width->setObjectName(QStringLiteral("selectionFixedWidthSpin"));
   fixed_width->setRange(1, 30000);
   fixed_width->setValue(has_active_document() ? document().width() : 1024);
-  fixed_width->setSuffix(pixel_suffix());
   configure_toolbar_spinbox(fixed_width, 78);
   add_option_widget(fixed_width, {CanvasTool::Marquee, CanvasTool::EllipticalMarquee});
   add_option_label(QT_TR_NOOP("Height:"), {CanvasTool::Marquee, CanvasTool::EllipticalMarquee});
-  auto* fixed_height = new QSpinBox(toolbar);
+  auto* fixed_height = new UnitIntSpinBox(SpinUnit::Pixels, toolbar);
+  fixed_height->set_context_provider(document_axis_context(false));
   fixed_height->setObjectName(QStringLiteral("selectionFixedHeightSpin"));
   fixed_height->setRange(1, 30000);
   fixed_height->setValue(has_active_document() ? document().height() : 768);
-  fixed_height->setSuffix(pixel_suffix());
   configure_toolbar_spinbox(fixed_height, 78);
   add_option_widget(fixed_height, {CanvasTool::Marquee, CanvasTool::EllipticalMarquee});
   const auto apply_marquee_settings = [this, style_combo, fixed_width, fixed_height] {
@@ -2116,10 +2175,9 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   });
 
   add_option_label(QT_TR_NOOP("Width:"), {CanvasTool::MagneticLasso});
-  auto* magnetic_width = new QSpinBox(toolbar);
+  auto* magnetic_width = new UnitIntSpinBox(SpinUnit::Pixels, toolbar);
   magnetic_width->setObjectName(QStringLiteral("magneticLassoWidthSpin"));
   magnetic_width->setRange(1, 256);
-  magnetic_width->setSuffix(pixel_suffix());
   magnetic_width->setValue(canvas_defaults->magnetic_lasso_width());
   bind_tooltip(magnetic_width, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Edge search width in document pixels: press [ or ]"));
   configure_toolbar_spinbox(magnetic_width, 64);
@@ -2300,12 +2358,11 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   connect(vector_stroke_swatch_button_, &QToolButton::clicked, this,
           [this] { show_vector_paint_menu(true); });
 
-  auto* vector_stroke_width = new QDoubleSpinBox(toolbar);
+  auto* vector_stroke_width = new UnitSpinBox(SpinUnit::Pixels, toolbar);
   vector_stroke_width->setObjectName(QStringLiteral("vectorStrokeWidthSpin"));
   vector_stroke_width->setRange(0.1, 1000.0);
   vector_stroke_width->setDecimals(1);
   vector_stroke_width->setValue(current_vector_stroke_width_);
-  vector_stroke_width->setSuffix(pixel_suffix());
   bind_tooltip(vector_stroke_width, QT_TR_NOOP("Stroke width"));
   configure_toolbar_spinbox(vector_stroke_width, 64);
   add_option_widget(vector_stroke_width, vector_appearance_tools);
@@ -2321,12 +2378,11 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   // axis-aligned scale, so live shapes stay live); disabled without one.
   const auto make_shape_size_spin = [this, toolbar, &vector_appearance_tools,
                                      add_option_widget](const char* name, const char* tooltip) {
-    auto* spin = new QDoubleSpinBox(toolbar);
+    auto* spin = new UnitSpinBox(SpinUnit::Pixels, toolbar);
     spin->setObjectName(QLatin1String(name));
     spin->setRange(0.0, 60000.0);
     spin->setDecimals(1);
     spin->setSpecialValueText(QStringLiteral(" "));  // 0 = no shape to show
-    spin->setSuffix(pixel_suffix());
     spin->setKeyboardTracking(false);
     spin->setEnabled(false);
     bind_tooltip(spin, tooltip);
@@ -2372,11 +2428,10 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
 
   vector_vector_mode_option_widgets_.push_back(
       add_option_label(QT_TR_NOOP("Weight:"), {CanvasTool::Line}));
-  auto* vector_line_weight = new QSpinBox(toolbar);
+  auto* vector_line_weight = new UnitIntSpinBox(SpinUnit::Pixels, toolbar);
   vector_line_weight->setObjectName(QStringLiteral("vectorLineWeightSpin"));
   vector_line_weight->setRange(1, 1000);
   vector_line_weight->setValue(current_vector_line_weight_);
-  vector_line_weight->setSuffix(pixel_suffix());
   bind_tooltip(vector_line_weight, QT_TR_NOOP("Line thickness"));
   configure_toolbar_spinbox(vector_line_weight, 58);
   add_option_widget(vector_line_weight, {CanvasTool::Line});
@@ -2528,11 +2583,10 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   });
 
   add_option_label(QT_TR_NOOP("Radius:"), {CanvasTool::Rectangle});
-  auto* shape_corner_radius = new QSpinBox(toolbar);
+  auto* shape_corner_radius = new UnitIntSpinBox(SpinUnit::Pixels, toolbar);
   shape_corner_radius->setObjectName(QStringLiteral("shapeCornerRadiusSpin"));
   shape_corner_radius->setRange(0, 512);
   shape_corner_radius->setValue(canvas_defaults->shape_corner_radius());
-  shape_corner_radius->setSuffix(pixel_suffix());
   bind_tooltip(shape_corner_radius, QT_TR_NOOP("Rounded-corner radius for the rectangle tool (0 = sharp corners)"));
   configure_toolbar_spinbox(shape_corner_radius, 64);
   add_option_widget(shape_corner_radius, {CanvasTool::Rectangle});
@@ -2569,21 +2623,21 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   vector_pixel_only_option_widgets_.push_back(shape_style_combo);
   vector_pixel_only_option_widgets_.push_back(
       add_option_label(QT_TR_NOOP("Width:"), {CanvasTool::Rectangle, CanvasTool::Ellipse}));
-  auto* shape_fixed_width = new QSpinBox(toolbar);
+  auto* shape_fixed_width = new UnitIntSpinBox(SpinUnit::Pixels, toolbar);
+  shape_fixed_width->set_context_provider(document_axis_context(true));
   shape_fixed_width->setObjectName(QStringLiteral("shapeFixedWidthSpin"));
   shape_fixed_width->setRange(1, 30000);
   shape_fixed_width->setValue(has_active_document() ? document().width() : 1024);
-  shape_fixed_width->setSuffix(pixel_suffix());
   configure_toolbar_spinbox(shape_fixed_width, 78);
   add_option_widget(shape_fixed_width, {CanvasTool::Rectangle, CanvasTool::Ellipse});
   vector_pixel_only_option_widgets_.push_back(shape_fixed_width);
   vector_pixel_only_option_widgets_.push_back(
       add_option_label(QT_TR_NOOP("Height:"), {CanvasTool::Rectangle, CanvasTool::Ellipse}));
-  auto* shape_fixed_height = new QSpinBox(toolbar);
+  auto* shape_fixed_height = new UnitIntSpinBox(SpinUnit::Pixels, toolbar);
+  shape_fixed_height->set_context_provider(document_axis_context(false));
   shape_fixed_height->setObjectName(QStringLiteral("shapeFixedHeightSpin"));
   shape_fixed_height->setRange(1, 30000);
   shape_fixed_height->setValue(has_active_document() ? document().height() : 768);
-  shape_fixed_height->setSuffix(pixel_suffix());
   configure_toolbar_spinbox(shape_fixed_height, 78);
   add_option_widget(shape_fixed_height, {CanvasTool::Rectangle, CanvasTool::Ellipse});
   vector_pixel_only_option_widgets_.push_back(shape_fixed_height);
@@ -2686,8 +2740,11 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   refresh_text_style_combo(text_font_combo_->currentFont().family(), QString());
   add_option_widget(text_style_combo_, {CanvasTool::Text});
   add_option_label(QT_TR_NOOP("Size:"), {CanvasTool::Text});
-  text_size_spin_ = new QDoubleSpinBox(toolbar);
+  text_size_spin_ = new UnitSpinBox(SpinUnit::Points, toolbar);
   text_size_spin_->setObjectName(QStringLiteral("textSizeSpin"));
+  text_size_spin_->set_context_provider([this] {
+    return UnitConversionContext{has_active_document() ? text_size_ppi(document()) : 300.0, 0.0};
+  });
   text_size_spin_->setDecimals(3);
   text_size_spin_->setRange(0.01, 10000.0);
   // Typing accepts up to 10000 pt, but the popup slider stays usable at 0..200.
@@ -2697,7 +2754,6 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   // no document open).
   text_size_spin_->setValue(has_active_document() ? text_pixels_to_points(48, document()) : 48.0);
   text_size_auto_points_ = text_size_spin_->value();
-  text_size_spin_->setSuffix(tr(" pt"));
   configure_toolbar_spinbox(text_size_spin_, 74);
   add_option_widget(text_size_spin_, {CanvasTool::Text});
   add_option_label(QT_TR_NOOP("Smoothing:"), {CanvasTool::Text});

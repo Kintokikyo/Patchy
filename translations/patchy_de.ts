@@ -9815,6 +9815,30 @@ RGB: %2, %3, %4</translation>
         <source>Cancelled the path transform</source>
         <translation>Pfadtransformation abgebrochen</translation>
     </message>
+    <message>
+        <source>X: %1  Y: %2</source>
+        <translation>X: %1  Y: %2</translation>
+    </message>
+    <message>
+        <source>Angle: %1</source>
+        <translation>Winkel: %1</translation>
+    </message>
+    <message>
+        <source>W: %1  H: %2</source>
+        <translation>B: %1  H: %2</translation>
+    </message>
+    <message>
+        <source>%1 x %2</source>
+        <translation>%1 x %2</translation>
+    </message>
+    <message>
+        <source>Change X: %1  Y: %2</source>
+        <translation>Änderung X: %1  Y: %2</translation>
+    </message>
+    <message>
+        <source>Change: %1</source>
+        <translation>Änderung: %1</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::ChannelPanel</name>
@@ -10074,10 +10098,6 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Slant the current face synthetically instead of switching to the family&apos;s italic face</source>
         <translation>Den aktuellen Schriftschnitt synthetisch neigen, statt zum kursiven Schnitt der Schriftfamilie zu wechseln</translation>
-    </message>
-    <message>
-        <source> pt</source>
-        <translation> Pt</translation>
     </message>
     <message>
         <source>Leading:</source>
@@ -15727,10 +15747,6 @@ Y: %2
         <translation>Ausrichten aktivieren</translation>
     </message>
     <message>
-        <source> px</source>
-        <translation> px</translation>
-    </message>
-    <message>
         <source>Lines</source>
         <translation>Linien</translation>
     </message>
@@ -16713,10 +16729,6 @@ Y: %2
         <translation>Höhere Werte entfernen mehr Punkte</translation>
     </message>
     <message>
-        <source> deg</source>
-        <translation> Grad</translation>
-    </message>
-    <message>
         <source>Bends sharper than this angle stay corners</source>
         <translation>Knicke, die schärfer als dieser Winkel sind, bleiben Ecken</translation>
     </message>
@@ -17087,6 +17099,18 @@ Y: %2
     <message>
         <source>Layers as Animated &amp;GIF...</source>
         <translation>Ebenen als animiertes &amp;GIF...</translation>
+    </message>
+    <message>
+        <source>Show transformation values while dragging</source>
+        <translation>Transformationswerte beim Ziehen anzeigen</translation>
+    </message>
+    <message>
+        <source>Shows a small readout beside the pointer while moving, scaling, or rotating: the reference point&apos;s position and the offset, the width and height with the scale percentages, or the angle and how far it turned.</source>
+        <translation>Zeigt beim Verschieben, Skalieren oder Drehen eine kleine Anzeige neben dem Zeiger: die Position des Referenzpunkts und den Versatz, Breite und Höhe mit den Skalierungsprozenten oder den Winkel und die Drehung.</translation>
+    </message>
+    <message>
+        <source>Pivot:</source>
+        <translation>Drehpunkt:</translation>
     </message>
 </context>
 <context>

@@ -1,5 +1,6 @@
 #include "ui/measurement_units.hpp"
 
+#include <QLocale>
 #include <QObject>
 
 #include <algorithm>
@@ -44,6 +45,39 @@ QString percent_suffix() {
 QString degree_suffix() {
   //: Degree sign shown after angle values.
   return QObject::tr("°");
+}
+
+namespace {
+
+QString format_readout_number(double value, int decimals, bool show_sign) {
+  if (!std::isfinite(value)) {
+    value = 0.0;
+  }
+  const auto half_unit = 0.5 * std::pow(10.0, -decimals);
+  if (std::abs(value) < half_unit) {
+    value = 0.0;  // no "-0"
+  }
+  QLocale locale;
+  locale.setNumberOptions(locale.numberOptions() | QLocale::OmitGroupSeparator);
+  auto text = locale.toString(value, 'f', decimals);
+  if (show_sign && value > 0.0) {
+    text.prepend(locale.positiveSign());
+  }
+  return text;
+}
+
+}  // namespace
+
+QString format_pixels(double pixels, int decimals, bool show_sign) {
+  return format_readout_number(pixels, decimals, show_sign) + pixel_suffix();
+}
+
+QString format_percent(double percent, int decimals, bool show_sign) {
+  return format_readout_number(percent, decimals, show_sign) + percent_suffix();
+}
+
+QString format_degrees(double degrees, int decimals, bool show_sign) {
+  return format_readout_number(degrees, decimals, show_sign) + degree_suffix();
 }
 
 QString measurement_unit_name(MeasurementUnit unit) {

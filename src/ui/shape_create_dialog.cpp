@@ -39,11 +39,10 @@ std::optional<ShapeCreateResult> request_shape_create_settings(QWidget* parent,
   form->setVerticalSpacing(8);
   dialog_layout->addLayout(form);
   const auto make_spin = [&dialog](const char* name, double minimum, double maximum, double value) {
-    auto* spin = new QDoubleSpinBox(&dialog);
+    auto* spin = new UnitSpinBox(SpinUnit::Pixels, &dialog);
     spin->setObjectName(QLatin1String(name));
     spin->setRange(minimum, maximum);
     spin->setDecimals(1);
-    spin->setSuffix(pixel_suffix());
     spin->setValue(value);
     spin->setKeyboardTracking(false);
     configure_dialog_spinbox(spin, 96);

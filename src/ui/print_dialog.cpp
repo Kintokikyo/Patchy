@@ -891,17 +891,15 @@ bool run_print_dialog(QWidget* parent, const Document& document, const QString& 
   center->setChecked(true);
   form->addRow(QString(), center);
 
-  auto* x = new QDoubleSpinBox(settings_group);
+  auto* x = new UnitSpinBox(SpinUnit::Inches, settings_group);
   x->setObjectName(QStringLiteral("printOffsetXSpin"));
   x->setRange(-100.0, 100.0);
   x->setDecimals(2);
-  x->setSuffix(inch_suffix());
   configure_dialog_spinbox(x);
-  auto* y = new QDoubleSpinBox(settings_group);
+  auto* y = new UnitSpinBox(SpinUnit::Inches, settings_group);
   y->setObjectName(QStringLiteral("printOffsetYSpin"));
   y->setRange(-100.0, 100.0);
   y->setDecimals(2);
-  y->setSuffix(inch_suffix());
   configure_dialog_spinbox(y);
   form->addRow(QObject::tr("X"), x);
   form->addRow(QObject::tr("Y"), y);
