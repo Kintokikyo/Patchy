@@ -270,7 +270,7 @@ void bind_translated_status_tip(QObject* object, const char* source,
 void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   #ifdef Q_OS_ANDROID
     menuBar()->setNativeMenuBar(false);
-    //menuBar()->setVisible(true);
+    menuBar()->setVisible(true);
   #endif
   auto* file_menu = menuBar()->addMenu(tr("&File"));
   auto* edit_menu = menuBar()->addMenu(tr("&Edit"));
