@@ -403,7 +403,7 @@ public class MainActivity extends QtActivity {
         ArrayList<Rect> exclusionRects =
                 new ArrayList<>();
 
-        android.view.WindowInsets.Type type =
+        int type = 
                 android.view.WindowInsets.Type.captionBar();
 
         List<Rect> systemRects =
