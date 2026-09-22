@@ -41,11 +41,14 @@ the press's own document pixel; any real extent commits as a drag. Line has
 no dialog (Photoshop has none), a Fixed Size style click still places its
 W x H, and Pixels mode keeps its legacy click. The options-bar W / H spins
 (`vectorShapeWidthSpin`/`vectorShapeHeightSpin`, a link button for
-proportional edits) mirror the active shape layer's path bounds in Shape mode
-and under Path Select / Direct Select; a debounced edit scales the shape
-about its top-left through `transform_layer_vector_data` (live shapes stay
-live, other shapes scale their paths; one "Shape size" undo per edit). The
-Style / Width / Height row shows in Pixels mode only ([tools.md](tools.md)).
+proportional edits) mirror the active shape layer's path bounds in Shape mode,
+under Path Select / Direct Select, and when the Move tool selects a shape
+layer; a debounced edit scales the shape about its top-left through
+`transform_layer_vector_data` (live shapes stay live, other shapes scale their
+paths; one "Shape size" undo per edit). The Properties panel exposes the same
+W / H controls for an active editable shape layer, regardless of the current
+tool. The Style / Width / Height row shows in Pixels mode only
+([tools.md](tools.md)).
 
 ## Pen tool
 
