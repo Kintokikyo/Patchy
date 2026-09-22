@@ -104,19 +104,10 @@ jobs:
 
           text = text.replace(
             '<activity',
-            '''<activity android:theme="@android:style/Theme.Material.NoActionBar"''',
+            '<activity android:theme="@android:style/Theme.Material.NoActionBar"',
            1
           )
            
-          text = text.replace(
-            'android:exported="true">',
-            '''android:exported="true">
-              <property
-            android:name="android.window.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY"
-            android:value="true" />''',
-           1
-          )
-
           text = text.replace(
             'android:name="org.qtproject.qt.android.bindings.QtActivity"',
             'android:name="com.kintokikyo.patchy.MainActivity"',
