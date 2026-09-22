@@ -6539,70 +6539,111 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event) {
 
   if (watched == menuBar()) {
     auto* bar = menuBar();
+
     if (event->type() == QEvent::Resize || event->type() == QEvent::Show) {
-      position_window_chrome_controls();
+        position_window_chrome_controls();
     }
 
+  #ifndef Q_OS_ANDROID
+
     const auto is_chrome_drag_area = [this, bar](const QPoint& position) {
-      if (bar->actionAt(position) != nullptr) {
-        return false;
-      }
-      if (window_chrome_controls_ != nullptr) {
-        const QRect controls_rect(window_chrome_controls_->pos(), window_chrome_controls_->size());
-        if (controls_rect.contains(position)) {
-          return false;
+        if (bar->actionAt(position) != nullptr) {
+            return false;
         }
-      }
-      return true;
+
+        if (window_chrome_controls_ != nullptr) {
+            const QRect controls_rect(
+                window_chrome_controls_->pos(),
+                window_chrome_controls_->size());
+
+            if (controls_rect.contains(position)) {
+                return false;
+            }
+        }
+
+        return true;
     };
 
     switch (event->type()) {
-      case QEvent::MouseButtonDblClick: {
-        auto* mouse_event = static_cast<QMouseEvent*>(event);
-        if (mouse_event->button() == Qt::LeftButton && is_chrome_drag_area(mouse_event->pos())) {
-          isMaximized() ? restore_window_from_maximize() : showMaximized();
-          mouse_event->accept();
-          return true;
+        case QEvent::MouseButtonDblClick: {
+            auto* mouse_event =
+                static_cast<QMouseEvent*>(event);
+
+            if (mouse_event->button() == Qt::LeftButton &&
+                is_chrome_drag_area(mouse_event->pos())) {
+
+                isMaximized()
+                    ? restore_window_from_maximize()
+                    : showMaximized();
+
+                mouse_event->accept();
+                return true;
+            }
+
+            break;
         }
-        break;
-      }
-      case QEvent::MouseButtonPress: {
-        auto* mouse_event = static_cast<QMouseEvent*>(event);
-        if (mouse_event->button() == Qt::LeftButton && is_chrome_drag_area(mouse_event->pos())) {
-          // Dragging the title bar of a maximized window must restore it first. Letting the
-          // OS system-move a maximized window leaves Qt's isMaximized() stale, which then
-          // disables our edge-resize hit-testing until the next explicit state change. Restore
-          // under the cursor (like a native title bar) so the state stays in sync.
-          if (isMaximized()) {
-            restore_maximized_under_cursor(mouse_event->globalPosition().toPoint());
-          }
-          chrome_drag_position_ = mouse_event->globalPosition().toPoint() - frameGeometry().topLeft();
-          chrome_dragging_ = true;
-          if (auto* handle = windowHandle(); handle != nullptr && handle->startSystemMove()) {
+
+        case QEvent::MouseButtonPress: {
+            auto* mouse_event =
+                static_cast<QMouseEvent*>(event);
+
+            if (mouse_event->button() == Qt::LeftButton &&
+                is_chrome_drag_area(mouse_event->pos())) {
+
+                if (isMaximized()) {
+                    restore_maximized_under_cursor(
+                        mouse_event->globalPosition().toPoint());
+                }
+
+                chrome_drag_position_ =
+                    mouse_event->globalPosition().toPoint()
+                    - frameGeometry().topLeft();
+
+                chrome_dragging_ = true;
+
+                if (auto* handle = windowHandle();
+                    handle != nullptr &&
+                    handle->startSystemMove()) {
+
+                    chrome_dragging_ = false;
+                }
+
+                mouse_event->accept();
+                return true;
+            }
+
+            break;
+        }
+
+        case QEvent::MouseMove: {
+            auto* mouse_event =
+                static_cast<QMouseEvent*>(event);
+
+            if (chrome_dragging_ &&
+                (mouse_event->buttons() & Qt::LeftButton) != 0) {
+
+                if (!isMaximized() && !isFullScreen()) {
+                    move(
+                        mouse_event->globalPosition().toPoint()
+                        - chrome_drag_position_);
+                }
+
+                mouse_event->accept();
+                return true;
+            }
+
+            break;
+        }
+
+        case QEvent::MouseButtonRelease:
             chrome_dragging_ = false;
-          }
-          mouse_event->accept();
-          return true;
-        }
-        break;
-      }
-      case QEvent::MouseMove: {
-        auto* mouse_event = static_cast<QMouseEvent*>(event);
-        if (chrome_dragging_ && (mouse_event->buttons() & Qt::LeftButton) != 0) {
-          if (!isMaximized() && !isFullScreen()) {
-            move(mouse_event->globalPosition().toPoint() - chrome_drag_position_);
-          }
-          mouse_event->accept();
-          return true;
-        }
-        break;
-      }
-      case QEvent::MouseButtonRelease:
-        chrome_dragging_ = false;
-        break;
-      default:
-        break;
+            break;
+
+        default:
+            break;
     }
+
+  #endif
   }
 
   if (document_tabs_ != nullptr && watched == document_tabs_->tabBar()) {
