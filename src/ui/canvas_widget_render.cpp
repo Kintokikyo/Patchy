@@ -1093,6 +1093,7 @@ void CanvasWidget::paintEvent(QPaintEvent* event) {
     painter.drawRect(border_rect);
   }
   draw_selection_overlay(painter);
+  draw_marquee_resize_handles(painter);
   draw_patch_tool_drag_outline(painter);
   draw_quick_select_stroke_overlay(painter);
   draw_spot_heal_stroke_overlay(painter);

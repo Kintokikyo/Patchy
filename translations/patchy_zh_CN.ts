@@ -9836,6 +9836,10 @@ RGB：%2, %3, %4</translation>
         <source>Change: %1</source>
         <translation>变化: %1</translation>
     </message>
+    <message>
+        <source>Resize Selection</source>
+        <translation>调整选区大小</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::ChannelPanel</name>
@@ -17090,6 +17094,14 @@ Y: %2
     <message>
         <source>Pivot:</source>
         <translation>轴心:</translation>
+    </message>
+    <message>
+        <source>Rectangular Marquee: drag to select. Drag a handle to resize the selection, or drag inside it to move it.</source>
+        <translation>矩形选框：拖动以选择。拖动控制点可调整选区大小，在选区内部拖动可移动选区。</translation>
+    </message>
+    <message>
+        <source>Elliptical Marquee: drag to select. Drag a handle to resize the selection, or drag inside it to move it.</source>
+        <translation>椭圆选框：拖动以选择。拖动控制点可调整选区大小，在选区内部拖动可移动选区。</translation>
     </message>
 </context>
 <context>

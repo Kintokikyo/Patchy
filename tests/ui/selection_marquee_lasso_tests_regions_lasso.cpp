@@ -945,6 +945,299 @@ void ui_marquee_drag_moves_selection() {
   CHECK(!canvas->has_selection());
 }
 
+namespace {
+// Widget position of a resize handle on the committed marquee rect. The shared
+// transform handles sit on the exclusive right/bottom edge, so the right-edge
+// handle is at document x = rect.x() + rect.width().
+QPoint marquee_handle_position(const patchy::ui::CanvasWidget& canvas, QRect rect, int x_edge, int y_edge) {
+  // x_edge / y_edge: 0 = left/top, 1 = middle, 2 = right/bottom.
+  const auto x = rect.x() + (x_edge == 0 ? 0 : x_edge == 1 ? rect.width() / 2 : rect.width());
+  const auto y = rect.y() + (y_edge == 0 ? 0 : y_edge == 1 ? rect.height() / 2 : rect.height());
+  return canvas.widget_position_for_document_point(QPoint(x, y));
+}
+
+void drag_marquee_handle(patchy::ui::CanvasWidget& canvas, QPoint from, QPoint to) {
+  send_mouse(canvas, QEvent::MouseButtonPress, from, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(canvas, QEvent::MouseMove, to, Qt::NoButton, Qt::LeftButton);
+  send_mouse(canvas, QEvent::MouseButtonRelease, to, Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+}
+
+bool within_one(int value, int expected) {
+  return value >= expected - 1 && value <= expected + 1;
+}
+}  // namespace
+
+void ui_marquee_edge_handle_drag_resizes_selection() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto* undo_action = require_action_by_text(window, QStringLiteral("Undo"));
+  auto* redo_action = require_action_by_text(window, QStringLiteral("Redo"));
+  canvas->set_tool(patchy::ui::CanvasTool::Marquee);
+  canvas->set_snap_enabled(false);
+
+  drag(*canvas, canvas->widget_position_for_document_point(QPoint(40, 40)),
+       canvas->widget_position_for_document_point(QPoint(100, 80)));
+  const auto original = canvas->selected_document_rect();
+  CHECK(original.has_value());
+
+  // Hovering the right-edge handle shows the horizontal resize cursor.
+  const auto right_handle = marquee_handle_position(*canvas, *original, 2, 1);
+  send_mouse(*canvas, QEvent::MouseMove, right_handle, Qt::NoButton, Qt::NoButton);
+  CHECK(canvas->cursor().shape() == Qt::SizeHorCursor);
+  // Off the handle the tool cursor comes back.
+  send_mouse(*canvas, QEvent::MouseMove, canvas->widget_position_for_document_point(QPoint(10, 10)),
+             Qt::NoButton, Qt::NoButton);
+  CHECK(canvas->cursor().shape() != Qt::SizeHorCursor);
+
+  // Dragging the right edge 30 px right widens the selection and nothing else.
+  const auto wider = canvas->widget_position_for_document_point(
+      QPoint(original->x() + original->width() + 30, original->y() + original->height() / 2));
+  drag_marquee_handle(*canvas, right_handle, wider);
+  const auto resized = canvas->selected_document_rect();
+  CHECK(resized.has_value());
+  CHECK(resized->x() == original->x());
+  CHECK(resized->y() == original->y());
+  CHECK(resized->height() == original->height());
+  CHECK(within_one(resized->width(), original->width() + 30));
+  CHECK(canvas->selected_document_region().contains(QPoint(original->x() + original->width() + 15,
+                                                            original->y() + original->height() / 2)));
+  CHECK(window.statusBar()->currentMessage() == QStringLiteral("Resize Selection"));
+
+  // Undo restores the drawn rect and the handles come back with it, so a
+  // second handle drag works; Redo lands on the resized rect again.
+  undo_action->trigger();
+  QApplication::processEvents();
+  CHECK(canvas->selected_document_rect() == original);
+  send_mouse(*canvas, QEvent::MouseMove, right_handle, Qt::NoButton, Qt::NoButton);
+  CHECK(canvas->cursor().shape() == Qt::SizeHorCursor);
+  redo_action->trigger();
+  QApplication::processEvents();
+  CHECK(canvas->selected_document_rect() == resized);
+  undo_action->trigger();
+  QApplication::processEvents();
+  const auto top_handle = marquee_handle_position(*canvas, *original, 1, 0);
+  const auto taller = canvas->widget_position_for_document_point(
+      QPoint(original->x() + original->width() / 2, original->y() - 20));
+  drag_marquee_handle(*canvas, top_handle, taller);
+  const auto taller_rect = canvas->selected_document_rect();
+  CHECK(taller_rect.has_value());
+  CHECK(within_one(taller_rect->y(), original->y() - 20));
+  CHECK(within_one(taller_rect->height(), original->height() + 20));
+  CHECK(taller_rect->x() == original->x());
+  CHECK(taller_rect->width() == original->width());
+  save_widget_artifact("ui_marquee_resize_handles", *canvas);
+}
+
+void ui_marquee_corner_handle_drag_and_shift_aspect() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_tool(patchy::ui::CanvasTool::Marquee);
+  canvas->set_snap_enabled(false);
+
+  drag(*canvas, canvas->widget_position_for_document_point(QPoint(40, 40)),
+       canvas->widget_position_for_document_point(QPoint(100, 80)));
+  const auto original = canvas->selected_document_rect();
+  CHECK(original.has_value());
+
+  // A plain corner drag moves both axes.
+  const auto corner = marquee_handle_position(*canvas, *original, 2, 2);
+  send_mouse(*canvas, QEvent::MouseMove, corner, Qt::NoButton, Qt::NoButton);
+  CHECK(canvas->cursor().shape() == Qt::SizeFDiagCursor);
+  drag_marquee_handle(*canvas, corner,
+                      canvas->widget_position_for_document_point(
+                          QPoint(original->x() + original->width() + 30, original->y() + original->height() + 30)));
+  auto resized = canvas->selected_document_rect();
+  CHECK(resized.has_value());
+  CHECK(resized->topLeft() == original->topLeft());
+  CHECK(within_one(resized->width(), original->width() + 30));
+  CHECK(within_one(resized->height(), original->height() + 30));
+
+  // Shift held while dragging a corner holds the aspect ratio the rect had when
+  // the drag began. (Shift at the press means Add, exactly as for the interior
+  // move, so it is pressed after the handle is grabbed.)
+  const auto start = *resized;
+  const auto ratio = static_cast<double>(start.width()) / start.height();
+  const auto start_corner = marquee_handle_position(*canvas, start, 2, 2);
+  const auto shift_target = canvas->widget_position_for_document_point(
+      QPoint(start.x() + start.width() + 60, start.y() + start.height() + 10));
+  send_mouse(*canvas, QEvent::MouseButtonPress, start_corner, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseMove, shift_target, Qt::NoButton, Qt::LeftButton, Qt::ShiftModifier);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, shift_target, Qt::LeftButton, Qt::NoButton, Qt::ShiftModifier);
+  QApplication::processEvents();
+  resized = canvas->selected_document_rect();
+  CHECK(resized.has_value());
+  CHECK(resized->topLeft() == start.topLeft());
+  CHECK(resized->height() > start.height());
+  CHECK(std::abs(resized->width() - static_cast<int>(std::round(resized->height() * ratio))) <= 2);
+
+  // Dragging the left edge through the right edge flips cleanly.
+  const auto before_flip = *resized;
+  drag_marquee_handle(*canvas, marquee_handle_position(*canvas, before_flip, 0, 1),
+                      canvas->widget_position_for_document_point(
+                          QPoint(before_flip.x() + before_flip.width() + 20,
+                                 before_flip.y() + before_flip.height() / 2)));
+  resized = canvas->selected_document_rect();
+  CHECK(resized.has_value());
+  CHECK(within_one(resized->x(), before_flip.x() + before_flip.width()));
+  CHECK(within_one(resized->width(), 20));
+  CHECK(resized->height() == before_flip.height());
+}
+
+void ui_elliptical_marquee_handle_drag_keeps_ellipse() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_tool(patchy::ui::CanvasTool::EllipticalMarquee);
+  canvas->set_snap_enabled(false);
+
+  drag(*canvas, canvas->widget_position_for_document_point(QPoint(40, 40)),
+       canvas->widget_position_for_document_point(QPoint(120, 120)));
+  const auto original = canvas->selected_document_rect();
+  CHECK(original.has_value());
+  CHECK(canvas->selected_document_region().rectCount() > 1);
+
+  drag_marquee_handle(*canvas, marquee_handle_position(*canvas, *original, 2, 1),
+                      canvas->widget_position_for_document_point(
+                          QPoint(original->x() + original->width() + 40, original->y() + original->height() / 2)));
+  const auto resized = canvas->selected_document_rect();
+  CHECK(resized.has_value());
+  CHECK(within_one(resized->width(), original->width() + 40));
+  CHECK(resized->height() == original->height());
+  // Still an ellipse drawn into the new bounds, not a stretched region.
+  CHECK(canvas->selected_document_region() == QRegion(*resized, QRegion::Ellipse));
+  CHECK(!canvas->selected_document_region().contains(resized->topLeft()));
+  CHECK(canvas->selected_document_region().contains(resized->center()));
+}
+
+void ui_marquee_feathered_resize_rerasterizes_soft_edge() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_tool(patchy::ui::CanvasTool::Marquee);
+  canvas->set_snap_enabled(false);
+  canvas->set_selection_feather_radius(4);
+
+  drag(*canvas, canvas->widget_position_for_document_point(QPoint(40, 40)),
+       canvas->widget_position_for_document_point(QPoint(100, 80)));
+  CHECK(canvas->has_selection());
+  const QRect drawn(40, 40, 60, 40);
+  const auto mid_y = drawn.y() + drawn.height() / 2;
+  CHECK(canvas->selection_alpha_at(QPoint(drawn.x() + drawn.width() + 15, mid_y)) == 0);
+
+  // The handle sits on the drawn rect, not on the feather-padded bounds.
+  const auto right_handle = marquee_handle_position(*canvas, drawn, 2, 1);
+  send_mouse(*canvas, QEvent::MouseMove, right_handle, Qt::NoButton, Qt::NoButton);
+  CHECK(canvas->cursor().shape() == Qt::SizeHorCursor);
+  drag_marquee_handle(*canvas, right_handle,
+                      canvas->widget_position_for_document_point(QPoint(drawn.x() + drawn.width() + 30, mid_y)));
+
+  // The area the edge moved over is fully selected and the new edge is soft.
+  CHECK(canvas->selection_alpha_at(QPoint(drawn.x() + drawn.width() + 15, mid_y)) == 255);
+  const auto edge_alpha = canvas->selection_alpha_at(QPoint(drawn.x() + drawn.width() + 31, mid_y));
+  CHECK(edge_alpha > 0);
+  CHECK(edge_alpha < 255);
+  const auto resized = canvas->selected_document_rect();
+  CHECK(resized.has_value());
+  // Bounds include the feather padding on every side.
+  CHECK(resized->x() < drawn.x());
+  CHECK(resized->x() + resized->width() > drawn.x() + drawn.width() + 30);
+}
+
+void ui_marquee_handles_follow_move_and_vanish_after_other_edits() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_tool(patchy::ui::CanvasTool::Marquee);
+  canvas->set_snap_enabled(false);
+
+  drag(*canvas, canvas->widget_position_for_document_point(QPoint(40, 40)),
+       canvas->widget_position_for_document_point(QPoint(100, 80)));
+  const auto original = canvas->selected_document_rect();
+  CHECK(original.has_value());
+
+  // Moving the selection takes the handles along.
+  drag(*canvas, canvas->widget_position_for_document_point(original->center()),
+       canvas->widget_position_for_document_point(original->center() + QPoint(40, 30)));
+  const auto moved = canvas->selected_document_rect();
+  CHECK(moved.has_value());
+  CHECK(moved->size() == original->size());
+  const auto moved_right_handle = marquee_handle_position(*canvas, *moved, 2, 1);
+  send_mouse(*canvas, QEvent::MouseMove, moved_right_handle, Qt::NoButton, Qt::NoButton);
+  CHECK(canvas->cursor().shape() == Qt::SizeHorCursor);
+  drag_marquee_handle(*canvas, moved_right_handle,
+                      canvas->widget_position_for_document_point(
+                          QPoint(moved->x() + moved->width() + 20, moved->y() + moved->height() / 2)));
+  const auto resized = canvas->selected_document_rect();
+  CHECK(resized.has_value());
+  CHECK(resized->topLeft() == moved->topLeft());
+  CHECK(within_one(resized->width(), moved->width() + 20));
+
+  // Adding a second rectangle (Shift) leaves a combined shape with no handles:
+  // the former handle spot shows the tool cursor and a press there starts a
+  // new marquee instead of resizing.
+  drag(*canvas, canvas->widget_position_for_document_point(QPoint(10, 10)),
+       canvas->widget_position_for_document_point(QPoint(30, 30)), Qt::ShiftModifier);
+  CHECK(canvas->selected_document_region().contains(QPoint(20, 20)));
+  CHECK(canvas->selected_document_region().contains(resized->center()));
+  const auto stale_handle = marquee_handle_position(*canvas, *resized, 2, 1);
+  send_mouse(*canvas, QEvent::MouseMove, stale_handle, Qt::NoButton, Qt::NoButton);
+  CHECK(canvas->cursor().shape() != Qt::SizeHorCursor);
+  drag_marquee_handle(*canvas, stale_handle,
+                      canvas->widget_position_for_document_point(
+                          QPoint(resized->x() + resized->width() + 25, resized->y() + resized->height() + 25)));
+  const auto fresh = canvas->selected_document_rect();
+  CHECK(fresh.has_value());
+  CHECK(within_one(fresh->x(), resized->x() + resized->width()));
+  CHECK(!canvas->selected_document_region().contains(QPoint(20, 20)));
+
+  // The Lasso tool never shows marquee handles even on a marquee-drawn rect.
+  canvas->set_tool(patchy::ui::CanvasTool::Lasso);
+  send_mouse(*canvas, QEvent::MouseMove, marquee_handle_position(*canvas, *fresh, 2, 1), Qt::NoButton,
+             Qt::NoButton);
+  CHECK(canvas->cursor().shape() != Qt::SizeHorCursor);
+}
+
+void ui_marquee_handle_click_keeps_selection_and_hint_shows() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  require_action(window, "toolMarqueeAction")->trigger();
+  QApplication::processEvents();
+  CHECK(window.statusBar()->currentMessage().startsWith(
+      QStringLiteral("Rectangular Marquee: drag to select. Drag a handle to resize")));
+  canvas->set_snap_enabled(false);
+
+  drag(*canvas, canvas->widget_position_for_document_point(QPoint(40, 40)),
+       canvas->widget_position_for_document_point(QPoint(100, 80)));
+  const auto original = canvas->selected_document_rect();
+  CHECK(original.has_value());
+
+  // A click on a handle with no travel neither resizes nor deselects, and a
+  // click inside the selection still deselects as before.
+  const auto handle = marquee_handle_position(*canvas, *original, 2, 2);
+  send_mouse(*canvas, QEvent::MouseButtonPress, handle, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, handle, Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  CHECK(canvas->selected_document_rect() == original);
+  CHECK(window.statusBar()->currentMessage() != QStringLiteral("Resize Selection"));
+  const auto inside = canvas->widget_position_for_document_point(original->center());
+  send_mouse(*canvas, QEvent::MouseButtonPress, inside, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, inside, Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  CHECK(!canvas->has_selection());
+
+  // Reselect brings the handles back with the selection.
+  require_action(window, "selectReselectAction")->trigger();
+  QApplication::processEvents();
+  CHECK(canvas->selected_document_rect() == original);
+  send_mouse(*canvas, QEvent::MouseMove, marquee_handle_position(*canvas, *original, 2, 1), Qt::NoButton,
+             Qt::NoButton);
+  CHECK(canvas->cursor().shape() == Qt::SizeHorCursor);
+}
+
 void ui_lasso_drag_moves_selection() {
   patchy::ui::MainWindow window;
   show_window(window);
@@ -1196,6 +1489,14 @@ std::vector<patchy::test::TestCase> selection_marquee_lasso_tests_part2() {
       {"ui_lasso_selection_draws_freeform_region", ui_lasso_selection_draws_freeform_region},
       {"ui_lasso_click_deselects", ui_lasso_click_deselects},
       {"ui_marquee_drag_moves_selection", ui_marquee_drag_moves_selection},
+      {"ui_marquee_edge_handle_drag_resizes_selection", ui_marquee_edge_handle_drag_resizes_selection},
+      {"ui_marquee_corner_handle_drag_and_shift_aspect", ui_marquee_corner_handle_drag_and_shift_aspect},
+      {"ui_elliptical_marquee_handle_drag_keeps_ellipse", ui_elliptical_marquee_handle_drag_keeps_ellipse},
+      {"ui_marquee_feathered_resize_rerasterizes_soft_edge", ui_marquee_feathered_resize_rerasterizes_soft_edge},
+      {"ui_marquee_handles_follow_move_and_vanish_after_other_edits",
+       ui_marquee_handles_follow_move_and_vanish_after_other_edits},
+      {"ui_marquee_handle_click_keeps_selection_and_hint_shows",
+       ui_marquee_handle_click_keeps_selection_and_hint_shows},
       {"ui_lasso_drag_moves_selection", ui_lasso_drag_moves_selection},
       {"ui_selection_arrow_keys_nudge", ui_selection_arrow_keys_nudge},
       {"ui_selection_moves_coalesce_into_one_undo_step", ui_selection_moves_coalesce_into_one_undo_step},

@@ -237,6 +237,19 @@ public:
     Destination
   };
 
+  // The shape a Rectangular or Elliptical Marquee drag-out committed, kept so
+  // its edges and corners can be dragged afterwards (the selection is then
+  // re-rasterized from this rather than scaled). Set only by a Replace-mode
+  // marquee commit; moves translate it; every other selection write clears it.
+  struct MarqueeShape {
+    QRect rect;             // document space, deliberately not clipped to the canvas
+    bool ellipse{false};
+    int corner_radius{0};   // Radius option at creation (rectangle only)
+    int feather{0};
+    bool antialias{true};
+    bool operator==(const MarqueeShape&) const = default;
+  };
+
   // Full selection state, captured so selection edits (marquee/lasso/wand drags,
   // Select All, Deselect, Invert, ...) can participate in the undo/redo history.
   struct SelectionSnapshot {
@@ -244,6 +257,7 @@ public:
     QRegion display_region;
     QRect mask_bounds;
     QImage mask_alpha;
+    std::optional<MarqueeShape> marquee_shape;
     // Quick Mask is temporary canvas state rather than document data. History
     // snapshots carry its COW buffer so a gesture can undo without copying or
     // serializing the document, and can still restore the resulting selection
@@ -1260,6 +1274,10 @@ private:
   void draw_selection_overlay(QPainter& painter) const;
   void draw_free_transform(QPainter& painter) const;
   void draw_transform_controls(QPainter& painter, QRectF document_rect, double angle_degrees) const;
+  // The filled handle squares alone (no box, no rotate stem); shared by the
+  // transform controls and the marquee resize handles.
+  void draw_transform_handle_squares(QPainter& painter, QRectF document_rect, double angle_degrees,
+                                     bool include_rotate) const;
   void draw_move_transform_controls(QPainter& painter) const;
   void draw_grid_overlay(QPainter& painter, const QRectF& target_rect, QRect exposed_rect) const;
   void draw_guides_overlay(QPainter& painter) const;
@@ -1626,6 +1644,21 @@ private:
   // clamped to half of `rect`, 0 for other tools or a zero setting.
   [[nodiscard]] double marquee_effective_corner_radius(QRect rect) const noexcept;
   [[nodiscard]] QImage marquee_selection_mask(QPoint anchor, QPoint current, QRect& bounds) const;
+  // The live tool state (tool, Radius, Feather, Anti-alias) packed around `rect`.
+  [[nodiscard]] MarqueeShape current_marquee_shape(QRect rect) const;
+  // Rasterizers shared by the drag-out and the resize handles; they read only
+  // the shape, never the live options, so a resize redraws what was drawn.
+  [[nodiscard]] QRegion marquee_shape_region(const MarqueeShape& shape) const;
+  [[nodiscard]] QImage marquee_shape_mask(const MarqueeShape& shape, QRect& bounds) const;
+  // Replaces the selection with `shape` and remembers it as resizable.
+  void apply_marquee_shape(const MarqueeShape& shape);
+  // The remembered marquee rect while a marquee tool can resize it (not in
+  // Quick Mask, no gesture in flight); nullopt hides the handles.
+  [[nodiscard]] std::optional<QRect> resizable_marquee_rect() const;
+  [[nodiscard]] TransformHandle marquee_resize_handle_at(QPoint widget_point,
+                                                          Qt::KeyboardModifiers modifiers) const;
+  void update_marquee_resize_drag(QPoint document_point, Qt::KeyboardModifiers modifiers);
+  void draw_marquee_resize_handles(QPainter& painter) const;
   [[nodiscard]] QImage lasso_selection_mask(const QPolygon& polygon, QRect& bounds) const;
   [[nodiscard]] QImage lasso_selection_mask(const QPolygonF& polygon, QRect& bounds) const;
   // Magnetic Lasso trace lifecycle. The hover trace only maintains a snapped path polyline
@@ -1647,6 +1680,10 @@ private:
   [[nodiscard]] int magnetic_anchor_spacing() const noexcept;  // SCREEN px between auto anchors
   void set_selection_from_region(QRegion selection);
   void set_selection_from_mask(QRegion selection, QRect mask_bounds, QImage mask_alpha);
+  // Snapshot / drop the pre-gesture selection (region, display region, mask,
+  // marquee shape) that restore_selection_before_edit and the history entry use.
+  void capture_selection_before_edit();
+  void clear_selection_before_edit();
   void restore_selection_before_edit();
   void finish_quick_mask_edit();
   void invalidate_quick_mask_display() noexcept;
@@ -2150,10 +2187,16 @@ private:
   QRegion last_cleared_selection_display_region_;
   QRect last_cleared_selection_mask_bounds_;
   QImage last_cleared_selection_mask_alpha_;
+  std::optional<MarqueeShape> last_cleared_marquee_shape_;
   QRegion selection_before_edit_;
   QRegion selection_display_region_before_edit_;
   QRect selection_mask_before_edit_bounds_;
   QImage selection_mask_before_edit_alpha_;
+  std::optional<MarqueeShape> marquee_shape_before_edit_;
+  std::optional<MarqueeShape> marquee_shape_;
+  // A handle drag on the remembered marquee shape (None when idle).
+  TransformHandle marquee_resize_handle_{TransformHandle::None};
+  QRect marquee_resize_start_rect_;
   bool selection_edges_visible_{true};
   bool quick_mask_active_{false};
   PixelBuffer quick_mask_pixels_;

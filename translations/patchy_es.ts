@@ -9863,6 +9863,10 @@ RGB: %2, %3, %4</translation>
         <source>Change: %1</source>
         <translation>Cambio: %1</translation>
     </message>
+    <message>
+        <source>Resize Selection</source>
+        <translation>Cambiar tamaño de la selección</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::ChannelPanel</name>
@@ -17135,6 +17139,14 @@ Y: %2
     <message>
         <source>Pivot:</source>
         <translation>Pivote:</translation>
+    </message>
+    <message>
+        <source>Rectangular Marquee: drag to select. Drag a handle to resize the selection, or drag inside it to move it.</source>
+        <translation>Marco rectangular: arrastre para seleccionar. Arrastre un tirador para cambiar el tamaño de la selección, o arrastre dentro de ella para moverla.</translation>
+    </message>
+    <message>
+        <source>Elliptical Marquee: drag to select. Drag a handle to resize the selection, or drag inside it to move it.</source>
+        <translation>Marco elíptico: arrastre para seleccionar. Arrastre un tirador para cambiar el tamaño de la selección, o arrastre dentro de ella para moverla.</translation>
     </message>
 </context>
 <context>

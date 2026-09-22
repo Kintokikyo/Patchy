@@ -9836,6 +9836,10 @@ Mixed selection</source>
         <source>Change: %1</source>
         <translation>変化: %1</translation>
     </message>
+    <message>
+        <source>Resize Selection</source>
+        <translation>選択範囲のサイズ変更</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::ChannelPanel</name>
@@ -17090,6 +17094,14 @@ Clipped to the layer below</source>
     <message>
         <source>Pivot:</source>
         <translation>基準点:</translation>
+    </message>
+    <message>
+        <source>Rectangular Marquee: drag to select. Drag a handle to resize the selection, or drag inside it to move it.</source>
+        <translation>長方形選択: ドラッグして選択します。ハンドルをドラッグすると選択範囲のサイズを変更し、内側をドラッグすると移動します。</translation>
+    </message>
+    <message>
+        <source>Elliptical Marquee: drag to select. Drag a handle to resize the selection, or drag inside it to move it.</source>
+        <translation>楕円形選択: ドラッグして選択します。ハンドルをドラッグすると選択範囲のサイズを変更し、内側をドラッグすると移動します。</translation>
     </message>
 </context>
 <context>

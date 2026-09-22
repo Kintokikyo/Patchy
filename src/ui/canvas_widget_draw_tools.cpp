@@ -722,6 +722,10 @@ void CanvasWidget::draw_drag_size_readout(QPainter& painter) const {
   } else if (selecting_ && (tool_ == CanvasTool::Marquee || tool_ == CanvasTool::EllipticalMarquee)) {
     rect = marquee_selection_rect(selection_start_, selection_current_);
     corner = selection_current_;
+  } else if (marquee_resize_handle_ != TransformHandle::None && marquee_shape_.has_value()) {
+    // Resizing a committed marquee by a handle: the readout follows the pointer.
+    rect = marquee_shape_->rect;
+    corner = document_position(last_mouse_position_);
   } else if (crop_dragging_out_) {
     rect = crop_drag_rect(crop_anchor_document_, crop_current_document_);
     corner = crop_current_document_;

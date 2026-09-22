@@ -2424,6 +2424,11 @@ void CanvasWidget::draw_transform_controls(QPainter& painter, QRectF document_re
   painter.drawLine(QPointF(0.0, -rect.height() / 2.0), QPointF(0.0, -rect.height() / 2.0 - 32.0));
   painter.restore();
 
+  draw_transform_handle_squares(painter, document_rect, angle_degrees, /*include_rotate=*/true);
+}
+
+void CanvasWidget::draw_transform_handle_squares(QPainter& painter, QRectF document_rect, double angle_degrees,
+                                                 bool include_rotate) const {
   constexpr double kHandleSize = 8.0;
   const std::array<TransformHandle, 9> handles = {
       TransformHandle::TopLeft,    TransformHandle::Top,    TransformHandle::TopRight,
@@ -2432,13 +2437,15 @@ void CanvasWidget::draw_transform_controls(QPainter& painter, QRectF document_re
   painter.save();
   painter.setPen(QPen(QColor(10, 14, 20), 1.0));
   for (const auto handle : handles) {
+    if (handle == TransformHandle::Rotate && !include_rotate) {
+      continue;
+    }
     const auto point = transform_handle_position(handle, document_rect, angle_degrees);
     const QRectF handle_rect(point.x() - kHandleSize / 2.0, point.y() - kHandleSize / 2.0, kHandleSize, kHandleSize);
     painter.setBrush(handle == TransformHandle::Rotate ? QColor(95, 170, 255) : QColor(245, 248, 252));
     painter.drawRect(handle_rect);
   }
   painter.restore();
-
 }
 
 void CanvasWidget::draw_move_transform_controls(QPainter& painter) const {

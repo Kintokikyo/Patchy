@@ -890,6 +890,21 @@ void CanvasWidget::mousePressEvent(QMouseEvent* event) {
     return;
   }
 
+  if (const auto handle = marquee_resize_handle_at(event->pos(), event->modifiers());
+      event->button() == Qt::LeftButton && handle != TransformHandle::None && marquee_shape_.has_value()) {
+    // Grab an edge or corner handle of a committed marquee to resize it. Tested
+    // before the interior move because the handles overlap the interior edge.
+    marquee_resize_handle_ = handle;
+    marquee_resize_start_rect_ = marquee_shape_->rect;
+    selection_edges_visible_ = true;
+    selection_press_widget_position_ = event->pos();
+    capture_selection_before_edit();
+    selection_operation_ = SelectionMode::Replace;
+    set_transform_cursor_for_handle(handle);
+    update();
+    return;
+  }
+
   if (can_move_selection_at(document_point, event->modifiers())) {
     // Grab inside an existing selection to drag the outline (pixels stay put).
     // A press that does not turn into a drag falls through to click-to-deselect
@@ -898,10 +913,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent* event) {
     selection_edges_visible_ = true;
     selection_press_widget_position_ = event->pos();
     selection_move_origin_document_ = document_point;
-    selection_before_edit_ = selection_;
-    selection_display_region_before_edit_ = selection_display_region_;
-    selection_mask_before_edit_bounds_ = selection_mask_bounds_;
-    selection_mask_before_edit_alpha_ = selection_mask_alpha_;
+    capture_selection_before_edit();
     selection_operation_ = SelectionMode::Replace;
     setCursor(Qt::SizeAllCursor);
     update();
@@ -930,10 +942,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent* event) {
     marquee_from_center_ = (event->modifiers() & Qt::AltModifier) != 0 && selection_.isEmpty();
     selection_start_ = snapped_point;
     selection_current_ = snapped_point;
-    selection_before_edit_ = selection_;
-    selection_display_region_before_edit_ = selection_display_region_;
-    selection_mask_before_edit_bounds_ = selection_mask_bounds_;
-    selection_mask_before_edit_alpha_ = selection_mask_alpha_;
+    capture_selection_before_edit();
     selection_operation_ = selection_operation(event->modifiers());
     // Replace shows the rectangle live as you drag; Add/Subtract/Intersect keep
     // the existing selection visible and only draw the candidate outline,
@@ -977,10 +986,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent* event) {
     // drag begun in the grey area starts at the edge rather than drawing a
     // preview line in from outside the canvas.
     lasso_points_ << (document_ != nullptr ? clamped_document_point(*document_, document_point) : document_point);
-    selection_before_edit_ = selection_;
-    selection_display_region_before_edit_ = selection_display_region_;
-    selection_mask_before_edit_bounds_ = selection_mask_bounds_;
-    selection_mask_before_edit_alpha_ = selection_mask_alpha_;
+    capture_selection_before_edit();
     selection_operation_ = selection_operation(event->modifiers());
     restore_selection_before_edit();
     update();
@@ -1016,10 +1022,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent* event) {
       return;
     }
     selection_edges_visible_ = true;
-    selection_before_edit_ = selection_;
-    selection_display_region_before_edit_ = selection_display_region_;
-    selection_mask_before_edit_bounds_ = selection_mask_bounds_;
-    selection_mask_before_edit_alpha_ = selection_mask_alpha_;
+    capture_selection_before_edit();
     auto operation = selection_operation(event->modifiers());
     if (operation == SelectionMode::Intersect) {
       // Quick Select has no Intersect mode (Photoshop parity); Shift+Alt acts as Add.
@@ -1034,19 +1037,13 @@ void CanvasWidget::mousePressEvent(QMouseEvent* event) {
 
   if (tool_ == CanvasTool::MagicWand) {
     selection_edges_visible_ = true;
-    selection_before_edit_ = selection_;
-    selection_display_region_before_edit_ = selection_display_region_;
-    selection_mask_before_edit_bounds_ = selection_mask_bounds_;
-    selection_mask_before_edit_alpha_ = selection_mask_alpha_;
+    capture_selection_before_edit();
     selection_operation_ = selection_operation(event->modifiers());
     begin_processing_operation();
     magic_wand_select(document_point);
     end_processing_operation();
     record_selection_history(tr("Magic Wand"), selection_snapshot_before_edit());
-    selection_before_edit_ = QRegion();
-    selection_display_region_before_edit_ = QRegion();
-    selection_mask_before_edit_bounds_ = {};
-    selection_mask_before_edit_alpha_ = QImage();
+    clear_selection_before_edit();
     return;
   }
 
@@ -1671,6 +1668,12 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
     setCursor(Qt::SizeAllCursor);
     emit_info_for_widget_position(event->pos());
     update();
+  } else if (marquee_resize_handle_ != TransformHandle::None) {
+    clear_move_hover_outline();
+    update_marquee_resize_drag(document_point, event->modifiers());
+    set_transform_cursor_for_handle(marquee_resize_handle_);
+    emit_info_for_widget_position(event->pos());
+    update();
   } else if (selecting_) {
     clear_move_hover_outline();
     if (spacebar_repositioning_drag_rect_) {
@@ -1747,7 +1750,11 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
           }
         }
       }
-      if (can_move_selection_at(document_point, event->modifiers())) {
+      if (const auto handle = marquee_resize_handle_at(event->pos(), event->modifiers());
+          handle != TransformHandle::None) {
+        // Signal that grabbing here resizes the committed marquee.
+        set_transform_cursor_for_handle(handle);
+      } else if (can_move_selection_at(document_point, event->modifiers())) {
         // Signal that grabbing here drags the selection outline.
         setCursor(Qt::SizeAllCursor);
       } else if (tool_ == CanvasTool::PatchTool &&
@@ -2302,6 +2309,25 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
     return;
   }
 
+  if (marquee_resize_handle_ != TransformHandle::None) {
+    const auto document_point = document_position(event->pos());
+    const auto widget_delta = event->pos() - selection_press_widget_position_;
+    if (widget_delta.manhattanLength() < QApplication::startDragDistance()) {
+      // A click on a handle with no travel changes nothing (and must not
+      // deselect the way a click inside the selection does).
+      restore_selection_before_edit();
+    } else {
+      update_marquee_resize_drag(document_point, event->modifiers());
+      record_selection_history(tr("Resize Selection"), selection_snapshot_before_edit());
+    }
+    marquee_resize_handle_ = TransformHandle::None;
+    clear_selection_before_edit();
+    emit_info_for_widget_position(event->pos());
+    update_tool_cursor();
+    update();
+    return;
+  }
+
   if (moving_selection_) {
     moving_selection_ = false;
     const auto document_point = document_position(event->pos());
@@ -2319,10 +2345,7 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
       // undo step that returns to the pre-move location.
       record_selection_history(tr("Move Selection"), selection_snapshot_before_edit(), /*coalesce=*/true);
     }
-    selection_before_edit_ = QRegion();
-    selection_display_region_before_edit_ = QRegion();
-    selection_mask_before_edit_bounds_ = {};
-    selection_mask_before_edit_alpha_ = QImage();
+    clear_selection_before_edit();
     emit_info_for_widget_position(event->pos());
     update_tool_cursor();
     update();
@@ -2345,10 +2368,7 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
         clear_selection();
       }
       record_selection_history(tr("Deselect"), selection_snapshot_before_edit());
-      selection_before_edit_ = QRegion();
-      selection_display_region_before_edit_ = QRegion();
-      selection_mask_before_edit_bounds_ = {};
-      selection_mask_before_edit_alpha_ = QImage();
+      clear_selection_before_edit();
       emit_info_for_widget_position(event->pos());
       update();
       return;
@@ -2376,11 +2396,13 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
     } else {
       combine_selection_from_region(marquee_selection_region(selection_start_, selection_current_));
     }
+    // Only a plain Replace commit leaves a shape whose edges can be dragged
+    // later; a combined result is no longer a rectangle or ellipse.
+    if (selection_operation_ == SelectionMode::Replace && !selection_.isEmpty()) {
+      marquee_shape_ = current_marquee_shape(marquee_selection_rect(selection_start_, selection_current_));
+    }
     record_selection_history(marquee_label, selection_snapshot_before_edit());
-    selection_before_edit_ = QRegion();
-    selection_display_region_before_edit_ = QRegion();
-    selection_mask_before_edit_bounds_ = {};
-    selection_mask_before_edit_alpha_ = QImage();
+    clear_selection_before_edit();
     marquee_from_center_ = false;
     emit_info_for_widget_position(event->pos());
     update();
@@ -2431,10 +2453,7 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
         clear_selection();
       }
       record_selection_history(tr("Deselect"), selection_snapshot_before_edit());
-      selection_before_edit_ = QRegion();
-      selection_display_region_before_edit_ = QRegion();
-      selection_mask_before_edit_bounds_ = {};
-      selection_mask_before_edit_alpha_ = QImage();
+      clear_selection_before_edit();
       lasso_points_.clear();
       emit_info_for_widget_position(event->pos());
       update();
@@ -2472,10 +2491,7 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
                            ? tr("Drag the selection to where the copy should go")
                            : tr("Drag the selection to a clean area to sample from"));
     }
-    selection_before_edit_ = QRegion();
-    selection_display_region_before_edit_ = QRegion();
-    selection_mask_before_edit_bounds_ = {};
-    selection_mask_before_edit_alpha_ = QImage();
+    clear_selection_before_edit();
     lasso_points_.clear();
     emit_info_for_widget_position(event->pos());
     update();
@@ -2883,6 +2899,14 @@ void CanvasWidget::keyPressEvent(QKeyEvent* event) {
     event->accept();
     return;
   }
+  // Same for the marquee resize handles: Shift on a corner holds the aspect.
+  if (marquee_resize_handle_ != TransformHandle::None && event->key() == Qt::Key_Shift &&
+      !event->isAutoRepeat()) {
+    update_marquee_resize_drag(document_position(last_mouse_position_), event->modifiers() | Qt::ShiftModifier);
+    update();
+    event->accept();
+    return;
+  }
 
   // Shift toggled mid-crop-drag-out arrives as a key event, not a mouse move;
   // update the square constraint so a stationary cursor still snaps.
@@ -3214,6 +3238,13 @@ void CanvasWidget::keyReleaseEvent(QKeyEvent* event) {
     event->accept();
     return;
   }
+  if (marquee_resize_handle_ != TransformHandle::None && event->key() == Qt::Key_Shift &&
+      !event->isAutoRepeat()) {
+    update_marquee_resize_drag(document_position(last_mouse_position_), event->modifiers() & ~Qt::ShiftModifier);
+    update();
+    event->accept();
+    return;
+  }
   if (crop_dragging_out_ && !spacebar_repositioning_drag_rect_ && event->key() == Qt::Key_Shift &&
       !event->isAutoRepeat()) {
     crop_square_constrained_ = false;
@@ -3325,10 +3356,12 @@ void CanvasWidget::cancel_pointer_gestures() {
   const bool cancel_move = move_drag_pending_ || moving_layer_;
   move_context_press_pos_.reset();
   cancel_move_layer_selection();
-  if (selecting_ || lassoing_ || quick_selecting_ || moving_selection_) {
+  if (selecting_ || lassoing_ || quick_selecting_ || moving_selection_ ||
+      marquee_resize_handle_ != TransformHandle::None) {
     restore_selection_before_edit();
   }
   selecting_ = lassoing_ = quick_selecting_ = moving_selection_ = false;
+  marquee_resize_handle_ = TransformHandle::None;
   quick_select_seed_mask_ = QImage();
   quick_select_seed_bounds_ = {};
   quick_select_stroke_points_.clear();

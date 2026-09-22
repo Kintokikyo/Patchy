@@ -9863,6 +9863,10 @@ RVB : %2, %3, %4</translation>
         <source>Change: %1</source>
         <translation>Variation : %1</translation>
     </message>
+    <message>
+        <source>Resize Selection</source>
+        <translation>Redimensionner la sélection</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::ChannelPanel</name>
@@ -17135,6 +17139,14 @@ Y : %2
     <message>
         <source>Pivot:</source>
         <translation>Pivot :</translation>
+    </message>
+    <message>
+        <source>Rectangular Marquee: drag to select. Drag a handle to resize the selection, or drag inside it to move it.</source>
+        <translation>Rectangle de sélection : faites glisser pour sélectionner. Faites glisser une poignée pour redimensionner la sélection, ou faites glisser à l&apos;intérieur pour la déplacer.</translation>
+    </message>
+    <message>
+        <source>Elliptical Marquee: drag to select. Drag a handle to resize the selection, or drag inside it to move it.</source>
+        <translation>Ellipse de sélection : faites glisser pour sélectionner. Faites glisser une poignée pour redimensionner la sélection, ou faites glisser à l&apos;intérieur pour la déplacer.</translation>
     </message>
 </context>
 <context>
