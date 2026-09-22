@@ -39,6 +39,7 @@
 #include <cmath>
 #include <cstring>
 #include <future>
+#include <span>
 #include <vector>
 
 namespace patchy::ui {
@@ -400,6 +401,14 @@ QRect CanvasWidget::heal_mask_from_surroundings(QRect bounds, const std::vector<
   const auto layer_bounds = layer.bounds();
   const auto layer_rect = to_qrect(layer_bounds);
   const auto channels = pixels.format().channels;
+  // The rows below write through this span, never through the buffer's
+  // accessors: a non-const access from a worker strip would detach the
+  // copy-on-write storage concurrently (the undo snapshot shares it until the
+  // first mutation), each strip copying the bytes while another strip's
+  // replacement frees them. The span is taken right before the write, after
+  // the last event pump, so nothing pumped can have re-shared the bytes.
+  std::span<std::uint8_t> pixel_bytes;
+  const auto stride = pixels.stride_bytes();
 
   const auto canvas_width = document_->width();
   const auto canvas_height = document_->height();
@@ -468,8 +477,9 @@ QRect CanvasWidget::heal_mask_from_surroundings(QRect bounds, const std::vector<
           coverage = 1.0F;
         }
 
-        auto row = pixels.row(document_point.y() - layer_bounds.y);
-        auto* dst = row.data() + static_cast<std::size_t>(document_point.x() - layer_bounds.x) * channels;
+        auto* dst = pixel_bytes.data() +
+                    static_cast<std::size_t>(document_point.y() - layer_bounds.y) * stride +
+                    static_cast<std::size_t>(document_point.x() - layer_bounds.x) * channels;
         if (lock_transparent_pixels && channels >= 4 && dst[3] == 0) {
           continue;
         }
@@ -506,6 +516,7 @@ QRect CanvasWidget::heal_mask_from_surroundings(QRect bounds, const std::vector<
   };
 
   const auto area = static_cast<std::int64_t>(width) * height;
+  pixel_bytes = pixels.data();  // detaches shared storage on this thread
   const auto hardware_threads = patchy::hardware_worker_threads();
   // max_blocking_fanout_workers: this thread blocks on the row futures, so on
   // the wasm main thread the fan-out must fit the idle pthread pool.

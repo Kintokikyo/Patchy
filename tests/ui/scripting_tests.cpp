@@ -30,6 +30,7 @@
 #include "ui/sound_effects.hpp"
 #include "ui/theme_manager.hpp"
 
+#include "local_psd_fixtures.hpp"
 #include "test_harness.hpp"
 #include "ui/ui_test_access.hpp"
 #include "ui_test_support.hpp"
@@ -76,6 +77,8 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
+#include <filesystem>
+#include <iostream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -572,6 +575,41 @@ void ui_script_remove_object_heals_selection() {
   CHECK(backlog_contains(window, QStringLiteral("healed=40,80,160,255")));
   CHECK(backlog_contains(window, QStringLiteral("refused=true")));
   CHECK(!backlog_contains(window, QStringLiteral("no-throw")));
+}
+
+// A big photo (about 98 MB RGBA) healed with removeObject and then re-opened
+// from the same file, the headless door_reopen.js scenario: the first document's
+// deferred refresh and background composite must not touch memory the second
+// open frees (September 2026 crash, about one run in two). Needs the local
+// fixture copied per AGENTS.md; skips without it.
+void ui_script_remove_object_then_reopen_large_document() {
+  const auto fixture = patchy::test::local_format_fixture_path("remove-object-reopen", "door.jpg");
+  if (!std::filesystem::exists(fixture)) {
+    std::cout << "[SKIP] local remove-object-reopen fixture missing\n";
+    return;
+  }
+  patchy::ui::MainWindow window;
+  show_window(window);
+  const auto path = QDir::fromNativeSeparators(patchy::ui::to_qstring(fixture));
+  auto& host = start_script(window, QStringLiteral(R"JS(
+    var path = '%1';
+    var doc = app.open(path);
+    var layer = doc.activeLayer;
+    doc.selection.selectRect(1830, 1720, 900, 470);
+    var r = layer.removeObject();
+    doc.selection.deselect();
+    var again = app.open(path);
+    console.log('reopen=' + again.width + 'x' + again.height + ' method=' + r.method);
+  )JS").arg(path));
+  wait_for_run_end(host, 120000);
+  CHECK(!host.run_active());
+  CHECK(!host.last_run_had_error());
+  // The method is whatever the fill decides for this photo; the reopen is the point.
+  CHECK(backlog_contains(window, QStringLiteral("reopen=4284x5712 method=")));
+  CHECK(patchy::ui::MainWindowTestAccess::session_count(window) == 3);
+  // Let every deferred refresh and background composite of both documents land
+  // while the sessions are still alive.
+  patchy::test::ui::process_events_for(1500);
 }
 
 void ui_script_canvas_window_receives_space_key() {
@@ -2951,6 +2989,8 @@ std::vector<patchy::test::TestCase> scripting_tests() {
       {"ui_script_get_pixels_reads_rgb_layers", ui_script_get_pixels_reads_rgb_layers},
       {"ui_script_fill_rect_partial_updates", ui_script_fill_rect_partial_updates},
       {"ui_script_remove_object_heals_selection", ui_script_remove_object_heals_selection},
+      {"ui_script_remove_object_then_reopen_large_document",
+       ui_script_remove_object_then_reopen_large_document},
       {"ui_script_canvas_window_receives_space_key", ui_script_canvas_window_receives_space_key},
       {"ui_script_canvas_window_dismisses_stop_panel",
        ui_script_canvas_window_dismisses_stop_panel},

@@ -23,6 +23,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -238,6 +239,49 @@ void ui_remove_object_heals_selection_and_cycles_sources() {
   const auto refused = canvas.remove_object_in_selection();
   CHECK(!refused.applied);
   CHECK(!refused.error.isEmpty());
+}
+
+// The heal writer's strip fan-out (selections at or above kHealParallelArea)
+// runs while the undo snapshot still shares the layer's copy-on-write pixel
+// bytes. The writer must detach on the calling thread before fanning out:
+// strips detaching concurrently each copied the bytes while another strip's
+// replacement freed them (the September 2026 headless door_reopen.js crash:
+// access violations inside the vector copy on several workers, or heap
+// corruption at exit). A Document copy stands in for the snapshot; the passes
+// repeat so a racy interleaving gets its chances, and every pass must heal the
+// marked block back to the base color while the copy keeps its own bytes.
+void ui_remove_object_parallel_heal_detaches_shared_pixels() {
+  patchy::Document document(1024, 768, patchy::PixelFormat::rgba8());
+  auto& layer = document.add_pixel_layer(
+      "Object", solid_pixels(1024, 768, patchy::PixelFormat::rgba8(), QColor(40, 80, 120, 255)));
+
+  patchy::ui::CanvasWidget canvas;
+  canvas.resize(512, 384);
+  canvas.set_document(&document);
+  canvas.set_tool(patchy::ui::CanvasTool::Marquee);
+  canvas.show();
+  QApplication::processEvents();
+
+  for (int pass = 0; pass < 6; ++pass) {
+    for (std::int32_t y = 300; y < 340; ++y) {
+      for (std::int32_t x = 400; x < 460; ++x) {
+        auto* px = layer.pixels().pixel(x, y);
+        px[0] = 230;
+        px[1] = 230;
+        px[2] = 230;
+      }
+    }
+    const patchy::Document snapshot = document;  // shares the layer bytes like the undo snapshot
+    select_document_rect(canvas, QRect(100, 100, 700, 400));  // 280,000 px: the strip path
+    const auto result = canvas.remove_object_in_selection(RemoveObjectMethod::NearestEdge, 0);
+    CHECK(result.applied);
+    for (const auto point : {QPoint(400, 300), QPoint(430, 320), QPoint(459, 339)}) {
+      const auto* healed = std::as_const(layer).pixels().pixel(point.x(), point.y());
+      CHECK(healed[0] == 40 && healed[1] == 80 && healed[2] == 120 && healed[3] == 255);
+    }
+    const auto* kept = std::as_const(snapshot).find_layer(layer.id())->pixels().pixel(430, 320);
+    CHECK(kept[0] == 230 && kept[1] == 230 && kept[2] == 230);
+  }
 }
 
 // Edit > Remove Object (the content-aware default): on a periodic texture the
@@ -791,6 +835,8 @@ std::vector<patchy::test::TestCase> brush_engine_stroke_tests_part2() {
        ui_remove_object_heals_selection_and_cycles_sources},
       {"ui_remove_object_content_aware_restores_stripes", ui_remove_object_content_aware_restores_stripes},
       {"ui_remove_object_action_is_undoable", ui_remove_object_action_is_undoable},
+      {"ui_remove_object_parallel_heal_detaches_shared_pixels",
+       ui_remove_object_parallel_heal_detaches_shared_pixels},
       {"ui_patch_tool_enter_removes_object", ui_patch_tool_enter_removes_object},
       {"ui_patch_tool_source_drag_heals_region_on_release",
        ui_patch_tool_source_drag_heals_region_on_release},
