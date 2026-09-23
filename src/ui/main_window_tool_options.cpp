@@ -2674,7 +2674,7 @@ void MainWindow::refresh_options_bar() {
 #ifdef Q_OS_ANDROID
   if (main_layout != nullptr) {
     main_layout->setEnabled(true);
-    main_layout->activate();
+    // main_layout->activate();
   }
 
   setUpdatesEnabled(true);
