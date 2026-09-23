@@ -2228,6 +2228,40 @@ void ui_transform_shift_aspect_preference_persists_and_reaches_canvas() {
   CHECK(canvas->shift_keeps_transform_aspect());
 }
 
+// input/snapTransformsToPixelGrid defaults on (Photoshop's default) and reaches the canvas.
+void ui_transform_snap_preference_persists_and_reaches_canvas() {
+  SettingsValueRestorer restore_snap(QStringLiteral("input/snapTransformsToPixelGrid"));
+  {
+    auto settings = patchy::ui::app_settings();
+    settings.remove(QStringLiteral("input/snapTransformsToPixelGrid"));
+    settings.sync();
+  }
+
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  CHECK(canvas->snap_transforms_to_pixel_grid());
+
+  bool saw_dialog = false;
+  QTimer::singleShot(0, [&] {
+    auto* dialog = find_top_level_dialog(QStringLiteral("patchyPreferencesDialog"));
+    CHECK(dialog != nullptr);
+    auto* check = dialog->findChild<QCheckBox*>(QStringLiteral("preferencesTransformSnapToPixelGridCheck"));
+    CHECK(check != nullptr);
+    CHECK(check->isChecked());
+    check->setChecked(false);
+    saw_dialog = true;
+    dialog->accept();
+  });
+  require_action(window, "filePreferencesAction")->trigger();
+  QApplication::processEvents();
+  CHECK(saw_dialog);
+
+  auto settings = patchy::ui::app_settings();
+  CHECK(!settings.value(QStringLiteral("input/snapTransformsToPixelGrid"), true).toBool());
+  CHECK(!canvas->snap_transforms_to_pixel_grid());
+}
+
 void ui_language_switch_updates_existing_window() {
   patchy::ui::MainWindow window;
   show_window(window);
@@ -3897,6 +3931,8 @@ std::vector<patchy::test::TestCase> app_shell_tests() {
        ui_transform_shift_aspect_preference_defaults_to_off},
       {"ui_transform_shift_aspect_preference_persists_and_reaches_canvas",
        ui_transform_shift_aspect_preference_persists_and_reaches_canvas},
+      {"ui_transform_snap_preference_persists_and_reaches_canvas",
+       ui_transform_snap_preference_persists_and_reaches_canvas},
       {"ui_language_switch_updates_existing_window", ui_language_switch_updates_existing_window},
       {"ui_language_preference_applies_at_startup", ui_language_preference_applies_at_startup},
       {"ui_language_missing_preference_uses_system_language", ui_language_missing_preference_uses_system_language},

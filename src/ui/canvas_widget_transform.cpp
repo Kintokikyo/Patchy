@@ -13,6 +13,7 @@
 #include "core/adjustment_layer.hpp"
 #include "core/blend_math.hpp"
 #include "core/layer_metadata.hpp"
+#include "core/pixel_grid.hpp"
 #include "core/smart_object.hpp"
 #include "core/smart_filter.hpp"
 #include "core/layer_render_utils.hpp"
@@ -82,6 +83,20 @@ namespace patchy::ui {
 namespace {
 
 constexpr double kMinimumTransformScalePercent = 0.01;
+// A numeric rotation this small still counts as axis-aligned for pixel-grid snapping.
+constexpr double kPixelGridSnapAngleTolerance = 0.01;
+
+// Photoshop lands an axis-aligned transform on the pixel grid by rounding each destination
+// edge (halves up): 4.75..35.25 becomes 5..35, so a typed X of 3.4 moves the layer by 3 and
+// a 152.5% width of 30.5 px comes out 30 wide (PS 27.9 COM captures, September 2026). A
+// rotated box cannot sit on the grid and is left alone.
+QRectF snap_transform_rect_to_pixel_grid(const QRectF& rect) {
+  const auto left = snap_to_pixel_grid(rect.left());
+  const auto top = snap_to_pixel_grid(rect.top());
+  const auto right = std::max(left + 1.0, snap_to_pixel_grid(rect.right()));
+  const auto bottom = std::max(top + 1.0, snap_to_pixel_grid(rect.bottom()));
+  return QRectF(QPointF(left, top), QPointF(right, bottom));
+}
 
 // Latch thresholds for the drag-time proxy preview, measured on the larger of
 // the unclipped transformed-source AABB (what resample_transformed_rgba8
@@ -2103,6 +2118,14 @@ bool CanvasWidget::show_transform_drag_values() const noexcept {
   return show_transform_drag_values_;
 }
 
+void CanvasWidget::set_snap_transforms_to_pixel_grid(bool enabled) noexcept {
+  snap_transforms_to_pixel_grid_ = enabled;
+}
+
+bool CanvasWidget::snap_transforms_to_pixel_grid() const noexcept {
+  return snap_transforms_to_pixel_grid_;
+}
+
 std::optional<CanvasWidget::DragReadout> CanvasWidget::transform_drag_readout() const {
   if (!show_transform_drag_values_) {
     return std::nullopt;
@@ -2239,6 +2262,12 @@ bool CanvasWidget::set_transform_controls_state(QPointF reference_position, doub
   const auto center = reference_position - anchor_offset;
   const auto previous_preview_rect = transform_preview_document_rect();
   transform_current_rect_ = QRectF(center.x() - width / 2.0, center.y() - height / 2.0, width, height);
+  if (snap_transforms_to_pixel_grid_ && std::abs(rotation_degrees) <= kPixelGridSnapAngleTolerance) {
+    // Typed fractions (and unit conversions such as 1 cm at 300 ppi) snap the way Photoshop
+    // does; the options bar re-reads the snapped rect, so the field shows what was applied.
+    // Integer inputs snap to themselves, which keeps every pinned commit byte-identical.
+    transform_current_rect_ = snap_transform_rect_to_pixel_grid(transform_current_rect_);
+  }
   transform_scale_x_sign_ = scale_x_sign;
   transform_scale_y_sign_ = scale_y_sign;
   transform_angle_ = rotation_degrees;

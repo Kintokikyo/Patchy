@@ -666,6 +666,10 @@ public:
                                                        bool record_history = true);
   void set_show_transform_drag_values(bool enabled) noexcept;
   [[nodiscard]] bool show_transform_drag_values() const noexcept;
+  // Numeric Free Transform entries land on whole pixels like Photoshop's "Snap Vector Tools
+  // and Transforms to Pixel Grid"; off keeps the typed fraction and resamples sub-pixel.
+  void set_snap_transforms_to_pixel_grid(bool enabled) noexcept;
+  [[nodiscard]] bool snap_transforms_to_pixel_grid() const noexcept;
   void set_fill_shapes(bool fill_shapes) noexcept;
   [[nodiscard]] bool fill_shapes() const noexcept;
   void set_shape_corner_radius(int radius) noexcept;
@@ -2553,6 +2557,7 @@ private:
   // the session resets must leave it alone.
   bool shift_keeps_transform_aspect_{false};
   bool show_transform_drag_values_{true};
+  bool snap_transforms_to_pixel_grid_{true};
   // Drag readout bookkeeping: the last painted panel rect (for the bounded
   // repaint union), the moving set's zero-delta extent captured when a Move
   // drag starts, and the last status-bar mirror text.

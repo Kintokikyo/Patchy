@@ -1957,6 +1957,9 @@ private:
   // view/showTransformValues: the on-canvas readout beside the pointer during
   // Move and Free Transform drags. Persisted identifier.
   bool show_transform_drag_values_{true};
+  // input/snapTransformsToPixelGrid: numeric Free Transform entries land on whole
+  // pixels (Photoshop's default). Persisted identifier.
+  bool snap_transforms_to_pixel_grid_{true};
   bool zoom_layer_thumbnails_to_content_{true};
   std::vector<std::pair<QWidget*, std::vector<CanvasTool>>> option_actions_;
   std::vector<QWidget*> transform_option_actions_;

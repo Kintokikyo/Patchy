@@ -17295,6 +17295,14 @@ Clipped to the layer below</source>
         <source>Elliptical Marquee: drag to select. Drag a handle to resize the selection, or drag inside it to move it.</source>
         <translation>楕円形選択: ドラッグして選択します。ハンドルをドラッグすると選択範囲のサイズを変更し、内側をドラッグすると移動します。</translation>
     </message>
+    <message>
+        <source>Snap transforms to the pixel grid</source>
+        <translation>変形をピクセルグリッドにスナップ</translation>
+    </message>
+    <message>
+        <source>Positions and sizes typed into the Free Transform bar land on whole pixels, like Photoshop&apos;s &quot;Snap Vector Tools and Transforms to Pixel Grid&quot;. Rotated transforms are not snapped. When off, a typed fraction such as 3.4 px is kept and the pixels are resampled.</source>
+        <translation>自由変形バーに入力した位置とサイズは、Photoshop の「ベクトルツールと変形をピクセルグリッドにスナップ」と同様に整数ピクセルに揃います。回転した変形はスナップされません。オフにすると、3.4 px のような小数の入力はそのまま保持され、ピクセルが再サンプルされます。</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

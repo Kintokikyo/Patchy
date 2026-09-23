@@ -544,6 +544,15 @@ void MainWindow::show_preferences() {
          "percentages, or the angle and how far it turned."));
   transform_values_check->setChecked(show_transform_drag_values_);
   application_form->addRow(transform_values_check);
+  auto* transform_snap_check = new QCheckBox(tr("Snap transforms to the pixel grid"), application_group);
+  transform_snap_check->setObjectName(QStringLiteral("preferencesTransformSnapToPixelGridCheck"));
+  transform_snap_check->setToolTip(
+      tr("Positions and sizes typed into the Free Transform bar land on whole pixels, like "
+         "Photoshop's \"Snap Vector Tools and Transforms to Pixel Grid\". Rotated transforms are "
+         "not snapped. When off, a typed fraction such as 3.4 px is kept and the pixels are "
+         "resampled."));
+  transform_snap_check->setChecked(snap_transforms_to_pixel_grid_);
+  application_form->addRow(transform_snap_check);
   auto* zoom_thumbnails_check =
       new QCheckBox(tr("Zoom layer thumbnails to the layer content"), application_group);
   zoom_thumbnails_check->setObjectName(QStringLiteral("preferencesZoomLayerThumbnailsCheck"));
@@ -1123,6 +1132,7 @@ void MainWindow::show_preferences() {
     wheel_zooms_ = pen_wheel_zoom_check->isChecked();
     shift_keeps_transform_aspect_ = transform_shift_aspect_check->isChecked();
     show_transform_drag_values_ = transform_values_check->isChecked();
+    snap_transforms_to_pixel_grid_ = transform_snap_check->isChecked();
     if (zoom_layer_thumbnails_to_content_ != zoom_thumbnails_check->isChecked()) {
       zoom_layer_thumbnails_to_content_ = zoom_thumbnails_check->isChecked();
       // The mode is a shape input the revision-keyed cache does not track;
@@ -1376,6 +1386,7 @@ void MainWindow::apply_pen_input_settings(CanvasWidget* canvas) const {
   canvas->set_wheel_zooms(wheel_zooms_);
   canvas->set_shift_keeps_transform_aspect(shift_keeps_transform_aspect_);
   canvas->set_show_transform_drag_values(show_transform_drag_values_);
+  canvas->set_snap_transforms_to_pixel_grid(snap_transforms_to_pixel_grid_);
 }
 
 void MainWindow::handle_pen_button_action(PenButtonAction action) {
@@ -1451,6 +1462,8 @@ void MainWindow::load_pen_input_settings() {
   shift_keeps_transform_aspect_ =
       settings.value(QStringLiteral("input/shiftKeepsTransformAspect"), false).toBool();
   show_transform_drag_values_ = settings.value(QStringLiteral("view/showTransformValues"), true).toBool();
+  snap_transforms_to_pixel_grid_ =
+      settings.value(QStringLiteral("input/snapTransformsToPixelGrid"), true).toBool();
   apply_pen_input_settings(canvas_);
 }
 
@@ -1474,6 +1487,7 @@ void MainWindow::save_pen_input_settings() const {
   settings.setValue(QStringLiteral("input/wheelZooms"), wheel_zooms_);
   settings.setValue(QStringLiteral("input/shiftKeepsTransformAspect"), shift_keeps_transform_aspect_);
   settings.setValue(QStringLiteral("view/showTransformValues"), show_transform_drag_values_);
+  settings.setValue(QStringLiteral("input/snapTransformsToPixelGrid"), snap_transforms_to_pixel_grid_);
 }
 
 void MainWindow::load_view_settings() {

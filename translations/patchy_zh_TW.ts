@@ -17295,6 +17295,14 @@ Y：%2
         <source>Elliptical Marquee: drag to select. Drag a handle to resize the selection, or drag inside it to move it.</source>
         <translation>橢圓選取畫面:拖曳以選取。拖曳控制點可調整選取範圍大小，在選取範圍內拖曳可移動它。</translation>
     </message>
+    <message>
+        <source>Snap transforms to the pixel grid</source>
+        <translation>將變形對齊至像素格線</translation>
+    </message>
+    <message>
+        <source>Positions and sizes typed into the Free Transform bar land on whole pixels, like Photoshop&apos;s &quot;Snap Vector Tools and Transforms to Pixel Grid&quot;. Rotated transforms are not snapped. When off, a typed fraction such as 3.4 px is kept and the pixels are resampled.</source>
+        <translation>在任意變形列中輸入的位置與大小會落在整數像素上，與 Photoshop 的「將向量工具和變形對齊至像素格線」相同。旋轉的變形不會對齊。關閉時，輸入的小數（例如 3.4 px）會保留，並重新取樣像素。</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

@@ -454,6 +454,192 @@ void ui_psd_point_text_edit_origin_stays_at_glyph_top_after_transform() {
   CHECK(after_y <= moved_bounds.y + 16);
 }
 
+// One point-text layer per session, re-rendered through a numeric Free Transform (X + 40), so
+// the raster comes back from the stored transform's anchor.
+struct TextAnchorProbe {
+  patchy::Rect bounds;
+  std::vector<std::uint8_t> bytes;
+  double tx{0.0};
+  double ty{0.0};
+};
+
+TextAnchorProbe text_anchor_probe(patchy::ui::MainWindow& window, double anchor_y) {
+  patchy::Document document(420, 260, patchy::PixelFormat::rgba8());
+  document.add_pixel_layer("Background", solid_pixels(420, 260, patchy::PixelFormat::rgba8(), QColor(Qt::white)));
+  auto pixels = solid_pixels(240, 70, patchy::PixelFormat::rgba8(), QColor(0, 0, 0, 0));
+  fill_pixel_rect(pixels, QRect(0, 0, 200, 44), QColor(24, 24, 24, 255));
+  patchy::Layer text_layer(document.allocate_layer_id(), "Text: Anchor", std::move(pixels));
+  const auto id = text_layer.id();
+  text_layer.set_bounds(patchy::Rect{100, 100, 240, 70});
+  text_layer.metadata()[patchy::kLayerMetadataText] = "Anchor";
+  text_layer.metadata()[patchy::kLayerMetadataTextRuns] = "v1\n0\t6\t48\t0\t0\t#181818\tArial";
+  text_layer.metadata()[patchy::kLayerMetadataTextParagraphRuns] = "v1\n0\t6\tleft";
+  text_layer.metadata()[patchy::kLayerMetadataTextFlow] = "point";
+  text_layer.metadata()[patchy::kLayerMetadataTextFont] = "Arial";
+  text_layer.metadata()[patchy::kLayerMetadataTextSize] = "48";
+  text_layer.metadata()[patchy::kLayerMetadataTextColor] = "#181818";
+  text_layer.metadata()[patchy::kLayerMetadataTextBold] = "false";
+  text_layer.metadata()[patchy::kLayerMetadataTextItalic] = "false";
+  text_layer.metadata()[patchy::kLayerMetadataTextAntiAlias] = "3";
+  text_layer.metadata()[patchy::kLayerMetadataTextTransform] =
+      patchy::serialize_layer_affine_transform(patchy::LayerAffineTransform{1.0, 0.0, 0.0, 1.0, 100.0, anchor_y});
+  document.add_layer(std::move(text_layer));
+  document.set_active_layer(id);
+  window.add_document_session(std::move(document), QStringLiteral("Text Anchor %1").arg(anchor_y));
+  auto* canvas = require_canvas(window);
+  canvas->set_zoom(1.0);
+  QApplication::processEvents();
+
+  require_action(window, "editFreeTransformAction")->trigger();
+  QApplication::processEvents();
+  CHECK(canvas->free_transform_active());
+  auto* x_spin = window.findChild<QDoubleSpinBox*>(QStringLiteral("freeTransformXSpin"));
+  auto* apply = window.findChild<QPushButton*>(QStringLiteral("freeTransformApplyButton"));
+  CHECK(x_spin != nullptr);
+  CHECK(apply != nullptr);
+  if (x_spin == nullptr || apply == nullptr) {
+    return {};
+  }
+  x_spin->setValue(x_spin->value() + 40.0);
+  QApplication::processEvents();
+  apply->click();
+  QApplication::processEvents();
+  CHECK(!canvas->free_transform_active());
+
+  TextAnchorProbe probe;
+  const auto* moved = std::as_const(patchy::ui::MainWindowTestAccess::document(window)).find_layer(id);
+  CHECK(moved != nullptr);
+  if (moved == nullptr) {
+    return probe;
+  }
+  CHECK(moved->metadata().at(patchy::kLayerMetadataTextRasterStatus) == "patchy_raster");
+  probe.bounds = moved->bounds();
+  const auto data = moved->pixels().data();
+  probe.bytes.assign(data.begin(), data.end());
+  const auto transform = patchy::parse_layer_affine_transform(moved->metadata().at(patchy::kLayerMetadataTextTransform));
+  CHECK(transform.has_value());
+  if (transform.has_value()) {
+    probe.tx = (*transform)[4];
+    probe.ty = (*transform)[5];
+  }
+  return probe;
+}
+
+// Photoshop rasterizes type from its anchor rounded to a whole pixel (halves up): ty 148.3
+// renders exactly like 148.0 and 148.5 exactly like 149.0, while the stored transform keeps
+// the fraction (photoshop-text-anchor-*.psd pin the same rule on Photoshop's own rasters).
+void ui_text_transform_rerender_rounds_anchor_like_photoshop() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  const auto whole = text_anchor_probe(window, 148.0);
+  const auto below_half = text_anchor_probe(window, 148.3);
+  const auto half = text_anchor_probe(window, 148.5);
+  const auto next = text_anchor_probe(window, 149.0);
+  CHECK(!whole.bytes.empty());
+
+  CHECK(below_half.bounds.x == whole.bounds.x);
+  CHECK(below_half.bounds.y == whole.bounds.y);
+  CHECK(below_half.bounds.width == whole.bounds.width);
+  CHECK(below_half.bounds.height == whole.bounds.height);
+  CHECK(below_half.bytes == whole.bytes);
+
+  CHECK(half.bounds.x == next.bounds.x);
+  CHECK(half.bounds.y == next.bounds.y);
+  CHECK(half.bounds.width == next.bounds.width);
+  CHECK(half.bounds.height == next.bounds.height);
+  CHECK(half.bytes == next.bytes);
+
+  CHECK(next.bounds.x == whole.bounds.x);
+  CHECK(next.bounds.y == whole.bounds.y + 1);
+  CHECK(next.bytes == whole.bytes);
+
+  // The numeric move composed a whole-pixel delta; the anchor's fraction survived it.
+  CHECK(std::abs(whole.tx - 140.0) < 1e-9);
+  CHECK(std::abs(below_half.ty - 148.3) < 1e-9);
+  CHECK(std::abs(half.ty - 148.5) < 1e-9);
+}
+
+// Photoshop keeps a fractional click point (tx 100.4, ty 60.6) and renders from its rounding.
+// Editing box text without moving it keeps that fraction in the stored transform (so the layer
+// reopens in Photoshop where it was) while the raster lands on the rounded origin.
+void ui_box_text_edit_keeps_fractional_anchor() {
+  patchy::Document document(420, 260, patchy::PixelFormat::rgba8());
+  document.add_pixel_layer("Background", solid_pixels(420, 260, patchy::PixelFormat::rgba8(), QColor(Qt::white)));
+  auto pixels = solid_pixels(180, 64, patchy::PixelFormat::rgba8(), QColor(0, 0, 0, 0));
+  fill_pixel_rect(pixels, QRect(0, 0, 150, 40), QColor(32, 32, 32, 255));
+  patchy::Layer text_layer(document.allocate_layer_id(), "Text: Boxed", std::move(pixels));
+  const auto id = text_layer.id();
+  // Bounds at the ROUNDED anchor (100.4 -> 100, 60.6 -> 61), where a Photoshop import lands.
+  text_layer.set_bounds(patchy::Rect{100, 61, 180, 64});
+  text_layer.metadata()[patchy::kLayerMetadataText] = "Boxed";
+  text_layer.metadata()[patchy::kLayerMetadataTextFlow] = "box";
+  text_layer.metadata()[patchy::kLayerMetadataTextFont] = "Arial";
+  text_layer.metadata()[patchy::kLayerMetadataTextSize] = "36";
+  text_layer.metadata()[patchy::kLayerMetadataTextColor] = "#202020";
+  text_layer.metadata()[patchy::kLayerMetadataTextBold] = "false";
+  text_layer.metadata()[patchy::kLayerMetadataTextItalic] = "false";
+  text_layer.metadata()[patchy::kLayerMetadataTextAntiAlias] = "3";
+  text_layer.metadata()[patchy::kLayerMetadataTextBoxWidth] = "180";
+  text_layer.metadata()[patchy::kLayerMetadataTextBoxHeight] = "64";
+  text_layer.metadata()[patchy::kLayerMetadataTextTransform] =
+      patchy::serialize_layer_affine_transform(patchy::LayerAffineTransform{1.0, 0.0, 0.0, 1.0, 100.4, 60.6});
+  document.add_layer(std::move(text_layer));
+  document.set_active_layer(id);
+
+  patchy::ui::MainWindow window;
+  show_window(window);
+  window.add_document_session(std::move(document), QStringLiteral("Fractional Box Anchor"));
+  auto* canvas = require_canvas(window);
+  canvas->set_zoom(1.0);
+  QApplication::processEvents();
+
+  require_action_by_text(window, QStringLiteral("Type"))->trigger();
+  const auto hit_point = canvas->widget_position_for_document_point(QPoint(150, 90));
+  send_mouse(*canvas, QEvent::MouseButtonPress, hit_point, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, hit_point, Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  auto* editor = canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
+  CHECK(editor != nullptr);
+  if (editor == nullptr) {
+    return;
+  }
+  CHECK(editor->toPlainText() == QStringLiteral("Boxed"));
+  CHECK(editor->property("patchy.documentTextX").toInt() == 100);
+  CHECK(editor->property("patchy.documentTextY").toInt() == 61);
+  QTextCursor cursor(editor->document());
+  cursor.movePosition(QTextCursor::End);
+  editor->setTextCursor(cursor);
+  editor->insertPlainText(QStringLiteral("!"));
+  QApplication::processEvents();
+
+  // Ctrl+T commits the editor before starting its session; Escape then cancels the session.
+  require_action(window, "editFreeTransformAction")->trigger();
+  QApplication::processEvents();
+  CHECK(canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor")) == nullptr);
+  send_key(*canvas, Qt::Key_Escape);
+  QApplication::processEvents();
+  CHECK(!canvas->free_transform_active());
+
+  const auto* committed = std::as_const(patchy::ui::MainWindowTestAccess::document(window)).find_layer(id);
+  CHECK(committed != nullptr);
+  if (committed == nullptr) {
+    return;
+  }
+  CHECK(committed->metadata().at(patchy::kLayerMetadataText) == "Boxed!");
+  // The box raster is placed at the rounded frame origin; its buffer carries the line
+  // clip band's top bleed above the frame, so y sits at most a few rows above 61.
+  CHECK(committed->bounds().x == 100);
+  CHECK(committed->bounds().y <= 61);
+  CHECK(committed->bounds().y >= 57);
+  const auto transform =
+      patchy::parse_layer_affine_transform(committed->metadata().at(patchy::kLayerMetadataTextTransform));
+  CHECK(transform.has_value());
+  if (transform.has_value()) {
+    CHECK(std::abs((*transform)[4] - 100.4) < 1e-9);
+    CHECK(std::abs((*transform)[5] - 60.6) < 1e-9);
+  }
+}
+
 void ui_imported_psd_text_preview_preserves_paragraph_layout() {
   if (skip_without_arial_for_psd_text_preview()) {
     return;
@@ -3326,6 +3512,9 @@ std::vector<patchy::test::TestCase> psd_text_import_tests() {
        ui_imported_psd_text_uses_photoshop_frame_after_commit},
       {"ui_psd_point_text_edit_origin_stays_at_glyph_top_after_transform",
        ui_psd_point_text_edit_origin_stays_at_glyph_top_after_transform},
+      {"ui_text_transform_rerender_rounds_anchor_like_photoshop",
+       ui_text_transform_rerender_rounds_anchor_like_photoshop},
+      {"ui_box_text_edit_keeps_fractional_anchor", ui_box_text_edit_keeps_fractional_anchor},
       {"ui_psd_point_text_edit_origin_survives_scale_transform_if_available",
        ui_psd_point_text_edit_origin_survives_scale_transform_if_available},
       {"ui_psd_point_text_transform_scales_crisply", ui_psd_point_text_transform_scales_crisply},

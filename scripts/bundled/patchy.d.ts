@@ -256,7 +256,11 @@ interface PatchyLayer {
   /** Text layers: paragraph base direction, "auto" (first strong character), "ltr" or "rtl". Setting it re-renders. */
   textDirection: 'auto' | 'ltr' | 'rtl';
 
-  /** Finite signed 32-bit positions; throws if the position or resulting bounds overflow. */
+  /**
+   * Finite signed 32-bit positions; throws if the position or resulting bounds overflow.
+   * Layers sit on whole pixels: a fraction rounds like Photoshop (halves up, 3.5 -> 4,
+   * -3.5 -> -3), the same rule `x`/`y` assignment uses.
+   */
   moveTo(x: number, y: number): void;
   /**
    * Inserts the copy directly above this layer and returns it. With another
