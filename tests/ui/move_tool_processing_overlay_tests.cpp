@@ -4408,6 +4408,33 @@ void ui_move_release_defers_accurate_patches_behind_a_hold() {
   CHECK(images_equal_rgba(committed, scene.reference_image()));
 }
 
+// While the deferred commit's accurate render is still running, the canvas
+// shows the held preview frame: past the standard overlay delay the
+// "Processing..." badge says so (a 4000x2781 styled poster takes 2-10 s per
+// Move, Undo, or Redo to catch up, and the frozen frame read as broken).
+void ui_move_deferred_commit_shows_processing_badge_after_delay() {
+  EnvironmentVariableRestorer restore_overlay_delay{"PATCHY_PROCESSING_OVERLAY_DELAY_MS"};
+  DeferredMoveScene scene;
+  qputenv("PATCHY_PROCESSING_OVERLAY_DELAY_MS", QByteArray("100"));
+  scene.drag_right(QPoint(70, 70));
+  CHECK(scene.canvas->move_commit_job_pending());
+  // Inside the delay: nothing yet.
+  CHECK(!scene.canvas->background_refresh_overlay_visible());
+  const auto frames_before = scene.canvas->render_cache_diagnostics().processing_overlay_frames;
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(300);
+  while (std::chrono::steady_clock::now() < deadline && scene.canvas->move_commit_job_pending()) {
+    QApplication::processEvents();
+    QThread::msleep(10);
+  }
+  CHECK(scene.canvas->move_commit_job_pending());
+  CHECK(scene.canvas->background_refresh_overlay_visible());
+  // The animation timer kept itself alive to paint it.
+  CHECK(scene.canvas->render_cache_diagnostics().processing_overlay_frames > frames_before);
+  scene.settle();
+  CHECK(!scene.canvas->move_commit_job_pending());
+  CHECK(!scene.canvas->background_refresh_overlay_visible());
+}
+
 // A document change while the job is pending (Undo here) drops the job and
 // refreshes the stale region itself.
 void ui_move_deferred_commit_yields_to_undo() {
@@ -4556,6 +4583,8 @@ void ui_move_rapid_commits_keep_latest_region_and_exact_pixels() {
 
 }  // namespace
 
+
+
 std::vector<patchy::test::TestCase> move_tool_processing_overlay_tests() {
   return {
       {"ui_move_cold_preview_is_async_and_uses_latest_delta", ui_move_cold_preview_is_async_and_uses_latest_delta},
@@ -4653,6 +4682,8 @@ std::vector<patchy::test::TestCase> move_tool_processing_overlay_tests() {
        ui_move_commit_ignores_reentrant_input_during_processing_wait},
       {"ui_move_release_defers_accurate_patches_behind_a_hold",
        ui_move_release_defers_accurate_patches_behind_a_hold},
+      {"ui_move_deferred_commit_shows_processing_badge_after_delay",
+       ui_move_deferred_commit_shows_processing_badge_after_delay},
       {"ui_move_deferred_commit_yields_to_undo", ui_move_deferred_commit_yields_to_undo},
       {"ui_move_deferred_commit_serves_exact_pixels_to_readers",
        ui_move_deferred_commit_serves_exact_pixels_to_readers},

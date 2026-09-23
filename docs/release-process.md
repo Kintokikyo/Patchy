@@ -8,8 +8,9 @@ Desktop packages include `patchy-mcp` and the assembled `patchy-control` skill.
 Staging and resource paths are specified in [ai-control.md](ai-control.md). Each
 desktop packaging script runs the installed connector's `--check` smoke test;
 Windows signs both executables and macOS deploys Qt for both. The remote build
-helper caps builds at six jobs and runs builds/tests with lower priority.
-The Flatpak packager also runs its sandbox build at lower priority with six jobs.
+helper builds with every core but four (`getconf _NPROCESSORS_ONLN` minus 4, at
+least one) and runs builds/tests with lower priority. The Flatpak packager runs its
+sandbox build at lower priority with the same job count.
 
 When bumping the release version, update the version fields:
 
@@ -26,6 +27,8 @@ When bumping the release version, update the version fields:
   Keep the `[Older releases](RELEASE-HISTORY.md)` link immediately after the two
   README entries. `RELEASE-HISTORY.md` stays newest-first and must not duplicate
   either release still shown in the README.
+- The code contributor credits, for any pull request accepted since the last
+  release (see "What's New author credits" below).
 
 ## What's New author credits
 
@@ -37,6 +40,16 @@ the commits behind each bullet (e.g. `git log --format='%an %s'`) rather than
 assuming, and when one bullet mixes work from more than one person, credit the
 specific clause that person wrote (see the existing 0.10/0.12 entries in
 `RELEASE-HISTORY.md` for the mid-bullet style).
+
+Every version bump also checks for newly accepted pull requests (Seth, September
+2026): `gh pr list --state merged --limit 50 --json number,title,author,mergedAt`,
+plus `git log --format='%an <%ae>' | sort -u` for work merged by hand. Each new
+contributor gets an entry in `kContributors` (`src/ui/app_credits.cpp`, which
+feeds the About dialog and the start panel; update the `splashContributors` and
+`startPanelContributors` checks in `tests/ui/app_shell_tests.cpp`) and in the
+README's "Code contributions from" line under Credits, in merge order. Credit
+the GitHub handle, never the person's real or display name (they may not want
+it broadcast), linked to `https://github.com/<handle>`.
 
 ## Build and upload order
 
@@ -96,7 +109,7 @@ Every build entry point (`scripts\release\build-release.bat`, `scripts\run-tests
 ## Agent/non-interactive runs
 
 1. Launch from cmd or Windows PowerShell 5.1, not Git Bash and not pwsh 7. Bash mangles the quoted `start "<title>"` and Seth gets a modal "Windows cannot find" dialog while nothing launches. pwsh 7 puts its own module directories on `PSModulePath`, the `powershell` 5.1 one-liners inside the scripts then load an incompatible `Microsoft.PowerShell.Utility`, `Get-FileHash` is "not recognized", and `upload-one-file.bat` refuses every desktop upload. From pwsh 7, reset `PSModulePath` first to `%USERPROFILE%\Documents\WindowsPowerShell\Modules;%ProgramFiles%\WindowsPowerShell\Modules;%SystemRoot%\system32\WindowsPowerShell\v1.0\Modules`.
-2. Run `cmd /c scripts\release\release-all-automated.bat` (no arguments: the four builders; or name targets such as `windows wasm`, `upload-wasm`, or `upload-all` to run a subset). It starts every target through `scripts\release\release-worker.bat`, which sets `NO_PAUSE=1`, `CMAKE_BUILD_PARALLEL_LEVEL=6`, and the Windows PowerShell 5.1 `PSModulePath` itself, logs to `build\release-logs\<target>.log`, and writes `exit=<code>` to `build\release-logs\<target>.exit` when the target ends. `NO_PAUSE=1` is what keeps `%RT_PROJECTS%\Signing\sign.bat` and the upload scripts from waiting on a key. Never launch a builder or upload script by hand for an unattended run: without `NO_PAUSE` it stops on a `pause` with no marker, which looks like a hung build.
+2. Run `cmd /c scripts\release\release-all-automated.bat` (no arguments: the four builders; or name targets such as `windows wasm`, `upload-wasm`, or `upload-all` to run a subset). It starts every target through `scripts\release\release-worker.bat`, which sets `NO_PAUSE=1`, `CMAKE_BUILD_PARALLEL_LEVEL=20` (local Windows and wasm builds; the remote mac/Linux helpers use every core but four), and the Windows PowerShell 5.1 `PSModulePath` itself, logs to `build\release-logs\<target>.log`, and writes `exit=<code>` to `build\release-logs\<target>.exit` when the target ends. `NO_PAUSE=1` is what keeps `%RT_PROJECTS%\Signing\sign.bat` and the upload scripts from waiting on a key. Never launch a builder or upload script by hand for an unattended run: without `NO_PAUSE` it stops on a `pause` with no marker, which looks like a hung build.
 3. Wait for the `.exit` files, never for the consoles (`release-mac.bat` and `release-linux.bat` end in an unconditional `pause`, which is why the worker calls the `.ps1` files directly). Judge each target by its code and its log. Do not capture exit codes with Windows PowerShell 5.1's `Start-Process -PassThru` while redirecting output: its `ExitCode` comes back empty there. If you write your own marker, put the redirect first (`>"marker" echo exit=%ERRORLEVEL%`), never `echo %ERRORLEVEL%> "marker"`: cmd reads a digit directly before `>` as a file-handle number, so a zero exit redirects stdin and leaves the marker empty.
 4. In any wrapper of your own, invoke the test binaries as `.\patchy_core_tests.exe`, a path (a bare name exits 9009 under `NoDefaultCurrentDirectoryInExePath`), and directly, not through a second `start "" /b /wait`, which would make the recorded `%ERRORLEVEL%` always 0. Where a single command does need throttling, `scripts\run-throttled.bat` both lowers priority and returns the child's code.
 5. Run the suites one at a time and not alongside a build (they share the QSettings store; see [testing.md](testing.md)). The tests themselves tolerate a loaded machine: wall-clock limits are hang guards, not performance bounds.

@@ -740,11 +740,6 @@ public:
   // A Path Select / Direct Select double-click on the target shape layer's
   // geometry (anchor, segment, or a painted pixel) opens its appearance editor.
   void set_shape_appearance_requested_callback(std::function<void()> callback);
-  // A Move-tool double-click on the selected layer's transform target (the box
-  // the passive controls would frame, shown or not) asks the host to start
-  // Free Transform through the same path as Edit > Free Transform (Ctrl+T), so
-  // the position-lock and non-pixel refusals match the menu's.
-  void set_free_transform_requested_callback(std::function<void()> callback);
   // Pen tool (canvas_widget_vector_tools.cpp - the tablet-input TU is
   // canvas_widget_pen.cpp): a committed path arrives as one subpath.
   void set_vector_path_committed_callback(
@@ -958,6 +953,12 @@ public:
   // Callers pair begin at worker spawn with end in the queued completion.
   void begin_preview_render();
   void end_preview_render();
+  // True while a background full refresh (the deferred-async route that keeps
+  // the previous frame on screen) or a deferred Move commit job has been
+  // running longer than the standard overlay delay: the frame on screen is
+  // then known to be out of date, and the overlay says "Processing..." so a
+  // multi-second catch-up on a heavy document reads as working, not stuck.
+  [[nodiscard]] bool background_refresh_overlay_visible() const noexcept;
   bool wait_for_processing_operation(std::function<bool()> operation_ready, bool allow_overlay = true);
   // True while a blocking processing wait is running. Input that arrives then is
   // wasm's re-entrant DOM delivery into the nested wait loop (docs/wasm.md); the
@@ -1130,6 +1131,10 @@ public:
   // The commands the host offers when a right-click lands on the active vector
   // shape layer (Shape Appearance, Free Transform, ...); same contract.
   void set_shape_context_actions_callback(std::function<QList<QAction*>()> callback);
+  // The commands the host offers when a Move-tool right-click lands inside the
+  // Move outline of the active layer that is not a shape or a group (Free
+  // Transform); same contract.
+  void set_layer_context_actions_callback(std::function<QList<QAction*>()> callback);
   // Blocking refusals (the tool action did NOT happen) report through this
   // callback so the host can present them as errors; unset, they fall back to
   // the plain status callback.
@@ -2056,7 +2061,6 @@ private:
   std::function<void(CanvasTool, QPointF)> shape_create_requested_callback_;
   // Path Select / Direct Select double-click on a shape layer's geometry.
   std::function<void()> shape_appearance_requested_callback_;
-  std::function<void()> free_transform_requested_callback_;
   std::function<std::optional<ShapePreviewAppearance>()> shape_preview_appearance_callback_;
   int polygon_sides_{5};
   int polygon_star_inset_{0};
@@ -2440,6 +2444,10 @@ private:
   std::optional<DeferredWaitRelease> deferred_wait_release_;
   int preview_renders_in_flight_{0};
   QElapsedTimer preview_render_started_{};
+  // Started when a background refresh or deferred Move commit begins with
+  // nothing else of the kind in flight; invalid once both are idle.
+  QElapsedTimer background_refresh_started_{};
+  void note_background_refresh_state();
   int processing_operation_depth_{0};
   int processing_operation_delay_ms_{-1};  // <0 = processing_overlay_delay_ms()
   std::chrono::steady_clock::time_point processing_operation_started_{};
@@ -2714,6 +2722,7 @@ private:
   std::function<void(QString)> status_callback_;
   std::function<QList<QAction*>()> selection_context_actions_callback_;
   std::function<QList<QAction*>()> shape_context_actions_callback_;
+  std::function<QList<QAction*>()> layer_context_actions_callback_;
   bool vector_preview_enabled_{false};
   std::uint64_t vector_preview_generation_{1};
   std::uint64_t vector_preview_completed_generation_{0};

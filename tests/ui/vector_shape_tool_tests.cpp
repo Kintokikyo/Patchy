@@ -6,6 +6,7 @@
 #include "core/document_path.hpp"
 #include "core/pixel_buffer.hpp"
 #include "core/vector_shape.hpp"
+#include "core/vector_raster.hpp"
 #include "ui/default_custom_shapes.hpp"
 #include "ui/pattern_library.hpp"
 
@@ -623,6 +624,98 @@ void ui_free_transform_scales_shape_layer_crisply() {
   QApplication::processEvents();
   layer = document.find_layer(layer_id);
   CHECK(std::abs(layer->vector_shape()->path.subpaths[0].anchors[2].anchor_x - 300.0) < 0.5);
+}
+
+// Free Transform's box on a shape hugs the ink, stroke included, but the commit
+// transforms only the path and keeps the stroke width. The path must map so the
+// redrawn ink fills the dragged box: before, a 20 px outside stroke made the
+// fixed corner creep 3 px per transform and the dragged corner miss the box.
+void ui_free_transform_shape_with_outside_stroke_lands_on_box() {
+  VectorSettingsGuard settings_guard;
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  const auto layer_id = make_rect_shape_layer(window, *canvas);
+  {
+    auto* layer = document.find_layer(layer_id);
+    CHECK(layer != nullptr && layer->vector_shape() != nullptr);
+    auto content = *layer->vector_shape();
+    content.stroke.enabled = true;
+    content.stroke.width = 20.0;
+    content.stroke.alignment = patchy::VectorStrokeAlignment::Outside;
+    content.stroke.content.kind = patchy::VectorFillKind::Solid;
+    content.stroke.content.color = patchy::RgbColor{200, 30, 30};
+    layer->set_vector_shape(std::move(content));
+    patchy::update_vector_shape_raster(*layer, patchy::Rect::from_size(document.width(), document.height()),
+                                       &document.metadata().patterns);
+    canvas->document_changed();
+    QApplication::processEvents();
+  }
+  const auto ink = [&] { return document.find_layer(layer_id)->bounds(); };
+  CHECK(ink().x == 80 && ink().y == 80 && ink().width == 240 && ink().height == 160);
+
+  // Shift frees the aspect ratio (the Photoshop CC default pairing).
+  const QPoint targets[] = {QPoint(400, 300), QPoint(360, 330)};
+  for (const auto target : targets) {
+    const auto before = ink();
+    require_action(window, "editFreeTransformAction")->trigger();
+    QApplication::processEvents();
+    CHECK(canvas->free_transform_active());
+    drag(*canvas, canvas->widget_position_for_document_point(QPoint(before.x + before.width, before.y + before.height)),
+         canvas->widget_position_for_document_point(target), Qt::ShiftModifier);
+    QApplication::processEvents();
+    send_key(*canvas, Qt::Key_Return);
+    QApplication::processEvents();
+    CHECK(!canvas->free_transform_active());
+    const auto after = ink();
+    CHECK(std::abs(after.x - 80) <= 1 && std::abs(after.y - 80) <= 1);
+    CHECK(std::abs(after.x + after.width - target.x()) <= 1);
+    CHECK(std::abs(after.y + after.height - target.y()) <= 1);
+    const auto* content = document.find_layer(layer_id)->vector_shape();
+    CHECK(content != nullptr && content->stroke.width == 20.0);
+    const auto path = content->path.bounds();
+    CHECK(path.has_value() && std::abs(path->left - 100.0) < 1.0 && std::abs(path->right - (target.x() - 20.0)) < 1.0);
+  }
+}
+
+// A Free Transform that leaves a shape wholly on the pasteboard used to bake
+// it clipped to the canvas, i.e. to nothing: the Move tool reported "Click an
+// editable layer to move" and the shape could not be brought back. The bake
+// now covers the shape wherever it sits, so the plain Move drag returns it.
+void ui_shape_moved_off_canvas_by_free_transform_moves_back() {
+  VectorSettingsGuard settings_guard;
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  const auto layer_id = make_rect_shape_layer(window, *canvas);
+  canvas->set_tool(patchy::ui::CanvasTool::Move);
+  canvas->set_auto_select_layer(false);
+  canvas->set_zoom(0.25);
+  QApplication::processEvents();
+  const auto on_canvas = canvas->widget_position_for_document_point(QPoint(200, 160));
+  const auto below_canvas = canvas->widget_position_for_document_point(QPoint(200, 1300));
+
+  require_action(window, "editFreeTransformAction")->trigger();
+  QApplication::processEvents();
+  CHECK(canvas->free_transform_active());
+  drag(*canvas, on_canvas, below_canvas);
+  QApplication::processEvents();
+  send_key(*canvas, Qt::Key_Return);
+  QApplication::processEvents();
+  CHECK(!canvas->free_transform_active());
+  const auto* layer = document.find_layer(layer_id);
+  CHECK(layer != nullptr && !layer->pixels().empty());
+  CHECK(layer->bounds().y > document.height() && layer->bounds().width == 200 && layer->bounds().height == 120);
+
+  drag(*canvas, below_canvas, on_canvas);
+  QApplication::processEvents();
+  layer = document.find_layer(layer_id);
+  CHECK(layer->bounds().x == 100 && layer->bounds().y == 100);
+  CHECK(layer->bounds().width == 200 && layer->bounds().height == 120);
+  const auto path = layer->vector_shape()->path.bounds();
+  CHECK(path.has_value() && std::abs(path->top - 100.0) < 0.5 && std::abs(path->bottom - 220.0) < 0.5);
 }
 
 void ui_polygon_tool_creates_polygons_and_stars() {
@@ -4053,6 +4146,10 @@ std::vector<patchy::test::TestCase> vector_shape_tool_tests() {
        ui_paths_panel_fill_stroke_and_make_selection},
       {"ui_free_transform_scales_shape_layer_crisply",
        ui_free_transform_scales_shape_layer_crisply},
+      {"ui_shape_moved_off_canvas_by_free_transform_moves_back",
+       ui_shape_moved_off_canvas_by_free_transform_moves_back},
+      {"ui_free_transform_shape_with_outside_stroke_lands_on_box",
+       ui_free_transform_shape_with_outside_stroke_lands_on_box},
       {"ui_polygon_tool_creates_polygons_and_stars", ui_polygon_tool_creates_polygons_and_stars},
       {"ui_custom_shape_stamps_and_defines", ui_custom_shape_stamps_and_defines},
       {"ui_custom_shape_builtin_geometry_refreshes", ui_custom_shape_builtin_geometry_refreshes},

@@ -3658,20 +3658,14 @@ void MainWindow::distribute_selected_layers(DistributeMode mode) {
 }
 
 void MainWindow::set_align_to_canvas(bool align_to_canvas) {
-  if (align_to_canvas_ == align_to_canvas) {
-    return;
-  }
   align_to_canvas_ = align_to_canvas;
-  if (layer_align_to_canvas_action_ != nullptr && layer_align_to_canvas_action_->isChecked() != align_to_canvas) {
-    QSignalBlocker blocker(layer_align_to_canvas_action_);
-    layer_align_to_canvas_action_->setChecked(align_to_canvas);
+  // Check the chosen action with its signals live: the exclusive QActionGroup
+  // unchecks the other one from QAction::changed. Blocking them left the group's
+  // current action stale, so a later click could show both entries checked.
+  auto* chosen = align_to_canvas ? layer_align_to_canvas_action_ : layer_align_to_selection_action_;
+  if (chosen != nullptr && !chosen->isChecked()) {
+    chosen->setChecked(true);
   }
-  if (layer_align_to_selection_action_ != nullptr &&
-      layer_align_to_selection_action_->isChecked() == align_to_canvas) {
-    QSignalBlocker blocker(layer_align_to_selection_action_);
-    layer_align_to_selection_action_->setChecked(!align_to_canvas);
-  }
-  schedule_save_tool_settings();
 }
 
 void MainWindow::refresh_layer_alignment_action_states() {

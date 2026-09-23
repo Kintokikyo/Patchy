@@ -221,6 +221,11 @@ struct LayerRecord {
   std::optional<std::string> text_source_block;
   bool text_patchy_generated_type_block{false};
   std::optional<PsdTextGeometry> text_geometry;
+  // A Patchy-signed box block's baseline inset (-'bounds' top), folded back out of
+  // text_geometry on read: the writer moved the transform origin down by it so Photoshop's
+  // first baseline meets Qt's; the frame Patchy edits reopens at the restored origin. Becomes
+  // kLayerMetadataTextBoxBaselineInset.
+  std::optional<double> text_box_baseline_inset;
   std::uint32_t protection_flags{0};
   bool layer_mask_hides_effects{false};
   bool blend_interior_elements{false};

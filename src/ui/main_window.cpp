@@ -3638,9 +3638,20 @@ void preserve_text_editor_typing_format(QTextEdit& editor, const QFont& font, QC
   editor.viewport()->update();
 }
 
+// Layout metrics of a render, stored as kLayerMetadataTextFirstBaseline & co. so the Qt-free
+// PSD writer can place Photoshop's re-layout on this raster. An empty optional means "does not
+// apply" (vertical type; the inset and fraction on Photoshop-layout layers, whose plan already
+// follows Photoshop's rules and must stay byte-stable).
+struct TextLayoutMetrics {
+  std::optional<double> first_baseline;
+  std::optional<double> box_baseline_inset;
+  std::optional<double> auto_leading;
+};
+
 struct RenderedTextPixels {
   PixelBuffer pixels;
   QRectF local_rect;
+  TextLayoutMetrics metrics;
 };
 
 // Photoshop's faux bold, applied to every run that carries kTextFauxBoldFormatProperty: stroke
@@ -4184,6 +4195,100 @@ void draw_text_render_plan(const TextRenderPlan& plan, QPainter& painter) {
   }
 }
 
+// The metrics the PSD writer needs to put Photoshop's re-layout on the pixels this plan draws
+// (docs/text-render-calibration.md, "Patchy text re-renders where Patchy drew it"):
+// - first_baseline: the first drawn line's baseline below the raster's top row (the plan's
+//   local_rect top), in the plan's local units. Photoshop anchors point text at ty = baseline.
+// - box_baseline_inset: Qt's first baseline minus Photoshop's box rule for a Patchy-authored
+//   block (space before + the line's max CAP HEIGHT: PS 27.9 re-renders of the same block with
+//   Arial, Times, Georgia and Verdana at 268 px all put the first baseline at capHeight x size,
+//   docs/text-render-calibration.md), so the writer can move the frame down by it. Qt-natural
+//   box text only. Rounded to 1/64 px (QFixed's own grid) so the writer's shift and the reader's
+//   restore are exact in binary and a reopened file re-saves byte-identically.
+// - auto_leading: Qt's baseline advance (line 2 minus line 1 of the first paragraph, else the
+//   first line's height, which is what Qt advances by) over the dominant run size, written as the
+//   paragraph /AutoLeading so Photoshop's second line lands where Qt's did. Qt-natural only.
+TextLayoutMetrics text_layout_metrics_for_plan(const TextRenderPlan& plan, const TextToolSettings& settings,
+                                               const QString& rich_text_runs) {
+  TextLayoutMetrics metrics;
+  if (plan.built.document == nullptr || plan.vertical || settings.vertical) {
+    return metrics;
+  }
+  const auto& document = *plan.built.document;
+  const auto* layout = document.documentLayout();
+  if (layout == nullptr) {
+    return metrics;
+  }
+  struct NaturalLine {
+    QTextBlock block;
+    QTextLine line;
+    double baseline{0.0};
+  };
+  std::vector<NaturalLine> natural;
+  for (auto block = document.begin(); block.isValid() && natural.size() < 2U; block = block.next()) {
+    auto* text_layout = block.layout();
+    if (text_layout == nullptr) {
+      continue;
+    }
+    const auto origin_y = layout->blockBoundingRect(block).top();
+    for (int i = 0; i < text_layout->lineCount() && natural.size() < 2U; ++i) {
+      const auto line = text_layout->lineAt(i);
+      if (!line.isValid()) {
+        continue;
+      }
+      natural.push_back(NaturalLine{block, line, origin_y + line.y() + line.ascent()});
+    }
+  }
+  if (natural.empty()) {
+    return metrics;
+  }
+  double first_baseline = natural.front().baseline;
+  if (!plan.line_render_items.empty() && plan.line_render_items.front().line.isValid()) {
+    const auto& item = plan.line_render_items.front();
+    first_baseline = item.block_origin.y() + item.line.y() + item.line.ascent();
+  }
+  if (std::isfinite(first_baseline)) {
+    metrics.first_baseline = first_baseline - plan.local_rect.top();
+  }
+  if (settings.photoshop_layout) {
+    return metrics;
+  }
+  if (settings.boxed) {
+    const auto& first = natural.front();
+    const auto line_start = first.block.position() + first.line.textStart();
+    const auto line_end = line_start + std::max(1, first.line.textLength());
+    double cap_height = 0.0;
+    bool found_format = false;
+    for (auto fragment_it = first.block.begin(); !fragment_it.atEnd(); ++fragment_it) {
+      const auto fragment = fragment_it.fragment();
+      if (!fragment.isValid() || fragment.length() <= 0 || fragment.position() + fragment.length() <= line_start ||
+          fragment.position() >= line_end) {
+        continue;
+      }
+      cap_height = std::max(cap_height, QFontMetricsF(fragment.charFormat().font()).capHeight());
+      found_format = true;
+    }
+    if (!found_format) {
+      cap_height = QFontMetricsF(first.block.charFormat().font()).capHeight();
+    }
+    const auto inset = first.baseline - (std::max(0.0, first.block.blockFormat().topMargin()) + cap_height);
+    if (std::isfinite(inset)) {
+      metrics.box_baseline_inset = std::round(inset * 64.0) / 64.0;
+    }
+  }
+  const bool second_line_in_first_block = natural.size() >= 2U && natural[1].block == natural[0].block;
+  const double pitch = second_line_in_first_block ? natural[1].baseline - natural[0].baseline
+                                                  : natural.front().line.height();
+  const auto dominant = dominant_text_run_size(settings, rich_text_runs);
+  if (std::isfinite(pitch) && pitch > 0.0 && std::isfinite(dominant) && dominant > 0.0) {
+    const auto fraction = pitch / dominant;
+    if (fraction > 0.01 && fraction < 10.0) {
+      metrics.auto_leading = fraction;
+    }
+  }
+  return metrics;
+}
+
 RenderedTextPixels render_text_pixels_with_local_rect(const TextToolSettings& settings, QColor color,
                                                       std::int32_t max_width,
                                                       const QString& paragraph_runs = QString(),
@@ -4238,7 +4343,8 @@ RenderedTextPixels render_text_pixels_with_local_rect(const TextToolSettings& se
   }
   return RenderedTextPixels{pixels_from_image_rgba(image),
                             QRectF(static_cast<qreal>(image_left), static_cast<qreal>(image_top),
-                                   static_cast<qreal>(image_width), static_cast<qreal>(image_height))};
+                                   static_cast<qreal>(image_width), static_cast<qreal>(image_height)),
+                            text_layout_metrics_for_plan(plan, settings, rich_text_runs)};
 }
 
 PixelBuffer render_text_pixels(const TextToolSettings& settings, QColor color, std::int32_t max_width,
@@ -4250,6 +4356,7 @@ PixelBuffer render_text_pixels(const TextToolSettings& settings, QColor color, s
 struct TransformedTextPixels {
   PixelBuffer pixels;
   Rect bounds{};
+  TextLayoutMetrics metrics;
 };
 
 std::optional<LayerAffineTransform> canonical_text_affine_transform_for_layer(const Layer& layer) {
@@ -4850,7 +4957,7 @@ std::optional<TransformedTextPixels> render_crisp_transformed_text_for_editor(
   const Rect bounds{static_cast<std::int32_t>(std::floor(crisp.local_rect.left())),
                     static_cast<std::int32_t>(std::floor(crisp.local_rect.top())), crisp.pixels.width(),
                     crisp.pixels.height()};
-  return TransformedTextPixels{std::move(crisp.pixels), bounds};
+  return TransformedTextPixels{std::move(crisp.pixels), bounds, crisp.metrics};
 }
 
 std::vector<double> parse_space_separated_doubles(std::string_view text) {
@@ -5307,13 +5414,21 @@ std::optional<LayerTextRenderInputs> text_render_inputs_from_layer(const Layer& 
                                rich_text_runs};
 }
 
-std::optional<PixelBuffer> render_text_layer_pixels_from_metadata(const Layer& layer) {
+std::optional<RenderedTextPixels> render_text_layer_from_metadata(const Layer& layer) {
   const auto inputs = text_render_inputs_from_layer(layer);
   if (!inputs.has_value()) {
     return std::nullopt;
   }
-  return render_text_pixels(inputs->settings, inputs->color, inputs->max_width, inputs->paragraph_runs,
-                            inputs->rich_text_runs);
+  return render_text_pixels_with_local_rect(inputs->settings, inputs->color, inputs->max_width,
+                                            inputs->paragraph_runs, inputs->rich_text_runs);
+}
+
+std::optional<PixelBuffer> render_text_layer_pixels_from_metadata(const Layer& layer) {
+  auto rendered = render_text_layer_from_metadata(layer);
+  if (!rendered.has_value()) {
+    return std::nullopt;
+  }
+  return std::move(rendered->pixels);
 }
 
 // Document-space Photoshop anchor of a vertical point layer: the layer raster is the plan's
@@ -5375,10 +5490,12 @@ std::optional<TransformedTextPixels> render_text_layer_pixels_through_transform(
                              .convertToFormat(QImage::Format_RGBA8888)
                              .copy(visible->x, visible->y, visible->width, visible->height);
     return TransformedTextPixels{pixels_from_image_rgba(cropped),
-                                 Rect{origin_x + visible->x, origin_y + visible->y, visible->width, visible->height}};
+                                 Rect{origin_x + visible->x, origin_y + visible->y, visible->width, visible->height},
+                                 rendered.metrics};
   }
   return TransformedTextPixels{rendered.pixels,
-                               Rect{origin_x, origin_y, rendered.pixels.width(), rendered.pixels.height()}};
+                               Rect{origin_x, origin_y, rendered.pixels.width(), rendered.pixels.height()},
+                               rendered.metrics};
 }
 
 // An imported type layer whose transform is still the PSD's own: Photoshop's raster kept as
@@ -5708,9 +5825,10 @@ std::optional<TransformedTextPixels> render_warped_text_pixels_for_layer(const L
             .copy(visible->x, visible->y, visible->width, visible->height);
     return TransformedTextPixels{pixels_from_image_rgba(cropped),
                                  Rect{warped.bounds.x + visible->x, warped.bounds.y + visible->y,
-                                      visible->width, visible->height}};
+                                      visible->width, visible->height},
+                                 base.metrics};
   }
-  return TransformedTextPixels{std::move(pixels), warped.bounds};
+  return TransformedTextPixels{std::move(pixels), warped.bounds, base.metrics};
 }
 
 bool layer_has_active_text_warp(const Layer& layer) {
@@ -5760,7 +5878,7 @@ bool text_editor_layer_is_warped(const Document& doc, const QTextEdit& editor) {
 }
 
 void clear_layer_text_metadata(Layer& layer) {
-  static constexpr std::array<const char*, 25> kTextMetadataKeys = {
+  static constexpr std::array<const char*, 28> kTextMetadataKeys = {
       kLayerMetadataText,
       kLayerMetadataTextOrientation,
       kLayerMetadataTextHtml,
@@ -5786,6 +5904,9 @@ void clear_layer_text_metadata(Layer& layer) {
       kLayerMetadataPsdTextTailBounds,
       kLayerMetadataPsdTextIndex,
       kLayerMetadataTextLineAwareBoxPreview,
+      kLayerMetadataTextFirstBaseline,
+      kLayerMetadataTextBoxBaselineInset,
+      kLayerMetadataTextAutoLeading,
   };
   for (const auto* key : kTextMetadataKeys) {
     layer.metadata().erase(key);
@@ -5852,7 +5973,28 @@ void store_patchy_text_metadata(Layer& layer, const TextToolSettings& settings, 
     layer.metadata().erase(kLayerMetadataTextOrientation);
   }
   layer.metadata()[kLayerMetadataTextRasterStatus] = "patchy_raster";
+  // The layout metrics describe one specific render; every caller stores the fresh ones right
+  // after this (store_text_layout_metrics) so a stale inset never outlives its raster.
+  layer.metadata().erase(kLayerMetadataTextFirstBaseline);
+  layer.metadata().erase(kLayerMetadataTextBoxBaselineInset);
+  layer.metadata().erase(kLayerMetadataTextAutoLeading);
   clear_layer_psd_text_source(layer);
+}
+
+// Records the render's layout metrics (see TextLayoutMetrics) on the layer whose pixels it
+// became; a metric that does not apply is erased so the PSD writer falls back to its raster
+// heuristics rather than trusting a value from an older render.
+void store_text_layout_metrics(Layer& layer, const TextLayoutMetrics& metrics) {
+  const auto store = [&layer](const char* key, const std::optional<double>& value) {
+    if (value.has_value() && std::isfinite(*value)) {
+      layer.metadata()[key] = QString::number(*value, 'g', 12).toStdString();
+    } else {
+      layer.metadata().erase(key);
+    }
+  };
+  store(kLayerMetadataTextFirstBaseline, metrics.first_baseline);
+  store(kLayerMetadataTextBoxBaselineInset, metrics.box_baseline_inset);
+  store(kLayerMetadataTextAutoLeading, metrics.auto_leading);
 }
 
 // Version number of a serialized runs string ("v3" -> 3); 0 when the first line is not a tag.
@@ -6169,6 +6311,7 @@ bool rerender_text_layer_through_stored_transform(Layer& layer) {
     }
     layer.set_pixels(std::move(rendered->pixels));
     layer.set_bounds(rendered->bounds);
+    store_text_layout_metrics(layer, rendered->metrics);
     layer.metadata()[kLayerMetadataTextWarp] = serialize_text_warp(refreshed);
     return true;
   }
@@ -6209,6 +6352,7 @@ bool rerender_text_layer_through_stored_transform(Layer& layer) {
     }
     layer.set_pixels(std::move(rendered->pixels));
     layer.set_bounds(rendered->bounds);
+    store_text_layout_metrics(layer, rendered->metrics);
     return true;
   }
   // Patchy-authored text (point or box): fold the transform's scale into the point size (so the
@@ -6222,6 +6366,7 @@ bool rerender_text_layer_through_stored_transform(Layer& layer) {
   }
   layer.set_pixels(std::move(rendered->pixels));
   layer.set_bounds(rendered->bounds);
+  store_text_layout_metrics(layer, rendered->metrics);
   return true;
 }
 
@@ -7466,11 +7611,6 @@ void MainWindow::configure_canvas(CanvasWidget* canvas) {
       edit_active_shape_appearance();
     }
   });
-  canvas->set_free_transform_requested_callback([this, canvas] {
-    if (canvas == canvas_) {
-      transform_active_layer_dialog();
-    }
-  });
   canvas->set_crop_commit_requested_callback([this, canvas](QRect rect, double angle_degrees) {
     if (canvas != canvas_) {
       return;
@@ -7583,6 +7723,9 @@ void MainWindow::configure_canvas(CanvasWidget* canvas) {
     return QList<QAction*>{layer_shape_appearance_action_, free_transform_action_, path_simplify_action_,
                            nullptr, define_custom_shape_action_, layer_rasterize_action_};
   });
+  // A Move-tool right-click on any other active leaf layer (pixel, text, smart
+  // object): Free Transform, as the shape section offers it.
+  canvas->set_layer_context_actions_callback([this] { return QList<QAction*>{free_transform_action_}; });
   canvas->set_vector_preview_status_callback([this, canvas](QString message, bool notice) {
     if (canvas == canvas_) {
       refresh_vector_preview_action();
@@ -8790,6 +8933,7 @@ void MainWindow::commit_text_editor(QTextEdit* editor, QPoint document_point, st
       layer->set_visible(restore_existing_visibility);
       store_patchy_text_metadata(*layer, settings, text_color, rich_text_runs, paragraph_runs, stored_box_width,
                                  boxed_text ? stored_box_height : local_text_height);
+      store_text_layout_metrics(*layer, rendered.metrics);
       if (settings.photoshop_layout) {
         // Imported layers keep their marker through store (it never clears the key); a native
         // layer that opted in via the Character panel's leading controls persists it here.
@@ -8828,6 +8972,7 @@ void MainWindow::commit_text_editor(QTextEdit* editor, QPoint document_point, st
         Rect{document_point.x(), document_point.y(), text_layer.pixels().width(), text_layer.pixels().height()});
     store_patchy_text_metadata(text_layer, settings, text_color, rich_text_runs, paragraph_runs, text_width,
                                boxed_text ? text_height : text_layer.pixels().height());
+    store_text_layout_metrics(text_layer, rendered.metrics);
     if (settings.photoshop_layout) {
       text_layer.metadata()[kLayerMetadataTextLayoutMode] = kTextLayoutModePhotoshop;
     }
@@ -9065,6 +9210,7 @@ bool MainWindow::apply_text_warp_to_layer(Layer& layer, const patchy::TextWarp& 
     }
     layer.set_pixels(std::move(rendered->pixels));
     layer.set_bounds(rendered->bounds);
+    store_text_layout_metrics(layer, rendered->metrics);
     layer.metadata()[kLayerMetadataTextWarp] = serialize_text_warp(effective);
   } else {
     // Style None: back to the plain affine text render (box text included, drawn through the
@@ -9080,17 +9226,19 @@ bool MainWindow::apply_text_warp_to_layer(Layer& layer, const patchy::TextWarp& 
         auto transformed = apply_text_transform_to_pixels(
             base.pixels, qtransform_from_affine(affine_with_local_translation(
                              affine_from_qtransform(transform), base.local_rect.topLeft())));
-        rendered = TransformedTextPixels{std::move(transformed.pixels), transformed.bounds};
+        rendered = TransformedTextPixels{std::move(transformed.pixels), transformed.bounds, base.metrics};
       } else {
         const auto mapped = transform.map(base.local_rect.topLeft());
         rendered = TransformedTextPixels{base.pixels,
                                          Rect{static_cast<std::int32_t>(std::floor(mapped.x())),
                                               static_cast<std::int32_t>(std::floor(mapped.y())),
-                                              base.pixels.width(), base.pixels.height()}};
+                                              base.pixels.width(), base.pixels.height()},
+                                         base.metrics};
       }
     }
     layer.set_pixels(std::move(rendered->pixels));
     layer.set_bounds(rendered->bounds);
+    store_text_layout_metrics(layer, rendered->metrics);
     layer.metadata().erase(kLayerMetadataTextWarp);
   }
   if (adopt_transform || !layer.metadata().contains(kLayerMetadataTextTransform)) {
@@ -9857,10 +10005,11 @@ void MainWindow::render_pending_svg_text_layers(Document& target) {
       metadata.erase(kLayerMetadataSvgTextBaselineX);
       metadata.erase(kLayerMetadataSvgTextBaselineY);
 
-      auto pixels = render_text_layer_pixels_from_metadata(layer);
-      if (!pixels.has_value() || pixels->empty()) {
+      auto rendered_text = render_text_layer_from_metadata(layer);
+      if (!rendered_text.has_value() || rendered_text->pixels.empty()) {
         continue;  // stays an empty text layer; the text tool can still edit it
       }
+      auto pixels = std::optional<PixelBuffer>(std::move(rendered_text->pixels));
       const auto inputs = text_render_inputs_from_layer(layer);
       double ascent = inputs.has_value() ? static_cast<double>(inputs->settings.size) : 0.0;
       if (inputs.has_value()) {
@@ -9878,6 +10027,7 @@ void MainWindow::render_pending_svg_text_layers(Document& target) {
       // must follow it (the text-commit ordering convention).
       layer.set_pixels(std::move(*pixels));
       layer.set_bounds(placed);
+      store_text_layout_metrics(layer, rendered_text->metrics);
       metadata[kLayerMetadataTextRasterStatus] = "patchy_raster";
     }
   };
@@ -9995,6 +10145,7 @@ void MainWindow::render_pending_af_text_layers(Document& target) {
         if (auto rendered = render_text_layer_pixels_through_transform(layer, combined)) {
           layer.set_pixels(std::move(rendered->pixels));
           layer.set_bounds(rendered->bounds);
+          store_text_layout_metrics(layer, rendered->metrics);
           metadata[kLayerMetadataTextTransform] = serialize_layer_affine_transform(
               {combined.m11(), combined.m12(), combined.m21(), combined.m22(), combined.dx(),
                combined.dy()});
@@ -10003,10 +10154,11 @@ void MainWindow::render_pending_af_text_layers(Document& target) {
         }
       }
 
-      auto pixels = render_text_layer_pixels_from_metadata(layer);
-      if (!pixels.has_value() || pixels->empty()) {
+      auto rendered_text = render_text_layer_from_metadata(layer);
+      if (!rendered_text.has_value() || rendered_text->pixels.empty()) {
         continue;  // stays an empty text layer; the text tool can still edit it
       }
+      auto pixels = std::optional<PixelBuffer>(std::move(rendered_text->pixels));
       double top = anchored_top;
       double left = frame[0];
       const double frame_width = frame[2] - frame[0];
@@ -10021,6 +10173,7 @@ void MainWindow::render_pending_af_text_layers(Document& target) {
       // must follow it (the text-commit ordering convention).
       layer.set_pixels(std::move(*pixels));
       layer.set_bounds(placed);
+      store_text_layout_metrics(layer, rendered_text->metrics);
       metadata[kLayerMetadataTextRasterStatus] = "patchy_raster";
     }
   };
@@ -10103,10 +10256,89 @@ void MainWindow::render_pending_pdf_text_layers(Document& target) {
       if (auto rendered = render_text_layer_pixels_through_transform(layer, combined)) {
         layer.set_pixels(std::move(rendered->pixels));
         layer.set_bounds(rendered->bounds);
+        store_text_layout_metrics(layer, rendered->metrics);
         metadata[kLayerMetadataTextTransform] = serialize_layer_affine_transform(
             {combined.m11(), combined.m12(), combined.m21(), combined.m22(), combined.dx(), combined.dy()});
         metadata[kLayerMetadataTextRasterStatus] = "patchy_raster";
       }
+    }
+  };
+  process(process, target.layers());
+}
+
+// A Patchy PSD written before the layout metrics existed reopens with its raster kept and no
+// metrics, so a re-save would fall back to the writer's raster heuristics (box top, ink bottom).
+// Patchy's layout is deterministic, so laying the layer's text out again reproduces the kept
+// raster's geometry when its fonts are installed; record the metrics from that layout without
+// touching the pixels. Point layers still anchored by the old ink-bottom convention (transform
+// == the PSD's, stored boundingBox bottom at the origin) move ty onto the real first baseline,
+// with the PSD-local rects shifted along so the unedited-import invariants hold.
+void MainWindow::record_text_layout_metrics_for_reopened_text(Document& target) {
+  const auto process = [&](auto&& self, std::vector<Layer>& layers) -> void {
+    for (auto& layer : layers) {
+      if (!layer.children().empty()) {
+        self(self, layer.children());
+      }
+      auto& metadata = layer.metadata();
+      const auto value = [&metadata](const char* key) -> std::optional<std::string_view> {
+        const auto found = metadata.find(key);
+        if (found == metadata.end()) {
+          return std::nullopt;
+        }
+        return std::string_view(found->second);
+      };
+      if (!layer_is_text(layer) || metadata.contains(kLayerMetadataTextFirstBaseline) ||
+          value(kLayerMetadataTextRasterStatus) != "patchy_raster" ||
+          (value(kLayerMetadataTextSourceBlock) != "TySh" && value(kLayerMetadataTextSourceBlock) != "tySh") ||
+          value(kLayerMetadataTextLayoutMode) == kTextLayoutModePhotoshop || layer_text_is_vertical(layer) ||
+          layer_has_active_text_warp(layer) || !missing_text_families_for_layer(layer).isEmpty()) {
+        continue;
+      }
+      const auto rendered = render_text_layer_from_metadata(layer);
+      if (!rendered.has_value() || rendered->pixels.empty() || !rendered->metrics.first_baseline.has_value()) {
+        continue;
+      }
+      auto metrics = rendered->metrics;
+      // The inset read back from the file describes the raster that is actually kept; keep it.
+      if (const auto stored_inset = value(kLayerMetadataTextBoxBaselineInset); stored_inset.has_value()) {
+        metrics.box_baseline_inset = QString::fromUtf8(stored_inset->data(), static_cast<int>(stored_inset->size())).toDouble();
+      }
+      const bool boxed = text_flow_is_box(QString::fromStdString(std::string(value(kLayerMetadataTextFlow).value_or(""))));
+      if (!boxed && !layer_patchy_text_transform_overrides_psd_source(layer)) {
+        const auto transform = canonical_text_affine_transform_for_layer(layer);
+        const auto psd_bounding_box = parse_space_separated_doubles(
+            std::string(value(kLayerMetadataPsdTextBoundingBox).value_or("")));
+        const auto kept_ink = visible_alpha_local_bounds(layer.pixels());
+        const auto fresh_ink = visible_alpha_local_bounds(rendered->pixels);
+        if (transform.has_value() && !affine_transform_has_non_translation_linear_part(*transform) &&
+            psd_bounding_box.size() >= 4U && std::abs(psd_bounding_box[3]) < 0.5 && psd_bounding_box[1] < -0.5 &&
+            kept_ink.has_value() && fresh_ink.has_value() && kept_ink->height == fresh_ink->height &&
+            kept_ink->y == fresh_ink->y) {
+          const double ink_bottom = static_cast<double>(kept_ink->y + kept_ink->height);
+          const double delta = *rendered->metrics.first_baseline - ink_bottom;
+          if (std::isfinite(delta) && std::abs(delta) > 0.01) {
+            auto moved = *transform;
+            moved[5] += delta;
+            const auto serialized = serialize_layer_affine_transform(moved);
+            metadata[kLayerMetadataTextTransform] = serialized;
+            metadata[kLayerMetadataPsdTextTransform] = serialized;
+            for (const char* key : {kLayerMetadataPsdTextBounds, kLayerMetadataPsdTextBoundingBox}) {
+              auto rect = parse_space_separated_doubles(std::string(value(key).value_or("")));
+              if (rect.size() < 4U) {
+                continue;
+              }
+              rect[1] -= delta;
+              rect[3] -= delta;
+              QStringList parts;
+              for (std::size_t index = 0; index < 4U; ++index) {
+                parts.push_back(QString::number(rect[index], 'g', 17));
+              }
+              metadata[key] = parts.join(QLatin1Char(' ')).toStdString();
+            }
+          }
+        }
+      }
+      store_text_layout_metrics(layer, metrics);
     }
   };
   process(process, target.layers());

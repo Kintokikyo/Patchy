@@ -76,9 +76,9 @@ delete, close, or extend; Delete removes a Ctrl-selected anchor.
 
 Polygon drags center-out with Sides and a Star inset percent (0 = plain);
 Custom Shape stamps a library shape into the drag rect (Shift keeps it
-square). Both are vector-only: the combo greys out Pixels (and
-the Pen) and shows the effective mode (Path), leaving the setting alone. They write plain paths (PS's polygon/custom origination
-descriptors: unprobed). The
+square). Both are vector-only: the combo greys out Pixels (and the Pen)
+and shows the effective mode (Path) without changing it. They write plain paths (PS's
+polygon/custom origination descriptors: unprobed). The
 Line tool gains arrow start/end checkboxes (head width 5x, length 10x the
 weight, PS's proportions) encoded through the probed keyOriginLine arrow
 keys. The CustomShapeLibrary (JSON sidecars
@@ -162,23 +162,17 @@ ui_paths_panel_actions_follow_row_selection pins it):
 
 - New Path: empty, immediately targeted.
 - Fill Path: persisted dialog; FG/BG color or a PATTERN with
-  Scale/Angle/Offset/Align-with-layer rows (shared PatternTileSampler;
-  defaults match the historical document-origin tiling; Align anchors at the
-  layer's effects reference point) plus opacity; raster-only; palette mode
+  Scale/Angle/Offset/Align-with-layer rows (shared PatternTileSampler; Align
+  anchors at the layer's effects reference point) plus opacity; raster-only; palette mode
   snaps via snap_pixel_to_palette.
 - Stroke Path: replays the flattened path through the BRUSH ENGINE as
   synthetic input (one "Stroke path" undo); Simulate Pressure sends tablet
   events with a sine taper; open subpaths do NOT gain the fill-only implied
   chord.
 - Make Selection: feather (triple box blur), anti-alias, combine ops.
-- Make Work Path from Selection: tolerance 0.5-10 px (persisted, default
-  2.0); traces the hard selection, fits via core/path_fit (Douglas-Peucker
+- Make Work Path from Selection: tolerance 0.5-10 px (persisted); traces the hard selection, fits via core/path_fit (Douglas-Peucker
   corners + Schneider cubics); outer loops Add, holes Subtract.
 - Delete Path; Duplicate Path in the row context menu ("<name> copy").
-
-## Path free transform
-
-Moved to [vector-commands.md](vector-commands.md).
 
 ## Geometry operations
 
@@ -187,7 +181,10 @@ re-rasterize at the new canvas: Image Size scales anchors and stroke
 width, Canvas Size/crop translate (canvas-relative PSD records need
 this), 90-degree rotates map edge coordinates, per-layer flips mirror about
 the pixel-bounds center. Free Transform applies its affine delta to the
-path model and re-rasterizes (no resampling); Move translates the model. Live-shape annotations survive positive
+path model and re-rasterizes (no resampling); Move translates the model.
+Stroke width never scales and the box hugs the ink, so the path maps onto the
+box inset by the stroke overhang (`shape_free_transform_delta`); the drag
+preview still stretches the stroke. Live-shape annotations survive positive
 axis-aligned scale + translate and drop otherwise (keyShapeInvalidated
 rule). Saved and work paths ride document ops too. Warp refuses on vector
 layers.
@@ -215,8 +212,7 @@ radii together, on by default only when the corners agree.
 generate_live_shape_subpaths keeps live parameters. Dialogs are the
 patent-cleared route; on-canvas gizmos stay excluded. It also edits layer Opacity and
 Fill opacity, the stroke's own opacity (vstk strokeStyleOpacity), and Feather /
-Density (Edge group); all PSD-native, one "Shape appearance" undo entry. Layout: two columns in a height-capped scroll area, - / + steppers on every
-numeric field.
+Density (Edge group); all PSD-native, one "Shape appearance" undo entry.
 
 Edits preview live and restore on cancel or exception; a PSD-read gradient/pattern
 stroke stays untouched unless re-picked. The preview

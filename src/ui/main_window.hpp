@@ -603,6 +603,8 @@ private:
   // resample their smart-object source through the placement quad.
   void render_pending_pdf_text_layers(Document& target);
   void render_pending_pdf_image_layers(Document& target);
+  // Reopened Patchy PSDs: layout metrics for the kept text rasters (docs/text-render-calibration.md).
+  void record_text_layout_metrics_for_reopened_text(Document& target);
   void open_extra_imported_page_sessions(const QString& file_name, std::vector<PdfImportedDocument> pages);
   // Reloads the session's file from disk in place (tab position, float window,
   // and session identity survive; undo history and unsaved changes do not).
@@ -1528,7 +1530,8 @@ private:
   std::array<QAction*, 8> layer_distribute_actions_{};
   QAction* layer_align_to_selection_action_{nullptr};
   QAction* layer_align_to_canvas_action_{nullptr};
-  // Align To: Canvas (true) or Selection (false); persisted as tools/alignTo.
+  // Align To: Canvas (true) or Selection (false). Not persisted: every launch
+  // starts at Selection (Seth, September 2026).
   bool align_to_canvas_{false};
   QAction* path_fill_action_{nullptr};
   QAction* path_stroke_action_{nullptr};

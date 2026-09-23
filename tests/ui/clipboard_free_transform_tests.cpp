@@ -709,6 +709,47 @@ void ui_transform_shift_frees_aspect_ratio_by_default() {
   CHECK(freed_ratio > locked_ratio + 0.5);
 }
 
+// A proportional corner drag scales by the pointer's distance from the anchor
+// projected onto the box diagonal. Along the diagonal the corner lands under
+// the pointer; a pull that leans against the diagonal shrinks the box. The old
+// rule let the axis pulled harder win, so the (-30, +30) pull below grew the
+// box, and the short side scaled faster than the long one.
+void ui_transform_proportional_corner_follows_diagonal_projection() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  CHECK(!canvas->shift_keeps_transform_aspect());
+
+  const auto filled_rect = fill_aspect_probe_rect(window, *canvas);
+  CHECK(filled_rect.has_value());
+  if (!filled_rect.has_value()) {
+    return;
+  }
+  const auto source_ratio = static_cast<double>(filled_rect->width()) / filled_rect->height();
+
+  // Along the diagonal the corner lands under the pointer: twice the size.
+  const auto doubled = transform_bottom_right_by(window, *canvas, *filled_rect,
+                                                 QPoint(filled_rect->width(), filled_rect->height()), Qt::NoModifier);
+  CHECK(doubled.has_value());
+  if (!doubled.has_value()) {
+    return;
+  }
+  CHECK(std::abs(doubled->left() - filled_rect->left()) <= 1 && std::abs(doubled->top() - filled_rect->top()) <= 1);
+  CHECK(std::abs(doubled->width() - 2 * filled_rect->width()) <= 2);
+  CHECK(std::abs(doubled->height() - 2 * filled_rect->height()) <= 2);
+
+  // Pulled in by 30 and out by 30: the old rule grew the box to the vertical
+  // pull (about +40 wide); the projection shrinks it slightly.
+  const auto leaned = transform_bottom_right_by(window, *canvas, *doubled, QPoint(-30, 30), Qt::NoModifier);
+  CHECK(leaned.has_value());
+  if (!leaned.has_value()) {
+    return;
+  }
+  CHECK(leaned->width() < doubled->width());
+  const auto leaned_ratio = static_cast<double>(leaned->width()) / leaned->height();
+  CHECK(std::abs(leaned_ratio - source_ratio) < 0.05);
+}
+
 void ui_transform_shift_aspect_preference_restores_legacy() {
   SettingsValueRestorer restore_preference(QStringLiteral("input/shiftKeepsTransformAspect"));
   {
@@ -2511,6 +2552,8 @@ std::vector<patchy::test::TestCase> clipboard_free_transform_tests() {
       {"ui_free_transform_uses_opaque_pixel_bounds", ui_free_transform_uses_opaque_pixel_bounds},
       {"ui_transform_shift_frees_aspect_ratio_by_default",
        ui_transform_shift_frees_aspect_ratio_by_default},
+      {"ui_transform_proportional_corner_follows_diagonal_projection",
+       ui_transform_proportional_corner_follows_diagonal_projection},
       {"ui_transform_shift_aspect_preference_restores_legacy",
        ui_transform_shift_aspect_preference_restores_legacy},
       {"ui_free_transform_arrow_keys_nudge_bounding_box", ui_free_transform_arrow_keys_nudge_bounding_box},
