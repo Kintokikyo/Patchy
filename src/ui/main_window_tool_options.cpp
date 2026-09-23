@@ -1768,8 +1768,6 @@ void MainWindow::load_tool_settings() {
       settings.value(QStringLiteral("tools/magneticLassoFrequency"), canvas_->magnetic_lasso_frequency()).toInt());
   canvas_->set_show_transform_controls(
       settings.value(QStringLiteral("tools/showTransformControls"), true).toBool());
-  set_align_to_canvas(settings.value(QStringLiteral("tools/alignTo"), QStringLiteral("selection")).toString() ==
-                      QStringLiteral("canvas"));
   const auto transform_interpolation =
       settings.value(QStringLiteral("tools/transformInterpolation"),
                      static_cast<int>(CanvasWidget::TransformInterpolation::Bicubic))
@@ -2069,8 +2067,6 @@ void MainWindow::save_tool_settings() const {
   settings.setValue(QStringLiteral("tools/magneticLassoEdgeContrast"), canvas_->magnetic_lasso_edge_contrast());
   settings.setValue(QStringLiteral("tools/magneticLassoFrequency"), canvas_->magnetic_lasso_frequency());
   settings.setValue(QStringLiteral("tools/showTransformControls"), canvas_->show_transform_controls());
-  settings.setValue(QStringLiteral("tools/alignTo"),
-                    align_to_canvas_ ? QStringLiteral("canvas") : QStringLiteral("selection"));
   settings.setValue(QStringLiteral("tools/transformInterpolation"), static_cast<int>(canvas_->transform_interpolation()));
   settings.setValue(QStringLiteral("tools/cloneAligned"), canvas_->clone_aligned());
   settings.setValue(QStringLiteral("tools/retouchSampleAllLayers"), canvas_->retouch_sample_all_layers());

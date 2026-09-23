@@ -326,7 +326,7 @@ void ui_layer_align_single_layer_uses_canvas_and_selection_wins() {
   CHECK(scene.bounds("A").x == 30 && scene.bounds("C").x == 30);
   CHECK(scene.bounds("A").y == 30 && scene.bounds("C").y == 30);
 
-  // Align To: Canvas ignores the selection and persists.
+  // Align To: Canvas ignores the selection.
   auto* to_canvas = require_action(scene.window, "layerAlignToCanvasAction");
   to_canvas->setChecked(true);
   QApplication::processEvents();
@@ -335,11 +335,43 @@ void ui_layer_align_single_layer_uses_canvas_and_selection_wins() {
   require_action(scene.window, "layerAlignHCenterAction")->trigger();
   QApplication::processEvents();
   CHECK(scene.bounds("A").x == 90 && scene.bounds("C").x == 90);
-  patchy::ui::MainWindowTestAccess::save_tool_settings(scene.window);
-  CHECK(patchy::ui::app_settings().value(QStringLiteral("tools/alignTo")).toString() == QStringLiteral("canvas"));
   require_action(scene.window, "layerAlignToSelectionAction")->setChecked(true);
   QApplication::processEvents();
   CHECK(!patchy::ui::MainWindowTestAccess::align_to_canvas(scene.window));
+}
+
+void ui_layer_align_to_is_exclusive_and_starts_at_selection() {
+  // A settings file from a build that persisted Align To must not carry Canvas
+  // into a new launch: every window starts at Selection. Loading the old value
+  // with the actions' signals blocked is also what left the exclusive group
+  // stale, so a later click on Selection showed both entries checked.
+  SettingsValueRestorer saved_align_to(QStringLiteral("tools/alignTo"));
+  patchy::ui::app_settings().setValue(QStringLiteral("tools/alignTo"), QStringLiteral("canvas"));
+  AlignScene scene;
+  auto* to_selection = require_action(scene.window, "layerAlignToSelectionAction");
+  auto* to_canvas = require_action(scene.window, "layerAlignToCanvasAction");
+  CHECK(to_selection->isChecked());
+  CHECK(!to_canvas->isChecked());
+  CHECK(!patchy::ui::MainWindowTestAccess::align_to_canvas(scene.window));
+
+  // Menu clicks flip between the two, never leaving both (or neither) checked.
+  for (int round = 0; round < 2; ++round) {
+    to_canvas->trigger();
+    QApplication::processEvents();
+    CHECK(to_canvas->isChecked() && !to_selection->isChecked());
+    CHECK(patchy::ui::MainWindowTestAccess::align_to_canvas(scene.window));
+    to_selection->trigger();
+    QApplication::processEvents();
+    CHECK(to_selection->isChecked() && !to_canvas->isChecked());
+    CHECK(!patchy::ui::MainWindowTestAccess::align_to_canvas(scene.window));
+  }
+
+  // The choice is session-only: saving tool settings does not write it back.
+  to_canvas->trigger();
+  QApplication::processEvents();
+  patchy::ui::app_settings().remove(QStringLiteral("tools/alignTo"));
+  patchy::ui::MainWindowTestAccess::save_tool_settings(scene.window);
+  CHECK(!patchy::ui::app_settings().contains(QStringLiteral("tools/alignTo")));
 }
 
 void ui_layer_align_treats_folder_as_one_unit() {
@@ -520,6 +552,8 @@ std::vector<patchy::test::TestCase> alignment_tests() {
        ui_layer_align_buttons_align_selected_layers_with_one_undo},
       {"ui_layer_align_single_layer_uses_canvas_and_selection_wins",
        ui_layer_align_single_layer_uses_canvas_and_selection_wins},
+      {"ui_layer_align_to_is_exclusive_and_starts_at_selection",
+       ui_layer_align_to_is_exclusive_and_starts_at_selection},
       {"ui_layer_align_treats_folder_as_one_unit", ui_layer_align_treats_folder_as_one_unit},
       {"ui_layer_distribute_requires_three_units_and_spaces_evenly",
        ui_layer_distribute_requires_three_units_and_spaces_evenly},

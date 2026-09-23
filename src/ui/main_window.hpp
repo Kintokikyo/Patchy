@@ -1530,7 +1530,8 @@ private:
   std::array<QAction*, 8> layer_distribute_actions_{};
   QAction* layer_align_to_selection_action_{nullptr};
   QAction* layer_align_to_canvas_action_{nullptr};
-  // Align To: Canvas (true) or Selection (false); persisted as tools/alignTo.
+  // Align To: Canvas (true) or Selection (false). Not persisted: every launch
+  // starts at Selection (Seth, September 2026).
   bool align_to_canvas_{false};
   QAction* path_fill_action_{nullptr};
   QAction* path_stroke_action_{nullptr};
