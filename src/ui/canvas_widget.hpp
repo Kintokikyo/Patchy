@@ -1115,6 +1115,9 @@ public:
   // lands on the selection (Remove Object, Fill, Stroke, ...); a nullptr entry
   // is a separator. The actions stay owned by the host.
   void set_selection_context_actions_callback(std::function<QList<QAction*>()> callback);
+  // The commands the host offers when a right-click lands on the active vector
+  // shape layer (Shape Appearance, Free Transform, ...); same contract.
+  void set_shape_context_actions_callback(std::function<QList<QAction*>()> callback);
   // Blocking refusals (the tool action did NOT happen) report through this
   // callback so the host can present them as errors; unset, they fall back to
   // the plain status callback.
@@ -2680,6 +2683,7 @@ private:
   std::function<void(std::vector<LayerId>, LayerId)> layer_selection_requested_callback_;
   std::function<void(QString)> status_callback_;
   std::function<QList<QAction*>()> selection_context_actions_callback_;
+  std::function<QList<QAction*>()> shape_context_actions_callback_;
   bool vector_preview_enabled_{false};
   std::uint64_t vector_preview_generation_{1};
   std::uint64_t vector_preview_completed_generation_{0};

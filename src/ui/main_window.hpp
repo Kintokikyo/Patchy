@@ -1464,9 +1464,6 @@ private:
     QPixmap thumbnail;
   };
   std::unordered_map<ChannelId, ChannelThumbnailCacheEntry> channel_thumbnail_cache_;
-  // Flyout actions stay in their existing menus and action group. This map
-  // lets the selected action populate the optional movable tool-group bar.
-  std::unordered_map<QAction*, QMenu*> tool_flyout_menus_;
   // Saved/work path thumbnails, keyed on DocumentPath::content_revision (the
   // documented cache key) plus the canvas extent; refresh_paths_panel now
   // rides layer activation and every shape drag, so rows must not
@@ -1519,6 +1516,9 @@ private:
   QAction* path_new_action_{nullptr};
   QAction* path_simplify_action_{nullptr};
   QAction* layer_shape_appearance_action_{nullptr};
+  // Edit-menu actions the canvas right-click menu's shape section reuses.
+  QAction* free_transform_action_{nullptr};
+  QAction* define_custom_shape_action_{nullptr};
   // Unite / Subtract Front / Intersect / Exclude, enabled with a combinable
   // multi-selection (refresh_combine_shapes_action_states).
   std::array<QAction*, 4> layer_combine_actions_{};

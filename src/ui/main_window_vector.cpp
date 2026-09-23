@@ -1682,9 +1682,14 @@ bool MainWindow::vector_option_widget_visible(const VectorOptionModeRules& rules
     return std::find(widgets.begin(), widgets.end(), widget) != widgets.end();
   };
   if (in(vector_shape_size_option_widgets_)) {
-    // Shape tools keep the W / H row visible as a disabled readout before the
-    // first shape exists. Move only shows it once a shape layer is selected.
-    return current_tool_ != CanvasTool::Move || rules.live_shape;
+    // The W / H readouts: Shape mode keeps them as a disabled readout before
+    // the first shape exists (Path and Pixels modes have no shape layer to
+    // size, and Pixels already shows the fixed-size Width / Height row); Move
+    // and the path selection tools show them only with an editable shape layer.
+    if (rules.select_tool || current_tool_ == CanvasTool::Move) {
+      return rules.live_shape;
+    }
+    return rules.shape_mode;
   }
   if (rules.select_tool) {
     // Appearance controls only while an editable shape layer is active; the

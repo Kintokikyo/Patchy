@@ -14,6 +14,7 @@
 #include "core/smart_object.hpp"
 #include "core/smart_filter.hpp"
 #include "core/layer_render_utils.hpp"
+#include "core/vector_shape.hpp"
 #include "core/layer_tree.hpp"
 #include "core/pixel_tools.hpp"
 #include "core/quick_select.hpp"
@@ -143,11 +144,13 @@ void CanvasWidget::close_canvas_context_menu() {
 }
 
 // The canvas right-click menu (a right release within the drag distance of
-// its press; canvas_widget_events.cpp). One builder, two sections: the Move
-// tool's layers-under-the-pointer entries, then the host's selection commands
-// (Remove Object, Fill, ...) when the click landed on the selection. Path
-// tools keep their own menu. A popup, not exec: the entries revalidate their
-// target when picked, so a stale menu after a tool or document change is inert.
+// its press; canvas_widget_events.cpp). One builder, three sections: the Move
+// tool's layers-under-the-pointer entries, the host's selection commands
+// (Remove Object, Fill, ...) when the click landed on the selection, and the
+// host's shape commands (Shape Appearance, Free Transform, ...) when it landed
+// on the active vector shape layer. Path tools keep their own menu. A popup,
+// not exec: the entries revalidate their target when picked, so a stale menu
+// after a tool or document change is inert.
 bool CanvasWidget::show_canvas_context_menu(QPoint widget_point, QPoint global_position) {
   close_canvas_context_menu();
   if (document_ == nullptr || pointer_gesture_active() || transforming_layer_ || warping_layer_ ||
@@ -163,23 +166,37 @@ bool CanvasWidget::show_canvas_context_menu(QPoint widget_point, QPoint global_p
   connect(menu, &QMenu::aboutToHide, menu, &QObject::deleteLater);
   add_move_layer_menu_entries(*menu, widget_point);
   const auto document_point = document_position(widget_point);
-  if (has_selection() && selection_alpha_at(document_point) != 0U && selection_context_actions_callback_) {
-    const auto actions = selection_context_actions_callback_();
+  // The host's QActions, so hotkeys and enable state stay in step; nullptr is
+  // a separator. A section with no real action adds nothing.
+  const auto append_section = [menu](const QList<QAction*>& actions) {
     bool any_action = false;
     for (auto* action : actions) {
       any_action = any_action || action != nullptr;
     }
-    if (any_action) {
-      if (!menu->isEmpty()) {
+    if (!any_action) {
+      return;
+    }
+    if (!menu->isEmpty()) {
+      menu->addSeparator();
+    }
+    for (auto* action : actions) {
+      if (action == nullptr) {
         menu->addSeparator();
+      } else {
+        menu->addAction(action);
       }
-      for (auto* action : actions) {
-        if (action == nullptr) {
-          menu->addSeparator();
-        } else {
-          menu->addAction(action);
-        }
-      }
+    }
+  };
+  if (has_selection() && selection_alpha_at(document_point) != 0U && selection_context_actions_callback_) {
+    append_section(selection_context_actions_callback_());
+  }
+  if (shape_context_actions_callback_ && !edit_locked_) {
+    const auto& document = std::as_const(*document_);
+    const auto active_id = document.active_layer_id();
+    const auto* active = active_id.has_value() ? document.find_layer(*active_id) : nullptr;
+    if (active != nullptr && layer_is_vector_shape(*active) &&
+        active->bounds().contains(document_point.x(), document_point.y())) {
+      append_section(shape_context_actions_callback_());
     }
   }
   if (menu->isEmpty()) {
