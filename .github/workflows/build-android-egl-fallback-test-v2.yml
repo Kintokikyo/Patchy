@@ -64,7 +64,7 @@ jobs:
           target: 'android'
           arch: 'android_arm64_v8a'
           modules: 'qtimageformats'
-          cache: true
+          cache: false
 
       - name: Patch Qt Android eglSurface deadlock fallback
         run: |
