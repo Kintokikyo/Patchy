@@ -1021,47 +1021,30 @@ bool MainWindow::handle_dock_group_window_event(QObject* watched, QEvent* event)
   // The tab bar swallows presses on its own blank stretch, so catch those at
   // the bar and start the same window drag.
   if (auto* tab_bar = qobject_cast<QTabBar*>(widget);
-    tab_bar != nullptr) {
-
-    qDebug() << "RIGHT TAB BAR"
-             << "count:" << tab_bar->count()
-             << "size:" << tab_bar->size()
-             << "minimumSize:" << tab_bar->minimumSize()
-             << "minimumSizeHint:" << tab_bar->minimumSizeHint()
-             << "sizeHint:" << tab_bar->sizeHint();
-
-    if (event->type() == QEvent::MouseButtonPress &&
-        is_floating_chrome_window(tab_bar->window())) {
-
-        auto* mouse_event = static_cast<QMouseEvent*>(event);
-
-        if (mouse_event->button() == Qt::LeftButton &&
-            tab_bar->tabAt(mouse_event->position().toPoint()) < 0) {
-
-            dock_group_drag_window_ = tab_bar->window();
-            dock_group_drag_edges_ = Qt::Edges{};
-
-  #ifdef Q_OS_ANDROID
-            if (auto* window = tab_bar->windowHandle()) {
-                dock_group_drag_offset_ =
-                    mouse_event->globalPosition().toPoint() -
-                    window->position();
-            } else {
-                dock_group_drag_offset_ =
-                    mouse_event->globalPosition().toPoint() -
-                    tab_bar->window()->pos();
-            }
-  #else
-            dock_group_drag_offset_ =
-                mouse_event->globalPosition().toPoint() -
-                tab_bar->window()->pos();
-  #endif
-
-            mouse_event->accept();
-            return true;
-          }
+      tab_bar != nullptr && event->type() == QEvent::MouseButtonPress &&
+      is_floating_chrome_window(tab_bar->window())) {
+    auto* mouse_event = static_cast<QMouseEvent*>(event);
+    if (mouse_event->button() == Qt::LeftButton &&
+        tab_bar->tabAt(mouse_event->position().toPoint()) < 0) {
+      dock_group_drag_window_ = tab_bar->window();
+      dock_group_drag_edges_ = Qt::Edges{};
+      #ifdef Q_OS_ANDROID
+      if (auto* window = tab_bar->windowHandle()) {
+        dock_group_drag_offset_ = 
+          mouse_event->globalPosition().toPoint() - window->position();
+      } else {
+        dock_group_drag_offset_ = 
+          mouse_event->globalPosition().toPoint() - tab_bar->window()->pos();
       }
+      #else
+      dock_group_drag_offset_ =
+          mouse_event->globalPosition().toPoint() - tab_bar->window()->pos();
+      #endif
+      mouse_event->accept();
+      return true;
+    }
   }
+  return false;
 }
 
 void MainWindow::create_docks() {
@@ -1915,6 +1898,40 @@ void MainWindow::create_docks() {
   QTimer::singleShot(0, this, [this] {
     update_right_dock_minimum_width();
     refresh_collapsed_right_dock_heights();
+    
+    for (auto* tab_bar : findChildren<QTabBar*>()) {
+        if (tab_bar == nullptr) {
+            continue;
+        }
+
+        bool right_dock_tabs = false;
+
+        for (int i = 0; i < tab_bar->count(); ++i) {
+            const QString text = tab_bar->tabText(i);
+
+            if (text == QStringLiteral("Layers") ||
+                text == QStringLiteral("Channels") ||
+                text == QStringLiteral("Paths") ||
+                text == QStringLiteral("History") ||
+                text == QStringLiteral("Properties") ||
+                text == QStringLiteral("Info") ||
+                text == QStringLiteral("Palette")) {
+                right_dock_tabs = true;
+                break;
+            }
+        }
+
+        if (!right_dock_tabs) {
+            continue;
+        }
+
+        tab_bar->setExpanding(false);
+        tab_bar->setUsesScrollButtons(true);
+        tab_bar->setMinimumWidth(0);
+        tab_bar->setSizePolicy(
+            QSizePolicy::Ignored,
+            QSizePolicy::Preferred);
+    }
   });
 }
 
