@@ -362,6 +362,44 @@ QTransform free_transform_delta(QRectF original_rect, QRectF current_rect, doubl
   return transform;
 }
 
+// Free Transform's box on a shape layer hugs the ink (fill plus any stroke
+// reaching past the path), but the commit transforms only the path: the stroke
+// keeps its width, as in Photoshop. Mapping the path through the box delta
+// therefore landed the redrawn ink off the dragged box by the stroke overhang
+// times the scale change, so even the fixed corner crept and the error grew
+// with every transform. This maps the path's own box onto the dragged box
+// inset by the same per-side overhang instead, so the redrawn ink fills the
+// dragged box. The inset happens in the box's unrotated frame and the result
+// turns about the box center like free_transform_delta. Degenerate boxes (a
+// straight line, an overhang wider than the new box) keep the plain delta.
+QTransform shape_free_transform_delta(QRectF original_rect, QRectF current_rect, double angle_degrees,
+                                      double scale_x_sign, double scale_y_sign, const VectorPathBounds& path) {
+  const QRectF path_rect(path.left, path.top, path.right - path.left, path.bottom - path.top);
+  auto left = path_rect.left() - original_rect.left();
+  auto top = path_rect.top() - original_rect.top();
+  auto right = original_rect.right() - path_rect.right();
+  auto bottom = original_rect.bottom() - path_rect.bottom();
+  // A mirrored axis carries each side's overhang to the opposite edge.
+  if (scale_x_sign < 0.0) {
+    std::swap(left, right);
+  }
+  if (scale_y_sign < 0.0) {
+    std::swap(top, bottom);
+  }
+  const QRectF target(current_rect.left() + left, current_rect.top() + top, current_rect.width() - left - right,
+                      current_rect.height() - top - bottom);
+  if (path_rect.width() < 1.0 || path_rect.height() < 1.0 || target.width() < 1.0 || target.height() < 1.0) {
+    return free_transform_delta(original_rect, current_rect, angle_degrees, scale_x_sign, scale_y_sign);
+  }
+  QTransform transform;
+  transform.translate(current_rect.center().x(), current_rect.center().y());
+  transform.rotate(angle_degrees);
+  transform.translate(target.center().x() - current_rect.center().x(), target.center().y() - current_rect.center().y());
+  transform.scale(scale_x_sign * target.width() / path_rect.width(), scale_y_sign * target.height() / path_rect.height());
+  transform.translate(-path_rect.center().x(), -path_rect.center().y());
+  return transform;
+}
+
 bool transform_delta_is_identity(const QTransform& transform) {
   return std::abs(transform.m11() - 1.0) < 1e-9 && std::abs(transform.m22() - 1.0) < 1e-9 &&
          std::abs(transform.m12()) < 1e-9 && std::abs(transform.m21()) < 1e-9 &&
@@ -2651,40 +2689,52 @@ void CanvasWidget::update_free_transform_preview(QPointF document_point, Qt::Key
   const bool keeps_aspect = corner_handle && transform_drag_keeps_aspect(modifiers) && start_size.height() > 0.0;
   if (keeps_aspect) {
     QPointF anchor;
+    QPointF corner;
     switch (transform_drag_handle_) {
       case TransformHandle::TopLeft:
         anchor = start_local.bottomRight();
+        corner = start_local.topLeft();
         break;
       case TransformHandle::TopRight:
         anchor = start_local.bottomLeft();
+        corner = start_local.topRight();
         break;
       case TransformHandle::BottomLeft:
         anchor = start_local.topRight();
+        corner = start_local.bottomLeft();
         break;
       case TransformHandle::BottomRight:
       default:
         anchor = start_local.topLeft();
+        corner = start_local.bottomRight();
         break;
     }
 
-    const auto ratio = start_size.width() / start_size.height();
-    const auto dx = local_point.x() - anchor.x();
-    const auto dy = local_point.y() - anchor.y();
-    const auto sign_x = dx < 0.0 ? -1.0 : 1.0;
-    const auto sign_y = dy < 0.0 ? -1.0 : 1.0;
-    auto new_width = std::max(1.0, std::abs(dx));
-    auto new_height = std::max(1.0, std::abs(dy));
-    if (new_width / ratio > new_height) {
-      new_height = new_width / ratio;
-    } else {
-      new_width = new_height * ratio;
-    }
+    // The shared scale is the pointer's distance from the anchor projected
+    // onto the box diagonal (per axis in absolute value), so every pixel of
+    // travel scales at the same rate whichever way the pointer leans. Taking
+    // the axis the pointer pulled harder instead scaled `aspect` times faster
+    // along the short side, jumped in rate when the winning axis switched,
+    // and ignored the other axis outright (pulling the corner in on one axis
+    // could still grow the box). Each axis keeps its own sign from the side
+    // of the anchor the pointer is on, so a straight pull across the anchor
+    // mirrors that axis alone.
+    const auto diagonal = corner - anchor;
+    const auto span_x = std::abs(diagonal.x());
+    const auto span_y = std::abs(diagonal.y());
+    const auto offset = local_point - anchor;
+    const auto factor = std::max(1.0 / std::max(1.0, std::min(span_x, span_y)),
+                                 (std::abs(offset.x()) * span_x + std::abs(offset.y()) * span_y) /
+                                     (span_x * span_x + span_y * span_y));
+    const auto sign_x = (offset.x() < 0.0) == (diagonal.x() < 0.0) ? 1.0 : -1.0;
+    const auto sign_y = (offset.y() < 0.0) == (diagonal.y() < 0.0) ? 1.0 : -1.0;
     // Write the aspect-locked corner back through the same setters as the
     // non-Shift path so the dragged-corner/anchor relationship is preserved.
     // Building a QRectF directly from the anchor would invert width/height for
     // handles whose anchor is not the top-left, which the flip detection below
     // would then misread as a mirror (a 180° flip when both axes invert).
-    const QPointF locked_corner(anchor.x() + sign_x * new_width, anchor.y() + sign_y * new_height);
+    const QPointF locked_corner(anchor.x() + sign_x * factor * diagonal.x(),
+                                anchor.y() + sign_y * factor * diagonal.y());
     switch (transform_drag_handle_) {
       case TransformHandle::TopLeft:
         local.setTopLeft(locked_corner);
@@ -2746,17 +2796,23 @@ void CanvasWidget::update_free_transform_preview(QPointF document_point, Qt::Key
       factor_y = (local_point.y() - reference.y()) / (handle_start.y() - reference.y());
     }
     if (keeps_aspect) {
-      // One shared factor: the axis the pointer pulled harder wins.
-      std::optional<double> shared;
+      // One shared magnitude, the same projection rule as the plain corner
+      // drag above (per-axis factors weighted by the squared reference-to-
+      // handle spans); each axis keeps its own sign.
       if (factor_x.has_value() && factor_y.has_value()) {
-        shared = std::abs(*factor_x) >= std::abs(*factor_y) ? *factor_x : *factor_y;
-      } else if (factor_x.has_value()) {
-        shared = *factor_x;
-      } else if (factor_y.has_value()) {
-        shared = *factor_y;
+        const auto span_x = handle_start.x() - reference.x();
+        const auto span_y = handle_start.y() - reference.y();
+        const auto magnitude = (std::abs(*factor_x) * span_x * span_x + std::abs(*factor_y) * span_y * span_y) /
+                               (span_x * span_x + span_y * span_y);
+        factor_x = *factor_x < 0.0 ? -magnitude : magnitude;
+        factor_y = *factor_y < 0.0 ? -magnitude : magnitude;
+      } else {
+        // The reference sits on one dragged edge: the other axis's factor
+        // drives both.
+        const auto shared = factor_x.has_value() ? factor_x : factor_y;
+        factor_x = shared;
+        factor_y = shared;
       }
-      factor_x = shared;
-      factor_y = shared;
     }
     if (factor_x.has_value()) {
       const auto width = start_size.width() * *factor_x;
@@ -2866,10 +2922,16 @@ void CanvasWidget::commit_free_transform() {
       }
     } else if (layer_is_vector_shape(*layer) || layer->vector_mask() != nullptr) {
       // The text-layer pattern for vectors: apply the affine to the path
-      // model and re-rasterize crisply (replacing the resampled pixels).
-      const auto delta = free_transform_delta(transform_original_rect_, transform_current_rect_,
-                                              transform_angle_, transform_scale_x_sign_,
-                                              transform_scale_y_sign_);
+      // model and re-rasterize crisply (replacing the resampled pixels). A
+      // shape layer's own path maps so its unscaled stroke fills the box.
+      const auto* shape = layer_is_vector_shape(*layer) ? layer->vector_shape() : nullptr;
+      const auto path_bounds = shape != nullptr ? shape->path.bounds() : std::nullopt;
+      const auto delta =
+          path_bounds.has_value()
+              ? shape_free_transform_delta(transform_original_rect_, transform_current_rect_, transform_angle_,
+                                           transform_scale_x_sign_, transform_scale_y_sign_, *path_bounds)
+              : free_transform_delta(transform_original_rect_, transform_current_rect_, transform_angle_,
+                                     transform_scale_x_sign_, transform_scale_y_sign_);
       const std::array<double, 6> matrix{delta.m11(), delta.m12(), delta.m21(),
                                          delta.m22(), delta.dx(),  delta.dy()};
       patchy::transform_layer_vector_data(
