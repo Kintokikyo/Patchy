@@ -10,14 +10,16 @@ namespace patchy::ui {
 
 std::span<const BrushPreset> builtin_brush_presets() {
   static const std::array<BrushPreset, 7> presets{
-      BrushPreset{QStringLiteral("round"), QStringLiteral("Round"), 25, 100, 100, 0, false},
+      BrushPreset{QStringLiteral("round"), QStringLiteral("Round"), 25, 100, 100, 0, false, QString()},
       BrushPreset{QStringLiteral("square"), QStringLiteral("Square"), 25, 100, 100, 0, false,
                   builtin_square_brush_tip_id()},
-      BrushPreset{QStringLiteral("soft_round"), QStringLiteral("Soft Round"), 12, 100, 100, 75, false},
-      BrushPreset{QStringLiteral("hard_round"), QStringLiteral("Hard Round"), 18, 100, 100, 0, false},
-      BrushPreset{QStringLiteral("pencil"), QStringLiteral("Pencil"), 4, 100, 100, 0, false},
-      BrushPreset{QStringLiteral("ink"), QStringLiteral("Ink"), 12, 92, 100, 20, false},
-      BrushPreset{QStringLiteral("airbrush"), QStringLiteral("Airbrush"), 56, 100, 12, 100, true},
+      BrushPreset{QStringLiteral("soft_round"), QStringLiteral("Soft Round"), 12, 100, 100, 75, false,
+                  QString()},
+      BrushPreset{QStringLiteral("hard_round"), QStringLiteral("Hard Round"), 18, 100, 100, 0, false,
+                  QString()},
+      BrushPreset{QStringLiteral("pencil"), QStringLiteral("Pencil"), 4, 100, 100, 0, false, QString()},
+      BrushPreset{QStringLiteral("ink"), QStringLiteral("Ink"), 12, 92, 100, 20, false, QString()},
+      BrushPreset{QStringLiteral("airbrush"), QStringLiteral("Airbrush"), 56, 100, 12, 100, true, QString()},
   };
   return presets;
 }

@@ -58,6 +58,10 @@
 #include <QRandomGenerator>
 #include <QtGlobal>
 
+#if defined(Q_OS_WASM) && !defined(__EMSCRIPTEN_PTHREADS__)
+#include <QtCore/private/qthread_p.h>
+#endif
+
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -133,6 +137,17 @@ std::vector<std::pair<LayerId, Rect>> move_proxy_shifted_bounds(const Document& 
   return bounds;
 }
 
+// Nesting depth of the running event loops. Qt's single-threaded wasm build declares
+// QThread::loopLevel() but never defines it (the Safari variant fails to link), so it reads
+// the same counter from the thread data; every wasm build links Qt6::CorePrivate.
+int current_event_loop_level() {
+#if defined(Q_OS_WASM) && !defined(__EMSCRIPTEN_PTHREADS__)
+  return QThreadData::current()->loopLevel;
+#else
+  return QThread::currentThread()->loopLevel();
+#endif
+}
+
 }  // namespace
 
 void CanvasWidget::close_canvas_context_menu() {
@@ -156,7 +171,7 @@ void CanvasWidget::retire_canvas_context_menu(QMenu* menu) {
       return;
     }
   }
-  retired_context_menus_.push_back(RetiredContextMenu{menu, QThread::currentThread()->loopLevel()});
+  retired_context_menus_.push_back(RetiredContextMenu{menu, current_event_loop_level()});
 }
 
 void CanvasWidget::reap_retired_context_menus() {
@@ -164,7 +179,7 @@ void CanvasWidget::reap_retired_context_menus() {
   // event loop runs above it. Below or at the loop level it hid in, that dispatch has
   // returned (a deeper loop would have to be running for it to be live), so deleting is
   // safe; anything deeper waits for the next reap or for QMenu::triggered.
-  const auto level = QThread::currentThread()->loopLevel();
+  const auto level = current_event_loop_level();
   std::erase_if(retired_context_menus_, [level](const RetiredContextMenu& retired) {
     if (retired.menu.isNull()) {
       return true;

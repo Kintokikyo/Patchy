@@ -4301,7 +4301,7 @@ RenderedTextPixels render_text_pixels_with_local_rect(const TextToolSettings& se
                                            requested_local_rect, metric_scale, document_transform_in,
                                            layout_scale_in);
   if (plan.built.document == nullptr) {
-    return RenderedTextPixels{PixelBuffer{}, QRectF()};
+    return RenderedTextPixels{PixelBuffer{}, QRectF(), TextLayoutMetrics{}};
   }
   const auto& local_rect = plan.local_rect;
   const auto& document_transform = plan.document_transform;
@@ -4321,7 +4321,7 @@ RenderedTextPixels render_text_pixels_with_local_rect(const TextToolSettings& se
   const auto image_height = std::clamp(image_bottom - image_top, 1, kMaxTextRasterDimension);
   QImage image(image_width, image_height, QImage::Format_RGBA8888);
   if (image.isNull()) {
-    return RenderedTextPixels{PixelBuffer{}, local_rect};
+    return RenderedTextPixels{PixelBuffer{}, local_rect, TextLayoutMetrics{}};
   }
   image.fill(Qt::transparent);
 
@@ -4924,7 +4924,8 @@ TransformedTextPixels apply_text_transform_to_pixels(const PixelBuffer& pixels, 
   painter.end();
 
   return TransformedTextPixels{pixels_from_image_rgba(transformed),
-                               Rect{left, top, transformed.width(), transformed.height()}};
+                               Rect{left, top, transformed.width(), transformed.height()},
+                               TextLayoutMetrics{}};
 }
 
 // Re-rasterize a text editor session's glyphs *through* the layer transform -- vector glyphs
