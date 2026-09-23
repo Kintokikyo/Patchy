@@ -208,8 +208,8 @@ origin when off; offsets add either way (PatternTileSampler).
 
 Geometry appears when one modeled origination covers every subpath: rect bounds
 and corner radii, ellipse bounds, or line endpoints/weight. A radius promotes a
-rect to rounded. Chain buttons between label and field span the rows they
-tie (the Image Size bracket): `shapeGeometryLinkButton` keeps W/H in the
+rect to rounded. Chain buttons between label and field sit on a bracket over the
+rows they tie (the Image Size link): `shapeGeometryLinkButton` keeps W/H in the
 ratio captured when switched on; `shapeGeometryRadiusLinkButton` edits all four
 radii together, on by default only when the corners agree.
 generate_live_shape_subpaths keeps live parameters. Dialogs are the

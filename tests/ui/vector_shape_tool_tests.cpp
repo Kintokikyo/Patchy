@@ -3540,27 +3540,44 @@ void ui_shape_geometry_radius_link_edits_all_corners() {
     for (const auto* corner : corners) {
       CHECK(std::abs(corner->value() - 12.0) < 1e-9);
     }
+    // Captured linked: the radius chain lit, the W / H chain off.
+    save_widget_artifact("shape-appearance-dialog-geometry-links", *dialog);
     radius_link->setChecked(false);
     corners[1]->setValue(5.0);
-    // Layout: each link is a bracket that spans its rows, between the label
-    // column and the fields (the Image Size dialog's Width / Height link).
+    // Layout: each link is a normal small button centered between the rows
+    // it ties, sitting on a bracket widget that spans those rows, between the
+    // label column and the fields (the Image Size dialog's Width / Height link).
     auto* size_link = dialog->findChild<QToolButton*>(QStringLiteral("shapeGeometryLinkButton"));
+    auto* size_bracket = dialog->findChild<QWidget*>(QStringLiteral("shapeGeometryLinkBracket"));
+    auto* radius_bracket = dialog->findChild<QWidget*>(QStringLiteral("shapeGeometryRadiusLinkBracket"));
     auto* width = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("shapeGeometryWidthSpin"));
     auto* height = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("shapeGeometryHeightSpin"));
-    CHECK(size_link != nullptr && width != nullptr && height != nullptr);
-    if (size_link != nullptr && width != nullptr && height != nullptr) {
-      const QRect link_rect(size_link->mapTo(dialog, QPoint(0, 0)), size_link->size());
-      CHECK(link_rect.top() <= width->mapTo(dialog, QPoint(0, 0)).y());
-      CHECK(link_rect.bottom() + 1 >= height->mapTo(dialog, QPoint(0, height->height())).y());
+    CHECK(size_link != nullptr && size_bracket != nullptr && radius_bracket != nullptr &&
+          width != nullptr && height != nullptr);
+    if (size_link != nullptr && size_bracket != nullptr && radius_bracket != nullptr &&
+        width != nullptr && height != nullptr) {
+      const auto rect_in_dialog = [dialog](const QWidget& widget) {
+        return QRect(widget.mapTo(dialog, QPoint(0, 0)), widget.size());
+      };
+      const auto link_rect = rect_in_dialog(*size_link);
+      const auto bracket_rect = rect_in_dialog(*size_bracket);
+      const int width_top = width->mapTo(dialog, QPoint(0, 0)).y();
+      const int height_bottom = height->mapTo(dialog, QPoint(0, height->height())).y();
+      CHECK(link_rect.width() <= 26 && link_rect.height() <= 26);
+      CHECK(bracket_rect.top() <= width_top && bracket_rect.bottom() + 1 >= height_bottom);
+      CHECK(link_rect.top() > width_top && link_rect.bottom() < height_bottom);
       CHECK(link_rect.right() < width->mapTo(dialog, QPoint(0, 0)).x());
-      const QRect radius_rect(radius_link->mapTo(dialog, QPoint(0, 0)), radius_link->size());
-      CHECK(radius_rect.top() <= corners[0]->mapTo(dialog, QPoint(0, 0)).y());
-      CHECK(radius_rect.bottom() + 1 >= corners[3]->mapTo(dialog, QPoint(0, corners[3]->height())).y());
+      const auto radius_rect = rect_in_dialog(*radius_link);
+      const auto radius_bracket_rect = rect_in_dialog(*radius_bracket);
+      const int corners_top = corners[0]->mapTo(dialog, QPoint(0, 0)).y();
+      const int corners_bottom = corners[3]->mapTo(dialog, QPoint(0, corners[3]->height())).y();
+      CHECK(radius_rect.width() <= 26 && radius_rect.height() <= 26);
+      CHECK(radius_bracket_rect.top() <= corners_top && radius_bracket_rect.bottom() + 1 >= corners_bottom);
+      CHECK(radius_rect.top() > corners_top && radius_rect.bottom() < corners_bottom);
       CHECK(radius_rect.right() < corners[0]->mapTo(dialog, QPoint(0, 0)).x());
       CHECK(radius_rect.left() == link_rect.left());
       CHECK(radius_rect.top() > link_rect.bottom());
     }
-    save_widget_artifact("shape-appearance-dialog-geometry-links", *dialog);
     first_open_checked = true;
     dialog->accept();
   });
