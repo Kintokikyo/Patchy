@@ -603,6 +603,8 @@ private:
   // resample their smart-object source through the placement quad.
   void render_pending_pdf_text_layers(Document& target);
   void render_pending_pdf_image_layers(Document& target);
+  // Reopened Patchy PSDs: layout metrics for the kept text rasters (docs/text-render-calibration.md).
+  void record_text_layout_metrics_for_reopened_text(Document& target);
   void open_extra_imported_page_sessions(const QString& file_name, std::vector<PdfImportedDocument> pages);
   // Reloads the session's file from disk in place (tab position, float window,
   // and session identity survive; undo history and unsaved changes do not).

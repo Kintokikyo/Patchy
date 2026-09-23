@@ -27,6 +27,7 @@
 #include <array>
 #include <bit>
 #include <cmath>
+#include <cstdio>
 #include <cctype>
 #include <climits>
 #include <cstdlib>
@@ -1069,6 +1070,16 @@ double vertical_text_anchor_fraction(const Layer& layer, std::string_view text) 
 }
 
 double point_text_baseline_offset(const Layer& layer, const PsdTextGeometry& geometry) {
+  // The renderer's own first baseline (kLayerMetadataTextFirstBaseline, measured from the
+  // raster's top row) is exact; Photoshop lays the first line on ty. The ink-bottom scan below
+  // is the fallback for rasters no Patchy render measured: right for a caps-only line, one
+  // descent low for descenders, lines low for multi-line text.
+  if (const auto stored = layer_metadata_value(layer, kLayerMetadataTextFirstBaseline); stored.has_value()) {
+    if (const auto baseline = parse_double(*stored);
+        baseline.has_value() && std::isfinite(*baseline) && *baseline > 1.0) {
+      return *baseline;
+    }
+  }
   if (finite_text_bounds(geometry.bounding_box) && geometry.bounding_box.bottom > 1.0 &&
       text_bounds_height(geometry.bounding_box) > 1.0) {
     return geometry.bounding_box.bottom;
@@ -1081,6 +1092,23 @@ double point_text_baseline_offset(const Layer& layer, const PsdTextGeometry& geo
     return std::max(1.0, static_cast<double>(parse_int_or(*size, 1)) * 0.75);
   }
   return 1.0;
+}
+
+double box_text_baseline_inset(const Layer& layer) {
+  if (layer_text_is_vertical(layer)) {
+    return 0.0;
+  }
+  const auto stored = layer_metadata_value(layer, kLayerMetadataTextBoxBaselineInset);
+  if (!stored.has_value()) {
+    return 0.0;
+  }
+  const auto inset = parse_double(*stored);
+  if (!inset.has_value() || !std::isfinite(*inset) || std::abs(*inset) < 0.0005) {
+    return 0.0;
+  }
+  // 1/64 px: the renderer's QFixed grid, exact in binary so the reader's restore reproduces
+  // the original transform and a reopened file re-saves byte-identically.
+  return std::round(*inset * 64.0) / 64.0;
 }
 
 bool point_text_geometry_needs_baseline_anchor(const Layer& layer, const PsdTextGeometry& geometry) {
@@ -1330,6 +1358,20 @@ std::string engine_adjustments_object() {
   return "<< /Axis [ 1.0 0.0 1.0 ] /XY [ 0.0 0.0 ] >>";
 }
 
+// A ratio for the engine text with at most six decimals and no exponent ("1.2", "1.119403"):
+// Photoshop's engine parser rejects long tokens (13-character auto-leading fractions and
+// negative float tracking both made it refuse the layer), and its own files write short
+// decimals. Keeps a ".0" for whole values like Photoshop does.
+std::string engine_short_fraction(double value) {
+  char buffer[32];
+  std::snprintf(buffer, sizeof(buffer), "%.6f", value);
+  std::string text(buffer);
+  while (text.size() > 1U && text.back() == '0' && text[text.size() - 2U] != '.') {
+    text.pop_back();
+  }
+  return text;
+}
+
 std::string engine_paragraph_properties(const PsdTextParagraphRun& run) {
   std::string properties = "<< /Justification ";
   properties += std::to_string(std::clamp(run.justification, 0, 3));
@@ -1347,11 +1389,11 @@ std::string engine_paragraph_properties(const PsdTextParagraphRun& run) {
       " /AutoHyphenate true /HyphenatedWordSize 6 /PreHyphen 2 /PostHyphen 2 /ConsecutiveHyphens 8"
       " /Zone 36.0 /WordSpacing [ 0.8 1.0 1.33 ] /LetterSpacing [ 0.0 0.0 0.0 ]"
       " /GlyphSpacing [ 1.0 1.0 1.0 ] /AutoLeading ";
-  properties += serialize_paragraph_metric(std::isfinite(run.auto_leading_fraction) &&
-                                                   run.auto_leading_fraction > 0.01 &&
-                                                   run.auto_leading_fraction < 10.0
-                                               ? run.auto_leading_fraction
-                                               : 1.2);
+  properties += engine_short_fraction(std::isfinite(run.auto_leading_fraction) &&
+                                              run.auto_leading_fraction > 0.01 &&
+                                              run.auto_leading_fraction < 10.0
+                                          ? run.auto_leading_fraction
+                                          : 1.2);
   properties += " /LeadingType 0 /Hanging ";
   properties += run.first_line_indent < 0.0 && run.start_indent > 0.0 ? "true" : "false";
   properties += " /Burasagari false /KinsokuOrder 0 /EveryLineComposer false";
@@ -1723,6 +1765,21 @@ PsdTextGeometry text_geometry_for_layer(const Layer& layer, const Rect& text_bou
     }
   } else if (boxed_text) {
     geometry.box_bounds = PsdTextBoundsD{0.0, 0.0, geometry.bounds.right, geometry.bounds.bottom};
+    if (warp == nullptr) {
+      // Photoshop lays a Patchy block's first baseline at box top + cap height x size; Qt's raster
+      // has it at box top + winAscent. Moving the TRANSFORM ORIGIN down by the difference the
+      // renderer measured (kLayerMetadataTextBoxBaselineInset) lands Photoshop's re-layout on
+      // Patchy's pixels with /BoxBounds still [0 0 w h] at the origin (a non-zero /BoxBounds top
+      // moves the text by TWICE its value in PS 27.9). The descriptor 'bounds' comes out with top
+      // = -inset, which Photoshop ignores for layout (probed) and which lets the reader put the
+      // origin back so the frame Patchy edits reopens where it was. The raster-derived
+      // boundingBox and the document-space tail move with the origin and stay put on the page.
+      const auto inset = box_text_baseline_inset(layer);
+      if (inset != 0.0) {
+        translate_text_geometry_local(geometry, 0.0, inset);
+        geometry.box_bounds = PsdTextBoundsD{0.0, 0.0, geometry.bounds.right, geometry.bounds.bottom + inset};
+      }
+    }
   } else if (!bounding_box_from_pixels) {
     geometry.bounding_box = geometry.bounds;
   }
@@ -1753,7 +1810,27 @@ std::optional<std::vector<std::uint8_t>> photoshop_type_tool_payload_for_layer(c
   if (runs.empty()) {
     return std::nullopt;
   }
-  const auto paragraph_runs = paragraph_runs_for_layer(layer, *text);
+  auto paragraph_runs = paragraph_runs_for_layer(layer, *text);
+  // Qt-natural layers advance lines by Qt's line height, not Photoshop's 1.2 x size; the
+  // renderer records that pitch as a fraction (kLayerMetadataTextAutoLeading) and it rides the
+  // paragraph /AutoLeading so a re-layout keeps every line where Qt drew it. Photoshop-layout
+  // layers already carry the paragraph's own fraction.
+  if (layer_metadata_value(layer, kLayerMetadataTextLayoutMode).value_or(std::string_view{}) !=
+      kTextLayoutModePhotoshop) {
+    if (const auto stored = layer_metadata_value(layer, kLayerMetadataTextAutoLeading); stored.has_value()) {
+      if (const auto fraction = parse_double(*stored);
+          fraction.has_value() && std::isfinite(*fraction) && *fraction > 0.01 && *fraction < 10.0) {
+        // Six decimals: Photoshop 27.9 rasterized a layer whose engine data said
+        // "/AutoLeading 1.11940298507" ("an error prevented them from being read") while
+        // "1.119402985" and "1.1194" were fine, so the token must stay short. 1e-6 of the size
+        // is far below a pixel, and the value re-reads exactly through the paragraph column.
+        const auto rounded = std::round(*fraction * 1000000.0) / 1000000.0;
+        for (auto& run : paragraph_runs) {
+          run.auto_leading_fraction = rounded;
+        }
+      }
+    }
+  }
   auto text_bounds = bounds;
   const auto boxed_text = layer_metadata_value(layer, kLayerMetadataTextFlow).value_or(std::string_view{}) == "box";
   if (boxed_text) {

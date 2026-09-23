@@ -1466,6 +1466,7 @@ int MainWindow::open_folder_path(const QString& directory) {
       render_pending_af_text_layers(loaded->document);
       render_pending_pdf_text_layers(loaded->document);
       render_pending_pdf_image_layers(loaded->document);
+      record_text_layout_metrics_for_reopened_text(loaded->document);
       add_document_session(std::move(loaded->document), loaded->file_name, path, tr("Open"),
                            SessionActivation::Background);
       ++opened;
@@ -1806,6 +1807,7 @@ void MainWindow::open_document_path(QString path) {
     render_pending_af_text_layers(loaded->document);
     render_pending_pdf_text_layers(loaded->document);
     render_pending_pdf_image_layers(loaded->document);
+    record_text_layout_metrics_for_reopened_text(loaded->document);
     if (!unattended_automation() && is_affinity_document_extension(loaded->extension)) {
       maybe_convert_af_image_layers(loaded->document);
     }
@@ -1979,6 +1981,7 @@ void MainWindow::reopen_document_session(DocumentSession& target_session) {
     render_pending_af_text_layers(loaded->document);
     render_pending_pdf_text_layers(loaded->document);
     render_pending_pdf_image_layers(loaded->document);
+    record_text_layout_metrics_for_reopened_text(loaded->document);
     if (!unattended_automation() &&
         is_affinity_document_extension(QFileInfo(path).suffix().toLower())) {
       maybe_convert_af_image_layers(loaded->document);

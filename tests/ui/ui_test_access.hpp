@@ -94,6 +94,9 @@ public:
   static void add_text_at(MainWindow& window, QPoint document_point) {
     window.add_text_at(document_point, QRect());
   }
+  static void record_text_layout_metrics_for_reopened_text(MainWindow& window, Document& document) {
+    window.record_text_layout_metrics_for_reopened_text(document);
+  }
 
   static void edit_active_shape_appearance(MainWindow& window) {
     window.edit_active_shape_appearance();

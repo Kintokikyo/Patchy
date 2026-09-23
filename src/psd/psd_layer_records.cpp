@@ -585,6 +585,27 @@ LayerRecord read_layer_record(BigEndianReader& reader, bool large_document,
         }
         if (!record.text_geometry.has_value()) {
           record.text_geometry = extract_type_tool_geometry(text_payload);
+          if (record.text_geometry.has_value() && record.text_patchy_generated_type_block &&
+              record.text_box.has_value()) {
+            // Patchy moved the transform origin below its frame by the baseline inset and left
+            // the frame's top at -inset in 'bounds' (text_geometry_for_layer); put the origin
+            // back on the frame Patchy lays out, keeping every rect where it is on the page.
+            auto& geometry = *record.text_geometry;
+            if (std::isfinite(geometry.bounds.top) && geometry.bounds.top < -0.0005 &&
+                std::abs(geometry.box_bounds.top) < 0.0005) {
+              const double inset = -geometry.bounds.top;
+              geometry.transform[4] -= geometry.transform[2] * inset;
+              geometry.transform[5] -= geometry.transform[3] * inset;
+              // 'bounds' and 'boundingBox' were translated with the origin; /BoxBounds was
+              // written AT the moved origin (Photoshop's frame) and Patchy's frame is the
+              // restored origin, so it stays [0 0 w h].
+              for (auto* bounds : {&geometry.bounds, &geometry.bounding_box}) {
+                bounds->top += inset;
+                bounds->bottom += inset;
+              }
+              record.text_box_baseline_inset = inset;
+            }
+          }
         }
       }
       if (key == "lmfx") {

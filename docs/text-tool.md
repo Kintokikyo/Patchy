@@ -50,12 +50,14 @@ session.
 `ui_transformed_text_click_returns_to_the_caret_it_drew` covers it on the rotated fixed-leading
 fixture (transform inverse plus leading divergence).
 
-`render_text_pixels_with_local_rect` is split into `build_text_render_plan` (layout, line
-plan, local rect, the post-fold residual transform) and `draw_text_render_plan(plan, QPainter&)`.
-The raster path draws the plan into a QImage; `draw_text_layer_to_painter`
-(`ui/text_layer_painter.hpp`, the editable PDF export) draws the same plan through the
-layer's canonical text transform onto any painter, which is how PDF gets real embedded-font
-text that lands exactly on the layer's raster. Keep the two consumers on one plan.
+`render_text_pixels_with_local_rect` = `build_text_render_plan` (layout, line plan, local rect,
+post-fold residual transform) + `draw_text_render_plan(plan, QPainter&)`. The raster path draws
+the plan into a QImage; `draw_text_layer_to_painter` (`ui/text_layer_painter.hpp`, editable PDF
+export) draws the same plan through the layer's canonical text transform, so PDF text lands on
+the raster. Keep the two consumers on one plan. The render also returns the plan's layout
+metrics (first baseline, box baseline inset, auto-leading fraction); every caller that stores the
+pixels on a layer hands them to `store_text_layout_metrics` for the PSD writer
+([text-render-calibration.md](text-render-calibration.md), "re-renders where Patchy drew it").
 
 Every type in that header holds handles into the document's `QTextLayout`. They are valid only
 while that document is alive and has not been laid out again, and `build_text_render_document`
