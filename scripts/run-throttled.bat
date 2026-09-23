@@ -1,7 +1,7 @@
 @echo off
 rem Runs one command at below-normal priority and returns ITS exit code:
 rem
-rem   scripts\run-throttled.bat "C:\...\cmake.exe" --build --preset release -j 6
+rem   scripts\run-throttled.bat "C:\...\cmake.exe" --build --preset release -j 12
 rem   scripts\run-throttled.bat .\patchy_core_tests.exe
 rem
 rem Use this instead of writing `start "" /b /wait /belownormal ...` inline. That

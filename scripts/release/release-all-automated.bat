@@ -2,7 +2,7 @@
 rem Non-interactive release driver for agents and unattended runs. Same four builders
 rem as release-all.bat, but every console runs release-worker.bat, which sets the
 rem environment the batch files need (NO_PAUSE=1 so sign.bat and the upload scripts
-rem never wait on a key, CMAKE_BUILD_PARALLEL_LEVEL=6 so every cmake --build stays
+rem never wait on a key, CMAKE_BUILD_PARALLEL_LEVEL=12 so every local cmake --build stays
 rem throttled, and a Windows PowerShell 5.1 PSModulePath so the inline powershell
 rem one-liners load the right modules even when launched from pwsh 7), logs the
 rem target to build\release-logs\<target>.log, and writes exit=<code> to

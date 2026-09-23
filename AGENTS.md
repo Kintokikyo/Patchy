@@ -29,10 +29,10 @@ Required release handoff steps:
 1. Build the release preset:
 
    ```powershell
-   cmd /s /c 'scripts\vs-env.bat -arch=x64 -host_arch=x64 >nul && scripts\run-throttled.bat "C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" --build --preset release -j 6'
+   cmd /s /c 'scripts\vs-env.bat -arch=x64 -host_arch=x64 >nul && scripts\run-throttled.bat "C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" --build --preset release -j 12'
    ```
 
-   The throttling is mandatory (Seth, September 2026): `-j 6` caps ninja's parallelism (its default of every core plus two makes this 24-core machine unresponsive) and `scripts\run-throttled.bat` runs the whole build at below-normal priority. Run the test binaries through the same helper. Never launch an unthrottled build, and never substitute a bare `start "" /b /wait /belownormal`: that reports 0 whenever the program launched, while `run-throttled.bat` propagates the child's real exit code, negative crash codes included.
+   The throttling is mandatory (Seth, September 2026): `-j 12` caps ninja's parallelism for local Windows builds (its default of every core plus two makes this 24-core machine unresponsive; remote mac/Linux builds stay at 6) and `scripts\run-throttled.bat` runs the whole build at below-normal priority. Run the test binaries through the same helper. Never launch an unthrottled build, and never substitute a bare `start "" /b /wait /belownormal`: that reports 0 whenever the program launched, while `run-throttled.bat` propagates the child's real exit code, negative crash codes included.
 
    Run this from the repository root in PowerShell or a real cmd prompt, never Git Bash or another POSIX shell. Nested quoting collapses there, cmd prints its banner, and exits 0 without building. Trust the build only if the log contains compile/link lines or `ninja: no work to do`, never the exit code alone. Builds that include an app target never end at `ninja: no work to do`: every build rewrites the generated build-stamp header (`cmake/write_build_stamp.cmake`), recompiles `build_info.cpp`, and relinks, so the in-app build date always matches the build that produced the binary.
 
