@@ -4,6 +4,7 @@
 
 #include "core/blend_math.hpp"
 #include "core/layer_metadata.hpp"
+#include "core/pixel_grid.hpp"
 #include "core/smart_object.hpp"
 #include "core/text_warp.hpp"
 #include "core/warp_mesh.hpp"
@@ -2808,8 +2809,8 @@ private:
     // Box geometry changed: drop the import-frame render rect so glyphs lay out against the live
     // box instead of the original Photoshop frame (free helper isn't visible inside this class).
     editor_->setProperty(kTextEditorRenderLocalRectProperty, QVariant());
-    editor_->setProperty("patchy.documentTextX", static_cast<int>(std::floor(adjusted.dx())));
-    editor_->setProperty("patchy.documentTextY", static_cast<int>(std::floor(adjusted.dy())));
+    editor_->setProperty("patchy.documentTextX", snapped_pixel_coordinate(adjusted.dx()));
+    editor_->setProperty("patchy.documentTextY", snapped_pixel_coordinate(adjusted.dy()));
     editor_->setProperty("patchy.documentTextFlow", QString::fromLatin1(kTextFlowBox));
     editor_->setProperty("patchy.documentTextWidth", geometry->width);
     editor_->setProperty("patchy.documentTextHeight", geometry->height);
@@ -3945,7 +3946,16 @@ TextRenderPlan build_text_render_plan(const TextToolSettings& settings, QColor c
   // either way, so callers see identical geometry with crisper, correctly-sized glyphs.
   // layout_scale_in additionally scales run sizes WITHOUT scaling box dims -- a PSD-frame box
   // session works in a document-space frame while its runs stay in raw engine units.
-  QTransform document_transform = document_transform_in;
+  //
+  // Photoshop rasterizes a type layer from its anchor rounded to a whole pixel (halves up),
+  // whatever the linear part: tx 100.3 renders exactly like 100.0 and 100.5 like 101.0, rotated
+  // and scaled text included (PS 27.9 captures, docs/text-render-calibration.md). The stored
+  // transform keeps its fraction; only the raster origin snaps, which is what puts a re-render
+  // of an imported layer on Photoshop's own rows and columns instead of a pixel off.
+  QTransform document_transform(document_transform_in.m11(), document_transform_in.m12(),
+                                document_transform_in.m21(), document_transform_in.m22(),
+                                snap_to_pixel_grid(document_transform_in.dx()),
+                                snap_to_pixel_grid(document_transform_in.dy()));
   double fold_scale = 1.0;
   if (settings.photoshop_layout && !document_transform_in.isIdentity()) {
     const auto vertical_scale = std::hypot(document_transform_in.m21(), document_transform_in.m22());
@@ -3968,7 +3978,7 @@ TextRenderPlan build_text_render_plan(const TextToolSettings& settings, QColor c
       document_transform =
           QTransform(document_transform_in.m11() / fold_scale, document_transform_in.m12() / fold_scale,
                      document_transform_in.m21() / fold_scale, document_transform_in.m22() / fold_scale,
-                     document_transform_in.dx(), document_transform_in.dy());
+                     document_transform.dx(), document_transform.dy());
     }
   }
   const double layout_scale =
@@ -4275,8 +4285,10 @@ std::optional<LayerAffineTransform> text_editor_transform_override(const QTextEd
 void set_text_editor_transform_override(QTextEdit& editor, const LayerAffineTransform& transform) {
   editor.setProperty(kTextEditorTransformOverrideProperty,
                      QString::fromStdString(serialize_layer_affine_transform(transform)));
-  editor.setProperty("patchy.documentTextX", static_cast<int>(std::floor(transform[4])));
-  editor.setProperty("patchy.documentTextY", static_cast<int>(std::floor(transform[5])));
+  // The raster is drawn from the anchor rounded like Photoshop (build_text_render_plan), so
+  // the document point that places it rounds the same way.
+  editor.setProperty("patchy.documentTextX", snapped_pixel_coordinate(transform[4]));
+  editor.setProperty("patchy.documentTextY", snapped_pixel_coordinate(transform[5]));
 }
 
 void set_text_editor_visible_local_rect(QTextEdit& editor, const Rect& bounds) {
@@ -4660,16 +4672,14 @@ Rect rendered_text_bounds_for_editor(const QTextEdit& editor, QPoint document_po
   if (text_editor_render_local_rect(editor).has_value()) {
     if (const auto anchor = text_editor_source_visible_anchor(editor); anchor.has_value()) {
       if (const auto visible_bounds = visible_alpha_local_bounds(rendered.pixels); visible_bounds.has_value()) {
-        return Rect{static_cast<std::int32_t>(std::floor(anchor->x() - static_cast<double>(visible_bounds->x))),
-                    static_cast<std::int32_t>(std::floor(anchor->y() - static_cast<double>(visible_bounds->y))),
+        return Rect{snapped_pixel_coordinate(anchor->x() - static_cast<double>(visible_bounds->x)),
+                    snapped_pixel_coordinate(anchor->y() - static_cast<double>(visible_bounds->y)),
                     rendered.pixels.width(),
                     rendered.pixels.height()};
       }
     }
-    return Rect{static_cast<std::int32_t>(std::floor(static_cast<double>(document_point.x()) +
-                                                     rendered.local_rect.left())),
-                static_cast<std::int32_t>(std::floor(static_cast<double>(document_point.y()) +
-                                                     rendered.local_rect.top())),
+    return Rect{snapped_pixel_coordinate(static_cast<double>(document_point.x()) + rendered.local_rect.left()),
+                snapped_pixel_coordinate(static_cast<double>(document_point.y()) + rendered.local_rect.top()),
                 rendered.pixels.width(),
                 rendered.pixels.height()};
   }
@@ -5977,11 +5987,19 @@ QTransform fold_text_transform_scale_into_font_size(Layer& layer, const QTransfo
   return residual;
 }
 
+// The committed box origin is the integer document point, except that an anchor whose
+// Photoshop rounding already IS that point keeps its fraction: Photoshop stores fractional
+// click points (tx 100.4) and renders from their rounding, so overwriting 100.4 with 100
+// would shift the layer on the next Photoshop open whenever the fraction was >= .5.
 LayerAffineTransform committed_text_transform(QPoint document_point,
                                               const std::optional<LayerAffineTransform>& active_transform) {
   auto transform = active_transform.value_or(LayerAffineTransform{1.0, 0.0, 0.0, 1.0, 0.0, 0.0});
-  transform[4] = static_cast<double>(document_point.x());
-  transform[5] = static_cast<double>(document_point.y());
+  if (!active_transform.has_value() || snapped_pixel_coordinate(transform[4]) != document_point.x()) {
+    transform[4] = static_cast<double>(document_point.x());
+  }
+  if (!active_transform.has_value() || snapped_pixel_coordinate(transform[5]) != document_point.y()) {
+    transform[5] = static_cast<double>(document_point.y());
+  }
   return transform;
 }
 
@@ -7448,6 +7466,11 @@ void MainWindow::configure_canvas(CanvasWidget* canvas) {
       edit_active_shape_appearance();
     }
   });
+  canvas->set_free_transform_requested_callback([this, canvas] {
+    if (canvas == canvas_) {
+      transform_active_layer_dialog();
+    }
+  });
   canvas->set_crop_commit_requested_callback([this, canvas](QRect rect, double angle_degrees) {
     if (canvas != canvas_) {
       return;
@@ -7903,8 +7926,8 @@ void MainWindow::add_text_at(QPoint document_point, QRect requested_text_box, bo
         if (psd_visible_rect.has_value()) {
           editing_layer_source_visible_anchor = psd_visible_rect->topLeft();
           editing_layer_source_visible_size = psd_visible_rect->size();
-          document_point = QPoint(static_cast<int>(std::floor(psd_visible_rect->left())),
-                                  static_cast<int>(std::floor(psd_visible_rect->top())));
+          document_point = QPoint(snapped_pixel_coordinate(psd_visible_rect->left()),
+                                  snapped_pixel_coordinate(psd_visible_rect->top()));
         } else {
           bool invertible = false;
           const auto inverse = text_transform->inverted(&invertible);
@@ -7912,12 +7935,12 @@ void MainWindow::add_text_at(QPoint document_point, QRect requested_text_box, bo
             initial_cursor_local_position = inverse.map(QPointF(requested_document_point));
           }
           const auto transformed_origin = text_transform->map(QPointF(0.0, 0.0));
-          document_point = QPoint(static_cast<int>(std::floor(transformed_origin.x())),
-                                  static_cast<int>(std::floor(transformed_origin.y())));
+          document_point = QPoint(snapped_pixel_coordinate(transformed_origin.x()),
+                                  snapped_pixel_coordinate(transformed_origin.y()));
         }
       } else if (using_psd_frame) {
-        document_point = QPoint(static_cast<int>(std::floor(psd_frame->left())),
-                                static_cast<int>(std::floor(psd_frame->top())));
+        document_point = QPoint(snapped_pixel_coordinate(psd_frame->left()),
+                                snapped_pixel_coordinate(psd_frame->top()));
         document_editor_width =
             std::max(kMinimumTextBoxDocumentSize, static_cast<int>(std::ceil(psd_frame->width())));
         document_editor_height =

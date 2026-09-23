@@ -80,9 +80,9 @@ Dungeon Scroll repro, 18 x 0.9 = 16.2 became 16 (~1.2% narrow -- "Jumble"/"Submi
 ("Quit"/"Pause"). Leaving the remainder in the matrix also agrees with the caret, which lays out
 at the raw size and applies the full transform through the overlay.
 `ui_dungeon_scroll_psd_text_commit_keeps_placement_if_available` pins both against Photoshop's
-rasters. What is left is a pixel of grid phase: Photoshop's anchors sit at fractional document
-positions (tx 267.35, ty 305.4) and both rasters land on the whole-pixel grid, so an edited layer
-can still settle 1px off in x or y.
+rasters. Photoshop's anchors sit at fractional document positions (tx 267.35, ty 305.4); both
+renderers put the raster at the anchor ROUNDED to a whole pixel (next section), so what is left
+is glyph-advance quantization, not grid phase.
 
 - **Text renders UNHINTED**: PS never runs TrueType hinting; every antialiased `/AntiAlias` mode maps to `QFont::PreferNoHinting` (`configure_text_font_smoothing`); mode 0/None keeps `NoAntialias` + full hinting, which fattens stems on small-print-era fonts and shifts advances into collisions.
 - **Imported type layers keep Photoshop's raster until edited** (`should_regenerate_imported_text_preview`, psd_text_write.cpp): a missing font never changes appearance on open. Rasters are kept even under big effects; regenerate only when the stored preview is visibly NOT any run's declared fill color (baked-in effect pixels would corrupt the live outer-effect contour), or when the type block is Patchy-authored. Editing a kept raster warns before substituting fonts; `--append-text` substitutes silently. **Continuing past that warning really substitutes**: `substituted_text_family` (what `QFontInfo` resolves the missing family to, then the UI font, then the original when nothing installed can draw the text) moves the session's base family and `substitute_missing_document_font_families` every run, blank paragraphs' block char formats included. Otherwise the commit stores the missing name back over a raster drawn in the substitute and the layer stays badged. The editable PDF export is the one reader that re-lays-out a kept raster without an edit (real text placed on the raster's ink, missing fonts substituted unless asked for pixels; see [pdf.md](pdf.md)).
@@ -133,6 +133,35 @@ is missing raises the modal substitution prompt) and `psd_vertical_*captures*` i
 - **`/Tracking` is written as an integer.** Photoshop's engine re-lays out a layer with a
   negative float tracking (`-305.000000`) as "the result would be too big", every edit failing;
   `-305` and positive floats work (COM bisect on a user file, September 2026).
+
+## Pixel grid and fractional anchors
+
+PS 27.9 COM captures (September 2026): "Hg", Arial 48 px, Sharp, placed at x or y 100.0 / 100.3 /
+100.5 / 100.7, plus 10-degree rotated and 150% scaled variants; two are committed as
+`test-fixtures/psd/photoshop-text-anchor-{whole,half}.psd` (x 100.0 and 100.5).
+
+- **The TySh keeps the fractional anchor** (tx 100.3, 100.5, 100.7 round-trip exactly;
+  `textClickPoint` carries the same value in percent of the document). Patchy keeps it too:
+  `patchy.text.transform` serializes at 17 significant digits (`serialize_layer_affine_transform`),
+  `committed_text_transform` leaves tx/ty alone when their rounding already equals the committed
+  document point, and integer moves add to them.
+- **Photoshop rasterizes from the anchor rounded to a whole pixel, halves up** (`snap_to_pixel_grid`,
+  core/pixel_grid.hpp: floor(v + 0.5)): x 100.3 renders byte-identically to 100.0, and 100.5 and
+  100.7 identically to each other; y likewise (100.5 is the 100.0 raster shifted one row). The
+  rotated and scaled layers behave the same: every raster is a whole-pixel shift of its base.
+  `build_text_render_plan` therefore snaps the document transform's dx/dy before drawing, and the
+  editor's document point (`set_text_editor_transform_override`, `rendered_text_bounds_for_editor`,
+  session entry) rounds the same way instead of flooring. Photoshop's own raster in the half
+  fixture starts one column later than the whole one (record rect 104 vs 103). Pinned by
+  `ui_text_transform_rerender_rounds_anchor_like_photoshop` (148.3 renders as 148.0, 148.5 as
+  149.0, the fraction survives in the stored transform), `ui_box_text_edit_keeps_fractional_anchor`
+  and `psd_text_anchor_captures_keep_fractional_transform`.
+- **Known gap: per-glyph x rounding.** Photoshop also rounds EACH glyph's absolute x position: at
+  x 100.5 the "H" moved one column while the "g" (100.5 + 34.67 = 135.17 -> 135, the same column
+  as 134.67) stayed. Qt places glyphs at fractional advances, so a line can differ from Photoshop
+  by a column inside the run even when the anchor agrees.
+- Box text keeps a fractional `/BoxBounds` in PS (100.6 x 80.3); `patchy.text.box_width/height`
+  round it (`extract_type_tool_text_box`). The frame origin rounds like a point anchor.
 - **TySh encoding**: descriptor `Ornt` enum `Vrtc`; engine data `/WritingDirection 2` in
   both the Shapes and Lines dictionaries and `/Procession 1` (horizontal: 0, 0). Nothing else
   in the engine data differs between a vertical and a horizontal save.

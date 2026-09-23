@@ -88,6 +88,8 @@ a249d71db1be5e65 f2bf42dce8c3d975 photoshop-smart-filter-surface-blur.psd
 3dab549b59a8e909 31fdbc9e993cd751 photoshop-stroke-partial-alpha.psd
 bd09d2e4364e4f7d 86ca8a884788408d photoshop-stroke-positions.psd
 617a8e6ef090d264 17f41a2d949ef82e photoshop-stroke-shapeburst.psd
+ecf6f74d201e2411 8e277126dab790bb photoshop-text-anchor-half.psd
+92a69b4787d5a111 d04a366077fb616d photoshop-text-anchor-whole.psd
 fbc5fa0891df96bd 96d7bbc80513c3a1 photoshop-text-box-auto-leading.psd
 dbd65737cbbe663d 05f817208a548c31 photoshop-text-hv-scale.psd
 ff816697719a152d 0aae12782dc13be1 photoshop-text-point-auto-leading.psd

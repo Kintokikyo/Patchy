@@ -17346,6 +17346,14 @@ Y: %2
         <source>Elliptical Marquee: drag to select. Drag a handle to resize the selection, or drag inside it to move it.</source>
         <translation>Auswahlellipse: Ziehen, um auszuwählen. Griff ziehen, um die Auswahlgröße zu ändern, oder innerhalb ziehen, um sie zu verschieben.</translation>
     </message>
+    <message>
+        <source>Snap transforms to the pixel grid</source>
+        <translation>Transformationen am Pixelraster ausrichten</translation>
+    </message>
+    <message>
+        <source>Positions and sizes typed into the Free Transform bar land on whole pixels, like Photoshop&apos;s &quot;Snap Vector Tools and Transforms to Pixel Grid&quot;. Rotated transforms are not snapped. When off, a typed fraction such as 3.4 px is kept and the pixels are resampled.</source>
+        <translation>In die Frei-transformieren-Leiste eingegebene Positionen und Größen landen auf ganzen Pixeln, wie Photoshops „Vektorwerkzeuge und Transformationen am Pixelraster ausrichten“. Gedrehte Transformationen werden nicht ausgerichtet. Wenn aus, bleibt ein eingegebener Bruchteil wie 3,4 px erhalten und die Pixel werden neu berechnet.</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

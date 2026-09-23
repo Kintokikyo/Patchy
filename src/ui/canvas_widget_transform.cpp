@@ -13,6 +13,7 @@
 #include "core/adjustment_layer.hpp"
 #include "core/blend_math.hpp"
 #include "core/layer_metadata.hpp"
+#include "core/pixel_grid.hpp"
 #include "core/smart_object.hpp"
 #include "core/smart_filter.hpp"
 #include "core/layer_render_utils.hpp"
@@ -82,6 +83,20 @@ namespace patchy::ui {
 namespace {
 
 constexpr double kMinimumTransformScalePercent = 0.01;
+// A numeric rotation this small still counts as axis-aligned for pixel-grid snapping.
+constexpr double kPixelGridSnapAngleTolerance = 0.01;
+
+// Photoshop lands an axis-aligned transform on the pixel grid by rounding each destination
+// edge (halves up): 4.75..35.25 becomes 5..35, so a typed X of 3.4 moves the layer by 3 and
+// a 152.5% width of 30.5 px comes out 30 wide (PS 27.9 COM captures, September 2026). A
+// rotated box cannot sit on the grid and is left alone.
+QRectF snap_transform_rect_to_pixel_grid(const QRectF& rect) {
+  const auto left = snap_to_pixel_grid(rect.left());
+  const auto top = snap_to_pixel_grid(rect.top());
+  const auto right = std::max(left + 1.0, snap_to_pixel_grid(rect.right()));
+  const auto bottom = std::max(top + 1.0, snap_to_pixel_grid(rect.bottom()));
+  return QRectF(QPointF(left, top), QPointF(right, bottom));
+}
 
 // Latch thresholds for the drag-time proxy preview, measured on the larger of
 // the unclipped transformed-source AABB (what resample_transformed_rgba8
@@ -1274,9 +1289,14 @@ std::optional<QRectF> CanvasWidget::transform_controls_rect_for_layer(const Laye
   return QRectF(bounds.x + local_rect->x(), bounds.y + local_rect->y(), local_rect->width(), local_rect->height());
 }
 
-std::optional<QRectF> CanvasWidget::move_transform_controls_rect() const {
-  if (document_ == nullptr || tool_ != CanvasTool::Move || !show_transform_controls_ || moving_layer_ ||
-      transforming_layer_ || dragging_transform_) {
+// The document rect a Move-tool Free Transform would start on for the current
+// selection: the single target's session rect, or the union of a folder's or
+// multi-selection's flattened target set. Empty when a session is in flight or
+// the session would refuse (position lock, no pixel targets), so the passive
+// controls hide and the double-click stays inert in the same cases.
+std::optional<QRectF> CanvasWidget::move_transform_target_rect() const {
+  if (document_ == nullptr || tool_ != CanvasTool::Move || moving_layer_ || transforming_layer_ ||
+      dragging_transform_) {
     return std::nullopt;
   }
 
@@ -1314,6 +1334,35 @@ std::optional<QRectF> CanvasWidget::move_transform_controls_rect() const {
     return std::nullopt;
   }
   return union_rect;
+}
+
+std::optional<QRectF> CanvasWidget::move_transform_controls_rect() const {
+  if (!show_transform_controls_) {
+    return std::nullopt;
+  }
+  return move_transform_target_rect();
+}
+
+void CanvasWidget::set_free_transform_requested_callback(std::function<void()> callback) {
+  free_transform_requested_callback_ = std::move(callback);
+}
+
+std::vector<LayerId> CanvasWidget::free_transform_snap_exclude_ids() const {
+  std::vector<LayerId> ids;
+  if (!transforming_layer_) {
+    return ids;
+  }
+  if (!transform_targets_.empty()) {
+    ids.reserve(transform_targets_.size());
+    for (const auto& target : transform_targets_) {
+      ids.push_back(target.id);
+    }
+    return ids;
+  }
+  if (transform_layer_id_.has_value()) {
+    ids.push_back(*transform_layer_id_);
+  }
+  return ids;
 }
 
 void CanvasWidget::set_move_transform_controls_layer(std::optional<LayerId> layer_id) {
@@ -2103,6 +2152,14 @@ bool CanvasWidget::show_transform_drag_values() const noexcept {
   return show_transform_drag_values_;
 }
 
+void CanvasWidget::set_snap_transforms_to_pixel_grid(bool enabled) noexcept {
+  snap_transforms_to_pixel_grid_ = enabled;
+}
+
+bool CanvasWidget::snap_transforms_to_pixel_grid() const noexcept {
+  return snap_transforms_to_pixel_grid_;
+}
+
 std::optional<CanvasWidget::DragReadout> CanvasWidget::transform_drag_readout() const {
   if (!show_transform_drag_values_) {
     return std::nullopt;
@@ -2239,6 +2296,12 @@ bool CanvasWidget::set_transform_controls_state(QPointF reference_position, doub
   const auto center = reference_position - anchor_offset;
   const auto previous_preview_rect = transform_preview_document_rect();
   transform_current_rect_ = QRectF(center.x() - width / 2.0, center.y() - height / 2.0, width, height);
+  if (snap_transforms_to_pixel_grid_ && std::abs(rotation_degrees) <= kPixelGridSnapAngleTolerance) {
+    // Typed fractions (and unit conversions such as 1 cm at 300 ppi) snap the way Photoshop
+    // does; the options bar re-reads the snapped rect, so the field shows what was applied.
+    // Integer inputs snap to themselves, which keeps every pinned commit byte-identical.
+    transform_current_rect_ = snap_transform_rect_to_pixel_grid(transform_current_rect_);
+  }
   transform_scale_x_sign_ = scale_x_sign;
   transform_scale_y_sign_ = scale_y_sign;
   transform_angle_ = rotation_degrees;
@@ -2497,10 +2560,16 @@ void CanvasWidget::update_free_transform_preview(QPointF document_point, Qt::Key
   }
   const auto previous_preview_rect = transform_preview_document_rect();
   auto rect = transform_drag_start_rect_;
-  const auto drag_delta = document_point - transform_drag_start_point_;
 
   if (transform_drag_handle_ == TransformHandle::Move) {
-    rect.translate(drag_delta);
+    // The end point above is whole-pixel (snapped_document_point_f rounds
+    // before it snaps), so the start rounds the same way: a pointer resting on
+    // a half pixel (a fractional pan at 100%) otherwise turned a motionless
+    // press and release inside the box, the first half of the double-click
+    // that commits, into a 1 px nudge, and every drag overshot by one.
+    const QPointF rounded_start(static_cast<double>(std::lround(transform_drag_start_point_.x())),
+                                static_cast<double>(std::lround(transform_drag_start_point_.y())));
+    rect.translate(document_point - rounded_start);
     transform_current_rect_ = rect;
     refresh_transform_preview_for_drag();
     update_transform_preview_region(previous_preview_rect);

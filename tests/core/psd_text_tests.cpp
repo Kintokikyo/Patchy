@@ -2397,10 +2397,56 @@ void psd_writer_writes_baseline_direction_for_vertical_type() {
   CHECK(reread_upright.layers().back().metadata().at(patchy::kLayerMetadataTextRuns).rfind("v7\n", 0) != 0);
 }
 
+// photoshop-text-anchor-{whole,half}.psd: Photoshop 27.9 point text "Hg" (Arial 48 px, Sharp)
+// placed at x 100.0 and x 100.5. The TySh keeps the fractional anchor, and Photoshop's own
+// raster sits at the ROUNDED anchor: the half layer's record rect starts one column later
+// (its glyph rows are otherwise byte-identical to the whole layer's; docs/text-render-calibration.md).
+void psd_text_anchor_captures_keep_fractional_transform() {
+  const auto text_layer_of = [](const patchy::Document& document) -> const patchy::Layer* {
+    for (const auto& layer : document.layers()) {
+      if (layer.metadata().contains(patchy::kLayerMetadataPsdTextTransform)) {
+        return &layer;
+      }
+    }
+    return nullptr;
+  };
+  const auto whole =
+      patchy::psd::DocumentIo::read_file(patchy::test::committed_psd_fixture_path("photoshop-text-anchor-whole.psd"));
+  const auto half =
+      patchy::psd::DocumentIo::read_file(patchy::test::committed_psd_fixture_path("photoshop-text-anchor-half.psd"));
+  const auto* whole_layer = text_layer_of(whole);
+  const auto* half_layer = text_layer_of(half);
+  CHECK(whole_layer != nullptr);
+  CHECK(half_layer != nullptr);
+  if (whole_layer == nullptr || half_layer == nullptr) {
+    return;
+  }
+  const auto whole_transform =
+      patchy::parse_layer_affine_transform(whole_layer->metadata().at(patchy::kLayerMetadataPsdTextTransform));
+  const auto half_transform =
+      patchy::parse_layer_affine_transform(half_layer->metadata().at(patchy::kLayerMetadataPsdTextTransform));
+  CHECK(whole_transform.has_value());
+  CHECK(half_transform.has_value());
+  if (!whole_transform.has_value() || !half_transform.has_value()) {
+    return;
+  }
+  // Photoshop's own file holds 99.99999999999999 for the "100" anchor (its position setter
+  // works in percent of the document), which still rounds to the 100 the raster sits at.
+  CHECK(std::abs((*whole_transform)[4] - 100.0) < 1e-9);
+  CHECK(std::abs((*whole_transform)[5] - 100.0) < 1e-9);
+  CHECK(std::abs((*half_transform)[4] - 100.5) < 1e-9);
+  CHECK(std::abs((*half_transform)[5] - 100.0) < 1e-9);
+  CHECK(whole_layer->bounds().x == 103);
+  CHECK(whole_layer->bounds().y == 65);
+  CHECK(half_layer->bounds().x == 104);
+  CHECK(half_layer->bounds().y == 65);
+}
+
 }  // namespace
 
 std::vector<patchy::test::TestCase> psd_text_tests() {
   return {
+      {"psd_text_anchor_captures_keep_fractional_transform", psd_text_anchor_captures_keep_fractional_transform},
       {"psd_writer_writes_baseline_direction_for_vertical_type", psd_writer_writes_baseline_direction_for_vertical_type},
       {"psd_writer_writes_tracking_as_an_integer", psd_writer_writes_tracking_as_an_integer},
       {"psd_vertical_tracking_bug_file_resaves_with_integer_tracking_if_available",

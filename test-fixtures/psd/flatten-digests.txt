@@ -88,6 +88,8 @@ ad771860686f8ee9 photoshop-stroke-aa-matte.psd
 fa21f1110746d111 photoshop-stroke-partial-alpha.psd
 16835e195f6491ed photoshop-stroke-positions.psd
 17f41a2d949ef82e photoshop-stroke-shapeburst.psd
+8e277126dab790bb photoshop-text-anchor-half.psd
+d04a366077fb616d photoshop-text-anchor-whole.psd
 96d7bbc80513c3a1 photoshop-text-box-auto-leading.psd
 05f817208a548c31 photoshop-text-hv-scale.psd
 0aae12782dc13be1 photoshop-text-point-auto-leading.psd

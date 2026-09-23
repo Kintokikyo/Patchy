@@ -17346,6 +17346,14 @@ Y: %2
         <source>Elliptical Marquee: drag to select. Drag a handle to resize the selection, or drag inside it to move it.</source>
         <translation>Selezione ellittica: trascina per selezionare. Trascina una maniglia per ridimensionare la selezione, oppure trascina all&apos;interno per spostarla.</translation>
     </message>
+    <message>
+        <source>Snap transforms to the pixel grid</source>
+        <translation>Allinea le trasformazioni alla griglia di pixel</translation>
+    </message>
+    <message>
+        <source>Positions and sizes typed into the Free Transform bar land on whole pixels, like Photoshop&apos;s &quot;Snap Vector Tools and Transforms to Pixel Grid&quot;. Rotated transforms are not snapped. When off, a typed fraction such as 3.4 px is kept and the pixels are resampled.</source>
+        <translation>Le posizioni e le dimensioni digitate nella barra di Trasformazione libera cadono su pixel interi, come «Allinea strumenti vettoriali e trasformazioni alla griglia di pixel» di Photoshop. Le trasformazioni ruotate non vengono allineate. Se disattivato, una frazione digitata come 3,4 px viene mantenuta e i pixel vengono ricampionati.</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

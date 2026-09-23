@@ -2932,6 +2932,37 @@ void ui_script_advanced_brush_creation_preview_and_psd() {
   save_widget_artifact("advanced_brush_presets",window);
 }
 
+// moveTo and the x/y setters round like Photoshop (halves up), never truncate toward zero.
+void ui_script_layer_move_to_rounds_like_photoshop() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  const auto bounds_of = [&document]() {
+    const auto* layer = layer_named(document, "Rounded");
+    CHECK(layer != nullptr);
+    return layer != nullptr ? layer->bounds() : patchy::Rect{};
+  };
+  CHECK(run_script(window, QStringLiteral(R"JS(
+    var layer = app.activeDocument.addLayer('Rounded');
+    layer.fill('#ff4000');
+    layer.moveTo(10.6, -10.9);
+  )JS")));
+  CHECK(bounds_of().x == 11);
+  CHECK(bounds_of().y == -11);
+  CHECK(run_script(window, QStringLiteral(R"JS(
+    var layer = app.activeDocument.activeLayer;
+    layer.x = 3.4;
+    layer.y = 6.5;
+  )JS")));
+  CHECK(bounds_of().x == 3);
+  CHECK(bounds_of().y == 7);
+  CHECK(run_script(window, QStringLiteral(R"JS(
+    app.activeDocument.activeLayer.moveTo(-3.5, -3.5);
+  )JS")));
+  CHECK(bounds_of().x == -3);
+  CHECK(bounds_of().y == -3);
+}
+
 void ui_script_layer_duplicate_to_document() {
   patchy::ui::MainWindow window;
   show_window(window);
@@ -3018,6 +3049,7 @@ void ui_script_export_pdf_writes_pages() {
 std::vector<patchy::test::TestCase> scripting_tests() {
   return {
       {"ui_script_export_pdf_writes_pages", ui_script_export_pdf_writes_pages},
+      {"ui_script_layer_move_to_rounds_like_photoshop", ui_script_layer_move_to_rounds_like_photoshop},
       {"ui_script_palette_validation_and_history", ui_script_palette_validation_and_history},
       {"ui_script_palette_unicode_files_and_indexed_png", ui_script_palette_unicode_files_and_indexed_png},
       {"ui_script_palette_named_controls_and_rename", ui_script_palette_named_controls_and_rename},

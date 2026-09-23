@@ -17,6 +17,7 @@
 #include "core/path_simplify.hpp"
 
 #include "core/layer_metadata.hpp"
+#include "core/pixel_grid.hpp"
 #include "formats/document_flatten.hpp"
 #include "formats/palette_io.hpp"
 #include "core/layer_render_utils.hpp"
@@ -355,14 +356,17 @@ void ScriptLayerObject::moveTo(double x, double y) {
     return std::isfinite(value) && value >= std::numeric_limits<int>::min() &&
            value <= std::numeric_limits<int>::max();
   };
-  if (!valid_integer(x) || !valid_integer(y) ||
-      !valid_integer(x - bounds.x) || !valid_integer(y - bounds.y) ||
-      !valid_integer(x + bounds.width) || !valid_integer(y + bounds.height)) {
+  // Photoshop's whole-pixel rule (halves round up), not truncation toward zero.
+  const auto snapped_x = snap_to_pixel_grid(x);
+  const auto snapped_y = snap_to_pixel_grid(y);
+  if (!valid_integer(snapped_x) || !valid_integer(snapped_y) ||
+      !valid_integer(snapped_x - bounds.x) || !valid_integer(snapped_y - bounds.y) ||
+      !valid_integer(snapped_x + bounds.width) || !valid_integer(snapped_y + bounds.height)) {
     host_.throw_js_error(ScriptEngineHost::tr("Layer position is outside the supported range."));
     return;
   }
-  const int dx = static_cast<int>(x) - bounds.x;
-  const int dy = static_cast<int>(y) - bounds.y;
+  const int dx = static_cast<int>(snapped_x) - bounds.x;
+  const int dy = static_cast<int>(snapped_y) - bounds.y;
   if (dx == 0 && dy == 0) {
     return;
   }
