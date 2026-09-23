@@ -34,7 +34,7 @@ if (-not (Test-Path $cache)) {
       # (AGENTS.md); lupdate itself is single-threaded and takes a few seconds.
       # run-throttled.bat, not a bare `start /b /wait`: that form returns start's
       # own status, so the $LASTEXITCODE check below could never fire.
-      & cmd /s /c "scripts\vs-env.bat -arch=x64 -host_arch=x64 >nul && scripts\run-throttled.bat ""$cmake"" --build --preset $Preset --target $target -j 12"
+      & cmd /s /c "scripts\vs-env.bat -arch=x64 -host_arch=x64 >nul && scripts\run-throttled.bat ""$cmake"" --build --preset $Preset --target $target -j 20"
     } else {
       & nice -n 10 $cmake --build --preset $Preset --target $target -j 6
     }

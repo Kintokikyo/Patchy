@@ -7,7 +7,7 @@ rem redirect first (>file echo ...): cmd treats a digit directly before > as a f
 rem handle, so echo %ERRORLEVEL%>file would leave an empty marker for exit code 0.
 setlocal EnableExtensions
 set "NO_PAUSE=1"
-set "CMAKE_BUILD_PARALLEL_LEVEL=12"
+set "CMAKE_BUILD_PARALLEL_LEVEL=20"
 set "PSModulePath=%USERPROFILE%\Documents\WindowsPowerShell\Modules;%ProgramFiles%\WindowsPowerShell\Modules;%SystemRoot%\system32\WindowsPowerShell\v1.0\Modules"
 cd /d "%~dp0..\.."
 if not exist build\release-logs mkdir build\release-logs
