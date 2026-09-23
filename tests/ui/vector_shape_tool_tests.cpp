@@ -3485,6 +3485,120 @@ void ui_shape_geometry_link_keeps_aspect() {
   CHECK(std::abs(content->origination[0].bottom - 340.0) < 0.5);
 }
 
+void ui_shape_geometry_radius_link_edits_all_corners() {
+  VectorSettingsGuard settings_guard;
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  auto* tool_radius = window.findChild<QSpinBox*>(QStringLiteral("shapeCornerRadiusSpin"));
+  CHECK(tool_radius != nullptr);
+  tool_radius->setValue(20);  // every corner 20: the dialog opens linked
+  canvas->set_tool(patchy::ui::CanvasTool::Rectangle);
+  shape_drag(*canvas, QPoint(100, 100), QPoint(300, 220));
+  const auto layer_id = document.active_layer_id();
+  CHECK(layer_id.has_value());
+
+  const auto find_corners = [](QDialog& dialog) {
+    return std::array<QDoubleSpinBox*, 4>{
+        dialog.findChild<QDoubleSpinBox*>(QStringLiteral("shapeGeometryRadiusTopLeftSpin")),
+        dialog.findChild<QDoubleSpinBox*>(QStringLiteral("shapeGeometryRadiusTopRightSpin")),
+        dialog.findChild<QDoubleSpinBox*>(QStringLiteral("shapeGeometryRadiusBottomRightSpin")),
+        dialog.findChild<QDoubleSpinBox*>(QStringLiteral("shapeGeometryRadiusBottomLeftSpin"))};
+  };
+  bool first_open_checked = false;
+  QTimer::singleShot(0, [&] {
+    auto* dialog = patchy::test::ui::find_top_level_dialog(QStringLiteral("shapeAppearanceDialog"));
+    CHECK(dialog != nullptr);
+    if (dialog == nullptr) {
+      return;
+    }
+    auto* radius_link = dialog->findChild<QToolButton*>(QStringLiteral("shapeGeometryRadiusLinkButton"));
+    const auto corners = find_corners(*dialog);
+    CHECK(radius_link != nullptr && corners[0] != nullptr && corners[1] != nullptr &&
+          corners[2] != nullptr && corners[3] != nullptr);
+    if (radius_link == nullptr || corners[3] == nullptr) {
+      dialog->reject();
+      return;
+    }
+    // Equal corners at open: linked by default, and one edit moves all four.
+    CHECK(radius_link->isChecked());
+    corners[0]->setValue(30.0);
+    for (const auto* corner : corners) {
+      CHECK(std::abs(corner->value() - 30.0) < 1e-9);
+    }
+    // Unlinked: a corner edits alone.
+    radius_link->setChecked(false);
+    corners[1]->setValue(5.0);
+    CHECK(std::abs(corners[0]->value() - 30.0) < 1e-9);
+    CHECK(std::abs(corners[2]->value() - 30.0) < 1e-9);
+    CHECK(std::abs(corners[3]->value() - 30.0) < 1e-9);
+    // Relinking copies nothing by itself; the next edit brings them together.
+    radius_link->setChecked(true);
+    CHECK(std::abs(corners[1]->value() - 5.0) < 1e-9);
+    corners[3]->setValue(12.0);
+    for (const auto* corner : corners) {
+      CHECK(std::abs(corner->value() - 12.0) < 1e-9);
+    }
+    radius_link->setChecked(false);
+    corners[1]->setValue(5.0);
+    // Layout: each link is a bracket that spans its rows, between the label
+    // column and the fields (the Image Size dialog's Width / Height link).
+    auto* size_link = dialog->findChild<QToolButton*>(QStringLiteral("shapeGeometryLinkButton"));
+    auto* width = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("shapeGeometryWidthSpin"));
+    auto* height = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("shapeGeometryHeightSpin"));
+    CHECK(size_link != nullptr && width != nullptr && height != nullptr);
+    if (size_link != nullptr && width != nullptr && height != nullptr) {
+      const QRect link_rect(size_link->mapTo(dialog, QPoint(0, 0)), size_link->size());
+      CHECK(link_rect.top() <= width->mapTo(dialog, QPoint(0, 0)).y());
+      CHECK(link_rect.bottom() + 1 >= height->mapTo(dialog, QPoint(0, height->height())).y());
+      CHECK(link_rect.right() < width->mapTo(dialog, QPoint(0, 0)).x());
+      const QRect radius_rect(radius_link->mapTo(dialog, QPoint(0, 0)), radius_link->size());
+      CHECK(radius_rect.top() <= corners[0]->mapTo(dialog, QPoint(0, 0)).y());
+      CHECK(radius_rect.bottom() + 1 >= corners[3]->mapTo(dialog, QPoint(0, corners[3]->height())).y());
+      CHECK(radius_rect.right() < corners[0]->mapTo(dialog, QPoint(0, 0)).x());
+      CHECK(radius_rect.left() == link_rect.left());
+      CHECK(radius_rect.top() > link_rect.bottom());
+    }
+    save_widget_artifact("shape-appearance-dialog-geometry-links", *dialog);
+    first_open_checked = true;
+    dialog->accept();
+  });
+  patchy::ui::MainWindowTestAccess::edit_active_shape_appearance(window);
+  QApplication::processEvents();
+  CHECK(first_open_checked);
+  const auto* content = document.find_layer(*layer_id)->vector_shape();
+  CHECK(content != nullptr && content->origination.size() == 1);
+  if (content != nullptr && content->origination.size() == 1) {
+    // Three corners from the linked edit, one from the lone edit.
+    const auto& radii = content->origination[0].corner_radii;
+    CHECK(std::abs(radii[0] - 12.0) < 1e-6);
+    CHECK(std::abs(radii[1] - 5.0) < 1e-6);
+    CHECK(std::abs(radii[2] - 12.0) < 1e-6);
+    CHECK(std::abs(radii[3] - 12.0) < 1e-6);
+  }
+
+  // Distinct corners: the dialog reopens unlinked, so one edit cannot flatten
+  // them by accident.
+  bool reopened = false;
+  QTimer::singleShot(0, [&] {
+    auto* dialog = patchy::test::ui::find_top_level_dialog(QStringLiteral("shapeAppearanceDialog"));
+    CHECK(dialog != nullptr);
+    if (dialog == nullptr) {
+      return;
+    }
+    auto* radius_link = dialog->findChild<QToolButton*>(QStringLiteral("shapeGeometryRadiusLinkButton"));
+    const auto corners = find_corners(*dialog);
+    CHECK(radius_link != nullptr && !radius_link->isChecked());
+    CHECK(corners[1] != nullptr && std::abs(corners[1]->value() - 5.0) < 1e-6);
+    reopened = true;
+    dialog->reject();
+  });
+  patchy::ui::MainWindowTestAccess::edit_active_shape_appearance(window);
+  QApplication::processEvents();
+  CHECK(reopened);
+}
+
 void ui_shape_appearance_dialog_fits_1080p_and_has_two_columns() {
   VectorSettingsGuard settings_guard;
   patchy::ui::MainWindow window;
@@ -3510,7 +3624,7 @@ void ui_shape_appearance_dialog_fits_1080p_and_has_two_columns() {
       if (opened_page != nullptr) {
         CHECK(dialog->height() <= opened_page->sizeHint().height() + 80);
       }
-      // Solid fill + stroke off: the left column's 12 rows set the height,
+      // Solid fill + stroke off: the left column's 11 rows set the height,
       // well under the all-rows-visible measurement (about 900 px).
       CHECK(dialog->height() <= 720);
     }
@@ -3981,6 +4095,8 @@ std::vector<patchy::test::TestCase> vector_shape_tool_tests() {
       {"ui_shape_appearance_dialog_edits_opacity_feather_and_stroke_opacity",
        ui_shape_appearance_dialog_edits_opacity_feather_and_stroke_opacity},
       {"ui_shape_geometry_link_keeps_aspect", ui_shape_geometry_link_keeps_aspect},
+      {"ui_shape_geometry_radius_link_edits_all_corners",
+       ui_shape_geometry_radius_link_edits_all_corners},
       {"ui_shape_appearance_dialog_fits_1080p_and_has_two_columns",
        ui_shape_appearance_dialog_fits_1080p_and_has_two_columns},
       {"ui_shape_appearance_spins_have_step_buttons", ui_shape_appearance_spins_have_step_buttons},

@@ -8470,6 +8470,10 @@ RGB: %2, %3, %4</translation>
         <source>How much the long shadow fades out by its far end</source>
         <translation>Quanto l&apos;ombra lunga sfuma verso la sua estremità</translation>
     </message>
+    <message>
+        <source>Change all four corner radii together</source>
+        <translation>Modifica insieme i quattro raggi degli angoli</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

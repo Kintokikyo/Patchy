@@ -3,8 +3,7 @@
 References: [scripting](vector-automation.md), [preview](vector-preview.md), [merging](layer-merging.md), [open strokes](open-path-strokes.md).
 
 UI/PSD contracts and patent boundaries. Encoding facts: PS 27.8 COM probes
-(July 2026) in `local-test-fixtures/vector-probe/`
-(untracked). Constraints: docs/legal-constraints.md.
+(July 2026) in `local-test-fixtures/vector-probe/`. Constraints: docs/legal-constraints.md.
 
 ## Shape tools (Line / Rectangle / Ellipse)
 
@@ -197,36 +196,37 @@ layers.
 
 The Shape Appearance dialog opens from the vector badge, the row
 double-click, the layer context menu, the canvas right-click menu's shape
-section ("Canvas right-click menu" in [tools.md](tools.md)), the options-bar
-Appearance... button (Shape mode, and Path Select / Direct Select with an
-editable shape), Layer > Shape > Shape Appearance... (`layer.shape_appearance`),
+section ([tools.md](tools.md)), the options-bar
+Appearance... button (Shape mode, or Path / Direct Select on an editable
+shape), Layer > Shape > Shape Appearance... (`layer.shape_appearance`),
 the Properties panel's Edit Appearance... button, and a Path Select / Direct
-Select double-click on the shape's geometry. Its Reset button restores the factory appearance with the
-fill in the current foreground color (geometry stays). Controls: paint kind,
-width, alignment, caps, joins, and dash presets. Custom preserves PSD dash arrays.
+Select double-click on the shape's geometry. Reset restores the factory
+appearance, fill in the foreground color (geometry stays). Controls: paint kind,
+width, alignment, caps, joins, dash presets (Custom keeps PSD dash arrays).
 `pattern_linked` anchors at the effects reference point when on and document
 origin when off; offsets add either way (PatternTileSampler).
 
 Geometry appears when one modeled origination covers every subpath: rect bounds
 and corner radii, ellipse bounds, or line endpoints/weight. A radius promotes a
-rect to rounded; a link button (`shapeGeometryLinkButton`) keeps W/H in the
-ratio captured when it was switched on. generate_live_shape_subpaths preserves
-live shape parameters. Dialogs are the patent-cleared route; on-canvas gizmos
-stay excluded. The dialog also edits the layer's Opacity and Fill opacity (the
-Layers panel values), the stroke's own opacity (vstk strokeStyleOpacity), and
-the shape's Feather / Density (Edge group); all PSD-native, one "Shape
-appearance" undo entry. Layout: two columns in a scroll area capped to the
-screen height, every numeric field with - / + steppers.
+rect to rounded. Chain buttons between label and field span the rows they
+tie (the Image Size bracket): `shapeGeometryLinkButton` keeps W/H in the
+ratio captured when switched on; `shapeGeometryRadiusLinkButton` edits all four
+radii together, on by default only when the corners agree.
+generate_live_shape_subpaths keeps live parameters. Dialogs are the
+patent-cleared route; on-canvas gizmos stay excluded. It also edits layer Opacity and
+Fill opacity, the stroke's own opacity (vstk strokeStyleOpacity), and Feather /
+Density (Edge group); all PSD-native, one "Shape appearance" undo entry. Layout: two columns in a height-capped scroll area, - / + steppers on every
+numeric field.
 
 Edits preview live and restore on cancel or exception; a PSD-read gradient/pattern
-stroke paint stays untouched unless re-picked. The preview
+stroke stays untouched unless re-picked. The preview
 rasterizes on a worker: the vector MODEL applies synchronously,
 baked pixels lag, requests coalesce, the pattern anchor rides a scratch
 layer; accept commits the in-flight result (60s timeout fallback). Layer >
 New Fill Layer creates Solid Color, Gradient (FG-to-BG linear), and Pattern
-fill layers as shape layers with an empty path (= whole canvas); a TARGETED
+fill layers as shape layers with an empty path (whole canvas); a TARGETED
 Paths-panel row becomes the new layer's shape path (PS's "current path"
-rule, build_fill_layer), and selections become raster masks. Library patterns adopt into the document PatternStore on use.
+rule, build_fill_layer), and selections become raster masks. Library patterns adopt into the document store on use.
 
 New Gradient/Pattern Fill stages the layer; one history entry, only on OK.
 Cancel restores the original document, active layer and pattern store included.

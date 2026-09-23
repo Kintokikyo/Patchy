@@ -8443,6 +8443,10 @@ Mixed selection</source>
         <source>How much the long shadow fades out by its far end</source>
         <translation>ロングシャドウが先端に向かってどれだけ薄くなるか</translation>
     </message>
+    <message>
+        <source>Change all four corner radii together</source>
+        <translation>4 つの角の半径をまとめて変更</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
