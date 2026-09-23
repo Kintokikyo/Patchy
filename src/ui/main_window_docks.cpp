@@ -1014,7 +1014,7 @@ bool MainWindow::handle_dock_group_window_event(QObject* watched, QEvent* event)
 
   // The tab bar swallows presses on its own blank stretch, so catch those at
   // the bar and start the same window drag.
-if (auto* tab_bar = qobject_cast<QTabBar*>(widget);
+  if (auto* tab_bar = qobject_cast<QTabBar*>(widget);
     tab_bar != nullptr) {
 
     qDebug() << "RIGHT TAB BAR"
@@ -1035,7 +1035,7 @@ if (auto* tab_bar = qobject_cast<QTabBar*>(widget);
             dock_group_drag_window_ = tab_bar->window();
             dock_group_drag_edges_ = Qt::Edges{};
 
-#ifdef Q_OS_ANDROID
+  #ifdef Q_OS_ANDROID
             if (auto* window = tab_bar->windowHandle()) {
                 dock_group_drag_offset_ =
                     mouse_event->globalPosition().toPoint() -
@@ -1045,17 +1045,17 @@ if (auto* tab_bar = qobject_cast<QTabBar*>(widget);
                     mouse_event->globalPosition().toPoint() -
                     tab_bar->window()->pos();
             }
-#else
+  #else
             dock_group_drag_offset_ =
                 mouse_event->globalPosition().toPoint() -
                 tab_bar->window()->pos();
-#endif
+  #endif
 
             mouse_event->accept();
             return true;
-        }
-    }
-}
+          }
+      }
+  }
 
 void MainWindow::create_docks() {
   setTabPosition(Qt::RightDockWidgetArea, QTabWidget::North);
