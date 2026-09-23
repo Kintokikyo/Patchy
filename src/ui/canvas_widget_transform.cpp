@@ -1289,9 +1289,14 @@ std::optional<QRectF> CanvasWidget::transform_controls_rect_for_layer(const Laye
   return QRectF(bounds.x + local_rect->x(), bounds.y + local_rect->y(), local_rect->width(), local_rect->height());
 }
 
-std::optional<QRectF> CanvasWidget::move_transform_controls_rect() const {
-  if (document_ == nullptr || tool_ != CanvasTool::Move || !show_transform_controls_ || moving_layer_ ||
-      transforming_layer_ || dragging_transform_) {
+// The document rect a Move-tool Free Transform would start on for the current
+// selection: the single target's session rect, or the union of a folder's or
+// multi-selection's flattened target set. Empty when a session is in flight or
+// the session would refuse (position lock, no pixel targets), so the passive
+// controls hide and the double-click stays inert in the same cases.
+std::optional<QRectF> CanvasWidget::move_transform_target_rect() const {
+  if (document_ == nullptr || tool_ != CanvasTool::Move || moving_layer_ || transforming_layer_ ||
+      dragging_transform_) {
     return std::nullopt;
   }
 
@@ -1329,6 +1334,35 @@ std::optional<QRectF> CanvasWidget::move_transform_controls_rect() const {
     return std::nullopt;
   }
   return union_rect;
+}
+
+std::optional<QRectF> CanvasWidget::move_transform_controls_rect() const {
+  if (!show_transform_controls_) {
+    return std::nullopt;
+  }
+  return move_transform_target_rect();
+}
+
+void CanvasWidget::set_free_transform_requested_callback(std::function<void()> callback) {
+  free_transform_requested_callback_ = std::move(callback);
+}
+
+std::vector<LayerId> CanvasWidget::free_transform_snap_exclude_ids() const {
+  std::vector<LayerId> ids;
+  if (!transforming_layer_) {
+    return ids;
+  }
+  if (!transform_targets_.empty()) {
+    ids.reserve(transform_targets_.size());
+    for (const auto& target : transform_targets_) {
+      ids.push_back(target.id);
+    }
+    return ids;
+  }
+  if (transform_layer_id_.has_value()) {
+    ids.push_back(*transform_layer_id_);
+  }
+  return ids;
 }
 
 void CanvasWidget::set_move_transform_controls_layer(std::optional<LayerId> layer_id) {
@@ -2526,10 +2560,16 @@ void CanvasWidget::update_free_transform_preview(QPointF document_point, Qt::Key
   }
   const auto previous_preview_rect = transform_preview_document_rect();
   auto rect = transform_drag_start_rect_;
-  const auto drag_delta = document_point - transform_drag_start_point_;
 
   if (transform_drag_handle_ == TransformHandle::Move) {
-    rect.translate(drag_delta);
+    // The end point above is whole-pixel (snapped_document_point_f rounds
+    // before it snaps), so the start rounds the same way: a pointer resting on
+    // a half pixel (a fractional pan at 100%) otherwise turned a motionless
+    // press and release inside the box, the first half of the double-click
+    // that commits, into a 1 px nudge, and every drag overshot by one.
+    const QPointF rounded_start(static_cast<double>(std::lround(transform_drag_start_point_.x())),
+                                static_cast<double>(std::lround(transform_drag_start_point_.y())));
+    rect.translate(document_point - rounded_start);
     transform_current_rect_ = rect;
     refresh_transform_preview_for_drag();
     update_transform_preview_region(previous_preview_rect);

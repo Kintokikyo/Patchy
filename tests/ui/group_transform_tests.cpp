@@ -714,6 +714,114 @@ void ui_move_passive_transform_controls_frame_folder_and_multi_selection() {
   CHECK(!canvas->transform_controls_state().has_value());
 }
 
+// A Move-tool double-click on the selected layer starts Free Transform with
+// Show Transform Controls off or on, a double-click off the target does not,
+// a double-click off the pending box keeps the session, and one inside the
+// box commits it (Photoshop). Each double-click replays the full sequence Qt
+// delivers (press, release, double-click, release) so the trailing release
+// can neither end the new session nor restart a Move drag under it. A
+// position-locked layer stays inert, like its hidden controls.
+void ui_move_double_click_starts_and_commits_free_transform() {
+  patchy::Document document(200, 160, patchy::PixelFormat::rgba8());
+  document.add_pixel_layer("Background",
+                           solid_pixels(200, 160, patchy::PixelFormat::rgba8(), QColor(Qt::white)));
+  auto red = patchy::Layer(document.allocate_layer_id(), "Red",
+                           solid_pixels(20, 20, patchy::PixelFormat::rgba8(), QColor(230, 30, 30)));
+  const auto red_id = red.id();
+  red.set_bounds(patchy::Rect{40, 40, 20, 20});
+  document.add_layer(std::move(red));
+  auto locked = patchy::Layer(document.allocate_layer_id(), "Locked",
+                              solid_pixels(20, 20, patchy::PixelFormat::rgba8(), QColor(40, 180, 90)));
+  const auto locked_id = locked.id();
+  locked.set_bounds(patchy::Rect{100, 100, 20, 20});
+  patchy::set_layer_lock_flags(locked, patchy::kLayerLockPosition);
+  document.add_layer(std::move(locked));
+
+  patchy::ui::MainWindow window;
+  show_window(window);
+  window.add_document_session(std::move(document), QStringLiteral("Move Double Click"));
+  auto* canvas = require_canvas(window);
+  auto* layer_list = window.findChild<QListWidget*>(QStringLiteral("layerList"));
+  CHECK(layer_list != nullptr);
+  auto& doc = patchy::ui::MainWindowTestAccess::document(window);
+  canvas->set_zoom(1.0);
+
+  require_action_by_text(window, QStringLiteral("Move"))->trigger();
+  canvas->set_auto_select_layer(false);
+  canvas->set_show_transform_controls(false);
+  // Through the panel, so the document's active layer follows (the Ctrl+T
+  // handler the double-click reuses checks that layer's position lock).
+  select_layer_rows_by_id(*layer_list, {red_id});
+  QApplication::processEvents();
+
+  // Fractional widget positions map to exact document coordinates whatever
+  // the centred pan is, so the geometry below is deterministic.
+  const auto send_mouse_f = [&](QEvent::Type type, QPointF document_point, Qt::MouseButton button,
+                                Qt::MouseButtons buttons) {
+    const auto position = canvas->widget_position_f(document_point);
+    QMouseEvent event(type, position, canvas->mapToGlobal(position.toPoint()), button, buttons, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &event);
+    QApplication::processEvents();
+  };
+  const auto double_click = [&](QPointF document_point) {
+    send_mouse_f(QEvent::MouseButtonPress, document_point, Qt::LeftButton, Qt::LeftButton);
+    send_mouse_f(QEvent::MouseButtonRelease, document_point, Qt::LeftButton, Qt::NoButton);
+    send_mouse_f(QEvent::MouseButtonDblClick, document_point, Qt::LeftButton, Qt::LeftButton);
+    send_mouse_f(QEvent::MouseButtonRelease, document_point, Qt::LeftButton, Qt::NoButton);
+  };
+
+  // Off the selected layer: nothing starts.
+  double_click(QPointF(150.0, 120.0));
+  CHECK(!canvas->free_transform_active());
+  CHECK(!canvas->transform_controls_state().has_value());
+
+  // On it: the session starts without Ctrl-T and without the passive controls.
+  double_click(QPointF(50.0, 50.0));
+  CHECK(canvas->free_transform_active());
+  CHECK(!canvas->free_transform_is_multi_target());
+
+  // Off the pending box the session survives, like a stray single press.
+  double_click(QPointF(150.0, 120.0));
+  CHECK(canvas->free_transform_active());
+
+  // Drag the bottom-right handle out by 10 px, then double-click inside the
+  // box to commit: the layer is 30 x 30 at the same origin afterwards. The
+  // commit's motionless press and release inside the box is a Move-handle
+  // drag that must not nudge the box: it sits on a half pixel (the start
+  // rounds like the end) and 4 px from the layer's pre-session right edge at
+  // 60, inside snap tolerance (the session's own layers are not snap targets).
+  send_mouse_f(QEvent::MouseButtonPress, QPointF(60.0, 60.0), Qt::LeftButton, Qt::LeftButton);
+  send_mouse_f(QEvent::MouseMove, QPointF(70.0, 70.0), Qt::NoButton, Qt::LeftButton);
+  send_mouse_f(QEvent::MouseButtonRelease, QPointF(70.0, 70.0), Qt::LeftButton, Qt::NoButton);
+  CHECK(canvas->free_transform_active());
+  double_click(QPointF(55.5, 55.5));
+  CHECK(!canvas->free_transform_active());
+  const auto* committed = doc.find_layer(red_id);
+  CHECK(committed != nullptr);
+  if (committed != nullptr) {
+    CHECK(committed->bounds().x == 40);
+    CHECK(committed->bounds().y == 40);
+    CHECK(committed->bounds().width == 30);
+    CHECK(committed->bounds().height == 30);
+  }
+
+  // The same gesture works with the passive controls shown.
+  canvas->set_show_transform_controls(true);
+  QApplication::processEvents();
+  CHECK(canvas->transform_controls_state().has_value());
+  double_click(QPointF(50.0, 50.0));
+  CHECK(canvas->free_transform_active());
+  send_key(*canvas, Qt::Key_Escape);
+  QApplication::processEvents();
+  CHECK(!canvas->free_transform_active());
+
+  // A position-locked layer refuses, as Ctrl-T does.
+  select_layer_rows_by_id(*layer_list, {locked_id});
+  QApplication::processEvents();
+  double_click(QPointF(110.0, 110.0));
+  CHECK(!canvas->free_transform_active());
+}
+
 // The reported repro: the pinball PSD's folder must accept Ctrl-T, scale, and
 // restore byte-identically on one Undo.
 void ui_pinball_folder_free_transform_end_to_end() {
@@ -1063,6 +1171,8 @@ std::vector<patchy::test::TestCase> group_transform_tests() {
        ui_group_transform_selection_reemission_keeps_session},
       {"ui_move_passive_transform_controls_frame_folder_and_multi_selection",
        ui_move_passive_transform_controls_frame_folder_and_multi_selection},
+      {"ui_move_double_click_starts_and_commits_free_transform",
+       ui_move_double_click_starts_and_commits_free_transform},
       {"ui_pinball_folder_free_transform_end_to_end", ui_pinball_folder_free_transform_end_to_end},
       {"ui_select_all_free_transform_transforms_retronight_poster",
        ui_select_all_free_transform_transforms_retronight_poster},

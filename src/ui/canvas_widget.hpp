@@ -740,6 +740,11 @@ public:
   // A Path Select / Direct Select double-click on the target shape layer's
   // geometry (anchor, segment, or a painted pixel) opens its appearance editor.
   void set_shape_appearance_requested_callback(std::function<void()> callback);
+  // A Move-tool double-click on the selected layer's transform target (the box
+  // the passive controls would frame, shown or not) asks the host to start
+  // Free Transform through the same path as Edit > Free Transform (Ctrl+T), so
+  // the position-lock and non-pixel refusals match the menu's.
+  void set_free_transform_requested_callback(std::function<void()> callback);
   // Pen tool (canvas_widget_vector_tools.cpp - the tablet-input TU is
   // canvas_widget_pen.cpp): a committed path arrives as one subpath.
   void set_vector_path_committed_callback(
@@ -1064,6 +1069,9 @@ public:
   [[nodiscard]] bool has_selection() const noexcept;
   [[nodiscard]] bool selection_contains(QPoint point) const noexcept;
   [[nodiscard]] QPoint widget_position_for_document_point(QPoint document_position) const;
+  // Fractional counterpart: tests use it to land presses on exact document
+  // coordinates whatever the centred pan is.
+  [[nodiscard]] QPointF widget_position_f(QPointF document_position) const;
   // The document pixel under a widget-local point, for drop handlers outside
   // the widget (document_position itself stays private).
   [[nodiscard]] QPoint document_point_for_widget_position(QPoint widget_position) const {
@@ -1405,8 +1413,10 @@ private:
   [[nodiscard]] QPoint document_position(const QPoint& widget_position) const;
   [[nodiscard]] QPointF document_position_f(QPointF widget_position) const;
   [[nodiscard]] QPoint widget_position(const QPoint& document_position) const;
-  [[nodiscard]] QPointF widget_position_f(QPointF document_position) const;
   [[nodiscard]] QPoint snapped_document_point(QPoint point) const;
+  // Layers a pending Free Transform session owns: their pre-session edges are
+  // not snap targets for the session's own drags.
+  [[nodiscard]] std::vector<LayerId> free_transform_snap_exclude_ids() const;
   [[nodiscard]] QPointF snapped_document_point_f(QPointF point) const;
   // Every enabled snap target except the grid, in the order guides, document,
   // selection, layers (the tie-break order every snap path shares). Layers
@@ -1892,6 +1902,7 @@ private:
   void set_transform_cursor_for_handle(TransformHandle handle);
   void update_move_transform_controls_dirty(std::optional<QRectF> old_rect);
   [[nodiscard]] std::optional<QRectF> transform_controls_rect_for_layer(const Layer& layer) const;
+  [[nodiscard]] std::optional<QRectF> move_transform_target_rect() const;
   [[nodiscard]] std::optional<QRectF> move_transform_controls_rect() const;
   void set_move_transform_controls_layer(std::optional<LayerId> layer_id);
   void notify_transform_controls_changed();
@@ -2045,6 +2056,7 @@ private:
   std::function<void(CanvasTool, QPointF)> shape_create_requested_callback_;
   // Path Select / Direct Select double-click on a shape layer's geometry.
   std::function<void()> shape_appearance_requested_callback_;
+  std::function<void()> free_transform_requested_callback_;
   std::function<std::optional<ShapePreviewAppearance>()> shape_preview_appearance_callback_;
   int polygon_sides_{5};
   int polygon_star_inset_{0};

@@ -439,7 +439,11 @@ QPoint CanvasWidget::snapped_document_point(QPoint point) const {
   // guides, grid, then document / selection / layers.
   std::vector<SnapCandidate> x_candidates;
   std::vector<SnapCandidate> y_candidates;
-  collect_snap_candidates({}, x_candidates, y_candidates);
+  // A Free Transform drag must not snap to the edges the session's own layers
+  // still occupy in the document (the pixels only move at commit): a press
+  // inside the box a few pixels from the layer's old edge otherwise nudged the
+  // box onto it on release, so the double-click that commits moved the layer.
+  collect_snap_candidates(free_transform_snap_exclude_ids(), x_candidates, y_candidates);
   for (const auto& candidate : x_candidates) {
     if (candidate.kind == SnapKind::Guide) {
       consider_x(candidate.position);

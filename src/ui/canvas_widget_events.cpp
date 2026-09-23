@@ -2718,8 +2718,9 @@ void CanvasWidget::mouseDoubleClickEvent(QMouseEvent* event) {
     event->accept();
     return;
   }
-  if (event->button() == Qt::LeftButton && document_contains(document_point)) {
-    if (transforming_layer_ && transform_layer_id_.has_value()) {
+  if (event->button() == Qt::LeftButton) {
+    const bool inside_document = document_contains(document_point);
+    if (inside_document && transforming_layer_ && transform_layer_id_.has_value()) {
       const auto transform_hit = transform_handle_at(event->pos());
       const auto text_layer_id = *transform_layer_id_;
       auto* transformed_layer = document_ != nullptr ? document_->find_layer(text_layer_id) : nullptr;
@@ -2737,10 +2738,15 @@ void CanvasWidget::mouseDoubleClickEvent(QMouseEvent* event) {
       }
     }
     if (transforming_layer_) {
+      // Photoshop: a double-click inside the box commits the session. Off the
+      // box it keeps the session alive, like a single press does.
+      if (transform_handle_at(event->pos()) != TransformHandle::None) {
+        commit_free_transform();
+      }
       event->accept();
       return;
     }
-    if (auto* layer = topmost_text_layer_at(document_point); layer != nullptr) {
+    if (auto* layer = inside_document ? topmost_text_layer_at(document_point) : nullptr; layer != nullptr) {
       activate_layer(*layer);
       if (text_requested_callback_) {
         text_requested_callback_(document_point, QRect());
@@ -2751,7 +2757,7 @@ void CanvasWidget::mouseDoubleClickEvent(QMouseEvent* event) {
     // Path Select / Direct Select: a double-click on the target shape layer's
     // geometry (anchor, segment, or a painted pixel) opens its appearance
     // editor, the way a text layer's double-click opens its editor.
-    if ((tool_ == CanvasTool::PathSelect || tool_ == CanvasTool::DirectSelect) &&
+    if (inside_document && (tool_ == CanvasTool::PathSelect || tool_ == CanvasTool::DirectSelect) &&
         layer_edit_target_ != LayerEditTarget::VectorMask && !active_document_path_.has_value() &&
         shape_appearance_requested_callback_) {
       if (const auto* layer = path_edit_target_layer(); layer != nullptr && layer->vector_shape() != nullptr) {
@@ -2773,6 +2779,32 @@ void CanvasWidget::mouseDoubleClickEvent(QMouseEvent* event) {
           event->accept();
           return;
         }
+      }
+    }
+    // Move tool: a double-click on the selected layer's transform target
+    // starts Free Transform (the pasteboard part of the box counts, like a
+    // handle grab). Text layers took the editor branch above; a lone text
+    // target whose double-click landed off the document stays inert rather
+    // than opening a transform the editor branch would have refused. The
+    // double-click's own press is swallowed here, so no second Move drag
+    // starts under the new session; the trailing release finds nothing to end.
+    if (tool_ == CanvasTool::Move && !warping_layer_ && !path_transform_active_) {
+      const Layer* lone_target = nullptr;
+      if (document_ != nullptr && selected_layer_ids_.size() <= 1U) {
+        const auto lone_id = selected_layer_ids_.empty() ? document_->active_layer_id()
+                                                          : std::optional<LayerId>(selected_layer_ids_.front());
+        lone_target = lone_id.has_value() ? document_->find_layer(*lone_id) : nullptr;
+      }
+      const bool lone_text_target = lone_target != nullptr && layer_is_text(*lone_target);
+      if (const auto target = move_transform_target_rect();
+          !lone_text_target && target.has_value() && target->contains(document_position_f(event->position()))) {
+        if (free_transform_requested_callback_) {
+          free_transform_requested_callback_();
+        } else {
+          begin_free_transform();
+        }
+        event->accept();
+        return;
       }
     }
   }

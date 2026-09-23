@@ -7466,6 +7466,11 @@ void MainWindow::configure_canvas(CanvasWidget* canvas) {
       edit_active_shape_appearance();
     }
   });
+  canvas->set_free_transform_requested_callback([this, canvas] {
+    if (canvas == canvas_) {
+      transform_active_layer_dialog();
+    }
+  });
   canvas->set_crop_commit_requested_callback([this, canvas](QRect rect, double angle_degrees) {
     if (canvas != canvas_) {
       return;
