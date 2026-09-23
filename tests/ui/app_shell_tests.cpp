@@ -2642,7 +2642,11 @@ void ui_about_dialog_shows_labeled_external_links() {
     CHECK(contributors->openExternalLinks());
     CHECK(contributors->text().startsWith(QStringLiteral("Code contributions from ")));
     CHECK(contributors->text().contains(QStringLiteral("href=\"https://github.com/mcapogna\"")));
-    CHECK(contributors->text().contains(QStringLiteral(">Michael Capogna</a>")));
+    CHECK(contributors->text().contains(QStringLiteral(">mcapogna</a>")));
+    CHECK(contributors->text().contains(QStringLiteral("href=\"https://github.com/csbun\"")));
+    CHECK(contributors->text().contains(QStringLiteral(">csbun</a>")));
+    CHECK(contributors->text().contains(QStringLiteral("href=\"https://github.com/ifloppy\"")));
+    CHECK(contributors->text().contains(QStringLiteral(">ifloppy</a>")));
     CHECK(!contributors->text().contains(QLatin1Char('@')));
 
     auto* settings_caption = dialog->findChild<QLabel*>(QStringLiteral("splashSettingsCaption"));
@@ -3169,7 +3173,11 @@ void ui_start_panel_shows_about_info_and_update_status() {
   CHECK(contributors->openExternalLinks());
   CHECK(contributors->text().startsWith(QStringLiteral("Code contributions from ")));
   CHECK(contributors->text().contains(QStringLiteral("href=\"https://github.com/mcapogna\"")));
-  CHECK(contributors->text().contains(QStringLiteral(">Michael Capogna</a>")));
+  CHECK(contributors->text().contains(QStringLiteral(">mcapogna</a>")));
+  CHECK(contributors->text().contains(QStringLiteral("href=\"https://github.com/csbun\"")));
+  CHECK(contributors->text().contains(QStringLiteral(">csbun</a>")));
+  CHECK(contributors->text().contains(QStringLiteral("href=\"https://github.com/ifloppy\"")));
+  CHECK(contributors->text().contains(QStringLiteral(">ifloppy</a>")));
 
   const auto link_labels = panel->findChildren<QLabel*>(QStringLiteral("startPanelHome"));
   CHECK(link_labels.size() == 2);

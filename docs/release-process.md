@@ -26,6 +26,8 @@ When bumping the release version, update the version fields:
   Keep the `[Older releases](RELEASE-HISTORY.md)` link immediately after the two
   README entries. `RELEASE-HISTORY.md` stays newest-first and must not duplicate
   either release still shown in the README.
+- The code contributor credits, for any pull request accepted since the last
+  release (see "What's New author credits" below).
 
 ## What's New author credits
 
@@ -37,6 +39,16 @@ the commits behind each bullet (e.g. `git log --format='%an %s'`) rather than
 assuming, and when one bullet mixes work from more than one person, credit the
 specific clause that person wrote (see the existing 0.10/0.12 entries in
 `RELEASE-HISTORY.md` for the mid-bullet style).
+
+Every version bump also checks for newly accepted pull requests (Seth, September
+2026): `gh pr list --state merged --limit 50 --json number,title,author,mergedAt`,
+plus `git log --format='%an <%ae>' | sort -u` for work merged by hand. Each new
+contributor gets an entry in `kContributors` (`src/ui/app_credits.cpp`, which
+feeds the About dialog and the start panel; update the `splashContributors` and
+`startPanelContributors` checks in `tests/ui/app_shell_tests.cpp`) and in the
+README's "Code contributions from" line under Credits, in merge order. Credit
+the GitHub handle, never the person's real or display name (they may not want
+it broadcast), linked to `https://github.com/<handle>`.
 
 ## Build and upload order
 

@@ -138,7 +138,7 @@ These are corpus-specific results, not universal product ratings. See the [full 
 
 ## Download
 
-**Latest release: 0.97** · September 21, 2026 · [Release notes](#whats-new)
+**Latest release: 0.98** · September 23, 2026 · [Release notes](#whats-new)
 
 Windows releases are code signed by Seth A. Robinson; the macOS app is signed and
 notarized (Robinson Technologies Corporation).
@@ -149,7 +149,7 @@ notarized (Robinson Technologies Corporation).
 | Windows 10/11 (64-bit)    | Portable ZIP (no installer) | [PatchyWindowsNoInstaller.zip](https://rtsoft.com/files/PatchyWindowsNoInstaller.zip) (59 MB) |
 | macOS 12+ (Apple Silicon) | DMG - drag to Applications  | [PatchyMacOS.dmg](https://rtsoft.com/files/PatchyMacOS.dmg) (64 MB)                           |
 | Linux                     | Flatpak bundle              | [PatchyLinux.flatpak](https://rtsoft.com/files/PatchyLinux.flatpak) (31 MB)                   |
-| Any modern browser        | Nothing to install          | [rtsoft.com/patchy](https://www.rtsoft.com/patchy/) (slower and less capable)                 |
+| Any modern browser        | Nothing to install          | [patchyimageeditor.com](https://www.patchyimageeditor.com) or [rtsoft.com/patchy](https://www.rtsoft.com/patchy/) |
 
 Linux one-line install (paste into a terminal; fetches the bundle and installs it for
 your user, pulling the shared KDE runtime from Flathub automatically, no root needed):
@@ -199,6 +199,21 @@ flatpak install --user -y flathub org.freedesktop.Platform.ffmpeg-full//24.08
 
 ## What's New
 
+### 0.98 - September 23, 2026
+
+- The right mouse button now opens context menus on the canvas instead of panning.  (middle mouse button or holding space bar still pans)
+- Edit > Remove Object fills a selection with content-aware texture taken from its surroundings.  It's slow as shit but seems to work pretty well.
+- Move tool alignment: magenta guides show when a dragged layer snaps to another layer's edges or center or to the canvas, a Snap checkbox in the options bar turns it off, also a bunch of new alignment buttons are on the Move tool's options bar, and the Align and Distribute commands in the Layer menu work on multiple selected layers
+- Changing the pivot point in the free transform affects rotation now, it was always supposed to but it was broken.  Should probably make the pivot point draggable, hrm.
+- Free Transform numeric fields (and a few other places) accept typed units (px, in, cm, mm, pt, %, deg)
+- New Continuous (long shadow) option for Drop Shadow with a Fade control. Photoshop has no equivalent, so it saves in a way Photoshop ignores and the layer style dialog marks it as Patchy-only
+- Shape tools: a click without a drag opens a Create Shape dialog for exact sizes, and the options bar's W and H resize the active shape. The Shape Appearance dialog adds layer, fill, and stroke opacity, Photoshop-compatible Feather and Density, linked Width/Height and corner radii, a Reset button, and -/+ steppers, and opens from the options bar, Layer > Shape, the Properties panel, or a right-click on a shape layer
+- Right-click a tool palette button to open its tool flyout, and edit a vector shape's width and height from the Properties panel ([@ifloppy](https://github.com/ifloppy)). Flyouts also open with a double-click or a shorter press-and-hold
+- PDF: multi-page PDFs open each page as its own document, with a progress dialog and pages appearing as they load. File > Export > Multi-Page PDF saves open documents or top-level groups as pages, and PDF export is much faster and smaller, with quality presets and grayscale detection; pages that came from an imported PDF and were not edited keep their original image data. The print dialog gains a paper size setting... I need to work on this more, we really need full Artboard support but that's a big job, but at least it's possible to round-trip editing multipage pdfs in a somewhat reasonable way now.
+- File > Open Folder opens every image in a folder as tabs (dropping a folder on the window does the same), and File > Export > Documents to Folder saves open documents as numbered images, layered PSDs, or Aseprite files. The export commands now live together in a File > Export submenu
+- Rectangular and Elliptical Marquee selections can be resized after they are drawn: with the marquee tool active, drag a handle on an edge or corner (Shift on a corner keeps the proportions, and holding Space mid-drag slides the whole selection, as it does while drawing one), or drag inside the selection to move it as before. Feathered and rounded selections are redrawn at the new size, and Undo steps back through each resize
+- Text positioning between Patchy->Photoshop is more accurate now, but still not perfect perfect
+
 ### 0.97 - September 21, 2026
 
 - Vertical text: type layers can be laid out vertically (tategaki style) with a toggle in the Type tool's options bar, and paragraphs can run right-to-left. A "Rotate Latin (vertical text)" checkbox in the Character panel lays Latin letters on their side the way Photoshop's Standard Vertical Roman Alignment does. Both round-trip through PSD so Photoshop lays the text out the same way, and scripts can set them
@@ -211,14 +226,6 @@ flatpak install --user -y flathub org.freedesktop.Platform.ffmpeg-full//24.08
 - Every Layer Style slider, including Blend If, gains -/+ step buttons
 - PSD text set in a font that Windows reports under a different name (Balmoral LET Plain, for example) now resolves to the installed family instead of showing as missing
 - The Linux Flatpak installs without root or a preconfigured Flathub remote
-- Rectangular and Elliptical Marquee selections can be resized after they are drawn: with the marquee tool active, drag a handle on an edge or corner (Shift on a corner keeps the proportions, and holding Space mid-drag slides the whole selection, as it does while drawing one), or drag inside the selection to move it as before. Feathered and rounded selections are redrawn at the new size, and Undo steps back through each resize
-
-### 0.96 - September 17, 2026
-
-- Canvas Size preserves each layer's off-canvas pixels and masks when shrinking or enlarging the canvas. An optional "Also crop each actual layer to the canvas area" checkbox enables destructive cropping and starts unchecked every time the dialog opens
-- Clipping masks above layer groups now use the group's combined transparency correctly
-- Merge Visible to New Layer (Copy) preserves transparency in the merged copy
-- Switching languages updates menus, panels, tool options, and the start screen consistently
 
 [Older releases](RELEASE-HISTORY.md)
 
@@ -332,14 +339,14 @@ Just give it the link to this repo and say "Add .tiff support" and in about 10 m
 
 I mean, that's kind of the power of open source.
 
-Whatever AI you use, tell it (or more likely, it is reading this right now) to read AGENTS.md before doing anything else. It contains the build and repository-wide rules, then routes feature work to the relevant document under `docs/`.
+Whatever AI you use, tell it (or more likely, it's reading this right now) to read AGENTS.md before doing anything else. It contains the build and repository-wide rules, then routes feature work to the relevant document under `docs/`.
 
-There are 2200+ regression and benchmarking tests. AGENTS.md links agents to the testing guide that explains how to select and run them.\
-\
-If you have a bug fix or feature you think should be in this repo, please look at the actual code and fully TEST IT YOURSELF before submitting the PR.  If you're using AI, use a good one (Fable+ class), we don't want barely working slop.\
+There are 2200+ regression and benchmarking tests. AGENTS.md links agents to the testing guide that explains how to select and run them.  Due to the size of some of the test files I use they aren't all included, it will skip tests that require missing files.\
 \
 I probably don't want any major features coming from outside, as there are wrong and right ways to do things, some of it a bit subjective. Remember, you can always go crazy in your own fork, have some fun!\
 \
+If you have a bug fix or feature you think fits this project's scope please open an issue or tweet/etc at me.  If you want to submit a pull request, please look at the actual code and fully TEST IT YOURSELF before submitting, and if possible include screenshots of the actual changes so it's clear what you're doing.  If you're using AI, use a good one (Fable/Astra+ class), we don't want barely working slop.
+
 Don't trust AI to create and submit PRs with no oversight, I'll delete ones that have too much AI smell.  Smell human.  This is starting to sound weird but you know what I mean.\
 \
 Also, note that certain features are crippled or not included due to Adobe patents.  For example, our "quick select" tool doesn't update in realtime, you have to finish the stroke.  We can revisit this around 2030 when the patents expire...
@@ -348,6 +355,6 @@ Also, note that certain features are crippled or not included due to Adobe paten
 
 Created by Seth A. Robinson - [Homepage](https://www.rtsoft.com/) | [Blog](https://www.codedojo.com/) | [Twitter](https://twitter.com/rtsoft) | [Bluesky](https://bsky.app/profile/rtsoft.com) | [Mastodon](https://mastodon.gamedev.place/@rtsoft)
 
-Code contributions from [Michael Capogna](https://github.com/mcapogna)
+Code contributions from [mcapogna](https://github.com/mcapogna), [csbun](https://github.com/csbun), and [ifloppy](https://github.com/ifloppy)
 
 Photo "akiko_cycling_okinawa" (seen in the screenshots) by Seth A. Robinson

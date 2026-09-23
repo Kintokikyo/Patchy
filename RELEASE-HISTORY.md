@@ -3,6 +3,13 @@
 Older Patchy release notes are collected here. The two most recent releases
 remain in [README.md](README.md#whats-new).
 
+## 0.96 - September 17, 2026
+
+- Canvas Size preserves each layer's off-canvas pixels and masks when shrinking or enlarging the canvas. An optional "Also crop each actual layer to the canvas area" checkbox enables destructive cropping and starts unchecked every time the dialog opens
+- Clipping masks above layer groups now use the group's combined transparency correctly
+- Merge Visible to New Layer (Copy) preserves transparency in the merged copy
+- Switching languages updates menus, panels, tool options, and the start screen consistently
+
 ## 0.95 - September 16, 2026
 
 - The interface now supports German, Spanish, French, Italian, Japanese, and Simplified and Traditional Chinese alongside English. It follows your system language or your choice in File > Preferences.  I had to add 20 mb to the filesize to include fonts to do this proper, but.. I think that's ok in the grand scheme of things.\
