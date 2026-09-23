@@ -57,7 +57,7 @@ anonymous namespace. Name the members with designated initializers, and delete d
 
 A warning reported by the flatpak release build usually cannot be reproduced or
 verified by `remote-build.ps1 -Target linux`. The two use different compilers and
-different flags: `linux-release` on glados is the system `/usr/bin/c++` (GCC 13.3.0 on
+different flags: `linux-release` on the linux build host is the system `/usr/bin/c++` (GCC 13.3.0 on
 Ubuntu 24.04) with only `-O3 -DNDEBUG -std=c++20 -Wall -Wextra -Wpedantic`, while
 `packaging/linux/make-flatpak.sh` builds inside `org.kde.Sdk//6.8` with GCC 14.3.0 and
 flatpak-builder's hardening flags (`-Wp,-D_FORTIFY_SOURCE=3 -Wp,-D_GLIBCXX_ASSERTIONS
@@ -81,18 +81,32 @@ warning instead of merely being compiled by something that never reported it.
 
 ## Remote build machinery
 
-macOS (arm64, preset `mac-release`, Qt at `.deps/Qt/6.8.3/macos`) and Linux (preset `linux-release`, Qt at `.deps/Qt/6.8.3/gcc_64`) build remotely via `scripts\remote\remote-build.ps1 -Target mac|linux`, which snapshots the working tree (uncommitted changes included; it creates no commits or branches and does not touch the real index) to a bare repo on `seth@studiomac.local` / `glados@glados.local`, builds there, and runs both suites (core + offscreen UI) with output streamed back. One-time machine provisioning is `scripts/remote/setup-mac.sh` / `setup-linux.sh` (idempotent: venv tools + Qt via aqtinstall + apt deps).
+The machines this checkout can reach are developer-specific and never named in the repository. Their ssh targets live in `scripts/remote/hosts.local.json` (gitignored; copy `scripts/remote/hosts.example.json`), which every remote script reads through `scripts/remote/remote-hosts.ps1`. Hardware notes and per-machine quirks go in `agents_local.md` (see AGENTS.md). Both files live in the main checkout; worktree runs fall back to the main checkout's copy. Below, `<mac-build-host>`, `<linux-build-host>`, and `<windows-build-host>` stand for those ssh targets.
 
-`remote-build.ps1` checks out over the one shared `~/patchy/src`, so first make sure no other session is using the box: `ssh glados@glados.local "pgrep -af 'patchy_|ninja|cc1plus'"`. When it is busy, do not wait on or kill the other run: push the snapshot to a private ref (`refs/snapshots/<topic>`), clone `~/patchy.git` into `~/patchy-<topic>/src`, symlink `.deps` to `~/patchy/src/.deps`, configure and build the preset there with the environment lines from `build-and-test.sh`, and delete the clone and the ref afterwards (September 2026, the `maskrotate` perf run).
+macOS (arm64, preset `mac-release`, Qt at `.deps/Qt/6.8.3/macos`) and Linux (preset `linux-release`, Qt at `.deps/Qt/6.8.3/gcc_64`) build remotely via `scripts\remote\remote-build.ps1 -Target mac|linux`, which snapshots the working tree (uncommitted changes included; it creates no commits or branches and does not touch the real index) to a bare repo (`~/patchy.git`) on the build host, builds there, and runs both suites (core + offscreen UI) with output streamed back. One-time machine provisioning is `scripts/remote/setup-mac.sh` / `setup-linux.sh` (idempotent: venv tools + Qt via aqtinstall + apt deps).
+
+`remote-build.ps1` checks out over the one shared `~/patchy/src`, so first make sure no other session is using the box: `ssh <linux-build-host> "pgrep -af 'patchy_|ninja|cc1plus'"`. When it is busy, do not wait on or kill the other run: push the snapshot to a private ref (`refs/snapshots/<topic>`), clone `~/patchy.git` into `~/patchy-<topic>/src`, symlink `.deps` to `~/patchy/src/.deps`, configure and build the preset there with the environment lines from `build-and-test.sh`, and delete the clone and the ref afterwards (September 2026, the `maskrotate` perf run).
+
+### Windows offload build (on request only)
+
+`remote-build.ps1 -Target windows` builds the real MSVC `release` preset on a second Windows machine. Use it only when Seth explicitly asks to offload a Windows build, typically when several sessions are building on the dev box at once. It does not replace the handoff: the local `build\release` stays the release gate and the only packaging source.
+
+- **Layout.** The bare repo is `~\patchy.git` (same push URL shape as mac/linux) and the work tree is the host config's `workTree`. Qt is the dev box's `.deps\Qt\6.8.3\msvc2022_64`, copied to the same relative path, so the unmodified `release` preset resolves it.
+- **Toolchain.** VS 2026 Build Tools (MSVC x64, Windows SDK 10.0.26100, VS-bundled CMake and Ninja), Git for Windows, and Python 3.13 (the release configure requires a Python 3.8+ interpreter; the WindowsApps `python.exe` is only a Store alias). `scripts\vs-env.bat` finds Build Tools through vswhere when the dev box's Community path is absent. The bootstrapper is `https://aka.ms/vs/18/stable/vs_buildtools.exe`; `aka.ms/vs/18/release/...` redirects to Bing.
+- **Provisioning.** `scripts/remote/setup-windows.ps1 -Root <dir>` is idempotent and prints the one-time Qt copy command when Qt is missing. Its header has the scp and ssh lines. The ssh account must be an administrator.
+- **Remote half.** `scripts/remote/build-and-test.ps1` configures, builds with `-j 8` through `run-throttled.bat` (below-normal priority, so the machine stays usable), prints whether `patchy.exe` exists, and runs both suites. `-TestFilter` filters the UI suite as on mac/linux; `-CoreTestFilter` (windows only) filters the core suite. Per-change runs follow the same scoped-filter rule as the dev box.
+- **Shell quirks.** A Windows OpenSSH server's default shell is Windows PowerShell 5.1: no `&&`, and ad-hoc remote scripts are best sent as a file because local PowerShell expands `$_` and mangles embedded double quotes. `Get-Process a,b` exits 1 when any name is absent, so do not chain it with `&&`.
+- **Smart App Control must be off.** The build itself runs fresh unsigned executables (`patchy_check_translation_runtime` runs `patchy_translation_checks.exe`, and the suites follow). With Smart App Control on, Code Integrity blocks them at random ("blocked by your organization's Device Guard policy", CodeIntegrity events 3033/3077), so the build fails at that step. It has no per-folder exclusions, and turning it off cannot be undone without reinstalling Windows, so it is the machine owner's decision. Check with `(Get-MpComputerStatus).SmartAppControlState`.
+- **Busy check.** One shared work tree, like the linux host: first run `ssh <windows-build-host> "Get-Process cl,link,ninja,cmake,patchy_core_tests,patchy_ui_visual_tests -ErrorAction SilentlyContinue"`, and never kill another session's build there.
 
 ## AddressSanitizer runs (order-dependent heap bugs)
 
 The `linux-asan` preset (RelWithDebInfo + `-fsanitize=address`, own `build/linux-asan` dir) is the tool for crashes that only reproduce in the full ordered suite: it found the July 2026 ~MainWindow teardown and SmartObjectStore reallocation use-after-frees behind the pen-test segfault. Sync the tree with `remote-build.ps1 -Target linux -SkipTests`, then build and run the instrumented suites on the box:
 
-    ssh glados@glados.local "ASAN_OPTIONS='quarantine_size_mb=8192:malloc_context_size=25:detect_leaks=0' \
+    ssh <linux-build-host> "ASAN_OPTIONS='quarantine_size_mb=8192:malloc_context_size=25:detect_leaks=0' \
       bash ~/patchy/src/scripts/remote/build-and-test.sh linux-asan"
 
-The large quarantine keeps long-ago frees poisoned for the whole run (glados has 125 GB RAM); `detect_leaks=0` keeps exits quiet. The UI suite's POSIX SIGSEGV/SIGBUS reporter steps aside under ASAN (`tests/ui/main.cpp`) so sanitizer reports are not preempted. ASAN halts at the first report, so iterate fix-and-rerun until clean. A fresh build dir also surfaces stale `test-artifacts` expectations that long-lived dirs hide; see [testing.md](testing.md).
+The large quarantine keeps long-ago frees poisoned for the whole run, so the host needs plenty of RAM; `detect_leaks=0` keeps exits quiet. The UI suite's POSIX SIGSEGV/SIGBUS reporter steps aside under ASAN (`tests/ui/main.cpp`) so sanitizer reports are not preempted. ASAN halts at the first report, so iterate fix-and-rerun until clean. A fresh build dir also surfaces stale `test-artifacts` expectations that long-lived dirs hide; see [testing.md](testing.md).
 
 ## Platform-specific site inventory (keep current)
 
@@ -138,7 +152,7 @@ Text tests additionally gate on the fixture's own face. All three guards live in
 
 ## Remote suites with the fixture corpus present
 
-`local-test-fixtures/` is copied to studiomac and glados, so both remotes run the fixture-gated text tests and every suite is expected to pass there; a `[SKIP]` line reports each thing a machine cannot cover, including one line per `local-test-fixtures` PSD a test names that is not present. The core result includes `composite_corpus_flatten_digests_are_stable` against the tracked baselines in `test-fixtures/psd`: the CPU compositor is byte-identical across Windows, macOS arm64/clang, Linux x86-64/GCC, and wasm. Do not re-pin those baselines per machine.
+`local-test-fixtures/` is copied to the mac and linux build hosts, so both remotes run the fixture-gated text tests and every suite is expected to pass there; a `[SKIP]` line reports each thing a machine cannot cover, including one line per `local-test-fixtures` PSD a test names that is not present. The core result includes `composite_corpus_flatten_digests_are_stable` against the tracked baselines in `test-fixtures/psd`: the CPU compositor is byte-identical across Windows, macOS arm64/clang, Linux x86-64/GCC, and wasm. Do not re-pin those baselines per machine.
 
 What the corpus exposed was Windows-font assumptions in the tests, not product defects. Most are now the face gates listed above; three tests needed something else:
 

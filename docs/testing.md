@@ -129,8 +129,8 @@ Run from the repository root. Artifacts stay under `test-artifacts/mcp`. The tes
 uses only owned offscreen processes and also accepts a connector in a staged
 package directory, exercising resource discovery without source-relative paths.
 Python is not required by the shipped connector.
-On studiomac, use `.deps/mcp-client-py312/bin/python` (project-local Python 3.12);
-its system Python 3.9 cannot install the MCP dependency. On glados, use
+On the mac build host, use `.deps/mcp-client-py312/bin/python` (project-local Python 3.12);
+its system Python 3.9 cannot install the MCP dependency. On the linux build host, use
 `.deps/mcp-client/bin/python`. Run from the remote repository root with
 `nice -n 10 <python> tests/mcp_client_tests.py <connector>`.
 The full suite includes both owned and attached workspaces, competing clients,

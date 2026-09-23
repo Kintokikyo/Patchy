@@ -2,6 +2,8 @@
 
 This is repository-wide agent policy. Read it at the start of each task before inspecting files, running commands, or planning work. Reread it only if the repository changes, this file changes, or its contents are no longer available in context.
 
+If `agents_local.md` exists at the repository root, open and read it too. It holds knowledge specific to this checkout and developer, such as which systems it can ssh into and use for building. Anything sensitive goes in `agents_secret.md` beside it, read only if it exists and only when a task needs it. Both are optional and gitignored, and must never be checked in. When neither exists, carry on without them; their absence is not an error. This repository is public, so machine names, users, addresses, local paths, and credentials belong in those files, never in tracked files. A git worktree has no untracked files: look for them in the main checkout, the parent of `git rev-parse --path-format=absolute --git-common-dir`.
+
 Keep this file at or below 30,000 bytes. Detailed implementation knowledge belongs in `docs/<topic>.md`; read the relevant linked document before working in that area, update it when behavior changes, and do not duplicate its details here. Every file under `docs/` must also stay at or below 30,000 bytes (Seth, August 2026): keep docs dense and current-state only. Cut narrative history, experiment logs, and restatements of constants that live in code; never cut normative rules, calibration facts recorded only in the doc, or headings cited from code comments.
 
 ## Repository-wide rules
@@ -40,7 +42,7 @@ Required release handoff steps:
 
    CMakeLists.txt owns the MSVC Release codegen flags (`/Zi /GL` on compiles, `/DEBUG:FULL /INCREMENTAL:NO /LTCG` on links), so every configure emits `patchy.pdb` (for symbolizing WER dumps from `%LOCALAPPDATA%\CrashDumps`) and link-time optimized binaries. Never hand-edit `build\release\CMakeCache.txt`. To symbolize a dump from an older build, rebuild that commit in a temporary worktree; full links reproduce the binary layout.
 
-   A git worktree has no `.deps`: configure its release preset once with `--preset release -DCMAKE_PREFIX_PATH=D:/projects/AI/codex/Patchy/.deps/Qt/6.8.3/msvc2022_64` (the main checkout's Qt) before the build command above; the build itself is unchanged.
+   A git worktree has no `.deps`: configure its release preset once with `--preset release -DCMAKE_PREFIX_PATH=<main-checkout>/.deps/Qt/6.8.3/msvc2022_64` (the main checkout's Qt; `agents_local.md` has the concrete path) before the build command above; the build itself is unchanged.
 
    A running `build\release\patchy.exe` locks the link step (`LNK1104`). Ask Seth to close it; never force-kill it because he may have unsaved work.
 
@@ -61,7 +63,7 @@ Required release handoff steps:
 
 3. Explicitly report whether `build\release\patchy.exe` exists.
 
-4. Changes to platform-guarded code, CMake files/presets, or packaging also require the affected best-effort remote build: `scripts\remote\remote-build.ps1 -Target mac` and/or `-Target linux`. Report failures even though Windows remains the release gate.
+4. Changes to platform-guarded code, CMake files/presets, or packaging also require the affected best-effort remote build: `scripts\remote\remote-build.ps1 -Target mac` and/or `-Target linux`. Report failures even though Windows remains the release gate. Separately, when Seth explicitly asks to offload a Windows build because the dev box is busy, `-Target windows` builds the real `release` preset on the Windows offload host; the local `build\release` remains the release gate and packaging source. See [docs/platform.md](docs/platform.md).
 
 Do not say a release was created unless the release preset build succeeded.
 
