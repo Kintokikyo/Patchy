@@ -7723,6 +7723,9 @@ void MainWindow::configure_canvas(CanvasWidget* canvas) {
     return QList<QAction*>{layer_shape_appearance_action_, free_transform_action_, path_simplify_action_,
                            nullptr, define_custom_shape_action_, layer_rasterize_action_};
   });
+  // A Move-tool right-click on any other active leaf layer (pixel, text, smart
+  // object): Free Transform, as the shape section offers it.
+  canvas->set_layer_context_actions_callback([this] { return QList<QAction*>{free_transform_action_}; });
   canvas->set_vector_preview_status_callback([this, canvas](QString message, bool notice) {
     if (canvas == canvas_) {
       refresh_vector_preview_action();

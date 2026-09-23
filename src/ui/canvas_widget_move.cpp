@@ -148,7 +148,9 @@ void CanvasWidget::close_canvas_context_menu() {
 // tool's layers-under-the-pointer entries, the host's selection commands
 // (Remove Object, Fill, ...) when the click landed on the selection, and the
 // host's shape commands (Shape Appearance, Free Transform, ...) when it landed
-// on the active vector shape layer. Path tools keep their own menu. A popup,
+// on the active vector shape layer, or with the Move tool its layer commands
+// (Free Transform) when it landed inside the Move outline of any other active
+// leaf layer whose position is not locked. Path tools keep their own menu. A popup,
 // not exec: the entries revalidate their target when picked, so a stale menu
 // after a tool or document change is inert.
 bool CanvasWidget::show_canvas_context_menu(QPoint widget_point, QPoint global_position) {
@@ -190,13 +192,18 @@ bool CanvasWidget::show_canvas_context_menu(QPoint widget_point, QPoint global_p
   if (has_selection() && selection_alpha_at(document_point) != 0U && selection_context_actions_callback_) {
     append_section(selection_context_actions_callback_());
   }
-  if (shape_context_actions_callback_ && !edit_locked_) {
+  if (!edit_locked_) {
     const auto& document = std::as_const(*document_);
     const auto active_id = document.active_layer_id();
     const auto* active = active_id.has_value() ? document.find_layer(*active_id) : nullptr;
-    if (active != nullptr && layer_is_vector_shape(*active) &&
+    const bool is_shape = active != nullptr && layer_is_vector_shape(*active);
+    if (is_shape && shape_context_actions_callback_ &&
         active->bounds().contains(document_point.x(), document_point.y())) {
       append_section(shape_context_actions_callback_());
+    } else if (!is_shape && active != nullptr && layer_context_actions_callback_ && tool_ == CanvasTool::Move &&
+               active->kind() != LayerKind::Group && !layer_effectively_locks_position(*active) &&
+               move_layer_rect_contains_document_point(*active, document_point)) {
+      append_section(layer_context_actions_callback_());
     }
   }
   if (menu->isEmpty()) {

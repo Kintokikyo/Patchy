@@ -477,6 +477,77 @@ void ui_selection_context_menu_offers_remove_object() {
   CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == depth + 1);
 }
 
+// A Move-tool right-click inside the active raster layer's Move outline ends
+// the menu with Free Transform, as the shape section does for shape layers;
+// off the layer, with another tool, or on a position-locked layer it does not.
+void ui_move_context_menu_offers_free_transform_on_raster_layer() {
+  patchy::Document document(160, 120, patchy::PixelFormat::rgba8());
+  patchy::Layer photo(document.allocate_layer_id(), "Photo",
+      solid_pixels(40, 40, patchy::PixelFormat::rgba8(), QColor(Qt::red)));
+  photo.set_bounds({20, 20, 40, 40});
+  const auto photo_id = photo.id();
+  document.add_layer(std::move(photo));
+  document.set_active_layer(photo_id);
+
+  patchy::ui::MainWindow window;
+  show_window_empty(window);
+  window.add_document_session(std::move(document), QStringLiteral("Raster Free Transform"));
+  QApplication::processEvents();
+  auto* canvas = require_canvas(window);
+  require_action_by_text(window, QStringLiteral("Move"))->trigger();
+  canvas->set_rulers_visible(false);
+  QApplication::processEvents();
+
+  const auto free_transform_in = [](QMenu& menu) -> QAction* {
+    for (auto* action : menu.actions()) {
+      if (action->objectName() == QStringLiteral("editFreeTransformAction")) {
+        return action;
+      }
+    }
+    return nullptr;
+  };
+
+  auto* menu = right_click_move_canvas(*canvas, QPoint(30, 30));
+  CHECK(menu != nullptr);
+  if (menu != nullptr) {
+    // The layer entry first, then the separator and Free Transform.
+    CHECK(menu->actions().size() == 3);
+    CHECK(menu->actions().front()->data().toULongLong() == photo_id);
+    auto* transform = free_transform_in(*menu);
+    CHECK(transform != nullptr && transform == menu->actions().back());
+    save_widget_artifact("ui_move_context_menu_free_transform", *menu);
+    if (transform != nullptr) {
+      transform->trigger();
+    }
+    menu->close();
+    QApplication::processEvents();
+  }
+  CHECK(canvas->free_transform_active());
+  send_key(*canvas, Qt::Key_Escape);
+  QApplication::processEvents();
+  CHECK(!canvas->free_transform_active());
+
+  // Off the layer there is nothing under the pointer and no menu.
+  CHECK(right_click_move_canvas(*canvas, QPoint(120, 100)) == nullptr);
+
+  // Other tools keep a right-click on a raster layer menu-free.
+  canvas->set_tool(patchy::ui::CanvasTool::Brush);
+  CHECK(right_click_move_canvas(*canvas, QPoint(30, 30)) == nullptr);
+
+  // A position-locked layer would refuse Free Transform, so it is not offered.
+  canvas->set_tool(patchy::ui::CanvasTool::Move);
+  if (auto* layer = patchy::ui::MainWindowTestAccess::document(window).find_layer(photo_id)) {
+    patchy::set_layer_locks_position(*layer, true);
+  }
+  menu = right_click_move_canvas(*canvas, QPoint(30, 30));
+  CHECK(menu != nullptr);
+  if (menu != nullptr) {
+    CHECK(free_transform_in(*menu) == nullptr);
+    menu->close();
+    QApplication::processEvents();
+  }
+}
+
 void ui_move_layer_menu_preserves_pan_and_cancels_stale_clicks() {
   patchy::Document document(1000, 800, patchy::PixelFormat::rgba8());
   const auto bottom_id = document.add_pixel_layer("Bottom",
@@ -2447,6 +2518,8 @@ std::vector<patchy::test::TestCase> layer_context_lifecycle_tests() {
        ui_move_layer_menu_preserves_pan_and_cancels_stale_clicks},
       {"ui_right_drag_does_not_pan_canvas", ui_right_drag_does_not_pan_canvas},
       {"ui_selection_context_menu_offers_remove_object", ui_selection_context_menu_offers_remove_object},
+      {"ui_move_context_menu_offers_free_transform_on_raster_layer",
+       ui_move_context_menu_offers_free_transform_on_raster_layer},
       {"ui_layer_style_color_overlay_patch_double_click_opens_picker",
        ui_layer_style_color_overlay_patch_double_click_opens_picker},
       {"ui_layer_context_menu_exposes_blending_options_dialog",
