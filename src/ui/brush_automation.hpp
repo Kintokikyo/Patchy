@@ -33,9 +33,8 @@ class BrushAutomationLibrary : public QObject {
  signals:
   void changed();
  private:
-  // builtin(p) plus the preset's default-tip id when one is named; seed_tip re-adds a
-  // deleted default (resolving a preset), a listing only reports what is installed.
-  [[nodiscard]] QJsonObject builtin_preset(const BrushPreset& p, bool seed_tip) const;
+  // builtin(p) plus the preset's procedural tip id when it names one (Square).
+  [[nodiscard]] static QJsonObject builtin_preset(const BrushPreset& p);
   BrushTipLibrary& tips_;
   QString directory_, fingerprint_, tip_fingerprint_, revision_;
   QJsonArray presets_;

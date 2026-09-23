@@ -477,6 +477,72 @@ void ui_selection_context_menu_offers_remove_object() {
   CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == depth + 1);
 }
 
+// Regression (September 2026 crash): Stroke Selection picked from the canvas context
+// menu opens a modal dialog from inside the popup menu's own mouse release. The menu
+// must survive that nested loop, and ordinary mouse input afterwards must not touch a
+// dead widget.
+void ui_stroke_selection_from_context_menu_survives_following_mouse_input() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_tool(patchy::ui::CanvasTool::Marquee);
+  canvas->set_primary_color(Qt::black);
+  drag(*canvas, canvas->widget_position_for_document_point(QPoint(20, 20)),
+       canvas->widget_position_for_document_point(QPoint(80, 80)));
+  QApplication::processEvents();
+  CHECK(canvas->has_selection());
+  const auto selection = canvas->selected_document_region().boundingRect();
+
+  auto* menu = right_click_move_canvas(*canvas, QPoint(50, 50));
+  CHECK(menu != nullptr);
+  if (menu == nullptr) {
+    return;
+  }
+  QAction* stroke = nullptr;
+  for (auto* action : menu->actions()) {
+    if (action->objectName() == QStringLiteral("editStrokeSelectionAction")) {
+      stroke = action;
+    }
+  }
+  CHECK(stroke != nullptr);
+  const QPointer<QMenu> menu_guard(menu);
+  accept_stroke_selection_dialog(2, QStringLiteral("center"));
+  // Through the window handle, not sendEvent on the QMenu: the crash lived in the
+  // window-level mouse dispatcher that keeps running after the menu's release handler.
+  CHECK(menu->windowHandle() != nullptr);
+  QTest::mouseClick(menu->windowHandle(), Qt::LeftButton, Qt::NoModifier, menu->actionGeometry(stroke).center());
+  QApplication::processEvents();
+  process_events_for(50);
+
+  // The band landed on the selection edge, and the menu was released only after the pick
+  // finished dispatching (deferred delete processed once control returned to the loop).
+  {
+    const auto& doc = patchy::ui::MainWindowTestAccess::document(window);
+    const auto* layer = doc.find_layer(*doc.active_layer_id());
+    CHECK(layer != nullptr);
+    CHECK(layer->pixels().pixel(selection.left(), selection.center().y())[3] == 255);
+  }
+  CHECK(menu_guard.isNull());
+
+  // What the user does next: move over the canvas, click, drag a little.
+  const auto inside = canvas->widget_position_for_document_point(QPoint(50, 50));
+  const auto outside = canvas->widget_position_for_document_point(QPoint(120, 100));
+  send_mouse(*canvas, QEvent::MouseMove, inside, Qt::NoButton, Qt::NoButton);
+  send_mouse(*canvas, QEvent::MouseMove, outside, Qt::NoButton, Qt::NoButton);
+  QApplication::processEvents();
+  send_mouse(*canvas, QEvent::MouseButtonPress, outside, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseMove, outside + QPoint(10, 10), Qt::NoButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, outside + QPoint(10, 10), Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  process_events_for(50);
+  auto* second = right_click_move_canvas(*canvas, QPoint(125, 105));
+  if (second != nullptr) {
+    second->close();
+    QApplication::processEvents();
+  }
+  CHECK(window.isVisible());
+}
+
 // A Move-tool right-click inside the active raster layer's Move outline ends
 // the menu with Free Transform, as the shape section does for shape layers;
 // off the layer, with another tool, or on a position-locked layer it does not.
@@ -2518,6 +2584,8 @@ std::vector<patchy::test::TestCase> layer_context_lifecycle_tests() {
        ui_move_layer_menu_preserves_pan_and_cancels_stale_clicks},
       {"ui_right_drag_does_not_pan_canvas", ui_right_drag_does_not_pan_canvas},
       {"ui_selection_context_menu_offers_remove_object", ui_selection_context_menu_offers_remove_object},
+      {"ui_stroke_selection_from_context_menu_survives_following_mouse_input",
+       ui_stroke_selection_from_context_menu_survives_following_mouse_input},
       {"ui_move_context_menu_offers_free_transform_on_raster_layer",
        ui_move_context_menu_offers_free_transform_on_raster_layer},
       {"ui_layer_style_color_overlay_patch_double_click_opens_picker",

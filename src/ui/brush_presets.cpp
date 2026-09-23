@@ -1,5 +1,7 @@
 #include "ui/brush_presets.hpp"
 
+#include "ui/brush_tip_library.hpp"
+
 #include <QObject>
 
 #include <array>
@@ -10,7 +12,7 @@ std::span<const BrushPreset> builtin_brush_presets() {
   static const std::array<BrushPreset, 7> presets{
       BrushPreset{QStringLiteral("round"), QStringLiteral("Round"), 25, 100, 100, 0, false},
       BrushPreset{QStringLiteral("square"), QStringLiteral("Square"), 25, 100, 100, 0, false,
-                  QObject::tr("Square")},
+                  builtin_square_brush_tip_id()},
       BrushPreset{QStringLiteral("soft_round"), QStringLiteral("Soft Round"), 12, 100, 100, 75, false},
       BrushPreset{QStringLiteral("hard_round"), QStringLiteral("Hard Round"), 18, 100, 100, 0, false},
       BrushPreset{QStringLiteral("pencil"), QStringLiteral("Pencil"), 4, 100, 100, 0, false},

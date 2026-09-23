@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <functional>
+#include <memory>
 
 namespace patchy::test::ui {
 
@@ -1424,11 +1425,18 @@ void accept_integer_dialog(const QString& object_name, int value) {
 }
 
 void accept_stroke_selection_dialog(int width, const QString& location, std::optional<QColor> color) {
-  QTimer::singleShot(0, [width, location, color] {
+  // Retried rather than a single zero-delay shot: a context-menu click opens the dialog from
+  // the menu's mouse release, one pumped event after the press that would fire a one-shot.
+  auto* timer = new QTimer(QApplication::instance());
+  auto attempts = std::make_shared<int>(0);
+  timer->setInterval(5);
+  QObject::connect(timer, &QTimer::timeout, timer, [timer, attempts, width, location, color] {
     for (auto* widget : QApplication::topLevelWidgets()) {
-      if (widget->objectName() != QStringLiteral("patchyStrokeSelectionDialog")) {
+      if (widget->objectName() != QStringLiteral("patchyStrokeSelectionDialog") || !widget->isVisible()) {
         continue;
       }
+      timer->stop();
+      timer->deleteLater();
       auto* dialog = qobject_cast<QDialog*>(widget);
       CHECK(dialog != nullptr);
       auto* spin = dialog->findChild<QSpinBox*>(QStringLiteral("strokeSelectionWidthSpin"));
@@ -1450,8 +1458,13 @@ void accept_stroke_selection_dialog(int width, const QString& location, std::opt
       dialog->accept();
       return;
     }
-    CHECK(false);
+    if (++*attempts > 400) {
+      timer->stop();
+      timer->deleteLater();
+      CHECK(false);  // the Stroke Selection dialog never appeared
+    }
   });
+  timer->start();
 }
 
 void accept_canvas_size_dialog(int width_value, int height_value) {

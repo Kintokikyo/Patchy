@@ -8805,6 +8805,10 @@ RGB：%2, %3, %4</translation>
         <source>preview write</source>
         <translation>預視寫入</translation>
     </message>
+    <message>
+        <source>Square</source>
+        <translation>方形</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::BrushDynamicsButton</name>
@@ -8819,6 +8823,10 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Brush dynamics and effects for the active brush tip</source>
         <translation>使用中筆刷筆尖的筆刷動態與效果</translation>
+    </message>
+    <message>
+        <source>Brush dynamics and effects for the Square brush (this session only; resets on the next launch)</source>
+        <translation>方形筆刷的筆刷動態與效果 (僅限本次工作階段,下次啟動時會重設)</translation>
     </message>
 </context>
 <context>
@@ -17326,6 +17334,10 @@ Y：%2
     <message>
         <source>Nothing to stroke</source>
         <translation>沒有可加上筆畫的內容</translation>
+    </message>
+    <message>
+        <source>Brush tip: Square</source>
+        <translation>筆尖：方形</translation>
     </message>
 </context>
 <context>

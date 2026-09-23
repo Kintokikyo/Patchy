@@ -8832,6 +8832,10 @@ RGB: %2, %3, %4</translation>
         <source>preview write</source>
         <translation>escritura de la previsualización</translation>
     </message>
+    <message>
+        <source>Square</source>
+        <translation>Cuadrado</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::BrushDynamicsButton</name>
@@ -8846,6 +8850,10 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Brush dynamics and effects for the active brush tip</source>
         <translation>Dinámica y efectos de pincel para la punta de pincel activa</translation>
+    </message>
+    <message>
+        <source>Brush dynamics and effects for the Square brush (this session only; resets on the next launch)</source>
+        <translation>Dinámica y efectos de pincel para el pincel Cuadrado (solo en esta sesión; se restablecen en el próximo inicio)</translation>
     </message>
 </context>
 <context>
@@ -17373,6 +17381,10 @@ Y: %2
     <message>
         <source>Nothing to stroke</source>
         <translation>Nada que contornear</translation>
+    </message>
+    <message>
+        <source>Brush tip: Square</source>
+        <translation>Punta de pincel: Cuadrado</translation>
     </message>
 </context>
 <context>

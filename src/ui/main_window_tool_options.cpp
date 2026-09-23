@@ -790,16 +790,20 @@ void MainWindow::apply_brush_tip_to_canvas(CanvasWidget* canvas) {
   if (canvas == nullptr) {
     return;
   }
-  if (active_preset_tip_ || active_brush_tip_id_.isEmpty() || active_brush_tip_id_ == builtin_round_brush_tip_id()) {
+  if (active_preset_tip_ || active_brush_tip_id_.isEmpty() || is_builtin_brush_tip_id(active_brush_tip_id_)) {
     canvas->set_brush_tip(active_preset_tip_, QString());
-    // The Round brush carries session-only dynamics (reset every launch); while active they
-    // stamp through a synthesized disc tip inside CanvasWidget.
+    canvas->set_brush_shape(!active_preset_tip_ && active_brush_tip_id_ == builtin_square_brush_tip_id()
+                                ? patchy::BrushShape::Square
+                                : patchy::BrushShape::Round);
+    // The Round and Square brushes carry session-only dynamics (reset every launch); while
+    // active they stamp through a synthesized disc or square tip inside CanvasWidget.
     canvas->set_brush_dynamics(round_brush_dynamics_);
     canvas->set_brush_base_shape(round_brush_base_angle_degrees_,
                                  static_cast<int>(std::lround(round_brush_base_roundness_)));
     return;
   }
   auto tip = brush_tip_library().tip(active_brush_tip_id_);
+  canvas->set_brush_shape(patchy::BrushShape::Round);
   if (tip == nullptr) {
     canvas->set_brush_tip(nullptr, QString());
     canvas->set_brush_dynamics({});
@@ -827,7 +831,7 @@ void MainWindow::set_active_brush_tip(const QString& tip_id, bool announce,
   if (canvas_) apply_pen_input_settings(canvas_);
   auto effective = tip_id.isEmpty() ? builtin_round_brush_tip_id() : tip_id;
   const auto* entry = brush_tip_library().find_entry(effective);
-  if (effective != builtin_round_brush_tip_id() && entry == nullptr) {
+  if (!is_builtin_brush_tip_id(effective) && entry == nullptr) {
     effective = builtin_round_brush_tip_id();
     entry = nullptr;
   }
@@ -856,15 +860,16 @@ void MainWindow::set_active_brush_tip(const QString& tip_id, bool announce,
     if (entry != nullptr) {
       brush_dynamics_button_->set_active_entry(entry);
     } else {
-      brush_dynamics_button_->set_round_session(builtin_round_brush_tip_id(), round_brush_dynamics_,
+      brush_dynamics_button_->set_round_session(effective, round_brush_dynamics_,
                                                 round_brush_base_angle_degrees_,
                                                 round_brush_base_roundness_);
     }
   }
   schedule_save_tool_settings();
   if (announce) {
-    statusBar()->showMessage(entry != nullptr ? tr("Brush tip: %1").arg(entry->name)
-                                              : tr("Brush tip: Round"));
+    statusBar()->showMessage(entry != nullptr                                  ? tr("Brush tip: %1").arg(entry->name)
+                             : effective == builtin_square_brush_tip_id() ? tr("Brush tip: Square")
+                                                                          : tr("Brush tip: Round"));
   }
 }
 

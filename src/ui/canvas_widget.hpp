@@ -518,6 +518,10 @@ public:
   void set_brush_tip(std::shared_ptr<const patchy::BrushTip> tip, const QString& tip_id);
   [[nodiscard]] const QString& brush_tip_id() const noexcept;
   [[nodiscard]] bool has_brush_tip() const noexcept;
+  // Procedural footprint painted while no bitmap tip is set (Brush, Eraser). A hard,
+  // unrotated Square snaps to the pixel grid; see square_brush_coverage in core/pixel_tools.
+  void set_brush_shape(patchy::BrushShape shape);
+  [[nodiscard]] patchy::BrushShape brush_shape() const noexcept;
   // Per-dab tip dynamics + static tip shape, applied per tip by MainWindow (bitmap tips read
   // them from the library entry; the Round brush carries session-only values). Dynamics only
   // affect Brush strokes: erase strokes strip them, and a dynamics-active Round brush stamps
@@ -1488,6 +1492,11 @@ private:
   // the hit leaf layers under the pointer. Returns whether any entry was added.
   bool add_move_layer_menu_entries(QMenu& menu, QPoint widget_point);
   void close_canvas_context_menu();
+  // Canvas context menus are never deleted while the click that picked an entry is still
+  // being dispatched (see show_canvas_context_menu). A hidden menu is retired here and
+  // reaped later, once its pick has finished or at the next menu at the same loop level.
+  void retire_canvas_context_menu(QMenu* menu);
+  void reap_retired_context_menus();
   void begin_move_drag(const std::vector<LayerId>& layer_ids, QPoint document_point, QPoint widget_point);
   void begin_move_layer_selection(QMouseEvent* event, const Layer* clicked_layer, bool rectangle_allowed);
   bool update_move_layer_selection(QMouseEvent* event);
@@ -2180,6 +2189,7 @@ private:
   QImage mixer_composite_snapshot_;
   std::shared_ptr<const patchy::BrushTip> brush_tip_;
   QString brush_tip_id_;
+  patchy::BrushShape brush_shape_{patchy::BrushShape::Round};
   patchy::BrushTipMipChain brush_tip_mips_;
   // Most-recently-used scaled stamps keyed by (target size, softness); pressure-driven size
   // changes hit this instead of rescaling the tip on every dab.
@@ -2230,6 +2240,11 @@ private:
   // context menu (canvas_widget_move.cpp). The right button never pans.
   std::optional<QPoint> context_press_pos_;
   QPointer<QMenu> canvas_context_menu_;
+  struct RetiredContextMenu {
+    QPointer<QMenu> menu;
+    int loop_level{0};  // QThread::loopLevel() when it hid; safe to delete at or below it
+  };
+  std::vector<RetiredContextMenu> retired_context_menus_;
   bool spacebar_panning_{false};
   bool spacebar_repositioning_drag_rect_{false};
   QPoint spacebar_reposition_last_document_position_{};

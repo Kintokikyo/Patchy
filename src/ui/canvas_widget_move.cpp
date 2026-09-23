@@ -36,6 +36,7 @@
 #include <QKeyEvent>
 #include <QLinearGradient>
 #include <QMenu>
+#include <QThread>
 #include <QMetaObject>
 #include <QMouseEvent>
 #include <QNativeGestureEvent>
@@ -137,10 +138,43 @@ std::vector<std::pair<LayerId, Rect>> move_proxy_shifted_bounds(const Document& 
 void CanvasWidget::close_canvas_context_menu() {
   context_press_pos_.reset();
   if (canvas_context_menu_) {
-    canvas_context_menu_->close();
-    canvas_context_menu_->deleteLater();
+    auto* menu = canvas_context_menu_.data();
+    // Clear first: the move-layer entries key their staleness on this pointer. The hide
+    // retires the menu; nothing here deletes it (see show_canvas_context_menu).
     canvas_context_menu_.clear();
+    menu->close();
+    retire_canvas_context_menu(menu);
   }
+}
+
+void CanvasWidget::retire_canvas_context_menu(QMenu* menu) {
+  if (menu == nullptr) {
+    return;
+  }
+  for (const auto& retired : retired_context_menus_) {
+    if (retired.menu == menu) {
+      return;
+    }
+  }
+  retired_context_menus_.push_back(RetiredContextMenu{menu, QThread::currentThread()->loopLevel()});
+}
+
+void CanvasWidget::reap_retired_context_menus() {
+  // A retired menu whose pick opened a dialog can still be mid-dispatch while a nested
+  // event loop runs above it. Below or at the loop level it hid in, that dispatch has
+  // returned (a deeper loop would have to be running for it to be live), so deleting is
+  // safe; anything deeper waits for the next reap or for QMenu::triggered.
+  const auto level = QThread::currentThread()->loopLevel();
+  std::erase_if(retired_context_menus_, [level](const RetiredContextMenu& retired) {
+    if (retired.menu.isNull()) {
+      return true;
+    }
+    if (level <= retired.loop_level) {
+      retired.menu->deleteLater();
+      return true;
+    }
+    return false;
+  });
 }
 
 // The canvas right-click menu (a right release within the drag distance of
@@ -153,8 +187,18 @@ void CanvasWidget::close_canvas_context_menu() {
 // leaf layer whose position is not locked. Path tools keep their own menu. A popup,
 // not exec: the entries revalidate their target when picked, so a stale menu
 // after a tool or document change is inert.
+//
+// Lifetime (September 2026 crash): the menu must outlive the dispatch of the click that
+// picked an entry. Qt's window-level mouse handler keeps using the popup's window object
+// after the entry's handler returns, and a handler that runs a modal dialog (Stroke
+// Selection) nests an event loop inside that dispatch, so a deleteLater posted from
+// inside it destroyed the menu under Qt's feet. Hiding therefore only retires the menu;
+// QMenu::triggered, which fires after the handler returns and still inside the dispatch,
+// posts the deferred delete Qt processes once that dispatch has unwound, and dismissed
+// menus are reaped by the next menu at the same loop level.
 bool CanvasWidget::show_canvas_context_menu(QPoint widget_point, QPoint global_position) {
   close_canvas_context_menu();
+  reap_retired_context_menus();
   if (document_ == nullptr || pointer_gesture_active() || transforming_layer_ || warping_layer_ ||
       path_transform_active_) {
     return false;
@@ -165,7 +209,12 @@ bool CanvasWidget::show_canvas_context_menu(QPoint widget_point, QPoint global_p
   auto* menu = new QMenu(this);
   menu->setObjectName(QStringLiteral("canvasContextMenu"));
   canvas_context_menu_ = menu;
-  connect(menu, &QMenu::aboutToHide, menu, &QObject::deleteLater);
+  connect(menu, &QMenu::aboutToHide, this, [this, menu] { retire_canvas_context_menu(menu); });
+  connect(menu, &QMenu::triggered, this, [this, menu](QAction*) {
+    std::erase_if(retired_context_menus_,
+                  [menu](const RetiredContextMenu& retired) { return retired.menu == menu; });
+    menu->deleteLater();
+  });
   add_move_layer_menu_entries(*menu, widget_point);
   const auto document_point = document_position(widget_point);
   // The host's QActions, so hotkeys and enable state stay in step; nullptr is

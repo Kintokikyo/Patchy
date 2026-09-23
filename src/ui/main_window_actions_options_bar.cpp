@@ -1785,16 +1785,11 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
       return;
     }
     if (active_automation_brush_) set_active_brush_tip(builtin_round_brush_tip_id(), false, false);
-    // A built-in preset names its tip: Square paints with the shipped Square default tip
-    // (seeded back if it was deleted) and the Round family returns to the procedural Round
-    // tip, so switching presets never leaves a stale bitmap tip behind.
-    if (!preset->tip_name.isEmpty()) {
-      const auto tip_id = brush_tip_library().ensure_default_tip(preset->tip_name);
-      if (!tip_id.isEmpty()) {
-        set_active_brush_tip(tip_id, false, false);
-      }
-    } else if (active_brush_tip_id_ != builtin_round_brush_tip_id()) {
-      set_active_brush_tip(builtin_round_brush_tip_id(), false, false);
+    // A built-in preset names its procedural tip (Square, or Round for the rest), so switching
+    // presets never leaves a stale bitmap tip behind.
+    const auto preset_tip = preset->tip_id.isEmpty() ? builtin_round_brush_tip_id() : preset->tip_id;
+    if (active_brush_tip_id_ != preset_tip) {
+      set_active_brush_tip(preset_tip, false, false);
     }
     if (preset_id == QStringLiteral("airbrush")) {
       // The quick Airbrush preset is a predictable soft Round brush. Existing sampled tips
@@ -1852,15 +1847,15 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   connect(brush_dynamics_button_, &BrushDynamicsButton::dynamics_edited, this,
           [this](const QString& tip_id, const patchy::BrushDynamics& dynamics, double base_angle,
                  double base_roundness) {
-            if (tip_id == builtin_round_brush_tip_id()) {
-              // Session-only: the Round brush's dynamics live in the window, not the library,
-              // and deliberately reset on the next launch.
+            if (is_builtin_brush_tip_id(tip_id)) {
+              // Session-only: the Round and Square brushes' dynamics live in the window, not
+              // the library, and deliberately reset on the next launch.
               round_brush_dynamics_ = dynamics;
               round_brush_base_angle_degrees_ = base_angle;
               round_brush_base_roundness_ = base_roundness;
               if (canvas_ != nullptr &&
                   (active_preset_tip_ || active_brush_tip_id_.isEmpty() ||
-                   active_brush_tip_id_ == builtin_round_brush_tip_id())) {
+                   is_builtin_brush_tip_id(active_brush_tip_id_))) {
                 canvas_->set_brush_dynamics(dynamics);
                 canvas_->set_brush_base_shape(base_angle, static_cast<int>(std::lround(base_roundness)));
               }
@@ -1875,8 +1870,9 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
           });
   // The options bar is built after load_tool_settings() already selected the startup tip, so
   // seed the button's model now (Round session values, or the entry if a tip is active).
-  if (active_brush_tip_id_.isEmpty() || active_brush_tip_id_ == builtin_round_brush_tip_id()) {
-    brush_dynamics_button_->set_round_session(builtin_round_brush_tip_id(), round_brush_dynamics_,
+  if (active_brush_tip_id_.isEmpty() || is_builtin_brush_tip_id(active_brush_tip_id_)) {
+    brush_dynamics_button_->set_round_session(
+        active_brush_tip_id_.isEmpty() ? builtin_round_brush_tip_id() : active_brush_tip_id_, round_brush_dynamics_,
                                               round_brush_base_angle_degrees_,
                                               round_brush_base_roundness_);
   } else if (const auto* entry = brush_tip_library().find_entry(active_brush_tip_id_);

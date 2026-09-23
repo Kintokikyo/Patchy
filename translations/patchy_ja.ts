@@ -8805,6 +8805,10 @@ Mixed selection</source>
         <source>timeMs: complete timeline required</source>
         <translation>timeMs: すべての入力点に時刻が必要です</translation>
     </message>
+    <message>
+        <source>Square</source>
+        <translation>正方形</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::BrushDynamicsButton</name>
@@ -8819,6 +8823,10 @@ Mixed selection</source>
     <message>
         <source>Brush dynamics and effects for the Round brush (this session only; resets on the next launch)</source>
         <translation>丸ブラシのダイナミクスと効果（このセッション限定。次回起動時にリセットされます）</translation>
+    </message>
+    <message>
+        <source>Brush dynamics and effects for the Square brush (this session only; resets on the next launch)</source>
+        <translation>四角ブラシのダイナミクスと効果（このセッション限定。次回起動時にリセットされます）</translation>
     </message>
 </context>
 <context>
@@ -17326,6 +17334,10 @@ Clipped to the layer below</source>
     <message>
         <source>Nothing to stroke</source>
         <translation>境界線を描く対象がありません</translation>
+    </message>
+    <message>
+        <source>Brush tip: Square</source>
+        <translation>ブラシ先端: 正方形</translation>
     </message>
 </context>
 <context>

@@ -20,6 +20,10 @@ struct EditColor {
   std::uint8_t a{255};
 };
 
+// Procedural brush footprint used while no bitmap tip is set. Append-only: the script tip
+// ids "builtin.round" and "builtin.square" map onto these values.
+enum class BrushShape : std::uint8_t { Round, Square };
+
 struct EditOptions {
   EditColor primary{};
   EditColor secondary{255, 255, 255, 255};
@@ -27,6 +31,7 @@ struct EditOptions {
   int brush_softness{0};
   int brush_roundness{100};
   double brush_angle_degrees{0.0};
+  BrushShape brush_shape{BrushShape::Round};  // procedural footprint; ignored while brush_tip is set
   const ScaledBrushTip* brush_tip{nullptr};  // non-owning; null = procedural round/soft brush
   double brush_tip_spacing{0.25};            // dab spacing as a fraction of brush_size
   BrushDynamics brush_dynamics{};            // per-dab tip dynamics; default = disabled

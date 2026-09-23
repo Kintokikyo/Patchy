@@ -99,14 +99,59 @@ int brush_roundness_percent(const EditOptions& options) noexcept {
 }
 
 bool brush_shape_is_round(const EditOptions& options) noexcept {
-  return brush_roundness_percent(options) >= 99;
+  return options.brush_shape == BrushShape::Round && brush_roundness_percent(options) >= 99;
 }
 
 double degrees_to_radians(double degrees) noexcept {
   return degrees * 3.14159265358979323846 / 180.0;
 }
 
+namespace {
+
+[[nodiscard]] bool square_brush_is_axis_aligned(const EditOptions& options) noexcept {
+  const auto remainder = std::fmod(std::fabs(options.brush_angle_degrees), 90.0);
+  return remainder < 1e-9 || remainder > 90.0 - 1e-9;
+}
+
+// The Square footprint. A hard, unrotated square snaps to the pixel grid: a dab at any
+// sub-pixel position covers exactly (2 * radius + 1)^2 whole pixels, the same footprint width
+// as the round brush, so a hard square stroke never leaves partial-alpha fringes (the reason
+// the Square preset is procedural rather than a scaled bitmap). Rotation, roundness (a
+// rectangle) and Soft use the geometric footprint with a Chebyshev feather that keeps the
+// corners square.
+[[nodiscard]] float square_brush_coverage(double distance_x, double distance_y, int radius,
+                                          const EditOptions& options) {
+  if (radius <= 0) {
+    return 1.0F;  // brush_dab_rect already reduced the dab to the pixel under it
+  }
+  const auto roundness = brush_roundness_percent(options);
+  const auto half = static_cast<double>(radius);
+  if (options.brush_softness <= 0 && roundness >= 99 && square_brush_is_axis_aligned(options)) {
+    // distance is pixel index minus dab position: (-half - 1, half] selects the 2 * radius + 1
+    // pixels from floor(position) - radius through floor(position) + radius.
+    const auto covers = [half](double distance) { return distance > -half - 1.0 && distance <= half; };
+    return covers(distance_x) && covers(distance_y) ? 1.0F : 0.0F;
+  }
+  const auto half_minor = std::max(0.5, half * static_cast<double>(roundness) / 100.0);
+  const auto angle = degrees_to_radians(options.brush_angle_degrees);
+  const auto c = std::cos(angle);
+  const auto s = std::sin(angle);
+  const auto u = c * distance_x + s * distance_y;
+  const auto v = -s * distance_x + c * distance_y;
+  const auto normalized = std::max(std::fabs(u) / half, std::fabs(v) / half_minor);
+  if (normalized > 1.0) {
+    return 0.0F;
+  }
+  const auto equivalent_distance = normalized * half;
+  return brush_coverage(equivalent_distance * equivalent_distance, radius, options.brush_softness);
+}
+
+}  // namespace
+
 float brush_shape_coverage(double distance_x, double distance_y, int radius, const EditOptions& options) {
+  if (options.brush_shape == BrushShape::Square) {
+    return square_brush_coverage(distance_x, distance_y, radius, options);
+  }
   const auto roundness = brush_roundness_percent(options);
   if (radius <= 0 || roundness >= 99) {
     return brush_coverage(distance_x * distance_x + distance_y * distance_y, radius, options.brush_softness);
@@ -302,7 +347,16 @@ Rect brush_dab_rect(double x, double y, int radius, const EditOptions& options, 
   const auto roundness = brush_roundness_percent(options);
   double half_width = static_cast<double>(radius);
   double half_height = static_cast<double>(radius);
-  if (roundness < 99) {
+  if (options.brush_shape == BrushShape::Square) {
+    // Bounding box of the (possibly rotated) rectangle; the coverage test trims it exactly.
+    const auto half = static_cast<double>(radius);
+    const auto half_minor = std::max(0.5, half * static_cast<double>(roundness) / 100.0);
+    const auto angle = degrees_to_radians(options.brush_angle_degrees);
+    const auto c = std::fabs(std::cos(angle));
+    const auto s = std::fabs(std::sin(angle));
+    half_width = c * half + s * half_minor;
+    half_height = s * half + c * half_minor;
+  } else if (roundness < 99) {
     const auto major_radius = static_cast<double>(radius);
     const auto minor_radius = std::max(0.5, major_radius * static_cast<double>(roundness) / 100.0);
     const auto angle = degrees_to_radians(options.brush_angle_degrees);

@@ -8823,6 +8823,10 @@ RGB: %2, %3, %4</source>
         <source>preview write</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Square</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::BrushDynamicsButton</name>
@@ -8836,6 +8840,10 @@ RGB: %2, %3, %4</source>
     </message>
     <message>
         <source>Brush dynamics and effects for the active brush tip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Brush dynamics and effects for the Square brush (this session only; resets on the next launch)</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -17328,6 +17336,10 @@ Y: %2
     </message>
     <message>
         <source>Nothing to stroke</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Brush tip: Square</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

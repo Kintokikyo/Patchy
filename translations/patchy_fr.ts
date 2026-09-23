@@ -8832,6 +8832,10 @@ RVB : %2, %3, %4</translation>
         <source>preview write</source>
         <translation>écriture de l&apos;aperçu</translation>
     </message>
+    <message>
+        <source>Square</source>
+        <translation>Carré</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::BrushDynamicsButton</name>
@@ -8846,6 +8850,10 @@ RVB : %2, %3, %4</translation>
     <message>
         <source>Brush dynamics and effects for the active brush tip</source>
         <translation>Dynamique de forme et effets pour la pointe de forme active</translation>
+    </message>
+    <message>
+        <source>Brush dynamics and effects for the Square brush (this session only; resets on the next launch)</source>
+        <translation>Dynamique de forme et effets pour la forme Carré (cette session uniquement ; réinitialisé au prochain lancement)</translation>
     </message>
 </context>
 <context>
@@ -17373,6 +17381,10 @@ Y : %2
     <message>
         <source>Nothing to stroke</source>
         <translation>Rien à contourer</translation>
+    </message>
+    <message>
+        <source>Brush tip: Square</source>
+        <translation>Pointe du pinceau : Carrée</translation>
     </message>
 </context>
 <context>
