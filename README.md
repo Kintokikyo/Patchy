@@ -211,7 +211,7 @@ flatpak install --user -y flathub org.freedesktop.Platform.ffmpeg-full//24.08
 - Every Layer Style slider, including Blend If, gains -/+ step buttons
 - PSD text set in a font that Windows reports under a different name (Balmoral LET Plain, for example) now resolves to the installed family instead of showing as missing
 - The Linux Flatpak installs without root or a preconfigured Flathub remote
-- Rectangular and Elliptical Marquee selections can be resized after they are drawn: with the marquee tool active, drag a handle on an edge or corner (Shift on a corner keeps the proportions), or drag inside the selection to move it as before. Feathered and rounded selections are redrawn at the new size, and Undo steps back through each resize
+- Rectangular and Elliptical Marquee selections can be resized after they are drawn: with the marquee tool active, drag a handle on an edge or corner (Shift on a corner keeps the proportions, and holding Space mid-drag slides the whole selection, as it does while drawing one), or drag inside the selection to move it as before. Feathered and rounded selections are redrawn at the new size, and Undo steps back through each resize
 
 ### 0.96 - September 17, 2026
 
