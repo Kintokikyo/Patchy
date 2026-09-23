@@ -7,8 +7,10 @@
 namespace patchy::ui {
 
 std::span<const BrushPreset> builtin_brush_presets() {
-  static const std::array<BrushPreset, 6> presets{
+  static const std::array<BrushPreset, 7> presets{
       BrushPreset{QStringLiteral("round"), QStringLiteral("Round"), 25, 100, 100, 0, false},
+      BrushPreset{QStringLiteral("square"), QStringLiteral("Square"), 25, 100, 100, 0, false,
+                  QObject::tr("Square")},
       BrushPreset{QStringLiteral("soft_round"), QStringLiteral("Soft Round"), 12, 100, 100, 75, false},
       BrushPreset{QStringLiteral("hard_round"), QStringLiteral("Hard Round"), 18, 100, 100, 0, false},
       BrushPreset{QStringLiteral("pencil"), QStringLiteral("Pencil"), 4, 100, 100, 0, false},
@@ -30,6 +32,9 @@ const BrushPreset* find_brush_preset(const QString& id) {
 QString brush_preset_display_name(const BrushPreset& preset) {
   if (preset.id == QStringLiteral("round")) {
     return QObject::tr("Round");
+  }
+  if (preset.id == QStringLiteral("square")) {
+    return QObject::tr("Square");
   }
   if (preset.id == QStringLiteral("soft_round")) {
     return QObject::tr("Soft Round");

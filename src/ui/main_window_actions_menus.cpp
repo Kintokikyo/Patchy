@@ -598,7 +598,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   auto* contract_selection_action = new QAction(tr("Con&tract..."), this);
   auto* border_selection_action = new QAction(tr("&Border..."), this);
   auto* layer_transparency_action = new QAction(tr("Load Layer &Transparency"), this);
-  auto* stroke_selection_action = edit_menu->addAction(tr("&Stroke Selection"));
+  auto* stroke_selection_action = edit_menu->addAction(tr("&Stroke Selection..."));
   // Remove Object: the content-aware exemplar fill of the selection (no
   // dialog). Also the first entry of the canvas context menu's selection
   // section. The nearest-edge mirror has no menu entry (Seth, September 2026:

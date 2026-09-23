@@ -8474,6 +8474,22 @@ RVB : %2, %3, %4</translation>
         <source>Change all four corner radii together</source>
         <translation>Modifier les quatre rayons d&apos;angle ensemble</translation>
     </message>
+    <message>
+        <source>Stroke Selection</source>
+        <translation>Contour de la sélection</translation>
+    </message>
+    <message>
+        <source>Stroke color</source>
+        <translation>Couleur du contour</translation>
+    </message>
+    <message>
+        <source>Choose the stroke color (starts from the foreground color)</source>
+        <translation>Choisir la couleur du contour (part de la couleur de premier plan)</translation>
+    </message>
+    <message>
+        <source>Stroke Color</source>
+        <translation>Couleur du contour</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -10466,10 +10482,6 @@ RVB : %2, %3, %4</translation>
     <message>
         <source>Load Layer &amp;Transparency</source>
         <translation>Charger la &amp;transparence du calque</translation>
-    </message>
-    <message>
-        <source>&amp;Stroke Selection</source>
-        <translation>Contour de la &amp;sélection</translation>
     </message>
     <message>
         <source>Define Brush Tip from Selection</source>
@@ -17353,6 +17365,14 @@ Y : %2
     <message>
         <source>Positions and sizes typed into the Free Transform bar land on whole pixels, like Photoshop&apos;s &quot;Snap Vector Tools and Transforms to Pixel Grid&quot;. Rotated transforms are not snapped. When off, a typed fraction such as 3.4 px is kept and the pixels are resampled.</source>
         <translation>Les positions et tailles saisies dans la barre de Transformation manuelle tombent sur des pixels entiers, comme « Aligner les outils vectoriels et les transformations sur la grille de pixels » de Photoshop. Les transformations pivotées ne sont pas alignées. Désactivé, une fraction saisie comme 3,4 px est conservée et les pixels sont rééchantillonnés.</translation>
+    </message>
+    <message>
+        <source>&amp;Stroke Selection...</source>
+        <translation>Contour de la &amp;sélection...</translation>
+    </message>
+    <message>
+        <source>Nothing to stroke</source>
+        <translation>Rien à contourer</translation>
     </message>
 </context>
 <context>

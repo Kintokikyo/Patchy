@@ -8447,6 +8447,22 @@ Mixed selection</source>
         <source>Change all four corner radii together</source>
         <translation>4 つの角の半径をまとめて変更</translation>
     </message>
+    <message>
+        <source>Stroke Selection</source>
+        <translation>選択範囲の境界線を描く</translation>
+    </message>
+    <message>
+        <source>Stroke color</source>
+        <translation>境界線の色</translation>
+    </message>
+    <message>
+        <source>Choose the stroke color (starts from the foreground color)</source>
+        <translation>境界線の色を選択（描画色から始まります）</translation>
+    </message>
+    <message>
+        <source>Stroke Color</source>
+        <translation>境界線の色</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -10687,10 +10703,6 @@ Mixed selection</source>
     <message>
         <source>Load Layer &amp;Transparency</source>
         <translation>レイヤーの透明部分を読み込み(&amp;T)</translation>
-    </message>
-    <message>
-        <source>&amp;Stroke Selection</source>
-        <translation>選択範囲の境界線を描く(&amp;S)</translation>
     </message>
     <message>
         <source>Select All</source>
@@ -17306,6 +17318,14 @@ Clipped to the layer below</source>
     <message>
         <source>Positions and sizes typed into the Free Transform bar land on whole pixels, like Photoshop&apos;s &quot;Snap Vector Tools and Transforms to Pixel Grid&quot;. Rotated transforms are not snapped. When off, a typed fraction such as 3.4 px is kept and the pixels are resampled.</source>
         <translation>自由変形バーに入力した位置とサイズは、Photoshop の「ベクトルツールと変形をピクセルグリッドにスナップ」と同様に整数ピクセルに揃います。回転した変形はスナップされません。オフにすると、3.4 px のような小数の入力はそのまま保持され、ピクセルが再サンプルされます。</translation>
+    </message>
+    <message>
+        <source>&amp;Stroke Selection...</source>
+        <translation>選択範囲の境界線を描く(&amp;S)...</translation>
+    </message>
+    <message>
+        <source>Nothing to stroke</source>
+        <translation>境界線を描く対象がありません</translation>
     </message>
 </context>
 <context>

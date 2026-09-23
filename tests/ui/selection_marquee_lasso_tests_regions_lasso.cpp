@@ -1,4 +1,6 @@
 #include "ui/canvas_widget.hpp"
+#include "ui/qt_geometry.hpp"
+#include "ui/app_settings.hpp"
 #include "core/adjustment_layer.hpp"
 #include "core/contour_presets.hpp"
 #include "core/gradient_presets.hpp"
@@ -162,6 +164,8 @@
 #include <QTextFragment>
 #include <QTextLayout>
 #include <QTimer>
+
+#include <chrono>
 #include <QToolBar>
 #include <QToolButton>
 #include <QTreeWidget>
@@ -652,7 +656,7 @@ void ui_complex_selection_stroke_uses_region_outline() {
   CHECK(!canvas->selected_document_region().contains(QPoint(98, 98)));
 
   canvas->set_primary_color(QColor(20, 230, 90));
-  canvas->set_brush_size(7);
+  accept_stroke_selection_dialog(7, QStringLiteral("center"));
   require_action(window, "editStrokeSelectionAction")->trigger();
   QApplication::processEvents();
   require_action(window, "editDeselectAction")->trigger();
@@ -661,6 +665,179 @@ void ui_complex_selection_stroke_uses_region_outline() {
   CHECK(color_close(canvas_pixel(*canvas, QPoint(132, 150)), QColor(20, 230, 90), 55));
   CHECK(color_close(canvas_pixel(*canvas, QPoint(98, 98)), QColor(255, 255, 255), 8));
   save_widget_artifact("ui_complex_stroke_selection", *canvas);
+}
+
+void ui_selection_stroke_region_bands_have_exact_widths() {
+  using patchy::ui::SelectionStrokeLocation;
+  using patchy::ui::selection_stroke_region;
+  const auto area = [](const QRegion& region) {
+    long long total = 0;
+    for (const auto& rect : region) {
+      total += static_cast<long long>(rect.width()) * rect.height();
+    }
+    return total;
+  };
+  const QRect bounds(0, 0, 200, 200);
+  const QRegion selection(QRect(40, 40, 40, 40));  // columns 40..79
+
+  const auto inside = selection_stroke_region(selection, 4, SelectionStrokeLocation::Inside, bounds);
+  CHECK(inside.boundingRect() == QRect(40, 40, 40, 40));
+  CHECK(inside.contains(QPoint(40, 60)));
+  CHECK(inside.contains(QPoint(43, 60)));
+  CHECK(!inside.contains(QPoint(44, 60)));
+  CHECK(!inside.contains(QPoint(39, 60)));
+  CHECK(area(inside) == 40 * 40 - 32 * 32);
+
+  const auto outside = selection_stroke_region(selection, 4, SelectionStrokeLocation::Outside, bounds);
+  CHECK(outside.boundingRect() == QRect(36, 36, 48, 48));
+  CHECK(outside.contains(QPoint(39, 60)));
+  CHECK(outside.contains(QPoint(36, 60)));
+  CHECK(!outside.contains(QPoint(35, 60)));
+  CHECK(!outside.contains(QPoint(40, 60)));
+  CHECK(area(outside) == 48 * 48 - 40 * 40);
+
+  // Center splits an odd width with the larger half inside.
+  const auto center = selection_stroke_region(selection, 7, SelectionStrokeLocation::Center, bounds);
+  CHECK(center.boundingRect() == QRect(37, 37, 46, 46));
+  CHECK(center.contains(QPoint(43, 60)));
+  CHECK(!center.contains(QPoint(44, 60)));
+  CHECK(center.contains(QPoint(37, 60)));
+  CHECK(!center.contains(QPoint(36, 60)));
+  CHECK(area(center) == 46 * 46 - 32 * 32);
+
+  // A one-pixel centered stroke is the inner rim.
+  const auto thin = selection_stroke_region(selection, 1, SelectionStrokeLocation::Center, bounds);
+  CHECK(thin.boundingRect() == QRect(40, 40, 40, 40));
+  CHECK(area(thin) == 40 * 40 - 38 * 38);
+
+  // Outside bands clip to the canvas; inside bands still trace a canvas-flush edge.
+  const QRegion corner(QRect(0, 0, 20, 20));
+  const auto clipped = selection_stroke_region(corner, 3, SelectionStrokeLocation::Outside, bounds);
+  CHECK(clipped.boundingRect() == QRect(0, 0, 23, 23));
+  CHECK(area(clipped) == 23 * 23 - 20 * 20);
+  const auto flush = selection_stroke_region(corner, 2, SelectionStrokeLocation::Inside, bounds);
+  CHECK(flush.contains(QPoint(0, 10)));
+  CHECK(flush.contains(QPoint(1, 10)));
+  CHECK(!flush.contains(QPoint(2, 10)));
+
+  // Two separate islands stroke independently; the gap between them stays clear.
+  const auto islands = QRegion(QRect(10, 100, 10, 10)).united(QRect(40, 100, 10, 10));
+  const auto both = selection_stroke_region(islands, 2, SelectionStrokeLocation::Center, bounds);
+  CHECK(both.contains(QPoint(9, 105)));
+  CHECK(both.contains(QPoint(20, 105)));
+  CHECK(!both.contains(QPoint(25, 105)));
+  CHECK(both.contains(QPoint(39, 105)));
+
+  // The separable dilation matches the square structuring element exactly.
+  CHECK(patchy::ui::expanded_region(QRegion(QRect(10, 10, 1, 1)), 2, bounds) == QRegion(QRect(8, 8, 5, 5)));
+  CHECK(selection_stroke_region(QRegion(), 5, SelectionStrokeLocation::Center, bounds).isEmpty());
+  CHECK(selection_stroke_region(selection, 0, SelectionStrokeLocation::Center, bounds).isEmpty());
+}
+
+void ui_stroke_selection_dialog_paints_inside_center_and_outside_bands() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_tool(patchy::ui::CanvasTool::Marquee);
+  const auto select_rect = [canvas](QPoint from, QPoint to) {
+    drag(*canvas, canvas->widget_position_for_document_point(from), canvas->widget_position_for_document_point(to));
+    const auto region = canvas->selected_document_region();
+    CHECK(!region.isEmpty());
+    CHECK(region == QRegion(region.boundingRect()));
+    return region.boundingRect();
+  };
+  const auto stroke = [&](int width, const char* location, QColor color) {
+    accept_stroke_selection_dialog(width, QString::fromLatin1(location), color);
+    require_action(window, "editStrokeSelectionAction")->trigger();
+    QApplication::processEvents();
+    require_action(window, "editDeselectAction")->trigger();
+    QApplication::processEvents();
+  };
+  const QColor white(255, 255, 255);
+  const QColor red(255, 0, 0);
+  const QColor blue(0, 0, 255);
+  const QColor green(0, 200, 0);
+
+  // Inside: the band starts on the selection's first column and never leaves it.
+  const auto inside_rect = select_rect(QPoint(40, 40), QPoint(80, 80));
+  stroke(4, "inside", red);
+  const int inside_y = inside_rect.center().y();
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(inside_rect.left(), inside_y)), red, 8));
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(inside_rect.left() + 3, inside_y)), red, 8));
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(inside_rect.left() + 4, inside_y)), white, 8));
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(inside_rect.left() - 1, inside_y)), white, 8));
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(inside_rect.center().x(), inside_rect.bottom())), red, 8));
+  CHECK(color_close(canvas_pixel(*canvas, inside_rect.center()), white, 8));
+
+  // Outside: the band hugs the selection from the outside and leaves the interior alone.
+  const auto outside_rect = select_rect(QPoint(140, 40), QPoint(180, 80));
+  stroke(4, "outside", blue);
+  const int outside_y = outside_rect.center().y();
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(outside_rect.left() - 1, outside_y)), blue, 8));
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(outside_rect.left() - 4, outside_y)), blue, 8));
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(outside_rect.left() - 5, outside_y)), white, 8));
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(outside_rect.left(), outside_y)), white, 8));
+
+  // Center: an even width splits evenly across the edge. The stroke is one undo entry.
+  const auto center_rect = select_rect(QPoint(40, 140), QPoint(80, 180));
+  const auto depth_before_stroke = patchy::ui::MainWindowTestAccess::active_session_undo_depth(window);
+  stroke(6, "center", green);
+  const auto depth_after_deselect = patchy::ui::MainWindowTestAccess::active_session_undo_depth(window);
+  CHECK(depth_after_deselect >= depth_before_stroke + 1);
+  const int center_y = center_rect.center().y();
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(center_rect.left() - 3, center_y)), green, 8));
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(center_rect.left() + 2, center_y)), green, 8));
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(center_rect.left() - 4, center_y)), white, 8));
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(center_rect.left() + 3, center_y)), white, 8));
+
+  // The last width and location are remembered for the next stroke; the color is not.
+  {
+    const auto settings = patchy::ui::app_settings();
+    CHECK(settings.value(QStringLiteral("tools/strokeSelectionWidth")).toInt() == 6);
+    CHECK(settings.value(QStringLiteral("tools/strokeSelectionLocation")).toString() == QStringLiteral("center"));
+  }
+
+  // Undoing back past the stroke removes the whole band at once.
+  for (auto depth = depth_after_deselect; depth > depth_before_stroke; --depth) {
+    patchy::ui::MainWindowTestAccess::undo(window);
+    QApplication::processEvents();
+  }
+  CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == depth_before_stroke);
+  // The history restore repaints in the background; wait for the canvas to settle before sampling.
+  const auto settle_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+  while (!canvas->render_settled() && std::chrono::steady_clock::now() < settle_deadline) {
+    QApplication::processEvents();
+  }
+  CHECK(canvas->render_settled());
+  // The undo also brought the marquee back, whose overlay tints the canvas sample, so read the
+  // layer pixels: the green band is gone and the earlier red band is untouched.
+  {
+    const auto& doc = patchy::ui::MainWindowTestAccess::document(window);
+    const auto* layer = doc.find_layer(*doc.active_layer_id());
+    CHECK(layer != nullptr);
+    const auto* undone = layer->pixels().pixel(center_rect.left() + 2, center_y);
+    CHECK(undone[3] == 0);
+    const auto* kept = layer->pixels().pixel(inside_rect.left(), inside_y);
+    CHECK(kept[0] == 255 && kept[1] == 0 && kept[2] == 0 && kept[3] == 255);
+  }
+  require_action(window, "editDeselectAction")->trigger();
+  QApplication::processEvents();
+
+  // Cancelling the dialog paints nothing.
+  select_rect(QPoint(140, 140), QPoint(180, 180));
+  QTimer::singleShot(0, [] {
+    for (auto* widget : QApplication::topLevelWidgets()) {
+      if (widget->objectName() == QStringLiteral("patchyStrokeSelectionDialog")) {
+        qobject_cast<QDialog*>(widget)->reject();
+      }
+    }
+  });
+  require_action(window, "editStrokeSelectionAction")->trigger();
+  QApplication::processEvents();
+  require_action(window, "editDeselectAction")->trigger();  // drop the marquee tint before sampling
+  QApplication::processEvents();
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(140, 160)), white, 8));
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(139, 160)), white, 8));
 }
 
 void ui_layer_lock_transparency_and_keyboard_nudge_work() {
@@ -1599,6 +1776,9 @@ std::vector<patchy::test::TestCase> selection_marquee_lasso_tests_part2() {
       {"ui_select_grow_and_similar_use_magic_wand_tolerance",
        ui_select_grow_and_similar_use_magic_wand_tolerance},
       {"ui_complex_selection_stroke_uses_region_outline", ui_complex_selection_stroke_uses_region_outline},
+      {"ui_selection_stroke_region_bands_have_exact_widths", ui_selection_stroke_region_bands_have_exact_widths},
+      {"ui_stroke_selection_dialog_paints_inside_center_and_outside_bands",
+       ui_stroke_selection_dialog_paints_inside_center_and_outside_bands},
       {"ui_layer_lock_transparency_and_keyboard_nudge_work", ui_layer_lock_transparency_and_keyboard_nudge_work},
       {"ui_layer_full_lock_row_control_blocks_edits_and_move",
        ui_layer_full_lock_row_control_blocks_edits_and_move},

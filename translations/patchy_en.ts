@@ -8465,6 +8465,22 @@ RGB: %2, %3, %4</source>
         <source>Change all four corner radii together</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Stroke Selection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stroke color</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose the stroke color (starts from the foreground color)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stroke Color</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -10456,10 +10472,6 @@ RGB: %2, %3, %4</source>
     </message>
     <message>
         <source>Load Layer &amp;Transparency</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>&amp;Stroke Selection</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -17308,6 +17320,14 @@ Y: %2
     </message>
     <message>
         <source>Positions and sizes typed into the Free Transform bar land on whole pixels, like Photoshop&apos;s &quot;Snap Vector Tools and Transforms to Pixel Grid&quot;. Rotated transforms are not snapped. When off, a typed fraction such as 3.4 px is kept and the pixels are resampled.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Stroke Selection...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nothing to stroke</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

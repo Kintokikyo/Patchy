@@ -24,6 +24,7 @@
 #include "psd/psd_binary.hpp"
 #include "psd/psd_layer_effects.hpp"
 #include "core/style_presets.hpp"
+#include "ui/brush_automation.hpp"
 #include "ui/brush_tip_library.hpp"
 #include "ui/brush_tip_manager_dialog.hpp"
 #include "ui/brush_tip_picker.hpp"
@@ -1395,6 +1396,78 @@ void ui_deep_zoom_brush_repaint_stays_responsive() {
   CHECK(counter.paint_events <= kSteps + 4);
   CHECK(elapsed_ms < 2500);
   CHECK(paint_layer.pixels().pixel(1, 1)[3] == 255);
+}
+
+void ui_square_brush_preset_paints_square_tip_and_round_presets_restore_round() {
+  clear_brush_tip_test_state();
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto* brush_preset = window.findChild<QComboBox*>(QStringLiteral("brushPresetCombo"));
+  CHECK(brush_preset != nullptr);
+  require_action_by_text(window, QStringLiteral("Brush"))->trigger();
+  canvas->set_primary_color(Qt::black);
+  CHECK(window.brush_tip_library().entries().empty());  // default seeding is suppressed in tests
+
+  // Square sits right under Round and paints with the shipped Square default tip, seeded on
+  // demand when the library lacks it.
+  const auto square_index = brush_preset->findData(QStringLiteral("square"));
+  CHECK(square_index >= 0);
+  CHECK(square_index == brush_preset->findData(QStringLiteral("round")) + 1);
+  brush_preset->setCurrentIndex(square_index);
+  QApplication::processEvents();
+  CHECK(canvas->has_brush_tip());
+  const auto square_id = window.brush_tip_library().default_tip_id(QObject::tr("Square"));
+  CHECK(!square_id.isEmpty());
+  CHECK(canvas->brush_tip_id() == square_id);
+  CHECK(window.brush_tip_library().entries().size() == 1);
+  CHECK(canvas->brush_size() == 25);
+  CHECK(canvas->brush_opacity() == 100);
+  CHECK(canvas->brush_softness() == 0);
+  CHECK(!canvas->brush_build_up());
+
+  canvas->set_zoom(1.0);
+  canvas->set_brush_size(40);
+  const auto center = canvas->widget_position_for_document_point(QPoint(150, 120));
+  send_mouse(*canvas, QEvent::MouseButtonPress, center, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, center, Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  // A square dab fills its corners, where a round dab of the same size stays white
+  // (the corner sample sits 21 px from the center, past a 20 px radius).
+  CHECK(canvas_pixel(*canvas, QPoint(150, 120)).red() < 40);
+  CHECK(canvas_pixel(*canvas, QPoint(165, 135)).red() < 60);
+  CHECK(canvas_pixel(*canvas, QPoint(135, 105)).red() < 60);
+  CHECK(canvas_pixel(*canvas, QPoint(176, 120)).red() > 200);
+  CHECK(canvas_pixel(*canvas, QPoint(150, 146)).red() > 200);
+
+  // Choosing Square again reuses the seeded tip instead of adding a duplicate.
+  brush_preset->setCurrentIndex(brush_preset->findData(QStringLiteral("round")));
+  QApplication::processEvents();
+  CHECK(!canvas->has_brush_tip());  // the Round family drops the bitmap tip
+  brush_preset->setCurrentIndex(square_index);
+  QApplication::processEvents();
+  CHECK(canvas->brush_tip_id() == square_id);
+  CHECK(window.brush_tip_library().entries().size() == 1);
+
+  // Deleting the default and picking the preset seeds it back under a new id.
+  CHECK(window.brush_tip_library().remove_tip(square_id));
+  QApplication::processEvents();
+  brush_preset->setCurrentIndex(brush_preset->findData(QStringLiteral("hard_round")));
+  QApplication::processEvents();
+  CHECK(!canvas->has_brush_tip());
+  brush_preset->setCurrentIndex(square_index);
+  QApplication::processEvents();
+  CHECK(canvas->has_brush_tip());
+  CHECK(canvas->brush_tip_id() != square_id);
+  CHECK(canvas->brush_tip_id() == window.brush_tip_library().default_tip_id(QObject::tr("Square")));
+
+  // The script-facing preset listing names the installed tip.
+  auto& automation = window.brush_automation_library();
+  automation.refresh();
+  CHECK(automation.preset(QStringLiteral("square"))["settings"].toObject()["tipId"].toString() ==
+        canvas->brush_tip_id());
+  CHECK(!automation.preset(QStringLiteral("round"))["settings"].toObject().contains("tipId"));
+  clear_brush_tip_test_state();
 }
 
 void ui_airbrush_preset_builds_while_stationary() {
@@ -3324,6 +3397,8 @@ std::vector<patchy::test::TestCase> brush_engine_stroke_tests_part1() {
        ui_max_zoom_brush_skips_noop_stroke_repaints},
       {"ui_deep_zoom_brush_repaint_stays_responsive",
        ui_deep_zoom_brush_repaint_stays_responsive},
+      {"ui_square_brush_preset_paints_square_tip_and_round_presets_restore_round",
+       ui_square_brush_preset_paints_square_tip_and_round_presets_restore_round},
       {"ui_airbrush_preset_builds_while_stationary",
        ui_airbrush_preset_builds_while_stationary},
       {"ui_brush_flow_builds_only_to_opacity_cap_and_round_trips_psd",

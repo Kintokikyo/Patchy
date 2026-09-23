@@ -512,6 +512,32 @@ int BrushTipLibrary::restore_default_tips(int newer_than_version) {
   return restored;
 }
 
+QString BrushTipLibrary::default_tip_id(const QString& name) const {
+  const auto folder = default_brush_tips_folder_name();
+  const auto* entry = find_entry_if(
+      [&](const BrushTipEntry& candidate) { return candidate.folder == folder && candidate.name == name; });
+  return entry != nullptr ? entry->id : QString();
+}
+
+QString BrushTipLibrary::ensure_default_tip(const QString& name) {
+  if (const auto existing = default_tip_id(name); !existing.isEmpty()) {
+    return existing;
+  }
+  for (const auto& spec : generate_default_brush_tips()) {
+    if (spec.name != name) {
+      continue;
+    }
+    const auto id = add_tip_internal(spec.name, coverage_image_from_brush_tip(spec.tip), spec.spacing,
+                                     default_brush_tips_folder_name(), spec.dynamics);
+    if (!id.isEmpty()) {
+      sort_entries();
+      emit changed();
+    }
+    return id;
+  }
+  return {};
+}
+
 namespace {
 
 // Equality over the persisted dynamics fields only (seed/pen inputs are per-stroke scratch).

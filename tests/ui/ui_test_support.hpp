@@ -729,6 +729,10 @@ void accept_new_document_dialog(int width_value, int height_value);
 void accept_clipboard_new_document_dialog(QSize clipboard_size);
 
 void accept_integer_dialog(const QString& object_name, int value);
+// Arms the Edit > Stroke Selection dialog: sets the width, the location token ("inside",
+// "center", "outside"), optionally the color, and accepts.
+void accept_stroke_selection_dialog(int width, const QString& location,
+                                    std::optional<QColor> color = std::nullopt);
 
 void accept_canvas_size_dialog(int width_value, int height_value);
 // Arms the Image > Rotate Arbitrary dialog: sets the angle, picks the direction, accepts.

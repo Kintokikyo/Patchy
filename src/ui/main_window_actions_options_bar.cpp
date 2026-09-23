@@ -1785,6 +1785,17 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
       return;
     }
     if (active_automation_brush_) set_active_brush_tip(builtin_round_brush_tip_id(), false, false);
+    // A built-in preset names its tip: Square paints with the shipped Square default tip
+    // (seeded back if it was deleted) and the Round family returns to the procedural Round
+    // tip, so switching presets never leaves a stale bitmap tip behind.
+    if (!preset->tip_name.isEmpty()) {
+      const auto tip_id = brush_tip_library().ensure_default_tip(preset->tip_name);
+      if (!tip_id.isEmpty()) {
+        set_active_brush_tip(tip_id, false, false);
+      }
+    } else if (active_brush_tip_id_ != builtin_round_brush_tip_id()) {
+      set_active_brush_tip(builtin_round_brush_tip_id(), false, false);
+    }
     if (preset_id == QStringLiteral("airbrush")) {
       // The quick Airbrush preset is a predictable soft Round brush. Existing sampled tips
       // already cover Smoke/Spray/Spatter/Stipple, so do not invent a duplicate airbrush tip or

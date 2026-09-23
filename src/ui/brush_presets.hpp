@@ -13,6 +13,9 @@ struct BrushPreset {
   int flow{100};
   int softness{75};
   bool build_up{false};
+  // Built-in default tip (matched by name in the Patchy Defaults folder, seeded on demand)
+  // the preset paints with; empty = the procedural Round tip.
+  QString tip_name;
 };
 
 [[nodiscard]] std::span<const BrushPreset> builtin_brush_presets();

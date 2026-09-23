@@ -8447,6 +8447,22 @@ RGB：%2, %3, %4</translation>
         <source>Change all four corner radii together</source>
         <translation>同時變更四個角的圓角半徑</translation>
     </message>
+    <message>
+        <source>Stroke Selection</source>
+        <translation>為選取範圍加上筆畫</translation>
+    </message>
+    <message>
+        <source>Stroke color</source>
+        <translation>筆畫顏色</translation>
+    </message>
+    <message>
+        <source>Choose the stroke color (starts from the foreground color)</source>
+        <translation>選擇筆畫顏色（從前景色開始）</translation>
+    </message>
+    <message>
+        <source>Stroke Color</source>
+        <translation>筆畫顏色</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -10439,10 +10455,6 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Load Layer &amp;Transparency</source>
         <translation>載入圖層透明度(&amp;T)</translation>
-    </message>
-    <message>
-        <source>&amp;Stroke Selection</source>
-        <translation>為選取範圍加上筆畫(&amp;S)</translation>
     </message>
     <message>
         <source>Define Brush Tip from Selection</source>
@@ -17306,6 +17318,14 @@ Y：%2
     <message>
         <source>Positions and sizes typed into the Free Transform bar land on whole pixels, like Photoshop&apos;s &quot;Snap Vector Tools and Transforms to Pixel Grid&quot;. Rotated transforms are not snapped. When off, a typed fraction such as 3.4 px is kept and the pixels are resampled.</source>
         <translation>在任意變形列中輸入的位置與大小會落在整數像素上，與 Photoshop 的「將向量工具和變形對齊至像素格線」相同。旋轉的變形不會對齊。關閉時，輸入的小數（例如 3.4 px）會保留，並重新取樣像素。</translation>
+    </message>
+    <message>
+        <source>&amp;Stroke Selection...</source>
+        <translation>為選取範圍加上筆畫(&amp;S)...</translation>
+    </message>
+    <message>
+        <source>Nothing to stroke</source>
+        <translation>沒有可加上筆畫的內容</translation>
     </message>
 </context>
 <context>

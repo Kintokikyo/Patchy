@@ -8474,6 +8474,22 @@ RGB: %2, %3, %4</translation>
         <source>Change all four corner radii together</source>
         <translation>Alle vier Eckenradien gemeinsam ändern</translation>
     </message>
+    <message>
+        <source>Stroke Selection</source>
+        <translation>Kontur füllen</translation>
+    </message>
+    <message>
+        <source>Stroke color</source>
+        <translation>Konturfarbe</translation>
+    </message>
+    <message>
+        <source>Choose the stroke color (starts from the foreground color)</source>
+        <translation>Konturfarbe wählen (beginnt mit der Vordergrundfarbe)</translation>
+    </message>
+    <message>
+        <source>Stroke Color</source>
+        <translation>Konturfarbe</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -10466,10 +10482,6 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Load Layer &amp;Transparency</source>
         <translation>Ebenen&amp;transparenz laden</translation>
-    </message>
-    <message>
-        <source>&amp;Stroke Selection</source>
-        <translation>&amp;Kontur füllen</translation>
     </message>
     <message>
         <source>Define Brush Tip from Selection</source>
@@ -17353,6 +17365,14 @@ Y: %2
     <message>
         <source>Positions and sizes typed into the Free Transform bar land on whole pixels, like Photoshop&apos;s &quot;Snap Vector Tools and Transforms to Pixel Grid&quot;. Rotated transforms are not snapped. When off, a typed fraction such as 3.4 px is kept and the pixels are resampled.</source>
         <translation>In die Frei-transformieren-Leiste eingegebene Positionen und Größen landen auf ganzen Pixeln, wie Photoshops „Vektorwerkzeuge und Transformationen am Pixelraster ausrichten“. Gedrehte Transformationen werden nicht ausgerichtet. Wenn aus, bleibt ein eingegebener Bruchteil wie 3,4 px erhalten und die Pixel werden neu berechnet.</translation>
+    </message>
+    <message>
+        <source>&amp;Stroke Selection...</source>
+        <translation>&amp;Kontur füllen...</translation>
+    </message>
+    <message>
+        <source>Nothing to stroke</source>
+        <translation>Nichts zu konturieren</translation>
     </message>
 </context>
 <context>

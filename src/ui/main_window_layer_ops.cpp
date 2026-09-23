@@ -86,6 +86,7 @@
 #include "ui/tile_preview_window.hpp"
 #include "ui/warp_text_dialog.hpp"
 #include "ui/qt_geometry.hpp"
+#include "ui/theme_qss.hpp"
 #include "ui/splash_dialog.hpp"
 #include "ui/update_checker.hpp"
 #include "ui/zoom_status_bar.hpp"
@@ -3495,6 +3496,119 @@ void MainWindow::clear_active_layer() {
   }
 }
 
+namespace {
+
+struct StrokeSelectionSettings {
+  int width{2};
+  SelectionStrokeLocation location{SelectionStrokeLocation::Center};
+  QColor color;
+};
+
+const QString kStrokeSelectionWidthKey = QStringLiteral("tools/strokeSelectionWidth");
+const QString kStrokeSelectionLocationKey = QStringLiteral("tools/strokeSelectionLocation");
+const char* const kStrokeSwatchColorProperty = "strokeColor";
+
+ThemedQss stroke_selection_swatch_style(QColor color) {
+  return ThemedQss(QStringLiteral("QPushButton#strokeSelectionColorSwatch { background: rgb(%1, %2, %3); "
+                                  "border: 1px solid @dlg_neutral_border; border-radius: 3px; padding: 0; "
+                                  "min-width: 49px; max-width: 49px; min-height: 24px; max-height: 24px; } "
+                                  "QPushButton#strokeSelectionColorSwatch:hover { "
+                                  "border-color: @dlg_neutral_border_bright; }")
+                       .arg(color.red())
+                       .arg(color.green())
+                       .arg(color.blue()));
+}
+
+// Photoshop's Edit > Stroke dialog, reduced to what Patchy strokes: width, location, color. The
+// width and location persist; the color always starts from the foreground color.
+std::optional<StrokeSelectionSettings> request_stroke_selection_settings(QWidget* parent, QColor initial_color) {
+  StrokeSelectionSettings remembered;
+  {
+    auto settings = app_settings();
+    remembered.width = std::clamp(settings.value(kStrokeSelectionWidthKey, remembered.width).toInt(), 1, 250);
+    remembered.location = selection_stroke_location_from_token(
+        settings.value(kStrokeSelectionLocationKey).toString(), remembered.location);
+  }
+
+  QDialog dialog(parent);
+  dialog.setObjectName(QStringLiteral("patchyStrokeSelectionDialog"));
+  dialog.setWindowTitle(QObject::tr("Stroke Selection"));
+  auto* layout = new QVBoxLayout(&dialog);
+  auto* form = new QFormLayout();
+
+  auto* width_spin = new QSpinBox(&dialog);
+  width_spin->setObjectName(QStringLiteral("strokeSelectionWidthSpin"));
+  width_spin->setRange(1, 250);
+  width_spin->setValue(remembered.width);
+  width_spin->setSuffix(QObject::tr(" px"));
+  configure_dialog_spinbox(width_spin);
+  form->addRow(QObject::tr("Width"), width_spin);
+
+  auto* location_combo = new QComboBox(&dialog);
+  location_combo->setObjectName(QStringLiteral("strokeSelectionLocationCombo"));
+  location_combo->addItem(QObject::tr("Inside"),
+                          QString::fromLatin1(selection_stroke_location_token(SelectionStrokeLocation::Inside)));
+  location_combo->addItem(QObject::tr("Center"),
+                          QString::fromLatin1(selection_stroke_location_token(SelectionStrokeLocation::Center)));
+  location_combo->addItem(QObject::tr("Outside"),
+                          QString::fromLatin1(selection_stroke_location_token(SelectionStrokeLocation::Outside)));
+  location_combo->setCurrentIndex(std::max(
+      0, location_combo->findData(QString::fromLatin1(selection_stroke_location_token(remembered.location)))));
+  form->addRow(QObject::tr("Location"), location_combo);
+
+  // The swatch's property is the chosen color's source of truth, so automation can set it
+  // without driving the picker.
+  auto* color_swatch = new QPushButton(&dialog);
+  color_swatch->setObjectName(QStringLiteral("strokeSelectionColorSwatch"));
+  color_swatch->setAccessibleName(QObject::tr("Stroke color"));
+  color_swatch->setToolTip(QObject::tr("Choose the stroke color (starts from the foreground color)"));
+  color_swatch->setCursor(Qt::PointingHandCursor);
+  color_swatch->setFocusPolicy(Qt::StrongFocus);
+  color_swatch->setFixedSize(49, 24);
+  color_swatch->setProperty(kStrokeSwatchColorProperty, initial_color);
+  const auto update_swatch = [color_swatch] {
+    set_themed_style(*color_swatch, stroke_selection_swatch_style(
+                                        color_swatch->property(kStrokeSwatchColorProperty).value<QColor>()));
+  };
+  update_swatch();
+  QObject::connect(color_swatch, &QPushButton::clicked, &dialog, [&dialog, color_swatch, update_swatch] {
+    const auto original = color_swatch->property(kStrokeSwatchColorProperty).value<QColor>();
+    const auto selected = request_patchy_color(&dialog, original, QObject::tr("Stroke Color"),
+                                               [color_swatch, update_swatch](QColor color) {
+                                                 color_swatch->setProperty(kStrokeSwatchColorProperty, color);
+                                                 update_swatch();
+                                               });
+    color_swatch->setProperty(kStrokeSwatchColorProperty, selected.value_or(original));
+    update_swatch();
+  });
+  form->addRow(QObject::tr("Color"), color_swatch);
+  layout->addLayout(form);
+
+  auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+  layout->addWidget(buttons);
+  QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+  QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+  width_spin->selectAll();
+  if (exec_dialog(dialog) != QDialog::Accepted) {
+    return std::nullopt;
+  }
+
+  StrokeSelectionSettings chosen;
+  chosen.width = width_spin->value();
+  chosen.location =
+      selection_stroke_location_from_token(location_combo->currentData().toString(), remembered.location);
+  chosen.color = color_swatch->property(kStrokeSwatchColorProperty).value<QColor>();
+  if (!chosen.color.isValid()) {
+    chosen.color = initial_color;
+  }
+  auto settings = app_settings();
+  settings.setValue(kStrokeSelectionWidthKey, chosen.width);
+  settings.setValue(kStrokeSelectionLocationKey, QString::fromLatin1(selection_stroke_location_token(chosen.location)));
+  return chosen;
+}
+
+}  // namespace
+
 void MainWindow::stroke_selection() {
   auto& doc = document();
   const auto active = doc.active_layer_id();
@@ -3521,22 +3635,39 @@ void MainWindow::stroke_selection() {
     return;
   }
 
+  // Every guard runs before the dialog so a refused layer never shows it.
+  const auto chosen = request_stroke_selection_settings(this, canvas_->primary_color());
+  if (!chosen.has_value()) {
+    return;
+  }
+  if (!has_active_document() || &document() != &doc || doc.find_layer(*active) == nullptr) {
+    return;
+  }
+
   canvas_->begin_processing_operation();
   const auto finish_processing = qScopeGuard([this] {
     if (canvas_ != nullptr) {
       canvas_->end_processing_operation();
     }
   });
-  push_undo_snapshot(tr("Stroke selection"));
-  auto options = edit_options(*canvas_);
-  options.lock_transparent_pixels = layer_locks_transparent_pixels(*layer);
   const QRect canvas_rect(0, 0, doc.width(), doc.height());
-  const auto stroke_region = selection_outline_region(selection, canvas_->brush_size(), canvas_rect);
+  const auto stroke_region = selection_stroke_region(selection, chosen->width, chosen->location, canvas_rect);
   if (stroke_region.isEmpty()) {
+    statusBar()->showMessage(tr("Nothing to stroke"));
     return;
   }
+  push_undo_snapshot(tr("Stroke selection"));
+  auto options = edit_options(*canvas_);
+  options.primary = edit_color(chosen->color);
+  options.lock_transparent_pixels = layer_locks_transparent_pixels(*layer);
   options.selection = to_core_rect(stroke_region.boundingRect());
+  options.selection_scan_rects.clear();
+  options.selection_scan_rects.reserve(static_cast<std::size_t>(stroke_region.rectCount()));
+  for (const auto& rect : stroke_region) {
+    options.selection_scan_rects.push_back(to_core_rect(rect));
+  }
   options.selection_mask = [stroke_region](std::int32_t x, std::int32_t y) { return stroke_region.contains(QPoint(x, y)); };
+  options.selection_coverage = {};
   const auto affected = patchy::fill_rect(doc, *active, to_core_rect(stroke_region.boundingRect()), options);
   if (!affected.empty()) {
     canvas_->document_changed(to_qrect(affected));

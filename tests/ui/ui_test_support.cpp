@@ -1423,6 +1423,37 @@ void accept_integer_dialog(const QString& object_name, int value) {
   });
 }
 
+void accept_stroke_selection_dialog(int width, const QString& location, std::optional<QColor> color) {
+  QTimer::singleShot(0, [width, location, color] {
+    for (auto* widget : QApplication::topLevelWidgets()) {
+      if (widget->objectName() != QStringLiteral("patchyStrokeSelectionDialog")) {
+        continue;
+      }
+      auto* dialog = qobject_cast<QDialog*>(widget);
+      CHECK(dialog != nullptr);
+      auto* spin = dialog->findChild<QSpinBox*>(QStringLiteral("strokeSelectionWidthSpin"));
+      auto* combo = dialog->findChild<QComboBox*>(QStringLiteral("strokeSelectionLocationCombo"));
+      auto* swatch = dialog->findChild<QPushButton*>(QStringLiteral("strokeSelectionColorSwatch"));
+      CHECK(spin != nullptr);
+      CHECK(combo != nullptr);
+      CHECK(swatch != nullptr);
+      CHECK(spin->minimum() <= width);
+      CHECK(spin->maximum() >= width);
+      CHECK(spin->buttonSymbols() == QAbstractSpinBox::NoButtons);
+      spin->setValue(width);
+      const auto index = combo->findData(location);
+      CHECK(index >= 0);
+      combo->setCurrentIndex(index);
+      if (color.has_value()) {
+        swatch->setProperty("strokeColor", *color);
+      }
+      dialog->accept();
+      return;
+    }
+    CHECK(false);
+  });
+}
+
 void accept_canvas_size_dialog(int width_value, int height_value) {
   QTimer::singleShot(0, [width_value, height_value] {
     for (auto* widget : QApplication::topLevelWidgets()) {

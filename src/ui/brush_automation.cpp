@@ -142,9 +142,17 @@ QJsonArray BrushAutomationLibrary::tips() const {
   for (const auto& t : tips_.entries()) out.append(tip_info(t.id));
   return out;
 }
+QJsonObject BrushAutomationLibrary::builtin_preset(const BrushPreset& p, bool seed_tip) const {
+  auto out = builtin(p);
+  if (p.tip_name.isEmpty()) return out;
+  const auto tip_id = seed_tip ? tips_.ensure_default_tip(p.tip_name) : tips_.default_tip_id(p.tip_name);
+  if (tip_id.isEmpty()) return out;
+  auto settings = out["settings"].toObject(); settings["tipId"] = tip_id; out["settings"] = settings;
+  return out;
+}
 QJsonArray BrushAutomationLibrary::presets() const {
   QJsonArray out;
-  for (const auto& p : builtin_brush_presets()) out.append(builtin(p));
+  for (const auto& p : builtin_brush_presets()) out.append(builtin_preset(p, false));
   for (const auto& value : presets_) {
     auto p = value.toObject(); p.remove("tipPng");
     auto config = p["settings"].toObject(); config["presetId"] = p["id"]; p["settings"] = config;
@@ -153,7 +161,7 @@ QJsonArray BrushAutomationLibrary::presets() const {
   return out;
 }
 QJsonObject BrushAutomationLibrary::preset(const QString& id) const {
-  if (const auto* p = find_brush_preset(id)) return builtin(*p);
+  if (const auto* p = find_brush_preset(id)) return builtin_preset(*p, true);
   for (const auto& p : presets_) if (p.toObject()["id"].toString() == id) return p.toObject();
   invalid("presetId");
 }

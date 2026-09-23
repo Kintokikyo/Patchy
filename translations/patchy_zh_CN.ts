@@ -8447,6 +8447,22 @@ RGB：%2, %3, %4</translation>
         <source>Change all four corner radii together</source>
         <translation>同时更改四个角的圆角半径</translation>
     </message>
+    <message>
+        <source>Stroke Selection</source>
+        <translation>描边选区</translation>
+    </message>
+    <message>
+        <source>Stroke color</source>
+        <translation>描边颜色</translation>
+    </message>
+    <message>
+        <source>Choose the stroke color (starts from the foreground color)</source>
+        <translation>选择描边颜色（从前景色开始）</translation>
+    </message>
+    <message>
+        <source>Stroke Color</source>
+        <translation>描边颜色</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -10439,10 +10455,6 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Load Layer &amp;Transparency</source>
         <translation>载入图层透明度(&amp;T)</translation>
-    </message>
-    <message>
-        <source>&amp;Stroke Selection</source>
-        <translation>描边选区(&amp;S)</translation>
     </message>
     <message>
         <source>Define Brush Tip from Selection</source>
@@ -17306,6 +17318,14 @@ Y: %2
     <message>
         <source>Positions and sizes typed into the Free Transform bar land on whole pixels, like Photoshop&apos;s &quot;Snap Vector Tools and Transforms to Pixel Grid&quot;. Rotated transforms are not snapped. When off, a typed fraction such as 3.4 px is kept and the pixels are resampled.</source>
         <translation>在自由变换栏中输入的位置和大小会落在整数像素上，与 Photoshop 的“将矢量工具和变换对齐到像素网格”相同。旋转的变换不会对齐。关闭时，输入的小数（如 3.4 px）会被保留，并对像素重新采样。</translation>
+    </message>
+    <message>
+        <source>&amp;Stroke Selection...</source>
+        <translation>描边选区(&amp;S)...</translation>
+    </message>
+    <message>
+        <source>Nothing to stroke</source>
+        <translation>没有可描边的内容</translation>
     </message>
 </context>
 <context>

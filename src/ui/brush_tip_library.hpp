@@ -80,6 +80,13 @@ public:
   // Returns the number restored; 0 = all present.
   int restore_default_tips(int newer_than_version = 0);
 
+  // The id of the built-in default tip with this (localized) name inside the defaults folder,
+  // or empty when it is not installed. Never seeds.
+  [[nodiscard]] QString default_tip_id(const QString& name) const;
+  // default_tip_id, seeding just that one shipped spec when the user deleted it (a preset that
+  // paints with a default tip must keep working). Empty when no spec has that name.
+  QString ensure_default_tip(const QString& name);
+
   // Applies the curated default-tip dynamics to existing built-in tips whose dynamics are still
   // untouched (one-shot migration under the brushes/defaultTipsVersion gate). Returns the
   // number of tips updated.
