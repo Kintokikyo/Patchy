@@ -740,11 +740,6 @@ public:
   // A Path Select / Direct Select double-click on the target shape layer's
   // geometry (anchor, segment, or a painted pixel) opens its appearance editor.
   void set_shape_appearance_requested_callback(std::function<void()> callback);
-  // A Move-tool double-click on the selected layer's transform target (the box
-  // the passive controls would frame, shown or not) asks the host to start
-  // Free Transform through the same path as Edit > Free Transform (Ctrl+T), so
-  // the position-lock and non-pixel refusals match the menu's.
-  void set_free_transform_requested_callback(std::function<void()> callback);
   // Pen tool (canvas_widget_vector_tools.cpp - the tablet-input TU is
   // canvas_widget_pen.cpp): a committed path arrives as one subpath.
   void set_vector_path_committed_callback(
@@ -2056,7 +2051,6 @@ private:
   std::function<void(CanvasTool, QPointF)> shape_create_requested_callback_;
   // Path Select / Direct Select double-click on a shape layer's geometry.
   std::function<void()> shape_appearance_requested_callback_;
-  std::function<void()> free_transform_requested_callback_;
   std::function<std::optional<ShapePreviewAppearance>()> shape_preview_appearance_callback_;
   int polygon_sides_{5};
   int polygon_star_inset_{0};

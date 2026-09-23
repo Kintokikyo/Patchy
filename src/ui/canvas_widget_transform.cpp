@@ -1343,10 +1343,6 @@ std::optional<QRectF> CanvasWidget::move_transform_controls_rect() const {
   return move_transform_target_rect();
 }
 
-void CanvasWidget::set_free_transform_requested_callback(std::function<void()> callback) {
-  free_transform_requested_callback_ = std::move(callback);
-}
-
 std::vector<LayerId> CanvasWidget::free_transform_snap_exclude_ids() const {
   std::vector<LayerId> ids;
   if (!transforming_layer_) {

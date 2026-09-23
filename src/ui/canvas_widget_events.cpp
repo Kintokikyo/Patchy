@@ -2738,12 +2738,11 @@ void CanvasWidget::mouseDoubleClickEvent(QMouseEvent* event) {
       }
     }
     if (transforming_layer_) {
-      // Photoshop: a double-click inside the box commits the session. Off the
-      // box it keeps the session alive, like a single press does.
-      if (transform_handle_at(event->pos()) != TransformHandle::None) {
-        commit_free_transform();
-      }
-      event->accept();
+      // A double-click during a session is just a second press (the base
+      // class replays it as one): it never commits, and it must not reach the
+      // text and shape editor branches below. Double-click commit was removed
+      // because a hand that slips between the clicks drags the box.
+      QWidget::mouseDoubleClickEvent(event);
       return;
     }
     if (auto* layer = inside_document ? topmost_text_layer_at(document_point) : nullptr; layer != nullptr) {
@@ -2779,32 +2778,6 @@ void CanvasWidget::mouseDoubleClickEvent(QMouseEvent* event) {
           event->accept();
           return;
         }
-      }
-    }
-    // Move tool: a double-click on the selected layer's transform target
-    // starts Free Transform (the pasteboard part of the box counts, like a
-    // handle grab). Text layers took the editor branch above; a lone text
-    // target whose double-click landed off the document stays inert rather
-    // than opening a transform the editor branch would have refused. The
-    // double-click's own press is swallowed here, so no second Move drag
-    // starts under the new session; the trailing release finds nothing to end.
-    if (tool_ == CanvasTool::Move && !warping_layer_ && !path_transform_active_) {
-      const Layer* lone_target = nullptr;
-      if (document_ != nullptr && selected_layer_ids_.size() <= 1U) {
-        const auto lone_id = selected_layer_ids_.empty() ? document_->active_layer_id()
-                                                          : std::optional<LayerId>(selected_layer_ids_.front());
-        lone_target = lone_id.has_value() ? document_->find_layer(*lone_id) : nullptr;
-      }
-      const bool lone_text_target = lone_target != nullptr && layer_is_text(*lone_target);
-      if (const auto target = move_transform_target_rect();
-          !lone_text_target && target.has_value() && target->contains(document_position_f(event->position()))) {
-        if (free_transform_requested_callback_) {
-          free_transform_requested_callback_();
-        } else {
-          begin_free_transform();
-        }
-        event->accept();
-        return;
       }
     }
   }
