@@ -516,6 +516,37 @@ private:
   std::function<void()> callback_;
 };
 
+class ToolFlyoutEventFilter final : public QObject {
+public:
+  ToolFlyoutEventFilter(std::function<void()> open_menu, QObject* parent)
+      : QObject(parent), open_menu_(std::move(open_menu)) {}
+
+protected:
+  bool eventFilter(QObject* watched, QEvent* event) override {
+    if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseButtonDblClick) {
+      auto* mouse_event = static_cast<QMouseEvent*>(event);
+      if (mouse_event->button() == Qt::RightButton && event->type() == QEvent::MouseButtonPress) {
+        if (open_menu_) {
+          open_menu_();
+        }
+        mouse_event->accept();
+        return true;
+      }
+      if (mouse_event->button() == Qt::LeftButton && event->type() == QEvent::MouseButtonDblClick) {
+        if (open_menu_) {
+          open_menu_();
+        }
+        mouse_event->accept();
+        return true;
+      }
+    }
+    return QObject::eventFilter(watched, event);
+  }
+
+private:
+  std::function<void()> open_menu_;
+};
+
 // Stock QToolBar collapses an expanded overflow bar half a second after the
 // pointer leaves it, which makes the palette's second column nearly
 // unreachable. Swallowing Leave while the extension button is checked turns
@@ -828,7 +859,7 @@ void MainWindow::build_tool_palette(ActionBuildContext& ctx) {
     // mousePressEvent and restart the hold timer, so swallow it and open the
     // menu through the same showMenu() path the timer uses. The first click
     // of the pair still selects the default tool, as in Photoshop.
-    button->installEventFilter(new MouseDoubleClickFilter([button] { button->showMenu(); }, button));
+    button->installEventFilter(new ToolFlyoutEventFilter([button] { button->showMenu(); }, button));
     for (auto* action : actions) {
       QObject::connect(action, &QAction::triggered, button, [button, menu, action] {
         button->setDefaultAction(action);

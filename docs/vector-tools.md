@@ -40,12 +40,17 @@ values are remembered per tool for the session. The click test is a release on
 the press's own document pixel; any real extent commits as a drag. Line has
 no dialog (Photoshop has none), a Fixed Size style click still places its
 W x H, and Pixels mode keeps its legacy click. The options-bar W / H spins
-(`vectorShapeWidthSpin`/`vectorShapeHeightSpin`, a link button for
-proportional edits) mirror the active shape layer's path bounds in Shape mode
-and under Path Select / Direct Select; a debounced edit scales the shape
-about its top-left through `transform_layer_vector_data` (live shapes stay
-live, other shapes scale their paths; one "Shape size" undo per edit). The
-Style / Width / Height row shows in Pixels mode only ([tools.md](tools.md)).
+(`vectorShapeWidthSpin`/`vectorShapeHeightSpin`, link button for proportional
+edits) mirror the active shape layer's path bounds: shape tools show them in
+Shape mode only (disabled until a shape layer is active), Path Select /
+Direct Select and Move only with an editable shape layer
+(`ui_shape_size_row_shows_in_shape_mode_only`). A debounced edit scales the
+shape about its top-left through `transform_layer_vector_data` (live shapes
+stay live; one "Shape size" undo per edit). The Properties panel repeats the
+row (`propertiesShapeSizePanel`, one line) for an active
+editable shape layer; both share
+`handle_vector_shape_size_value_changed`
+(`ui_shape_size_controls_follow_move_and_properties_selection`).
 
 ## Pen tool
 
@@ -191,11 +196,12 @@ layers.
 ## Appearance editing and fill layers
 
 The Shape Appearance dialog opens from the vector badge, the row
-double-click, the context menu, the options-bar Appearance... button (Shape
-mode, and Path Select / Direct Select with an editable shape), Layer > Shape >
-Shape Appearance... (`layer.shape_appearance`), the Properties panel's Edit
-Appearance... button, and a Path Select / Direct Select double-click on the
-shape's geometry. Its Reset button restores the factory appearance with the
+double-click, the layer context menu, the canvas right-click menu's shape
+section ("Canvas right-click menu" in [tools.md](tools.md)), the options-bar
+Appearance... button (Shape mode, and Path Select / Direct Select with an
+editable shape), Layer > Shape > Shape Appearance... (`layer.shape_appearance`),
+the Properties panel's Edit Appearance... button, and a Path Select / Direct
+Select double-click on the shape's geometry. Its Reset button restores the factory appearance with the
 fill in the current foreground color (geometry stays). Controls: paint kind,
 width, alignment, caps, joins, and dash presets. Custom preserves PSD dash arrays.
 `pattern_linked` anchors at the effects reference point when on and document

@@ -1053,6 +1053,25 @@ void ui_tool_flyout_double_click_opens_menu() {
   CHECK(button->defaultAction() == require_action(window, "toolMarqueeAction"));
 }
 
+void ui_tool_flyout_right_click_opens_menu() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* button = window.findChild<QToolButton*>(QStringLiteral("shapeToolButton"));
+  CHECK(button != nullptr);
+  auto* menu = button->menu();
+  CHECK(menu != nullptr);
+
+  bool shown = false;
+  QTimer::singleShot(0, [&] {
+    shown = menu->isVisible();
+    menu->close();
+  });
+  send_mouse(*button, QEvent::MouseButtonPress, button->rect().center(), Qt::RightButton, Qt::RightButton);
+  QApplication::processEvents();
+  CHECK(shown);
+  CHECK(!menu->isVisible());
+}
+
 void ui_shape_flyout_and_zoom_tool_work() {
   patchy::ui::MainWindow window;
   show_window(window);
@@ -2686,6 +2705,7 @@ std::vector<patchy::test::TestCase> canvas_view_tools_tests() {
       {"ui_shape_flyout_and_zoom_tool_work", ui_shape_flyout_and_zoom_tool_work},
       {"ui_stamp_and_gradient_flyouts_swap_tools", ui_stamp_and_gradient_flyouts_swap_tools},
       {"ui_tool_flyout_double_click_opens_menu", ui_tool_flyout_double_click_opens_menu},
+      {"ui_tool_flyout_right_click_opens_menu", ui_tool_flyout_right_click_opens_menu},
       {"ui_tool_palette_icons_render_sheet", ui_tool_palette_icons_render_sheet},
       {"ui_filled_shape_preview_clears_after_commit", ui_filled_shape_preview_clears_after_commit},
       {"ui_options_bar_tracks_active_tool", ui_options_bar_tracks_active_tool},

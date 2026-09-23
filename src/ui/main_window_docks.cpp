@@ -1722,6 +1722,64 @@ void MainWindow::create_docks() {
   active_layer_adjustment_label_ = add_properties_label(QStringLiteral("activeLayerAdjustmentLabel"));
   active_layer_text_label_ = add_properties_label(QStringLiteral("activeLayerTextLabel"));
   active_layer_shape_label_ = add_properties_label(QStringLiteral("activeLayerShapeLabel"));
+
+  // W / H of the active shape layer, one compact row like the options bar's
+  // readouts (which share the same apply path and stay in sync with these).
+  properties_shape_size_panel_ = new QWidget(properties_panel);
+  properties_shape_size_panel_->setObjectName(QStringLiteral("propertiesShapeSizePanel"));
+  properties_shape_size_panel_->hide();
+  auto* properties_shape_size_row = new QHBoxLayout(properties_shape_size_panel_);
+  properties_shape_size_row->setContentsMargins(0, 2, 0, 2);
+  properties_shape_size_row->setSpacing(4);
+  const auto add_shape_size_label = [this, properties_shape_size_row](const char* source) {
+    auto* label = new QLabel(properties_shape_size_panel_);
+    bind_widget_text(label, source);
+    properties_shape_size_row->addWidget(label);
+    return label;
+  };
+  const auto make_properties_shape_size_spin = [this, properties_shape_size_row](const char* name,
+                                                                                 const char* tooltip) {
+    auto* spin = new UnitSpinBox(SpinUnit::Pixels, properties_shape_size_panel_);
+    spin->setObjectName(QLatin1String(name));
+    spin->setRange(0.1, 60000.0);
+    spin->setDecimals(1);
+    spin->setSingleStep(1.0);
+    spin->setKeyboardTracking(false);
+    spin->setEnabled(false);
+    bind_tooltip(spin, tooltip);
+    configure_dialog_spinbox(spin, 96);
+    spin->setFixedWidth(96);
+    properties_shape_size_row->addWidget(spin);
+    return spin;
+  };
+  add_shape_size_label(QT_TR_NOOP("W:"));
+  properties_shape_width_spin_ =
+      make_properties_shape_size_spin("propertiesShapeWidthSpin", QT_TR_NOOP("Width of the active shape"));
+  properties_shape_link_size_button_ = new QPushButton(properties_shape_size_panel_);
+  properties_shape_link_size_button_->setObjectName(QStringLiteral("propertiesShapeLinkSizeButton"));
+  properties_shape_link_size_button_->setCheckable(true);
+  properties_shape_link_size_button_->setIcon(simple_icon(QStringLiteral("link")));
+  properties_shape_link_size_button_->setFixedWidth(28);
+  bind_tooltip(properties_shape_link_size_button_,
+               QT_TR_NOOP("Keep the shape's width and height in proportion"));
+  properties_shape_link_size_button_->setEnabled(false);
+  properties_shape_size_row->addWidget(properties_shape_link_size_button_);
+  add_shape_size_label(QT_TR_NOOP("H:"));
+  properties_shape_height_spin_ =
+      make_properties_shape_size_spin("propertiesShapeHeightSpin", QT_TR_NOOP("Height of the active shape"));
+  properties_shape_size_row->addStretch(1);
+  properties_layout->addWidget(properties_shape_size_panel_);
+  connect(properties_shape_width_spin_, &QDoubleSpinBox::valueChanged, this,
+          [this](double value) { handle_vector_shape_size_value_changed(true, value); });
+  connect(properties_shape_height_spin_, &QDoubleSpinBox::valueChanged, this,
+          [this](double value) { handle_vector_shape_size_value_changed(false, value); });
+  connect(properties_shape_link_size_button_, &QPushButton::toggled, this, [this](bool checked) {
+    if (vector_shape_link_size_button_ != nullptr) {
+      const QSignalBlocker blocker(vector_shape_link_size_button_);
+      vector_shape_link_size_button_->setChecked(checked);
+    }
+  });
+
   properties_edit_appearance_button_ = new QPushButton(tr("Edit Appearance..."), properties_panel);
   properties_edit_appearance_button_->setObjectName(QStringLiteral("propertiesEditAppearanceButton"));
   bind_widget_text(properties_edit_appearance_button_, QT_TR_NOOP("Edit Appearance..."));

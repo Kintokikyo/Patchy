@@ -959,6 +959,8 @@ private:
   // spins mirror its path bounds and a debounced edit scales the shape about
   // its top-left corner (live shapes stay live under an axis-aligned scale).
   void sync_vector_shape_size_spins();
+  void handle_vector_shape_size_value_changed(bool width_changed, double value);
+  [[nodiscard]] bool vector_shape_size_controls_live();
   bool apply_options_bar_size_to_active_shape();
   void schedule_vector_shape_size_apply();
   // Per-mode visibility of the shape tools' options widgets, evaluated once
@@ -1514,6 +1516,9 @@ private:
   QAction* path_new_action_{nullptr};
   QAction* path_simplify_action_{nullptr};
   QAction* layer_shape_appearance_action_{nullptr};
+  // Edit-menu actions the canvas right-click menu's shape section reuses.
+  QAction* free_transform_action_{nullptr};
+  QAction* define_custom_shape_action_{nullptr};
   // Unite / Subtract Front / Intersect / Exclude, enabled with a combinable
   // multi-selection (refresh_combine_shapes_action_states).
   std::array<QAction*, 4> layer_combine_actions_{};
@@ -1689,6 +1694,10 @@ private:
   QLabel* active_layer_adjustment_label_{nullptr};
   QLabel* active_layer_text_label_{nullptr};
   QLabel* active_layer_shape_label_{nullptr};
+  QWidget* properties_shape_size_panel_{nullptr};
+  QDoubleSpinBox* properties_shape_width_spin_{nullptr};
+  QDoubleSpinBox* properties_shape_height_spin_{nullptr};
+  QPushButton* properties_shape_link_size_button_{nullptr};
   QPushButton* properties_edit_appearance_button_{nullptr};
   QLabel* active_tool_info_label_{nullptr};
   QLabel* canvas_info_label_{nullptr};
@@ -1921,6 +1930,7 @@ private:
   // in both vector modes.
   std::vector<QWidget*> vector_pixel_only_option_widgets_;
   std::vector<QWidget*> vector_shape_mode_option_widgets_;
+  std::vector<QWidget*> vector_shape_size_option_widgets_;
   std::vector<QWidget*> vector_vector_mode_option_widgets_;
   int current_healing_diffusion_{5};
   QString current_pattern_stamp_pattern_id_;

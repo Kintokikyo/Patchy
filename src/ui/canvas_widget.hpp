@@ -1119,6 +1119,9 @@ public:
   // lands on the selection (Remove Object, Fill, Stroke, ...); a nullptr entry
   // is a separator. The actions stay owned by the host.
   void set_selection_context_actions_callback(std::function<QList<QAction*>()> callback);
+  // The commands the host offers when a right-click lands on the active vector
+  // shape layer (Shape Appearance, Free Transform, ...); same contract.
+  void set_shape_context_actions_callback(std::function<QList<QAction*>()> callback);
   // Blocking refusals (the tool action did NOT happen) report through this
   // callback so the host can present them as errors; unset, they fall back to
   // the plain status callback.
@@ -1784,6 +1787,14 @@ private:
   [[nodiscard]] TransformHandle marquee_resize_handle_at(QPoint widget_point,
                                                           Qt::KeyboardModifiers modifiers) const;
   void update_marquee_resize_drag(QPoint document_point, Qt::KeyboardModifiers modifiers);
+  void apply_marquee_resize_rect(QRect rect);
+  // True while a gesture rewrites selection_ on every pointer move (a Replace
+  // marquee drag-out or a handle resize); Add/Subtract/Intersect drag-outs keep
+  // the existing selection until release, so it stays a snap target for them.
+  [[nodiscard]] bool selection_is_live_gesture_output() const noexcept {
+    return (selecting_ && selection_operation_ == SelectionMode::Replace) ||
+           marquee_resize_handle_ != TransformHandle::None;
+  }
   void draw_marquee_resize_handles(QPainter& painter) const;
   [[nodiscard]] QImage lasso_selection_mask(const QPolygon& polygon, QRect& bounds) const;
   [[nodiscard]] QImage lasso_selection_mask(const QPolygonF& polygon, QRect& bounds) const;
@@ -2341,6 +2352,11 @@ private:
   // A handle drag on the remembered marquee shape (None when idle).
   TransformHandle marquee_resize_handle_{TransformHandle::None};
   QRect marquee_resize_start_rect_;
+  // The rect the drag last applied; Space repositions from here and moves
+  // marquee_resize_start_rect_ along so the resize resumes in place.
+  QRect marquee_resize_current_rect_;
+  QRect spacebar_reposition_start_marquee_rect_;
+  QRect spacebar_reposition_start_marquee_start_rect_;
   bool selection_edges_visible_{true};
   bool quick_mask_active_{false};
   PixelBuffer quick_mask_pixels_;
@@ -2685,6 +2701,7 @@ private:
   std::function<void(std::vector<LayerId>, LayerId)> layer_selection_requested_callback_;
   std::function<void(QString)> status_callback_;
   std::function<QList<QAction*>()> selection_context_actions_callback_;
+  std::function<QList<QAction*>()> shape_context_actions_callback_;
   bool vector_preview_enabled_{false};
   std::uint64_t vector_preview_generation_{1};
   std::uint64_t vector_preview_completed_generation_{0};

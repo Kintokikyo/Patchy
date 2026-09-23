@@ -2417,6 +2417,10 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
       CanvasTool::Line,    CanvasTool::Rectangle,  CanvasTool::Ellipse,
       CanvasTool::Pen,     CanvasTool::Polygon,    CanvasTool::CustomShape,
       CanvasTool::PathSelect, CanvasTool::DirectSelect};
+  const std::initializer_list<CanvasTool> vector_shape_size_tools{
+      CanvasTool::Move,     CanvasTool::Line,       CanvasTool::Rectangle,
+      CanvasTool::Ellipse,  CanvasTool::Pen,        CanvasTool::Polygon,
+      CanvasTool::CustomShape, CanvasTool::PathSelect, CanvasTool::DirectSelect};
   vector_shape_mode_option_widgets_.push_back(
       add_option_label(QT_TR_NOOP("Fill:"), vector_appearance_tools));
   vector_fill_swatch_button_ = new QToolButton(toolbar);
@@ -2483,7 +2487,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   // W / H of the ACTIVE shape layer (Photoshop's options-bar readouts): they
   // mirror the selected shape's bounds and resize it live (top-left anchored,
   // axis-aligned scale, so live shapes stay live); disabled without one.
-  const auto make_shape_size_spin = [this, toolbar, &vector_appearance_tools,
+  const auto make_shape_size_spin = [this, toolbar, &vector_shape_size_tools,
                                      add_option_widget](const char* name, const char* tooltip) {
     auto* spin = new UnitSpinBox(SpinUnit::Pixels, toolbar);
     spin->setObjectName(QLatin1String(name));
@@ -2494,12 +2498,12 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     spin->setEnabled(false);
     bind_tooltip(spin, tooltip);
     configure_toolbar_spinbox(spin, 84);
-    add_option_widget(spin, vector_appearance_tools);
-    vector_shape_mode_option_widgets_.push_back(spin);
+    add_option_widget(spin, vector_shape_size_tools);
+    vector_shape_size_option_widgets_.push_back(spin);
     return spin;
   };
-  vector_shape_mode_option_widgets_.push_back(
-      add_option_label(QT_TR_NOOP("W:"), vector_appearance_tools));
+  vector_shape_size_option_widgets_.push_back(
+      add_option_label(QT_TR_NOOP("W:"), vector_shape_size_tools));
   vector_shape_width_spin_ =
       make_shape_size_spin("vectorShapeWidthSpin", QT_TR_NOOP("Width of the active shape"));
   vector_shape_link_size_button_ = new QPushButton(toolbar);
@@ -2510,27 +2514,23 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   bind_tooltip(vector_shape_link_size_button_, QT_TR_NOOP("Keep the shape's width and height in proportion"));
   vector_shape_link_size_button_->setFixedWidth(28);
   vector_shape_link_size_button_->setEnabled(false);
-  add_option_widget(vector_shape_link_size_button_, vector_appearance_tools);
-  vector_shape_mode_option_widgets_.push_back(vector_shape_link_size_button_);
-  vector_shape_mode_option_widgets_.push_back(
-      add_option_label(QT_TR_NOOP("H:"), vector_appearance_tools));
+  add_option_widget(vector_shape_link_size_button_, vector_shape_size_tools);
+  vector_shape_size_option_widgets_.push_back(vector_shape_link_size_button_);
+  connect(vector_shape_link_size_button_, &QPushButton::toggled, this, [this](bool checked) {
+    if (properties_shape_link_size_button_ != nullptr) {
+      const QSignalBlocker blocker(properties_shape_link_size_button_);
+      properties_shape_link_size_button_->setChecked(checked);
+    }
+  });
+  vector_shape_size_option_widgets_.push_back(
+      add_option_label(QT_TR_NOOP("H:"), vector_shape_size_tools));
   vector_shape_height_spin_ =
       make_shape_size_spin("vectorShapeHeightSpin", QT_TR_NOOP("Height of the active shape"));
   connect(vector_shape_width_spin_, &QDoubleSpinBox::valueChanged, this, [this](double value) {
-    if (vector_shape_link_size_button_ != nullptr && vector_shape_link_size_button_->isChecked() &&
-        vector_shape_height_spin_ != nullptr && vector_shape_size_ratio_ > 0.0) {
-      QSignalBlocker blocker(vector_shape_height_spin_);
-      vector_shape_height_spin_->setValue(value / vector_shape_size_ratio_);
-    }
-    schedule_vector_shape_size_apply();
+    handle_vector_shape_size_value_changed(true, value);
   });
   connect(vector_shape_height_spin_, &QDoubleSpinBox::valueChanged, this, [this](double value) {
-    if (vector_shape_link_size_button_ != nullptr && vector_shape_link_size_button_->isChecked() &&
-        vector_shape_width_spin_ != nullptr && vector_shape_size_ratio_ > 0.0) {
-      QSignalBlocker blocker(vector_shape_width_spin_);
-      vector_shape_width_spin_->setValue(value * vector_shape_size_ratio_);
-    }
-    schedule_vector_shape_size_apply();
+    handle_vector_shape_size_value_changed(false, value);
   });
 
   vector_vector_mode_option_widgets_.push_back(

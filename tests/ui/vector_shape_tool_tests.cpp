@@ -3069,6 +3069,63 @@ void ui_shape_size_spins_reflect_and_resize_active_shape() {
   CHECK(!width_spin->isEnabled());
 }
 
+void ui_shape_size_controls_follow_move_and_properties_selection() {
+  VectorSettingsGuard settings_guard;
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+
+  require_action(window, "toolRectAction")->trigger();
+  QApplication::processEvents();
+  canvas->setFocus(Qt::MouseFocusReason);
+  shape_drag(*canvas, QPoint(100, 100), QPoint(300, 220));
+  const auto layer_id = *document.active_layer_id();
+
+  require_action(window, "toolMoveAction")->trigger();
+  QApplication::processEvents();
+  auto* options_width = window.findChild<QDoubleSpinBox*>(QStringLiteral("vectorShapeWidthSpin"));
+  auto* options_height = window.findChild<QDoubleSpinBox*>(QStringLiteral("vectorShapeHeightSpin"));
+  auto* properties_panel = window.findChild<QWidget*>(QStringLiteral("propertiesShapeSizePanel"));
+  auto* properties_width = window.findChild<QDoubleSpinBox*>(QStringLiteral("propertiesShapeWidthSpin"));
+  auto* properties_height = window.findChild<QDoubleSpinBox*>(QStringLiteral("propertiesShapeHeightSpin"));
+  CHECK(options_width != nullptr && options_height != nullptr);
+  CHECK(properties_panel != nullptr && properties_width != nullptr && properties_height != nullptr);
+  CHECK(options_width->isVisible() && options_width->isEnabled());
+  CHECK(!properties_panel->isHidden() && properties_panel->isEnabled());
+  CHECK(std::abs(options_width->value() - 200.0) < 0.5);
+  CHECK(std::abs(properties_width->value() - 200.0) < 0.5);
+  CHECK(std::abs(properties_height->value() - 120.0) < 0.5);
+  // The row must read at the dock's default width: the spins are fixed-width,
+  // so the values stay inside the visible panel (the first draft stretched
+  // them past the dock edge). Artifact: properties-shape-size-row.png.
+  if (auto* toggle = window.findChild<QToolButton*>(QStringLiteral("propertiesDockCollapseButton"));
+      toggle != nullptr && !toggle->isChecked()) {
+    toggle->click();
+  }
+  process_events_for(200);
+  CHECK(properties_width->width() <= 110);
+  if (auto* panel = window.findChild<QWidget*>(QStringLiteral("propertiesPanel"))) {
+    CHECK(properties_width->mapTo(panel, properties_width->rect().bottomRight()).x() <= panel->width());
+    save_widget_artifact("properties-shape-size-row", *panel);
+  }
+
+  properties_width->setValue(360.0);
+  process_events_for(450);
+  auto* layer = document.find_layer(layer_id);
+  CHECK(layer != nullptr);
+  CHECK(std::abs(layer->bounds().width - 360.0) <= 1.0);
+  CHECK(std::abs(options_width->value() - 360.0) < 0.5);
+  CHECK(std::abs(properties_width->value() - 360.0) < 0.5);
+
+  options_height->setValue(60.0);
+  process_events_for(450);
+  layer = document.find_layer(layer_id);
+  CHECK(layer != nullptr);
+  CHECK(std::abs(layer->bounds().height - 60.0) <= 1.0);
+  CHECK(std::abs(properties_height->value() - 60.0) < 0.5);
+}
+
 void ui_shape_style_row_is_pixel_only_and_greys_size_at_normal() {
   VectorSettingsGuard settings_guard;
   patchy::ui::MainWindow window;
@@ -3731,6 +3788,105 @@ void ui_shape_appearance_entry_points_open_the_dialog() {
   CHECK(properties_button->isHidden());
 }
 
+
+// The active-shape W / H readouts belong to Shape mode: Path and Pixels have
+// no shape layer to size, and Pixels already carries the fixed-size Width /
+// Height row (two width/height pairs on one bar was the September 2026 bug).
+void ui_shape_size_row_shows_in_shape_mode_only() {
+  VectorSettingsGuard settings_guard;
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* mode_combo = window.findChild<QComboBox*>(QStringLiteral("vectorModeCombo"));
+  auto* width_spin = window.findChild<QDoubleSpinBox*>(QStringLiteral("vectorShapeWidthSpin"));
+  auto* link_button = window.findChild<QPushButton*>(QStringLiteral("vectorShapeLinkSizeButton"));
+  CHECK(mode_combo != nullptr && width_spin != nullptr && link_button != nullptr);
+  require_action(window, "toolRectAction")->trigger();
+  QApplication::processEvents();
+  mode_combo->setCurrentIndex(0);  // Shape
+  QApplication::processEvents();
+  CHECK(width_spin->isVisible());
+  CHECK(!width_spin->isEnabled());  // no shape layer yet: a disabled readout
+  mode_combo->setCurrentIndex(1);  // Path
+  QApplication::processEvents();
+  CHECK(!width_spin->isVisible());
+  CHECK(!link_button->isVisible());
+  mode_combo->setCurrentIndex(2);  // Pixels
+  QApplication::processEvents();
+  CHECK(!width_spin->isVisible());
+  mode_combo->setCurrentIndex(0);  // Shape
+  QApplication::processEvents();
+  CHECK(width_spin->isVisible());
+  // The path selection tools and Move show the row only with an editable
+  // shape layer.
+  require_action(window, "toolPathSelectAction")->trigger();
+  QApplication::processEvents();
+  CHECK(!width_spin->isVisible());
+  require_action(window, "toolMoveAction")->trigger();
+  QApplication::processEvents();
+  CHECK(!width_spin->isVisible());
+}
+
+// A right-click on the active shape layer adds the shape commands to the
+// canvas menu (docs/tools.md, "Canvas right-click menu").
+void ui_shape_context_menu_offers_shape_commands() {
+  VectorSettingsGuard settings_guard;
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  require_action(window, "toolRectAction")->trigger();
+  QApplication::processEvents();
+  canvas->setFocus(Qt::MouseFocusReason);
+  shape_drag(*canvas, QPoint(100, 100), QPoint(300, 220));
+  require_action(window, "toolMoveAction")->trigger();
+  QApplication::processEvents();
+
+  const auto visible_menu = [canvas]() -> QMenu* {
+    for (auto* menu : canvas->findChildren<QMenu*>(QStringLiteral("canvasContextMenu"))) {
+      if (menu->isVisible()) {
+        return menu;
+      }
+    }
+    return nullptr;
+  };
+  const auto right_click = [&](QPoint document_point) {
+    const auto point = canvas->widget_position_for_document_point(document_point);
+    send_mouse(*canvas, QEvent::MouseButtonPress, point, Qt::RightButton, Qt::RightButton);
+    send_mouse(*canvas, QEvent::MouseButtonRelease, point, Qt::RightButton, Qt::NoButton);
+    QApplication::processEvents();
+    return visible_menu();
+  };
+  const auto find_action = [](QMenu& menu, const char* object_name) -> QAction* {
+    for (auto* action : menu.actions()) {
+      if (action->objectName() == QLatin1String(object_name)) {
+        return action;
+      }
+    }
+    return nullptr;
+  };
+
+  auto* menu = right_click(QPoint(200, 160));
+  CHECK(menu != nullptr);
+  if (menu != nullptr) {
+    auto* appearance = find_action(*menu, "layerShapeAppearanceAction");
+    CHECK(appearance != nullptr);
+    CHECK(appearance != nullptr && appearance->isEnabled());
+    CHECK(find_action(*menu, "editFreeTransformAction") != nullptr);
+    CHECK(find_action(*menu, "pathSimplifyAction") != nullptr);
+    CHECK(find_action(*menu, "editDefineCustomShapeAction") != nullptr);
+    save_widget_artifact("shape-context-menu", *menu);
+    menu->close();
+    QApplication::processEvents();
+  }
+
+  // Off the shape: no shape section.
+  menu = right_click(QPoint(600, 500));
+  CHECK(menu == nullptr || find_action(*menu, "layerShapeAppearanceAction") == nullptr);
+  if (menu != nullptr) {
+    menu->close();
+    QApplication::processEvents();
+  }
+}
+
 std::vector<patchy::test::TestCase> vector_shape_tool_tests() {
   return {
       {"ui_shape_tool_creates_shape_layer_and_undoes", ui_shape_tool_creates_shape_layer_and_undoes},
@@ -3811,6 +3967,10 @@ std::vector<patchy::test::TestCase> vector_shape_tool_tests() {
       {"ui_shape_tap_line_fixed_size_and_path_mode", ui_shape_tap_line_fixed_size_and_path_mode},
       {"ui_shape_size_spins_reflect_and_resize_active_shape",
        ui_shape_size_spins_reflect_and_resize_active_shape},
+      {"ui_shape_size_controls_follow_move_and_properties_selection",
+       ui_shape_size_controls_follow_move_and_properties_selection},
+      {"ui_shape_size_row_shows_in_shape_mode_only", ui_shape_size_row_shows_in_shape_mode_only},
+      {"ui_shape_context_menu_offers_shape_commands", ui_shape_context_menu_offers_shape_commands},
       {"ui_shape_style_row_is_pixel_only_and_greys_size_at_normal",
        ui_shape_style_row_is_pixel_only_and_greys_size_at_normal},
       {"ui_options_bar_never_shows_pixel_widgets_in_shape_mode",

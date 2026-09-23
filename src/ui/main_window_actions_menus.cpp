@@ -536,6 +536,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   copy_merged_action->setObjectName(QStringLiteral("editCopyMergedAction"));
   paste_action->setObjectName(QStringLiteral("editPasteAction"));
   transform_action->setObjectName(QStringLiteral("editFreeTransformAction"));
+  free_transform_action_ = transform_action;
   warp_transform_action->setObjectName(QStringLiteral("editWarpTransformAction"));
   cut_action->setIcon(simple_icon(QStringLiteral("CT")));
   copy_action->setIcon(simple_icon(QStringLiteral("CP")));
@@ -620,6 +621,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   auto* define_custom_shape_action = edit_menu->addAction(tr("Define Custom Shape from Path"));
   bind_action_text(define_custom_shape_action, QT_TR_NOOP("Define Custom Shape from Path"));
   define_custom_shape_action->setObjectName(QStringLiteral("editDefineCustomShapeAction"));
+  define_custom_shape_action_ = define_custom_shape_action;
   register_hotkey(define_custom_shape_action, "edit.define_custom_shape");
   connect(define_custom_shape_action, &QAction::triggered, this,
           [this] { define_custom_shape_from_path(); });

@@ -7572,6 +7572,12 @@ void MainWindow::configure_canvas(CanvasWidget* canvas) {
   });
   canvas->set_status_callback([this](QString message) { statusBar()->showMessage(message); });
   canvas->set_selection_context_actions_callback([this] { return selection_context_actions_; });
+  // A right-click on the active shape layer: the Layer > Shape and Edit menus'
+  // own QActions (docs/tools.md, "Canvas right-click menu").
+  canvas->set_shape_context_actions_callback([this] {
+    return QList<QAction*>{layer_shape_appearance_action_, free_transform_action_, path_simplify_action_,
+                           nullptr, define_custom_shape_action_, layer_rasterize_action_};
+  });
   canvas->set_vector_preview_status_callback([this, canvas](QString message, bool notice) {
     if (canvas == canvas_) {
       refresh_vector_preview_action();
