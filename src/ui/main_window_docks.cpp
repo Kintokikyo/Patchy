@@ -1062,6 +1062,7 @@ bool MainWindow::handle_dock_group_window_event(QObject* watched, QEvent* event)
           }
       }
   }
+}
 
 void MainWindow::create_docks() {
   setTabPosition(Qt::RightDockWidgetArea, QTabWidget::North);
