@@ -3576,11 +3576,12 @@ void CanvasWidget::timerEvent(QTimerEvent* event) {
     processing_animation_frame_ = (processing_animation_frame_ + 1) % 12;
     ++render_cache_diagnostics_.processing_overlay_frames;
     if (processing_overlay_visible_ || first_render_spinner_active() ||
-        preview_render_overlay_visible()) {
+        preview_render_overlay_visible() || background_refresh_overlay_visible()) {
       update();
-    } else if (preview_renders_in_flight_ == 0) {
-      // Keep ticking while a preview render is in flight but still inside the
-      // badge delay; the first post-delay tick paints the badge.
+    } else if (preview_renders_in_flight_ == 0 && !async_render_cache_in_flight_ && !move_commit_job_.has_value()) {
+      // Keep ticking while a preview render, background refresh, or deferred
+      // Move commit is in flight but still inside the badge delay; the first
+      // post-delay tick paints the badge.
       processing_animation_timer_.stop();
     }
     event->accept();

@@ -1234,6 +1234,7 @@ void CanvasWidget::start_async_render_cache_refresh() {
   const QSize snapshot_size(document_snapshot->width(), document_snapshot->height());
   async_render_cache_in_flight_ = true;
   async_render_cache_pending_ = false;
+  note_background_refresh_state();
   const auto generation = ++async_render_cache_generation_;
   auto* app = QApplication::instance();
   QPointer<CanvasWidget> widget(this);
@@ -1263,6 +1264,7 @@ void CanvasWidget::start_async_render_cache_refresh() {
             widget->start_async_render_cache_refresh();
             return;
           }
+          widget->note_background_refresh_state();
           if (generation != widget->async_render_cache_generation_ || image == nullptr || image->isNull() ||
               widget->document_ == nullptr ||
               snapshot_size != QSize(widget->document_->width(), widget->document_->height())) {
@@ -1686,6 +1688,7 @@ void CanvasWidget::start_move_commit_job(const QRegion& document_region) {
   job.result = promise->get_future().share();
   move_commit_job_ = std::move(job);
   ++render_cache_diagnostics_.move_deferred_commits;
+  note_background_refresh_state();
   if (!move_commit_worker_) {
     move_commit_worker_ = std::make_shared<MoveCommitWorker>();
   }
@@ -1756,6 +1759,7 @@ void CanvasWidget::finish_move_commit_job(std::uint64_t generation) {
   auto job = std::move(*move_commit_job_);
   move_commit_job_.reset();
   clear_move_commit_hold();
+  note_background_refresh_state();
   std::vector<RenderedDocumentPatch> patches;
   try {
     patches = job.result.get();
@@ -1791,6 +1795,7 @@ void CanvasWidget::cancel_move_commit_job() noexcept {
   // The queued completion finds no job with its generation and does nothing.
   move_commit_job_.reset();
   clear_move_commit_hold();
+  note_background_refresh_state();
 }
 
 void CanvasWidget::wait_for_move_commit_job() {
@@ -2495,6 +2500,27 @@ void CanvasWidget::end_preview_render() {
   }
 }
 
+bool CanvasWidget::background_refresh_overlay_visible() const noexcept {
+  return (async_render_cache_in_flight_ || move_commit_job_.has_value()) && background_refresh_started_.isValid() &&
+         background_refresh_started_.elapsed() >= processing_overlay_delay_ms();
+}
+
+// Called at every transition of the async refresh and the deferred Move commit
+// job. The animation timer keeps itself alive while either is in flight (see
+// timerEvent); its first tick past the delay paints the badge.
+void CanvasWidget::note_background_refresh_state() {
+  if (async_render_cache_in_flight_ || move_commit_job_.has_value()) {
+    if (!background_refresh_started_.isValid()) {
+      background_refresh_started_.start();
+    }
+    if (!processing_animation_timer_.isActive()) {
+      processing_animation_timer_.start(kProcessingAnimationIntervalMs, this);
+    }
+  } else {
+    background_refresh_started_.invalidate();
+  }
+}
+
 bool CanvasWidget::preview_render_overlay_visible() const {
   // An outline-only Move needs immediate feedback, including while the mouse
   // is stationary. Other preview operations keep their existing badge delay.
@@ -2507,7 +2533,9 @@ void CanvasWidget::draw_processing_overlay(QPainter& painter) const {
   const auto first_render_wait = first_render_spinner_active();
   const auto preview_render_wait =
       !processing_overlay_visible_ && !first_render_wait && preview_render_overlay_visible();
-  if (!processing_overlay_visible_ && !first_render_wait && !preview_render_wait) {
+  const auto background_refresh_wait = !processing_overlay_visible_ && !first_render_wait && !preview_render_wait &&
+                                       background_refresh_overlay_visible();
+  if (!processing_overlay_visible_ && !first_render_wait && !preview_render_wait && !background_refresh_wait) {
     return;
   }
   const QString overlay_message = processing_overlay_visible_ ? processing_overlay_message_

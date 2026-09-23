@@ -953,6 +953,12 @@ public:
   // Callers pair begin at worker spawn with end in the queued completion.
   void begin_preview_render();
   void end_preview_render();
+  // True while a background full refresh (the deferred-async route that keeps
+  // the previous frame on screen) or a deferred Move commit job has been
+  // running longer than the standard overlay delay: the frame on screen is
+  // then known to be out of date, and the overlay says "Processing..." so a
+  // multi-second catch-up on a heavy document reads as working, not stuck.
+  [[nodiscard]] bool background_refresh_overlay_visible() const noexcept;
   bool wait_for_processing_operation(std::function<bool()> operation_ready, bool allow_overlay = true);
   // True while a blocking processing wait is running. Input that arrives then is
   // wasm's re-entrant DOM delivery into the nested wait loop (docs/wasm.md); the
@@ -2438,6 +2444,10 @@ private:
   std::optional<DeferredWaitRelease> deferred_wait_release_;
   int preview_renders_in_flight_{0};
   QElapsedTimer preview_render_started_{};
+  // Started when a background refresh or deferred Move commit begins with
+  // nothing else of the kind in flight; invalid once both are idle.
+  QElapsedTimer background_refresh_started_{};
+  void note_background_refresh_state();
   int processing_operation_depth_{0};
   int processing_operation_delay_ms_{-1};  // <0 = processing_overlay_delay_ms()
   std::chrono::steady_clock::time_point processing_operation_started_{};
