@@ -36,7 +36,7 @@ if (-not (Test-Path $cache)) {
       # own status, so the $LASTEXITCODE check below could never fire.
       & cmd /s /c "scripts\vs-env.bat -arch=x64 -host_arch=x64 >nul && scripts\run-throttled.bat ""$cmake"" --build --preset $Preset --target $target -j 20"
     } else {
-      & nice -n 10 $cmake --build --preset $Preset --target $target -j 6
+      & nice -n 10 $cmake --build --preset $Preset --target $target -j ([Math]::Max(1, [Environment]::ProcessorCount - 4))
     }
     if ($LASTEXITCODE -ne 0) { throw "Translation target $target failed (exit $LASTEXITCODE)" }
   } finally {
