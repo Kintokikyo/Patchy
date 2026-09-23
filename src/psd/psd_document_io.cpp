@@ -929,6 +929,9 @@ std::vector<Layer> read_layer_info_records(BigEndianReader& layer_reader, std::i
         layer.metadata()[kLayerMetadataPsdTextBoxBounds] = serialize_text_bounds(record.text_geometry->box_bounds);
         layer.metadata()[kLayerMetadataPsdTextTailBounds] = serialize_int_array(record.text_geometry->tail_bounds);
         layer.metadata()[kLayerMetadataPsdTextIndex] = std::to_string(record.text_geometry->text_index);
+        if (record.text_box_baseline_inset.has_value()) {
+          layer.metadata()[kLayerMetadataTextBoxBaselineInset] = serialize_paragraph_metric(*record.text_box_baseline_inset);
+        }
         if (record.text_geometry->vertical) {
           layer.metadata()[kLayerMetadataTextOrientation] = kTextOrientationVertical;
         }

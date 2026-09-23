@@ -50,6 +50,21 @@ inline constexpr const char* kLayerMetadataPsdTextBoundingBox = "patchy.psd.text
 inline constexpr const char* kLayerMetadataPsdTextBoxBounds = "patchy.psd.text.box_bounds";
 inline constexpr const char* kLayerMetadataPsdTextTailBounds = "patchy.psd.text.tail_bounds";
 inline constexpr const char* kLayerMetadataPsdTextIndex = "patchy.psd.text.index";
+// Layout metrics of the raster Patchy drew, recorded by the renderer so the Qt-free PSD writer
+// can place Photoshop's re-layout on the same pixels (docs/text-render-calibration.md, "Patchy
+// text re-renders where Patchy drew it"). All values are text-local units of the render plan.
+// - first_baseline: the first line's baseline below the raster's top row; the writer anchors a
+//   point-text transform there (Photoshop treats ty as the first baseline).
+// - box_baseline_inset: Qt's first baseline minus Photoshop's box rule for a Patchy block (cap
+//   height x size) for box text; the writer moves the transform origin down by it. Absent
+//   (zero) on Photoshop-layout layers.
+// - auto_leading: Qt's baseline advance as a fraction of the dominant size; written as the
+//   paragraph /AutoLeading so Photoshop's auto leading matches Qt's natural line pitch.
+// The reader recovers box_baseline_inset from a Patchy-signed TySh; the other two only exist on
+// layers Patchy rendered in this session (the writer falls back to its raster heuristics).
+inline constexpr const char* kLayerMetadataTextFirstBaseline = "patchy.text.first_baseline";
+inline constexpr const char* kLayerMetadataTextBoxBaselineInset = "patchy.text.box_baseline_inset";
+inline constexpr const char* kLayerMetadataTextAutoLeading = "patchy.text.auto_leading";
 
 // SVG import handoff (the Qt-free reader cannot decode PNGs or render text):
 // MainWindow's post-open pass decodes pending_image data URIs, renders

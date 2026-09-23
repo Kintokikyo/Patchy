@@ -64,6 +64,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstring>
+#include <cstdlib>
 #include <filesystem>
 #include <exception>
 #include <cstdint>
@@ -718,6 +719,243 @@ void psd_writer_ignores_stale_imported_geometry_for_patchy_owned_text_frame() {
         std::string::npos);
   CHECK(std::abs(read_f64_be_at(*second_payload, 34U) - 24.0) < 0.000001);
   CHECK(std::abs(read_f64_be_at(*second_payload, 42U) - 30.0) < 0.000001);
+}
+
+// Photoshop lays a Patchy block's first line at box top + cap height x size while Qt's raster
+// has it at box top + winAscent; the renderer records the difference
+// (kLayerMetadataTextBoxBaselineInset) and the writer moves the transform origin down by it with
+// /BoxBounds still at the origin and the descriptor 'bounds' top at -inset. The reader puts the
+// origin back on a Patchy-signed block so the frame Patchy edits reopens where it was, and the
+// next save writes the identical block.
+// Whether any paragraph "/AutoLeading <number>" in the engine data equals `fraction` (the writer
+// prints doubles at 17 significant digits, so 1.15 lands as 1.1499999999999999).
+bool payload_has_paragraph_auto_leading(const std::string& payload_text, double fraction) {
+  const std::string key = "/AutoLeading ";
+  for (auto at = payload_text.find(key); at != std::string::npos; at = payload_text.find(key, at + key.size())) {
+    const auto value_text = payload_text.substr(at + key.size(), 32);
+    if (value_text.rfind("true", 0) == 0 || value_text.rfind("false", 0) == 0) {
+      continue;
+    }
+    if (std::abs(std::strtod(value_text.c_str(), nullptr) - fraction) < 0.0001) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void psd_writer_box_text_baseline_inset_moves_box_bounds() {
+  const std::string text = "Hey everyone";
+  patchy::Document document(360, 220, patchy::PixelFormat::rgb8());
+  document.add_pixel_layer("Background", solid_rgb(360, 220, 255, 255, 255));
+  auto pixels = solid_rgba(260, 96, 0, 0, 0, 0);
+  for (std::int32_t y = 12; y < 60; ++y) {
+    for (std::int32_t x = 4; x < 200; ++x) {
+      auto* pixel = pixels.pixel(x, y);
+      pixel[0] = 32;
+      pixel[1] = 32;
+      pixel[2] = 32;
+      pixel[3] = 255;
+    }
+  }
+  patchy::Layer text_layer(document.allocate_layer_id(), "Text: Inset", std::move(pixels));
+  auto& layer = document.add_layer(std::move(text_layer));
+  layer.set_bounds(patchy::Rect{24, 30, 260, 96});
+  layer.metadata()[patchy::kLayerMetadataText] = text;
+  layer.metadata()[patchy::kLayerMetadataTextRuns] =
+      "v1\n0\t" + std::to_string(text.size()) + "\t28\t0\t0\t#202020\tArial";
+  layer.metadata()[patchy::kLayerMetadataTextParagraphRuns] =
+      "v1\n0\t" + std::to_string(text.size()) + "\tleft";
+  layer.metadata()[patchy::kLayerMetadataTextFlow] = "box";
+  layer.metadata()[patchy::kLayerMetadataTextBoxWidth] = "260";
+  layer.metadata()[patchy::kLayerMetadataTextBoxHeight] = "96";
+  layer.metadata()[patchy::kLayerMetadataTextFont] = "Arial";
+  layer.metadata()[patchy::kLayerMetadataTextSize] = "28";
+  layer.metadata()[patchy::kLayerMetadataTextColor] = "#202020";
+  layer.metadata()[patchy::kLayerMetadataTextRasterStatus] = "patchy_raster";
+  layer.metadata()[patchy::kLayerMetadataTextTransform] = "1 0 0 1 24 30";
+  layer.metadata()[patchy::kLayerMetadataTextBoxBaselineInset] = "6.5";
+
+  const auto bytes = patchy::psd::DocumentIo::write_layered_rgb8(document);
+  const auto text_payload = psd_layer_block_payload(psd_layer_extra_data(bytes, 1), "TySh");
+  CHECK(text_payload.has_value());
+  if (!text_payload.has_value()) {
+    return;
+  }
+  CHECK(std::abs(read_f64_be_at(*text_payload, 34U) - 24.0) < 0.000001);
+  CHECK(std::abs(read_f64_be_at(*text_payload, 42U) - 36.5) < 0.000001);
+  const std::string payload_text(text_payload->begin(), text_payload->end());
+  CHECK(payload_text.find("/BoxBounds [ 0.000000 0.000000 260.000000 96.000000 ]") != std::string::npos);
+  // Paragraph auto leading stays Photoshop's default without a recorded pitch.
+  CHECK(payload_has_paragraph_auto_leading(payload_text, 1.2));
+
+  const auto read = patchy::psd::DocumentIo::read(bytes);
+  const auto* reopened = find_layer_named(read.layers(), "Text: Inset");
+  CHECK(reopened != nullptr);
+  if (reopened == nullptr) {
+    return;
+  }
+  CHECK(reopened->metadata().at(patchy::kLayerMetadataTextFlow) == "box");
+  CHECK(reopened->metadata().at(patchy::kLayerMetadataTextBoxWidth) == "260");
+  CHECK(reopened->metadata().at(patchy::kLayerMetadataTextBoxHeight) == "96");
+  const auto reopened_transform =
+      patchy::parse_layer_affine_transform(reopened->metadata().at(patchy::kLayerMetadataTextTransform));
+  CHECK(reopened_transform.has_value());
+  if (reopened_transform.has_value()) {
+    CHECK(std::abs((*reopened_transform)[4] - 24.0) < 1e-9);
+    CHECK(std::abs((*reopened_transform)[5] - 30.0) < 1e-9);
+  }
+  CHECK(!reopened->metadata().contains(patchy::kLayerMetadataTextLayoutMode));
+  const auto frame_bounds = parse_bounds_metadata4(reopened->metadata().at(patchy::kLayerMetadataPsdTextBounds));
+  CHECK(std::abs(frame_bounds[1]) < 0.001);
+  CHECK(std::abs(frame_bounds[3] - 96.0) < 0.001);
+  const auto box_bounds = parse_bounds_metadata4(reopened->metadata().at(patchy::kLayerMetadataPsdTextBoxBounds));
+  CHECK(std::abs(box_bounds[0]) < 0.001);
+  CHECK(std::abs(box_bounds[1]) < 0.001);
+  CHECK(std::abs(box_bounds[2] - 260.0) < 0.001);
+  CHECK(std::abs(box_bounds[3] - 96.0) < 0.001);
+  const auto inset_entry = reopened->metadata().find(patchy::kLayerMetadataTextBoxBaselineInset);
+  CHECK(inset_entry != reopened->metadata().end());
+  if (inset_entry != reopened->metadata().end()) {
+    CHECK(std::abs(std::stod(inset_entry->second) - 6.5) < 0.000001);
+  }
+
+  const auto second_payload =
+      psd_layer_block_payload(psd_layer_extra_data(patchy::psd::DocumentIo::write_layered_rgb8(read), 1), "TySh");
+  CHECK(second_payload.has_value());
+  if (second_payload.has_value()) {
+    CHECK(*second_payload == *text_payload);
+  }
+}
+
+// The renderer's first-line baseline (kLayerMetadataTextFirstBaseline, from the raster's top
+// row) anchors a point-text transform: Photoshop lays the first line ON ty, so the ink-bottom
+// scan (right only for a caps-only single line) yields to it. The second write keeps it: the
+// reopened layer's boundingBox top is negative, which the writer reads as "already anchored".
+void psd_writer_point_text_first_baseline_beats_ink_bottom() {
+  patchy::Document document(260, 140, patchy::PixelFormat::rgb8());
+  document.add_pixel_layer("Background", solid_rgb(260, 140, 255, 255, 255));
+  auto pixels = solid_rgba(140, 60, 0, 0, 0, 0);
+  for (std::int32_t y = 0; y < 54; ++y) {  // "Hey": ascender-to-descender ink, 54 rows
+    for (std::int32_t x = 0; x < 120; ++x) {
+      auto* pixel = pixels.pixel(x, y);
+      pixel[0] = 32;
+      pixel[1] = 32;
+      pixel[2] = 32;
+      pixel[3] = 255;
+    }
+  }
+  patchy::Layer text_layer(document.allocate_layer_id(), "Text: Hey", std::move(pixels));
+  auto& layer = document.add_layer(std::move(text_layer));
+  layer.set_bounds(patchy::Rect{40, 50, 140, 60});
+  layer.metadata()[patchy::kLayerMetadataText] = "Hey";
+  layer.metadata()[patchy::kLayerMetadataTextRuns] = "v1\n0\t3\t48\t0\t0\t#202020\tArial";
+  layer.metadata()[patchy::kLayerMetadataTextParagraphRuns] = "v1\n0\t3\tleft";
+  layer.metadata()[patchy::kLayerMetadataTextFlow] = "point";
+  layer.metadata()[patchy::kLayerMetadataTextBoxWidth] = "140";
+  layer.metadata()[patchy::kLayerMetadataTextBoxHeight] = "60";
+  layer.metadata()[patchy::kLayerMetadataTextFont] = "Arial";
+  layer.metadata()[patchy::kLayerMetadataTextSize] = "48";
+  layer.metadata()[patchy::kLayerMetadataTextColor] = "#202020";
+  layer.metadata()[patchy::kLayerMetadataTextRasterStatus] = "patchy_raster";
+  layer.metadata()[patchy::kLayerMetadataTextFirstBaseline] = "43.5";
+
+  const auto bytes = patchy::psd::DocumentIo::write_layered_rgb8(document);
+  const auto text_payload = psd_layer_block_payload(psd_layer_extra_data(bytes, 1), "TySh");
+  CHECK(text_payload.has_value());
+  if (!text_payload.has_value()) {
+    return;
+  }
+  CHECK(std::abs(read_f64_be_at(*text_payload, 34U) - 40.0) < 0.000001);
+  CHECK(std::abs(read_f64_be_at(*text_payload, 42U) - 93.5) < 0.000001);
+
+  const auto read = patchy::psd::DocumentIo::read(bytes);
+  const auto* reopened = find_layer_named(read.layers(), "Text: Hey");
+  CHECK(reopened != nullptr);
+  if (reopened == nullptr) {
+    return;
+  }
+  const auto visual_bounds =
+      parse_bounds_metadata4(reopened->metadata().at(patchy::kLayerMetadataPsdTextBoundingBox));
+  CHECK(std::abs(visual_bounds[0]) < 0.001);
+  CHECK(std::abs(visual_bounds[1] + 43.5) < 0.001);
+  CHECK(std::abs(visual_bounds[2] - 120.0) < 0.001);
+  CHECK(std::abs(visual_bounds[3] - 10.5) < 0.001);
+  CHECK(!reopened->metadata().contains(patchy::kLayerMetadataTextFirstBaseline));
+
+  const auto second_payload =
+      psd_layer_block_payload(psd_layer_extra_data(patchy::psd::DocumentIo::write_layered_rgb8(read), 1), "TySh");
+  CHECK(second_payload.has_value());
+  if (second_payload.has_value()) {
+    CHECK(std::abs(read_f64_be_at(*second_payload, 42U) - 93.5) < 0.000001);
+  }
+}
+
+// A Qt-natural layer's recorded line pitch (kLayerMetadataTextAutoLeading, a fraction of the
+// dominant size) becomes the paragraph /AutoLeading so Photoshop's auto leading advances like
+// Qt; it round-trips through the v3 paragraph column without flipping the layer into the
+// Photoshop layout model. A Photoshop-layout layer keeps its own paragraph fraction.
+void psd_writer_qt_natural_auto_leading_fraction() {
+  const auto make_document = [](bool photoshop_layout) {
+    patchy::Document document(260, 140, patchy::PixelFormat::rgb8());
+    document.add_pixel_layer("Background", solid_rgb(260, 140, 255, 255, 255));
+    patchy::Layer text_layer(document.allocate_layer_id(), "Text: Two lines", solid_rgba(140, 90, 32, 32, 32, 255));
+    auto& layer = document.add_layer(std::move(text_layer));
+    layer.set_bounds(patchy::Rect{40, 50, 140, 90});
+    layer.metadata()[patchy::kLayerMetadataText] = "Two\nlines";
+    layer.metadata()[patchy::kLayerMetadataTextRuns] = "v1\n0\t9\t36\t0\t0\t#202020\tArial";
+    layer.metadata()[patchy::kLayerMetadataTextParagraphRuns] =
+        photoshop_layout ? "v3\n0\t4\tleft\t0\t0\t0\t0\t0\t1.3\n4\t5\tleft\t0\t0\t0\t0\t0\t1.3" : "v1\n0\t4\tleft\n4\t5\tleft";
+    layer.metadata()[patchy::kLayerMetadataTextFlow] = "point";
+    layer.metadata()[patchy::kLayerMetadataTextBoxWidth] = "140";
+    layer.metadata()[patchy::kLayerMetadataTextBoxHeight] = "90";
+    layer.metadata()[patchy::kLayerMetadataTextFont] = "Arial";
+    layer.metadata()[patchy::kLayerMetadataTextSize] = "36";
+    layer.metadata()[patchy::kLayerMetadataTextColor] = "#202020";
+    layer.metadata()[patchy::kLayerMetadataTextRasterStatus] = "patchy_raster";
+    layer.metadata()[patchy::kLayerMetadataTextAutoLeading] = "1.15";
+    if (photoshop_layout) {
+      layer.metadata()[patchy::kLayerMetadataTextLayoutMode] = patchy::kTextLayoutModePhotoshop;
+    }
+    return document;
+  };
+
+  const auto bytes = patchy::psd::DocumentIo::write_layered_rgb8(make_document(false));
+  const auto text_payload = psd_layer_block_payload(psd_layer_extra_data(bytes, 1), "TySh");
+  CHECK(text_payload.has_value());
+  if (!text_payload.has_value()) {
+    return;
+  }
+  const std::string payload_text(text_payload->begin(), text_payload->end());
+  CHECK(payload_has_paragraph_auto_leading(payload_text, 1.15));
+  // Style runs keep the auto shape: a fixed /Leading would read back as Photoshop provenance.
+  CHECK(payload_text.find("/AutoLeading true /Leading 43.200000") != std::string::npos);
+  CHECK(payload_text.find("/AutoLeading false") == std::string::npos);
+
+  const auto read = patchy::psd::DocumentIo::read(bytes);
+  const auto* reopened = find_layer_named(read.layers(), "Text: Two lines");
+  CHECK(reopened != nullptr);
+  if (reopened == nullptr) {
+    return;
+  }
+  CHECK(!reopened->metadata().contains(patchy::kLayerMetadataTextLayoutMode));
+  CHECK(!reopened->metadata().contains(patchy::kLayerMetadataTextAutoLeading));
+  CHECK(reopened->metadata().at(patchy::kLayerMetadataTextParagraphRuns).rfind("v3\n", 0) == 0);
+  const auto second_payload =
+      psd_layer_block_payload(psd_layer_extra_data(patchy::psd::DocumentIo::write_layered_rgb8(read), 1), "TySh");
+  CHECK(second_payload.has_value());
+  if (second_payload.has_value()) {
+    const std::string second_text(second_payload->begin(), second_payload->end());
+    CHECK(payload_has_paragraph_auto_leading(second_text, 1.15));
+  }
+
+  const auto photoshop_bytes = patchy::psd::DocumentIo::write_layered_rgb8(make_document(true));
+  const auto photoshop_payload = psd_layer_block_payload(psd_layer_extra_data(photoshop_bytes, 1), "TySh");
+  CHECK(photoshop_payload.has_value());
+  if (photoshop_payload.has_value()) {
+    const std::string photoshop_text(photoshop_payload->begin(), photoshop_payload->end());
+    CHECK(payload_has_paragraph_auto_leading(photoshop_text, 1.3));
+    CHECK(!payload_has_paragraph_auto_leading(photoshop_text, 1.15));
+  }
 }
 
 void psd_writer_regenerates_same_length_patchy_text_without_stale_template() {
@@ -2447,6 +2685,9 @@ void psd_text_anchor_captures_keep_fractional_transform() {
 std::vector<patchy::test::TestCase> psd_text_tests() {
   return {
       {"psd_text_anchor_captures_keep_fractional_transform", psd_text_anchor_captures_keep_fractional_transform},
+      {"psd_writer_box_text_baseline_inset_moves_box_bounds", psd_writer_box_text_baseline_inset_moves_box_bounds},
+      {"psd_writer_point_text_first_baseline_beats_ink_bottom", psd_writer_point_text_first_baseline_beats_ink_bottom},
+      {"psd_writer_qt_natural_auto_leading_fraction", psd_writer_qt_natural_auto_leading_fraction},
       {"psd_writer_writes_baseline_direction_for_vertical_type", psd_writer_writes_baseline_direction_for_vertical_type},
       {"psd_writer_writes_tracking_as_an_integer", psd_writer_writes_tracking_as_an_integer},
       {"psd_vertical_tracking_bug_file_resaves_with_integer_tracking_if_available",
