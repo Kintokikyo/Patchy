@@ -1127,6 +1127,53 @@ void ui_restaurant_menu_other_layers_commit_match_if_available() {
   }
 }
 
+// photoshop-text-anchor-center{,90}-{whole,third}.psd: PS 27.9 point text "Hg" (Arial 48 px,
+// Sharp) CENTERED on anchor x 100.0 and 100.3, unscaled and under a 0.9 transform. Photoshop
+// rounds each line's START (the anchor minus the justification offset), not the anchor: the
+// centered raster moves one column for the .3 fraction (72 -> 73 unscaled, 75 -> 76 scaled)
+// while the left-aligned whole/half fixtures do not (docs/text-render-calibration.md, "Pixel
+// grid"). Rounding the anchor drew both members of a pair identically, so the pair deltas are the
+// sharp check; the absolute columns keep Patchy on Photoshop's ink within the usual pixel.
+void ui_psd_centered_text_commit_rounds_line_start_like_photoshop() {
+  patchy::test::register_test_fonts(patchy::test::TestFontRole::UiDefault);
+  struct Case {
+    const char* fixture;
+    const char* artifact;
+    int photoshop_left;
+  };
+  const std::array<Case, 4> cases{{
+      {"photoshop-text-anchor-center-whole.psd", "ui_psd_center_anchor_whole_commit", 72},
+      {"photoshop-text-anchor-center-third.psd", "ui_psd_center_anchor_third_commit", 73},
+      {"photoshop-text-anchor-center90-whole.psd", "ui_psd_center90_anchor_whole_commit", 75},
+      {"photoshop-text-anchor-center90-third.psd", "ui_psd_center90_anchor_third_commit", 76},
+  }};
+  std::array<std::optional<int>, 4> committed_left;
+  for (std::size_t i = 0; i < cases.size(); ++i) {
+    const auto& entry = cases[i];
+    const auto probe = run_photoshop_text_commit_probe(patchy::test::committed_psd_fixture_path(entry.fixture), "Hg",
+                                                       1.0, entry.artifact, "Arial");
+    if (!probe.has_value()) {
+      return;
+    }
+    std::printf("  %-44s photoshop ink (%d,%d %dx%d) -> patchy ink (%d,%d %dx%d)\n", entry.fixture,
+                probe->original_ink.x, probe->original_ink.y, probe->original_ink.width, probe->original_ink.height,
+                probe->committed_ink.x, probe->committed_ink.y, probe->committed_ink.width,
+                probe->committed_ink.height);
+    std::fflush(stdout);
+    CHECK(probe->original_ink.x == entry.photoshop_left);
+    CHECK(std::abs(probe->committed_ink.x - probe->original_ink.x) <= 1);
+    CHECK(std::abs(probe->committed_ink.width - probe->original_ink.width) <= 1);
+    committed_left[i] = probe->committed_ink.x;
+  }
+  // The .3 member of each pair sits one column right of its whole-pixel sibling, as in Photoshop.
+  if (committed_left[0].has_value() && committed_left[1].has_value()) {
+    CHECK(*committed_left[1] - *committed_left[0] == 1);
+  }
+  if (committed_left[2].has_value() && committed_left[3].has_value()) {
+    CHECK(*committed_left[3] - *committed_left[2] == 1);
+  }
+}
+
 // Dungeon Scroll's Game_Screen.psd, the reported repro: point text authored in a much older
 // Photoshop, every button under a 0.9 free-transform, headings on the identity transform.
 // Editing a layer used to move it, and the two named causes are pinned here:
@@ -2828,6 +2875,8 @@ std::vector<patchy::test::TestCase> text_transform_commit_tests_part2() {
        ui_restaurant_menu_other_layers_commit_match_if_available},
       {"ui_restaurant_menu_box_text_edit_commit_keeps_leading_if_available",
        ui_restaurant_menu_box_text_edit_commit_keeps_leading_if_available},
+      {"ui_psd_centered_text_commit_rounds_line_start_like_photoshop",
+       ui_psd_centered_text_commit_rounds_line_start_like_photoshop},
       {"ui_dungeon_scroll_psd_text_commit_keeps_placement_if_available",
        ui_dungeon_scroll_psd_text_commit_keeps_placement_if_available},
       {"ui_dungeon_scroll_faux_bold_reads_as_faux_not_bold_if_available",

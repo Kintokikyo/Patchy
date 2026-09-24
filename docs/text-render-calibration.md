@@ -209,21 +209,43 @@ PS 27.9 COM captures (September 2026): "Hg", Arial 48 px, Sharp, placed at x or 
   `patchy.text.transform` serializes at 17 significant digits (`serialize_layer_affine_transform`),
   `committed_text_transform` leaves tx/ty alone when their rounding already equals the committed
   document point, and integer moves add to them.
-- **Photoshop rasterizes from the anchor rounded to a whole pixel, halves up** (`snap_to_pixel_grid`,
-  core/pixel_grid.hpp: floor(v + 0.5)): x 100.3 renders byte-identically to 100.0, and 100.5 and
-  100.7 identically to each other; y likewise (100.5 is the 100.0 raster shifted one row). The
-  rotated and scaled layers behave the same: every raster is a whole-pixel shift of its base.
-  `build_text_render_plan` therefore snaps the document transform's dx/dy before drawing, and the
-  editor's document point (`set_text_editor_transform_override`, `rendered_text_bounds_for_editor`,
-  session entry) rounds the same way instead of flooring. Photoshop's own raster in the half
-  fixture starts one column later than the whole one (record rect 104 vs 103). Pinned by
+- **Photoshop rasterizes with each LINE START rounded to a whole pixel, halves up**
+  (`snap_to_pixel_grid`, core/pixel_grid.hpp: floor(v + 0.5)). The line start is the anchor minus
+  the justification offset in document space, so for left-aligned text it is the anchor: x 100.3
+  renders byte-identically to 100.0, and 100.5 and 100.7 identically to each other; y likewise
+  (100.5 is the 100.0 raster shifted one row), rotated and scaled layers included. Centered and
+  right-justified text does NOT round the anchor: the September 2026 sweep (`local-test-fixtures/
+  psd/ps2026_text_anchor_just/`, `capture_anchor_just.jsx`: left/center/right x 100.0/.3/.5/.7 x
+  scale 100%/90%, plus Bookman "Pause" replicas of the Dungeon Scroll buttons) puts the centered
+  "Hg" (advance box +-30.68) at column 72 for 100.0 but 73 for 100.3 (start 69.32 -> 69, 69.62 ->
+  70), scaled 90% at 75 then 76, and right-justified at 42 for all four (start 38.64..39.34 -> 39).
+  Every case, "Pause" at tx 305.35 included (column 286, the game file's own), fits
+  round(anchor + line offset) + left side bearing; none fits round(anchor). Rounding the anchor of
+  scaled centered text shifted the Dungeon Scroll buttons 2 px and rendered them a pixel narrow.
+  Three places apply it. `build_text_render_plan` snaps dy and, for an axis-aligned transform,
+  moves each line so its start lands on a whole document pixel (`round_line_starts`; rotated or
+  sheared transforms and the vertical/drawContents fallbacks keep the anchor snap). The session
+  override that places an imported layer's re-render puts Patchy's raster origin (local x 0, its
+  line start) on Photoshop's rounded start: from the TySh advance box when the file has one
+  (`psd_point_text_local_bounds_transform_for_pixels`, scaled layers), else from Photoshop's own
+  ink column less this render's side bearing, which the same glyphs share
+  (`anchored_text_transform_for_pixels` for translation-only layers, where the justification
+  width correction is truncated to whole pixels; `psd_point_text_document_bounds_transform_for_pixels`
+  for CS-era scaled layers such as Dungeon Scroll). A translation-only commit then copies whole
+  pixels instead of resampling at a half-pixel phase. The editor's document point
+  (`set_text_editor_transform_override`, `rendered_text_bounds_for_editor`, session entry) rounds
+  the same way instead of flooring. Photoshop's own raster in the half fixture starts one column
+  later than the whole one (record rect 104 vs 103). Pinned by
   `ui_text_transform_rerender_rounds_anchor_like_photoshop` (148.3 renders as 148.0, 148.5 as
-  149.0, the fraction survives in the stored transform), `ui_box_text_edit_keeps_fractional_anchor`
-  and `psd_text_anchor_captures_keep_fractional_transform`.
+  149.0, the fraction survives in the stored transform), `ui_box_text_edit_keeps_fractional_anchor`,
+  `psd_text_anchor_captures_keep_fractional_transform`, and for centered text
+  `ui_psd_centered_text_commit_rounds_line_start_like_photoshop` on
+  `photoshop-text-anchor-center{,90}-{whole,third}.psd` plus the Dungeon Scroll probes.
 - **Known gap: per-glyph x rounding.** Photoshop also rounds EACH glyph's absolute x position: at
   x 100.5 the "H" moved one column while the "g" (100.5 + 34.67 = 135.17 -> 135, the same column
-  as 134.67) stayed. Qt places glyphs at fractional advances, so a line can differ from Photoshop
-  by a column inside the run even when the anchor agrees.
+  as 134.67) stayed, and the centered/right "Hg" right edge moves at .7 while the left edge does
+  not. Qt places glyphs at fractional advances, so a line can differ from Photoshop by a column
+  inside the run even when the line start agrees.
 - Box text keeps a fractional `/BoxBounds` in PS (100.6 x 80.3); `patchy.text.box_width/height`
   round it (`extract_type_tool_text_box`). The frame origin rounds like a point anchor.
 - **TySh encoding**: descriptor `Ornt` enum `Vrtc`; engine data `/WritingDirection 2` in

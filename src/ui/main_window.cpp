@@ -3958,14 +3958,20 @@ TextRenderPlan build_text_render_plan(const TextToolSettings& settings, QColor c
   // layout_scale_in additionally scales run sizes WITHOUT scaling box dims -- a PSD-frame box
   // session works in a document-space frame while its runs stay in raw engine units.
   //
-  // Photoshop rasterizes a type layer from its anchor rounded to a whole pixel (halves up),
-  // whatever the linear part: tx 100.3 renders exactly like 100.0 and 100.5 like 101.0, rotated
-  // and scaled text included (PS 27.9 captures, docs/text-render-calibration.md). The stored
-  // transform keeps its fraction; only the raster origin snaps, which is what puts a re-render
-  // of an imported layer on Photoshop's own rows and columns instead of a pixel off.
+  // Photoshop rasterizes a type layer with each LINE START (the anchor minus the justification
+  // offset, in document space) rounded to a whole pixel, halves up: for left-aligned text that is
+  // the anchor itself (tx 100.3 renders exactly like 100.0 and 100.5 like 101.0), while a centered
+  // line moves a column for the same .3 fraction because its start sits half a line width to the
+  // left of the anchor (PS 27.9 captures, docs/text-render-calibration.md, "Pixel grid"). The
+  // stored transform keeps its fraction; only the raster phase snaps. Axis-aligned transforms
+  // round per line below, once the lines are known; rotated or sheared ones keep the anchor
+  // rounding, the only rule those captures established. The baseline (dy) always rounds here.
+  const bool round_line_starts = !document_transform_in.isIdentity() && document_transform_in.m12() == 0.0 &&
+                                 document_transform_in.m21() == 0.0 && std::abs(document_transform_in.m11()) > 1e-9;
   QTransform document_transform(document_transform_in.m11(), document_transform_in.m12(),
                                 document_transform_in.m21(), document_transform_in.m22(),
-                                snap_to_pixel_grid(document_transform_in.dx()),
+                                round_line_starts ? document_transform_in.dx()
+                                                  : snap_to_pixel_grid(document_transform_in.dx()),
                                 snap_to_pixel_grid(document_transform_in.dy()));
   double fold_scale = 1.0;
   if (settings.photoshop_layout && !document_transform_in.isIdentity()) {
@@ -4090,6 +4096,22 @@ TextRenderPlan build_text_render_plan(const TextToolSettings& settings, QColor c
     local_rect.setRight(local_rect.right() + lean);
     for (auto& item : line_render_items) {
       item.clip_rect.setRight(item.clip_rect.right() + lean);
+    }
+  }
+  if (round_line_starts) {
+    if (line_render_items.empty() || settings.vertical) {
+      // No per-line plan to adjust (vertical type, drawContents fallback): the anchor rounds.
+      document_transform =
+          QTransform(document_transform.m11(), document_transform.m12(), document_transform.m21(),
+                     document_transform.m22(), snap_to_pixel_grid(document_transform_in.dx()), document_transform.dy());
+    } else {
+      // Each line's start (its leftmost glyph origin) lands on a whole document pixel; the local
+      // shift is at most half a pixel over m11, well inside the buffer's bleed.
+      for (auto& item : line_render_items) {
+        const auto start_x = document_transform.map(QPointF(item.block_origin.x() + item.line.x(), 0.0)).x();
+        const auto delta = snap_to_pixel_grid(start_x) - start_x;
+        item.block_origin.rx() += delta / document_transform.m11();
+      }
     }
   }
   result.local_rect = local_rect;
@@ -4819,8 +4841,16 @@ std::optional<LayerAffineTransform> anchored_text_transform_for_pixels(const QTe
         anchor_y += factor * (source_size->height() - static_cast<double>(visible_bounds->height));
       }
     } else if (const auto factor = text_editor_anchor_alignment_factor(editor); factor > 0.0) {
-      anchor_x += factor * (source_size->width() - static_cast<double>(visible_bounds->width));
+      // Whole pixels only, toward zero: Photoshop rasterizes from its line start rounded to a
+      // whole pixel and this render's ink shares the glyphs' side bearing, so a width that
+      // differs by the usual Qt-vs-Photoshop pixel must not slide the raster onto a half-pixel
+      // phase (centered "Hg" at tx 100.0 sits on column 72 in Photoshop, and a 0.5 px shift put
+      // it on 73; docs/text-render-calibration.md, "Pixel grid").
+      anchor_x += std::trunc(factor * (source_size->width() - static_cast<double>(visible_bounds->width)));
     }
+  }
+  if (!text_editor_is_vertical(editor)) {
+    anchor_x = snap_to_pixel_grid(anchor_x);
   }
   return LayerAffineTransform{1.0,
                               0.0,
@@ -5236,7 +5266,31 @@ std::optional<LayerAffineTransform> psd_point_text_local_bounds_transform_for_pi
   if (!std::isfinite(delta.x()) || !std::isfinite(delta.y())) {
     return std::nullopt;
   }
-  return affine_with_local_translation(*transform, delta);
+  auto pinned = affine_with_local_translation(*transform, delta);
+  // The pin puts Patchy's ink on Photoshop's DECLARED box, which is fractional. Photoshop's own
+  // raster starts at the LINE START rounded to a whole document pixel, halves up: the anchor plus
+  // the advance box's left edge (the ink box less Patchy's own side bearing stands in when the
+  // TySh carries no `bounds`). Patchy's raster origin (local x 0) is its line start, so for an
+  // axis-aligned transform move it onto that rounded column: the re-render lands on Photoshop's
+  // columns (centered "Hg" at tx 100.0 -> column 72, at 100.3 -> 73; docs/text-render-calibration.md,
+  // "Pixel grid") and a translation-only commit copies whole pixels instead of resampling at a
+  // half-pixel phase. Rotated or sheared layers keep the plain pin.
+  if (std::abs((*transform)[1]) <= 1e-9 && std::abs((*transform)[2]) <= 1e-9 && std::abs(pinned[0]) > 1e-9) {
+    const auto advance_rect = psd_text_metadata_local_rect(layer, kLayerMetadataPsdTextBounds);
+    const double line_start_psd_x =
+        advance_rect.has_value() ? advance_rect->left() : psd_local_rect->left() - visible_rect.left();
+    const auto photoshop_start_x = transform_qt.map(QPointF(line_start_psd_x, 0.0)).x();
+    // The pin's own correction (the justification fraction of the width difference between
+    // Photoshop's ink and this render's) survives in WHOLE local pixels: the usual sub-pixel
+    // Qt-vs-Photoshop width difference must not move the start off Photoshop's column, while a
+    // substituted face that is much wider keeps its right edge or centre where Photoshop had it.
+    const auto width_correction = std::trunc((pinned[4] - photoshop_start_x) / pinned[0]) * pinned[0];
+    const auto document_shift = snap_to_pixel_grid(photoshop_start_x + width_correction) - pinned[4];
+    if (std::isfinite(document_shift)) {
+      pinned = affine_with_local_translation(pinned, QPointF(document_shift / pinned[0], 0.0));
+    }
+  }
+  return pinned;
 }
 
 // Fallback for PSDs whose TySh descriptor predates the bounds/boundingBox fields (Photoshop
@@ -5299,7 +5353,26 @@ std::optional<LayerAffineTransform> psd_point_text_document_bounds_transform_for
   if (!std::isfinite(local_delta.x()) || !std::isfinite(local_delta.y())) {
     return std::nullopt;
   }
-  return affine_with_local_translation(*transform, local_delta);
+  auto pinned = affine_with_local_translation(*transform, local_delta);
+  // Photoshop rasterized this layer from its line start rounded to a whole pixel, and its ink
+  // column is that start plus the glyphs' side bearing, which this render shares. Without the
+  // TySh advance box the start is recovered from the raster: the source ink column less the
+  // render's own bearing (scaled), rounded. Put Patchy's raster origin (local x 0, its line
+  // start) there instead of on the fractional centre pin, so the Dungeon Scroll buttons re-render
+  // on their own columns (docs/text-render-calibration.md, "Pixel grid"). Axis-aligned only.
+  if (std::abs(pinned[1]) <= 1e-9 && std::abs(pinned[2]) <= 1e-9 && std::abs(pinned[0]) > 1e-9) {
+    const auto photoshop_start_x = source_doc.left() - render_local.left() * pinned[0];
+    // As in the local-bounds variant: keep the pin's justification correction in whole local
+    // pixels so a substituted wider face stays justified while same-face renders land on
+    // Photoshop's column.
+    const auto width_correction = std::trunc((pinned[4] - photoshop_start_x) / pinned[0]) * pinned[0];
+    const auto origin_x = snap_to_pixel_grid(photoshop_start_x + width_correction);
+    const auto document_shift = origin_x - pinned[4];
+    if (std::isfinite(document_shift)) {
+      pinned = affine_with_local_translation(pinned, QPointF(document_shift / pinned[0], 0.0));
+    }
+  }
+  return pinned;
 }
 
 bool update_text_editor_transform_from_psd_local_bounds(QTextEdit& editor, const Layer& layer,
