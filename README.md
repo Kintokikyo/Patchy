@@ -199,7 +199,7 @@ flatpak install --user -y flathub org.freedesktop.Platform.ffmpeg-full//24.08
 
 ## What's New
 
-### 0.98 - September 23, 2026
+### 0.98 - September 24, 2026
 
 - The right mouse button now opens context menus on the canvas instead of panning.  (middle mouse button or holding space bar still pans)
 - Edit > Remove Object fills a selection with content-aware texture taken from its surroundings.  It's slow as shit but seems to work pretty well.
@@ -212,7 +212,8 @@ flatpak install --user -y flathub org.freedesktop.Platform.ffmpeg-full//24.08
 - PDF: multi-page PDFs open each page as its own document, with a progress dialog and pages appearing as they load. File > Export > Multi-Page PDF saves open documents or top-level groups as pages, and PDF export is much faster and smaller, with quality presets and grayscale detection; pages that came from an imported PDF and were not edited keep their original image data. The print dialog gains a paper size setting... I need to work on this more, we really need full Artboard support but that's a big job, but at least it's possible to round-trip editing multipage pdfs in a somewhat reasonable way now.
 - File > Open Folder opens every image in a folder as tabs (dropping a folder on the window does the same), and File > Export > Documents to Folder saves open documents as numbered images, layered PSDs, or Aseprite files. The export commands now live together in a File > Export submenu
 - Rectangular and Elliptical Marquee selections can be resized after they are drawn: with the marquee tool active, drag a handle on an edge or corner (Shift on a corner keeps the proportions, and holding Space mid-drag slides the whole selection, as it does while drawing one), or drag inside the selection to move it as before. Feathered and rounded selections are redrawn at the new size, and Undo steps back through each resize
-- Text positioning between Patchy->Photoshop is more accurate now, but still not perfect perfect
+- Text positioning between Patchy->Photoshop is more accurate
+- Square brush preset added, square brush 'tip' is now handled programmatically, not with a bmp
 
 ### 0.97 - September 21, 2026
 
@@ -297,10 +298,10 @@ Important Photoshop features that are not supported yet, or are only partially s
 - Editable Smart Filters cover 13 filter types with paintable shared masks and per-filter opacity and blend modes; unsupported imported filter types (including the Blur Gallery and Liquify smart filters) remain preview-locked and byte-preserved
 - Full Photoshop adjustment-layer compatibility beyond Patchy's current adjustment support
 - CMYK/Lab editing and export, editable spot separations and RGB component channels, multi-channel overlays, 16/32-bit editing, HDR/EXR, and full color-management parity (Patchy converts CMYK/Lab to RGB on open, but does not edit or save in those color modes)
-- Layer comps, timeline/video/animation workflows, content-aware tools, and generative tools
+- Layer comps, timeline/video/animation workflows, generative tools
 - Photoshop's own automation surfaces: Actions (.atn), UXP/JSX panels, and scripts written for Photoshop (Patchy has its own JavaScript scripting and batch processing instead, see above)
 - High-fidelity PSD/PSB edge cases, including layered PSB writing and byte-perfect preservation of every Photoshop-only metadata block
-- Patchy is slower than Photoshop, especially on large documents and it doesn't support GPU acceleration at all.  However, being CPU only helps with porting and stability so kind of a trade-off that makes sense, for now.  That said, certain operations have been optimized for multicore - canvas compositing and image flattening are multithreaded, splitting large images (4 Mpx+) into strips rendered on all CPU cores.
+- Patchy is slower than Photoshop, especially on large documents and it doesn't support any GPU acceleration. (Like, layer styles being done in pixel shaders, etc)  However, being CPU only helps with porting, consistent output, and stability so kind of a trade-off that makes sense, for now.  That said, certain operations have been optimized for multicore - canvas compositing and image flattening are multithreaded, splitting large images (4 Mpx+) into strips rendered on all CPU cores.
 
 ### Affinity import
 
