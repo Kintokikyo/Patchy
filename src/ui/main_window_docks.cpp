@@ -401,30 +401,8 @@ void install_collapsible_dock_title(QDockWidget* dock,
     // event-loop hop later so the demand never lingers in the window's
     // minimum size. A floor of 0 means the layout-derived natural minimum.
     const auto collapsed_height = dock->titleBarWidget()->sizeHint().height();
-    #ifdef Q_OS_ANDROID
-    if (expanded) {
-#ifdef Q_OS_ANDROID
-    if (expanded) {
-        dock->setMinimumHeight(0);
-        dock->setMaximumHeight(expanded_maximum_height);
-    } else {
-        // Collapsed: keep only the title bar visible.
-        dock->setMinimumHeight(collapsed_height);
-        dock->setMaximumHeight(collapsed_height);
-    }
-#else
-    dock->setMinimumHeight(
-        expanded ? expanded_boost_height : collapsed_height);
-    dock->setMaximumHeight(
-        expanded ? expanded_maximum_height : collapsed_height);
-#endif
-      dock->setMinimumHeight(collapsed_height);
-      dock->setMaximumHeight(collapsed_height);
-    }
-    #else
     dock->setMinimumHeight(expanded ? expanded_boost_height : collapsed_height);
     dock->setMaximumHeight(expanded ? expanded_maximum_height : collapsed_height);
-    #endif
     dock->updateGeometry();
     if (panel_toggled) {
       panel_toggled(expanded);
@@ -438,19 +416,17 @@ void install_collapsible_dock_title(QDockWidget* dock,
   // group's layout has no room for the pin plus its tab bar, and the docked
   // partner blinks away). Pulling a panel out expands it, and the collapse
   // toggle only shows while the panel sits in the main window's column.
-  // Use the floating state supplied by topLevelChanged directly.
-  // This avoids querying dock->window() while the dock transition is
-  // still being processed.
-  QObject::connect(dock, &QDockWidget::topLevelChanged, toggle, 
-    [dock, toggle](bool floating) {
-      const bool in_main_window_column = !floating;
-      
+  // Deferred a hop because window() still reports the old top-level while
+  // topLevelChanged is being emitted.
+  QObject::connect(dock, &QDockWidget::topLevelChanged, toggle, [dock, toggle](bool) {
+    QTimer::singleShot(0, toggle, [dock, toggle] {
+      const bool in_main_window_column = qobject_cast<QMainWindow*>(dock->window()) != nullptr;
       toggle->setVisible(in_main_window_column);
-      
-      if (floating && !toggle->isChecked()) {
+      if (!in_main_window_column && !toggle->isChecked()) {
         toggle->setChecked(true);
       }
     });
+  });
 
   dock->setTitleBarWidget(title);
   apply_expanded_state(initially_expanded);
@@ -635,6 +611,9 @@ void MainWindow::handle_right_dock_panel_toggled(QDockWidget* dock, bool expande
     // later clamp or user resize can redistribute the column freely. Skip
     // the release when the panel was re-collapsed before this hop ran (the
     // collapsed min == max pin must survive).
+    if (expanded && dock->widget() != nullptr && dock->widget()->isVisible()) {
+      dock->setMinimumHeight(expanded_minimum_height);
+    }
     if (dock->isFloating()) {
       // No column redistributes space for a floating dock, so an expand with
       // a zero boost (Info) leaves the window at the collapsed strip size;
@@ -673,11 +652,9 @@ void MainWindow::handle_right_dock_panel_toggled(QDockWidget* dock, bool expande
     // Re-clamp only when this toggle grew the window: offscreen tests open
     // windows larger than the platform screen, and an unconditional clamp
     // would shrink them behind the tests' backs.
-#ifndef Q_OS_ANDROID
     if (height() > height_before) {
       clamp_window_to_available_screen();
     }
-#endif
   });
 }
 
@@ -834,20 +811,8 @@ bool MainWindow::handle_dock_group_window_event(QObject* watched, QEvent* event)
           return false;
         }
         const auto global = mouse_event->globalPosition().toPoint();
-        
         if (dock_group_drag_edges_ == Qt::Edges{}) {
-          const auto delta = global - dock_group_drag_press_global_;
-          const auto new_position = dock_group_drag_origin_rect_.topLeft() + delta;
-          
-        #ifdef Q_OS_ANDROID
-          if (auto* window = dock_group_drag_window_->windowHandle()) {
-            window->setPosition(new_position);
-          } else {
-            dock_group_drag_window_->move(new_position);
-          }
-        #else
-          dock_group_drag_window_->move(new_position);
-        #endif
+          dock_group_drag_window_->move(global - dock_group_drag_offset_);
         } else {
           const auto delta = global - dock_group_drag_press_global_;
           auto rect = dock_group_drag_origin_rect_;
@@ -972,14 +937,6 @@ bool MainWindow::handle_dock_group_window_event(QObject* watched, QEvent* event)
         // A group window's interior surface is genuinely blank chrome, so
         // there interior presses move the window.
         if (edges == Qt::Edges{} && qobject_cast<QDockWidget*>(widget) != nullptr) {
-          #ifdef Q_OS_ANDROID
-          if (auto* window = widget->windowHandle()) {
-            if (window->startSystemMove()) {
-              mouse_event->accept();
-              return true;
-            }
-          }
-          #endif
           return false;
         }
         // Edge presses resize (our handler owns the whole widened strip; Qt's
@@ -991,17 +948,7 @@ bool MainWindow::handle_dock_group_window_event(QObject* watched, QEvent* event)
         dock_group_drag_edges_ = edges;
         dock_group_drag_press_global_ = mouse_event->globalPosition().toPoint();
         dock_group_drag_origin_rect_ = widget->geometry();
-        #ifdef Q_OS_ANDROID
-        if (auto* window = widget->windowHandle()) {
-          dock_group_drag_offset_ = 
-            mouse_event->globalPosition().toPoint() - window->position();
-        } else {
-          dock_group_drag_offset_ =
-            mouse_event->globalPosition().toPoint() - widget->pos();
-        }
-        #else
         dock_group_drag_offset_ = mouse_event->globalPosition().toPoint() - widget->pos();
-        #endif
         mouse_event->accept();
         return true;
       }
@@ -1028,18 +975,8 @@ bool MainWindow::handle_dock_group_window_event(QObject* watched, QEvent* event)
         tab_bar->tabAt(mouse_event->position().toPoint()) < 0) {
       dock_group_drag_window_ = tab_bar->window();
       dock_group_drag_edges_ = Qt::Edges{};
-      #ifdef Q_OS_ANDROID
-      if (auto* window = tab_bar->windowHandle()) {
-        dock_group_drag_offset_ = 
-          mouse_event->globalPosition().toPoint() - window->position();
-      } else {
-        dock_group_drag_offset_ = 
-          mouse_event->globalPosition().toPoint() - tab_bar->window()->pos();
-      }
-      #else
       dock_group_drag_offset_ =
           mouse_event->globalPosition().toPoint() - tab_bar->window()->pos();
-      #endif
       mouse_event->accept();
       return true;
     }
@@ -1052,11 +989,7 @@ void MainWindow::create_docks() {
   // Docks dropped onto each other form tab groups, and Qt only wires up
   // dragging a dock back OUT by its tab under GroupedDragging (which also
   // drags a tabbed group as one unit by its shared title bar).
-  #ifdef Q_OS_ANDROID
-    setDockOptions(dockOptions() & ~QMainWindow::GroupedDragging);
-  #else
-    setDockOptions(dockOptions() | QMainWindow::GroupedDragging);
-  #endif
+  setDockOptions(dockOptions() | QMainWindow::GroupedDragging);
   auto* layers_dock = new QDockWidget(tr("Layers"), this);
   layers_dock->setObjectName(QStringLiteral("layersDock"));
   bind_widget_text(layers_dock, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Layers"));
@@ -1898,40 +1831,6 @@ void MainWindow::create_docks() {
   QTimer::singleShot(0, this, [this] {
     update_right_dock_minimum_width();
     refresh_collapsed_right_dock_heights();
-    
-    for (auto* tab_bar : findChildren<QTabBar*>()) {
-        if (tab_bar == nullptr) {
-            continue;
-        }
-
-        bool right_dock_tabs = false;
-
-        for (int i = 0; i < tab_bar->count(); ++i) {
-            const QString text = tab_bar->tabText(i);
-
-            if (text == QStringLiteral("Layers") ||
-                text == QStringLiteral("Channels") ||
-                text == QStringLiteral("Paths") ||
-                text == QStringLiteral("History") ||
-                text == QStringLiteral("Properties") ||
-                text == QStringLiteral("Info") ||
-                text == QStringLiteral("Palette")) {
-                right_dock_tabs = true;
-                break;
-            }
-        }
-
-        if (!right_dock_tabs) {
-            continue;
-        }
-
-        tab_bar->setExpanding(false);
-        tab_bar->setUsesScrollButtons(true);
-        tab_bar->setMinimumWidth(0);
-        tab_bar->setSizePolicy(
-            QSizePolicy::Ignored,
-            QSizePolicy::Preferred);
-    }
   });
 }
 
