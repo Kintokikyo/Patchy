@@ -343,13 +343,41 @@ bool is_android_content_uri(const QString& path) {
         QStringLiteral("content://"),
         Qt::CaseInsensitive);
 }
+
+QString android_content_uri_display_path(const QString& path) {
+    const QUrl uri(path);
+    const QString encoded_path = uri.path(QUrl::FullyEncoded);
+    const QString tree_marker = QStringLiteral("/tree/");
+
+    const qsizetype tree_pos = encoded_path.indexOf(tree_marker);
+    if (tree_pos >= 0) {
+        QString document_id =
+            encoded_path.mid(tree_pos + tree_marker.size());
+
+        document_id = QUrl::fromPercentEncoding(
+            document_id.toUtf8());
+
+        // Android's primary storage identifier is an implementation
+        // detail and does not need to be shown to the user.
+        if (document_id.startsWith(QStringLiteral("primary:"))) {
+            document_id.remove(0, QStringLiteral("primary:").size());
+        }
+
+        if (!document_id.isEmpty()) {
+            return document_id;
+        }
+    }
+
+    return QUrl::fromPercentEncoding(
+        QFileInfo(path).fileName().toUtf8());
+}
+
 #endif
 
 QString display_path_for_ui(const QString& path) {
 #ifdef Q_OS_ANDROID
     if (is_android_content_uri(path)) {
-        return QUrl::fromPercentEncoding(
-            QFileInfo(path).fileName().toUtf8());
+        return android_content_uri_display_path(path);
     }
 #endif
 
@@ -4087,7 +4115,7 @@ void MainWindow::export_documents_to_folder() {
     return;
   }
   statusBar()->showMessage(
-      tr("Exported %1 images to %2").arg(written->size()).arg(QDir::toNativeSeparators(choice->folder)));
+      tr("Exported %1 images to %2").arg(written->size()).arg(display_path_for_ui(choice->folder)));
 }
 
 std::optional<QStringList> MainWindow::export_document_sessions_to_folder(
