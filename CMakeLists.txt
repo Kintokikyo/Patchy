@@ -1422,7 +1422,7 @@ ${PATCHY_LUPDATE_MANIFEST_SOURCES}
     patchy_copy_qt_runtime(patchy)
     patchy_copy_bundled_fonts(patchy)
     patchy_copy_bundled_scripts(patchy)
-    if(NOT EMSCRIPTEN)
+    if(NOT EMSCRIPTEN AND NOT ANDROID)
       # This small runner is a required build tool, independent of PATCHY_BUILD_TESTS.
       # It shares the actual checks with the UI suite and has private temporary settings.
       add_executable(patchy_translation_checks
