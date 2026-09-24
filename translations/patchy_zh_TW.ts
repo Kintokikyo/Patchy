@@ -13271,6 +13271,10 @@ RGB: -
         <source>Exported %1 images to %2</source>
         <translation>已將 %1 個影像輸出至 %2</translation>
     </message>
+        <message>
+            <source>Exported %1 images</source>
+            <translation>已將 %1 個影像輸出</translation>
+        </message>
     <message>
         <source>Export Animated GIF</source>
         <translation>輸出 GIF 動畫</translation>

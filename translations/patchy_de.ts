@@ -13303,6 +13303,10 @@ Rechteck: -</translation>
         <source>Exported %1 images to %2</source>
         <translation>%1 Bilder nach %2 exportiert</translation>
     </message>
+        <message>
+            <source>Exported %1 images</source>
+            <translation>%1 Bilder exportiert</translation>
+        </message>
     <message>
         <source>Export Animated GIF</source>
         <translation>Animiertes GIF exportieren</translation>

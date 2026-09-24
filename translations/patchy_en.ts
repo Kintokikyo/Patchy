@@ -13286,6 +13286,10 @@ Rect: -</source>
         <source>Exported %1 images to %2</source>
         <translation type="unfinished"></translation>
     </message>
+        <message>
+            <source>Exported %1 images</source>
+            <translation type="unfinished"></translation>
+        </message>
     <message>
         <source>Export Animated GIF</source>
         <translation type="unfinished"></translation>

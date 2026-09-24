@@ -10392,6 +10392,10 @@ Mixed selection</source>
         <source>Exported %1 images to %2</source>
         <translation>%1 個の画像を %2 に書き出しました</translation>
     </message>
+        <message>
+            <source>Exported %1 images</source>
+            <translation>%1 個の画像を書き出しました</translation>
+        </message>
     <message>
         <source>Seamless &amp;Tile Preview</source>
         <translation>シームレスタイル プレビュー(&amp;T)</translation>
