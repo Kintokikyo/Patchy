@@ -1,0 +1,396 @@
+# Diagnostic build:
+# - Keeps the already-working Qt Android eglSurface deadlock fallback patch.
+# - Replaces the previous QIntersectionFinder entry patch with a targeted
+#   diagnostic patch at the exact crash instruction QtGui + 0x450328.
+# - This is diagnostic only; do not use it as the permanent baseline yet.
+
+name: Build Patchy Native Android
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: ''
+
+      - name: Create test keystore
+        run: |
+          keytool -genkeypair \
+            -v \
+            -keystore "$GITHUB_WORKSPACE/patchy-test.keystore" \
+            -alias patchy \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass patchy123 \
+            -keypass patchy123 \
+            -dname "CN=Patchy, OU=Kintokikyo, O=Patchy, L=Indonesia, ST=Indonesia, C=ID"
+
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "ndk;27.2.12479018"
+
+      - name: Install Qt 6.10.3 Desktop
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.10.3'
+          host: 'linux'
+          target: 'desktop'
+          arch: 'linux_gcc_64'
+          modules: 'qtimageformats'
+          cache: true
+
+      - name: Save host Qt path
+        run: |
+          echo "HOST_QT_ROOT=$QT_ROOT_DIR" >> "$GITHUB_ENV"
+
+      - name: Install Qt 6.10.3 Android
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.10.3'
+          host: 'all_os'
+          target: 'android'
+          arch: 'android_arm64_v8a'
+          modules: 'qtimageformats'
+          cache: true
+
+      - name: Patch Qt Android eglSurface deadlock fallback
+        run: |
+          echo "===== PATCH QT ANDROID eglSurface ====="
+
+          QT_EGL_PLUGIN=$(find "$QT_ROOT_DIR" \
+            -type f \
+            -name "libplugins_platforms_qtforandroid_arm64-v8a.so" \
+            -print -quit)
+
+          if [ -z "$QT_EGL_PLUGIN" ]; then
+            echo "ERROR: Qt Android platform plugin not found"
+            exit 1
+          fi
+
+          echo "Qt plugin: $QT_EGL_PLUGIN"
+
+          python3 - "$QT_EGL_PLUGIN" <<'PY'
+          import sys
+          from pathlib import Path
+
+          path = Path(sys.argv[1])
+          data = bytearray(path.read_bytes())
+
+          # Exact 40-byte sequence from the Qt 6.10.3 ARM64 plugin.
+          # It is the failure path in QAndroidPlatformOpenGLWindow::eglSurface()
+          # that calls QMessageLogger::fatal() after AndroidDeadlockProtector::acquire()
+          # returns false.
+          old = bytes.fromhex(
+              "48008052 61fcffd0 213c1c91 e81300b9 68fcff90"
+              "08dd1091 1f2003d5 e252c870 e0430091 b5000094"
+          )
+
+          # Replacement:
+          #   call AndroidDeadlockProtector destructor
+          #   return nullptr from eglSurface()
+          #   branch back to the normal caller path
+          #   remaining bytes are NOPs
+          new = bytes.fromhex(
+              "e0c30091 030a0094 e0031faa f7ffff17"
+              "1f2003d5 1f2003d5 1f2003d5 1f2003d5"
+              "1f2003d5 1f2003d5"
+          )
+
+          if len(old) != 40 or len(new) != 40:
+              raise SystemExit("ERROR: patch byte length mismatch")
+
+          occurrences = data.count(old)
+
+          if occurrences != 1:
+              raise SystemExit(
+                  f"ERROR: expected exactly 1 matching Qt 6.10.3 sequence, "
+                  f"found {occurrences}"
+              )
+
+          offset = data.index(old)
+          print(f"Patch offset: 0x{offset:x}")
+
+          data[offset:offset + len(old)] = new
+          path.write_bytes(data)
+
+          verify = path.read_bytes()
+          if verify[offset:offset + len(new)] != new:
+              raise SystemExit("ERROR: patch verification failed")
+
+          print("Patch verification: OK")
+          print("Patched QAndroidPlatformOpenGLWindow::eglSurface() failure path.")
+          PY
+
+          echo "===== VERIFY PATCHED PLUGIN ====="
+          ls -l "$QT_EGL_PLUGIN"
+
+      - name: Patch QtGui QIntersectionFinder crash instruction diagnostic
+        run: |
+          echo "===== PATCH QT GUI 0x450328 ====="
+
+          QT_GUI=$(find "$QT_ROOT_DIR" \
+            -type f \
+            -name "libQt6Gui_arm64-v8a.so" \
+            -print -quit)
+
+          if [ -z "$QT_GUI" ]; then
+            echo "ERROR: QtGui Android binary not found"
+            exit 1
+          fi
+
+          echo "QtGui: $QT_GUI"
+
+          python3 - "$QT_GUI" <<'PY'
+          import sys
+          from pathlib import Path
+
+          path = Path(sys.argv[1])
+          data = bytearray(path.read_bytes())
+
+          # Qt 6.10.3 ARM64:
+          # Exact crash instruction from logcat:
+          # libQt6Gui_arm64-v8a.so + 0x450328
+          offset = 0x450328
+
+          # Original instruction:
+          #   ldr x9, [x20, #0x28]
+          # Verified original encoding: 89 16 40 f9
+          old = bytes.fromhex("89 16 40 f9")
+
+          # Diagnostic only:
+          #   mov w0, wzr
+          #   b 0x4503d8
+          #
+          # 0x450328 -> 0x4503d8 = +0xb0
+          # AArch64 B immediate = 0x2c
+          #
+          # This skips the crashing access and enters the function's
+          # existing return/cleanup path.
+          new = bytes.fromhex("00 00 80 52 2c 00 00 14")
+
+          actual = bytes(data[offset:offset + len(old)])
+
+          print(f"Patch offset: 0x{offset:x}")
+          print(f"Original bytes: {actual.hex(' ')}")
+
+          if actual != old:
+              raise SystemExit(
+                  "ERROR: QtGui bytes do not match expected original "
+                  "instruction at 0x450328"
+              )
+
+          data[offset:offset + len(new)] = new
+          path.write_bytes(data)
+
+          verify = path.read_bytes()
+          if verify[offset:offset + len(new)] != new:
+              raise SystemExit(
+                  "ERROR: QtGui 0x450328 diagnostic patch verification failed"
+              )
+
+          print("Patched bytes:", new.hex(" "))
+          print("Patch verification: OK")
+          print("QtGui 0x450328 diagnostic patch applied.")
+          PY
+
+          echo "===== VERIFY PATCHED QtGui ====="
+          ls -l "$QT_GUI"
+
+      - name: Prepare Qt Android manifest
+        run: |
+          echo "===== FIND QT ANDROID TEMPLATE ====="
+
+          QT_ANDROID_TEMPLATE=$(find "$QT_ROOT_DIR" \
+            -path "*/src/android/templates/AndroidManifest.xml" \
+            -print -quit)
+
+          echo "Template: $QT_ANDROID_TEMPLATE"
+
+          if [ -z "$QT_ANDROID_TEMPLATE" ]; then
+            echo "ERROR: Qt AndroidManifest.xml template not found"
+            exit 1
+          fi
+          
+          cp "$QT_ANDROID_TEMPLATE" android/AndroidManifest.xml
+
+          echo "===== PATCH MANIFEST ====="
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("android/AndroidManifest.xml")
+          text = path.read_text()
+
+          text = text.replace(
+            'android:screenOrientation="unspecified"',
+            'android:screenOrientation="landscape"'
+          )
+
+          text = text.replace(
+            '    package="org.qtproject.qt.example"',
+            '',
+            1
+           )
+
+          text = text.replace(
+            '<activity',
+            '<activity android:theme="@android:style/Theme.Material.NoActionBar"', 
+            1
+           )
+
+          text = text.replace(
+            'android:name="org.qtproject.qt.android.bindings.QtActivity"',
+            'android:name="com.kintokikyo.patchy.MainActivity"',
+           1
+          )
+
+          path.write_text(text)
+          PY
+
+          echo "===== FINAL MANIFEST ====="
+          cat android/AndroidManifest.xml
+
+      - name: Configure Patchy
+        env:
+          QT_ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/patchy-test.keystore
+          QT_ANDROID_KEYSTORE_ALIAS: patchy
+          QT_ANDROID_KEYSTORE_STORE_PASS: patchy123
+          QT_ANDROID_KEYSTORE_KEY_PASS: patchy123
+        run: |
+          "$QT_ROOT_DIR/bin/qt-cmake" \
+            -S . \
+            -B build/android-release \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPATCHY_BUILD_APP=ON \
+            -DPATCHY_BUILD_TESTS=OFF \
+            -DQT_ANDROID_ABIS=arm64-v8a \
+            -DQT_ANDROID_MIN_SDK_VERSION=28 \
+            -DQT_ANDROID_TARGET_SDK_VERSION=36 \
+            -DQT_ANDROID_PACKAGE_NAME=com.kintokikyo.patchy \
+            -DQT_HOST_PATH="$HOST_QT_ROOT" \
+            -DANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" \
+            -DANDROID_NDK_ROOT="$ANDROID_NDK_ROOT" \
+            -DQT_ENABLE_VERBOSE_DEPLOYMENT=ON \
+            -DQT_ANDROID_SIGN_APK=ON
+
+      - name: Build APK
+        continue-on-error: true
+        env:
+          QT_ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/patchy-test.keystore
+          QT_ANDROID_KEYSTORE_ALIAS: patchy
+          QT_ANDROID_KEYSTORE_STORE_PASS: patchy123
+          QT_ANDROID_KEYSTORE_KEY_PASS: patchy123
+        run: |
+          cmake --build build/android-release \
+            --target apk \
+            --parallel 2
+
+      - name: Verify patched QtGui 0x450328 inside APK
+        run: |
+          echo "===== VERIFY QT GUI 0x450328 PATCH INSIDE APK ====="
+
+          APK=$(find build/android-release \
+            -type f \
+            -name "*.apk" \
+            -print -quit)
+
+          if [ -z "$APK" ]; then
+            echo "ERROR: APK not found"
+            exit 1
+          fi
+
+          mkdir -p /tmp/apk_verify
+
+          unzip -p "$APK" \
+            "lib/arm64-v8a/libQt6Gui_arm64-v8a.so" \
+            > /tmp/apk_verify/libQt6Gui_arm64-v8a.so
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("/tmp/apk_verify/libQt6Gui_arm64-v8a.so")
+          data = path.read_bytes()
+
+          offset = 0x450328
+          expected = bytes.fromhex("00 00 80 52 2c 00 00 14")
+          actual = data[offset:offset + len(expected)]
+
+          print(f"APK QtGui size: {len(data)}")
+          print(f"APK QtGui @ 0x{offset:x}: {actual.hex(' ')}")
+
+          if actual != expected:
+              raise SystemExit(
+                  "ERROR: QtGui 0x450328 diagnostic patch is NOT present in APK"
+              )
+
+          print("APK PATCH VERIFICATION: OK")
+          PY
+
+      - name: Inspect Android Gradle Project
+        run: |
+          echo "===== android-build ====="
+          find build/android-release/android-build -maxdepth 2 -type f -print || true
+
+          echo ""
+          echo "===== gradle.properties ====="
+          cat build/android-release/android-build/gradle.properties || true
+
+          echo ""
+          echo "===== settings.gradle.kts ====="
+          cat build/android-release/android-build/settings.gradle.kts || true
+
+          echo ""
+          echo "===== settings.gradle ====="
+          cat build/android-release/android-build/settings.gradle || true
+
+          echo ""
+          echo "===== build.gradle.kts ====="
+          cat build/android-release/android-build/build.gradle.kts || true
+
+          echo ""
+          echo "===== build.gradle ====="
+          cat build/android-release/android-build/build.gradle || true
+
+      - name: Find APK
+        run: |
+          echo "===== APK FILES ====="
+          find build/android-release \
+            -type f \
+            -name "*.apk" \
+            -print
+
+      - name: Check APK
+        run: |
+          if ! find build/android-release -type f -name "*.apk" | grep -q .; then
+            echo "APK belum berhasil dibuat."
+            exit 1
+          fi
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: patchy-native-android
+          path: |
+            build/android-release/**/*.apk
+            build/android-release/*.apk
+          if-no-files-found: error
