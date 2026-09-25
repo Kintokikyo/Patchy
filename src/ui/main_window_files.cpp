@@ -354,6 +354,15 @@ QString android_content_uri_display_path(const QString& path) {
         QString document_id =
             encoded_path.mid(tree_pos + tree_marker.size());
 
+        const QString document_marker =
+            QStringLiteral("/document/");
+        const qsizetype document_pos =
+            document_id.indexOf(document_marker);
+
+        if (document_pos >= 0) {
+            document_id = document_id.left(document_pos);
+        }
+
         document_id = QUrl::fromPercentEncoding(
             document_id.toUtf8());
 
