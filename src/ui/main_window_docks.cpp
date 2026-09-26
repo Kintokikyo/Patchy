@@ -989,7 +989,7 @@ void MainWindow::create_docks() {
   // Docks dropped onto each other form tab groups, and Qt only wires up
   // dragging a dock back OUT by its tab under GroupedDragging (which also
   // drags a tabbed group as one unit by its shared title bar).
-  setDockOptions(dockOptions() | QMainWindow::GroupedDragging);
+  setDockOptions(dockOptions() & ~QMainWindow::GroupedDragging);
   setAnimated(false);
   auto* layers_dock = new QDockWidget(tr("Layers"), this);
   layers_dock->setObjectName(QStringLiteral("layersDock"));
