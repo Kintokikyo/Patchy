@@ -56,20 +56,28 @@
 #endif
 
 #include <QFile>
-#include <QDebug>
 #include <QString>
+#include <android/log.h>
 
 static void printQtLibraryMappings()
 {
     QFile maps("/proc/self/maps");
 
     if (!maps.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qDebug() << "[QT-DIAG] Failed to open /proc/self/maps:"
-                 << maps.errorString();
+        __android_log_print(
+            ANDROID_LOG_ERROR,
+            "QT-DIAG",
+            "Failed to open /proc/self/maps: %s",
+            maps.errorString().toUtf8().constData()
+        );
         return;
     }
 
-    qDebug() << "========== QT LIBRARY DIAGNOSTIC ==========";
+    __android_log_print(
+        ANDROID_LOG_ERROR,
+        "QT-DIAG",
+        "========== QT LIBRARY DIAGNOSTIC =========="
+    );
 
     while (!maps.atEnd()) {
         const QByteArray line = maps.readLine();
@@ -78,13 +86,20 @@ static void printQtLibraryMappings()
             line.contains("libQt6Core") ||
             line.contains("libQt6Widgets")) {
 
-            qDebug().noquote()
-                << "[QT-DIAG]"
-                << QString::fromUtf8(line).trimmed();
+            __android_log_print(
+                ANDROID_LOG_ERROR,
+                "QT-DIAG",
+                "%s",
+                line.trimmed().constData()
+            );
         }
     }
 
-    qDebug() << "========== END QT LIBRARY DIAGNOSTIC ==========";
+    __android_log_print(
+        ANDROID_LOG_ERROR,
+        "QT-DIAG",
+        "========== END QT LIBRARY DIAGNOSTIC =========="
+    );
 }
 
 #ifdef Q_OS_ANDROID
