@@ -55,6 +55,38 @@
 #define PATCHY_VERSION "0.0.0"
 #endif
 
+#include <QFile>
+#include <QDebug>
+#include <QString>
+
+static void printQtLibraryMappings()
+{
+    QFile maps("/proc/self/maps");
+
+    if (!maps.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qDebug() << "[QT-DIAG] Failed to open /proc/self/maps:"
+                 << maps.errorString();
+        return;
+    }
+
+    qDebug() << "========== QT LIBRARY DIAGNOSTIC ==========";
+
+    while (!maps.atEnd()) {
+        const QByteArray line = maps.readLine();
+
+        if (line.contains("libQt6Gui") ||
+            line.contains("libQt6Core") ||
+            line.contains("libQt6Widgets")) {
+
+            qDebug().noquote()
+                << "[QT-DIAG]"
+                << QString::fromUtf8(line).trimmed();
+        }
+    }
+
+    qDebug() << "========== END QT LIBRARY DIAGNOSTIC ==========";
+}
+
 #ifdef Q_OS_ANDROID
 
 extern "C" {
@@ -390,6 +422,8 @@ int main(int argc, char* argv[]) {
 #endif
   apply_gui_scale_factor();
   PatchyApplication app(argc, argv);
+  
+  printQtLibraryMappings();
   // Qt adopts the user's locale for the C runtime on Unix (setlocale(LC_ALL, "")), which turns
   // every strtod/to_string in the file codecs decimal-comma under de_DE and friends and
   // corrupts what PSD text engine data and other text formats write and parse. Keep the C
