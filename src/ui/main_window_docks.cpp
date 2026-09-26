@@ -747,10 +747,14 @@ bool MainWindow::handle_right_dock_title_drag_event(QObject* watched, QEvent* ev
           return true;
         }
         if (!right_dock_title_drag_started_) {
-          right_dock_title_drag_started_ = true;
-          right_dock_title_drag_dock_->setFloating(true);
+            right_dock_title_drag_started_ = true;
+            right_dock_title_drag_dock_->setFloating(true);
+            mouse_event->accept();
+            return true;
         }
-        right_dock_title_drag_dock_->move(global - right_dock_title_drag_offset_);
+        if (right_dock_title_drag_dock_->isFloating()) {
+            right_dock_title_drag_dock_->move(global - right_dock_title_drag_offset_);
+        }
         mouse_event->accept();
         return true;
       }
