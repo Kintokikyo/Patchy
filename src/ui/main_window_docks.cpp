@@ -635,8 +635,8 @@ void MainWindow::handle_right_dock_panel_toggled(QDockWidget* dock, bool expande
       // the docked column and does not apply here.
       const auto dock_size = dock->size();
       if (dock_size.width() > 0 && dock_size.height() > 0) {
-        dock->resize(dock_size.width(), dock_size.height() + 1);
-        dock->resize(dock_size);
+        //dock->resize(dock_size.width(), dock_size.height() + 1);
+        //dock->resize(dock_size);
       }
       dock->update();
       return;
