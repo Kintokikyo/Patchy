@@ -419,16 +419,15 @@ void install_collapsible_dock_title(QDockWidget* dock,
   // Deferred a hop because window() still reports the old top-level while
   // topLevelChanged is being emitted.
   
-  // TEMP DIAGNOSTIC: disable auto-expand on floating dock
-  //QObject::connect(dock, &QDockWidget::topLevelChanged, toggle, [dock, toggle](bool) {
-    //QTimer::singleShot(0, toggle, [dock, toggle] {
-      //const bool in_main_window_column = qobject_cast<QMainWindow*>(dock->window()) != nullptr;
-      //toggle->setVisible(in_main_window_column);
-      //if (!in_main_window_column && !toggle->isChecked()) {
-        //toggle->setChecked(true);
-      //}
-    //});
-  //});
+  QObject::connect(dock, &QDockWidget::topLevelChanged, toggle, [dock, toggle](bool) {
+    QTimer::singleShot(0, toggle, [dock, toggle] {
+      const bool in_main_window_column = qobject_cast<QMainWindow*>(dock->window()) != nullptr;
+      toggle->setVisible(in_main_window_column);
+      if (!in_main_window_column && !toggle->isChecked()) {
+        toggle->setChecked(true);
+      }
+    });
+  });
 
   dock->setTitleBarWidget(title);
   apply_expanded_state(initially_expanded);
