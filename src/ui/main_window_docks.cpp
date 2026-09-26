@@ -232,6 +232,8 @@
 #include <thread>
 #include <utility>
 
+#include <android/log.h>
+
 #ifdef Q_OS_WIN
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -752,7 +754,24 @@ bool MainWindow::handle_right_dock_title_drag_event(QObject* watched, QEvent* ev
         }
         if (!right_dock_title_drag_started_) {
             right_dock_title_drag_started_ = true;
+            
+            __android_log_print(
+              ANDROID_LOG_ERROR,
+              "DOCK-DIAG",
+              "BEFORE setFloating dock=%p",
+              right_dock_title_drag_dock_
+            );
+            
             right_dock_title_drag_dock_->setFloating(true);
+            
+            __android_log_print(
+              ANDROID_LOG_ERROR,
+              "DOCK-DIAG",
+              "AFTER setFloating dock=%p floating=%d",
+              right_dock_title_drag_dock_,
+              right_dock_title_drag_dock_->isFloating()
+            );
+            
             mouse_event->accept();
             return true;
         }
