@@ -462,6 +462,13 @@ void install_collapsible_dock_title(QDockWidget* dock,
             "AFTER SINGLESHOT POSTED dock=%p",
             static_cast<void *>(dock)
         );
+        
+        __android_log_print(
+            ANDROID_LOG_ERROR,
+            "DOCK-DIAG",
+            "TOPLEVELCHANGED HANDLER END dock=%p",
+            static_cast<void *>(dock)
+        );
     }
   );
 
