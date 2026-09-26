@@ -57,48 +57,47 @@
 
 #include <QFile>
 #include <QString>
+#include <link.h>
+#include <cstring>
 #include <android/log.h>
 
-static void printQtLibraryMappings()
+static int qtLibraryCallback(struct dl_phdr_info *info, size_t, void *)
 {
-    QFile maps("/proc/self/maps");
+    if (!info->dlpi_name || !info->dlpi_name[0])
+        return 0;
 
-    if (!maps.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    const char *name = info->dlpi_name;
+
+    if (std::strstr(name, "libQt6Gui") ||
+        std::strstr(name, "libQt6Core") ||
+        std::strstr(name, "libQt6Widgets")) {
+
         __android_log_print(
             ANDROID_LOG_ERROR,
             "QT-DIAG",
-            "Failed to open /proc/self/maps: %s",
-            maps.errorString().toUtf8().constData()
+            "LOADED: %s | BASE: 0x%llx",
+            name,
+            static_cast<unsigned long long>(info->dlpi_addr)
         );
-        return;
     }
 
+    return 0;
+}
+
+static void printQtLibraryMappings()
+{
     __android_log_print(
         ANDROID_LOG_ERROR,
         "QT-DIAG",
-        "========== QT LIBRARY DIAGNOSTIC =========="
+        "========== QT LOADED LIBRARIES =========="
     );
 
-    while (!maps.atEnd()) {
-        const QByteArray line = maps.readLine();
-
-        if (line.contains("libQt6Gui") ||
-            line.contains("libQt6Core") ||
-            line.contains("libQt6Widgets")) {
-
-            __android_log_print(
-                ANDROID_LOG_ERROR,
-                "QT-DIAG",
-                "%s",
-                line.trimmed().constData()
-            );
-        }
-    }
+    dl_iterate_phdr(qtLibraryCallback, nullptr);
 
     __android_log_print(
         ANDROID_LOG_ERROR,
         "QT-DIAG",
-        "========== END QT LIBRARY DIAGNOSTIC =========="
+        "========== END QT LOADED LIBRARIES =========="
     );
 }
 
