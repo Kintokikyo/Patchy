@@ -759,7 +759,7 @@ bool MainWindow::handle_right_dock_title_drag_event(QObject* watched, QEvent* ev
               ANDROID_LOG_ERROR,
               "DOCK-DIAG",
               "BEFORE setFloating dock=%p",
-              right_dock_title_drag_dock_
+              static_cast<void *>(right_dock_title_drag_dock_.data())
             );
             
             right_dock_title_drag_dock_->setFloating(true);
@@ -768,7 +768,7 @@ bool MainWindow::handle_right_dock_title_drag_event(QObject* watched, QEvent* ev
               ANDROID_LOG_ERROR,
               "DOCK-DIAG",
               "AFTER setFloating dock=%p floating=%d",
-              right_dock_title_drag_dock_,
+              static_cast<void *>(right_dock_title_drag_dock_.data()),
               right_dock_title_drag_dock_->isFloating()
             );
             
