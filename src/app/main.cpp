@@ -60,6 +60,7 @@
 #include <link.h>
 #include <cstring>
 #include <android/log.h>
+#include <cstdint>
 
 static int qtLibraryCallback(struct dl_phdr_info *info, size_t, void *)
 {
@@ -68,17 +69,66 @@ static int qtLibraryCallback(struct dl_phdr_info *info, size_t, void *)
 
     const char *name = info->dlpi_name;
 
-    if (std::strstr(name, "libQt6Gui") ||
-        std::strstr(name, "libQt6Core") ||
-        std::strstr(name, "libQt6Widgets")) {
+    if (std::strstr(name, "libQt6Gui_arm64-v8a.so")) {
+
+        const uintptr_t base =
+            static_cast<uintptr_t>(info->dlpi_addr);
 
         __android_log_print(
             ANDROID_LOG_ERROR,
             "QT-DIAG",
-            "LOADED: %s | BASE: 0x%llx",
-            name,
-            static_cast<unsigned long long>(info->dlpi_addr)
+            "QtGui BASE = 0x%llx",
+            static_cast<unsigned long long>(base)
         );
+
+        const uintptr_t addr_450214 = base + 0x450214;
+        const uintptr_t addr_450328 = base + 0x450328;
+
+        const unsigned char *p214 =
+            reinterpret_cast<const unsigned char *>(addr_450214);
+
+        const unsigned char *p328 =
+            reinterpret_cast<const unsigned char *>(addr_450328);
+
+        __android_log_print(
+            ANDROID_LOG_ERROR,
+            "QT-DIAG",
+            "0x450214 runtime = %p",
+            reinterpret_cast<const void *>(addr_450214)
+        );
+
+        __android_log_print(
+            ANDROID_LOG_ERROR,
+            "QT-DIAG",
+            "0x450214 bytes: "
+            "%02x %02x %02x %02x %02x %02x %02x %02x "
+            "%02x %02x %02x %02x %02x %02x %02x %02x",
+            p214[0], p214[1], p214[2], p214[3],
+            p214[4], p214[5], p214[6], p214[7],
+            p214[8], p214[9], p214[10], p214[11],
+            p214[12], p214[13], p214[14], p214[15]
+        );
+
+        __android_log_print(
+            ANDROID_LOG_ERROR,
+            "QT-DIAG",
+            "0x450328 runtime = %p",
+            reinterpret_cast<const void *>(addr_450328)
+        );
+
+        __android_log_print(
+            ANDROID_LOG_ERROR,
+            "QT-DIAG",
+            "0x450328 bytes: "
+            "%02x %02x %02x %02x %02x %02x %02x %02x "
+            "%02x %02x %02x %02x %02x %02x %02x %02x",
+            p328[0], p328[1], p328[2], p328[3],
+            p328[4], p328[5], p328[6], p328[7],
+            p328[8], p328[9], p328[10], p328[11],
+            p328[12], p328[13], p328[14], p328[15]
+        );
+
+        return 0;
     }
 
     return 0;
@@ -89,7 +139,7 @@ static void printQtLibraryMappings()
     __android_log_print(
         ANDROID_LOG_ERROR,
         "QT-DIAG",
-        "========== QT LOADED LIBRARIES =========="
+        "========== QT GUI MEMORY CHECK =========="
     );
 
     dl_iterate_phdr(qtLibraryCallback, nullptr);
@@ -97,7 +147,7 @@ static void printQtLibraryMappings()
     __android_log_print(
         ANDROID_LOG_ERROR,
         "QT-DIAG",
-        "========== END QT LOADED LIBRARIES =========="
+        "========== END QT GUI MEMORY CHECK =========="
     );
 }
 
