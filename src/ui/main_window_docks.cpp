@@ -454,7 +454,16 @@ void install_collapsible_dock_title(QDockWidget* dock,
                 toggle->setChecked(true);
             }
         });
-    });
+
+        // TAMBAHKAN INI
+        __android_log_print(
+            ANDROID_LOG_ERROR,
+            "DOCK-DIAG",
+            "AFTER SINGLESHOT POSTED dock=%p",
+            static_cast<void *>(dock)
+        );
+    }
+  );
 
   dock->setTitleBarWidget(title);
   apply_expanded_state(initially_expanded);
