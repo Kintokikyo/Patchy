@@ -421,15 +421,40 @@ void install_collapsible_dock_title(QDockWidget* dock,
   // Deferred a hop because window() still reports the old top-level while
   // topLevelChanged is being emitted.
   
-  QObject::connect(dock, &QDockWidget::topLevelChanged, toggle, [dock, toggle](bool) {
-    QTimer::singleShot(0, toggle, [dock, toggle] {
-      const bool in_main_window_column = qobject_cast<QMainWindow*>(dock->window()) != nullptr;
-      toggle->setVisible(in_main_window_column);
-      if (!in_main_window_column && !toggle->isChecked()) {
-        toggle->setChecked(true);
-      }
+  QObject::connect(
+    dock,
+    &QDockWidget::topLevelChanged,
+    toggle,
+    [dock, toggle](bool floating) {
+
+        __android_log_print(
+            ANDROID_LOG_ERROR,
+            "DOCK-DIAG",
+            "TOPLEVELCHANGED dock=%p floating=%d",
+            static_cast<void *>(dock),
+            floating
+        );
+
+        QTimer::singleShot(0, toggle, [dock, toggle] {
+
+            __android_log_print(
+                ANDROID_LOG_ERROR,
+                "DOCK-DIAG",
+                "TOPLEVELCHANGED SINGLESHOT dock=%p floating=%d",
+                static_cast<void *>(dock),
+                dock->isFloating()
+            );
+
+            const bool in_main_window_column =
+                qobject_cast<QMainWindow*>(dock->window()) != nullptr;
+
+            toggle->setVisible(in_main_window_column);
+
+            if (!in_main_window_column && !toggle->isChecked()) {
+                toggle->setChecked(true);
+            }
+        });
     });
-  });
 
   dock->setTitleBarWidget(title);
   apply_expanded_state(initially_expanded);
