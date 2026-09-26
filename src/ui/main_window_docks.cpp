@@ -457,13 +457,13 @@ void MainWindow::install_right_dock_width_handle(QDockWidget* dock) {
   // group window gets (the floatingChrome property carries the styling).
   connect(dock, &QDockWidget::topLevelChanged, handle, [dock, handle](bool floating) {
     handle->setVisible(!floating);
-    dock->setContentsMargins(floating
-                                 ? QMargins(kGroupWindowFrameMargin, kGroupWindowFrameMargin,
-                                            kGroupWindowFrameMargin, kGroupWindowFrameMargin)
-                                 : QMargins());
+    //dock->setContentsMargins(floating
+                                 //? QMargins(kGroupWindowFrameMargin, kGroupWindowFrameMargin,
+                                            //kGroupWindowFrameMargin, kGroupWindowFrameMargin)
+                                 //: QMargins());
     dock->setProperty("floatingChrome", floating);
-    dock->style()->unpolish(dock);
-    dock->style()->polish(dock);
+    //dock->style()->unpolish(dock);
+    //dock->style()->polish(dock);
   });
   connect(dock, &QDockWidget::topLevelChanged, this, [this, dock](bool floating) {
     if (floating) {
