@@ -62,6 +62,32 @@
 #include <android/log.h>
 #include <cstdint>
 
+static void dumpQtBytes(
+    uintptr_t base,
+    uintptr_t offset,
+    const char *name)
+{
+    const unsigned char *p =
+        reinterpret_cast<const unsigned char *>(base + offset);
+
+    __android_log_print(
+        ANDROID_LOG_ERROR,
+        "QT-DIAG",
+        "%s @ 0x%zx: "
+        "%02x %02x %02x %02x "
+        "%02x %02x %02x %02x "
+        "%02x %02x %02x %02x "
+        "%02x %02x %02x %02x",
+        name,
+        static_cast<size_t>(offset),
+        p[0], p[1], p[2], p[3],
+        p[4], p[5], p[6], p[7],
+        p[8], p[9], p[10], p[11],
+        p[12], p[13], p[14], p[15]
+    );
+}
+
+
 static int qtLibraryCallback(struct dl_phdr_info *info, size_t, void *)
 {
     if (!info->dlpi_name || !info->dlpi_name[0])
@@ -81,52 +107,9 @@ static int qtLibraryCallback(struct dl_phdr_info *info, size_t, void *)
             static_cast<unsigned long long>(base)
         );
 
-        const uintptr_t addr_450214 = base + 0x450214;
-        const uintptr_t addr_450328 = base + 0x450328;
-
-        const unsigned char *p214 =
-            reinterpret_cast<const unsigned char *>(addr_450214);
-
-        const unsigned char *p328 =
-            reinterpret_cast<const unsigned char *>(addr_450328);
-
-        __android_log_print(
-            ANDROID_LOG_ERROR,
-            "QT-DIAG",
-            "0x450214 runtime = %p",
-            reinterpret_cast<const void *>(addr_450214)
-        );
-
-        __android_log_print(
-            ANDROID_LOG_ERROR,
-            "QT-DIAG",
-            "0x450214 bytes: "
-            "%02x %02x %02x %02x %02x %02x %02x %02x "
-            "%02x %02x %02x %02x %02x %02x %02x %02x",
-            p214[0], p214[1], p214[2], p214[3],
-            p214[4], p214[5], p214[6], p214[7],
-            p214[8], p214[9], p214[10], p214[11],
-            p214[12], p214[13], p214[14], p214[15]
-        );
-
-        __android_log_print(
-            ANDROID_LOG_ERROR,
-            "QT-DIAG",
-            "0x450328 runtime = %p",
-            reinterpret_cast<const void *>(addr_450328)
-        );
-
-        __android_log_print(
-            ANDROID_LOG_ERROR,
-            "QT-DIAG",
-            "0x450328 bytes: "
-            "%02x %02x %02x %02x %02x %02x %02x %02x "
-            "%02x %02x %02x %02x %02x %02x %02x %02x",
-            p328[0], p328[1], p328[2], p328[3],
-            p328[4], p328[5], p328[6], p328[7],
-            p328[8], p328[9], p328[10], p328[11],
-            p328[12], p328[13], p328[14], p328[15]
-        );
+        dumpQtBytes(base, 0x450328, "PC #00");
+        dumpQtBytes(base, 0x450934, "PC #01");
+        dumpQtBytes(base, 0x451be4, "PC #02");
 
         return 0;
     }
