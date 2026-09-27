@@ -439,122 +439,81 @@ jobs:
           cmake --install "$QTBASE_BUILD"
 
       # ================================================================
-      # OVERLAY PATCHED QTBASE ONTO PREBUILT QT ANDROID
+      # OVERLAY ONLY PATCHED QTWIDGETS ONTO PREBUILT QT ANDROID
       # ================================================================
-      - name: Overlay patched QtBase onto Qt Android
+      - name: Overlay only patched QtWidgets onto Qt Android
         env:
           QT_ANDROID_ORIGINAL: ${{ github.workspace }}/qt-android-original
           QT_ANDROID_PATCHED: ${{ github.workspace }}/qt-android-patched
           QTBASE_INSTALL: ${{ github.workspace }}/qtbase-install
         run: |
-          echo "===== OVERLAY PATCHED QTBASE ====="
+          echo "===== OVERLAY ONLY PATCHED QTWIDGETS ====="
 
           rm -rf "$QT_ANDROID_ORIGINAL"
           rm -rf "$QT_ANDROID_PATCHED"
 
+          # Start from the original prebuilt Qt Android tree.
+          # This preserves the already-working EGL patch.
           cp -a "$QT_ROOT_DIR" "$QT_ANDROID_ORIGINAL"
           cp -a "$QT_ROOT_DIR" "$QT_ANDROID_PATCHED"
 
-          rsync -a \
-            "$QTBASE_INSTALL/" \
-            "$QT_ANDROID_PATCHED/"
+          echo "===== FIND PATCHED QtWidgets ====="
 
-          echo "===== ORIGINAL QT SIZE ====="
-          du -sh "$QT_ANDROID_ORIGINAL"
-
-          echo "===== PATCHED QT SIZE ====="
-          du -sh "$QT_ANDROID_PATCHED"
-
-          echo "===== PATCHED QTWIDGETS ====="
-
-          find "$QT_ANDROID_PATCHED" \
+          PATCHED_WIDGETS=$(find "$QTBASE_INSTALL" \
             -type f \
             -name "libQt6Widgets_arm64-v8a.so" \
-            -print \
-            -exec ls -lh {} \;
+            -print -quit)
 
-          if ! find "$QT_ANDROID_PATCHED" \
-              -type f \
-              -name "libQt6Widgets_arm64-v8a.so" \
-              | grep -q .; then
+          if [ -z "$PATCHED_WIDGETS" ]; then
             echo "ERROR: patched libQt6Widgets_arm64-v8a.so not found"
             exit 1
           fi
 
-          echo "QT_ROOT_DIR=$QT_ANDROID_PATCHED" >> "$GITHUB_ENV"
-          echo "QT_ANDROID_PATCHED=$QT_ANDROID_PATCHED" >> "$GITHUB_ENV"
+          echo "Patched QtWidgets:"
+          echo "$PATCHED_WIDGETS"
 
-      # ================================================================
-      # RE-APPLY THE WORKING EGL PATCH TO THE FINAL QT TREE
-      #
-      # This is intentional.
-      # The qtbase rebuild can replace the Android platform plugin.
-      # Therefore the known-good EGL patch is applied again to the
-      # final Qt tree.
-      # ================================================================
-      - name: Re-apply working Qt Android eglSurface patch to final Qt tree
-        run: |
-          echo "===== RE-APPLY WORKING EGL PATCH TO FINAL QT TREE ====="
+          echo "===== FIND ORIGINAL QtWidgets ====="
 
-          QT_EGL_PLUGIN=$(find "$QT_ROOT_DIR" \
+          ORIGINAL_WIDGETS=$(find "$QT_ANDROID_PATCHED" \
+            -type f \
+            -name "libQt6Widgets_arm64-v8a.so" \
+            -print -quit)
+
+          if [ -z "$ORIGINAL_WIDGETS" ]; then
+            echo "ERROR: original libQt6Widgets_arm64-v8a.so not found"
+            exit 1
+          fi
+
+          echo "Original QtWidgets:"
+          echo "$ORIGINAL_WIDGETS"
+
+          echo "===== REPLACE QtWidgets ONLY ====="
+
+          cp "$PATCHED_WIDGETS" "$ORIGINAL_WIDGETS"
+
+          echo "QtWidgets replacement: OK"
+
+          echo "===== VERIFY EGL PLUGIN WAS PRESERVED ====="
+
+          QT_EGL_PLUGIN=$(find "$QT_ANDROID_PATCHED" \
             -type f \
             -name "libplugins_platforms_qtforandroid_arm64-v8a.so" \
             -print -quit)
 
           if [ -z "$QT_EGL_PLUGIN" ]; then
-            echo "ERROR: final Qt Android platform plugin not found"
+            echo "ERROR: EGL plugin disappeared"
             exit 1
           fi
 
-          echo "Final EGL plugin: $QT_EGL_PLUGIN"
+          echo "EGL plugin:"
+          echo "$QT_EGL_PLUGIN"
 
-          python3 - "$QT_EGL_PLUGIN" <<'PY'
-          import sys
-          from pathlib import Path
+          ls -lh \
+            "$ORIGINAL_WIDGETS" \
+            "$QT_EGL_PLUGIN"
 
-          path = Path(sys.argv[1])
-          data = bytearray(path.read_bytes())
-
-          old = bytes.fromhex(
-              "48008052 61fcffd0 213c1c91 e81300b9 68fcff90"
-              "08dd1091 1f2003d5 e252c870 e0430091 b5000094"
-          )
-
-          new = bytes.fromhex(
-              "e0c30091 030a0094 e0031faa f7ffff17"
-              "1f2003d5 1f2003d5 1f2003d5 1f2003d5"
-              "1f2003d5 1f2003d5"
-          )
-
-          old_count = data.count(old)
-          new_count = data.count(new)
-
-          if old_count == 1:
-              offset = data.index(old)
-
-              data[offset:offset + len(old)] = new
-              path.write_bytes(data)
-
-              print(f"EGL patch applied at 0x{offset:x}")
-
-          elif old_count == 0 and new_count == 1:
-              print("EGL patch already present; leaving it unchanged.")
-
-          else:
-              raise SystemExit(
-                  "ERROR: unexpected final EGL patch state: "
-                  f"old={old_count}, new={new_count}"
-              )
-
-          verify = path.read_bytes()
-
-          if verify.count(new) != 1:
-              raise SystemExit(
-                  "ERROR: final EGL patch verification failed"
-              )
-
-          print("Final EGL patch verification: OK")
-          PY
+          echo "QT_ROOT_DIR=$QT_ANDROID_PATCHED" >> "$GITHUB_ENV"
+          echo "QT_ANDROID_PATCHED=$QT_ANDROID_PATCHED" >> "$GITHUB_ENV"
 
       # ================================================================
       # VERIFY FINAL QT LIBRARIES
