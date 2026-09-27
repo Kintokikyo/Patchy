@@ -597,7 +597,7 @@ jobs:
           ]
 
           required_cpp = [
-              "state->startingDrag = true;",
+              "dragState->startingDrag = true;",
               "state->startingDrag = false;",
               "state->abortPending = true;",
               "state->releasePending = true;",
