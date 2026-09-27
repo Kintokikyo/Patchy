@@ -676,8 +676,8 @@ jobs:
             "bool startingDrag" \
             qtbase-src/src/widgets/widgets/qdockwidget_p.h
 
-          grep -n -A28 -B6 \
-            "state->startingDrag = true" \
+          grep -n -A32 -B8 \
+            "dragState->startingDrag = true" \
             qtbase-src/src/widgets/widgets/qdockwidget.cpp
 
           grep -n -A12 -B5 \
