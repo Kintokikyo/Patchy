@@ -989,7 +989,7 @@ jobs:
           echo "APK: $APK"
 
           # ------------------------------------------------------------
-          # Extract QtWidgets directly from the APK.
+          # Extract QtWidgets directly from APK.
           # ------------------------------------------------------------
           rm -f final-libQt6Widgets_arm64-v8a.so
 
@@ -1002,11 +1002,12 @@ jobs:
             exit 1
           fi
 
+          echo ""
           echo "Final APK QtWidgets:"
           ls -lh final-libQt6Widgets_arm64-v8a.so
 
           # ------------------------------------------------------------
-          # Find the QtWidgets binary currently installed in Qt Android.
+          # Locate the patched QtWidgets before APK packaging.
           # ------------------------------------------------------------
           QT_WIDGETS=$(find "$QT_ROOT_DIR" \
             -type f \
@@ -1014,47 +1015,93 @@ jobs:
             -print -quit)
 
           if [ -z "$QT_WIDGETS" ]; then
-            echo "ERROR: QtWidgets in Qt Android tree not found"
+            echo "ERROR: Qt Android QtWidgets not found"
             exit 1
           fi
 
+          echo ""
           echo "Qt Android QtWidgets:"
           echo "$QT_WIDGETS"
 
           # ------------------------------------------------------------
-          # Compare SHA256.
+          # IMPORTANT:
           #
-          # This is much more reliable than looking for an exact
-          # disassembly pattern after Gradle packaging.
+          # Do NOT compare the complete .so SHA256.
+          #
+          # Android/Gradle may strip native libraries during packaging,
+          # which can change the overall SHA256 while leaving .text
+          # (the actual executable code) unchanged.
           # ------------------------------------------------------------
-          QT_HASH=$(sha256sum "$QT_WIDGETS" | awk '{print $1}')
-          APK_HASH=$(sha256sum final-libQt6Widgets_arm64-v8a.so | awk '{print $1}')
+
+          command -v llvm-objcopy >/dev/null 2>&1 || {
+            echo "ERROR: llvm-objcopy not found"
+            exit 1
+          }
+
+          rm -f \
+            qtwidgets-text.bin \
+            apk-qtwidgets-text.bin
 
           echo ""
-          echo "Qt Android QtWidgets SHA256:"
-          echo "$QT_HASH"
+          echo "===== EXTRACT .text FROM PATCHED QTWIDGETS ====="
+
+          llvm-objcopy \
+            --dump-section .text=qtwidgets-text.bin \
+            "$QT_WIDGETS"
 
           echo ""
-          echo "APK QtWidgets SHA256:"
-          echo "$APK_HASH"
+          echo "===== EXTRACT .text FROM APK QTWIDGETS ====="
 
-          echo ""
+          llvm-objcopy \
+            --dump-section .text=apk-qtwidgets-text.bin \
+            final-libQt6Widgets_arm64-v8a.so
 
-          if [ "$QT_HASH" != "$APK_HASH" ]; then
-            echo "ERROR: APK QtWidgets does NOT match the patched QtWidgets"
-            echo ""
-            echo "This means the APK packaging/deployment replaced"
-            echo "libQt6Widgets_arm64-v8a.so with another binary."
+          if [ ! -s qtwidgets-text.bin ]; then
+            echo "ERROR: Could not extract .text from patched QtWidgets"
             exit 1
           fi
 
-          echo "FINAL APK QTWIDGETS VERIFICATION: OK"
-          echo "APK contains exactly the same QtWidgets binary"
-          echo "that was placed into the Qt Android tree."
+          if [ ! -s apk-qtwidgets-text.bin ]; then
+            echo "ERROR: Could not extract .text from APK QtWidgets"
+            exit 1
+          fi
 
           echo ""
-          echo "===== FINAL APK QTWIDGETS SHA256 ====="
-          sha256sum final-libQt6Widgets_arm64-v8a.so
+          echo "Patched QtWidgets .text:"
+          ls -lh qtwidgets-text.bin
+
+          echo ""
+          echo "APK QtWidgets .text:"
+          ls -lh apk-qtwidgets-text.bin
+
+          QT_TEXT_HASH=$(sha256sum qtwidgets-text.bin | awk '{print $1}')
+          APK_TEXT_HASH=$(sha256sum apk-qtwidgets-text.bin | awk '{print $1}')
+
+          echo ""
+          echo "Patched QtWidgets .text SHA256:"
+          echo "$QT_TEXT_HASH"
+
+          echo ""
+          echo "APK QtWidgets .text SHA256:"
+          echo "$APK_TEXT_HASH"
+
+          echo ""
+
+          if [ "$QT_TEXT_HASH" != "$APK_TEXT_HASH" ]; then
+            echo "ERROR: APK QtWidgets .text DOES NOT MATCH"
+            echo ""
+            echo "The executable code inside the APK differs"
+            echo "from the patched QtWidgets binary."
+            exit 1
+          fi
+
+          echo "=========================================="
+          echo "FINAL APK QTWIDGETS CODE VERIFICATION: OK"
+          echo "=========================================="
+
+          echo ""
+          echo "The APK contains the same .text executable"
+          echo "code as the patched QtWidgets binary."
 
       # ================================================================
       # CHECK APK
