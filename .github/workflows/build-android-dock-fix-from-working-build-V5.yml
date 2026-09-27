@@ -512,7 +512,7 @@ jobs:
               r"(?P<indent>^[ \\t]*)"
               r"if\s*\(\s*d->state\s*\)\s*$"
               r"\n"
-              r"(?P=indent)d->endDrag\s*\(\s*"
+              r"[ \t]+d->endDrag\s*\(\s*"
               r"QDockWidgetPrivate::EndDragMode::Abort"
               r"\s*\)\s*;",
               re.M
