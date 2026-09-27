@@ -1,0 +1,762 @@
+# Patchy Android build
+#
+# Qt 6.10.3:
+# - Keeps the already-working eglSurface deadlock fallback patch unchanged.
+# - Rebuilds QtBase from Qt 6.10.3 source with a targeted QDockWidget
+#   re-entrancy fix.
+#
+# Dock fix:
+# QDockWidgetPrivate::startDrag() calls QMainWindowLayout::unplug().
+# On Android this can synchronously re-enter setFloating(), whose normal
+# endDrag() deletes DragState while startDrag() is still using it.
+#
+# The source patch adds:
+#   startingDrag
+#   abortPending
+#   releasePending
+#
+# Cleanup is deferred until unplug() has returned and DragState is valid.
+
+name: Build Patchy Native Android
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: ''
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build rsync python3 perl cmake
+
+      - name: Create test keystore
+        run: |
+          keytool -genkeypair \
+            -v \
+            -keystore "$GITHUB_WORKSPACE/patchy-test.keystore" \
+            -alias patchy \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass patchy123 \
+            -keypass patchy123 \
+            -dname "CN=Patchy, OU=Kintokikyo, O=Patchy, L=Indonesia, ST=Indonesia, C=ID"
+
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "ndk;27.2.12479018"
+
+      - name: Install Qt 6.10.3 Desktop
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.10.3'
+          host: 'linux'
+          target: 'desktop'
+          arch: 'linux_gcc_64'
+          modules: 'qtimageformats'
+          cache: true
+
+      - name: Save host Qt path
+        run: |
+          echo "HOST_QT_ROOT=$QT_ROOT_DIR" >> "$GITHUB_ENV"
+          echo "HOST_QT_ROOT=$QT_ROOT_DIR"
+
+      - name: Install Qt 6.10.3 Android
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.10.3'
+          host: 'all_os'
+          target: 'android'
+          arch: 'android_arm64_v8a'
+          modules: 'qtimageformats'
+          cache: true
+
+      # ================================================================
+      # KEEP THIS EGL PATCH EXACTLY AS-IS
+      # ================================================================
+      - name: Patch Qt Android eglSurface deadlock fallback
+        run: |
+          echo "===== PATCH QT ANDROID eglSurface ====="
+
+          QT_EGL_PLUGIN=$(find "$QT_ROOT_DIR" \
+            -type f \
+            -name "libplugins_platforms_qtforandroid_arm64-v8a.so" \
+            -print -quit)
+
+          if [ -z "$QT_EGL_PLUGIN" ]; then
+            echo "ERROR: Qt Android platform plugin not found"
+            exit 1
+          fi
+
+          echo "Qt plugin: $QT_EGL_PLUGIN"
+
+          python3 - "$QT_EGL_PLUGIN" <<'PY'
+          import sys
+          from pathlib import Path
+
+          path = Path(sys.argv[1])
+          data = bytearray(path.read_bytes())
+
+          # Exact already-working Qt 6.10.3 ARM64 EGL patch.
+          old = bytes.fromhex(
+              "48008052 61fcffd0 213c1c91 e81300b9 68fcff90"
+              "08dd1091 1f2003d5 e252c870 e0430091 b5000094"
+          )
+
+          new = bytes.fromhex(
+              "e0c30091 030a0094 e0031faa f7ffff17"
+              "1f2003d5 1f2003d5 1f2003d5 1f2003d5"
+              "1f2003d5 1f2003d5"
+          )
+
+          if len(old) != 40 or len(new) != 40:
+              raise SystemExit("ERROR: EGL patch byte length mismatch")
+
+          occurrences = data.count(old)
+
+          if occurrences != 1:
+              raise SystemExit(
+                  f"ERROR: expected exactly 1 EGL sequence, "
+                  f"found {occurrences}"
+              )
+
+          offset = data.index(old)
+          print(f"EGL patch offset: 0x{offset:x}")
+
+          data[offset:offset + len(old)] = new
+          path.write_bytes(data)
+
+          verify = path.read_bytes()
+
+          if verify[offset:offset + len(new)] != new:
+              raise SystemExit("ERROR: EGL patch verification failed")
+
+          print("EGL patch verification: OK")
+          PY
+
+          echo "===== VERIFY EGL PATCH ====="
+          ls -l "$QT_EGL_PLUGIN"
+
+      # ================================================================
+      # DOWNLOAD QTBASE SOURCE
+      # ================================================================
+      - name: Download Qt 6.10.3 qtbase source
+        run: |
+          echo "===== DOWNLOAD QTBASE 6.10.3 ====="
+
+          curl -L --fail --retry 3 \
+            -o qtbase-everywhere-src-6.10.3.tar.xz \
+            https://download.qt.io/official_releases/qt/6.10/6.10.3/submodules/qtbase-everywhere-src-6.10.3.tar.xz
+
+          echo "383dc907816338f0cba72088a524c07458dfc69ce684ca9132fcc4fe91c24b0b  qtbase-everywhere-src-6.10.3.tar.xz" \
+            | sha256sum -c -
+
+          rm -rf qtbase-src
+
+          mkdir -p qtbase-src
+
+          tar -xJf qtbase-everywhere-src-6.10.3.tar.xz \
+            --strip-components=1 \
+            -C qtbase-src
+
+          test -f qtbase-src/configure
+          test -f qtbase-src/src/widgets/widgets/qdockwidget.cpp
+          test -f qtbase-src/src/widgets/widgets/qdockwidget_p.h
+
+          echo "QtBase source verified."
+
+      # ================================================================
+      # PATCH QDOCKWIDGET SOURCE
+      # ================================================================
+      - name: Patch Qt 6.10.3 QDockWidget re-entrancy
+        run: |
+          echo "===== PATCH QDOCKWIDGET RE-ENTRANCY ====="
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path("qtbase-src/src/widgets/widgets")
+          cpp = root / "qdockwidget.cpp"
+          hdr = root / "qdockwidget_p.h"
+
+          cpp_text = cpp.read_text()
+          hdr_text = hdr.read_text()
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(
+                      f"ERROR: {label}: expected exactly 1 match, found {count}"
+                  )
+              return text.replace(old, new, 1)
+
+          # ------------------------------------------------------------
+          # 1. DragState lives in qdockwidget_p.h.
+          # Use only the unique ctrlDrag member as the anchor so that
+          # harmless indentation/source formatting changes cannot break
+          # the patch.
+          # ------------------------------------------------------------
+          old = "        bool ctrlDrag;\\n"
+          new = (
+              "        bool ctrlDrag;\\n"
+              "        bool startingDrag;\\n"
+              "        bool abortPending;\\n"
+              "        bool releasePending;\\n"
+          )
+
+          hdr_text = replace_once(
+              hdr_text,
+              old,
+              new,
+              "DragState fields"
+          )
+
+          # ------------------------------------------------------------
+          # 2. Initialize the new fields.
+          # ------------------------------------------------------------
+          old = "    state->ctrlDrag = false;\\n"
+          new = (
+              "    state->ctrlDrag = false;\\n"
+              "    state->startingDrag = false;\\n"
+              "    state->abortPending = false;\\n"
+              "    state->releasePending = false;\\n"
+          )
+
+          cpp_text = replace_once(
+              cpp_text,
+              old,
+              new,
+              "initDrag fields"
+          )
+
+          # ------------------------------------------------------------
+          # 3. Mark the re-entrant window BEFORE unplug().
+          # ------------------------------------------------------------
+          old = "    state->widgetItem = layout->unplug(q, scope);\\n"
+          new = (
+              "    state->startingDrag = true;\\n"
+              "    state->widgetItem = layout->unplug(q, scope);\\n"
+          )
+
+          cpp_text = replace_once(
+              cpp_text,
+              old,
+              new,
+              "startDrag unplug"
+          )
+
+          # ------------------------------------------------------------
+          # 4. After unplug() returns, stop the guard and handle any
+          # deferred cleanup request.
+          # ------------------------------------------------------------
+          old = "    state->dragging = true;\\n"
+          new = (
+              "    state->dragging = true;\\n"
+              "    state->startingDrag = false;\\n"
+              "\\n"
+              "    if (state->abortPending) {\\n"
+              "        state->abortPending = false;\\n"
+              "        state->releasePending = false;\\n"
+              "        endDrag(QDockWidgetPrivate::EndDragMode::Abort);\\n"
+              "        return;\\n"
+              "    }\\n"
+              "\\n"
+              "    if (state->releasePending) {\\n"
+              "        state->releasePending = false;\\n"
+              "        endDrag(QDockWidgetPrivate::EndDragMode::LocationChange);\\n"
+              "        return;\\n"
+              "    }\\n"
+          )
+
+          cpp_text = replace_once(
+              cpp_text,
+              old,
+              new,
+              "startDrag completion"
+          )
+
+          # ------------------------------------------------------------
+          # 5. THIS IS THE CRITICAL FIX.
+          # setFloating() must not delete DragState while startDrag()
+          # is still inside layout->unplug().
+          # ------------------------------------------------------------
+          old = (
+              "    // the initial click of a double-click may have started a drag...\\n"
+              "    if (state != nullptr)\\n"
+              "        endDrag(QDockWidgetPrivate::EndDragMode::Abort);\\n"
+          )
+
+          new = (
+              "    // The initial click of a double-click may have started a drag.\\n"
+              "    // Do not delete DragState while startDrag() is inside unplug().\\n"
+              "    if (state != nullptr) {\\n"
+              "        if (state->startingDrag)\\n"
+              "            state->abortPending = true;\\n"
+              "        else\\n"
+              "            endDrag(QDockWidgetPrivate::EndDragMode::Abort);\\n"
+              "    }\\n"
+          )
+
+          cpp_text = replace_once(
+              cpp_text,
+              old,
+              new,
+              "setFloating cleanup"
+          )
+
+          # ------------------------------------------------------------
+          # 6. Defer mouse-release cleanup for the same re-entrant window.
+          # ------------------------------------------------------------
+          old = (
+              "    if (event->button() == Qt::LeftButton && state && !state->nca) {\\n"
+              "        endDrag(EndDragMode::LocationChange);\\n"
+              "        return true; //filter out the event\\n"
+              "    }\\n"
+          )
+
+          new = (
+              "    if (event->button() == Qt::LeftButton && state && !state->nca) {\\n"
+              "        if (state->startingDrag) {\\n"
+              "            state->releasePending = true;\\n"
+              "            return true; //filter out the event\\n"
+              "        }\\n"
+              "        endDrag(EndDragMode::LocationChange);\\n"
+              "        return true; //filter out the event\\n"
+              "    }\\n"
+          )
+
+          cpp_text = replace_once(
+              cpp_text,
+              old,
+              new,
+              "mouseReleaseEvent cleanup"
+          )
+
+          hdr.write_text(hdr_text)
+          cpp.write_text(cpp_text)
+
+          # ------------------------------------------------------------
+          # 7. Source verification.
+          # ------------------------------------------------------------
+          required_header = [
+              "bool startingDrag;",
+              "bool abortPending;",
+              "bool releasePending;",
+          ]
+
+          required_cpp = [
+              "state->startingDrag = true;",
+              "state->startingDrag = false;",
+              "state->abortPending = true;",
+              "state->releasePending = true;",
+              "if (state->startingDrag)",
+              "if (state->abortPending)",
+              "if (state->releasePending)",
+          ]
+
+          h = hdr.read_text()
+          c = cpp.read_text()
+
+          for marker in required_header:
+              if marker not in h:
+                  raise SystemExit(
+                      f"ERROR: missing header marker: {marker}"
+                  )
+
+          for marker in required_cpp:
+              if marker not in c:
+                  raise SystemExit(
+                      f"ERROR: missing cpp marker: {marker}"
+                  )
+
+          print("HEADER PATCH VERIFICATION: OK")
+          print("SOURCE PATCH VERIFICATION: OK")
+          PY
+
+          echo "===== VERIFY QDOCKWIDGET HEADER ====="
+          grep -n -A8 -B4 \
+            "bool ctrlDrag" \
+            qtbase-src/src/widgets/widgets/qdockwidget_p.h
+
+          echo "===== VERIFY startDrag PATCH ====="
+          grep -n -A30 -B6 \
+            "state->startingDrag = true" \
+            qtbase-src/src/widgets/widgets/qdockwidget.cpp
+
+          echo "===== VERIFY setFloating PATCH ====="
+          grep -n -A14 -B5 \
+            "state->abortPending = true" \
+            qtbase-src/src/widgets/widgets/qdockwidget.cpp
+
+      # ================================================================
+      # CONFIGURE QTBASE
+      # ================================================================
+      - name: Configure patched Qt 6.10.3 for Android
+        env:
+          QTBASE_SRC: ${{ github.workspace }}/qtbase-src
+          QTBASE_BUILD: ${{ github.workspace }}/qtbase-build
+          QTBASE_INSTALL: ${{ github.workspace }}/qtbase-install
+        run: |
+          echo "===== CONFIGURE PATCHED QTBASE ====="
+
+          rm -rf "$QTBASE_BUILD"
+          rm -rf "$QTBASE_INSTALL"
+
+          mkdir -p "$QTBASE_BUILD"
+          mkdir -p "$QTBASE_INSTALL"
+
+          cd "$QTBASE_BUILD"
+
+          "$QTBASE_SRC/configure" \
+            -release \
+            -opensource \
+            -confirm-license \
+            -nomake tests \
+            -nomake examples \
+            -prefix "$QTBASE_INSTALL" \
+            -qt-host-path "$HOST_QT_ROOT" \
+            -android-abis arm64-v8a \
+            -android-sdk "$ANDROID_SDK_ROOT" \
+            -android-ndk "$ANDROID_SDK_ROOT/ndk/27.2.12479018"
+
+      # ================================================================
+      # BUILD QTBASE
+      # ================================================================
+      - name: Build patched Qt 6.10.3
+        env:
+          QTBASE_BUILD: ${{ github.workspace }}/qtbase-build
+        run: |
+          echo "===== BUILD PATCHED QTBASE ====="
+
+          cmake --build "$QTBASE_BUILD" --parallel 2
+
+      # ================================================================
+      # INSTALL QTBASE
+      # ================================================================
+      - name: Install patched Qt 6.10.3
+        env:
+          QTBASE_BUILD: ${{ github.workspace }}/qtbase-build
+          QTBASE_INSTALL: ${{ github.workspace }}/qtbase-install
+        run: |
+          echo "===== INSTALL PATCHED QTBASE ====="
+
+          cmake --install "$QTBASE_BUILD"
+
+      # ================================================================
+      # OVERLAY ONLY PATCHED QTWIDGETS ONTO PREBUILT QT ANDROID
+      # ================================================================
+      - name: Overlay only patched QtWidgets onto Qt Android
+        env:
+          QT_ANDROID_ORIGINAL: ${{ github.workspace }}/qt-android-original
+          QT_ANDROID_PATCHED: ${{ github.workspace }}/qt-android-patched
+          QTBASE_INSTALL: ${{ github.workspace }}/qtbase-install
+        run: |
+          echo "===== OVERLAY ONLY PATCHED QTWIDGETS ====="
+
+          rm -rf "$QT_ANDROID_ORIGINAL"
+          rm -rf "$QT_ANDROID_PATCHED"
+
+          # Start from the original prebuilt Qt Android tree.
+          # This preserves the already-working EGL patch.
+          cp -a "$QT_ROOT_DIR" "$QT_ANDROID_ORIGINAL"
+          cp -a "$QT_ROOT_DIR" "$QT_ANDROID_PATCHED"
+
+          echo "===== FIND PATCHED QtWidgets ====="
+
+          PATCHED_WIDGETS=$(find "$QTBASE_INSTALL" \
+            -type f \
+            -name "libQt6Widgets_arm64-v8a.so" \
+            -print -quit)
+
+          if [ -z "$PATCHED_WIDGETS" ]; then
+            echo "ERROR: patched libQt6Widgets_arm64-v8a.so not found"
+            exit 1
+          fi
+
+          echo "Patched QtWidgets:"
+          echo "$PATCHED_WIDGETS"
+
+          echo "===== FIND ORIGINAL QtWidgets ====="
+
+          ORIGINAL_WIDGETS=$(find "$QT_ANDROID_PATCHED" \
+            -type f \
+            -name "libQt6Widgets_arm64-v8a.so" \
+            -print -quit)
+
+          if [ -z "$ORIGINAL_WIDGETS" ]; then
+            echo "ERROR: original libQt6Widgets_arm64-v8a.so not found"
+            exit 1
+          fi
+
+          echo "Original QtWidgets:"
+          echo "$ORIGINAL_WIDGETS"
+
+          echo "===== REPLACE QtWidgets ONLY ====="
+
+          cp "$PATCHED_WIDGETS" "$ORIGINAL_WIDGETS"
+
+          echo "QtWidgets replacement: OK"
+
+          echo "===== VERIFY EGL PLUGIN WAS PRESERVED ====="
+
+          QT_EGL_PLUGIN=$(find "$QT_ANDROID_PATCHED" \
+            -type f \
+            -name "libplugins_platforms_qtforandroid_arm64-v8a.so" \
+            -print -quit)
+
+          if [ -z "$QT_EGL_PLUGIN" ]; then
+            echo "ERROR: EGL plugin disappeared"
+            exit 1
+          fi
+
+          echo "EGL plugin:"
+          echo "$QT_EGL_PLUGIN"
+
+          ls -lh \
+            "$ORIGINAL_WIDGETS" \
+            "$QT_EGL_PLUGIN"
+
+          echo "QT_ROOT_DIR=$QT_ANDROID_PATCHED" >> "$GITHUB_ENV"
+          echo "QT_ANDROID_PATCHED=$QT_ANDROID_PATCHED" >> "$GITHUB_ENV"
+
+      # ================================================================
+      # VERIFY FINAL QT LIBRARIES
+      # ================================================================
+      - name: Verify final patched Qt libraries
+        run: |
+          echo "===== FINAL QT LIBRARIES ====="
+
+          QT_WIDGETS=$(find "$QT_ROOT_DIR" \
+            -type f \
+            -name "libQt6Widgets_arm64-v8a.so" \
+            -print -quit)
+
+          QT_GUI=$(find "$QT_ROOT_DIR" \
+            -type f \
+            -name "libQt6Gui_arm64-v8a.so" \
+            -print -quit)
+
+          QT_EGL=$(find "$QT_ROOT_DIR" \
+            -type f \
+            -name "libplugins_platforms_qtforandroid_arm64-v8a.so" \
+            -print -quit)
+
+          echo "QtWidgets: $QT_WIDGETS"
+          echo "QtGui:     $QT_GUI"
+          echo "QtEGL:     $QT_EGL"
+
+          test -n "$QT_WIDGETS"
+          test -n "$QT_GUI"
+          test -n "$QT_EGL"
+
+          ls -lh \
+            "$QT_WIDGETS" \
+            "$QT_GUI" \
+            "$QT_EGL"
+
+      # ================================================================
+      # PREPARE ANDROID MANIFEST
+      # ================================================================
+      - name: Prepare Qt Android manifest
+        run: |
+          echo "===== FIND QT ANDROID TEMPLATE ====="
+
+          QT_ANDROID_TEMPLATE=$(find "$QT_ROOT_DIR" \
+            -path "*/src/android/templates/AndroidManifest.xml" \
+            -print -quit)
+
+          echo "Template: $QT_ANDROID_TEMPLATE"
+
+          if [ -z "$QT_ANDROID_TEMPLATE" ]; then
+            echo "ERROR: Qt AndroidManifest.xml template not found"
+            exit 1
+          fi
+
+          cp "$QT_ANDROID_TEMPLATE" android/AndroidManifest.xml
+
+          echo "===== PATCH MANIFEST ====="
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("android/AndroidManifest.xml")
+          text = path.read_text()
+
+          text = text.replace(
+              'android:screenOrientation="unspecified"',
+              'android:screenOrientation="landscape"',
+              1
+          )
+
+          text = text.replace(
+              '    package="org.qtproject.qt.example"',
+              '',
+              1
+          )
+
+          text = text.replace(
+              '<activity',
+              '<activity android:theme="@android:style/Theme.Material.NoActionBar"',
+              1
+          )
+
+          text = text.replace(
+              'android:name="org.qtproject.qt.android.bindings.QtActivity"',
+              'android:name="com.kintokikyo.patchy.MainActivity"',
+              1
+          )
+
+          path.write_text(text)
+          PY
+
+          echo "===== FINAL MANIFEST ====="
+          cat android/AndroidManifest.xml
+
+      # ================================================================
+      # CONFIGURE PATCHY
+      # ================================================================
+      - name: Configure Patchy
+        env:
+          QT_ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/patchy-test.keystore
+          QT_ANDROID_KEYSTORE_ALIAS: patchy
+          QT_ANDROID_KEYSTORE_STORE_PASS: patchy123
+          QT_ANDROID_KEYSTORE_KEY_PASS: patchy123
+        run: |
+          "$QT_ROOT_DIR/bin/qt-cmake" \
+            -S . \
+            -B build/android-release \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPATCHY_BUILD_APP=ON \
+            -DPATCHY_BUILD_TESTS=OFF \
+            -DQT_ANDROID_ABIS=arm64-v8a \
+            -DQT_ANDROID_MIN_SDK_VERSION=28 \
+            -DQT_ANDROID_TARGET_SDK_VERSION=36 \
+            -DQT_ANDROID_PACKAGE_NAME=com.kintokikyo.patchy \
+            -DQT_HOST_PATH="$HOST_QT_ROOT" \
+            -DANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" \
+            -DANDROID_NDK_ROOT="$ANDROID_SDK_ROOT/ndk/27.2.12479018" \
+            -DQT_ENABLE_VERBOSE_DEPLOYMENT=ON \
+            -DQT_ANDROID_SIGN_APK=ON
+
+      # ================================================================
+      # BUILD APK
+      # ================================================================
+      - name: Build APK
+        continue-on-error: true
+        env:
+          QT_ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/patchy-test.keystore
+          QT_ANDROID_KEYSTORE_ALIAS: patchy
+          QT_ANDROID_KEYSTORE_STORE_PASS: patchy123
+          QT_ANDROID_KEYSTORE_KEY_PASS: patchy123
+        run: |
+          cmake --build build/android-release \
+            --target apk \
+            --parallel 2
+
+      # ================================================================
+      # INSPECT GRADLE PROJECT
+      # ================================================================
+      - name: Inspect Android Gradle Project
+        run: |
+          echo "===== android-build ====="
+
+          find build/android-release/android-build \
+            -maxdepth 2 \
+            -type f \
+            -print || true
+
+          echo ""
+          echo "===== gradle.properties ====="
+
+          cat \
+            build/android-release/android-build/gradle.properties \
+            || true
+
+          echo ""
+          echo "===== settings.gradle.kts ====="
+
+          cat \
+            build/android-release/android-build/settings.gradle.kts \
+            || true
+
+          echo ""
+          echo "===== settings.gradle ====="
+
+          cat \
+            build/android-release/android-build/settings.gradle \
+            || true
+
+          echo ""
+          echo "===== build.gradle.kts ====="
+
+          cat \
+            build/android-release/android-build/build.gradle.kts \
+            || true
+
+          echo ""
+          echo "===== build.gradle ====="
+
+          cat \
+            build/android-release/android-build/build.gradle \
+            || true
+
+      # ================================================================
+      # FIND APK
+      # ================================================================
+      - name: Find APK
+        run: |
+          echo "===== APK FILES ====="
+
+          find build/android-release \
+            -type f \
+            -name "*.apk" \
+            -print
+
+      # ================================================================
+      # CHECK APK
+      # ================================================================
+      - name: Check APK
+        run: |
+          if ! find build/android-release \
+              -type f \
+              -name "*.apk" \
+              | grep -q .; then
+
+            echo "APK belum berhasil dibuat."
+            exit 1
+          fi
+
+          echo "APK ditemukan."
+
+      # ================================================================
+      # UPLOAD APK
+      # ================================================================
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: patchy-dock-fix-qt6103
+          path: |
+            build/android-release/**/*.apk
+            build/android-release/*.apk
+          if-no-files-found: error
