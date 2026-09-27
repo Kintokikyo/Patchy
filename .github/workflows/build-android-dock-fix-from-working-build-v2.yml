@@ -194,6 +194,7 @@ jobs:
 
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
           root = Path("qtbase-src/src/widgets/widgets")
           cpp = root / "qdockwidget.cpp"
@@ -202,162 +203,197 @@ jobs:
           cpp_text = cpp.read_text()
           hdr_text = hdr.read_text()
 
-          def replace_once(text, old, new, label):
-              count = text.count(old)
+          def require_once(text, pattern, replacement, label):
+              out, count = re.subn(pattern, replacement, text, count=1, flags=re.M | re.S)
               if count != 1:
                   raise SystemExit(
-                      f"ERROR: {label}: expected exactly 1 match, found {count}"
+                      f"ERROR: {label}: expected 1 match, found {count}"
                   )
-              return text.replace(old, new, 1)
+              return out
 
           # ------------------------------------------------------------
-          # 1. DragState lives in qdockwidget_p.h.
-          # Use only the unique ctrlDrag member as the anchor so that
-          # harmless indentation/source formatting changes cannot break
-          # the patch.
+          # 1. DragState is in qdockwidget_p.h.
+          # Match ctrlDrag independent of the exact indentation used by
+          # the Qt source archive.
           # ------------------------------------------------------------
-          old = "        bool ctrlDrag;\\n"
-          new = (
-              "        bool ctrlDrag;\\n"
-              "        bool startingDrag;\\n"
-              "        bool abortPending;\\n"
-              "        bool releasePending;\\n"
+          pattern = r"^([ \t]*)bool ctrlDrag;\s*$"
+          replacement = (
+              r"\1bool ctrlDrag;\n"
+              r"\1bool startingDrag;\n"
+              r"\1bool abortPending;\n"
+              r"\1bool releasePending;"
           )
-
-          hdr_text = replace_once(
+          hdr_text = require_once(
               hdr_text,
-              old,
-              new,
+              pattern,
+              replacement,
               "DragState fields"
           )
 
           # ------------------------------------------------------------
-          # 2. Initialize the new fields.
+          # 2. Initialize the new flags.
           # ------------------------------------------------------------
-          old = "    state->ctrlDrag = false;\\n"
-          new = (
-              "    state->ctrlDrag = false;\\n"
-              "    state->startingDrag = false;\\n"
-              "    state->abortPending = false;\\n"
-              "    state->releasePending = false;\\n"
+          pattern = r"^([ \t]*)state->ctrlDrag = false;\s*$"
+          replacement = (
+              r"\1state->ctrlDrag = false;\n"
+              r"\1state->startingDrag = false;\n"
+              r"\1state->abortPending = false;\n"
+              r"\1state->releasePending = false;"
           )
-
-          cpp_text = replace_once(
+          cpp_text = require_once(
               cpp_text,
-              old,
-              new,
-              "initDrag fields"
+              pattern,
+              replacement,
+              "initDrag flags"
           )
 
           # ------------------------------------------------------------
-          # 3. Mark the re-entrant window BEFORE unplug().
+          # 3. Mark the critical re-entrant window before unplug().
           # ------------------------------------------------------------
-          old = "    state->widgetItem = layout->unplug(q, scope);\\n"
-          new = (
-              "    state->startingDrag = true;\\n"
-              "    state->widgetItem = layout->unplug(q, scope);\\n"
+          pattern = r"^([ \t]*)state->widgetItem = layout->unplug\(q, scope\);\s*$"
+          replacement = (
+              r"\1// Keep DragState alive while unplug() can re-enter setFloating().\n"
+              r"\1state->startingDrag = true;\n"
+              r"\1state->widgetItem = layout->unplug(q, scope);"
           )
-
-          cpp_text = replace_once(
+          cpp_text = require_once(
               cpp_text,
-              old,
-              new,
+              pattern,
+              replacement,
               "startDrag unplug"
           )
 
           # ------------------------------------------------------------
-          # 4. After unplug() returns, stop the guard and handle any
-          # deferred cleanup request.
+          # 4. After unplug(), resolve deferred cleanup.
           # ------------------------------------------------------------
-          old = "    state->dragging = true;\\n"
-          new = (
-              "    state->dragging = true;\\n"
-              "    state->startingDrag = false;\\n"
-              "\\n"
-              "    if (state->abortPending) {\\n"
-              "        state->abortPending = false;\\n"
-              "        state->releasePending = false;\\n"
-              "        endDrag(QDockWidgetPrivate::EndDragMode::Abort);\\n"
-              "        return;\\n"
-              "    }\\n"
-              "\\n"
-              "    if (state->releasePending) {\\n"
-              "        state->releasePending = false;\\n"
-              "        endDrag(QDockWidgetPrivate::EndDragMode::LocationChange);\\n"
-              "        return;\\n"
-              "    }\\n"
+          pattern = r"^([ \t]*)state->dragging = true;\s*$"
+          replacement = (
+              r"\1state->dragging = true;\n"
+              r"\1state->startingDrag = false;\n"
+              "\n"
+              r"\1if (state->abortPending) {" + "\n"
+              r"\1    state->abortPending = false;" + "\n"
+              r"\1    state->releasePending = false;" + "\n"
+              r"\1    endDrag(QDockWidgetPrivate::EndDragMode::Abort);" + "\n"
+              r"\1    return;" + "\n"
+              r"\1}" + "\n"
+              "\n"
+              r"\1if (state->releasePending) {" + "\n"
+              r"\1    state->releasePending = false;" + "\n"
+              r"\1    endDrag(QDockWidgetPrivate::EndDragMode::LocationChange);" + "\n"
+              r"\1    return;" + "\n"
+              r"\1}"
           )
-
-          cpp_text = replace_once(
+          cpp_text = require_once(
               cpp_text,
-              old,
-              new,
+              pattern,
+              replacement,
               "startDrag completion"
           )
 
           # ------------------------------------------------------------
-          # 5. THIS IS THE CRITICAL FIX.
-          # setFloating() must not delete DragState while startDrag()
-          # is still inside layout->unplug().
+          # 5. CRITICAL: patch only the setFloating() function.
+          # We do not depend on Qt's exact comment text.
           # ------------------------------------------------------------
-          old = (
-              "    // the initial click of a double-click may have started a drag...\\n"
-              "    if (state != nullptr)\\n"
-              "        endDrag(QDockWidgetPrivate::EndDragMode::Abort);\\n"
+          sf_start = cpp_text.find("void QDockWidgetPrivate::setFloating(bool floating)")
+          if sf_start < 0:
+              raise SystemExit("ERROR: setFloating() function not found")
+
+          sf_end = cpp_text.find("\n}\n", sf_start)
+          if sf_end < 0:
+              raise SystemExit("ERROR: setFloating() function end not found")
+
+          sf = cpp_text[sf_start:sf_end + 3]
+
+          pattern = r"if \(state != nullptr\)\s*\{\s*if \(state->startingDrag\)"
+          if re.search(pattern, sf):
+              raise SystemExit("ERROR: setFloating() already appears patched")
+
+          pattern = (
+              r"if \(state != nullptr\)\s*\n"
+              r"(\s*)endDrag\(QDockWidgetPrivate::EndDragMode::Abort\);"
+          )
+          replacement = (
+              r"if (state != nullptr) {" + "\n"
+              r"\1    if (state->startingDrag)" + "\n"
+              r"\1        state->abortPending = true;" + "\n"
+              r"\1    else" + "\n"
+              r"\1        endDrag(QDockWidgetPrivate::EndDragMode::Abort);" + "\n"
+              r"\1}"
           )
 
-          new = (
-              "    // The initial click of a double-click may have started a drag.\\n"
-              "    // Do not delete DragState while startDrag() is inside unplug().\\n"
-              "    if (state != nullptr) {\\n"
-              "        if (state->startingDrag)\\n"
-              "            state->abortPending = true;\\n"
-              "        else\\n"
-              "            endDrag(QDockWidgetPrivate::EndDragMode::Abort);\\n"
-              "    }\\n"
+          sf_new, count = re.subn(
+              pattern,
+              replacement,
+              sf,
+              count=1
           )
 
-          cpp_text = replace_once(
-              cpp_text,
-              old,
-              new,
-              "setFloating cleanup"
-          )
+          if count != 1:
+              raise SystemExit(
+                  "ERROR: setFloating() cleanup block not found"
+              )
+
+          cpp_text = cpp_text[:sf_start] + sf_new + cpp_text[sf_end + 3:]
 
           # ------------------------------------------------------------
-          # 6. Defer mouse-release cleanup for the same re-entrant window.
+          # 6. Patch only mouseReleaseEvent().
           # ------------------------------------------------------------
-          old = (
-              "    if (event->button() == Qt::LeftButton && state && !state->nca) {\\n"
-              "        endDrag(EndDragMode::LocationChange);\\n"
-              "        return true; //filter out the event\\n"
-              "    }\\n"
+          mr_start = cpp_text.find("bool QDockWidgetPrivate::mouseReleaseEvent")
+          if mr_start < 0:
+              raise SystemExit("ERROR: mouseReleaseEvent() function not found")
+
+          mr_end = cpp_text.find("\n}\n", mr_start)
+          if mr_end < 0:
+              raise SystemExit("ERROR: mouseReleaseEvent() function end not found")
+
+          mr = cpp_text[mr_start:mr_end + 3]
+
+          pattern = (
+              r"(if \(event->button\(\) == Qt::LeftButton && state && !state->nca\) \{\s*)"
+              r"(endDrag\(EndDragMode::LocationChange\);\s*)"
+              r"(return true;\s*//\s*filter out the event\s*;\s*|return true;\s*//\s*filter out the event\s*)"
+              r"(\})"
           )
 
-          new = (
-              "    if (event->button() == Qt::LeftButton && state && !state->nca) {\\n"
-              "        if (state->startingDrag) {\\n"
-              "            state->releasePending = true;\\n"
-              "            return true; //filter out the event\\n"
-              "        }\\n"
-              "        endDrag(EndDragMode::LocationChange);\\n"
-              "        return true; //filter out the event\\n"
-              "    }\\n"
+          m = re.search(pattern, mr, flags=re.S)
+          if not m:
+              # Qt 6.10.3 uses the comment without a trailing semicolon.
+              pattern = (
+                  r"(if \(event->button\(\) == Qt::LeftButton && state && !state->nca\) \{\s*)"
+                  r"(endDrag\(EndDragMode::LocationChange\);\s*)"
+                  r"(return true;\s*//\s*filter out the event\s*)"
+                  r"(\})"
+              )
+              m = re.search(pattern, mr, flags=re.S)
+
+          if not m:
+              raise SystemExit("ERROR: mouseReleaseEvent() cleanup block not found")
+
+          indent = "        "
+          new_block = (
+              "    if (event->button() == Qt::LeftButton && state && !state->nca) {\n"
+              "        if (state->startingDrag) {\n"
+              "            state->releasePending = true;\n"
+              "            return true; // filter out the event\n"
+              "        }\n"
+              "        endDrag(EndDragMode::LocationChange);\n"
+              "        return true; // filter out the event\n"
+              "    }"
           )
 
-          cpp_text = replace_once(
-              cpp_text,
-              old,
-              new,
-              "mouseReleaseEvent cleanup"
-          )
+          mr_new = mr[:m.start()] + new_block + mr[m.end():]
+          cpp_text = cpp_text[:mr_start] + mr_new + cpp_text[mr_end + 3:]
 
           hdr.write_text(hdr_text)
           cpp.write_text(cpp_text)
 
           # ------------------------------------------------------------
-          # 7. Source verification.
+          # 7. Verify the actual source after patching.
           # ------------------------------------------------------------
+          h = hdr.read_text()
+          c = cpp.read_text()
+
           required_header = [
               "bool startingDrag;",
               "bool abortPending;",
@@ -374,37 +410,30 @@ jobs:
               "if (state->releasePending)",
           ]
 
-          h = hdr.read_text()
-          c = cpp.read_text()
-
           for marker in required_header:
               if marker not in h:
-                  raise SystemExit(
-                      f"ERROR: missing header marker: {marker}"
-                  )
+                  raise SystemExit(f"ERROR: missing header marker: {marker}")
 
           for marker in required_cpp:
               if marker not in c:
-                  raise SystemExit(
-                      f"ERROR: missing cpp marker: {marker}"
-                  )
+                  raise SystemExit(f"ERROR: missing cpp marker: {marker}")
 
+          print("QDockWidget source patch: OK")
           print("HEADER PATCH VERIFICATION: OK")
           print("SOURCE PATCH VERIFICATION: OK")
           PY
 
-          echo "===== VERIFY QDOCKWIDGET HEADER ====="
+          echo "===== VERIFY PATCHED SOURCE ====="
+
           grep -n -A8 -B4 \
-            "bool ctrlDrag" \
+            "bool startingDrag" \
             qtbase-src/src/widgets/widgets/qdockwidget_p.h
 
-          echo "===== VERIFY startDrag PATCH ====="
-          grep -n -A30 -B6 \
+          grep -n -A28 -B6 \
             "state->startingDrag = true" \
             qtbase-src/src/widgets/widgets/qdockwidget.cpp
 
-          echo "===== VERIFY setFloating PATCH ====="
-          grep -n -A14 -B5 \
+          grep -n -A12 -B5 \
             "state->abortPending = true" \
             qtbase-src/src/widgets/widgets/qdockwidget.cpp
 
