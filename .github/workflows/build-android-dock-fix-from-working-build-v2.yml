@@ -44,7 +44,7 @@ jobs:
       - name: Install build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build rsync python3 perl cmake
+          sudo apt-get install -y ninja-build rsync python3 perl cmake llvm
 
       - name: Create test keystore
         run: |
@@ -204,25 +204,33 @@ jobs:
           hdr_text = hdr.read_text()
 
           def require_once(text, pattern, replacement, label):
-              out, count = re.subn(pattern, replacement, text, count=1, flags=re.M | re.S)
+              out, count = re.subn(
+                  pattern,
+                  replacement,
+                  text,
+                  count=1,
+                  flags=re.M | re.S
+              )
+
               if count != 1:
                   raise SystemExit(
                       f"ERROR: {label}: expected 1 match, found {count}"
                   )
+
               return out
 
           # ------------------------------------------------------------
-          # 1. DragState is in qdockwidget_p.h.
-          # Match ctrlDrag independent of the exact indentation used by
-          # the Qt source archive.
+          # 1. Add DragState flags.
           # ------------------------------------------------------------
           pattern = r"^([ \t]*)bool ctrlDrag;\s*$"
+
           replacement = (
               r"\1bool ctrlDrag;\n"
               r"\1bool startingDrag;\n"
               r"\1bool abortPending;\n"
               r"\1bool releasePending;"
           )
+
           hdr_text = require_once(
               hdr_text,
               pattern,
@@ -234,12 +242,14 @@ jobs:
           # 2. Initialize the new flags.
           # ------------------------------------------------------------
           pattern = r"^([ \t]*)state->ctrlDrag = false;\s*$"
+
           replacement = (
               r"\1state->ctrlDrag = false;\n"
               r"\1state->startingDrag = false;\n"
               r"\1state->abortPending = false;\n"
               r"\1state->releasePending = false;"
           )
+
           cpp_text = require_once(
               cpp_text,
               pattern,
@@ -248,14 +258,19 @@ jobs:
           )
 
           # ------------------------------------------------------------
-          # 3. Mark the critical re-entrant window before unplug().
+          # 3. Mark the re-entrant window before unplug().
           # ------------------------------------------------------------
-          pattern = r"^([ \t]*)state->widgetItem = layout->unplug\(q, scope\);\s*$"
+          pattern = (
+              r"^([ \t]*)"
+              r"state->widgetItem = layout->unplug\(q, scope\);\s*$"
+          )
+
           replacement = (
               r"\1// Keep DragState alive while unplug() can re-enter setFloating().\n"
               r"\1state->startingDrag = true;\n"
               r"\1state->widgetItem = layout->unplug(q, scope);"
           )
+
           cpp_text = require_once(
               cpp_text,
               pattern,
@@ -264,9 +279,10 @@ jobs:
           )
 
           # ------------------------------------------------------------
-          # 4. After unplug(), resolve deferred cleanup.
+          # 4. Resolve deferred cleanup after unplug().
           # ------------------------------------------------------------
           pattern = r"^([ \t]*)state->dragging = true;\s*$"
+
           replacement = (
               r"\1state->dragging = true;\n"
               r"\1state->startingDrag = false;\n"
@@ -284,6 +300,7 @@ jobs:
               r"\1    return;" + "\n"
               r"\1}"
           )
+
           cpp_text = require_once(
               cpp_text,
               pattern,
@@ -292,87 +309,111 @@ jobs:
           )
 
           # ------------------------------------------------------------
-          # 5. CRITICAL: patch only the setFloating() function.
-          # We do not depend on Qt's exact comment text.
+          # 5. CRITICAL: patch setFloating().
           # ------------------------------------------------------------
-          sf_start = cpp_text.find("void QDockWidgetPrivate::setFloating(bool floating)")
-          if sf_start < 0:
-              raise SystemExit("ERROR: setFloating() function not found")
-
-          sf_end = cpp_text.find("\n}\n", sf_start)
-          if sf_end < 0:
-              raise SystemExit("ERROR: setFloating() function end not found")
-
-          sf = cpp_text[sf_start:sf_end + 3]
-
-          pattern = r"if \(state != nullptr\)\s*\{\s*if \(state->startingDrag\)"
-          if re.search(pattern, sf):
-              raise SystemExit("ERROR: setFloating() already appears patched")
-
-          pattern = (
-              r"if \(state != nullptr\)\s*\n"
-              r"(\s*)endDrag\(QDockWidgetPrivate::EndDragMode::Abort\);"
-          )
-          replacement = (
-              r"if (state != nullptr) {" + "\n"
-              r"\1    if (state->startingDrag)" + "\n"
-              r"\1        state->abortPending = true;" + "\n"
-              r"\1    else" + "\n"
-              r"\1        endDrag(QDockWidgetPrivate::EndDragMode::Abort);" + "\n"
-              r"\1}"
+          original_setfloating = re.compile(
+              r"^(?P<indent>[ \t]*)"
+              r"if\s*\(\s*state\s*!=\s*nullptr\s*\)\s*$"
+              r"\n(?P=indent)"
+              r"endDrag\s*\("
+              r"\s*QDockWidgetPrivate::EndDragMode::Abort\s*\);",
+              re.M,
           )
 
-          sf_new, count = re.subn(
-              pattern,
-              replacement,
-              sf,
-              count=1
-          )
+          matches = list(original_setfloating.finditer(cpp_text))
 
-          if count != 1:
+          if len(matches) != 1:
               raise SystemExit(
-                  "ERROR: setFloating() cleanup block not found"
+                  "ERROR: setFloating() cleanup block: expected exactly 1 "
+                  f"original match in qdockwidget.cpp, found {len(matches)}"
               )
 
-          cpp_text = cpp_text[:sf_start] + sf_new + cpp_text[sf_end + 3:]
+          m = matches[0]
+          indent = m.group("indent")
+
+          replacement = (
+              f"{indent}if (state != nullptr) {{\n"
+              f"{indent}    if (state->startingDrag)\n"
+              f"{indent}        state->abortPending = true;\n"
+              f"{indent}    else\n"
+              f"{indent}        endDrag(QDockWidgetPrivate::EndDragMode::Abort);\n"
+              f"{indent}}}"
+          )
+
+          cpp_text = (
+              cpp_text[:m.start()]
+              + replacement
+              + cpp_text[m.end():]
+          )
+
+          # Verify patch is actually inside setFloating().
+          sf_start = cpp_text.find(
+              "void QDockWidgetPrivate::setFloating(bool floating)"
+          )
+
+          if sf_start < 0:
+              raise SystemExit(
+                  "ERROR: setFloating() function not found after patch"
+              )
+
+          guard_pos = cpp_text.find(
+              "if (state != nullptr) {",
+              sf_start
+          )
+
+          if guard_pos < 0:
+              raise SystemExit(
+                  "ERROR: patched setFloating() guard not found"
+              )
+
+          if cpp_text.find(
+              "state->startingDrag",
+              sf_start,
+              guard_pos + 400
+          ) < 0:
+              raise SystemExit(
+                  "ERROR: setFloating() startingDrag guard missing"
+              )
 
           # ------------------------------------------------------------
-          # 6. Patch only mouseReleaseEvent().
+          # 6. Patch mouseReleaseEvent().
           # ------------------------------------------------------------
-          mr_start = cpp_text.find("bool QDockWidgetPrivate::mouseReleaseEvent")
+          mr_start = cpp_text.find(
+              "bool QDockWidgetPrivate::mouseReleaseEvent"
+          )
+
           if mr_start < 0:
-              raise SystemExit("ERROR: mouseReleaseEvent() function not found")
+              raise SystemExit(
+                  "ERROR: mouseReleaseEvent() function not found"
+              )
 
           mr_end = cpp_text.find("\n}\n", mr_start)
+
           if mr_end < 0:
-              raise SystemExit("ERROR: mouseReleaseEvent() function end not found")
+              raise SystemExit(
+                  "ERROR: mouseReleaseEvent() function end not found"
+              )
 
           mr = cpp_text[mr_start:mr_end + 3]
 
           pattern = (
-              r"(if \(event->button\(\) == Qt::LeftButton && state && !state->nca\) \{\s*)"
+              r"(if \(event->button\(\) == Qt::LeftButton "
+              r"&& state && !state->nca\) \{\s*)"
               r"(endDrag\(EndDragMode::LocationChange\);\s*)"
-              r"(return true;\s*//\s*filter out the event\s*;\s*|return true;\s*//\s*filter out the event\s*)"
+              r"(return true;\s*//\s*filter out the event\s*;?\s*)"
               r"(\})"
           )
 
           m = re.search(pattern, mr, flags=re.S)
+
           if not m:
-              # Qt 6.10.3 uses the comment without a trailing semicolon.
-              pattern = (
-                  r"(if \(event->button\(\) == Qt::LeftButton && state && !state->nca\) \{\s*)"
-                  r"(endDrag\(EndDragMode::LocationChange\);\s*)"
-                  r"(return true;\s*//\s*filter out the event\s*)"
-                  r"(\})"
+              raise SystemExit(
+                  "ERROR: mouseReleaseEvent() cleanup block not found"
               )
-              m = re.search(pattern, mr, flags=re.S)
 
-          if not m:
-              raise SystemExit("ERROR: mouseReleaseEvent() cleanup block not found")
-
-          indent = "        "
           new_block = (
-              "    if (event->button() == Qt::LeftButton && state && !state->nca) {\n"
+              "    if (event->button() == Qt::LeftButton "
+              "&& state && !state->nca) {\n"
               "        if (state->startingDrag) {\n"
               "            state->releasePending = true;\n"
               "            return true; // filter out the event\n"
@@ -382,14 +423,23 @@ jobs:
               "    }"
           )
 
-          mr_new = mr[:m.start()] + new_block + mr[m.end():]
-          cpp_text = cpp_text[:mr_start] + mr_new + cpp_text[mr_end + 3:]
+          mr_new = (
+              mr[:m.start()]
+              + new_block
+              + mr[m.end():]
+          )
+
+          cpp_text = (
+              cpp_text[:mr_start]
+              + mr_new
+              + cpp_text[mr_end + 3:]
+          )
 
           hdr.write_text(hdr_text)
           cpp.write_text(cpp_text)
 
           # ------------------------------------------------------------
-          # 7. Verify the actual source after patching.
+          # 7. Final source verification.
           # ------------------------------------------------------------
           h = hdr.read_text()
           c = cpp.read_text()
@@ -412,15 +462,35 @@ jobs:
 
           for marker in required_header:
               if marker not in h:
-                  raise SystemExit(f"ERROR: missing header marker: {marker}")
+                  raise SystemExit(
+                      f"ERROR: missing header marker: {marker}"
+                  )
 
           for marker in required_cpp:
               if marker not in c:
-                  raise SystemExit(f"ERROR: missing cpp marker: {marker}")
+                  raise SystemExit(
+                      f"ERROR: missing cpp marker: {marker}"
+                  )
+
+          sf_check = re.search(
+              r"void QDockWidgetPrivate::setFloating\(bool floating\).*?"
+              r"if \(state != nullptr\) \{.*?"
+              r"if \(state->startingDrag\).*?"
+              r"state->abortPending = true;.*?"
+              r"endDrag\(QDockWidgetPrivate::EndDragMode::Abort\);",
+              c,
+              flags=re.S,
+          )
+
+          if not sf_check:
+              raise SystemExit(
+                  "ERROR: setFloating() patch verification failed"
+              )
 
           print("QDockWidget source patch: OK")
           print("HEADER PATCH VERIFICATION: OK")
           print("SOURCE PATCH VERIFICATION: OK")
+          print("SETFLOATING PATCH VERIFICATION: OK")
           PY
 
           echo "===== VERIFY PATCHED SOURCE ====="
@@ -492,25 +562,13 @@ jobs:
           cmake --install "$QTBASE_BUILD"
 
       # ================================================================
-      # OVERLAY ONLY PATCHED QTWIDGETS ONTO PREBUILT QT ANDROID
+      # VERIFY PATCHED QTWIDGETS BINARY BEFORE OVERLAY
       # ================================================================
-      - name: Overlay only patched QtWidgets onto Qt Android
+      - name: Verify patched QtWidgets binary
         env:
-          QT_ANDROID_ORIGINAL: ${{ github.workspace }}/qt-android-original
-          QT_ANDROID_PATCHED: ${{ github.workspace }}/qt-android-patched
           QTBASE_INSTALL: ${{ github.workspace }}/qtbase-install
         run: |
-          echo "===== OVERLAY ONLY PATCHED QTWIDGETS ====="
-
-          rm -rf "$QT_ANDROID_ORIGINAL"
-          rm -rf "$QT_ANDROID_PATCHED"
-
-          # Start from the original prebuilt Qt Android tree.
-          # This preserves the already-working EGL patch.
-          cp -a "$QT_ROOT_DIR" "$QT_ANDROID_ORIGINAL"
-          cp -a "$QT_ROOT_DIR" "$QT_ANDROID_PATCHED"
-
-          echo "===== FIND PATCHED QtWidgets ====="
+          echo "===== VERIFY PATCHED QTWIDGETS BINARY ====="
 
           PATCHED_WIDGETS=$(find "$QTBASE_INSTALL" \
             -type f \
@@ -518,31 +576,130 @@ jobs:
             -print -quit)
 
           if [ -z "$PATCHED_WIDGETS" ]; then
-            echo "ERROR: patched libQt6Widgets_arm64-v8a.so not found"
+            echo "ERROR: patched QtWidgets binary not found"
             exit 1
           fi
 
-          echo "Patched QtWidgets:"
-          echo "$PATCHED_WIDGETS"
+          echo "Binary: $PATCHED_WIDGETS"
+          ls -lh "$PATCHED_WIDGETS"
 
-          echo "===== FIND ORIGINAL QtWidgets ====="
+          LLVM_OBJDUMP=$(command -v llvm-objdump || true)
+
+          if [ -z "$LLVM_OBJDUMP" ]; then
+            echo "ERROR: llvm-objdump not found"
+            exit 1
+          fi
+
+          "$LLVM_OBJDUMP" -d "$PATCHED_WIDGETS" \
+            > qtwidgets-disassembly.txt
+
+          echo "===== LOOK FOR setFloating() STARTING-DRAG GUARD ====="
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          text = Path(
+              "qtwidgets-disassembly.txt"
+          ).read_text()
+
+          lines = text.splitlines()
+
+          starts = [
+              i
+              for i, line in enumerate(lines)
+              if "setFloating" in line
+              and "<" in line
+              and ">:" in line
+          ]
+
+          if not starts:
+              raise SystemExit(
+                  "ERROR: setFloating() symbol not found in QtWidgets binary"
+              )
+
+          found = False
+
+          for start in starts:
+              block = "\n".join(lines[start:start + 140])
+
+              if "#0x260" not in block:
+                  continue
+
+              if not re.search(
+                  r"ldrb\s+w[0-9]+, \[x[0-9]+, #0x2b\]",
+                  block
+              ):
+                  continue
+
+              if not re.search(
+                  r"strb\s+w[0-9]+, \[x[0-9]+, #0x2c\]",
+                  block
+              ):
+                  continue
+
+              found = True
+
+              print("Verified setFloating() block:")
+              print(block[:5000])
+
+              break
+
+          if not found:
+              raise SystemExit(
+                  "ERROR: binary setFloating() guard not found; "
+                  "startingDrag(+0x2b) and abortPending(+0x2c) "
+                  "were not both found in the setFloating() "
+                  "disassembly block"
+              )
+
+          print(
+              "PATCHED QtWidgets BINARY VERIFICATION: OK"
+          )
+          PY
+
+          sha256sum "$PATCHED_WIDGETS"
+
+      # ================================================================
+      # OVERLAY ONLY PATCHED QTWIDGETS
+      # ================================================================
+      - name: Overlay only patched QtWidgets onto Qt Android
+        env:
+          QTBASE_INSTALL: ${{ github.workspace }}/qtbase-install
+        run: |
+          echo "===== OVERLAY ONLY PATCHED QTWIDGETS ====="
+
+          PATCHED_WIDGETS=$(find "$QTBASE_INSTALL" \
+            -type f \
+            -name "libQt6Widgets_arm64-v8a.so" \
+            -print -quit)
+
+          QT_ANDROID_PATCHED="$QT_ROOT_DIR"
 
           ORIGINAL_WIDGETS=$(find "$QT_ANDROID_PATCHED" \
             -type f \
             -name "libQt6Widgets_arm64-v8a.so" \
             -print -quit)
 
-          if [ -z "$ORIGINAL_WIDGETS" ]; then
-            echo "ERROR: original libQt6Widgets_arm64-v8a.so not found"
+          if [ -z "$PATCHED_WIDGETS" ]; then
+            echo "ERROR: patched QtWidgets not found"
             exit 1
           fi
+
+          if [ -z "$ORIGINAL_WIDGETS" ]; then
+            echo "ERROR: original QtWidgets not found"
+            exit 1
+          fi
+
+          echo "Patched QtWidgets:"
+          echo "$PATCHED_WIDGETS"
 
           echo "Original QtWidgets:"
           echo "$ORIGINAL_WIDGETS"
 
-          echo "===== REPLACE QtWidgets ONLY ====="
-
-          cp "$PATCHED_WIDGETS" "$ORIGINAL_WIDGETS"
+          cp -f \
+            "$PATCHED_WIDGETS" \
+            "$ORIGINAL_WIDGETS"
 
           echo "QtWidgets replacement: OK"
 
@@ -621,7 +778,8 @@ jobs:
             exit 1
           fi
 
-          cp "$QT_ANDROID_TEMPLATE" android/AndroidManifest.xml
+          cp "$QT_ANDROID_TEMPLATE" \
+            android/AndroidManifest.xml
 
           echo "===== PATCH MANIFEST ====="
 
@@ -761,6 +919,109 @@ jobs:
             -type f \
             -name "*.apk" \
             -print
+
+      # ================================================================
+      # VERIFY QTWIDGETS INSIDE FINAL APK
+      # ================================================================
+      - name: Verify final APK QtWidgets binary
+        run: |
+          echo "===== VERIFY FINAL APK QTWIDGETS ====="
+
+          APK=$(find build/android-release \
+            -type f \
+            -name "*.apk" \
+            -print -quit)
+
+          if [ -z "$APK" ]; then
+            echo "ERROR: APK not found for QtWidgets verification"
+            exit 1
+          fi
+
+          echo "APK: $APK"
+
+          LLVM_OBJDUMP=$(command -v llvm-objdump || true)
+
+          if [ -z "$LLVM_OBJDUMP" ]; then
+            echo "ERROR: llvm-objdump not found"
+            exit 1
+          fi
+
+          rm -f \
+            final-libQt6Widgets_arm64-v8a.so \
+            final-qtwidgets-disassembly.txt
+
+          unzip -p "$APK" \
+            lib/arm64-v8a/libQt6Widgets_arm64-v8a.so \
+            > final-libQt6Widgets_arm64-v8a.so
+
+          test -s final-libQt6Widgets_arm64-v8a.so
+
+          "$LLVM_OBJDUMP" \
+            -d final-libQt6Widgets_arm64-v8a.so \
+            > final-qtwidgets-disassembly.txt
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          text = Path(
+              "final-qtwidgets-disassembly.txt"
+          ).read_text()
+
+          lines = text.splitlines()
+
+          starts = [
+              i
+              for i, line in enumerate(lines)
+              if "setFloating" in line
+              and "<" in line
+              and ">:" in line
+          ]
+
+          if not starts:
+              raise SystemExit(
+                  "ERROR: setFloating() symbol not found "
+                  "inside APK QtWidgets"
+              )
+
+          found = False
+
+          for start in starts:
+              block = "\n".join(
+                  lines[start:start + 140]
+              )
+
+              if "#0x260" not in block:
+                  continue
+
+              if not re.search(
+                  r"ldrb\s+w[0-9]+, \[x[0-9]+, #0x2b\]",
+                  block
+              ):
+                  continue
+
+              if not re.search(
+                  r"strb\s+w[0-9]+, \[x[0-9]+, #0x2c\]",
+                  block
+              ):
+                  continue
+
+              found = True
+              break
+
+          if not found:
+              raise SystemExit(
+                  "ERROR: FINAL APK QtWidgets still lacks "
+                  "the setFloating() startingDrag/abortPending guard"
+              )
+
+          print(
+              "FINAL APK QTWIDGETS PATCH VERIFICATION: OK"
+          )
+          PY
+
+          sha256sum \
+            final-libQt6Widgets_arm64-v8a.so
 
       # ================================================================
       # CHECK APK
