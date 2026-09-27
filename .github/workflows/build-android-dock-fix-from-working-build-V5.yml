@@ -493,7 +493,6 @@ jobs:
           )
 
           hdr.write_text(hdr_text)
-          cpp.write_text(cpp_text)
 
           # ------------------------------------------------------------
           # 7. Patch QDockWidget::closeEvent().
@@ -583,6 +582,9 @@ jobs:
 
           print("CLOSEEVENT PATCH: OK")
           print("CLOSEEVENT PATCH VERIFICATION: OK")
+          # Write the final patched source after closeEvent() patch.
+          # This must happen before final verification.
+          cpp.write_text(cpp_text)
 
           # ------------------------------------------------------------
           # 8. Final source verification.
