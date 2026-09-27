@@ -167,22 +167,24 @@ jobs:
           data = bytearray(path.read_bytes())
 
           # Qt 6.10.3 ARM64:
-          # QDockWidgetPrivate::setFloating(bool)
+          # QDockWidgetPrivate::startDrag() / unplug path
           #
           # Exact instruction at 0x450328:
           #   str x0, [x8, #0x20]
           #
-          # The preceding instruction loads:
+          # Encoding found in the actual Qt Android binary:
+          #   00 11 00 f9
+          #
+          # The preceding instruction loads x8 from DragState:
           #   ldr x8, [x19, #0x260]
           #
-          # If DragState has been deleted/re-entered while
-          # QMainWindowLayout::unplug() is running, x8 becomes 0
-          # and the original instruction crashes here.
+          # If the DragState has become invalid/re-entered before this
+          # instruction, the original store is where the native crash occurs.
           offset = 0x450328
 
           # Original instruction:
           #   str x0, [x8, #0x20]
-          old = bytes.fromhex("89 16 40 f9")
+          old = bytes.fromhex("00 11 00 f9")
 
           # Diagnostic only:
           #   brk #0
@@ -230,7 +232,7 @@ jobs:
             echo "ERROR: Qt AndroidManifest.xml template not found"
             exit 1
           fi
-          
+
           cp "$QT_ANDROID_TEMPLATE" android/AndroidManifest.xml
 
           echo "===== PATCH MANIFEST ====="
