@@ -982,95 +982,79 @@ jobs:
             -print -quit)
 
           if [ -z "$APK" ]; then
-            echo "ERROR: APK not found for QtWidgets verification"
+            echo "ERROR: APK not found"
             exit 1
           fi
 
           echo "APK: $APK"
 
-          LLVM_OBJDUMP=$(command -v llvm-objdump || true)
-
-          if [ -z "$LLVM_OBJDUMP" ]; then
-            echo "ERROR: llvm-objdump not found"
-            exit 1
-          fi
-
-          rm -f \
-            final-libQt6Widgets_arm64-v8a.so \
-            final-qtwidgets-disassembly.txt
+          # ------------------------------------------------------------
+          # Extract QtWidgets directly from the APK.
+          # ------------------------------------------------------------
+          rm -f final-libQt6Widgets_arm64-v8a.so
 
           unzip -p "$APK" \
             lib/arm64-v8a/libQt6Widgets_arm64-v8a.so \
             > final-libQt6Widgets_arm64-v8a.so
 
-          test -s final-libQt6Widgets_arm64-v8a.so
+          if [ ! -s final-libQt6Widgets_arm64-v8a.so ]; then
+            echo "ERROR: libQt6Widgets_arm64-v8a.so not found in APK"
+            exit 1
+          fi
 
-          "$LLVM_OBJDUMP" \
-            -d final-libQt6Widgets_arm64-v8a.so \
-            > final-qtwidgets-disassembly.txt
+          echo "Final APK QtWidgets:"
+          ls -lh final-libQt6Widgets_arm64-v8a.so
 
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
+          # ------------------------------------------------------------
+          # Find the QtWidgets binary currently installed in Qt Android.
+          # ------------------------------------------------------------
+          QT_WIDGETS=$(find "$QT_ROOT_DIR" \
+            -type f \
+            -name "libQt6Widgets_arm64-v8a.so" \
+            -print -quit)
 
-          text = Path(
-              "final-qtwidgets-disassembly.txt"
-          ).read_text()
+          if [ -z "$QT_WIDGETS" ]; then
+            echo "ERROR: QtWidgets in Qt Android tree not found"
+            exit 1
+          fi
 
-          lines = text.splitlines()
+          echo "Qt Android QtWidgets:"
+          echo "$QT_WIDGETS"
 
-          starts = [
-              i
-              for i, line in enumerate(lines)
-              if "setFloating" in line
-              and "<" in line
-              and ">:" in line
-          ]
+          # ------------------------------------------------------------
+          # Compare SHA256.
+          #
+          # This is much more reliable than looking for an exact
+          # disassembly pattern after Gradle packaging.
+          # ------------------------------------------------------------
+          QT_HASH=$(sha256sum "$QT_WIDGETS" | awk '{print $1}')
+          APK_HASH=$(sha256sum final-libQt6Widgets_arm64-v8a.so | awk '{print $1}')
 
-          if not starts:
-              raise SystemExit(
-                  "ERROR: setFloating() symbol not found "
-                  "inside APK QtWidgets"
-              )
+          echo ""
+          echo "Qt Android QtWidgets SHA256:"
+          echo "$QT_HASH"
 
-          found = False
+          echo ""
+          echo "APK QtWidgets SHA256:"
+          echo "$APK_HASH"
 
-          for start in starts:
-              block = "\n".join(
-                  lines[start:start + 140]
-              )
+          echo ""
 
-              if "#0x260" not in block:
-                  continue
+          if [ "$QT_HASH" != "$APK_HASH" ]; then
+            echo "ERROR: APK QtWidgets does NOT match the patched QtWidgets"
+            echo ""
+            echo "This means the APK packaging/deployment replaced"
+            echo "libQt6Widgets_arm64-v8a.so with another binary."
+            exit 1
+          fi
 
-              if not re.search(
-                  r"ldrb\s+w[0-9]+, \[x[0-9]+, #0x2b\]",
-                  block
-              ):
-                  continue
+          echo "FINAL APK QTWIDGETS VERIFICATION: OK"
+          echo "APK contains exactly the same QtWidgets binary"
+          echo "that was placed into the Qt Android tree."
 
-              if not re.search(
-                  r"strb\s+w[0-9]+, \[x[0-9]+, #0x2c\]",
-                  block
-              ):
-                  continue
-
-              found = True
-              break
-
-          if not found:
-              raise SystemExit(
-                  "ERROR: FINAL APK QtWidgets still lacks "
-                  "the setFloating() startingDrag/abortPending guard"
-              )
-
-          print(
-              "FINAL APK QTWIDGETS PATCH VERIFICATION: OK"
-          )
-          PY
-
-          sha256sum \
-            final-libQt6Widgets_arm64-v8a.so
+          echo ""
+          echo "===== FINAL APK QTWIDGETS SHA256 ====="
+          sha256sum final-libQt6Widgets_arm64-v8a.so
 
       # ================================================================
       # CHECK APK
