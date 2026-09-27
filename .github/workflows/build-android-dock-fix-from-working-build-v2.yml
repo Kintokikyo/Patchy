@@ -310,22 +310,55 @@ jobs:
 
           # ------------------------------------------------------------
           # 5. CRITICAL: patch setFloating().
+          #
+          # IMPORTANT:
+          # Do not search the whole cpp file for the cleanup block.
+          # Restrict the search to QDockWidgetPrivate::setFloating().
+          # This avoids indentation/formatting differences in Qt source.
           # ------------------------------------------------------------
-          original_setfloating = re.compile(
-              r"^(?P<indent>[ \t]*)"
-              r"if\s*\(\s*state\s*!=\s*nullptr\s*\)\s*$"
-              r"\n(?P=indent)"
-              r"endDrag\s*\("
-              r"\s*QDockWidgetPrivate::EndDragMode::Abort\s*\);",
-              re.M,
+          sf_start = cpp_text.find(
+              "void QDockWidgetPrivate::setFloating(bool floating)"
           )
 
-          matches = list(original_setfloating.finditer(cpp_text))
+          if sf_start < 0:
+              raise SystemExit(
+                  "ERROR: setFloating() function not found"
+              )
+
+          # Find the end of setFloating().
+          # This function does not contain another function definition,
+          # so the next standalone closing brace is sufficient here.
+          sf_end = cpp_text.find("\n}\n", sf_start)
+
+          if sf_end < 0:
+              raise SystemExit(
+                  "ERROR: setFloating() function end not found"
+              )
+
+          sf_end += 3
+
+          sf = cpp_text[sf_start:sf_end]
+
+          # Match the original cleanup block inside setFloating().
+          #
+          # Allow arbitrary whitespace between the condition and endDrag()
+          # because Qt source indentation/formatting can vary.
+          pattern = re.compile(
+              r"(?P<indent>[ \t]*)"
+              r"if\s*\(\s*state\s*!=\s*nullptr\s*\)"
+              r"\s*"
+              r"endDrag\s*\(\s*"
+              r"QDockWidgetPrivate::EndDragMode::Abort"
+              r"\s*\)\s*;",
+              re.S
+          )
+
+          matches = list(pattern.finditer(sf))
 
           if len(matches) != 1:
               raise SystemExit(
-                  "ERROR: setFloating() cleanup block: expected exactly 1 "
-                  f"original match in qdockwidget.cpp, found {len(matches)}"
+                  "ERROR: setFloating() cleanup block: expected exactly "
+                  f"1 match inside setFloating(), found {len(matches)}"
               )
 
           m = matches[0]
@@ -340,40 +373,56 @@ jobs:
               f"{indent}}}"
           )
 
-          cpp_text = (
-              cpp_text[:m.start()]
+          sf_new = (
+              sf[:m.start()]
               + replacement
-              + cpp_text[m.end():]
+              + sf[m.end():]
           )
 
-          # Verify patch is actually inside setFloating().
-          sf_start = cpp_text.find(
+          cpp_text = (
+              cpp_text[:sf_start]
+              + sf_new
+              + cpp_text[sf_end:]
+          )
+
+          # Verify the patch exists specifically inside setFloating().
+          sf_check_start = cpp_text.find(
               "void QDockWidgetPrivate::setFloating(bool floating)"
           )
 
-          if sf_start < 0:
+          if sf_check_start < 0:
               raise SystemExit(
-                  "ERROR: setFloating() function not found after patch"
+                  "ERROR: setFloating() function disappeared after patch"
               )
 
-          guard_pos = cpp_text.find(
-              "if (state != nullptr) {",
-              sf_start
+          sf_check_end = cpp_text.find(
+              "\n}\n",
+              sf_check_start
           )
 
-          if guard_pos < 0:
+          if sf_check_end < 0:
               raise SystemExit(
-                  "ERROR: patched setFloating() guard not found"
+                  "ERROR: setFloating() end not found after patch"
               )
 
-          if cpp_text.find(
-              "state->startingDrag",
-              sf_start,
-              guard_pos + 400
-          ) < 0:
-              raise SystemExit(
-                  "ERROR: setFloating() startingDrag guard missing"
-              )
+          sf_check = cpp_text[sf_check_start:sf_check_end]
+
+          required_setfloating = [
+              "if (state != nullptr) {",
+              "if (state->startingDrag)",
+              "state->abortPending = true;",
+              "endDrag(QDockWidgetPrivate::EndDragMode::Abort);",
+          ]
+
+          for marker in required_setfloating:
+              if marker not in sf_check:
+                  raise SystemExit(
+                      "ERROR: setFloating() verification failed: "
+                      + marker
+                  )
+
+          print("SETFLOATING PATCH: OK")
+          print("SETFLOATING PATCH VERIFICATION: OK")
 
           # ------------------------------------------------------------
           # 6. Patch mouseReleaseEvent().
