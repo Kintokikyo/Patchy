@@ -66,10 +66,6 @@ jobs:
           modules: 'qtimageformats'
           cache: true
 
-      # ============================================================
-      # KEEP THE WORKING EGL PATCH
-      # ============================================================
-
       - name: Patch Qt Android eglSurface deadlock fallback
         run: |
           echo "===== PATCH QT ANDROID eglSurface ====="
@@ -93,11 +89,20 @@ jobs:
           path = Path(sys.argv[1])
           data = bytearray(path.read_bytes())
 
+          # Exact 40-byte sequence from the Qt 6.10.3 ARM64 plugin.
+          # It is the failure path in QAndroidPlatformOpenGLWindow::eglSurface()
+          # that calls QMessageLogger::fatal() after AndroidDeadlockProtector::acquire()
+          # returns false.
           old = bytes.fromhex(
               "48008052 61fcffd0 213c1c91 e81300b9 68fcff90"
               "08dd1091 1f2003d5 e252c870 e0430091 b5000094"
           )
 
+          # Replacement:
+          #   call AndroidDeadlockProtector destructor
+          #   return nullptr from eglSurface()
+          #   branch back to the normal caller path
+          #   remaining bytes are NOPs
           new = bytes.fromhex(
               "e0c30091 030a0094 e0031faa f7ffff17"
               "1f2003d5 1f2003d5 1f2003d5 1f2003d5"
@@ -116,45 +121,44 @@ jobs:
               )
 
           offset = data.index(old)
-
-          print(f"eglSurface patch offset: 0x{offset:x}")
+          print(f"Patch offset: 0x{offset:x}")
 
           data[offset:offset + len(old)] = new
           path.write_bytes(data)
 
           verify = path.read_bytes()
-
           if verify[offset:offset + len(new)] != new:
-              raise SystemExit("ERROR: eglSurface patch verification failed")
+              raise SystemExit("ERROR: patch verification failed")
 
-          print("eglSurface patch verification: OK")
-          print("Working EGL deadlock fallback patch preserved.")
+          print("Patch verification: OK")
+          print("Patched QAndroidPlatformOpenGLWindow::eglSurface() failure path.")
           PY
 
-          echo "===== VERIFY EGL PATCH ====="
+          echo "===== VERIFY PATCHED PLUGIN ====="
           ls -l "$QT_EGL_PLUGIN"
 
       # ============================================================
-      # DIAGNOSTIC:
+      # NEW DIAGNOSTIC ONLY
       #
-      # QDockWidgetPrivate::endDrag()
+      # We do NOT touch 0x450328.
+      # We do NOT touch 0x450584.
       #
-      # 0x450580:
-      #     bl operator delete
+      # Only:
       #
-      # ORIGINAL:
-      #     1c 07 08 94
+      # 0x450580
       #
-      # DIAGNOSTIC:
-      #     00 00 20 d4
-      #     brk #0
+      # Original:
+      #   1c 07 08 94
       #
-      # We intentionally STOP before operator delete.
+      # Diagnostic:
+      #   00 00 20 d4
+      #
+      # BRK #0
       # ============================================================
 
       - name: Patch QtWidgets 0x450580 BRK diagnostic
         run: |
-          echo "===== PATCH QT WIDGETS 0x450580 BRK ====="
+          echo "===== PATCH QT WIDGETS 0x450580 BRK DIAGNOSTIC ====="
 
           QT_WIDGETS=$(find "$QT_ROOT_DIR" \
             -type f \
@@ -179,24 +183,19 @@ jobs:
           #
           # QDockWidgetPrivate::endDrag()
           #
-          # 0x45057c:
-          #     ldr x0, [x19,#0x260]
-          #
           # 0x450580:
           #     bl operator delete
           #
-          # 0x450584:
-          #     str xzr, [x19,#0x260]
+          # Original:
+          #     1c 07 08 94
           #
-          # We patch ONLY 0x450580 so we can catch the caller
-          # before the DragState deletion happens.
+          # Diagnostic:
+          #     brk #0
+          #     00 00 20 d4
 
           offset = 0x450580
 
           old = bytes.fromhex("1c 07 08 94")
-
-          # ARM64:
-          #     brk #0
           new = bytes.fromhex("00 00 20 d4")
 
           actual = bytes(data[offset:offset + 4])
@@ -229,21 +228,12 @@ jobs:
           ls -l "$QT_WIDGETS"
 
       # ============================================================
-      # IMPORTANT:
-      #
-      # Verify that 0x450328 remains ORIGINAL.
-      #
-      # It must NOT contain BRK.
-      # Expected:
-      #     00 11 00 f9
-      #
-      # Also verify 0x450584 remains ORIGINAL:
-      #     7f 32 01 f9
+      # VERIFY THAT THE OTHER TWO LOCATIONS ARE UNTOUCHED
       # ============================================================
 
-      - name: Verify QtWidgets diagnostic layout
+      - name: Verify QtWidgets diagnostic locations
         run: |
-          echo "===== VERIFY QT WIDGETS DIAGNOSTIC LAYOUT ====="
+          echo "===== VERIFY QT WIDGETS DIAGNOSTIC LOCATIONS ====="
 
           QT_WIDGETS=$(find "$QT_ROOT_DIR" \
             -type f \
@@ -257,14 +247,13 @@ jobs:
           path = Path(sys.argv[1])
           data = path.read_bytes()
 
-          # 0x450328 must remain ORIGINAL.
+          # 0x450328 MUST remain original.
           off_450328 = 0x450328
           expected_450328 = bytes.fromhex("00 11 00 f9")
           actual_450328 = data[off_450328:off_450328 + 4]
 
           print(
-              f"0x450328: "
-              f"{actual_450328.hex(' ')}"
+              f"0x450328: {actual_450328.hex(' ')}"
           )
 
           if actual_450328 != expected_450328:
@@ -272,14 +261,13 @@ jobs:
                   "ERROR: 0x450328 was modified unexpectedly"
               )
 
-          # 0x450580 must contain BRK.
+          # 0x450580 MUST be BRK.
           off_450580 = 0x450580
           expected_450580 = bytes.fromhex("00 00 20 d4")
           actual_450580 = data[off_450580:off_450580 + 4]
 
           print(
-              f"0x450580: "
-              f"{actual_450580.hex(' ')}"
+              f"0x450580: {actual_450580.hex(' ')}"
           )
 
           if actual_450580 != expected_450580:
@@ -287,14 +275,13 @@ jobs:
                   "ERROR: 0x450580 BRK patch is missing"
               )
 
-          # 0x450584 must remain ORIGINAL.
+          # 0x450584 MUST remain original.
           off_450584 = 0x450584
           expected_450584 = bytes.fromhex("7f 32 01 f9")
           actual_450584 = data[off_450584:off_450584 + 4]
 
           print(
-              f"0x450584: "
-              f"{actual_450584.hex(' ')}"
+              f"0x450584: {actual_450584.hex(' ')}"
           )
 
           if actual_450584 != expected_450584:
@@ -303,19 +290,147 @@ jobs:
               )
 
           print("")
-          print("QtWidgets diagnostic layout verification: OK")
+          print("DIAGNOSTIC LAYOUT VERIFICATION: OK")
           print("0x450328 = ORIGINAL")
           print("0x450580 = BRK")
           print("0x450584 = ORIGINAL")
           PY
-
-      # ============================================================
-      # PREPARE ANDROID MANIFEST
-      # ============================================================
 
       - name: Prepare Qt Android manifest
         run: |
           echo "===== FIND QT ANDROID TEMPLATE ====="
 
           QT_ANDROID_TEMPLATE=$(find "$QT_ROOT_DIR" \
-            -path "*/src/android/templates/Android
+            -path "*/src/android/templates/AndroidManifest.xml" \
+            -print -quit)
+
+          echo "Template: $QT_ANDROID_TEMPLATE"
+
+          if [ -z "$QT_ANDROID_TEMPLATE" ]; then
+            echo "ERROR: Qt AndroidManifest.xml template not found"
+            exit 1
+          fi
+          
+          cp "$QT_ANDROID_TEMPLATE" android/AndroidManifest.xml
+
+          echo "===== PATCH MANIFEST ====="
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("android/AndroidManifest.xml")
+          text = path.read_text()
+
+          text = text.replace(
+            'android:screenOrientation="unspecified"',
+            'android:screenOrientation="landscape"'
+          )
+
+          text = text.replace(
+            '    package="org.qtproject.qt.example"',
+            '',
+            1
+           )
+
+          text = text.replace(
+            '<activity',
+            '<activity android:theme="@android:style/Theme.Material.NoActionBar"', 
+            1
+           )
+
+          text = text.replace(
+            'android:name="org.qtproject.qt.android.bindings.QtActivity"',
+            'android:name="com.kintokikyo.patchy.MainActivity"',
+           1
+          )
+
+          path.write_text(text)
+          PY
+
+          echo "===== FINAL MANIFEST ====="
+          cat android/AndroidManifest.xml
+
+      - name: Configure Patchy
+        env:
+          QT_ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/patchy-test.keystore
+          QT_ANDROID_KEYSTORE_ALIAS: patchy
+          QT_ANDROID_KEYSTORE_STORE_PASS: patchy123
+          QT_ANDROID_KEYSTORE_KEY_PASS: patchy123
+        run: |
+          "$QT_ROOT_DIR/bin/qt-cmake" \
+            -S . \
+            -B build/android-release \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPATCHY_BUILD_APP=ON \
+            -DPATCHY_BUILD_TESTS=OFF \
+            -DQT_ANDROID_ABIS=arm64-v8a \
+            -DQT_ANDROID_MIN_SDK_VERSION=28 \
+            -DQT_ANDROID_TARGET_SDK_VERSION=36 \
+            -DQT_ANDROID_PACKAGE_NAME=com.kintokikyo.patchy \
+            -DQT_HOST_PATH="$HOST_QT_ROOT" \
+            -DANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" \
+            -DANDROID_NDK_ROOT="$ANDROID_NDK_ROOT" \
+            -DQT_ENABLE_VERBOSE_DEPLOYMENT=ON \
+            -DQT_ANDROID_SIGN_APK=ON
+
+      - name: Build APK
+        continue-on-error: true
+        env:
+          QT_ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/patchy-test.keystore
+          QT_ANDROID_KEYSTORE_ALIAS: patchy
+          QT_ANDROID_KEYSTORE_STORE_PASS: patchy123
+          QT_ANDROID_KEYSTORE_KEY_PASS: patchy123
+        run: |
+          cmake --build build/android-release \
+            --target apk \
+            --parallel 2
+
+      - name: Inspect Android Gradle Project
+        run: |
+          echo "===== android-build ====="
+          find build/android-release/android-build -maxdepth 2 -type f -print || true
+
+          echo ""
+          echo "===== gradle.properties ====="
+          cat build/android-release/android-build/gradle.properties || true
+
+          echo ""
+          echo "===== settings.gradle.kts ====="
+          cat build/android-release/android-build/settings.gradle.kts || true
+
+          echo ""
+          echo "===== settings.gradle ====="
+          cat build/android-release/android-build/settings.gradle || true
+
+          echo ""
+          echo "===== build.gradle.kts ====="
+          cat build/android-release/android-build/build.gradle.kts || true
+
+          echo ""
+          echo "===== build.gradle ====="
+          cat build/android-release/android-build/build.gradle || true
+
+      - name: Find APK
+        run: |
+          echo "===== APK FILES ====="
+          find build/android-release \
+            -type f \
+            -name "*.apk" \
+            -print
+
+      - name: Check APK
+        run: |
+          if ! find build/android-release -type f -name "*.apk" | grep -q .; then
+            echo "APK belum berhasil dibuat."
+            exit 1
+          fi
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: patchy-native-android
+          path: |
+            build/android-release/**/*.apk
+            build/android-release/*.apk
+          if-no-files-found: error
