@@ -122,14 +122,13 @@ std::optional<QRect> move_layer_transform_local_rect(const Layer& layer) {
   if (!layer_has_movable_pixels(layer)) {
     return std::nullopt;
   }
-  if (layer_is_text(layer)) {
-    const auto bounds = layer.bounds();
-    if (bounds.empty()) {
-      return std::nullopt;
-    }
-    return QRect(0, 0, bounds.width, bounds.height);
+
+  const auto bounds = layer.bounds();
+  if (bounds.empty()) {
+    return std::nullopt;
   }
-  return opaque_pixel_local_rect(layer);
+
+  return QRect(0, 0, bounds.width, bounds.height);
 }
 
 // Whether an enabled raster mask can change what the layer renders. A
@@ -905,8 +904,7 @@ bool CanvasWidget::begin_free_transform() {
   // start the session on the SAME rect: the drag sets the rect corner to the absolute mouse
   // position, so a session started on the smaller ink rect stretched the ink out to the frame
   // corner under the cursor on the first mouse move (box text went "instantly giant").
-  const std::optional<QRect> local_transform_rect =
-      layer_is_text(*layer) ? move_layer_transform_local_rect(*layer).value_or(*opaque_rect) : *opaque_rect;
+  const std::optional<QRect> local_transform_rect = move_layer_transform_local_rect(*layer);
 
   transforming_layer_ = true;
   dragging_transform_ = false;
