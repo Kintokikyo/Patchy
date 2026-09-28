@@ -905,21 +905,95 @@ bool CanvasWidget::begin_free_transform() {
   // position, so a session started on the smaller ink rect stretched the ink out to the frame
   // corner under the cursor on the first mouse move (box text went "instantly giant").
   const std::optional<QRect> local_transform_rect = move_layer_transform_local_rect(*layer);
+  
+  transform_percent_reference_size_ =
+    QSizeF(local_transform_rect->width(), local_transform_rect->height());
+
+  transform_initial_scale_x_ = 1.0;
+  transform_initial_scale_y_ = 1.0;
 
   transforming_layer_ = true;
   dragging_transform_ = false;
   transform_layer_id_ = layer->id();
   set_move_transform_controls_layer(std::nullopt);
+  
   const auto bounds = layer->bounds();
-  transform_original_rect_ =
-      QRectF(bounds.x + local_transform_rect->x(), bounds.y + local_transform_rect->y(), local_transform_rect->width(),
+
+  bool restored_smart_object_transform = false;
+
+  if (layer_is_smart_object(*layer)) {
+    if (const auto placement = smart_object_placement_from_layer(*layer);
+        placement.has_value() &&
+        placement->width > 0.0 &&
+        placement->height > 0.0) {
+
+      const auto& t = placement->transform;
+
+      const QPointF p0(t[0], t[1]);
+      const QPointF p1(t[2], t[3]);
+      const QPointF p2(t[4], t[5]);
+      const QPointF p3(t[6], t[7]);
+
+      const double placed_width =
+          std::hypot(p1.x() - p0.x(), p1.y() - p0.y());
+
+      const double placed_height =
+          std::hypot(p3.x() - p0.x(), p3.y() - p0.y());
+
+      if (placed_width > 0.0 && placed_height > 0.0) {
+        const QPointF center(
+            (p0.x() + p1.x() + p2.x() + p3.x()) / 4.0,
+            (p0.y() + p1.y() + p2.y() + p3.y()) / 4.0);
+
+        transform_original_rect_ =
+            QRectF(center.x() - placed_width / 2.0,
+                 center.y() - placed_height / 2.0,
+                 placed_width,
+                 placed_height);
+
+        transform_percent_reference_size_ =
+            QSizeF(placement->width, placement->height);
+
+        transform_initial_scale_x_ =
+            placed_width / placement->width;
+
+        transform_initial_scale_y_ =
+            placed_height / placement->height;
+
+        transform_angle_ =
+            std::atan2(
+                p1.y() - p0.y(),
+                p1.x() - p0.x()) *
+            180.0 / M_PI;
+
+        transform_start_angle_ = transform_angle_;
+
+        restored_smart_object_transform = true;
+      }
+    }
+  }
+
+  if (!restored_smart_object_transform) {
+    transform_original_rect_ =
+        QRectF(bounds.x + local_transform_rect->x(),
+             bounds.y + local_transform_rect->y(),
+             local_transform_rect->width(),
              local_transform_rect->height());
+
+    transform_percent_reference_size_ =
+        QSizeF(transform_original_rect_.width(),
+             transform_original_rect_.height());
+
+    transform_initial_scale_x_ = 1.0;
+    transform_initial_scale_y_ = 1.0;
+
+    transform_angle_ = 0.0;
+    transform_start_angle_ = 0.0;
+  }
+
   transform_current_rect_ = transform_original_rect_;
   transform_drag_start_rect_ = transform_current_rect_;
-  transform_drag_start_point_ = {};
-  transform_drag_handle_ = TransformHandle::None;
-  transform_angle_ = 0.0;
-  transform_start_angle_ = 0.0;
+  
   transform_scale_x_sign_ = 1.0;
   transform_scale_y_sign_ = 1.0;
   transform_drag_start_scale_x_sign_ = 1.0;
@@ -1261,6 +1335,11 @@ void CanvasWidget::reset_free_transform_session_state() {
   transform_scale_y_sign_ = 1.0;
   transform_drag_start_scale_x_sign_ = 1.0;
   transform_drag_start_scale_y_sign_ = 1.0;
+  
+  transform_percent_reference_size_ = QSizeF();
+  transform_initial_scale_x_ = 1.0;
+  transform_initial_scale_y_ = 1.0;
+  
   transform_base_cache_ = QImage();
   transform_base_cache_scale_level_ = 0;
   transform_base_display_mip_cache_.clear();
@@ -2231,10 +2310,19 @@ std::optional<CanvasWidget::DragReadout> CanvasWidget::transform_drag_readout() 
     case TransformHandle::None:
       return std::nullopt;
     default: {
-      const auto original_width = std::max(1.0, transform_original_rect_.width());
-      const auto original_height = std::max(1.0, transform_original_rect_.height());
+      const double original_width =
+        transform_percent_reference_size_.width() > 0.0
+          ? transform_percent_reference_size_.width()
+          : std::max(1.0, transform_original_rect_.width());
+
+      const double original_height =
+        transform_percent_reference_size_.height() > 0.0
+          ? transform_percent_reference_size_.height()
+          : std::max(1.0, transform_original_rect_.height());
+
       const auto width = transform_current_rect_.width();
       const auto height = transform_current_rect_.height();
+      
       readout.lines << tr("W: %1  H: %2").arg(format_pixels(width, 1), format_pixels(height, 1));
       const auto percentages = tr("%1 x %2")
                                    .arg(format_percent(transform_scale_x_sign_ * width / original_width * 100.0),
@@ -2289,16 +2377,30 @@ std::optional<CanvasWidget::TransformControlsState> CanvasWidget::transform_cont
   if (!rect.has_value() || rect->isEmpty() || original_rect.width() <= 0.0 || original_rect.height() <= 0.0) {
     return std::nullopt;
   }
+  
+  double percent_reference_width = original_rect.width();
+  double percent_reference_height = original_rect.height();
+
+  if (transform_percent_reference_size_.width() > 0.0 &&
+      transform_percent_reference_size_.height() > 0.0) {
+    percent_reference_width =
+        transform_percent_reference_size_.width();
+
+    percent_reference_height =
+        transform_percent_reference_size_.height();
+  }
 
   return TransformControlsState{
-      active,
-      transform_reference_point_,
-      transform_reference_position(*rect, angle),
-      (active ? transform_scale_x_sign_ : 1.0) * (rect->width() / original_rect.width()) * 100.0,
-      (active ? transform_scale_y_sign_ : 1.0) * (rect->height() / original_rect.height()) * 100.0,
-      angle,
-      transform_interpolation_,
-      original_rect.size(),
+    active,
+    transform_reference_point_,
+    transform_reference_position(*rect, angle),
+    (active ? transform_scale_x_sign_ : 1.0) *
+        (rect->width() / percent_reference_width) * 100.0,
+    (active ? transform_scale_y_sign_ : 1.0) *
+        (rect->height() / percent_reference_height) * 100.0,
+    angle,
+    transform_interpolation_,
+    original_rect.size(),
   };
 }
 
@@ -2319,10 +2421,28 @@ bool CanvasWidget::set_transform_controls_state(QPointF reference_position, doub
 
   const auto scale_x_sign = transform_scale_sign(scale_x_percent, transform_scale_x_sign_);
   const auto scale_y_sign = transform_scale_sign(scale_y_percent, transform_scale_y_sign_);
-  const auto width = std::max(1.0, transform_original_rect_.width() *
-                                       std::max(kMinimumTransformScalePercent, std::abs(scale_x_percent)) / 100.0);
-  const auto height = std::max(1.0, transform_original_rect_.height() *
-                                        std::max(kMinimumTransformScalePercent, std::abs(scale_y_percent)) / 100.0);
+  const double reference_width =
+    transform_percent_reference_size_.width() > 0.0
+        ? transform_percent_reference_size_.width()
+        : transform_original_rect_.width();
+
+  const double reference_height =
+    transform_percent_reference_size_.height() > 0.0
+        ? transform_percent_reference_size_.height()
+        : transform_original_rect_.height();
+
+  const auto width = std::max(
+    1.0,
+    reference_width *
+        std::max(kMinimumTransformScalePercent,
+                 std::abs(scale_x_percent)) / 100.0);
+
+  const auto height = std::max(
+    1.0,
+    reference_height *
+        std::max(kMinimumTransformScalePercent,
+                 std::abs(scale_y_percent)) / 100.0);
+                 
   const auto anchor_offset =
       rotate_offset(anchor_offset_from_center(QSizeF(width, height), transform_reference_point_), rotation_degrees);
   const auto center = reference_position - anchor_offset;
