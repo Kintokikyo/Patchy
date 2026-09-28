@@ -390,8 +390,6 @@ int main(int argc, char* argv[]) {
 #endif
   apply_gui_scale_factor();
   PatchyApplication app(argc, argv);
-  
-  printQtLibraryMappings();
   // Qt adopts the user's locale for the C runtime on Unix (setlocale(LC_ALL, "")), which turns
   // every strtod/to_string in the file codecs decimal-comma under de_DE and friends and
   // corrupts what PSD text engine data and other text formats write and parse. Keep the C
