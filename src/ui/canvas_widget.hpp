@@ -2593,6 +2593,13 @@ private:
   std::optional<LayerId> transform_layer_id_;
   QRectF transform_original_rect_{};
   QRectF transform_current_rect_{};
+  
+  // Reference size and scale for Smart Object Free Transform.
+  // Unlike the rasterized layer bounds, these stay tied to the embedded source.
+  QSizeF transform_percent_reference_size_{};
+  double transform_initial_scale_x_{1.0};
+  double transform_initial_scale_y_{1.0};
+  
   QRectF transform_drag_start_rect_{};
   QPointF transform_drag_start_point_{};
   TransformHandle transform_drag_handle_{TransformHandle::None};
