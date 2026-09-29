@@ -996,6 +996,21 @@ jobs:
           echo "===== FINAL MANIFEST ====="
           cat android/AndroidManifest.xml
 
+      - name: Remove QtBase source trees before Patchy deployment scan
+        run: |
+          echo "===== REMOVING QTBASE BUILD TREES ====="
+
+          rm -rf qtbase-src
+          rm -rf qtbase-build
+          rm -rf qtbase-install
+
+          echo "===== VERIFY ====="
+          test ! -d qtbase-src
+          test ! -d qtbase-build
+          test ! -d qtbase-install
+
+          echo "QtBase source/build/install trees removed."
+
       # ================================================================
       # CONFIGURE PATCHY
       # ================================================================
