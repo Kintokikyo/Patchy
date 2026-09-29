@@ -1024,6 +1024,21 @@ jobs:
             -DQT_ANDROID_SIGN_APK=ON
 
       # ================================================================
+      # BUILD APK
+      # ================================================================
+      - name: Build APK
+        continue-on-error: true
+        env:
+          QT_ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/patchy-test.keystore
+          QT_ANDROID_KEYSTORE_ALIAS: patchy
+          QT_ANDROID_KEYSTORE_STORE_PASS: patchy123
+          QT_ANDROID_KEYSTORE_KEY_PASS: patchy123
+        run: |
+          cmake --build build/android-release \
+            --target apk \
+            --parallel 2
+
+      # ================================================================
       # INSPECT QT ANDROID DEPLOYMENT
       # ================================================================
       - name: Inspect Qt Android deployment
@@ -1061,21 +1076,6 @@ jobs:
             2>/dev/null \
             | head -300 \
             || true
-
-      # ================================================================
-      # BUILD APK
-      # ================================================================
-      - name: Build APK
-        continue-on-error: true
-        env:
-          QT_ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/patchy-test.keystore
-          QT_ANDROID_KEYSTORE_ALIAS: patchy
-          QT_ANDROID_KEYSTORE_STORE_PASS: patchy123
-          QT_ANDROID_KEYSTORE_KEY_PASS: patchy123
-        run: |
-          cmake --build build/android-release \
-            --target apk \
-            --parallel 2
 
       # ================================================================
       # INSPECT GRADLE PROJECT
