@@ -1384,9 +1384,17 @@ ${PATCHY_LUPDATE_MANIFEST_SOURCES}
       endif()
     elseif(ANDROID)
       qt_add_executable(patchy src/app/main.cpp)
-      set_property(TARGET patchy PROPERTY 
-      QT_ANDROID_PACKAGE_SOURCE_DIR 
-      "${CMAKE_CURRENT_SOURCE_DIR}/android"
+
+      # Patchy uses Qt6::Qml only for QJSEngine scripting.
+      # Patchy has no QML UI/module, so do not scan Qt's QML tree
+      # during Android deployment.
+      set_target_properties(patchy PROPERTIES
+       QT_QML_MODULE_NO_IMPORT_SCAN TRUE
+      )
+
+      set_property(TARGET patchy PROPERTY
+        QT_ANDROID_PACKAGE_SOURCE_DIR
+        "${CMAKE_CURRENT_SOURCE_DIR}/android"
       )
     else()
       add_executable(patchy WIN32 MACOSX_BUNDLE
