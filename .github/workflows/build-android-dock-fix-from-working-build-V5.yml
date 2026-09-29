@@ -1024,6 +1024,45 @@ jobs:
             -DQT_ANDROID_SIGN_APK=ON
 
       # ================================================================
+      # INSPECT QT ANDROID DEPLOYMENT
+      # ================================================================
+      - name: Inspect Qt Android deployment
+        run: |
+          echo "===== QT ANDROID DEPLOYMENT SETTINGS ====="
+
+          find build/android-release/android-build \
+            -type f \
+            \( \
+              -name "*.json" \
+              -o \
+              -name "libs.xml" \
+              -o \
+              -name "*.gradle" \
+              -o \
+              -name "*.gradle.kts" \
+            \) \
+            -print
+
+          echo ""
+          echo "===== SEARCH QT QUICK CONTROLS ====="
+
+          grep -RniE \
+            "QuickControls|Quick.Controls|Quick/Templates|Quick/Controls" \
+            build/android-release/android-build \
+            2>/dev/null \
+            || true
+
+          echo ""
+          echo "===== SEARCH DEPLOYMENT DEPENDENCIES ====="
+
+          grep -RniE \
+            "Qt6QuickControls|QtQuickControls|qml|plugins" \
+            build/android-release/android-build \
+            2>/dev/null \
+            | head -300 \
+            || true
+
+      # ================================================================
       # BUILD APK
       # ================================================================
       - name: Build APK
