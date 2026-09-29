@@ -1039,6 +1039,62 @@ jobs:
             --parallel 2
 
       # ================================================================
+      # DIAGNOSE WHY QT QUICK CONTROLS IS DEPLOYED
+      # ================================================================
+      - name: Diagnose Qt Quick Controls source
+        run: |
+          echo "===== PROJECT: QtQuick / QuickControls REFERENCES ====="
+
+          grep -RniE \
+            "QtQuick\.Controls|QtQuick/Controls|QuickControls2|QtQuick\.Templates|QtQuick\.Layouts" \
+            . \
+            --exclude-dir=.git \
+            --exclude-dir=build \
+            --exclude="*.so" \
+            --exclude="*.a" \
+            2>/dev/null \
+            | head -300 \
+            || true
+
+          echo ""
+          echo "===== CMAKE CACHE: QUICK CONTROLS ====="
+
+          grep -RniE \
+            "QuickControls|QtQuickControls|QT_QML|QML_IMPORT|qml_import" \
+            build/android-release/CMakeCache.txt \
+            build/android-release/CMakeFiles \
+            2>/dev/null \
+            | head -300 \
+            || true
+
+          echo ""
+          echo "===== ANDROID DEPLOYMENT: QUICK CONTROLS ====="
+
+          grep -RniE \
+            "QuickControls|QtQuick.Controls|QtQuick/Templates|QtQuick/Controls" \
+            build/android-release/android-build \
+            2>/dev/null \
+            | head -300 \
+            || true
+
+          echo ""
+          echo "===== QML FILES IN PROJECT ====="
+
+          find . \
+            -type f \
+            \( \
+              -name "*.qml" \
+              -o \
+              -name "*.qrc" \
+              -o \
+              -name "qmldir" \
+            \) \
+            -not -path "./.git/*" \
+            -not -path "./build/*" \
+            -print \
+            | head -300
+
+      # ================================================================
       # INSPECT QT ANDROID DEPLOYMENT
       # ================================================================
       - name: Inspect Qt Android deployment
