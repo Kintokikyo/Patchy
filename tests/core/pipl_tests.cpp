@@ -171,8 +171,10 @@ void legacy_probe_reports_names_and_bitness() {
   const auto out_dir = std::filesystem::path("test-artifacts") / "legacy-plugins";
   std::filesystem::create_directories(out_dir);
   const auto format_copy = out_dir / "Not A Filter.8bi";
-  std::filesystem::copy_file(plugin_fixture("Greyscale64.8bf"), format_copy,
-                             std::filesystem::copy_options::overwrite_existing);
+  // Remove an earlier run's copy instead of overwriting it: under the wasm-core
+  // node filesystem copy_file onto an existing file fails with "Bad file descriptor".
+  std::filesystem::remove(format_copy);
+  std::filesystem::copy_file(plugin_fixture("Greyscale64.8bf"), format_copy);
   const auto format = adapter.probe(format_copy);
   CHECK(format.kind == patchy::LegacyPhotoshopPluginKind::Format8bi);
   CHECK(!format.supported);

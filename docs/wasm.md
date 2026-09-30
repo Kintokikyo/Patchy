@@ -85,8 +85,9 @@ guard, in `tests/core/main.cpp`, skips the crash-stack reporter.
   node-only. Path queries work, but anything resolving through
   `weakly_canonical` (`fs::relative`, `fs::canonical`) throws "No such file or
   directory" on a Windows `D:/...` path that exists. Use the lexical forms
-  (`lexically_relative`, `lexically_normal`) where the answer is pure string
-  work on paths you already built.
+  (`lexically_relative`, `lexically_normal`) for pure string work on paths you
+  built. `fs::copy_file` onto an existing file fails ("Bad file descriptor"):
+  remove the target first.
 - Memory: growth to 4 GB, 256 MB initial, 8 MB stack (LibRaw's dcraw-derived
   decoders carry large stack locals; the 64 KB default is far too small),
   1 MB worker stacks.
