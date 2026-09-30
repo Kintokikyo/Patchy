@@ -3011,7 +3011,8 @@ void CanvasWidget::commit_free_transform() {
            static_cast<std::int32_t>(std::round(transform_original_rect_.width())),
            static_cast<std::int32_t>(std::round(transform_original_rect_.height()))};
   const auto orientation_changed = transform_scale_x_sign_ < 0.0 || transform_scale_y_sign_ < 0.0;
-  const auto changed = orientation_changed || std::abs(transform_angle_) > 0.01 || new_bounds.x != original_transform_bounds.x ||
+  const auto angle_delta = transform_angle_ - transform_start_angle_;
+  const auto changed = orientation_changed || std::abs(angle_delta) > 0.01 || new_bounds.x != original_transform_bounds.x ||
                        new_bounds.y != original_transform_bounds.y ||
                        new_bounds.width != original_transform_bounds.width ||
                        new_bounds.height != original_transform_bounds.height;
@@ -3061,7 +3062,7 @@ void CanvasWidget::commit_free_transform() {
       // placement quad, then re-render crisply from the embedded source (the
       // resampled pixels committed above stay as the fallback).
       if (const auto placement = smart_object_placement_from_layer(*layer); placement.has_value()) {
-        const auto delta = free_transform_delta(transform_original_rect_, transform_current_rect_, transform_angle_,
+        const auto delta = free_transform_delta(transform_original_rect_, transform_current_rect_, angle_delta,
                                                 transform_scale_x_sign_, transform_scale_y_sign_);
         auto updated = *placement;
         for (std::size_t i = 0; i < 8U; i += 2U) {
@@ -3087,7 +3088,7 @@ void CanvasWidget::commit_free_transform() {
     // the mask is document-space data independent of how the pixels re-render.
     if (auto updated_mask = transformed_linked_raster_mask(
             std::as_const(*layer),
-            free_transform_delta(transform_original_rect_, transform_current_rect_, transform_angle_,
+            free_transform_delta(transform_original_rect_, transform_current_rect_, angle_delta,
                                  transform_scale_x_sign_, transform_scale_y_sign_),
             transform_interpolation_);
         updated_mask.has_value()) {
