@@ -892,6 +892,19 @@ std::optional<CanvasSizeSettings> request_canvas_size_settings(QWidget* parent, 
       background: @dlg_cell_hover_bg;
       border-color: @dlg_neutral_border;
     }
+    QDialog#patchyCanvasSizeDialog QToolButton#canvasSizeLinkButton {
+      background: @dlg_button_bg;
+      border: 1px solid @dlg_button_border;
+      min-width: 24px;
+      max-width: 24px;
+      min-height: 46px;
+      max-height: 46px;
+      padding: 0;
+    }
+    QDialog#patchyCanvasSizeDialog QToolButton#canvasSizeLinkButton:checked {
+      border-color: @dlg_focus_border;
+      background: @dlg_anchor_active_bg;
+    }
     QDialog#patchyCanvasSizeDialog QToolButton#canvasSizeAnchorButton:checked {
       background: @dlg_button_bg;
       border-color: @dlg_neutral_border_bright;
@@ -1011,17 +1024,31 @@ std::optional<CanvasSizeSettings> request_canvas_size_settings(QWidget* parent, 
   populate_dimension_units(height_unit);
   height_unit->setMinimumWidth(160);
 
+  // Photoshop's Canvas Size has no proportion lock; Patchy adds Image Size's link
+  // button (off by default, never persisted). Linked, an edit on one axis derives the
+  // other from the document's current aspect ratio.
+  auto* link = new QToolButton(&dialog);
+  link->setObjectName(QStringLiteral("canvasSizeLinkButton"));
+  link->setIcon(simple_icon(QStringLiteral("link")));
+  link->setIconSize(QSize(18, 18));
+  link->setCheckable(true);
+  link->setChecked(false);
+  link->setToolTip(QObject::tr("Constrain proportions"));
+
   size_grid->addWidget(new QLabel(QObject::tr("Width"), &dialog), 0, 0, Qt::AlignVCenter);
-  size_grid->addWidget(width, 0, 1);
-  size_grid->addWidget(width_unit, 0, 2);
+  // The spin goes in right after its label (insertion order is what pairs the
+  // scrub handle, GitHub issue 46); the link button's grid cell is unaffected.
+  size_grid->addWidget(width, 0, 2);
+  size_grid->addWidget(link, 0, 1, 2, 1, Qt::AlignCenter);
+  size_grid->addWidget(width_unit, 0, 3);
   size_grid->addWidget(new QLabel(QObject::tr("Height"), &dialog), 1, 0, Qt::AlignVCenter);
-  size_grid->addWidget(height, 1, 1);
-  size_grid->addWidget(height_unit, 1, 2);
+  size_grid->addWidget(height, 1, 2);
+  size_grid->addWidget(height_unit, 1, 3);
 
   auto* relative = new QCheckBox(QObject::tr("Relative to current dimension"), &dialog);
   relative->setObjectName(QStringLiteral("canvasSizeRelativeCheck"));
   auto* relative_row = new QHBoxLayout();
-  relative_row->setContentsMargins(45, 7, 0, 0);
+  relative_row->setContentsMargins(77, 7, 0, 0);
   relative_row->setSpacing(0);
   relative_row->addWidget(relative);
   relative_row->addStretch(1);
@@ -1184,6 +1211,21 @@ std::optional<CanvasSizeSettings> request_canvas_size_settings(QWidget* parent, 
   };
   refresh_all(nullptr);
 
+  // Linked, the other axis follows the document's aspect ratio in absolute pixels, so
+  // Relative mode keeps the resulting canvas proportional rather than the two deltas.
+  const auto aspect_ratio = static_cast<double>(current_width) / static_cast<double>(current_height);
+  const auto follow_linked_axis = [&](bool from_width) {
+    if (!link->isChecked()) {
+      return;
+    }
+    if (from_width) {
+      state.target_height = std::clamp(static_cast<int>(std::lround(state.target_width / aspect_ratio)), 1, 30000);
+      refresh_dimension_spin(height, current_height, state.target_height);
+    } else {
+      state.target_width = std::clamp(static_cast<int>(std::lround(state.target_height * aspect_ratio)), 1, 30000);
+      refresh_dimension_spin(width, current_width, state.target_width);
+    }
+  };
   // An edit converts back to pixels; the edited field is left alone so typing never
   // fights a re-rounded value.
   const auto handle_dimension_edit = [&](bool editing_width) {
@@ -1194,11 +1236,19 @@ std::optional<CanvasSizeSettings> request_canvas_size_settings(QWidget* parent, 
         std::lround(measurement_unit_to_pixels(spin->value(), unit, ppi, static_cast<double>(current))));
     const auto target = std::clamp(relative->isChecked() ? current + pixels : pixels, 1, 30000);
     (editing_width ? state.target_width : state.target_height) = target;
+    follow_linked_axis(editing_width);
     update_summary();
   };
   QObject::connect(width, &QDoubleSpinBox::valueChanged, &dialog, [&] { handle_dimension_edit(true); });
   QObject::connect(height, &QDoubleSpinBox::valueChanged, &dialog, [&] { handle_dimension_edit(false); });
   QObject::connect(relative, &QCheckBox::toggled, &dialog, [&](bool) { refresh_all(nullptr); });
+  // Turning the link on makes the pair proportional right away, from the width.
+  QObject::connect(link, &QToolButton::toggled, &dialog, [&](bool checked) {
+    if (checked) {
+      follow_linked_axis(true);
+      update_summary();
+    }
+  });
 
   // Photoshop keeps the two dimension units in step; changing one changes both.
   const auto sync_unit_combos = [&](QComboBox* changed, QComboBox* other) {

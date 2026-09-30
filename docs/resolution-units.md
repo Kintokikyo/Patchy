@@ -54,7 +54,13 @@ document PPI in the unit the two linked combos select (Percent/Pixels/Inches/Cm/
 Percent is relative to the current size per axis. Relative mode shows the change in that
 unit (negative allowed) with the range mapped so the pixel result stays 1..30000, and the
 Current Size lines follow the unit. `ui_canvas_size_dialog_units_convert_through_resolution`.
-The unit is remembered across openings (below); Relative and the crop checkbox are not.
+A link button beside the W/H fields (`canvasSizeLinkButton`, off by default; Photoshop's
+Canvas Size has none) constrains proportions: an edit on one axis derives the other from
+the document's current aspect ratio in absolute pixels, so Relative mode links the
+resulting sizes rather than the two deltas, and turning the link on makes the pair
+proportional from the width at once. `ui_canvas_size_dialog_link_keeps_aspect_ratio`.
+The unit is remembered across openings (below); Relative, the link and the crop checkbox
+are not.
 
 Image Size (`request_image_size_settings`, main_window_document_dialogs.cpp): canonical
 state is pixel W/H + PPI. W/H unit combos (Percent/Pixels/Inches/Cm/Mm/Points) stay in step. Resample ON:

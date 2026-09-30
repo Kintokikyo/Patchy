@@ -4249,6 +4249,102 @@ void ui_canvas_size_dialog_units_convert_through_resolution() {
   CHECK(document.height() == 1152);
 }
 
+// Canvas Size's link button (off by default) keeps the document's aspect ratio: the
+// other axis follows an edit in absolute pixels, in Relative mode and Percent too,
+// and turning the link on makes the pair proportional from the width right away.
+void ui_canvas_size_dialog_link_keeps_aspect_ratio() {
+  SettingsValueRestorer restore_unit(QStringLiteral("canvasSize/lastUnit"));
+  patchy::ui::app_settings().remove(QStringLiteral("canvasSize"));
+  patchy::ui::MainWindow window;  // default document: 1024x768 at 72 ppi
+  show_window(window);
+
+  bool drove_dialog = false;
+  QTimer::singleShot(0, [&] {
+    for (auto* widget : QApplication::topLevelWidgets()) {
+      if (widget->objectName() != QStringLiteral("patchyCanvasSizeDialog")) {
+        continue;
+      }
+      auto* dialog = qobject_cast<QDialog*>(widget);
+      auto* width = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("canvasSizeWidthSpin"));
+      auto* height = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("canvasSizeHeightSpin"));
+      auto* width_unit = dialog->findChild<QComboBox*>(QStringLiteral("canvasSizeWidthUnitCombo"));
+      auto* relative = dialog->findChild<QCheckBox*>(QStringLiteral("canvasSizeRelativeCheck"));
+      auto* link = dialog->findChild<QToolButton*>(QStringLiteral("canvasSizeLinkButton"));
+      auto* new_size = dialog->findChild<QLabel*>(QStringLiteral("canvasSizeNewSizeLabel"));
+      CHECK(width != nullptr && height != nullptr && width_unit != nullptr && relative != nullptr &&
+            link != nullptr && new_size != nullptr);
+      CHECK(link->isCheckable() && !link->isChecked());
+      CHECK(width_unit->currentText() == QStringLiteral("Pixels"));
+      const auto bytes_per_pixel =
+          static_cast<double>(patchy::bytes_per_pixel(patchy::ui::MainWindowTestAccess::document(window).format()));
+      // The dialog prints megabytes at or above 1 MB and kilobytes below it.
+      const auto summary_for = [bytes_per_pixel](int w, int h) {
+        const auto bytes = static_cast<double>(w) * h * bytes_per_pixel;
+        return bytes >= 1024.0 * 1024.0
+                   ? QStringLiteral("New Size: %1M").arg(bytes / (1024.0 * 1024.0), 0, 'f', 1)
+                   : QStringLiteral("New Size: %1K").arg(bytes / 1024.0, 0, 'f', 1);
+      };
+
+      // Unlinked (the default): the axes are independent, as before.
+      width->setValue(512.0);
+      QApplication::processEvents();
+      CHECK(height->value() == 768.0);
+      CHECK(new_size->text() == summary_for(512, 768));
+
+      // Linking derives the height from the width at once; edits then follow both ways.
+      link->setChecked(true);
+      QApplication::processEvents();
+      CHECK(height->value() == 384.0);
+      CHECK(new_size->text() == summary_for(512, 384));
+      height->setValue(600.0);
+      QApplication::processEvents();
+      CHECK(width->value() == 800.0);
+      CHECK(new_size->text() == summary_for(800, 600));
+
+      // Relative mode links the resulting sizes, not the deltas: +256 px of width on a
+      // 1024 px document makes 1280 x 960, shown as +192 px of height.
+      relative->setChecked(true);
+      QApplication::processEvents();
+      CHECK(width->value() == -224.0 && height->value() == -168.0);
+      width->setValue(256.0);
+      QApplication::processEvents();
+      CHECK(height->value() == 192.0);
+      CHECK(new_size->text() == summary_for(1280, 960));
+
+      // Percent through the link: 50% width is 50% height.
+      relative->setChecked(false);
+      width_unit->setCurrentIndex(width_unit->findText(QStringLiteral("Percent")));
+      QApplication::processEvents();
+      width->setValue(50.0);
+      QApplication::processEvents();
+      CHECK(std::abs(height->value() - 50.0) < 0.005);
+      CHECK(new_size->text() == summary_for(512, 384));
+
+      // Unlinking leaves the pair alone and frees the axes again.
+      link->setChecked(false);
+      height->setValue(100.0);
+      QApplication::processEvents();
+      CHECK(std::abs(width->value() - 50.0) < 0.005);
+      CHECK(new_size->text() == summary_for(512, 768));
+      link->setChecked(true);
+      QApplication::processEvents();
+      CHECK(new_size->text() == summary_for(512, 384));
+      widget->grab().save(QStringLiteral("test-artifacts/ui_canvas_size_dialog_link.png"));
+      drove_dialog = true;
+      dialog->accept();
+      return;
+    }
+    CHECK(false);
+  });
+  require_action(window, "imageCanvasSizeAction")->trigger();
+  QApplication::processEvents();
+  CHECK(drove_dialog);
+
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  CHECK(document.width() == 512);
+  CHECK(document.height() == 384);
+}
+
 // Photoshop's dialog memory: Image Size keeps its W/H unit and its resolution unit
 // across openings (`imageSize/lastUnit`, `imageSize/lastResolutionUnit`, written on
 // accept only); a first run seeds the W/H unit from the ruler unit, and a token the
@@ -5281,6 +5377,7 @@ std::vector<patchy::test::TestCase> import_print_resolution_tests() {
        ui_image_size_dialog_unit_and_resolution_links_work},
       {"ui_canvas_size_dialog_units_convert_through_resolution",
        ui_canvas_size_dialog_units_convert_through_resolution},
+      {"ui_canvas_size_dialog_link_keeps_aspect_ratio", ui_canvas_size_dialog_link_keeps_aspect_ratio},
       {"ui_image_size_dialog_remembers_units", ui_image_size_dialog_remembers_units},
       {"ui_canvas_size_dialog_remembers_unit", ui_canvas_size_dialog_remembers_unit},
       {"ui_imported_image_density_follows_photoshop_conventions",
