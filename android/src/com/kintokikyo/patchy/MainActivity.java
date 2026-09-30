@@ -385,9 +385,49 @@ public class MainActivity extends QtActivity {
                 "CUSTOM MAIN ACTIVITY onCreate()");
 
         super.onCreate(savedInstanceState);
+        
+        hideSystemBars();
+        
         getWindow().getDecorView().post(() -> {
         disableCaptionDragForTopArea();
         });
+    }
+    
+    private void hideSystemBars() {
+    if (android.os.Build.VERSION.SDK_INT >= 30) {
+        android.view.WindowInsetsController controller =
+                getWindow().getInsetsController();
+
+        if (controller != null) {
+            controller.hide(
+                    android.view.WindowInsets.Type.statusBars()
+                    | android.view.WindowInsets.Type.navigationBars()
+            );
+
+            controller.setSystemBarsBehavior(
+                    android.view.WindowInsetsController
+                            .BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            );
+        }
+    } else {
+        getWindow().getDecorView().setSystemUiVisibility(
+                android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                | android.view.View.SYSTEM_UI_FLAG_FULLSCREEN
+                | android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                | android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                | android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                | android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+        );
+    }
+    }
+    
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+
+        if (hasFocus) {
+            hideSystemBars();
+        }
     }
     
     private void disableCaptionDragForTopArea() {
