@@ -10,6 +10,7 @@
 
 #include <optional>
 #include <string>
+#include <unordered_map>
 
 class QFileInfo;
 
@@ -24,6 +25,20 @@ struct SmartObjectLayerPreview {
   FilterRenderResult unfiltered;
   // Cached pixels displayed by the layer after its Smart Filter stack.
   FilterRenderResult rendered;
+};
+
+// What one operation learned about each source it rendered, keyed by source uuid,
+// so a geometry change that re-renders several layers placed from one file (Image
+// Size over six linked logos) reads and decodes that file once, not once per layer.
+// An entry with `resolved` set and no `linked_contents` records a linked file that
+// could not be found or read; the render then fails the same way for every layer.
+struct SmartObjectSourceRenderCache {
+  struct Entry {
+    bool resolved{false};
+    std::optional<SmartObjectSource> linked_contents;  // the file's bytes (linked sources only)
+    std::optional<QImage> image;                       // the natural-size decode
+  };
+  std::unordered_map<std::string, Entry> entries;
 };
 
 // How Patchy can round-trip an embedded source's format; this decides the Edit
@@ -125,13 +140,16 @@ bool refresh_smart_object_link_relative_paths(SmartObjectStore& store, const QSt
 // Renders one editable embedded or resolved linked Smart Object from its
 // immutable source. Passing an override stack is used by the Gaussian dialog
 // preview; nullptr uses the layer's current stack. No layer or document state
-// is changed.
+// is changed. A linked source resolves against `parent_document_dir` (the stored
+// relative path first, like Photoshop); `cache`, when given, is consulted and filled
+// so an operation over many layers reads each file once.
 [[nodiscard]] std::optional<SmartObjectLayerPreview>
 render_smart_object_layer_preview(
     const Document& document, const Layer& layer,
     CanvasWidget::TransformInterpolation interpolation,
     const SmartFilterStack* override_stack = nullptr,
-    const QString& parent_document_dir = {});
+    const QString& parent_document_dir = {},
+    SmartObjectSourceRenderCache* cache = nullptr);
 
 // Renders only the immutable placed/warped source. Dialog setup and filter
 // deletion use this path so they never execute the existing filter merely to
@@ -140,7 +158,8 @@ render_smart_object_layer_preview(
 render_smart_object_unfiltered_layer_preview(
     const Document& document, const Layer& layer,
     CanvasWidget::TransformInterpolation interpolation,
-    const QString& parent_document_dir = {});
+    const QString& parent_document_dir = {},
+    SmartObjectSourceRenderCache* cache = nullptr);
 
 // Same pipeline for callers that already decoded fresh embedded/linked bytes.
 // This is used by Edit/Replace/Relink Contents before the source store settles.
@@ -160,10 +179,20 @@ bool install_smart_object_layer_preview(Document& document, Layer& layer,
 // Re-renders `layer`'s preview from its embedded or resolved linked source in
 // `document`'s store: decode + resample, then replace the layer's pixels/bounds and mark
 // raster_status=patchy_raster. Returns false (layer untouched) when the layer is not
-// an editable embedded smart object or its source cannot be decoded.
+// an editable embedded or linked smart object, its linked file is missing, or its
+// source cannot be decoded.
 bool refresh_smart_object_layer_preview(Document& document, Layer& layer,
                                         CanvasWidget::TransformInterpolation interpolation,
                                         bool refresh_native_cache = true,
-                                        const QString& parent_document_dir = {});
+                                        const QString& parent_document_dir = {},
+                                        SmartObjectSourceRenderCache* cache = nullptr);
+
+// Why a linked layer's re-render would fail before any pixels are touched: the file
+// could not be found, or it exists but cannot be read or decoded. nullopt for an
+// embedded layer or a linked file that decodes. Geometry commits use this to keep
+// the resampled preview and report the file instead of a generic render error.
+enum class SmartObjectLinkProblem { missing, unreadable };
+[[nodiscard]] std::optional<SmartObjectLinkProblem> smart_object_link_problem(
+    const Document& document, const Layer& layer, const QString& parent_document_dir);
 
 }  // namespace patchy::ui

@@ -643,11 +643,18 @@ private:
   // allowed; native Smart Filter caches and unparsed placements still cannot follow.
   // Shows the matching status error and returns true when the caller must abort.
   [[nodiscard]] bool refuse_document_geometry_change();
-  // Re-renders every editable smart object from its immutable source after a geometry
-  // change that RESAMPLED the previews (Image Size). Photoshop's Image Size stays
-  // non-destructive; without this the layer would keep the bilinear-scaled preview even
-  // though the source is still full resolution. Callers own the undo snapshot.
-  void rerender_smart_object_previews();
+  // Re-renders every editable embedded and every resolvable linked smart object in
+  // `target` from its immutable source after a geometry change that RESAMPLED the
+  // previews (Image Size). Photoshop's Image Size stays non-destructive; without this
+  // the layer would keep the bilinear-scaled preview even though the source is still
+  // full resolution. Each linked file is read once per source element; a missing or
+  // undecodable file keeps the resampled preview and is reported on the status bar.
+  // Callers own the undo snapshot.
+  void rerender_smart_object_previews(DocumentSession& target);
+  // "Linked file X was not found" / "Could not decode X" for a linked layer whose file
+  // cannot be re-rendered from, or an empty string when it can (or the layer is embedded).
+  [[nodiscard]] QString linked_smart_object_problem_message(const Document& document, const Layer& layer,
+                                                            const QString& parent_document_dir) const;
   // The text counterpart for Image Size: every text layer whose composed
   // patchy.text.transform now carries scale is re-rendered through it with the
   // free-transform commit's rules (Patchy-authored text folds the scale into its

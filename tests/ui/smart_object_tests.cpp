@@ -2681,6 +2681,321 @@ void ui_smart_object_missing_linked_file_is_reported_and_relinks() {
 // Photoshop 2026's own linked placement (scripts\dev\smart-objects\ps-capture-linked.ps1):
 // its stamp is UTC, so the untouched file must read as unchanged in any time zone,
 // and the link resolves beside the document and one folder up.
+// --- Geometry operations re-render linked placements from their files -----------
+
+namespace {
+
+// Compares a layer's pixel bytes with a fresh render of it from its source through
+// its current placement: what "re-rendered, not resampled" means for a linked layer.
+bool layer_pixels_match_fresh_render(const patchy::Document& document, const patchy::Layer& layer,
+                                     const QString& document_dir,
+                                     patchy::ui::CanvasWidget::TransformInterpolation interpolation) {
+  const auto expected =
+      patchy::ui::render_smart_object_layer_preview(document, layer, interpolation, nullptr, document_dir);
+  if (!expected.has_value()) {
+    return false;
+  }
+  const auto& pixels = layer.pixels();
+  const auto& fresh = expected->rendered.pixels;
+  if (layer.bounds().x != expected->rendered.bounds.x || layer.bounds().y != expected->rendered.bounds.y ||
+      pixels.width() != fresh.width() || pixels.height() != fresh.height() || pixels.format() != fresh.format()) {
+    return false;
+  }
+  for (std::int32_t y = 0; y < pixels.height(); ++y) {
+    if (std::memcmp(pixels.row(y).data(), fresh.row(y).data(), static_cast<std::size_t>(pixels.width()) * 4U) != 0) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// A 256 x 64 png of 4 px vertical stripes alternating red and blue at 72 dpi: finer
+// than a 32 px wide placement's preview can hold, so a layer rendered from the old
+// preview and one rendered from the file differ at every other stripe.
+QString write_striped_test_png(const QString& path) {
+  QImage image(256, 64, QImage::Format_RGBA8888);
+  for (int y = 0; y < image.height(); ++y) {
+    for (int x = 0; x < image.width(); ++x) {
+      image.setPixelColor(x, y, ((x / 4) % 2 == 0) ? QColor(255, 0, 0, 255) : QColor(0, 0, 255, 255));
+    }
+  }
+  image.setDotsPerMeterX(2835);
+  image.setDotsPerMeterY(2835);
+  CHECK(image.save(path));
+  return path;
+}
+
+}  // namespace
+
+// doc.resizeImage re-renders a linked SVG and an embedded one from their sources, so
+// a placement scaled by Image Size carries the same bytes a fresh placement at the
+// new size does (crisp edges from the vector file, not the resampled old preview).
+// The untouched file must not read as changed afterwards.
+void ui_script_smart_object_image_size_rerenders_linked_and_embedded() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  const auto dir = linked_test_dir(QStringLiteral("image-size"));
+  const auto svg_path = dir + QStringLiteral("/logo.svg");
+  const auto psd_path = dir + QStringLiteral("/board.psd");
+  write_linked_test_file(svg_path, linked_test_svg("#ff0000"));
+
+  CHECK(run_smart_object_script(window, QStringLiteral(R"JS(
+    var svg = %1, psd = %2;
+    var doc = app.newDocument(300, 200);
+    var linked = doc.addSmartObject(svg, {linked: true, x: 10, y: 10, width: 64, name: 'linked'});
+    var embedded = doc.addSmartObject(svg, {x: 100, y: 10, width: 64, name: 'embedded'});
+    if (!doc.saveAs(psd)) throw new Error('save failed');
+    function block(layer) {
+      var p = layer.getPixels();
+      return {x: p.x, y: p.y, width: p.width, height: p.height, data: new Uint8Array(p.data)};
+    }
+    function softRatio(b) {
+      var soft = 0, covered = 0;
+      for (var i = 3; i < b.data.length; i += 4) {
+        if (b.data[i] > 0) { covered++; if (b.data[i] < 255) soft++; }
+      }
+      return soft / covered;
+    }
+    function sameBytes(a, b, what) {
+      if (a.x !== b.x || a.y !== b.y || a.width !== b.width || a.height !== b.height) {
+        throw new Error(what + ': geometry ' + [a.x, a.y, a.width, a.height] + ' vs ' + [b.x, b.y, b.width, b.height]);
+      }
+      for (var i = 0; i < a.data.length; i++) {
+        if (a.data[i] !== b.data[i]) throw new Error(what + ': byte ' + i + ' differs');
+      }
+    }
+    var softBefore = softRatio(block(linked));
+
+    doc.resizeImage(1200, 800);
+
+    var so = linked.getSmartObject();
+    if (so.missing) throw new Error('link lost');
+    if (so.changed) throw new Error('resize flagged the untouched file as changed');
+    if (Math.abs(so.quad[0] - 40) > 0.001 || Math.abs(so.quad[2] - so.quad[0] - 256) > 0.001) throw new Error('quad ' + so.quad);
+    if (so.width !== 64 || so.height !== 32) throw new Error('contents size changed ' + so.width + 'x' + so.height);
+    // Fresh placements at the resized geometry are the reference: same file, same quad.
+    var freshLinked = doc.addSmartObject(svg, {linked: true, x: 40, y: 40, width: 256, name: 'fresh linked'});
+    var freshEmbedded = doc.addSmartObject(svg, {x: 400, y: 40, width: 256, name: 'fresh embedded'});
+    sameBytes(block(linked), block(freshLinked), 'linked after resize');
+    sameBytes(block(embedded), block(freshEmbedded), 'embedded after resize');
+    var softAfter = softRatio(block(linked));
+    if (!(softAfter < softBefore)) throw new Error('edges did not sharpen: ' + softBefore + ' -> ' + softAfter);
+    console.log('image-size-ok');
+  )JS")
+                                            .arg(js_string(svg_path), js_string(psd_path))));
+  CHECK(smart_object_backlog_contains(window, QStringLiteral("image-size-ok")));
+
+  // Both re-rendered layers are Patchy rasters with dirty placement blocks, as
+  // Image Size leaves an embedded one.
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  for (const auto* name : {"linked", "embedded"}) {
+    const patchy::Layer* layer = nullptr;
+    for (const auto& candidate : std::as_const(document).layers()) {
+      if (candidate.name() == name) {
+        layer = &candidate;
+      }
+    }
+    CHECK(layer != nullptr);
+    CHECK(patchy::layer_smart_object_block_dirty(*layer));
+    const auto& metadata = layer->metadata();
+    const auto status = metadata.find(patchy::kLayerMetadataSmartObjectRasterStatus);
+    CHECK(status != metadata.end() && status->second == patchy::kSmartObjectRasterStatusPatchy);
+  }
+  CHECK(!window.statusBar()->currentMessage().contains(QStringLiteral("not found")));
+}
+
+// A linked raster file re-renders from its full-resolution pixels: a 256 px wide png
+// placed 32 px wide and then resized four times shows stripes the 32 px preview
+// could never hold.
+void ui_script_smart_object_linked_raster_rerenders_from_full_resolution() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  const auto dir = linked_test_dir(QStringLiteral("image-size-raster"));
+  const auto png_path = write_striped_test_png(dir + QStringLiteral("/stripes.png"));
+
+  CHECK(run_smart_object_script(window, QStringLiteral(R"JS(
+    var png = %1;
+    var doc = app.newDocument(200, 100);
+    var layer = doc.addSmartObject(png, {linked: true, x: 8, y: 8, width: 32});
+    var so = layer.getSmartObject();
+    if (!so.linked || so.width !== 256 || so.height !== 64) throw new Error('contents ' + so.width + 'x' + so.height);
+    doc.resizeImage(800, 400);
+    so = layer.getSmartObject();
+    if (so.changed || so.missing) throw new Error('resize flagged the link');
+    var p = layer.getPixels();
+    if (p.width !== 128 || p.height !== 32) throw new Error('layer size ' + p.width + 'x' + p.height);
+    var d = new Uint8Array(p.data);
+    function rgb(x, y) { var i = (y * p.width + x) * 4; return [d[i], d[i + 1], d[i + 2], d[i + 3]]; }
+    // 4 px source stripes are 2 px wide at this scale: x 0..1 red, x 2..3 blue, ...
+    var red = rgb(0, 16), blue = rgb(2, 16), red2 = rgb(4, 16);
+    if (!(red[0] > 200 && red[2] < 60 && red[3] === 255)) throw new Error('x0 ' + red);
+    if (!(blue[2] > 200 && blue[0] < 60 && blue[3] === 255)) throw new Error('x2 ' + blue);
+    if (!(red2[0] > 200 && red2[2] < 60)) throw new Error('x4 ' + red2);
+    console.log('raster-ok');
+  )JS")
+                                            .arg(js_string(png_path))));
+  CHECK(smart_object_backlog_contains(window, QStringLiteral("raster-ok")));
+}
+
+// A linked file that is gone keeps the resampled preview the resize produced: the
+// placement still scales, nothing throws, the link still reads as missing, and the
+// status bar names the file.
+void ui_script_smart_object_missing_linked_file_keeps_preview_on_image_size() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  const auto dir = linked_test_dir(QStringLiteral("image-size-missing"));
+  const auto svg_path = dir + QStringLiteral("/logo.svg");
+  const auto psd_path = dir + QStringLiteral("/board.psd");
+  write_linked_test_file(svg_path, linked_test_svg("#ff0000"));
+  CHECK(run_smart_object_script(window, QStringLiteral(R"JS(
+    var doc = app.newDocument(300, 200);
+    doc.addSmartObject(%1, {linked: true, x: 10, y: 10, width: 64});
+    if (!doc.saveAs(%2)) throw new Error('save failed');
+    doc.close();
+  )JS")
+                                            .arg(js_string(svg_path), js_string(psd_path))));
+  CHECK(QFile::remove(svg_path));
+
+  CHECK(run_smart_object_script(window, QStringLiteral(R"JS(
+    var doc = app.open(%1);
+    var layer = doc.findLayer('logo');
+    if (!layer.getSmartObject().missing) throw new Error('the removed file still resolves');
+    var before = layer.bounds;
+    var centerBefore = (function () { var p = layer.getPixels(); var d = new Uint8Array(p.data);
+      var i = ((p.height >> 1) * p.width + (p.width >> 1)) * 4; return [d[i], d[i + 1], d[i + 2], d[i + 3]]; })();
+    doc.resizeImage(600, 400);
+    layer = doc.findLayer('logo');
+    var so = layer.getSmartObject();
+    if (!so.missing) throw new Error('missing flag lost');
+    if (Math.abs(so.quad[0] - 20) > 0.001 || Math.abs(so.quad[2] - so.quad[0] - 128) > 0.001) throw new Error('quad ' + so.quad);
+    var after = layer.bounds;
+    if (Math.abs(after.width - before.width * 2) > 1 || Math.abs(after.height - before.height * 2) > 1) {
+      throw new Error('bounds ' + JSON.stringify(before) + ' -> ' + JSON.stringify(after));
+    }
+    var p = layer.getPixels();
+    var d = new Uint8Array(p.data);
+    var i = ((p.height >> 1) * p.width + (p.width >> 1)) * 4;
+    if (!(d[i] > 200 && d[i + 2] < 60 && d[i + 3] === 255)) throw new Error('resampled preview lost: ' + [d[i], d[i + 1], d[i + 2], d[i + 3]] + ' was ' + centerBefore);
+    console.log('missing-ok');
+  )JS")
+                                            .arg(js_string(psd_path))));
+  CHECK(smart_object_backlog_contains(window, QStringLiteral("missing-ok")));
+  CHECK(window.statusBar()->currentMessage().contains(QStringLiteral("logo.svg")));
+  CHECK(window.statusBar()->currentMessage().contains(QStringLiteral("not found")));
+}
+
+// Free Transform and Warp on a linked SVG re-render from the file like an embedded
+// placement does (the vector rasterizes at the new scale); once the file is gone the
+// transform keeps its resampled pixels and reports the file, and Warp refuses.
+void ui_smart_object_free_transform_and_warp_rerender_linked_svg() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  add_linked_test_document(window, 300, 200);
+  QApplication::processEvents();
+  const auto dir = linked_test_dir(QStringLiteral("free-transform"));
+  const auto svg_path = dir + QStringLiteral("/logo.svg");
+  write_linked_test_file(svg_path, linked_test_svg("#ff0000"));
+  patchy::ui::MainWindowTestAccess::place_linked_file_with_path(window, svg_path);
+  QApplication::processEvents();
+
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  CHECK(std::as_const(document).layers().size() == 2U);
+  const auto layer_id = std::as_const(document).layers().back().id();
+  CHECK(patchy::smart_object_lock_reason(*std::as_const(document).find_layer(layer_id)) == "external");
+  auto* layer_list = window.findChild<QListWidget*>(QStringLiteral("layerList"));
+  CHECK(layer_list != nullptr);
+  auto* item = require_layer_item(*layer_list, QStringLiteral("logo"));
+  layer_list->clearSelection();
+  layer_list->setCurrentItem(item);
+  item->setSelected(true);
+  QApplication::processEvents();
+  auto* canvas = patchy::ui::MainWindowTestAccess::canvas(window);
+  CHECK(canvas != nullptr);
+  // The document has no folder: links resolve through their absolute path.
+  const QString document_dir;
+
+  // Scale 3x: the placement triples and the pixels are a fresh vector render.
+  const auto before = patchy::smart_object_placement_from_layer(*std::as_const(document).find_layer(layer_id));
+  CHECK(before.has_value());
+  CHECK(canvas->begin_free_transform());
+  const auto controls = canvas->transform_controls_state();
+  CHECK(controls.has_value());
+  CHECK(canvas->set_transform_controls_state(controls->reference_position, 300.0, 300.0, 0.0));
+  QApplication::processEvents();
+  canvas->finish_free_transform();
+  QApplication::processEvents();
+  {
+    const auto* transformed = std::as_const(document).find_layer(layer_id);
+    CHECK(transformed != nullptr);
+    const auto after = patchy::smart_object_placement_from_layer(*transformed);
+    CHECK(after.has_value());
+    CHECK(std::abs((after->transform[2] - after->transform[0]) - (before->transform[2] - before->transform[0]) * 3.0) <
+          0.6);
+    CHECK(patchy::smart_object_lock_reason(*transformed) == "external");
+    const auto& metadata = transformed->metadata();
+    const auto status = metadata.find(patchy::kLayerMetadataSmartObjectRasterStatus);
+    CHECK(status != metadata.end() && status->second == patchy::kSmartObjectRasterStatusPatchy);
+    CHECK(layer_pixels_match_fresh_render(std::as_const(document), *transformed, document_dir,
+                                          canvas->transform_interpolation()));
+    CHECK(!window.statusBar()->currentMessage().contains(QStringLiteral("not found")));
+  }
+
+  // Warp bakes the linked contents through a preset mesh; the layer stays linked.
+  CHECK(canvas->begin_warp_transform());
+  CHECK(canvas->warp_transform_active());
+  canvas->apply_warp_style_preset(QStringLiteral("warpArc"), 50.0);
+  canvas->finish_warp_transform();
+  QApplication::processEvents();
+  CHECK(!canvas->warp_transform_active());
+  {
+    const auto* warped = std::as_const(document).find_layer(layer_id);
+    CHECK(warped != nullptr);
+    const auto warp = patchy::smart_object_warp_from_layer(*warped);
+    CHECK(warp.has_value() && !warp->mesh_xs.empty());
+    CHECK(patchy::smart_object_lock_reason(*warped) == "external");
+    CHECK(!warped->pixels().empty());
+    CHECK(layer_pixels_match_fresh_render(std::as_const(document), *warped, document_dir,
+                                          canvas->transform_interpolation()));
+  }
+  patchy::ui::MainWindowTestAccess::undo(window);
+  QApplication::processEvents();
+  CHECK(!patchy::smart_object_warp_from_layer(*std::as_const(document).find_layer(layer_id)).has_value());
+
+  // The file disappears: a transform keeps the resampled pixels and names the file.
+  // (Undo rebuilt the layer list, so select the row again before transforming.)
+  CHECK(QFile::remove(svg_path));
+  item = require_layer_item(*layer_list, QStringLiteral("logo"));
+  layer_list->clearSelection();
+  layer_list->setCurrentItem(item);
+  item->setSelected(true);
+  QApplication::processEvents();
+  CHECK(std::as_const(document).active_layer_id() == layer_id);
+  const auto bounds_before_missing = std::as_const(document).find_layer(layer_id)->bounds();
+  CHECK(canvas->begin_free_transform());
+  const auto controls_missing = canvas->transform_controls_state();
+  CHECK(controls_missing.has_value());
+  CHECK(canvas->set_transform_controls_state(controls_missing->reference_position, 50.0, 50.0, 0.0));
+  QApplication::processEvents();
+  canvas->finish_free_transform();
+  QApplication::processEvents();
+  {
+    const auto* halved = std::as_const(document).find_layer(layer_id);
+    CHECK(halved != nullptr);
+    // The resampled fallback alpha-trims to the visible circle: radius 12 at 3x is a
+    // 72 px disc, so half of it is 36 px (the vector render above kept the whole
+    // 192 x 96 artwork rect).
+    CHECK(bounds_before_missing.width == 192);
+    CHECK(std::abs(halved->bounds().width - 36) <= 2 && std::abs(halved->bounds().height - 36) <= 2);
+    CHECK(!halved->pixels().empty());
+    CHECK(patchy::smart_object_lock_reason(*halved) == "external");
+    CHECK(window.statusBar()->currentMessage().contains(QStringLiteral("logo.svg")));
+    CHECK(window.statusBar()->currentMessage().contains(QStringLiteral("not found")));
+  }
+  CHECK(!canvas->begin_warp_transform());
+  CHECK(!canvas->warp_transform_active());
+  CHECK(window.statusBar()->currentMessage().contains(QStringLiteral("not found")));
+}
+
 void ui_smart_object_photoshop_linked_capture_resolves_if_available() {
   const auto dir = QFileInfo(patchy::ui::to_qstring(patchy::test::local_psd_fixture_path("ps2026_linked/linked_svg.psd")))
                         .absolutePath();
@@ -2812,6 +3127,14 @@ std::vector<patchy::test::TestCase> smart_object_tests() {
       {"ui_script_smart_object_options_and_errors", ui_script_smart_object_options_and_errors},
       {"ui_smart_object_missing_linked_file_is_reported_and_relinks",
        ui_smart_object_missing_linked_file_is_reported_and_relinks},
+      {"ui_script_smart_object_image_size_rerenders_linked_and_embedded",
+       ui_script_smart_object_image_size_rerenders_linked_and_embedded},
+      {"ui_script_smart_object_linked_raster_rerenders_from_full_resolution",
+       ui_script_smart_object_linked_raster_rerenders_from_full_resolution},
+      {"ui_script_smart_object_missing_linked_file_keeps_preview_on_image_size",
+       ui_script_smart_object_missing_linked_file_keeps_preview_on_image_size},
+      {"ui_smart_object_free_transform_and_warp_rerender_linked_svg",
+       ui_smart_object_free_transform_and_warp_rerender_linked_svg},
       {"ui_smart_object_photoshop_linked_capture_resolves_if_available",
        ui_smart_object_photoshop_linked_capture_resolves_if_available},
   };

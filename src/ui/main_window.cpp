@@ -8413,11 +8413,35 @@ void MainWindow::configure_canvas(CanvasWidget* canvas) {
         owner_session->document, *layer, canvas->transform_interpolation(),
         true, parent_document_dir);
     if (!refreshed) {
-      show_status_error(
-          tr("Could not rebuild the Smart Filter preview and cache"));
+      // A linked file that is missing or unreadable keeps the resampled preview the
+      // commit produced (the caller's fallback); say which file, not "cache".
+      const auto link_problem = linked_smart_object_problem_message(
+          std::as_const(owner_session->document), std::as_const(*layer), parent_document_dir);
+      show_status_error(link_problem.isEmpty() ? tr("Could not rebuild the Smart Filter preview and cache")
+                                               : link_problem);
     }
     return refreshed;
   });
+  canvas->set_smart_object_source_image_callback(
+      [this, canvas](LayerId id, QString* error) -> std::optional<QImage> {
+        auto* owner_session = session_for_canvas(canvas);
+        const auto* layer = owner_session != nullptr ? std::as_const(owner_session->document).find_layer(id)
+                                                     : nullptr;
+        if (layer == nullptr || !layer_is_smart_object(*layer)) {
+          return std::nullopt;
+        }
+        const auto parent_document_dir =
+            owner_session->path.isEmpty() ? QString() : QFileInfo(owner_session->path).absolutePath();
+        const auto* source =
+            std::as_const(owner_session->document).metadata().smart_objects.find(smart_object_source_uuid(*layer));
+        auto image = source != nullptr ? decode_smart_object_source_image(*source, parent_document_dir)
+                                       : std::nullopt;
+        if (!image.has_value() && error != nullptr) {
+          *error = linked_smart_object_problem_message(std::as_const(owner_session->document), *layer,
+                                                       parent_document_dir);
+        }
+        return image;
+      });
   canvas->set_smart_object_paint_prompt_callback(
       [this, canvas](LayerId id) { prompt_paint_on_smart_object(canvas, id); });
   canvas->set_text_layer_transform_render_callback([this, canvas](LayerId id) -> bool {

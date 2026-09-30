@@ -1340,6 +1340,11 @@ bool MainWindow::resize_document_image(DocumentSession& target, int width, int h
   // resize; re-render them here (GUI thread, after the swap) so the dialog, doc.resizeImage
   // and MCP all land the same crisp, size-folded result.
   rerender_text_layers_through_transforms(target);
+  // Image Size is the one geometry operation that resamples: the scaled placements
+  // re-render from their full-resolution sources (embedded bytes or the linked file)
+  // so smart objects stay crisp, the way Photoshop's non-destructive Image Size
+  // leaves them. Here rather than in the dialog so the script and MCP resize match.
+  rerender_smart_object_previews(target);
   return true;
 }
 
@@ -1378,10 +1383,6 @@ void MainWindow::resize_image_dialog() {
   push_undo_snapshot(tr("Image size"));
   if (dimensions_changed) {
     resize_document_image(session(), settings->width, settings->height);
-    // Image Size is the one geometry operation that resamples: the scaled placements
-    // re-render from their full-resolution sources so smart objects stay crisp, the
-    // way Photoshop's non-destructive Image Size leaves them.
-    rerender_smart_object_previews();
     canvas_->clear_selection();
     const auto previous_channel_target = canvas_->layer_edit_target();
     const auto previous_channel_id = canvas_->active_document_channel_id();

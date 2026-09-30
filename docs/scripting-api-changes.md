@@ -307,3 +307,13 @@ pages now go through Patchy's own PDF writer: `lossless: false` means JPEG quali
 default stays lossless. `keepOriginalImageData` (default true) writes a page that was
 imported from a PDF as one image, and has not visibly changed since, with that image's
 original bytes. Pinned by `ui_script_export_pdf_writes_pages`.
+
+2026-10-01 behavioral correction (API version remains 1): `doc.resizeImage` re-renders
+every editable embedded and every resolvable linked smart object from its source
+(vector files at the new scale), matching Image > Image Size; before, the script and
+MCP resize kept the resampled previews, and linked placements stayed resampled in
+every path. A linked file that is missing or cannot be decoded keeps the resampled
+preview without throwing, and `getSmartObject().missing` still reports it. Pinned by
+`ui_script_smart_object_image_size_rerenders_linked_and_embedded`,
+`ui_script_smart_object_linked_raster_rerenders_from_full_resolution` and
+`ui_script_smart_object_missing_linked_file_keeps_preview_on_image_size`.

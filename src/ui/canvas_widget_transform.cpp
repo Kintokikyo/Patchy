@@ -1037,8 +1037,9 @@ CanvasWidget::TransformTargetCollection CanvasWidget::collect_free_transform_tar
     }
     if (layer_is_smart_object(layer) && !smart_object_placement_from_layer(layer).has_value()) {
       // Preview-locked-but-parsed smart objects (non-affine quads, unsupported
-      // warps, external, legacy) ARE transformable: their quads map per corner
-      // and the resampled pixels stand in for the re-render, like Photoshop.
+      // warps, external, legacy) ARE transformable: their quads map per corner;
+      // a linked one re-renders from its file, the others keep the resampled
+      // pixels in place of a re-render, like Photoshop.
       // Without a parsed quad nothing can ride the transform, so refuse.
       collection.refusal =
           tr("This smart object is preview-only and can't be transformed. Rasterize the layer first.");
@@ -3086,6 +3087,7 @@ void CanvasWidget::commit_free_transform_multi() {
   }
 
   bool smart_filter_rerender_failed = false;
+  bool rerender_kept_resampled = false;  // a linked file could not be re-read; its resampled pixels stay
   if (changed) {
     for (const auto& target : transform_targets_) {
       auto* layer = document_->find_layer(target.id);
@@ -3144,15 +3146,21 @@ void CanvasWidget::commit_free_transform_multi() {
           store_smart_object_placement(*layer, updated);
           mark_layer_smart_object_block_dirty(*layer);
           layer->metadata()[kLayerMetadataSmartObjectRasterStatus] = kSmartObjectRasterStatusPatchy;
-          if (smart_object_lock_reason(*layer).empty()) {
+          // Editable and LINKED ("external") placements re-render from their source
+          // (the host resolves the linked file; a vector file rasterizes at the new
+          // scale). A missing or unreadable linked file leaves the resampled pixels
+          // committed above in place, and the host reports the file.
+          if (const auto lock = smart_object_lock_reason(*layer); lock.empty() || lock == "external") {
             if (smart_object_transform_render_callback_ && smart_object_transform_render_callback_(target.id)) {
               // Bounds refreshed by the re-render.
             } else if (transactional_smart_filter) {
               smart_filter_rerender_failed = true;
+            } else {
+              rerender_kept_resampled = true;
             }
           }
-          // Preview-locked layers keep the resampled pixels (no re-render
-          // exists); the mapped quads keep the SoLd geometry consistent.
+          // Warp-, filter- and legacy-locked layers keep the resampled pixels (no
+          // re-render exists); the mapped quads keep the SoLd geometry consistent.
         } else if (transactional_smart_filter) {
           smart_filter_rerender_failed = true;
         }
@@ -3204,7 +3212,9 @@ void CanvasWidget::commit_free_transform_multi() {
   disarm_transform_commit_hold_if_settled();
   if (smart_filter_rerender_failed) {
     report_status_error(tr("Could not rebuild the Smart Filter preview and cache"));
-  } else if (status_callback_) {
+  } else if (status_callback_ && !rerender_kept_resampled) {
+    // A kept resampled preview leaves the host's report (the missing linked file) on
+    // the status bar instead of announcing plain success.
     status_callback_(changed ? tr("Transformed layers") : tr("Free Transform cancelled"));
   }
   notify_transform_controls_changed();
@@ -3325,7 +3335,10 @@ bool CanvasWidget::begin_warp_transform() {
                            "convert to a smart object or rasterize first."));
     return false;
   }
-  if (layer_is_smart_object(*layer) && !smart_object_lock_reason(*layer).empty()) {
+  // A linked ("external") placement warps like an embedded one: its file is the
+  // source. Warp, filter and legacy locks have no source to bake from.
+  if (const auto lock = layer_is_smart_object(*layer) ? smart_object_lock_reason(*layer) : std::string();
+      !lock.empty() && lock != "external") {
     report_status_error(tr("This smart object is preview-only and can't be warped. Rasterize the layer first."));
     return false;
   }
@@ -3342,9 +3355,18 @@ bool CanvasWidget::begin_warp_transform() {
     const auto uuid = smart_object_source_uuid(*layer);
     const auto* source =
         placement.has_value() ? document_->metadata().smart_objects.find(uuid) : nullptr;
-    auto decoded = source != nullptr ? decode_smart_object_source_image(*source) : std::nullopt;
+    // The host resolves a linked file against the document's folder; without a host
+    // only embedded bytes decode.
+    QString decode_error;
+    std::optional<QImage> decoded;
+    if (source != nullptr) {
+      decoded = smart_object_source_image_callback_
+                    ? smart_object_source_image_callback_(layer->id(), &decode_error)
+                    : decode_smart_object_source_image(*source);
+    }
     if (!placement.has_value() || !decoded.has_value() || decoded->isNull()) {
-      report_status_error(tr("This smart object's contents can't be decoded for warping"));
+      report_status_error(decode_error.isEmpty() ? tr("This smart object's contents can't be decoded for warping")
+                                                 : decode_error);
       return false;
     }
     warp_content_width_ = placement->width > 0.0 ? placement->width : decoded->width();

@@ -377,37 +377,64 @@ bool MainWindow::refuse_document_geometry_change() {
   return false;
 }
 
-void MainWindow::rerender_smart_object_previews() {
-  auto* current = active_session();
-  if (current == nullptr) {
-    return;
+QString MainWindow::linked_smart_object_problem_message(const Document& document, const Layer& layer,
+                                                        const QString& parent_document_dir) const {
+  const auto problem = smart_object_link_problem(document, layer, parent_document_dir);
+  if (!problem.has_value()) {
+    return QString();
   }
-  auto& target = current->document;
-  const auto interpolation = canvas_ != nullptr
-                                 ? canvas_->transform_interpolation()
+  const auto* source = document.metadata().smart_objects.find(smart_object_source_uuid(layer));
+  const auto file_name = QString::fromStdString(source != nullptr ? source->filename : layer.name());
+  // The same wording the open-time notice uses (QObject context), so no new catalog entry.
+  return *problem == SmartObjectLinkProblem::missing ? QObject::tr("Linked file %1 was not found").arg(file_name)
+                                                     : tr("Could not decode %1").arg(file_name);
+}
+
+void MainWindow::rerender_smart_object_previews(DocumentSession& target) {
+  auto& document = target.document;
+  const auto interpolation = target.canvas != nullptr
+                                 ? target.canvas->transform_interpolation()
                                  : CanvasWidget::TransformInterpolation::Bicubic;
+  const auto parent_document_dir = target.path.isEmpty() ? QString() : QFileInfo(target.path).absolutePath();
+  // One read and decode per source however many layers place it (six linked logos
+  // from three SVGs read three files).
+  SmartObjectSourceRenderCache cache;
+  QString problem;  // the first linked file that kept its resampled preview
   // Const walk on purpose: the non-const children() accessor bumps every visited
   // layer's revisions (docs/performance.md), so a mutable traversal would invalidate
   // every thumbnail and style-mask cache in the document. Only re-rendered layers are
-  // cast back, and their bumps are real edits. Preview-locked placements are skipped
-  // for the same reason Free Transform skips them: no re-render exists, and a LINKED
-  // source must only be re-read through Update Smart Object Content. Those keep the
-  // resampled preview the geometry operation already produced.
+  // cast back, and their bumps are real edits. Warp-, filter- and legacy-locked
+  // placements are skipped for the same reason Free Transform skips them: no
+  // re-render exists. A LINKED placement re-renders from its file exactly like an
+  // embedded one (Photoshop's Image Size re-renders linked smart objects too); a
+  // file that is missing or cannot be decoded keeps the resampled preview the
+  // geometry operation already produced and is reported once on the status bar.
   std::function<void(const std::vector<Layer>&)> refresh_layers =
       [&](const std::vector<Layer>& layers) {
         for (const auto& const_layer : layers) {
           if (!const_layer.children().empty()) {
             refresh_layers(const_layer.children());
           }
-          if (!layer_is_smart_object(const_layer) ||
-              !smart_object_lock_reason(const_layer).empty()) {
+          if (!layer_is_smart_object(const_layer)) {
             continue;
           }
-          refresh_smart_object_layer_preview(target, const_cast<Layer&>(const_layer),
-                                             interpolation);
+          const auto lock = smart_object_lock_reason(const_layer);
+          if (!lock.empty() && lock != "external") {
+            continue;
+          }
+          if (refresh_smart_object_layer_preview(document, const_cast<Layer&>(const_layer), interpolation, true,
+                                                 parent_document_dir, &cache)) {
+            continue;
+          }
+          if (problem.isEmpty() && lock == "external") {
+            problem = linked_smart_object_problem_message(std::as_const(document), const_layer, parent_document_dir);
+          }
         }
       };
-  refresh_layers(std::as_const(target).layers());
+  refresh_layers(std::as_const(document).layers());
+  if (!problem.isEmpty()) {
+    show_status_error(problem);
+  }
 }
 
 void MainWindow::export_smart_object_contents() {

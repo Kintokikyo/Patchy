@@ -1220,6 +1220,11 @@ void CanvasWidget::set_smart_object_transform_render_callback(std::function<bool
   smart_object_transform_render_callback_ = std::move(callback);
 }
 
+void CanvasWidget::set_smart_object_source_image_callback(
+    std::function<std::optional<QImage>(LayerId, QString* error)> callback) {
+  smart_object_source_image_callback_ = std::move(callback);
+}
+
 void CanvasWidget::set_smart_object_paint_prompt_callback(std::function<void(LayerId)> callback) {
   smart_object_paint_prompt_callback_ = std::move(callback);
 }

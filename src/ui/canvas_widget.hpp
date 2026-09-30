@@ -1244,6 +1244,12 @@ public:
   // true if it replaced the layer's pixels/bounds (so the resampled bitmap is overridden).
   void set_text_layer_transform_render_callback(std::function<bool(LayerId)> callback);
   void set_smart_object_transform_render_callback(std::function<bool(LayerId)> callback);
+  // The natural-size decode of a smart object's source for the Warp cage: embedded
+  // bytes, or a linked file resolved against the owning document's folder (the canvas
+  // has no path). On failure `error` receives the reason to show (a missing linked
+  // file names the file); an unset callback falls back to embedded bytes only.
+  void set_smart_object_source_image_callback(
+      std::function<std::optional<QImage>(LayerId, QString* error)> callback);
   // A paint tool pressed on a smart-object layer: the host offers to rasterize the
   // layer or open its contents. The triggering press is consumed either way (the
   // modal prompt swallows the release, so the stroke never starts).
@@ -2887,6 +2893,7 @@ private:
   std::function<void()> transform_controls_changed_callback_;
   std::function<bool(LayerId)> text_layer_transform_render_callback_;
   std::function<bool(LayerId)> smart_object_transform_render_callback_;
+  std::function<std::optional<QImage>(LayerId, QString*)> smart_object_source_image_callback_;
   std::function<void(LayerId)> smart_object_paint_prompt_callback_;
 };
 

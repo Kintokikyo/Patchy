@@ -561,9 +561,10 @@ std::optional<SmartObjectLayerPreview> render_smart_object_layer_preview(
     const Document& document, const Layer& layer,
     CanvasWidget::TransformInterpolation interpolation,
     const SmartFilterStack* override_stack,
-    const QString& parent_document_dir) {
+    const QString& parent_document_dir,
+    SmartObjectSourceRenderCache* cache) {
   const auto unfiltered = render_smart_object_unfiltered_layer_preview(
-      document, layer, interpolation, parent_document_dir);
+      document, layer, interpolation, parent_document_dir, cache);
   if (!unfiltered.has_value()) {
     return std::nullopt;
   }
@@ -586,10 +587,31 @@ std::optional<SmartObjectLayerPreview> render_smart_object_layer_preview(
   return result;
 }
 
+std::optional<SmartObjectLinkProblem> smart_object_link_problem(
+    const Document& document, const Layer& layer, const QString& parent_document_dir) {
+  if (!layer_is_smart_object(layer)) {
+    return std::nullopt;
+  }
+  const auto* source = document.metadata().smart_objects.find(smart_object_source_uuid(layer));
+  if (source == nullptr || source->kind != SmartObjectSourceKind::ExternalFile) {
+    return std::nullopt;
+  }
+  const auto path = resolve_smart_object_external_path(*source, parent_document_dir);
+  if (!path.has_value()) {
+    return SmartObjectLinkProblem::missing;
+  }
+  const auto contents = load_smart_object_file_probe(*path);
+  if (!contents.has_value() || !decode_smart_object_source_image(*contents).has_value()) {
+    return SmartObjectLinkProblem::unreadable;
+  }
+  return std::nullopt;
+}
+
 std::optional<FilterRenderResult> render_smart_object_unfiltered_layer_preview(
     const Document& document, const Layer& layer,
     CanvasWidget::TransformInterpolation interpolation,
-    const QString& parent_document_dir) {
+    const QString& parent_document_dir,
+    SmartObjectSourceRenderCache* cache) {
   const auto lock = smart_object_lock_reason(layer);
   if (!layer_is_smart_object(layer) ||
       (!lock.empty() && lock != "external")) {
@@ -603,24 +625,32 @@ std::optional<FilterRenderResult> render_smart_object_unfiltered_layer_preview(
   if (source == nullptr) {
     return std::nullopt;
   }
-  // Linked contents live on disk: read them once so the vector pass has the bytes.
-  std::optional<SmartObjectSource> linked_contents;
+  // The cache entry, when a caller renders several layers from one store: the file
+  // read and the natural-size decode happen once per source, every layer after the
+  // first only rasterizes at its own placement.
+  SmartObjectSourceRenderCache::Entry local_entry;
+  auto& entry = cache != nullptr ? cache->entries[placement->uuid] : local_entry;
   const SmartObjectSource* contents = source;
   if (source->kind == SmartObjectSourceKind::ExternalFile) {
-    const auto path = resolve_smart_object_external_path(*source, parent_document_dir);
-    if (!path.has_value()) {
+    // Linked contents live on disk: read them once so the vector pass has the bytes.
+    if (!entry.resolved) {
+      entry.resolved = true;
+      if (const auto path = resolve_smart_object_external_path(*source, parent_document_dir); path.has_value()) {
+        entry.linked_contents = load_smart_object_file_probe(*path);
+      }
+    }
+    if (!entry.linked_contents.has_value()) {
       return std::nullopt;
     }
-    linked_contents = load_smart_object_file_probe(*path);
-    if (!linked_contents.has_value()) {
+    contents = &*entry.linked_contents;
+  }
+  if (!entry.image.has_value()) {
+    entry.image = decode_smart_object_source_image(*contents);
+    if (!entry.image.has_value()) {
       return std::nullopt;
     }
-    contents = &*linked_contents;
   }
-  auto image = decode_smart_object_source_image(*contents);
-  if (!image.has_value()) {
-    return std::nullopt;
-  }
+  auto image = entry.image;
   const auto warp = smart_object_warp_from_layer(layer);
   if (!warp.has_value() || warp->mesh_xs.empty()) {
     // Vector artwork rasterizes at the placement's scale; the warp grid is built
@@ -701,10 +731,11 @@ bool install_smart_object_layer_preview(Document& document, Layer& layer,
 bool refresh_smart_object_layer_preview(
     Document& document, Layer& layer,
     CanvasWidget::TransformInterpolation interpolation,
-    bool refresh_native_cache, const QString& parent_document_dir) {
+    bool refresh_native_cache, const QString& parent_document_dir,
+    SmartObjectSourceRenderCache* cache) {
   auto rendered = render_smart_object_layer_preview(
       std::as_const(document), std::as_const(layer), interpolation, nullptr,
-      parent_document_dir);
+      parent_document_dir, cache);
   if (!rendered.has_value()) {
     return false;
   }
