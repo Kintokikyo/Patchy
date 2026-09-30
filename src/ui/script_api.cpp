@@ -23,6 +23,7 @@
 #include "formats/palette_io.hpp"
 #include "core/layer_render_utils.hpp"
 #include "core/pixel_tools.hpp"
+#include "ui/canvas_widget_shared.hpp"
 #include "ui/main_window.hpp"
 #include "ui/main_window_shared.hpp"
 #include "ui/app_settings.hpp"
@@ -251,20 +252,29 @@ Layer clone_layer_with_fresh_ids(Document& document, const Layer& source) {
   return copy;
 }
 
-void offset_layer_recursive(Layer& layer, int dx, int dy) {
-  auto bounds = layer.bounds();
-  if (!bounds.empty()) {
-    bounds.x += dx;
-    bounds.y += dy;
-    layer.set_bounds(bounds);
+// Moves a layer subtree the way the Move tool commits a drag: the bounds, then
+// the placement data translate_moved_layer_metadata carries (a linked mask,
+// the shape model, a linked vector mask, smart-object quads, the text
+// transform). That helper owns the linked mask, so nothing here shifts mask
+// bounds by hand, and an unlinked mask stays where it is.
+void offset_layer_recursive(Layer& layer, int dx, int dy, std::int32_t document_width,
+                            std::int32_t document_height) {
+  if (const auto bounds = std::as_const(layer).bounds(); !bounds.empty()) {
+    layer.set_bounds(Rect{bounds.x + dx, bounds.y + dy, bounds.width, bounds.height});
   }
-  if (layer.mask().has_value()) {
-    auto& mask = *layer.mask();
-    mask.bounds.x += dx;
-    mask.bounds.y += dy;
-  }
+  translate_moved_layer_metadata(layer, dx, dy, document_width, document_height);
   for (auto& child : layer.children()) {
-    offset_layer_recursive(child, dx, dy);
+    offset_layer_recursive(child, dx, dy, document_width, document_height);
+  }
+}
+
+// Smart objects in the subtree whose Smart Filter stack re-renders after a move.
+void collect_smart_filter_rerender_ids(const Layer& layer, std::vector<LayerId>& ids) {
+  if (move_layer_requires_smart_filter_rerender(layer)) {
+    ids.push_back(layer.id());
+  }
+  for (const auto& child : layer.children()) {
+    collect_smart_filter_rerender_ids(child, ids);
   }
 }
 
@@ -476,9 +486,29 @@ void ScriptLayerObject::moveTo(double x, double y) {
   if (layer == nullptr) {
     return;
   }
+  auto* document = host_.session_document(session_id_);
+  if (document == nullptr) {
+    return;
+  }
+  // The Move tool's rule for Smart Filters: re-render at the new place, and put
+  // the document back when a render fails.
+  std::vector<LayerId> rerender_ids;
+  collect_smart_filter_rerender_ids(std::as_const(*layer), rerender_ids);
+  std::optional<Document> rollback;
+  if (!rerender_ids.empty()) {
+    rollback.emplace(std::as_const(*document));
+  }
   const auto before = to_qrect(layer_render_bounds(std::as_const(*layer)));
-  offset_layer_recursive(*layer, dx, dy);
-  const auto after = to_qrect(layer_render_bounds(std::as_const(*layer)));
+  offset_layer_recursive(*layer, dx, dy, document->width(), document->height());
+  for (const auto id : rerender_ids) {
+    if (!host_.rerender_moved_smart_filters(session_id_, id)) {
+      *document = std::move(*rollback);
+      host_.throw_js_error(MainWindow::tr("Could not rebuild the Smart Filter preview and cache"));
+      return;
+    }
+  }
+  const auto* moved = std::as_const(*document).find_layer(layer_id_);
+  const auto after = moved != nullptr ? to_qrect(layer_render_bounds(*moved)) : before;
   host_.note_pixels_changed(session_id_, before.united(after));
 }
 

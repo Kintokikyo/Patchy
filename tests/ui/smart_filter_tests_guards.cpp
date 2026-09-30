@@ -52,6 +52,7 @@
 #include "ui/localization.hpp"
 #include "ui/main_window.hpp"
 #include "ui/print_dialog.hpp"
+#include "ui/script_engine.hpp"
 #include "ui/selection_outline.hpp"
 #include "ui/sprite_sheet_dialog.hpp"
 #include "ui/splash_dialog.hpp"
@@ -711,6 +712,24 @@ void ui_smart_filter_move_drag_and_nudge_rerender_cache_and_roundtrip() {
   CHECK(filter_rect_equal(nudge_undone->bounds(), original_bounds));
   CHECK(patchy::ui::pixel_buffers_equal(nudge_undone->pixels(),
                                         original_pixels));
+
+  // A script move follows the same rule: the quad moves and the stack
+  // re-renders at the new place, as one undo step.
+  auto& host = window.script_engine_host();
+  patchy::ui::ScriptEngineHost::RunOptions options;
+  options.name = QStringLiteral("smart-filter-move");
+  options.unattended = true;
+  CHECK(host.run_source(
+      QStringLiteral("var layer = app.activeDocument.getLayer('%1');"
+                     "layer.moveTo(layer.x + 4, layer.y + 6);")
+          .arg(layer_id),
+      options));
+  CHECK(process_events_until([&host] { return !host.run_active(); }, 30000));
+  QApplication::processEvents();
+  CHECK(!host.last_run_had_error());
+  verify_moved_state(QPoint(4, 6));
+  CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) ==
+        undo_before + 1U);
 }
 
 void ui_convert_to_smart_object_rejects_tree_containing_smart_filter() {

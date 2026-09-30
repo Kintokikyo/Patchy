@@ -1276,6 +1276,18 @@ std::optional<ScriptEngineHost::SmartObjectInfo> ScriptEngineHost::smart_object_
   return info;
 }
 
+bool ScriptEngineHost::rerender_moved_smart_filters(std::int64_t session_id, LayerId layer_id) {
+  // No pump_progress_indicator here: the caller holds the document across this call.
+  auto* session = window_.session_with_id(session_id);
+  auto* layer = session != nullptr ? session->document.find_layer(layer_id) : nullptr;
+  if (layer == nullptr || session->canvas == nullptr) {
+    return false;
+  }
+  const auto document_dir = session->path.isEmpty() ? QString() : QFileInfo(session->path).absolutePath();
+  return refresh_smart_object_layer_preview(session->document, *layer, session->canvas->transform_interpolation(),
+                                            true, document_dir);
+}
+
 bool ScriptEngineHost::undo_enabled() const noexcept {
   return run_ == nullptr || run_->undo_enabled;
 }

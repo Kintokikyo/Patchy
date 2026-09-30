@@ -235,6 +235,10 @@ public:
     std::array<double, 8> quad{};
   };
   [[nodiscard]] std::optional<SmartObjectInfo> smart_object_info(std::int64_t session_id, LayerId layer_id) const;
+  // layer.moveTo on a smart object with a supported Smart Filter stack: the
+  // stack renders in document space, so the layer re-renders at its new place
+  // (the Move tool's commit rule). False when the render failed.
+  bool rerender_moved_smart_filters(std::int64_t session_id, LayerId layer_id);
 
   // Undo integration: the FIRST mutation a run makes to a session pushes one
   // "Script: <name>" snapshot; later mutations in the same run ride it, so the

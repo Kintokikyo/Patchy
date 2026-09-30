@@ -1796,6 +1796,7 @@ if(PATCHY_BUILD_TESTS)
       tests/ui/svg_ui_tests.cpp
       tests/ui/image_trace_ui_tests.cpp
       tests/ui/scripting_tests.cpp
+      tests/ui/script_move_tests.cpp
       tests/ui/document_recovery_tests.cpp
       tests/ui/mcp_tests.cpp
       tests/ui/unicode_path_tests.cpp

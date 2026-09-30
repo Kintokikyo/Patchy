@@ -256,7 +256,7 @@ interface PatchyLayer {
   /** Blend mode id string (see the list above). */
   blendMode: string;
   locked: boolean;
-  /** Content offset in document pixels; setting either moves the layer. */
+  /** Content offset in document pixels; setting either moves the layer like `moveTo`. */
   x: number;
   y: number;
   readonly bounds: PatchyRect;
@@ -336,6 +336,11 @@ interface PatchyLayer {
    * Finite signed 32-bit positions; throws if the position or resulting bounds overflow.
    * Layers sit on whole pixels: a fraction rounds like Photoshop (halves up, 3.5 -> 4,
    * -3.5 -> -3), the same rule `x`/`y` assignment uses.
+   * The move is the Move tool's: the layer's placement travels with its pixels (a text
+   * layer's anchor, a shape's path and geometry, a smart object's quad, a linked raster
+   * or vector mask), so later edits, re-renders and saved PSDs keep the new position. An
+   * unlinked mask stays where it is. On a group, every layer inside moves; a group has
+   * no position of its own (`x`/`y` read 0), so `moveTo(dx, dy)` offsets its contents.
    */
   moveTo(x: number, y: number): void;
   /**

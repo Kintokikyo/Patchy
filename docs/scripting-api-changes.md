@@ -1,5 +1,17 @@
 # Scripting API compatibility
 
+2026-10-01 behavioral correction (API 1): `layer.moveTo` and the `x` / `y` setters move a
+layer the way the Move tool does. They used to shift only the pixel bounds and the mask
+bounds, leaving the placement data behind: a shape kept its old path and geometry and
+snapped back at its next re-render, a smart object kept its old quad, and a text layer kept
+its old transform, so Photoshop laid it out again at the creation anchor on the first edit.
+Now the shape model, smart-object quads, text transform, preserved vector-mask data and a
+linked raster or vector mask travel with the layer and with every layer inside a moved
+group, and a smart object with Smart Filters re-renders at the new place. One visible
+difference: an unlinked mask now stays where it is (it used to move with the layer).
+Pinned by `ui_script_move_*`; the Photoshop check is
+`scripts\dev\photoshop-text-move-check.ps1`. See [scripting.md](scripting.md).
+
 2026-09-30 (API 1): smart objects. `doc.addSmartObject(path, {linked?, x?, y?, width?,
 height?, scale?, name?})` places a file as an embedded or linked smart-object layer
 (the core behind File > Place Embedded and the new File > Place Linked); a linked

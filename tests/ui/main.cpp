@@ -270,6 +270,7 @@ int main(int argc, char* argv[]) {
            svg_ui_tests,
            image_trace_ui_tests,
            scripting_tests,
+           script_move_tests,
            document_recovery_tests,
            mcp_tests,
            unicode_path_tests,
