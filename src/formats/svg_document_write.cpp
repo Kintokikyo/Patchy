@@ -2,7 +2,9 @@
 #include "formats/svg_document_io.hpp"
 
 #include "core/blend_math.hpp"
+#include "core/layer_metadata.hpp"
 #include "core/rect_utils.hpp"
+#include "core/smart_object.hpp"
 #include "core/vector_shape.hpp"
 #include "formats/document_flatten.hpp"
 #include "formats/format_file_io.hpp"
@@ -146,6 +148,11 @@ using vector_export::opaque_bounds;
 struct Writer {
   const Document& document;
   std::vector<std::string>* notices{};
+  // Dry run (DocumentIo::baked_content): the walk and every representability
+  // decision run unchanged, but no compositing and no PNG encoding happen and
+  // each bake is recorded in `baked` instead of embedded.
+  bool dry_run{false};
+  std::vector<BakedContent>* baked{};
   std::string defs{};
   std::string body{};
   int gradient_index{0};
@@ -157,6 +164,12 @@ struct Writer {
   void notice(std::string value) {
     if (notices != nullptr && std::find(notices->begin(), notices->end(), value) == notices->end()) {
       notices->push_back(std::move(value));
+    }
+  }
+
+  void bake(BakedContentKind kind, const std::string& layer_name) {
+    if (baked != nullptr) {
+      baked->push_back(BakedContent{kind, layer_name});
     }
   }
 
@@ -268,6 +281,12 @@ struct Writer {
     if (!transform.empty()) {
       defs += " patternTransform=\"" + transform + "\"";
     }
+    if (dry_run) {
+      // The tile PNG is the pattern itself, kept as a paint server (it round-trips
+      // to the same tile), so it is not a bake and the encoding is skipped.
+      defs += "/>";
+      return "url(#" + id + ")";
+    }
     const auto png = base64(png_bytes(resource->tile));
     defs += "><image width=\"" + detail::format_number(cell_width) + "\" height=\"" +
             detail::format_number(cell_height) + "\" href=\"data:image/png;base64," + png +
@@ -305,8 +324,13 @@ struct Writer {
     return "clip-path=\"url(#" + id + ")\"";
   }
 
-  std::string mask_reference(const LayerMask& mask) {
+  std::string mask_reference(const LayerMask& mask, const std::string& layer_name) {
     const std::string id = "mask" + std::to_string(++mask_index);
+    // The gray plane leaves the vector world here: it is an image either way.
+    bake(BakedContentKind::RasterMask, layer_name);
+    if (dry_run) {
+      return "mask=\"url(#" + id + ")\"";
+    }
     // Luminance mask: the gray plane becomes an r=g=b image; area outside the
     // mask bounds shows per default_color via a backing rect.
     PixelBuffer rgba(std::max(1, mask.bounds.width), std::max(1, mask.bounds.height), PixelFormat::rgba8());
@@ -370,7 +394,7 @@ struct Writer {
       attributes += " " + clip_reference(*vector_mask);
     }
     if (layer.mask().has_value() && !layer.mask()->disabled && !layer.mask()->pixels.empty()) {
-      attributes += " " + mask_reference(*layer.mask());
+      attributes += " " + mask_reference(*layer.mask(), layer.name());
     }
     return attributes;
   }
@@ -556,6 +580,9 @@ struct Writer {
   // compositor into one cropped <image>. `css` carries display/opacity/blend
   // when the chunk stands in for a single unit.
   void emit_raster_chunk(std::vector<Layer> layers, std::string_view id_name, const std::string& css, int indent) {
+    if (dry_run) {
+      return;  // the callers recorded what bakes; the compositor never runs
+    }
     Document scratch(document.width(), document.height(), PixelFormat::rgba8());
     scratch.metadata().patterns = document.metadata().patterns;
     for (auto& layer : layers) {
@@ -593,14 +620,57 @@ struct Writer {
     copies.front().set_blend_mode(BlendMode::Normal);
     if (run.size() > 1) {
       notice("Clipping-mask group '" + base.name() + "' was rasterized for SVG export");
+      bake(BakedContentKind::ClippingGroup, base.name());
     } else if (base.kind() == LayerKind::Group) {
       notice("Group '" + base.name() + "' was rasterized for SVG export");
+      bake(BakedContentKind::Group, base.name());
     } else if (layer_is_vector_shape(base)) {
       notice("Shape layer '" + base.name() + "' uses features SVG cannot express and was rasterized");
-    } else if (base.kind() == LayerKind::Text) {
+      bake(BakedContentKind::ShapeLayer, base.name());
+    } else if (base.kind() == LayerKind::Text || layer_is_text(base)) {
       notice("Text layer '" + base.name() + "' was rasterized for SVG export");
+      bake(BakedContentKind::TextLayer, base.name());
+    } else if (base.kind() == LayerKind::SmartObject || layer_is_smart_object(base)) {
+      bake(BakedContentKind::SmartObjectLayer, base.name());
+    } else {
+      bake(BakedContentKind::PixelLayer, base.name());
     }
     emit_raster_chunk(std::move(copies), base.name(), layer_style_css(base), indent);
+  }
+
+  // Records why each layer of a barrier chunk bakes: the barriers themselves
+  // (adjustment layers, inexpressible blend modes, and the folders that carry
+  // one up to this level) by their cause, the rest as merged collateral.
+  void bake_merged_chunk(const std::vector<Layer>& siblings, std::size_t end) {
+    if (baked == nullptr) {
+      return;
+    }
+    for (std::size_t i = 0; i < end; ++i) {
+      const Layer& layer = siblings[i];
+      if (layer.kind() == LayerKind::Adjustment) {
+        bake(BakedContentKind::AdjustmentLayer, layer.name());
+      } else if (layer.blend_mode() != BlendMode::PassThrough && !blend_expressible(layer.blend_mode())) {
+        bake(BakedContentKind::BlendMode, layer.name());
+      } else if (layer.kind() == LayerKind::Text || layer_is_text(layer)) {
+        bake(BakedContentKind::TextLayer, layer.name());
+      } else if (layer.kind() == LayerKind::SmartObject || layer_is_smart_object(layer)) {
+        bake(BakedContentKind::SmartObjectLayer, layer.name());
+      } else if (layer.kind() == LayerKind::Group) {
+        if (!group_representable(layer)) {
+          bake(BakedContentKind::Group, layer.name());
+        } else if (layer.blend_mode() == BlendMode::PassThrough &&
+                   unit_is_barrier(siblings, Unit{i, i + 1})) {
+          bake_merged_chunk(layer.children(), layer.children().size());
+        } else {
+          bake(BakedContentKind::MergedBelow, layer.name());
+        }
+      } else if (layer_is_vector_shape(layer)) {
+        bake(vector_representable(layer) ? BakedContentKind::MergedBelow : BakedContentKind::ShapeLayer,
+             layer.name());
+      } else {
+        bake(BakedContentKind::PixelLayer, layer.name());
+      }
+    }
   }
 
   // --- group export ---
@@ -670,6 +740,7 @@ struct Writer {
       }
       notice("Merged into one flattened image for SVG export (adjustment layers or unsupported blend modes): " +
              names);
+      bake_merged_chunk(siblings, units[barrier_end - 1].end);
       emit_raster_chunk(std::move(chunk), "Merged", std::string(), indent);
       resume_at = barrier_end;
     }
@@ -726,6 +797,21 @@ std::vector<std::uint8_t> DocumentIo::write(const Document& document, std::vecto
 void DocumentIo::write_file(const Document& document, const std::filesystem::path& path,
                             std::vector<std::string>* notices) {
   formats::write_file_bytes(path, write(document, notices), "SVG");
+}
+
+std::vector<BakedContent> DocumentIo::baked_content(const Document& document) {
+  if (document_has_compound_vectors(document)) {
+    return baked_content(expand_compound_vectors(document, true));
+  }
+  std::vector<BakedContent> baked;
+  if (document.width() <= 0 || document.height() <= 0) {
+    return baked;  // write() throws for this; nothing to bake either way
+  }
+  Writer writer{document, nullptr};
+  writer.dry_run = true;
+  writer.baked = &baked;
+  (void)writer.run();
+  return baked;
 }
 
 }  // namespace patchy::svg

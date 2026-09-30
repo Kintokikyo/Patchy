@@ -13558,10 +13558,6 @@ Rect : -</translation>
         <translation>Enregistrer sous</translation>
     </message>
     <message>
-        <source>SVG keeps shape layers as vectors, but masks, layer styles, text, and adjustments are baked into images, so Patchy will save a copy. The open document will keep its layers and unsaved changes. To keep everything editable, save as a Photoshop document (.psd) instead.</source>
-        <translation>Le format SVG conserve les calques de forme sous forme de vecteurs, mais les masques, les styles de calque, le texte et les réglages sont convertis en images ; Patchy enregistrera donc une copie. Le document ouvert conservera ses calques et ses modifications non enregistrées. Pour que tout reste modifiable, enregistrez plutôt en tant que document Photoshop (.psd).</translation>
-    </message>
-    <message>
         <source>This file format cannot store layers. Continue saving and flatten the linked file?</source>
         <translation>Ce format de fichier ne peut pas stocker de calques. Continuer l&apos;enregistrement et aplatir le fichier lié ?</translation>
     </message>
@@ -18206,6 +18202,69 @@ Y : %2
     <message>
         <source>The placed position or size is out of range</source>
         <translation>La position ou la taille de l&apos;importation est hors limites</translation>
+    </message>
+    <message>
+        <source>text layer &quot;%1&quot;</source>
+        <translation>calque de texte &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>pixel layer &quot;%1&quot;</source>
+        <translation>calque de pixels &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>smart object &quot;%1&quot;</source>
+        <translation>objet dynamique &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>adjustment layer &quot;%1&quot; and the layers below it</source>
+        <translation>calque de réglage &quot;%1&quot; et les calques en dessous</translation>
+    </message>
+    <message>
+        <source>the blend mode of &quot;%1&quot; and the layers below it</source>
+        <translation>le mode de fusion de &quot;%1&quot; et les calques en dessous</translation>
+    </message>
+    <message>
+        <source>shape layer &quot;%1&quot; (its styles or fill options)</source>
+        <translation>calque de forme &quot;%1&quot; (ses styles ou options de fond)</translation>
+    </message>
+    <message>
+        <source>group &quot;%1&quot; (its styles or masks)</source>
+        <translation>groupe &quot;%1&quot; (ses styles ou masques)</translation>
+    </message>
+    <message>
+        <source>clipping mask group &quot;%1&quot;</source>
+        <translation>groupe de masque d&apos;écrêtage &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>the layer mask on &quot;%1&quot;</source>
+        <translation>le masque de fusion de &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>&quot;%1&quot; (merged under an adjustment layer or blend mode)</source>
+        <translation>&quot;%1&quot; (fusionné sous un calque de réglage ou un mode de fusion)</translation>
+    </message>
+    <message numerus="yes">
+        <source>%1 and %n more</source>
+        <translation>
+            <numerusform>%1 et %n de plus</numerusform>
+            <numerusform>%1 et %n de plus</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>SVG keeps shape layers as vectors, but this document has content SVG cannot hold as vectors. Continue saving and bake it into images in the linked file?
+
+Baked into images: %1.</source>
+        <translation>Le format SVG conserve les calques de forme sous forme de vecteurs, mais ce document contient des éléments que SVG ne peut pas stocker en vecteurs. Continuer l&apos;enregistrement et les convertir en images dans le fichier lié ?
+
+Convertis en images : %1.</translation>
+    </message>
+    <message>
+        <source>SVG keeps shape layers as vectors, but this document has content SVG cannot hold as vectors, so Patchy will save a copy with that content baked into images. The open document will keep its layers and unsaved changes. To keep everything editable, save as a Photoshop document (.psd) instead.
+
+Baked into images: %1.</source>
+        <translation>Le format SVG conserve les calques de forme sous forme de vecteurs, mais ce document contient des éléments que SVG ne peut pas stocker en vecteurs. Patchy enregistrera donc une copie où ces éléments sont convertis en images. Le document ouvert conservera ses calques et ses modifications non enregistrées. Pour que tout reste modifiable, enregistrez plutôt en tant que document Photoshop (.psd).
+
+Convertis en images : %1.</translation>
     </message>
 </context>
 <context>

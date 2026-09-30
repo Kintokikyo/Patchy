@@ -11103,10 +11103,6 @@ Mixed selection</source>
         <translation>アニメーション GIF のコピー %1 を保存しました</translation>
     </message>
     <message>
-        <source>SVG keeps shape layers as vectors, but masks, layer styles, text, and adjustments are baked into images, so Patchy will save a copy. The open document will keep its layers and unsaved changes. To keep everything editable, save as a Photoshop document (.psd) instead.</source>
-        <translation>SVG はシェイプレイヤーをベクターのまま保存しますが、マスク、レイヤースタイル、テキスト、調整レイヤーは画像として書き出されるため、Patchy はコピーを保存します。開いているドキュメントのレイヤーと未保存の変更はそのまま残ります。すべてを編集可能なまま残すには、Photoshop ドキュメント (.psd) として保存してください。</translation>
-    </message>
-    <message>
         <source>Export PDF Layers</source>
         <translation>PDF レイヤーのエクスポート</translation>
     </message>
@@ -18154,6 +18150,68 @@ Clipped to the layer below</source>
     <message>
         <source>The placed position or size is out of range</source>
         <translation>配置位置またはサイズが範囲外です</translation>
+    </message>
+    <message>
+        <source>text layer &quot;%1&quot;</source>
+        <translation>テキストレイヤー &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>pixel layer &quot;%1&quot;</source>
+        <translation>ピクセルレイヤー &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>smart object &quot;%1&quot;</source>
+        <translation>スマートオブジェクト &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>adjustment layer &quot;%1&quot; and the layers below it</source>
+        <translation>調整レイヤー &quot;%1&quot; とその下のレイヤー</translation>
+    </message>
+    <message>
+        <source>the blend mode of &quot;%1&quot; and the layers below it</source>
+        <translation>&quot;%1&quot; の描画モードとその下のレイヤー</translation>
+    </message>
+    <message>
+        <source>shape layer &quot;%1&quot; (its styles or fill options)</source>
+        <translation>シェイプレイヤー &quot;%1&quot; (スタイルまたは塗りオプション)</translation>
+    </message>
+    <message>
+        <source>group &quot;%1&quot; (its styles or masks)</source>
+        <translation>グループ &quot;%1&quot; (スタイルまたはマスク)</translation>
+    </message>
+    <message>
+        <source>clipping mask group &quot;%1&quot;</source>
+        <translation>クリッピングマスクグループ &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>the layer mask on &quot;%1&quot;</source>
+        <translation>&quot;%1&quot; のレイヤーマスク</translation>
+    </message>
+    <message>
+        <source>&quot;%1&quot; (merged under an adjustment layer or blend mode)</source>
+        <translation>&quot;%1&quot; (調整レイヤーまたは描画モードの下で結合)</translation>
+    </message>
+    <message numerus="yes">
+        <source>%1 and %n more</source>
+        <translation>
+            <numerusform>%1 とその他 %n 件</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>SVG keeps shape layers as vectors, but this document has content SVG cannot hold as vectors. Continue saving and bake it into images in the linked file?
+
+Baked into images: %1.</source>
+        <translation>SVG はシェイプレイヤーをベクターのまま保存しますが、このドキュメントには SVG がベクターとして保存できない内容が含まれています。保存を続行し、リンクされたファイル内でその内容を画像に変換しますか?
+
+画像に変換される内容: %1.</translation>
+    </message>
+    <message>
+        <source>SVG keeps shape layers as vectors, but this document has content SVG cannot hold as vectors, so Patchy will save a copy with that content baked into images. The open document will keep its layers and unsaved changes. To keep everything editable, save as a Photoshop document (.psd) instead.
+
+Baked into images: %1.</source>
+        <translation>SVG はシェイプレイヤーをベクターのまま保存しますが、このドキュメントには SVG がベクターとして保存できない内容が含まれているため、Patchy はその内容を画像に変換したコピーを保存します。開いているドキュメントのレイヤーと未保存の変更はそのまま残ります。すべてを編集可能なまま残すには、Photoshop ドキュメント (.psd) として保存してください。
+
+画像に変換される内容: %1.</translation>
     </message>
 </context>
 <context>

@@ -196,11 +196,28 @@ emit native `<rect>`/`<ellipse>`/`<line>` (round-trips back to live).
 ## UI behavior
 
 - Open lists *.svg and *.svgz; Save As/Export list *.svg. svg stays OUT of
-  save_extension_preserves_layers on purpose: layered saves warn with
-  svg-specific wording ("keeps shape layers as vectors, but ... baked") and
-  keep Photoshop's save-a-copy semantics, and a modified svg-opened document
-  routes Save to Save As (.psd default). Writer notices ride the save/export
-  status message.
+  save_extension_preserves_layers on purpose, but it does not inherit the
+  generic flat-format warning either: `save_discards_layers` (main_window_files.cpp)
+  asks the writer's dry run, `svg::DocumentIo::baked_content`, which walks the
+  document with the writer's own representability rules and reports what
+  `write` would bake (`BakedContentKind` + layer name) without compositing or
+  encoding anything. Empty means shape layers, folders, clipPath vector masks,
+  gradient and pattern paint servers only: Save writes in place with no
+  warning and no Save As redirect, for a plain document and for a linked
+  smart-object child alike (`ui_svg_shape_only_save_writes_vectors_without_warning`,
+  `ui_smart_object_linked_svg_child_saves_vectors_without_warning`). Anything
+  baked (text, pixel and smart-object layers, adjustment layers and
+  CSS-inexpressible blend modes with the layers merged under them, styled or
+  intersect/xor shapes, styled or masked groups, clipping runs, raster masks
+  written as luminance `<mask>` images) keeps the warning, which names the
+  first six items by kind and layer name and counts the rest, and keeps
+  Photoshop's save-a-copy semantics; a modified svg-opened
+  document with baked content still routes Save to Save As (.psd default). A
+  linked child gets the "bake it into the linked file?" wording because its
+  save is a real save (`ui_svg_save_with_text_layer_warns_and_names_it`,
+  core `svg_baked_content_dry_run_matches_writer`). The single-plain-pixel-layer
+  exemption of `flat_save_discards_layers` still applies first. Writer notices
+  ride the save/export status message.
 - File > Export > Flat Image routes svg to the same structure-preserving writer and
   skips the raster options prompt (vectors scale client-side).
 - Edit > Define Custom Shape from SVG File: one stampable library shape per
@@ -235,7 +252,9 @@ emit native `<rect>`/`<ellipse>`/`<line>` (round-trips back to live).
   in-test), the 2000-element fallback, export determinism/round-trip/raster
   chunking. tests/ui/svg_ui_tests.cpp - editable open, a QSvgRenderer
   cross-check (independent renderer, mean-delta tolerance), the text
-  positioning pass, data-URI images, save-a-copy + reopen parity, paste,
+  positioning pass, data-URI images, the no-warning in-place save of a
+  shape-only file plus reopen parity, the named flatten warning for a text
+  layer, paste,
   shape-library import, place. Fixtures: test-fixtures/svg/basic-shapes.svg
   (self-authored) and test-fixtures/svg/hot_air_balloons_cc0.svg (CC0 clip
   art, NOTICE-THIRD-PARTY.md; drives the README SVG-import screenshot scene).

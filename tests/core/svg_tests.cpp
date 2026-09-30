@@ -1015,6 +1015,67 @@ void svg_export_masks_and_hidden_layers() {
   CHECK(text.find("display:none") != std::string::npos);
 }
 
+// The dry run reports exactly what write() bakes: nothing for a shape-only
+// document, then each text layer, raster mask, and barrier (with the layers
+// merged under it) by kind and name, with no <image> until it says so.
+void svg_baked_content_dry_run_matches_writer() {
+  using patchy::svg::BakedContentKind;
+  const auto kinds = [](const patchy::Document& document) {
+    return patchy::svg::DocumentIo::baked_content(document);
+  };
+  auto document = document_with_live_rect();
+  CHECK(kinds(document).empty());
+  CHECK(write_svg(document).find("<image") == std::string::npos);
+
+  // A raster mask leaves the vector world as a luminance <mask> image.
+  {
+    auto masked = document;
+    patchy::LayerMask mask;
+    mask.bounds = Rect{0, 0, masked.width(), masked.height()};
+    mask.pixels = PixelBuffer(masked.width(), masked.height(), PixelFormat::gray8());
+    mask.pixels.clear(255);
+    masked.layers()[0].set_mask(std::move(mask));
+    const auto baked = kinds(masked);
+    CHECK(baked.size() == 1U);
+    CHECK(baked[0].kind == BakedContentKind::RasterMask && baked[0].layer_name == "Hero Rect");
+    CHECK(write_svg(masked).find("<mask ") != std::string::npos);
+  }
+
+  // A text layer (a pixel layer carrying the text marker) bakes on its own.
+  {
+    PixelBuffer pixels(20, 10, PixelFormat::rgba8());
+    pixels.clear(255);
+    Layer text(document.allocate_layer_id(), "Title", std::move(pixels));
+    text.set_bounds(Rect{4, 4, 20, 10});
+    text.metadata()[patchy::kLayerMetadataText] = "Title";
+    document.add_layer(std::move(text));
+  }
+  {
+    const auto baked = kinds(document);
+    CHECK(baked.size() == 1U);
+    CHECK(baked[0].kind == BakedContentKind::TextLayer && baked[0].layer_name == "Title");
+    std::vector<std::string> notices;
+    CHECK(write_svg(document, &notices).find("<image") != std::string::npos);
+    CHECK(std::any_of(notices.begin(), notices.end(),
+                      [](const std::string& notice) { return notice.find("Text layer 'Title'") != std::string::npos; }));
+  }
+
+  // A blend mode CSS cannot express is a barrier: it and everything below merge.
+  {
+    PixelBuffer pixels(10, 10, PixelFormat::rgba8());
+    pixels.clear(200);
+    Layer top(document.allocate_layer_id(), "Weird Blend", std::move(pixels));
+    top.set_bounds(Rect{5, 5, 10, 10});
+    top.set_blend_mode(BlendMode::Subtract);
+    document.add_layer(std::move(top));
+    const auto baked = kinds(document);
+    CHECK(baked.size() == 3U);
+    CHECK(baked[0].kind == BakedContentKind::MergedBelow && baked[0].layer_name == "Hero Rect");
+    CHECK(baked[1].kind == BakedContentKind::TextLayer && baked[1].layer_name == "Title");
+    CHECK(baked[2].kind == BakedContentKind::BlendMode && baked[2].layer_name == "Weird Blend");
+  }
+}
+
 }  // namespace
 
 std::vector<patchy::test::TestCase> svg_tests() {
@@ -1052,5 +1113,6 @@ std::vector<patchy::test::TestCase> svg_tests() {
       {"svg_export_rasterizes_unsupported_and_reports", svg_export_rasterizes_unsupported_and_reports},
       {"svg_fixture_reexport_writes_artifact", svg_fixture_reexport_writes_artifact},
       {"svg_export_masks_and_hidden_layers", svg_export_masks_and_hidden_layers},
+      {"svg_baked_content_dry_run_matches_writer", svg_baked_content_dry_run_matches_writer},
   };
 }

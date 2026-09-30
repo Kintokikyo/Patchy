@@ -13526,10 +13526,6 @@ RGB: -
         <translation>另存新檔</translation>
     </message>
     <message>
-        <source>SVG keeps shape layers as vectors, but masks, layer styles, text, and adjustments are baked into images, so Patchy will save a copy. The open document will keep its layers and unsaved changes. To keep everything editable, save as a Photoshop document (.psd) instead.</source>
-        <translation>SVG 會將形狀圖層保留為向量，但遮色片、圖層樣式、文字和調整都會合併為影像，因此 Patchy 會儲存一份副本。開啟中的文件仍會保留圖層和未儲存的變更。若要讓所有內容都維持可編輯，請改存為 Photoshop 文件 (.psd)。</translation>
-    </message>
-    <message>
         <source>This file format cannot store layers. Continue saving and flatten the linked file?</source>
         <translation>這個檔案格式無法儲存圖層。要繼續儲存並平面化連結的檔案嗎？</translation>
     </message>
@@ -18154,6 +18150,68 @@ Y：%2
     <message>
         <source>The placed position or size is out of range</source>
         <translation>置入的位置或大小超出範圍</translation>
+    </message>
+    <message>
+        <source>text layer &quot;%1&quot;</source>
+        <translation>文字圖層 &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>pixel layer &quot;%1&quot;</source>
+        <translation>像素圖層 &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>smart object &quot;%1&quot;</source>
+        <translation>智慧型物件 &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>adjustment layer &quot;%1&quot; and the layers below it</source>
+        <translation>調整圖層 &quot;%1&quot; 及其下方的圖層</translation>
+    </message>
+    <message>
+        <source>the blend mode of &quot;%1&quot; and the layers below it</source>
+        <translation>&quot;%1&quot; 的混合模式及其下方的圖層</translation>
+    </message>
+    <message>
+        <source>shape layer &quot;%1&quot; (its styles or fill options)</source>
+        <translation>形狀圖層 &quot;%1&quot; (其樣式或填色選項)</translation>
+    </message>
+    <message>
+        <source>group &quot;%1&quot; (its styles or masks)</source>
+        <translation>圖層群組 &quot;%1&quot; (其樣式或遮色片)</translation>
+    </message>
+    <message>
+        <source>clipping mask group &quot;%1&quot;</source>
+        <translation>剪裁遮色片群組 &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>the layer mask on &quot;%1&quot;</source>
+        <translation>&quot;%1&quot; 上的圖層遮色片</translation>
+    </message>
+    <message>
+        <source>&quot;%1&quot; (merged under an adjustment layer or blend mode)</source>
+        <translation>&quot;%1&quot; (合併至調整圖層或混合模式之下)</translation>
+    </message>
+    <message numerus="yes">
+        <source>%1 and %n more</source>
+        <translation>
+            <numerusform>%1 以及另外 %n 項</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>SVG keeps shape layers as vectors, but this document has content SVG cannot hold as vectors. Continue saving and bake it into images in the linked file?
+
+Baked into images: %1.</source>
+        <translation>SVG 會將形狀圖層保留為向量，但此文件包含 SVG 無法以向量保存的內容。是否繼續儲存並在連結檔案中將其合併為影像?
+
+合併為影像的內容: %1.</translation>
+    </message>
+    <message>
+        <source>SVG keeps shape layers as vectors, but this document has content SVG cannot hold as vectors, so Patchy will save a copy with that content baked into images. The open document will keep its layers and unsaved changes. To keep everything editable, save as a Photoshop document (.psd) instead.
+
+Baked into images: %1.</source>
+        <translation>SVG 會將形狀圖層保留為向量，但此文件包含 SVG 無法以向量保存的內容，因此 Patchy 會儲存一份副本，並將這些內容合併為影像。開啟中的文件仍會保留圖層和未儲存的變更。若要讓所有內容都維持可編輯，請改存為 Photoshop 文件 (.psd)。
+
+合併為影像的內容: %1.</translation>
     </message>
 </context>
 <context>

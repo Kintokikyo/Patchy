@@ -432,6 +432,72 @@ bool flat_save_discards_layers(const Document& document) {
   return !layer.layer_style().empty() || has_blend_if;
 }
 
+// Whether saving `document` into `extension` loses layer content. Flat formats
+// lose everything past one plain pixel layer. SVG keeps shape layers, folders,
+// vector masks and paint servers as real vectors, so it asks the writer for a
+// dry run and warns only when something bakes (text, pixels, smart objects,
+// adjustments, styles, raster masks, inexpressible blend modes): a shape-only
+// document saves in place with no warning.
+bool save_discards_layers(const Document& document, const QString& extension) {
+  if (save_extension_preserves_layers(extension) || !flat_save_discards_layers(document)) {
+    return false;
+  }
+  if (extension == QStringLiteral("svg")) {
+    return !svg::DocumentIo::baked_content(document).empty();
+  }
+  return true;
+}
+
+// The SVG flatten warning names what bakes: one translated phrase per item, the
+// first few joined, the rest counted.
+QString svg_baked_content_summary(const std::vector<svg::BakedContent>& baked) {
+  constexpr std::size_t kNamedItems = 6;
+  QStringList phrases;
+  for (const auto& item : baked) {
+    if (phrases.size() >= static_cast<qsizetype>(kNamedItems)) {
+      break;
+    }
+    const auto name = QString::fromStdString(item.layer_name);
+    switch (item.kind) {
+      case svg::BakedContentKind::TextLayer:
+        phrases << MainWindow::tr("text layer \"%1\"").arg(name);
+        break;
+      case svg::BakedContentKind::PixelLayer:
+        phrases << MainWindow::tr("pixel layer \"%1\"").arg(name);
+        break;
+      case svg::BakedContentKind::SmartObjectLayer:
+        phrases << MainWindow::tr("smart object \"%1\"").arg(name);
+        break;
+      case svg::BakedContentKind::AdjustmentLayer:
+        phrases << MainWindow::tr("adjustment layer \"%1\" and the layers below it").arg(name);
+        break;
+      case svg::BakedContentKind::BlendMode:
+        phrases << MainWindow::tr("the blend mode of \"%1\" and the layers below it").arg(name);
+        break;
+      case svg::BakedContentKind::ShapeLayer:
+        phrases << MainWindow::tr("shape layer \"%1\" (its styles or fill options)").arg(name);
+        break;
+      case svg::BakedContentKind::Group:
+        phrases << MainWindow::tr("group \"%1\" (its styles or masks)").arg(name);
+        break;
+      case svg::BakedContentKind::ClippingGroup:
+        phrases << MainWindow::tr("clipping mask group \"%1\"").arg(name);
+        break;
+      case svg::BakedContentKind::RasterMask:
+        phrases << MainWindow::tr("the layer mask on \"%1\"").arg(name);
+        break;
+      case svg::BakedContentKind::MergedBelow:
+        phrases << MainWindow::tr("\"%1\" (merged under an adjustment layer or blend mode)").arg(name);
+        break;
+    }
+  }
+  auto summary = phrases.join(QStringLiteral(", "));
+  if (baked.size() > kNamedItems) {
+    summary = MainWindow::tr("%1 and %n more", nullptr, static_cast<int>(baked.size() - kNamedItems)).arg(summary);
+  }
+  return summary;
+}
+
 bool layers_have_nondefault_fill_opacity(const std::vector<Layer>& layers) {
   for (const auto& layer : layers) {
     if (layer.kind() != LayerKind::Group && std::abs(layer.fill_opacity() - 1.0F) > 0.0001F) {
@@ -3329,11 +3395,11 @@ bool MainWindow::save_document() {
     // back is impossible, so Save is really Save As (defaulting to <basename>.psd).
     return save_document_as();
   }
-  if (!save_extension_preserves_layers(extension_for_path(session().path)) &&
-      flat_save_discards_layers(std::as_const(document()))) {
+  if (save_discards_layers(std::as_const(document()), extension_for_path(session().path))) {
     // Photoshop behavior: Save on a document whose file format cannot hold its layers
     // (a JPEG that grew layers) turns into Save As, defaulting to PSD, instead of
-    // silently flattening back over the original file.
+    // silently flattening back over the original file. A shape-only SVG holds its
+    // layers as vectors, so it saves in place.
     return save_document_as();
   }
   return save_document_to_path(session().path);
@@ -3351,8 +3417,7 @@ bool MainWindow::save_document_as() {
   };
   const auto fallback_name = session().title.isEmpty() ? tr("Untitled.psd") : session().title;
   auto initial_path = file_dialog_initial_path(session().path, fallback_name);
-  const bool layered_document = flat_save_discards_layers(std::as_const(document()));
-  if ((layered_document && !save_extension_preserves_layers(extension_for_path(initial_path))) ||
+  if (save_discards_layers(std::as_const(document()), extension_for_path(initial_path)) ||
       is_read_only_source_extension(extension_for_path(initial_path))) {
     // Photoshop behavior: Save As for a layered document defaults to PSD, not the flat
     // format the document was opened from. Read-only sources (camera raw) also default
@@ -3372,7 +3437,7 @@ bool MainWindow::save_document_as() {
   }
   path = path_with_default_extension(path, selected_filter);
   const auto extension = extension_for_path(path);
-  const bool discards_layers = layered_document && !save_extension_preserves_layers(extension);
+  const bool discards_layers = save_discards_layers(std::as_const(document()), extension);
   const bool linked_external_child =
       session().smart_object_link.has_value() && session().smart_object_link->external;
   std::optional<ImageSaveOptions> image_options;
@@ -3423,19 +3488,30 @@ bool MainWindow::confirm_flatten_layers_for_save(const QString& extension) {
   // document), so its flat save is a real save; everything else saves a flattened copy
   // and keeps the layered document open with its unsaved changes (Photoshop's
   // save-a-copy semantics). SVG gets its own wording: shape layers stay real
-  // vectors there and only the rest bakes. PDF (not linked) never comes here: it
-  // asks flatten-or-editable through resolve_pdf_layer_choice instead.
-  const auto message =
-      extension == QStringLiteral("svg")
-          ? tr("SVG keeps shape layers as vectors, but masks, layer styles, text, and adjustments are "
-               "baked into images, so Patchy will save a copy. The open document will keep its layers "
-               "and unsaved changes. To keep everything editable, save as a Photoshop document (.psd) "
-               "instead.")
-      : linked_external_child
-          ? tr("This file format cannot store layers. Continue saving and flatten the linked file?")
-          : tr("This file format cannot store layers, so Patchy will save a flattened copy. The open "
-               "document will keep its layers and unsaved changes. To keep layers in the file, save as a "
-               "Photoshop document (.psd) instead.");
+  // vectors there, only what the writer's dry run reports bakes, and the message
+  // names it (save_discards_layers never brings a shape-only document here). PDF
+  // (not linked) never comes here: it asks flatten-or-editable through
+  // resolve_pdf_layer_choice instead.
+  QString message;
+  if (extension == QStringLiteral("svg")) {
+    const auto baked = svg_baked_content_summary(svg::DocumentIo::baked_content(std::as_const(document())));
+    message = linked_external_child
+                  ? tr("SVG keeps shape layers as vectors, but this document has content SVG cannot hold as "
+                       "vectors. Continue saving and bake it into images in the linked file?\n\n"
+                       "Baked into images: %1.")
+                        .arg(baked)
+                  : tr("SVG keeps shape layers as vectors, but this document has content SVG cannot hold as "
+                       "vectors, so Patchy will save a copy with that content baked into images. The open "
+                       "document will keep its layers and unsaved changes. To keep everything editable, save "
+                       "as a Photoshop document (.psd) instead.\n\nBaked into images: %1.")
+                        .arg(baked);
+  } else if (linked_external_child) {
+    message = tr("This file format cannot store layers. Continue saving and flatten the linked file?");
+  } else {
+    message = tr("This file format cannot store layers, so Patchy will save a flattened copy. The open "
+                 "document will keep its layers and unsaved changes. To keep layers in the file, save as a "
+                 "Photoshop document (.psd) instead.");
+  }
   const auto answer =
       show_warning_message(this, tr("Layers Will Be Flattened"), message,
                            QMessageBox::Save | QMessageBox::Cancel, QMessageBox::Cancel,
@@ -3511,8 +3587,7 @@ bool MainWindow::save_document_to_path(QString path, std::optional<ImageSaveOpti
     animation_preview_window_->stop_playback_for(&document());
   }
   const auto extension = extension_for_path(path);
-  const bool discards_layers = !save_extension_preserves_layers(extension) &&
-                               flat_save_discards_layers(std::as_const(document()));
+  const bool discards_layers = save_discards_layers(std::as_const(document()), extension);
   // CLI automation saves are explicit about their target format, so flattening needs no
   // confirmation there (and an unattended run must never block on the prompt).
   const bool linked_external_child =

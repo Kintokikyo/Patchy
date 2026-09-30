@@ -9,6 +9,7 @@
 #include "core/smart_filter_effects.hpp"
 #include "core/smart_object.hpp"
 #include "core/text_warp.hpp"
+#include "core/vector_shape.hpp"
 #include "ui/smart_object_render.hpp"
 #include "core/layer_tree.hpp"
 #include "core/palette.hpp"
@@ -46,6 +47,7 @@
 #include "formats/bmp_document_io.hpp"
 #include "formats/aseprite_document_io.hpp"
 #include "formats/ico_document_io.hpp"
+#include "formats/svg_document_io.hpp"
 #include "formats/tga_document_io.hpp"
 #include "ui/image_document_io.hpp"
 #include "ui/image_save_options_dialog.hpp"
@@ -2203,6 +2205,84 @@ void ui_smart_object_place_linked_links_the_file() {
 // An SVG is vector contents: Photoshop's 'SVG ' filetype and Type 1 placement for
 // both linked and embedded placements, and a render at the placement's own scale
 // instead of a resampled natural-size raster.
+// Editing a linked SVG smart object's file (Edit Contents on the linked
+// layer): the child is a shape-only document, so Save writes the linked file
+// straight back as vectors, with no flatten warning and no Save As redirect,
+// and the parent layer re-renders from the rewritten file.
+void ui_smart_object_linked_svg_child_saves_vectors_without_warning() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  add_linked_test_document(window, 300, 200);
+  auto* tabs = qobject_cast<QTabWidget*>(window.centralWidget());
+  CHECK(tabs != nullptr);
+  const auto parent_tab_index = tabs->currentIndex();
+  const auto dir = linked_test_dir(QStringLiteral("svg-child"));
+  const auto svg_path = dir + QStringLiteral("/mark.svg");
+  write_linked_test_file(svg_path, linked_test_svg("#ff0000"));
+  patchy::ui::MainWindowTestAccess::place_linked_file_with_path(window, svg_path);
+  QApplication::processEvents();
+  auto& parent_document = patchy::ui::MainWindowTestAccess::document(window);
+  CHECK(std::as_const(parent_document).layers().size() == 2U);
+  const auto layer_id = std::as_const(parent_document).layers().back().id();
+  parent_document.set_active_layer(layer_id);
+
+  patchy::ui::MainWindowTestAccess::open_smart_object_contents(window);
+  QApplication::processEvents();
+  CHECK(patchy::ui::MainWindowTestAccess::active_session_is_smart_object_child(window));
+  CHECK(QFileInfo(patchy::ui::MainWindowTestAccess::active_session_path(window)) == QFileInfo(svg_path));
+  auto& child_document = patchy::ui::MainWindowTestAccess::document(window);
+  CHECK(child_document.layers().size() == 1U);
+  CHECK(patchy::svg::DocumentIo::baked_content(std::as_const(child_document)).empty());
+
+  // Recolor the circle in the child, then plain Save.
+  {
+    auto& circle = child_document.layers().front();
+    CHECK(patchy::layer_is_vector_shape(circle));
+    auto content = *circle.vector_shape();
+    content.fill.kind = patchy::VectorFillKind::Solid;
+    content.fill.color = patchy::RgbColor{0, 0, 255};
+    circle.set_vector_shape(std::move(content));
+  }
+  patchy::ui::MainWindowTestAccess::canvas(window)->document_changed();
+  bool flatten_prompt = false;
+  bool save_as_dialog = false;
+  QTimer::singleShot(0, [&flatten_prompt, &save_as_dialog] {
+    if (auto* box = qobject_cast<QMessageBox*>(find_top_level_dialog(QStringLiteral("flattenLayersMessageBox")))) {
+      flatten_prompt = true;
+      box->button(QMessageBox::Cancel)->click();
+    }
+    if (auto* dialog = find_top_level_dialog(QStringLiteral("saveAsFileDialog"))) {
+      save_as_dialog = true;
+      dialog->reject();
+    }
+  });
+  CHECK(patchy::ui::MainWindowTestAccess::save_document(window));
+  QApplication::processEvents();
+  CHECK(!flatten_prompt);
+  CHECK(!save_as_dialog);
+  CHECK(patchy::ui::MainWindowTestAccess::active_session_is_smart_object_child(window));
+  CHECK(!patchy::ui::MainWindowTestAccess::active_session_is_modified(window));
+  {
+    QFile file(svg_path);
+    CHECK(file.open(QIODevice::ReadOnly));
+    const auto text = QString::fromUtf8(file.readAll());
+    CHECK(text.contains(QStringLiteral("#0000ff")));
+    CHECK(!text.contains(QStringLiteral("<image")));
+  }
+
+  // The parent re-rendered its placement from the rewritten file.
+  tabs->setCurrentIndex(parent_tab_index);
+  QApplication::processEvents();
+  auto& parent_after = patchy::ui::MainWindowTestAccess::document(window);
+  const auto* refreshed = std::as_const(parent_after).find_layer(layer_id);
+  CHECK(refreshed != nullptr);
+  const auto& pixels = std::as_const(*refreshed).pixels();
+  const auto* px = pixels.pixel(pixels.width() / 2, pixels.height() / 2);
+  CHECK(px != nullptr);
+  CHECK(px[0] < 60 && px[1] < 60 && px[2] > 200);
+  CHECK(patchy::smart_object_lock_reason(*refreshed) == "external");
+}
+
 void ui_smart_object_placed_svg_is_vector_contents() {
   patchy::ui::MainWindow window;
   show_window(window);
@@ -2725,6 +2805,8 @@ std::vector<patchy::test::TestCase> smart_object_tests() {
       {"ui_smart_object_relink_and_embed_linked_work", ui_smart_object_relink_and_embed_linked_work},
       {"ui_smart_object_place_linked_links_the_file", ui_smart_object_place_linked_links_the_file},
       {"ui_smart_object_placed_svg_is_vector_contents", ui_smart_object_placed_svg_is_vector_contents},
+      {"ui_smart_object_linked_svg_child_saves_vectors_without_warning",
+       ui_smart_object_linked_svg_child_saves_vectors_without_warning},
       {"ui_script_smart_object_linked_round_trip_and_update",
        ui_script_smart_object_linked_round_trip_and_update},
       {"ui_script_smart_object_options_and_errors", ui_script_smart_object_options_and_errors},
