@@ -1072,6 +1072,81 @@ void ui_smart_object_convert_composites_identically_and_undoes() {
   CHECK(document.layers().size() == 3U);
 }
 
+// Masked layers away from the canvas origin: a linked mask and an unlinked one both
+// land in the child document shifted exactly once, so the converted layer composites
+// identically. The linked mask used to shift twice (by hand, then again inside
+// translate_moved_layer_metadata), which moved it off its layer.
+void ui_smart_object_convert_keeps_masks_in_place() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  patchy::Document built(96, 64, patchy::PixelFormat::rgba8());
+  built.add_pixel_layer("base", solid_pixels(96, 64, patchy::PixelFormat::rgba8(), QColor(255, 255, 255, 255)));
+  const auto add_masked = [&built](const char* name, QColor color, patchy::Rect bounds, patchy::Rect mask_bounds,
+                                   bool linked) {
+    patchy::Layer layer(built.allocate_layer_id(), name,
+                        solid_pixels(bounds.width, bounds.height, patchy::PixelFormat::rgba8(), color));
+    layer.set_bounds(bounds);
+    patchy::LayerMask mask;
+    mask.bounds = mask_bounds;
+    mask.pixels = patchy::PixelBuffer(mask_bounds.width, mask_bounds.height, patchy::PixelFormat::gray8());
+    mask.pixels.clear(255);
+    mask.default_color = 0;
+    layer.set_mask(std::move(mask));
+    patchy::set_layer_mask_linked(layer, linked);
+    built.add_layer(std::move(layer));
+  };
+  // The red layer shows its left half, the blue one its top half.
+  add_masked("linked", QColor(220, 30, 30, 255), patchy::Rect{30, 20, 40, 30}, patchy::Rect{30, 20, 20, 30}, true);
+  add_masked("unlinked", QColor(30, 60, 220, 255), patchy::Rect{60, 8, 20, 20}, patchy::Rect{60, 8, 20, 10}, false);
+  window.add_document_session(std::move(built), QStringLiteral("ConvertMasked"));
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  const auto before = patchy::ui::qimage_from_document(document, true);
+  CHECK(before.pixelColor(35, 30).red() > 200 && before.pixelColor(35, 30).green() < 60);  // red, inside its mask
+  CHECK(before.pixelColor(60, 30) == QColor(255, 255, 255, 255));                           // red, masked out
+
+  auto* layer_list = window.findChild<QListWidget*>(QStringLiteral("layerList"));
+  CHECK(layer_list != nullptr && layer_list->count() == 3);
+  layer_list->clearSelection();
+  layer_list->setCurrentItem(layer_list->item(0));
+  layer_list->item(0)->setSelected(true);
+  layer_list->item(1)->setSelected(true);
+  QApplication::processEvents();
+  require_action(window, "layerConvertSmartObjectAction")->trigger();
+  QApplication::processEvents();
+
+  CHECK(document.layers().size() == 2U);
+  const auto& smart = document.layers().back();
+  CHECK(patchy::layer_is_smart_object(smart));
+  const auto placement = patchy::smart_object_placement_from_layer(smart);
+  CHECK(placement.has_value());
+  if (!placement.has_value()) {
+    return;
+  }
+  const auto origin_x = static_cast<int>(placement->transform[0]);
+  const auto origin_y = static_cast<int>(placement->transform[1]);
+  CHECK(origin_x > 0 && origin_y > 0);  // the child origin is off the canvas origin, so a second shift would show
+  const auto* source = document.metadata().smart_objects.find(placement->uuid);
+  CHECK(source != nullptr && source->file_bytes != nullptr);
+  if (source == nullptr || source->file_bytes == nullptr) {
+    return;
+  }
+  const auto child = patchy::psd::DocumentIo::read({source->file_bytes->data(), source->file_bytes->size()});
+  CHECK(child.layers().size() == 2U);
+  for (const auto& layer : child.layers()) {
+    const bool linked = layer.name() == "linked";
+    const auto expected_layer = linked ? patchy::Rect{30, 20, 40, 30} : patchy::Rect{60, 8, 20, 20};
+    const auto expected_mask = linked ? patchy::Rect{30, 20, 20, 30} : patchy::Rect{60, 8, 20, 10};
+    CHECK(layer.bounds().x == expected_layer.x - origin_x && layer.bounds().y == expected_layer.y - origin_y);
+    CHECK(layer.mask().has_value());
+    if (layer.mask().has_value()) {
+      CHECK(layer.mask()->bounds.x == expected_mask.x - origin_x);
+      CHECK(layer.mask()->bounds.y == expected_mask.y - origin_y);
+    }
+    CHECK(patchy::layer_mask_linked(layer) == linked);
+  }
+  CHECK(patchy::ui::qimage_from_document(document, true) == before);
+}
+
 // Builds base / red / blue / cover, then converts red + blue into a Smart
 // Object named "blue" that sits between base and cover.
 patchy::LayerId build_convert_to_layers_smart_object(patchy::ui::MainWindow& window) {
@@ -2624,6 +2699,7 @@ std::vector<patchy::test::TestCase> smart_object_tests() {
        ui_smart_object_nested_contents_edit_commits_up_the_chain},
       {"ui_smart_object_convert_composites_identically_and_undoes",
        ui_smart_object_convert_composites_identically_and_undoes},
+      {"ui_smart_object_convert_keeps_masks_in_place", ui_smart_object_convert_keeps_masks_in_place},
       {"ui_smart_object_edit_commit_keeps_canvas_transparency",
        ui_smart_object_edit_commit_keeps_canvas_transparency},
       {"ui_smart_object_legacy_black_composite_decodes_transparent",

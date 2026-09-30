@@ -1924,38 +1924,6 @@ void unite_placement_bounds(const Layer& layer, std::optional<Rect>& bounds) {
   bounds = bounds.has_value() ? unite_rect(*bounds, *extent) : *extent;
 }
 
-// Moves a copied subtree by (dx, dy) in its new document: bounds, the
-// text/vector/smart-object metadata the Move tool shifts too (linked masks ride
-// along inside translate_moved_layer_metadata), and unlinked raster and vector
-// masks, which a Move leaves behind but a copy carries as one unit.
-void offset_copied_layer_tree(Layer& layer, std::int32_t dx, std::int32_t dy, std::int32_t document_width,
-                              std::int32_t document_height) {
-  if (!layer.bounds().empty()) {
-    const auto bounds = layer.bounds();
-    layer.set_bounds(Rect{bounds.x + dx, bounds.y + dy, bounds.width, bounds.height});
-  }
-  const bool mask_linked = layer_mask_linked(std::as_const(layer));
-  translate_moved_layer_metadata(layer, dx, dy, document_width, document_height);
-  if (!mask_linked) {
-    if (auto& mask = layer.mask(); mask.has_value()) {
-      mask->bounds.x += dx;
-      mask->bounds.y += dy;
-    }
-  }
-  if (const auto* vector_mask = std::as_const(layer).vector_mask();
-      vector_mask != nullptr && vector_mask->unlinked) {
-    auto moved = *vector_mask;
-    translate_vector_path(moved.path, dx, dy);
-    moved.cache_bounds.x += dx;
-    moved.cache_bounds.y += dy;
-    layer.set_vector_mask_translated(std::move(moved));
-    mark_layer_vector_block_dirty(layer);
-  }
-  for (auto& child : layer.children()) {
-    offset_copied_layer_tree(child, dx, dy, document_width, document_height);
-  }
-}
-
 // The copied bakes were clipped to the source canvas; re-rasterize against the
 // target's (paste_svg_from_clipboard's rule).
 void rebake_vector_rasters(Layer& layer, Rect canvas, const PatternStore* patterns) {

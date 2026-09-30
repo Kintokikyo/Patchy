@@ -3,6 +3,7 @@
 #include "core/document.hpp"
 #include "core/layer_metadata.hpp"
 #include "core/smart_object.hpp"
+#include "core/vector_shape.hpp"
 #include "psd/psd_filter_effects.hpp"
 #include "support/string_utils.hpp"
 #include "ui/app_settings.hpp"
@@ -1097,6 +1098,34 @@ void insert_layer_after_anchor(Document& document, Layer layer, std::optional<La
     }
   }
   document.add_layer(std::move(layer));
+}
+
+void offset_copied_layer_tree(Layer& layer, std::int32_t dx, std::int32_t dy, std::int32_t document_width,
+                              std::int32_t document_height) {
+  if (!layer.bounds().empty()) {
+    const auto bounds = layer.bounds();
+    layer.set_bounds(Rect{bounds.x + dx, bounds.y + dy, bounds.width, bounds.height});
+  }
+  const bool mask_linked = layer_mask_linked(std::as_const(layer));
+  translate_moved_layer_metadata(layer, dx, dy, document_width, document_height);
+  if (!mask_linked) {
+    if (auto& mask = layer.mask(); mask.has_value()) {
+      mask->bounds.x += dx;
+      mask->bounds.y += dy;
+    }
+  }
+  if (const auto* vector_mask = std::as_const(layer).vector_mask();
+      vector_mask != nullptr && vector_mask->unlinked) {
+    auto moved = *vector_mask;
+    translate_vector_path(moved.path, dx, dy);
+    moved.cache_bounds.x += dx;
+    moved.cache_bounds.y += dy;
+    layer.set_vector_mask_translated(std::move(moved));
+    mark_layer_vector_block_dirty(layer);
+  }
+  for (auto& child : layer.children()) {
+    offset_copied_layer_tree(child, dx, dy, document_width, document_height);
+  }
 }
 
 std::string duplicate_name_stem(std::string_view name) {

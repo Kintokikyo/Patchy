@@ -1477,27 +1477,15 @@ bool MainWindow::convert_layers_to_smart_object(const std::vector<LayerId>& sele
   child.print_settings() = doc.print_settings();
   const int dx = -content.x;
   const int dy = -content.y;
-  std::function<void(Layer&)> translate_into_child = [&](Layer& layer) {
-    auto bounds = layer.bounds();
-    bounds.x += dx;
-    bounds.y += dy;
-    layer.set_bounds(bounds);
-    if (layer.mask().has_value()) {
-      layer.mask()->bounds.x += dx;
-      layer.mask()->bounds.y += dy;
-    }
-    translate_moved_layer_metadata(layer, dx, dy, child.width(), child.height());
-    for (auto& nested : layer.children()) {
-      translate_into_child(nested);
-    }
-  };
   for (const auto id : ids) {
     const auto* layer = doc.find_layer(id);
     if (layer == nullptr) {
       continue;
     }
     auto copy = *layer;
-    translate_into_child(copy);
+    // Masks shift exactly once: shifting a linked one by hand as well as through
+    // the shared helper moved it twice (fixed October 2026).
+    offset_copied_layer_tree(copy, dx, dy, child.width(), child.height());
     // Nested smart objects keep working: their sources travel into the child's store
     // (the parent keeps its copies; unreferenced elements are never pruned, PS parity).
     std::vector<SmartObjectSource> referenced;

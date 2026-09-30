@@ -271,6 +271,16 @@ std::optional<Layer> clone_layer_tree_with_document_ids(
 // main_window.cpp.
 void insert_layer_after_anchor(Document& document, Layer layer, std::optional<LayerId> anchor_id);
 
+// Moves a copied subtree by (dx, dy) in its new document: bounds, the
+// text/vector/smart-object metadata the Move tool shifts too (linked masks ride
+// along inside translate_moved_layer_metadata, so callers never shift one by
+// hand), and unlinked raster and vector masks, which a Move leaves behind but a
+// copy carries as one unit. Shared by the cross-document copy in
+// main_window_layer_ops.cpp and Convert to Smart Object in
+// main_window_smart_objects.cpp.
+void offset_copied_layer_tree(Layer& layer, std::int32_t dx, std::int32_t dy, std::int32_t document_width,
+                              std::int32_t document_height);
+
 // Re-rasterizes a text layer through its stored (already composed) transform; false
 // keeps the caller's raster (missing font, imported warped text). Defined in
 // main_window.cpp; shared by the free-transform commit callback, Image Size, and
