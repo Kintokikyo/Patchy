@@ -424,10 +424,6 @@ public class MainActivity extends QtActivity {
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-
-        if (hasFocus) {
-            hideSystemBars();
-        }
     }
     
     private void disableCaptionDragForTopArea() {
