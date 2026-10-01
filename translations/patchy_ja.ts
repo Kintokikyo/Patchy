@@ -19588,10 +19588,6 @@ Baked into images: %1.</source>
         <translation>intervalMinutes は 5、10、15、30、60 のいずれかにしてください</translation>
     </message>
     <message>
-        <source>addTextLayer: font not available, rendered with a fallback: %1</source>
-        <translation>addTextLayer: フォントを使用できないため、代替フォントで描画しました: %1</translation>
-    </message>
-    <message>
         <source>textAlign must be &apos;left&apos;, &apos;center&apos;, &apos;right&apos; or &apos;justify&apos;.</source>
         <translation>textAlign は &apos;left&apos;、&apos;center&apos;、&apos;right&apos;、&apos;justify&apos; のいずれかにしてください。</translation>
     </message>
@@ -19668,8 +19664,12 @@ Baked into images: %1.</source>
         <translation>addSmartObject: %1 は有限の数値にしてください。</translation>
     </message>
     <message>
-        <source>addTextLayer: font has no glyphs for this text, rendered with a fallback: %1</source>
-        <translation>addTextLayer: フォントにこのテキストのグリフがないため、代替フォントで描画しました: %1</translation>
+        <source>%1: font not available, rendered with a fallback: %2</source>
+        <translation>%1: フォントを使用できないため、代替フォントで描画しました: %2</translation>
+    </message>
+    <message>
+        <source>%1: font has no glyphs for this text, rendered with a fallback: %2</source>
+        <translation>%1: フォントにこのテキストのグリフがないため、代替フォントで描画しました: %2</translation>
     </message>
 </context>
 <context>

@@ -1,11 +1,17 @@
 # Scripting API compatibility
 
-2026-10-01 behavioral correction (API 1): the `addTextLayer` console warning names its cause.
-A font that is installed but has no glyph for any character of the text (the bundled Noto
-Naskh Arabic asked for Latin text) now logs `addTextLayer: font has no glyphs for this text,
-rendered with a fallback: <family>`. It used to log `font not available`, which still appears
-for a font that is not installed. A layer with both problems logs both lines. Pinned by
-`ui_script_text_font_without_glyphs_warns_with_the_real_cause`.
+2026-10-01 behavioral correction (API 1): text font warnings name their cause, and the text
+setters log them too. A font that is installed but has no glyph for any character of the text
+(the bundled Noto Naskh Arabic asked for Latin text) now logs `addTextLayer: font has no
+glyphs for this text, rendered with a fallback: <family>`. It used to log `font not
+available`, which still appears for a font that is not installed. A layer with both problems
+logs both lines. `layer.text`, `setTextRuns`, `textAlign`, `textParagraph`, `textOrientation`
+and `textDirection` used to say nothing; they now log the same two lines under their own name
+(`layer.text: font not available, ...`). That includes the case where the edit replaced a
+missing font with a substitute, so `textFont` no longer names the font the layer was created
+with. Runs that give every character an installed font log nothing. These are console lines,
+never dialogs. Pinned by `ui_script_text_font_without_glyphs_warns_with_the_real_cause` and
+`ui_script_text_setters_warn_about_fonts`.
 
 2026-10-01 behavioral correction (API 1): `layer.moveTo` and the `x` / `y` setters move a
 layer the way the Move tool does. They used to shift only the pixel bounds and the mask

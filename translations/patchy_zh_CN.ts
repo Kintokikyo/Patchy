@@ -19588,10 +19588,6 @@ Baked into images: %1.</source>
         <translation>intervalMinutes 必须为 5、10、15、30 或 60</translation>
     </message>
     <message>
-        <source>addTextLayer: font not available, rendered with a fallback: %1</source>
-        <translation>addTextLayer：字体不可用，已使用替代字体渲染：%1</translation>
-    </message>
-    <message>
         <source>textAlign must be &apos;left&apos;, &apos;center&apos;, &apos;right&apos; or &apos;justify&apos;.</source>
         <translation>textAlign 必须是 &apos;left&apos;、&apos;center&apos;、&apos;right&apos; 或 &apos;justify&apos;。</translation>
     </message>
@@ -19668,8 +19664,12 @@ Baked into images: %1.</source>
         <translation>addSmartObject：%1 必须是有限的数值。</translation>
     </message>
     <message>
-        <source>addTextLayer: font has no glyphs for this text, rendered with a fallback: %1</source>
-        <translation>addTextLayer：字体没有此文字所需的字形，已使用替代字体渲染：%1</translation>
+        <source>%1: font not available, rendered with a fallback: %2</source>
+        <translation>%1：字体不可用，已使用替代字体渲染：%2</translation>
+    </message>
+    <message>
+        <source>%1: font has no glyphs for this text, rendered with a fallback: %2</source>
+        <translation>%1：字体没有此文字所需的字形，已使用替代字体渲染：%2</translation>
     </message>
 </context>
 <context>

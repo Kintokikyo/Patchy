@@ -340,7 +340,9 @@ public:
   bool set_text_layer_text(std::int64_t session_id, LayerId layer_id, const QString& text);
   // Replaces the layer's content with the runs, each typed in its own format on top of the
   // first character's; the same hidden session `text` uses.
-  bool set_text_layer_runs(std::int64_t session_id, LayerId layer_id, const std::vector<TextRunParams>& runs);
+  // `api` is the name font warnings are reported under ("layer.text" passes its own).
+  bool set_text_layer_runs(std::int64_t session_id, LayerId layer_id, const std::vector<TextRunParams>& runs,
+                           const char* api = "layer.setTextRuns");
   // The layer's runs as stored (sizes in document pixels before any layer transform); a layer
   // with no run data reports one run from its layer-level values.
   [[nodiscard]] std::vector<TextRunInfo> text_layer_runs(std::int64_t session_id, LayerId layer_id) const;
@@ -363,8 +365,14 @@ public:
   [[nodiscard]] QString text_layer_font(std::int64_t session_id, LayerId layer_id) const;
   bool set_text_layer_direction(std::int64_t session_id, LayerId layer_id, const QString& direction);
   [[nodiscard]] bool layer_is_text_layer(std::int64_t session_id, LayerId layer_id) const;
-  bool edit_text_layer_session(std::int64_t session_id, LayerId layer_id,
-                               const std::function<void(QTextEdit&)>& edit);
+  // Runs `edit` in a hidden text session and commits it. Afterwards the console gets a warning,
+  // under the name `api`, for every font the layer cannot be drawn in, including one the session
+  // had to substitute on the way in (an edit moves a missing family onto the face Qt draws it
+  // with, so the committed layer no longer names it). `requested_fonts` are the families the
+  // edit itself names, on top of the ones the layer already used.
+  bool edit_text_layer_session(std::int64_t session_id, LayerId layer_id, const char* api,
+                               const std::function<void(QTextEdit&)>& edit,
+                               const QStringList& requested_fonts = {});
 
   // Filter application onto a layer's pixel buffer by registry id.
   bool apply_filter_to_layer(std::int64_t session_id, LayerId layer_id, const QString& filter_id,
@@ -567,6 +575,8 @@ private:
   [[nodiscard]] QJSValue run_form_dialog(const QJSValue& spec, bool merge_args);
   void report_error(const QJSValue& error);
   void emit_message(MessageKind kind, const QString& text);
+  // Console warnings (never a dialog) for the fonts in `asked` the layer was not drawn in.
+  void report_text_fonts(const QString& api, std::int64_t session_id, LayerId layer_id, const QStringList& asked);
   [[nodiscard]] std::chrono::milliseconds watchdog_timeout() const;
   // True when interactive helpers must answer without UI: app-wide CLI
   // automation, or this run arrived via --run-script (forwarded included).

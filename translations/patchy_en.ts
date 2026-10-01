@@ -19592,10 +19592,6 @@ Baked into images: %1.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>addTextLayer: font not available, rendered with a fallback: %1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>textAlign must be &apos;left&apos;, &apos;center&apos;, &apos;right&apos; or &apos;justify&apos;.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -19672,7 +19668,11 @@ Baked into images: %1.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>addTextLayer: font has no glyphs for this text, rendered with a fallback: %1</source>
+        <source>%1: font not available, rendered with a fallback: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1: font has no glyphs for this text, rendered with a fallback: %2</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

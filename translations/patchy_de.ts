@@ -19642,10 +19642,6 @@ In Bilder umgewandelt: %1.</translation>
         <translation>intervalMinutes muss 5, 10, 15, 30 oder 60 sein</translation>
     </message>
     <message>
-        <source>addTextLayer: font not available, rendered with a fallback: %1</source>
-        <translation>addTextLayer: Schriftart nicht verfügbar, mit Ersatzschrift dargestellt: %1</translation>
-    </message>
-    <message>
         <source>textAlign must be &apos;left&apos;, &apos;center&apos;, &apos;right&apos; or &apos;justify&apos;.</source>
         <translation>textAlign muss &apos;left&apos;, &apos;center&apos;, &apos;right&apos; oder &apos;justify&apos; sein.</translation>
     </message>
@@ -19722,8 +19718,12 @@ In Bilder umgewandelt: %1.</translation>
         <translation>addSmartObject: %1 muss eine endliche Zahl sein.</translation>
     </message>
     <message>
-        <source>addTextLayer: font has no glyphs for this text, rendered with a fallback: %1</source>
-        <translation>addTextLayer: Schriftart enthält keine Glyphen für diesen Text, mit Ersatzschrift dargestellt: %1</translation>
+        <source>%1: font not available, rendered with a fallback: %2</source>
+        <translation>%1: Schriftart nicht verfügbar, mit Ersatzschrift dargestellt: %2</translation>
+    </message>
+    <message>
+        <source>%1: font has no glyphs for this text, rendered with a fallback: %2</source>
+        <translation>%1: Schriftart enthält keine Glyphen für diesen Text, mit Ersatzschrift dargestellt: %2</translation>
     </message>
 </context>
 <context>

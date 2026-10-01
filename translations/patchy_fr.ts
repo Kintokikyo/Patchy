@@ -19642,10 +19642,6 @@ Convertis en images : %1.</translation>
         <translation>intervalMinutes doit valoir 5, 10, 15, 30 ou 60</translation>
     </message>
     <message>
-        <source>addTextLayer: font not available, rendered with a fallback: %1</source>
-        <translation>addTextLayer : police non disponible, rendu avec une police de remplacement : %1</translation>
-    </message>
-    <message>
         <source>textAlign must be &apos;left&apos;, &apos;center&apos;, &apos;right&apos; or &apos;justify&apos;.</source>
         <translation>textAlign doit valoir &apos;left&apos;, &apos;center&apos;, &apos;right&apos; ou &apos;justify&apos;.</translation>
     </message>
@@ -19722,8 +19718,12 @@ Convertis en images : %1.</translation>
         <translation>addSmartObject : %1 doit être un nombre fini.</translation>
     </message>
     <message>
-        <source>addTextLayer: font has no glyphs for this text, rendered with a fallback: %1</source>
-        <translation>addTextLayer : la police n&apos;a aucun glyphe pour ce texte, rendu avec une police de remplacement : %1</translation>
+        <source>%1: font not available, rendered with a fallback: %2</source>
+        <translation>%1 : police non disponible, rendu avec une police de remplacement : %2</translation>
+    </message>
+    <message>
+        <source>%1: font has no glyphs for this text, rendered with a fallback: %2</source>
+        <translation>%1 : la police n&apos;a aucun glyphe pour ce texte, rendu avec une police de remplacement : %2</translation>
     </message>
 </context>
 <context>

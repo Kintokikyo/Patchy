@@ -1887,9 +1887,107 @@ QString ScriptEngineHost::text_layer_direction(std::int64_t session_id, LayerId 
   return QStringLiteral("auto");
 }
 
+namespace {
+
+// Whether `family` (installed) lacks a glyph for some character of `text` in every face it has.
+// Spaces, marks and controls are drawn by nobody and prove nothing.
+bool text_family_lacks_some_character(const QString& family, const QString& text) {
+  std::vector<QRawFont> faces;
+  for (const auto& style : QFontDatabase::styles(family)) {
+    auto face = QRawFont::fromFont(QFontDatabase::font(family, style, 12));
+    if (face.isValid()) {
+      faces.push_back(std::move(face));
+    }
+  }
+  if (faces.empty()) {
+    return false;  // nothing to interrogate; stay quiet rather than guess
+  }
+  for (int index = 0; index < text.size(); ++index) {
+    char32_t code = text.at(index).unicode();
+    if (text.at(index).isHighSurrogate() && index + 1 < text.size() && text.at(index + 1).isLowSurrogate()) {
+      code = QChar::surrogateToUcs4(text.at(index), text.at(index + 1));
+      ++index;
+    }
+    if (code < 0x20 || QChar::isSpace(code) || QChar::isMark(code) ||
+        QChar::category(code) == QChar::Other_Format) {
+      continue;
+    }
+    const bool drawn = std::any_of(faces.begin(), faces.end(),
+                                   [code](const QRawFont& face) { return face.supportsCharacter(code); });
+    if (!drawn) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool family_listed(const QStringList& families, const QString& family) {
+  return families.contains(family.trimmed(), Qt::CaseInsensitive);
+}
+
+}  // namespace
+
+// Console warnings (never a dialog) for every font a scripted text edit asked for and did not
+// get. `asked` is what the script requested: the families the layer named before the edit plus
+// any the edit names itself. Three things hide a substitution from a plain "is this layer's
+// font missing" check, and all of them have to be reported:
+//   - the layer still names a family that is not installed, or that has no glyph for its text;
+//   - an edit session moved a missing family onto the face Qt draws it with, so the committed
+//     layer names the substitute and nothing looks missing;
+//   - characters the face cannot draw were moved to the face that draws them, as their own run
+//     (substitute_uncovered_characters_in_editor). Which of the last two a platform does for one
+//     input differs (Linux moves Latin typed into Noto Naskh Arabic to a Latin face, Windows
+//     leaves the run alone), so the check compares what was asked with what the layer ends up
+//     naming instead of trusting either route.
+void ScriptEngineHost::report_text_fonts(const QString& api, std::int64_t session_id, LayerId layer_id,
+                                         const QStringList& asked) {
+  const auto* document = session_document_const(session_id);
+  const auto* layer = document == nullptr ? nullptr : document->find_layer(layer_id);
+  if (layer == nullptr || !layer_is_text(*layer)) {
+    return;
+  }
+  auto problems = text_font_problems_for_layer(*layer);
+  QStringList named;
+  for (const auto& run : text_layer_runs(session_id, layer_id)) {
+    named.push_back(run.family.trimmed());
+  }
+  const bool substitute_present = std::any_of(named.begin(), named.end(), [&asked](const QString& family) {
+    return !family.isEmpty() && !family_listed(asked, family);
+  });
+  if (substitute_present) {
+    const auto text = text_layer_text(session_id, layer_id);
+    const auto installed = QFontDatabase::families();
+    for (const auto& raw_family : asked) {
+      const auto family = raw_family.trimmed();
+      if (family.isEmpty() || family_listed(problems.not_installed, family) ||
+          family_listed(problems.no_glyphs, family)) {
+        continue;
+      }
+      if (!family_listed(installed, family)) {
+        // A name the database lists under another spelling (family plus face, a full name) is
+        // still in the runs when it resolved; gone from them, it was substituted.
+        if (!family_listed(named, family)) {
+          problems.not_installed.push_back(family);
+        }
+      } else if (!family_listed(named, family) || text_family_lacks_some_character(family, text)) {
+        problems.no_glyphs.push_back(family);
+      }
+    }
+  }
+  if (!problems.not_installed.isEmpty()) {
+    emit_message(MessageKind::Warn, tr("%1: font not available, rendered with a fallback: %2")
+                                        .arg(api, problems.not_installed.join(QStringLiteral(", "))));
+  }
+  if (!problems.no_glyphs.isEmpty()) {
+    emit_message(MessageKind::Warn, tr("%1: font has no glyphs for this text, rendered with a fallback: %2")
+                                        .arg(api, problems.no_glyphs.join(QStringLiteral(", "))));
+  }
+}
+
 // Opens the hidden edit session `text` uses and runs `edit` on it before the commit.
-bool ScriptEngineHost::edit_text_layer_session(std::int64_t session_id, LayerId layer_id,
-                                               const std::function<void(QTextEdit&)>& edit) {
+bool ScriptEngineHost::edit_text_layer_session(std::int64_t session_id, LayerId layer_id, const char* api,
+                                               const std::function<void(QTextEdit&)>& edit,
+                                               const QStringList& requested_fonts) {
   pump_progress_indicator();
   auto* session = window_.session_with_id(session_id);
   if (session == nullptr || session->canvas == nullptr) {
@@ -1902,6 +2000,12 @@ bool ScriptEngineHost::edit_text_layer_session(std::int64_t session_id, LayerId 
   window_.activate_document_session(*session);
   if (!prepare_mutation(session_id)) {
     return false;
+  }
+  // Read before the session opens: it substitutes a font the layer cannot be drawn in, and the
+  // committed layer then names the substitute.
+  auto asked = requested_fonts;
+  for (const auto& run : text_layer_runs(session_id, layer_id)) {
+    asked.push_back(run.family);
   }
   const auto bounds = layer->bounds();
   const QPoint anchor(bounds.x + std::max(1, bounds.width) / 2, bounds.y + std::max(1, bounds.height) / 2);
@@ -1920,6 +2024,8 @@ bool ScriptEngineHost::edit_text_layer_session(std::int64_t session_id, LayerId 
   window_.finish_active_text_editor();
   QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
   note_structure_changed(session_id);
+
+  report_text_fonts(QString::fromLatin1(api), session_id, layer_id, asked);
   return true;
 }
 
@@ -1931,7 +2037,7 @@ bool ScriptEngineHost::set_text_layer_orientation(std::int64_t session_id, Layer
   if (text_layer_orientation(session_id, layer_id) == orientation) {
     return layer_is_text_layer(session_id, layer_id);
   }
-  return edit_text_layer_session(session_id, layer_id, [this, orientation](QTextEdit&) {
+  return edit_text_layer_session(session_id, layer_id, "layer.textOrientation", [this, orientation](QTextEdit&) {
     window_.apply_text_orientation(orientation == QLatin1String("vertical"), /*remember_default*/ false);
   });
 }
@@ -1942,7 +2048,7 @@ bool ScriptEngineHost::set_text_layer_direction(std::int64_t session_id, LayerId
   if (!resolved.has_value()) {
     return false;
   }
-  return edit_text_layer_session(session_id, layer_id, [this, resolved](QTextEdit& editor) {
+  return edit_text_layer_session(session_id, layer_id, "layer.textDirection", [this, resolved](QTextEdit& editor) {
     auto all = editor.textCursor();
     all.select(QTextCursor::Document);
     editor.setTextCursor(all);
@@ -2118,18 +2224,16 @@ std::optional<LayerId> ScriptEngineHost::add_text_layer(std::int64_t session_id,
   if (created.has_value()) {
     // A family that is not installed, or that holds no glyph for the text, renders in a fallback
     // face; say so, and say which, instead of letting the caller discover it from the pixels.
-    if (const auto* layer = std::as_const(session->document).find_layer(*created); layer != nullptr) {
-      const auto problems = text_font_problems_for_layer(*layer);
-      if (!problems.not_installed.isEmpty()) {
-        emit_message(MessageKind::Warn, tr("addTextLayer: font not available, rendered with a fallback: %1")
-                                            .arg(problems.not_installed.join(QStringLiteral(", "))));
-      }
-      if (!problems.no_glyphs.isEmpty()) {
-        emit_message(MessageKind::Warn,
-                     tr("addTextLayer: font has no glyphs for this text, rendered with a fallback: %1")
-                         .arg(problems.no_glyphs.join(QStringLiteral(", "))));
+    QStringList asked;
+    if (!params.family.trimmed().isEmpty()) {
+      asked.push_back(params.family.trimmed());
+    }
+    for (const auto& run : params.runs) {
+      if (!run.family.trimmed().isEmpty()) {
+        asked.push_back(run.family.trimmed());
       }
     }
+    report_text_fonts(QStringLiteral("addTextLayer"), session_id, *created, asked);
   }
   return created;
 }
@@ -2138,12 +2242,18 @@ bool ScriptEngineHost::set_text_layer_text(std::int64_t session_id, LayerId laye
                                            const QString& text) {
   TextRunParams run;
   run.text = text;
-  return set_text_layer_runs(session_id, layer_id, {run});
+  return set_text_layer_runs(session_id, layer_id, {run}, "layer.text");
 }
 
 bool ScriptEngineHost::set_text_layer_runs(std::int64_t session_id, LayerId layer_id,
-                                           const std::vector<TextRunParams>& runs) {
-  return edit_text_layer_session(session_id, layer_id, [this, session_id, &runs](QTextEdit& editor) {
+                                           const std::vector<TextRunParams>& runs, const char* api) {
+  QStringList requested_fonts;
+  for (const auto& run : runs) {
+    if (!run.family.trimmed().isEmpty()) {
+      requested_fonts.push_back(run.family.trimmed());
+    }
+  }
+  const auto edit = [this, session_id, &runs](QTextEdit& editor) {
     const auto* session = window_.session_with_id(session_id);
     const double zoom =
         session != nullptr && session->canvas != nullptr ? std::max(0.01, session->canvas->zoom()) : 1.0;
@@ -2165,7 +2275,8 @@ bool ScriptEngineHost::set_text_layer_runs(std::int64_t session_id, LayerId laye
     }
     editor.setTextCursor(cursor);
     insert_text_runs(window_, editor, base, runs, zoom);
-  });
+  };
+  return edit_text_layer_session(session_id, layer_id, api, edit, requested_fonts);
 }
 
 std::vector<ScriptEngineHost::TextRunInfo> ScriptEngineHost::text_layer_runs(std::int64_t session_id,
@@ -2306,7 +2417,7 @@ bool ScriptEngineHost::set_text_layer_paragraph(std::int64_t session_id, LayerId
   if (metrics.empty()) {
     return layer_is_text_layer(session_id, layer_id);
   }
-  return edit_text_layer_session(session_id, layer_id, [this, metrics](QTextEdit& editor) {
+  return edit_text_layer_session(session_id, layer_id, "layer.textParagraph", [this, metrics](QTextEdit& editor) {
     auto all = editor.textCursor();
     all.select(QTextCursor::Document);
     editor.setTextCursor(all);
@@ -2316,7 +2427,7 @@ bool ScriptEngineHost::set_text_layer_paragraph(std::int64_t session_id, LayerId
 
 bool ScriptEngineHost::set_text_layer_align(std::int64_t session_id, LayerId layer_id, const QString& align) {
   const auto alignment = text_alignment_for_name(align);
-  return edit_text_layer_session(session_id, layer_id, [this, alignment](QTextEdit& editor) {
+  return edit_text_layer_session(session_id, layer_id, "layer.textAlign", [this, alignment](QTextEdit& editor) {
     auto all = editor.textCursor();
     all.select(QTextCursor::Document);
     editor.setTextCursor(all);

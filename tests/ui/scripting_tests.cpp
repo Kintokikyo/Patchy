@@ -1579,20 +1579,87 @@ void ui_script_text_font_without_glyphs_warns_with_the_real_cause() {
   CHECK(QFontDatabase::addApplicationFont(noto_path) >= 0);
   CHECK(run_script(window, QStringLiteral(R"JS(
     var doc = app.activeDocument;
-    var arabic = doc.addTextLayer('سلام', {font: 'Noto Naskh Arabic', size: 24, x: 10, y: 40});
+    var arabic = doc.addTextLayer('سلام', {font: 'Noto Naskh Arabic', bold: true, size: 24, x: 10, y: 40});
     console.log('arabic=' + arabic.textFont);
   )JS")));
   CHECK(backlog_contains(window, QStringLiteral("arabic=Noto Naskh Arabic")));
-  // Only the Bold face is registered, beside the suite's other Arabic-capable families: the
-  // coverage probe has to ask the face the family really has, not lose a Regular request to Arial.
+  // The Bold face is the one this test registers, beside the suite's other Arabic-capable
+  // families, so the layers ask for it by name: an earlier test may have registered a Regular
+  // face from a folder it has since deleted. The coverage probe has to ask the face the family
+  // really has, not lose a Regular request to Arial.
   CHECK(!backlog_contains(window, QStringLiteral("rendered with a fallback")));
 
   CHECK(run_script(window, QStringLiteral(R"JS(
-    app.activeDocument.addTextLayer('Blazing Star', {font: 'Noto Naskh Arabic', size: 24, x: 10, y: 90});
+    app.activeDocument.addTextLayer('Blazing Star', {font: 'Noto Naskh Arabic', bold: true, size: 24, x: 10, y: 90});
   )JS")));
   CHECK(backlog_contains(
       window, QStringLiteral("font has no glyphs for this text, rendered with a fallback: Noto Naskh Arabic")));
   CHECK(!backlog_contains(window, QStringLiteral("font not available")));
+}
+
+// The setters that re-edit a text layer warn like addTextLayer does. An edit session moves a
+// family it cannot draw onto a substitute, so `layer.text = ...` on a layer whose font was missing
+// used to change the font with no word to the script; a run that names a missing or glyphless
+// font was just as quiet. A warning is a console line: nothing here opens a dialog.
+void ui_script_text_setters_warn_about_fonts() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  const auto noto_path = QStringLiteral(PATCHY_SOURCE_DIR "/third_party/fonts/noto_naskh_arabic/NotoNaskhArabic-Bold.ttf");
+  CHECK(QFontDatabase::addApplicationFont(noto_path) >= 0);
+  patchy::test::register_test_fonts(patchy::test::TestFontRole::UiDefault);
+  const auto good = patchy::test::visual_test_font().family();
+  CHECK(QFontDatabase::families().contains(good));
+  const auto missing = QStringLiteral("Patchy No Such Family");
+  const auto naskh = QStringLiteral("Noto Naskh Arabic");
+
+  // A layer in a good font: no setter says a word.
+  CHECK(run_script(window, QStringLiteral(R"JS(
+    var quiet = app.activeDocument.addTextLayer('Quiet', {font: '%1', size: 24, x: 10, y: 40});
+    quiet.text = 'Still quiet';
+    quiet.setTextRuns([{text: 'Still '}, {text: 'quiet', bold: true}]);
+    quiet.textAlign = 'center';
+    console.log('quiet-done');
+  )JS").arg(good)));
+  CHECK(backlog_contains(window, QStringLiteral("quiet-done")));
+  CHECK(!backlog_contains(window, QStringLiteral("rendered with a fallback")));
+
+  // The text setter on a layer whose font is missing: the session substitutes it, and says so.
+  CHECK(run_script(window, QStringLiteral(R"JS(
+    var lost = app.activeDocument.addTextLayer('First', {font: 'Patchy No Such Family', size: 24, x: 10, y: 80});
+    lost.text = 'Second';
+  )JS")));
+  CHECK(backlog_contains(window, QStringLiteral("layer.text: font not available, rendered with a fallback: ") + missing));
+
+  // The text setter that leaves an installed font nothing it can draw.
+  CHECK(run_script(window, QStringLiteral(R"JS(
+    var arabic = app.activeDocument.addTextLayer('سلام', {font: 'Noto Naskh Arabic', bold: true, size: 24, x: 10, y: 120});
+    arabic.text = 'Latin now';
+  )JS")));
+  CHECK(backlog_contains(
+      window, QStringLiteral("layer.text: font has no glyphs for this text, rendered with a fallback: ") + naskh));
+
+  // Runs that name one font of each kind report both.
+  CHECK(run_script(window, QStringLiteral(R"JS(
+    var mixed = app.activeDocument.addTextLayer('Good', {font: '%1', size: 24, x: 10, y: 160});
+    mixed.setTextRuns([{text: 'one ', font: 'Patchy No Such Family'}, {text: 'two', font: 'Noto Naskh Arabic', bold: true},
+                       {text: ' three'}]);
+  )JS").arg(good)));
+  CHECK(backlog_contains(
+      window, QStringLiteral("layer.setTextRuns: font not available, rendered with a fallback: ") + missing));
+  CHECK(backlog_contains(
+      window, QStringLiteral("layer.setTextRuns: font has no glyphs for this text, rendered with a fallback: ") + naskh));
+
+  // Runs that give every character a good font replace the missing family on purpose: silence.
+  CHECK(run_script(window, QStringLiteral(R"JS(
+    var fixed = app.activeDocument.addTextLayer('Broken', {font: 'Patchy Other Missing Family', size: 24, x: 10, y: 200});
+    fixed.setTextRuns([{text: 'Fixed', font: '%1'}]);
+    console.log('fixed=' + fixed.textFont);
+  )JS").arg(good)));
+  CHECK(backlog_contains(window, QStringLiteral("fixed=") + good));
+  CHECK(backlog_contains(window, QStringLiteral("addTextLayer: font not available, rendered with a fallback: "
+                                                "Patchy Other Missing Family")));
+  CHECK(!backlog_contains(window, QStringLiteral("layer.setTextRuns: font not available, rendered with a fallback: "
+                                                 "Patchy Other Missing Family")));
 }
 
 void ui_script_text_layer_with_uncovered_script_does_not_crash() {
@@ -3824,6 +3891,7 @@ std::vector<patchy::test::TestCase> scripting_tests() {
       {"ui_script_list_fonts_reports_registered_families", ui_script_list_fonts_reports_registered_families},
       {"ui_script_text_font_without_glyphs_warns_with_the_real_cause",
        ui_script_text_font_without_glyphs_warns_with_the_real_cause},
+      {"ui_script_text_setters_warn_about_fonts", ui_script_text_setters_warn_about_fonts},
       {"ui_script_text_layer_with_uncovered_script_does_not_crash",
        ui_script_text_layer_with_uncovered_script_does_not_crash},
       {"ui_script_run_command_writes_output_file", ui_script_run_command_writes_output_file},

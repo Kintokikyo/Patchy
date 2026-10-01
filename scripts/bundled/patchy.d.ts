@@ -295,7 +295,10 @@ interface PatchyLayer {
   /** Child layers (groups only). */
   readonly children: PatchyLayer[];
   /** Text layers: setting text re-renders the layer with the first character's formatting
-   * (size, glyph scales, leading, tracking); an empty string clears its ink. */
+   * (size, glyph scales, leading, tracking); an empty string clears its ink. Like every
+   * text setter here, it logs a console warning (never a dialog) when a font is not
+   * installed or has no glyphs for the text; a missing font is replaced by the
+   * substitute it was drawn in, which textFont then reports. */
   text: string;
   /** Text layers: "horizontal" or "vertical" (columns top to bottom, right to left). Setting it re-renders. */
   textOrientation: 'horizontal' | 'vertical';
