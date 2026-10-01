@@ -18236,6 +18236,10 @@ Baked into images: %1.</source>
         <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan. Two-finger scrolling on a trackpad always pans; pinch to zoom.</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Tools</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

@@ -18286,6 +18286,10 @@ Convertis en images : %1.</translation>
         <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan. Two-finger scrolling on a trackpad always pans; pinch to zoom.</source>
         <translation>S&apos;applique aussi à un bouton de stylet réglé sur Défilement. Maintenez %CTRL% ou Shift pendant le défilement pour déplacer la vue. Le défilement à deux doigts sur un trackpad déplace toujours la vue ; pincez pour zoomer.</translation>
     </message>
+    <message>
+        <source>Tools</source>
+        <translation>Outils</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

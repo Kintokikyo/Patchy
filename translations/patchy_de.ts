@@ -18286,6 +18286,10 @@ In Bilder umgewandelt: %1.</translation>
         <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan. Two-finger scrolling on a trackpad always pans; pinch to zoom.</source>
         <translation>Gilt auch für eine auf „Scrollen“ eingestellte Stifttaste. Halten Sie beim Scrollen %CTRL% oder Shift gedrückt, um die Ansicht zu verschieben. Scrollen mit zwei Fingern auf einem Trackpad verschiebt immer die Ansicht; zum Zoomen die Finger auf- oder zuziehen.</translation>
     </message>
+    <message>
+        <source>Tools</source>
+        <translation>Werkzeuge</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

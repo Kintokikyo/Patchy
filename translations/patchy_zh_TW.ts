@@ -18233,6 +18233,10 @@ Baked into images: %1.</source>
         <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan. Two-finger scrolling on a trackpad always pans; pinch to zoom.</source>
         <translation>設定為捲動的手寫筆按鈕也適用。捲動時按住 %CTRL% 或 Shift 可平移。在觸控式軌跡板上以兩指捲動一律為平移；兩指開合可縮放。</translation>
     </message>
+    <message>
+        <source>Tools</source>
+        <translation>工具</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

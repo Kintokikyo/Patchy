@@ -860,32 +860,6 @@ void MainWindow::show_preferences() {
          "(as-shot white balance, no adjustments)."));
   raw_develop_check->setChecked(settings.value(QStringLiteral("imports/showRawDevelopDialog"), true).toBool());
   application_form->addRow(raw_develop_check);
-  auto* transform_shift_aspect_check =
-      new QCheckBox(tr("Hold Shift to keep the aspect ratio when transforming"), application_group);
-  transform_shift_aspect_check->setObjectName(QStringLiteral("preferencesTransformShiftAspectCheck"));
-  transform_shift_aspect_check->setToolTip(
-      tr("When off, corner handles keep the aspect ratio and Shift resizes freely, matching "
-         "current Photoshop. When on, corner handles resize freely and Shift keeps the aspect ratio."));
-  transform_shift_aspect_check->setChecked(shift_keeps_transform_aspect_);
-  application_form->addRow(transform_shift_aspect_check);
-  auto* transform_values_check =
-      new QCheckBox(tr("Show transformation values while dragging"), application_group);
-  transform_values_check->setObjectName(QStringLiteral("preferencesShowTransformValuesCheck"));
-  transform_values_check->setToolTip(
-      tr("Shows a small readout beside the pointer while moving, scaling, or rotating: the "
-         "reference point's position and the offset, the width and height with the scale "
-         "percentages, or the angle and how far it turned."));
-  transform_values_check->setChecked(show_transform_drag_values_);
-  application_form->addRow(transform_values_check);
-  auto* transform_snap_check = new QCheckBox(tr("Snap transforms to the pixel grid"), application_group);
-  transform_snap_check->setObjectName(QStringLiteral("preferencesTransformSnapToPixelGridCheck"));
-  transform_snap_check->setToolTip(
-      tr("Positions and sizes typed into the Free Transform bar land on whole pixels, like "
-         "Photoshop's \"Snap Vector Tools and Transforms to Pixel Grid\". Rotated transforms are "
-         "not snapped. When off, a typed fraction such as 3.4 px is kept and the pixels are "
-         "resampled."));
-  transform_snap_check->setChecked(snap_transforms_to_pixel_grid_);
-  application_form->addRow(transform_snap_check);
   auto* zoom_thumbnails_check =
       new QCheckBox(tr("Zoom layer thumbnails to the layer content"), application_group);
   zoom_thumbnails_check->setObjectName(QStringLiteral("preferencesZoomLayerThumbnailsCheck"));
@@ -1025,6 +999,52 @@ void MainWindow::show_preferences() {
   // as a user choice.
   connect(color_scheme_combo, &QComboBox::currentIndexChanged, &dialog, apply_combo_selection);
 
+  // Tools: tool and canvas-input behavior (the mouse wheel, Free Transform), the way
+  // Photoshop's Tools page groups them.
+  auto [tools_page, tools_layout] = make_tab_page(tabs);
+  auto* tools_group = new QFrame(tools_page);
+  tools_group->setObjectName(QStringLiteral("preferencesToolsGroup"));
+  configure_panel(tools_group);
+  auto* tools_form = new QFormLayout(tools_group);
+  configure_form(tools_form);
+  auto* wheel_zoom_check = new QCheckBox(tr("Mouse wheel zooms the canvas"), tools_group);
+  wheel_zoom_check->setObjectName(QStringLiteral("preferencesWheelZoomCheck"));
+  wheel_zoom_check->setChecked(wheel_zooms_);
+  wheel_zoom_check->setToolTip(
+      resolve_modifier_names(
+          tr("Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan. "
+             "Two-finger scrolling on a trackpad always pans; pinch to zoom.")));
+  tools_form->addRow(wheel_zoom_check);
+  auto* transform_shift_aspect_check =
+      new QCheckBox(tr("Hold Shift to keep the aspect ratio when transforming"), tools_group);
+  transform_shift_aspect_check->setObjectName(QStringLiteral("preferencesTransformShiftAspectCheck"));
+  transform_shift_aspect_check->setToolTip(
+      tr("When off, corner handles keep the aspect ratio and Shift resizes freely, matching "
+         "current Photoshop. When on, corner handles resize freely and Shift keeps the aspect ratio."));
+  transform_shift_aspect_check->setChecked(shift_keeps_transform_aspect_);
+  tools_form->addRow(transform_shift_aspect_check);
+  auto* transform_values_check =
+      new QCheckBox(tr("Show transformation values while dragging"), tools_group);
+  transform_values_check->setObjectName(QStringLiteral("preferencesShowTransformValuesCheck"));
+  transform_values_check->setToolTip(
+      tr("Shows a small readout beside the pointer while moving, scaling, or rotating: the "
+         "reference point's position and the offset, the width and height with the scale "
+         "percentages, or the angle and how far it turned."));
+  transform_values_check->setChecked(show_transform_drag_values_);
+  tools_form->addRow(transform_values_check);
+  auto* transform_snap_check = new QCheckBox(tr("Snap transforms to the pixel grid"), tools_group);
+  transform_snap_check->setObjectName(QStringLiteral("preferencesTransformSnapToPixelGridCheck"));
+  transform_snap_check->setToolTip(
+      tr("Positions and sizes typed into the Free Transform bar land on whole pixels, like "
+         "Photoshop's \"Snap Vector Tools and Transforms to Pixel Grid\". Rotated transforms are "
+         "not snapped. When off, a typed fraction such as 3.4 px is kept and the pixels are "
+         "resampled."));
+  transform_snap_check->setChecked(snap_transforms_to_pixel_grid_);
+  tools_form->addRow(transform_snap_check);
+  tools_layout->addWidget(tools_group);
+  tools_layout->addStretch(1);
+  tabs->addTab(tools_page, tr("Tools"));
+
   auto [pen_page, pen_layout] = make_tab_page(tabs);
   auto* pen_group = new QFrame(pen_page);
   pen_group->setObjectName(QStringLiteral("preferencesPenGroup"));
@@ -1054,13 +1074,6 @@ void MainWindow::show_preferences() {
   auto* pen_eraser_check = new QCheckBox(tr("Use eraser tip as Eraser"), pen_group);
   pen_eraser_check->setObjectName(QStringLiteral("preferencesPenEraserTipCheck"));
   pen_eraser_check->setChecked(pen_input_settings_.use_eraser_tip);
-  auto* pen_wheel_zoom_check = new QCheckBox(tr("Mouse wheel zooms the canvas"), pen_group);
-  pen_wheel_zoom_check->setObjectName(QStringLiteral("preferencesPenWheelZoomCheck"));
-  pen_wheel_zoom_check->setChecked(wheel_zooms_);
-  pen_wheel_zoom_check->setToolTip(
-      resolve_modifier_names(
-          tr("Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan. "
-             "Two-finger scrolling on a trackpad always pans; pinch to zoom.")));
   const auto populate_pen_button_combo = [](QComboBox* combo, PenButtonAction current) {
     const std::array<std::pair<PenButtonAction, QString>, 11> entries{{
         {PenButtonAction::None, tr("None")},
@@ -1135,7 +1148,6 @@ void MainWindow::show_preferences() {
   pen_pad_hint_label->setEnabled(false);
 
   pen_form->addRow(pen_eraser_check);
-  pen_form->addRow(pen_wheel_zoom_check);
   pen_form->addRow(tr("Upper pen button:"), pen_primary_button_combo);
   pen_form->addRow(tr("Lower pen button:"), pen_secondary_button_combo);
   pen_form->addRow(pen_pad_hint_label);
@@ -1610,7 +1622,7 @@ void MainWindow::show_preferences() {
         static_cast<PenButtonAction>(pen_secondary_button_combo->currentData().toInt());
     pen_input_settings_.tilt_shape = pen_tilt_shape_check->isChecked();
     pen_input_settings_.tilt_min_roundness_percent = pen_tilt_roundness_spin->value();
-    wheel_zooms_ = pen_wheel_zoom_check->isChecked();
+    wheel_zooms_ = wheel_zoom_check->isChecked();
     shift_keeps_transform_aspect_ = transform_shift_aspect_check->isChecked();
     show_transform_drag_values_ = transform_values_check->isChecked();
     snap_transforms_to_pixel_grid_ = transform_snap_check->isChecked();

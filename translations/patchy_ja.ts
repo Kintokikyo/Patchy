@@ -18233,6 +18233,10 @@ Baked into images: %1.</source>
         <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan. Two-finger scrolling on a trackpad always pans; pinch to zoom.</source>
         <translation>スクロールに設定されたペンボタンにも適用されます。スクロール中に %CTRL% または Shift を押すとパンします。トラックパッドの 2 本指スクロールは常にパンします。ズームするにはピンチします。</translation>
     </message>
+    <message>
+        <source>Tools</source>
+        <translation>ツール</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

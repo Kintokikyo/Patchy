@@ -112,6 +112,12 @@ Blocking refusals and failed operations use `MainWindow::show_status_error` or `
 - Canvas scroll bars are direct `CanvasWidget` children with load-bearing objectNames `canvasHorizontalScrollBar`/`canvasVerticalScrollBar` (theme QSS and UI tests find them by name). Their range mirrors the 10%-minimum-visible pan clamp (`pan_axis_range` in `canvas_widget_view.cpp`), so bar scrolling and hand-tool panning can never disagree, and the bars stay live even when the document fits the view.
 - Every scroll bar is styled by `photoshop_style()` on every platform. None can stay native: the global `QWidget` rule backgrounds every widget, and once QSS touches a scroll bar `QStyleSheetStyle` owns the whole control, so one without subcontrol rules fills its groove with the window background. Canvas bars differ from panel bars: their track follows `canvas_backdrop`, not the window surface, and they carry the opaque `scroll-dither` texture, authored around the value of `canvas_backdrop`/`canvas_scrollbar_track` so the gutter, the corner square between the bars, and the pasteboard read as one surface (too dark for a light panel; moving that role means re-authoring `icons/light/scroll-dither.svg`). One handle fill (`scrollbar_handle_bg`) serves both families and must clear the darker track (`ui_light_scheme_panel_scroll_bar_handle_reads_against_track`). The `margin: 0` on the `QScrollBar` widget rules is load-bearing: QStyleSheetStyle owns the groove rect only when the widget rule has box properties, otherwise the native style reserves room for the removed arrow buttons and on a short bar the groove ends up smaller than the handle, so every handle drag snaps to the minimum; a `::groove` rule does not help, Qt never consults it for geometry (`ui_short_panel_scroll_bar_drags_by_handle`).
 
+Preferences tabs, in order: Application, Tools, Pen, Units & Grids, Snapping, Hotkeys, and
+Plug-ins (Windows only). Tool and canvas-input behavior (the mouse wheel, Free Transform
+options) goes on Tools; Pen holds only pen and tablet settings; Application holds app-level
+settings (language, theme, updates, recovery, open/save policies). Tests find Hotkeys by
+title and pin the rest of the order in `ui_canvas_aid_preferences_and_guide_dialogs_work`.
+
 Application-wide fill, quick-selection, interpolation, and vector options transfer
 when the active canvas changes. Language changes in Preferences apply only on OK.
 The color panel accepts named colors and CSS `#RRGGBBAA` (plus `#RGBA`); its stored

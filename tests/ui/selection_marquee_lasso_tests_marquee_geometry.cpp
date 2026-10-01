@@ -1929,15 +1929,26 @@ void ui_canvas_aid_preferences_and_guide_dialogs_work() {
     CHECK(tabs != nullptr);
     // Windows appends a Plug-ins tab for the legacy 8BF host (docs/plugins.md).
 #ifdef Q_OS_WIN
-    CHECK(tabs->count() == 6);
-    CHECK(tabs->tabText(5) == QStringLiteral("Plug-ins"));
+    CHECK(tabs->count() == 7);
+    CHECK(tabs->tabText(6) == QStringLiteral("Plug-ins"));
 #else
-    CHECK(tabs->count() == 5);
+    CHECK(tabs->count() == 6);
 #endif
-    CHECK(tabs->tabText(1) == QStringLiteral("Pen"));
-    CHECK(tabs->tabText(2) == QStringLiteral("Units && Grids"));
-    CHECK(tabs->tabText(3) == QStringLiteral("Snapping"));
-    CHECK(tabs->tabText(4) == QStringLiteral("Hotkeys"));
+    CHECK(tabs->tabText(1) == QStringLiteral("Tools"));
+    CHECK(tabs->tabText(2) == QStringLiteral("Pen"));
+    CHECK(tabs->tabText(3) == QStringLiteral("Units && Grids"));
+    CHECK(tabs->tabText(4) == QStringLiteral("Snapping"));
+    CHECK(tabs->tabText(5) == QStringLiteral("Hotkeys"));
+    // Tool and canvas-input behavior lives on the Tools tab, not on Application or Pen.
+    auto* tools_group = dialog->findChild<QWidget*>(QStringLiteral("preferencesToolsGroup"));
+    CHECK(tools_group != nullptr);
+    if (tools_group != nullptr) {
+      for (const auto* name : {"preferencesWheelZoomCheck", "preferencesTransformShiftAspectCheck",
+                               "preferencesShowTransformValuesCheck",
+                               "preferencesTransformSnapToPixelGridCheck"}) {
+        CHECK(tools_group->findChild<QCheckBox*>(QString::fromLatin1(name)) != nullptr);
+      }
+    }
     auto* grid_color_button = dialog->findChild<QPushButton*>(QStringLiteral("preferencesGridColorButton"));
     CHECK(grid_color_button != nullptr);
     CHECK(grid_color_button->text().contains(QStringLiteral("#")));
@@ -2032,8 +2043,8 @@ void ui_pen_preferences_persist_and_apply() {
     CHECK(dialog != nullptr);
     auto* tabs = dialog->findChild<QTabWidget*>(QStringLiteral("preferencesTabWidget"));
     CHECK(tabs != nullptr);
-    CHECK(tabs->tabText(1) == QStringLiteral("Pen"));
-    tabs->setCurrentIndex(1);
+    CHECK(tabs->tabText(2) == QStringLiteral("Pen"));
+    tabs->setCurrentIndex(2);
     dialog->findChild<QCheckBox*>(QStringLiteral("preferencesPenEnabledCheck"))->setChecked(true);
     dialog->findChild<QCheckBox*>(QStringLiteral("preferencesPenPressureSizeCheck"))->setChecked(false);
     dialog->findChild<QSpinBox*>(QStringLiteral("preferencesPenPressureSizeMinSpin"))->setValue(27);
@@ -2047,7 +2058,7 @@ void ui_pen_preferences_persist_and_apply() {
     CHECK(secondary_combo != nullptr);
     secondary_combo->setCurrentIndex(
         secondary_combo->findData(static_cast<int>(patchy::ui::PenButtonAction::ToggleEraser)));
-    dialog->findChild<QCheckBox*>(QStringLiteral("preferencesPenWheelZoomCheck"))->setChecked(false);
+    dialog->findChild<QCheckBox*>(QStringLiteral("preferencesWheelZoomCheck"))->setChecked(false);
     dialog->findChild<QCheckBox*>(QStringLiteral("preferencesPenTiltShapeCheck"))->setChecked(true);
     dialog->findChild<QSpinBox*>(QStringLiteral("preferencesPenTiltMinRoundnessSpin"))->setValue(44);
     saw_preferences = true;
@@ -2095,7 +2106,7 @@ void ui_pen_preferences_spin_buttons_visible_and_increment_on_right() {
     CHECK(dialog != nullptr);
     auto* tabs = dialog->findChild<QTabWidget*>(QStringLiteral("preferencesTabWidget"));
     CHECK(tabs != nullptr);
-    tabs->setCurrentIndex(1);
+    tabs->setCurrentIndex(2);
     dialog->findChild<QCheckBox*>(QStringLiteral("preferencesPenEnabledCheck"))->setChecked(true);
     dialog->findChild<QCheckBox*>(QStringLiteral("preferencesPenPressureSizeCheck"))->setChecked(true);
     QApplication::processEvents();
