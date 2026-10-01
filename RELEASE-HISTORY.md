@@ -3,6 +3,23 @@
 Older Patchy release notes are collected here. The two most recent releases
 remain in [README.md](README.md#whats-new).
 
+## 1.00 - September 27, 2026
+
+- A lot of work on the text engine, better compatibility with Photoshop, a new "Paragraph" panel with indentation options
+- New Paragraph panel (Paragraph... in the Type tool's options bar): alignment, first line and left/right indents, and space before and after, all of which round-trip to Photoshop
+- Text options bar: font, size, face, smoothing, alignment, and color apply to every selected text layer without entering an edit session, and the Character panel edits all selected layers as one undo step (issue 31)
+- Smart Objects: Layer > Smart Objects > Convert to Layers unpacks the contents into a group in the Smart Object's place (issue 35)
+- Guide drags show their position in the ruler's unit (issue 36)
+- Levels and Curves histograms are scaled the way Photoshop's are, so midtone peaks no longer get crushed under a clipping spike (issue 32)
+- Filling a complex Magic Wand selection is much faster (issue 34)
+- Filters and commands reach Photoshop's ranges: Gaussian Blur to 1000 px (with decimal radii), Box Blur and Motion Blur to 2000 px (and much faster at large sizes), Drop Shadow distance to 30000 px, Feather to 1000 px, Expand/Contract to 500 px, plus the full ranges of Wave, Mosaic, Color Halftone, Posterize, and Iris Blur. High Pass and Unsharp Mask sliders reach 100 px, and Filter Gallery fields accept any typed value in range
+- PSD fixes for Photoshop: an opaque layer above the Background no longer hides everything under it, compound shapes (donuts, converted text) keep their holes, gradient fills no longer trigger Photoshop's "unknown data" prompt (older files heal on save), and saves after rasterizing or deleting a linked Smart Object open again in Photoshop 2026
+- macOS: switching the interface language no longer crashes on the next window activation (issue 29)
+- Blend mode menus step with the Left and Right arrow keys, and a run of blend changes from the Layers panel is one undo step
+- Windows: launching Patchy while it is already running (or double-clicking a file) now brings the open window to the front instead of only flashing its taskbar button, and focuses any dialog that is open
+- The recent files list no longer stalls startup or the File menu when entries sit on slow or disconnected network drives
+- Scripting/MCP improvements: text layers with mixed fonts, sizes, and colors in one layer, paragraph boxes and alignment (`addTextLayer`, `textRuns`, `setTextRuns`, `textBox`, `textAlign`, `textParagraph`), `app.listFonts()`, and headless runs see installed fonts
+
 ## 0.99 - September 25, 2026
 
 - Automatic document recovery: a recovery copy of every modified document is written every 10 minutes (Preferences > Application sets the interval or turns it off). After a crash, a kill, or a power cut, the next launch reopens them as "(Recovered)" documents. Saving also writes to a temporary file first and swaps it in, so a crash or a full disk mid-save can no longer damage the original

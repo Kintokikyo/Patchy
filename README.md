@@ -14,7 +14,7 @@ For bug reports and feature requests, please [open an issue](https://github.com/
 
 ## Download
 
-**Latest release: 1.01** · September 29, 2026 · [Release notes](#whats-new) · [All releases](https://github.com/SethRobinson/Patchy/releases)
+**Latest release: 1.02** · October 1, 2026 · [Release notes](#whats-new) · [All releases](https://github.com/SethRobinson/Patchy/releases)
 
 Windows releases are code signed by Seth A. Robinson; the macOS app is signed and
 notarized (Robinson Technologies Corporation). Every release is published on the
@@ -105,6 +105,25 @@ and Affinity import has format-specific limitations. See [current compatibility]
 
 ## What's New
 
+### 1.02 - October 1, 2026
+
+- New logo and app icon
+- Place Linked: File > Place Linked adds a Smart Object that points at a file on disk instead of embedding it (SVGs stay sharp at any size), and Image Size, Free Transform and Warp re-render linked Smart Objects from their files
+- Zoom tool: Scrubby Zoom (drag left or right to zoom, issue 51), plus Zoom In/Out, 100%, Fit Screen and Fill Screen buttons in the options bar
+- Trackpad two-finger scroll pans the canvas in any direction, and the mouse wheel zooms by default on macOS (issue 44)
+- Canvas Size: a link button to constrain proportions, an option to delete layers left completely off the canvas, and a new Image > Crop to Selection (Advanced) that opens it prefilled with the selection
+- Dimension fields follow the ruler unit, and New Document, Image Size and Canvas Size remember the unit you picked (issue 53)
+- Preferences has a new Tools tab for the mouse wheel and transform options
+- A document with only one layer no longer makes you click the layer first; commands and tools just use it
+- Opening a 16 or 32-bit PSD always shows the Import Notes popup so the conversion to 8-bit is not a surprise (issue 52)
+- Legacy plug-ins: a slow filter shows that Patchy is waiting on it instead of looking frozen
+- Lasso, Stroke and Liquify no longer stall on very fragmented selections
+- Layers panel: double-clicking a shape layer's vector badge opens Shape Appearance
+- SVG import: gradients and patterns follow the element's transforms. SVG save only warns about flattening when something really gets rasterized, and editable PDF export rotates pattern fills the right way
+- Convert to Smart Object no longer shifts a linked layer mask twice
+- macOS: resizing the brush and the eyedropper no longer raise permission prompts
+- Scripting/MCP improvements: `doc.addSmartObject`, `getSmartObject` and `updateSmartObject`, and layer moves carry text, shape, Smart Object and mask placement along
+
 ### 1.01 - September 29, 2026
 
 - UI themes! Dark, Light, seven bundled ones (Solarized, Nord, Dracula, Gruvbox and more) or make your own with a small `.patchytheme` file. Big thanks to [@lucastucious](https://github.com/lucastucious) for the theme system
@@ -121,23 +140,6 @@ and Affinity import has format-specific limitations. See [current compatibility]
 - Better font matching for PSD text (fonts are looked up by their real names), and user-added fonts work on the Mac under their Windows names
 - macOS: quitting no longer freezes when a network drive or a DNS lookup is stuck (issue 48)
 - Progress dialogs always pop up centered on the window
-
-### 1.00 - September 27, 2026
-
-- A lot of work on the text engine, better compatibility with Photoshop, a new "Paragraph" panel with indentation options
-- New Paragraph panel (Paragraph... in the Type tool's options bar): alignment, first line and left/right indents, and space before and after, all of which round-trip to Photoshop
-- Text options bar: font, size, face, smoothing, alignment, and color apply to every selected text layer without entering an edit session, and the Character panel edits all selected layers as one undo step (issue 31)
-- Smart Objects: Layer > Smart Objects > Convert to Layers unpacks the contents into a group in the Smart Object's place (issue 35)
-- Guide drags show their position in the ruler's unit (issue 36)
-- Levels and Curves histograms are scaled the way Photoshop's are, so midtone peaks no longer get crushed under a clipping spike (issue 32)
-- Filling a complex Magic Wand selection is much faster (issue 34)
-- Filters and commands reach Photoshop's ranges: Gaussian Blur to 1000 px (with decimal radii), Box Blur and Motion Blur to 2000 px (and much faster at large sizes), Drop Shadow distance to 30000 px, Feather to 1000 px, Expand/Contract to 500 px, plus the full ranges of Wave, Mosaic, Color Halftone, Posterize, and Iris Blur. High Pass and Unsharp Mask sliders reach 100 px, and Filter Gallery fields accept any typed value in range
-- PSD fixes for Photoshop: an opaque layer above the Background no longer hides everything under it, compound shapes (donuts, converted text) keep their holes, gradient fills no longer trigger Photoshop's "unknown data" prompt (older files heal on save), and saves after rasterizing or deleting a linked Smart Object open again in Photoshop 2026
-- macOS: switching the interface language no longer crashes on the next window activation (issue 29)
-- Blend mode menus step with the Left and Right arrow keys, and a run of blend changes from the Layers panel is one undo step
-- Windows: launching Patchy while it is already running (or double-clicking a file) now brings the open window to the front instead of only flashing its taskbar button, and focuses any dialog that is open
-- The recent files list no longer stalls startup or the File menu when entries sit on slow or disconnected network drives
-- Scripting/MCP improvements: text layers with mixed fonts, sizes, and colors in one layer, paragraph boxes and alignment (`addTextLayer`, `textRuns`, `setTextRuns`, `textBox`, `textAlign`, `textParagraph`), `app.listFonts()`, and headless runs see installed fonts
 
 [Older releases](RELEASE-HISTORY.md)
 
