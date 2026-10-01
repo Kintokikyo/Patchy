@@ -15985,14 +15985,6 @@ Y: %2
         <translation>Usar la punta de borrar como Borrador</translation>
     </message>
     <message>
-        <source>Scroll wheel zooms the canvas</source>
-        <translation>La rueda del ratón hace zoom en el lienzo</translation>
-    </message>
-    <message>
-        <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan.</source>
-        <translation>También se aplica a un botón del lápiz configurado como Desplazamiento. Mantenga pulsada %CTRL% o Shift mientras usa la rueda para desplazar el lienzo.</translation>
-    </message>
-    <message>
         <source>Pan canvas</source>
         <translation>Desplazar el lienzo</translation>
     </message>
@@ -18285,6 +18277,14 @@ Convertido en imágenes: %1.</translation>
     <message>
         <source>Canvas %1 x %2, off-canvas layers deleted: %3</source>
         <translation>Lienzo de %1 x %2, capas fuera del lienzo eliminadas: %3</translation>
+    </message>
+    <message>
+        <source>Mouse wheel zooms the canvas</source>
+        <translation>La rueda del ratón hace zoom en el lienzo</translation>
+    </message>
+    <message>
+        <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan. Two-finger scrolling on a trackpad always pans; pinch to zoom.</source>
+        <translation>También se aplica a un botón del lápiz configurado como Desplazamiento. Mantenga pulsada %CTRL% o Shift mientras usa la rueda para desplazar el lienzo. El desplazamiento con dos dedos en un trackpad siempre desplaza el lienzo; pellizque para hacer zoom.</translation>
     </message>
 </context>
 <context>

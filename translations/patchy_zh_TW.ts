@@ -15946,14 +15946,6 @@ Y：%2
         <translation>將筆尾當作橡皮擦使用</translation>
     </message>
     <message>
-        <source>Scroll wheel zooms the canvas</source>
-        <translation>滾輪縮放版面</translation>
-    </message>
-    <message>
-        <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan.</source>
-        <translation>設定為捲動的手寫筆按鈕也適用。捲動時按住 %CTRL% 或 Shift 可平移。</translation>
-    </message>
-    <message>
         <source>Pan canvas</source>
         <translation>平移版面</translation>
     </message>
@@ -18232,6 +18224,14 @@ Baked into images: %1.</source>
     <message>
         <source>Canvas %1 x %2, off-canvas layers deleted: %3</source>
         <translation>版面 %1 x %2，已刪除版面外的圖層: %3</translation>
+    </message>
+    <message>
+        <source>Mouse wheel zooms the canvas</source>
+        <translation>滑鼠滾輪縮放版面</translation>
+    </message>
+    <message>
+        <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan. Two-finger scrolling on a trackpad always pans; pinch to zoom.</source>
+        <translation>設定為捲動的手寫筆按鈕也適用。捲動時按住 %CTRL% 或 Shift 可平移。在觸控式軌跡板上以兩指捲動一律為平移；兩指開合可縮放。</translation>
     </message>
 </context>
 <context>

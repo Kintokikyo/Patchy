@@ -538,6 +538,11 @@ void send_wheel(QWidget& widget, QPoint position, int delta, Qt::KeyboardModifie
 void send_pixel_wheel(QWidget& widget, QPoint position, int pixel_delta,
                       Qt::KeyboardModifiers modifiers = Qt::NoModifier);
 
+// One event of a continuous two-finger scroll (a trackpad): a 2D pixelDelta with a
+// scroll phase and an angleDelta of twice the pixels, as Qt's cocoa plugin reports it.
+void send_scroll(QWidget& widget, QPoint position, QPoint pixel_delta, Qt::ScrollPhase phase = Qt::ScrollUpdate,
+                 Qt::KeyboardModifiers modifiers = Qt::NoModifier);
+
 void send_layer_drag_enter(QListWidget& list, QPoint position, const std::vector<patchy::LayerId>& ids);
 
 void send_layer_drag_move(QListWidget& list, QPoint position, const std::vector<patchy::LayerId>& ids);

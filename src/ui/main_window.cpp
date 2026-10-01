@@ -7731,7 +7731,7 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event) {
     const auto primary_delta = wheel_delta.y() != 0 ? wheel_delta.y() : wheel_delta.x();
     if (canvas_ != nullptr && primary_delta != 0 && (wheel_event->modifiers() & Qt::AltModifier) != 0) {
       canvas_->zoom_at_widget_point(canvas_->mapFromGlobal(wheel_event->globalPosition().toPoint()),
-                                    primary_delta > 0 ? 1.1 : 0.9);
+                                    CanvasWidget::wheel_zoom_factor(*wheel_event));
       refresh_document_info();
     }
     reset_text_editor_scroll(editor);
@@ -7748,7 +7748,7 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event) {
     const auto primary_delta = wheel_delta.y() != 0 ? wheel_delta.y() : wheel_delta.x();
     if (canvas_ != nullptr && primary_delta != 0 && (wheel_event->modifiers() & Qt::AltModifier) != 0) {
       canvas_->zoom_at_widget_point(canvas_->mapFromGlobal(wheel_event->globalPosition().toPoint()),
-                                    primary_delta > 0 ? 1.1 : 0.9);
+                                    CanvasWidget::wheel_zoom_factor(*wheel_event));
       refresh_document_info();
     }
     reset_text_editor_scroll(editor);

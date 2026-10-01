@@ -148,14 +148,10 @@ public:
   // True only where Patchy draws its own window frame (Windows). macOS/Linux use the
   // native frame: no frameless flag, no chrome buttons, no edge-resize machinery.
   [[nodiscard]] static bool use_custom_window_chrome();
-  // Photoshop-mac convention: two-finger scroll pans and pinch zooms, so plain wheel
-  // zooming defaults OFF on macOS; Windows/Linux keep wheel-zooms-on. Users flip it in
-  // Preferences > Canvas either way (the setting key is shared across platforms).
-#ifdef Q_OS_MACOS
-  static constexpr bool kWheelZoomsDefault = false;
-#else
+  // A plain mouse wheel zooms by default on every platform (Seth, October 2026). macOS
+  // used to default this off for trackpads, which no longer read the setting: a
+  // two-finger scroll always pans and pinch zooms (docs/view-navigation.md).
   static constexpr bool kWheelZoomsDefault = true;
-#endif
   // initial_history_label names the new session's first history state ("Open",
   // an import label, ...); empty means a generic "New document".
   // Background adds the session and its tab without making it the active document: no

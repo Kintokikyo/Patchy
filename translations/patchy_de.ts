@@ -15985,14 +15985,6 @@ Y: %2
         <translation>Radiererspitze als Radiergummi verwenden</translation>
     </message>
     <message>
-        <source>Scroll wheel zooms the canvas</source>
-        <translation>Mausrad zoomt die Arbeitsfläche</translation>
-    </message>
-    <message>
-        <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan.</source>
-        <translation>Gilt auch für eine auf „Scrollen“ eingestellte Stifttaste. Halten Sie beim Scrollen %CTRL% oder Shift gedrückt, um die Ansicht zu verschieben.</translation>
-    </message>
-    <message>
         <source>Pan canvas</source>
         <translation>Arbeitsfläche verschieben</translation>
     </message>
@@ -18285,6 +18277,14 @@ In Bilder umgewandelt: %1.</translation>
     <message>
         <source>Canvas %1 x %2, off-canvas layers deleted: %3</source>
         <translation>Arbeitsfläche %1 x %2, Ebenen außerhalb gelöscht: %3</translation>
+    </message>
+    <message>
+        <source>Mouse wheel zooms the canvas</source>
+        <translation>Mausrad zoomt die Arbeitsfläche</translation>
+    </message>
+    <message>
+        <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan. Two-finger scrolling on a trackpad always pans; pinch to zoom.</source>
+        <translation>Gilt auch für eine auf „Scrollen“ eingestellte Stifttaste. Halten Sie beim Scrollen %CTRL% oder Shift gedrückt, um die Ansicht zu verschieben. Scrollen mit zwei Fingern auf einem Trackpad verschiebt immer die Ansicht; zum Zoomen die Finger auf- oder zuziehen.</translation>
     </message>
 </context>
 <context>

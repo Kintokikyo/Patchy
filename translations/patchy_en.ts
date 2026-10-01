@@ -15945,14 +15945,6 @@ Y: %2
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Scroll wheel zooms the canvas</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Pan canvas</source>
         <translation type="unfinished"></translation>
     </message>
@@ -18234,6 +18226,14 @@ Baked into images: %1.</source>
     </message>
     <message>
         <source>Canvas %1 x %2, off-canvas layers deleted: %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mouse wheel zooms the canvas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan. Two-finger scrolling on a trackpad always pans; pinch to zoom.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

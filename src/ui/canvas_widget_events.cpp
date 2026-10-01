@@ -82,6 +82,13 @@ bool render_trace_enabled() noexcept {
   return enabled;
 }
 
+// PATCHY_WHEEL_TRACE=1 prints every canvas wheel and native gesture event to stderr:
+// what a trackpad, mouse wheel or tablet driver actually delivers on this machine.
+bool wheel_trace_enabled() noexcept {
+  static const bool enabled = qEnvironmentVariableIsSet("PATCHY_WHEEL_TRACE");
+  return enabled;
+}
+
 bool tool_supports_off_canvas_brush_strokes(CanvasTool tool) noexcept {
   switch (tool) {
     case CanvasTool::Brush:
@@ -254,10 +261,18 @@ bool CanvasWidget::event(QEvent* event) {
   }
   if (event->type() == QEvent::NativeGesture) {
     const auto* gesture = static_cast<QNativeGestureEvent*>(event);
+    if (wheel_trace_enabled()) {
+      std::fprintf(stderr, "[wheel] gesture type=%d value=%.4f device=%d\n", static_cast<int>(gesture->gestureType()),
+                   gesture->value(),
+                   gesture->pointingDevice() != nullptr ? static_cast<int>(gesture->pointingDevice()->type()) : -1);
+    }
     if (gesture->gestureType() == Qt::ZoomNativeGesture) {
       // macOS trackpad pinch: value() is this step's incremental scale delta. Zoom about
-      // the pointer exactly like Alt+wheel (Photoshop-mac behavior).
-      zoom_at_widget_point(gesture->position(), 1.0 + gesture->value());
+      // the pointer exactly like Alt+wheel (Photoshop-mac behavior). Dropped while a
+      // press-drag gesture is live, like continuous scrolling (see wheelEvent).
+      if (!processing_render_wait_active_ && !view_gesture_blocked_by_pointer()) {
+        zoom_at_widget_point(gesture->position(), 1.0 + gesture->value());
+      }
       event->accept();
       return true;
     }
@@ -265,7 +280,50 @@ bool CanvasWidget::event(QEvent* event) {
   return QWidget::event(event);
 }
 
+bool CanvasWidget::wheel_event_is_continuous_scroll(const QWheelEvent& event) noexcept {
+  // Trackpads, the Magic Mouse and touch tablets report scroll phases; a stepped mouse
+  // wheel never does. pixelDelta alone cannot tell them apart: the wasm plugin fills it
+  // for an ordinary wheel notch (docs/wasm.md).
+  if (event.phase() == Qt::NoScrollPhase) {
+    return false;
+  }
+  // A phase alone is not enough either: on macOS a tablet driver's pen Scroll button
+  // (measured with a Wacom Intuos, October 2026) sends phased events that are still
+  // wheel notches, angleDelta a whole +-120 beside a small accelerated pixelDelta.
+  // A true finger scroll reports angleDelta as twice its pixelDelta.
+  const auto angle = event.angleDelta();
+  const auto pixel = event.pixelDelta();
+  const bool notch = !angle.isNull() && angle.x() % 120 == 0 && angle.y() % 120 == 0 && angle != pixel * 2;
+  return !notch;
+}
+
+double CanvasWidget::wheel_zoom_factor(const QWheelEvent& event) noexcept {
+  const auto wheel_delta = !event.pixelDelta().isNull() ? event.pixelDelta() : event.angleDelta();
+  const auto primary_delta = wheel_delta.y() != 0 ? wheel_delta.y() : wheel_delta.x();
+  if (primary_delta == 0) {
+    return 1.0;
+  }
+  if (wheel_event_is_continuous_scroll(event)) {
+    // A finger scroll is a stream of small deltas: zoom in proportion to travel
+    // (about 175 px doubles) instead of one wheel step per event.
+    constexpr double kContinuousZoomFactorPerPixel = 1.004;
+    return std::pow(kContinuousZoomFactorPerPixel, static_cast<double>(primary_delta));
+  }
+  return primary_delta > 0 ? 1.1 : 0.9;
+}
+
+bool CanvasWidget::view_gesture_blocked_by_pointer() const noexcept {
+  return pointer_gesture_active() || panning_ || zooming_ || pen_zoom_dragging_ || brush_adjust_dragging_;
+}
+
 void CanvasWidget::wheelEvent(QWheelEvent* event) {
+  if (wheel_trace_enabled()) {
+    std::fprintf(stderr, "[wheel] pixel=(%d,%d) angle=(%d,%d) phase=%d inverted=%d device=%d mods=0x%x\n",
+                 event->pixelDelta().x(), event->pixelDelta().y(), event->angleDelta().x(), event->angleDelta().y(),
+                 static_cast<int>(event->phase()), event->inverted() ? 1 : 0,
+                 event->pointingDevice() != nullptr ? static_cast<int>(event->pointingDevice()->type()) : -1,
+                 static_cast<unsigned>(event->modifiers()));
+  }
   if (processing_render_wait_active_) {
     // Re-entrant input during a processing wait (see mousePressEvent): a
     // mid-commit zoom change would shift the widget rects the release is
@@ -273,7 +331,45 @@ void CanvasWidget::wheelEvent(QWheelEvent* event) {
     event->accept();
     return;
   }
-  const auto wheel_delta = !event->pixelDelta().isNull() ? event->pixelDelta() : event->angleDelta();
+
+  if (wheel_event_is_continuous_scroll(*event)) {
+    // Two-finger scrolling pans freely on both axes at finger speed, whatever the
+    // wheel-zoom preference says (pinch is the trackpad's zoom); Alt zooms.
+    event->accept();
+    if (event->phase() == Qt::ScrollBegin) {
+      swallow_scroll_momentum_ = false;
+    }
+    // A pan under a live stroke or drag would shift the document under the pointer
+    // (a palm on the trackpad while drawing), and momentum from an earlier flick
+    // must not carry into a gesture that began after it.
+    if (view_gesture_blocked_by_pointer() ||
+        (swallow_scroll_momentum_ && event->phase() == Qt::ScrollMomentum)) {
+      return;
+    }
+    const auto delta = !event->pixelDelta().isNull() ? QPointF(event->pixelDelta())
+                                                     : QPointF(event->angleDelta()) / 8.0;
+    if (delta.isNull()) {
+      return;
+    }
+    if ((event->modifiers() & Qt::AltModifier) != 0) {
+      zoom_at_widget_point(event->position(), wheel_zoom_factor(*event));
+      return;
+    }
+    const auto old_pan = pan_;
+    pan_ += delta;
+    constrain_pan();
+    if (pan_ != old_pan) {
+      update();
+      notify_view_changed();
+    }
+    return;
+  }
+
+  // A whole notch counts as 120 on every platform: macOS pairs it with a small
+  // accelerated pixelDelta (1 to 7), which made a wheel step pan only a pixel or two.
+  const auto angle_delta = event->angleDelta();
+  const bool whole_notches = !angle_delta.isNull() && angle_delta.x() % 120 == 0 && angle_delta.y() % 120 == 0;
+  const auto wheel_delta = whole_notches || event->pixelDelta().isNull() ? angle_delta : event->pixelDelta();
   const auto primary_delta = wheel_delta.y() != 0 ? wheel_delta.y() : wheel_delta.x();
   if (primary_delta == 0) {
     event->accept();
@@ -282,8 +378,24 @@ void CanvasWidget::wheelEvent(QWheelEvent* event) {
 
   // Alt+wheel always zooms, in either mode.
   if ((event->modifiers() & Qt::AltModifier) != 0) {
-    zoom_at_widget_point(event->position(), primary_delta > 0 ? 1.1 : 0.9);
+    zoom_at_widget_point(event->position(), wheel_zoom_factor(*event));
     event->accept();
+    return;
+  }
+
+  // A sideways-only step (a tilt wheel, or macOS turning Shift+wheel into a horizontal
+  // delta) pans horizontally in either mode. Alt is excluded above: Qt moves an
+  // Alt+wheel step onto the x axis on Windows and Linux.
+  if (wheel_delta.y() == 0) {
+    constexpr double kSidewaysPanScale = 0.5;
+    const auto old_pan = pan_;
+    pan_.rx() += static_cast<double>(primary_delta) * kSidewaysPanScale;
+    constrain_pan();
+    event->accept();
+    if (pan_ != old_pan) {
+      update();
+      notify_view_changed();
+    }
     return;
   }
 
@@ -302,9 +414,11 @@ void CanvasWidget::wheelEvent(QWheelEvent* event) {
 
   constexpr double kWheelPanScale = 0.5;
   const auto old_pan = pan_;
+  // Photoshop's axes: with wheel zoom off a plain wheel scrolls vertically and Ctrl
+  // (or Shift) horizontally. In wheel-zoom mode Ctrl pans vertically, Shift horizontally.
   const bool pan_vertically =
       wheel_zooms_ ? (event->modifiers() & Qt::ShiftModifier) == 0
-                   : (event->modifiers() & Qt::ControlModifier) != 0;
+                   : (event->modifiers() & (Qt::ControlModifier | Qt::ShiftModifier)) == 0;
   if (pan_vertically) {
     pan_.ry() += static_cast<double>(primary_delta) * kWheelPanScale;
   } else {
@@ -343,6 +457,8 @@ void CanvasWidget::mousePressEvent(QMouseEvent* event) {
   if (!handling_tablet_event_) {
     active_pen_input_sample_.reset();
   }
+  // Momentum still coasting from a trackpad flick ends at a press (see wheelEvent).
+  swallow_scroll_momentum_ = true;
   setFocus(Qt::MouseFocusReason);
   last_mouse_position_ = event->pos();
   emit_info_for_widget_position(event->pos());

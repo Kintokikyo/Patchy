@@ -15985,14 +15985,6 @@ Y: %2
         <translation>Usa la punta gomma come Gomma</translation>
     </message>
     <message>
-        <source>Scroll wheel zooms the canvas</source>
-        <translation>La rotellina del mouse esegue lo zoom del quadro</translation>
-    </message>
-    <message>
-        <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan.</source>
-        <translation>Vale anche per un pulsante della penna impostato su Scorrimento. Tieni premuto %CTRL% o Shift durante lo scorrimento per spostare la vista.</translation>
-    </message>
-    <message>
         <source>Pan canvas</source>
         <translation>Sposta il quadro</translation>
     </message>
@@ -18285,6 +18277,14 @@ Convertiti in immagini: %1.</translation>
     <message>
         <source>Canvas %1 x %2, off-canvas layers deleted: %3</source>
         <translation>Quadro %1 x %2, livelli fuori dal quadro eliminati: %3</translation>
+    </message>
+    <message>
+        <source>Mouse wheel zooms the canvas</source>
+        <translation>La rotellina del mouse esegue lo zoom del quadro</translation>
+    </message>
+    <message>
+        <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan. Two-finger scrolling on a trackpad always pans; pinch to zoom.</source>
+        <translation>Vale anche per un pulsante della penna impostato su Scorrimento. Tieni premuto %CTRL% o Shift durante lo scorrimento per spostare la vista. Lo scorrimento a due dita su un trackpad sposta sempre la vista; pizzica per eseguire lo zoom.</translation>
     </message>
 </context>
 <context>

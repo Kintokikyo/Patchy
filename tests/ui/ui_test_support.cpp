@@ -244,6 +244,14 @@ void send_wheel(QWidget& widget, QPoint position, int delta, Qt::KeyboardModifie
   QApplication::processEvents();
 }
 
+void send_scroll(QWidget& widget, QPoint position, QPoint pixel_delta, Qt::ScrollPhase phase,
+                 Qt::KeyboardModifiers modifiers) {
+  QWheelEvent event(QPointF(position), QPointF(widget.mapToGlobal(position)), pixel_delta, pixel_delta * 2,
+                    Qt::NoButton, modifiers, phase, false);
+  QApplication::sendEvent(&widget, &event);
+  QApplication::processEvents();
+}
+
 void send_pixel_wheel(QWidget& widget, QPoint position, int pixel_delta, Qt::KeyboardModifiers modifiers) {
   QWheelEvent event(QPointF(position), QPointF(widget.mapToGlobal(position)), QPoint(0, pixel_delta),
                     QPoint(0, pixel_delta), Qt::NoButton, modifiers, Qt::NoScrollPhase, false);

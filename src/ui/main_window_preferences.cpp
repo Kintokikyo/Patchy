@@ -1054,12 +1054,13 @@ void MainWindow::show_preferences() {
   auto* pen_eraser_check = new QCheckBox(tr("Use eraser tip as Eraser"), pen_group);
   pen_eraser_check->setObjectName(QStringLiteral("preferencesPenEraserTipCheck"));
   pen_eraser_check->setChecked(pen_input_settings_.use_eraser_tip);
-  auto* pen_wheel_zoom_check = new QCheckBox(tr("Scroll wheel zooms the canvas"), pen_group);
+  auto* pen_wheel_zoom_check = new QCheckBox(tr("Mouse wheel zooms the canvas"), pen_group);
   pen_wheel_zoom_check->setObjectName(QStringLiteral("preferencesPenWheelZoomCheck"));
   pen_wheel_zoom_check->setChecked(wheel_zooms_);
   pen_wheel_zoom_check->setToolTip(
       resolve_modifier_names(
-          tr("Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan.")));
+          tr("Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan. "
+             "Two-finger scrolling on a trackpad always pans; pinch to zoom.")));
   const auto populate_pen_button_combo = [](QComboBox* combo, PenButtonAction current) {
     const std::array<std::pair<PenButtonAction, QString>, 11> entries{{
         {PenButtonAction::None, tr("None")},

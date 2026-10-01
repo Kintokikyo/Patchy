@@ -398,16 +398,21 @@ void ui_canvas_wheel_matches_photoshop_navigation() {
 
   const auto initial_zoom = canvas->zoom();
   const auto initial_origin = canvas->widget_position_for_document_point(QPoint(0, 0));
+  // Photoshop's axes: a plain wheel scrolls vertically, Ctrl or Shift horizontally.
   send_wheel(*canvas, QPoint(300, 240), 120);
-  const auto horizontal_pan_origin = canvas->widget_position_for_document_point(QPoint(0, 0));
-  CHECK(canvas->zoom() == initial_zoom);
-  CHECK(horizontal_pan_origin.x() != initial_origin.x());
-  CHECK(horizontal_pan_origin.y() == initial_origin.y());
-
-  send_wheel(*canvas, QPoint(300, 240), 120, Qt::ControlModifier);
   const auto vertical_pan_origin = canvas->widget_position_for_document_point(QPoint(0, 0));
   CHECK(canvas->zoom() == initial_zoom);
-  CHECK(vertical_pan_origin.y() != horizontal_pan_origin.y());
+  CHECK(vertical_pan_origin.y() != initial_origin.y());
+  CHECK(vertical_pan_origin.x() == initial_origin.x());
+
+  send_wheel(*canvas, QPoint(300, 240), 120, Qt::ControlModifier);
+  const auto horizontal_pan_origin = canvas->widget_position_for_document_point(QPoint(0, 0));
+  CHECK(canvas->zoom() == initial_zoom);
+  CHECK(horizontal_pan_origin.x() != vertical_pan_origin.x());
+  CHECK(horizontal_pan_origin.y() == vertical_pan_origin.y());
+
+  send_wheel(*canvas, QPoint(300, 240), -120, Qt::ShiftModifier);
+  CHECK(canvas->widget_position_for_document_point(QPoint(0, 0)) == vertical_pan_origin);
 
   send_wheel(*canvas, QPoint(300, 240), 120, Qt::AltModifier);
   CHECK(canvas->zoom() > initial_zoom);
@@ -419,9 +424,8 @@ void ui_canvas_wheel_zoom_mode_zooms_at_cursor() {
   show_window(window);
   auto* canvas = require_canvas(window);
   canvas->setFocus();
-  // The mode default is platform-dependent (macOS pans on a plain wheel; see
-  // MainWindow::kWheelZoomsDefault). Pin the default, then switch the zoom mode on
-  // explicitly -- this test drives the MODE's behavior, not the default.
+  // A plain wheel zooms by default on every platform (MainWindow::kWheelZoomsDefault).
+  CHECK(patchy::ui::MainWindow::kWheelZoomsDefault);
   CHECK(canvas->wheel_zooms() == patchy::ui::MainWindow::kWheelZoomsDefault);
   canvas->set_wheel_zooms(true);
 
@@ -438,6 +442,125 @@ void ui_canvas_wheel_zoom_mode_zooms_at_cursor() {
   send_wheel(*canvas, QPoint(300, 240), 120, Qt::ShiftModifier);
   CHECK(canvas->zoom() == zoom_before_pan);
   CHECK(canvas->widget_position_for_document_point(QPoint(0, 0)).x() != origin_before_pan.x());
+}
+
+void ui_canvas_trackpad_scroll_pans_both_axes() {
+  // GitHub issue 44: a two-finger scroll carries both axes and a scroll phase. It pans
+  // freely at finger speed in either wheel mode; a stepped wheel keeps the mode.
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->setFocus();
+  const QPoint at(300, 240);
+  // Zoom in so the pan has room on both axes.
+  canvas->zoom_at_widget_point(QPointF(at), 8.0);
+  const auto origin = [canvas] { return canvas->widget_position_for_document_point(QPoint(0, 0)); };
+
+  for (const bool wheel_zooms : {false, true}) {
+    canvas->set_wheel_zooms(wheel_zooms);
+    const auto zoom = canvas->zoom();
+    auto before = origin();
+    send_scroll(*canvas, at, QPoint(0, 0), Qt::ScrollBegin);
+    send_scroll(*canvas, at, QPoint(0, -30));
+    CHECK(origin() == before + QPoint(0, -30));
+    send_scroll(*canvas, at, QPoint(-20, 1));
+    CHECK(origin() == before + QPoint(-20, -29));
+    send_scroll(*canvas, at, QPoint(7, 9));
+    CHECK(origin() == before + QPoint(-13, -20));
+    send_scroll(*canvas, at, QPoint(0, 0), Qt::ScrollEnd);
+    send_scroll(*canvas, at, QPoint(5, 0), Qt::ScrollMomentum);
+    CHECK(origin() == before + QPoint(-8, -20));
+    CHECK(canvas->zoom() == zoom);
+  }
+
+  // Alt zooms about the pointer in proportion to travel, not one wheel step per event.
+  const auto zoom = canvas->zoom();
+  const auto anchor = canvas->document_point_for_widget_position(QPointF(at));
+  send_scroll(*canvas, at, QPoint(0, 10), Qt::ScrollUpdate, Qt::AltModifier);
+  CHECK(canvas->zoom() > zoom);
+  CHECK(canvas->zoom() < zoom * 1.06);
+  const auto anchor_after = canvas->document_point_for_widget_position(QPointF(at));
+  CHECK(std::abs(anchor_after.x() - anchor.x()) < 0.01);
+  CHECK(std::abs(anchor_after.y() - anchor.y()) < 0.01);
+  send_scroll(*canvas, at, QPoint(0, -10), Qt::ScrollUpdate, Qt::AltModifier);
+  CHECK(std::abs(canvas->zoom() - zoom) < zoom * 1e-9);
+
+  // A pen Scroll button on macOS (Wacom driver) sends phased events that are still
+  // wheel notches: a whole 120 beside a small pixelDelta. They follow the wheel mode.
+  canvas->set_wheel_zooms(true);
+  {
+    const auto zoom_before_notch = canvas->zoom();
+    QWheelEvent notch(QPointF(at), QPointF(canvas->mapToGlobal(at)), QPoint(0, 3), QPoint(0, 120), Qt::NoButton,
+                      Qt::NoModifier, Qt::ScrollUpdate, false);
+    CHECK(!patchy::ui::CanvasWidget::wheel_event_is_continuous_scroll(notch));
+    QApplication::sendEvent(canvas, &notch);
+    CHECK(std::abs(canvas->zoom() - zoom_before_notch * 1.1) < zoom_before_notch * 1e-9);
+    canvas->zoom_at_widget_point(QPointF(at), 1.0 / 1.1);
+    // A finger scroll that happens to travel 60 px also reports 120, and stays a pan.
+    QWheelEvent finger(QPointF(at), QPointF(canvas->mapToGlobal(at)), QPoint(0, 60), QPoint(0, 120), Qt::NoButton,
+                       Qt::NoModifier, Qt::ScrollUpdate, false);
+    CHECK(patchy::ui::CanvasWidget::wheel_event_is_continuous_scroll(finger));
+  }
+
+  // A sideways-only stepped wheel pans horizontally even in wheel-zoom mode.
+  canvas->set_wheel_zooms(true);
+  const auto before = origin();
+  const auto zoom_before_tilt = canvas->zoom();
+  QWheelEvent tilt(QPointF(at), QPointF(canvas->mapToGlobal(at)), QPoint(), QPoint(-120, 0), Qt::NoButton,
+                   Qt::NoModifier, Qt::NoScrollPhase, false);
+  QApplication::sendEvent(canvas, &tilt);
+  CHECK(canvas->zoom() == zoom_before_tilt);
+  CHECK(origin().x() < before.x());
+  CHECK(origin().y() == before.y());
+}
+
+void ui_canvas_trackpad_scroll_ignored_during_pointer_gesture() {
+  // A palm on the trackpad mid-stroke must not slide the document under the brush, and
+  // momentum from an earlier flick stops at the next press.
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->setFocus();
+  canvas->set_tool(patchy::ui::CanvasTool::Brush);
+  const QPoint at(300, 240);
+  canvas->zoom_at_widget_point(QPointF(at), 8.0);
+  const auto origin = [canvas] { return canvas->widget_position_for_document_point(QPoint(0, 0)); };
+
+  const auto before = origin();
+  send_scroll(*canvas, at, QPoint(0, 0), Qt::ScrollBegin);
+  send_mouse(*canvas, QEvent::MouseButtonPress, at, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseMove, at + QPoint(6, 0), Qt::NoButton, Qt::LeftButton);
+  send_scroll(*canvas, at, QPoint(12, 12));
+  CHECK(origin() == before);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, at + QPoint(6, 0), Qt::LeftButton, Qt::NoButton);
+
+  // Leftover momentum after the press is dropped; a fresh scroll works again.
+  send_scroll(*canvas, at, QPoint(12, 0), Qt::ScrollMomentum);
+  CHECK(origin() == before);
+  send_scroll(*canvas, at, QPoint(0, 0), Qt::ScrollBegin);
+  send_scroll(*canvas, at, QPoint(12, 0));
+  CHECK(origin() == before + QPoint(12, 0));
+  send_scroll(*canvas, at, QPoint(4, 0), Qt::ScrollMomentum);
+  CHECK(origin() == before + QPoint(16, 0));
+}
+
+void ui_own_window_color_sample_reads_widget_without_screen_grab() {
+  // The macOS eyedropper samples Patchy's own windows by rendering them, so a pick on
+  // the pasteboard or a panel never needs the Screen Recording permission.
+  QWidget swatch;
+  swatch.setWindowFlag(Qt::FramelessWindowHint);
+  swatch.setAutoFillBackground(true);
+  QPalette palette = swatch.palette();
+  palette.setColor(QPalette::Window, QColor(12, 200, 90));
+  swatch.setPalette(palette);
+  swatch.setGeometry(40, 40, 120, 80);
+  swatch.show();
+  QApplication::processEvents();
+
+  const auto picked = patchy::ui::own_window_color_at_global_position(swatch.mapToGlobal(QPoint(60, 40)));
+  CHECK(picked.has_value());
+  CHECK(*picked == QColor(12, 200, 90));
+  CHECK(!patchy::ui::own_window_color_at_global_position(QPoint(-20000, -20000)).has_value());
 }
 
 void ui_status_bar_zoom_percent_box_edits_zoom() {
@@ -3741,6 +3864,11 @@ std::vector<patchy::test::TestCase> canvas_view_tools_tests() {
       {"ui_startup_defaults_to_round_brush", ui_startup_defaults_to_round_brush},
       {"ui_canvas_wheel_matches_photoshop_navigation", ui_canvas_wheel_matches_photoshop_navigation},
       {"ui_canvas_wheel_zoom_mode_zooms_at_cursor", ui_canvas_wheel_zoom_mode_zooms_at_cursor},
+      {"ui_canvas_trackpad_scroll_pans_both_axes", ui_canvas_trackpad_scroll_pans_both_axes},
+      {"ui_own_window_color_sample_reads_widget_without_screen_grab",
+       ui_own_window_color_sample_reads_widget_without_screen_grab},
+      {"ui_canvas_trackpad_scroll_ignored_during_pointer_gesture",
+       ui_canvas_trackpad_scroll_ignored_during_pointer_gesture},
       {"ui_status_bar_zoom_percent_box_edits_zoom", ui_status_bar_zoom_percent_box_edits_zoom},
       {"ui_zoom_tool_double_click_keeps_view_centered_at_actual_pixels",
        ui_zoom_tool_double_click_keeps_view_centered_at_actual_pixels},

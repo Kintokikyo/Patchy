@@ -15985,14 +15985,6 @@ Y : %2
         <translation>Utiliser la pointe gomme du stylet comme Gomme</translation>
     </message>
     <message>
-        <source>Scroll wheel zooms the canvas</source>
-        <translation>La molette de défilement zoome la zone de travail</translation>
-    </message>
-    <message>
-        <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan.</source>
-        <translation>S&apos;applique aussi à un bouton de stylet réglé sur Défilement. Maintenez %CTRL% ou Shift pendant le défilement pour déplacer la vue.</translation>
-    </message>
-    <message>
         <source>Pan canvas</source>
         <translation>Déplacer la vue</translation>
     </message>
@@ -18285,6 +18277,14 @@ Convertis en images : %1.</translation>
     <message>
         <source>Canvas %1 x %2, off-canvas layers deleted: %3</source>
         <translation>Zone de travail %1 x %2, calques hors zone supprimés : %3</translation>
+    </message>
+    <message>
+        <source>Mouse wheel zooms the canvas</source>
+        <translation>La molette de la souris zoome la zone de travail</translation>
+    </message>
+    <message>
+        <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan. Two-finger scrolling on a trackpad always pans; pinch to zoom.</source>
+        <translation>S&apos;applique aussi à un bouton de stylet réglé sur Défilement. Maintenez %CTRL% ou Shift pendant le défilement pour déplacer la vue. Le défilement à deux doigts sur un trackpad déplace toujours la vue ; pincez pour zoomer.</translation>
     </message>
 </context>
 <context>

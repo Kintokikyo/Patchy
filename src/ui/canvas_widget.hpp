@@ -431,6 +431,11 @@ public:
   void zoom_at_widget_point(QPointF widget_position, double factor);
   void set_wheel_zooms(bool enabled) noexcept;
   [[nodiscard]] bool wheel_zooms() const noexcept;
+  // Wheel input comes in two kinds (docs/view-navigation.md): a continuous two-finger
+  // scroll (it carries a scroll phase) always pans in 2D, a stepped wheel follows
+  // wheel_zooms(). wheel_zoom_factor is the zoom step for one event of either kind.
+  [[nodiscard]] static bool wheel_event_is_continuous_scroll(const QWheelEvent& event) noexcept;
+  [[nodiscard]] static double wheel_zoom_factor(const QWheelEvent& event) noexcept;
   // Scrubby Zoom (docs/view-navigation.md): a Zoom tool drag zooms live about
   // the press point instead of drawing a marquee. Persisted by MainWindow as
   // tools/zoomScrubby; default off.
@@ -2088,6 +2093,9 @@ private:
   [[nodiscard]] PenInputSample pen_input_sample_from_tablet_event(const QTabletEvent& event) const;
   [[nodiscard]] PenButtonAction pen_action_for_button(Qt::MouseButton button) const noexcept;
   [[nodiscard]] bool pen_recently_in_proximity() const;
+  // True while a press-drag (stroke, drag, pan, zoom drag) owns the pointer: trackpad
+  // scroll and pinch must not move the view under it.
+  [[nodiscard]] bool view_gesture_blocked_by_pointer() const noexcept;
   [[nodiscard]] bool tablet_event_should_pan(const PenInputSample& sample, QEvent::Type event_type) const noexcept;
   [[nodiscard]] bool tablet_event_should_zoom(const PenInputSample& sample, QEvent::Type event_type) const noexcept;
   void begin_zoom_drag(QPointF widget_position);
@@ -2134,6 +2142,8 @@ private:
   double zoom_{1.0};
   QPointF pan_{40.0, 40.0};
   bool wheel_zooms_{true};
+  // Set by a press, cleared by the next ScrollBegin: drops leftover flick momentum.
+  bool swallow_scroll_momentum_{false};
   bool zoom_scrubby_{false};
   bool zoom_tool_zooms_out_{false};
   QScrollBar* horizontal_scroll_bar_{nullptr};

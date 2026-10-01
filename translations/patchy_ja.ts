@@ -12904,20 +12904,12 @@ To update, paste this into a terminal:
         <translation>タブレットのドライバーでペンボタンを「右ボタンクリック」と「中ボタンクリック」に設定してください。ペンがキャンバス上にあるとき、右クリックで「ペンの上ボタン」、中クリックで「ペンの下ボタン」のアクションが実行されます。スクロールやパンに設定されたボタンはドライバーが処理するため、これらのアクションを実行できません。タブレットのパッドボタン（エクスプレスキー）も同様にドライバー専用です。元に戻す、やり直し、ブラシサイズの [ と ]、消しゴムの E などのキーボードショートカットに割り当ててください。</translation>
     </message>
     <message>
-        <source>Scroll wheel zooms the canvas</source>
-        <translation>スクロールホイールでキャンバスをズームする</translation>
-    </message>
-    <message>
         <source>Close smart object contents?</source>
         <translation>スマートオブジェクトの内容を閉じますか?</translation>
     </message>
     <message>
         <source>%1 has smart object contents open for editing. Close those tabs too?</source>
         <translation>%1 のスマートオブジェクトの内容が編集用に開いています。そのタブも閉じますか?</translation>
-    </message>
-    <message>
-        <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan.</source>
-        <translation>スクロールに設定されたペンボタンにも適用されます。スクロール中に %CTRL% または Shift を押すとパンします。</translation>
     </message>
     <message>
         <source>Pick color</source>
@@ -18232,6 +18224,14 @@ Baked into images: %1.</source>
     <message>
         <source>Canvas %1 x %2, off-canvas layers deleted: %3</source>
         <translation>キャンバス %1 x %2、カンバス外のレイヤーを削除: %3</translation>
+    </message>
+    <message>
+        <source>Mouse wheel zooms the canvas</source>
+        <translation>マウスホイールでキャンバスをズームする</translation>
+    </message>
+    <message>
+        <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan. Two-finger scrolling on a trackpad always pans; pinch to zoom.</source>
+        <translation>スクロールに設定されたペンボタンにも適用されます。スクロール中に %CTRL% または Shift を押すとパンします。トラックパッドの 2 本指スクロールは常にパンします。ズームするにはピンチします。</translation>
     </message>
 </context>
 <context>
