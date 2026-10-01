@@ -63,6 +63,10 @@ console.log("codec ok: svg");
 var BUNDLED_FONT = "Noto Naskh Arabic";
 var families = app.listFonts().map(function (font) { return font.family; });
 check(families.indexOf(BUNDLED_FONT) >= 0, "bundled font is missing: " + BUNDLED_FONT);
+// Arabic text on purpose: the font has no Latin letters, so Latin text would render in a
+// fallback (and warn) even from a complete package.
+var arabic = source.addTextLayer("سلام", {font: BUNDLED_FONT, size: 16, x: 4, y: 40});
+check(arabic.textFont === BUNDLED_FONT && arabic.bounds.width > 0, "bundled font did not render");
 console.log("font ok: " + BUNDLED_FONT);
 
 // --- package layout (Windows keeps everything beside the executable) ---------------------

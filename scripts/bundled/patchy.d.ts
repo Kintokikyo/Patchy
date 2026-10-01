@@ -588,7 +588,9 @@ interface PatchyDocument {
    * direction ("auto" follows the first strong character). font is a family
    * name ("Georgia"), family plus face ("Arial Black"), or on Windows a face's
    * full or PostScript name ("Futura Extra Black BT"); a font that is not
-   * installed renders in a fallback and logs a console warning. The face is
+   * installed, or that has no glyph for any character of the text (the bundled
+   * Noto Naskh Arabic has no Latin letters), renders in a fallback and logs a
+   * console warning. The face is
    * exactly what font/bold/italic name, never the options bar's current one.
    * text (and any run's text) may contain "\n": every line lands in the SAME
    * layer as a new paragraph, so a heading and its subline need no second
@@ -728,7 +730,9 @@ interface PatchyApp {
   commandIds(): string[];
   /**
    * Every font family the text engine can use right now (installed and user-added),
-   * with its face names and the writing systems it covers, sorted by family. Pass
+   * with its face names and the writing systems the font declares (a declared
+   * system can still lack letters: addTextLayer warns when a font cannot draw
+   * the text), sorted by family. Pass
    * a family (or family plus face) as addTextLayer's font. Under --headless on
    * Windows this also loads the installed fonts first.
    */
