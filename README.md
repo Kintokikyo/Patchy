@@ -1,3 +1,5 @@
+<img src="packaging/branding/patchy-logo-folded.svg" width="96" height="96" alt="Patchy logo">
+
 # Patchy Image Editor
 
 A free, open-source image editor for Windows, macOS, Linux, and the browser.
