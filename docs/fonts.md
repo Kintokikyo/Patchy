@@ -134,6 +134,18 @@ window registers them for immediate use and persists them:
   store. Registered fonts stay usable until restart (desktop) or page reload
   (wasm) because `QFontDatabase::removeApplicationFont` is never called (it
   can crash live font users; see [testing.md](testing.md)).
+- **Desktop removal never deletes a store file while the app runs.**
+  `clear_user_font_store` lists the files in `user-fonts/.remove-at-next-launch`
+  and the next launch deletes them (`apply_pending_user_font_removals`, the
+  first step of `restore_user_fonts_at_startup`, before anything is registered).
+  A FreeType font database (Linux, and the offscreen platform everywhere)
+  opens the font file again whenever it builds a new engine, so deleting the
+  copy turned the font into another family the next time it was asked for at
+  a new size (October 2026: an Arabic layer in a removed Noto Naskh Arabic
+  came back as Noto Sans Arabic). Windows keeps the font data in memory and
+  never showed it. Adding a removed font again before the restart takes it off
+  the list. A file that cannot be deleted stays listed. Tests that register
+  fonts from the store must not delete it afterwards for the same reason.
 - The font picker needs no manual refresh: `QFontComboBox` repopulates on
   `QGuiApplication::fontDatabaseChanged`, which `addApplicationFont` emits
   (pinned by `ui_user_fonts_add_persist_and_clear`).

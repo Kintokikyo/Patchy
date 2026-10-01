@@ -921,7 +921,8 @@ void MainWindow::show_preferences() {
   // Fonts dropped onto the window persist (desktop: the AppData user-fonts
   // directory; wasm: IndexedDB). This is the one way to empty that store;
   // already-registered fonts stay usable because application fonts are never
-  // removed at runtime.
+  // removed at runtime, and on desktop their store files are only deleted by
+  // the next launch (docs/fonts.md).
   auto* remove_fonts_button = new QPushButton(tr("Remove Added Fonts..."), application_group);
   remove_fonts_button->setObjectName(QStringLiteral("preferencesRemoveUserFontsButton"));
   application_form->addRow(remove_fonts_button);

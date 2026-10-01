@@ -34,8 +34,16 @@ QString user_fonts_directory();
 void restore_user_fonts_at_startup();
 
 // Empties the persistence store. Fonts already registered stay usable until
-// the app restarts (desktop) or the page reloads (wasm).
+// the app restarts (desktop) or the page reloads (wasm). Desktop only marks the
+// store's files: they back the live fonts, so the next launch deletes them
+// (restore_user_fonts_at_startup) before it registers anything. Adding one of
+// those fonts again before the restart keeps it.
 void clear_user_font_store();
+
+// Desktop: deletes the files `clear_user_font_store` marked in `directory` and
+// drops the list; a file that cannot be deleted stays listed for the next
+// launch. Call it only before the directory's fonts are registered.
+void apply_pending_user_font_removals(const QString& directory);
 
 // Bundled stand-ins for system families a browser cannot provide. Used on wasm
 // twice: QFont::insertSubstitution at startup (rendering-level fallback) and

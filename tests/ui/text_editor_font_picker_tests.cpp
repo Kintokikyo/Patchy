@@ -1977,10 +1977,15 @@ void ui_user_fonts_add_persist_and_clear() {
 
   const auto store_dir = user_fonts::user_fonts_directory();
   CHECK(!store_dir.isEmpty());
+  // What an earlier run left behind. Deleting is safe here and only here: this is the first
+  // test of the process to register anything from the store.
   user_fonts::clear_user_font_store();
+  user_fonts::apply_pending_user_font_removals(store_dir);
   const QStringList font_filters = {QStringLiteral("*.ttf"), QStringLiteral("*.otf"),
                                     QStringLiteral("*.ttc")};
   CHECK(QDir(store_dir).entryList(font_filters, QDir::Files).isEmpty());
+  const auto pending_list = store_dir + QStringLiteral("/.remove-at-next-launch");
+  CHECK(!QFileInfo::exists(pending_list));
 
   const auto regular_font =
       QStringLiteral(PATCHY_SOURCE_DIR "/third_party/fonts/noto_naskh_arabic/NotoNaskhArabic-Regular.ttf");
@@ -2099,11 +2104,65 @@ void ui_user_fonts_add_persist_and_clear() {
   user_fonts::restore_user_fonts_at_startup();
   CHECK(QDir(store_dir).entryList(font_filters, QDir::Files).size() == 2);
 
-  // Clearing empties the store; already-registered fonts stay usable
-  // (application fonts are never removed at runtime).
+  // Clearing marks the store's files for the next launch and deletes nothing: the fonts are
+  // promised to stay usable until a restart, and their files back them.
   user_fonts::clear_user_font_store();
-  CHECK(QDir(store_dir).entryList(font_filters, QDir::Files).isEmpty());
+  CHECK(QDir(store_dir).entryList(font_filters, QDir::Files).size() == 2);
+  const auto pending_names = [&pending_list] {
+    QFile file(pending_list);
+    return file.open(QIODevice::ReadOnly) ? QString::fromUtf8(file.readAll()).split(QLatin1Char('\n'))
+                                          : QStringList{};
+  };
+  CHECK(pending_names().contains(QStringLiteral("PatchyUserFontFixture.ttf")));
+  CHECK(pending_names().contains(QStringLiteral("NotoNaskhArabic-Bold.ttf")));
   CHECK(model_contains(family));
+  // "Usable" means it still DRAWS, at a size nothing has asked for yet: a font database that
+  // opens the file again for a new engine (FreeType: Linux, and the offscreen platform
+  // everywhere) must not find the store copy gone and hand back another family.
+  for (const bool bold : {false, true}) {
+    QFont cleared(family);
+    cleared.setPixelSize(bold ? 41 : 37);
+    cleared.setBold(bold);
+    const auto face = QRawFont::fromFont(cleared, QFontDatabase::Arabic);
+    CHECK(face.isValid());
+    CHECK(face.familyName() == family);
+    CHECK(face.supportsCharacter(QChar(0x0633)));
+  }
+
+  // Adding a removed font again before the restart keeps it: it comes off the list.
+  const auto readded = user_fonts::add_user_fonts({dropped_font});
+  CHECK(readded.duplicate_count == 1);
+  CHECK(!pending_names().contains(QStringLiteral("PatchyUserFontFixture.ttf")));
+  CHECK(pending_names().contains(QStringLiteral("NotoNaskhArabic-Bold.ttf")));
+  user_fonts::clear_user_font_store();
+  CHECK(pending_names().contains(QStringLiteral("PatchyUserFontFixture.ttf")));
+
+  // The next launch deletes what was marked, and only that. Proven on a scratch store: this
+  // process still draws with the real one's files.
+  QTemporaryDir scratch_store;
+  CHECK(scratch_store.isValid());
+  const auto scratch_file = [&scratch_store](const QString& name) { return scratch_store.filePath(name); };
+  const auto write_file = [](const QString& path, const QByteArray& bytes) {
+    QFile file(path);
+    return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size();
+  };
+  CHECK(write_file(scratch_file(QStringLiteral("gone.ttf")), "a"));
+  CHECK(write_file(scratch_file(QStringLiteral("also gone.otf")), "b"));
+  CHECK(write_file(scratch_file(QStringLiteral("kept.ttf")), "c"));
+  QTemporaryDir outside;
+  CHECK(outside.isValid());
+  const auto outside_file = outside.filePath(QStringLiteral("outside.ttf"));
+  CHECK(write_file(outside_file, "d"));
+  CHECK(write_file(scratch_file(QStringLiteral(".remove-at-next-launch")),
+                   (QStringLiteral("gone.ttf\nalso gone.otf\nmissing.ttf\n") + outside_file +
+                    QStringLiteral("\n../") + QFileInfo(outside.path()).fileName() + QStringLiteral("/outside.ttf\n"))
+                       .toUtf8()));
+  user_fonts::apply_pending_user_font_removals(scratch_store.path());
+  CHECK(!QFileInfo::exists(scratch_file(QStringLiteral("gone.ttf"))));
+  CHECK(!QFileInfo::exists(scratch_file(QStringLiteral("also gone.otf"))));
+  CHECK(QFileInfo::exists(scratch_file(QStringLiteral("kept.ttf"))));
+  CHECK(QFileInfo::exists(outside_file));
+  CHECK(!QFileInfo::exists(scratch_file(QStringLiteral(".remove-at-next-launch"))));
 }
 
 // Every bundled web font must register in the FreeType font database (the
@@ -2150,7 +2209,6 @@ void ui_font_drop_registers_instead_of_opening() {
     ~StandardPathsTestMode() { QStandardPaths::setTestModeEnabled(false); }
   } standard_paths_test_mode;
   namespace user_fonts = patchy::ui::user_fonts;
-  user_fonts::clear_user_font_store();
 
   patchy::ui::MainWindow window;
   show_window(window);
@@ -2178,6 +2236,7 @@ void ui_font_drop_registers_instead_of_opening() {
   CHECK(window.statusBar()->currentMessage().contains(QStringLiteral("Pacifico")));
   const auto store_dir = user_fonts::user_fonts_directory();
   CHECK(QFileInfo::exists(store_dir + QStringLiteral("/PatchyDropFixture.ttf")));
+  // Marks the store for the next run's cleanup; nothing is deleted under the live fonts.
   user_fonts::clear_user_font_store();
 }
 
