@@ -7,7 +7,7 @@ Run from any directory. No application windows or platform icon tools are used.
 from pathlib import Path
 import struct
 
-from PySide6.QtCore import QByteArray, QBuffer, QIODevice, Qt
+from PySide6.QtCore import QByteArray, QBuffer, QIODevice, QRectF, Qt
 from PySide6.QtGui import QImage, QPainter
 from PySide6.QtSvg import QSvgRenderer
 
@@ -17,7 +17,11 @@ BRANDING = ROOT / "packaging/branding"
 WEB = ROOT / "packaging/web/icons"
 
 
-def png(source, size):
+# Apple's icon grid: the tile is the middle 824 of a 1024 canvas.
+MAC_TILE = 824 / 1024
+
+
+def png(source, size, fill=1.0):
     renderer = QSvgRenderer(str(source))
     if not renderer.isValid():
         raise ValueError(f"Invalid SVG: {source}")
@@ -25,7 +29,9 @@ def png(source, size):
     image = QImage(size * 4, size * 4, QImage.Format_ARGB32_Premultiplied)
     image.fill(Qt.transparent)
     painter = QPainter(image)
-    renderer.render(painter)
+    side = size * 4 * fill
+    origin = (size * 4 - side) / 2
+    renderer.render(painter, QRectF(origin, origin, side, side))
     painter.end()
     image = image.scaled(size, size, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
     data = QByteArray()
@@ -56,10 +62,12 @@ def main():
         offset += len(data)
     write(ROOT / "src/app/patchy.ico", directory + b"".join(images[size] for size in ico_sizes))
 
-    # Modern PNG-backed ICNS entries, including Retina representations.
     types = {"icp4": 16, "icp5": 32, "icp6": 64, "ic07": 128, "ic08": 256,
              "ic09": 512, "ic10": 1024, "ic11": 32, "ic12": 64, "ic13": 256, "ic14": 512}
-    chunks = b"".join(key.encode("ascii") + struct.pack(">I", len(images[size]) + 8) + images[size]
+    # Modern PNG-backed ICNS entries, including Retina representations. The logo
+    # fills its canvas, so macOS alone gets the margin its Dock icons carry.
+    mac = {size: png(logo, size, MAC_TILE) for size in set(types.values())}
+    chunks = b"".join(key.encode("ascii") + struct.pack(">I", len(mac[size]) + 8) + mac[size]
                       for key, size in types.items())
     write(ROOT / "packaging/macos/patchy.icns", b"icns" + struct.pack(">I", len(chunks) + 8) + chunks)
     for size in (16, 32, 48, 64, 128, 256, 512):

@@ -46,13 +46,12 @@ var starting = doc.layers.slice();
 
 // --- helpers (layout units in, document pixels out) ---------------------------------
 
-// The logo SVG is a 1024 canvas whose tile is the middle 824: place it so the TILE
+// The logo SVG's tile fills its canvas: place it so the TILE
 // lands at (x, y) with the given size.
 function placeTile(file, name, x, y, size) {
-  var k = size * S / 824;
   return doc.addSmartObject(folder + file, {
     linked: true, name: name,
-    x: Math.round(x * S - 100 * k), y: Math.round(y * S - 100 * k), width: Math.round(1024 * k)
+    x: Math.round(x * S), y: Math.round(y * S), width: Math.round(size * S)
   });
 }
 

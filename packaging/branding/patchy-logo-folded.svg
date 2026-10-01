@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<svg xmlns="http://www.w3.org/2000/svg" width="872" height="872" viewBox="0 0 872 872">
   <title>Patchy logo, folded paper</title>
   <defs>
     <linearGradient id="armFold" gradientUnits="userSpaceOnUse" x1="0" y1="256" x2="0" y2="292">
@@ -22,7 +22,7 @@
       <stop offset="1" stop-color="#000000" stop-opacity="0"/>
     </linearGradient>
   </defs>
-  <g id="body" transform="translate(100 100) scale(0.944954)">
+  <g id="body">
     <path id="tile" d="M84,0 H698 Q712,0 722,10 L862,150 Q872,160 872,174 V788 A84,84 0 0 1 788,872 H84 A84,84 0 0 1 0,788 V84 A84,84 0 0 1 84,0 Z" fill="#FEBA20"/>
     <path id="corner-fold" d="M698,0 Q712,0 722,10 L862,150 Q872,160 872,174 V216 L656,0 Z" fill="url(#cornerFold)"/>
     <g id="letter" transform="translate(0 16)">

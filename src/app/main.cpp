@@ -393,7 +393,11 @@ int main(int argc, char* argv[]) {
   // Keys the per-user app-data folder (fonts, scripts); see app_data_migration.hpp before
   // changing it. Preferences name their own organization in app_settings().
   app.setOrganizationName(QStringLiteral("RTsoft"));
+#ifndef Q_OS_MACOS
+  // On macOS this call would replace the Dock icon with the edge-to-edge logo; the
+  // bundle's patchy.icns already carries the margin Dock icons are drawn with.
   app.setWindowIcon(patchy::ui::patchy_app_icon());
+#endif
   // Qt 6 caps every image decode at 256 MB and fails bigger ones with a bare
   // "Unable to read image data" (a large-bed flatbed scan at 600 DPI is
   // enough to trip it). Patchy opens exactly such files on purpose, so the

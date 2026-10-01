@@ -1,7 +1,8 @@
 # Patchy branding
 
 `patchy-logo-folded.svg` is the application logo: the charcoal folded P on a
-yellow tile with a transparent outer margin. Desktop window icons, the welcome
+yellow tile, which fills the canvas edge to edge so taskbar and launcher icons
+are as large as their neighbors. Desktop window icons, the welcome
 panel, Help > About, Linux launchers, macOS bundles, and the web loading screen
 use this source. It keeps its authored colors in both interface themes. The
 flat and outline SVGs and wordmark study board remain design source material.
@@ -19,6 +20,10 @@ python scripts/dev/generate-branding.py
 
 The script renders through Qt SVG, supersamples the small sizes, and writes the
 Windows ICO, macOS ICNS with Retina sizes, Linux hicolor PNGs, and web PNGs.
+Only the ICNS is inset: macOS Dock icons place the tile in the middle 824 of a
+1024 canvas, and the script adds that margin while rendering. Do not add a
+margin to the SVG; anything that wants breathing room (`SplashArtwork`, the web
+loader) adds its own.
 Builds consume the checked-in files and do not require Python Qt bindings.
 The Windows installer reads its packaged ICO instead of redrawing a second logo.
 Linux additionally installs the original SVG under hicolor/scalable/apps.
