@@ -1,5 +1,12 @@
 # Scripting API compatibility
 
+2026-10-01 behavioral correction (API 1): the `addTextLayer` console warning names its cause.
+A font that is installed but has no glyph for any character of the text (the bundled Noto
+Naskh Arabic asked for Latin text) now logs `addTextLayer: font has no glyphs for this text,
+rendered with a fallback: <family>`. It used to log `font not available`, which still appears
+for a font that is not installed. A layer with both problems logs both lines. Pinned by
+`ui_script_text_font_without_glyphs_warns_with_the_real_cause`.
+
 2026-10-01 behavioral correction (API 1): `layer.moveTo` and the `x` / `y` setters move a
 layer the way the Move tool does. They used to shift only the pixel bounds and the mask
 bounds, leaving the placement data behind: a shape kept its old path and geometry and

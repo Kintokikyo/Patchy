@@ -8605,6 +8605,26 @@ RGB: %2, %3, %4</source>
         <source>Also delete layers that end up fully off the canvas</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Patchy can&apos;t locate these fonts: %1. These fonts have no glyphs for their text: %2. Editing this PSD raster preview will substitute other fonts. Continue?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The font &quot;%1&quot; has no glyphs for this text. Editing this PSD raster preview will substitute another font. Continue?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>These fonts have no glyphs for their text: %1. Editing this PSD raster preview will substitute other fonts. Continue?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Text layer. Missing font: %1. No glyphs for this text in: %2. Other fonts are being substituted, so the text does not look as it was authored.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Text layer. No glyphs for this text in: %1. Another font is being substituted, so the text does not look as it was authored.</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -19649,6 +19669,10 @@ Baked into images: %1.</source>
     </message>
     <message>
         <source>addSmartObject: %1 must be a finite number.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>addTextLayer: font has no glyphs for this text, rendered with a fallback: %1</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

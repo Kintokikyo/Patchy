@@ -8616,6 +8616,26 @@ RVB : %2, %3, %4</translation>
         <source>Also delete layers that end up fully off the canvas</source>
         <translation>Supprimer aussi les calques entièrement hors de la zone de travail</translation>
     </message>
+    <message>
+        <source>Patchy can&apos;t locate these fonts: %1. These fonts have no glyphs for their text: %2. Editing this PSD raster preview will substitute other fonts. Continue?</source>
+        <translation>Patchy ne trouve pas ces polices : %1. Ces polices n&apos;ont aucun glyphe pour leur texte : %2. La modification de cet aperçu pixellisé PSD remplacera ces polices par d&apos;autres. Continuer ?</translation>
+    </message>
+    <message>
+        <source>The font &quot;%1&quot; has no glyphs for this text. Editing this PSD raster preview will substitute another font. Continue?</source>
+        <translation>La police « %1 » n&apos;a aucun glyphe pour ce texte. La modification de cet aperçu pixellisé PSD remplacera cette police par une autre. Continuer ?</translation>
+    </message>
+    <message>
+        <source>These fonts have no glyphs for their text: %1. Editing this PSD raster preview will substitute other fonts. Continue?</source>
+        <translation>Ces polices n&apos;ont aucun glyphe pour leur texte : %1. La modification de cet aperçu pixellisé PSD remplacera ces polices par d&apos;autres. Continuer ?</translation>
+    </message>
+    <message>
+        <source>Text layer. Missing font: %1. No glyphs for this text in: %2. Other fonts are being substituted, so the text does not look as it was authored.</source>
+        <translation>Calque de texte. Police manquante : %1. Aucun glyphe pour ce texte dans : %2. D&apos;autres polices sont utilisées à la place, le texte n&apos;a donc pas l&apos;aspect prévu à sa création.</translation>
+    </message>
+    <message>
+        <source>Text layer. No glyphs for this text in: %1. Another font is being substituted, so the text does not look as it was authored.</source>
+        <translation>Calque de texte. Aucun glyphe pour ce texte dans : %1. Une autre police est utilisée à la place, le texte n&apos;a donc pas l&apos;aspect prévu à sa création.</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -19700,6 +19720,10 @@ Convertis en images : %1.</translation>
     <message>
         <source>addSmartObject: %1 must be a finite number.</source>
         <translation>addSmartObject : %1 doit être un nombre fini.</translation>
+    </message>
+    <message>
+        <source>addTextLayer: font has no glyphs for this text, rendered with a fallback: %1</source>
+        <translation>addTextLayer : la police n&apos;a aucun glyphe pour ce texte, rendu avec une police de remplacement : %1</translation>
     </message>
 </context>
 <context>

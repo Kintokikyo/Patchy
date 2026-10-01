@@ -8589,6 +8589,26 @@ RGB：%2, %3, %4</translation>
         <source>Also delete layers that end up fully off the canvas</source>
         <translation>同时删除完全位于画布之外的图层</translation>
     </message>
+    <message>
+        <source>Patchy can&apos;t locate these fonts: %1. These fonts have no glyphs for their text: %2. Editing this PSD raster preview will substitute other fonts. Continue?</source>
+        <translation>Patchy 找不到以下字体：%1。以下字体没有其文字所需的字形：%2。编辑此 PSD 栅格预览将替换为其他字体。是否继续？</translation>
+    </message>
+    <message>
+        <source>The font &quot;%1&quot; has no glyphs for this text. Editing this PSD raster preview will substitute another font. Continue?</source>
+        <translation>字体“%1”没有此文字所需的字形。编辑此 PSD 栅格预览将替换为其他字体。是否继续？</translation>
+    </message>
+    <message>
+        <source>These fonts have no glyphs for their text: %1. Editing this PSD raster preview will substitute other fonts. Continue?</source>
+        <translation>以下字体没有其文字所需的字形：%1。编辑此 PSD 栅格预览将替换为其他字体。是否继续？</translation>
+    </message>
+    <message>
+        <source>Text layer. Missing font: %1. No glyphs for this text in: %2. Other fonts are being substituted, so the text does not look as it was authored.</source>
+        <translation>文字图层。缺少字体：%1。以下字体没有此文字所需的字形：%2。已替换为其他字体，因此文字外观与创作时不同。</translation>
+    </message>
+    <message>
+        <source>Text layer. No glyphs for this text in: %1. Another font is being substituted, so the text does not look as it was authored.</source>
+        <translation>文字图层。以下字体没有此文字所需的字形：%1。已替换为其他字体，因此文字外观与创作时不同。</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -19646,6 +19666,10 @@ Baked into images: %1.</source>
     <message>
         <source>addSmartObject: %1 must be a finite number.</source>
         <translation>addSmartObject：%1 必须是有限的数值。</translation>
+    </message>
+    <message>
+        <source>addTextLayer: font has no glyphs for this text, rendered with a fallback: %1</source>
+        <translation>addTextLayer：字体没有此文字所需的字形，已使用替代字体渲染：%1</translation>
     </message>
 </context>
 <context>

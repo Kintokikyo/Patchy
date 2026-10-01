@@ -1569,6 +1569,32 @@ void ui_script_list_fonts_reports_registered_families() {
   CHECK(backlog_contains(window, QStringLiteral("private=0")));
 }
 
+// A font that is installed but holds no glyph for the text gets its own warning. "Font not
+// available" sent a script author looking for a font file that was already registered (the
+// bundled Noto Naskh Arabic asked for Latin text); text the font can draw warns about nothing.
+void ui_script_text_font_without_glyphs_warns_with_the_real_cause() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  const auto noto_path = QStringLiteral(PATCHY_SOURCE_DIR "/third_party/fonts/noto_naskh_arabic/NotoNaskhArabic-Bold.ttf");
+  CHECK(QFontDatabase::addApplicationFont(noto_path) >= 0);
+  CHECK(run_script(window, QStringLiteral(R"JS(
+    var doc = app.activeDocument;
+    var arabic = doc.addTextLayer('سلام', {font: 'Noto Naskh Arabic', size: 24, x: 10, y: 40});
+    console.log('arabic=' + arabic.textFont);
+  )JS")));
+  CHECK(backlog_contains(window, QStringLiteral("arabic=Noto Naskh Arabic")));
+  // Only the Bold face is registered, beside the suite's other Arabic-capable families: the
+  // coverage probe has to ask the face the family really has, not lose a Regular request to Arial.
+  CHECK(!backlog_contains(window, QStringLiteral("rendered with a fallback")));
+
+  CHECK(run_script(window, QStringLiteral(R"JS(
+    app.activeDocument.addTextLayer('Blazing Star', {font: 'Noto Naskh Arabic', size: 24, x: 10, y: 90});
+  )JS")));
+  CHECK(backlog_contains(
+      window, QStringLiteral("font has no glyphs for this text, rendered with a fallback: Noto Naskh Arabic")));
+  CHECK(!backlog_contains(window, QStringLiteral("font not available")));
+}
+
 void ui_script_text_layer_with_uncovered_script_does_not_crash() {
   // No registered face covers Thai in the offscreen suite (the registry rescue is off), so
   // Qt answers the per-writing-system probe with its glyph-box engine. The missing-font
@@ -3796,6 +3822,8 @@ std::vector<patchy::test::TestCase> scripting_tests() {
       {"ui_script_text_paragraph_reads_and_sets_metrics", ui_script_text_paragraph_reads_and_sets_metrics},
       {"ui_script_text_auto_leading_ignores_spacer_paragraphs", ui_script_text_auto_leading_ignores_spacer_paragraphs},
       {"ui_script_list_fonts_reports_registered_families", ui_script_list_fonts_reports_registered_families},
+      {"ui_script_text_font_without_glyphs_warns_with_the_real_cause",
+       ui_script_text_font_without_glyphs_warns_with_the_real_cause},
       {"ui_script_text_layer_with_uncovered_script_does_not_crash",
        ui_script_text_layer_with_uncovered_script_does_not_crash},
       {"ui_script_run_command_writes_output_file", ui_script_run_command_writes_output_file},

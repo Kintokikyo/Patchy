@@ -8589,6 +8589,26 @@ RGB：%2, %3, %4</translation>
         <source>Also delete layers that end up fully off the canvas</source>
         <translation>同時刪除完全位於版面之外的圖層</translation>
     </message>
+    <message>
+        <source>Patchy can&apos;t locate these fonts: %1. These fonts have no glyphs for their text: %2. Editing this PSD raster preview will substitute other fonts. Continue?</source>
+        <translation>Patchy 找不到這些字體：%1。這些字體沒有其文字所需的字符：%2。編輯這個 PSD 點陣預視時會以其他字體取代。要繼續嗎？</translation>
+    </message>
+    <message>
+        <source>The font &quot;%1&quot; has no glyphs for this text. Editing this PSD raster preview will substitute another font. Continue?</source>
+        <translation>字體「%1」沒有這段文字所需的字符。編輯這個 PSD 點陣預視時會以其他字體取代。要繼續嗎？</translation>
+    </message>
+    <message>
+        <source>These fonts have no glyphs for their text: %1. Editing this PSD raster preview will substitute other fonts. Continue?</source>
+        <translation>這些字體沒有其文字所需的字符：%1。編輯這個 PSD 點陣預視時會以其他字體取代。要繼續嗎？</translation>
+    </message>
+    <message>
+        <source>Text layer. Missing font: %1. No glyphs for this text in: %2. Other fonts are being substituted, so the text does not look as it was authored.</source>
+        <translation>文字圖層。遺失字體：%1。下列字體沒有這段文字所需的字符：%2。系統已改用其他字體替代，因此文字外觀與原始設計不同。</translation>
+    </message>
+    <message>
+        <source>Text layer. No glyphs for this text in: %1. Another font is being substituted, so the text does not look as it was authored.</source>
+        <translation>文字圖層。下列字體沒有這段文字所需的字符：%1。系統已改用其他字體替代，因此文字外觀與原始設計不同。</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -19646,6 +19666,10 @@ Baked into images: %1.</source>
     <message>
         <source>addSmartObject: %1 must be a finite number.</source>
         <translation>addSmartObject：%1 必須是有限的數值。</translation>
+    </message>
+    <message>
+        <source>addTextLayer: font has no glyphs for this text, rendered with a fallback: %1</source>
+        <translation>addTextLayer：字型沒有這段文字所需的字符，已改用替代字型轉譯：%1</translation>
     </message>
 </context>
 <context>

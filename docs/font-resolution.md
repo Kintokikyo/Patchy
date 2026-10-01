@@ -14,9 +14,19 @@ The text engine's font lookup and the PSD reader's naming rules. The session mac
   `text_family_draws_any_of` probes per writing system with `QRawFont::fromFont(font, system)`
   and requires the face that comes back to BE the requested family (asking without the writing
   system resolves through the default script and reports full coverage). "Any", not "all": one
-  exotic glyph missing is ordinary per-glyph fallback. `missing_text_families_for_layer`
+  exotic glyph missing is ordinary per-glyph fallback. The plain probe asks for a Regular face;
+  a family with none (only Noto Naskh Arabic Bold registered) loses that request to another
+  family covering the script, so before calling a family glyphless the check asks every style
+  `QFontDatabase::styles` lists for it. `missing_text_families_for_layer`
   (main_window_shared.hpp) is the shared entry point; the layer panel draws a warning triangle on
   the "T" tile and names the font in the thumbnail tooltip.
+- **Messages name the cause.** `text_font_problems_for_layer` splits the same families into
+  `not_installed` and `no_glyphs`. The thumbnail tooltip, the Missing Font dialog, the
+  `addTextLayer` console warning and the PDF export note each say "has no glyphs for this text"
+  for an installed font, never "missing" or "not available": that wording sent a script author
+  looking for a font file that was already registered (October 2026). Tests:
+  `ui_text_layer_font_without_glyph_coverage_counts_as_missing`,
+  `ui_script_text_font_without_glyphs_warns_with_the_real_cause`.
 - `render_text_font_for_display_family` resolves a display name first as a family, then as
   family + style ("Arial Black" -> "Arial"/"Black"). If BOTH fail on Windows,
   `try_register_missing_system_font_family` registers installed fonts from the machine and

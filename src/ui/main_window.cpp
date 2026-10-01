@@ -927,50 +927,69 @@ bool text_family_draws_any_of(const QString& family, const QString& demanded) {
   } else if (const auto style_match = available_text_family_style_match(requested); style_match.has_value()) {
     expected = style_match->family;
   }
+  const auto probe_draws = [&demanded, &expected](const QFont& probe) {
+    QHash<int, QRawFont> faces;
+    bool tested_any = false;
+    for (const auto character : demanded) {
+      // Surrogates cannot be tested one half at a time, and whitespace/controls are drawn by
+      // nobody -- neither proves nor disproves coverage.
+      if (character.isSpace() || character.isSurrogate() || character.category() == QChar::Other_Control) {
+        continue;
+      }
+      const auto system = writing_system_for_character(character);
+      tested_any = true;
+      auto found = faces.find(static_cast<int>(system));
+      if (found == faces.end()) {
+        found = faces.insert(static_cast<int>(system), QRawFont::fromFont(probe, system));
+      }
+      const auto& face = *found;
+      if (!face.isValid()) {
+        return true;  // nothing to interrogate; stay quiet rather than guess
+      }
+      // When NO registered family covers the writing system, Qt resolves the request to its
+      // glyph-box engine, whose family list is empty, and QRawFont::familyName() indexes that list
+      // without a check (an access violation, seen with Thai and Japanese text in --headless runs
+      // and in the offscreen suite, where only the bundled and rescued faces exist). Nothing can
+      // draw the character, which is exactly the fallthrough case below.
+      if (!writing_system_has_any_family(system)) {
+        continue;
+      }
+      if (face.familyName().compare(expected, Qt::CaseInsensitive) != 0) {
+        continue;  // Qt already fell through to another family for this character
+      }
+      if (face.supportsCharacter(character)) {
+        return true;
+      }
+    }
+    return !tested_any;
+  };
   QFont probe;
   probe.setFamilies(QStringList{expected});
   probe.setPixelSize(32);
-  QHash<int, QRawFont> faces;
-  bool tested_any = false;
-  for (const auto character : demanded) {
-    // Surrogates cannot be tested one half at a time, and whitespace/controls are drawn by
-    // nobody -- neither proves nor disproves coverage.
-    if (character.isSpace() || character.isSurrogate() || character.category() == QChar::Other_Control) {
-      continue;
-    }
-    const auto system = writing_system_for_character(character);
-    tested_any = true;
-    auto found = faces.find(static_cast<int>(system));
-    if (found == faces.end()) {
-      found = faces.insert(static_cast<int>(system), QRawFont::fromFont(probe, system));
-    }
-    const auto& face = *found;
-    if (!face.isValid()) {
-      return true;  // nothing to interrogate; stay quiet rather than guess
-    }
-    // When NO registered family covers the writing system, Qt resolves the request to its
-    // glyph-box engine, whose family list is empty, and QRawFont::familyName() indexes that list
-    // without a check (an access violation, seen with Thai and Japanese text in --headless runs
-    // and in the offscreen suite, where only the bundled and rescued faces exist). Nothing can
-    // draw the character, which is exactly the fallthrough case below.
-    if (!writing_system_has_any_family(system)) {
-      continue;
-    }
-    if (face.familyName().compare(expected, Qt::CaseInsensitive) != 0) {
-      continue;  // Qt already fell through to another family for this character
-    }
-    if (face.supportsCharacter(character)) {
+  if (probe_draws(probe)) {
+    return true;
+  }
+  // The plain probe asks for a Regular face. A family that has none (only Bold registered, a
+  // display family that ships a single heavy face) can lose that request to another family that
+  // does cover the script, which read as "this font cannot draw Arabic" for Noto Naskh Arabic
+  // Bold registered alone. Before calling the family glyphless, ask each face it really has.
+  for (const auto& style : QFontDatabase::styles(expected)) {
+    auto styled = QFontDatabase::font(expected, style, 12);
+    styled.setPixelSize(32);
+    if (probe_draws(styled)) {
       return true;
     }
   }
-  return !tested_any;
+  return false;
 }
 
 bool try_register_missing_system_font_family(const QString& family);
 
 // `demanded` is the text this family actually has to draw; pass it empty to check availability
-// alone.
-void append_missing_text_family(QStringList& missing, const QString& family, const QString& demanded) {
+// alone. With `no_glyphs`, a family that is installed but cannot draw the text lands there
+// instead of in `missing`, so a message can name the real cause.
+void append_missing_text_family(QStringList& missing, const QString& family, const QString& demanded,
+                                QStringList* no_glyphs = nullptr) {
   const auto requested = family.trimmed();
   if (requested.isEmpty() || requested.compare(QStringLiteral("PSD Text"), Qt::CaseInsensitive) == 0) {
     return;
@@ -988,13 +1007,14 @@ void append_missing_text_family(QStringList& missing, const QString& family, con
     return;
   }
 
+  auto& list = resolves && no_glyphs != nullptr ? *no_glyphs : missing;
   const auto requested_key = compact_text_family_key(requested);
-  const bool already_listed = std::any_of(missing.begin(), missing.end(), [&requested, &requested_key](const QString& item) {
+  const bool already_listed = std::any_of(list.begin(), list.end(), [&requested, &requested_key](const QString& item) {
     return item.compare(requested, Qt::CaseInsensitive) == 0 ||
            (!requested_key.isEmpty() && compact_text_family_key(item) == requested_key);
   });
   if (!already_listed) {
-    missing.push_back(requested);
+    list.push_back(requested);
   }
 }
 
@@ -1003,9 +1023,9 @@ void append_missing_text_family(QStringList& missing, const QString& family, con
 // its OWN slice of the text, so a run whose face genuinely covers its characters never drags a
 // warning in from a sibling run.
 QStringList missing_text_families_for_psd_raster_preview(const QString& primary_family, const QString& runs_text,
-                                                          const QString& text) {
+                                                          const QString& text, QStringList* no_glyphs = nullptr) {
   QStringList missing;
-  append_missing_text_family(missing, primary_family, text);
+  append_missing_text_family(missing, primary_family, text, no_glyphs);
 
   const auto lines = runs_text.split(QLatin1Char('\n'));
   for (const auto& raw_line : lines) {
@@ -1023,7 +1043,7 @@ QStringList missing_text_families_for_psd_raster_preview(const QString& primary_
     const auto length = std::max(0, fields[1].toInt(&length_ok));
     const auto demanded = start_ok && length_ok ? text.mid(start, length) : text;
     append_missing_text_family(missing, QString::fromUtf8(QByteArray::fromPercentEncoding(fields[6].toLatin1())),
-                               demanded);
+                               demanded, no_glyphs);
   }
   return missing;
 }
@@ -1051,14 +1071,29 @@ bool text_layer_uses_faux_bold(const Layer& layer) {
   return false;
 }
 
-bool confirm_psd_raster_preview_font_substitution(QWidget* parent, const QStringList& missing_fonts) {
-  if (missing_fonts.isEmpty()) {
+// `glyphless_fonts` are installed but hold no glyph for the text they are asked for; the dialog
+// says so instead of claiming it cannot locate a font that is sitting in the font list.
+bool confirm_psd_raster_preview_font_substitution(QWidget* parent, const QStringList& missing_fonts,
+                                                  const QStringList& glyphless_fonts) {
+  if (missing_fonts.isEmpty() && glyphless_fonts.isEmpty()) {
     return true;
   }
 
   QMessageBox dialog(QMessageBox::Warning, QObject::tr("Missing Font"), QString(), QMessageBox::NoButton, parent);
   dialog.setObjectName(QStringLiteral("missingPsdTextFontMessageBox"));
-  if (missing_fonts.size() == 1) {
+  if (!missing_fonts.isEmpty() && !glyphless_fonts.isEmpty()) {
+    dialog.setText(QObject::tr("Patchy can't locate these fonts: %1. These fonts have no glyphs for their text: %2. "
+                               "Editing this PSD raster preview will substitute other fonts. Continue?")
+                       .arg(missing_fonts.join(QStringLiteral(", ")), glyphless_fonts.join(QStringLiteral(", "))));
+  } else if (glyphless_fonts.size() == 1) {
+    dialog.setText(QObject::tr("The font \"%1\" has no glyphs for this text. Editing this PSD raster preview will "
+                               "substitute another font. Continue?")
+                       .arg(glyphless_fonts.front()));
+  } else if (!glyphless_fonts.isEmpty()) {
+    dialog.setText(QObject::tr("These fonts have no glyphs for their text: %1. Editing this PSD raster preview will "
+                               "substitute other fonts. Continue?")
+                       .arg(glyphless_fonts.join(QStringLiteral(", "))));
+  } else if (missing_fonts.size() == 1) {
     dialog.setText(QObject::tr("Patchy can't locate the font \"%1\". Editing this PSD raster preview will substitute "
                                "another font. Continue?")
                        .arg(missing_fonts.front()));
@@ -6187,15 +6222,30 @@ bool draw_text_layer_to_painter(const Layer& layer, QPainter& painter, bool miss
   // preview with no font name at all ("PSD Text") draws in the UI font, which is just as
   // much a substitution (the free-transform re-render refuses it the same way).
   const bool imported_preview = layer_is_imported_text_preview(layer);
-  auto missing = missing_text_families_for_layer(layer);
+  const auto problems = text_font_problems_for_layer(layer);
+  auto missing = problems.not_installed;
   if (const auto font = layer.metadata().find(kLayerMetadataTextFont);
       imported_preview &&
       (font == layer.metadata().end() || QString::fromStdString(font->second).trimmed().isEmpty() ||
        QString::fromStdString(font->second).compare(QStringLiteral("PSD Text"), Qt::CaseInsensitive) == 0)) {
     missing.push_front(QStringLiteral("unknown"));
   }
-  const auto font_problem = missing.size() == 1 ? "font " + quoted_font_list(missing) + " is not installed"
-                                                : "fonts " + quoted_font_list(missing) + " are not installed";
+  // Name the real cause: a font that is installed but holds no glyph for the text is not
+  // "not installed", and the note is what tells the user which font to go and fix.
+  std::string font_problem;
+  if (!missing.isEmpty()) {
+    font_problem = missing.size() == 1 ? "font " + quoted_font_list(missing) + " is not installed"
+                                       : "fonts " + quoted_font_list(missing) + " are not installed";
+  }
+  if (!problems.no_glyphs.isEmpty()) {
+    if (!font_problem.empty()) {
+      font_problem += "; ";
+    }
+    font_problem += problems.no_glyphs.size() == 1
+                        ? "font " + quoted_font_list(problems.no_glyphs) + " has no glyphs for this text"
+                        : "fonts " + quoted_font_list(problems.no_glyphs) + " have no glyphs for their text";
+  }
+  missing += problems.no_glyphs;
   if (!missing.isEmpty() && missing_fonts_as_images) {
     return refuse(font_problem);
   }
@@ -6978,6 +7028,25 @@ QStringList missing_text_families_for_layer(const Layer& layer) {
   }
   return missing_text_families_for_psd_raster_preview(value(kLayerMetadataTextFont),
                                                       value(kLayerMetadataTextRuns), text);
+}
+
+TextFontProblems text_font_problems_for_layer(const Layer& layer) {
+  TextFontProblems problems;
+  if (!layer_is_text(layer)) {
+    return problems;
+  }
+  const auto& metadata = layer.metadata();
+  const auto value = [&metadata](const char* key) {
+    const auto found = metadata.find(key);
+    return found == metadata.end() ? QString() : QString::fromStdString(found->second);
+  };
+  const auto text = value(kLayerMetadataText);
+  if (text.trimmed().isEmpty()) {
+    return problems;
+  }
+  problems.not_installed = missing_text_families_for_psd_raster_preview(
+      value(kLayerMetadataTextFont), value(kLayerMetadataTextRuns), text, &problems.no_glyphs);
+  return problems;
 }
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
@@ -8642,9 +8711,10 @@ void MainWindow::add_text_at(QPoint document_point, QRect requested_text_box, bo
       if (editing_layer_uses_source_raster_preview && !cli_automation_mode_) {
         // Automation (run_cli_export) substitutes silently: the whole point of its edit
         // sessions is forcing Patchy's own render, and a prompt would block unattended runs.
-        const auto missing_fonts =
-            missing_text_families_for_psd_raster_preview(family, initial_rich_text_runs, initial_text);
-        if (!confirm_psd_raster_preview_font_substitution(this, missing_fonts)) {
+        QStringList glyphless_fonts;
+        const auto missing_fonts = missing_text_families_for_psd_raster_preview(
+            family, initial_rich_text_runs, initial_text, &glyphless_fonts);
+        if (!confirm_psd_raster_preview_font_substitution(this, missing_fonts, glyphless_fonts)) {
           statusBar()->showMessage(tr("Canceled text edit"));
           return;
         }

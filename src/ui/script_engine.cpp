@@ -2116,12 +2116,18 @@ std::optional<LayerId> ScriptEngineHost::add_text_layer(std::int64_t session_id,
   find_new(std::as_const(session->document).layers());
   note_structure_changed(session_id);
   if (created.has_value()) {
-    // A family that is not installed renders in a fallback face; say so instead of letting the
-    // caller discover it from the pixels.
+    // A family that is not installed, or that holds no glyph for the text, renders in a fallback
+    // face; say so, and say which, instead of letting the caller discover it from the pixels.
     if (const auto* layer = std::as_const(session->document).find_layer(*created); layer != nullptr) {
-      if (const auto missing = missing_text_families_for_layer(*layer); !missing.isEmpty()) {
+      const auto problems = text_font_problems_for_layer(*layer);
+      if (!problems.not_installed.isEmpty()) {
         emit_message(MessageKind::Warn, tr("addTextLayer: font not available, rendered with a fallback: %1")
-                                            .arg(missing.join(QStringLiteral(", "))));
+                                            .arg(problems.not_installed.join(QStringLiteral(", "))));
+      }
+      if (!problems.no_glyphs.isEmpty()) {
+        emit_message(MessageKind::Warn,
+                     tr("addTextLayer: font has no glyphs for this text, rendered with a fallback: %1")
+                         .arg(problems.no_glyphs.join(QStringLiteral(", "))));
       }
     }
   }

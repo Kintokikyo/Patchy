@@ -3023,8 +3023,10 @@ void ui_text_layer_font_without_glyph_coverage_counts_as_missing() {
   }
   // The panel names the font in the tooltip and marks the tile; the covered layer keeps the
   // plain text-layer tooltip and an unmarked tile.
+  // The font is installed, so the tooltip names the real cause instead of calling it missing.
   CHECK(naskh_thumbnail->toolTip().contains(family));
-  CHECK(naskh_thumbnail->toolTip().contains(QStringLiteral("Missing font")));
+  CHECK(naskh_thumbnail->toolTip().contains(QStringLiteral("No glyphs for this text in")));
+  CHECK(!naskh_thumbnail->toolTip().contains(QStringLiteral("Missing font")));
   CHECK(arial_thumbnail->toolTip() == QStringLiteral("Text layer"));
   CHECK(naskh_thumbnail->pixmap().toImage() != arial_thumbnail->pixmap().toImage());
 
@@ -3047,6 +3049,8 @@ void ui_text_layer_font_without_glyph_coverage_counts_as_missing() {
       return;
     }
     CHECK(dialog->text().contains(family));
+    CHECK(dialog->text().contains(QStringLiteral("has no glyphs for this text")));
+    CHECK(!dialog->text().contains(QStringLiteral("can't locate")));
     warned = true;
     dialog->button(QMessageBox::Cancel)->click();
   });

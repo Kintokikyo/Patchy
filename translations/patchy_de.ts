@@ -8616,6 +8616,26 @@ RGB: %2, %3, %4</translation>
         <source>Also delete layers that end up fully off the canvas</source>
         <translation>Auch Ebenen löschen, die vollständig außerhalb der Arbeitsfläche liegen</translation>
     </message>
+    <message>
+        <source>Patchy can&apos;t locate these fonts: %1. These fonts have no glyphs for their text: %2. Editing this PSD raster preview will substitute other fonts. Continue?</source>
+        <translation>Patchy kann diese Schriftarten nicht finden: %1. Diese Schriftarten enthalten keine Glyphen für ihren Text: %2. Beim Bearbeiten dieser PSD-Rastervorschau werden andere Schriftarten ersetzt. Fortfahren?</translation>
+    </message>
+    <message>
+        <source>The font &quot;%1&quot; has no glyphs for this text. Editing this PSD raster preview will substitute another font. Continue?</source>
+        <translation>Die Schriftart „%1“ enthält keine Glyphen für diesen Text. Beim Bearbeiten dieser PSD-Rastervorschau wird eine andere Schriftart ersetzt. Fortfahren?</translation>
+    </message>
+    <message>
+        <source>These fonts have no glyphs for their text: %1. Editing this PSD raster preview will substitute other fonts. Continue?</source>
+        <translation>Diese Schriftarten enthalten keine Glyphen für ihren Text: %1. Beim Bearbeiten dieser PSD-Rastervorschau werden andere Schriftarten ersetzt. Fortfahren?</translation>
+    </message>
+    <message>
+        <source>Text layer. Missing font: %1. No glyphs for this text in: %2. Other fonts are being substituted, so the text does not look as it was authored.</source>
+        <translation>Textebene. Fehlende Schrift: %1. Keine Glyphen für diesen Text in: %2. Andere Schriften werden ersatzweise verwendet, daher sieht der Text nicht so aus wie ursprünglich erstellt.</translation>
+    </message>
+    <message>
+        <source>Text layer. No glyphs for this text in: %1. Another font is being substituted, so the text does not look as it was authored.</source>
+        <translation>Textebene. Keine Glyphen für diesen Text in: %1. Eine andere Schrift wird ersatzweise verwendet, daher sieht der Text nicht so aus wie ursprünglich erstellt.</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -19700,6 +19720,10 @@ In Bilder umgewandelt: %1.</translation>
     <message>
         <source>addSmartObject: %1 must be a finite number.</source>
         <translation>addSmartObject: %1 muss eine endliche Zahl sein.</translation>
+    </message>
+    <message>
+        <source>addTextLayer: font has no glyphs for this text, rendered with a fallback: %1</source>
+        <translation>addTextLayer: Schriftart enthält keine Glyphen für diesen Text, mit Ersatzschrift dargestellt: %1</translation>
     </message>
 </context>
 <context>

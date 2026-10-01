@@ -1451,19 +1451,34 @@ QWidget* make_layer_row_widget(const Layer& layer, QListWidgetItem* item, QWidge
                                                      thumbnail_crop));
   thumbnail->setProperty(kLayerContentThumbnailRevisionProperty,
                          QVariant::fromValue<qulonglong>(static_cast<qulonglong>(layer.render_revision())));
-  const auto missing_text_families =
-      layer_is_text(layer) ? missing_text_families_for_layer(layer) : QStringList{};
+  const auto font_problems = layer_is_text(layer) ? text_font_problems_for_layer(layer) : TextFontProblems{};
+  // The badge says "something is wrong"; the tooltip has to say what, because the substituted
+  // face often looks like a plausible design choice. It also has to say WHICH thing is wrong:
+  // "missing" sends the user hunting for a font that may be installed and merely lack the glyphs.
+  const auto font_problem_tooltip = [&font_problems] {
+    const auto missing = font_problems.not_installed.join(QStringLiteral(", "));
+    const auto glyphless = font_problems.no_glyphs.join(QStringLiteral(", "));
+    if (!missing.isEmpty() && !glyphless.isEmpty()) {
+      return QObject::tr("Text layer. Missing font: %1. No glyphs for this text in: %2. Other fonts are being "
+                         "substituted, so the text does not look as it was authored.")
+          .arg(missing, glyphless);
+    }
+    if (!glyphless.isEmpty()) {
+      return QObject::tr("Text layer. No glyphs for this text in: %1. Another font is being "
+                         "substituted, so the text does not look as it was authored.")
+          .arg(glyphless);
+    }
+    return QObject::tr("Text layer. Missing font: %1. Another font is being "
+                       "substituted, so the text does not look as it was authored.")
+        .arg(missing);
+  };
   thumbnail->setToolTip(
       layer.kind() == LayerKind::Group
           ? QObject::tr("Folder layer")
           : layer.kind() == LayerKind::Adjustment
               ? QObject::tr("Adjustment Layer")
-              : !missing_text_families.isEmpty()
-                    // The badge says "something is wrong"; the tooltip has to say what, because
-                    // the substituted face often looks like a plausible design choice.
-                    ? QObject::tr("Text layer. Missing font: %1. Another font is being "
-                                  "substituted, so the text does not look as it was authored.")
-                          .arg(missing_text_families.join(QStringLiteral(", ")))
+              : !font_problems.empty()
+                    ? font_problem_tooltip()
                     : layer_is_text(layer) ? QObject::tr("Text layer") : QObject::tr("Layer thumbnail"));
   thumbnail->setProperty("layerTargetActive", content_target_active);
   // Thumbnails stay enabled even when the layer is hidden: a disabled QLabel

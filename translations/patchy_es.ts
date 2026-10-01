@@ -8616,6 +8616,26 @@ RGB: %2, %3, %4</translation>
         <source>Also delete layers that end up fully off the canvas</source>
         <translation>Eliminar también las capas que queden totalmente fuera del lienzo</translation>
     </message>
+    <message>
+        <source>Patchy can&apos;t locate these fonts: %1. These fonts have no glyphs for their text: %2. Editing this PSD raster preview will substitute other fonts. Continue?</source>
+        <translation>Patchy no encuentra estas fuentes: %1. Estas fuentes no tienen glifos para su texto: %2. Al editar esta previsualización rasterizada del PSD se sustituirán por otras fuentes. ¿Desea continuar?</translation>
+    </message>
+    <message>
+        <source>The font &quot;%1&quot; has no glyphs for this text. Editing this PSD raster preview will substitute another font. Continue?</source>
+        <translation>La fuente &quot;%1&quot; no tiene glifos para este texto. Al editar esta previsualización rasterizada del PSD se sustituirá por otra fuente. ¿Desea continuar?</translation>
+    </message>
+    <message>
+        <source>These fonts have no glyphs for their text: %1. Editing this PSD raster preview will substitute other fonts. Continue?</source>
+        <translation>Estas fuentes no tienen glifos para su texto: %1. Al editar esta previsualización rasterizada del PSD se sustituirán por otras fuentes. ¿Desea continuar?</translation>
+    </message>
+    <message>
+        <source>Text layer. Missing font: %1. No glyphs for this text in: %2. Other fonts are being substituted, so the text does not look as it was authored.</source>
+        <translation>Capa de texto. Falta la fuente: %1. Sin glifos para este texto en: %2. Se están sustituyendo por otras fuentes, por lo que el texto no se ve como fue creado.</translation>
+    </message>
+    <message>
+        <source>Text layer. No glyphs for this text in: %1. Another font is being substituted, so the text does not look as it was authored.</source>
+        <translation>Capa de texto. Sin glifos para este texto en: %1. Se está sustituyendo por otra fuente, por lo que el texto no se ve como fue creado.</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -19700,6 +19720,10 @@ Convertido en imágenes: %1.</translation>
     <message>
         <source>addSmartObject: %1 must be a finite number.</source>
         <translation>addSmartObject: %1 debe ser un número finito.</translation>
+    </message>
+    <message>
+        <source>addTextLayer: font has no glyphs for this text, rendered with a fallback: %1</source>
+        <translation>addTextLayer: la fuente no tiene glifos para este texto, se usó una fuente alternativa: %1</translation>
     </message>
 </context>
 <context>

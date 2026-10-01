@@ -590,7 +590,7 @@ interface PatchyDocument {
    * full or PostScript name ("Futura Extra Black BT"); a font that is not
    * installed, or that has no glyph for any character of the text (the bundled
    * Noto Naskh Arabic has no Latin letters), renders in a fallback and logs a
-   * console warning. The face is
+   * console warning that says which of the two it was. The face is
    * exactly what font/bold/italic name, never the options bar's current one.
    * text (and any run's text) may contain "\n": every line lands in the SAME
    * layer as a new paragraph, so a heading and its subline need no second

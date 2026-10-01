@@ -216,6 +216,16 @@ constexpr auto kTextEditorFinishedProperty = "patchy.textEditorFinished";
 // panel uses it for the missing-font badge and the Type tool for its substitution warning.
 [[nodiscard]] QStringList missing_text_families_for_layer(const Layer& layer);
 
+// The same families split by cause, for messages that have to say which it is: "not installed"
+// sends the user looking for a font file, which is the wrong errand when the font is right there
+// and simply has no glyphs for the text.
+struct TextFontProblems {
+  QStringList not_installed;  // absent from the font database
+  QStringList no_glyphs;      // installed, with no glyph for any character asked of it
+  [[nodiscard]] bool empty() const { return not_installed.isEmpty() && no_glyphs.isEmpty(); }
+};
+[[nodiscard]] TextFontProblems text_font_problems_for_layer(const Layer& layer);
+
 // Windows --headless runs see no system fonts until this loads them from the registry (once per
 // process; false when nothing new was loaded, including on every other platform). The text
 // engine calls it on the first unresolved family; app.listFonts() calls it up front.
