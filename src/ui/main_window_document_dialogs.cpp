@@ -1516,8 +1516,11 @@ void MainWindow::apply_canvas_size(Rect frame, QColor extension_color, bool crop
   }
 
   push_undo_snapshot(history_label);
+  // Delete against the frame before resizing: the layer crop gives every pixel layer
+  // canvas-sized bounds, so afterwards nothing would test as off the canvas.
+  const auto deleted_layers =
+      delete_off_canvas_layers ? remove_layers_outside_canvas(doc, frame) : std::size_t{0};
   resize_canvas_to_frame(doc, frame, edit_color(extension_color), crop_layers);
-  const auto deleted_layers = delete_off_canvas_layers ? remove_layers_outside_canvas(doc) : std::size_t{0};
   canvas_->clear_selection();
   const auto previous_channel_target = canvas_->layer_edit_target();
   const auto previous_channel_id = canvas_->active_document_channel_id();

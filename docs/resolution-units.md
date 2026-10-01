@@ -48,7 +48,10 @@ enables the destructive layer/mask crop, even when the canvas dimensions are unc
 "Also delete layers that end up fully off the canvas" (`canvasSizeDeleteOffCanvasCheck`,
 core `remove_layers_outside_canvas`) removes every non-group layer whose bounds miss the
 new canvas entirely and any group that empties as a result; layers without bounds
-(adjustments, never-painted layers) stay, and the status line reports the count. Both
+(adjustments, never-painted layers) stay, and the status line reports the count. The
+delete runs against the frame BEFORE the resize (`remove_layers_outside_canvas(doc, frame)`):
+the layer crop rewrites every pixel layer to canvas-sized bounds, so afterwards nothing
+tests as off the canvas. Both
 checkboxes start unchecked on every opening and are never persisted. All modes are
 undoable. Document alpha/spot channels remain canvas-sized; editable vector paths, text
 transforms and Smart Object placements continue to follow the anchor translation.
@@ -65,7 +68,9 @@ the selection, and an edit grows or shrinks that rect about the chosen anchor po
 selection's aspect. Coverage: `ui_canvas_size_dialog_deletes_off_canvas_layers`,
 `ui_crop_to_selection_advanced_prefills_canvas_size_dialog`, core
 `document_canvas_resize_to_frame_translates_by_its_origin`,
-`document_remove_layers_outside_canvas`.
+`document_remove_layers_outside_canvas`, and for both checkboxes together
+`ui_crop_to_selection_advanced_crops_and_deletes_off_canvas_layers` and core
+`document_remove_layers_outside_frame_before_cropping_resize`.
 Units (`request_canvas_size_settings`, main_window_document_dialogs.cpp): the state is
 the absolute target size in pixels; the W/H fields show it converted through the
 document PPI in the unit the two linked combos select (Percent/Pixels/Inches/Cm/Mm/Points).

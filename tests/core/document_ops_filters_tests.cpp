@@ -285,6 +285,52 @@ void document_remove_layers_outside_canvas() {
   CHECK(patchy::remove_layers_outside_canvas(document) == 0);
 }
 
+// The layer crop gives every pixel layer canvas-sized bounds, so after a cropping resize
+// nothing tests as off the canvas. Deleting against the frame first is what works.
+void document_remove_layers_outside_frame_before_cropping_resize() {
+  const auto build = [](patchy::LayerId& inside_id, patchy::LayerId& outside_id, patchy::LayerId& group_id) {
+    patchy::Document document(20, 20, patchy::PixelFormat::rgb8());
+    document.add_pixel_layer("Background", solid_rgb(20, 20, 255, 255, 255));
+    const auto make_sticker = [&document](const char* name, patchy::Rect bounds) {
+      patchy::Layer layer(document.allocate_layer_id(), name,
+                          solid_rgba(bounds.width, bounds.height, 220, 10, 90, 255));
+      layer.set_bounds(bounds);
+      return layer;
+    };
+    auto inside = make_sticker("Inside", patchy::Rect{3, 3, 4, 4});
+    inside_id = inside.id();
+    document.add_layer(std::move(inside));
+    auto outside = make_sticker("Outside", patchy::Rect{14, 14, 4, 4});
+    outside_id = outside.id();
+    document.add_layer(std::move(outside));
+    patchy::Layer group(document.allocate_layer_id(), "Gone", patchy::LayerKind::Group);
+    group_id = group.id();
+    group.add_child(make_sticker("Gone child", patchy::Rect{0, 12, 3, 3}));
+    document.add_layer(std::move(group));
+    return document;
+  };
+  const patchy::Rect frame{2, 2, 8, 8};
+  patchy::LayerId inside_id{};
+  patchy::LayerId outside_id{};
+  patchy::LayerId group_id{};
+
+  auto document = build(inside_id, outside_id, group_id);
+  CHECK(patchy::remove_layers_outside_canvas(document, frame) == 2);
+  patchy::resize_canvas_to_frame(document, frame, patchy::EditColor{255, 255, 255, 255}, true);
+  CHECK(document.width() == 8 && document.height() == 8);
+  CHECK(document.find_layer(inside_id) != nullptr);
+  CHECK(document.find_layer(outside_id) == nullptr);
+  CHECK(document.find_layer(group_id) == nullptr);
+  CHECK(patchy::remove_layers_outside_canvas(document) == 0);
+
+  // The order this replaces: crop first, and the off-canvas layers survive as
+  // canvas-sized transparent ones.
+  auto cropped_first = build(inside_id, outside_id, group_id);
+  patchy::resize_canvas_to_frame(cropped_first, frame, patchy::EditColor{255, 255, 255, 255}, true);
+  CHECK(patchy::remove_layers_outside_canvas(cropped_first) == 0);
+  CHECK(cropped_first.find_layer(outside_id) != nullptr);
+}
+
 void document_canvas_resize_honors_anchor_and_extension_color() {
   patchy::Document document(4, 4, patchy::PixelFormat::rgb8());
   const auto& background = document.add_pixel_layer("Background", solid_rgb(4, 4, 255, 255, 255));
@@ -2992,6 +3038,8 @@ std::vector<patchy::test::TestCase> document_ops_filters_tests() {
       {"document_canvas_resize_to_frame_translates_by_its_origin",
        document_canvas_resize_to_frame_translates_by_its_origin},
       {"document_remove_layers_outside_canvas", document_remove_layers_outside_canvas},
+      {"document_remove_layers_outside_frame_before_cropping_resize",
+       document_remove_layers_outside_frame_before_cropping_resize},
       {"document_canvas_resize_honors_anchor_and_extension_color",
        document_canvas_resize_honors_anchor_and_extension_color},
       {"document_canvas_resize_preserves_offcanvas_layers_and_masks",

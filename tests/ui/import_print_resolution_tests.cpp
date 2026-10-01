@@ -4474,6 +4474,73 @@ void ui_crop_to_selection_advanced_prefills_canvas_size_dialog() {
   CHECK(!canvas->selected_document_rect().has_value());
 }
 
+// Both checkboxes together: the layer crop rewrites every pixel layer to canvas-sized
+// bounds, so the delete has to be decided against the frame before the crop runs. A
+// layer (and a group of layers) outside the selection goes, one inside stays, cropped.
+void ui_crop_to_selection_advanced_crops_and_deletes_off_canvas_layers() {
+  SettingsValueRestorer restore_unit(QStringLiteral("canvasSize/lastUnit"));
+  patchy::ui::app_settings().remove(QStringLiteral("canvasSize"));
+  patchy::ui::MainWindow window;  // default document: 1024x768 at 72 ppi
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_snap_enabled(false);
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+
+  canvas->set_tool(patchy::ui::CanvasTool::Marquee);
+  drag(*canvas, QPoint(60, 60), QPoint(200, 160));
+  const auto selection = canvas->selected_document_rect();
+  CHECK(selection.has_value() && selection->width() > 8 && selection->height() > 8);
+
+  const auto far_id = add_far_layer(window, "Far away", QPoint(selection->right() + 50, selection->bottom() + 50));
+  const auto above_id = add_far_layer(window, "Above", QPoint(selection->x(), selection->y() - 4));
+  // Straddles the selection's top-left corner: stays and is cropped.
+  const auto inside_id = add_far_layer(window, "Inside", QPoint(selection->x() - 2, selection->y() - 2));
+  patchy::Layer group(document.allocate_layer_id(), "Far folder", patchy::LayerKind::Group);
+  const auto group_id = group.id();
+  patchy::Layer child(document.allocate_layer_id(), "Far child",
+                      patchy::PixelBuffer(4, 4, patchy::PixelFormat::rgba8()));
+  child.set_bounds(patchy::Rect{selection->right() + 20, selection->y(), 4, 4});
+  group.add_child(std::move(child));
+  document.add_layer(std::move(group));
+
+  bool drove_dialog = false;
+  QTimer::singleShot(0, [&] {
+    for (auto* widget : QApplication::topLevelWidgets()) {
+      if (widget->objectName() != QStringLiteral("patchyCanvasSizeDialog")) {
+        continue;
+      }
+      auto* dialog = qobject_cast<QDialog*>(widget);
+      auto* crop = dialog->findChild<QCheckBox*>(QStringLiteral("canvasSizeCropLayersCheck"));
+      auto* remove = dialog->findChild<QCheckBox*>(QStringLiteral("canvasSizeDeleteOffCanvasCheck"));
+      CHECK(crop != nullptr && remove != nullptr);
+      crop->setChecked(true);
+      remove->setChecked(true);
+      drove_dialog = true;
+      dialog->accept();
+      return;
+    }
+    CHECK(false);
+  });
+  require_action(window, "imageCropToSelectionAdvancedAction")->trigger();
+  QApplication::processEvents();
+  CHECK(drove_dialog);
+  CHECK(document.width() == selection->width());
+  CHECK(document.height() == selection->height());
+  CHECK(document.find_layer(far_id) == nullptr);
+  CHECK(document.find_layer(above_id) == nullptr);
+  CHECK(document.find_layer(group_id) == nullptr);
+  const auto* inside = std::as_const(document).find_layer(inside_id);
+  CHECK(inside != nullptr);
+  if (inside != nullptr) {
+    const auto bounds = inside->bounds();
+    CHECK(bounds.x >= 0 && bounds.y >= 0);
+    CHECK(bounds.x + bounds.width <= document.width() && bounds.y + bounds.height <= document.height());
+  }
+  CHECK(window.statusBar()->currentMessage() == QStringLiteral("Canvas %1 x %2, off-canvas layers deleted: 3")
+                                                    .arg(selection->width())
+                                                    .arg(selection->height()));
+}
+
 // Photoshop's dialog memory: Image Size keeps its W/H unit and its resolution unit
 // across openings (`imageSize/lastUnit`, `imageSize/lastResolutionUnit`, written on
 // accept only); a first run seeds the W/H unit from the ruler unit, and a token the
@@ -5508,6 +5575,8 @@ std::vector<patchy::test::TestCase> import_print_resolution_tests() {
        ui_canvas_size_dialog_units_convert_through_resolution},
       {"ui_canvas_size_dialog_link_keeps_aspect_ratio", ui_canvas_size_dialog_link_keeps_aspect_ratio},
       {"ui_canvas_size_dialog_deletes_off_canvas_layers", ui_canvas_size_dialog_deletes_off_canvas_layers},
+      {"ui_crop_to_selection_advanced_crops_and_deletes_off_canvas_layers",
+       ui_crop_to_selection_advanced_crops_and_deletes_off_canvas_layers},
       {"ui_crop_to_selection_advanced_prefills_canvas_size_dialog",
        ui_crop_to_selection_advanced_prefills_canvas_size_dialog},
       {"ui_image_size_dialog_remembers_units", ui_image_size_dialog_remembers_units},

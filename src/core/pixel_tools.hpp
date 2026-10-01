@@ -252,6 +252,10 @@ void resize_canvas_to_frame(Document& document, Rect frame,
 // Layers without bounds (adjustments, never-painted layers) stay. Returns the number of
 // layers removed, a removed group counting once.
 std::size_t remove_layers_outside_canvas(Document& document);
+// The same against `canvas`, a rect in current document coordinates. A canvas resize
+// that also crops layers must call this with its frame BEFORE resizing: the crop
+// rewrites every pixel layer to canvas-sized bounds, which hides the off-canvas ones.
+std::size_t remove_layers_outside_canvas(Document& document, Rect canvas);
 [[nodiscard]] bool crop_document(Document& document, Rect crop);
 // Crop that may extend beyond the canvas: content outside `crop` is discarded,
 // the canvas becomes crop.width x crop.height, area outside the old canvas is

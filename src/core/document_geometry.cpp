@@ -1191,8 +1191,12 @@ bool collect_layers_outside_canvas(const std::vector<Layer>& layers, Rect canvas
 }  // namespace
 
 std::size_t remove_layers_outside_canvas(Document& document) {
+  return remove_layers_outside_canvas(document, canvas_rect(document));
+}
+
+std::size_t remove_layers_outside_canvas(Document& document, Rect canvas) {
   std::vector<LayerId> ids;
-  (void)collect_layers_outside_canvas(std::as_const(document).layers(), canvas_rect(document), ids);
+  (void)collect_layers_outside_canvas(std::as_const(document).layers(), canvas, ids);
   std::size_t removed = 0;
   for (const auto id : ids) {
     // Document::remove_layer keeps the active layer valid and drops orphaned Smart
