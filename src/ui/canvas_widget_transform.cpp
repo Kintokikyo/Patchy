@@ -3058,31 +3058,77 @@ void CanvasWidget::commit_free_transform() {
           Rect::from_size(document_->width(), document_->height()));
       new_bounds = layer->bounds();
     } else if (layer_is_smart_object(*layer) && smart_object_lock_reason(*layer).empty()) {
-      // The text-layer pattern for placed content: compose the delta into the
-      // placement quad, then re-render crisply from the embedded source (the
-      // resampled pixels committed above stay as the fallback).
-      if (const auto placement = smart_object_placement_from_layer(*layer); placement.has_value()) {
-        const auto delta = free_transform_delta(transform_original_rect_, transform_current_rect_, angle_delta,
-                                                transform_scale_x_sign_, transform_scale_y_sign_);
-        auto updated = *placement;
-        for (std::size_t i = 0; i < 8U; i += 2U) {
-          const auto mapped = delta.map(QPointF(placement->transform[i], placement->transform[i + 1U]));
-          updated.transform[i] = mapped.x();
-          updated.transform[i + 1U] = mapped.y();
-        }
-        store_smart_object_placement(*layer, updated);
-        mark_layer_smart_object_block_dirty(*layer);
-        layer->metadata()[kLayerMetadataSmartObjectRasterStatus] = kSmartObjectRasterStatusPatchy;
-        if (smart_object_transform_render_callback_ &&
-            smart_object_transform_render_callback_(*transform_layer_id_)) {
-          new_bounds = layer->bounds();
-        } else if (transactional_smart_filter) {
-          smart_filter_rerender_failed = true;
-        }
+    // Smart Objects must be committed from their original embedded-source
+    // geometry, not by repeatedly transforming the already stored quad.
+    // This keeps scale + rotation reversible and avoids 1-2 px growth
+    // caused by floating-point/bounding-box accumulation.
+    if (const auto placement = smart_object_placement_from_layer(*layer);
+        placement.has_value()) {
+
+      auto updated = *placement;
+
+      const double source_width =
+          placement->width > 0.0
+              ? placement->width
+              : static_cast<double>(transform_source_image_.width());
+
+      const double source_height =
+          placement->height > 0.0
+              ? placement->height
+              : static_cast<double>(transform_source_image_.height());
+
+      const QPointF center = transform_current_rect_.center();
+
+      const double half_width =
+          std::max(1.0, transform_current_rect_.width()) / 2.0;
+
+      const double half_height =
+          std::max(1.0, transform_current_rect_.height()) / 2.0;
+
+      const double radians =
+          transform_angle_ * M_PI / 180.0;
+
+      const double cos_angle = std::cos(radians);
+      const double sin_angle = std::sin(radians);
+
+      const std::array<QPointF, 4> local_corners = {
+          QPointF(-half_width, -half_height),
+          QPointF( half_width, -half_height),
+          QPointF( half_width,  half_height),
+          QPointF(-half_width,  half_height)
+      };
+
+      for (std::size_t i = 0; i < 4U; ++i) {
+        const auto& local = local_corners[i];
+
+        const QPointF mapped(
+            center.x() + local.x() * cos_angle - local.y() * sin_angle,
+            center.y() + local.x() * sin_angle + local.y() * cos_angle);
+
+        updated.transform[i * 2U] = mapped.x();
+        updated.transform[i * 2U + 1U] = mapped.y();
+      }
+
+      // Keep the embedded source dimensions as the reference dimensions.
+      // Do not replace these with the current raster/cache dimensions.
+      updated.width = source_width;
+      updated.height = source_height;
+
+      store_smart_object_placement(*layer, updated);
+      mark_layer_smart_object_block_dirty(*layer);
+      layer->metadata()[kLayerMetadataSmartObjectRasterStatus] =
+          kSmartObjectRasterStatusPatchy;
+
+      if (smart_object_transform_render_callback_ &&
+          smart_object_transform_render_callback_(*transform_layer_id_)) {
+        new_bounds = layer->bounds();
       } else if (transactional_smart_filter) {
         smart_filter_rerender_failed = true;
       }
+    } else if (transactional_smart_filter) {
+      smart_filter_rerender_failed = true;
     }
+  }
     // A linked raster mask follows the layer through the same delta (Photoshop
     // behavior; an unlinked mask stays put). Every layer type takes this path:
     // the mask is document-space data independent of how the pixels re-render.
