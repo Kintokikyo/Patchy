@@ -19,18 +19,6 @@
 #
 # Cleanup is deferred until unplug() has returned and the original DragState
 # is still alive.
-#
-# Keyboard-transition fix:
-# During Android IME show/hide animation, Qt's Android root layout can report
-# transient availableGeometry changes. QAndroidPlatformScreen normally applies
-# each change immediately, which can resize a maximized QMainWindow repeatedly
-# while the navigation/IME bars animate. That makes Patchy's bottom
-# ZoomStatusBar visibly jump.
-#
-# The V6 patch exposes one combined Java-side transition state for both IME
-# show and IME hide animation, then defers QAndroidPlatformScreen's
-# screen-geometry notification / maximized-window resize until the transition
-# has finished. The latest geometry is retained and applied once afterward.
 
 name: Build Patchy Native Android - V6 Keyboard Transition
 
@@ -697,453 +685,6 @@ jobs:
             qtbase-src/src/widgets/widgets/qdockwidget.cpp
 
       # ================================================================
-      # PATCH QT ANDROID KEYBOARD TRANSITION GEOMETRY
-      # ================================================================
-      - name: Patch Qt Android keyboard transition geometry
-        run: |
-
-          echo "===== PATCH QT ANDROID KEYBOARD TRANSITION ====="
-
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-
-          root = Path("qtbase-src")
-
-          input_interface = (
-              root
-              / "src/android/jar/src/org/qtproject/qt/android/QtInputInterface.java"
-          )
-          input_delegate = (
-              root
-              / "src/android/jar/src/org/qtproject/qt/android/QtInputDelegate.java"
-          )
-          jni_h = root / "src/plugins/platforms/android/androidjniinput.h"
-          jni_cpp = root / "src/plugins/platforms/android/androidjniinput.cpp"
-          screen_h = root / "src/plugins/platforms/android/qandroidplatformscreen.h"
-          screen_cpp = root / "src/plugins/platforms/android/qandroidplatformscreen.cpp"
-
-          required_files = [
-              input_interface,
-              input_delegate,
-              jni_h,
-              jni_cpp,
-              screen_h,
-              screen_cpp,
-          ]
-
-          for path in required_files:
-              if not path.is_file():
-                  raise SystemExit(f"ERROR: required Qt source file not found: {path}")
-
-          # ------------------------------------------------------------
-          # 1. Expose one combined Java-side transition state.
-          #
-          # Show:
-          #   m_keyboardTransitionInProgress
-          #
-          # Hide:
-          #   m_isKeyboardHidingAnimationOngoing
-          #
-          # QtInputDelegate already implements QtInputInterface, so expose
-          # the combined state directly through the registered interface.
-          # ------------------------------------------------------------
-          text = input_interface.read_text()
-
-          interface_marker = (
-              "    boolean isSoftwareKeyboardVisible();\n"
-          )
-
-          interface_replacement = (
-              "    boolean isSoftwareKeyboardVisible();\n"
-              "    boolean isKeyboardTransitionInProgress();\n"
-          )
-
-          if text.count(interface_marker) != 1:
-              raise SystemExit(
-                  "ERROR: QtInputInterface.java: expected exactly one "
-                  "isSoftwareKeyboardVisible() declaration"
-              )
-
-          if "boolean isKeyboardTransitionInProgress();" in text:
-              raise SystemExit(
-                  "ERROR: QtInputInterface.java already contains the V6 method"
-              )
-
-          text = text.replace(interface_marker, interface_replacement, 1)
-          input_interface.write_text(text)
-
-          # ------------------------------------------------------------
-          # 2. Implement the combined state in QtInputDelegate.
-          # ------------------------------------------------------------
-          text = input_delegate.read_text()
-
-          delegate_marker = (
-              "    @Override\n"
-              "    public boolean keyboardTransitionInProgress()\n"
-              "    {\n"
-              "        return m_keyboardTransitionInProgress;\n"
-              "    }\n"
-          )
-
-          delegate_replacement = (
-              "    @Override\n"
-              "    public boolean isKeyboardTransitionInProgress()\n"
-              "    {\n"
-              "        return m_keyboardTransitionInProgress\n"
-              "                || m_isKeyboardHidingAnimationOngoing;\n"
-              "    }\n"
-              "\n"
-              + delegate_marker
-          )
-
-          if text.count(delegate_marker) != 1:
-              raise SystemExit(
-                  "ERROR: QtInputDelegate.java: expected exactly one "
-                  "keyboardTransitionInProgress() implementation"
-              )
-
-          if "public boolean isKeyboardTransitionInProgress()" in text:
-              raise SystemExit(
-                  "ERROR: QtInputDelegate.java already contains the V6 method"
-              )
-
-          text = text.replace(delegate_marker, delegate_replacement, 1)
-          input_delegate.write_text(text)
-
-          # ------------------------------------------------------------
-          # 3. Add the JNI/C++ helper declaration.
-          # ------------------------------------------------------------
-          text = jni_h.read_text()
-
-          header_marker = (
-              "    bool isSoftwareKeyboardVisible();\n"
-          )
-
-          header_replacement = (
-              "    bool isSoftwareKeyboardVisible();\n"
-              "    bool isKeyboardTransitionInProgress();\n"
-          )
-
-          if text.count(header_marker) != 1:
-              raise SystemExit(
-                  "ERROR: androidjniinput.h: expected exactly one "
-                  "isSoftwareKeyboardVisible() declaration"
-              )
-
-          if "bool isKeyboardTransitionInProgress();" in text:
-              raise SystemExit(
-                  "ERROR: androidjniinput.h already contains the V6 declaration"
-              )
-
-          text = text.replace(header_marker, header_replacement, 1)
-          jni_h.write_text(text)
-
-          # ------------------------------------------------------------
-          # 4. Add the JNI/C++ helper implementation.
-          # ------------------------------------------------------------
-          text = jni_cpp.read_text()
-
-          cpp_marker = """bool isSoftwareKeyboardVisible()
-          {
-              AndroidBackendRegister *reg = QtAndroid::backendRegister();
-              return reg->callInterface<QtJniTypes::QtInputInterface, jboolean>(
-            "isSoftwareKeyboardVisible");
-          }
-          """
-
-          cpp_replacement = cpp_marker + """
-          bool isKeyboardTransitionInProgress()
-          {
-              AndroidBackendRegister *reg = QtAndroid::backendRegister();
-              return reg->callInterface<QtJniTypes::QtInputInterface, jboolean>(
-            "isKeyboardTransitionInProgress");
-          }
-          """
-
-          if text.count(cpp_marker) != 1:
-              raise SystemExit(
-                  "ERROR: androidjniinput.cpp: expected exactly one "
-                  "isSoftwareKeyboardVisible() implementation"
-              )
-
-          if "bool isKeyboardTransitionInProgress()" in text:
-              raise SystemExit(
-                  "ERROR: androidjniinput.cpp already contains the V6 helper"
-              )
-
-          text = text.replace(cpp_marker, cpp_replacement, 1)
-          jni_cpp.write_text(text)
-
-          # ------------------------------------------------------------
-          # 5. Add geometry deferral state to QAndroidPlatformScreen.
-          #
-          # The timer is only a polling cadence while the Android IME
-          # transition is active. It is NOT a fixed animation delay.
-          # The latest Android geometry remains in m_availableGeometry.
-          # ------------------------------------------------------------
-          text = screen_h.read_text()
-
-          header_end_marker = """    QWaitCondition m_surfaceWaitCondition;
-              QSize m_size;
-          """
-
-          header_end_replacement = """    QWaitCondition m_surfaceWaitCondition;
-              QSize m_size;
-
-              void syncAvailableGeometry();
-              QTimer m_geometrySyncTimer;
-              bool m_geometryUpdatePending = false;
-          """
-
-          if text.count(header_end_marker) != 1:
-              raise SystemExit(
-                  "ERROR: qandroidplatformscreen.h: expected member block not found"
-              )
-
-          if "m_geometrySyncTimer" in text:
-              raise SystemExit(
-                  "ERROR: qandroidplatformscreen.h already contains the V6 timer"
-              )
-
-          text = text.replace(header_end_marker, header_end_replacement, 1)
-          screen_h.write_text(text)
-
-          # ------------------------------------------------------------
-          # 6. Add JNI input include and timer setup.
-          # ------------------------------------------------------------
-          text = screen_cpp.read_text()
-
-          include_marker = '#include "qandroidplatformscreen.h"\n'
-          include_replacement = (
-              '#include "qandroidplatformscreen.h"\n'
-              '#include "androidjniinput.h"\n'
-          )
-
-          if text.count(include_marker) != 1:
-              raise SystemExit(
-                  "ERROR: qandroidplatformscreen.cpp: screen header include not found"
-              )
-
-          if '#include "androidjniinput.h"' not in text:
-              text = text.replace(include_marker, include_replacement, 1)
-
-          constructor_marker = """QAndroidPlatformScreen::QAndroidPlatformScreen()
-          {
-              connect(qGuiApp, &QGuiApplication::applicationStateChanged, this,
-            &QAndroidPlatformScreen::applicationStateChanged);
-          }
-          """
-
-          constructor_replacement = """QAndroidPlatformScreen::QAndroidPlatformScreen()
-          {
-              m_geometrySyncTimer.setSingleShot(true);
-              m_geometrySyncTimer.setInterval(16);
-
-              connect(&m_geometrySyncTimer, &QTimer::timeout,
-            this, &QAndroidPlatformScreen::syncAvailableGeometry);
-
-              connect(qGuiApp, &QGuiApplication::applicationStateChanged, this,
-            &QAndroidPlatformScreen::applicationStateChanged);
-          }
-          """
-
-          if text.count(constructor_marker) != 1:
-              raise SystemExit(
-                  "ERROR: qandroidplatformscreen.cpp: constructor block not found"
-              )
-
-          text = text.replace(constructor_marker, constructor_replacement, 1)
-
-          # ------------------------------------------------------------
-          # 7. Replace setAvailableGeometry() with deferred application.
-          #
-          # While IME animation is active:
-          #   - retain latest m_availableGeometry
-          #   - do NOT emit screen geometry change
-          #   - do NOT resize maximized windows
-          #
-          # Once the transition finishes, syncAvailableGeometry() applies
-          # the latest value exactly once.
-          # ------------------------------------------------------------
-          function_marker = """void QAndroidPlatformScreen::setAvailableGeometry(const QRect &rect)
-          {
-          """
-
-          start = text.find(function_marker)
-          if start < 0:
-              raise SystemExit(
-                  "ERROR: qandroidplatformscreen.cpp: setAvailableGeometry() not found"
-              )
-
-          body_end = text.find("\n}\n", start)
-          if body_end < 0:
-              raise SystemExit(
-                  "ERROR: qandroidplatformscreen.cpp: setAvailableGeometry() end not found"
-              )
-
-          old_function = text[start:body_end + 3]
-
-          expected_prefix = """void QAndroidPlatformScreen::setAvailableGeometry(const QRect &rect)
-          {
-              if (m_availableGeometry == rect)
-                  return;
-          """
-
-          if not old_function.startswith(expected_prefix):
-              raise SystemExit(
-                  "ERROR: qandroidplatformscreen.cpp: unexpected "
-                  "setAvailableGeometry() body; refusing to patch"
-              )
-
-          new_function = """void QAndroidPlatformScreen::setAvailableGeometry(const QRect &rect)
-          {
-              if (m_availableGeometry == rect)
-                  return;
-
-              m_availableGeometry = rect;
-
-              if (QtAndroidInput::isKeyboardTransitionInProgress()) {
-                  m_geometryUpdatePending = true;
-                  if (!m_geometrySyncTimer.isActive())
-            m_geometrySyncTimer.start();
-                  return;
-              }
-
-              syncAvailableGeometry();
-          }
-          """
-
-          text = text[:start] + new_function + text[body_end + 3:]
-
-          # ------------------------------------------------------------
-          # 8. Add syncAvailableGeometry() immediately after
-          # setAvailableGeometry().
-          # ------------------------------------------------------------
-          sync_function = """
-          void QAndroidPlatformScreen::syncAvailableGeometry()
-          {
-              m_geometrySyncTimer.stop();
-
-              if (QtAndroidInput::isKeyboardTransitionInProgress()) {
-                  m_geometryUpdatePending = true;
-                  m_geometrySyncTimer.start();
-                  return;
-              }
-
-              if (!m_geometryUpdatePending && screen()
-            && screen()->availableGeometry() == m_availableGeometry) {
-                  return;
-              }
-
-              m_geometryUpdatePending = false;
-
-              const QRect oldGeometry = screen()
-            ? screen()->availableGeometry()
-            : QRect();
-
-              QWindowSystemInterface::handleScreenGeometryChange(
-            QPlatformScreen::screen(), geometry(), availableGeometry());
-
-              resizeMaximizedWindows();
-
-              if (oldGeometry.width() == 0 && oldGeometry.height() == 0
-            && m_availableGeometry.width() > 0
-            && m_availableGeometry.height() > 0) {
-                  const QList<QWindow *> windows = QGuiApplication::allWindows();
-                  for (QWindow *w : windows) {
-            if (w->handle()) {
-                const QRect windowGeometry = w->handle()->geometry();
-                if (windowGeometry.width() > 0
-                        && windowGeometry.height() > 0) {
-                    QWindowSystemInterface::handleExposeEvent(
-                            w, QRect(QPoint(0, 0), windowGeometry.size()));
-                }
-            }
-                  }
-              }
-          }
-          """
-
-          insertion_point = text.find(
-              "\n}\n",
-              text.find("void QAndroidPlatformScreen::setAvailableGeometry(const QRect &rect)")
-          )
-
-          if insertion_point < 0:
-              raise SystemExit(
-                  "ERROR: unable to locate patched setAvailableGeometry() end"
-              )
-
-          insertion_point += 3
-          text = text[:insertion_point] + sync_function + text[insertion_point:]
-
-          # ------------------------------------------------------------
-          # 9. Final source verification.
-          # ------------------------------------------------------------
-          checks = {
-              input_interface: [
-                  "boolean isKeyboardTransitionInProgress();",
-              ],
-              input_delegate: [
-                  "public boolean isKeyboardTransitionInProgress()",
-                  "m_keyboardTransitionInProgress",
-                  "m_isKeyboardHidingAnimationOngoing",
-              ],
-              jni_h: [
-                  "bool isKeyboardTransitionInProgress();",
-              ],
-              jni_cpp: [
-                  'bool isKeyboardTransitionInProgress()',
-                  '"isKeyboardTransitionInProgress"',
-              ],
-              screen_h: [
-                  "void syncAvailableGeometry();",
-                  "QTimer m_geometrySyncTimer;",
-                  "bool m_geometryUpdatePending = false;",
-              ],
-              screen_cpp: [
-                  '#include "androidjniinput.h"',
-                  "m_geometrySyncTimer.setSingleShot(true);",
-                  "m_geometrySyncTimer.setInterval(16);",
-                  "QtAndroidInput::isKeyboardTransitionInProgress()",
-                  "void QAndroidPlatformScreen::syncAvailableGeometry()",
-                  "m_geometryUpdatePending = true;",
-              ],
-          }
-
-          # screen_cpp must be written after all modifications.
-          screen_cpp.write_text(text)
-
-          for path, markers in checks.items():
-              content = path.read_text()
-              for marker in markers:
-                  if marker not in content:
-                      raise SystemExit(
-                          f"ERROR: keyboard transition patch verification failed "
-                          f"for {path}: {marker}"
-                      )
-
-          print("Qt Android keyboard transition source patch: OK")
-          print("Java IME transition API: OK")
-          print("JNI transition helper: OK")
-          print("QAndroidPlatformScreen geometry deferral: OK")
-          PY
-
-          echo "===== VERIFY KEYBOARD TRANSITION PATCH ====="
-
-          grep -n -A8 -B3 \
-            "isKeyboardTransitionInProgress" \
-            qtbase-src/src/android/jar/src/org/qtproject/qt/android/QtInputInterface.java \
-            qtbase-src/src/android/jar/src/org/qtproject/qt/android/QtInputDelegate.java \
-            qtbase-src/src/plugins/platforms/android/androidjniinput.h \
-            qtbase-src/src/plugins/platforms/android/androidjniinput.cpp
-
-          grep -n -A18 -B6 \
-            "syncAvailableGeometry" \
-            qtbase-src/src/plugins/platforms/android/qandroidplatformscreen.cpp
-
-      # ================================================================
       # CONFIGURE QTBASE
       # ================================================================
       - name: Configure patched Qt 6.10.3 for Android
@@ -1196,82 +737,6 @@ jobs:
           echo "===== INSTALL PATCHED QTBASE ====="
 
           cmake --install "$QTBASE_BUILD"
-
-      # ================================================================
-      # REAPPLY THE EXACT WORKING EGL PATCH TO REBUILT QT ANDROID PLUGIN
-      # ================================================================
-      - name: Reapply exact EGL patch to rebuilt Qt Android plugin
-        env:
-          QTBASE_INSTALL: ${{ github.workspace }}/qtbase-install
-        run: |
-
-          echo "===== REAPPLY EXACT EGL PATCH TO REBUILT QT ANDROID PLUGIN ====="
-
-          QT_EGL_REBUILT=$(find "$QTBASE_INSTALL" \
-            -type f \
-            -name "libplugins_platforms_qtforandroid_arm64-v8a.so" \
-            -print -quit)
-
-          if [ -z "$QT_EGL_REBUILT" ]; then
-            echo "ERROR: rebuilt Qt Android platform plugin not found"
-            exit 1
-          fi
-
-          echo "Rebuilt Qt Android plugin:"
-          echo "$QT_EGL_REBUILT"
-
-          python3 - "$QT_EGL_REBUILT" <<'PY'
-          import sys
-          from pathlib import Path
-
-          path = Path(sys.argv[1])
-          data = bytearray(path.read_bytes())
-
-          # EXACT same already-working Qt 6.10.3 ARM64 EGL patch as V5.
-          old = bytes.fromhex(
-              "48008052 61fcffd0 213c1c91 e81300b9 68fcff90"
-              "08dd1091 1f2003d5 e252c870 e0430091 b5000094"
-          )
-
-          new = bytes.fromhex(
-              "e0c30091 030a0094 e0031faa f7ffff17"
-              "1f2003d5 1f2003d5 1f2003d5 1f2003d5"
-              "1f2003d5 1f2003d5"
-          )
-
-          if len(old) != 40 or len(new) != 40:
-              raise SystemExit("ERROR: EGL patch byte length mismatch")
-
-          occurrences = data.count(old)
-
-          if occurrences != 1:
-              raise SystemExit(
-                  f"ERROR: expected exactly 1 unpatched EGL sequence in "
-                  f"rebuilt plugin, found {occurrences}"
-              )
-
-          offset = data.index(old)
-          print(f"Rebuilt plugin EGL patch offset: 0x{offset:x}")
-
-          data[offset:offset + len(old)] = new
-          path.write_bytes(data)
-
-          verify = path.read_bytes()
-
-          if verify[offset:offset + len(new)] != new:
-              raise SystemExit(
-                  "ERROR: rebuilt plugin EGL patch verification failed"
-              )
-
-          if verify.count(new) != 1:
-              raise SystemExit(
-                  "ERROR: expected exactly 1 patched EGL sequence after patch"
-              )
-
-          print("REBUILT EGL PATCH VERIFICATION: OK")
-          PY
-
-          ls -lh "$QT_EGL_REBUILT"
 
       # ================================================================
       # VERIFY PATCHED QTWIDGETS BINARY BEFORE OVERLAY
@@ -1415,47 +880,7 @@ jobs:
 
           echo "QtWidgets replacement: OK"
 
-          # ------------------------------------------------------------
-          # The keyboard-transition source patch lives in the Android
-          # platform plugin (QAndroidPlatformScreen / androidjniinput),
-          # so overlay the rebuilt qtforandroid plugin too.
-          #
-          # The exact working EGL patch was reapplied to this rebuilt
-          # plugin immediately before this step.
-          # ------------------------------------------------------------
-          PATCHED_ANDROID_PLUGIN=$(find "$QTBASE_INSTALL" \
-            -type f \
-            -name "libplugins_platforms_qtforandroid_arm64-v8a.so" \
-            -print -quit)
-
-          ORIGINAL_ANDROID_PLUGIN=$(find "$QT_ANDROID_PATCHED" \
-            -type f \
-            -name "libplugins_platforms_qtforandroid_arm64-v8a.so" \
-            -print -quit)
-
-          if [ -z "$PATCHED_ANDROID_PLUGIN" ]; then
-            echo "ERROR: rebuilt patched Qt Android plugin not found"
-            exit 1
-          fi
-
-          if [ -z "$ORIGINAL_ANDROID_PLUGIN" ]; then
-            echo "ERROR: original Qt Android plugin not found"
-            exit 1
-          fi
-
-          echo "Patched Qt Android plugin:"
-          echo "$PATCHED_ANDROID_PLUGIN"
-
-          echo "Original Qt Android plugin:"
-          echo "$ORIGINAL_ANDROID_PLUGIN"
-
-          cp -f \
-            "$PATCHED_ANDROID_PLUGIN" \
-            "$ORIGINAL_ANDROID_PLUGIN"
-
-          echo "Qt Android platform plugin replacement: OK"
-
-          echo "===== VERIFY FINAL OVERLAY ====="
+          echo "===== VERIFY EGL PLUGIN WAS PRESERVED ====="
 
           QT_EGL_PLUGIN=$(find "$QT_ANDROID_PATCHED" \
             -type f \
@@ -1463,9 +888,12 @@ jobs:
             -print -quit)
 
           if [ -z "$QT_EGL_PLUGIN" ]; then
-            echo "ERROR: Qt Android platform plugin disappeared"
+            echo "ERROR: EGL plugin disappeared"
             exit 1
           fi
+
+          echo "EGL plugin:"
+          echo "$QT_EGL_PLUGIN"
 
           ls -lh \
             "$ORIGINAL_WIDGETS" \
@@ -1582,6 +1010,391 @@ jobs:
           test ! -d qtbase-install
 
           echo "QtBase source/build/install trees removed."
+
+      # ================================================================
+      # PATCH QT ANDROID KEYBOARD TRANSITION GEOMETRY
+      # ================================================================
+      - name: Patch Qt Android keyboard transition geometry
+        run: |
+          echo "===== PATCH QT ANDROID KEYBOARD TRANSITION ====="
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path("qtbase-src")
+
+          input_interface = root / "src/android/jar/src/org/qtproject/qt/android/QtInputInterface.java"
+          input_delegate = root / "src/android/jar/src/org/qtproject/qt/android/QtInputDelegate.java"
+          jni_h = root / "src/plugins/platforms/android/androidjniinput.h"
+          jni_cpp = root / "src/plugins/platforms/android/androidjniinput.cpp"
+          screen_h = root / "src/plugins/platforms/android/qandroidplatformscreen.h"
+          screen_cpp = root / "src/plugins/platforms/android/qandroidplatformscreen.cpp"
+
+          for path in (input_interface, input_delegate, jni_h, jni_cpp, screen_h, screen_cpp):
+              if not path.is_file():
+                  raise SystemExit(f"ERROR: required Qt source file not found: {path}")
+
+          def replace_once(text, pattern, replacement, label, flags=re.M | re.S):
+              out, count = re.subn(pattern, replacement, text, count=1, flags=flags)
+              if count != 1:
+                  raise SystemExit(
+                      f"ERROR: {label}: expected exactly one match, found {count}"
+                  )
+              return out
+
+          # ------------------------------------------------------------
+          # 1. QtInputInterface.java
+          # ------------------------------------------------------------
+          text = input_interface.read_text()
+
+          if "boolean isKeyboardTransitionInProgress();" in text:
+              raise SystemExit("ERROR: QtInputInterface.java already contains the V6 method")
+
+          text = replace_once(
+              text,
+              r"(?m)^(\s*)boolean isSoftwareKeyboardVisible\(\);\s*$",
+              r"\1boolean isSoftwareKeyboardVisible();\n\1boolean isKeyboardTransitionInProgress();",
+              "QtInputInterface declaration"
+          )
+          input_interface.write_text(text)
+
+          # ------------------------------------------------------------
+          # 2. QtInputDelegate.java
+          #
+          # Use whitespace-tolerant matching. Qt 6.10.3 uses a compact
+          # one-line method body here, so do not require exact indentation.
+          # ------------------------------------------------------------
+          text = input_delegate.read_text()
+
+          if "public boolean isKeyboardTransitionInProgress()" in text:
+              raise SystemExit("ERROR: QtInputDelegate.java already contains the V6 method")
+
+          delegate_pattern = (
+              r"(?m)^(?P<indent>[ \t]*)@Override\s*"
+              r"\n(?P=indent)public boolean keyboardTransitionInProgress\(\)\s*"
+              r"\{\s*"
+              r"return\s+m_keyboardTransitionInProgress;\s*"
+              r"\}"
+          )
+
+          delegate_replacement = (
+              r"\g<indent>@Override\n"
+              r"\g<indent>public boolean isKeyboardTransitionInProgress()\n"
+              r"\g<indent>{\n"
+              r"\g<indent>    return m_keyboardTransitionInProgress\n"
+              r"\g<indent>            || m_isKeyboardHidingAnimationOngoing;\n"
+              r"\g<indent>}\n"
+              r"\n"
+              r"\g<indent>@Override\n"
+              r"\g<indent>public boolean keyboardTransitionInProgress() {\n"
+              r"\g<indent>   return m_keyboardTransitionInProgress;\n"
+              r"\g<indent>}"
+          )
+
+          text = replace_once(
+              text,
+              delegate_pattern,
+              delegate_replacement,
+              "QtInputDelegate transition method"
+          )
+          input_delegate.write_text(text)
+
+          # ------------------------------------------------------------
+          # 3. androidjniinput.h
+          # ------------------------------------------------------------
+          text = jni_h.read_text()
+
+          if "bool isKeyboardTransitionInProgress();" in text:
+              raise SystemExit("ERROR: androidjniinput.h already contains the V6 declaration")
+
+          text = replace_once(
+              text,
+              r"(?m)^(\s*)bool isSoftwareKeyboardVisible\(\);\s*$",
+              r"\1bool isSoftwareKeyboardVisible();\n\1bool isKeyboardTransitionInProgress();",
+              "androidjniinput.h declaration"
+          )
+          jni_h.write_text(text)
+
+          # ------------------------------------------------------------
+          # 4. androidjniinput.cpp
+          # ------------------------------------------------------------
+          text = jni_cpp.read_text()
+
+          if "bool isKeyboardTransitionInProgress()" in text:
+              raise SystemExit("ERROR: androidjniinput.cpp already contains the V6 helper")
+
+          cpp_pattern = (
+              r"(?ms)^(?P<indent>[ \t]*)bool isSoftwareKeyboardVisible\(\)\s*"
+              r"\{\s*"
+              r"AndroidBackendRegister \*reg = QtAndroid::backendRegister\(\);\s*"
+              r"return reg->callInterface<QtJniTypes::QtInputInterface, jboolean>\("
+              r"\s*\"isSoftwareKeyboardVisible\"\s*\);\s*"
+              r"\}"
+          )
+
+          cpp_replacement = (
+              r"\g<indent>bool isSoftwareKeyboardVisible()\n"
+              r"\g<indent>{\n"
+              r"\g<indent>    AndroidBackendRegister *reg = QtAndroid::backendRegister();\n"
+              r"\g<indent>    return reg->callInterface<QtJniTypes::QtInputInterface, jboolean>(\n"
+              r"\g<indent>        \"isSoftwareKeyboardVisible\");\n"
+              r"\g<indent>}\n"
+              r"\n"
+              r"\g<indent>bool isKeyboardTransitionInProgress()\n"
+              r"\g<indent>{\n"
+              r"\g<indent>    AndroidBackendRegister *reg = QtAndroid::backendRegister();\n"
+              r"\g<indent>    return reg->callInterface<QtJniTypes::QtInputInterface, jboolean>(\n"
+              r"\g<indent>        \"isKeyboardTransitionInProgress\");\n"
+              r"\g<indent>}"
+          )
+
+          text = replace_once(
+              text,
+              cpp_pattern,
+              cpp_replacement,
+              "androidjniinput.cpp helper"
+          )
+          jni_cpp.write_text(text)
+
+          # ------------------------------------------------------------
+          # 5. qandroidplatformscreen.h
+          # ------------------------------------------------------------
+          text = screen_h.read_text()
+
+          if "m_geometrySyncTimer" in text:
+              raise SystemExit("ERROR: qandroidplatformscreen.h already contains the V6 timer")
+
+          screen_h_pattern = (
+              r"(?ms)(\s*QWaitCondition m_surfaceWaitCondition;\s*"
+              r"\s*QSize m_size;\s*)"
+          )
+          screen_h_replacement = (
+              r"\1\n"
+              r"    void syncAvailableGeometry();\n"
+              r"    QTimer m_geometrySyncTimer;\n"
+              r"    bool m_geometryUpdatePending = false;\n"
+          )
+
+          text = replace_once(
+              text,
+              screen_h_pattern,
+              screen_h_replacement,
+              "qandroidplatformscreen.h members"
+          )
+          screen_h.write_text(text)
+
+          # ------------------------------------------------------------
+          # 6. qandroidplatformscreen.cpp include + constructor
+          # ------------------------------------------------------------
+          text = screen_cpp.read_text()
+
+          if '#include "androidjniinput.h"' not in text:
+              text = replace_once(
+                  text,
+                  r'(?m)^#include "qandroidplatformscreen\.h"\s*$',
+                  '#include "qandroidplatformscreen.h"\n#include "androidjniinput.h"',
+                  "qandroidplatformscreen.cpp include"
+              )
+
+          if "m_geometrySyncTimer.setSingleShot(true);" not in text:
+              constructor_pattern = (
+                  r"(?ms)^(QAndroidPlatformScreen::QAndroidPlatformScreen\(\)\s*\{\s*)"
+                  r"(connect\(qGuiApp,\s*&QGuiApplication::applicationStateChanged,\s*this,\s*"
+                  r"&QAndroidPlatformScreen::applicationStateChanged\);\s*)"
+                  r"(\})"
+              )
+
+              constructor_replacement = (
+                  r"\1"
+                  r"    m_geometrySyncTimer.setSingleShot(true);\n"
+                  r"    m_geometrySyncTimer.setInterval(16);\n\n"
+                  r"    connect(&m_geometrySyncTimer, &QTimer::timeout,\n"
+                  r"            this, &QAndroidPlatformScreen::syncAvailableGeometry);\n\n"
+                  r"\2"
+                  r"\3"
+              )
+
+              text = replace_once(
+                  text,
+                  constructor_pattern,
+                  constructor_replacement,
+                  "qandroidplatformscreen.cpp constructor"
+              )
+
+          # ------------------------------------------------------------
+          # 7. Replace setAvailableGeometry() with deferred application.
+          # ------------------------------------------------------------
+          function_start = text.find(
+              "void QAndroidPlatformScreen::setAvailableGeometry(const QRect &rect)"
+          )
+          if function_start < 0:
+              raise SystemExit("ERROR: setAvailableGeometry() not found")
+
+          function_end = text.find("\n}\n", function_start)
+          if function_end < 0:
+              raise SystemExit("ERROR: setAvailableGeometry() end not found")
+
+          old_function = text[function_start:function_end + 3]
+
+          if "void QAndroidPlatformScreen::syncAvailableGeometry()" in old_function:
+              raise SystemExit("ERROR: setAvailableGeometry() already appears patched")
+
+          if not re.search(
+              r"void QAndroidPlatformScreen::setAvailableGeometry\(const QRect &rect\)\s*\{\s*"
+              r"if\s*\(m_availableGeometry\s*==\s*rect\)\s*return;",
+              old_function,
+              re.S
+          ):
+              raise SystemExit("ERROR: unexpected setAvailableGeometry() body; refusing to patch")
+
+          new_function = """void QAndroidPlatformScreen::setAvailableGeometry(const QRect &rect)
+          {
+              if (m_availableGeometry == rect)
+                  return;
+
+              m_availableGeometry = rect;
+
+              if (QtAndroidInput::isKeyboardTransitionInProgress()) {
+                  m_geometryUpdatePending = true;
+                  if (!m_geometrySyncTimer.isActive())
+                      m_geometrySyncTimer.start();
+                  return;
+              }
+
+              syncAvailableGeometry();
+          }
+          """
+
+          text = text[:function_start] + new_function + text[function_end + 3:]
+
+          # Insert syncAvailableGeometry() immediately after setAvailableGeometry().
+          sync_function = """void QAndroidPlatformScreen::syncAvailableGeometry()
+          {
+              if (QtAndroidInput::isKeyboardTransitionInProgress()) {
+                  m_geometryUpdatePending = true;
+                  m_geometrySyncTimer.start();
+                  return;
+              }
+
+              if (!m_geometryUpdatePending
+                  && m_availableGeometry.isNull())
+                  return;
+
+              m_geometryUpdatePending = false;
+
+              const QRect rect = m_availableGeometry;
+              const QRect oldGeometry = m_availableGeometry;
+
+              m_size = sizeForDisplayId(m_displayId);
+              QWindowSystemInterface::handleScreenGeometryChange(
+                  QPlatformScreen::screen(), geometry(), availableGeometry());
+              resizeMaximizedWindows();
+
+              if (oldGeometry.width() == 0 && oldGeometry.height() == 0
+                  && rect.width() > 0 && rect.height() > 0) {
+                  const QList<QWindow *> windows = QGuiApplication::allWindows();
+                  for (QWindow *w : windows) {
+                      if (w->handle()) {
+                          const QRect windowGeometry = w->handle()->geometry();
+                          if (windowGeometry.width() > 0
+                              && windowGeometry.height() > 0) {
+                              QWindowSystemInterface::handleExposeEvent(
+                                  w, QRect(QPoint(0, 0), windowGeometry.size()));
+                          }
+                      }
+                  }
+              }
+          }
+          """
+
+          insertion_point = text.find(
+              "\n}\n",
+              text.find("void QAndroidPlatformScreen::setAvailableGeometry(const QRect &rect)")
+          )
+          if insertion_point < 0:
+              raise SystemExit("ERROR: unable to locate setAvailableGeometry() end")
+
+          insertion_point += 3
+          text = text[:insertion_point] + "\n" + sync_function + text[insertion_point:]
+
+          # ------------------------------------------------------------
+          # 8. Final source verification.
+          # ------------------------------------------------------------
+          checks = {
+              input_interface: [
+                  "boolean isKeyboardTransitionInProgress();",
+              ],
+              input_delegate: [
+                  "public boolean isKeyboardTransitionInProgress()",
+                  "m_keyboardTransitionInProgress",
+                  "m_isKeyboardHidingAnimationOngoing",
+              ],
+              jni_h: [
+                  "bool isKeyboardTransitionInProgress();",
+              ],
+              jni_cpp: [
+                  "bool isKeyboardTransitionInProgress()",
+                  '"isKeyboardTransitionInProgress"',
+              ],
+              screen_h: [
+                  "void syncAvailableGeometry();",
+                  "QTimer m_geometrySyncTimer;",
+                  "bool m_geometryUpdatePending = false;",
+              ],
+              screen_cpp: [
+                  '#include "androidjniinput.h"',
+                  "m_geometrySyncTimer.setSingleShot(true);",
+                  "m_geometrySyncTimer.setInterval(16);",
+                  "QtAndroidInput::isKeyboardTransitionInProgress()",
+                  "void QAndroidPlatformScreen::syncAvailableGeometry()",
+                  "m_geometryUpdatePending = true;",
+              ],
+          }
+
+          for path, markers in checks.items():
+              content = path.read_text()
+              for marker in markers:
+                  if marker not in content:
+                      raise SystemExit(
+                          f"ERROR: keyboard transition patch verification failed "
+                          f"for {path}: {marker}"
+                      )
+
+          # Ensure we did not accidentally create duplicate implementations.
+          delegate_impl_count = len(re.findall(
+              r"public boolean keyboardTransitionInProgress\s*\(",
+              input_delegate.read_text()
+          ))
+          combined_impl_count = len(re.findall(
+              r"public boolean isKeyboardTransitionInProgress\s*\(",
+              input_delegate.read_text()
+          ))
+
+          if delegate_impl_count != 1 or combined_impl_count != 1:
+              raise SystemExit(
+                  "ERROR: QtInputDelegate.java final method count is invalid: "
+                  f"keyboardTransitionInProgress={delegate_impl_count}, "
+                  f"isKeyboardTransitionInProgress={combined_impl_count}"
+              )
+
+          print("Qt Android keyboard transition source patch: OK")
+          print("Java IME transition API: OK")
+          print("JNI transition helper: OK")
+          print("QAndroidPlatformScreen geometry deferral: OK")
+          PY
+
+          echo "===== VERIFY KEYBOARD TRANSITION PATCH ====="
+          grep -n -A8 -B3 \
+            "isKeyboardTransitionInProgress" \
+            qtbase-src/src/android/jar/src/org/qtproject/qt/android/QtInputInterface.java \
+            qtbase-src/src/android/jar/src/org/qtproject/qt/android/QtInputDelegate.java \
+            qtbase-src/src/plugins/platforms/android/androidjniinput.h \
+            qtbase-src/src/plugins/platforms/android/androidjniinput.cpp
+
+          grep -n -A18 -B6 \
+            "syncAvailableGeometry" \
+            qtbase-src/src/plugins/platforms/android/qandroidplatformscreen.cpp
 
       # ================================================================
       # CONFIGURE PATCHY
@@ -1912,95 +1725,6 @@ jobs:
           echo ""
           echo "The APK contains the same .text executable"
           echo "code as the patched QtWidgets binary."
-
-      # ================================================================
-      # VERIFY FINAL APK QT ANDROID PLATFORM PLUGIN
-      # ================================================================
-      - name: Verify final APK Qt Android platform plugin
-        run: |
-          echo "===== VERIFY FINAL APK QT ANDROID PLATFORM PLUGIN ====="
-
-          APK=$(find build/android-release \
-            -type f \
-            -name "*.apk" \
-            -print -quit)
-
-          if [ -z "$APK" ]; then
-            echo "ERROR: APK not found"
-            exit 1
-          fi
-
-          rm -f final-libplugins_platforms_qtforandroid_arm64-v8a.so
-
-          unzip -p "$APK" \
-            lib/arm64-v8a/libplugins_platforms_qtforandroid_arm64-v8a.so \
-            > final-libplugins_platforms_qtforandroid_arm64-v8a.so
-
-          if [ ! -s final-libplugins_platforms_qtforandroid_arm64-v8a.so ]; then
-            echo "ERROR: qtforandroid plugin not found in APK"
-            exit 1
-          fi
-
-          QT_EGL=$(find "$QT_ROOT_DIR" \
-            -type f \
-            -name "libplugins_platforms_qtforandroid_arm64-v8a.so" \
-            -print -quit)
-
-          if [ -z "$QT_EGL" ]; then
-            echo "ERROR: patched Qt Android platform plugin not found"
-            exit 1
-          fi
-
-          echo "Patched Qt Android plugin:"
-          echo "$QT_EGL"
-
-          echo "Final APK Qt Android plugin:"
-          ls -lh final-libplugins_platforms_qtforandroid_arm64-v8a.so
-
-          command -v llvm-objcopy >/dev/null 2>&1 || {
-            echo "ERROR: llvm-objcopy not found"
-            exit 1
-          }
-
-          rm -f \
-            qtforandroid-text.bin \
-            apk-qtforandroid-text.bin
-
-          llvm-objcopy \
-            --dump-section .text=qtforandroid-text.bin \
-            "$QT_EGL"
-
-          llvm-objcopy \
-            --dump-section .text=apk-qtforandroid-text.bin \
-            final-libplugins_platforms_qtforandroid_arm64-v8a.so
-
-          if [ ! -s qtforandroid-text.bin ]; then
-            echo "ERROR: Could not extract .text from patched Qt Android plugin"
-            exit 1
-          fi
-
-          if [ ! -s apk-qtforandroid-text.bin ]; then
-            echo "ERROR: Could not extract .text from APK Qt Android plugin"
-            exit 1
-          fi
-
-          QT_TEXT_HASH=$(sha256sum qtforandroid-text.bin | awk '{print $1}')
-          APK_TEXT_HASH=$(sha256sum apk-qtforandroid-text.bin | awk '{print $1}')
-
-          echo "Patched Qt Android plugin .text SHA256:"
-          echo "$QT_TEXT_HASH"
-
-          echo "APK Qt Android plugin .text SHA256:"
-          echo "$APK_TEXT_HASH"
-
-          if [ "$QT_TEXT_HASH" != "$APK_TEXT_HASH" ]; then
-            echo "ERROR: APK Qt Android platform plugin .text DOES NOT MATCH"
-            exit 1
-          fi
-
-          echo "==============================================="
-          echo "FINAL APK QT ANDROID PLUGIN CODE VERIFICATION: OK"
-          echo "==============================================="
 
       # ================================================================
       # CHECK APK
