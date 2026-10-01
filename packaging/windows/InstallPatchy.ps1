@@ -552,49 +552,23 @@ function Invoke-PatchyInstallWithRetry {
 }
 
 function New-PatchyLogoBitmap {
-    param([int]$Size = 64)
+    param([string]$IconPath, [int]$Size = 64)
 
+    # Use the same authored artwork as the executable and installed shortcuts.
+    # Request the largest ICO frame before scaling it to the wizard's slot.
+    $icon = New-Object System.Drawing.Icon $IconPath, 256, 256
+    $source = $icon.ToBitmap()
     $bitmap = New-Object System.Drawing.Bitmap $Size, $Size, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
     $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
-    $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
-    $scale = $Size / 64.0
-    $sx = { param([double]$value) [single]($value * $scale) }
-
-    $tile = New-Object System.Drawing.RectangleF (& $sx 7), (& $sx 7), (& $sx 50), (& $sx 50)
-    $gradient = New-Object System.Drawing.Drawing2D.LinearGradientBrush $tile,
-        ([System.Drawing.Color]::FromArgb(88, 170, 235)),
-        ([System.Drawing.Color]::FromArgb(242, 177, 92)),
-        45
-    $blend = New-Object System.Drawing.Drawing2D.ColorBlend 3
-    $blend.Positions = [single[]](0.0, 0.55, 1.0)
-    $blend.Colors = [System.Drawing.Color[]](
-        [System.Drawing.Color]::FromArgb(88, 170, 235),
-        [System.Drawing.Color]::FromArgb(132, 214, 169),
-        [System.Drawing.Color]::FromArgb(242, 177, 92)
-    )
-    $gradient.InterpolationColors = $blend
-    $graphics.FillRectangle($gradient, $tile)
-    $gradient.Dispose()
-
-    $inner = New-Object System.Drawing.RectangleF (& $sx 11), (& $sx 11), (& $sx 42), (& $sx 42)
-    $graphics.FillRectangle((New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(23, 30, 40))), $inner)
-
-    $canvas = New-Object System.Drawing.RectangleF (& $sx 19), (& $sx 19), (& $sx 26), (& $sx 24)
-    $graphics.FillRectangle((New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(247, 249, 252))), $canvas)
-    $graphics.FillRectangle((New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(88, 170, 235))), (& $sx 24), (& $sx 24), (& $sx 13), (& $sx 12))
-    $graphics.FillRectangle((New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(132, 214, 169))), (& $sx 27), (& $sx 31), (& $sx 13), (& $sx 12))
-
-    $patch = New-Object System.Drawing.Drawing2D.GraphicsPath
-    $patch.AddPolygon([System.Drawing.PointF[]]@(
-        (New-Object System.Drawing.PointF (& $sx 27), (& $sx 35)),
-        (New-Object System.Drawing.PointF (& $sx 36), (& $sx 28)),
-        (New-Object System.Drawing.PointF (& $sx 49), (& $sx 36)),
-        (New-Object System.Drawing.PointF (& $sx 39), (& $sx 41))
-    ))
-    $graphics.FillPath((New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(242, 177, 92))), $patch)
-    $patch.Dispose()
-    $graphics.Dispose()
-
+    try {
+        $graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+        $graphics.DrawImage($source, 0, 0, $Size, $Size)
+    }
+    finally {
+        $graphics.Dispose()
+        $source.Dispose()
+        $icon.Dispose()
+    }
     return $bitmap
 }
 
@@ -661,7 +635,9 @@ function Show-PatchyInstallerWizard {
     $logo = New-Object System.Windows.Forms.PictureBox
     $logo.Size = New-Object System.Drawing.Size 74, 74
     $logo.Location = New-Object System.Drawing.Point 37, 42
-    $logo.Image = New-PatchyLogoBitmap 74
+    if ($formIcon) {
+        $logo.Image = New-PatchyLogoBitmap -IconPath $installerIconPath -Size 74
+    }
     $logo.SizeMode = [System.Windows.Forms.PictureBoxSizeMode]::CenterImage
     $leftPanel.Controls.Add($logo)
 

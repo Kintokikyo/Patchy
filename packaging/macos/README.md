@@ -15,9 +15,9 @@ signatures; executing that intermediate connector can be killed by macOS.
 
 Bundle metadata lives in `Info.plist.in` (configured through CMake's
 `MACOSX_BUNDLE_*` properties; the version comes from the CMake project version).
-`patchy.icns` was generated from the native layers of `src/app/patchy.ico`
-(largest layer is 256 px; regenerate with `iconutil -c icns` from an iconset if the
-icon art changes).
+`patchy.icns` contains native and Retina representations up to 1024 px, rendered
+from the folded SVG source. Regenerate all platform icons together with
+`scripts/dev/generate-branding.py`; see [branding](../branding/README.md).
 
 ## One-time signing setup (Seth)
 

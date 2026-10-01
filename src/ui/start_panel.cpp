@@ -166,7 +166,8 @@ StartPanel::StartPanel(QWidget* parent) : QWidget(parent) {
   auto* header_row = new QHBoxLayout();
   header_row->setSpacing(18);
   auto* artwork = new SplashArtwork(column);
-  artwork->setFixedSize(110, 141);
+  artwork->setObjectName(QStringLiteral("startPanelArtwork"));
+  artwork->setFixedSize(136, 136);
   header_row->addStretch(1);
   header_row->addWidget(artwork);
   auto* header_text = new QVBoxLayout();
@@ -174,9 +175,7 @@ StartPanel::StartPanel(QWidget* parent) : QWidget(parent) {
   auto* title = new QLabel(tr("Patchy Image Editor"), column);
   bind_translated_text(title, QT_TR_NOOP("Patchy Image Editor"), "patchy::ui::StartPanel");
   title->setObjectName(QStringLiteral("startPanelTitle"));
-#ifdef Q_OS_WASM
   title->setWordWrap(true);
-#endif
   auto* tagline = new QLabel(tr("Open source photo editing. Free forever, no subscriptions."), column);
   bind_translated_text(tagline, QT_TR_NOOP("Open source photo editing. Free forever, no subscriptions."), "patchy::ui::StartPanel");
   tagline->setObjectName(QStringLiteral("startPanelTagline"));
@@ -423,7 +422,7 @@ StartPanel::StartPanel(QWidget* parent) : QWidget(parent) {
     QWidget#startPanel {
       background: @window_bg;
     }
-    QWidget#startPanelColumn {
+    QWidget#startPanelColumn, QWidget#startPanelArtwork {
       background: transparent;
     }
     QScrollArea#startPanelWebScroll, QWidget#startPanelWebContent {

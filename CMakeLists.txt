@@ -1631,10 +1631,13 @@ ${PATCHY_LUPDATE_MANIFEST_SOURCES}
               DESTINATION "${CMAKE_INSTALL_DATADIR}/applications")
       install(FILES "${PROJECT_SOURCE_DIR}/packaging/linux/com.rtsoft.patchy.metainfo.xml"
               DESTINATION "${CMAKE_INSTALL_DATADIR}/metainfo")
-      foreach(icon_size 16 32 48 64 128 256)
+      foreach(icon_size 16 32 48 64 128 256 512)
         install(FILES "${PROJECT_SOURCE_DIR}/packaging/linux/icons/hicolor/${icon_size}x${icon_size}/apps/com.rtsoft.patchy.png"
                 DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/${icon_size}x${icon_size}/apps")
       endforeach()
+      install(FILES "${PROJECT_SOURCE_DIR}/packaging/branding/patchy-logo-folded.svg"
+              DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps"
+              RENAME com.rtsoft.patchy.svg)
     endif()
   else()
     message(STATUS "Qt 6 Widgets was not found; skipping the native Patchy app target.")
