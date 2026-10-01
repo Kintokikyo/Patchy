@@ -159,8 +159,8 @@ public:
 
     auto* artwork = new SplashArtwork(this);
     artwork->setObjectName(QStringLiteral("splashArtwork"));
-    artwork->setFixedSize(210, 270);
-    layout->addWidget(artwork);
+    artwork->setFixedSize(180, 180);
+    layout->addWidget(artwork, 0, Qt::AlignTop);
 
     auto* copy = new QVBoxLayout();
     copy->setContentsMargins(0, 12, 0, 6);
@@ -170,6 +170,7 @@ public:
     auto* title = new QLabel(QObject::tr("Patchy Image Editor"), this);
     title->setObjectName(QStringLiteral("splashTitle"));
     title->setTextFormat(Qt::PlainText);
+    title->setWordWrap(true);
     copy->addWidget(title);
 
     auto* subtitle = new QLabel(QObject::tr("Open source photo editing. Free forever, no subscriptions."), this);

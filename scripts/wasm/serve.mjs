@@ -21,6 +21,7 @@ const types = {
   '.wasm': 'application/wasm',
   '.data': 'application/octet-stream',
   '.json': 'application/json',
+  '.webmanifest': 'application/manifest+json',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.ico': 'image/x-icon',

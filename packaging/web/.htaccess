@@ -10,6 +10,7 @@
 # site without caching hints instead of failing with a 500.
 <IfModule mod_mime.c>
 AddType application/wasm .wasm
+AddType application/manifest+json .webmanifest
 # Precompressed variants (patchy.wasm.br and friends, written by
 # scripts\wasm\precompress-site.mjs during staging): the suffix is an
 # encoding, not a type, so the response keeps the inner extension's
@@ -45,7 +46,7 @@ Header always set Cross-Origin-Embedder-Policy "require-corp"
 <FilesMatch "\.html$">
 Header set Cache-Control "no-cache"
 </FilesMatch>
-<FilesMatch "\.(js|wasm|data|png|ico|svg)(\.(br|gz))?$">
+<FilesMatch "\.(js|wasm|data|png|ico|svg|webmanifest)(\.(br|gz))?$">
 Header set Cache-Control "public, max-age=31536000, immutable"
 </FilesMatch>
 # The same URL can answer with br, gzip, or identity depending on the

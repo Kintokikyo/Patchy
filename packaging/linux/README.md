@@ -47,8 +47,9 @@ root (GitHub issue 14, CachyOS, September 2026):
   runtime, so HEIC then works with zero user action).
 - `com.rtsoft.patchy.desktop`, `com.rtsoft.patchy.metainfo.xml`, `icons/hicolor/*` —
   freedesktop integration, installed by CMake's `UNIX AND NOT APPLE` install rules
-  (binary in `bin/`, fonts/translations under `share/patchy/`). The icons were
-  extracted from the native layers of `src/app/patchy.ico`. Bump the metainfo
+  (binary in `bin/`, fonts/translations under `share/patchy/`). The PNG icons (through
+  512 px) and scalable SVG share the folded source artwork; regenerate with
+  `scripts/dev/generate-branding.py` (see [branding](../branding/README.md)). Bump the metainfo
   `<release>` tag with each version (see `docs/release-process.md`).
 - `make-flatpak.sh` — builds the bundle on a machine with `flatpak-builder`
   (the linux build host): `bash packaging/linux/make-flatpak.sh`. One-time setup is in the
