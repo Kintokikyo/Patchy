@@ -159,6 +159,7 @@ Read the linked document before working on the feature. The document, not this i
 - **JavaScript scripting and bundled scripts:** [docs/scripting.md](docs/scripting.md).
 - **Automatic document recovery and atomic file writes:** [docs/document-recovery.md](docs/document-recovery.md). Recovery copies live per running instance under a QLockFile; every document writer goes through `write_file_bytes_atomically` or `QSaveFile`.
 - **Single-instance forwarding, CLI screenshots, and `--headless` runs:** `src/app/main.cpp`, [docs/testing.md](docs/testing.md), and the CLI section of [docs/scripting.md](docs/scripting.md).
+- **Logo and icon source art:** `packaging/branding/`.
 - **README screenshots and contact sheets:** [docs/testing.md](docs/testing.md).
 - **Performance and the stress harness:** [docs/performance.md](docs/performance.md); the Move/Free Transform drag-preview machinery is in [docs/interactive-previews.md](docs/interactive-previews.md).
 - **Testy PSD benchmark:** [docs/testy.md](docs/testy.md).

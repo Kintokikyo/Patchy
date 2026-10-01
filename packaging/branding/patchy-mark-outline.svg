@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="688" height="664" viewBox="92 88 688 664">
+  <title>Patchy mark, outlined patch</title>
+  <path id="p" d="M232,96 H664 L772,204 V384 L600,556 H300 V612 L168,744 H100 V228 Z M300,256 H564 V396 H300 Z" fill="#363F3B" fill-rule="evenodd"/>
+  <path id="patch" d="M536,96 H664 L772,204 V384 L714,442 L536,264 Z" fill="#FFFFFF" stroke="#363F3B" stroke-width="12" stroke-linejoin="miter"/>
+</svg>
