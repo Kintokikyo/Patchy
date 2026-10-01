@@ -8581,6 +8581,14 @@ RGB：%2, %3, %4</translation>
         <source>Import Notes</source>
         <translation>匯入備註</translation>
     </message>
+    <message>
+        <source>Crop to Selection (Advanced)</source>
+        <translation>裁切至選取範圍(進階)</translation>
+    </message>
+    <message>
+        <source>Also delete layers that end up fully off the canvas</source>
+        <translation>同時刪除完全位於版面之外的圖層</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -18212,6 +18220,18 @@ Baked into images: %1.</source>
         <translation>SVG 會將形狀圖層保留為向量，但此文件包含 SVG 無法以向量保存的內容，因此 Patchy 會儲存一份副本，並將這些內容合併為影像。開啟中的文件仍會保留圖層和未儲存的變更。若要讓所有內容都維持可編輯，請改存為 Photoshop 文件 (.psd)。
 
 合併為影像的內容: %1.</translation>
+    </message>
+    <message>
+        <source>Crop to Selection (Advance&amp;d)...</source>
+        <translation>裁切至選取範圍(進階)(&amp;D)...</translation>
+    </message>
+    <message>
+        <source>Open Canvas Size prefilled with the selection so the crop can be adjusted before it is applied</source>
+        <translation>開啟已填入選取範圍的「版面尺寸」，以便在套用前調整裁切</translation>
+    </message>
+    <message>
+        <source>Canvas %1 x %2, off-canvas layers deleted: %3</source>
+        <translation>版面 %1 x %2，已刪除版面外的圖層: %3</translation>
     </message>
 </context>
 <context>

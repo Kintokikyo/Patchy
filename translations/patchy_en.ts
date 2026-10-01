@@ -8597,6 +8597,14 @@ RGB: %2, %3, %4</source>
         <source>Import Notes</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Crop to Selection (Advanced)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Also delete layers that end up fully off the canvas</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -18214,6 +18222,18 @@ Baked into images: %1.</source>
         <source>SVG keeps shape layers as vectors, but this document has content SVG cannot hold as vectors, so Patchy will save a copy with that content baked into images. The open document will keep its layers and unsaved changes. To keep everything editable, save as a Photoshop document (.psd) instead.
 
 Baked into images: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Crop to Selection (Advance&amp;d)...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open Canvas Size prefilled with the selection so the crop can be adjusted before it is applied</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Canvas %1 x %2, off-canvas layers deleted: %3</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

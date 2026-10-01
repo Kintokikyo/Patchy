@@ -4345,6 +4345,135 @@ void ui_canvas_size_dialog_link_keeps_aspect_ratio() {
   CHECK(document.height() == 384);
 }
 
+namespace {
+
+// A 4 x 4 layer whose bounds sit at `origin`, added straight to the window's document.
+patchy::LayerId add_far_layer(patchy::ui::MainWindow& window, const char* name, QPoint origin) {
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  patchy::Layer layer(document.allocate_layer_id(), name, patchy::PixelBuffer(4, 4, patchy::PixelFormat::rgba8()));
+  layer.set_bounds(patchy::Rect{origin.x(), origin.y(), 4, 4});
+  const auto id = layer.id();
+  document.add_layer(std::move(layer));
+  return id;
+}
+
+}  // namespace
+
+// The Canvas Size "delete layers fully off the canvas" checkbox: off by default, it
+// removes the layers the resize leaves entirely outside the canvas, applies even when
+// the size is unchanged (like the crop checkbox), and the status bar reports the count.
+void ui_canvas_size_dialog_deletes_off_canvas_layers() {
+  SettingsValueRestorer restore_unit(QStringLiteral("canvasSize/lastUnit"));
+  patchy::ui::app_settings().remove(QStringLiteral("canvasSize"));
+  patchy::ui::MainWindow window;  // default document: 1024x768 at 72 ppi
+  show_window(window);
+  const auto far_id = add_far_layer(window, "Far away", QPoint(2000, 2000));
+  const auto near_id = add_far_layer(window, "Near", QPoint(1022, 766));
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  const auto layer_count = document.layers().size();
+
+  bool drove_dialog = false;
+  QTimer::singleShot(0, [&] {
+    for (auto* widget : QApplication::topLevelWidgets()) {
+      if (widget->objectName() != QStringLiteral("patchyCanvasSizeDialog")) {
+        continue;
+      }
+      auto* dialog = qobject_cast<QDialog*>(widget);
+      auto* remove = dialog->findChild<QCheckBox*>(QStringLiteral("canvasSizeDeleteOffCanvasCheck"));
+      CHECK(remove != nullptr && !remove->isChecked());
+      CHECK(dialog->windowTitle() == QStringLiteral("Canvas Size"));
+      remove->setChecked(true);
+      drove_dialog = true;
+      dialog->accept();
+      return;
+    }
+    CHECK(false);
+  });
+  require_action(window, "imageCanvasSizeAction")->trigger();
+  QApplication::processEvents();
+  CHECK(drove_dialog);
+  CHECK(document.width() == 1024 && document.height() == 768);
+  CHECK(document.find_layer(far_id) == nullptr);
+  CHECK(document.find_layer(near_id) != nullptr);
+  CHECK(document.layers().size() == layer_count - 1);
+  CHECK(window.statusBar()->currentMessage() == QStringLiteral("Canvas 1024 x 768, off-canvas layers deleted: 1"));
+}
+
+// Crop to Selection (Advanced) opens the Canvas Size dialog with the selection as its
+// frame: the fields prefill to the selection size, Current Size still shows the
+// document, an unchanged accept crops exactly to the selection (content translates by
+// its origin), and the delete option drops what the crop left outside.
+void ui_crop_to_selection_advanced_prefills_canvas_size_dialog() {
+  SettingsValueRestorer restore_unit(QStringLiteral("canvasSize/lastUnit"));
+  patchy::ui::app_settings().remove(QStringLiteral("canvasSize"));
+  patchy::ui::MainWindow window;  // default document: 1024x768 at 72 ppi
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_snap_enabled(false);
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+
+  // No selection: the command refuses like the plain crop, without a dialog.
+  require_action(window, "imageCropToSelectionAdvancedAction")->trigger();
+  QApplication::processEvents();
+  CHECK(document.width() == 1024);
+  CHECK(window.statusBar()->currentMessage() == QStringLiteral("Make a rectangular selection before cropping"));
+
+  const auto far_id = add_far_layer(window, "Far away", QPoint(900, 700));
+  const auto paint_layer_bounds = [&document] {
+    for (const auto& layer : std::as_const(document).layers()) {
+      if (layer.name() == "Paint Layer") {
+        return layer.bounds();
+      }
+    }
+    CHECK(false);
+    return patchy::Rect{};
+  };
+  const auto paint_bounds_before = paint_layer_bounds();
+  canvas->set_tool(patchy::ui::CanvasTool::Marquee);
+  drag(*canvas, QPoint(60, 60), QPoint(200, 160));
+  const auto selection = canvas->selected_document_rect();
+  CHECK(selection.has_value() && !selection->isEmpty());
+  CHECK(selection->width() < 1024 && selection->height() < 768);
+
+  bool drove_dialog = false;
+  QTimer::singleShot(0, [&] {
+    for (auto* widget : QApplication::topLevelWidgets()) {
+      if (widget->objectName() != QStringLiteral("patchyCanvasSizeDialog")) {
+        continue;
+      }
+      auto* dialog = qobject_cast<QDialog*>(widget);
+      auto* width = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("canvasSizeWidthSpin"));
+      auto* height = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("canvasSizeHeightSpin"));
+      auto* width_unit = dialog->findChild<QComboBox*>(QStringLiteral("canvasSizeWidthUnitCombo"));
+      auto* current_width = dialog->findChild<QLabel*>(QStringLiteral("canvasSizeCurrentWidthLabel"));
+      auto* remove = dialog->findChild<QCheckBox*>(QStringLiteral("canvasSizeDeleteOffCanvasCheck"));
+      CHECK(width != nullptr && height != nullptr && width_unit != nullptr && current_width != nullptr &&
+            remove != nullptr);
+      CHECK(dialog->windowTitle() == QStringLiteral("Crop to Selection (Advanced)"));
+      CHECK(width_unit->currentText() == QStringLiteral("Pixels"));
+      CHECK(width->value() == static_cast<double>(selection->width()));
+      CHECK(height->value() == static_cast<double>(selection->height()));
+      CHECK(current_width->text() == QStringLiteral("1024 px"));
+      remove->setChecked(true);
+      widget->grab().save(QStringLiteral("test-artifacts/ui_crop_to_selection_advanced.png"));
+      drove_dialog = true;
+      dialog->accept();
+      return;
+    }
+    CHECK(false);
+  });
+  require_action(window, "imageCropToSelectionAdvancedAction")->trigger();
+  QApplication::processEvents();
+  CHECK(drove_dialog);
+  CHECK(document.width() == selection->width());
+  CHECK(document.height() == selection->height());
+  CHECK(document.find_layer(far_id) == nullptr);
+  const auto paint_bounds_after = paint_layer_bounds();
+  CHECK(paint_bounds_after.x == paint_bounds_before.x - selection->x());
+  CHECK(paint_bounds_after.y == paint_bounds_before.y - selection->y());
+  CHECK(!canvas->selected_document_rect().has_value());
+}
+
 // Photoshop's dialog memory: Image Size keeps its W/H unit and its resolution unit
 // across openings (`imageSize/lastUnit`, `imageSize/lastResolutionUnit`, written on
 // accept only); a first run seeds the W/H unit from the ruler unit, and a token the
@@ -5378,6 +5507,9 @@ std::vector<patchy::test::TestCase> import_print_resolution_tests() {
       {"ui_canvas_size_dialog_units_convert_through_resolution",
        ui_canvas_size_dialog_units_convert_through_resolution},
       {"ui_canvas_size_dialog_link_keeps_aspect_ratio", ui_canvas_size_dialog_link_keeps_aspect_ratio},
+      {"ui_canvas_size_dialog_deletes_off_canvas_layers", ui_canvas_size_dialog_deletes_off_canvas_layers},
+      {"ui_crop_to_selection_advanced_prefills_canvas_size_dialog",
+       ui_crop_to_selection_advanced_prefills_canvas_size_dialog},
       {"ui_image_size_dialog_remembers_units", ui_image_size_dialog_remembers_units},
       {"ui_canvas_size_dialog_remembers_unit", ui_canvas_size_dialog_remembers_unit},
       {"ui_imported_image_density_follows_photoshop_conventions",

@@ -236,6 +236,22 @@ void resize_canvas_and_layers(Document& document, std::int32_t width, std::int32
                               CanvasAnchor anchor = CanvasAnchor::TopLeft,
                               EditColor extension_color = EditColor{255, 255, 255, 255},
                               bool crop_layers = false);
+// The frame the anchor overload resizes to: `reference` (the canvas, or the selection for
+// Crop to Selection (Advanced)) becomes new_width x new_height about its anchor point,
+// in current document coordinates.
+[[nodiscard]] Rect canvas_resize_frame(Rect reference, CanvasAnchor anchor, std::int32_t new_width,
+                                       std::int32_t new_height) noexcept;
+// Canvas resize to an explicit frame in current document coordinates: the canvas becomes
+// frame.width x frame.height with the frame's top-left as the new origin, under the anchor
+// overload's layer, mask, and channel rules. A degenerate frame is a no-op.
+void resize_canvas_to_frame(Document& document, Rect frame,
+                            EditColor extension_color = EditColor{255, 255, 255, 255},
+                            bool crop_layers = false);
+// Removes every non-group layer whose bounds lie entirely outside the canvas and every
+// group emptied by that (Canvas Size's "delete layers fully off the canvas" option).
+// Layers without bounds (adjustments, never-painted layers) stay. Returns the number of
+// layers removed, a removed group counting once.
+std::size_t remove_layers_outside_canvas(Document& document);
 [[nodiscard]] bool crop_document(Document& document, Rect crop);
 // Crop that may extend beyond the canvas: content outside `crop` is discarded,
 // the canvas becomes crop.width x crop.height, area outside the old canvas is

@@ -1341,6 +1341,12 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   canvas_size_action->setObjectName(QStringLiteral("imageCanvasSizeAction"));
   auto* crop_action = image_menu->addAction(tr("&Crop to Selection"));
   crop_action->setObjectName(QStringLiteral("imageCropToSelectionAction"));
+  auto* crop_advanced_action = image_menu->addAction(tr("Crop to Selection (Advance&d)..."));
+  crop_advanced_action->setObjectName(QStringLiteral("imageCropToSelectionAdvancedAction"));
+  bind_translated_status_tip(
+      crop_advanced_action,
+      QT_TR_NOOP("Open Canvas Size prefilled with the selection so the crop can be adjusted before it is applied"));
+  apply_bound_translation(crop_advanced_action);
   image_menu->addSeparator();
   // "Right" is the 90-degree clockwise turn and "Left" the counterclockwise one; the object
   // names and hotkey ids keep their persisted clockwise/counterclockwise identities.
@@ -1359,6 +1365,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   image_size_action->setIcon(simple_icon(QStringLiteral("IS")));
   canvas_size_action->setIcon(simple_icon(QStringLiteral("CS")));
   crop_action->setIcon(simple_icon(QStringLiteral("crop")));
+  crop_advanced_action->setIcon(simple_icon(QStringLiteral("crop")));
   rotate_cw_action->setIcon(simple_icon(QStringLiteral("rotate")));
   rotate_ccw_action->setIcon(simple_icon(QStringLiteral("rotate")));
   rotate_arbitrary_action->setIcon(simple_icon(QStringLiteral("rotate")));
@@ -1367,6 +1374,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   // Plain C now belongs to the Crop tool (tools.crop); the menu command keeps
   // its persisted id but ships without a default, like Photoshop's Image menu.
   register_hotkey(crop_action, "image.crop_to_selection");
+  register_hotkey(crop_advanced_action, "image.crop_to_selection_advanced");
   register_hotkey(rotate_cw_action, "image.rotate_cw", QKeySequence(Qt::CTRL | Qt::Key_BracketRight));
   register_hotkey(rotate_ccw_action, "image.rotate_ccw", QKeySequence(Qt::CTRL | Qt::Key_BracketLeft));
   register_hotkey(rotate_arbitrary_action, "image.rotate_arbitrary");
@@ -1380,6 +1388,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   connect(image_size_action, &QAction::triggered, this, [this] { resize_image_dialog(); });
   connect(canvas_size_action, &QAction::triggered, this, [this] { resize_canvas_dialog(); });
   connect(crop_action, &QAction::triggered, this, [this] { crop_to_selection(); });
+  connect(crop_advanced_action, &QAction::triggered, this, [this] { crop_to_selection_advanced(); });
   connect(rotate_cw_action, &QAction::triggered, this, [this] { rotate_canvas_clockwise(); });
   connect(rotate_ccw_action, &QAction::triggered, this, [this] { rotate_canvas_counterclockwise(); });
   connect(rotate_arbitrary_action, &QAction::triggered, this, [this] { rotate_canvas_arbitrary(); });
@@ -2002,6 +2011,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   ctx.image_size_action = image_size_action;
   ctx.canvas_size_action = canvas_size_action;
   ctx.crop_action = crop_action;
+  ctx.crop_advanced_action = crop_advanced_action;
   ctx.rotate_cw_action = rotate_cw_action;
   ctx.rotate_ccw_action = rotate_ccw_action;
   ctx.rotate_arbitrary_action = rotate_arbitrary_action;

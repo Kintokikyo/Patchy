@@ -8581,6 +8581,14 @@ Mixed selection</source>
         <source>Import Notes</source>
         <translation>読み込みに関する注意</translation>
     </message>
+    <message>
+        <source>Crop to Selection (Advanced)</source>
+        <translation>選択範囲で切り抜き(詳細)</translation>
+    </message>
+    <message>
+        <source>Also delete layers that end up fully off the canvas</source>
+        <translation>カンバス外に完全に出たレイヤーも削除する</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -18212,6 +18220,18 @@ Baked into images: %1.</source>
         <translation>SVG はシェイプレイヤーをベクターのまま保存しますが、このドキュメントには SVG がベクターとして保存できない内容が含まれているため、Patchy はその内容を画像に変換したコピーを保存します。開いているドキュメントのレイヤーと未保存の変更はそのまま残ります。すべてを編集可能なまま残すには、Photoshop ドキュメント (.psd) として保存してください。
 
 画像に変換される内容: %1.</translation>
+    </message>
+    <message>
+        <source>Crop to Selection (Advance&amp;d)...</source>
+        <translation>選択範囲で切り抜き(詳細)(&amp;D)...</translation>
+    </message>
+    <message>
+        <source>Open Canvas Size prefilled with the selection so the crop can be adjusted before it is applied</source>
+        <translation>選択範囲を入力済みのキャンバスサイズを開き、適用前に切り抜きを調整できます</translation>
+    </message>
+    <message>
+        <source>Canvas %1 x %2, off-canvas layers deleted: %3</source>
+        <translation>キャンバス %1 x %2、カンバス外のレイヤーを削除: %3</translation>
     </message>
 </context>
 <context>

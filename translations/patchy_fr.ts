@@ -8608,6 +8608,14 @@ RVB : %2, %3, %4</translation>
         <source>Import Notes</source>
         <translation>Notes d&apos;importation</translation>
     </message>
+    <message>
+        <source>Crop to Selection (Advanced)</source>
+        <translation>Recadrer selon la sélection (Avancé)</translation>
+    </message>
+    <message>
+        <source>Also delete layers that end up fully off the canvas</source>
+        <translation>Supprimer aussi les calques entièrement hors de la zone de travail</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -18265,6 +18273,18 @@ Baked into images: %1.</source>
         <translation>Le format SVG conserve les calques de forme sous forme de vecteurs, mais ce document contient des éléments que SVG ne peut pas stocker en vecteurs. Patchy enregistrera donc une copie où ces éléments sont convertis en images. Le document ouvert conservera ses calques et ses modifications non enregistrées. Pour que tout reste modifiable, enregistrez plutôt en tant que document Photoshop (.psd).
 
 Convertis en images : %1.</translation>
+    </message>
+    <message>
+        <source>Crop to Selection (Advance&amp;d)...</source>
+        <translation>Recadrer selon la sélection (A&amp;vancé)...</translation>
+    </message>
+    <message>
+        <source>Open Canvas Size prefilled with the selection so the crop can be adjusted before it is applied</source>
+        <translation>Ouvre Taille de la zone de travail préremplie avec la sélection pour ajuster le recadrage avant de l’appliquer</translation>
+    </message>
+    <message>
+        <source>Canvas %1 x %2, off-canvas layers deleted: %3</source>
+        <translation>Zone de travail %1 x %2, calques hors zone supprimés : %3</translation>
     </message>
 </context>
 <context>

@@ -383,6 +383,7 @@ void MainWindow::bind_action_translations(ActionBuildContext& ctx) {
       {ctx.image_size_action, QT_TR_NOOP("&Image Size...")},
       {ctx.canvas_size_action, QT_TR_NOOP("&Canvas Size...")},
       {ctx.crop_action, QT_TR_NOOP("&Crop to Selection")},
+      {ctx.crop_advanced_action, QT_TR_NOOP("Crop to Selection (Advance&d)...")},
       {ctx.rotate_cw_action, QT_TR_NOOP("Rotate &Right")},
       {ctx.rotate_ccw_action, QT_TR_NOOP("Rotate &Left")},
       {ctx.rotate_arbitrary_action, QT_TR_NOOP("Rotate &Arbitrary...")},

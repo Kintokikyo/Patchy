@@ -268,8 +268,12 @@ struct CanvasSizeSettings {
   std::int32_t width{0};
   std::int32_t height{0};
   CanvasAnchor anchor{CanvasAnchor::Center};
+  // The new canvas in current document coordinates: the anchor applied to the dialog's
+  // reference frame (the canvas, or the selection for Crop to Selection (Advanced)).
+  Rect frame;
   QColor extension_color{Qt::white};
   bool crop_layers{false};
+  bool delete_off_canvas_layers{false};
 };
 
 struct RotateCanvasSettings {
@@ -813,12 +817,18 @@ std::optional<ImageSizeSettings> request_image_size_settings(QWidget* parent, co
   return ImageSizeSettings{state.pixel_width, state.pixel_height, state.ppi, resample->isChecked()};
 }
 
-std::optional<CanvasSizeSettings> request_canvas_size_settings(QWidget* parent, const Document& document) {
+// `crop_frame` is Crop to Selection (Advanced): the selection rect prefills the fields
+// and replaces the canvas as the frame the anchor grid works on, so the unchanged dialog
+// crops exactly to it and an edit grows or shrinks the crop about its anchor point.
+std::optional<CanvasSizeSettings> request_canvas_size_settings(QWidget* parent, const Document& document,
+                                                               std::optional<Rect> crop_frame) {
   const auto current_width = document.width();
   const auto current_height = document.height();
+  const Rect reference = crop_frame.value_or(Rect{0, 0, current_width, current_height});
   QDialog dialog(parent);
   dialog.setObjectName(QStringLiteral("patchyCanvasSizeDialog"));
-  dialog.setWindowTitle(QObject::tr("Canvas Size"));
+  dialog.setWindowTitle(crop_frame.has_value() ? QObject::tr("Crop to Selection (Advanced)")
+                                               : QObject::tr("Canvas Size"));
   append_themed_style(dialog, QStringLiteral(R"(
     QDialog#patchyCanvasSizeDialog {
       background: @dlg_raised_bg;
@@ -993,7 +1003,7 @@ std::optional<CanvasSizeSettings> request_canvas_size_settings(QWidget* parent, 
     int target_width;
     int target_height;
   };
-  CanvasSizeState state{current_width, current_height};
+  CanvasSizeState state{reference.width, reference.height};
 
   auto* width = new QDoubleSpinBox(&dialog);
   width->setObjectName(QStringLiteral("canvasSizeWidthSpin"));
@@ -1125,6 +1135,12 @@ std::optional<CanvasSizeSettings> request_canvas_size_settings(QWidget* parent, 
   // Destructive opt-in, deliberately never loaded from or saved to settings.
   crop_layers->setChecked(false);
   content_layout->addWidget(crop_layers);
+  auto* delete_off_canvas =
+      new QCheckBox(QObject::tr("Also delete layers that end up fully off the canvas"), &dialog);
+  delete_off_canvas->setObjectName(QStringLiteral("canvasSizeDeleteOffCanvasCheck"));
+  // The same destructive opt-in rule: unchecked on every opening, never persisted.
+  delete_off_canvas->setChecked(false);
+  content_layout->addWidget(delete_off_canvas);
   content_layout->addStretch(1);
 
   QColor extension_color_value(Qt::white);
@@ -1213,7 +1229,7 @@ std::optional<CanvasSizeSettings> request_canvas_size_settings(QWidget* parent, 
 
   // Linked, the other axis follows the document's aspect ratio in absolute pixels, so
   // Relative mode keeps the resulting canvas proportional rather than the two deltas.
-  const auto aspect_ratio = static_cast<double>(current_width) / static_cast<double>(current_height);
+  const auto aspect_ratio = static_cast<double>(reference.width) / static_cast<double>(reference.height);
   const auto follow_linked_axis = [&](bool from_width) {
     if (!link->isChecked()) {
       return;
@@ -1292,8 +1308,13 @@ std::optional<CanvasSizeSettings> request_canvas_size_settings(QWidget* parent, 
   remember_dialog_unit(QStringLiteral("canvasSize/lastUnit"), current_unit());
   const auto checked_anchor =
       anchor_group->checkedId() < 0 ? CanvasAnchor::Center : static_cast<CanvasAnchor>(anchor_group->checkedId());
-  return CanvasSizeSettings{state.target_width, state.target_height, checked_anchor, extension_color_value,
-                            crop_layers->isChecked()};
+  return CanvasSizeSettings{state.target_width,
+                            state.target_height,
+                            checked_anchor,
+                            canvas_resize_frame(reference, checked_anchor, state.target_width, state.target_height),
+                            extension_color_value,
+                            crop_layers->isChecked(),
+                            delete_off_canvas->isChecked()};
 }
 
 }  // namespace
@@ -1459,21 +1480,44 @@ void MainWindow::resize_image_dialog() {
 
 void MainWindow::resize_canvas_dialog() {
   finish_active_text_editor();
-  auto& doc = document();
-  const auto settings = request_canvas_size_settings(this, doc);
+  const auto settings = request_canvas_size_settings(this, document(), std::nullopt);
   if (!settings.has_value()) {
     return;
   }
-  if (settings->width == doc.width() && settings->height == doc.height() && !settings->crop_layers) {
+  apply_canvas_size(settings->frame, settings->extension_color, settings->crop_layers,
+                    settings->delete_off_canvas_layers, tr("Canvas size"));
+}
+
+void MainWindow::crop_to_selection_advanced() {
+  finish_active_text_editor();
+  const auto selection = canvas_->selected_document_rect();
+  if (!selection.has_value() || selection->isEmpty()) {
+    show_status_error(tr("Make a rectangular selection before cropping"));
+    return;
+  }
+  const auto settings = request_canvas_size_settings(this, document(), to_core_rect(*selection));
+  if (!settings.has_value()) {
+    return;
+  }
+  apply_canvas_size(settings->frame, settings->extension_color, settings->crop_layers,
+                    settings->delete_off_canvas_layers, tr("Crop"));
+}
+
+void MainWindow::apply_canvas_size(Rect frame, QColor extension_color, bool crop_layers,
+                                   bool delete_off_canvas_layers, const QString& history_label) {
+  auto& doc = document();
+  const auto frame_is_canvas =
+      frame.x == 0 && frame.y == 0 && frame.width == doc.width() && frame.height == doc.height();
+  if (frame_is_canvas && !crop_layers && !delete_off_canvas_layers) {
     return;
   }
   if (refuse_document_geometry_change()) {
     return;
   }
 
-  push_undo_snapshot(tr("Canvas size"));
-  resize_canvas_and_layers(doc, settings->width, settings->height, settings->anchor,
-                           edit_color(settings->extension_color), settings->crop_layers);
+  push_undo_snapshot(history_label);
+  resize_canvas_to_frame(doc, frame, edit_color(extension_color), crop_layers);
+  const auto deleted_layers = delete_off_canvas_layers ? remove_layers_outside_canvas(doc) : std::size_t{0};
   canvas_->clear_selection();
   const auto previous_channel_target = canvas_->layer_edit_target();
   const auto previous_channel_id = canvas_->active_document_channel_id();
@@ -1487,7 +1531,14 @@ void MainWindow::resize_canvas_dialog() {
   refresh_layer_list();
   refresh_layer_controls();
   refresh_document_info();
-  statusBar()->showMessage(tr("Canvas %1 x %2").arg(settings->width).arg(settings->height));
+  if (deleted_layers > 0) {
+    statusBar()->showMessage(tr("Canvas %1 x %2, off-canvas layers deleted: %3")
+                                 .arg(frame.width)
+                                 .arg(frame.height)
+                                 .arg(static_cast<int>(deleted_layers)));
+    return;
+  }
+  statusBar()->showMessage(tr("Canvas %1 x %2").arg(frame.width).arg(frame.height));
 }
 
 void MainWindow::rotate_canvas_arbitrary() {

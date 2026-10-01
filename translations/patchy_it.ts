@@ -8608,6 +8608,14 @@ RGB: %2, %3, %4</translation>
         <source>Import Notes</source>
         <translation>Note di importazione</translation>
     </message>
+    <message>
+        <source>Crop to Selection (Advanced)</source>
+        <translation>Ritaglia sulla selezione (Avanzato)</translation>
+    </message>
+    <message>
+        <source>Also delete layers that end up fully off the canvas</source>
+        <translation>Elimina anche i livelli che restano completamente fuori dal quadro</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -18265,6 +18273,18 @@ Baked into images: %1.</source>
         <translation>SVG mantiene i livelli forma come vettori, ma questo documento contiene elementi che SVG non può conservare come vettori, quindi Patchy salverà una copia con quegli elementi convertiti in immagini. Il documento aperto manterrà i suoi livelli e le modifiche non salvate. Per mantenere tutto modificabile, salva invece come documento Photoshop (.psd).
 
 Convertiti in immagini: %1.</translation>
+    </message>
+    <message>
+        <source>Crop to Selection (Advance&amp;d)...</source>
+        <translation>Ritaglia sulla selezione (Avan&amp;zato)...</translation>
+    </message>
+    <message>
+        <source>Open Canvas Size prefilled with the selection so the crop can be adjusted before it is applied</source>
+        <translation>Apre Dimensione quadro precompilata con la selezione per regolare il ritaglio prima di applicarlo</translation>
+    </message>
+    <message>
+        <source>Canvas %1 x %2, off-canvas layers deleted: %3</source>
+        <translation>Quadro %1 x %2, livelli fuori dal quadro eliminati: %3</translation>
     </message>
 </context>
 <context>

@@ -45,9 +45,27 @@ hidden layers and layers inside groups. The anchor translates their bounds witho
 resampling. Background layers fill newly exposed canvas with the extension color while
 retaining existing pixels. "Also crop each actual layer to the canvas area" explicitly
 enables the destructive layer/mask crop, even when the canvas dimensions are unchanged.
-The checkbox starts unchecked on every opening and is never persisted. Both modes are
+"Also delete layers that end up fully off the canvas" (`canvasSizeDeleteOffCanvasCheck`,
+core `remove_layers_outside_canvas`) removes every non-group layer whose bounds miss the
+new canvas entirely and any group that empties as a result; layers without bounds
+(adjustments, never-painted layers) stay, and the status line reports the count. Both
+checkboxes start unchecked on every opening and are never persisted. All modes are
 undoable. Document alpha/spot channels remain canvas-sized; editable vector paths, text
 transforms and Smart Object placements continue to follow the anchor translation.
+The resize itself is core `resize_canvas_to_frame(doc, frame, ...)`: the dialog turns its
+reference frame (the canvas, or the selection below), anchor and target size into the new
+canvas rect in current coordinates through `canvas_resize_frame`, and the anchor overload
+`resize_canvas_and_layers` is that same path with the canvas as the frame.
+Image > Crop to Selection (Advanced) (`imageCropToSelectionAdvancedAction`, hotkey id
+`image.crop_to_selection_advanced`, no default) opens this dialog titled "Crop to Selection
+(Advanced)" with the rectangular selection as the reference frame: W/H prefill to the
+selection size, Current Size still shows the document, an unchanged accept crops exactly to
+the selection, and an edit grows or shrinks that rect about the chosen anchor point
+(Relative and Percent stay relative to the document size, as labeled). The link keeps the
+selection's aspect. Coverage: `ui_canvas_size_dialog_deletes_off_canvas_layers`,
+`ui_crop_to_selection_advanced_prefills_canvas_size_dialog`, core
+`document_canvas_resize_to_frame_translates_by_its_origin`,
+`document_remove_layers_outside_canvas`.
 Units (`request_canvas_size_settings`, main_window_document_dialogs.cpp): the state is
 the absolute target size in pixels; the W/H fields show it converted through the
 document PPI in the unit the two linked combos select (Percent/Pixels/Inches/Cm/Mm/Points).

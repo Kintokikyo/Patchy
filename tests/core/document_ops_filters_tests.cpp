@@ -172,6 +172,119 @@ void document_canvas_resize_expands_layers_for_editing() {
   write_bmp_artifact("document_canvas_resize", document);
 }
 
+// The frame overload behind Crop to Selection (Advanced): the canvas becomes the frame
+// (its top-left is the new origin), content translates accordingly, and
+// canvas_resize_frame reproduces the anchor overload's placement.
+void document_canvas_resize_to_frame_translates_by_its_origin() {
+  const auto centered = patchy::canvas_resize_frame(patchy::Rect{0, 0, 8, 8}, patchy::CanvasAnchor::Center, 6, 6);
+  CHECK(centered.x == 1 && centered.y == 1 && centered.width == 6 && centered.height == 6);
+  // Bottom-right anchor on a selection frame: its bottom-right corner (6, 7) stays put.
+  const auto pinned =
+      patchy::canvas_resize_frame(patchy::Rect{2, 3, 4, 4}, patchy::CanvasAnchor::BottomRight, 6, 2);
+  CHECK(pinned.x == 0 && pinned.y == 5 && pinned.width == 6 && pinned.height == 2);
+
+  patchy::Document document(8, 8, patchy::PixelFormat::rgb8());
+  const auto& background = document.add_pixel_layer("Background", solid_rgb(8, 8, 255, 255, 255));
+  const auto background_id = background.id();
+  patchy::Layer sticker(document.allocate_layer_id(), "Sticker", solid_rgba(1, 1, 220, 10, 90, 255));
+  const auto sticker_id = sticker.id();
+  sticker.set_bounds(patchy::Rect{5, 5, 1, 1});
+  document.add_layer(std::move(sticker));
+
+  patchy::resize_canvas_to_frame(document, patchy::Rect{2, 2, 4, 4}, patchy::EditColor{12, 34, 56, 255});
+  CHECK(document.width() == 4 && document.height() == 4);
+  const auto* sticker_layer = document.find_layer(sticker_id);
+  CHECK(sticker_layer != nullptr);
+  CHECK(sticker_layer->bounds().x == 3 && sticker_layer->bounds().y == 3);
+  const auto* background_layer = document.find_layer(background_id);
+  CHECK(background_layer != nullptr);
+  CHECK(background_layer->pixels().pixel(0, 0)[0] == 255);
+
+  // The Background kept its off-canvas pixels (8 x 8 at -2, -2), so a frame reaching
+  // past them exposes extension-colored pixels only beyond that: at (0, 0) of the new
+  // 10 x 10 canvas, while (1, 1) is still the old white.
+  patchy::resize_canvas_to_frame(document, patchy::Rect{-3, -3, 10, 10}, patchy::EditColor{12, 34, 56, 255});
+  CHECK(document.width() == 10 && document.height() == 10);
+  CHECK(sticker_layer->bounds().x == 6 && sticker_layer->bounds().y == 6);
+  CHECK(background_layer->bounds().x == 0 && background_layer->bounds().y == 0);
+  CHECK(background_layer->pixels().pixel(0, 0)[0] == 12);
+  CHECK(background_layer->pixels().pixel(0, 0)[2] == 56);
+  CHECK(background_layer->pixels().pixel(1, 1)[0] == 255);
+
+  // A degenerate frame changes nothing.
+  patchy::resize_canvas_to_frame(document, patchy::Rect{0, 0, 0, 5});
+  CHECK(document.width() == 10 && document.height() == 10);
+}
+
+// Canvas Size's "delete layers fully off the canvas": a layer whose bounds miss the
+// canvas goes, a partly visible one stays, layers without bounds (adjustments, never
+// painted) stay, a group goes only when every child went, and the active layer is
+// re-pointed when it was removed.
+void document_remove_layers_outside_canvas() {
+  patchy::Document document(8, 8, patchy::PixelFormat::rgb8());
+  document.add_pixel_layer("Background", solid_rgb(8, 8, 255, 255, 255));
+  const auto make_sticker = [&document](const char* name, patchy::Rect bounds) {
+    patchy::Layer layer(document.allocate_layer_id(), name,
+                        solid_rgba(bounds.width, bounds.height, 220, 10, 90, 255));
+    layer.set_bounds(bounds);
+    return layer;
+  };
+  const auto add_sticker = [&document, make_sticker](const char* name, patchy::Rect bounds) {
+    auto layer = make_sticker(name, bounds);
+    const auto id = layer.id();
+    document.add_layer(std::move(layer));
+    return id;
+  };
+  const auto inside_id = add_sticker("Inside", patchy::Rect{1, 1, 2, 2});
+  const auto partly_id = add_sticker("Partly", patchy::Rect{7, 7, 3, 3});
+  const auto outside_id = add_sticker("Outside", patchy::Rect{8, 0, 2, 2});
+  const auto negative_id = add_sticker("Negative", patchy::Rect{-4, -4, 4, 4});
+  patchy::Layer unpainted(document.allocate_layer_id(), "Unpainted", patchy::PixelBuffer());
+  const auto unpainted_id = unpainted.id();
+  document.add_layer(std::move(unpainted));
+  patchy::Layer adjustment(document.allocate_layer_id(), "Levels", patchy::LayerKind::Adjustment);
+  const auto adjustment_id = adjustment.id();
+  document.add_layer(std::move(adjustment));
+
+  patchy::Layer mixed(document.allocate_layer_id(), "Mixed", patchy::LayerKind::Group);
+  const auto mixed_id = mixed.id();
+  auto mixed_in = make_sticker("Mixed in", patchy::Rect{3, 3, 2, 2});
+  const auto mixed_in_id = mixed_in.id();
+  auto mixed_out = make_sticker("Mixed out", patchy::Rect{20, 20, 2, 2});
+  const auto mixed_out_id = mixed_out.id();
+  mixed.add_child(std::move(mixed_in));
+  mixed.add_child(std::move(mixed_out));
+  document.add_layer(std::move(mixed));
+
+  patchy::Layer gone(document.allocate_layer_id(), "Gone", patchy::LayerKind::Group);
+  const auto gone_id = gone.id();
+  gone.add_child(make_sticker("Gone child", patchy::Rect{-9, 0, 1, 1}));
+  gone.add_child(make_sticker("Gone child 2", patchy::Rect{0, 8, 5, 5}));
+  document.add_layer(std::move(gone));
+
+  patchy::Layer empty_group(document.allocate_layer_id(), "Empty folder", patchy::LayerKind::Group);
+  const auto empty_group_id = empty_group.id();
+  document.add_layer(std::move(empty_group));
+
+  document.set_active_layer(outside_id);
+  // Outside, Negative, Mixed out, and the Gone group (counted once).
+  CHECK(patchy::remove_layers_outside_canvas(document) == 4);
+  CHECK(document.find_layer(inside_id) != nullptr);
+  CHECK(document.find_layer(partly_id) != nullptr);
+  CHECK(document.find_layer(outside_id) == nullptr);
+  CHECK(document.find_layer(negative_id) == nullptr);
+  CHECK(document.find_layer(unpainted_id) != nullptr);
+  CHECK(document.find_layer(adjustment_id) != nullptr);
+  CHECK(document.find_layer(mixed_id) != nullptr);
+  CHECK(document.find_layer(mixed_in_id) != nullptr);
+  CHECK(document.find_layer(mixed_out_id) == nullptr);
+  CHECK(document.find_layer(gone_id) == nullptr);
+  CHECK(document.find_layer(empty_group_id) != nullptr);
+  CHECK(document.active_layer_id().has_value());
+  CHECK(document.find_layer(*document.active_layer_id()) != nullptr);
+  CHECK(patchy::remove_layers_outside_canvas(document) == 0);
+}
+
 void document_canvas_resize_honors_anchor_and_extension_color() {
   patchy::Document document(4, 4, patchy::PixelFormat::rgb8());
   const auto& background = document.add_pixel_layer("Background", solid_rgb(4, 4, 255, 255, 255));
@@ -2876,6 +2989,9 @@ std::vector<patchy::test::TestCase> document_ops_filters_tests() {
       {"document_crop_to_selection_changes_canvas_and_writes_artifact",
        document_crop_to_selection_changes_canvas_and_writes_artifact},
       {"document_canvas_resize_expands_layers_for_editing", document_canvas_resize_expands_layers_for_editing},
+      {"document_canvas_resize_to_frame_translates_by_its_origin",
+       document_canvas_resize_to_frame_translates_by_its_origin},
+      {"document_remove_layers_outside_canvas", document_remove_layers_outside_canvas},
       {"document_canvas_resize_honors_anchor_and_extension_color",
        document_canvas_resize_honors_anchor_and_extension_color},
       {"document_canvas_resize_preserves_offcanvas_layers_and_masks",

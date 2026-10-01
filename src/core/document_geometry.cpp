@@ -1119,13 +1119,29 @@ void resize_image_and_layers(Document& document, std::int32_t width, std::int32_
                                  Rect::from_size(width, height), (sx + sy) / 2.0);
 }
 
+Rect canvas_resize_frame(Rect reference, CanvasAnchor anchor, std::int32_t new_width,
+                         std::int32_t new_height) noexcept {
+  const auto offset = canvas_resize_offset(anchor, reference.width, reference.height, new_width, new_height);
+  return Rect{reference.x - offset.x, reference.y - offset.y, new_width, new_height};
+}
+
 void resize_canvas_and_layers(Document& document, std::int32_t width, std::int32_t height, CanvasAnchor anchor,
                               EditColor extension_color, bool crop_layers) {
   if (width <= 0 || height <= 0) {
     return;
   }
+  resize_canvas_to_frame(document, canvas_resize_frame(canvas_rect(document), anchor, width, height),
+                         extension_color, crop_layers);
+}
 
-  const auto offset = canvas_resize_offset(anchor, document.width(), document.height(), width, height);
+void resize_canvas_to_frame(Document& document, Rect frame, EditColor extension_color, bool crop_layers) {
+  const auto width = frame.width;
+  const auto height = frame.height;
+  if (width <= 0 || height <= 0) {
+    return;
+  }
+
+  const CanvasResizeOffset offset{-frame.x, -frame.y};
   compose_document_text_transforms(
       document.layers(),
       {1.0, 0.0, 0.0, 1.0, static_cast<double>(offset.x), static_cast<double>(offset.y)});
@@ -1143,6 +1159,49 @@ void resize_canvas_and_layers(Document& document, std::int32_t width, std::int32
                                  {1.0, 0.0, 0.0, 1.0, static_cast<double>(offset.x),
                                   static_cast<double>(offset.y)},
                                  Rect::from_size(width, height));
+}
+
+namespace {
+
+// Appends the ids to remove under `layers`. Returns true when every entry (of at least
+// one) is slated, so the parent group goes as a whole instead of child by child.
+bool collect_layers_outside_canvas(const std::vector<Layer>& layers, Rect canvas, std::vector<LayerId>& ids) {
+  bool all_removed = !layers.empty();
+  for (const auto& layer : layers) {
+    bool remove = false;
+    if (layer.kind() == LayerKind::Group) {
+      std::vector<LayerId> child_ids;
+      remove = collect_layers_outside_canvas(layer.children(), canvas, child_ids);
+      if (!remove) {
+        ids.insert(ids.end(), child_ids.begin(), child_ids.end());
+      }
+    } else {
+      const auto bounds = layer.bounds();
+      remove = !bounds.empty() && intersect_rect(bounds, canvas).empty();
+    }
+    if (remove) {
+      ids.push_back(layer.id());
+    } else {
+      all_removed = false;
+    }
+  }
+  return all_removed;
+}
+
+}  // namespace
+
+std::size_t remove_layers_outside_canvas(Document& document) {
+  std::vector<LayerId> ids;
+  (void)collect_layers_outside_canvas(std::as_const(document).layers(), canvas_rect(document), ids);
+  std::size_t removed = 0;
+  for (const auto id : ids) {
+    // Document::remove_layer keeps the active layer valid and drops orphaned Smart
+    // Filter caches, which a raw erase from the tree would not.
+    if (document.remove_layer(id)) {
+      ++removed;
+    }
+  }
+  return removed;
 }
 
 bool crop_document(Document& document, Rect crop) {

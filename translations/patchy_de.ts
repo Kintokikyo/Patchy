@@ -8608,6 +8608,14 @@ RGB: %2, %3, %4</translation>
         <source>Import Notes</source>
         <translation>Importhinweise</translation>
     </message>
+    <message>
+        <source>Crop to Selection (Advanced)</source>
+        <translation>Auf Auswahl freistellen (Erweitert)</translation>
+    </message>
+    <message>
+        <source>Also delete layers that end up fully off the canvas</source>
+        <translation>Auch Ebenen löschen, die vollständig außerhalb der Arbeitsfläche liegen</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -18265,6 +18273,18 @@ Baked into images: %1.</source>
         <translation>SVG behält Formebenen als Vektoren bei, aber dieses Dokument enthält Inhalte, die SVG nicht als Vektoren speichern kann, daher speichert Patchy eine Kopie, in der diese Inhalte in Bilder umgewandelt sind. Das geöffnete Dokument behält seine Ebenen und ungespeicherten Änderungen. Um alles bearbeitbar zu halten, speichern Sie stattdessen als Photoshop-Dokument (.psd).
 
 In Bilder umgewandelt: %1.</translation>
+    </message>
+    <message>
+        <source>Crop to Selection (Advance&amp;d)...</source>
+        <translation>Auf Auswahl freistellen (Er&amp;weitert)...</translation>
+    </message>
+    <message>
+        <source>Open Canvas Size prefilled with the selection so the crop can be adjusted before it is applied</source>
+        <translation>Öffnet Arbeitsflächengröße mit der Auswahl vorbelegt, damit das Freistellen vor dem Anwenden angepasst werden kann</translation>
+    </message>
+    <message>
+        <source>Canvas %1 x %2, off-canvas layers deleted: %3</source>
+        <translation>Arbeitsfläche %1 x %2, Ebenen außerhalb gelöscht: %3</translation>
     </message>
 </context>
 <context>

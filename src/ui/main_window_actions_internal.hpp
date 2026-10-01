@@ -96,6 +96,7 @@ struct ActionBuildContext {
   QAction* image_size_action{nullptr};
   QAction* canvas_size_action{nullptr};
   QAction* crop_action{nullptr};
+  QAction* crop_advanced_action{nullptr};
   QAction* rotate_cw_action{nullptr};
   QAction* rotate_ccw_action{nullptr};
   QAction* rotate_arbitrary_action{nullptr};

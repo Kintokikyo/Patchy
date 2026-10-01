@@ -638,6 +638,13 @@ private:
   bool resize_document_image(DocumentSession& target, int width, int height,
                              std::function<bool()> keep_running = {});
   void resize_canvas_dialog();
+  // Image > Crop to Selection (Advanced): the Canvas Size dialog prefilled with the
+  // selection rect as its frame.
+  void crop_to_selection_advanced();
+  // Shared apply for Canvas Size and the advanced crop: `frame` is the new canvas in
+  // current document coordinates (core `resize_canvas_to_frame`).
+  void apply_canvas_size(Rect frame, QColor extension_color, bool crop_layers, bool delete_off_canvas_layers,
+                         const QString& history_label);
   // Shared gate for the whole-document geometry operations (Image Size, Canvas Size,
   // Crop, Rotate). Smart-object placements ride a document-space remap, so those are
   // allowed; native Smart Filter caches and unparsed placements still cannot follow.
