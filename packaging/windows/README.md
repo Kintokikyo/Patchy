@@ -44,6 +44,21 @@ The zip does not include build files, tests, test fixtures, Qt translations for 
 
 The installer copies a signed `UninstallPatchy.exe` into the installed app folder and records it in `PatchyInstallManifest.txt`. The uninstaller uses that manifest to remove only files installed by the package. If a user saves documents into the install directory, those files are left in place and the install directory remains until the user removes them.
 
+## Package verification
+
+After signing, `build-release.bat` runs `scripts\release\verify-windows-package.ps1` on the finished installer and zip. Nothing is installed: no install folder, shortcut, or registry key is touched. It:
+
+- unpacks the installer with IExpress's extract-only switches (`/Q /C /T:<folder>`) and checks that its payload is complete, carries the same zip as the portable download, and names the expected version;
+- runs the unpacked `InstallPatchy.ps1` with the launcher's arguments plus `-SmokeTest`, which builds the whole wizard, shows it invisibly, and closes it. A wizard that cannot open fails here (issue 55);
+- unpacks the zip and compares it with `PatchyInstallManifest.txt`;
+- reads the imports of every executable and DLL with `dumpbin` and requires each one to be in the package or part of Windows. Qt and Visual C++ runtime DLLs must be in the package even when the build machine has copies in System32;
+- runs `packaging\package-selftest.js` on the unpacked `patchy.exe` with only Windows on `PATH`: every image format plugin writes and reads a file, the bundled font is listed, the scripts, translations, AI kit and TLS plugin are present, and a 32-bit and a 64-bit legacy plug-in run through their hosts;
+- runs the unpacked `patchy-mcp.exe --check`.
+
+A package that fails is moved to `build\package\rejected` and the build fails, so the upload scripts cannot publish it. The script also runs by itself, with `-Installer` and `-Zip` for files downloaded from a release. The wizard step needs an interactive desktop session.
+
+`InstallPatchy.ps1 -CheckLogo` is the earlier, narrower check the batch file runs before compiling the launcher. Neither check clicks through the wizard, so run the built installer by hand after changing the installer script.
+
 When Seth's local signing setup is available, the script signs `build\release\patchy.exe` before staging it, signs `InstallPatchy.exe` and `UninstallPatchy.exe` before IExpress packs them, and signs `build\package\PatchyWindowsInstaller.exe` after IExpress creates it:
 
 - `RT_PROJECTS` must point at the RT projects root.

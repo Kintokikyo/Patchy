@@ -1,0 +1,122 @@
+// @name Package self-test
+// @description Run against an UNPACKED release package to prove its support files work:
+// @description image codecs, bundled fonts, scripts, translations, the AI kit and, on
+// @description Windows, both legacy plug-in hosts. Throws on the first failure.
+// @cli --headless --script-arg work=<scratch folder> --script-arg version=<expected>
+//
+// Used by scripts/release/verify-windows-package.ps1. Arguments:
+//   work     scratch folder for the files this writes (required)
+//   version  expected application version (optional)
+//   plugins  folder holding the Filter Foundry test plug-ins (optional, Windows)
+
+function check(condition, message) {
+  if (!condition) throw new Error("package self-test: " + message);
+}
+
+function folderPath(value) {
+  var path = String(value || "").split("\\").join("/");
+  if (path && path.charAt(path.length - 1) !== "/") path += "/";
+  return path;
+}
+
+var work = folderPath(patchy.args.work);
+check(work, "pass --script-arg work=<scratch folder>");
+check(patchy.io.makeDir(work), "cannot create " + work);
+
+if (patchy.args.version) {
+  check(app.version === patchy.args.version,
+    "version is " + app.version + ", expected " + patchy.args.version);
+}
+
+// --- image codecs: every format plug-in the package ships must write and read back ---
+var WIDTH = 64, HEIGHT = 48;
+var source = app.newDocument(WIDTH, HEIGHT);
+var paint = source.addLayer("paint");
+paint.fill("#FEBA20");
+paint.fillRect(8, 8, 24, 16, "#363F3B");
+
+var formats = ["png", "jpg", "webp", "tif", "gif", "bmp", "psd", "pdf"];
+for (var i = 0; i < formats.length; i++) {
+  var file = work + "selftest." + formats[i];
+  check(source.exportAs(file), "could not write " + formats[i]);
+  check(patchy.io.fileSize(file) > 0, formats[i] + " file is empty");
+  var reopened = app.open(file);
+  // A PDF page is sized from the document's resolution, so only its presence is checked.
+  if (formats[i] !== "pdf") {
+    check(reopened.width === WIDTH && reopened.height === HEIGHT,
+      formats[i] + " reopened as " + reopened.width + " x " + reopened.height);
+  }
+  reopened.close();
+  console.log("codec ok: " + formats[i]);
+}
+
+var svgFile = work + "selftest.svg";
+patchy.io.writeTextFile(svgFile,
+  '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="30" viewBox="0 0 40 30">' +
+  '<rect width="40" height="30" fill="#FEBA20"/></svg>');
+var svg = app.open(svgFile);
+check(svg.width === 40 && svg.height === 30, "svg opened as " + svg.width + " x " + svg.height);
+svg.close();
+console.log("codec ok: svg");
+
+// --- bundled font ---------------------------------------------------------------------
+var BUNDLED_FONT = "Noto Naskh Arabic";
+var families = app.listFonts().map(function (font) { return font.family; });
+check(families.indexOf(BUNDLED_FONT) >= 0, "bundled font is missing: " + BUNDLED_FONT);
+console.log("font ok: " + BUNDLED_FONT);
+
+// --- package layout (Windows keeps everything beside the executable) ---------------------
+var pluginsFolder = folderPath(patchy.plugins.folder);
+if (pluginsFolder) {
+  var root = pluginsFolder.slice(0, pluginsFolder.length - "plugins/".length);
+  var required = [
+    "plugins/README.txt",
+    "scripts/patchy.d.ts",
+    "scripts/scripting-guide.md",
+    "ai/patchy-control/SKILL.md",
+    "tls/qschannelbackend.dll",
+    "platforms/qwindows.dll",
+    "platforms/qoffscreen.dll",
+    "patchy-mcp.exe",
+    "patchy-8bf-host32.exe",
+    "patchy-8bf-host64.exe",
+    "LICENSE",
+    "NOTICE-THIRD-PARTY.md"
+  ];
+  for (var r = 0; r < required.length; r++) {
+    check(patchy.io.fileExists(root + required[r]), "missing file: " + required[r]);
+  }
+  var scriptFolders = ["Demos", "Effects", "Games", "Utilities"];
+  for (var s = 0; s < scriptFolders.length; s++) {
+    check(patchy.io.listFiles(root + "scripts/" + scriptFolders[s], "*.js").length > 0,
+      "no bundled scripts in scripts/" + scriptFolders[s]);
+  }
+  var catalogs = patchy.io.listFiles(root + "translations", "patchy_*.qm");
+  check(catalogs.length > 0, "no translation catalogs");
+  for (var c = 0; c < catalogs.length; c++) {
+    var qtCatalog = "qtbase_" + catalogs[c].slice("patchy_".length);
+    check(patchy.io.fileExists(root + "translations/" + qtCatalog), "missing " + qtCatalog);
+  }
+  console.log("layout ok: " + required.length + " files, " + catalogs.length + " languages");
+}
+
+// --- legacy plug-in hosts: one 32-bit and one 64-bit filter must run -------------------
+if (pluginsFolder && patchy.args.plugins) {
+  patchy.plugins.folders = [folderPath(patchy.args.plugins)];
+  var plugins = patchy.plugins.rescan().filter(function (plugin) { return plugin.supported; });
+  var seen = {};
+  for (var p = 0; p < plugins.length; p++) {
+    var architecture = plugins[p].architecture;
+    if (seen[architecture]) continue;
+    var target = source.addLayer("plug-in " + architecture);
+    target.fill("#3366CC");
+    target.applyPlugin(plugins[p].id, {dialog: false});
+    seen[architecture] = plugins[p].name;
+    console.log("plug-in host ok: " + architecture + " (" + plugins[p].name + ")");
+  }
+  check(Object.keys(seen).length >= 2,
+    "expected a 32-bit and a 64-bit plug-in to run, ran: " + JSON.stringify(seen));
+}
+
+source.close();
+console.log("package self-test passed");

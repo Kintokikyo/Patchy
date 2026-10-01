@@ -203,6 +203,14 @@ if not "!ERRORLEVEL!"=="0" goto fail
 call :SignInstaller
 if not "!ERRORLEVEL!"=="0" goto fail
 
+rem Unpack the finished installer and zip and exercise them without installing: the
+rem wizard's smoke mode, a self-contained DLL check, and packaging\package-selftest.js
+rem on the unpacked patchy.exe. A package that fails is moved aside so the upload
+rem scripts can never publish it (issue 55 shipped an installer nobody had run).
+echo Verifying the built packages...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%REPO%\scripts\release\verify-windows-package.ps1" -Installer "%INSTALLER_PATH%" -Zip "%ZIP_PATH%" -Version "%PATCHY_PACKAGE_VERSION%"
+if not "!ERRORLEVEL!"=="0" goto rejectpackage
+
 echo Release installer created: "%INSTALLER_PATH%"
 popd
 exit /b 0
@@ -477,6 +485,15 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$path = $env:PATCHY_INST
 if not "!ERRORLEVEL!"=="0" exit /b !ERRORLEVEL!
 if not "%IEXPRESS_EXIT_CODE%"=="0" echo IExpress returned exit code %IEXPRESS_EXIT_CODE% after creating "%INSTALLER_PATH%"; continuing.
 exit /b 0
+
+:rejectpackage
+echo Package verification failed. Moving the packages to "%PACKAGE_ROOT%\rejected".
+if not exist "%PACKAGE_ROOT%\rejected" mkdir "%PACKAGE_ROOT%\rejected"
+if exist "%ZIP_PATH%" move /Y "%ZIP_PATH%" "%PACKAGE_ROOT%\rejected\" >nul
+if exist "%INSTALLER_PATH%" move /Y "%INSTALLER_PATH%" "%PACKAGE_ROOT%\rejected\" >nul
+rem A package that could not be moved must not stay where the upload scripts look.
+if exist "%ZIP_PATH%" del /q "%ZIP_PATH%"
+if exist "%INSTALLER_PATH%" del /q "%INSTALLER_PATH%"
 
 :fail
 echo Release build/package failed.

@@ -8,7 +8,11 @@ param(
     [switch]$Quiet,
 
     # Packaging check: load the wizard logo from the Patchy.ico beside the payload and exit.
-    [switch]$CheckLogo
+    [switch]$CheckLogo,
+
+    # Packaging check: build the whole wizard, show it invisibly, close it, and exit
+    # without installing. Used by scripts\release\verify-windows-package.ps1.
+    [switch]$SmokeTest
 )
 
 $ErrorActionPreference = "Stop"
@@ -622,7 +626,9 @@ function Show-PatchyInstallerWizard {
         [string]$UninstallKey,
 
         [Parameter(Mandatory = $true)]
-        [string]$Version
+        [string]$Version,
+
+        [switch]$SmokeTest
     )
 
     Add-Type -AssemblyName System.Windows.Forms
@@ -654,6 +660,7 @@ function Show-PatchyInstallerWizard {
             $form.Icon = $formIcon
         }
         catch {
+            if ($SmokeTest) { throw }
             $formIcon = $null
         }
     }
@@ -672,6 +679,7 @@ function Show-PatchyInstallerWizard {
             $logo.Image = New-PatchyLogoBitmap -IconPath $installerIconPath -Size 74
         }
         catch {
+            if ($SmokeTest) { throw }
             $logo.Image = $null
         }
     }
@@ -842,6 +850,15 @@ function Show-PatchyInstallerWizard {
 
     $form.AcceptButton = $installButton
     $form.CancelButton = $cancelButton
+    if ($SmokeTest) {
+        # Same form and controls as a real run, invisible, closed as soon as it is shown.
+        $form.Opacity = 0
+        $form.ShowInTaskbar = $false
+        $form.Add_Shown({
+            $form.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+            $form.Close()
+        })
+    }
     [void]$form.ShowDialog()
 
     if ($logo.Image) {
@@ -870,6 +887,33 @@ if ($CheckLogo) {
     $windowIcon = New-Object System.Drawing.Icon $checkIcon
     Write-Host "Installer logo check passed ($($logoBitmap.Width) x $($logoBitmap.Height))."
     exit 0
+}
+
+if ($SmokeTest) {
+    # Handled before the quiet branch below so a smoke test can never install, and
+    # without the message box the real error path shows (it would wait for a click).
+    if (-not [Environment]::UserInteractive) {
+        Write-Host "Installer wizard smoke test needs an interactive desktop session."
+        exit 3
+    }
+    try {
+        $smoke = Show-PatchyInstallerWizard `
+            -PayloadZip $PayloadZip `
+            -InstallParent $installParent `
+            -InstallRoot $installRoot `
+            -StartMenuDirectory $startMenuDirectory `
+            -StartMenuShortcut $startMenuShortcut `
+            -DesktopShortcut $desktopShortcut `
+            -UninstallKey $uninstallKey `
+            -Version $Version `
+            -SmokeTest
+        if ($smoke.Completed) { throw "The smoke test must not install." }
+        Write-Host "Installer wizard smoke test passed."
+        exit 0
+    } catch {
+        Write-Host "Installer wizard smoke test FAILED: $($_.Exception.Message)"
+        exit 1
+    }
 }
 
 try {
