@@ -386,10 +386,6 @@ public class MainActivity extends QtActivity {
 
         super.onCreate(savedInstanceState);
         
-        getWindow().setSoftInputMode(
-        android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
-        );      
-     
         hideSystemBars();
         
         getWindow().getDecorView().post(() -> {
