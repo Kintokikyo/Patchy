@@ -4,6 +4,8 @@
 #include "ui/theme_qss.hpp"
 #include "ui/unit_spin_box.hpp"
 
+#include <QColor>
+#include <QPoint>
 #include <QFont>
 #include <QString>
 #include <QStringList>
@@ -12,6 +14,7 @@
 
 #include <exception>
 #include <limits>
+#include <optional>
 
 class QAction;
 class QBoxLayout;
@@ -198,6 +201,18 @@ bool unwind_non_modal_dialog_loop(std::exception_ptr error);
 // in dialog_utils_mac.mm; a no-op on other platforms, where the window system
 // already keeps owned/transient dialogs above their parent.
 void keep_dialog_above_parent_window(QDialog& dialog);
+// Moves the mouse pointer. Use this, never QCursor::setPos: on macOS Qt moves the
+// pointer by posting a synthetic mouse event, which makes the system ask the user to
+// let Patchy control the computer (Accessibility). The macOS half
+// (dialog_utils_mac.mm) warps the pointer directly, which needs no permission.
+void move_pointer_to_global_position(QPoint global_position);
+// The color under a global point, for eyedroppers that reach outside the document.
+// own_window_* renders the Patchy window under the point (nullopt when there is none,
+// or the point is on its native frame). screen_color_* reads the composited screen;
+// on macOS that raises the Screen Recording permission prompt, so there it tries the
+// own-window render first and only a pick outside Patchy's windows reads the screen.
+[[nodiscard]] std::optional<QColor> own_window_color_at_global_position(QPoint global_position);
+[[nodiscard]] std::optional<QColor> screen_color_at_global_position(QPoint global_position);
 // Stops a QTabWidget's tab bar from painting the light native tab-bar base across
 // its width (the ::tab stylesheet rules still apply). On macOS the base turns the
 // whole empty area next to the tabs bright white on the dark theme; on Windows it

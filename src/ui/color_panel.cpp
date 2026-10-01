@@ -2034,25 +2034,9 @@ void PatchyColorPickerPrivate::finish_screen_pick(QPoint global_position, bool s
 }
 
 void PatchyColorPickerPrivate::sample_screen_color(QPoint global_position) {
-  QScreen* screen = QGuiApplication::screenAt(global_position);
-  if (screen == nullptr) {
-    screen = QGuiApplication::primaryScreen();
+  if (const auto picked = screen_color_at_global_position(global_position); picked.has_value()) {
+    set_color(*picked, ColorChangeNotification::Yes);
   }
-  if (screen == nullptr) {
-    return;
-  }
-
-  const QPoint screen_position = global_position - screen->geometry().topLeft();
-  const QPixmap sample = screen->grabWindow(0, screen_position.x(), screen_position.y(), 1, 1);
-  if (sample.isNull()) {
-    return;
-  }
-
-  const auto image = sample.toImage();
-  if (!image.rect().contains(0, 0)) {
-    return;
-  }
-  set_color(image.pixelColor(0, 0), ColorChangeNotification::Yes);
 }
 
 PatchyColorPicker::PatchyColorPicker(QColor initial, QWidget* parent)

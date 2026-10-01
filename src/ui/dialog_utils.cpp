@@ -28,6 +28,7 @@
 #include <QFormLayout>
 #include <QFrame>
 #include <QGuiApplication>
+#include <QImage>
 #include <QHash>
 #include <QHBoxLayout>
 #include <QIcon>
@@ -1951,6 +1952,60 @@ void keep_dialog_above_parent_window(QDialog& dialog) {
   Q_UNUSED(dialog);
 }
 #endif
+
+#ifndef Q_OS_MACOS
+void move_pointer_to_global_position(QPoint global_position) {
+  QCursor::setPos(global_position);
+}
+#endif
+
+std::optional<QColor> own_window_color_at_global_position(QPoint global_position) {
+  QWidget* window = QApplication::topLevelAt(global_position);
+  if (window == nullptr) {
+    return std::nullopt;
+  }
+  const QPoint local = window->mapFromGlobal(global_position);
+  if (!window->rect().contains(local)) {
+    return std::nullopt;
+  }
+  const auto image = window->grab(QRect(local, QSize(1, 1))).toImage();
+  if (image.isNull()) {
+    return std::nullopt;
+  }
+  auto color = image.pixelColor(0, 0);
+  if (color.alpha() == 0) {
+    return std::nullopt;
+  }
+  color.setAlpha(255);
+  return color;
+}
+
+std::optional<QColor> screen_color_at_global_position(QPoint global_position) {
+#ifdef Q_OS_MACOS
+  if (const auto own = own_window_color_at_global_position(global_position); own.has_value()) {
+    return own;
+  }
+#endif
+  QScreen* screen = QGuiApplication::screenAt(global_position);
+  if (screen == nullptr) {
+    screen = QGuiApplication::primaryScreen();
+  }
+  if (screen == nullptr) {
+    return std::nullopt;
+  }
+
+  const QPoint screen_position = global_position - screen->geometry().topLeft();
+  const QPixmap sample = screen->grabWindow(0, screen_position.x(), screen_position.y(), 1, 1);
+  if (sample.isNull()) {
+    return std::nullopt;
+  }
+
+  const auto image = sample.toImage();
+  if (!image.rect().contains(0, 0)) {
+    return std::nullopt;
+  }
+  return image.pixelColor(0, 0);
+}
 
 void suppress_native_tab_bar_base(QTabWidget& tabs) {
   if (auto* tab_bar = tabs.tabBar(); tab_bar != nullptr) {

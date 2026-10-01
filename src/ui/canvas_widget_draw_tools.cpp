@@ -19,6 +19,7 @@
 #include "core/pixel_tools.hpp"
 #include "core/quick_select.hpp"
 #include "core/vector_shape.hpp"
+#include "ui/dialog_utils.hpp"
 #include "ui/edit_conversions.hpp"
 #include "ui/image_document_io.hpp"
 #include "ui/qt_geometry.hpp"
@@ -88,28 +89,6 @@ std::uint8_t channel_from_color(QColor color, int channel) {
     default:
       return static_cast<std::uint8_t>(color.alpha());
   }
-}
-
-std::optional<QColor> screen_color_at_global_position(QPoint global_position) {
-  QScreen* screen = QGuiApplication::screenAt(global_position);
-  if (screen == nullptr) {
-    screen = QGuiApplication::primaryScreen();
-  }
-  if (screen == nullptr) {
-    return std::nullopt;
-  }
-
-  const QPoint screen_position = global_position - screen->geometry().topLeft();
-  const QPixmap sample = screen->grabWindow(0, screen_position.x(), screen_position.y(), 1, 1);
-  if (sample.isNull()) {
-    return std::nullopt;
-  }
-
-  const auto image = sample.toImage();
-  if (!image.rect().contains(0, 0)) {
-    return std::nullopt;
-  }
-  return image.pixelColor(0, 0);
 }
 
 }  // namespace
