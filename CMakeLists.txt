@@ -1527,6 +1527,11 @@ ${PATCHY_LUPDATE_MANIFEST_SOURCES}
     endif()
     if(WIN32)
       target_sources(patchy PRIVATE src/app/patchy.rc)
+      # The resource compiler's dependency scan follows #include only, not the
+      # ICON statement, so a changed icon left a stale patchy.rc.res (and the
+      # old taskbar/Explorer icon) in every existing build tree.
+      set_source_files_properties(src/app/patchy.rc PROPERTIES
+        OBJECT_DEPENDS "${PROJECT_SOURCE_DIR}/src/app/patchy.ico")
     endif()
     if(APPLE)
       set_target_properties(patchy PROPERTIES
