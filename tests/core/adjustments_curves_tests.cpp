@@ -991,7 +991,13 @@ void psd_photoshop_curves_fixtures_import_preserve_regenerate_and_round_trip() {
 
   const auto check_mask = [](const patchy::Layer& layer, bool patterned) {
     if (!patterned) {
-      CHECK(!layer.mask().has_value());
+      // Photoshop stores an explicit Reveal All mask with an empty -2
+      // channel. Its identity survives even though it does not alter pixels.
+      CHECK(layer.mask().has_value());
+      CHECK(layer.mask()->pixels.empty());
+      CHECK(layer.mask()->bounds.empty());
+      CHECK(layer.mask()->default_color == 255);
+      CHECK(!layer.mask()->disabled);
       return;
     }
     CHECK(layer.mask().has_value());

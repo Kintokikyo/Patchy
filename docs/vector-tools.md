@@ -2,9 +2,8 @@
 
 References: [scripting](vector-automation.md), [preview](vector-preview.md), [merging](layer-merging.md), [open strokes](open-path-strokes.md).
 
-UI/PSD contracts and patent boundaries. Encoding facts: PS 27.8 COM probes
-(July 2026) in `local-test-fixtures/vector-probe/`; constraints in
-docs/legal-constraints.md.
+PS 27.8 COM probes: `local-test-fixtures/vector-probe/`.
+Rules: docs/legal-constraints.md.
 
 ## Shape tools (Line / Rectangle / Ellipse)
 
@@ -246,33 +245,28 @@ resources); model: src/core/vector_shape.hpp.
   `vstk`.
 - **Two hard open-refusal rules** (byte bisection with COM open tests; the
   rule text and regression-test names live in ps-compat.md):
-  1. Every pattern id a `PtFl` fill or `vstk` pattern stroke references MUST
-     resolve in the file's `Patt`/`Pat2`/`Pat3` blocks (PS's own presets
-     mask the bug by GUID). The writer collects vector pattern ids with the
-     style ids (`collect_referenced_pattern_ids`) and writes a 1x1
-     transparent placeholder tile for any id lacking a usable tile
-     (`PatternStore::adopt` heals it on re-pick).
-  2. A `vogk` covering only SOME of the vmsk groups is rejected, so a mixed
-     live/non-live layer writes NO vogk/vowv (`origination_covers_path_groups`
-     gates the writer; the reader drops partial raw vogk/vowv so damaged
-     files heal on resave). The shapes open as plain paths, PS's fallback.
-- Channel data is EMPTY: layer bounds (0,0,0,0) and every channel (including
-  transparency id -1) is 2 bytes (the compression marker alone). Readers
-  rasterize from the vector data (writer: src/psd/psd_layer_records.cpp).
+  1. Every `PtFl` fill or `vstk` stroke pattern id MUST resolve in the file's
+     `Patt`/`Pat2`/`Pat3`. `collect_referenced_pattern_ids` collects vector
+     and style ids; missing tiles get 1x1 transparent placeholders.
+     `PatternStore::adopt` heals placeholders on re-pick.
+  2. Partial `vogk` group coverage is rejected. `origination_covers_path_groups`
+     gates writing vogk/vowv; import drops partial blocks. Resaves use PS's
+     plain-path fallback.
+- Color channels are EMPTY: bounds (0,0,0,0), 2-byte compression markers
+  including transparency -1. Readers rasterize vectors; writer:
+  src/psd/psd_layer_records.cpp. Raster masks retain their own channels.
 - Layer record flags: bit 3 + **bit 4** (0x18). Bit 4 = "pixel data
   irrelevant"; write it on shape/fill layers.
 - `lnsr` = 'cont' for content layers ('bgnd' for Background). PS names:
   "Color Fill 1" (path-created), "Rectangle 1", "Ellipse 1", "Line 1".
 - A plain fill layer is the same structure with an empty or absent `vmsk`.
-- `vscg` (CS6 "vector stroke content"): 4-byte content key (SoCo/GdFl/PtFl)
-  + descriptorVersion 16 + the stroke paint descriptor; PS 27.8 never writes
-  it. A CS6 Fill: None shape has NO fill block, `fillEnabled` false in vstk,
-  and this vscg: the reader builds a fill-kind-None shape with the vstk
-  stroke (vscg paint fills in when vstk lacks strokeStyleContent) instead of
-  vector-locking it. Untouched layers re-emit vscg verbatim; edits
-  regenerate SoCo + vstk and drop it (as PS's resave does). A vscg without
-  a vstk/vmsk pair still locks as "unparsed"
-  (`psd_legacy_vscg_stroke_only_shape_*`).
+- `vscg`: content key (SoCo/GdFl/PtFl, 4 bytes), descriptorVersion 16, paint.
+  Without a fill block, vstk `fillEnabled=true` uses this paint as FILL,
+  independent of stroke paint. Otherwise Fill is None; vscg supplies stroke
+  paint only when vstk lacks strokeStyleContent. Untouched vscg/vmsk/vsms
+  stay verbatim. Edits write SoCo/GdFl/PtFl + vstk + vmsk, retaining gradient
+  settings and unmodeled paint fields. Missing vstk/path or unparseable
+  required paint locks as "unparsed". Tests: `psd_legacy_vscg_*`.
 
 ### vmsk / vsms (vector mask path)
 
@@ -466,6 +460,12 @@ a path ending on the canvas edge fades there (photoshop-vector-mask-feather.psd)
   plane. Both apply at render (LayerMask::density/feather): density as the
   vector mask's; feather = gaussian sigma = feather px
   (feathered_layer_mask), edge-clamped at the canvas (feather_canvas).
+- Zero-area -2/-3 raster masks remain empty gray8 LayerMasks; default color
+  supplies coverage everywhere. Never substitute derived vector coverage.
+  Save the mask record and empty raw -2 channel on pixel, shape, adjustment,
+  and group layers, retaining bounds, density, feather and disabled/link
+  state. Tests: `psd_empty_user_masks_*`, `psd_empty_real_user_mask_*`,
+  `psd_testy_legacy_fills_and_masks_round_trip_if_available`.
 - COM gotchas: vectorMaskFeather/Density setd needs the vector mask path
   selected first; feather needs its OWN setd call.
 

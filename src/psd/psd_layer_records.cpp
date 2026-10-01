@@ -254,8 +254,7 @@ EncodedLayer encode_layer(const Layer& layer, bool large_document, bool bottom_r
          {kChannelTransparency, kChannelRed, kChannelGreen, kChannelBlue}) {
       encoded.channels.push_back(EncodedChannel{channel_id, 0, 0, kCompressionRaw, {}});
     }
-    if (layer.mask().has_value() && !layer.mask()->pixels.empty() &&
-        layer.mask()->pixels.format() == PixelFormat::gray8()) {
+    if (layer.mask().has_value() && layer.mask()->pixels.format() == PixelFormat::gray8()) {
       const auto& mask_pixels = layer.mask()->pixels;
       encoded.channels.push_back(encode_channel(kChannelUserMask, mask_pixels.width(),
                                                 mask_pixels.height(), mask_pixels.data(),
@@ -284,7 +283,7 @@ EncodedLayer encode_layer(const Layer& layer, bool large_document, bool bottom_r
   if (pixels.format().channels >= 4 || !photoshop_background) {
     channel_ids.push_back(kChannelTransparency);
   }
-  if (layer.mask().has_value() && !layer.mask()->pixels.empty()) {
+  if (layer.mask().has_value()) {
     const auto& mask = *layer.mask();
     if (mask.pixels.format() != PixelFormat::gray8()) {
       throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Layered PSD export requires 8-bit grayscale layer masks"));
@@ -340,7 +339,7 @@ EncodedLayer encode_adjustment_layer(const Layer& layer, bool large_document) {
   encoded.kind = EncodedLayerKind::Adjustment;
   encoded.bounds = layer.bounds();
   encoded.blending_ranges = &layer.raw_psd_blending_ranges();
-  if (layer.mask().has_value() && !layer.mask()->pixels.empty()) {
+  if (layer.mask().has_value()) {
     const auto& mask = *layer.mask();
     if (mask.pixels.format() != PixelFormat::gray8()) {
       throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Layered PSD export requires 8-bit grayscale layer masks"));
@@ -376,7 +375,7 @@ EncodedLayer encode_group(const Layer& layer, bool large_document) {
   // Photoshop carries a group's raster mask on the folder record: the -2
   // channel plus the mask-data block (write_layer_record adds the block).
   // Mask-less groups keep their historical zero-channel record byte for byte.
-  if (layer.mask().has_value() && !layer.mask()->pixels.empty()) {
+  if (layer.mask().has_value()) {
     const auto& mask = *layer.mask();
     if (mask.pixels.format() != PixelFormat::gray8()) {
       throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Layered PSD export requires 8-bit grayscale layer masks"));
@@ -799,8 +798,7 @@ void write_layer_record(BigEndianWriter& writer, const EncodedLayer& encoded, bo
   BigEndianWriter extra;
   if (encoded.layer != nullptr &&
       (encoded.kind == EncodedLayerKind::Pixel || encoded.kind == EncodedLayerKind::Adjustment ||
-       (encoded.kind == EncodedLayerKind::Group && encoded.layer->mask().has_value() &&
-        !encoded.layer->mask()->pixels.empty())) &&
+       encoded.kind == EncodedLayerKind::Group) &&
       encoded.layer->mask().has_value()) {
     const auto& mask = *encoded.layer->mask();
     BigEndianWriter mask_data;
@@ -981,14 +979,22 @@ void write_layer_record(BigEndianWriter& writer, const EncodedLayer& encoded, bo
       (encoded.layer->vector_shape() != nullptr || encoded.layer->vector_mask() != nullptr) &&
       vector_lock_reason(*encoded.layer).empty() &&
       (layer_vector_block_dirty(*encoded.layer) ||
-       find_layer_block(*encoded.layer, "vmsk") == nullptr);
+       (find_layer_block(*encoded.layer, "vmsk") == nullptr &&
+        find_layer_block(*encoded.layer, "vsms") == nullptr));
   if (generated_vector_blocks) {
     if (const auto* content = encoded.layer->vector_shape(); content != nullptr) {
+      const auto* fill_key = vector_fill_block_key(content->fill.kind);
+      const auto* original_fill = find_layer_block(*encoded.layer, fill_key);
+      if (original_fill == nullptr) {
+        const auto* legacy = find_layer_block(*encoded.layer, "vscg");
+        if (legacy != nullptr && legacy->payload.size() > 8U &&
+            std::equal(legacy->payload.begin(), legacy->payload.begin() + 4, fill_key)) {
+          original_fill = legacy;
+        }
+      }
       write_additional_layer_block(
-          extra, *block_key_from_string(vector_fill_block_key(content->fill.kind)),
-          vector_fill_block_payload(content->fill,
-                                    find_layer_block(*encoded.layer,
-                                                     vector_fill_block_key(content->fill.kind))),
+          extra, *block_key_from_string(fill_key),
+          vector_fill_block_payload(content->fill, original_fill),
           large_document);
       if (!content->path.empty()) {
         write_additional_layer_block(

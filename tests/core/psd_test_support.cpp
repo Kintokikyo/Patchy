@@ -137,16 +137,16 @@ std::uint32_t read_u32_be_at(std::span<const std::uint8_t> bytes, std::size_t of
 
 std::vector<std::uint8_t> psd_layer_extra_data(std::span<const std::uint8_t> bytes, std::int16_t target_index) {
   patchy::psd::BigEndianReader reader(bytes);
-  (void)patchy::psd::read_header(reader);
+  const auto header = patchy::psd::read_header(reader);
 
   const auto color_mode_length = reader.read_u32();
   reader.skip(color_mode_length);
   const auto image_resource_length = reader.read_u32();
   reader.skip(image_resource_length);
 
-  const auto layer_mask_length = reader.read_u32();
+  const auto layer_mask_length = header.large_document ? reader.read_u64() : reader.read_u32();
   CHECK(layer_mask_length > 0);
-  const auto layer_info_length = reader.read_u32();
+  const auto layer_info_length = header.large_document ? reader.read_u64() : reader.read_u32();
   CHECK(layer_info_length > 0);
   const auto layer_count_raw = static_cast<std::int16_t>(reader.read_u16());
   const auto layer_count = layer_count_raw < 0 ? -layer_count_raw : layer_count_raw;
@@ -159,7 +159,7 @@ std::vector<std::uint8_t> psd_layer_extra_data(std::span<const std::uint8_t> byt
     const auto channel_count = reader.read_u16();
     for (std::uint16_t channel = 0; channel < channel_count; ++channel) {
       reader.skip(2);  // channel id
-      reader.skip(4);  // channel byte length
+      reader.skip(header.large_document ? 8 : 4);  // channel byte length
     }
     reader.skip(12);  // blend signature/key, opacity, clipping, flags, filler
 

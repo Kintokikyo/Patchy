@@ -589,7 +589,7 @@ std::vector<Layer> read_layer_info_records(BigEndianReader& layer_reader, std::i
         }
         continue;  // the next channel starts at its declared boundary
       }
-      if (channel.id == kChannelUserMask && record.mask.has_value() && channel_width > 0 && channel_height > 0) {
+      if (channel.id == kChannelUserMask && record.mask.has_value()) {
         PixelBuffer mask_pixels(channel_width, channel_height, PixelFormat::gray8());
         std::copy(channel_data.begin(), channel_data.end(), mask_pixels.data().begin());
         decoded_mask = LayerMask{record.mask->bounds, std::move(mask_pixels), record.mask->default_color,
@@ -599,7 +599,9 @@ std::vector<Layer> read_layer_info_records(BigEndianReader& layer_reader, std::i
         // The raster mask the user painted, stored beside the combined
         // rendered -2 plane when the layer also has a parameterized vector
         // mask. It never feeds the color planes below.
-        if (channel_width > 0 && channel_height > 0 && channel_data.size() >= channel_pixel_count) {
+        // A zero-area real mask still exists: its default color supplies all
+        // coverage (for example a Photoshop Reveal All mask with no paint).
+        if (channel_data.size() >= channel_pixel_count) {
           const auto& real = *record.mask->real_user_mask;
           PixelBuffer mask_pixels(channel_width, channel_height, PixelFormat::gray8());
           std::copy_n(channel_data.begin(), channel_pixel_count, mask_pixels.data().begin());
@@ -670,10 +672,10 @@ std::vector<Layer> read_layer_info_records(BigEndianReader& layer_reader, std::i
     bool vector_parse_failed = false;
     bool has_legacy_vscg = false;
     bool vector_stroke_has_content = false;
-    // CS6-era 'vscg' (vector stroke content): the stroke paint of a shape layer
-    // whose stroke settings live in vstk. Payload = 4-byte content key
-    // (SoCo/GdFl/PtFl) + descriptorVersion 16 + the paint descriptor.
-    std::optional<VectorFill> legacy_stroke_content;
+    // Legacy 'vscg' carries fill paint when vstk enables filling, or the
+    // fallback stroke paint for a stroke-only shape. Its payload starts with
+    // the content key (SoCo/GdFl/PtFl), then descriptorVersion and paint.
+    std::optional<VectorFill> legacy_vector_content;
     bool drop_partial_origination_blocks = false;
     for (const auto& block : record.additional_blocks) {
       if (block.key == "vmsk" || block.key == "vsms") {
@@ -708,7 +710,7 @@ std::vector<Layer> read_layer_info_records(BigEndianReader& layer_reader, std::i
         has_legacy_vscg = true;
         if (block.payload.size() > 8U) {
           const std::string content_key(block.payload.begin(), block.payload.begin() + 4);
-          legacy_stroke_content = parse_vector_fill_block(content_key, block.payload, cmyk_converter);
+          legacy_vector_content = parse_vector_fill_block(content_key, block.payload, cmyk_converter);
         }
       }
       if (block.key == "levl") {
@@ -837,18 +839,20 @@ std::vector<Layer> read_layer_info_records(BigEndianReader& layer_reader, std::i
                              (kPsdProtectTransparency | kPsdProtectComposite | kPsdProtectPosition));
     if (!vector_parse_failed && has_legacy_vscg && !vector_fill.has_value() && vector_mask_block.has_value() &&
         vector_stroke.has_value()) {
-      // CS6 shape layer with Fill: None. That era wrote no fill block at all
-      // (modern PS writes SoCo plus fillEnabled false for the same thing) and
-      // kept the stroke paint in vscg, which vstk's strokeStyleContent later
-      // duplicated. Build the editable stroke-only shape instead of locking
-      // the layer: a vector lock refuses Free Transform, and one locked leaf
-      // refuses the whole folder or multi-selection session (September 2026,
-      // the bath-controls PSD).
-      VectorFill none;
-      none.kind = VectorFillKind::None;
-      vector_fill = std::move(none);
-      if (!vector_stroke_has_content && legacy_stroke_content.has_value()) {
-        vector_stroke->content = *legacy_stroke_content;
+      if (vector_stroke->fill_enabled) {
+        // The cartridge-template gradients store their fill in vscg, with
+        // independent stroke paint in vstk. Do not turn them into Fill: None.
+        vector_fill = legacy_vector_content;
+      } else {
+        VectorFill none;
+        none.kind = VectorFillKind::None;
+        vector_fill = std::move(none);
+        if (!vector_stroke_has_content && legacy_vector_content.has_value()) {
+          vector_stroke->content = *legacy_vector_content;
+        }
+        if (vector_stroke->enabled && !vector_stroke_has_content && !legacy_vector_content.has_value()) {
+          vector_parse_failed = true;
+        }
       }
     }
     if (vector_parse_failed || (has_legacy_vscg && !vector_fill.has_value())) {
