@@ -5,7 +5,10 @@ param(
 
     [string]$Version = "0.0.0",
 
-    [switch]$Quiet
+    [switch]$Quiet,
+
+    # Packaging check: load the wizard logo from the Patchy.ico beside the payload and exit.
+    [switch]$CheckLogo
 )
 
 $ErrorActionPreference = "Stop"
@@ -555,9 +558,31 @@ function New-PatchyLogoBitmap {
     param([string]$IconPath, [int]$Size = 64)
 
     # Use the same authored artwork as the executable and installed shortcuts.
-    # Request the largest ICO frame before scaling it to the wizard's slot.
-    $icon = New-Object System.Drawing.Icon $IconPath, 256, 256
-    $source = $icon.ToBitmap()
+    # Decode the largest ICO frame directly before scaling it to the wizard's slot:
+    # Icon.ToBitmap() cannot read PNG-compressed frames in Windows PowerShell 5.1 and
+    # throws "Requested range extends past the end of the array" (issue 55).
+    $bytes = [System.IO.File]::ReadAllBytes($IconPath)
+    $count = [System.BitConverter]::ToUInt16($bytes, 4)
+    $best = -1
+    $bestWidth = 0
+    for ($i = 0; $i -lt $count; $i++) {
+        $width = [int]$bytes[6 + 16 * $i]
+        if ($width -eq 0) { $width = 256 }
+        if ($width -gt $bestWidth) { $bestWidth = $width; $best = $i }
+    }
+    if ($best -lt 0) { throw "No frames in $IconPath" }
+    $length = [System.BitConverter]::ToInt32($bytes, 6 + 16 * $best + 8)
+    $offset = [System.BitConverter]::ToInt32($bytes, 6 + 16 * $best + 12)
+    $icon = $null
+    $stream = $null
+    if ($bytes[$offset] -eq 0x89 -and $bytes[$offset + 1] -eq 0x50 -and $bytes[$offset + 2] -eq 0x4E -and $bytes[$offset + 3] -eq 0x47) {
+        $stream = New-Object System.IO.MemoryStream (, [byte[]]$bytes[$offset..($offset + $length - 1)])
+        $source = [System.Drawing.Image]::FromStream($stream)
+    }
+    else {
+        $icon = New-Object System.Drawing.Icon $IconPath, $bestWidth, $bestWidth
+        $source = $icon.ToBitmap()
+    }
     $bitmap = New-Object System.Drawing.Bitmap $Size, $Size, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
     $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
     try {
@@ -567,7 +592,8 @@ function New-PatchyLogoBitmap {
     finally {
         $graphics.Dispose()
         $source.Dispose()
-        $icon.Dispose()
+        if ($stream) { $stream.Dispose() }
+        if ($icon) { $icon.Dispose() }
     }
     return $bitmap
 }
@@ -622,8 +648,14 @@ function Show-PatchyInstallerWizard {
     $formIcon = $null
     $installerIconPath = Join-Path (Split-Path -Parent $PayloadZip) "Patchy.ico"
     if (Test-Path -LiteralPath $installerIconPath -PathType Leaf) {
-        $formIcon = New-Object System.Drawing.Icon $installerIconPath
-        $form.Icon = $formIcon
+        # Artwork is decoration: a logo that fails to load must never stop setup.
+        try {
+            $formIcon = New-Object System.Drawing.Icon $installerIconPath
+            $form.Icon = $formIcon
+        }
+        catch {
+            $formIcon = $null
+        }
     }
 
     $leftPanel = New-Object System.Windows.Forms.Panel
@@ -635,8 +667,13 @@ function Show-PatchyInstallerWizard {
     $logo = New-Object System.Windows.Forms.PictureBox
     $logo.Size = New-Object System.Drawing.Size 74, 74
     $logo.Location = New-Object System.Drawing.Point 37, 42
-    if ($formIcon) {
-        $logo.Image = New-PatchyLogoBitmap -IconPath $installerIconPath -Size 74
+    if (Test-Path -LiteralPath $installerIconPath -PathType Leaf) {
+        try {
+            $logo.Image = New-PatchyLogoBitmap -IconPath $installerIconPath -Size 74
+        }
+        catch {
+            $logo.Image = $null
+        }
     }
     $logo.SizeMode = [System.Windows.Forms.PictureBoxSizeMode]::CenterImage
     $leftPanel.Controls.Add($logo)
@@ -824,6 +861,16 @@ $startMenuDirectory = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Progr
 $startMenuShortcut = Join-Path $startMenuDirectory "Patchy.lnk"
 $desktopShortcut = Join-Path ([System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::DesktopDirectory)) "Patchy.lnk"
 $uninstallKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Patchy"
+
+if ($CheckLogo) {
+    # build-release.bat runs this in Windows PowerShell 5.1, the host the installer uses.
+    Add-Type -AssemblyName System.Drawing
+    $checkIcon = Join-Path (Split-Path -Parent $PayloadZip) "Patchy.ico"
+    $logoBitmap = New-PatchyLogoBitmap -IconPath $checkIcon -Size 74
+    $windowIcon = New-Object System.Drawing.Icon $checkIcon
+    Write-Host "Installer logo check passed ($($logoBitmap.Width) x $($logoBitmap.Height))."
+    exit 0
+}
 
 try {
     if ($Quiet -or -not [Environment]::UserInteractive) {

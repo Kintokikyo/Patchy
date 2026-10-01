@@ -436,6 +436,10 @@ set "PATCHY_INSTALLER_PAYLOAD_DIR=%INSTALLER_PAYLOAD_DIR%\"
 copy /Y "%ZIP_PATH%" "%INSTALLER_PAYLOAD_DIR%\%ZIP_FILE_NAME%" >nul || exit /b 1
 copy /Y "%WINDOWS_PACKAGING_DIR%\InstallPatchy.ps1" "%INSTALLER_PAYLOAD_DIR%\InstallPatchy.ps1" >nul || exit /b 1
 copy /Y "%APP_ICON%" "%INSTALLER_PAYLOAD_DIR%\Patchy.ico" >nul || exit /b 1
+rem The wizard draws its logo from that icon; a frame the installer's PowerShell cannot
+rem decode used to stop setup at its first window (issue 55).
+powershell -NoProfile -ExecutionPolicy Bypass -File "%INSTALLER_PAYLOAD_DIR%\InstallPatchy.ps1" -PayloadZip "%INSTALLER_PAYLOAD_DIR%\%ZIP_FILE_NAME%" -CheckLogo
+if not "!ERRORLEVEL!"=="0" exit /b !ERRORLEVEL!
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Set-Content -LiteralPath (Join-Path $env:PATCHY_INSTALLER_PAYLOAD_DIR 'PatchyVersion.txt') -Value $env:PATCHY_PACKAGE_VERSION -Encoding ASCII"
 if not "!ERRORLEVEL!"=="0" exit /b !ERRORLEVEL!
 
