@@ -1,0 +1,1509 @@
+# Patchy Android build
+#
+# Qt 6.10.3:
+# - Keeps the already-working eglSurface deadlock fallback patch unchanged.
+# - Rebuilds QtBase from Qt 6.10.3 source with a targeted QDockWidget
+#   re-entrancy fix.
+#
+# Dock fix:
+# QDockWidgetPrivate::startDrag() calls QMainWindowLayout::unplug().
+# On Android this can synchronously re-enter setFloating(), whose normal
+# endDrag() deletes DragState while startDrag() is still using it.
+#
+# The source patch adds:
+#   startingDrag
+#   abortPending
+#   releasePending
+#   DragState identity check after unplug()
+#   closeEvent() deferral during startDrag()
+#
+# Cleanup is deferred until unplug() has returned and the original DragState
+# is still alive.
+
+name: Build Patchy Geometry Diagnostic Android
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: ''
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build rsync python3 perl cmake llvm
+
+      - name: Create test keystore
+        run: |
+          keytool -genkeypair \
+            -v \
+            -keystore "$GITHUB_WORKSPACE/patchy-test.keystore" \
+            -alias patchy \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass patchy123 \
+            -keypass patchy123 \
+            -dname "CN=Patchy, OU=Kintokikyo, O=Patchy, L=Indonesia, ST=Indonesia, C=ID"
+
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "ndk;27.2.12479018"
+
+      - name: Install Qt 6.10.3 Desktop
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.10.3'
+          host: 'linux'
+          target: 'desktop'
+          arch: 'linux_gcc_64'
+          modules: 'qtimageformats'
+          cache: true
+
+      - name: Save host Qt path
+        run: |
+          echo "HOST_QT_ROOT=$QT_ROOT_DIR" >> "$GITHUB_ENV"
+          echo "HOST_QT_ROOT=$QT_ROOT_DIR"
+
+      - name: Install Qt 6.10.3 Android
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.10.3'
+          host: 'all_os'
+          target: 'android'
+          arch: 'android_arm64_v8a'
+          modules: 'qtimageformats'
+          cache: true
+
+      # ================================================================
+      # KEEP THIS EGL PATCH EXACTLY AS-IS
+      # ================================================================
+      - name: Patch Qt Android eglSurface deadlock fallback
+        run: |
+          echo "===== PATCH QT ANDROID eglSurface ====="
+
+          QT_EGL_PLUGIN=$(find "$QT_ROOT_DIR" \
+            -type f \
+            -name "libplugins_platforms_qtforandroid_arm64-v8a.so" \
+            -print -quit)
+
+          if [ -z "$QT_EGL_PLUGIN" ]; then
+            echo "ERROR: Qt Android platform plugin not found"
+            exit 1
+          fi
+
+          echo "Qt plugin: $QT_EGL_PLUGIN"
+
+          python3 - "$QT_EGL_PLUGIN" <<'PY'
+          import sys
+          from pathlib import Path
+
+          path = Path(sys.argv[1])
+          data = bytearray(path.read_bytes())
+
+          # Exact already-working Qt 6.10.3 ARM64 EGL patch.
+          old = bytes.fromhex(
+              "48008052 61fcffd0 213c1c91 e81300b9 68fcff90"
+              "08dd1091 1f2003d5 e252c870 e0430091 b5000094"
+          )
+
+          new = bytes.fromhex(
+              "e0c30091 030a0094 e0031faa f7ffff17"
+              "1f2003d5 1f2003d5 1f2003d5 1f2003d5"
+              "1f2003d5 1f2003d5"
+          )
+
+          if len(old) != 40 or len(new) != 40:
+              raise SystemExit("ERROR: EGL patch byte length mismatch")
+
+          occurrences = data.count(old)
+
+          if occurrences != 1:
+              raise SystemExit(
+                  f"ERROR: expected exactly 1 EGL sequence, "
+                  f"found {occurrences}"
+              )
+
+          offset = data.index(old)
+          print(f"EGL patch offset: 0x{offset:x}")
+
+          data[offset:offset + len(old)] = new
+          path.write_bytes(data)
+
+          verify = path.read_bytes()
+
+          if verify[offset:offset + len(new)] != new:
+              raise SystemExit("ERROR: EGL patch verification failed")
+
+          print("EGL patch verification: OK")
+          PY
+
+          echo "===== VERIFY EGL PATCH ====="
+          ls -l "$QT_EGL_PLUGIN"
+
+      # ================================================================
+      # DOWNLOAD QTBASE SOURCE
+      # ================================================================
+      - name: Download Qt 6.10.3 qtbase source
+        run: |
+          echo "===== DOWNLOAD QTBASE 6.10.3 ====="
+
+          curl -L --fail --retry 3 \
+            -o qtbase-everywhere-src-6.10.3.tar.xz \
+            https://download.qt.io/official_releases/qt/6.10/6.10.3/submodules/qtbase-everywhere-src-6.10.3.tar.xz
+
+          echo "383dc907816338f0cba72088a524c07458dfc69ce684ca9132fcc4fe91c24b0b  qtbase-everywhere-src-6.10.3.tar.xz" \
+            | sha256sum -c -
+
+          rm -rf qtbase-src
+
+          mkdir -p qtbase-src
+
+          tar -xJf qtbase-everywhere-src-6.10.3.tar.xz \
+            --strip-components=1 \
+            -C qtbase-src
+
+          test -f qtbase-src/configure
+          test -f qtbase-src/src/widgets/widgets/qdockwidget.cpp
+          test -f qtbase-src/src/widgets/widgets/qdockwidget_p.h
+
+          echo "QtBase source verified."
+
+      # ================================================================
+      # PATCH QDOCKWIDGET SOURCE
+      # ================================================================
+      - name: Patch Qt 6.10.3 QDockWidget re-entrancy
+        run: |
+          echo "===== PATCH QDOCKWIDGET RE-ENTRANCY ====="
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path("qtbase-src/src/widgets/widgets")
+          cpp = root / "qdockwidget.cpp"
+          hdr = root / "qdockwidget_p.h"
+
+          cpp_text = cpp.read_text()
+          hdr_text = hdr.read_text()
+
+          def require_once(text, pattern, replacement, label):
+              out, count = re.subn(
+                  pattern,
+                  replacement,
+                  text,
+                  count=1,
+                  flags=re.M | re.S
+              )
+
+              if count != 1:
+                  raise SystemExit(
+                      f"ERROR: {label}: expected 1 match, found {count}"
+                  )
+
+              return out
+
+          # ------------------------------------------------------------
+          # 1. Add DragState flags.
+          # ------------------------------------------------------------
+          pattern = r"^([ \t]*)bool ctrlDrag;\s*$"
+
+          replacement = (
+              r"\1bool ctrlDrag;\n"
+              r"\1bool startingDrag;\n"
+              r"\1bool abortPending;\n"
+              r"\1bool releasePending;"
+          )
+
+          hdr_text = require_once(
+              hdr_text,
+              pattern,
+              replacement,
+              "DragState fields"
+          )
+
+          # ------------------------------------------------------------
+          # 2. Initialize the new flags.
+          # ------------------------------------------------------------
+          pattern = r"^([ \t]*)state->ctrlDrag = false;\s*$"
+
+          replacement = (
+              r"\1state->ctrlDrag = false;\n"
+              r"\1state->startingDrag = false;\n"
+              r"\1state->abortPending = false;\n"
+              r"\1state->releasePending = false;"
+          )
+
+          cpp_text = require_once(
+              cpp_text,
+              pattern,
+              replacement,
+              "initDrag flags"
+          )
+
+          # ------------------------------------------------------------
+          # 3. Mark the re-entrant window before unplug().
+          # ------------------------------------------------------------
+          pattern = (
+              r"^([ \t]*)"
+              r"state->widgetItem = layout->unplug\(q, scope\);\s*$"
+          )
+
+          replacement = (
+              r"\1// Keep the exact DragState identity across the re-entrant unplug().\n"
+              r"\1DragState *dragState = state;\n"
+              r"\1dragState->startingDrag = true;\n"
+              r"\1dragState->widgetItem = layout->unplug(q, scope);\n"
+              r"\1// Android/QPA can re-enter here and end the drag before unplug() returns.\n"
+              r"\1if (state == nullptr || state != dragState) {\n"
+              r"\1    return;\n"
+              r"\1}"
+          )
+
+          cpp_text = require_once(
+              cpp_text,
+              pattern,
+              replacement,
+              "startDrag unplug"
+          )
+
+          # ------------------------------------------------------------
+          # 4. Resolve deferred cleanup after unplug().
+          # ------------------------------------------------------------
+          pattern = r"^([ \t]*)state->dragging = true;\s*$"
+
+          replacement = (
+              r"\1state->dragging = true;\n"
+              r"\1state->startingDrag = false;\n"
+              "\n"
+              r"\1if (state->abortPending) {" + "\n"
+              r"\1    state->abortPending = false;" + "\n"
+              r"\1    state->releasePending = false;" + "\n"
+              r"\1    endDrag(QDockWidgetPrivate::EndDragMode::Abort);" + "\n"
+              r"\1    return;" + "\n"
+              r"\1}" + "\n"
+              "\n"
+              r"\1if (state->releasePending) {" + "\n"
+              r"\1    state->releasePending = false;" + "\n"
+              r"\1    endDrag(QDockWidgetPrivate::EndDragMode::LocationChange);" + "\n"
+              r"\1    return;" + "\n"
+              r"\1}"
+          )
+
+          cpp_text = require_once(
+              cpp_text,
+              pattern,
+              replacement,
+              "startDrag completion"
+          )
+
+          # ------------------------------------------------------------
+          # 5. CRITICAL: patch setFloating().
+          #
+          # IMPORTANT:
+          # Do not search the whole cpp file for the cleanup block.
+          # Restrict the search to QDockWidgetPrivate::setFloating().
+          # This avoids indentation/formatting differences in Qt source.
+          # ------------------------------------------------------------
+          sf_start = cpp_text.find(
+              "void QDockWidgetPrivate::setFloating(bool floating)"
+          )
+
+          if sf_start < 0:
+              raise SystemExit(
+                  "ERROR: setFloating() function not found"
+              )
+
+          # Find the end of setFloating().
+          # This function does not contain another function definition,
+          # so the next standalone closing brace is sufficient here.
+          sf_end = cpp_text.find("\n}\n", sf_start)
+
+          if sf_end < 0:
+              raise SystemExit(
+                  "ERROR: setFloating() function end not found"
+              )
+
+          sf_end += 3
+
+          sf = cpp_text[sf_start:sf_end]
+
+          # Match the original cleanup block inside setFloating().
+          #
+          # Allow arbitrary whitespace between the condition and endDrag()
+          # because Qt source indentation/formatting can vary.
+          pattern = re.compile(
+              r"(?P<indent>[ \t]*)"
+              r"if\s*\(\s*state\s*!=\s*nullptr\s*\)"
+              r"\s*"
+              r"endDrag\s*\(\s*"
+              r"QDockWidgetPrivate::EndDragMode::Abort"
+              r"\s*\)\s*;",
+              re.S
+          )
+
+          matches = list(pattern.finditer(sf))
+
+          if len(matches) != 1:
+              raise SystemExit(
+                  "ERROR: setFloating() cleanup block: expected exactly "
+                  f"1 match inside setFloating(), found {len(matches)}"
+              )
+
+          m = matches[0]
+          indent = m.group("indent")
+
+          replacement = (
+              f"{indent}if (state != nullptr) {{\n"
+              f"{indent}    if (state->startingDrag)\n"
+              f"{indent}        state->abortPending = true;\n"
+              f"{indent}    else\n"
+              f"{indent}        endDrag(QDockWidgetPrivate::EndDragMode::Abort);\n"
+              f"{indent}}}"
+          )
+
+          sf_new = (
+              sf[:m.start()]
+              + replacement
+              + sf[m.end():]
+          )
+
+          cpp_text = (
+              cpp_text[:sf_start]
+              + sf_new
+              + cpp_text[sf_end:]
+          )
+
+          # Verify the patch exists specifically inside setFloating().
+          sf_check_start = cpp_text.find(
+              "void QDockWidgetPrivate::setFloating(bool floating)"
+          )
+
+          if sf_check_start < 0:
+              raise SystemExit(
+                  "ERROR: setFloating() function disappeared after patch"
+              )
+
+          sf_check_end = cpp_text.find(
+              "\n}\n",
+              sf_check_start
+          )
+
+          if sf_check_end < 0:
+              raise SystemExit(
+                  "ERROR: setFloating() end not found after patch"
+              )
+
+          sf_check = cpp_text[sf_check_start:sf_check_end]
+
+          required_setfloating = [
+              "if (state != nullptr) {",
+              "if (state->startingDrag)",
+              "state->abortPending = true;",
+              "endDrag(QDockWidgetPrivate::EndDragMode::Abort);",
+          ]
+
+          for marker in required_setfloating:
+              if marker not in sf_check:
+                  raise SystemExit(
+                      "ERROR: setFloating() verification failed: "
+                      + marker
+                  )
+
+          print("SETFLOATING PATCH: OK")
+          print("SETFLOATING PATCH VERIFICATION: OK")
+
+          # ------------------------------------------------------------
+          # 6. Patch mouseReleaseEvent().
+          # ------------------------------------------------------------
+          mr_start = cpp_text.find(
+              "bool QDockWidgetPrivate::mouseReleaseEvent"
+          )
+
+          if mr_start < 0:
+              raise SystemExit(
+                  "ERROR: mouseReleaseEvent() function not found"
+              )
+
+          mr_end = cpp_text.find("\n}\n", mr_start)
+
+          if mr_end < 0:
+              raise SystemExit(
+                  "ERROR: mouseReleaseEvent() function end not found"
+              )
+
+          mr = cpp_text[mr_start:mr_end + 3]
+
+          pattern = (
+              r"(if \(event->button\(\) == Qt::LeftButton "
+              r"&& state && !state->nca\) \{\s*)"
+              r"(endDrag\(EndDragMode::LocationChange\);\s*)"
+              r"(return true;\s*//\s*filter out the event\s*;?\s*)"
+              r"(\})"
+          )
+
+          m = re.search(pattern, mr, flags=re.S)
+
+          if not m:
+              raise SystemExit(
+                  "ERROR: mouseReleaseEvent() cleanup block not found"
+              )
+
+          new_block = (
+              "    if (event->button() == Qt::LeftButton "
+              "&& state && !state->nca) {\n"
+              "        if (state->startingDrag) {\n"
+              "            state->releasePending = true;\n"
+              "            return true; // filter out the event\n"
+              "        }\n"
+              "        endDrag(EndDragMode::LocationChange);\n"
+              "        return true; // filter out the event\n"
+              "    }"
+          )
+
+          mr_new = (
+              mr[:m.start()]
+              + new_block
+              + mr[m.end():]
+          )
+
+          cpp_text = (
+              cpp_text[:mr_start]
+              + mr_new
+              + cpp_text[mr_end + 3:]
+          )
+
+          hdr.write_text(hdr_text)
+          cpp.write_text(cpp_text)
+
+          # ------------------------------------------------------------
+          # 7. Patch QDockWidget::closeEvent().
+          #
+          # closeEvent() can call endDrag() even while startDrag() is still
+          # inside layout->unplug(). That can delete DragState and leave
+          # startDrag() with a dangling/null state when unplug() returns.
+          #
+          # During this narrow re-entrant window, defer the abort until
+          # startDrag() has safely returned from unplug().
+          #
+          # Match the original two-line cleanup block globally and require
+          # exactly one match. This avoids unsafe function-end detection.
+          # ------------------------------------------------------------
+          original_close = re.compile(
+              r"(?P<indent>^[ \\t]*)"
+              r"if\s*\(\s*d->state\s*\)\s*$"
+              r"\n"
+              r"(?P=indent)d->endDrag\s*\(\s*"
+              r"QDockWidgetPrivate::EndDragMode::Abort"
+              r"\s*\)\s*;",
+              re.M
+          )
+
+          close_matches = list(original_close.finditer(cpp_text))
+
+          if len(close_matches) != 1:
+              raise SystemExit(
+                  "ERROR: closeEvent() endDrag block: expected exactly "
+                  f"1 original match, found {len(close_matches)}"
+              )
+
+          m = close_matches[0]
+          indent = m.group("indent")
+
+          close_replacement = (
+              f"{indent}if (d->state) {{\n"
+              f"{indent}    if (d->state->startingDrag) {{\n"
+              f"{indent}        d->state->abortPending = true;\n"
+              f"{indent}        event->ignore();\n"
+              f"{indent}        return;\n"
+              f"{indent}    }}\n"
+              f"{indent}    d->endDrag(QDockWidgetPrivate::EndDragMode::Abort);\n"
+              f"{indent}}}"
+          )
+
+          cpp_text = (
+              cpp_text[:m.start()]
+              + close_replacement
+              + cpp_text[m.end():]
+          )
+
+          # Verify the replacement is actually inside QDockWidget::closeEvent().
+          close_check_start = cpp_text.find(
+              "void QDockWidget::closeEvent(QCloseEvent *event)"
+          )
+
+          if close_check_start < 0:
+              raise SystemExit(
+                  "ERROR: closeEvent() not found after patch"
+              )
+
+          close_check_end = cpp_text.find(
+              "/*! \\reimp */",
+              close_check_start + 10
+          )
+
+          if close_check_end < 0:
+              close_check_end = len(cpp_text)
+
+          close_check = cpp_text[close_check_start:close_check_end]
+
+          required_close = [
+              "if (d->state) {",
+              "if (d->state->startingDrag) {",
+              "d->state->abortPending = true;",
+              "event->ignore();",
+              "d->endDrag(QDockWidgetPrivate::EndDragMode::Abort);",
+          ]
+
+          for marker in required_close:
+              if marker not in close_check:
+                  raise SystemExit(
+                      "ERROR: closeEvent() verification failed: "
+                      + marker
+                  )
+
+          print("CLOSEEVENT PATCH: OK")
+          print("CLOSEEVENT PATCH VERIFICATION: OK")
+
+          # ------------------------------------------------------------
+          # 8. Final source verification.
+          # ------------------------------------------------------------
+          h = hdr.read_text()
+          c = cpp.read_text()
+
+          required_header = [
+              "bool startingDrag;",
+              "bool abortPending;",
+              "bool releasePending;",
+          ]
+
+          required_cpp = [
+              "state->startingDrag = true;",
+              "state->startingDrag = false;",
+              "state->abortPending = true;",
+              "state->releasePending = true;",
+              "DragState *dragState = state;",
+              "if (state == nullptr || state != dragState)",
+              "if (state->startingDrag)",
+              "if (state->abortPending)",
+              "if (state->releasePending)",
+              "d->state->abortPending = true;",
+          ]
+
+          for marker in required_header:
+              if marker not in h:
+                  raise SystemExit(
+                      f"ERROR: missing header marker: {marker}"
+                  )
+
+          for marker in required_cpp:
+              if marker not in c:
+                  raise SystemExit(
+                      f"ERROR: missing cpp marker: {marker}"
+                  )
+
+          sf_check = re.search(
+              r"void QDockWidgetPrivate::setFloating\(bool floating\).*?"
+              r"if \(state != nullptr\) \{.*?"
+              r"if \(state->startingDrag\).*?"
+              r"state->abortPending = true;.*?"
+              r"endDrag\(QDockWidgetPrivate::EndDragMode::Abort\);",
+              c,
+              flags=re.S,
+          )
+
+          if not sf_check:
+              raise SystemExit(
+                  "ERROR: setFloating() patch verification failed"
+              )
+
+          close_check = re.search(
+              r"void QDockWidget::closeEvent\(QCloseEvent \*event\).*?"
+              r"if \(d->state\) \{.*?"
+              r"if \(d->state->startingDrag\) \{.*?"
+              r"d->state->abortPending = true;.*?"
+              r"event->ignore\(\);.*?"
+              r"d->endDrag\(QDockWidgetPrivate::EndDragMode::Abort\);",
+              c,
+              flags=re.S,
+          )
+
+          if not close_check:
+              raise SystemExit(
+                  "ERROR: closeEvent() patch verification failed"
+              )
+
+          start_guard_check = (
+              "DragState *dragState = state;" in c
+              and "if (state == nullptr || state != dragState)" in c
+          )
+
+          if not start_guard_check:
+              raise SystemExit(
+                  "ERROR: startDrag() DragState identity guard missing"
+              )
+
+          print("QDockWidget source patch: OK")
+          print("HEADER PATCH VERIFICATION: OK")
+          print("SOURCE PATCH VERIFICATION: OK")
+          print("SETFLOATING PATCH VERIFICATION: OK")
+          PY
+
+          echo "===== VERIFY PATCHED SOURCE ====="
+
+          grep -n -A8 -B4 \
+            "bool startingDrag" \
+            qtbase-src/src/widgets/widgets/qdockwidget_p.h
+
+          grep -n -A28 -B6 \
+            "state->startingDrag = true" \
+            qtbase-src/src/widgets/widgets/qdockwidget.cpp
+
+          grep -n -A12 -B5 \
+            "state->abortPending = true" \
+            qtbase-src/src/widgets/widgets/qdockwidget.cpp
+
+      # ================================================================
+      # DIAGNOSTIC PATCH: TRACE ANDROID/Qt GEOMETRY DURING IME TRANSITION
+      # ================================================================
+      - name: Add keyboard geometry diagnostics
+        run: |
+          echo "===== ADD KEYBOARD GEOMETRY DIAGNOSTICS ====="
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          qtbase = Path("qtbase-src")
+          android_plugin = qtbase / "src/plugins/platforms/android"
+
+          root_layout = qtbase / "src/android/jar/src/org/qtproject/qt/android/QtRootLayout.java"
+          qt_window = qtbase / "src/android/jar/src/org/qtproject/qt/android/QtWindow.java"
+          screen_cpp = android_plugin / "qandroidplatformscreen.cpp"
+          window_cpp = android_plugin / "qandroidplatformwindow.cpp"
+          input_delegate = qtbase / "src/android/jar/src/org/qtproject/qt/android/QtInputDelegate.java"
+
+          for path in [root_layout, qt_window, screen_cpp, window_cpp, input_delegate]:
+              if not path.is_file():
+                  raise SystemExit(f"ERROR: diagnostic source file not found: {path}")
+
+          # ------------------------------------------------------------
+          # 1. QtRootLayout: log actual Android root size changes.
+          # ------------------------------------------------------------
+          text = root_layout.read_text()
+
+          if "PATCHY-GEOM ROOT:" in text:
+              raise SystemExit("ERROR: QtRootLayout diagnostics already present")
+
+          if "import android.util.Log;" not in text:
+              import_anchor = "import android.app.Activity;"
+              if import_anchor not in text:
+                  raise SystemExit("ERROR: QtRootLayout Activity import anchor not found")
+              text = text.replace(
+                  import_anchor,
+                  import_anchor + "\nimport android.util.Log;",
+                  1,
+              )
+
+          root_pattern = (
+              r"(?ms)(    protected void onSizeChanged\(int w, int h, int oldw, int oldh\)\s*\{\s*"
+              r"        Activity activity = \(Activity\) getContext\(\);\s*"
+              r"        if \(activity == null \|\| \(w == oldw && h == oldh\)\)\s*"
+              r"            return;\s*)"
+          )
+          root_replacement = (
+              r"\1"
+              "\n"
+              "        Log.d(\"PATCHY-GEOM\", \"ROOT: \"\n"
+              "                + oldw + \"x\" + oldh + \" -> \"\n"
+              "                + w + \"x\" + h);\n"
+          )
+          text, count = re.subn(root_pattern, root_replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f"ERROR: QtRootLayout onSizeChanged anchor expected exactly one match, found {count}")
+          root_layout.write_text(text)
+
+          # ------------------------------------------------------------
+          # 2. QtWindow: log only SAFE AREA changes, not every callback.
+          # ------------------------------------------------------------
+          text = qt_window.read_text()
+
+          if "PATCHY-GEOM SAFE:" in text:
+              raise SystemExit("ERROR: QtWindow diagnostics already present")
+
+          if "import android.util.Log;" not in text:
+              import_anchor = "import android.view.WindowInsets;"
+              if import_anchor not in text:
+                  raise SystemExit("ERROR: QtWindow WindowInsets import anchor not found")
+              text = text.replace(
+                  import_anchor,
+                  import_anchor + "\nimport android.util.Log;",
+                  1,
+              )
+
+          field_pattern = (
+              r"(?m)^(class QtWindow extends QtLayout implements QtSurfaceInterface \{)\s*$"
+          )
+          # Put diagnostic state inside the existing class body.
+          field_replacement = (
+              r"\1\n"
+              "        private int m_lastPatchySafeLeft = Integer.MIN_VALUE;\n"
+              "        private int m_lastPatchySafeTop = Integer.MIN_VALUE;\n"
+              "        private int m_lastPatchySafeRight = Integer.MIN_VALUE;\n"
+              "        private int m_lastPatchySafeBottom = Integer.MIN_VALUE;"
+          )
+          text, count = re.subn(
+              field_pattern,
+              field_replacement,
+              text,
+              count=1,
+          )
+          if count != 1:
+              raise SystemExit("ERROR: QtWindow class declaration not found")
+
+          safe_pattern = (
+              r"(?ms)(    private void reportSafeAreaMargins\(WindowInsets insets, int id\)\s*\{.*?"
+              r"        int bottom = Math\.max\(0, Math\.min\(safeInsets\.bottom, safeInsets\.bottom - bottomOffset\)\);\s*)"
+              r"(\s*safeAreaMarginsChanged\(Insets\.of\(left, top, right, bottom\), id\);)"
+          )
+          safe_replacement = (
+              r"\1"
+              "\n"
+              "        if (left != m_lastPatchySafeLeft\n"
+              "                || top != m_lastPatchySafeTop\n"
+              "                || right != m_lastPatchySafeRight\n"
+              "                || bottom != m_lastPatchySafeBottom) {\n"
+              "            Log.d(\"PATCHY-GEOM\",\n"
+              "                    \"SAFE: root=\" + rootView.getWidth() + \"x\" + rootView.getHeight()\n"
+              "                    + \" window=\" + getWidth() + \"x\" + getHeight()\n"
+              "                    + \" margins=\" + left + \",\" + top + \",\" + right + \",\" + bottom);\n"
+              "            m_lastPatchySafeLeft = left;\n"
+              "            m_lastPatchySafeTop = top;\n"
+              "            m_lastPatchySafeRight = right;\n"
+              "            m_lastPatchySafeBottom = bottom;\n"
+              "        }\n"
+              r"\2"
+          )
+          text, count = re.subn(safe_pattern, safe_replacement, text, count=1)
+          if count != 1:
+              raise SystemExit("ERROR: QtWindow safe-area calculation anchor not found")
+          qt_window.write_text(text)
+
+          # ------------------------------------------------------------
+          # 3. QAndroidPlatformScreen: log availableGeometry changes.
+          # ------------------------------------------------------------
+          text = screen_cpp.read_text()
+
+          if "PATCHY-GEOM SCREEN:" in text:
+              raise SystemExit("ERROR: qandroidplatformscreen diagnostics already present")
+
+          screen_pattern = (
+              r"(?ms)(void QAndroidPlatformScreen::setAvailableGeometry\(const QRect &rect\)\s*\{\s*"
+              r"        if \(m_availableGeometry == rect\)\s*"
+              r"            return;\s*)"
+          )
+          screen_replacement = (
+              r"\1"
+              "\n"
+              "    qDebug().noquote() << \"PATCHY-GEOM SCREEN:\"\n"
+              "        << m_availableGeometry << \"->\" << rect;\n"
+          )
+          text, count = re.subn(screen_pattern, screen_replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f"ERROR: QAndroidPlatformScreen setAvailableGeometry anchor expected exactly one match, found {count}")
+
+          if "#include <QDebug>" not in text:
+              include_anchor = '#include "qandroidplatformscreen.h"'
+              if include_anchor not in text:
+                  raise SystemExit("ERROR: qandroidplatformscreen include anchor not found")
+              text = text.replace(
+                  include_anchor,
+                  include_anchor + "\n#include <QDebug>",
+                  1,
+              )
+          screen_cpp.write_text(text)
+
+          # ------------------------------------------------------------
+          # 4. QAndroidPlatformWindow: log actual platform-window geometry.
+          # ------------------------------------------------------------
+          text = window_cpp.read_text()
+
+          if "PATCHY-GEOM WINDOW:" in text:
+              raise SystemExit("ERROR: qandroidplatformwindow diagnostics already present")
+
+          window_pattern = (
+              r"(?m)^(void QAndroidPlatformWindow::setGeometry\(const QRect &rect\)\s*\{\s*)"
+          )
+          window_replacement = (
+              r"\1"
+              "    const QRect oldPatchyGeometry = geometry();\n"
+              "    if (oldPatchyGeometry != rect) {\n"
+              "        qDebug().noquote() << \"PATCHY-GEOM WINDOW:\"\n"
+              "            << oldPatchyGeometry << \"->\" << rect;\n"
+              "    }\n"
+          )
+          text, count = re.subn(window_pattern, window_replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f"ERROR: QAndroidPlatformWindow::setGeometry anchor expected exactly one match, found {count}")
+
+          if "#include <QDebug>" not in text:
+              include_anchor = '#include "qandroidplatformwindow.h"'
+              if include_anchor not in text:
+                  raise SystemExit("ERROR: qandroidplatformwindow include anchor not found")
+              text = text.replace(
+                  include_anchor,
+                  include_anchor + "\n#include <QDebug>",
+                  1,
+              )
+          window_cpp.write_text(text)
+
+          # ------------------------------------------------------------
+          # 5. QtInputDelegate: log only keyboard visibility state changes.
+          # ------------------------------------------------------------
+          text = input_delegate.read_text()
+
+          if "PATCHY-GEOM KEYBOARD:" in text:
+              raise SystemExit("ERROR: QtInputDelegate diagnostics already present")
+
+          if "import android.util.Log;" not in text:
+              import_anchor = "import android.view.View;"
+              if import_anchor not in text:
+                  raise SystemExit("ERROR: QtInputDelegate View import anchor not found")
+              text = text.replace(
+                  import_anchor,
+                  import_anchor + "\nimport android.util.Log;",
+                  1,
+              )
+
+          keyboard_pattern = (
+              r"(?ms)(        m_keyboardIsVisible = visibility;\s*)"
+              r"(        keyboardVisibilityUpdated\(m_keyboardIsVisible\);)"
+          )
+          keyboard_replacement = (
+              r"\1"
+              "        Log.d(\"PATCHY-GEOM\",\n"
+              "                \"KEYBOARD: \" + (visibility ? \"SHOW\" : \"HIDE\"));\n"
+              r"\2"
+          )
+          text, count = re.subn(keyboard_pattern, keyboard_replacement, text, count=1)
+          if count != 1:
+              raise SystemExit("ERROR: QtInputDelegate keyboard visibility anchor not found")
+          input_delegate.write_text(text)
+
+          print("QtRootLayout diagnostics: OK")
+          print("QtWindow safe-area diagnostics: OK")
+          print("QAndroidPlatformScreen diagnostics: OK")
+          print("QAndroidPlatformWindow diagnostics: OK")
+          print("QtInputDelegate keyboard diagnostics: OK")
+          PY
+
+          echo "===== VERIFY GEOMETRY DIAGNOSTICS ====="
+
+          grep -n -A8 -B3 "PATCHY-GEOM ROOT:" \
+            qtbase-src/src/android/jar/src/org/qtproject/qt/android/QtRootLayout.java
+
+          grep -n -A12 -B5 "PATCHY-GEOM SAFE:" \
+            qtbase-src/src/android/jar/src/org/qtproject/qt/android/QtWindow.java
+
+          grep -n -A6 -B4 "PATCHY-GEOM SCREEN:" \
+            qtbase-src/src/plugins/platforms/android/qandroidplatformscreen.cpp
+
+          grep -n -A8 -B4 "PATCHY-GEOM WINDOW:" \
+            qtbase-src/src/plugins/platforms/android/qandroidplatformwindow.cpp
+
+          grep -n -A5 -B3 "PATCHY-GEOM KEYBOARD:" \
+            qtbase-src/src/android/jar/src/org/qtproject/qt/android/QtInputDelegate.java
+
+      # ================================================================
+      # CONFIGURE QTBASE
+      # ================================================================
+      - name: Configure patched Qt 6.10.3 for Android
+        env:
+          QTBASE_SRC: ${{ github.workspace }}/qtbase-src
+          QTBASE_BUILD: ${{ github.workspace }}/qtbase-build
+          QTBASE_INSTALL: ${{ github.workspace }}/qtbase-install
+        run: |
+          echo "===== CONFIGURE PATCHED QTBASE ====="
+
+          rm -rf "$QTBASE_BUILD"
+          rm -rf "$QTBASE_INSTALL"
+
+          mkdir -p "$QTBASE_BUILD"
+          mkdir -p "$QTBASE_INSTALL"
+
+          cd "$QTBASE_BUILD"
+
+          "$QTBASE_SRC/configure" \
+            -release \
+            -opensource \
+            -confirm-license \
+            -nomake tests \
+            -nomake examples \
+            -prefix "$QTBASE_INSTALL" \
+            -qt-host-path "$HOST_QT_ROOT" \
+            -android-abis arm64-v8a \
+            -android-sdk "$ANDROID_SDK_ROOT" \
+            -android-ndk "$ANDROID_SDK_ROOT/ndk/27.2.12479018"
+
+      # ================================================================
+      # BUILD QTBASE
+      # ================================================================
+      - name: Build patched Qt 6.10.3
+        env:
+          QTBASE_BUILD: ${{ github.workspace }}/qtbase-build
+        run: |
+          echo "===== BUILD PATCHED QTBASE ====="
+
+          cmake --build "$QTBASE_BUILD" --parallel 2
+
+      # ================================================================
+      # INSTALL QTBASE
+      # ================================================================
+      - name: Install patched Qt 6.10.3
+        env:
+          QTBASE_BUILD: ${{ github.workspace }}/qtbase-build
+          QTBASE_INSTALL: ${{ github.workspace }}/qtbase-install
+        run: |
+          echo "===== INSTALL PATCHED QTBASE ====="
+
+          cmake --install "$QTBASE_BUILD"
+
+      # ================================================================
+      # VERIFY PATCHED QTWIDGETS BINARY BEFORE OVERLAY
+      # ================================================================
+      - name: Verify patched QtWidgets binary
+        env:
+          QTBASE_INSTALL: ${{ github.workspace }}/qtbase-install
+        run: |
+          echo "===== VERIFY PATCHED QTWIDGETS BINARY ====="
+
+          PATCHED_WIDGETS=$(find "$QTBASE_INSTALL" \
+            -type f \
+            -name "libQt6Widgets_arm64-v8a.so" \
+            -print -quit)
+
+          if [ -z "$PATCHED_WIDGETS" ]; then
+            echo "ERROR: patched QtWidgets binary not found"
+            exit 1
+          fi
+
+          echo "Binary: $PATCHED_WIDGETS"
+          ls -lh "$PATCHED_WIDGETS"
+
+          LLVM_OBJDUMP=$(command -v llvm-objdump || true)
+
+          if [ -z "$LLVM_OBJDUMP" ]; then
+            echo "ERROR: llvm-objdump not found"
+            exit 1
+          fi
+
+          "$LLVM_OBJDUMP" -d "$PATCHED_WIDGETS" \
+            > qtwidgets-disassembly.txt
+
+          echo "===== LOOK FOR setFloating() STARTING-DRAG GUARD ====="
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          text = Path(
+              "qtwidgets-disassembly.txt"
+          ).read_text()
+
+          lines = text.splitlines()
+
+          starts = [
+              i
+              for i, line in enumerate(lines)
+              if "setFloating" in line
+              and "<" in line
+              and ">:" in line
+          ]
+
+          if not starts:
+              raise SystemExit(
+                  "ERROR: setFloating() symbol not found in QtWidgets binary"
+              )
+
+          found = False
+
+          for start in starts:
+              block = "\n".join(lines[start:start + 140])
+
+              if "#0x260" not in block:
+                  continue
+
+              if not re.search(
+                  r"ldrb\s+w[0-9]+, \[x[0-9]+, #0x2b\]",
+                  block
+              ):
+                  continue
+
+              if not re.search(
+                  r"strb\s+w[0-9]+, \[x[0-9]+, #0x2c\]",
+                  block
+              ):
+                  continue
+
+              found = True
+
+              print("Verified setFloating() block:")
+              print(block[:5000])
+
+              break
+
+          if not found:
+              raise SystemExit(
+                  "ERROR: binary setFloating() guard not found; "
+                  "startingDrag(+0x2b) and abortPending(+0x2c) "
+                  "were not both found in the setFloating() "
+                  "disassembly block"
+              )
+
+          print(
+              "PATCHED QtWidgets BINARY VERIFICATION: OK"
+          )
+          PY
+
+          sha256sum "$PATCHED_WIDGETS"
+
+      # ================================================================
+      # OVERLAY ONLY PATCHED QTWIDGETS
+      # ================================================================
+      - name: Overlay only patched QtWidgets onto Qt Android
+        env:
+          QTBASE_INSTALL: ${{ github.workspace }}/qtbase-install
+        run: |
+          echo "===== OVERLAY ONLY PATCHED QTWIDGETS ====="
+
+          PATCHED_WIDGETS=$(find "$QTBASE_INSTALL" \
+            -type f \
+            -name "libQt6Widgets_arm64-v8a.so" \
+            -print -quit)
+
+          QT_ANDROID_PATCHED="$QT_ROOT_DIR"
+
+          ORIGINAL_WIDGETS=$(find "$QT_ANDROID_PATCHED" \
+            -type f \
+            -name "libQt6Widgets_arm64-v8a.so" \
+            -print -quit)
+
+          if [ -z "$PATCHED_WIDGETS" ]; then
+            echo "ERROR: patched QtWidgets not found"
+            exit 1
+          fi
+
+          if [ -z "$ORIGINAL_WIDGETS" ]; then
+            echo "ERROR: original QtWidgets not found"
+            exit 1
+          fi
+
+          echo "Patched QtWidgets:"
+          echo "$PATCHED_WIDGETS"
+
+          echo "Original QtWidgets:"
+          echo "$ORIGINAL_WIDGETS"
+
+          cp -f \
+            "$PATCHED_WIDGETS" \
+            "$ORIGINAL_WIDGETS"
+
+          echo "QtWidgets replacement: OK"
+
+          echo "===== VERIFY EGL PLUGIN WAS PRESERVED ====="
+
+          QT_EGL_PLUGIN=$(find "$QT_ANDROID_PATCHED" \
+            -type f \
+            -name "libplugins_platforms_qtforandroid_arm64-v8a.so" \
+            -print -quit)
+
+          if [ -z "$QT_EGL_PLUGIN" ]; then
+            echo "ERROR: EGL plugin disappeared"
+            exit 1
+          fi
+
+          echo "EGL plugin:"
+          echo "$QT_EGL_PLUGIN"
+
+          ls -lh \
+            "$ORIGINAL_WIDGETS" \
+            "$QT_EGL_PLUGIN"
+
+          echo "QT_ROOT_DIR=$QT_ANDROID_PATCHED" >> "$GITHUB_ENV"
+          echo "QT_ANDROID_PATCHED=$QT_ANDROID_PATCHED" >> "$GITHUB_ENV"
+
+      # ================================================================
+      # VERIFY FINAL QT LIBRARIES
+      # ================================================================
+      - name: Verify final patched Qt libraries
+        run: |
+          echo "===== FINAL QT LIBRARIES ====="
+
+          QT_WIDGETS=$(find "$QT_ROOT_DIR" \
+            -type f \
+            -name "libQt6Widgets_arm64-v8a.so" \
+            -print -quit)
+
+          QT_GUI=$(find "$QT_ROOT_DIR" \
+            -type f \
+            -name "libQt6Gui_arm64-v8a.so" \
+            -print -quit)
+
+          QT_EGL=$(find "$QT_ROOT_DIR" \
+            -type f \
+            -name "libplugins_platforms_qtforandroid_arm64-v8a.so" \
+            -print -quit)
+
+          echo "QtWidgets: $QT_WIDGETS"
+          echo "QtGui:     $QT_GUI"
+          echo "QtEGL:     $QT_EGL"
+
+          test -n "$QT_WIDGETS"
+          test -n "$QT_GUI"
+          test -n "$QT_EGL"
+
+          ls -lh \
+            "$QT_WIDGETS" \
+            "$QT_GUI" \
+            "$QT_EGL"
+
+      # ================================================================
+      # PREPARE ANDROID MANIFEST
+      # ================================================================
+      - name: Prepare Qt Android manifest
+        run: |
+          echo "===== FIND QT ANDROID TEMPLATE ====="
+
+          QT_ANDROID_TEMPLATE=$(find "$QT_ROOT_DIR" \
+            -path "*/src/android/templates/AndroidManifest.xml" \
+            -print -quit)
+
+          echo "Template: $QT_ANDROID_TEMPLATE"
+
+          if [ -z "$QT_ANDROID_TEMPLATE" ]; then
+            echo "ERROR: Qt AndroidManifest.xml template not found"
+            exit 1
+          fi
+
+          cp "$QT_ANDROID_TEMPLATE" \
+            android/AndroidManifest.xml
+
+          echo "===== PATCH MANIFEST ====="
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("android/AndroidManifest.xml")
+          text = path.read_text()
+
+          text = text.replace(
+              'android:screenOrientation="unspecified"',
+              'android:screenOrientation="landscape"',
+              1
+          )
+
+          text = text.replace(
+              '    package="org.qtproject.qt.example"',
+              '',
+              1
+          )
+
+          text = text.replace(
+              '<activity',
+              '<activity android:theme="@android:style/Theme.Material.NoActionBar"',
+              1
+          )
+
+          text = text.replace(
+              'android:name="org.qtproject.qt.android.bindings.QtActivity"',
+              'android:name="com.kintokikyo.patchy.MainActivity"',
+              1
+          )
+
+          path.write_text(text)
+          PY
+
+          echo "===== FINAL MANIFEST ====="
+          cat android/AndroidManifest.xml
+
+      # ================================================================
+      # CONFIGURE PATCHY
+      # ================================================================
+      - name: Configure Patchy
+        env:
+          QT_ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/patchy-test.keystore
+          QT_ANDROID_KEYSTORE_ALIAS: patchy
+          QT_ANDROID_KEYSTORE_STORE_PASS: patchy123
+          QT_ANDROID_KEYSTORE_KEY_PASS: patchy123
+        run: |
+          "$QT_ROOT_DIR/bin/qt-cmake" \
+            -S . \
+            -B build/android-release \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPATCHY_BUILD_APP=ON \
+            -DPATCHY_BUILD_TESTS=OFF \
+            -DQT_ANDROID_ABIS=arm64-v8a \
+            -DQT_ANDROID_MIN_SDK_VERSION=28 \
+            -DQT_ANDROID_TARGET_SDK_VERSION=36 \
+            -DQT_ANDROID_PACKAGE_NAME=com.kintokikyo.patchy \
+            -DQT_HOST_PATH="$HOST_QT_ROOT" \
+            -DANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" \
+            -DANDROID_NDK_ROOT="$ANDROID_SDK_ROOT/ndk/27.2.12479018" \
+            -DQT_ENABLE_VERBOSE_DEPLOYMENT=ON \
+            -DQT_ANDROID_SIGN_APK=ON
+
+      # ================================================================
+      # BUILD APK
+      # ================================================================
+      - name: Build APK
+        continue-on-error: true
+        env:
+          QT_ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/patchy-test.keystore
+          QT_ANDROID_KEYSTORE_ALIAS: patchy
+          QT_ANDROID_KEYSTORE_STORE_PASS: patchy123
+          QT_ANDROID_KEYSTORE_KEY_PASS: patchy123
+        run: |
+          cmake --build build/android-release \
+            --target apk \
+            --parallel 2
+
+      # ================================================================
+      # INSPECT GRADLE PROJECT
+      # ================================================================
+      - name: Inspect Android Gradle Project
+        run: |
+          echo "===== android-build ====="
+
+          find build/android-release/android-build \
+            -maxdepth 2 \
+            -type f \
+            -print || true
+
+          echo ""
+          echo "===== gradle.properties ====="
+
+          cat \
+            build/android-release/android-build/gradle.properties \
+            || true
+
+          echo ""
+          echo "===== settings.gradle.kts ====="
+
+          cat \
+            build/android-release/android-build/settings.gradle.kts \
+            || true
+
+          echo ""
+          echo "===== settings.gradle ====="
+
+          cat \
+            build/android-release/android-build/settings.gradle \
+            || true
+
+          echo ""
+          echo "===== build.gradle.kts ====="
+
+          cat \
+            build/android-release/android-build/build.gradle.kts \
+            || true
+
+          echo ""
+          echo "===== build.gradle ====="
+
+          cat \
+            build/android-release/android-build/build.gradle \
+            || true
+
+      # ================================================================
+      # FIND APK
+      # ================================================================
+      - name: Find APK
+        run: |
+          echo "===== APK FILES ====="
+
+          find build/android-release \
+            -type f \
+            -name "*.apk" \
+            -print
+
+      # ================================================================
+      # VERIFY QTWIDGETS INSIDE FINAL APK
+      # ================================================================
+      - name: Verify final APK QtWidgets binary
+        run: |
+          echo "===== VERIFY FINAL APK QTWIDGETS ====="
+
+          APK=$(find build/android-release \
+            -type f \
+            -name "*.apk" \
+            -print -quit)
+
+          if [ -z "$APK" ]; then
+            echo "ERROR: APK not found"
+            exit 1
+          fi
+
+          echo "APK: $APK"
+
+          # ------------------------------------------------------------
+          # Extract QtWidgets directly from APK.
+          # ------------------------------------------------------------
+          rm -f final-libQt6Widgets_arm64-v8a.so
+
+          unzip -p "$APK" \
+            lib/arm64-v8a/libQt6Widgets_arm64-v8a.so \
+            > final-libQt6Widgets_arm64-v8a.so
+
+          if [ ! -s final-libQt6Widgets_arm64-v8a.so ]; then
+            echo "ERROR: libQt6Widgets_arm64-v8a.so not found in APK"
+            exit 1
+          fi
+
+          echo ""
+          echo "Final APK QtWidgets:"
+          ls -lh final-libQt6Widgets_arm64-v8a.so
+
+          # ------------------------------------------------------------
+          # Locate the patched QtWidgets before APK packaging.
+          # ------------------------------------------------------------
+          QT_WIDGETS=$(find "$QT_ROOT_DIR" \
+            -type f \
+            -name "libQt6Widgets_arm64-v8a.so" \
+            -print -quit)
+
+          if [ -z "$QT_WIDGETS" ]; then
+            echo "ERROR: Qt Android QtWidgets not found"
+            exit 1
+          fi
+
+          echo ""
+          echo "Qt Android QtWidgets:"
+          echo "$QT_WIDGETS"
+
+          # ------------------------------------------------------------
+          # IMPORTANT:
+          #
+          # Do NOT compare the complete .so SHA256.
+          #
+          # Android/Gradle may strip native libraries during packaging,
+          # which can change the overall SHA256 while leaving .text
+          # (the actual executable code) unchanged.
+          # ------------------------------------------------------------
+
+          command -v llvm-objcopy >/dev/null 2>&1 || {
+            echo "ERROR: llvm-objcopy not found"
+            exit 1
+          }
+
+          rm -f \
+            qtwidgets-text.bin \
+            apk-qtwidgets-text.bin
+
+          echo ""
+          echo "===== EXTRACT .text FROM PATCHED QTWIDGETS ====="
+
+          llvm-objcopy \
+            --dump-section .text=qtwidgets-text.bin \
+            "$QT_WIDGETS"
+
+          echo ""
+          echo "===== EXTRACT .text FROM APK QTWIDGETS ====="
+
+          llvm-objcopy \
+            --dump-section .text=apk-qtwidgets-text.bin \
+            final-libQt6Widgets_arm64-v8a.so
+
+          if [ ! -s qtwidgets-text.bin ]; then
+            echo "ERROR: Could not extract .text from patched QtWidgets"
+            exit 1
+          fi
+
+          if [ ! -s apk-qtwidgets-text.bin ]; then
+            echo "ERROR: Could not extract .text from APK QtWidgets"
+            exit 1
+          fi
+
+          echo ""
+          echo "Patched QtWidgets .text:"
+          ls -lh qtwidgets-text.bin
+
+          echo ""
+          echo "APK QtWidgets .text:"
+          ls -lh apk-qtwidgets-text.bin
+
+          QT_TEXT_HASH=$(sha256sum qtwidgets-text.bin | awk '{print $1}')
+          APK_TEXT_HASH=$(sha256sum apk-qtwidgets-text.bin | awk '{print $1}')
+
+          echo ""
+          echo "Patched QtWidgets .text SHA256:"
+          echo "$QT_TEXT_HASH"
+
+          echo ""
+          echo "APK QtWidgets .text SHA256:"
+          echo "$APK_TEXT_HASH"
+
+          echo ""
+
+          if [ "$QT_TEXT_HASH" != "$APK_TEXT_HASH" ]; then
+            echo "ERROR: APK QtWidgets .text DOES NOT MATCH"
+            echo ""
+            echo "The executable code inside the APK differs"
+            echo "from the patched QtWidgets binary."
+            exit 1
+          fi
+
+          echo "=========================================="
+          echo "FINAL APK QTWIDGETS CODE VERIFICATION: OK"
+          echo "=========================================="
+
+          echo ""
+          echo "The APK contains the same .text executable"
+          echo "code as the patched QtWidgets binary."
+
+      # ================================================================
+      # CHECK APK
+      # ================================================================
+      - name: Check APK
+        run: |
+          if ! find build/android-release \
+              -type f \
+              -name "*.apk" \
+              | grep -q .; then
+
+            echo "APK belum berhasil dibuat."
+            exit 1
+          fi
+
+          echo "APK ditemukan."
+
+      # ================================================================
+      # UPLOAD APK
+      # ================================================================
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: patchy-geometry-diagnostic-qt6103
+          path: |
+            build/android-release/**/*.apk
+            build/android-release/*.apk
+          if-no-files-found: error
