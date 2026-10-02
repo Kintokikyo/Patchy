@@ -1115,26 +1115,28 @@ jobs:
               r"\}"
           )
 
-          cpp_replacement = (
-              r"\g<indent>bool isSoftwareKeyboardVisible()\n"
-              r"\g<indent>{\n"
-              r"\g<indent>    AndroidBackendRegister *reg = QtAndroid::backendRegister();\n"
-              r"\g<indent>    return reg->callInterface<QtJniTypes::QtInputInterface, jboolean>(\n"
-              r"\g<indent>        \"isSoftwareKeyboardVisible\");\n"
-              r"\g<indent>}\n"
-              r"\n"
-              r"\g<indent>bool isKeyboardTransitionInProgress()\n"
-              r"\g<indent>{\n"
-              r"\g<indent>    AndroidBackendRegister *reg = QtAndroid::backendRegister();\n"
-              r"\g<indent>    return reg->callInterface<QtJniTypes::QtInputInterface, jboolean>(\n"
-              r"\g<indent>        \"isKeyboardTransitionInProgress\");\n"
-              r"\g<indent>}"
-          )
+          def cpp_replacement_fn(match):
+              indent = match.group("indent")
+              return (
+                  f'{indent}bool isSoftwareKeyboardVisible()\n'
+                  f'{indent}{{\n'
+                  f'{indent}    AndroidBackendRegister *reg = QtAndroid::backendRegister();\n'
+                  f'{indent}    return reg->callInterface<QtJniTypes::QtInputInterface, jboolean>(\n'
+                  f'{indent}        "isSoftwareKeyboardVisible");\n'
+                  f'{indent}}}\n'
+                  f'\n'
+                  f'{indent}bool isKeyboardTransitionInProgress()\n'
+                  f'{indent}{{\n'
+                  f'{indent}    AndroidBackendRegister *reg = QtAndroid::backendRegister();\n'
+                  f'{indent}    return reg->callInterface<QtJniTypes::QtInputInterface, jboolean>(\n'
+                  f'{indent}        "isKeyboardTransitionInProgress");\n'
+                  f'{indent}}}'
+              )
 
           text = replace_once(
               text,
               cpp_pattern,
-              cpp_replacement,
+              cpp_replacement_fn,
               "androidjniinput.cpp helper"
           )
           jni_cpp.write_text(text)
