@@ -23,6 +23,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import socket
 import subprocess
 import sys
@@ -30,6 +31,7 @@ import threading
 import time
 import traceback
 import types
+import uuid
 import webbrowser
 from pathlib import Path
 
@@ -163,7 +165,9 @@ _child_run_started: _dt.datetime | None = None
 _child_run_dir: Path | None = None  # known for resumes, discovered for fresh starts
 _in_process_run_active = False
 _in_process_run_dir: Path | None = None
-_spawn_lock = threading.Lock()
+_spawn_lock = threading.RLock()
+_interrupt_requested = threading.Event()
+SHUTDOWN_FILE_ENV = "TESTY_SHUTDOWN_FILE"
 _status_cache: tuple[Path, float, dict] | None = None
 
 
@@ -455,6 +459,8 @@ class TestyRequestHandler(http.server.SimpleHTTPRequestHandler):
             "run": live.name if live is not None else None,
             "pausePending": bool(live is not None and (live / PAUSE_FLAG).exists()),
             "resumable": _resumable(),
+            "shuttingDown": self.server.stop_requested.is_set(),
+            "shutdownError": self.server.stop_error,
         })
 
     def _send_rerun_state(self) -> None:
@@ -475,6 +481,7 @@ class TestyRequestHandler(http.server.SimpleHTTPRequestHandler):
         from urllib.parse import urlparse
 
         handler = {
+            "/testy-shutdown": self._shutdown,
             "/testy-start-run": self._start_run,
             "/testy-cancel-run": self._cancel_run,
             "/testy-pause-run": self._pause_run,
@@ -487,7 +494,17 @@ class TestyRequestHandler(http.server.SimpleHTTPRequestHandler):
         if handler is None:
             self.send_error(404)
             return
-        self._guarded(handler)
+        # Serialize shutdown with launches and other mutations. Uploads from the
+        # current cell must remain available until the child has finished.
+        with _spawn_lock:
+            if self.server.stop_requested.is_set() and handler not in (self._shutdown, self._upload):
+                self._send_json({"errors": ["Testy is shutting down"]}, status=409)
+                return
+            self._guarded(handler)
+
+    def _shutdown(self) -> None:
+        self.server.request_stop()
+        self._send_json({"shuttingDown": True}, status=202)
 
     def _upload(self) -> None:
         from urllib.parse import parse_qs, urlparse
@@ -526,15 +543,16 @@ class TestyRequestHandler(http.server.SimpleHTTPRequestHandler):
         global _child_run, _child_run_started, _child_run_dir
         log_path = config.RUNS_DIR / "last-child-run.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
-        log_file = open(log_path, "w", encoding="utf-8")
         _child_run_started = _dt.datetime.now()
         _child_run_dir = run_dir
-        _child_run = subprocess.Popen(
-            command,
-            stdout=log_file,
-            stderr=subprocess.STDOUT,
-            creationflags=subprocess.CREATE_NO_WINDOW,
-        )
+        # A server-owned signal reaches a child even before its status.json exists.
+        env = dict(os.environ, **{SHUTDOWN_FILE_ENV: str(self.server.stop_file),
+                                 "PYTHONIOENCODING": "utf-8"})
+        with open(log_path, "w", encoding="utf-8") as log_file:
+            _child_run = subprocess.Popen(
+                command, stdout=log_file, stderr=subprocess.STDOUT, env=env,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+            )
 
     def _start_run(self) -> None:
         if _run_in_progress():
@@ -849,8 +867,48 @@ class _ExclusiveHTTPServer(http.server.ThreadingHTTPServer):
     # clean OSError so the port scan moves on.
     allow_reuse_address = False
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.stop_requested = threading.Event()
+        self.stopped = threading.Event()
+        self.stop_error = ""
+        self.stop_file = config.RUNS_DIR / f".shutdown-{uuid.uuid4().hex}.flag"
 
-def start_server(port: int) -> tuple[http.server.ThreadingHTTPServer, int]:
+    def request_stop(self) -> None:
+        # Signal handlers only set an event: never take a lock while interrupting
+        # code that may already own it, or raise inside an editor/COM operation.
+        self.stop_requested.set()
+
+    def finish_stop(self) -> None:
+        self.stop_requested.wait()
+        log("shutting down: waiting for the current step to finish and checkpoint")
+        while True:
+            with _spawn_lock:
+                if not _run_in_progress():
+                    break
+                try:
+                    self.stop_file.parent.mkdir(parents=True, exist_ok=True)
+                    self.stop_file.touch()
+                    self.stop_error = ""
+                except OSError as error:
+                    self.stop_error = f"Could not request a checkpoint: {error}"
+            time.sleep(0.2)
+        self.shutdown()
+        self.server_close()
+        try:
+            self.stop_file.unlink(missing_ok=True)
+        except OSError as error:
+            log(f"could not remove shutdown signal: {error}")
+        log("Testy stopped; dashboard port released")
+        self.stopped.set()
+
+    def wait_until_stopped(self) -> None:
+        # Short waits let Windows deliver console signals to the main thread.
+        while not self.stopped.wait(0.2):
+            pass
+
+
+def start_server(port: int) -> tuple[_ExclusiveHTTPServer, int]:
     handler = functools.partial(TestyRequestHandler, directory=str(config.TESTY_ROOT))
     for candidate in range(port, port + 20):
         try:
@@ -859,7 +917,8 @@ def start_server(port: int) -> tuple[http.server.ThreadingHTTPServer, int]:
             continue
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
-        return server, candidate
+        threading.Thread(target=server.finish_stop, daemon=True).start()
+        return server, server.server_address[1]
     raise RuntimeError("no free port found for the dashboard")
 
 
@@ -887,6 +946,7 @@ class Runner:
     def __init__(self, args: argparse.Namespace) -> None:
         global _in_process_run_dir
         self.args = args
+        self.server: _ExclusiveHTTPServer | None = None
         self.suffix = args.suffix
         # Scan mode: files whose render stays within this bad-pixel fraction of the
         # Photoshop ground truth (and hit no failure of any kind) are "passed" and
@@ -1635,7 +1695,11 @@ class Runner:
     TERMINAL_CELL_STATES = ("done", "failed", "skipped", "unsupported")
 
     def _pause_requested(self) -> bool:
-        return (self.run_dir / PAUSE_FLAG).exists()
+        parent_stop = os.environ.get(SHUTDOWN_FILE_ENV)
+        return (_interrupt_requested.is_set()
+                or bool(self.server and self.server.stop_requested.is_set())
+                or bool(parent_stop and Path(parent_stop).exists())
+                or (self.run_dir / PAUSE_FLAG).exists())
 
     def _photoshop_unavailable_exit(self) -> int:
         """Photoshop stopped launching. Ground truth is the baseline every column is
@@ -1737,7 +1801,6 @@ class Runner:
         else:
             self.init_status(corpus)
 
-        server = None
         if self.args.server_url:
             # A controlling server (start-testy.bat's serve.py) already serves the testy
             # root and the upload endpoint; reuse it instead of binding a second port.
@@ -1745,6 +1808,7 @@ class Runner:
             log(f"dashboard: {self.server_base}/runs/{self.run_name}/report.html (parent server)")
         elif not self.args.no_serve:
             server, port = start_server(self.args.port)
+            self.server = server
             self.server_port = port
             self.server_base = f"http://127.0.0.1:{port}"
             url = f"{self.server_base}/runs/{self.run_name}/report.html"
@@ -1753,6 +1817,9 @@ class Runner:
                 webbrowser.open(url)
         if not self.resume:  # a resumed run was indexed when it first started
             report.append_run_index(config.TESTY_ROOT, self.run_name)
+
+        if self._pause_requested():
+            return self._graceful_pause_exit()
 
         if not self.args.no_build and "patchy" in self.editor_order:
             if not refresh_patchy_build():
@@ -1871,12 +1938,6 @@ class Runner:
                         summarize=self.summarize_status, scan_reasons=self.scan_reasons_for_status)
         self._print_summary()
 
-        if server is not None and not self.args.exit_when_done:
-            log("run complete - dashboard stays up; press Enter to quit")
-            try:
-                input()
-            except (EOFError, KeyboardInterrupt):
-                pass
         return 0
 
     def _aggregate(self) -> dict:
@@ -1997,19 +2058,31 @@ def main() -> int:
     parser.add_argument("--no-serve", action="store_true", help="write reports without the local server")
     parser.add_argument("--server-url", default=None,
                         help="reuse an already-running Testy server (browser-spawned runs)")
-    parser.add_argument("--exit-when-done", action="store_true", help="do not wait for Enter at the end")
+    parser.add_argument("--exit-when-done", action="store_true", help="stop the dashboard when the run ends")
     args = parser.parse_args()
     if args.scan is not None and not 0.0 <= args.scan <= 100.0:
         parser.error("--scan threshold must be a percentage between 0 and 100")
     global _in_process_run_active
     _in_process_run_active = True
+    _interrupt_requested.clear()
     runner = None
+
+    def request_stop(_signum, _frame):
+        _interrupt_requested.set()
+        if runner is not None and runner.server is not None:
+            runner.server.request_stop()
+
+    previous_sigint = signal.signal(signal.SIGINT, request_stop)
     try:
         runner = Runner(args)
         result = runner.run()
         if result and runner.status.get("run", {}).get("rerunRequest"):
             rerun.note_state(config.RUNS_DIR, runner.status["run"]["rerunRequest"], "failed",
                              error="Rerun did not complete; previous results kept.")
+        _in_process_run_active = False
+        if result == 0 and runner.server is not None and not args.exit_when_done:
+            log("run complete - dashboard stays up; use Shut down Testy or Ctrl+C to quit")
+            runner.server.wait_until_stopped()
         return result
     except Exception as error:
         job = runner.status.get("run", {}).get("rerunRequest") if runner else None
@@ -2018,6 +2091,10 @@ def main() -> int:
         raise
     finally:
         _in_process_run_active = False
+        if runner is not None and runner.server is not None:
+            runner.server.request_stop()
+            runner.server.wait_until_stopped()
+        signal.signal(signal.SIGINT, previous_sigint)
 
 
 if __name__ == "__main__":

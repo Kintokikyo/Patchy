@@ -29,6 +29,14 @@ overflows the Windows 32K command-line limit, WinError 206). Endpoint errors com
 back as JSON 500s, not dropped connections. A Cancel button kills the run's
 process tree and marks it "canceled".
 
+**Shut down Testy** (top right) and console Ctrl+C finish the current step,
+checkpoint an unfinished run, wait for the benchmark child to exit, then close the
+server and release its port. The panel shows progress, then goes offline. Restart
+Testy and Resume to continue. Shutdown blocks new runs but allows the finishing
+cell's uploads; it does not force-close editors. A build or editor call already in
+progress must finish first. Use these controls instead of closing the console
+window or killing Python. CLI-owned dashboards also shut down this way.
+
 A Pause button (panel and live report) checkpoints big runs instead of killing them:
 the orchestrator finishes the current file/editor cell (interrupting mid-cell would
 trip the drivers' watchdogs), records `state: "paused"` in status.json, and exits.
@@ -73,12 +81,12 @@ rows show their build/version and time, and the header identifies the batch as a
 partial refresh. These batches contain measurements from multiple builds.
 Existing batches get current controls when served by an updated Testy server;
 restart the server after updating Testy. Frozen reports have no rerun controls.
-Run the editor-free regression checks with
-`scripts\run-throttled.bat python tests\testy_rerun_tests.py` (Python and Node required).
+Editor-free regressions: run `tests\testy_rerun_tests.py` and
+`tests\testy_shutdown_tests.py` through `scripts\run-throttled.bat python`
+(Python and Node required).
 
-The detail panel's older **Retest file** button creates a separate one-file run
-with the same editors/options and a fresh Patchy build, leaving the batch intact.
-It reuses caches, unlike **Rerun**. Both require the Testy server and no active run.
+**Retest file** in the detail panel creates a separate one-file run, reusing
+caches and refreshing Patchy's build. Both controls require an idle Testy server.
 
 The CLI remains for scripted use:
 
@@ -427,10 +435,7 @@ runs" table reads it for the over-time view.
 
 ## Patchy CLI automation (product side)
 
-Testy drives Patchy through product flags added for it (src/app/main.cpp):
-`patchy.exe <in> --export <out>` opens a file, saves it to `<out>` (format by
-extension) and exits unattended (single-instance opt-out, prompts suppressed,
-recent files/folders updated); set `PATCHY_SETTINGS_DIR` to isolate automation
-history from the artist's settings. `--append-text <s>` first appends `<s>` to every text
-layer through real editor sessions so rasters re-render through the text pipeline.
-Pinned by the `ui_cli_append_text_rerenders_and_roundtrips` visual test.
+`patchy.exe <in> --export <out>` saves and exits unattended; set
+`PATCHY_SETTINGS_DIR` to isolate history/settings. `--append-text <s>` edits every
+text layer before export, pinned by `ui_cli_append_text_rerenders_and_roundtrips`.
+Flags live in `src/app/main.cpp`; see [scripting.md](scripting.md).

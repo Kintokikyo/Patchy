@@ -168,7 +168,7 @@ class RerunTests(unittest.TestCase):
     def test_endpoint_spawns_fresh_row_rerun_and_serves_new_controls_for_old_report(self):
         (self.parent/'report.html').write_text('old report')
         handler = lambda *args, **kwargs: testy.TestyRequestHandler(*args, directory=str(self.runs.parent), **kwargs)
-        server = testy.http.server.ThreadingHTTPServer(('127.0.0.1', 0), handler)
+        server = testy._ExclusiveHTTPServer(('127.0.0.1', 0), handler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         self.addCleanup(server.server_close)
