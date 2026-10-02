@@ -1148,8 +1148,7 @@ jobs:
               raise SystemExit("ERROR: qandroidplatformscreen.h already contains the V6 timer")
 
           screen_h_pattern = (
-              r"(?ms)(\s*QWaitCondition m_surfaceWaitCondition;\s*"
-              r"\s*QSize m_size;\s*)"
+              r"(?ms)(\s*QSize m_size;\s*)"
           )
           screen_h_replacement = (
               r"\1\n"
