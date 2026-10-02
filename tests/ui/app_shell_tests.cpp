@@ -3289,6 +3289,10 @@ void ui_language_saved_preference_overrides_system_language() {
   CHECK(menus.contains(QStringLiteral("File")));
   auto settings = patchy::ui::app_settings();
   CHECK(settings.value(QStringLiteral("preferences/language")).toString() == QStringLiteral("en"));
+  for (const auto* tag : {"pt_PT", "ru_RU", "pl_PL", "ko_KR"}) {
+    patchy::ui::LocalizationManager::instance().load_saved_language(QLocale(QString::fromLatin1(tag)));
+    CHECK(patchy::ui::LocalizationManager::instance().current_language() == QStringLiteral("en"));
+  }
 }
 
 void ui_language_invalid_preference_falls_back_to_english() {
@@ -3327,8 +3331,13 @@ void ui_language_matching_maps_locales_to_shipped_codes() {
   CHECK(manager.match_language(QStringLiteral("zh_TW")) == QStringLiteral("zh_TW"));
   CHECK(manager.match_language(QStringLiteral("zh_HK")) == QStringLiteral("zh_TW"));
   CHECK(manager.match_language(QStringLiteral("zh-Hant")) == QStringLiteral("zh_TW"));
+  for (const auto* tag : {"pt", "pt_BR", "pt-BR", "pt-PT", "pt-Latn-BR"}) {
+    CHECK(manager.match_language(QString::fromLatin1(tag)) == QStringLiteral("pt_BR"));
+  }
+  CHECK(manager.match_language(QStringLiteral("ru-RU")) == QStringLiteral("ru"));
+  CHECK(manager.match_language(QStringLiteral("pl_PL")) == QStringLiteral("pl"));
+  CHECK(manager.match_language(QStringLiteral("ko-KR")) == QStringLiteral("ko"));
   // Languages Patchy does not ship match nothing; the caller falls back to English.
-  CHECK(manager.match_language(QStringLiteral("pt_BR")).isEmpty());
   CHECK(manager.match_language(QStringLiteral("zz")).isEmpty());
   CHECK(manager.match_language(QString()).isEmpty());
 
@@ -3337,11 +3346,15 @@ void ui_language_matching_maps_locales_to_shipped_codes() {
         QStringLiteral("zh_TW"));
   CHECK(manager.language_for_locale(QLocale(QLocale::Chinese, QLocale::SimplifiedHanScript, QLocale::China)) ==
         QStringLiteral("zh_CN"));
-  CHECK(manager.language_for_locale(QLocale(QLocale::Portuguese, QLocale::Brazil)) == QStringLiteral("en"));
+  CHECK(manager.language_for_locale(QLocale(QLocale::Portuguese, QLocale::Brazil)) == QStringLiteral("pt_BR"));
+  CHECK(manager.language_for_locale(QLocale(QLocale::Portuguese, QLocale::Portugal)) == QStringLiteral("pt_BR"));
+  CHECK(manager.language_for_locale(QLocale(QLocale::Russian, QLocale::Russia)) == QStringLiteral("ru"));
+  CHECK(manager.language_for_locale(QLocale(QLocale::Polish, QLocale::Poland)) == QStringLiteral("pl"));
+  CHECK(manager.language_for_locale(QLocale(QLocale::Korean, QLocale::SouthKorea)) == QStringLiteral("ko"));
   CHECK(manager.language_for_locale(QLocale::c()) == QStringLiteral("en"));
 
   // Selecting an unshipped language reports failure and leaves English active.
-  CHECK(!manager.set_language(QStringLiteral("pt_BR"), false));
+  CHECK(!manager.set_language(QStringLiteral("nl_NL"), false));
   CHECK(manager.current_language() == QStringLiteral("en"));
 }
 

@@ -2199,6 +2199,7 @@ void ui_bundled_web_fonts_register_and_create_engines() {
   CHECK(listed("Noto Sans"));
   CHECK(listed("Noto Serif"));
   CHECK(listed("Noto Sans JP"));
+  CHECK(listed("NanumGothic"));
 }
 
 // Dropping a font file on the main window registers it instead of trying to

@@ -87,6 +87,10 @@ LocalizationManager::LocalizationManager()
                  {QStringLiteral("fr"), QStringLiteral("French"), QStringLiteral("Français")},
                  {QStringLiteral("it"), QStringLiteral("Italian"), QStringLiteral("Italiano")},
                  {QStringLiteral("ja"), QStringLiteral("Japanese"), QStringLiteral("日本語")},
+                 {QStringLiteral("ko"), QStringLiteral("Korean"), QStringLiteral("한국어")},
+                 {QStringLiteral("pl"), QStringLiteral("Polish"), QStringLiteral("Polski")},
+                 {QStringLiteral("pt_BR"), QStringLiteral("Portuguese (Brazil)"), QStringLiteral("Português (Brasil)")},
+                 {QStringLiteral("ru"), QStringLiteral("Russian"), QStringLiteral("Русский")},
                  {QStringLiteral("zh_CN"), QStringLiteral("Chinese (Simplified)"), QStringLiteral("简体中文")},
                  {QStringLiteral("zh_TW"), QStringLiteral("Chinese (Traditional)"), QStringLiteral("繁體中文")}},
       current_language_(source_language()),
@@ -140,6 +144,11 @@ QString LocalizationManager::match_language(const QString& code) const {
   if (locale.language() == QLocale::Chinese) {
     return locale.script() == QLocale::TraditionalHanScript ? QStringLiteral("zh_TW")
                                                              : QStringLiteral("zh_CN");
+  }
+  // Brazilian Portuguese is the shipped Portuguese variant. Match language-only
+  // and other regional preferences too, just as fr_CA resolves to French.
+  if (locale.language() == QLocale::Portuguese) {
+    return QStringLiteral("pt_BR");
   }
   const auto language_code = QLocale::languageToCode(locale.language());
   for (const auto& language : languages_) {

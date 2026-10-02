@@ -89,7 +89,7 @@ Camera Raw, long shadows, scripting, and more.
 **Local by design.** No telemetry, tracking, or uploads of your images. The browser build
 runs the same editor locally through WebAssembly. Desktop builds have more memory
 available and add printing, scanner/camera import, and command-line automation.
-Optional update checks contact GitHub. Eight interface languages, dark and light
+Optional update checks contact GitHub. Twelve interface languages, dark and light
 schemes, and importable themes are included.
 
 ## PSD compatibility, measured

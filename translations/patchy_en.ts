@@ -8156,10 +8156,6 @@ RGB: %2, %3, %4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>UI language for this run only, not saved: en, de, es, fr, it, ja, zh_CN, or zh_TW.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Also crop each actual layer to the canvas area</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8623,6 +8619,10 @@ RGB: %2, %3, %4</source>
     </message>
     <message>
         <source>Text layer. No glyphs for this text in: %1. Another font is being substituted, so the text does not look as it was authored.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>UI language for this run only, not saved: en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN, or zh_TW.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

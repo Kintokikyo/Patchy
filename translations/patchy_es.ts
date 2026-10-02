@@ -8165,10 +8165,6 @@ RGB: %2, %3, %4</translation>
         <translation>Arrastre el tirador del centro o del radio para situar el filtro. Arrastre en otro lugar para desplazar la vista; la rueda del ratón aplica zoom.</translation>
     </message>
     <message>
-        <source>UI language for this run only, not saved: en, de, es, fr, it, ja, zh_CN, or zh_TW.</source>
-        <translation>Idioma de la interfaz solo para esta ejecución, no se guarda: en, de, es, fr, it, ja, zh_CN o zh_TW.</translation>
-    </message>
-    <message>
         <source>Also crop each actual layer to the canvas area</source>
         <translation>Recortar también cada capa al área del lienzo</translation>
     </message>
@@ -8635,6 +8631,10 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Text layer. No glyphs for this text in: %1. Another font is being substituted, so the text does not look as it was authored.</source>
         <translation>Capa de texto. Sin glifos para este texto en: %1. Se está sustituyendo por otra fuente, por lo que el texto no se ve como fue creado.</translation>
+    </message>
+    <message>
+        <source>UI language for this run only, not saved: en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN, or zh_TW.</source>
+        <translation>Idioma de la interfaz solo para esta ejecución, no se guarda: en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN o zh_TW.</translation>
     </message>
 </context>
 <context>

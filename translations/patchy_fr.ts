@@ -8165,10 +8165,6 @@ RVB : %2, %3, %4</translation>
         <translation>Faites glisser le centre ou la poignée de rayon pour positionner le filtre. Faites glisser ailleurs pour déplacer la vue ; la molette de la souris permet de zoomer.</translation>
     </message>
     <message>
-        <source>UI language for this run only, not saved: en, de, es, fr, it, ja, zh_CN, or zh_TW.</source>
-        <translation>Langue de l&apos;interface pour cette exécution uniquement, non enregistrée : en, de, es, fr, it, ja, zh_CN ou zh_TW.</translation>
-    </message>
-    <message>
         <source>Also crop each actual layer to the canvas area</source>
         <translation>Recadrer également chaque calque à la zone de travail</translation>
     </message>
@@ -8635,6 +8631,10 @@ RVB : %2, %3, %4</translation>
     <message>
         <source>Text layer. No glyphs for this text in: %1. Another font is being substituted, so the text does not look as it was authored.</source>
         <translation>Calque de texte. Aucun glyphe pour ce texte dans : %1. Une autre police est utilisée à la place, le texte n&apos;a donc pas l&apos;aspect prévu à sa création.</translation>
+    </message>
+    <message>
+        <source>UI language for this run only, not saved: en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN, or zh_TW.</source>
+        <translation>Langue de l'interface pour cette exécution uniquement, non enregistrée : en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN ou zh_TW.</translation>
     </message>
 </context>
 <context>

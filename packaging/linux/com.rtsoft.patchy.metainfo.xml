@@ -10,6 +10,10 @@
   <summary xml:lang="fr">Éditeur d'images matricielles axé sur le format PSD</summary>
   <summary xml:lang="it">Editor di immagini raster incentrato sul formato PSD</summary>
   <summary xml:lang="ja">PSD 対応のラスター画像エディタ</summary>
+  <summary xml:lang="ko">PSD 중심의 래스터 이미지 편집기</summary>
+  <summary xml:lang="pl">Edytor grafiki rastrowej z obsługą formatu PSD</summary>
+  <summary xml:lang="pt_BR">Editor de imagens raster com foco no formato PSD</summary>
+  <summary xml:lang="ru">Редактор растровых изображений с поддержкой формата PSD</summary>
   <summary xml:lang="zh_CN">以 PSD 为核心的位图图像编辑器</summary>
   <summary xml:lang="zh_TW">以 PSD 為核心的點陣圖影像編輯器</summary>
   <description>
@@ -64,6 +68,18 @@
     </p>
     <p xml:lang="ja">
       Patchy は Photoshop の PSD 形式を中心に設計された高速なラスター画像エディタです。レイヤー、フォルダー、マスク、調整レイヤー、レイヤースタイル、テキストレイヤーを Photoshop と相互にやり取りできます。Photoshop 風のツール（長方形選択、なげなわ、マグネット選択、自動選択、クイック選択、.abr の読み込みとダイナミクスに対応したブラシ、コピースタンプ、指先、グラデーション）、ピクセルアーティスト向けのパレットに制限されたインデックスカラー編集、正確なインデックス PNG-8/BMP 書き出しを備えています。
+    </p>
+    <p xml:lang="ko">
+      Patchy는 Photoshop PSD 형식을 중심으로 설계된 빠른 래스터 이미지 편집기입니다. 레이어, 폴더, 마스크, 조정 레이어, 레이어 스타일, 텍스트 레이어를 Photoshop과 주고받을 수 있습니다. Photoshop 방식의 도구(선택 윤곽, 올가미, 자석 올가미, 자동 선택, 빠른 선택, .abr 가져오기와 동적 설정을 지원하는 브러시, 복제 도장, 손가락 도구, 그레이디언트), 픽셀 아티스트를 위한 팔레트 기반 인덱스 색상 편집, 정확한 인덱스 PNG-8/BMP 내보내기를 제공합니다.
+    </p>
+    <p xml:lang="pl">
+      Patchy to szybki edytor grafiki rastrowej oparty na formacie PSD programu Photoshop. Warstwy, foldery, maski, warstwy dopasowania, style warstw i warstwy tekstowe można wymieniać z programem Photoshop. Zawiera narzędzia w stylu Photoshopa (zaznaczenie prostokątne, lasso, lasso magnetyczne, różdżkę, szybkie zaznaczanie, pędzle z importem .abr i dynamiką, stempel, smużenie, gradienty), edycję w trybie kolorów indeksowanych ograniczoną do palety dla twórców pixel artu oraz dokładny eksport do indeksowanych formatów PNG-8/BMP.
+    </p>
+    <p xml:lang="pt_BR">
+      O Patchy é um editor rápido de imagens raster desenvolvido em torno do formato PSD do Photoshop: camadas, pastas, máscaras, camadas de ajuste, estilos de camada e camadas de texto podem ser editados e trocados com o Photoshop. Inclui ferramentas no estilo do Photoshop (seleção retangular, laço, laço magnético, varinha mágica, seleção rápida, pincéis com importação de .abr e dinâmica, carimbo, borrar e degradês), edição com cores indexadas limitada à paleta para artistas de pixel art e exportação exata para PNG-8/BMP indexado.
+    </p>
+    <p xml:lang="ru">
+      Patchy: быстрый редактор растровых изображений на основе формата Photoshop PSD. Слои, папки, маски, корректирующие слои, стили слоёв и текстовые слои сохраняются при обмене файлами с Photoshop. Редактор включает инструменты в стиле Photoshop (прямоугольное выделение, лассо, магнитное лассо, волшебная палочка, быстрое выделение, кисти с импортом .abr и настройками динамики, штамп, размазывание, градиенты), редактирование в индексированных цветах с ограничением палитры для пиксельной графики и точный экспорт в индексированные PNG-8/BMP.
     </p>
     <p xml:lang="zh_CN">
       Patchy 是一款围绕 Photoshop PSD 格式打造的快速位图图像编辑器：图层、文件夹、蒙版、调整图层、图层样式和文字图层都能与 Photoshop 无损往返。它提供 Photoshop 风格的工具（选框、套索、磁性套索、魔棒、快速选择、支持导入 .abr 并带有动态的画笔、仿制图章、涂抹、渐变），面向像素画作者的调色板受限索引颜色编辑，以及精确的索引 PNG-8/BMP 导出。

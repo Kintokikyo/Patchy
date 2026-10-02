@@ -4,6 +4,7 @@
 
 #include <QAction>
 #include <QChar>
+#include <QEvent>
 #include <QMenu>
 #include <QStringList>
 
@@ -300,6 +301,13 @@ void UnitSpinBox::refresh_suffix() {
   setSuffix(spin_unit_suffix(display_));
 }
 
+void UnitSpinBox::changeEvent(QEvent* event) {
+  QDoubleSpinBox::changeEvent(event);
+  if (event->type() == QEvent::LanguageChange) {
+    refresh_suffix();
+  }
+}
+
 void UnitSpinBox::set_display_unit(SpinUnit unit) {
   if (unit == display_) {
     return;
@@ -479,6 +487,13 @@ UnitConversionContext UnitIntSpinBox::conversion_context() const {
 
 void UnitIntSpinBox::refresh_suffix() {
   setSuffix(spin_unit_suffix(native_));
+}
+
+void UnitIntSpinBox::changeEvent(QEvent* event) {
+  QSpinBox::changeEvent(event);
+  if (event->type() == QEvent::LanguageChange) {
+    refresh_suffix();
+  }
 }
 
 QValidator::State UnitIntSpinBox::validate(QString& input, int& pos) const {

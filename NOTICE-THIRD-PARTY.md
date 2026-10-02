@@ -59,7 +59,7 @@ include these files. Every family is distributed under the SIL Open Font
 License, Version 1.1, and each family directory carries its own license text as
 `OFL.txt`, packaged into the web build's preloaded data file. All files are
 unmodified static-instance builds fetched from the projects' official
-repositories on 2026-07-31:
+repositories on 2026-07-31 unless noted below:
 
 | Family | Files | Source |
 | --- | --- | --- |
@@ -70,6 +70,7 @@ repositories on 2026-07-31:
 | Noto Sans JP | 2 (Regular, Bold) | Google Fonts static TTF builds (fonts.gstatic.com via the css2 API; the TrueType-outline builds Google serves for JP web use, preferred over the noto-cjk CFF OTFs for FreeType rendering consistency) |
 | Noto Sans SC | 2 (Regular, Bold) | Google Fonts static TTF builds (fonts.gstatic.com via the css2 API), fetched September 15, 2026 |
 | Noto Sans TC | 2 (Regular, Bold) | Google Fonts static TTF builds (fonts.gstatic.com via the css2 API), fetched September 15, 2026 |
+| Nanum Gothic | 2 (Regular, Bold) | [google/fonts, ofl/nanumgothic](https://github.com/google/fonts/tree/133ccbee9a8b408eb71f31a36ccb9116f5c695ad/ofl/nanumgothic), revision `133ccbee9a8b408eb71f31a36ccb9116f5c695ad`, fetched October 2, 2026; unmodified static TTFs, copyright NHN Corporation, designed by Sandoll Communications Inc.; SIL OFL 1.1 in `third_party/fonts-web/nanum_gothic/OFL.txt` |
 | Montserrat | 2 (Regular, Bold) | github.com/JulietaUla/Montserrat, `fonts/ttf` |
 | Oswald | 2 (Regular, Bold) | github.com/googlefonts/OswaldFont, `fonts/ttf` |
 | Caveat | 2 (Regular, Bold) | github.com/googlefonts/caveat, `fonts/ttf` |

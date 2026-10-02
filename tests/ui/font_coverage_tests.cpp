@@ -19,6 +19,7 @@
 
 #include <QDir>
 #include <QFile>
+#include <QFont>
 #include <QRawFont>
 #include <QSet>
 #include <QString>
@@ -125,18 +126,38 @@ void ui_wasm_cjk_fallback_order_follows_the_language() {
   const auto jp = QStringLiteral("Noto Sans JP");
   const auto sc = QStringLiteral("Noto Sans SC");
   const auto tc = QStringLiteral("Noto Sans TC");
+  const auto ko = QStringLiteral("NanumGothic");
   // The three families share most Han codepoints and Qt takes the first that has the
   // glyph, so the language decides whose shapes win.
-  CHECK(wasm_cjk_fallback_families(QStringLiteral("zh_CN")) == QStringList({sc, tc, jp}));
-  CHECK(wasm_cjk_fallback_families(QStringLiteral("zh_TW")) == QStringList({tc, sc, jp}));
-  CHECK(wasm_cjk_fallback_families(QStringLiteral("ja")) == QStringList({jp, sc, tc}));
-  CHECK(wasm_cjk_fallback_families(QStringLiteral("en")) == QStringList({jp, sc, tc}));
-  CHECK(wasm_cjk_fallback_families(QString()) == QStringList({jp, sc, tc}));
+  CHECK(wasm_cjk_fallback_families(QStringLiteral("zh_CN")) == QStringList({sc, tc, jp, ko}));
+  CHECK(wasm_cjk_fallback_families(QStringLiteral("zh_TW")) == QStringList({tc, sc, jp, ko}));
+  CHECK(wasm_cjk_fallback_families(QStringLiteral("ja")) == QStringList({jp, sc, tc, ko}));
+  CHECK(wasm_cjk_fallback_families(QStringLiteral("en")) == QStringList({jp, sc, tc, ko}));
+  CHECK(wasm_cjk_fallback_families(QString()) == QStringList({jp, sc, tc, ko}));
+  CHECK(wasm_cjk_fallback_families(QStringLiteral("ko")) == QStringList({ko, jp, sc, tc}));
+  CHECK(wasm_cjk_fallback_families(QStringLiteral("ko-KR")) == QStringList({ko, jp, sc, tc}));
   // Every shipped language resolves to a list naming each bundled CJK family once.
   for (const auto& language : patchy::ui::LocalizationManager::instance().languages()) {
     const auto families = wasm_cjk_fallback_families(language.code);
-    CHECK(families.size() == 3);
-    CHECK(families.contains(jp) && families.contains(sc) && families.contains(tc));
+    CHECK(families.size() == 4);
+    CHECK(families.contains(jp) && families.contains(sc) && families.contains(tc) && families.contains(ko));
+  }
+}
+
+void ui_bundled_web_fonts_cover_modern_korean_in_both_weights() {
+  for (const auto* weight : {"Regular", "Bold"}) {
+    const auto path = QStringLiteral(PATCHY_SOURCE_DIR "/third_party/fonts-web/nanum_gothic/NanumGothic-%1.ttf")
+                          .arg(QString::fromLatin1(weight));
+    const QRawFont font(path, 16.0);
+    CHECK(font.isValid());
+    CHECK(font.familyName() == QStringLiteral("NanumGothic"));
+    CHECK(font.weight() == (QString::fromLatin1(weight) == QStringLiteral("Bold") ? QFont::Bold : QFont::Normal));
+    for (uint codepoint = 0xAC00; codepoint <= 0xD7A3; ++codepoint) {
+      CHECK(font.supportsCharacter(codepoint));
+    }
+    const auto glyphs = font.glyphIndexesForString(QStringLiteral("한국어 파일 편집 레이어 저장"));
+    CHECK(!glyphs.isEmpty());
+    CHECK(std::all_of(glyphs.cbegin(), glyphs.cend(), [](quint32 glyph) { return glyph != 0; }));
   }
 }
 
@@ -145,6 +166,7 @@ void ui_wasm_cjk_fallback_order_follows_the_language() {
 std::vector<patchy::test::TestCase> font_coverage_tests() {
   return {
       {"ui_bundled_web_fonts_cover_every_catalog_character", ui_bundled_web_fonts_cover_every_catalog_character},
+      {"ui_bundled_web_fonts_cover_modern_korean_in_both_weights", ui_bundled_web_fonts_cover_modern_korean_in_both_weights},
       {"ui_wasm_cjk_fallback_order_follows_the_language", ui_wasm_cjk_fallback_order_follows_the_language},
   };
 }

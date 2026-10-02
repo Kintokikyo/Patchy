@@ -8142,10 +8142,6 @@ Mixed selection</source>
         <translation>無題</translation>
     </message>
     <message>
-        <source>UI language for this run only, not saved: en, de, es, fr, it, ja, zh_CN, or zh_TW.</source>
-        <translation>この実行のみに適用される UI 言語 (保存されません): en、de、es、fr、it、ja、zh_CN、zh_TW。</translation>
-    </message>
-    <message>
         <source>Also crop each actual layer to the canvas area</source>
         <translation>各レイヤー自体もカンバス領域に切り抜く</translation>
     </message>
@@ -8608,6 +8604,10 @@ Mixed selection</source>
     <message>
         <source>Text layer. No glyphs for this text in: %1. Another font is being substituted, so the text does not look as it was authored.</source>
         <translation>テキストレイヤー。このテキストのグリフがないフォント: %1。別のフォントで代替しているため、作成時の見た目とは異なります。</translation>
+    </message>
+    <message>
+        <source>UI language for this run only, not saved: en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN, or zh_TW.</source>
+        <translation>この実行のみに適用される UI 言語 (保存されません): en、de、es、fr、it、ja、ko、pl、pt_BR、ru、zh_CN、zh_TW。</translation>
     </message>
 </context>
 <context>

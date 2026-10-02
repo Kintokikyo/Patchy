@@ -63,6 +63,30 @@ $PatchyInstallerText = @{
         FileInUseQuietMessage = ConvertFrom-PatchyUnicodeEscapes "Impossibile aggiornare Patchy perch\u00E9 i file installati sono in uso. Chiudi Patchy ed esegui di nuovo il programma di installazione."
         InstallationCanceled = ConvertFrom-PatchyUnicodeEscapes "Installazione annullata."
     }
+    ko = @{
+        RunningPatchyRetryMessage = ConvertFrom-PatchyUnicodeEscapes "Patchy\uAC00 \uC2E4\uD589 \uC911\uC785\uB2C8\uB2E4. \uC791\uC5C5\uC744 \uC800\uC7A5\uD558\uACE0 Patchy\uB97C \uB2EB\uC740 \uD6C4 \uB2E4\uC2DC \uC2DC\uB3C4\uB97C \uD074\uB9AD\uD558\uC5EC \uC124\uCE58\uB97C \uACC4\uC18D\uD558\uC138\uC694."
+        RunningPatchyQuietMessage = ConvertFrom-PatchyUnicodeEscapes "Patchy\uAC00 \uC2E4\uD589 \uC911\uC785\uB2C8\uB2E4. Patchy\uB97C \uB2EB\uACE0 \uC124\uCE58 \uD504\uB85C\uADF8\uB7A8\uC744 \uB2E4\uC2DC \uC2E4\uD589\uD558\uC138\uC694."
+        FileInUseQuietMessage = ConvertFrom-PatchyUnicodeEscapes "\uC124\uCE58\uB41C \uD30C\uC77C\uC774 \uC0AC\uC6A9 \uC911\uC774\uC5B4\uC11C Patchy\uB97C \uC5C5\uB370\uC774\uD2B8\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. Patchy\uB97C \uB2EB\uACE0 \uC124\uCE58 \uD504\uB85C\uADF8\uB7A8\uC744 \uB2E4\uC2DC \uC2E4\uD589\uD558\uC138\uC694."
+        InstallationCanceled = ConvertFrom-PatchyUnicodeEscapes "\uC124\uCE58\uAC00 \uCDE8\uC18C\uB418\uC5C8\uC2B5\uB2C8\uB2E4."
+    }
+    pl = @{
+        RunningPatchyRetryMessage = ConvertFrom-PatchyUnicodeEscapes "Patchy jest uruchomiony. Zapisz swoj\u0105 prac\u0119, zamknij Patchy, a nast\u0119pnie kliknij Pon\u00F3w pr\u00F3b\u0119, aby kontynuowa\u0107 instalacj\u0119."
+        RunningPatchyQuietMessage = ConvertFrom-PatchyUnicodeEscapes "Patchy jest uruchomiony. Zamknij Patchy i ponownie uruchom instalator."
+        FileInUseQuietMessage = ConvertFrom-PatchyUnicodeEscapes "Nie mo\u017Cna zaktualizowa\u0107 Patchy, poniewa\u017C zainstalowane pliki s\u0105 u\u017Cywane. Zamknij Patchy i ponownie uruchom instalator."
+        InstallationCanceled = ConvertFrom-PatchyUnicodeEscapes "Instalacja zosta\u0142a anulowana."
+    }
+    pt_BR = @{
+        RunningPatchyRetryMessage = ConvertFrom-PatchyUnicodeEscapes "O Patchy est\u00E1 em execu\u00E7\u00E3o. Salve seu trabalho, feche o Patchy e clique em Repetir para continuar a instala\u00E7\u00E3o."
+        RunningPatchyQuietMessage = ConvertFrom-PatchyUnicodeEscapes "O Patchy est\u00E1 em execu\u00E7\u00E3o. Feche o Patchy e execute o instalador novamente."
+        FileInUseQuietMessage = ConvertFrom-PatchyUnicodeEscapes "N\u00E3o foi poss\u00EDvel atualizar o Patchy porque os arquivos instalados est\u00E3o em uso. Feche o Patchy e execute o instalador novamente."
+        InstallationCanceled = ConvertFrom-PatchyUnicodeEscapes "Instala\u00E7\u00E3o cancelada."
+    }
+    ru = @{
+        RunningPatchyRetryMessage = ConvertFrom-PatchyUnicodeEscapes "Patchy \u0443\u0436\u0435 \u0437\u0430\u043F\u0443\u0449\u0435\u043D. \u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u0435 \u0440\u0430\u0431\u043E\u0442\u0443, \u0437\u0430\u043A\u0440\u043E\u0439\u0442\u0435 Patchy \u0438 \u043D\u0430\u0436\u043C\u0438\u0442\u0435 \u00AB\u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u044C\u00BB, \u0447\u0442\u043E\u0431\u044B \u043F\u0440\u043E\u0434\u043E\u043B\u0436\u0438\u0442\u044C \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0443."
+        RunningPatchyQuietMessage = ConvertFrom-PatchyUnicodeEscapes "Patchy \u0443\u0436\u0435 \u0437\u0430\u043F\u0443\u0449\u0435\u043D. \u0417\u0430\u043A\u0440\u043E\u0439\u0442\u0435 Patchy \u0438 \u0437\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u0435 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0443 \u0441\u043D\u043E\u0432\u0430."
+        FileInUseQuietMessage = ConvertFrom-PatchyUnicodeEscapes "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043E\u0431\u043D\u043E\u0432\u0438\u0442\u044C Patchy, \u043F\u043E\u0441\u043A\u043E\u043B\u044C\u043A\u0443 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u043D\u044B\u0435 \u0444\u0430\u0439\u043B\u044B \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u044E\u0442\u0441\u044F. \u0417\u0430\u043A\u0440\u043E\u0439\u0442\u0435 Patchy \u0438 \u0437\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u0435 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0443 \u0441\u043D\u043E\u0432\u0430."
+        InstallationCanceled = ConvertFrom-PatchyUnicodeEscapes "\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0430 \u043E\u0442\u043C\u0435\u043D\u0435\u043D\u0430."
+    }
     zh_CN = @{
         RunningPatchyRetryMessage = ConvertFrom-PatchyUnicodeEscapes "Patchy \u6B63\u5728\u8FD0\u884C\u3002\u8BF7\u4FDD\u5B58\u60A8\u7684\u5DE5\u4F5C\uFF0C\u5173\u95ED Patchy\uFF0C\u7136\u540E\u5355\u51FB\u201C\u91CD\u8BD5\u201D\u7EE7\u7EED\u5B89\u88C5\u3002"
         RunningPatchyQuietMessage = ConvertFrom-PatchyUnicodeEscapes "Patchy \u6B63\u5728\u8FD0\u884C\u3002\u8BF7\u5173\u95ED Patchy\uFF0C\u7136\u540E\u91CD\u65B0\u8FD0\u884C\u5B89\u88C5\u7A0B\u5E8F\u3002"
@@ -98,7 +122,10 @@ function Get-PatchyInstallerLanguage {
         return "zh_CN"
     }
 
-    if (@("de", "es", "fr", "it", "ja") -contains $language) {
+    if ($language -eq "pt") {
+        return "pt_BR"
+    }
+    if (@("de", "es", "fr", "it", "ja", "ko", "pl", "ru") -contains $language) {
         return $language
     }
     return "en"

@@ -455,7 +455,7 @@ int main(int argc, char* argv[]) {
   QCommandLineOption language_option(
       QStringLiteral("language"),
       QCoreApplication::translate(
-          "QObject", "UI language for this run only, not saved: en, de, es, fr, it, ja, zh_CN, or zh_TW."),
+          "QObject", "UI language for this run only, not saved: en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN, or zh_TW."),
       QStringLiteral("code"));
   parser.addOption(language_option);
   QCommandLineOption stress_option(

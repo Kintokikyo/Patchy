@@ -17,8 +17,9 @@ Two trees, one staging target:
   (R/B/I/BI, metric-compatible with Arial, Times New Roman, and Courier New),
   Carlito (R/B/I/BI, Calibri-compatible), Noto Sans and Noto Serif (R/B/I/BI),
   Noto Sans JP, Noto Sans SC, and Noto Sans TC (Regular and Bold each, the
-  CJK UI and text fallback), Montserrat, Oswald, Caveat (Regular and Bold
-  each), and Abril Fatface, Pacifico, Lobster (Regular each). About 58 MB
+  CJK UI and text fallback), Nanum Gothic (Regular and Bold, Korean fallback),
+  Montserrat, Oswald, Caveat (Regular and Bold each), and Abril Fatface, Pacifico,
+  Lobster (Regular each). About 62 MiB
   total, of which the three CJK families are about 45 MB.
 
 The `patchy_bundled_fonts` CMake target cleans and rebuilds
@@ -91,10 +92,12 @@ Accepted side effect: editing a text layer whose PSD says "Arial" on wasm
 commits the alias family (the same outcome as accepting the desktop
 missing-font substitution prompt, but silent and correctly rendered).
 
-The wasm UI font is `{"Noto Sans", "Noto Sans JP"}` (per-glyph fallback keeps
-the Japanese UI from rendering tofu), and
-`render_text_families_for_display_family` appends "Noto Sans JP" on wasm so
-Japanese document text renders through it under any Latin-only face.
+The wasm UI font starts with Noto Sans, followed by
+`wasm_cjk_fallback_families`. Korean puts NanumGothic first among the fallbacks;
+Chinese and Japanese keep their regional Noto order, with NanumGothic last.
+The same list supplies document-text fallback and refreshes when the UI language
+changes. Nanum Gothic's static Regular and Bold faces cover every modern Hangul
+syllable; the browser-only font tree keeps desktop font selection unchanged.
 
 ## User-added fonts (drag and drop)
 

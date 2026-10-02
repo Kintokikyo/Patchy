@@ -8142,10 +8142,6 @@ RGB：%2, %3, %4</translation>
         <translation>拖动中心或半径控制点以定位滤镜。在其他位置拖动可平移视图，滚动鼠标滚轮可缩放。</translation>
     </message>
     <message>
-        <source>UI language for this run only, not saved: en, de, es, fr, it, ja, zh_CN, or zh_TW.</source>
-        <translation>仅本次运行使用的界面语言，不会保存：en、de、es、fr、it、ja、zh_CN 或 zh_TW。</translation>
-    </message>
-    <message>
         <source>Also crop each actual layer to the canvas area</source>
         <translation>同时将每个图层本身裁剪到画布区域</translation>
     </message>
@@ -8608,6 +8604,10 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Text layer. No glyphs for this text in: %1. Another font is being substituted, so the text does not look as it was authored.</source>
         <translation>文字图层。以下字体没有此文字所需的字形：%1。已替换为其他字体，因此文字外观与创作时不同。</translation>
+    </message>
+    <message>
+        <source>UI language for this run only, not saved: en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN, or zh_TW.</source>
+        <translation>仅本次运行使用的界面语言，不会保存：en、de、es、fr、it、ja、ko、pl、pt_BR、ru、zh_CN 或 zh_TW。</translation>
     </message>
 </context>
 <context>

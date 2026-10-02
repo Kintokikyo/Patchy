@@ -581,7 +581,7 @@ if(PATCHY_BUILD_APP)
     find_package(Python3 3.8 REQUIRED COMPONENTS Interpreter)
     # Every shipped UI language except the English source. Mirrors the table in
     # src/ui/localization.cpp; docs/localization.md describes adding one.
-    set(PATCHY_TRANSLATED_LANGUAGES de es fr it ja zh_CN zh_TW)
+    set(PATCHY_TRANSLATED_LANGUAGES de es fr it ja ko pl pt_BR ru zh_CN zh_TW)
     # The English template: every extractable string with empty translations. It is
     # regenerated with the language files and is never compiled.
     set(PATCHY_TRANSLATION_TEMPLATE "${PROJECT_SOURCE_DIR}/translations/patchy_en.ts")

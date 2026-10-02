@@ -3,6 +3,7 @@
 // converter are exercised directly; the widget tests drive the line edit + Enter.
 
 #include "ui/measurement_units.hpp"
+#include "ui/localization.hpp"
 #include "ui/unit_spin_box.hpp"
 
 #include "test_harness.hpp"
@@ -15,6 +16,7 @@
 #include <QLineEdit>
 #include <QLocale>
 #include <QMenu>
+#include <QScopeGuard>
 #include <QString>
 #include <QTimer>
 
@@ -316,6 +318,41 @@ void unit_spin_box_keeps_translated_suffix() {
   CHECK(whole.suffix() == patchy::ui::pixel_suffix());
 }
 
+void unit_spin_box_language_switch_refreshes_suffix_without_changing_values() {
+  auto& manager = patchy::ui::LocalizationManager::instance();
+  const auto original = manager.current_language();
+  const auto restore = qScopeGuard([&] {
+    manager.set_language(original, false);
+    QApplication::processEvents();
+  });
+  CHECK(manager.set_language(QStringLiteral("en"), false));
+  QWidget parent;
+  UnitSpinBox fractional(SpinUnit::Pixels, &parent);
+  UnitSpinBox physical(SpinUnit::Pixels, &parent);
+  UnitIntSpinBox whole(SpinUnit::Pixels, &parent);
+  fractional.setValue(12.5);
+  physical.setValue(72.0);
+  physical.set_display_unit(SpinUnit::Millimeters);
+  whole.setValue(12);
+  int value_changes = 0;
+  QObject::connect(&fractional, &QDoubleSpinBox::valueChanged, [&] { ++value_changes; });
+  QObject::connect(&physical, &QDoubleSpinBox::valueChanged, [&] { ++value_changes; });
+  QObject::connect(&whole, &QSpinBox::valueChanged, [&] { ++value_changes; });
+  parent.show();
+  QApplication::processEvents();
+  for (const auto* language : {"ru", "pl", "pt_BR", "ko", "en"}) {
+    CHECK(manager.set_language(QString::fromLatin1(language), false));
+    QApplication::processEvents();
+    CHECK(fractional.suffix() == patchy::ui::pixel_suffix());
+    CHECK(whole.suffix() == fractional.suffix());
+    CHECK(physical.suffix() == patchy::ui::spin_unit_suffix(SpinUnit::Millimeters));
+    CHECK(fractional.value() == 12.5);
+    CHECK(physical.value() == 72.0);
+    CHECK(whole.value() == 12);
+    CHECK(value_changes == 0);
+  }
+}
+
 void unit_spin_box_int_rounds_converted_values() {
   UnitIntSpinBox spin(SpinUnit::Pixels);
   spin.setRange(0, 5000);
@@ -533,6 +570,8 @@ std::vector<patchy::test::TestCase> unit_spin_box_tests() {
       {"unit_spin_box_rejects_incompatible_units", unit_spin_box_rejects_incompatible_units},
       {"unit_spin_box_plain_number_uses_native_unit", unit_spin_box_plain_number_uses_native_unit},
       {"unit_spin_box_keeps_translated_suffix", unit_spin_box_keeps_translated_suffix},
+      {"unit_spin_box_language_switch_refreshes_suffix_without_changing_values",
+       unit_spin_box_language_switch_refreshes_suffix_without_changing_values},
       {"unit_spin_box_display_unit_follows_typed_unit", unit_spin_box_display_unit_follows_typed_unit},
       {"unit_spin_box_int_rounds_converted_values", unit_spin_box_int_rounds_converted_values},
       {"unit_spin_box_display_unit_adjusts_decimals_and_step", unit_spin_box_display_unit_adjusts_decimals_and_step},

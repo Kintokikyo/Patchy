@@ -36,7 +36,7 @@ The package is intentionally limited to the files needed by end users:
 - Qt DLLs for Core, GUI, Widgets, PrintSupport, Network, SVG, and the Qt ImageFormats plugins
 - the Windows and offscreen platform plugins (offscreen is what `--headless` loads; the script smoke-tests the staged tree headless before zipping), current Windows style plugin, SVG icon engine, TLS backend, and JPEG, SVG, TIFF, and WebP image plugins
 - app-local Microsoft Visual C++ runtime DLLs copied from the local Visual Studio redist CRT directory
-- app and Qt base translations for every shipped language (German, Spanish, French, Italian, Japanese, Simplified and Traditional Chinese) under `translations`
+- app and Qt base translations for every shipped language (German, Spanish, French, Italian, Japanese, Korean, Polish, Brazilian Portuguese, Russian, Simplified and Traditional Chinese) under `translations`
 - bundled compatibility fonts under `fonts`
 - `README.md`, `LICENSE`, `NOTICE-THIRD-PARTY.md`, and Qt module SPDX notices under `licenses\qt`
 

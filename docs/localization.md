@@ -15,6 +15,10 @@ translation is never a crash or a blank label, only English.
 | fr | French | Français |
 | it | Italian | Italiano |
 | ja | Japanese | 日本語 |
+| ko | Korean | 한국어 |
+| pl | Polish | Polski |
+| pt_BR | Portuguese (Brazil) | Português (Brasil) |
+| ru | Russian | Русский |
 | zh_CN | Chinese (Simplified) | 简体中文 |
 | zh_TW | Chinese (Traditional) | 繁體中文 |
 
@@ -58,7 +62,8 @@ cross builds. `scripts/check-translations.py` uses only the standard library and
 CMake-generated lupdate manifest. It compares a fresh extraction in temporary build
 storage with the English template, then validates every configured catalog's exact
 message keys, language, plural forms, completion, placeholders, accelerators and
-punctuation. Duplicate messages and malformed catalogs fail too. Ordinary builds never
+punctuation. Korean, Japanese and Chinese have one plural form; Russian and Polish
+have three; the remaining shipped languages have two. Duplicate messages and malformed catalogs fail too. Ordinary builds never
 update source catalogs. `scripts/update-translations.ps1 -Check` runs this same gate;
 the update target remains independent so unfinished catalogs can still be regenerated.
 
@@ -139,13 +144,16 @@ sets its suffix from the same helpers and its parser accepts the lowercased loca
 suffixes beside the English tokens, so a translated suffix round-trips when the display
 text is re-entered. Readout text (`format_pixels`, `format_percent`, `format_degrees`)
 appends the same suffixes to a locale-formatted number.
+Both unit spin-box classes refresh their suffix on `LanguageChange`, including
+fields whose display unit differs from their stored native unit.
 
 ## Language selection
 
 `LocalizationManager` (`src/ui/localization.cpp`) resolves any code, locale name or BCP 47
 tag with `match_language()`: exact code, then language-only (`fr_CA` -> `fr`), with Chinese
 chosen by script (`zh_TW`, `zh_HK`, `zh_MO`, `zh-Hant*` -> `zh_TW`; every other `zh` ->
-`zh_CN`). With no saved preference, `language_for_locale()` walks
+`zh_CN`). Portuguese tags (`pt`, `pt-BR`, `pt-PT`, and script-qualified variants)
+resolve to the shipped Brazilian Portuguese catalog, `pt_BR`. With no saved preference, `language_for_locale()` walks
 `QLocale::uiLanguages()` and takes the first shipped match, else English; the choice is not
 persisted, so a later OS change still applies. Selecting a language whose `.qm` is missing
 falls back to English and `set_language` returns false. The Preferences combo is generated
@@ -178,10 +186,10 @@ stay as they were, and translations must not assume localized decimal separators
   `GenericName`, `Comment`, `summary` and description translations for every language.
 - Windows installer (`packaging/windows/InstallPatchy.ps1`): its four messages exist in
   every language and the script picks one from the UI culture with the same script-aware
-  Chinese rule.
+  Chinese and Brazilian Portuguese fallback rules.
 - wasm: the `/translations` preload takes the directory; the qtbase catalogs come from the
   host kit. The browser exposes no system fonts, so the build bundles Noto Sans JP, SC and
-  TC and orders them by the active language (`wasm_cjk_fallback_families`, docs/fonts.md).
+  TC plus Nanum Gothic Regular/Bold, and orders them by the active language (`wasm_cjk_fallback_families`, docs/fonts.md).
   `ui_bundled_web_fonts_cover_every_catalog_character` fails when a translation uses a
   character no bundled face has.
 

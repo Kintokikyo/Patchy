@@ -116,6 +116,7 @@ class UnitSpinBox : public QDoubleSpinBox {
   void display_unit_picked(patchy::ui::SpinUnit unit);
 
  protected:
+  void changeEvent(QEvent* event) override;
   QValidator::State validate(QString& input, int& pos) const override;
   double valueFromText(const QString& text) const override;
   QString textFromValue(double value) const override;
@@ -154,6 +155,7 @@ class UnitIntSpinBox : public QSpinBox {
   void refresh_suffix();
 
  protected:
+  void changeEvent(QEvent* event) override;
   QValidator::State validate(QString& input, int& pos) const override;
   int valueFromText(const QString& text) const override;
   void fixup(QString& input) const override;

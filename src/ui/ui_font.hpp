@@ -33,7 +33,8 @@ struct UiFontCandidate {
 //
 // THE RULE: Japanese, Simplified Chinese and Traditional Chinese share most Han
 // codepoints, and Qt's per-glyph fallback takes the FIRST family in the list that has
-// the glyph. An order that ignores the UI language renders, say, a Simplified sentence
+// the glyph. Korean leads with NanumGothic; other languages append it for Hangul.
+// An order that ignores the UI language renders, say, a Simplified sentence
 // in Japanese shapes with only the Simplified-only characters in Chinese shapes, which
 // is worse than either alone. `language_code` is a LocalizationManager catalog code.
 [[nodiscard]] QStringList wasm_cjk_fallback_families(const QString& language_code);
