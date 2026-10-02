@@ -1307,6 +1307,11 @@ jobs:
 
           insertion_point += 3
           text = text[:insertion_point] + "\n" + sync_function + text[insertion_point:]
+          
+          # ------------------------------------------------------------
+          # Write patched qandroidplatformscreen.cpp
+          # ------------------------------------------------------------
+          screen_cpp.write_text(text)
 
           # ------------------------------------------------------------
           # 8. Final source verification.
