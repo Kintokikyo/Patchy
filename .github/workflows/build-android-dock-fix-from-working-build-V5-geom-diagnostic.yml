@@ -493,7 +493,6 @@ jobs:
           )
 
           hdr.write_text(hdr_text)
-          cpp.write_text(cpp_text)
 
           # ------------------------------------------------------------
           # 7. Patch QDockWidget::closeEvent().
@@ -512,7 +511,7 @@ jobs:
               r"(?P<indent>^[ \\t]*)"
               r"if\s*\(\s*d->state\s*\)\s*$"
               r"\n"
-              r"(?P=indent)d->endDrag\s*\(\s*"
+              r"[ \t]+d->endDrag\s*\(\s*"
               r"QDockWidgetPrivate::EndDragMode::Abort"
               r"\s*\)\s*;",
               re.M
@@ -583,6 +582,9 @@ jobs:
 
           print("CLOSEEVENT PATCH: OK")
           print("CLOSEEVENT PATCH VERIFICATION: OK")
+          # Write the final patched source after closeEvent() patch.
+          # This must happen before final verification.
+          cpp.write_text(cpp_text)
 
           # ------------------------------------------------------------
           # 8. Final source verification.
@@ -597,7 +599,7 @@ jobs:
           ]
 
           required_cpp = [
-              "state->startingDrag = true;",
+              "dragState->startingDrag = true;",
               "state->startingDrag = false;",
               "state->abortPending = true;",
               "state->releasePending = true;",
@@ -674,8 +676,8 @@ jobs:
             "bool startingDrag" \
             qtbase-src/src/widgets/widgets/qdockwidget_p.h
 
-          grep -n -A28 -B6 \
-            "state->startingDrag = true" \
+          grep -n -A32 -B8 \
+            "dragState->startingDrag = true" \
             qtbase-src/src/widgets/widgets/qdockwidget.cpp
 
           grep -n -A12 -B5 \
@@ -683,7 +685,12 @@ jobs:
             qtbase-src/src/widgets/widgets/qdockwidget.cpp
 
       # ================================================================
-      # DIAGNOSTIC PATCH: TRACE ANDROID/Qt GEOMETRY DURING IME TRANSITION
+      # ADD KEYBOARD GEOMETRY DIAGNOSTICS
+      #
+      # Diagnostic only: no geometry is blocked, delayed, or changed.
+      # This records the actual values during keyboard/navigation-bar
+      # transitions so we can identify which Qt Android path moves the
+      # Patchy bottom bar.
       # ================================================================
       - name: Add keyboard geometry diagnostics
         run: |
@@ -694,244 +701,167 @@ jobs:
           import re
 
           qtbase = Path("qtbase-src")
-          android_plugin = qtbase / "src/plugins/platforms/android"
 
           root_layout = qtbase / "src/android/jar/src/org/qtproject/qt/android/QtRootLayout.java"
           qt_window = qtbase / "src/android/jar/src/org/qtproject/qt/android/QtWindow.java"
-          screen_cpp = android_plugin / "qandroidplatformscreen.cpp"
-          window_cpp = android_plugin / "qandroidplatformwindow.cpp"
-          input_delegate = qtbase / "src/android/jar/src/org/qtproject/qt/android/QtInputDelegate.java"
+          screen_cpp = qtbase / "src/plugins/platforms/android/qandroidplatformscreen.cpp"
+          window_cpp = qtbase / "src/plugins/platforms/android/qandroidplatformwindow.cpp"
 
-          for path in [root_layout, qt_window, screen_cpp, window_cpp, input_delegate]:
+          required = [root_layout, qt_window, screen_cpp, window_cpp]
+          for path in required:
               if not path.is_file():
                   raise SystemExit(f"ERROR: diagnostic source file not found: {path}")
 
           # ------------------------------------------------------------
-          # 1. QtRootLayout: log actual Android root size changes.
+          # 1. QtRootLayout: log every actual root-size change.
           # ------------------------------------------------------------
           text = root_layout.read_text()
 
           if "PATCHY-GEOM ROOT:" in text:
-              raise SystemExit("ERROR: QtRootLayout diagnostics already present")
+              raise SystemExit("ERROR: QtRootLayout diagnostic already present")
 
-          if "import android.util.Log;" not in text:
-              import_anchor = "import android.app.Activity;"
-              if import_anchor not in text:
-                  raise SystemExit("ERROR: QtRootLayout Activity import anchor not found")
-              text = text.replace(
-                  import_anchor,
-                  import_anchor + "\nimport android.util.Log;",
-                  1,
-              )
-
-          root_pattern = (
-              r"(?ms)(    protected void onSizeChanged\(int w, int h, int oldw, int oldh\)\s*\{\s*"
-              r"        Activity activity = \(Activity\) getContext\(\);\s*"
-              r"        if \(activity == null \|\| \(w == oldw && h == oldh\)\)\s*"
-              r"            return;\s*)"
+          pattern = (
+              r"(?ms)^(    protected void onSizeChanged\(int w, int h, int oldw, int oldh\)\s*\{\s*)"
+              r"(        Activity activity = \(Activity\) getContext\(\);)"
           )
-          root_replacement = (
+
+          replacement = (
               r"\1"
-              "\n"
-              "        Log.d(\"PATCHY-GEOM\", \"ROOT: \"\n"
-              "                + oldw + \"x\" + oldh + \" -> \"\n"
-              "                + w + \"x\" + h);\n"
+              "        if (w != oldw || h != oldh) {\n"
+              "            android.util.Log.d(\"PATCHY-GEOM\",\n"
+              "                    \"ROOT: \" + oldw + \"x\" + oldh\n"
+              "                    + \" -> \" + w + \"x\" + h);\n"
+              "        }\n\n"
+              r"\2"
           )
-          text, count = re.subn(root_pattern, root_replacement, text, count=1)
+
+          text, count = re.subn(pattern, replacement, text, count=1)
           if count != 1:
-              raise SystemExit(f"ERROR: QtRootLayout onSizeChanged anchor expected exactly one match, found {count}")
+              raise SystemExit("ERROR: QtRootLayout onSizeChanged() insertion failed")
           root_layout.write_text(text)
 
           # ------------------------------------------------------------
-          # 2. QtWindow: log only SAFE AREA changes, not every callback.
+          # 2. QtWindow: log safe-area/root/window dimensions whenever
+          #    reportSafeAreaMargins() is called. The values are useful
+          #    even when the actual margins do not change.
           # ------------------------------------------------------------
           text = qt_window.read_text()
 
           if "PATCHY-GEOM SAFE:" in text:
-              raise SystemExit("ERROR: QtWindow diagnostics already present")
+              raise SystemExit("ERROR: QtWindow diagnostic already present")
 
-          if "import android.util.Log;" not in text:
-              import_anchor = "import android.view.WindowInsets;"
-              if import_anchor not in text:
-                  raise SystemExit("ERROR: QtWindow WindowInsets import anchor not found")
-              text = text.replace(
-                  import_anchor,
-                  import_anchor + "\nimport android.util.Log;",
-                  1,
-              )
+          pattern = (
+              r"(?ms)^(    private void reportSafeAreaMargins\(WindowInsets insets, int id\)\s*\{\s*)"
+              r"(        View rootView = getRootView\(\);)"
+          )
 
-          field_pattern = (
-              r"(?m)^(class QtWindow extends QtLayout implements QtSurfaceInterface \{)\s*$"
-          )
-          # Put diagnostic state inside the existing class body.
-          field_replacement = (
-              r"\1\n"
-              "        private int m_lastPatchySafeLeft = Integer.MIN_VALUE;\n"
-              "        private int m_lastPatchySafeTop = Integer.MIN_VALUE;\n"
-              "        private int m_lastPatchySafeRight = Integer.MIN_VALUE;\n"
-              "        private int m_lastPatchySafeBottom = Integer.MIN_VALUE;"
-          )
-          text, count = re.subn(
-              field_pattern,
-              field_replacement,
-              text,
-              count=1,
-          )
-          if count != 1:
-              raise SystemExit("ERROR: QtWindow class declaration not found")
-
-          safe_pattern = (
-              r"(?ms)(    private void reportSafeAreaMargins\(WindowInsets insets, int id\)\s*\{.*?"
-              r"        int bottom = Math\.max\(0, Math\.min\(safeInsets\.bottom, safeInsets\.bottom - bottomOffset\)\);\s*)"
-              r"(\s*safeAreaMarginsChanged\(Insets\.of\(left, top, right, bottom\), id\);)"
-          )
-          safe_replacement = (
+          replacement = (
               r"\1"
-              "\n"
-              "        if (left != m_lastPatchySafeLeft\n"
-              "                || top != m_lastPatchySafeTop\n"
-              "                || right != m_lastPatchySafeRight\n"
-              "                || bottom != m_lastPatchySafeBottom) {\n"
-              "            Log.d(\"PATCHY-GEOM\",\n"
-              "                    \"SAFE: root=\" + rootView.getWidth() + \"x\" + rootView.getHeight()\n"
-              "                    + \" window=\" + getWidth() + \"x\" + getHeight()\n"
-              "                    + \" margins=\" + left + \",\" + top + \",\" + right + \",\" + bottom);\n"
-              "            m_lastPatchySafeLeft = left;\n"
-              "            m_lastPatchySafeTop = top;\n"
-              "            m_lastPatchySafeRight = right;\n"
-              "            m_lastPatchySafeBottom = bottom;\n"
-              "        }\n"
+              "        android.util.Log.d(\"PATCHY-GEOM\",\n"
+              "                \"SAFE: root=\" + getRootView().getWidth() + \"x\"\n"
+              "                + getRootView().getHeight() + \" window=\"\n"
+              "                + getWidth() + \"x\" + getHeight());\n\n"
               r"\2"
           )
-          text, count = re.subn(safe_pattern, safe_replacement, text, count=1)
+
+          text, count = re.subn(pattern, replacement, text, count=1)
           if count != 1:
-              raise SystemExit("ERROR: QtWindow safe-area calculation anchor not found")
+              raise SystemExit("ERROR: QtWindow reportSafeAreaMargins() insertion failed")
           qt_window.write_text(text)
 
           # ------------------------------------------------------------
-          # 3. QAndroidPlatformScreen: log availableGeometry changes.
+          # 3. QAndroidPlatformScreen: log every available-geometry
+          #    change before Qt handles it.
           # ------------------------------------------------------------
           text = screen_cpp.read_text()
 
           if "PATCHY-GEOM SCREEN:" in text:
-              raise SystemExit("ERROR: qandroidplatformscreen diagnostics already present")
+              raise SystemExit("ERROR: qandroidplatformscreen diagnostic already present")
 
-          screen_pattern = (
-              r"(?ms)(void QAndroidPlatformScreen::setAvailableGeometry\(const QRect &rect\)\s*\{\s*"
-              r"        if \(m_availableGeometry == rect\)\s*"
-              r"            return;\s*)"
+          include_marker = '#include "qandroidplatformscreen.h"'
+          if include_marker not in text:
+              raise SystemExit("ERROR: qandroidplatformscreen.h include not found")
+          text = text.replace(
+              include_marker,
+              include_marker + "\n#include <QDebug>",
+              1,
           )
-          screen_replacement = (
+
+          pattern = (
+              r"(?ms)^(void QAndroidPlatformScreen::setAvailableGeometry\(const QRect &rect\)\s*\{\s*)"
+              r"(        if \(m_availableGeometry == rect\))"
+          )
+
+          replacement = (
               r"\1"
-              "\n"
-              "    qDebug().noquote() << \"PATCHY-GEOM SCREEN:\"\n"
-              "        << m_availableGeometry << \"->\" << rect;\n"
+              "        qDebug().noquote() << \"PATCHY-GEOM SCREEN:\"\n"
+              "                             << m_availableGeometry\n"
+              "                             << \" -> \" << rect;\n\n"
+              r"\2"
           )
-          text, count = re.subn(screen_pattern, screen_replacement, text, count=1)
-          if count != 1:
-              raise SystemExit(f"ERROR: QAndroidPlatformScreen setAvailableGeometry anchor expected exactly one match, found {count}")
 
-          if "#include <QDebug>" not in text:
-              include_anchor = '#include "qandroidplatformscreen.h"'
-              if include_anchor not in text:
-                  raise SystemExit("ERROR: qandroidplatformscreen include anchor not found")
-              text = text.replace(
-                  include_anchor,
-                  include_anchor + "\n#include <QDebug>",
-                  1,
-              )
+          text, count = re.subn(pattern, replacement, text, count=1)
+          if count != 1:
+              raise SystemExit("ERROR: qandroidplatformscreen setAvailableGeometry() insertion failed")
           screen_cpp.write_text(text)
 
           # ------------------------------------------------------------
-          # 4. QAndroidPlatformWindow: log actual platform-window geometry.
+          # 4. QAndroidPlatformWindow: log every actual Qt-window geometry
+          #    change at the Android platform-window boundary.
           # ------------------------------------------------------------
           text = window_cpp.read_text()
 
           if "PATCHY-GEOM WINDOW:" in text:
-              raise SystemExit("ERROR: qandroidplatformwindow diagnostics already present")
+              raise SystemExit("ERROR: qandroidplatformwindow diagnostic already present")
 
-          window_pattern = (
-              r"(?m)^(void QAndroidPlatformWindow::setGeometry\(const QRect &rect\)\s*\{\s*)"
+          include_marker = '#include "qandroidplatformwindow.h"'
+          if include_marker not in text:
+              raise SystemExit("ERROR: qandroidplatformwindow.h include not found")
+          text = text.replace(
+              include_marker,
+              include_marker + "\n#include <QDebug>",
+              1,
           )
-          window_replacement = (
+
+          pattern = (
+              r"(?ms)^(void QAndroidPlatformWindow::setGeometry\(const QRect &rect\)\s*\{\s*)"
+          )
+
+          replacement = (
               r"\1"
-              "    const QRect oldPatchyGeometry = geometry();\n"
-              "    if (oldPatchyGeometry != rect) {\n"
-              "        qDebug().noquote() << \"PATCHY-GEOM WINDOW:\"\n"
-              "            << oldPatchyGeometry << \"->\" << rect;\n"
-              "    }\n"
+              "        if (geometry() != rect) {\n"
+              "            qDebug().noquote() << \"PATCHY-GEOM WINDOW:\"\n"
+              "                                 << geometry()\n"
+              "                                 << \" -> \" << rect;\n"
+              "        }\n\n"
           )
-          text, count = re.subn(window_pattern, window_replacement, text, count=1)
-          if count != 1:
-              raise SystemExit(f"ERROR: QAndroidPlatformWindow::setGeometry anchor expected exactly one match, found {count}")
 
-          if "#include <QDebug>" not in text:
-              include_anchor = '#include "qandroidplatformwindow.h"'
-              if include_anchor not in text:
-                  raise SystemExit("ERROR: qandroidplatformwindow include anchor not found")
-              text = text.replace(
-                  include_anchor,
-                  include_anchor + "\n#include <QDebug>",
-                  1,
-              )
+          text, count = re.subn(pattern, replacement, text, count=1)
+          if count != 1:
+              raise SystemExit("ERROR: qandroidplatformwindow setGeometry() insertion failed")
           window_cpp.write_text(text)
 
-          # ------------------------------------------------------------
-          # 5. QtInputDelegate: log only keyboard visibility state changes.
-          # ------------------------------------------------------------
-          text = input_delegate.read_text()
-
-          if "PATCHY-GEOM KEYBOARD:" in text:
-              raise SystemExit("ERROR: QtInputDelegate diagnostics already present")
-
-          if "import android.util.Log;" not in text:
-              import_anchor = "import android.view.View;"
-              if import_anchor not in text:
-                  raise SystemExit("ERROR: QtInputDelegate View import anchor not found")
-              text = text.replace(
-                  import_anchor,
-                  import_anchor + "\nimport android.util.Log;",
-                  1,
-              )
-
-          keyboard_pattern = (
-              r"(?ms)(        m_keyboardIsVisible = visibility;\s*)"
-              r"(        keyboardVisibilityUpdated\(m_keyboardIsVisible\);)"
-          )
-          keyboard_replacement = (
-              r"\1"
-              "        Log.d(\"PATCHY-GEOM\",\n"
-              "                \"KEYBOARD: \" + (visibility ? \"SHOW\" : \"HIDE\"));\n"
-              r"\2"
-          )
-          text, count = re.subn(keyboard_pattern, keyboard_replacement, text, count=1)
-          if count != 1:
-              raise SystemExit("ERROR: QtInputDelegate keyboard visibility anchor not found")
-          input_delegate.write_text(text)
-
-          print("QtRootLayout diagnostics: OK")
-          print("QtWindow safe-area diagnostics: OK")
-          print("QAndroidPlatformScreen diagnostics: OK")
-          print("QAndroidPlatformWindow diagnostics: OK")
-          print("QtInputDelegate keyboard diagnostics: OK")
+          print("ROOT DIAGNOSTIC: OK")
+          print("SAFE-AREA DIAGNOSTIC: OK")
+          print("SCREEN GEOMETRY DIAGNOSTIC: OK")
+          print("WINDOW GEOMETRY DIAGNOSTIC: OK")
           PY
 
           echo "===== VERIFY GEOMETRY DIAGNOSTICS ====="
 
-          grep -n -A8 -B3 "PATCHY-GEOM ROOT:" \
+          grep -n -A8 -B3 "PATCHY-GEOM" \
             qtbase-src/src/android/jar/src/org/qtproject/qt/android/QtRootLayout.java
 
-          grep -n -A12 -B5 "PATCHY-GEOM SAFE:" \
+          grep -n -A8 -B3 "PATCHY-GEOM" \
             qtbase-src/src/android/jar/src/org/qtproject/qt/android/QtWindow.java
 
-          grep -n -A6 -B4 "PATCHY-GEOM SCREEN:" \
+          grep -n -A8 -B3 "PATCHY-GEOM" \
             qtbase-src/src/plugins/platforms/android/qandroidplatformscreen.cpp
 
-          grep -n -A8 -B4 "PATCHY-GEOM WINDOW:" \
+          grep -n -A10 -B3 "PATCHY-GEOM" \
             qtbase-src/src/plugins/platforms/android/qandroidplatformwindow.cpp
 
-          grep -n -A5 -B3 "PATCHY-GEOM KEYBOARD:" \
-            qtbase-src/src/android/jar/src/org/qtproject/qt/android/QtInputDelegate.java
+          echo "GEOMETRY DIAGNOSTICS: OK"
 
       # ================================================================
       # CONFIGURE QTBASE
@@ -1245,6 +1175,21 @@ jobs:
           echo "===== FINAL MANIFEST ====="
           cat android/AndroidManifest.xml
 
+      - name: Remove QtBase source trees before Patchy deployment scan
+        run: |
+          echo "===== REMOVING QTBASE BUILD TREES ====="
+
+          rm -rf qtbase-src
+          rm -rf qtbase-build
+          rm -rf qtbase-install
+
+          echo "===== VERIFY ====="
+          test ! -d qtbase-src
+          test ! -d qtbase-build
+          test ! -d qtbase-install
+
+          echo "QtBase source/build/install trees removed."
+
       # ================================================================
       # CONFIGURE PATCHY
       # ================================================================
@@ -1286,6 +1231,101 @@ jobs:
           cmake --build build/android-release \
             --target apk \
             --parallel 2
+
+      # ================================================================
+      # DIAGNOSE WHY QT QUICK CONTROLS IS DEPLOYED
+      # ================================================================
+      - name: Diagnose Qt Quick Controls source
+        run: |
+          echo "===== PROJECT: QtQuick / QuickControls REFERENCES ====="
+
+          grep -RniE \
+            "QtQuick\.Controls|QtQuick/Controls|QuickControls2|QtQuick\.Templates|QtQuick\.Layouts" \
+            . \
+            --exclude-dir=.git \
+            --exclude-dir=build \
+            --exclude="*.so" \
+            --exclude="*.a" \
+            2>/dev/null \
+            | head -300 \
+            || true
+
+          echo ""
+          echo "===== CMAKE CACHE: QUICK CONTROLS ====="
+
+          grep -RniE \
+            "QuickControls|QtQuickControls|QT_QML|QML_IMPORT|qml_import" \
+            build/android-release/CMakeCache.txt \
+            build/android-release/CMakeFiles \
+            2>/dev/null \
+            | head -300 \
+            || true
+
+          echo ""
+          echo "===== ANDROID DEPLOYMENT: QUICK CONTROLS ====="
+
+          grep -RniE \
+            "QuickControls|QtQuick.Controls|QtQuick/Templates|QtQuick/Controls" \
+            build/android-release/android-build \
+            2>/dev/null \
+            | head -300 \
+            || true
+
+          echo ""
+          echo "===== QML FILES IN PROJECT ====="
+
+          find . \
+            -type f \
+            \( \
+              -name "*.qml" \
+              -o \
+              -name "*.qrc" \
+              -o \
+              -name "qmldir" \
+            \) \
+            -not -path "./.git/*" \
+            -not -path "./build/*" \
+            -print \
+            | head -300
+
+      # ================================================================
+      # INSPECT QT ANDROID DEPLOYMENT
+      # ================================================================
+      - name: Inspect Qt Android deployment
+        run: |
+          echo "===== QT ANDROID DEPLOYMENT SETTINGS ====="
+
+          find build/android-release/android-build \
+            -type f \
+            \( \
+              -name "*.json" \
+              -o \
+              -name "libs.xml" \
+              -o \
+              -name "*.gradle" \
+              -o \
+              -name "*.gradle.kts" \
+            \) \
+            -print
+
+          echo ""
+          echo "===== SEARCH QT QUICK CONTROLS ====="
+
+          grep -RniE \
+            "QuickControls|Quick.Controls|Quick/Templates|Quick/Controls" \
+            build/android-release/android-build \
+            2>/dev/null \
+            || true
+
+          echo ""
+          echo "===== SEARCH DEPLOYMENT DEPENDENCIES ====="
+
+          grep -RniE \
+            "Qt6QuickControls|QtQuickControls|qml|plugins" \
+            build/android-release/android-build \
+            2>/dev/null \
+            | head -300 \
+            || true
 
       # ================================================================
       # INSPECT GRADLE PROJECT
