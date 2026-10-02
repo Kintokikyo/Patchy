@@ -5,6 +5,7 @@ import android.content.Context;
 import android.net.Uri;
 import android.os.ParcelFileDescriptor;
 import android.provider.DocumentsContract;
+import android.provider.OpenableColumns;
 import android.database.Cursor;
 import android.util.Log;
 
@@ -27,6 +28,12 @@ public class MainActivity extends QtActivity {
     private volatile boolean patchyDirectoryResultReady = false;
     private volatile int patchyDirectoryResultCode = RESULT_CANCELED;
     private volatile String patchyDirectoryResultUri = null;
+    
+    private static final int PATCHY_FONT_REQUEST = 0x5048;
+
+    private volatile boolean patchyFontResultReady = false;
+    private volatile int patchyFontResultCode = RESULT_CANCELED;
+    private volatile String patchyFontResultUri = null;
 
     public boolean writeFileToUri(
         String localPath,
@@ -170,6 +177,28 @@ public class MainActivity extends QtActivity {
                 requestCode);
     }
     
+    public void pickPatchyFont(int requestCode) {
+
+        patchyFontResultReady = false;
+        patchyFontResultCode = RESULT_CANCELED;
+        patchyFontResultUri = null;
+
+        Intent intent =
+                new Intent(Intent.ACTION_OPEN_DOCUMENT);
+
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+
+        intent.setType("*/*");
+
+        intent.addFlags(
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+                | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+
+        startActivityForResult(
+                intent,
+                PATCHY_FONT_REQUEST);
+    }
+    
     public String consumePatchyDirectoryResult(int requestCode) {
 
         if (!patchyDirectoryResultReady) {
@@ -188,6 +217,27 @@ public class MainActivity extends QtActivity {
 
         return patchyDirectoryResultUri != null
                 ? patchyDirectoryResultUri
+                : "";
+    }
+    
+    public String consumePatchyFontResult(int requestCode) {
+
+        if (!patchyFontResultReady) {
+            return null;
+        }
+
+        if (requestCode != PATCHY_FONT_REQUEST) {
+            return null;
+        }
+
+        patchyFontResultReady = false;
+
+        if (patchyFontResultCode != RESULT_OK) {
+            return "";
+        }
+
+        return patchyFontResultUri != null
+                ? patchyFontResultUri
                 : "";
     }
     
@@ -377,6 +427,53 @@ public class MainActivity extends QtActivity {
             return false;
         }
     }
+    
+    public String getUriDisplayName(String uriString) {
+
+        Cursor cursor = null;
+
+        try {
+
+            Uri uri = Uri.parse(uriString);
+
+            cursor =
+                    getContentResolver().query(
+                        uri,
+                        new String[] {
+                                OpenableColumns.DISPLAY_NAME
+                        },
+                        null,
+                        null,
+                        null);
+
+            if (cursor != null &&
+                cursor.moveToFirst()) {
+
+                int index =
+                        cursor.getColumnIndex(
+                                OpenableColumns.DISPLAY_NAME);
+
+                if (index >= 0) {
+                    return cursor.getString(index);
+                }
+            }
+
+        } catch (Exception e) {
+
+            Log.e(
+                    "PATCHY_MAIN",
+                    "getUriDisplayName failed",
+                    e);
+
+        } finally {
+
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+
+        return "";
+    }
 
     @Override
     public void onCreate(android.os.Bundle savedInstanceState) {
@@ -551,6 +648,58 @@ public class MainActivity extends QtActivity {
                 + resultCode
                 + " data="
                 + (data != null ? data.getData() : null));
+        
+        if (requestCode == PATCHY_FONT_REQUEST) {
+
+            patchyFontResultCode = resultCode;
+
+            if (resultCode == RESULT_OK &&
+                data != null) {
+
+                final Uri uri =
+                        data.getData();
+
+                if (uri != null) {
+
+                    patchyFontResultUri =
+                            uri.toString();
+
+                    final int returnedFlags =
+                            data.getFlags();
+
+                    final int takeFlags =
+                            returnedFlags
+                            & Intent.FLAG_GRANT_READ_URI_PERMISSION;
+
+                    if (takeFlags != 0) {
+
+                        try {
+
+                            getContentResolver()
+                                    .takePersistableUriPermission(
+                                            uri,
+                                            takeFlags);
+
+                        } catch (Exception e) {
+
+                            Log.e(
+                                    "PATCHY_MAIN",
+                                    "FONT URI PERSIST FAILED",
+                                    e);
+                        }
+                    }
+                }
+            }
+
+            patchyFontResultReady = true;
+
+            super.onActivityResult(
+                    requestCode,
+                    resultCode,
+                    data);
+
+            return;
+        }
                 
         /*
          * ============================================================
