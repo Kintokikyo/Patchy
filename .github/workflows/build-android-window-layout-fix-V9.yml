@@ -742,49 +742,71 @@ jobs:
           path = Path("qtbase-src/src/gui/kernel/qplatformscreen.cpp")
           text = path.read_text()
 
-          old = (
-              "        if (supportsMaximizeUsingFullscreen\n"
-              "                && w->windowState() & Qt::WindowMaximized\n"
-              "                && w->flags() & Qt::ExpandedClientAreaHint) {\n"
-              "            w->handle()->setGeometry(newNativeGeometry);\n"
-              "        } else if (w->windowState() & Qt::WindowMaximized\n"
-              "                   || w->geometry() == oldAvailableGeometry) {\n"
-              "            w->handle()->setGeometry(newNativeAvailableGeometry);\n"
-              "        } else if (w->windowState() & Qt::WindowFullScreen\n"
-              "                   || w->geometry() == oldGeometry) {\n"
-              "            w->handle()->setGeometry(newNativeGeometry);\n"
-              "        }"
+          import re
+          from pathlib import Path
+
+          path = Path("qtbase-src/src/gui/kernel/qplatformscreen.cpp")
+          text = path.read_text()
+
+          pattern = re.compile(
+              r"(?P<indent>^[ \t]*)"
+              r"if\s*\(\s*supportsMaximizeUsingFullscreen\s*"
+              r"&&\s*w->windowState\(\)\s*&\s*Qt::WindowMaximized\s*"
+              r"&&\s*w->flags\(\)\s*&\s*Qt::ExpandedClientAreaHint\s*\)\s*\{\s*"
+              r"w->handle\(\)->setGeometry\(newNativeGeometry\);\s*"
+              r"\}\s*else\s+if\s*\(\s*w->windowState\(\)\s*&\s*Qt::WindowMaximized\s*"
+              r"\|\|\s*w->geometry\(\)\s*==\s*oldAvailableGeometry\s*\)\s*\{\s*"
+              r"w->handle\(\)->setGeometry\(newNativeAvailableGeometry\);\s*"
+              r"\}\s*else\s+if\s*\(\s*w->windowState\(\)\s*&\s*Qt::WindowFullScreen\s*"
+              r"\|\|\s*w->geometry\(\)\s*==\s*oldGeometry\s*\)\s*\{\s*"
+              r"w->handle\(\)->setGeometry\(newNativeGeometry\);\s*"
+              r"\}",
+              re.MULTILINE
           )
 
-          new = (
-              "        if (supportsMaximizeUsingFullscreen\n"
-              "                && w->windowState() & Qt::WindowMaximized\n"
-              "                && w->flags() & Qt::ExpandedClientAreaHint) {\n"
-              "            w->handle()->setGeometry(newNativeGeometry);\n"
-              "        } else if (w->windowState() & Qt::WindowMaximized\n"
-              "                   || w->geometry() == oldAvailableGeometry) {\n"
-              "            // Do not resize a window explicitly pinned to the full screen\n"
-              "            // when Android temporarily reduces availableGeometry.\n"
-              "            const bool pinnedToFullScreen =\n"
-              "                    w->geometry() == oldGeometry\n"
-              "                    && w->minimumSize() == oldGeometry.size()\n"
-              "                    && w->maximumSize() == oldGeometry.size();\n"
-              "\n"
-              "            if (!pinnedToFullScreen)\n"
-              "                w->handle()->setGeometry(newNativeAvailableGeometry);\n"
-              "        } else if (w->windowState() & Qt::WindowFullScreen\n"
-              "                   || w->geometry() == oldGeometry) {\n"
-              "            w->handle()->setGeometry(newNativeGeometry);\n"
-              "        }"
-          )
+          replacement = r"""\g<indent>if (supportsMaximizeUsingFullscreen
+                  && w->windowState() & Qt::WindowMaximized
+                  && w->flags() & Qt::ExpandedClientAreaHint) {
+              w->handle()->setGeometry(newNativeGeometry);
+          } else if (w->windowState() & Qt::WindowMaximized
+                     || w->geometry() == oldAvailableGeometry) {
+              // Do not resize a window explicitly pinned to the full screen
+              // when Android temporarily reduces availableGeometry.
+              const bool pinnedToFullScreen =
+                      w->geometry() == oldGeometry
+                      && w->minimumSize() == oldGeometry.size()
+                      && w->maximumSize() == oldGeometry.size();
 
-          if text.count(old) != 1:
+              if (!pinnedToFullScreen)
+                  w->handle()->setGeometry(newNativeAvailableGeometry);
+          } else if (w->windowState() & Qt::WindowFullScreen
+                     || w->geometry() == oldGeometry) {
+              w->handle()->setGeometry(newNativeGeometry);
+          }"""
+
+          matches = list(pattern.finditer(text))
+          if len(matches) != 1:
               raise SystemExit(
                   "ERROR: expected exactly 1 qplatformscreen resize block, "
-                  f"found {text.count(old)}"
+                  f"found {len(matches)}"
               )
 
-          path.write_text(text.replace(old, new, 1))
+          text = pattern.sub(replacement, text, count=1)
+          path.write_text(text)
+
+          verify = path.read_text()
+          for marker in (
+              "pinnedToFullScreen",
+              "w->minimumSize() == oldGeometry.size()",
+              "w->maximumSize() == oldGeometry.size()",
+              "if (!pinnedToFullScreen)",
+          ):
+              if marker not in verify:
+                  raise SystemExit(
+                      "ERROR: qplatformscreen verification failed: " + marker
+                  )
+
+          print("QPLATFORMSCREEN FULL-SCREEN PATCH: OK")
 
           verify = path.read_text()
           for marker in (
