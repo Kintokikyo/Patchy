@@ -51,7 +51,7 @@ AnimationPreviewWindow::AnimationPreviewWindow(
 
   auto* delay_row = new QHBoxLayout();
   delay_row->setSpacing(8);
-  delay_row->addWidget(new QLabel(tr("Frame delay:"), this));
+  delay_row->addWidget(new QLabel(tr("Default frame delay:"), this));
   delay_spin_ = new QDoubleSpinBox(this);
   delay_spin_->setObjectName(QStringLiteral("animationFrameDelaySpin"));
   delay_spin_->setSuffix(tr(" s"));

@@ -4652,10 +4652,6 @@
         <translation>Одно сведённое изображение</translation>
     </message>
     <message>
-        <source>Frame delay:</source>
-        <translation>Задержка кадра:</translation>
-    </message>
-    <message>
         <source> s</source>
         <translation> с</translation>
     </message>
@@ -8723,6 +8719,10 @@ RGB: %2, %3, %4</translation>
         <source>Could not write WebP file</source>
         <translation>Не удалось записать файл WebP</translation>
     </message>
+    <message>
+        <source>Default frame delay:</source>
+        <translation>Длительность кадра по умолчанию:</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -8970,10 +8970,6 @@ RGB: %2, %3, %4</translation>
         <translation>Воспроизвести</translation>
     </message>
     <message>
-        <source>Frame delay:</source>
-        <translation>Задержка кадра:</translation>
-    </message>
-    <message>
         <source> s</source>
         <translation> с</translation>
     </message>
@@ -9012,6 +9008,10 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Plays the visible top-level layers as frames, top layer first, like animated GIF and WebP export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
         <translation>Воспроизводит видимые слои верхнего уровня как кадры, сверху вниз, как при экспорте анимированных GIF и WebP. Время в конце имени слоя, например &quot;blink 0.25s&quot;, задаёт длительность кадра.</translation>
+    </message>
+    <message>
+        <source>Default frame delay:</source>
+        <translation>Длительность кадра по умолчанию:</translation>
     </message>
 </context>
 <context>

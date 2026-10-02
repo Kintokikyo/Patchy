@@ -4644,10 +4644,6 @@
         <translation>Imagem única achatada</translation>
     </message>
     <message>
-        <source>Frame delay:</source>
-        <translation>Atraso de quadro:</translation>
-    </message>
-    <message>
         <source> s</source>
         <translation> s</translation>
     </message>
@@ -8696,6 +8692,10 @@ RGB: %2, %3, %4</translation>
         <source>Could not write WebP file</source>
         <translation>Não foi possível gravar o arquivo WebP</translation>
     </message>
+    <message>
+        <source>Default frame delay:</source>
+        <translation>Duração padrão do quadro:</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -8943,10 +8943,6 @@ RGB: %2, %3, %4</translation>
         <translation>Reproduzir</translation>
     </message>
     <message>
-        <source>Frame delay:</source>
-        <translation>Atraso de quadro:</translation>
-    </message>
-    <message>
         <source> s</source>
         <translation> s</translation>
     </message>
@@ -8985,6 +8981,10 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Plays the visible top-level layers as frames, top layer first, like animated GIF and WebP export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
         <translation>Reproduz as camadas visíveis de nível superior como quadros, de cima para baixo, como na exportação de GIF e WebP animados. Um tempo no final do nome da camada, como &quot;blink 0.25s&quot;, define a duração do quadro.</translation>
+    </message>
+    <message>
+        <source>Default frame delay:</source>
+        <translation>Duração padrão do quadro:</translation>
     </message>
 </context>
 <context>

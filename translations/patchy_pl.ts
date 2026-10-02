@@ -4652,10 +4652,6 @@
         <translation>Pojedynczy spłaszczony obraz</translation>
     </message>
     <message>
-        <source>Frame delay:</source>
-        <translation>Czas klatki:</translation>
-    </message>
-    <message>
         <source> s</source>
         <translation> s</translation>
     </message>
@@ -8723,6 +8719,10 @@ RGB: %2, %3, %4</translation>
         <source>Could not write WebP file</source>
         <translation>Nie można zapisać pliku WebP</translation>
     </message>
+    <message>
+        <source>Default frame delay:</source>
+        <translation>Domyślny czas klatki:</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -8970,10 +8970,6 @@ RGB: %2, %3, %4</translation>
         <translation>Odtwórz</translation>
     </message>
     <message>
-        <source>Frame delay:</source>
-        <translation>Czas klatki:</translation>
-    </message>
-    <message>
         <source> s</source>
         <translation> s</translation>
     </message>
@@ -9012,6 +9008,10 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Plays the visible top-level layers as frames, top layer first, like animated GIF and WebP export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
         <translation>Odtwarza widoczne warstwy najwyższego poziomu jako klatki, od góry, tak jak eksport animowanego GIF i WebP. Czas na końcu nazwy warstwy, np. &quot;blink 0.25s&quot;, określa czas wyświetlania klatki.</translation>
+    </message>
+    <message>
+        <source>Default frame delay:</source>
+        <translation>Domyślny czas klatki:</translation>
     </message>
 </context>
 <context>

@@ -4636,10 +4636,6 @@
         <translation>단일 평면 이미지</translation>
     </message>
     <message>
-        <source>Frame delay:</source>
-        <translation>프레임 지연:</translation>
-    </message>
-    <message>
         <source> s</source>
         <translation> 초</translation>
     </message>
@@ -8669,6 +8665,10 @@ RGB: %2, %3, %4</translation>
         <source>Could not write WebP file</source>
         <translation>WebP 파일을 쓸 수 없습니다</translation>
     </message>
+    <message>
+        <source>Default frame delay:</source>
+        <translation>기본 프레임 지연:</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -8916,10 +8916,6 @@ RGB: %2, %3, %4</translation>
         <translation>재생</translation>
     </message>
     <message>
-        <source>Frame delay:</source>
-        <translation>프레임 지연:</translation>
-    </message>
-    <message>
         <source> s</source>
         <translation> 초</translation>
     </message>
@@ -8958,6 +8954,10 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Plays the visible top-level layers as frames, top layer first, like animated GIF and WebP export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
         <translation>애니메이션 GIF 및 WebP 내보내기처럼 표시된 최상위 레이어를 위에서부터 프레임으로 재생합니다. 레이어 이름 끝에 &quot;blink 0.25s&quot;처럼 시간을 붙이면 해당 프레임의 표시 시간이 됩니다.</translation>
+    </message>
+    <message>
+        <source>Default frame delay:</source>
+        <translation>기본 프레임 지연:</translation>
     </message>
 </context>
 <context>

@@ -462,10 +462,6 @@ RGB: %2, %3, %4</translation>
         <translation>単一の統合画像</translation>
     </message>
     <message>
-        <source>Frame delay:</source>
-        <translation>フレーム間隔:</translation>
-    </message>
-    <message>
         <source> s</source>
         <translation> 秒</translation>
     </message>
@@ -8669,6 +8665,10 @@ Mixed selection</source>
         <source>Could not write WebP file</source>
         <translation>WebPファイルに書き込めませんでした</translation>
     </message>
+    <message>
+        <source>Default frame delay:</source>
+        <translation>既定のフレーム表示時間:</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -8920,10 +8920,6 @@ Mixed selection</source>
         <translation>停止</translation>
     </message>
     <message>
-        <source>Frame delay:</source>
-        <translation>フレーム間隔:</translation>
-    </message>
-    <message>
         <source> s</source>
         <translation> 秒</translation>
     </message>
@@ -8958,6 +8954,10 @@ Mixed selection</source>
     <message>
         <source>Plays the visible top-level layers as frames, top layer first, like animated GIF and WebP export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
         <translation>アニメーションGIFやWebPの書き出しと同様に、表示されている最上位レイヤーを上から順にフレームとして再生します。「blink 0.25s」のようにレイヤー名の末尾に時間を指定すると、そのフレームの表示時間になります。</translation>
+    </message>
+    <message>
+        <source>Default frame delay:</source>
+        <translation>既定のフレーム表示時間:</translation>
     </message>
 </context>
 <context>

@@ -817,7 +817,7 @@ std::optional<ImageSaveOptions> prompt_image_save_options(QWidget* parent, const
       frame_delay->setSuffix(QObject::tr(" s"));
       frame_delay->setValue(options.animation_frame_delay_ms / 1000.0);
       configure_dialog_spinbox(frame_delay, 110);
-      animation_form->addRow(QObject::tr("Frame delay:"), frame_delay);
+      animation_form->addRow(QObject::tr("Default frame delay:"), frame_delay);
       forever_check = new QCheckBox(QObject::tr("Forever"), animation_controls);
       forever_check->setObjectName(QStringLiteral("webpForeverCheck"));
       forever_check->setChecked(options.webp_loop_count == 0);
@@ -1450,7 +1450,7 @@ std::optional<ImageSaveOptions> prompt_gif_save_options(QWidget* parent, ImageSa
   auto* delay_layout = new QHBoxLayout(delay_row);
   delay_layout->setContentsMargins(0, 0, 0, 0);
   delay_layout->setSpacing(10);
-  auto* delay_label = new QLabel(QObject::tr("Frame delay:"), delay_row);
+  auto* delay_label = new QLabel(QObject::tr("Default frame delay:"), delay_row);
   auto* delay_spin = new QDoubleSpinBox(delay_row);
   delay_spin->setObjectName(QStringLiteral("gifFrameDelaySpin"));
   delay_spin->setSuffix(QObject::tr(" s"));

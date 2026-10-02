@@ -4457,10 +4457,6 @@
         <translation>Image aplatie unique</translation>
     </message>
     <message>
-        <source>Frame delay:</source>
-        <translation>Délai entre images :</translation>
-    </message>
-    <message>
         <source> s</source>
         <translation> s</translation>
     </message>
@@ -8696,6 +8692,10 @@ RVB : %2, %3, %4</translation>
         <source>Could not write WebP file</source>
         <translation>Impossible d’écrire le fichier WebP</translation>
     </message>
+    <message>
+        <source>Default frame delay:</source>
+        <translation>Durée d’image par défaut :</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -8943,10 +8943,6 @@ RVB : %2, %3, %4</translation>
         <translation>Lecture</translation>
     </message>
     <message>
-        <source>Frame delay:</source>
-        <translation>Délai d&apos;image :</translation>
-    </message>
-    <message>
         <source> s</source>
         <translation> s</translation>
     </message>
@@ -8985,6 +8981,10 @@ RVB : %2, %3, %4</translation>
     <message>
         <source>Plays the visible top-level layers as frames, top layer first, like animated GIF and WebP export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
         <translation>Lit les calques visibles de premier niveau comme des images, de haut en bas, comme l’export GIF et WebP animés. Une durée à la fin du nom du calque, comme &quot;blink 0.25s&quot;, définit la durée de cette image.</translation>
+    </message>
+    <message>
+        <source>Default frame delay:</source>
+        <translation>Durée d’image par défaut :</translation>
     </message>
 </context>
 <context>

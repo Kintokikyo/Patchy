@@ -4457,10 +4457,6 @@
         <translation>Einzelnes reduziertes Bild</translation>
     </message>
     <message>
-        <source>Frame delay:</source>
-        <translation>Frame-Verzögerung:</translation>
-    </message>
-    <message>
         <source> s</source>
         <translation> s</translation>
     </message>
@@ -8696,6 +8692,10 @@ RGB: %2, %3, %4</translation>
         <source>Could not write WebP file</source>
         <translation>WebP-Datei konnte nicht geschrieben werden</translation>
     </message>
+    <message>
+        <source>Default frame delay:</source>
+        <translation>Standard-Bilddauer:</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -8943,10 +8943,6 @@ RGB: %2, %3, %4</translation>
         <translation>Abspielen</translation>
     </message>
     <message>
-        <source>Frame delay:</source>
-        <translation>Frame-Verzögerung:</translation>
-    </message>
-    <message>
         <source> s</source>
         <translation> s</translation>
     </message>
@@ -8985,6 +8981,10 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Plays the visible top-level layers as frames, top layer first, like animated GIF and WebP export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
         <translation>Spielt die sichtbaren Ebenen auf oberster Ebene als Bilder ab, von oben nach unten, wie beim Export als GIF- oder WebP-Animation. Eine Zeitangabe am Namensende, etwa &quot;blink 0.25s&quot;, legt die Bilddauer fest.</translation>
+    </message>
+    <message>
+        <source>Default frame delay:</source>
+        <translation>Standard-Bilddauer:</translation>
     </message>
 </context>
 <context>

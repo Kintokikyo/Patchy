@@ -4457,10 +4457,6 @@
         <translation>Singola immagine unita</translation>
     </message>
     <message>
-        <source>Frame delay:</source>
-        <translation>Ritardo fotogramma:</translation>
-    </message>
-    <message>
         <source> s</source>
         <translation> s</translation>
     </message>
@@ -8696,6 +8692,10 @@ RGB: %2, %3, %4</translation>
         <source>Could not write WebP file</source>
         <translation>Impossibile scrivere il file WebP</translation>
     </message>
+    <message>
+        <source>Default frame delay:</source>
+        <translation>Durata predefinita del fotogramma:</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -8943,10 +8943,6 @@ RGB: %2, %3, %4</translation>
         <translation>Riproduci</translation>
     </message>
     <message>
-        <source>Frame delay:</source>
-        <translation>Ritardo fotogramma:</translation>
-    </message>
-    <message>
         <source> s</source>
         <translation> s</translation>
     </message>
@@ -8985,6 +8981,10 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Plays the visible top-level layers as frames, top layer first, like animated GIF and WebP export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
         <translation>Riproduce i livelli visibili di primo livello come fotogrammi, dall’alto verso il basso, come nell’esportazione GIF e WebP animati. Un tempo alla fine del nome, come &quot;blink 0.25s&quot;, imposta la durata del fotogramma.</translation>
+    </message>
+    <message>
+        <source>Default frame delay:</source>
+        <translation>Durata predefinita del fotogramma:</translation>
     </message>
 </context>
 <context>

@@ -4450,10 +4450,6 @@
         <translation>单张拼合图像</translation>
     </message>
     <message>
-        <source>Frame delay:</source>
-        <translation>帧延迟:</translation>
-    </message>
-    <message>
         <source> s</source>
         <translation> 秒</translation>
     </message>
@@ -8669,6 +8665,10 @@ RGB：%2, %3, %4</translation>
         <source>Could not write WebP file</source>
         <translation>无法写入 WebP 文件</translation>
     </message>
+    <message>
+        <source>Default frame delay:</source>
+        <translation>默认帧间隔:</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -8916,10 +8916,6 @@ RGB：%2, %3, %4</translation>
         <translation>播放</translation>
     </message>
     <message>
-        <source>Frame delay:</source>
-        <translation>帧延迟:</translation>
-    </message>
-    <message>
         <source> s</source>
         <translation> 秒</translation>
     </message>
@@ -8958,6 +8954,10 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Plays the visible top-level layers as frames, top layer first, like animated GIF and WebP export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
         <translation>将可见的顶层图层从上到下作为帧播放，与动画 GIF 和 WebP 导出相同。图层名称末尾的时间（如 &quot;blink 0.25s&quot;）指定该帧的显示时长。</translation>
+    </message>
+    <message>
+        <source>Default frame delay:</source>
+        <translation>默认帧间隔:</translation>
     </message>
 </context>
 <context>
