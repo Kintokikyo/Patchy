@@ -113,8 +113,7 @@ and Affinity import has format-specific limitations. See [current compatibility]
 - Four more interface languages: Brazilian Portuguese, Russian, Polish, and Korean, plus translation improvements across all twelve languages
 - PSD compatibility: fixed legacy gradient fills and empty layer masks
 - Text fonts: clearer notices when an installed font cannot draw the text, and scripting warns whenever a requested font is replaced
-- Remove Added Fonts keeps fonts usable until the next launch, when their stored files are deleted
-- Testy: rerun individual images, check for missing fonts before a run, and stop a run cleanly
+
 
 ### 1.02 - October 1, 2026
 
