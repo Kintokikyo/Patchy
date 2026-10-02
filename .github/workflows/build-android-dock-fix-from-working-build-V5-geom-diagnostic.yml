@@ -20,7 +20,7 @@
 # Cleanup is deferred until unplug() has returned and the original DragState
 # is still alive.
 
-name: Build Patchy Geometry Diagnostic Android
+name: Build Patchy Geometry Diagnostic Android V2
 
 on:
   workflow_dispatch:
@@ -787,22 +787,24 @@ jobs:
               1,
           )
 
-          pattern = (
-              r"(?ms)^(void QAndroidPlatformScreen::setAvailableGeometry\(const QRect &rect\)\s*\{\s*)"
-              r"(        if \(m_availableGeometry == rect\))"
-          )
+          needle = "void QAndroidPlatformScreen::setAvailableGeometry(const QRect &rect)"
+          func_start = text.find(needle)
+          if func_start < 0:
+              raise SystemExit("ERROR: qandroidplatformscreen setAvailableGeometry() not found")
 
-          replacement = (
-              r"\1"
-              "        qDebug().noquote() << \"PATCHY-GEOM SCREEN:\"\n"
-              "                             << m_availableGeometry\n"
-              "                             << \" -> \" << rect;\n\n"
-              r"\2"
-          )
+          if_start = text.find("if (m_availableGeometry == rect)", func_start)
+          if if_start < 0:
+              raise SystemExit("ERROR: qandroidplatformscreen availableGeometry guard not found")
 
-          text, count = re.subn(pattern, replacement, text, count=1)
-          if count != 1:
-              raise SystemExit("ERROR: qandroidplatformscreen setAvailableGeometry() insertion failed")
+          # Insert immediately before the existing equality guard. Do not
+          # depend on source indentation or exact whitespace formatting.
+          text = (
+              text[:if_start]
+              + 'qDebug().noquote() << "PATCHY-GEOM SCREEN:"\n'
+                '                     << m_availableGeometry\n'
+                '                     << " -> " << rect;\n\n'
+              + text[if_start:]
+          )
           screen_cpp.write_text(text)
 
           # ------------------------------------------------------------
@@ -1542,7 +1544,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: patchy-geometry-diagnostic-qt6103
+          name: patchy-geometry-diagnostic-v2-qt6103
           path: |
             build/android-release/**/*.apk
             build/android-release/*.apk
