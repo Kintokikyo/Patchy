@@ -6479,6 +6479,10 @@ QStringList missing_text_families_for_layer(const Layer& layer) {
 }
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
+#ifdef Q_OS_ANDROID
+  // Do not let Android safe-area insets move the Patchy layout.
+  setAttribute(Qt::WA_ContentsMarginsRespectsSafeArea, false);
+#endif
   // Installed before the first statusBar() call so every showMessage goes through the
   // subclass that hosts the zoom percentage box (see ui/zoom_status_bar.hpp).
   zoom_status_bar_ = new ZoomStatusBar(this);
