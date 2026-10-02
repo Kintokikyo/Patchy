@@ -298,7 +298,8 @@ interface PatchyLayer {
    * (size, glyph scales, leading, tracking); an empty string clears its ink. Like every
    * text setter here, it logs a console warning (never a dialog) when a font is not
    * installed or has no glyphs for the text; a missing font is replaced by the
-   * substitute it was drawn in, which textFont then reports. */
+   * substitute it was drawn in, which textFont then reports. Compact family spellings
+   * such as LiberationSans resolve to Liberation Sans without a substitution warning. */
   text: string;
   /** Text layers: "horizontal" or "vertical" (columns top to bottom, right to left). Setting it re-renders. */
   textOrientation: 'horizontal' | 'vertical';

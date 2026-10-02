@@ -2474,9 +2474,22 @@ void psd_testy_legacy_fills_and_masks_round_trip_if_available() {
       if (icon) { CHECK(masks == 8); }
       else { CHECK(bars == 4); }
     };
-    const auto document = patchy::psd::DocumentIo::read_file(path);
-    check(document);
-    const auto bytes = patchy::psd::DocumentIo::write_layered_rgb8(document);
+    std::cout << "[INFO] legacy preservation fixture: " << filename << '\n';
+    std::vector<std::uint8_t> bytes;
+    {
+      const auto document = patchy::psd::DocumentIo::read_file(path);
+      check(document);
+      if constexpr (sizeof(void*) < 8) {
+        if (!icon) {
+          // Import fits, but this 415-layer fixture's decoded data plus the
+          // writer's buffers exceed wasm32's 4 GB address-space limit.
+          std::cout << "[SKIP] C2Kyoto legacy preservation save/readback needs a 64-bit address space; "
+                       "import checked\n";
+          continue;
+        }
+      }
+      bytes = patchy::psd::DocumentIo::write_layered_rgb8(document);
+    }  // Release decoded layers before decoding the saved bytes again.
     check(patchy::psd::DocumentIo::read(bytes));
   }
 }

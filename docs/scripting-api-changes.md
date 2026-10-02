@@ -1,5 +1,10 @@
 # Scripting API compatibility
 
+2026-10-02 behavioral correction (API 1): text font warnings recognize compact family
+spellings such as `LiberationSans` as the same font as `Liberation Sans`. Creating or
+editing text with that spelling no longer reports a missing font when the requested
+face renders it. Pinned by `ui_text_name_table_names_resolve_to_the_registered_face`.
+
 2026-10-02 additive (API 1): `doc.exportAnimatedWebp(path, options?)` writes visible
 top-level layers as animation, with millisecond timing, finite or infinite play counts,
 quality and lossless options. It preserves the source document path and dirty state.

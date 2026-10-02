@@ -3,6 +3,23 @@
 Older Patchy release notes are collected here. The two most recent releases
 remain in [README.md](README.md#whats-new).
 
+## 1.01 - September 29, 2026
+
+- UI themes! Dark, Light, seven bundled ones (Solarized, Nord, Dracula, Gruvbox and more) or make your own with a small `.patchytheme` file. Big thanks to [@lucastucious](https://github.com/lucastucious) for the theme system
+- Classic Photoshop .8bf filter plug-ins now run on Windows, 32-bit and 64-bit (Filter Foundry, Mehdi's filters, even Kai's Power Tools 5 works). Drop them in the plug-ins folder and they show up in the new Plugins menu
+- Scrubby labels: drag the label next to any number field to change its value, like Photoshop (issue 46)
+- Right-click the gray area around the canvas to change its color (issue 47)
+- Shift+letter cycles through a tool flyout, so Shift+M flips between the marquee tools and so on (issue 45)
+- Canvas Size uses real units now
+- Photoshop 5.x era text layers open as editable text instead of pixels
+- Grayscale PSDs open as RGB instead of coming out garbled (issue 39)
+- Duplicate Layer puts the copy directly above the original (issue 38)
+- Layer effects on a clipping base draw over the clipped layers, the way Photoshop does it (issue 41), and size 0 Inner Shadow and Inner Glow render like Photoshop too
+- Size sliders spend most of the track on the small values, so tiny brushes are easier to hit
+- Better font matching for PSD text (fonts are looked up by their real names), and user-added fonts work on the Mac under their Windows names
+- macOS: quitting no longer freezes when a network drive or a DNS lookup is stuck (issue 48)
+- Progress dialogs always pop up centered on the window
+
 ## 1.00 - September 27, 2026
 
 - A lot of work on the text engine, better compatibility with Photoshop, a new "Paragraph" panel with indentation options

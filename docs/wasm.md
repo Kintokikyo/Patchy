@@ -29,14 +29,12 @@ and `scripts/wasm/`. Stress/A-B harness: [performance.md](performance.md).
 pwsh -File scripts\wasm\setup-emsdk.ps1
 ```
 
-Idempotent: clones emsdk into `.deps\emsdk` (gitignored), `git pull`s an
-existing clone (a stale checkout fails with "unknown version"), installs +
-activates Emscripten 4.0.7, the Qt-supported version (`-EmsdkVersion`
-provisions others; emsdk swaps `upstream/` in place on activate, so
-serialize builds across versions and reactivate 4.0.7 when done). The
-bundled node 22.16.0 runs the tests; the scripts glob
-`.deps\emsdk\node\*\bin\node.exe`, so extra node directories (newer emsdk
-node packages drop the `bin\` level) are fine while exactly one matches.
+Clones or updates `.deps\emsdk` (gitignored), then installs and activates
+Qt-supported Emscripten 4.0.7. `-EmsdkVersion` selects another version;
+activation replaces `upstream/`, so serialize versions and restore 4.0.7
+afterward. Tests use bundled node 22.16.0. The scripts glob
+`.deps\emsdk\node\*\bin\node.exe`; exactly one must match (newer node
+packages omit `bin\`).
 
 ## Configure and build (wasm-core)
 
@@ -62,12 +60,16 @@ Takes the usual name-substring filter as the first argument; runs the
 emsdk-bundled node from `build\wasm-core`, so `test-artifacts/` lands there.
 `ctest` also works there (the preset pins `CMAKE_CROSSCOMPILING_EMULATOR`).
 
-The suite passes at the Windows count with the 2.4 GB
-`local-test-fixtures/` corpus, canaries byte-identical. Expected `[SKIP]`s:
+Canaries match native output. Expected `[SKIP]`s:
 one absent local fixture, two HEIC tests (node has no `VideoDecoder`), and
 `af_modern_embeds_are_center_anchored_if_available` (fixture beyond the
 wasm32 address space). The engine libraries carry no wasm `#ifdef`s; the one
 guard, in `tests/core/main.cpp`, skips the crash-stack reporter.
+
+`psd_testy_legacy_fills_and_masks_round_trip_if_available` checks both imports.
+C2Kyoto's 415-layer save exceeds wasm32's 4 GB limit, so its save/readback
+requires 64-bit pointers. Icon and synthetic legacy-fill/mask round trips
+run fully on every platform.
 
 ## wasm-core preset decisions (all in CMakePresets.json)
 

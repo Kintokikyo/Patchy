@@ -18,6 +18,7 @@
 #include "ui/canvas_widget.hpp"
 #include "ui/color_panel.hpp"
 #include "ui/dialog_utils.hpp"
+#include "ui/font_face_name_index.hpp"
 #include "ui/main_window.hpp"
 #include "ui/mcp_activity.hpp"
 #include "ui/pdf_export.hpp"
@@ -1950,7 +1951,15 @@ bool text_family_lacks_some_character(const QString& family, const QString& text
 }
 
 bool family_listed(const QStringList& families, const QString& family) {
-  return families.contains(family.trimmed(), Qt::CaseInsensitive);
+  if (families.contains(family.trimmed(), Qt::CaseInsensitive)) {
+    return true;
+  }
+  // The text engine canonicalizes compact spellings such as LiberationSans to
+  // Liberation Sans. That is the requested family, not a fallback substitution.
+  const auto key = compact_text_family_key(family);
+  return !key.isEmpty() && std::any_of(families.begin(), families.end(), [&key](const QString& candidate) {
+    return compact_text_family_key(candidate) == key;
+  });
 }
 
 }  // namespace

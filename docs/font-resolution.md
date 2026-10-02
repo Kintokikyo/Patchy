@@ -30,6 +30,8 @@ The text engine's font lookup and the PSD reader's naming rules. The session mac
   `ScriptEngineHost::edit_text_layer_session`, so every text setter reports it, including a
   missing family the session substituted on the way in (the problems are read before the
   session opens; `ui_script_text_setters_warn_about_fonts`).
+  Warning comparisons use the same compact family keys as font lookup, so changing
+  `LiberationSans` to its canonical `Liberation Sans` spelling is not a substitution.
 - `render_text_font_for_display_family` resolves a display name first as a family, then as
   family + style ("Arial Black" -> "Arial"/"Black"). If BOTH fail on Windows,
   `try_register_missing_system_font_family` registers installed fonts from the machine and

@@ -1249,6 +1249,10 @@ void ui_text_name_table_names_resolve_to_the_registered_face() {
     var doc = app.activeDocument;
     var byFamily = doc.addTextLayer('Diorama', {font: 'FAMILY_NAME', size: 40, x: 10, y: 40});
     var byPostScript = doc.addTextLayer('Diorama', {font: 'POSTSCRIPT_NAME', size: 40, x: 10, y: 140});
+    var byCompact = doc.addTextLayer('Diorama', {font: 'COMPACT_NAME', size: 40, x: 10, y: 240});
+    byCompact.text = byCompact.text;
+    console.log('compact-name-matches=' + (byCompact.bounds.width === byFamily.bounds.width &&
+                                          byCompact.bounds.height === byFamily.bounds.height));
     var same = function () {
       return byPostScript.bounds.width === byFamily.bounds.width && byPostScript.bounds.height === byFamily.bounds.height;
     };
@@ -1258,8 +1262,10 @@ void ui_text_name_table_names_resolve_to_the_registered_face() {
     console.log('stored=' + byPostScript.textFont);
   )JS")
                           .replace(QStringLiteral("FAMILY_NAME"), family)
+                          .replace(QStringLiteral("COMPACT_NAME"), patchy::ui::compact_text_family_key(family))
                           .replace(QStringLiteral("POSTSCRIPT_NAME"), names->postscript_name);
   CHECK(run_script(window, script));
+  CHECK(backlog_contains(window, QStringLiteral("compact-name-matches=true")));
   CHECK(backlog_contains(window, QStringLiteral("postscript-name-matches=true")));
   CHECK(backlog_contains(window, QStringLiteral("reedit-keeps-face=true")));
   // The stored name is the request, unless the database already lists the family under the
@@ -1267,6 +1273,7 @@ void ui_text_name_table_names_resolve_to_the_registered_face() {
   CHECK(backlog_contains(window, QStringLiteral("stored=") + names->postscript_name) ||
         backlog_contains(window, QStringLiteral("stored=") + family));
   CHECK(!backlog_contains(window, QStringLiteral("font not available")));
+  CHECK(!backlog_contains(window, QStringLiteral("font has no glyphs")));
 }
 
 // windows_named_font_data: a font whose Macintosh family differs from its Windows family loses
