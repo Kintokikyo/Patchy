@@ -17,6 +17,7 @@ hang watchdog.
 from __future__ import annotations
 
 import json
+import hashlib
 import subprocess
 import time
 from pathlib import Path
@@ -193,6 +194,43 @@ _PROBE_JSX = r"""
     }
   }
 
+  // Inspect every style range before assigning contents. A missing face in a
+  // later range can prompt even when textItem.font (the first range) is present.
+  function textFontProblems(layers, out) {
+    function problem(label) {
+      for (var k = 0; k < out.length; k++) { if (out[k] == label) { return; } }
+      out.push(label);
+    }
+    function checkFace(face, unavailable) {
+      if (!face) { problem('unidentified text font'); return; }
+      if (unavailable) { problem(face); return; }
+      try { app.fonts.getByName(face); } catch (e) { problem(face); }
+    }
+    for (var i = 0; i < layers.length; i++) {
+      var L = layers[i];
+      if (L.typename == 'LayerSet') { textFontProblems(L.layers, out); continue; }
+      var kind = '';
+      try { kind = String(L.kind); } catch (e) {}
+      if (kind != 'LayerKind.TEXT') { continue; }
+      try { if (L.allLocked) { continue; } } catch (e) {}
+      try {
+        var d = layerDescriptor(L.id).getObjectValue(stringIDToTypeID('textKey'));
+        var ranges = d.getList(stringIDToTypeID('textStyleRange'));
+        if (ranges.count == 0) { problem('unidentified text font'); }
+        for (var j = 0; j < ranges.count; j++) {
+          var style = ranges.getObjectValue(j).getObjectValue(stringIDToTypeID('textStyle'));
+          var fontKey = stringIDToTypeID('fontPostScriptName');
+          var availableKey = stringIDToTypeID('fontAvailable');
+          var face = style.hasKey(fontKey) ? style.getString(fontKey) : String(L.textItem.font);
+          checkFace(face, style.hasKey(availableKey) && !style.getBoolean(availableKey));
+        }
+      } catch (e) {
+        // Do not guess that a partially inspected mixed-font layer is safe.
+        problem('could not inspect fonts in ' + L.name);
+      }
+    }
+  }
+
   // Append the suffix to every unlocked text layer; Photoshop re-lays-out on
   // assignment. Mirrors Patchy's --append-text (pixel-locked layers skipped).
   function mutateText(layers, suffix, counter) {
@@ -237,15 +275,29 @@ _PROBE_JSX = r"""
       } catch (e) { resaveStatus = 'resave-error: ' + e; }
     }
     var mutateCount = -1, mutateErrors = 0, mutatedStatus = 'skipped';
+    var missingFonts = [], mutateSkipped = null;
     if (MUTATE_SUFFIX !== null) {
-      var counter = { n: 0, errors: 0 };
-      mutateText(opened.layers, MUTATE_SUFFIX, counter);
-      mutateCount = counter.n;
-      mutateErrors = counter.errors;
-      if (MUTATED_PNG !== null) {
-        mutatedStatus = renderTo(opened, MUTATED_PNG);
+      textFontProblems(opened.layers, missingFonts);
+      if (missingFonts.length) {
+        mutateSkipped = 'Required fonts unavailable: ' + missingFonts.join(', ');
+      } else {
+        var counter = { n: 0, errors: 0 };
+        var mutationDialogs = app.displayDialogs;
+        try {
+          app.displayDialogs = DialogModes.NO;
+          mutateText(opened.layers, MUTATE_SUFFIX, counter);
+        } finally { app.displayDialogs = mutationDialogs; }
+        mutateCount = counter.n;
+        mutateErrors = counter.errors;
+        if (MUTATED_PNG !== null && mutateErrors == 0) {
+          mutatedStatus = renderTo(opened, MUTATED_PNG);
+        } else if (mutateErrors) {
+          mutateSkipped = 'Photoshop could not edit every eligible text layer';
+        }
       }
     }
+    var missingJson = [];
+    for (var m = 0; m < missingFonts.length; m++) { missingJson.push(q(missingFonts[m])); }
     var result = '{"ok":true,"width":' + opened.width.as('px') + ',"height":' + opened.height.as('px') +
       ',"resolution":' + opened.resolution +
       ',"render":' + q(renderStatus) +
@@ -253,6 +305,8 @@ _PROBE_JSX = r"""
       ',"mutated":' + q(mutatedStatus) +
       ',"mutateCount":' + mutateCount +
       ',"mutateErrors":' + mutateErrors +
+      ',"mutateSkipped":' + (mutateSkipped === null ? 'null' : q(mutateSkipped)) +
+      ',"missingFonts":[' + missingJson.join(',') + ']' +
       ',"layers":[' + entries.join(',') + ']}';
     opened.close(SaveOptions.DONOTSAVECHANGES);
     return result;
@@ -325,6 +379,7 @@ class PhotoshopDriver:
         self._app = None
         self._log = log
         self._version: str | None = None
+        self._font_cache_key: str | None = None
         self._launch_failures = 0
         self._unavailable_reason: str | None = None
 
@@ -387,6 +442,15 @@ class PhotoshopDriver:
         except Exception:
             return "unknown"
         return self._version
+
+    def font_cache_key(self) -> str:
+        """Installing a missing font must invalidate the forced-text ground truth."""
+        if self._font_cache_key is None:
+            inventory = self._application().DoJavaScript(
+                "(function(){var a=[];for(var i=0;i<app.fonts.length;i++){"
+                "a.push(app.fonts[i].postScriptName);}a.sort();return a.join('\\n');})();")
+            self._font_cache_key = hashlib.sha256(str(inventory).encode("utf-8")).hexdigest()[:16]
+        return self._font_cache_key
 
     def probe(
         self,

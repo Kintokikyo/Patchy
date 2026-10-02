@@ -20,6 +20,7 @@ import datetime as _dt
 import functools
 import http.server
 import json
+import os
 import re
 import shutil
 import socket
@@ -28,6 +29,7 @@ import sys
 import threading
 import time
 import traceback
+import types
 import webbrowser
 from pathlib import Path
 
@@ -37,6 +39,7 @@ import analyze
 import config
 import manifest as manifest_mod
 import report
+import rerun
 import staging
 from drivers import gimp as gimp_driver
 from drivers import krita as krita_driver
@@ -95,18 +98,24 @@ def refresh_patchy_build() -> bool:
     # One pre-quoted string, not an argv list: list2cmdline would escape the
     # command's inner quotes as \" which cmd.exe does not understand. With /s,
     # cmd strips exactly the outer quote pair added here.
+    # Keep configured build commands below normal priority and cap cmake's
+    # default parallelism. A batch file avoids nesting another quoted command.
+    command_file = config.REPO_ROOT / "build" / "testy-build.cmd"
+    command_file.parent.mkdir(parents=True, exist_ok=True)
+    command_file.write_text("@echo off\n" + config.BUILD_COMMAND + "\nexit /b %errorlevel%\n", encoding="utf-8")
     completed = subprocess.run(
-        'cmd /s /c "' + config.BUILD_COMMAND + '"', cwd=config.REPO_ROOT,
+        ["cmd", "/c", str(config.REPO_ROOT / "scripts/run-throttled.bat"), str(command_file)],
+        cwd=config.REPO_ROOT, env=dict(os.environ, CMAKE_BUILD_PARALLEL_LEVEL="20"),
         capture_output=True, text=True, timeout=1200,
     )
     output = (completed.stdout or "") + (completed.stderr or "")
     built = ("ninja: no work to do" in output) or ("Linking CXX executable" in output) or (
         "Building CXX object" in output
     )
-    if not built:
-        log("WARNING: build produced no compile/link evidence; patchy.exe may be stale")
+    if not built or completed.returncode != 0:
+        log(f"WARNING: build failed or produced no compile/link evidence (exit {completed.returncode})")
         log(output[-1500:])
-    return built
+    return built and completed.returncode == 0
 
 
 def read_corpus_file(corpus_path: Path) -> list[Path]:
@@ -387,6 +396,18 @@ class TestyRequestHandler(http.server.SimpleHTTPRequestHandler):
         if path == "/testy-run-state":
             self._guarded(self._send_run_state)
             return
+        if path == "/testy-rerun-state":
+            self._guarded(self._send_rerun_state)
+            return
+        if path.endswith("/report.html") and Path(self.translate_path(self.path)).is_file():
+            # Existing batches get current controls without rewriting their reports.
+            body = report._PAGE.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if path.endswith("/status.json"):
             self._guarded(self._send_status_json)
             return
@@ -436,6 +457,20 @@ class TestyRequestHandler(http.server.SimpleHTTPRequestHandler):
             "resumable": _resumable(),
         })
 
+    def _send_rerun_state(self) -> None:
+        from urllib.parse import parse_qs, urlparse
+        name = parse_qs(urlparse(self.path).query).get("run", [""])[0]
+        try:
+            target = rerun.run_path(config.RUNS_DIR, name)
+        except ValueError as error:
+            self._send_json({"errors": [str(error)]}, status=404)
+            return
+        path = target / rerun.STATE_FILE
+        state = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+        if state.get("state") == "running" and not _run_in_progress():
+            state.update(state="failed", error="Rerun interrupted; previous results kept.")
+        self._send_json(state)
+
     def do_POST(self):  # noqa: N802 - stdlib signature
         from urllib.parse import urlparse
 
@@ -446,6 +481,7 @@ class TestyRequestHandler(http.server.SimpleHTTPRequestHandler):
             "/testy-resume-run": self._resume_run,
             "/testy-delete-runs": self._delete_runs,
             "/testy-retest-file": self._retest_file,
+            "/testy-rerun-file": self._rerun_file,
             "/testy-upload": self._upload,
         }.get(urlparse(self.path).path)
         if handler is None:
@@ -624,6 +660,38 @@ class TestyRequestHandler(http.server.SimpleHTTPRequestHandler):
             )
             self._spawn_child(command)
         self._send_json({"started": True})
+
+    def _rerun_file(self) -> None:
+        request = self._read_json_body()
+        if request is None:
+            return
+        with _spawn_lock:
+            if _run_in_progress():
+                self._send_json({"errors": ["a run is already in progress"]}, status=409)
+                return
+            try:
+                target = rerun.run_path(config.RUNS_DIR, str(request.get("run") or ""))
+                status = json.loads((target / "status.json").read_text(encoding="utf-8"))
+                scope = request.get("scope", "patchy")
+                if scope not in ("patchy", "all"):
+                    raise ValueError("unknown rerun scope")
+                editors = status["run"]["editorOrder"] if scope == "all" else ["patchy"]
+                job = rerun.prepare(config.RUNS_DIR, target.name, str(request.get("source") or ""), editors)
+            except ValueError as error:
+                self._send_json({"errors": [str(error)]}, status=400)
+                return
+            options = job["options"]
+            command = _child_run_command(
+                f"http://127.0.0.1:{self.server.server_address[1]}", [job["source"]], editors,
+                fresh=True, compare=options.get("compare", "strict"), suffix=options.get("suffix"))
+            command += ["--apply-to-run", target.name, "--expected-entry", job["expectedEntry"]]
+            rerun.note_state(config.RUNS_DIR, job, "running")
+            try:
+                self._spawn_child(command)
+            except Exception as error:
+                rerun.note_state(config.RUNS_DIR, job, "failed", error=str(error))
+                raise
+        self._send_json({"started": True, "run": target.name})
 
     def _pause_run(self) -> None:
         request = self._read_json_body()
@@ -911,6 +979,12 @@ class Runner:
         }
         if self.scan_threshold is not None:
             self.status["run"]["scan"] = {"thresholdPct": self.scan_threshold * 100.0}
+        if getattr(self.args, "apply_to_run", None):
+            if len(corpus) != 1 or not self.args.expected_entry:
+                raise ValueError("applying a rerun requires one image and its original result digest")
+            self.status["run"]["rerunRequest"] = {
+                "target": self.args.apply_to_run, "source": str(corpus[0]),
+                "expectedEntry": self.args.expected_entry, "editors": self.editor_order}
         self.push()
 
     def push(self) -> None:
@@ -934,7 +1008,8 @@ class Runner:
         entry = self.file_entry(index)
         gt_dir = self.files_dir / Path(entry["name"]).stem / "_truth"
         gt_dir.mkdir(parents=True, exist_ok=True)
-        cache_dir = config.CACHE_DIR / f"gt-{staged.sha1}-{_version_slug(self.ps.version())}-{self.suffix}"
+        font_key = self.ps.font_cache_key()
+        cache_dir = config.CACHE_DIR / f"gt-{staged.sha1}-{_version_slug(self.ps.version())}-{self.suffix}-fontcheck1-{font_key}"
         result_path = cache_dir / "result.json"
 
         entry["groundTruth"] = {"state": "running", "stage": "Photoshop ground truth"}
@@ -995,6 +1070,8 @@ class Runner:
             "render": result.get("render"),
             "mutated": result.get("mutated"),
             "mutateCount": result.get("mutateCount"),
+            "mutateSkipped": result.get("mutateSkipped"),
+            "missingFonts": result.get("missingFonts", []),
             "artifacts": artifacts,
         }
         # Alerts Photoshop raised while opening the file (the driver acknowledged
@@ -1038,6 +1115,10 @@ class Runner:
             return
 
         version_key = self.patchy_hash if editor_key == "patchy" else info.version
+        if editor_key == "patchy":
+            # Its forced-text pixels change when Photoshop's font environment
+            # changes too; older cells must not retain an unqualified text score.
+            version_key += "-fontcheck1-" + self.ps.font_cache_key()
         cache_dir = config.CACHE_DIR / (
             f"cell-{staged.sha1}-{editor_key}-{_version_slug(version_key)}-{self.suffix}"
         )
@@ -1050,10 +1131,12 @@ class Runner:
             cell.update(cached_cell)
             cell["cached"] = True
             self._upgrade_cached_metrics(entry, cell, cell_dir, cache_dir, staged, truth)
+            self._skip_unavailable_text_comparison(cell, truth)
             self.push()
             return
 
         cell.update({"state": "running", "stage": "opening + exporting"})
+        self._skip_unavailable_text_comparison(cell, truth)
         self.push()
 
         render_png = cell_dir / "render.png"
@@ -1103,7 +1186,7 @@ class Runner:
             cell["trapSentinelFraction"] = round(analyze.sentinel_fraction(trap_png), 4)
 
         truth_mutated = self.files_dir / Path(entry["name"]).stem / "_truth" / "mutated.png"
-        if mutated_png.exists() and truth_mutated.exists() and truth is not None and document_size[0]:
+        if not cell.get("textRenderSkipped") and mutated_png.exists() and truth_mutated.exists() and truth is not None and document_size[0]:
             text_objects = [l for l in truth["layers"] if l.get("kind") == "TEXT"]
             cell["textRender"] = analyze.compare_renders(
                 truth_mutated, mutated_png, document_size, text_objects, None
@@ -1154,6 +1237,15 @@ class Runner:
                 self._write_cell_cache(cell_dir, cache_dir, cell)
             else:
                 self._deferred_cell_caches.setdefault(index, []).append((cell_dir, cache_dir, cell))
+
+    @staticmethod
+    def _skip_unavailable_text_comparison(cell: dict, truth: dict | None) -> None:
+        if truth and truth.get("mutateSkipped"):
+            cell["textRenderSkipped"] = truth["mutateSkipped"]
+            cell.pop("textRender", None)
+            cell.pop("mutateError", None)
+            for key in ("mutated", "mutatedThumb"):
+                cell.get("artifacts", {}).pop(key, None)
 
     def _upgrade_cached_metrics(
         self, entry: dict, cell: dict, cell_dir: Path, cache_dir: Path,
@@ -1261,9 +1353,10 @@ class Runner:
                 cell["resaveError"] = patchy_driver.failure_text(resaved)
             if staged.trap is not None:
                 patchy_driver.export(info.exe, staged.trap, trap_png)
-            mutated = patchy_driver.export(info.exe, staged.original, mutated_png, append_text=self.suffix)
-            if not mutated["ok"]:
-                cell["mutateError"] = patchy_driver.failure_text(mutated)
+            if not cell.get("textRenderSkipped"):
+                mutated = patchy_driver.export(info.exe, staged.original, mutated_png, append_text=self.suffix)
+                if not mutated["ok"]:
+                    cell["mutateError"] = patchy_driver.failure_text(mutated)
             return
 
         if editor_key == "krita":
@@ -1662,7 +1755,8 @@ class Runner:
             report.append_run_index(config.TESTY_ROOT, self.run_name)
 
         if not self.args.no_build and "patchy" in self.editor_order:
-            refresh_patchy_build()
+            if not refresh_patchy_build():
+                raise RuntimeError("Patchy build failed; previous results kept")
             self.patchy_hash = git_hash()
             self.editors = config.discover_editors(self.patchy_hash)
             info = self.editors["patchy"]
@@ -1772,6 +1866,9 @@ class Runner:
         self.push()
         (self.run_dir / "results.json").write_text(json.dumps(self.status, indent=1), encoding="utf-8")
         report.append_history(config.TESTY_ROOT, self._history_summary())
+        if self.status["run"].get("rerunRequest"):
+            rerun.apply(config.RUNS_DIR, self.run_dir, self.status["run"]["rerunRequest"],
+                        summarize=self.summarize_status, scan_reasons=self.scan_reasons_for_status)
         self._print_summary()
 
         if server is not None and not self.args.exit_when_done:
@@ -1824,6 +1921,27 @@ class Runner:
             "editors": self._aggregate(),
         }
 
+    @classmethod
+    def summarize_status(cls, status: dict) -> dict:
+        view = object.__new__(cls)
+        view.status = status
+        view.editor_order = status["run"]["editorOrder"]
+        view.run_name = status["run"]["name"]
+        view.patchy_hash = status["run"].get("patchyGit", "unknown")
+        summary = view._history_summary()
+        summary["reruns"] = status["run"].get("reruns", [])
+        return summary
+
+    @classmethod
+    def scan_reasons_for_status(cls, status: dict, entry: dict) -> list[str]:
+        view = object.__new__(cls)
+        view.scan_threshold = status["run"]["scan"]["thresholdPct"] / 100.0
+        view.compare_mode = status["run"].get("compare", "strict")
+        view.editor_order = status["run"]["editorOrder"]
+        view.editors = {k: types.SimpleNamespace(display_name=v.get("displayName", k))
+                        for k, v in status["editors"].items()}
+        return view._scan_flag_reasons(entry)
+
     def _print_summary(self) -> None:
         aggregate = self._aggregate()
         log("summary (mean byte match / perceptual match / data kept in .psd save / opened):")
@@ -1872,6 +1990,8 @@ def main() -> int:
                         help="continue a paused/canceled/interrupted run directory "
                              "(runs\\<timestamp>), skipping completed work; corpus, "
                              "editors, and options come from its status.json")
+    parser.add_argument("--apply-to-run", default=None, help="apply a completed one-image rerun to this batch")
+    parser.add_argument("--expected-entry", default=None, help=argparse.SUPPRESS)
     parser.add_argument("--port", type=int, default=config.PORT, help="dashboard port")
     parser.add_argument("--no-browser", action="store_true", help="do not auto-open the dashboard")
     parser.add_argument("--no-serve", action="store_true", help="write reports without the local server")
@@ -1883,8 +2003,19 @@ def main() -> int:
         parser.error("--scan threshold must be a percentage between 0 and 100")
     global _in_process_run_active
     _in_process_run_active = True
+    runner = None
     try:
-        return Runner(args).run()
+        runner = Runner(args)
+        result = runner.run()
+        if result and runner.status.get("run", {}).get("rerunRequest"):
+            rerun.note_state(config.RUNS_DIR, runner.status["run"]["rerunRequest"], "failed",
+                             error="Rerun did not complete; previous results kept.")
+        return result
+    except Exception as error:
+        job = runner.status.get("run", {}).get("rerunRequest") if runner else None
+        if job:
+            rerun.note_state(config.RUNS_DIR, job, "failed", error=str(error))
+        raise
     finally:
         _in_process_run_active = False
 

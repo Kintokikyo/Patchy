@@ -1,8 +1,6 @@
 # Testy: the PSD compatibility benchmark
 
-Testy (`testy/`) measures how Patchy and other installed editors handle real PSD files,
-with Adobe Photoshop 2026 as ground truth. Repeated runs over time show whether Patchy's
-compatibility is improving and which PSDs are trouble.
+Testy (`testy/`) measures PSD compatibility against Adobe Photoshop 2026.
 
 ## Setup
 
@@ -60,13 +58,27 @@ run directory survives and is reported in the panel. Deleted runs are dropped fr
 removed by hand simply unlists it. The live run cannot be deleted, and deletion
 never touches `testy/cache/`.
 
-A "Retest file" button in a served report's detail panel re-runs just that file as a
-fresh run with the same editors and options, refreshing the Patchy build
-first; caches keep the rest fast (Photoshop and the other editors load from
-`testy/cache/`, Patchy re-measures because its cache key includes the git hash). It
-is disabled while a run is live and absent from a frozen report opened from disk.
-Cells cached before the perceptual metric existed are upgraded in place on reuse
-(recomputed from the cached images).
+A **Rerun** button beside each image in a completed batch refreshes that row and
+the batch totals. Choose **Patchy** (default) to check a fix, or **All editors**.
+The child rebuilds Patchy when selected and measures the selected editors afresh,
+including Photoshop ground truth. The batch keeps showing its previous results
+until the rerun finishes. Interrupted runs, failed automation, changed sources,
+and failed builds leave the previous results intact. A source modified since the
+batch requires a new run. Other rows and unselected editor cells are preserved.
+
+Successful reruns update `status.json`, `results.json`, history totals, and scan
+flags. New artifacts and the previous batch snapshot live under
+`runs/<batch>/reruns/<child>/`; the row links to the previous results. Refreshed
+rows show their build/version and time, and the header identifies the batch as a
+partial refresh. These batches contain measurements from multiple builds.
+Existing batches get current controls when served by an updated Testy server;
+restart the server after updating Testy. Frozen reports have no rerun controls.
+Run the editor-free regression checks with
+`scripts\run-throttled.bat python tests\testy_rerun_tests.py` (Python and Node required).
+
+The detail panel's older **Retest file** button creates a separate one-file run
+with the same editors/options and a fresh Patchy build, leaving the batch intact.
+It reuses caches, unlike **Rerun**. Both require the Testy server and no active run.
 
 The CLI remains for scripted use:
 
@@ -203,6 +215,16 @@ touched; a SHA check at the end of every run proves it), and Testy records:
   layer so cached rasters cannot satisfy the render: Photoshop via COM
   (`textItem.contents`), Patchy via `patchy.exe --append-text` (real inline-editor
   sessions per layer). Mutated renders are compared within text-layer regions.
+  Before mutation, Photoshop checks every unlocked text layer's style ranges
+  against its available fonts. If a required font is missing or cannot be
+  inspected, the whole image's forced-text comparison is explicitly skipped,
+  with the font names/reason shown in the detail panel. Neither editor mutates
+  text for that comparison; ordinary rendering and PSD preservation checks still
+  run. No font is silently replaced, and a skipped comparison has no score.
+  Mutation errors also suppress the comparison. The font inventory participates
+  in ground-truth and Patchy caches, so installing fonts invalidates old text
+  results on the next run. Dialog suppression is limited to the mutation step
+  when a probe enables opening warnings; it does not conceal PSD opening errors.
   Krita 5.3 and Affinity re-render text on open by design, and GIMP's PSD import
   keeps text layers as baked rasters, so none of them has a mutation leg. The detail panel shows the "render, text appended" pair only
   for editors with the leg (Patchy; Photoshop's lives with the ground truth);
@@ -388,6 +410,7 @@ testy/
   analyze.py         render metrics, sentinel detection, heatmaps (--selftest included)
   manifest.py        original-vs-resave structural diff
   report.py          status.json + live report.html + history
+  rerun.py           one-image updates and previous-result snapshots
   affinity_js.py     MCP/JS client for the Affinity app (also reused by .af tooling)
   win_dialogs.py     modal-dialog guard for scripted apps (--selftest included)
   drivers/           one per editor: photoshop (COM, --selftest included), patchy,

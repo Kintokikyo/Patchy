@@ -107,6 +107,11 @@ _PAGE = r"""<!DOCTYPE html>
   #detail .retest-btn:hover:enabled { border-color: var(--accent); }
   #detail .retest-btn:disabled { color: var(--dim); cursor: default; }
   #detail .retest-note { color: var(--dim); font-size: 11.5px; margin-left: 8px; }
+  .rerun-btn, .rerun-scope { background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+    border-radius: 4px; padding: 3px 7px; margin-top: 6px; font: inherit; }
+  .rerun-btn { cursor: pointer; margin-left: 5px; }
+  .rerun-btn:disabled, .rerun-scope:disabled { color: var(--dim); cursor: default; }
+  .nums a { color: var(--accent); }
   .ok-text { color: var(--good); } .bad-text { color: var(--bad); } .warn-text { color: var(--warn); }
   .copyable { cursor: pointer; border-bottom: 1px dotted var(--dim); }
   .copyable:hover { color: var(--accent); }
@@ -143,6 +148,10 @@ let selected = null;
 // served by something other than testy.py), which hides every control.
 const RUN_ID = (location.pathname.match(/\/runs\/([^/]+)\//) || [])[1] || null;
 let runState = null;
+let rowRerunState = null;
+let rowRerunPending = null;
+let rowRerunError = "";
+const rowRerunScopes = {};
 // The Back link only makes sense while the Testy server is serving this page; a
 // frozen report.html opened from disk has no control panel at "/" to go back to.
 if (location.protocol === "http:" || location.protocol === "https:")
@@ -387,6 +396,63 @@ function waitForRetestRun(deadline) {
   }).catch(() => setTimeout(() => waitForRetestRun(deadline), 1500));
 }
 
+function rerunRow(fi) {
+  if (rowRerunPending !== null || (runState && runState.running)) return;
+  const source = S.files[fi].source;
+  rowRerunPending = source;
+  rowRerunError = "";
+  rowRerunState = { source, state: "starting" };
+  render();
+  fetch("/testy-rerun-file", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ run: RUN_ID, source, scope: rowRerunScopes[fi] || "patchy" }),
+  }).then(async response => {
+    const result = await response.json();
+    rowRerunPending = null;
+    if (!response.ok) {
+      rowRerunError = (result.errors || ["Rerun failed"]).join("; ");
+      rowRerunState = { source, state: "failed", error: rowRerunError };
+      render();
+    } else { pollSoon(); }
+  }).catch(() => {
+    rowRerunPending = null;
+    rowRerunError = "The server is unreachable. Check the row before trying again.";
+    render();
+  });
+}
+
+function rerunRowControls(f, fi) {
+  if (!RUN_ID || !runState || S.state !== "done") return "";
+  const thisRow = rowRerunState && rowRerunState.source === f.source;
+  const running = thisRow && ["starting", "running"].includes(rowRerunState.state);
+  const busy = runState.running || rowRerunPending !== null ||
+    (rowRerunState && rowRerunState.state === "running");
+  const hasPatchy = S.run.editorOrder.includes("patchy");
+  const scope = rowRerunScopes[fi] || (hasPatchy ? "patchy" : "all");
+  rowRerunScopes[fi] = scope;
+  const disabled = busy ? " disabled" : "";
+  let controls = '<div><select class="rerun-scope" aria-label="Editors to rerun for ' + esc(f.name) +
+    '" onchange="rowRerunScopes[' + fi + ']=this.value"' + disabled + '>' +
+    (hasPatchy ? '<option value="patchy"' + (scope === "patchy" ? " selected" : "") + '>Patchy</option>' : "") +
+    '<option value="all"' + (scope === "all" ? " selected" : "") + '>All editors</option></select>' +
+    '<button class="rerun-btn" onclick="rerunRow(' + fi + ')"' + disabled +
+    ' title="Rerun this image and update this batch">' + (running ? "Rerunning..." : "Rerun") + '</button></div>';
+  if (thisRow) {
+    const note = rowRerunError || rowRerunState.error || (running ? "Previous results shown until completion." :
+      rowRerunState.state === "applied" ? "Results and totals updated." : "");
+    controls += '<div class="nums" role="status">' + esc(note) + '</div>';
+  }
+  return controls;
+}
+
+function editorVersionLabel(key) {
+  const versions = new Set([(S.editors[key] || {}).version || '?']);
+  (S.run.reruns || []).forEach(r => {
+    if (r.editors[key]) versions.add(r.editors[key].version || '?');
+  });
+  return versions.size > 1 ? 'mixed versions; see updated rows' : [...versions][0];
+}
+
 function render() {
   if (!S) return;
   const pill = document.getElementById("state-pill");
@@ -402,14 +468,15 @@ function render() {
     S.run.startedAt + "  -  " + S.files.length + " file(s)" +
     (corpusBytes ? ", " + fmtSize(corpusBytes) : "") + "  -  Patchy " + (S.run.patchyVersion || "?") +
     (S.run.compare === "perceptual" ? "  -  compare: perceptual" : "") +
-    (S.run.scan ? "  -  scan mode: flag over " + S.run.scan.thresholdPct + "% " + compareWord + " difference" : "");
+    (S.run.scan ? "  -  scan mode: flag over " + S.run.scan.thresholdPct + "% " + compareWord + " difference" : "") +
+    (S.run.reruns && S.run.reruns.length ? "  -  partial refresh: " + S.run.reruns.length + " image rerun(s); build details on each row" : "");
 
   const editors = S.run.editorOrder;
   document.getElementById("matrix-head").innerHTML =
     "<tr><th>PSD</th>" + editors.map(k => {
       const e = S.editors[k] || {};
       return "<th>" + esc(e.displayName || k) +
-             '<div class="nums">' + esc(e.version || "") + "</div></th>";
+             '<div class="nums">' + esc(editorVersionLabel(k)) + "</div></th>";
     }).join("") + "</tr>";
 
   document.getElementById("matrix-body").innerHTML = S.files.map((f, fi) => {
@@ -419,10 +486,14 @@ function render() {
     const scanNote = !f.scan ? "" : (f.scan.flagged
       ? '<div class="flag">FLAGGED: ' + esc(f.scan.reasons[0] || "") +
         (f.scan.reasons.length > 1 ? " (+" + (f.scan.reasons.length - 1) + " more)" : "") + "</div>"
-      : '<div class="nums ok-text">scan: passed (images discarded)</div>');
+      : '<div class="nums ok-text">scan: passed' + (f.scan.artifactsKept ? "" : " (images discarded)") + '</div>');
+    const latest = f.reruns && f.reruns.length ? f.reruns[f.reruns.length - 1] : null;
+    const revision = latest ? '<div class="nums">Updated ' + esc(latest.at) + ' (' +
+      Object.entries(latest.editors).map(([k, v]) => esc(v.displayName || k) + ' ' + esc(v.version || '?')).join(', ') +
+      ') · <a href="' + esc(artUrl(latest.previous)) + '" target="_blank">Previous results</a></div>' : "";
     return "<tr><td class='file'><b class='copyable' title='" + esc(f.source) +
       " (click to copy path)' onclick='copyPath(" + fi + ", this)'>" + esc(f.name) + "</b>" +
-      '<div class="nums">' + fileFacts(f) + "</div>" + gtNote + scanNote + "</td>" +
+      '<div class="nums">' + fileFacts(f) + "</div>" + gtNote + scanNote + revision + rerunRowControls(f, fi) + "</td>" +
       editors.map(k => "<td class='cell' onclick='openDetail(" + fi + ",\"" + k + "\")'>" +
                        cellSummary((f.cells || {})[k], (f.cells || {}).photoshop) + "</td>").join("") + "</tr>";
   }).join("");
@@ -485,7 +556,7 @@ function render() {
                                               : v[0] + "/" + v[1]]);
     });
     return '<div class="card"><h3>' + esc(e.displayName || k) + '</h3><div class="ver">' +
-      esc(e.version || "") + "</div>" +
+      esc(editorVersionLabel(k)) + "</div>" +
       rows.map(r => '<div class="row"><span>' + r[0] + "</span><b>" + r[1] + "</b></div>").join("") +
       "</div>";
   }).join("");
@@ -509,7 +580,7 @@ function img(fig, cap, full) {
 
 function openDetail(fi, ek, keep) {
   selected = [fi, ek];
-  const f = S.files[fi], cell = (f.cells || {})[ek] || {}, gt = f.groundTruth || {};
+  const f = S.files[fi], cell = (f.cells || {})[ek] || {}, gt = cell.groundTruth || f.groundTruth || {};
   const art = cell.artifacts || {}, gart = gt.artifacts || {};
   const editorName = esc((S.editors[ek] || {}).displayName || ek);
   let html = "<h2><span class='copyable' title='" + esc(f.source) +
@@ -532,9 +603,9 @@ function openDetail(fi, ek, keep) {
     html += f.scan.flagged
       ? '<div class="loss-banner"><b>Flagged by the scan</b><div class="nums">' +
         f.scan.reasons.map(esc).join("<br>") + "</div></div>"
-      : '<div class="keep-banner"><b>Passed the scan</b><div class="nums">every editor stayed ' +
-        "within the threshold, so this file's images and resaves were discarded; the numbers " +
-        "below are kept</div></div>";
+      : '<div class="keep-banner"><b>Passed the scan</b><div class="nums">Every editor stayed ' +
+        'within the threshold. ' + (f.scan.artifactsKept ? 'Rerun artifacts are retained.' :
+        'Images and resaves were discarded; measurements are retained.') + '</div></div>';
   }
   if (f.trapSkipped)
     html += '<div class="nums">honest-rendering trap not run: ' + esc(f.trapSkipped) + "</div>";
@@ -565,6 +636,8 @@ function openDetail(fi, ek, keep) {
   // the lone Photoshop image for other editors reads as a missing test, so
   // those panels get the skip reason instead.
   const mutationSkipped = (S.editors[ek] || {}).mutationSkipped;
+  if (gt.mutateSkipped || cell.textRenderSkipped)
+    html += '<div class="nums">Forced text comparison skipped: ' + esc(gt.mutateSkipped || cell.textRenderSkipped) + '</div>';
   if (!art.mutatedThumb && ek !== "photoshop" && mutationSkipped)
     html += '<div class="nums">forced text re-render not run for ' + editorName + ": " +
       esc(mutationSkipped) + "</div>";
@@ -752,9 +825,15 @@ async function tick() {
       const response = await fetch("/testy-run-state", { cache: "no-store" });
       runState = response.ok ? await response.json() : null;
     } catch (e) { runState = null; /* frozen page opened from disk */ }
+    if (runState && rowRerunPending === null) {
+      try {
+        const response = await fetch("/testy-rerun-state?run=" + encodeURIComponent(RUN_ID), { cache: "no-store" });
+        if (response.ok) { rowRerunState = await response.json(); rowRerunError = ""; }
+      } catch (e) { /* retain the last known state until the server returns */ }
+    }
   }
   if (S) render();
-  tickTimer = setTimeout(tick, S && S.state !== "running" ? 5000 : 1200);
+  tickTimer = setTimeout(tick, (rowRerunState && rowRerunState.state === "running") || (S && S.state === "running") ? 1200 : 5000);
 }
 
 function pollSoon() { clearTimeout(tickTimer); tick(); }
