@@ -20,7 +20,7 @@
 # Cleanup is deferred until unplug() has returned and the original DragState
 # is still alive.
 
-name: Build Patchy Window Layout Fix Android
+name: Build Patchy Window Layout Fix V9 Android
 
 on:
   workflow_dispatch:
@@ -199,7 +199,9 @@ jobs:
           from pathlib import Path
           import re
 
-          path = Path("qtbase-src/src/android/jar/src/org/qtproject/qt/android/QtRootLayout.java")
+          path = Path(
+              "qtbase-src/src/android/jar/src/org/qtproject/qt/android/QtRootLayout.java"
+          )
 
           if not path.is_file():
               raise SystemExit(f"ERROR: QtRootLayout.java not found: {path}")
@@ -210,7 +212,10 @@ jobs:
               raise SystemExit("ERROR: QtRootLayout already appears patched")
 
           constructor = re.compile(
-              r"(    QtRootLayout\(Context context\)\n    \{\n        super\(context\);\n    \})",
+              r"(    QtRootLayout\(Context context\)\n"
+              r"    \{\n"
+              r"        super\(context\);\n"
+              r"    \})",
               re.M
           )
 
@@ -231,9 +236,6 @@ jobs:
               "                if (m_imeVisible != visible) {",
               "                    m_imeVisible = visible;",
               "",
-              "                    // When the IME disappears, allow the root to measure",
-              "                    // normally again. While it is visible, onMeasure()",
-              "                    // keeps the last stable full-screen geometry.",
               "                    if (!m_imeVisible)",
               "                        requestLayout();",
               "                }",
@@ -245,19 +247,30 @@ jobs:
           ])
 
           text2, count = constructor.subn(replacement, text, count=1)
-          if count != 1:
-              raise SystemExit(f"ERROR: QtRootLayout constructor: expected 1 match, found {count}")
 
-          marker = "    @Override\n    protected void onSizeChanged(int w, int h, int oldw, int oldh)"
+          if count != 1:
+              raise SystemExit("ERROR: QtRootLayout constructor patch failed")
+
+          marker = (
+              "    @Override\n"
+              "    protected void onSizeChanged("
+              "int w, int h, int oldw, int oldh)"
+          )
+
           if marker not in text2:
               raise SystemExit("ERROR: QtRootLayout onSizeChanged marker not found")
 
           measure = "\n".join([
               "    @Override",
-              "    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec)",
+              "    protected void onMeasure("
+              "int widthMeasureSpec, int heightMeasureSpec)",
               "    {",
-              "        if (m_imeVisible && m_lastStableWidth > 0 && m_lastStableHeight > 0) {",
-              "            setMeasuredDimension(m_lastStableWidth, m_lastStableHeight);",
+              "        if (m_imeVisible &&",
+              "                m_lastStableWidth > 0 &&",
+              "                m_lastStableHeight > 0) {",
+              "            setMeasuredDimension(",
+              "                    m_lastStableWidth,",
+              "                    m_lastStableHeight);",
               "            return;",
               "        }",
               "",
@@ -271,37 +284,46 @@ jobs:
 
           text3 = text2.replace(marker, measure + marker, 1)
 
-          if text3.count("protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec)") != 1:
+          if text3.count(
+              "protected void onMeasure("
+              "int widthMeasureSpec, int heightMeasureSpec)"
+          ) != 1:
               raise SystemExit("ERROR: QtRootLayout onMeasure insertion failed")
 
           old = "        QtDisplayManager.handleLayoutSizeChanged(w, h);"
-          new = "        if (!m_imeVisible)\n            QtDisplayManager.handleLayoutSizeChanged(w, h);"
+          new = (
+              "        if (!m_imeVisible)\n"
+              "            QtDisplayManager.handleLayoutSizeChanged(w, h);"
+          )
 
           if text3.count(old) != 1:
-              raise SystemExit("ERROR: QtRootLayout size-change call marker not found exactly once")
+              raise SystemExit(
+                  "ERROR: QtRootLayout size-change call marker not found exactly once"
+              )
 
           text3 = text3.replace(old, new, 1)
           path.write_text(text3)
 
           final = path.read_text()
+
           required = [
               "private boolean m_imeVisible = false;",
               "private int m_lastStableWidth = 0;",
               "private int m_lastStableHeight = 0;",
-              "protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec)",
+              "protected void onMeasure("
+              "int widthMeasureSpec, int heightMeasureSpec)",
               "WindowInsets.Type.ime()",
-              "setMeasuredDimension(m_lastStableWidth, m_lastStableHeight);",
-              "if (!m_imeVisible)",
+              "setMeasuredDimension(",
               "QtDisplayManager.handleLayoutSizeChanged(w, h);",
           ]
 
           for marker in required:
               if marker not in final:
-                  raise SystemExit("ERROR: QtRootLayout verification failed: " + marker)
+                  raise SystemExit(
+                      "ERROR: QtRootLayout verification failed: " + marker
+                  )
 
           print("QtRootLayout IME layout patch: OK")
-          print("===== PATCHED QtRootLayout.java =====")
-          print(final)
           PY
 
       # ================================================================
@@ -609,7 +631,6 @@ jobs:
           )
 
           hdr.write_text(hdr_text)
-          cpp.write_text(cpp_text)
 
           # ------------------------------------------------------------
           # 7. Patch QDockWidget::closeEvent().
@@ -699,6 +720,9 @@ jobs:
 
           print("CLOSEEVENT PATCH: OK")
           print("CLOSEEVENT PATCH VERIFICATION: OK")
+          # Write the final patched source after closeEvent() patch.
+          # This must happen before final verification.
+          cpp.write_text(cpp_text)
 
           # ------------------------------------------------------------
           # 8. Final source verification.
@@ -713,7 +737,7 @@ jobs:
           ]
 
           required_cpp = [
-              "state->startingDrag = true;",
+              "dragState->startingDrag = true;",
               "state->startingDrag = false;",
               "state->abortPending = true;",
               "state->releasePending = true;",
@@ -790,8 +814,8 @@ jobs:
             "bool startingDrag" \
             qtbase-src/src/widgets/widgets/qdockwidget_p.h
 
-          grep -n -A28 -B6 \
-            "state->startingDrag = true" \
+          grep -n -A32 -B8 \
+            "dragState->startingDrag = true" \
             qtbase-src/src/widgets/widgets/qdockwidget.cpp
 
           grep -n -A12 -B5 \
@@ -853,7 +877,7 @@ jobs:
           cmake --install "$QTBASE_BUILD"
 
       # ================================================================
-      # REPLACE Qt6Android.jar WITH THE PATCHED BUILD
+      # OVERLAY PATCHED Qt6Android.jar
       # ================================================================
       - name: Overlay patched Qt Android Java jar
         env:
@@ -881,14 +905,9 @@ jobs:
             exit 1
           fi
 
-          echo "Patched jar:  $PATCHED_ANDROID_JAR"
-          echo "Original jar: $ORIGINAL_ANDROID_JAR"
-
           cp -f "$PATCHED_ANDROID_JAR" "$ORIGINAL_ANDROID_JAR"
 
           echo "Qt6Android.jar replacement: OK"
-
-          echo "===== VERIFY PATCHED QtRootLayout IS IN JAR ====="
 
           if ! jar tf "$ORIGINAL_ANDROID_JAR" \
               | grep -q "org/qtproject/qt/android/QtRootLayout.class"; then
@@ -1215,6 +1234,101 @@ jobs:
             --parallel 2
 
       # ================================================================
+      # DIAGNOSE WHY QT QUICK CONTROLS IS DEPLOYED
+      # ================================================================
+      - name: Diagnose Qt Quick Controls source
+        run: |
+          echo "===== PROJECT: QtQuick / QuickControls REFERENCES ====="
+
+          grep -RniE \
+            "QtQuick\.Controls|QtQuick/Controls|QuickControls2|QtQuick\.Templates|QtQuick\.Layouts" \
+            . \
+            --exclude-dir=.git \
+            --exclude-dir=build \
+            --exclude="*.so" \
+            --exclude="*.a" \
+            2>/dev/null \
+            | head -300 \
+            || true
+
+          echo ""
+          echo "===== CMAKE CACHE: QUICK CONTROLS ====="
+
+          grep -RniE \
+            "QuickControls|QtQuickControls|QT_QML|QML_IMPORT|qml_import" \
+            build/android-release/CMakeCache.txt \
+            build/android-release/CMakeFiles \
+            2>/dev/null \
+            | head -300 \
+            || true
+
+          echo ""
+          echo "===== ANDROID DEPLOYMENT: QUICK CONTROLS ====="
+
+          grep -RniE \
+            "QuickControls|QtQuick.Controls|QtQuick/Templates|QtQuick/Controls" \
+            build/android-release/android-build \
+            2>/dev/null \
+            | head -300 \
+            || true
+
+          echo ""
+          echo "===== QML FILES IN PROJECT ====="
+
+          find . \
+            -type f \
+            \( \
+              -name "*.qml" \
+              -o \
+              -name "*.qrc" \
+              -o \
+              -name "qmldir" \
+            \) \
+            -not -path "./.git/*" \
+            -not -path "./build/*" \
+            -print \
+            | head -300
+
+      # ================================================================
+      # INSPECT QT ANDROID DEPLOYMENT
+      # ================================================================
+      - name: Inspect Qt Android deployment
+        run: |
+          echo "===== QT ANDROID DEPLOYMENT SETTINGS ====="
+
+          find build/android-release/android-build \
+            -type f \
+            \( \
+              -name "*.json" \
+              -o \
+              -name "libs.xml" \
+              -o \
+              -name "*.gradle" \
+              -o \
+              -name "*.gradle.kts" \
+            \) \
+            -print
+
+          echo ""
+          echo "===== SEARCH QT QUICK CONTROLS ====="
+
+          grep -RniE \
+            "QuickControls|Quick.Controls|Quick/Templates|Quick/Controls" \
+            build/android-release/android-build \
+            2>/dev/null \
+            || true
+
+          echo ""
+          echo "===== SEARCH DEPLOYMENT DEPENDENCIES ====="
+
+          grep -RniE \
+            "Qt6QuickControls|QtQuickControls|qml|plugins" \
+            build/android-release/android-build \
+            2>/dev/null \
+            | head -300 \
+            || true
+
+      # ================================================================
       # INSPECT GRADLE PROJECT
       # ================================================================
       - name: Inspect Android Gradle Project
@@ -1429,7 +1543,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: patchy-window-layout-fix-qt6103
+          name: patchy-window-layout-fix-v9-qt6103
           path: |
             build/android-release/**/*.apk
             build/android-release/*.apk
