@@ -9,7 +9,7 @@
     </message>
     <message>
         <source>Drag around the dial to set the angle. Use the arrow keys for precise changes; hold Shift for larger steps.</source>
-        <translation>다이얼 주위를 드래그하여 각도를 설정하세요. 정확한 변경을 위해서는 화살표 키를 사용하세요. 더 큰 단계를 수행하려면 Shift를 누르세요.</translation>
+        <translation>다이얼을 드래그하여 각도를 조절합니다. 방향키로 미세 조정하고, Shift를 누르면 더 큰 간격으로 조정합니다.</translation>
     </message>
     <message>
         <source>Waveform</source>
@@ -56,7 +56,7 @@
     </message>
     <message>
         <source>Keep folders and merge their contents separately. Turn off to merge across ordinary Pass Through groups.</source>
-        <translation>폴더를 유지하고 해당 내용을 별도로 병합합니다. 일반 Pass Through 그룹을 병합하려면 끄십시오.</translation>
+        <translation>폴더를 유지하고 각 폴더의 내용을 따로 병합합니다. 해제하면 일반 통과 그룹의 경계를 넘어 병합합니다.</translation>
     </message>
     <message>
         <source>Separate merges for different vector types</source>
@@ -92,7 +92,7 @@
     </message>
     <message>
         <source>Result: %1 vector layers, %2 bitmap layers, %3 other layers kept.</source>
-        <translation>결과: 벡터 레이어 %1개, 비트맵 레이어 %2개, 기타 레이어 %3개가 유지되었습니다.</translation>
+        <translation>결과: 벡터 레이어 %1개, 비트맵 레이어 %2개, 그대로 유지되는 기타 레이어 %3개.</translation>
     </message>
     <message>
         <source>The original layers are kept. Multiple outputs are placed in a new group.</source>
@@ -104,7 +104,7 @@
     </message>
     <message>
         <source>These layers need to stay separate with the selected options.</source>
-        <translation>이러한 레이어는 선택한 옵션과 별도로 유지되어야 합니다.</translation>
+        <translation>선택한 옵션에서는 이 레이어들을 별도로 유지해야 합니다.</translation>
     </message>
 </context>
 <context>
@@ -169,11 +169,11 @@
     </message>
     <message>
         <source>Run without a display (Qt offscreen platform) and never reuse a running instance. Needs --run-script, --export, --stress-test, or --screenshot; exits 2 otherwise.</source>
-        <translation>디스플레이(Qt 오프스크린 플랫폼) 없이 실행하고 실행 중인 인스턴스를 재사용하지 마십시오. --run-script, --export, --stress-test 또는 --screenshot이 필요합니다. 그렇지 않으면 2번 출구로 나가세요.</translation>
+        <translation>디스플레이 없이(Qt 오프스크린 플랫폼) 실행하며, 실행 중인 인스턴스를 재사용하지 않습니다. --run-script, --export, --stress-test 또는 --screenshot이 필요하며, 없으면 종료 코드 2로 종료합니다.</translation>
     </message>
     <message>
         <source>Run the profiling stress test and exit (preset: quick, small, standard, or huge).</source>
-        <translation>프로파일링 스트레스 테스트를 실행하고 종료합니다(사전 설정: 신속, 소형, 표준 또는 거대).</translation>
+        <translation>프로파일링 스트레스 테스트를 실행하고 종료합니다(사전 설정: quick, small, standard 또는 huge).</translation>
     </message>
     <message>
         <source>Directory for stress test reports (with --stress-test).</source>
@@ -189,7 +189,7 @@
     </message>
     <message>
         <source>Limit --screenshot to this region of the captured widget.</source>
-        <translation>--스크린샷을 캡처된 위젯의 이 영역으로 제한합니다.</translation>
+        <translation>--screenshot의 캡처 영역을 위젯의 이 영역으로 제한합니다.</translation>
     </message>
     <message>
         <source>Open the given file, save it to &lt;path&gt; (format follows the extension), and exit. Runs unattended: prompts are suppressed and no running instance is reused.</source>
@@ -205,7 +205,7 @@
     </message>
     <message>
         <source>With --run-script: write console output, errors, and a final [done]/[failed] line to this file when the script completes.</source>
-        <translation>--run-script 사용: 스크립트가 완료되면 콘솔 출력, 오류 및 최종 [완료]/[실패] 줄을 이 파일에 씁니다.</translation>
+        <translation>--run-script 사용 시: 스크립트가 완료되면 콘솔 출력, 오류, 마지막 [done]/[failed] 줄을 이 파일에 기록합니다.</translation>
     </message>
     <message>
         <source>With --run-script: pass key=value to the script as patchy.args.key (repeatable).</source>
@@ -297,7 +297,7 @@
     </message>
     <message>
         <source>Document path ids must be unique</source>
-        <translation>문서 경로 ID는 고유해야 합니다.</translation>
+        <translation>문서 패스 ID는 고유해야 합니다.</translation>
     </message>
     <message>
         <source>A document holds at most one work path</source>
@@ -421,11 +421,11 @@
     </message>
     <message>
         <source>Layer opacity must be in the inclusive range [0, 1]</source>
-        <translation>레이어 불투명도는 [0, 1] 범위를 포함해야 합니다.</translation>
+        <translation>레이어 불투명도는 0 이상 1 이하여야 합니다([0, 1]).</translation>
     </message>
     <message>
         <source>Layer fill opacity must be in the inclusive range [0, 1]</source>
-        <translation>레이어 채우기 불투명도는 [0, 1] 범위를 포함해야 합니다.</translation>
+        <translation>레이어 칠 불투명도는 0 이상 1 이하여야 합니다([0, 1]).</translation>
     </message>
     <message>
         <source>Layer masks must use 8-bit grayscale pixels</source>
@@ -841,15 +841,15 @@
     </message>
     <message>
         <source>Lens Blur supports UInt8 buffers only</source>
-        <translation>Lens Blur는 UInt8 버퍼만 지원합니다.</translation>
+        <translation>렌즈 흐림은 UInt8 버퍼만 지원합니다</translation>
     </message>
     <message>
         <source>Invalid Lens Blur settings</source>
-        <translation>잘못된 아웃포커스 설정</translation>
+        <translation>잘못된 렌즈 흐림 설정</translation>
     </message>
     <message>
         <source>Iris Blur supports UInt8 buffers only</source>
-        <translation>Iris Blur는 UInt8 버퍼만 지원합니다.</translation>
+        <translation>아이리스 블러는 UInt8 버퍼만 지원합니다</translation>
     </message>
     <message>
         <source>Invalid Iris Blur settings</source>
@@ -857,11 +857,11 @@
     </message>
     <message>
         <source>Tilt-Shift Blur supports UInt8 buffers only</source>
-        <translation>Tilt-Shift Blur는 UInt8 버퍼만 지원합니다.</translation>
+        <translation>틸트-시프트 블러는 UInt8 버퍼만 지원합니다</translation>
     </message>
     <message>
         <source>Invalid Tilt-Shift Blur settings</source>
-        <translation>잘못된 기울기-이동 흐림 설정</translation>
+        <translation>잘못된 틸트-시프트 블러 설정</translation>
     </message>
     <message>
         <source>Filter recipe changed the pixel format</source>
@@ -929,7 +929,7 @@
     </message>
     <message>
         <source>Invalid Photoshop Gaussian Blur input</source>
-        <translation>잘못된 Photoshop Gaussian Blur 입력</translation>
+        <translation>잘못된 Photoshop 가우시안 블러 입력</translation>
     </message>
     <message>
         <source>Invalid Photoshop High Pass input</source>
@@ -1057,63 +1057,63 @@
     </message>
     <message>
         <source>Affinity document info block is missing</source>
-        <translation>유사성 문서 정보 블록이 누락되었습니다.</translation>
+        <translation>Affinity 문서 정보 블록이 누락되었습니다.</translation>
     </message>
     <message>
         <source>Affinity document protocol block is missing</source>
-        <translation>선호도 문서 프로토콜 블록이 누락되었습니다.</translation>
+        <translation>Affinity 문서 프로토콜 블록이 누락되었습니다.</translation>
     </message>
     <message>
         <source>Affinity document stream table recurses</source>
-        <translation>선호도 문서 스트림 테이블이 반복됩니다.</translation>
+        <translation>Affinity 문서 스트림 테이블이 반복됩니다.</translation>
     </message>
     <message>
         <source>Affinity document stream table is out of range</source>
-        <translation>유사성 문서 스트림 테이블이 범위를 벗어났습니다.</translation>
+        <translation>Affinity 문서 스트림 테이블이 범위를 벗어났습니다.</translation>
     </message>
     <message>
         <source>Affinity document stream table is corrupt</source>
-        <translation>선호도 문서 스트림 테이블이 손상되었습니다.</translation>
+        <translation>Affinity 문서 스트림 테이블이 손상되었습니다.</translation>
     </message>
     <message>
         <source>Affinity document stream table is implausible</source>
-        <translation>유사성 문서 스트림 테이블이 올바르지 않습니다.</translation>
+        <translation>Affinity 문서 스트림 테이블이 올바르지 않습니다.</translation>
     </message>
     <message>
         <source>Affinity document stream entry is corrupt</source>
-        <translation>유사성 문서 스트림 항목이 손상되었습니다.</translation>
+        <translation>Affinity 문서 스트림 항목이 손상되었습니다.</translation>
     </message>
     <message>
         <source>Affinity document stream name is implausible</source>
-        <translation>유사성 문서 스트림 이름이 올바르지 않습니다.</translation>
+        <translation>Affinity 문서 스트림 이름이 올바르지 않습니다.</translation>
     </message>
     <message>
         <source>Affinity document directory name is implausible</source>
-        <translation>유사성 문서 디렉터리 이름이 올바르지 않습니다.</translation>
+        <translation>Affinity 문서 디렉터리 이름이 올바르지 않습니다.</translation>
     </message>
     <message>
         <source>Affinity preview image is not a PNG</source>
-        <translation>선호도 미리 보기 이미지가 PNG가 아닙니다.</translation>
+        <translation>Affinity 미리 보기 이미지가 PNG가 아닙니다.</translation>
     </message>
     <message>
         <source>Affinity preview image is corrupt</source>
-        <translation>어피니티 미리 보기 이미지가 손상되었습니다.</translation>
+        <translation>Affinity 미리 보기 이미지가 손상되었습니다.</translation>
     </message>
     <message>
         <source>Affinity preview image has implausible dimensions</source>
-        <translation>어피니티 미리 보기 이미지의 크기가 올바르지 않습니다.</translation>
+        <translation>Affinity 미리 보기 이미지의 크기가 올바르지 않습니다.</translation>
     </message>
     <message>
         <source>Affinity preview image uses an unsupported PNG variant</source>
-        <translation>선호도 미리 보기 이미지가 지원되지 않는 PNG 변형을 사용합니다.</translation>
+        <translation>Affinity 미리 보기 이미지가 지원되지 않는 PNG 변형을 사용합니다.</translation>
     </message>
     <message>
         <source>Affinity preview image is incomplete</source>
-        <translation>관심분야 미리 보기 이미지가 불완전합니다.</translation>
+        <translation>Affinity 미리 보기 이미지가 불완전합니다.</translation>
     </message>
     <message>
         <source>Affinity preview image failed to decompress</source>
-        <translation>어피니티 미리 보기 이미지의 압축을 풀지 못했습니다.</translation>
+        <translation>Affinity 미리 보기 이미지의 압축을 풀지 못했습니다.</translation>
     </message>
     <message>
         <source>Affinity document has no embedded preview</source>
@@ -1121,15 +1121,15 @@
     </message>
     <message>
         <source>Affinity document has an implausible number of layers</source>
-        <translation>Affinity 문서에 믿을 수 없을 만큼 많은 레이어가 있습니다.</translation>
+        <translation>Affinity 문서의 레이어 수가 비정상적입니다.</translation>
     </message>
     <message>
         <source>Affinity document tree is empty</source>
-        <translation>유사성 문서 트리가 비어 있습니다.</translation>
+        <translation>Affinity 문서 트리가 비어 있습니다.</translation>
     </message>
     <message>
         <source>Affinity document has no document node</source>
-        <translation>선호도 문서에 문서 노드가 없습니다.</translation>
+        <translation>Affinity 문서에 문서 노드가 없습니다.</translation>
     </message>
     <message>
         <source>Affinity document has no canvas size</source>
@@ -1141,67 +1141,67 @@
     </message>
     <message>
         <source>Affinity document has no spread</source>
-        <translation>선호도 문서에는 스프레드가 없습니다.</translation>
+        <translation>Affinity 문서에는 스프레드가 없습니다.</translation>
     </message>
     <message>
         <source>Affinity document produced no layers</source>
-        <translation>선호도 문서에서 레이어가 생성되지 않았습니다.</translation>
+        <translation>Affinity 문서에서 레이어가 생성되지 않았습니다.</translation>
     </message>
     <message>
         <source>Affinity document tree has a bad header</source>
-        <translation>선호도 문서 트리에 잘못된 헤더가 있습니다.</translation>
+        <translation>Affinity 문서 트리에 잘못된 헤더가 있습니다.</translation>
     </message>
     <message>
         <source>Affinity document tree is implausibly large</source>
-        <translation>유사성 문서 트리가 믿을 수 없을 정도로 큽니다.</translation>
+        <translation>Affinity 문서 트리가 비정상적으로 큽니다.</translation>
     </message>
     <message>
         <source>Affinity document tree nests too deeply</source>
-        <translation>유사성 문서 트리가 너무 깊게 중첩됩니다.</translation>
+        <translation>Affinity 문서 트리가 너무 깊게 중첩됩니다.</translation>
     </message>
     <message>
         <source>Affinity document tree has an unknown field type</source>
-        <translation>유사성 문서 트리에 알 수 없는 필드 유형이 있습니다.</translation>
+        <translation>Affinity 문서 트리에 알 수 없는 필드 유형이 있습니다.</translation>
     </message>
     <message>
         <source>Affinity document tree has an unhandled field type</source>
-        <translation>유사성 문서 트리에 처리되지 않은 필드 유형이 있습니다.</translation>
+        <translation>Affinity 문서 트리에 처리되지 않은 필드 유형이 있습니다.</translation>
     </message>
     <message>
         <source>Affinity document tree has an invalid binary array</source>
-        <translation>유사성 문서 트리에 잘못된 이진 배열이 있습니다.</translation>
+        <translation>Affinity 문서 트리에 잘못된 이진 배열이 있습니다.</translation>
     </message>
     <message>
         <source>Affinity document tree has an invalid embedded array</source>
-        <translation>유사성 문서 트리에 잘못된 내장 배열이 있습니다.</translation>
+        <translation>Affinity 문서 트리에 잘못된 내장 배열이 있습니다.</translation>
     </message>
     <message>
         <source>Affinity document tree has an invalid flags array</source>
-        <translation>유사성 문서 트리에 잘못된 플래그 배열이 있습니다.</translation>
+        <translation>Affinity 문서 트리에 잘못된 플래그 배열이 있습니다.</translation>
     </message>
     <message>
         <source>Affinity document tree has an invalid flags count</source>
-        <translation>유사성 문서 트리에 잘못된 플래그 수가 있습니다.</translation>
+        <translation>Affinity 문서 트리에 잘못된 플래그 수가 있습니다.</translation>
     </message>
     <message>
         <source>Affinity document tree has an invalid shared class</source>
-        <translation>유사성 문서 트리에 잘못된 공유 클래스가 있습니다.</translation>
+        <translation>Affinity 문서 트리에 잘못된 공유 클래스가 있습니다.</translation>
     </message>
     <message>
         <source>Affinity document tree has an invalid class</source>
-        <translation>유사성 문서 트리에 잘못된 클래스가 있습니다.</translation>
+        <translation>Affinity 문서 트리에 잘못된 클래스가 있습니다.</translation>
     </message>
     <message>
         <source>Affinity document tree has an implausible array</source>
-        <translation>유사성 문서 트리에 잘못된 배열이 있습니다.</translation>
+        <translation>Affinity 문서 트리에 잘못된 배열이 있습니다.</translation>
     </message>
     <message>
         <source>Affinity document tree has an implausible length</source>
-        <translation>유사성 문서 트리의 길이가 믿기지 않습니다.</translation>
+        <translation>Affinity 문서 트리의 길이가 비정상적입니다.</translation>
     </message>
     <message>
         <source>Affinity document tree has an implausible string</source>
-        <translation>유사성 문서 트리에 믿을 수 없는 문자열이 있습니다.</translation>
+        <translation>Affinity 문서 트리에 비정상적인 문자열이 있습니다.</translation>
     </message>
     <message>
         <source>Aseprite cel data failed to decompress</source>
@@ -1725,7 +1725,7 @@
     </message>
     <message>
         <source>Only 8-bit indexed and 24-bit PCX images are supported; convert 16-color PCX files to 256 colors first</source>
-        <translation>8비트 인덱스 이미지와 24비트 PCX 이미지만 지원됩니다. 먼저 16색 PCX 파일을 256색으로 변환</translation>
+        <translation>8비트 인덱스 및 24비트 PCX 이미지만 지원됩니다. 16색 PCX 파일은 먼저 256색으로 변환하세요.</translation>
     </message>
     <message>
         <source>PCX row stride is smaller than the image width</source>
@@ -1765,7 +1765,7 @@
     </message>
     <message>
         <source>A PDF image transparency mask was too large to import; the image imported opaque.</source>
-        <translation>PDF 이미지 투명 마스크가 너무 커서 가져올 수 없습니다. 가져온 이미지가 불투명합니다.</translation>
+        <translation>PDF 이미지의 투명도 마스크가 너무 커서 이미지를 불투명하게 가져왔습니다.</translation>
     </message>
     <message>
         <source>A PDF image&apos;s transparency mask used a codec Patchy could not decode; the image imported opaque.</source>
@@ -1773,7 +1773,7 @@
     </message>
     <message>
         <source>A PDF soft mask was not applied; the affected artwork imported without it.</source>
-        <translation>PDF 소프트 마스크가 적용되지 않았습니다. 해당 아트워크 없이 가져온 영향을 받은 아트워크입니다.</translation>
+        <translation>PDF 소프트 마스크가 적용되지 않아 해당 그림을 마스크 없이 가져왔습니다.</translation>
     </message>
     <message>
         <source>A PDF graphics state set a font directly; that text may be positioned differently.</source>
@@ -1849,7 +1849,7 @@
     </message>
     <message>
         <source>Proton texture is truncated: the RTPACK header promises more data than the file holds</source>
-        <translation>Proton 텍스처가 잘렸습니다. RTPACK 헤더는 파일이 보유한 것보다 더 많은 데이터를 약속합니다.</translation>
+        <translation>Proton 텍스처가 잘렸습니다. RTPACK 헤더에 기록된 데이터 크기가 실제 파일 크기보다 큽니다.</translation>
     </message>
     <message>
         <source>Proton texture has an invalid RTPACK payload size</source>
@@ -1865,7 +1865,7 @@
     </message>
     <message>
         <source>Proton texture is truncated: the pixel data is shorter than the header promises</source>
-        <translation>Proton 텍스처가 잘렸습니다. 픽셀 데이터가 헤더 약속보다 짧습니다.</translation>
+        <translation>Proton 텍스처가 잘렸습니다. 픽셀 데이터가 헤더에 기록된 크기보다 짧습니다.</translation>
     </message>
     <message>
         <source>PVRTC-compressed Proton textures cannot be opened; re-export the source image with RTPack -8888 first</source>
@@ -1897,11 +1897,11 @@
     </message>
     <message>
         <source>Recorded original width was invalid; using the texture width</source>
-        <translation>기록된 원본 너비가 잘못되었습니다. 텍스처 너비를 사용하여</translation>
+        <translation>기록된 원본 너비가 잘못되어 텍스처 너비를 사용합니다.</translation>
     </message>
     <message>
         <source>Recorded original height was invalid; using the texture height</source>
-        <translation>기록된 원래 높이가 잘못되었습니다. 텍스처 높이 사용</translation>
+        <translation>기록된 원본 높이가 잘못되어 텍스처 높이를 사용합니다.</translation>
     </message>
     <message>
         <source>Proton texture&apos;s first mip level does not match the texture size</source>
@@ -1909,7 +1909,7 @@
     </message>
     <message>
         <source>Proton texture is truncated: the pixel data runs past the end of the file</source>
-        <translation>Proton 텍스처가 잘렸습니다. 픽셀 데이터가 파일 끝을 지나 실행됩니다.</translation>
+        <translation>Proton 텍스처가 잘렸습니다. 픽셀 데이터가 파일 끝을 넘어갑니다.</translation>
     </message>
     <message>
         <source>Cannot write an empty document as a Proton texture</source>
@@ -1973,7 +1973,7 @@
     </message>
     <message>
         <source>SVG radial-gradient focal points are not supported; the center was used</source>
-        <translation>SVG 방사형 그레이디언트 초점은 지원되지 않습니다. 센터를 이용했어요</translation>
+        <translation>SVG 방사형 그레이디언트의 초점 위치를 지원하지 않아 중심점을 사용했습니다.</translation>
     </message>
     <message>
         <source>SVG pattern content beyond plain shapes was skipped</source>
@@ -2129,7 +2129,7 @@
     </message>
     <message>
         <source>SVG cannot encode a non-finite number</source>
-        <translation>SVG는 무한한 숫자를 인코딩할 수 없습니다.</translation>
+        <translation>유한하지 않은 숫자는 SVG에 기록할 수 없습니다.</translation>
     </message>
     <message>
         <source>TGA data ended unexpectedly</source>
@@ -2261,11 +2261,11 @@
     </message>
     <message>
         <source>The file is damaged past the last decoded style</source>
-        <translation>마지막으로 디코딩된 스타일을 지나 파일이 손상되었습니다.</translation>
+        <translation>마지막으로 읽은 스타일 이후의 파일 데이터가 손상되었습니다.</translation>
     </message>
     <message>
         <source>The file is damaged past the last decoded gradient</source>
-        <translation>마지막으로 디코딩된 그레이디언트을 지나 파일이 손상되었습니다.</translation>
+        <translation>마지막으로 읽은 그레이디언트 이후의 파일 데이터가 손상되었습니다.</translation>
     </message>
     <message>
         <source>PAT pattern channel is truncated</source>
@@ -2493,7 +2493,7 @@
     </message>
     <message>
         <source>PSD filter-effects record cannot be rekeyed safely</source>
-        <translation>PSD 필터 효과 레코드를 안전하게 다시 입력할 수 없습니다.</translation>
+        <translation>PSD 필터 효과 레코드의 식별자를 안전하게 바꿀 수 없습니다.</translation>
     </message>
     <message>
         <source>PSD filter-effects record id does not match its raw body</source>
@@ -3143,7 +3143,7 @@
     </message>
     <message>
         <source>Create a brush tip from the current selection (or the whole image): dark pixels paint, light pixels stay clear</source>
-        <translation>현재 선택 항목(또는 전체 이미지)에서 브러시 팁 만들기: 어두운 픽셀은 페인트되고 밝은 픽셀은 선명하게 유지됩니다.</translation>
+        <translation>현재 선택 영역(또는 전체 이미지)으로 브러시 팁 만들기: 어두운 픽셀은 칠해지고 밝은 픽셀은 투명하게 남습니다</translation>
     </message>
     <message>
         <source>Duplicate</source>
@@ -3239,7 +3239,7 @@
     </message>
     <message>
         <source>All default brush tips are already present with factory settings.</source>
-        <translation>모든 기본 브러시 팁은 공장 설정에 이미 존재합니다.</translation>
+        <translation>모든 기본 브러시 팁이 이미 초기 설정으로 갖춰져 있습니다.</translation>
     </message>
     <message>
         <source>%1 Copy</source>
@@ -3263,19 +3263,19 @@
     </message>
     <message>
         <source>%1 contains Photoshop Satin contour settings that Patchy cannot render or edit (a custom curve or anti-aliasing). Patchy preserves them until layer styles are edited, then uses the non-anti-aliased Linear contour.</source>
-        <translation>%1에는 Patchy가 렌더링하거나 편집할 수 없는 Photoshop Satin 윤곽 설정(사용자 지정 곡선 또는 앤티앨리어싱)이 포함되어 있습니다. Patchy는 레이어 스타일이 편집될 때까지 이를 유지한 다음 앤티앨리어싱되지 않은 선형 윤곽을 사용합니다.</translation>
+        <translation>%1에는 Patchy가 렌더링하거나 편집할 수 없는 Photoshop 새틴 윤곽 설정(사용자 지정 곡선 또는 앤티앨리어싱)이 포함되어 있습니다. Patchy는 레이어 스타일이 편집될 때까지 이를 유지한 다음 앤티앨리어싱되지 않은 선형 윤곽을 사용합니다.</translation>
     </message>
     <message>
         <source>%1 contains Photoshop Blend If data for an unsupported color mode or payload shape. Patchy preserves it for PSD round-trip but does not render or edit it.</source>
-        <translation>%1에는 지원되지 않는 색상 모드 또는 페이로드 모양에 대한 Photoshop Blend If 데이터가 포함되어 있습니다. Patchy는 PSD 왕복을 위해 이를 보존하지만 렌더링하거나 편집하지는 않습니다.</translation>
+        <translation>%1에 지원되지 않는 색상 모드 또는 데이터 구조의 Photoshop 혼합 조건 데이터가 있습니다. Patchy는 PSD로 다시 저장할 때 이 데이터를 보존하지만 렌더링하거나 편집하지는 않습니다.</translation>
     </message>
     <message>
         <source>%1 contains Blend If data on a Photoshop group-boundary record. Patchy preserves that boundary data but does not render or edit it.</source>
-        <translation>%1에는 Photoshop 그룹 경계 레코드의 Blend If 데이터가 포함되어 있습니다. Patchy는 경계 데이터를 보존하지만 렌더링하거나 편집하지는 않습니다.</translation>
+        <translation>%1에 Photoshop 그룹 경계 레코드의 혼합 조건 데이터가 있습니다. Patchy는 이 경계 데이터를 보존하지만 렌더링하거나 편집하지는 않습니다.</translation>
     </message>
     <message>
         <source>%1 contains Photoshop channel blending restrictions for an unsupported color mode or payload shape. Patchy preserves them for PSD round-trip but does not render or edit them.</source>
-        <translation>%1에는 지원되지 않는 색상 모드 또는 페이로드 모양에 대한 Photoshop 채널 혼합 제한이 포함되어 있습니다. Patchy는 PSD 왕복을 위해 이를 보존하지만 렌더링하거나 편집하지는 않습니다.</translation>
+        <translation>%1에 지원되지 않는 색상 모드 또는 데이터 구조의 Photoshop 채널 혼합 제한이 있습니다. Patchy는 PSD로 다시 저장할 때 이를 보존하지만 렌더링하거나 편집하지는 않습니다.</translation>
     </message>
     <message>
         <source>%1 preserves %2 unknown PSD layer block(s).</source>
@@ -3295,7 +3295,7 @@
     </message>
     <message>
         <source>%1 is a Patchy-native adjustment layer; it round-trips in Patchy PSDs but may appear as an unsupported adjustment in other editors.</source>
-        <translation>%1은(는) Patchy 기본 조정 레이어입니다. Patchy PSD에서는 왕복되지만 다른 편집기에서는 지원되지 않는 조정으로 나타날 수 있습니다.</translation>
+        <translation>%1은(는) Patchy 고유 조정 레이어입니다. Patchy PSD로 저장하고 다시 열어도 유지되지만, 다른 편집기에서는 지원되지 않는 조정으로 표시될 수 있습니다.</translation>
     </message>
     <message>
         <source>%1 uses an unsupported layer kind and may not export as editable PSD data.</source>
@@ -3319,7 +3319,7 @@
     </message>
     <message>
         <source>The source is %1 bits per channel; Patchy converted it to 8-bit for editing and saves an 8-bit file. Keep the original if you need the deeper data.</source>
-        <translation>소스는 채널당 %1비트입니다. Patchy는 편집을 위해 이를 8비트로 변환하고 8비트 파일로 저장합니다. 더 깊은 데이터가 필요한 경우 원본을 유지하세요.</translation>
+        <translation>원본은 채널당 %1비트입니다. Patchy는 편집을 위해 8비트로 변환하며 8비트 파일로 저장합니다. 높은 비트 심도의 데이터가 필요하면 원본을 보관하세요.</translation>
     </message>
     <message>
         <source>The document preserves %1 unknown PSD image resource(s).</source>
@@ -3327,7 +3327,7 @@
     </message>
     <message>
         <source>The document embeds %1 smart object source file(s) (%2 MB); they round-trip byte-for-byte.</source>
-        <translation>문서에는 %1개의 스마트 개체 소스 파일(%2MB)이 포함되어 있습니다. 바이트 단위로 왕복합니다.</translation>
+        <translation>문서에 스마트 개체 원본 파일 %1개(%2MB)가 포함되어 있으며, 다시 저장해도 이 파일의 바이트는 그대로 유지됩니다.</translation>
     </message>
     <message>
         <source>PSD Compatibility Report</source>
@@ -3651,7 +3651,7 @@
     </message>
     <message>
         <source>Patchy-only setting. The file still opens in Photoshop without any warning, but Photoshop %1 and drops this setting if it re-saves the file.</source>
-        <translation>Patchy 전용 설정입니다. 파일은 여전히 경고 없이 Photoshop에서 열리지만 Photoshop %1은(는) 파일을 다시 저장할 경우 이 설정을 삭제합니다.</translation>
+        <translation>Patchy 전용 설정입니다. Photoshop에서도 경고 없이 파일을 열 수 있지만 %1. Photoshop에서 다시 저장하면 이 설정이 제거됩니다.</translation>
     </message>
     <message>
         <source>Waiting for the browser file picker...</source>
@@ -3771,7 +3771,7 @@
     </message>
     <message>
         <source>Add continues numbering after the files already in the folder; Overwrite starts at 001 and asks before replacing anything.</source>
-        <translation>폴더에 이미 있는 파일 뒤에 계속 번호를 추가합니다. 덮어쓰기는 001부터 시작하고 무엇이든 바꾸기 전에 묻습니다.</translation>
+        <translation>추가는 폴더에 있는 파일의 마지막 번호부터 이어서 번호를 매깁니다. 덮어쓰기는 001부터 시작하며 파일을 바꾸기 전에 확인합니다.</translation>
     </message>
     <message>
         <source>Choose Folder</source>
@@ -3807,7 +3807,7 @@
     </message>
     <message>
         <source>Order the documents by name, numbering-aware (2 before 10).</source>
-        <translation>번호를 인식하여 이름별로 문서를 정렬합니다(10 이전의 2).</translation>
+        <translation>번호를 고려하여 문서를 이름순으로 정렬합니다(2가 10보다 먼저).</translation>
     </message>
     <message>
         <source>Reverse</source>
@@ -3827,7 +3827,7 @@
     </message>
     <message>
         <source>Digits</source>
-        <translation>숫자</translation>
+        <translation>자릿수</translation>
     </message>
     <message>
         <source>Start at</source>
@@ -3835,7 +3835,7 @@
     </message>
     <message>
         <source>Add continues numbering after the files already in the folder; Overwrite starts at the chosen number and asks before replacing anything.</source>
-        <translation>폴더에 이미 있는 파일 뒤에 계속 번호를 추가합니다. 덮어쓰기는 선택한 번호부터 시작되며 무엇이든 교체하기 전에 묻습니다.</translation>
+        <translation>추가는 폴더에 있는 파일의 마지막 번호부터 이어서 번호를 매깁니다. 덮어쓰기는 지정한 번호부터 시작하며 파일을 바꾸기 전에 확인합니다.</translation>
     </message>
     <message>
         <source>Export</source>
@@ -4169,7 +4169,7 @@
     </message>
     <message>
         <source>Blurring pixels</source>
-        <translation>흐릿한 픽셀</translation>
+        <translation>픽셀 흐리게 하는 중</translation>
     </message>
     <message>
         <source>Sharpening pixels</source>
@@ -4185,7 +4185,7 @@
     </message>
     <message>
         <source>Twisting pixels</source>
-        <translation>뒤틀린 픽셀</translation>
+        <translation>픽셀 비트는 중</translation>
     </message>
     <message>
         <source>Embossing pixels</source>
@@ -4197,11 +4197,11 @@
     </message>
     <message>
         <source>Pixelating blocks</source>
-        <translation>픽셀화 블록</translation>
+        <translation>블록으로 픽셀화하는 중</translation>
     </message>
     <message>
         <source>Rendering halftone</source>
-        <translation>렌더링 하프톤</translation>
+        <translation>하프톤 렌더링 중</translation>
     </message>
     <message>
         <source>Adding grain</source>
@@ -4313,7 +4313,7 @@
     </message>
     <message>
         <source>Trim transparent edges kept the full canvas: the image has no visible pixels.</source>
-        <translation>투명한 가장자리를 다듬어 전체 캔버스를 유지했습니다. 이미지에 보이는 픽셀이 없습니다.</translation>
+        <translation>보이는 픽셀이 없어 투명한 가장자리 자르기를 적용하지 않고 전체 캔버스를 유지했습니다.</translation>
     </message>
     <message>
         <source>Show in Explorer when done</source>
@@ -4353,7 +4353,7 @@
     </message>
     <message>
         <source>Enlarges by whole pixels with no smoothing, so pixel art and sprites stay crisp. Leave at 1x for photos and paintings.</source>
-        <translation>스무딩 없이 전체 픽셀로 확대되므로 픽셀 아트와 스프라이트가 선명하게 유지됩니다. 사진과 그림을 보려면 1x로 남겨두세요.</translation>
+        <translation>보간 없이 픽셀을 정수배로 확대하여 픽셀 아트와 스프라이트를 선명하게 유지합니다. 사진이나 회화는 1배로 두세요.</translation>
     </message>
     <message>
         <source>Transparency</source>
@@ -4405,7 +4405,7 @@
     </message>
     <message>
         <source>How image data is stored in the PDF. Gray pages are written as one channel either way. Pages that keep editable shapes or text use a fixed high JPEG quality for every lossy choice.</source>
-        <translation>이미지 데이터가 PDF에 저장되는 방식. 회색 페이지는 어느 쪽이든 하나의 채널로 기록됩니다. 편집 가능한 모양이나 텍스트를 유지하는 페이지는 모든 손실 선택에 대해 고정된 고품질 JPEG를 사용합니다.</translation>
+        <translation>PDF에 이미지 데이터를 저장하는 방식입니다. 어느 방식이든 회색조 페이지는 단일 채널로 기록됩니다. 편집 가능한 모양이나 텍스트가 있는 페이지는 어떤 손실 압축 옵션을 선택해도 고정된 높은 JPEG 품질을 사용합니다.</translation>
     </message>
     <message>
         <source>Keep original image data for unchanged PDF pages</source>
@@ -4533,7 +4533,7 @@
     </message>
     <message>
         <source>Hotspot is in pixels of the largest size; smaller sizes scale it.</source>
-        <translation>핫스팟은 가장 큰 크기의 픽셀 단위입니다. 더 작은 크기로 확장합니다.</translation>
+        <translation>핫스팟은 가장 큰 이미지의 픽셀 좌표로 지정하며, 작은 이미지에서는 비례하여 줄어듭니다.</translation>
     </message>
     <message>
         <source>BMP Options</source>
@@ -4601,7 +4601,7 @@
     </message>
     <message>
         <source>Layers are kept as editable objects (paths, text, images). The PDF may not look exactly like the canvas: blend modes, adjustment layers, group opacity, layer styles, and pixel masks have no editable PDF form here and are flattened into images where needed.</source>
-        <translation>레이어는 편집 가능한 개체(경로, 텍스트, 이미지)로 유지됩니다. PDF는 캔버스와 똑같이 보이지 않을 수 있습니다. 혼합 모드, 조정 레이어, 그룹 불투명도, 레이어 스타일 및 픽셀 마스크에는 편집 가능한 PDF 양식이 없으며 필요한 경우 이미지로 병합됩니다.</translation>
+        <translation>레이어를 편집 가능한 개체(패스, 텍스트, 이미지)로 유지합니다. PDF가 캔버스와 완전히 같아 보이지 않을 수 있습니다. 혼합 모드, 조정 레이어, 그룹 불투명도, 레이어 스타일, 픽셀 마스크는 편집 가능한 PDF 개체로 표현할 수 없어 필요한 부분을 이미지로 병합합니다.</translation>
     </message>
     <message>
         <source>When a font is missing, export that text as an image instead of substituting a font</source>
@@ -4818,7 +4818,7 @@
     </message>
     <message>
         <source>Merges traced colors that are nearly identical, so flat areas stay clean; higher values merge colors that are further apart</source>
-        <translation>거의 동일한 추적 색상을 병합하여 평평한 영역을 깨끗하게 유지합니다. 값이 높을수록 더 멀리 떨어져 있는 색상이 병합됩니다.</translation>
+        <translation>추적한 색상 중 거의 같은 색상을 병합하여 단색 영역을 깔끔하게 유지합니다. 값이 높을수록 색상 차이가 더 큰 색도 병합합니다</translation>
     </message>
     <message>
         <source>Max anchors:</source>
@@ -4838,7 +4838,7 @@
     </message>
     <message>
         <source>Abutting shapes share exact edges. Overlapping shapes are painted without holes and stacked, which hides hairline gaps.</source>
-        <translation>인접한 모양은 정확한 가장자리를 공유합니다. 겹치는 모양은 구멍 없이 칠하고 쌓아서 헤어라인의 틈을 감춥니다.</translation>
+        <translation>맞댄 모양은 정확히 같은 경계선을 공유합니다. 겹치는 모양은 구멍 없이 칠한 뒤 쌓아 아주 가는 틈을 가립니다.</translation>
     </message>
     <message>
         <source>Method:</source>
@@ -4950,11 +4950,11 @@
     </message>
     <message>
         <source>Photoshop Satin custom contours and contour anti-aliasing are preserved until you edit layer styles. Patchy previews and saves edited Satin with the non-anti-aliased Linear contour.</source>
-        <translation>Photoshop Satin 사용자 지정 윤곽선 및 윤곽선 앤티앨리어싱은 레이어 스타일을 편집할 때까지 유지됩니다. Patchy는 앤티앨리어싱되지 않은 선형 윤곽선을 사용하여 편집된 Satin을 미리 보고 저장합니다.</translation>
+        <translation>Photoshop 새틴 사용자 지정 윤곽선 및 윤곽선 앤티앨리어싱은 레이어 스타일을 편집할 때까지 유지됩니다. Patchy는 앤티앨리어싱되지 않은 선형 윤곽선을 사용하여 편집된 새틴을 미리 보고 저장합니다.</translation>
     </message>
     <message>
         <source>renders a regular drop shadow at the Distance value</source>
-        <translation>거리 값에서 일반 그림자를 렌더링합니다.</translation>
+        <translation>지정한 거리로 일반 그림자를 렌더링합니다</translation>
     </message>
     <message>
         <source>This layer contains Photoshop Blend If data for an unsupported color mode or payload shape. Patchy preserves it unchanged and does not preview it unless you replace it.</source>
@@ -5156,7 +5156,7 @@
     </message>
     <message>
         <source>This layer preserves Photoshop channel restrictions Patchy cannot edit for this file&apos;s color mode</source>
-        <translation>이 레이어는 Photoshop 채널 제한을 유지합니다. Patchy는 이 파일의 색상 모드를 편집할 수 없습니다.</translation>
+        <translation>이 레이어에는 Photoshop 채널 제한이 보존되어 있으며, Patchy는 이 파일의 색상 모드에서 해당 제한을 편집할 수 없습니다</translation>
     </message>
     <message>
         <source>Channels:</source>
@@ -5180,7 +5180,7 @@
     </message>
     <message>
         <source>Put the layer&apos;s blend mode over its overlays, satin, and inner glow instead of letting them blend with their own modes</source>
-        <translation>자체 모드와 혼합되도록 하는 대신 레이어의 혼합 모드를 오버레이, 새틴 및 내부 광선 위에 배치합니다.</translation>
+        <translation>오버레이, 새틴, 내부 광선이 각자 혼합 모드를 사용하지 않고 레이어의 혼합 모드를 따르도록 합니다.</translation>
     </message>
     <message>
         <source>Blend Clipped Layers as Group</source>
@@ -5188,7 +5188,7 @@
     </message>
     <message>
         <source>Keep the layers clipped to this one under its interior effects; turn this off together with Blend Interior Effects as Group to draw them over the overlays instead</source>
-        <translation>내부 효과 아래에 레이어를 이 레이어에 고정해 두세요. 대신 인테리어 효과를 그룹으로 혼합하여 오버레이 위에 그리려면 이 기능을 끄십시오.</translation>
+        <translation>이 레이어에 클리핑된 레이어를 내부 효과 아래에 표시합니다. 오버레이 위에 표시하려면 이 옵션과 &apos;내부 효과를 그룹으로 혼합&apos;을 모두 해제하세요.</translation>
     </message>
     <message>
         <source>Blend If</source>
@@ -5372,7 +5372,7 @@
     </message>
     <message>
         <source>Blend the stroke against the layer&apos;s own content. When off, the stroke knocks the content out of its band and blends with the layers below, like Photoshop</source>
-        <translation>레이어 자체 콘텐츠에 대해 획을 혼합합니다. 끄면 획이 콘텐츠를 밴드 밖으로 밀어내고 Photoshop처럼 아래 레이어와 혼합합니다.</translation>
+        <translation>획을 레이어 자체 내용과 혼합합니다. 해제하면 Photoshop처럼 획이 차지하는 영역의 레이어 내용을 제거하고 아래 레이어와 혼합합니다.</translation>
     </message>
     <message>
         <source>Fill</source>
@@ -5616,7 +5616,7 @@
     </message>
     <message>
         <source>Liquify edits pixels directly. Rasterize a Smart Object before using it.</source>
-        <translation>Liquify는 픽셀을 직접 편집합니다. 스마트 개체를 사용하기 전에 래스터화하세요.</translation>
+        <translation>유동화는 픽셀을 직접 편집합니다. 사용하기 전에 스마트 개체를 래스터화하세요.</translation>
     </message>
     <message>
         <source>Missing Font</source>
@@ -6210,7 +6210,7 @@ Mixed selection</source>
     </message>
     <message>
         <source>Bevel</source>
-        <translation>경사</translation>
+        <translation>베벨</translation>
     </message>
     <message>
         <source>none</source>
@@ -6234,11 +6234,11 @@ Mixed selection</source>
     </message>
     <message>
         <source>Colorize: hue %1, saturation %2, lightness %3</source>
-        <translation>색상화: 색조 %1, 채도 %2, 밝기 %3</translation>
+        <translation>색상화: 색조 %1, 채도 %2, 명도 %3</translation>
     </message>
     <message>
         <source>Hue/Saturation: hue %1, saturation %2, lightness %3</source>
-        <translation>색조/채도: 색조 %1, 채도 %2, 밝기 %3</translation>
+        <translation>색조/채도: 색조 %1, 채도 %2, 명도 %3</translation>
     </message>
     <message>
         <source>Color Balance: C/R %1, M/G %2, Y/B %3</source>
@@ -6317,7 +6317,7 @@ Flow: %6
         <translation>%1
 글꼴: %2, %3pt%4
 색상: %5
-흐름: %6
+텍스트 형식: %6
 %7</translation>
     </message>
     <message>
@@ -6334,11 +6334,11 @@ Flow: %6
     </message>
     <message>
         <source>Collapse folder (%ALT%-click includes nested folders, %CTRL%+%ALT%-click all folders)</source>
-        <translation>폴더 축소(%ALT%-클릭하면 중첩된 폴더 포함, %CTRL%+%ALT%-모든 폴더 클릭)</translation>
+        <translation>폴더 접기(%ALT%-클릭: 하위 폴더 포함, %CTRL%+%ALT%-클릭: 모든 폴더)</translation>
     </message>
     <message>
         <source>Expand folder (%ALT%-click includes nested folders, %CTRL%+%ALT%-click all folders)</source>
-        <translation>폴더 확장(%ALT%-클릭하면 중첩된 폴더가 포함되고, %CTRL%+%ALT%-모든 폴더 클릭)</translation>
+        <translation>폴더 펼치기(%ALT%-클릭: 하위 폴더 포함, %CTRL%+%ALT%-클릭: 모든 폴더)</translation>
     </message>
     <message>
         <source>Text layer. Missing font: %1. No glyphs for this text in: %2. Other fonts are being substituted, so the text does not look as it was authored.</source>
@@ -6434,7 +6434,7 @@ Flow: %6
     </message>
     <message>
         <source>Shared Smart Filter mask. Click to edit it, %CTRL%-click to load it as a selection, %ALT%-click to view it, or Shift-click to disable it.</source>
-        <translation>스마트 필터 마스크를 공유했습니다. 편집하려면 클릭하고, 선택 항목으로 로드하려면 %CTRL% 키를 누른 채 클릭하고, 보려면 %ALT% 키를 누른 채 클릭하고, 비활성화하려면 Shift 키를 누른 채 클릭하세요.</translation>
+        <translation>공유 스마트 필터 마스크입니다. 클릭하여 편집하고, %CTRL%-클릭으로 선택 영역으로 불러오며, %ALT%-클릭으로 마스크를 봅니다. Shift-클릭하면 비활성화됩니다.</translation>
     </message>
     <message>
         <source>This Smart Filter mask can only be preserved, not edited</source>
@@ -6570,7 +6570,7 @@ Flow: %6
     </message>
     <message>
         <source>Mixer Brush</source>
-        <translation>믹서 브러시</translation>
+        <translation>혼합 브러시</translation>
     </message>
     <message>
         <source>Clone Stamp</source>
@@ -7028,7 +7028,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Drag to pan. Mouse wheel zooms. Double-click resets the view.</source>
-        <translation>드래그하여 팬하세요. 마우스 휠이 확대됩니다. 두 번 클릭하면 보기가 재설정됩니다.</translation>
+        <translation>드래그하여 화면을 이동합니다. 마우스 휠로 확대/축소하고, 두 번 클릭하면 보기를 재설정합니다.</translation>
     </message>
     <message>
         <source>Patterns</source>
@@ -7132,7 +7132,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>All default patterns are already present with factory settings.</source>
-        <translation>모든 기본 패턴은 공장 설정에 이미 존재합니다.</translation>
+        <translation>모든 기본 패턴이 이미 초기 설정으로 갖춰져 있습니다.</translation>
     </message>
     <message>
         <source>Some default patterns could not be restored. Check that the pattern library folder is writable.</source>
@@ -7214,7 +7214,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>%1 pages imported as layers; only the first starts visible.</source>
-        <translation>%1페이지를 레이어로 가져왔습니다. 첫 번째 시작만 표시됩니다.</translation>
+        <translation>%1개 페이지를 레이어로 가져왔으며, 처음에는 첫 번째 레이어만 표시됩니다.</translation>
     </message>
     <message>
         <source>Only page 1 of %1 was imported.</source>
@@ -7314,7 +7314,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Editable import was not possible for page %1 (%2); it was flattened instead.</source>
-        <translation>%1(%2) 페이지에 대해 편집 가능한 가져오기가 불가능합니다. 대신 평평해졌습니다.</translation>
+        <translation>%1페이지를 편집 가능한 상태로 가져올 수 없어(%2) 병합된 이미지로 가져왔습니다.</translation>
     </message>
     <message>
         <source>Editable import brings in one page; page %1 was imported.</source>
@@ -7326,7 +7326,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Editable import was not possible (%1); the page was flattened instead.</source>
-        <translation>편집 가능한 가져오기가 불가능합니다(%1). 대신 페이지가 평평해졌습니다.</translation>
+        <translation>페이지를 편집 가능한 상태로 가져올 수 없어(%1) 병합된 이미지로 가져왔습니다.</translation>
     </message>
     <message>
         <source>Only the desktop version of Patchy can import PDF files. All versions, including this one, can export PDF.</source>
@@ -7490,7 +7490,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>The shaded parts fall outside the printable area and will be cut off. Drag the preview to choose which part prints.</source>
-        <translation>음영 처리된 부분은 인쇄 가능 영역을 벗어나 잘렸습니다. 미리 보기를 드래그하여 인쇄할 부분을 선택하세요.</translation>
+        <translation>음영 처리된 부분은 인쇄 가능 영역 밖에 있어 잘립니다. 미리 보기를 드래그하여 인쇄할 부분을 선택하세요.</translation>
     </message>
     <message>
         <source>Patchy Photocopy</source>
@@ -7526,7 +7526,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Natural adds photographic tone and color. Neutral retains the straight camera-to-sRGB rendering.</source>
-        <translation>자연스러움은 사진의 톤과 색상을 더해줍니다. 중립은 직선 카메라-sRGB 렌더링을 유지합니다.</translation>
+        <translation>자연스러움은 사진에 어울리는 톤과 색상을 더합니다. 중립은 카메라에서 sRGB로 직접 변환한 결과를 유지합니다.</translation>
     </message>
     <message>
         <source>Profile:</source>
@@ -7578,7 +7578,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Tone</source>
-        <translation>색조</translation>
+        <translation>톤</translation>
     </message>
     <message>
         <source>Exposure:</source>
@@ -7598,7 +7598,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Clip to white</source>
-        <translation>흰색으로 클립</translation>
+        <translation>흰색으로 클리핑</translation>
     </message>
     <message>
         <source>Unclipped</source>
@@ -7610,7 +7610,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Rebuild detail</source>
-        <translation>재구축 세부사항</translation>
+        <translation>세부 묘사 복원</translation>
     </message>
     <message>
         <source>Highlight recovery:</source>
@@ -7630,7 +7630,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Vibrance:</source>
-        <translation>활기:</translation>
+        <translation>생동감:</translation>
     </message>
     <message>
         <source>AHD (default)</source>
@@ -7750,7 +7750,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Auto requires ISO metadata and a supported Bayer sensor.</source>
-        <translation>Auto에는 ISO 메타데이터와 지원되는 Bayer 센서가 필요합니다.</translation>
+        <translation>자동에는 ISO 메타데이터와 지원되는 Bayer 센서가 필요합니다.</translation>
     </message>
     <message>
         <source>Preparing RAW... %1%</source>
@@ -8275,7 +8275,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>All default styles are already present with factory settings.</source>
-        <translation>모든 기본 스타일은 이미 공장 설정으로 존재합니다.</translation>
+        <translation>모든 기본 스타일이 이미 초기 설정으로 갖춰져 있습니다.</translation>
     </message>
     <message>
         <source>Some default styles could not be restored. Check that the style library folder is writable.</source>
@@ -8447,11 +8447,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Apply this saved Look</source>
-        <translation>저장된 Look 적용</translation>
+        <translation>저장된 룩 적용</translation>
     </message>
     <message>
         <source>This Look uses filters or settings that this version of Patchy cannot apply.</source>
-        <translation>이 Look은 이 버전의 Patchy에 적용할 수 없는 필터나 설정을 사용합니다.</translation>
+        <translation>이 룩은 이 버전의 Patchy에 적용할 수 없는 필터나 설정을 사용합니다.</translation>
     </message>
     <message>
         <source>Applies as editable Smart Filters.</source>
@@ -8479,19 +8479,19 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Enter a name for the Look.</source>
-        <translation>Look의 이름을 입력합니다.</translation>
+        <translation>룩의 이름을 입력합니다.</translation>
     </message>
     <message>
         <source>This Look cannot be saved.</source>
-        <translation>이 Look은 저장할 수 없습니다.</translation>
+        <translation>이 룩은 저장할 수 없습니다.</translation>
     </message>
     <message>
         <source>The selected Look no longer exists.</source>
-        <translation>선택한 Look이 더 이상 존재하지 않습니다.</translation>
+        <translation>선택한 룩이 더 이상 존재하지 않습니다.</translation>
     </message>
     <message>
         <source>Could not %1 the Look. Check that the Looks folder is writable.</source>
-        <translation>Look을 %1할 수 없습니다. Looks 폴더에 쓰기 가능한지 확인하세요.</translation>
+        <translation>룩을 %1할 수 없습니다. 룩 폴더에 쓰기 가능한지 확인하세요.</translation>
     </message>
     <message>
         <source>Unsupported Look</source>
@@ -8519,7 +8519,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Delete Look &quot;%1&quot;?</source>
-        <translation>Look &quot;%1&quot;을(를) 삭제하시겠습니까?</translation>
+        <translation>룩 &quot;%1&quot;을(를) 삭제하시겠습니까?</translation>
     </message>
     <message>
         <source>delete</source>
@@ -8626,7 +8626,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>The scan could not be completed (%1)</source>
-        <translation>검사를 완료할 수 없습니다(%1).</translation>
+        <translation>스캔을 완료할 수 없습니다(%1)</translation>
     </message>
     <message>
         <source>The scanner did not return an image file.</source>
@@ -8684,7 +8684,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Theme file is missing a valid &quot;base&quot; (must be &quot;dark&quot; or &quot;light&quot;).</source>
-        <translation>테마 파일에 유효한 &quot;기본&quot;(&quot;어두움&quot; 또는 &quot;밝음&quot;이어야 함)이 없습니다.</translation>
+        <translation>테마 파일에 유효한 &quot;base&quot;가 없습니다(&quot;dark&quot; 또는 &quot;light&quot;여야 함).</translation>
     </message>
     <message>
         <source>Theme file&apos;s &quot;roles&quot; is not an object.</source>
@@ -8774,7 +8774,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Use the image I attach as a reference for a cute 64x64 portrait in Patchy. Keep its recognizable features, compare your preview with the reference as you refine it, and save both an editable PSD and a PNG.</source>
-        <translation>첨부한 이미지를 Patchy의 귀여운 64x64 초상화에 대한 참조용으로 사용하세요. 인식 가능한 기능을 유지하고, 다듬으면서 미리 보기를 참조와 비교하고, 편집 가능한 PSD와 PNG를 모두 저장하세요.</translation>
+        <translation>첨부한 이미지를 참고하여 Patchy에서 귀여운 64x64 초상화를 만들어 주세요. 알아볼 수 있는 특징을 유지하고, 다듬으면서 미리 보기를 참조 이미지와 비교한 뒤 편집 가능한 PSD와 PNG를 모두 저장해 주세요.</translation>
     </message>
     <message>
         <source>Export sizes from my open document</source>
@@ -8873,7 +8873,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Renames the selected layers to end with this frame time, like &quot;blink 0.25s&quot;.</source>
-        <translation>&quot;깜박임 0.25초&quot;와 같이 이 프레임 시간으로 끝나도록 선택한 레이어의 이름을 바꿉니다.</translation>
+        <translation>선택한 레이어의 이름 끝에 &quot;blink 0.25s&quot;처럼 이 프레임 시간을 붙입니다.</translation>
     </message>
     <message>
         <source>Remove</source>
@@ -9042,7 +9042,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Spacing steps to fade over</source>
-        <translation>페이드오버할 간격 단계</translation>
+        <translation>페이드가 완료될 때까지의 브러시 간격 수</translation>
     </message>
     <message>
         <source>Tip Shape</source>
@@ -9130,11 +9130,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Count Jitter:</source>
-        <translation>지터 카운트:</translation>
+        <translation>개수 지터:</translation>
     </message>
     <message>
         <source>Count Control:</source>
-        <translation>카운트 제어:</translation>
+        <translation>개수 제어:</translation>
     </message>
     <message>
         <source>Transfer</source>
@@ -9214,7 +9214,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Secondary Hardness:</source>
-        <translation>이차 경도:</translation>
+        <translation>보조 경도:</translation>
     </message>
     <message>
         <source>Secondary Spacing:</source>
@@ -9266,7 +9266,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Builds paint along stroke edges for a watercolor wash. It does not smear canvas colors; use Smudge for that.</source>
-        <translation>수채화 세척을 위해 획 가장자리를 따라 페인트를 만듭니다. 캔버스 색상이 번지지 않습니다. 그러려면 스머지를 사용하세요.</translation>
+        <translation>획 가장자리에 물감을 쌓아 수채화의 번짐 효과를 냅니다. 캔버스의 색상을 문질러 섞지는 않습니다. 그 작업에는 손가락 도구를 사용하세요.</translation>
     </message>
     <message>
         <source>Reset</source>
@@ -9332,11 +9332,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>New from Selection…</source>
-        <translation>셀렉션의 새로운…</translation>
+        <translation>선택 영역으로 새로 만들기…</translation>
     </message>
     <message>
         <source>Create a brush tip from the current selection (or the whole image): dark pixels paint, light pixels stay clear</source>
-        <translation>현재 선택 항목(또는 전체 이미지)에서 브러시 팁 만들기: 어두운 픽셀은 페인트되고 밝은 픽셀은 선명하게 유지됩니다.</translation>
+        <translation>현재 선택 영역(또는 전체 이미지)으로 브러시 팁 만들기: 어두운 픽셀은 칠해지고 밝은 픽셀은 투명하게 남습니다</translation>
     </message>
     <message>
         <source>Manage…</source>
@@ -9383,7 +9383,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Healing source set at %1, %2</source>
-        <translation>%1, %2에 치유 소스가 설정되었습니다.</translation>
+        <translation>복구 소스를 %1, %2에 설정했습니다</translation>
     </message>
     <message>
         <source>Clone source set at %1, %2</source>
@@ -9395,7 +9395,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Drag the handles or edges to adjust. Enter crops, Esc cancels.</source>
-        <translation>조정하려면 핸들이나 가장자리를 드래그하세요. 작물을 입력하고 Esc를 누르면 취소됩니다.</translation>
+        <translation>핸들이나 가장자리를 드래그하여 조정합니다. Enter로 자르기를 적용하고 Esc로 취소합니다.</translation>
     </message>
     <message>
         <source>%1 x %2 px</source>
@@ -9423,7 +9423,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>%ALT%-click to set a healing source</source>
-        <translation>%ALT%-클릭하여 치유 소스 설정</translation>
+        <translation>%ALT%-클릭하여 복구 소스 설정</translation>
     </message>
     <message>
         <source>%ALT%-click to set a clone source</source>
@@ -9463,7 +9463,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Sharpen brush</source>
-        <translation>브러시 샤프닝</translation>
+        <translation>선명 효과 브러시</translation>
     </message>
     <message>
         <source>Click an editable layer to move</source>
@@ -9483,11 +9483,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Mixer Brush is unavailable while editing a grayscale channel</source>
-        <translation>회색조 채널을 편집하는 동안 믹서 브러시를 사용할 수 없습니다.</translation>
+        <translation>회색조 채널을 편집하는 동안 혼합 브러시를 사용할 수 없습니다.</translation>
     </message>
     <message>
         <source>Smudge is unavailable while editing a grayscale channel</source>
-        <translation>회색조 채널을 편집하는 동안 스머지를 사용할 수 없습니다.</translation>
+        <translation>회색조 채널을 편집하는 동안 손가락를 사용할 수 없습니다.</translation>
     </message>
     <message>
         <source>Erase</source>
@@ -9499,7 +9499,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Mixer Brush stroke</source>
-        <translation>믹서 브러시 스트로크</translation>
+        <translation>혼합 브러시 스트로크</translation>
     </message>
     <message>
         <source>Choose a pattern before painting</source>
@@ -9563,7 +9563,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Select All is unavailable in Quick Mask mode</source>
-        <translation>Quick Mask 모드에서는 모두 선택을 사용할 수 없습니다.</translation>
+        <translation>빠른 마스크 모드에서는 모두 선택을 사용할 수 없습니다.</translation>
     </message>
     <message>
         <source>Brush flow: %1%</source>
@@ -9587,7 +9587,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Spot channels are read-only</source>
-        <translation>스팟 채널은 읽기 전용입니다.</translation>
+        <translation>별색 채널은 읽기 전용입니다</translation>
     </message>
     <message>
         <source>Color component channels are read-only</source>
@@ -9739,7 +9739,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Contracted selection by %1 px</source>
-        <translation>선택항목을 %1픽셀로축소했습니다</translation>
+        <translation>선택 영역을 %1픽셀만큼 축소했습니다</translation>
     </message>
     <message>
         <source>Selected %1 px border</source>
@@ -9779,7 +9779,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Make a selection before selecting similar pixels</source>
-        <translation>유사한 픽셀을 선택하기 전에 먼저 선택하세요.</translation>
+        <translation>유사한 픽셀을 선택하기 전에 선택 영역을 만드세요.</translation>
     </message>
     <message>
         <source>Selected %1 similar px</source>
@@ -9787,7 +9787,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Select a pixel layer before using Magic Wand</source>
-        <translation>Magic Wand를 사용하기 전에 픽셀 레이어를 선택하세요.</translation>
+        <translation>자동 선택를 사용하기 전에 픽셀 레이어를 선택하세요.</translation>
     </message>
     <message>
         <source>Magic Wand selected %1 px</source>
@@ -9859,19 +9859,19 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Removed object with content-aware fill, variation %1 (%2 patches)</source>
-        <translation>내용 인식 채우기, 변형 %1(패치 %2개)이 있는 개체가 제거되었습니다.</translation>
+        <translation>내용 인식 채우기로 개체를 제거했습니다. 변형 %1(패치 %2개)</translation>
     </message>
     <message>
         <source>Removed object with content-aware fill (%1 patches)</source>
-        <translation>내용 인식 채우기가 포함된 개체가 제거되었습니다(패치 %1개).</translation>
+        <translation>내용 인식 채우기로 개체를 제거했습니다(패치 %1개).</translation>
     </message>
     <message>
         <source>Remove Object found no clean source patches nearby; used the nearest edge instead (source %1 of %2)</source>
-        <translation>개체 제거 근처에 깨끗한 소스 패치가 없습니다. 대신 가장 가까운 가장자리를 사용했습니다(%2의 소스 %1)</translation>
+        <translation>개체 제거에 사용할 깨끗한 원본 패치를 근처에서 찾지 못해 가장 가까운 가장자리를 사용했습니다(원본 %1/%2)</translation>
     </message>
     <message>
         <source>Removed object with source %1 of %2. Run again to try another.</source>
-        <translation>%2의 소스 %1이(가) 있는 개체를 제거했습니다. 다시 실행하여 다른 것을 시도해 보세요.</translation>
+        <translation>원본 %1/%2을(를) 사용하여 개체를 제거했습니다. 다시 실행하면 다른 원본을 사용합니다.</translation>
     </message>
     <message>
         <source>Removing object...</source>
@@ -10043,7 +10043,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Click to add points, drag for curves. Click the first point to close; Enter commits an open path; Esc cancels.</source>
-        <translation>점을 추가하려면 클릭하고, 곡선을 드래그하려면 클릭하세요. 닫으려면 첫 번째 점을 클릭하세요. Enter는 열린 경로를 커밋합니다. Esc가 취소됩니다.</translation>
+        <translation>클릭하여 점을 추가하고 드래그하여 곡선을 만듭니다. 첫 점을 클릭하면 패스가 닫힙니다. Enter로 열린 패스를 확정하고 Esc로 취소합니다.</translation>
     </message>
     <message>
         <source>Select a shape layer or draw a path first</source>
@@ -10083,7 +10083,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Click to delete this point. %CTRL%-drag moves it. %ALT%+click converts it between corner and smooth.</source>
-        <translation>이 점을 삭제하려면 클릭하세요. %CTRL%-드래그하여 이동합니다. %ALT%+클릭하면 모서리와 부드러운 사이로 변환됩니다.</translation>
+        <translation>클릭하여 이 점을 삭제합니다. %CTRL%-드래그로 이동합니다. %ALT%+클릭으로 모퉁이점과 곡선점 사이를 전환합니다.</translation>
     </message>
     <message>
         <source>Click to delete this point. %CTRL%-drag moves it.</source>
@@ -10091,11 +10091,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Click to convert this point between corner and smooth</source>
-        <translation>이 점을 모서리와 부드러운 사이로 변환하려면 클릭하세요.</translation>
+        <translation>클릭하여 이 점을 모퉁이점과 곡선점 사이에서 전환합니다</translation>
     </message>
     <message>
         <source>Click to close the path</source>
-        <translation>경로를 닫으려면 클릭하세요.</translation>
+        <translation>패스를 닫으려면 클릭하세요.</translation>
     </message>
     <message>
         <source>Click to select the shape, drag to move it. %CTRL%+T transforms it.</source>
@@ -10103,7 +10103,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Drag to move the point. Shift+click adds it to the selection; Delete removes the selected points.</source>
-        <translation>드래그하여 점을 이동하세요. Shift 키를 누른 채 클릭하면 선택 항목에 추가됩니다. 삭제는 선택한 점을 제거합니다.</translation>
+        <translation>드래그하여 점을 이동합니다. Shift+클릭으로 선택 영역에 추가하고, Delete로 선택한 점을 삭제합니다.</translation>
     </message>
     <message>
         <source>Drag the handle to reshape the curve</source>
@@ -10147,7 +10147,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Transform path: drag inside to move, handles to scale, outside to rotate. Enter commits, Esc cancels.</source>
-        <translation>변형 경로: 이동하려면 안쪽으로 드래그하고, 크기를 조정하려면 핸들을 드래그하고, 회전하려면 바깥쪽으로 드래그합니다. 커밋을 입력하고 Esc를 누르면 취소됩니다.</translation>
+        <translation>패스 변형: 안쪽을 드래그하여 이동하고, 핸들을 드래그하여 크기를 조절하며, 바깥쪽을 드래그하여 회전합니다. Enter로 확정하고 Esc로 취소합니다.</translation>
     </message>
     <message>
         <source>Transform path</source>
@@ -10276,7 +10276,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Pan canvas (hold); while dragging, moves the selection or shape</source>
-        <translation>팬 캔버스(누르고 있기); 드래그하는 동안 선택 항목이나 모양을 이동합니다.</translation>
+        <translation>캔버스 이동(누르고 있기); 드래그 중에는 선택 영역이나 모양 이동</translation>
     </message>
     <message>
         <source>Set tool opacity (10%-100%)</source>
@@ -10476,7 +10476,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Rotate Latin (vertical text)</source>
-        <translation>라틴어 회전(세로 텍스트)</translation>
+        <translation>로마자 회전(세로 텍스트)</translation>
     </message>
     <message>
         <source>Lay Latin letters on their side along the column instead of upright (Photoshop&apos;s Standard Vertical Roman Alignment)</source>
@@ -10492,7 +10492,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Space between characters, in 1/1000 em (Photoshop tracking)</source>
-        <translation>문자 사이의 간격(1/1000em 단위)(Photoshop 추적)</translation>
+        <translation>문자 사이의 간격(1/1000em 단위, Photoshop의 자간)</translation>
     </message>
     <message>
         <source>Tracking:</source>
@@ -10504,11 +10504,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Horizontal scale:</source>
-        <translation>수평 규모:</translation>
+        <translation>수평 배율:</translation>
     </message>
     <message>
         <source>Vertical scale:</source>
-        <translation>수직 축척:</translation>
+        <translation>수직 배율:</translation>
     </message>
     <message>
         <source>Paragraph</source>
@@ -10584,7 +10584,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Faux bold is not available on warped text. Remove the text warp first.</source>
-        <translation>뒤틀린 텍스트에는 가짜 볼드체를 사용할 수 없습니다. 먼저 텍스트 뒤틀기를 제거하십시오.</translation>
+        <translation>뒤틀린 텍스트에는 가상 볼드체를 사용할 수 없습니다. 먼저 텍스트 뒤틀기를 제거하세요.</translation>
     </message>
     <message>
         <source>Select a text layer to warp.</source>
@@ -11476,7 +11476,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Define Custom Shape from Path</source>
-        <translation>경로에서 사용자 지정 모양 정의</translation>
+        <translation>패스에서 사용자 지정 모양 정의</translation>
     </message>
     <message>
         <source>Define Custom Shape from SVG File</source>
@@ -11516,7 +11516,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Release the selected folder&apos;s layers into their parent</source>
-        <translation>선택한 폴더의 레이어를 상위 폴더로 해제</translation>
+        <translation>선택한 폴더의 레이어를 상위 폴더로 꺼냅니다</translation>
     </message>
     <message>
         <source>Trace Image to Shapes...</source>
@@ -11588,7 +11588,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Refit the targeted path with fewer points</source>
-        <translation>더 적은 수의 포인트로 대상 경로를 다시 맞춥니다.</translation>
+        <translation>더 적은 수의 포인트로 대상 패스를 다시 맞춥니다.</translation>
     </message>
     <message>
         <source>Unite Shapes</source>
@@ -11748,7 +11748,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Rotate the canvas by any angle, enlarging it to fit</source>
-        <translation>캔버스를 원하는 각도로 회전하여 크기에 맞게 확대</translation>
+        <translation>캔버스를 원하는 각도로 회전하고 이미지 전체가 들어가도록 캔버스 크기를 늘립니다</translation>
     </message>
     <message>
         <source>Wrap the image by half its size so tiling seams land in the middle; press again to shift back</source>
@@ -11784,7 +11784,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Push, pull, twist, pucker, or bloat pixels with a brush</source>
-        <translation>브러시를 사용하여 픽셀을 밀고, 당기고, 비틀고, 주름을 만들고, 부풀립니다.</translation>
+        <translation>브러시로 픽셀을 밀고, 당기고, 비틀고, 오므리거나 부풀립니다</translation>
     </message>
     <message>
         <source>Apply %1 to the active layer</source>
@@ -12260,7 +12260,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Brush flow: Shift+number keys (number keys with Airbrush)</source>
-        <translation>브러시 흐름: Shift+숫자 키(에어브러시의 숫자 키)</translation>
+        <translation>브러시 흐름: Shift+숫자 키(에어브러시 사용 시 숫자 키만)</translation>
     </message>
     <message>
         <source>Airbrush</source>
@@ -12272,7 +12272,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Stroke smoothing - 0% paints the raw pointer path</source>
-        <translation>획 다듬기 - 0%는 원시 포인터 경로를 그립니다.</translation>
+        <translation>획 보정 - 0%에서는 포인터가 이동한 경로를 그대로 그립니다</translation>
     </message>
     <message>
         <source>Smoothing options</source>
@@ -12296,7 +12296,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Useful mixer brush combinations</source>
-        <translation>유용한 믹서 브러시 조합</translation>
+        <translation>유용한 혼합 브러시 조합</translation>
     </message>
     <message>
         <source>Wet:</source>
@@ -12456,7 +12456,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Vibrance</source>
-        <translation>활기</translation>
+        <translation>생동감</translation>
     </message>
     <message>
         <source>Reduce the adjustment on colors that are already strongly saturated</source>
@@ -12592,7 +12592,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>0 makes a plain polygon; higher values pull in star points</source>
-        <translation>0은 일반 다각형을 만듭니다. 값이 높을수록 별점을 끌어옵니다.</translation>
+        <translation>0은 일반 다각형을 만듭니다. 값이 높을수록 별의 안쪽 꼭짓점이 더 깊이 들어갑니다.</translation>
     </message>
     <message>
         <source>Shape:</source>
@@ -12808,7 +12808,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Mixer Brush</source>
-        <translation>믹서 브러시</translation>
+        <translation>혼합 브러시</translation>
     </message>
     <message>
         <source>Clone</source>
@@ -12936,15 +12936,15 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Select and move whole shapes. %CTRL%+T transforms the path.</source>
-        <translation>전체 도형을 선택하고 이동하세요. %CTRL%+T는 경로를 변환합니다.</translation>
+        <translation>모양 전체를 선택하고 이동합니다. %CTRL%+T로 패스를 변형합니다.</translation>
     </message>
     <message>
         <source>Select and drag points and handles. Delete removes the selected points.</source>
-        <translation>점과 핸들을 선택하고 드래그합니다. 삭제는 선택한 점을 제거합니다.</translation>
+        <translation>점과 핸들을 선택하고 드래그합니다. Delete로 선택한 점을 삭제합니다.</translation>
     </message>
     <message>
         <source>Click a path segment to insert a point.</source>
-        <translation>점을 삽입하려면 경로 세그먼트를 클릭합니다.</translation>
+        <translation>점을 삽입하려면 패스 세그먼트를 클릭합니다.</translation>
     </message>
     <message>
         <source>Click a point to remove it.</source>
@@ -12952,7 +12952,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Click a point to switch it between corner and smooth.</source>
-        <translation>모서리와 부드러운 사이를 전환하려면 점을 클릭하세요.</translation>
+        <translation>점을 클릭하여 모퉁이점과 곡선점 사이를 전환합니다.</translation>
     </message>
     <message>
         <source>Move: Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it.</source>
@@ -12976,11 +12976,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Delete Anchor Point: click a point to remove it.</source>
-        <translation>앵커 포인트 삭제: 포인트를 클릭하여 제거합니다.</translation>
+        <translation>기준점 삭제: 점을 클릭하여 삭제합니다.</translation>
     </message>
     <message>
         <source>Convert Point: click a point to switch it between corner and smooth.</source>
-        <translation>점 변환: 점을 클릭하여 모서리와 부드러운 사이를 전환합니다.</translation>
+        <translation>점 변환: 점을 클릭하여 모퉁이점과 곡선점 사이를 전환합니다.</translation>
     </message>
     <message>
         <source>Patch: draw around the area to fix, then drag the selection to a clean source area, or press Enter to remove the object automatically</source>
@@ -13649,10 +13649,10 @@ RGB: %2, %3, %4</translation>
 Y: -
 RGB: -
 Rect: -</source>
-        <translation>엑스: -
-예: -
+        <translation>X: -
+Y: -
 RGB: -
-직사각형: -</translation>
+사각형: -</translation>
     </message>
     <message>
         <source>Palette</source>
@@ -13664,7 +13664,7 @@ RGB: -
     </message>
     <message>
         <source>Copied palette color %1</source>
-        <translation>팔레트색상 %1을(를)복사했습니다</translation>
+        <translation>팔레트 색상 %1을(를) 복사했습니다</translation>
     </message>
     <message>
         <source>Set palette</source>
@@ -13672,7 +13672,7 @@ RGB: -
     </message>
     <message>
         <source>Palette set to %1</source>
-        <translation>팔레트가 %1로설정되었습니다</translation>
+        <translation>팔레트를 %1(으)로 설정했습니다</translation>
     </message>
     <message>
         <source>Edit palette entry</source>
@@ -13712,7 +13712,7 @@ RGB: -
     </message>
     <message>
         <source>Image size unchanged; print resolution set to %1 ppi</source>
-        <translation>이미지 크기는 변경되지 않습니다. 인쇄해상도가 %1ppi로설정되었습니다</translation>
+        <translation>이미지 크기는 그대로이며 인쇄 해상도를 %1ppi로 설정했습니다</translation>
     </message>
     <message>
         <source>Image size</source>
@@ -13815,7 +13815,7 @@ RGB: -
     </message>
     <message>
         <source>No supported images in %1</source>
-        <translation>%1에는지원되는이미지가없습니다</translation>
+        <translation>%1에 지원되는 이미지가 없습니다</translation>
     </message>
     <message>
         <source>Opening image %1 of %2...</source>
@@ -13905,7 +13905,7 @@ RGB: -
     </message>
     <message>
         <source>No fonts found in %1</source>
-        <translation>%1에서글꼴을찾을수없습니다</translation>
+        <translation>%1에서 글꼴을 찾을 수 없습니다</translation>
     </message>
     <message>
         <source>Added fonts: %1</source>
@@ -13917,7 +13917,7 @@ RGB: -
     </message>
     <message>
         <source>Affinity Image Layers</source>
-        <translation>어피니티 이미지 레이어</translation>
+        <translation>Affinity 이미지 레이어</translation>
     </message>
     <message numerus="yes">
         <source>This document places %n image file(s) as Affinity &quot;Image&quot; layers.</source>
@@ -13977,7 +13977,7 @@ RGB: -
     </message>
     <message>
         <source>%1 has unsaved changes. Reopen the file from disk and discard them?</source>
-        <translation>%1에 저장되지 않은 변경 사항이 있습니다. 디스크에서 파일을 다시 열고 삭제하시겠습니까?</translation>
+        <translation>%1에 저장되지 않은 변경 사항이 있습니다. 변경 사항을 버리고 디스크에서 파일을 다시 여시겠습니까?</translation>
     </message>
     <message>
         <source>Reopen</source>
@@ -14055,7 +14055,7 @@ RGB: -
     </message>
     <message>
         <source>Cancelled Divide Scanned Photos</source>
-        <translation>취소된 분할 스캔 사진</translation>
+        <translation>스캔한 사진 분할을 취소했습니다</translation>
     </message>
     <message>
         <source>Divide scanned photos</source>
@@ -14287,15 +14287,15 @@ Either way Patchy writes a copy; the open document keeps its layers and unsaved 
     </message>
     <message>
         <source>Saved PDF copy with editable layers %1.</source>
-        <translation>편집 가능한 레이어 %1이(가) 포함된 PDF 사본을 저장했습니다.</translation>
+        <translation>편집 가능한 레이어가 있는 PDF 복사본을 %1에 저장했습니다.</translation>
     </message>
     <message>
         <source>Saved animated GIF copy %1</source>
-        <translation>애니메이션GIF 사본 %1을(를)저장했습니다</translation>
+        <translation>애니메이션 GIF 복사본을 %1에 저장했습니다</translation>
     </message>
     <message>
         <source>Saved flattened copy %1</source>
-        <translation>병합된사본 %1을(를)저장했습니다</translation>
+        <translation>병합된 복사본을 %1에 저장했습니다</translation>
     </message>
     <message>
         <source>Saved %1</source>
@@ -14477,7 +14477,7 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Cancelled Radial Blur</source>
-        <translation>취소된 방사형 블러</translation>
+        <translation>방사형 흐림을(를) 취소했습니다</translation>
     </message>
     <message>
         <source>Cancelled Add Noise</source>
@@ -14485,11 +14485,11 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Cancelled Box Blur</source>
-        <translation>취소된 상자 흐림</translation>
+        <translation>박스 블러을(를) 취소했습니다</translation>
     </message>
     <message>
         <source>Cancelled Emboss</source>
-        <translation>취소된 엠보싱</translation>
+        <translation>엠보싱을(를) 취소했습니다</translation>
     </message>
     <message>
         <source>Cancelled Mosaic</source>
@@ -14497,43 +14497,43 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Cancelled Plastic Wrap</source>
-        <translation>취소된 플라스틱 랩</translation>
+        <translation>플라스틱 랩을(를) 취소했습니다</translation>
     </message>
     <message>
         <source>Cancelled Unsharp Mask</source>
-        <translation>취소된 언샵 마스크</translation>
+        <translation>언샵 마스크을(를) 취소했습니다</translation>
     </message>
     <message>
         <source>Cancelled Motion Blur</source>
-        <translation>취소된 모션 블러</translation>
+        <translation>모션 블러을(를) 취소했습니다</translation>
     </message>
     <message>
         <source>Cancelled Surface Blur</source>
-        <translation>취소된 표면 흐림</translation>
+        <translation>표면 흐림을(를) 취소했습니다</translation>
     </message>
     <message>
         <source>Cancelled Dust &amp; Scratches</source>
-        <translation>취소된 먼지 및 스크래치</translation>
+        <translation>먼지 및 긁힘을(를) 취소했습니다</translation>
     </message>
     <message>
         <source>Cancelled Median</source>
-        <translation>취소된 중앙값</translation>
+        <translation>중앙값을(를) 취소했습니다</translation>
     </message>
     <message>
         <source>Cancelled High Pass</source>
-        <translation>취소된 하이패스</translation>
+        <translation>하이패스을(를) 취소했습니다</translation>
     </message>
     <message>
         <source>Cancelled Gaussian Blur</source>
-        <translation>취소된 가우시안 블러</translation>
+        <translation>가우시안 블러을(를) 취소했습니다</translation>
     </message>
     <message>
         <source>Add Radial Blur Smart Filter</source>
-        <translation>방사형 흐림 효과 스마트 필터 추가</translation>
+        <translation>방사형 흐림 스마트 필터 추가</translation>
     </message>
     <message>
         <source>Edit Radial Blur Smart Filter</source>
-        <translation>방사형 흐림 효과 스마트 필터 편집</translation>
+        <translation>방사형 흐림 스마트 필터 편집</translation>
     </message>
     <message>
         <source>Add Add Noise Smart Filter</source>
@@ -14545,11 +14545,11 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Add Box Blur Smart Filter</source>
-        <translation>상자 흐림 스마트 필터 추가</translation>
+        <translation>박스 블러 스마트 필터 추가</translation>
     </message>
     <message>
         <source>Edit Box Blur Smart Filter</source>
-        <translation>편집 상자 흐림 스마트 필터</translation>
+        <translation>박스 블러 스마트 필터 편집</translation>
     </message>
     <message>
         <source>Add Emboss Smart Filter</source>
@@ -14601,11 +14601,11 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Add Dust &amp; Scratches Smart Filter</source>
-        <translation>먼지 및 스크래치 스마트 필터 추가</translation>
+        <translation>먼지 및 긁힘 스마트 필터 추가</translation>
     </message>
     <message>
         <source>Edit Dust &amp; Scratches Smart Filter</source>
-        <translation>먼지 및 스크래치 스마트 필터 편집</translation>
+        <translation>먼지 및 긁힘 스마트 필터 편집</translation>
     </message>
     <message>
         <source>Add Median Smart Filter</source>
@@ -14633,15 +14633,15 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Added Radial Blur as a Smart Filter</source>
-        <translation>스마트 필터로 방사형 흐림 효과를 추가했습니다.</translation>
+        <translation>방사형 흐림을(를) 스마트 필터로 추가했습니다</translation>
     </message>
     <message>
         <source>Added another Radial Blur Smart Filter</source>
-        <translation>또 다른 방사형 블러 스마트 필터를 추가했습니다.</translation>
+        <translation>방사형 흐림 스마트 필터를 하나 더 추가했습니다</translation>
     </message>
     <message>
         <source>Updated Radial Blur Smart Filter</source>
-        <translation>업데이트된 방사형 블러 스마트 필터</translation>
+        <translation>방사형 흐림 스마트 필터를 업데이트했습니다</translation>
     </message>
     <message>
         <source>Added Add Noise as a Smart Filter</source>
@@ -14657,27 +14657,27 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Added Box Blur as a Smart Filter</source>
-        <translation>스마트 필터로 Box Blur를 추가했습니다.</translation>
+        <translation>박스 블러을(를) 스마트 필터로 추가했습니다</translation>
     </message>
     <message>
         <source>Added another Box Blur Smart Filter</source>
-        <translation>또 다른 Box Blur 스마트 필터를 추가했습니다.</translation>
+        <translation>박스 블러 스마트 필터를 하나 더 추가했습니다</translation>
     </message>
     <message>
         <source>Updated Box Blur Smart Filter</source>
-        <translation>업데이트된 Box Blur 스마트 필터</translation>
+        <translation>박스 블러 스마트 필터를 업데이트했습니다</translation>
     </message>
     <message>
         <source>Added Emboss as a Smart Filter</source>
-        <translation>스마트 필터로 엠보싱 추가</translation>
+        <translation>엠보싱을(를) 스마트 필터로 추가했습니다</translation>
     </message>
     <message>
         <source>Added another Emboss Smart Filter</source>
-        <translation>다른 엠보스 스마트 필터 추가</translation>
+        <translation>엠보싱 스마트 필터를 하나 더 추가했습니다</translation>
     </message>
     <message>
         <source>Updated Emboss Smart Filter</source>
-        <translation>업데이트된 엠보스 스마트 필터</translation>
+        <translation>엠보싱 스마트 필터를 업데이트했습니다</translation>
     </message>
     <message>
         <source>Added Mosaic as a Smart Filter</source>
@@ -14693,99 +14693,99 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Added Plastic Wrap as a Smart Filter</source>
-        <translation>스마트 필터로 플라스틱 랩 추가</translation>
+        <translation>플라스틱 랩을(를) 스마트 필터로 추가했습니다</translation>
     </message>
     <message>
         <source>Added another Plastic Wrap Smart Filter</source>
-        <translation>또 다른 플라스틱 랩 스마트 필터 추가</translation>
+        <translation>플라스틱 랩 스마트 필터를 하나 더 추가했습니다</translation>
     </message>
     <message>
         <source>Updated Plastic Wrap Smart Filter</source>
-        <translation>업데이트된 플라스틱 랩 스마트 필터</translation>
+        <translation>플라스틱 랩 스마트 필터를 업데이트했습니다</translation>
     </message>
     <message>
         <source>Added Unsharp Mask as a Smart Filter</source>
-        <translation>스마트 필터로 언샵 마스크 추가</translation>
+        <translation>언샵 마스크을(를) 스마트 필터로 추가했습니다</translation>
     </message>
     <message>
         <source>Added another Unsharp Mask Smart Filter</source>
-        <translation>또 다른 Unsharp Mask 스마트 필터를 추가했습니다.</translation>
+        <translation>언샵 마스크 스마트 필터를 하나 더 추가했습니다</translation>
     </message>
     <message>
         <source>Updated Unsharp Mask Smart Filter</source>
-        <translation>업데이트된 언샵 마스크 스마트 필터</translation>
+        <translation>언샵 마스크 스마트 필터를 업데이트했습니다</translation>
     </message>
     <message>
         <source>Added Motion Blur as a Smart Filter</source>
-        <translation>모션 블러를 스마트 필터로 추가했습니다.</translation>
+        <translation>모션 블러을(를) 스마트 필터로 추가했습니다</translation>
     </message>
     <message>
         <source>Added another Motion Blur Smart Filter</source>
-        <translation>또 다른 모션 블러 스마트 필터를 추가했습니다.</translation>
+        <translation>모션 블러 스마트 필터를 하나 더 추가했습니다</translation>
     </message>
     <message>
         <source>Updated Motion Blur Smart Filter</source>
-        <translation>업데이트된 모션 블러 스마트 필터</translation>
+        <translation>모션 블러 스마트 필터를 업데이트했습니다</translation>
     </message>
     <message>
         <source>Added Surface Blur as a Smart Filter</source>
-        <translation>스마트 필터로 표면 흐림 효과를 추가했습니다.</translation>
+        <translation>표면 흐림을(를) 스마트 필터로 추가했습니다</translation>
     </message>
     <message>
         <source>Added another Surface Blur Smart Filter</source>
-        <translation>또 다른 표면 흐림 스마트 필터를 추가했습니다.</translation>
+        <translation>표면 흐림 스마트 필터를 하나 더 추가했습니다</translation>
     </message>
     <message>
         <source>Updated Surface Blur Smart Filter</source>
-        <translation>업데이트된 표면 흐림 스마트 필터</translation>
+        <translation>표면 흐림 스마트 필터를 업데이트했습니다</translation>
     </message>
     <message>
         <source>Added Dust &amp; Scratches as a Smart Filter</source>
-        <translation>스마트 필터로 먼지 및 스크래치 추가</translation>
+        <translation>먼지 및 긁힘을(를) 스마트 필터로 추가했습니다</translation>
     </message>
     <message>
         <source>Added another Dust &amp; Scratches Smart Filter</source>
-        <translation>또 다른 먼지 및 스크래치 스마트 필터 추가</translation>
+        <translation>먼지 및 긁힘 스마트 필터를 하나 더 추가했습니다</translation>
     </message>
     <message>
         <source>Updated Dust &amp; Scratches Smart Filter</source>
-        <translation>업데이트된 먼지 및 스크래치 스마트 필터</translation>
+        <translation>먼지 및 긁힘 스마트 필터를 업데이트했습니다</translation>
     </message>
     <message>
         <source>Added Median as a Smart Filter</source>
-        <translation>중앙값을 스마트 필터로 추가했습니다.</translation>
+        <translation>중앙값을(를) 스마트 필터로 추가했습니다</translation>
     </message>
     <message>
         <source>Added another Median Smart Filter</source>
-        <translation>또 다른 중앙값 스마트 필터를 추가했습니다.</translation>
+        <translation>중앙값 스마트 필터를 하나 더 추가했습니다</translation>
     </message>
     <message>
         <source>Updated Median Smart Filter</source>
-        <translation>업데이트된 중앙값 스마트 필터</translation>
+        <translation>중앙값 스마트 필터를 업데이트했습니다</translation>
     </message>
     <message>
         <source>Added High Pass as a Smart Filter</source>
-        <translation>스마트 필터로 하이패스 추가</translation>
+        <translation>하이패스을(를) 스마트 필터로 추가했습니다</translation>
     </message>
     <message>
         <source>Added another High Pass Smart Filter</source>
-        <translation>또 다른 하이패스 스마트 필터 추가</translation>
+        <translation>하이패스 스마트 필터를 하나 더 추가했습니다</translation>
     </message>
     <message>
         <source>Updated High Pass Smart Filter</source>
-        <translation>업데이트된 하이패스 스마트 필터</translation>
+        <translation>하이패스 스마트 필터를 업데이트했습니다</translation>
     </message>
     <message>
         <source>Added Gaussian Blur as a Smart Filter</source>
-        <translation>스마트 필터로 Gaussian Blur를 추가했습니다.</translation>
+        <translation>가우시안 블러을(를) 스마트 필터로 추가했습니다</translation>
     </message>
     <message>
         <source>Added another Gaussian Blur Smart Filter</source>
-        <translation>또 다른 Gaussian Blur 스마트 필터를 추가했습니다.</translation>
+        <translation>가우시안 블러 스마트 필터를 하나 더 추가했습니다</translation>
     </message>
     <message>
         <source>Updated Gaussian Blur Smart Filter</source>
-        <translation>업데이트된 가우시안 블러 스마트 필터</translation>
+        <translation>가우시안 블러 스마트 필터를 업데이트했습니다</translation>
     </message>
     <message>
         <source>This Smart Filter descriptor cannot be edited safely</source>
@@ -14853,7 +14853,7 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Duplicated Smart Filter</source>
-        <translation>중복된 스마트 필터</translation>
+        <translation>스마트 필터를 복제했습니다</translation>
     </message>
     <message>
         <source>Reorder Smart Filters</source>
@@ -14893,7 +14893,7 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Convert the layer to a smart object to keep the text editable, or rasterize it into plain pixels. Rasterized text can&apos;t be edited again.</source>
-        <translation>텍스트를 편집 가능한 상태로 유지하려면 레이어를 스마트 개체로 변환하거나 일반 픽셀로 래스터화하세요. 래스터화된 텍스트는 다시 편집할 수 없습니다.</translation>
+        <translation>텍스트를 계속 편집할 수 있도록 레이어를 스마트 개체로 변환하거나, 일반 픽셀로 래스터화하세요. 래스터화한 텍스트는 더 이상 텍스트로 편집할 수 없습니다.</translation>
     </message>
     <message>
         <source>Convert the layer to a smart object to keep the shape editable, or rasterize it into plain pixels. A rasterized shape can&apos;t be edited as a vector again.</source>
@@ -14945,7 +14945,7 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Rasterized Smart Object and applied %1</source>
-        <translation>래스터화된 스마트 개체 및 적용됨 %1</translation>
+        <translation>스마트 개체를 래스터화하고 %1을(를) 적용했습니다</translation>
     </message>
     <message>
         <source>Filter failed</source>
@@ -14957,7 +14957,7 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Liquify is unavailable in Quick Mask mode</source>
-        <translation>Quick Mask 모드에서는 유동화를 사용할 수 없습니다.</translation>
+        <translation>빠른 마스크 모드에서는 유동화를 사용할 수 없습니다.</translation>
     </message>
     <message>
         <source>Liquify is unavailable while viewing a document channel</source>
@@ -14965,7 +14965,7 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Rasterize the Smart Object before using Liquify</source>
-        <translation>Liquify를 사용하기 전에 스마트 개체를 래스터화하세요.</translation>
+        <translation>유동화를 사용하기 전에 스마트 개체를 래스터화하세요</translation>
     </message>
     <message>
         <source>Liquify</source>
@@ -15005,7 +15005,7 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>This Look includes effects without an editable Photoshop Smart Filter mapping. Rasterize the Smart Object and apply the complete Look destructively?</source>
-        <translation>이 Look에는 편집 가능한 Photoshop 스마트 필터 매핑이 없는 효과가 포함되어 있습니다. 스마트 개체를 래스터화하고 전체 Look을 파괴적으로 적용하시겠습니까?</translation>
+        <translation>이 룩에는 편집 가능한 Photoshop 스마트 필터 매핑이 없는 효과가 포함되어 있습니다. 스마트 개체를 래스터화하고 전체 룩을 파괴적으로 적용하시겠습니까?</translation>
     </message>
     <message>
         <source>Add Smart Filter Stack</source>
@@ -15073,11 +15073,11 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Cut custom color %1</source>
-        <translation>사용자정의색 %1자르기</translation>
+        <translation>사용자 지정 색상 %1을(를) 잘라냈습니다</translation>
     </message>
     <message>
         <source>Copied color %1</source>
-        <translation>색상 %1을(를)복사했습니다</translation>
+        <translation>색상 %1을(를) 복사했습니다</translation>
     </message>
     <message>
         <source>Select a layer to cut</source>
@@ -15085,7 +15085,7 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Selected layers are hidden or not editable; nothing cut</source>
-        <translation>선택한 레이어는 숨겨져 있거나 편집할 수 없습니다. 아무것도 자르지 않았어</translation>
+        <translation>선택한 레이어가 숨겨져 있거나 편집할 수 없어 아무것도 잘라내지 않았습니다</translation>
     </message>
     <message>
         <source>Cut</source>
@@ -15093,7 +15093,7 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Cut %1 layer(s)</source>
-        <translation>%1 레이어 자르기</translation>
+        <translation>레이어 %1개를 잘라냈습니다</translation>
     </message>
     <message>
         <source>Select a layer to copy</source>
@@ -15131,7 +15131,7 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Pasted color %1</source>
-        <translation>색상 %1을(를)붙여넣었습니다</translation>
+        <translation>색상 %1을(를) 붙여넣었습니다</translation>
     </message>
     <message>
         <source>The clipboard does not contain a color</source>
@@ -15283,7 +15283,7 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Mask overlay shown. Red marks the areas the mask hides.</source>
-        <translation>마스크 오버레이가 표시됩니다. 빨간색은 마스크가 가려지는 영역을 표시합니다.</translation>
+        <translation>마스크 오버레이를 표시합니다. 빨간색은 마스크가 숨기는 영역입니다.</translation>
     </message>
     <message>
         <source>Mask overlay hidden</source>
@@ -15371,7 +15371,7 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Selected layers already end with that time</source>
-        <translation>선택한 레이어가 이미 해당 시간으로 종료되었습니다.</translation>
+        <translation>선택한 레이어 이름 끝에 이미 해당 시간이 붙어 있습니다</translation>
     </message>
     <message>
         <source>No frame times on the selected layers</source>
@@ -15423,7 +15423,7 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Deleted layer style from %1 layer(s)</source>
-        <translation>%1레이어에서레이어스타일을삭제했습니다</translation>
+        <translation>레이어 %1개에서 레이어 스타일을 삭제했습니다</translation>
     </message>
     <message>
         <source>Delete layer</source>
@@ -15563,7 +15563,7 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Clear Quick Mask</source>
-        <translation>클리어 빠른 마스크</translation>
+        <translation>빠른 마스크 지우기</translation>
     </message>
     <message>
         <source>Clear Smart Filter mask</source>
@@ -15571,7 +15571,7 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Cleared Smart Filter mask</source>
-        <translation>클리어된 스마트 필터 마스크</translation>
+        <translation>스마트 필터 마스크를 지웠습니다</translation>
     </message>
     <message>
         <source>Clear channel</source>
@@ -15583,11 +15583,11 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Cleared channel</source>
-        <translation>삭제된 채널</translation>
+        <translation>채널 내용을 지웠습니다</translation>
     </message>
     <message>
         <source>Cleared layer mask</source>
-        <translation>클리어된 레이어 마스크</translation>
+        <translation>레이어 마스크를 지웠습니다</translation>
     </message>
     <message>
         <source>Clearing...</source>
@@ -15603,7 +15603,7 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Text and smart object layers can&apos;t be cleared. Deselect first, then Delete removes the layer.</source>
-        <translation>텍스트 및 스마트 개체 레이어는 지울 수 없습니다. 먼저 선택을 취소한 다음 삭제를 클릭하면 레이어가 제거됩니다.</translation>
+        <translation>텍스트 및 스마트 개체 레이어는 지울 수 없습니다. 먼저 선택 영역을 해제한 뒤 Delete를 누르면 레이어가 삭제됩니다.</translation>
     </message>
     <message>
         <source>Deleted layer</source>
@@ -15611,7 +15611,7 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Deleted %1 layers</source>
-        <translation>%1레이어를삭제했습니다</translation>
+        <translation>레이어 %1개를 삭제했습니다</translation>
     </message>
     <message>
         <source>Remove Object needs a selection: select the area to remove first</source>
@@ -15679,7 +15679,7 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Duplicate Remove Object variation to layer</source>
-        <translation>Remove Object 변형을 레이어에 복제</translation>
+        <translation>개체 제거 변형을 레이어에 복제</translation>
     </message>
     <message>
         <source>Remove Object variation %1</source>
@@ -15695,11 +15695,11 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Removed object with content-aware fill, variation %1 (%2 patches)</source>
-        <translation>내용 인식 채우기, 변형 %1(패치 %2개)이 있는 개체가 제거되었습니다.</translation>
+        <translation>내용 인식 채우기로 개체를 제거했습니다. 변형 %1(패치 %2개)</translation>
     </message>
     <message>
         <source>Removed object with the nearest edge (source %1 of %2)</source>
-        <translation>가장 가까운 가장자리가 있는 개체를 제거했습니다(%2 중 소스 %1).</translation>
+        <translation>가장 가까운 가장자리를 사용하여 개체를 제거했습니다(원본 %1/%2).</translation>
     </message>
     <message>
         <source>Make a selection before stroking</source>
@@ -15823,19 +15823,19 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Document too small to shift seams</source>
-        <translation>문서가 너무 작아서 솔기를 이동할 수 없습니다.</translation>
+        <translation>문서가 너무 작아서 이음새를 이동할 수 없습니다.</translation>
     </message>
     <message>
         <source>Shift seams</source>
-        <translation>솔기 이동</translation>
+        <translation>이음새 이동</translation>
     </message>
     <message>
         <source>Shifted seams back to the edges</source>
-        <translation>솔기가 가장자리로 다시 이동됨</translation>
+        <translation>이음새가 가장자리로 다시 이동됨</translation>
     </message>
     <message>
         <source>Shifted seams to the center</source>
-        <translation>솔기가 중앙으로 이동됨</translation>
+        <translation>이음새가 중앙으로 이동됨</translation>
     </message>
     <message>
         <source>Reorder layers</source>
@@ -15893,7 +15893,7 @@ Save your work and close Patchy before running the installer.</source>
         <source>
 Folder with %1 layers%2</source>
         <translation>
-%1레이어 %2가있는폴더</translation>
+레이어 %1개가 있는 폴더%2</translation>
     </message>
     <message>
         <source>
@@ -16063,7 +16063,7 @@ Clipped to the layer below</source>
     </message>
     <message>
         <source>Wet: %1% | Load: %2% | Mix: %3% | Flow: %4%</source>
-        <translation>젖음: %1% | 로드: %2% | 믹스: %3% | 흐름: %4%</translation>
+        <translation>젖음: %1% | 물감량: %2% | 혼합: %3% | 흐름: %4%</translation>
     </message>
     <message>
         <source>Opacity: %1%</source>
@@ -16119,7 +16119,7 @@ Clipped to the layer below</source>
     </message>
     <message>
         <source>Tolerance: %1 | %2 | %3</source>
-        <translation>공차: %1 | %2 | %3</translation>
+        <translation>허용치: %1 | %2 | %3</translation>
     </message>
     <message>
         <source>contiguous</source>
@@ -16182,7 +16182,7 @@ Clipped to the layer below</source>
 Y: %2
 %3
 %4</source>
-        <translation>엑스: %1
+        <translation>X: %1
 Y: %2
 %3
 %4</translation>
@@ -16279,11 +16279,11 @@ Y: %2
     </message>
     <message>
         <source>Loaded palette %1</source>
-        <translation>팔레트 %1을(를)불렀습니다</translation>
+        <translation>팔레트 %1을(를) 불러왔습니다</translation>
     </message>
     <message>
         <source>Saved palette %1</source>
-        <translation>저장된팔레트 %1</translation>
+        <translation>팔레트 %1을(를) 저장했습니다</translation>
     </message>
     <message>
         <source>Converting to palette...</source>
@@ -16321,7 +16321,7 @@ Y: %2
     </message>
     <message>
         <source>Converted to RGB color; the palettized look was kept</source>
-        <translation>RGB 색상으로 변환됩니다. 팔레트화된 모습은 그대로 유지됐다</translation>
+        <translation>팔레트의 색상 표현을 유지하면서 RGB 색상으로 변환했습니다</translation>
     </message>
     <message>
         <source>Converted to RGB color; pixels are unchanged</source>
@@ -16421,7 +16421,7 @@ Y: %2
     </message>
     <message>
         <source>Duplicated the path as %1.</source>
-        <translation>경로를 %1(으)로 복제했습니다.</translation>
+        <translation>패스를 %1(으)로 복제했습니다.</translation>
     </message>
     <message>
         <source>Reorder paths</source>
@@ -16437,7 +16437,7 @@ Y: %2
     </message>
     <message>
         <source>Renamed the path to %1.</source>
-        <translation>경로 이름을 %1로 바꿨습니다.</translation>
+        <translation>패스 이름을 %1로 바꿨습니다.</translation>
     </message>
     <message>
         <source>Path %1</source>
@@ -16469,7 +16469,7 @@ Y: %2
     </message>
     <message>
         <source>Set %1 as the clipping path.</source>
-        <translation>%1을(를) 클리핑 패스로 설정하세요.</translation>
+        <translation>%1을(를) 클리핑 패스로 설정했습니다.</translation>
     </message>
     <message>
         <source>Cleared the clipping path.</source>
@@ -16485,7 +16485,7 @@ Y: %2
     </message>
     <message>
         <source>Deleted the path</source>
-        <translation>경로를 삭제했습니다.</translation>
+        <translation>패스를 삭제했습니다.</translation>
     </message>
     <message>
         <source>Select a path to fill</source>
@@ -16533,7 +16533,7 @@ Y: %2
     </message>
     <message>
         <source>Filled the path with the pattern</source>
-        <translation>패턴으로 경로를 채웠습니다.</translation>
+        <translation>패턴으로 패스를 채웠습니다.</translation>
     </message>
     <message>
         <source>Filled the path</source>
@@ -16561,7 +16561,7 @@ Y: %2
     </message>
     <message>
         <source>Stroked the path with the current brush</source>
-        <translation>현재 브러시로 경로를 그렸습니다.</translation>
+        <translation>현재 브러시로 패스를 그렸습니다.</translation>
     </message>
     <message>
         <source>Select a path to convert</source>
@@ -16809,7 +16809,7 @@ Y: %2
     </message>
     <message>
         <source>Automatically save recovery information every</source>
-        <translation>복구 정보를 자동으로 저장합니다.</translation>
+        <translation>복구 정보 자동 저장 간격</translation>
     </message>
     <message>
         <source>Writes a copy of each changed document to a recovery folder so it can be reopened after a crash. The file you saved is never touched, and the copies are removed when Patchy quits normally.</source>
@@ -17119,7 +17119,7 @@ Y: %2
     </message>
     <message>
         <source>Default visibility:</source>
-        <translation>기본 공개 상태:</translation>
+        <translation>기본 표시 여부:</translation>
     </message>
     <message>
         <source>Grid spacing:</source>
@@ -17207,11 +17207,11 @@ Y: %2
     </message>
     <message>
         <source>Reload the page for the new interface scale to take effect.</source>
-        <translation>새 인터페이스 규모를 적용하려면 페이지를 다시 로드하세요.</translation>
+        <translation>새 인터페이스 배율을 적용하려면 페이지를 다시 로드하세요.</translation>
     </message>
     <message>
         <source>Restart Patchy for the new interface scale to take effect.</source>
-        <translation>새 인터페이스 규모를 적용하려면 Patchy를 다시 시작하세요.</translation>
+        <translation>새 인터페이스 배율을 적용하려면 Patchy를 다시 시작하세요.</translation>
     </message>
     <message>
         <source>Grid Preferences</source>
@@ -17331,7 +17331,7 @@ Y: %2
     </message>
     <message>
         <source>Reveal in Finder</source>
-        <translation>Finder에 공개</translation>
+        <translation>Finder에 표시</translation>
     </message>
     <message>
         <source>Show in File Manager</source>
@@ -17351,7 +17351,7 @@ Y: %2
     </message>
     <message>
         <source>Could not decode %1</source>
-        <translation>%1을디코드할수없습니다</translation>
+        <translation>%1을(를) 디코딩할 수 없습니다</translation>
     </message>
     <message>
         <source>Select a smart object layer first</source>
@@ -17447,7 +17447,7 @@ Y: %2
     </message>
     <message>
         <source>The original document is closed; saving a copy instead</source>
-        <translation>원본 문서가 닫혀 있습니다. 대신 사본을 저장하세요</translation>
+        <translation>원본 문서가 닫혀 있어 대신 복사본을 저장합니다</translation>
     </message>
     <message>
         <source>The smart object no longer exists in %1</source>
@@ -17455,7 +17455,7 @@ Y: %2
     </message>
     <message>
         <source>Could not re-encode the contents as %1</source>
-        <translation>내용을 %1(으)로다시인코딩할수없습니다</translation>
+        <translation>내용을 %1(으)로 다시 인코딩할 수 없습니다</translation>
     </message>
     <message>
         <source>These contents can&apos;t be re-encoded</source>
@@ -17511,7 +17511,7 @@ Y: %2
     </message>
     <message>
         <source>Embedded linked smart object %1</source>
-        <translation>내장된링크된스마트개체 %1</translation>
+        <translation>연결된 스마트 개체 %1을(를) 포함했습니다</translation>
     </message>
     <message>
         <source>Replace Smart Object Contents</source>
@@ -17633,7 +17633,7 @@ Y: %2
     </message>
     <message>
         <source>Grain base</source>
-        <translation>곡물 베이스</translation>
+        <translation>입자 베이스</translation>
     </message>
     <message>
         <source>Stress extra 1</source>
@@ -17737,7 +17737,7 @@ Y: %2
     </message>
     <message>
         <source>%1 layers selected</source>
-        <translation>%1레이어가선택되었습니다</translation>
+        <translation>레이어 %1개를 선택했습니다</translation>
     </message>
     <message>
         <source>Selecting layers...</source>
@@ -17757,7 +17757,7 @@ Y: %2
     </message>
     <message>
         <source>Lock layer</source>
-        <translation>잠금 레이어</translation>
+        <translation>레이어 잠금</translation>
     </message>
     <message>
         <source>Layer lock enabled</source>
@@ -17853,7 +17853,7 @@ Y: %2
     </message>
     <message>
         <source>Line %1</source>
-        <translation>줄 %1</translation>
+        <translation>선 %1</translation>
     </message>
     <message>
         <source>Rectangle %1</source>
@@ -17885,7 +17885,7 @@ Y: %2
     </message>
     <message>
         <source>Custom Shape %1</source>
-        <translation>사용자정의모양 %1</translation>
+        <translation>사용자 지정 모양 %1</translation>
     </message>
     <message>
         <source>Shape %1</source>
@@ -17893,7 +17893,7 @@ Y: %2
     </message>
     <message>
         <source>Add to path</source>
-        <translation>경로에 추가</translation>
+        <translation>패스에 추가</translation>
     </message>
     <message>
         <source>Added the shape to %1.</source>
@@ -17927,7 +17927,7 @@ Y: %2
     </message>
     <message>
         <source>Cancelled shape appearance</source>
-        <translation>취소된 모양 모양</translation>
+        <translation>모양 외형 편집을 취소했습니다</translation>
     </message>
     <message>
         <source>Shape appearance</source>
@@ -17935,7 +17935,7 @@ Y: %2
     </message>
     <message>
         <source>Updated the shape appearance</source>
-        <translation>모양 모양이 업데이트되었습니다.</translation>
+        <translation>모양 외형을 업데이트했습니다</translation>
     </message>
     <message>
         <source>Created fill layer %1.</source>
@@ -18071,11 +18071,11 @@ Y: %2
     </message>
     <message>
         <source>Select a path or shape layer to define a custom shape</source>
-        <translation>사용자 지정 모양을 정의하려면 경로 또는 모양 레이어를 선택하세요.</translation>
+        <translation>사용자 지정 모양을 정의하려면 패스 또는 모양 레이어를 선택하세요</translation>
     </message>
     <message>
         <source>The path is too small to define a shape</source>
-        <translation>경로가 너무 작아서 모양을 정의할 수 없습니다.</translation>
+        <translation>패스가 너무 작아서 모양을 정의할 수 없습니다.</translation>
     </message>
     <message>
         <source>Define Custom Shape</source>
@@ -18091,7 +18091,7 @@ Y: %2
     </message>
     <message>
         <source>Defined %1 from the path.</source>
-        <translation>경로에서 %1을(를) 정의했습니다.</translation>
+        <translation>패스에서 %1을(를) 정의했습니다.</translation>
     </message>
     <message>
         <source>SVG Files (*.svg *.svgz);;All Files (*.*)</source>
@@ -18143,7 +18143,7 @@ Y: %2
     </message>
     <message>
         <source>Tracing is unavailable in Quick Mask mode</source>
-        <translation>Quick Mask 모드에서는 추적을 사용할 수 없습니다.</translation>
+        <translation>빠른 마스크 모드에서는 추적을 사용할 수 없습니다.</translation>
     </message>
     <message>
         <source>Select a pixel layer to trace</source>
@@ -18177,7 +18177,7 @@ Y: %2
     </message>
     <message>
         <source>Select a path or shape layer to simplify</source>
-        <translation>단순화할 경로 또는 모양 레이어를 선택하세요.</translation>
+        <translation>단순화할 패스 또는 모양 레이어를 선택하세요.</translation>
     </message>
     <message>
         <source>Simplify Path</source>
@@ -18205,7 +18205,7 @@ Y: %2
     </message>
     <message>
         <source>Cancelled simplifying the path</source>
-        <translation>경로 단순화가 취소되었습니다.</translation>
+        <translation>패스 단순화가 취소되었습니다.</translation>
     </message>
     <message>
         <source>Simplify path</source>
@@ -18229,7 +18229,7 @@ Y: %2
     </message>
     <message>
         <source>Fill layers without a path cannot be combined</source>
-        <translation>경로가 없는 채우기 레이어는 결합할 수 없습니다.</translation>
+        <translation>패스가 없는 채우기 레이어는 결합할 수 없습니다.</translation>
     </message>
     <message>
         <source>Shape layers must be in the same folder to combine</source>
@@ -18294,7 +18294,7 @@ Y: %2
     </message>
     <message>
         <source>%1 is using this workspace. You can browse while it works. Pause to edit; Stop keeps completed changes available for Undo.</source>
-        <translation>%1이(가) 이 작업공간을 사용하고 있습니다. 작동하는 동안 탐색할 수 있습니다. 편집을 잠시 멈추세요. 중지는 실행 취소에 사용할 수 있는 완료된 변경 사항을 유지합니다.</translation>
+        <translation>%1이(가) 이 작업 영역을 사용하고 있습니다. 작업 중에도 둘러볼 수 있습니다. 편집하려면 일시 중지하세요. 중지해도 완료된 변경 사항은 유지되며 실행 취소할 수 있습니다.</translation>
     </message>
     <message>
         <source>Connected to %1 through MCP. Waiting for a Patchy request; the assistant may still be thinking.</source>
@@ -18424,7 +18424,7 @@ Y: %2
     </message>
     <message>
         <source>Load a palette file (.pal, .gpl, .hex, .act, .aco, .ase, indexed .bmp)</source>
-        <translation>팔레트 파일 로드(.pal, .gpl, .hex, .act, .aco, .ase, indexed .bmp)</translation>
+        <translation>팔레트 파일 로드(.pal, .gpl, .hex, .act, .aco, .ase, 인덱스 색상 .bmp)</translation>
     </message>
     <message>
         <source>Save</source>
@@ -18636,11 +18636,11 @@ Y: %2
     <name>patchy::ui::PathsPanel</name>
     <message>
         <source>Saved path. Double-click to rename; select to edit with the pen and path tools.</source>
-        <translation>저장된 경로. 이름을 바꾸려면 두 번 클릭하세요. 펜 및 패스 도구를 사용하여 편집하려면 선택하세요.</translation>
+        <translation>저장된 패스입니다. 두 번 클릭하여 이름을 바꾸거나, 선택하여 펜 및 패스 도구로 편집합니다.</translation>
     </message>
     <message>
         <source>%CTRL%-click or %CTRL%+Enter loads the path as a selection; drag to reorder.</source>
-        <translation>%CTRL%-클릭 또는 %CTRL%+Enter를 누르면 경로가 선택 항목으로 로드됩니다. 드래그하여 재정렬하세요.</translation>
+        <translation>%CTRL%-클릭 또는 %CTRL%+Enter로 패스를 선택 영역으로 불러옵니다. 드래그하여 순서를 바꿉니다.</translation>
     </message>
     <message>
         <source>This is the document&apos;s clipping path.</source>
@@ -18854,7 +18854,7 @@ Y: %2
     </message>
     <message>
         <source>Saved icon to %1</source>
-        <translation>아이콘을 %1에저장했습니다</translation>
+        <translation>아이콘을 %1에 저장했습니다</translation>
     </message>
     <message>
         <source>Delete your modified copy of %1 and restore the bundled script?</source>
@@ -18862,7 +18862,7 @@ Y: %2
     </message>
     <message>
         <source>Could not delete %1</source>
-        <translation>%1을(를)삭제할수없습니다</translation>
+        <translation>%1을(를) 삭제할 수 없습니다</translation>
     </message>
     <message>
         <source>Could not read %1</source>
@@ -18874,7 +18874,7 @@ Y: %2
     </message>
     <message>
         <source>Run %1 from a terminal, batch file, or another program:</source>
-        <translation>터미널, 배치 파일 또는 다른 프로그램에서 %1을(를) 실행하십시오.:</translation>
+        <translation>터미널, 배치 파일 또는 다른 프로그램에서 %1 실행:</translation>
     </message>
     <message>
         <source>Copy</source>
@@ -19165,7 +19165,7 @@ Y: %2
     </message>
     <message>
         <source>combineShapes: fill layers without a path cannot be combined.</source>
-        <translation>combineShapes: 경로가 없는 채우기 레이어는 결합할 수 없습니다.</translation>
+        <translation>combineShapes: 패스가 없는 채우기 레이어는 결합할 수 없습니다.</translation>
     </message>
     <message>
         <source>combineShapes: the shape layers must share one folder.</source>
@@ -19349,7 +19349,7 @@ Y: %2
     </message>
     <message>
         <source>Undo and redo must run before any edits in a script.</source>
-        <translation>실행 취소 및 다시 실행은 스크립트를 편집하기 전에 실행되어야 합니다.</translation>
+        <translation>스크립트에서 실행 취소와 다시 실행은 다른 편집 작업보다 먼저 수행해야 합니다.</translation>
     </message>
     <message>
         <source>Unknown preview option: %1</source>
@@ -19385,7 +19385,7 @@ Y: %2
     </message>
     <message>
         <source>Mixer Brush</source>
-        <translation>믹서 브러시</translation>
+        <translation>혼합 브러시</translation>
     </message>
     <message>
         <source>Eraser</source>
@@ -19449,11 +19449,11 @@ Y: %2
     </message>
     <message>
         <source>Script stopped: no activity for %1 seconds (a stuck loop?).</source>
-        <translation>스크립트 중지됨: %1초 동안 활동이 없습니다(고정 루프?).</translation>
+        <translation>스크립트 중지됨: %1초 동안 작업이 없었습니다(무한 루프 가능성).</translation>
     </message>
     <message>
         <source>Script stopped: a callback showed no activity for %1 seconds (a stuck loop?).</source>
-        <translation>스크립트 중지됨: 콜백에서 %1초 동안 활동이 표시되지 않았습니다(고정 루프?).</translation>
+        <translation>스크립트 중지됨: 콜백에서 %1초 동안 작업이 없었습니다(무한 루프 가능성).</translation>
     </message>
     <message>
         <source>%1s</source>
@@ -19569,11 +19569,11 @@ Y: %2
     </message>
     <message>
         <source>%1: font not available, rendered with a fallback: %2</source>
-        <translation>%1: 글꼴을 사용할 수 없으며 대체를 사용하여 렌더링됨: %2</translation>
+        <translation>%1: 글꼴을 사용할 수 없어 대체 글꼴로 렌더링했습니다: %2</translation>
     </message>
     <message>
         <source>%1: font has no glyphs for this text, rendered with a fallback: %2</source>
-        <translation>%1: 글꼴에 이 텍스트에 대한 글리프가 없으며 대체를 사용하여 렌더링됩니다: %2</translation>
+        <translation>%1: 글꼴에 이 텍스트의 글리프가 없어 대체 글꼴로 렌더링했습니다: %2</translation>
     </message>
     <message>
         <source>Unknown filter id: %1</source>
@@ -19867,11 +19867,11 @@ Y: %2
     </message>
     <message>
         <source>Wrap the image by half its size so the seams land in the middle for painting over. Press again to shift them back to the edges.</source>
-        <translation>그림을 그릴 수 있도록 솔기가 중앙에 오도록 이미지를 절반 크기로 감습니다. 다시 누르면 가장자리로 다시 이동됩니다.</translation>
+        <translation>이미지를 크기의 절반만큼 순환 이동하여 이음새를 중앙에서 덧칠할 수 있도록 합니다. 다시 누르면 이음새가 가장자리로 돌아갑니다.</translation>
     </message>
     <message>
         <source>Drag to pan. Mouse wheel zooms. Double-click to recenter.</source>
-        <translation>드래그하여 팬하세요. 마우스 휠이 확대됩니다. 중앙으로 이동하려면 두 번 클릭하세요.</translation>
+        <translation>드래그하여 화면을 이동합니다. 마우스 휠로 확대/축소하고, 두 번 클릭하면 중앙으로 돌아갑니다.</translation>
     </message>
     <message>
         <source>Shift Seams Back</source>

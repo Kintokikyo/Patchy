@@ -2085,7 +2085,7 @@
     </message>
     <message>
         <source>A pattern fill&apos;s tile was missing and exported as gray</source>
-        <translation>La vignette d&apos;un fond de motif était manquante et a été exportée en gris</translation>
+        <translation>Le carreau d&apos;un fond de motif était manquant et a été exporté en gris</translation>
     </message>
     <message>
         <source>A layer-linked pattern fill was exported anchored to the document origin</source>
@@ -2593,7 +2593,7 @@
     </message>
     <message>
         <source>Tile size must be positive</source>
-        <translation>La taille de la vignette doit être positive</translation>
+        <translation>La taille de la tuile doit être positive</translation>
     </message>
     <message>
         <source>Preview</source>
@@ -5503,11 +5503,11 @@
     </message>
     <message>
         <source>%1M</source>
-        <translation>%1 M</translation>
+        <translation>%1 Mo</translation>
     </message>
     <message>
         <source>%1K</source>
-        <translation>%1 K</translation>
+        <translation>%1 Ko</translation>
     </message>
     <message>
         <source>Image Size</source>
@@ -8634,7 +8634,7 @@ RVB : %2, %3, %4</translation>
     </message>
     <message>
         <source>UI language for this run only, not saved: en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN, or zh_TW.</source>
-        <translation>Langue de l'interface pour cette exécution uniquement, non enregistrée : en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN ou zh_TW.</translation>
+        <translation>Langue de l&apos;interface pour cette exécution uniquement, non enregistrée : en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN ou zh_TW.</translation>
     </message>
 </context>
 <context>
@@ -12519,7 +12519,7 @@ RVB : %2, %3, %4</translation>
     </message>
     <message>
         <source>Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. Shift constrains layer movement.</source>
-        <translation>Shift+clic ou %CTRL%+clic active ou désactive les calques. %CTRL%+glisser sélectionne les calques dans un rectangle ; maintenez Shift avant de glisser pour ajouter. Shift contraint le déplacement du calque.</translation>
+        <translation>Shift+clic ou %CTRL%+clic sélectionne ou désélectionne les calques. %CTRL%+glisser sélectionne les calques dans un rectangle ; maintenez Shift avant de glisser pour ajouter à la sélection. Shift contraint le déplacement des calques.</translation>
     </message>
     <message>
         <source>Click to place points, drag for curves. On a path: click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL% moves points.</source>
@@ -12543,11 +12543,11 @@ RVB : %2, %3, %4</translation>
     </message>
     <message>
         <source>Click a point to switch it between corner and smooth.</source>
-        <translation>Cliquez sur un point pour passer de sommet à lissé et inversement.</translation>
+        <translation>Cliquez sur un point pour le convertir entre point d&apos;angle et point d&apos;inflexion.</translation>
     </message>
     <message>
         <source>Move: Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it.</source>
-        <translation>Déplacement : Shift+clic ou %CTRL%+clic active ou désactive les calques. %CTRL%+glisser sélectionne un rectangle ; Shift ajoute. Faites glisser le contenu sélectionné pour le déplacer.</translation>
+        <translation>Déplacement : Shift+clic ou %CTRL%+clic sélectionne ou désélectionne les calques. %CTRL%+glisser sélectionne les calques dans un rectangle ; Shift ajoute à la sélection. Faites glisser le contenu sélectionné pour le déplacer.</translation>
     </message>
     <message>
         <source>Pen: click to add points, drag for curves. On a path, click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL%+drag selects or moves points.</source>
@@ -12571,7 +12571,7 @@ RVB : %2, %3, %4</translation>
     </message>
     <message>
         <source>Convert Point: click a point to switch it between corner and smooth.</source>
-        <translation>Conversion de point : cliquez sur un point pour passer de sommet à lissé et inversement.</translation>
+        <translation>Conversion de point : cliquez sur un point pour le convertir entre point d&apos;angle et point d&apos;inflexion.</translation>
     </message>
     <message>
         <source>Marquee Tools</source>
@@ -17068,7 +17068,7 @@ Y : %2
     </message>
     <message>
         <source>Snap curves to lines</source>
-        <translation>Aligner les courbes sur des droites</translation>
+        <translation>Convertir les courbes en droites</translation>
     </message>
     <message>
         <source>Anchors: %1 -&gt; %2</source>
@@ -17243,11 +17243,11 @@ Y : %2
     </message>
     <message>
         <source>Lay Latin letters on their side along the column instead of upright (Photoshop&apos;s Standard Vertical Roman Alignment)</source>
-        <translation>Coucher les lettres latines le long de la colonne au lieu de les laisser droites (Standard Vertical Roman Alignment de Photoshop)</translation>
+        <translation>Coucher les lettres latines le long de la colonne au lieu de les laisser droites (Alignement romain vertical standard de Photoshop)</translation>
     </message>
     <message>
         <source>Line spacing (Photoshop leading). Entering a value turns Auto leading off.</source>
-        <translation>Interligne (leading de Photoshop). Saisir une valeur désactive l&apos;interligne automatique.</translation>
+        <translation>Interligne, comme dans Photoshop. La saisie d&apos;une valeur désactive l&apos;interligne automatique.</translation>
     </message>
     <message>
         <source>Width of the active shape</source>
@@ -17436,7 +17436,7 @@ Y : %2
     </message>
     <message>
         <source>Shows a small readout beside the pointer while moving, scaling, or rotating: the reference point&apos;s position and the offset, the width and height with the scale percentages, or the angle and how far it turned.</source>
-        <translation>Affiche une petite lecture à côté du pointeur pendant le déplacement, la mise à l&apos;échelle ou la rotation : la position du point de référence et le décalage, la largeur et la hauteur avec les pourcentages d&apos;échelle, ou l&apos;angle et la rotation effectuée.</translation>
+        <translation>Affiche un petit encart à côté du pointeur pendant le déplacement, la mise à l&apos;échelle ou la rotation : la position du point de référence et le décalage, la largeur et la hauteur avec les pourcentages d&apos;échelle, ou l&apos;angle et la rotation effectuée.</translation>
     </message>
     <message>
         <source>Pivot:</source>
@@ -17590,7 +17590,7 @@ Y : %2
     </message>
     <message>
         <source>Positions and sizes typed into the Free Transform bar land on whole pixels, like Photoshop&apos;s &quot;Snap Vector Tools and Transforms to Pixel Grid&quot;. Rotated transforms are not snapped. When off, a typed fraction such as 3.4 px is kept and the pixels are resampled.</source>
-        <translation>Les positions et tailles saisies dans la barre de Transformation manuelle tombent sur des pixels entiers, comme « Aligner les outils vectoriels et les transformations sur la grille de pixels » de Photoshop. Les transformations pivotées ne sont pas alignées. Désactivé, une fraction saisie comme 3,4 px est conservée et les pixels sont rééchantillonnés.</translation>
+        <translation>Les positions et tailles saisies dans la barre de Transformation manuelle tombent sur des pixels entiers, comme « Aligner les outils vectoriels et les transformations sur la grille de pixels » de Photoshop. Les transformations pivotées ne sont pas alignées. Désactivé, une fraction saisie comme 3.4 px est conservée et les pixels sont rééchantillonnés.</translation>
     </message>
     <message>
         <source>&amp;Stroke Selection...</source>
@@ -17818,7 +17818,7 @@ Y : %2
     </message>
     <message>
         <source>Indent of each paragraph&apos;s first line; negative with a left indent makes a hanging indent</source>
-        <translation>Retrait de la première ligne de chaque paragraphe ; une valeur négative avec un retrait gauche donne un retrait suspendu</translation>
+        <translation>Retrait de la première ligne de chaque paragraphe ; une valeur négative combinée à un retrait gauche crée un retrait négatif</translation>
     </message>
     <message>
         <source>Left indent:</source>
@@ -17937,7 +17937,7 @@ Y : %2
     </message>
     <message>
         <source>Photoshop filter plug-ins (.8bf, 32-bit or 64-bit) are found in these folders and their subfolders and listed under Plugins &gt; Legacy Photoshop Plug-ins. Only run plug-ins you trust: they execute with your permissions.</source>
-        <translation>Les modules externes de filtre Photoshop (.8bf, 32 bits ou 64 bits) sont recherchés dans ces dossiers et leurs sous-dossiers et listés sous Plugins &gt; Anciens modules externes Photoshop. N&apos;exécutez que des modules de confiance : ils s&apos;exécutent avec vos autorisations.</translation>
+        <translation>Les modules externes de filtre Photoshop (.8bf, 32 bits ou 64 bits) sont recherchés dans ces dossiers et leurs sous-dossiers et listés sous Modules externes &gt; Anciens modules externes Photoshop. N&apos;exécutez que des modules de confiance : ils s&apos;exécutent avec vos autorisations.</translation>
     </message>
     <message>
         <source>Always scanned:</source>

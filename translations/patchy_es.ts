@@ -2777,7 +2777,7 @@
     </message>
     <message>
         <source>Master</source>
-        <translation>Maestro</translation>
+        <translation>Todos</translation>
     </message>
     <message>
         <source>Reds</source>
@@ -3790,7 +3790,7 @@
     </message>
     <message>
         <source>Plastic Wrap</source>
-        <translation>Envoltura de plástico</translation>
+        <translation>Plastificado</translation>
     </message>
     <message>
         <source>Gaussian Blur</source>
@@ -5503,11 +5503,11 @@
     </message>
     <message>
         <source>%1M</source>
-        <translation>%1M</translation>
+        <translation>%1 MB</translation>
     </message>
     <message>
         <source>%1K</source>
-        <translation>%1K</translation>
+        <translation>%1 KB</translation>
     </message>
     <message>
         <source>Image Size</source>
@@ -6508,11 +6508,11 @@ Flujo: %6
     </message>
     <message>
         <source>Social Post</source>
-        <translation>Publicación social</translation>
+        <translation>Publicación en redes sociales</translation>
     </message>
     <message>
         <source>Social Story</source>
-        <translation>Historia social</translation>
+        <translation>Historia de redes sociales</translation>
     </message>
     <message>
         <source>Photo 3:2</source>
@@ -8050,7 +8050,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Could not %1 the Look. Check that the Looks folder is writable.</source>
-        <translation>No se pudo %1 el aspecto. Compruebe que se puede escribir en la carpeta de aspectos.</translation>
+        <translation>No se pudo %1 este aspecto. Compruebe que se puede escribir en la carpeta de aspectos.</translation>
     </message>
     <message>
         <source>Unsupported Look</source>
@@ -8785,7 +8785,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Create a cute 64x64 pixel-art animal in a visible Patchy window so I can watch. Use editable layers, inspect the preview and refine it, then save a layered PSD and a 64x64 PNG.</source>
-        <translation>Crea un animal en pixel art de 64x64 en una ventana visible de Patchy para que pueda verlo. Usa capas editables, revisa la previsualización y perfecciónala, y después guarda un PSD con capas y un PNG de 64x64.</translation>
+        <translation>Crea un animal bonito en pixel art de 64x64 en una ventana visible de Patchy para que pueda verlo. Usa capas editables, revisa la previsualización y perfecciónala, y después guarda un PSD con capas y un PNG de 64x64.</translation>
     </message>
     <message>
         <source>Make icons in the background</source>
@@ -8801,7 +8801,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Use the image I attach as a reference for a cute 64x64 portrait in Patchy. Keep its recognizable features, compare your preview with the reference as you refine it, and save both an editable PSD and a PNG.</source>
-        <translation>Usa la imagen que adjunto como referencia para un retrato de 64x64 en Patchy. Conserva sus rasgos reconocibles, compara tu previsualización con la referencia mientras la perfeccionas y guarda un PSD editable y un PNG.</translation>
+        <translation>Usa la imagen que adjunto como referencia para un retrato bonito de 64x64 en Patchy. Conserva sus rasgos reconocibles, compara tu previsualización con la referencia mientras la perfeccionas y guarda un PSD editable y un PNG.</translation>
     </message>
     <message>
         <source>Export sizes from my open document</source>
@@ -8939,19 +8939,19 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>opacity: Mixer uses Flow</source>
-        <translation>opacidad: el Pincel mezclador usa Flujo</translation>
+        <translation>opacity: el Pincel mezclador usa Flujo</translation>
     </message>
     <message>
         <source>dynamics: brush only</source>
-        <translation>dinámica: solo pincel</translation>
+        <translation>dynamics: solo pincel</translation>
     </message>
     <message>
         <source>airbrush: brush only</source>
-        <translation>aerógrafo: solo pincel</translation>
+        <translation>airbrush: solo pincel</translation>
     </message>
     <message>
         <source>mixer: mixer tool only</source>
-        <translation>mezclador: solo herramienta Pincel mezclador</translation>
+        <translation>mixer: solo herramienta Pincel mezclador</translation>
     </message>
     <message>
         <source>preset directory</source>
@@ -8983,7 +8983,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>airbrush requires timeMs</source>
-        <translation>el aerógrafo requiere timeMs</translation>
+        <translation>airbrush requiere timeMs</translation>
     </message>
     <message>
         <source>timeMs: complete timeline required</source>
@@ -9738,7 +9738,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Selected layer opacity</source>
-        <translation>Opacidad de capa seleccionada</translation>
+        <translation>Opacidad de la capa cargada como selección</translation>
     </message>
     <message>
         <source>Layer has no mask</source>
@@ -9750,7 +9750,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Selected layer mask</source>
-        <translation>Máscara de capa seleccionada</translation>
+        <translation>Máscara de capa cargada como selección</translation>
     </message>
     <message>
         <source>Make a selection before growing</source>
@@ -10303,7 +10303,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Pan canvas (hold); while dragging, moves the selection or shape</source>
-        <translation>Encuadrar el lienzo (mantener pulsada); al arrastrar, mueve la selección o la forma</translation>
+        <translation>Desplazar la vista del lienzo (mantener pulsada); al arrastrar, mueve la selección o la forma</translation>
     </message>
     <message>
         <source>Set tool opacity (10%-100%)</source>
@@ -12239,7 +12239,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Star inset:</source>
-        <translation>Sangrado de estrella:</translation>
+        <translation>Sangría de estrella:</translation>
     </message>
     <message>
         <source>0 makes a plain polygon; higher values pull in star points</source>
@@ -12519,7 +12519,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. Shift constrains layer movement.</source>
-        <translation>Shift+clic o %CTRL%+clic alterna las capas. %CTRL%+arrastrar selecciona las capas dentro de un rectángulo; mantenga pulsada Shift antes de arrastrar para añadir. Shift restringe el movimiento de la capa.</translation>
+        <translation>Shift+clic o %CTRL%+clic selecciona o deselecciona las capas. %CTRL%+arrastrar selecciona las capas dentro de un rectángulo; mantenga pulsada Shift antes de arrastrar para añadir a la selección. Shift restringe el movimiento de las capas.</translation>
     </message>
     <message>
         <source>Click to place points, drag for curves. On a path: click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL% moves points.</source>
@@ -12547,7 +12547,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Move: Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it.</source>
-        <translation>Mover: Shift+clic o %CTRL%+clic alterna las capas. %CTRL%+arrastrar selecciona un rectángulo; Shift añade. Arrastre la ilustración seleccionada para moverla.</translation>
+        <translation>Mover: Shift+clic o %CTRL%+clic selecciona o deselecciona las capas. %CTRL%+arrastrar selecciona las capas dentro de un rectángulo; Shift añade a la selección. Arrastre la ilustración seleccionada para moverla.</translation>
     </message>
     <message>
         <source>Pen: click to add points, drag for curves. On a path, click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL%+drag selects or moves points.</source>
@@ -13145,7 +13145,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Make Work Path from Selection</source>
-        <translation>Hacer trazado en uso desde la selección</translation>
+        <translation>Hacer trazado de trabajo a partir de la selección</translation>
     </message>
     <message>
         <source>Duplicate Path</source>
@@ -13161,7 +13161,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>History</source>
-        <translation>Historia</translation>
+        <translation>Historial</translation>
     </message>
     <message>
         <source>Properties</source>
@@ -13899,11 +13899,11 @@ Guarde su trabajo y cierre Patchy antes de ejecutar el instalador.</translation>
     </message>
     <message>
         <source>Add Plastic Wrap Smart Filter</source>
-        <translation>Añadir filtro inteligente Envoltura de plástico</translation>
+        <translation>Añadir filtro inteligente Plastificado</translation>
     </message>
     <message>
         <source>Edit Plastic Wrap Smart Filter</source>
-        <translation>Editar filtro inteligente Envoltura de plástico</translation>
+        <translation>Editar filtro inteligente Plastificado</translation>
     </message>
     <message>
         <source>Add Unsharp Mask Smart Filter</source>
@@ -14023,15 +14023,15 @@ Guarde su trabajo y cierre Patchy antes de ejecutar el instalador.</translation>
     </message>
     <message>
         <source>Added Plastic Wrap as a Smart Filter</source>
-        <translation>Envoltura de plástico añadida como filtro inteligente</translation>
+        <translation>Plastificado añadido como filtro inteligente</translation>
     </message>
     <message>
         <source>Added another Plastic Wrap Smart Filter</source>
-        <translation>Se añadió otro filtro inteligente Envoltura de plástico</translation>
+        <translation>Se añadió otro filtro inteligente Plastificado</translation>
     </message>
     <message>
         <source>Updated Plastic Wrap Smart Filter</source>
-        <translation>Filtro inteligente Envoltura de plástico actualizado</translation>
+        <translation>Filtro inteligente Plastificado actualizado</translation>
     </message>
     <message>
         <source>Added Unsharp Mask as a Smart Filter</source>
@@ -14283,7 +14283,7 @@ Guarde su trabajo y cierre Patchy antes de ejecutar el instalador.</translation>
     </message>
     <message>
         <source>Auto All</source>
-        <translation>Automático todo</translation>
+        <translation>Todo automático</translation>
     </message>
     <message>
         <source>Liquify is unavailable in Quick Mask mode</source>
@@ -14944,7 +14944,7 @@ Guarde su trabajo y cierre Patchy antes de ejecutar el instalador.</translation>
     </message>
     <message>
         <source>Make a selection before stroking</source>
-        <translation>Haga una selección antes de trazar</translation>
+        <translation>Haga una selección antes de contornearla</translation>
     </message>
     <message>
         <source>Select an editable pixel layer first</source>
@@ -14952,11 +14952,11 @@ Guarde su trabajo y cierre Patchy antes de ejecutar el instalador.</translation>
     </message>
     <message>
         <source>Stroke selection</source>
-        <translation>Trazar selección</translation>
+        <translation>Contornear selección</translation>
     </message>
     <message>
         <source>Stroked selection</source>
-        <translation>Selección trazada</translation>
+        <translation>Selección contorneada</translation>
     </message>
     <message>
         <source>Make a selection before expanding</source>
@@ -15742,11 +15742,11 @@ Y: %2
     </message>
     <message>
         <source>Tapers the stroke from thin to full and back, as if drawn with a pressure pen.</source>
-        <translation>Afina el trazo de fino a completo y de vuelta, como si se dibujara con un lápiz sensible a la presión.</translation>
+        <translation>Varía el grosor del trazo de fino a grueso y de nuevo a fino, como si se dibujara con un lápiz sensible a la presión.</translation>
     </message>
     <message>
         <source>Stroke path</source>
-        <translation>Trazar trazado</translation>
+        <translation>Contornear trazado</translation>
     </message>
     <message>
         <source>Stroked the path with the current brush</source>
@@ -17243,11 +17243,11 @@ Y: %2
     </message>
     <message>
         <source>Lay Latin letters on their side along the column instead of upright (Photoshop&apos;s Standard Vertical Roman Alignment)</source>
-        <translation>Colocar las letras latinas de lado a lo largo de la columna en lugar de en vertical (Standard Vertical Roman Alignment de Photoshop)</translation>
+        <translation>Colocar las letras latinas de lado a lo largo de la columna en lugar de en vertical (Alineación latina vertical estándar de Photoshop)</translation>
     </message>
     <message>
         <source>Line spacing (Photoshop leading). Entering a value turns Auto leading off.</source>
-        <translation>Interlineado (leading de Photoshop). Introducir un valor desactiva el interlineado automático.</translation>
+        <translation>Interlineado, como en Photoshop. Introducir un valor desactiva el interlineado automático.</translation>
     </message>
     <message>
         <source>Width of the active shape</source>
@@ -17436,7 +17436,7 @@ Y: %2
     </message>
     <message>
         <source>Shows a small readout beside the pointer while moving, scaling, or rotating: the reference point&apos;s position and the offset, the width and height with the scale percentages, or the angle and how far it turned.</source>
-        <translation>Muestra una pequeña lectura junto al puntero al mover, escalar o rotar: la posición del punto de referencia y el desplazamiento, el ancho y alto con los porcentajes de escala, o el ángulo y cuánto ha girado.</translation>
+        <translation>Muestra un pequeño indicador junto al puntero al mover, escalar o rotar: la posición del punto de referencia y el desplazamiento, el ancho y alto con los porcentajes de escala, o el ángulo y cuánto ha girado.</translation>
     </message>
     <message>
         <source>Pivot:</source>
@@ -17590,7 +17590,7 @@ Y: %2
     </message>
     <message>
         <source>Positions and sizes typed into the Free Transform bar land on whole pixels, like Photoshop&apos;s &quot;Snap Vector Tools and Transforms to Pixel Grid&quot;. Rotated transforms are not snapped. When off, a typed fraction such as 3.4 px is kept and the pixels are resampled.</source>
-        <translation>Las posiciones y tamaños escritos en la barra de Transformación libre caen en píxeles enteros, como «Ajustar herramientas vectoriales y transformaciones a la cuadrícula de píxeles» de Photoshop. Las transformaciones giradas no se ajustan. Si está desactivado, una fracción escrita como 3,4 px se conserva y los píxeles se remuestrean.</translation>
+        <translation>Las posiciones y los tamaños introducidos en la barra de Transformación libre se ajustan a píxeles enteros, como con la opción «Ajustar herramientas vectoriales y transformaciones a la cuadrícula de píxeles» de Photoshop. Las transformaciones con rotación no se ajustan. Si está desactivada, se conservan los valores decimales introducidos, como 3.4 px, y los píxeles se remuestrean.</translation>
     </message>
     <message>
         <source>&amp;Stroke Selection...</source>
@@ -19063,7 +19063,7 @@ Convertido en imágenes: %1.</translation>
     </message>
     <message>
         <source>Traced %1</source>
-        <translation>Se ha trazado %1</translation>
+        <translation>Se calcó %1</translation>
     </message>
     <message>
         <source>simplifyPath: unknown option %1</source>
@@ -19535,7 +19535,7 @@ Convertido en imágenes: %1.</translation>
     </message>
     <message>
         <source>Work Path</source>
-        <translation>Trazado en curso</translation>
+        <translation>Trazado de trabajo</translation>
     </message>
     <message>
         <source>textOrientation must be &apos;horizontal&apos; or &apos;vertical&apos;.</source>

@@ -203,14 +203,30 @@ stay as they were, and translations must not assume localized decimal separators
 3. Translate, build, run the `ui_language` and `ui_translation` UI tests.
 4. Add the installer, `.desktop` and metainfo strings, and the packaging README line.
 
-## Bulk translation
+## Translation review
 
-The first seven catalogs were drafted by translation agents in batches of 250 strings per
-language with a per-language Photoshop terminology glossary, then merged and validated by
-the same placeholder, accelerator, plural-form and punctuation rules the UI test enforces;
-rejected entries went through repair rounds until none remained. The `.ts` files are the
-contribution channel: a native speaker refines any entry in Qt Linguist or a text editor
-and the tests keep the structure honest. Issue 11 on GitHub tracks community translations.
+Review each message with its context and disambiguation comment, and inspect its call site
+when the meaning is unclear. Identical English words can need different translations:
+Light is a theme or a RAW denoise strength, Flow is a brush setting or text layout, and
+pattern is an image tile rather than a default setting. Prefer established image-editing
+terms; localized Photoshop documentation is useful for checking unfamiliar terminology.
+Check plurals, status messages and destructive-operation warnings as carefully as menus.
+
+Unit labels must preserve the measurement, not necessarily the English abbreviation.
+For example, Russian uses `пт` for points and `пикс` for pixels; the text-size field is in
+points. Keep seconds distinct from minutes, Kelvin distinct from a thousands suffix,
+and image-memory units distinct from physical dimensions. Check the formatter or control
+before translating a short label such as `K`, `M`, `pt` or `s`.
+
+Keep command-line options and accepted values, scripting identifiers, format tokens,
+brands, and literal filenames in executable examples intact. A layer-name time such as
+`0.25s` must retain the decimal point and `s` required by the animation parser. Language
+selection does not change number-entry locale. Preserve the meaning of each placeholder,
+including whether it names a file or counts pages; the validator cannot check that meaning.
+
+The `.ts` files are the contribution channel: refine translation text in Qt Linguist or a
+text editor. The catalog and runtime tests guard structure and switching, not linguistic
+quality. Issue 11 on GitHub tracks community translations.
 
 ## Tests
 

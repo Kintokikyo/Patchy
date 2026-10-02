@@ -9,7 +9,7 @@
     </message>
     <message>
         <source>Drag around the dial to set the angle. Use the arrow keys for precise changes; hold Shift for larger steps.</source>
-        <translation>Arraste ao redor do mostrador para definir o ângulo. Use as teclas de seta para alterações precisas; segure Shift para etapas maiores.</translation>
+        <translation>Arraste ao redor do mostrador para definir o ângulo. Use as teclas de seta para ajustes precisos; mantenha Shift pressionado para incrementos maiores.</translation>
     </message>
     <message>
         <source>Waveform</source>
@@ -44,7 +44,7 @@
     </message>
     <message>
         <source>Keep vectors and bitmaps separate</source>
-        <translation>Mantenha vetores e bitmaps separados</translation>
+        <translation>Manter vetores e bitmaps separados</translation>
     </message>
     <message>
         <source>Keep editable shapes. Turn off to merge the artwork into bitmap layers.</source>
@@ -56,7 +56,7 @@
     </message>
     <message>
         <source>Keep folders and merge their contents separately. Turn off to merge across ordinary Pass Through groups.</source>
-        <translation>Mantenha as pastas e mescle seu conteúdo separadamente. Desative para mesclar grupos de passagem comuns.</translation>
+        <translation>Mantenha as pastas e mescle seu conteúdo separadamente. Desative para mesclar também entre grupos comuns no modo Passagem.</translation>
     </message>
     <message>
         <source>Separate merges for different vector types</source>
@@ -100,11 +100,11 @@
     </message>
     <message>
         <source>%1 layers removed by merging.</source>
-        <translation>%1 camadas removidas pela fusão.</translation>
+        <translation>%1 camadas removidas pela mesclagem.</translation>
     </message>
     <message>
         <source>These layers need to stay separate with the selected options.</source>
-        <translation>Essas camadas precisam ficar separadas das opções selecionadas.</translation>
+        <translation>Com as opções selecionadas, essas camadas precisam permanecer separadas.</translation>
     </message>
 </context>
 <context>
@@ -169,11 +169,11 @@
     </message>
     <message>
         <source>Run without a display (Qt offscreen platform) and never reuse a running instance. Needs --run-script, --export, --stress-test, or --screenshot; exits 2 otherwise.</source>
-        <translation>Execute sem exibição (plataforma Qt fora da tela) e nunca reutilize uma instância em execução. Precisa de --run-script, --export, --stress-test ou --screenshot; sai 2 caso contrário.</translation>
+        <translation>Executar sem uma tela (plataforma offscreen do Qt) e nunca reutilizar uma instância em execução. Requer --run-script, --export, --stress-test ou --screenshot; caso contrário, encerra com código 2.</translation>
     </message>
     <message>
         <source>Run the profiling stress test and exit (preset: quick, small, standard, or huge).</source>
-        <translation>Execute o teste de estresse de criação de perfil e saia (predefinição: rápido, pequeno, padrão ou enorme).</translation>
+        <translation>Executar o teste de estresse para análise de desempenho e sair (predefinição: quick, small, standard ou huge).</translation>
     </message>
     <message>
         <source>Directory for stress test reports (with --stress-test).</source>
@@ -181,7 +181,7 @@
     </message>
     <message>
         <source>Save a PNG of the Patchy window to &lt;path&gt;. With a running instance this forwards the request and exits; otherwise the new instance captures after startup and exits.</source>
-        <translation>Salve um PNG da janela Patchy em &lt;path&gt;. Com uma instância em execução, isso encaminha a solicitação e sai; caso contrário, a nova instância será capturada após a inicialização e saída.</translation>
+        <translation>Salvar um PNG da janela do Patchy em &lt;path&gt;. Se houver uma instância em execução, encaminha a solicitação e sai; caso contrário, a nova instância captura a janela após iniciar e sai.</translation>
     </message>
     <message>
         <source>Limit --screenshot to the child widget with this Qt object name.</source>
@@ -241,7 +241,7 @@
     </message>
     <message>
         <source>Half Round</source>
-        <translation>Meia Rodada</translation>
+        <translation>Semicírculo</translation>
     </message>
     <message>
         <source>Ring</source>
@@ -253,11 +253,11 @@
     </message>
     <message>
         <source>Rolling Slope - Descending</source>
-        <translation>Inclinação Rolante - Descendente</translation>
+        <translation>Declive ondulado - Descendente</translation>
     </message>
     <message>
         <source>Rounded Steps</source>
-        <translation>Etapas arredondadas</translation>
+        <translation>Degraus arredondados</translation>
     </message>
     <message>
         <source>Sawtooth</source>
@@ -341,7 +341,7 @@
     </message>
     <message>
         <source>Teal Shadows, Warm Highlights</source>
-        <translation>Sombras azul-petróleo, destaques quentes</translation>
+        <translation>Sombras azul-petróleo, realces quentes</translation>
     </message>
     <message>
         <source>Photo Toning</source>
@@ -349,7 +349,7 @@
     </message>
     <message>
         <source>Blue Shadows, Gold Highlights</source>
-        <translation>Sombras azuis, destaques dourados</translation>
+        <translation>Sombras azuis, realces dourados</translation>
     </message>
     <message>
         <source>Sepia Wash</source>
@@ -369,7 +369,7 @@
     </message>
     <message>
         <source>Light &amp; Atmosphere</source>
-        <translation>Atmosfera Clara</translation>
+        <translation>Luz e atmosfera</translation>
     </message>
     <message>
         <source>Sunset Sky</source>
@@ -405,7 +405,7 @@
     </message>
     <message>
         <source>Cel Shade</source>
-        <translation>Cel Sombra</translation>
+        <translation>Sombreamento de animação</translation>
     </message>
     <message>
         <source>Jewel Tone</source>
@@ -413,7 +413,7 @@
     </message>
     <message>
         <source>Blend If thresholds must remain ordered</source>
-        <translation>Combinar se os limites devem permanecer ordenados</translation>
+        <translation>Os limites de Mesclar se devem permanecer ordenados</translation>
     </message>
     <message>
         <source>Photoshop layer id 0 is reserved</source>
@@ -437,11 +437,11 @@
     </message>
     <message>
         <source>Liquify mesh dimensions must be positive</source>
-        <translation>As dimensões da malha Liquify devem ser positivas</translation>
+        <translation>As dimensões da malha de Dissolver devem ser positivas</translation>
     </message>
     <message>
         <source>Liquify requires RGB or RGBA UInt8 pixels</source>
-        <translation>Liquify requer pixels UInt8 RGB ou RGBA</translation>
+        <translation>Dissolver requer pixels RGB ou RGBA de tipo UInt8</translation>
     </message>
     <message>
         <source>Cannot quantize an empty color box</source>
@@ -453,11 +453,11 @@
     </message>
     <message>
         <source>Commodore 64</source>
-        <translation>Comodoro 64</translation>
+        <translation>Commodore 64</translation>
     </message>
     <message>
         <source>Game Boy</source>
-        <translation>Garoto do jogo</translation>
+        <translation>Game Boy</translation>
     </message>
     <message>
         <source>PICO-8</source>
@@ -477,7 +477,7 @@
     </message>
     <message>
         <source>ZX Spectrum</source>
-        <translation>Espectro ZX</translation>
+        <translation>ZX Spectrum</translation>
     </message>
     <message>
         <source>MSX</source>
@@ -485,7 +485,7 @@
     </message>
     <message>
         <source>Amstrad CPC</source>
-        <translation>CPC da Amstrad</translation>
+        <translation>Amstrad CPC</translation>
     </message>
     <message>
         <source>DawnBringer 16</source>
@@ -525,7 +525,7 @@
     </message>
     <message>
         <source>Wood Grain</source>
-        <translation>Grão de madeira</translation>
+        <translation>Veios de madeira</translation>
     </message>
     <message>
         <source>Brushed Metal</source>
@@ -549,11 +549,11 @@
     </message>
     <message>
         <source>Fine Wood Grain</source>
-        <translation>Grão de madeira fino</translation>
+        <translation>Veios finos de madeira</translation>
     </message>
     <message>
         <source>Dark Walnut</source>
-        <translation>Noz Escura</translation>
+        <translation>Nogueira escura</translation>
     </message>
     <message>
         <source>Oak Veneer</source>
@@ -561,7 +561,7 @@
     </message>
     <message>
         <source>Weathered Wood</source>
-        <translation>Madeira resistida</translation>
+        <translation>Madeira envelhecida</translation>
     </message>
     <message>
         <source>Old Planks</source>
@@ -577,7 +577,7 @@
     </message>
     <message>
         <source>Weathered Marble</source>
-        <translation>Mármore Resistido</translation>
+        <translation>Mármore envelhecido</translation>
     </message>
     <message>
         <source>Slate Slabs</source>
@@ -681,7 +681,7 @@
     </message>
     <message>
         <source>Chrome Bumper</source>
-        <translation>Pára-choque cromado</translation>
+        <translation>Para-choque cromado</translation>
     </message>
     <message>
         <source>Liquid Gold</source>
@@ -749,7 +749,7 @@
     </message>
     <message>
         <source>Simple Emboss</source>
-        <translation>Gravação Simples</translation>
+        <translation>Relevo simples</translation>
     </message>
     <message>
         <source>Warm Glow</source>
@@ -773,7 +773,7 @@
     </message>
     <message>
         <source>Weathered Sign</source>
-        <translation>Sinal resistido</translation>
+        <translation>Placa envelhecida</translation>
     </message>
     <message>
         <source>Driftwood</source>
@@ -781,7 +781,7 @@
     </message>
     <message>
         <source>Timber Grain</source>
-        <translation>Grão de Madeira</translation>
+        <translation>Veios de madeira</translation>
     </message>
     <message>
         <source>Marble Monument</source>
@@ -841,7 +841,7 @@
     </message>
     <message>
         <source>Lens Blur supports UInt8 buffers only</source>
-        <translation>Lens Blur suporta apenas buffers UInt8</translation>
+        <translation>Desfoque de lente aceita apenas buffers UInt8</translation>
     </message>
     <message>
         <source>Invalid Lens Blur settings</source>
@@ -849,7 +849,7 @@
     </message>
     <message>
         <source>Iris Blur supports UInt8 buffers only</source>
-        <translation>Iris Blur suporta apenas buffers UInt8</translation>
+        <translation>Desfoque de íris aceita apenas buffers UInt8</translation>
     </message>
     <message>
         <source>Invalid Iris Blur settings</source>
@@ -857,11 +857,11 @@
     </message>
     <message>
         <source>Tilt-Shift Blur supports UInt8 buffers only</source>
-        <translation>Tilt-Shift Blur suporta apenas buffers UInt8</translation>
+        <translation>Desfoque Tilt-Shift aceita apenas buffers UInt8</translation>
     </message>
     <message>
         <source>Invalid Tilt-Shift Blur settings</source>
-        <translation>Configurações inválidas de desfoque Tilt-Shift</translation>
+        <translation>Configurações inválidas de Desfoque Tilt-Shift</translation>
     </message>
     <message>
         <source>Filter recipe changed the pixel format</source>
@@ -909,7 +909,7 @@
     </message>
     <message>
         <source>Surface Blur produced an empty range kernel</source>
-        <translation>Surface Blur produziu um kernel de intervalo vazio</translation>
+        <translation>Desfoque de superfície produziu um núcleo de intervalo vazio</translation>
     </message>
     <message>
         <source>Smart Filters require a bounds-matched RGBA8 preview</source>
@@ -933,11 +933,11 @@
     </message>
     <message>
         <source>Invalid Photoshop High Pass input</source>
-        <translation>Entrada inválida do Photoshop High Pass</translation>
+        <translation>Entrada inválida de Alta frequência do Photoshop</translation>
     </message>
     <message>
         <source>Invalid Photoshop Median input</source>
-        <translation>Entrada mediana do Photoshop inválida</translation>
+        <translation>Entrada inválida de Mediana do Photoshop</translation>
     </message>
     <message>
         <source>Invalid Photoshop Dust &amp; Scratches input</source>
@@ -953,11 +953,11 @@
     </message>
     <message>
         <source>Invalid Photoshop Motion Blur input</source>
-        <translation>Entrada inválida do Photoshop Motion Blur</translation>
+        <translation>Entrada inválida de Desfoque de movimento do Photoshop</translation>
     </message>
     <message>
         <source>Invalid Plastic Wrap input</source>
-        <translation>Entrada de plástico inválida</translation>
+        <translation>Entrada inválida de Plastificação</translation>
     </message>
     <message>
         <source>Invalid Mosaic input</source>
@@ -1029,7 +1029,7 @@
     </message>
     <message>
         <source>Unsupported Curves preset version</source>
-        <translation>Versão predefinida de curvas não suportada</translation>
+        <translation>Versão de predefinição de Curvas não suportada</translation>
     </message>
     <message>
         <source>Curves preset has trailing data</source>
@@ -1053,19 +1053,19 @@
     </message>
     <message>
         <source>Not an Affinity document</source>
-        <translation>Não é um documento de afinidade</translation>
+        <translation>Não é um documento do Affinity</translation>
     </message>
     <message>
         <source>Affinity document info block is missing</source>
-        <translation>O bloco de informações do documento de afinidade está ausente</translation>
+        <translation>O bloco de informações do documento do Affinity está ausente</translation>
     </message>
     <message>
         <source>Affinity document protocol block is missing</source>
-        <translation>O bloco de protocolo do documento de afinidade está ausente</translation>
+        <translation>O bloco de protocolo do documento do Affinity está ausente</translation>
     </message>
     <message>
         <source>Affinity document stream table recurses</source>
-        <translation>Tabela de fluxo de documentos de afinidade é recorrente</translation>
+        <translation>Recursão na tabela de fluxos do documento do Affinity</translation>
     </message>
     <message>
         <source>Affinity document stream table is out of range</source>
@@ -1077,19 +1077,19 @@
     </message>
     <message>
         <source>Affinity document stream table is implausible</source>
-        <translation>A tabela de fluxo de documentos de afinidade é implausível</translation>
+        <translation>A tabela de fluxo de documentos do Affinity é implausível</translation>
     </message>
     <message>
         <source>Affinity document stream entry is corrupt</source>
-        <translation>A entrada do fluxo de documentos de afinidade está corrompida</translation>
+        <translation>A entrada do fluxo de documentos do Affinity está corrompida</translation>
     </message>
     <message>
         <source>Affinity document stream name is implausible</source>
-        <translation>O nome do fluxo de documentos de afinidade é implausível</translation>
+        <translation>O nome do fluxo de documentos do Affinity é implausível</translation>
     </message>
     <message>
         <source>Affinity document directory name is implausible</source>
-        <translation>O nome do diretório do documento de afinidade é implausível</translation>
+        <translation>O nome do diretório do documento do Affinity é implausível</translation>
     </message>
     <message>
         <source>Affinity preview image is not a PNG</source>
@@ -1121,19 +1121,19 @@
     </message>
     <message>
         <source>Affinity document has an implausible number of layers</source>
-        <translation>O documento de afinidade tem um número implausível de camadas</translation>
+        <translation>O documento do Affinity tem um número implausível de camadas</translation>
     </message>
     <message>
         <source>Affinity document tree is empty</source>
-        <translation>A árvore de documentos de afinidade está vazia</translation>
+        <translation>A árvore de documentos do Affinity está vazia</translation>
     </message>
     <message>
         <source>Affinity document has no document node</source>
-        <translation>O documento de afinidade não possui nó de documento</translation>
+        <translation>O documento do Affinity não possui nó de documento</translation>
     </message>
     <message>
         <source>Affinity document has no canvas size</source>
-        <translation>O documento de afinidade não tem tamanho de tela</translation>
+        <translation>O documento do Affinity não tem tamanho de tela</translation>
     </message>
     <message>
         <source>Affinity document has an invalid canvas size</source>
@@ -1141,19 +1141,19 @@
     </message>
     <message>
         <source>Affinity document has no spread</source>
-        <translation>O documento de afinidade não tem spread</translation>
+        <translation>O documento do Affinity não tem spread</translation>
     </message>
     <message>
         <source>Affinity document produced no layers</source>
-        <translation>O documento de afinidade não produziu camadas</translation>
+        <translation>O documento do Affinity não produziu camadas</translation>
     </message>
     <message>
         <source>Affinity document tree has a bad header</source>
-        <translation>A árvore de documentos de afinidade tem um cabeçalho incorreto</translation>
+        <translation>A árvore de documentos do Affinity tem um cabeçalho incorreto</translation>
     </message>
     <message>
         <source>Affinity document tree is implausibly large</source>
-        <translation>A árvore de documentos de afinidade é implausivelmente grande</translation>
+        <translation>A árvore de documentos do Affinity é implausivelmente grande</translation>
     </message>
     <message>
         <source>Affinity document tree nests too deeply</source>
@@ -1165,11 +1165,11 @@
     </message>
     <message>
         <source>Affinity document tree has an unhandled field type</source>
-        <translation>A árvore de documentos de afinidade tem um tipo de campo sem tratamento</translation>
+        <translation>A árvore de documentos do Affinity tem um tipo de campo sem tratamento</translation>
     </message>
     <message>
         <source>Affinity document tree has an invalid binary array</source>
-        <translation>A árvore de documentos de afinidade possui uma matriz binária inválida</translation>
+        <translation>A árvore de documentos do Affinity possui uma matriz binária inválida</translation>
     </message>
     <message>
         <source>Affinity document tree has an invalid embedded array</source>
@@ -1177,31 +1177,31 @@
     </message>
     <message>
         <source>Affinity document tree has an invalid flags array</source>
-        <translation>A árvore de documentos de afinidade possui uma matriz de sinalizadores inválida</translation>
+        <translation>A árvore de documentos do Affinity possui uma matriz de sinalizadores inválida</translation>
     </message>
     <message>
         <source>Affinity document tree has an invalid flags count</source>
-        <translation>A árvore de documentos de afinidade tem uma contagem de sinalizadores inválida</translation>
+        <translation>A árvore de documentos do Affinity tem uma contagem de sinalizadores inválida</translation>
     </message>
     <message>
         <source>Affinity document tree has an invalid shared class</source>
-        <translation>A árvore de documentos de afinidade tem uma classe compartilhada inválida</translation>
+        <translation>A árvore de documentos do Affinity tem uma classe compartilhada inválida</translation>
     </message>
     <message>
         <source>Affinity document tree has an invalid class</source>
-        <translation>A árvore de documentos de afinidade tem uma classe inválida</translation>
+        <translation>A árvore de documentos do Affinity tem uma classe inválida</translation>
     </message>
     <message>
         <source>Affinity document tree has an implausible array</source>
-        <translation>A árvore de documentos de afinidade tem uma matriz implausível</translation>
+        <translation>A árvore de documentos do Affinity tem uma matriz implausível</translation>
     </message>
     <message>
         <source>Affinity document tree has an implausible length</source>
-        <translation>A árvore de documentos de afinidade tem um comprimento implausível</translation>
+        <translation>A árvore de documentos do Affinity tem um comprimento implausível</translation>
     </message>
     <message>
         <source>Affinity document tree has an implausible string</source>
-        <translation>A árvore de documentos de afinidade tem uma sequência implausível</translation>
+        <translation>A árvore de documentos do Affinity tem uma sequência implausível</translation>
     </message>
     <message>
         <source>Aseprite cel data failed to decompress</source>
@@ -1209,7 +1209,7 @@
     </message>
     <message>
         <source>This is an Adobe swatch palette (.ase), not an Aseprite image. Load it from the Palette panel&apos;s Load Palette File instead.</source>
-        <translation>Esta é uma paleta de amostras da Adobe (.ase), não uma imagem Aseprite. Em vez disso, carregue-o a partir de Carregar arquivo de paleta do painel Paleta.</translation>
+        <translation>Esta é uma paleta de amostras da Adobe (.ase), não uma imagem Aseprite. Carregue-a pela opção Carregar arquivo de paleta no painel Paleta.</translation>
     </message>
     <message>
         <source>File is not an Aseprite image</source>
@@ -1221,7 +1221,7 @@
     </message>
     <message>
         <source>Aseprite color depth is not supported</source>
-        <translation>A profundidade de cor aseprite não é suportada</translation>
+        <translation>A profundidade de cor do Aseprite não é suportada</translation>
     </message>
     <message>
         <source>Aseprite file contains no frames</source>
@@ -1233,7 +1233,7 @@
     </message>
     <message>
         <source>Aseprite cel chunk is truncated</source>
-        <translation>O pedaço de cel Aseprite está truncado</translation>
+        <translation>O bloco de cel do Aseprite está truncado</translation>
     </message>
     <message>
         <source>Aseprite file contains no layers</source>
@@ -1285,7 +1285,7 @@
     </message>
     <message>
         <source>BMP plane count must be 1</source>
-        <translation>A contagem de aviões BMP deve ser 1</translation>
+        <translation>A contagem de planos do BMP deve ser 1</translation>
     </message>
     <message>
         <source>BMP dimensions are invalid</source>
@@ -1377,7 +1377,7 @@
     </message>
     <message>
         <source>Cannot flatten an empty document</source>
-        <translation>Não é possível nivelar um documento vazio</translation>
+        <translation>Não é possível achatar um documento vazio</translation>
     </message>
     <message>
         <source>Document is not in palette mode</source>
@@ -1505,7 +1505,7 @@
     </message>
     <message>
         <source>IFF ILBM file is missing its BMHD or BODY chunk</source>
-        <translation>O arquivo IFF ILBM está faltando seu pedaço BMHD ou BODY</translation>
+        <translation>O arquivo IFF ILBM não contém o bloco BMHD ou BODY</translation>
     </message>
     <message>
         <source>IFF ILBM image has invalid dimensions</source>
@@ -1521,7 +1521,7 @@
     </message>
     <message>
         <source>Only 1-8 bitplane IFF ILBM images are supported (no 24-bit deep ILBM yet)</source>
-        <translation>Apenas imagens IFF ILBM de plano de 1 a 8 bits são suportadas (ainda não há ILBM profundo de 24 bits)</translation>
+        <translation>Somente imagens IFF ILBM com 1 a 8 planos de bits são suportadas (ILBM de 24 bits ainda não é suportado)</translation>
     </message>
     <message>
         <source>Only 8-bit IFF PBM images are supported</source>
@@ -1745,7 +1745,7 @@
     </message>
     <message>
         <source>A PDF spot or separation colour was approximated as a shade of grey.</source>
-        <translation>Um ponto PDF ou cor de separação foi aproximado como um tom de cinza.</translation>
+        <translation>Uma cor especial ou de separação do PDF foi aproximada por um tom de cinza.</translation>
     </message>
     <message>
         <source>A PDF font resource was missing and was substituted.</source>
@@ -1765,7 +1765,7 @@
     </message>
     <message>
         <source>A PDF image transparency mask was too large to import; the image imported opaque.</source>
-        <translation>Uma máscara de transparência de imagem PDF era muito grande para ser importada; a imagem importada opaca.</translation>
+        <translation>Uma máscara de transparência de imagem do PDF era grande demais para importar; a imagem foi importada opaca.</translation>
     </message>
     <message>
         <source>A PDF image&apos;s transparency mask used a codec Patchy could not decode; the image imported opaque.</source>
@@ -1773,11 +1773,11 @@
     </message>
     <message>
         <source>A PDF soft mask was not applied; the affected artwork imported without it.</source>
-        <translation>Uma máscara suave de PDF não foi aplicada; a arte afetada importada sem ele.</translation>
+        <translation>Uma máscara suave do PDF não foi aplicada; a arte afetada foi importada sem ela.</translation>
     </message>
     <message>
         <source>A PDF graphics state set a font directly; that text may be positioned differently.</source>
-        <translation>Um estado gráfico PDF define uma fonte diretamente; esse texto pode ser posicionado de forma diferente.</translation>
+        <translation>Um estado gráfico do PDF definiu uma fonte diretamente; esse texto pode ficar posicionado de forma diferente.</translation>
     </message>
     <message>
         <source>A PDF image used a codec Patchy cannot import and was skipped.</source>
@@ -2001,11 +2001,11 @@
     </message>
     <message>
         <source>An unsupported SVG clip-path was skipped</source>
-        <translation>Um demarcador de clipe SVG não suportado foi ignorado</translation>
+        <translation>Um demarcador de recorte SVG não suportado foi ignorado</translation>
     </message>
     <message>
         <source>SVG clip paths in objectBoundingBox units are not supported and were skipped</source>
-        <translation>Demarcadores de clipe SVG em unidades objectBoundingBox não são suportados e foram ignorados</translation>
+        <translation>Demarcadores de recorte SVG em unidades objectBoundingBox não são suportados e foram ignorados</translation>
     </message>
     <message>
         <source>SVG clip-path content beyond plain shapes was skipped</source>
@@ -2025,7 +2025,7 @@
     </message>
     <message>
         <source>An anisotropic SVG transform approximated a stroke width by its area scale</source>
-        <translation>Uma transformação SVG anisotrópica aproxima a largura do traço por sua escala de área</translation>
+        <translation>Uma transformação SVG anisotrópica aproximou a largura de um traçado usando a escala de sua área</translation>
     </message>
     <message>
         <source>An SVG stroke more opaque than its fill was clamped to the fill opacity</source>
@@ -2041,7 +2041,7 @@
     </message>
     <message>
         <source>An external SVG image reference was skipped (only embedded data URIs import)</source>
-        <translation>Uma referência de imagem SVG externa foi ignorada (apenas importação de URIs de dados incorporados)</translation>
+        <translation>Uma referência externa de imagem SVG foi ignorada (somente URIs de dados incorporados são importados)</translation>
     </message>
     <message>
         <source>A rotated or skewed SVG image was imported axis-aligned</source>
@@ -2121,7 +2121,7 @@
     </message>
     <message>
         <source>Pass-through group opacity is approximated (SVG group opacity isolates the group)</source>
-        <translation>A opacidade do grupo de passagem é aproximada (a opacidade do grupo SVG isola o grupo)</translation>
+        <translation>A opacidade de grupos no modo Passagem é aproximada (a opacidade de grupos SVG isola o grupo)</translation>
     </message>
     <message>
         <source>Cannot export an empty document as SVG</source>
@@ -2177,7 +2177,7 @@
     </message>
     <message>
         <source>Unsupported legacy Photoshop plug-in extension.</source>
-        <translation>Extensão de plug-in herdada do Photoshop não suportada.</translation>
+        <translation>Extensão de plug-in legado do Photoshop não suportada.</translation>
     </message>
     <message>
         <source>Plug-in file does not exist.</source>
@@ -2269,15 +2269,15 @@
     </message>
     <message>
         <source>PAT pattern channel is truncated</source>
-        <translation>O canal padrão PAT está truncado</translation>
+        <translation>O canal do padrão PAT está truncado</translation>
     </message>
     <message>
         <source>PAT pattern channel rectangle is invalid</source>
-        <translation>O retângulo do canal padrão PAT é inválido</translation>
+        <translation>O retângulo do canal do padrão PAT é inválido</translation>
     </message>
     <message>
         <source>PAT pattern channel has too many pixels</source>
-        <translation>O canal padrão PAT tem muitos pixels</translation>
+        <translation>O canal do padrão PAT tem muitos pixels</translation>
     </message>
     <message>
         <source>PAT pattern VMA is truncated</source>
@@ -2413,7 +2413,7 @@
     </message>
     <message>
         <source>PSD reference form must be a 4-character key</source>
-        <translation>O formulário de referência PSD deve ser uma chave de 4 caracteres</translation>
+        <translation>A forma de referência PSD deve ser uma chave de 4 caracteres</translation>
     </message>
     <message>
         <source>Cannot serialize an empty PSD descriptor value</source>
@@ -2425,11 +2425,11 @@
     </message>
     <message>
         <source>PSD PackBits literal run is truncated</source>
-        <translation>A execução literal do PSD PackBits está truncada</translation>
+        <translation>A sequência literal de PackBits do PSD está truncada</translation>
     </message>
     <message>
         <source>PSD PackBits repeat run is truncated</source>
-        <translation>A execução repetida do PSD PackBits está truncada</translation>
+        <translation>A sequência de repetição de PackBits do PSD está truncada</translation>
     </message>
     <message>
         <source>PSD PackBits row decoded to the wrong length</source>
@@ -2437,7 +2437,7 @@
     </message>
     <message>
         <source>PSD saved channels must be full-canvas 8-bit grayscale images</source>
-        <translation>Os canais salvos em PSD devem ser imagens em escala de cinza de 8 bits em tela inteira</translation>
+        <translation>Os canais salvos no PSD devem ser imagens em tons de cinza de 8 bits com o tamanho total da tela</translation>
     </message>
     <message>
         <source>PSD files support at most 56 total channels, including merged transparency</source>
@@ -2461,15 +2461,15 @@
     </message>
     <message>
         <source>Invalid PSD layer and mask information length</source>
-        <translation>Camada PSD e comprimento de informações de máscara inválidos</translation>
+        <translation>Comprimento inválido das informações de camadas e máscaras do PSD</translation>
     </message>
     <message>
         <source>This file is 32-bit per channel (HDR). Patchy converted it to 8-bit for editing: precision and dynamic range beyond 8-bit were lost, and saving writes an 8-bit file. Keep the original if you need the 32-bit data.</source>
-        <translation>Este arquivo tem 32 bits por canal (HDR). Patchy o converteu para 8 bits para edição: a precisão e a faixa dinâmica além de 8 bits foram perdidas e o salvamento gravou um arquivo de 8 bits. Mantenha o original se precisar dos dados de 32 bits.</translation>
+        <translation>Este arquivo tem 32 bits por canal (HDR). O Patchy o converteu para 8 bits para edição: a precisão e a faixa dinâmica além de 8 bits foram perdidas, e salvar gera um arquivo de 8 bits. Mantenha o original se precisar dos dados de 32 bits.</translation>
     </message>
     <message>
         <source>This file is 16-bit per channel. Patchy converted it to 8-bit for editing: some precision was lost, and saving writes an 8-bit file. Keep the original if you need the 16-bit data.</source>
-        <translation>Este arquivo tem 16 bits por canal. Patchy o converteu para 8 bits para edição: alguma precisão foi perdida e o salvamento gravou um arquivo de 8 bits. Mantenha o original se precisar dos dados de 16 bits.</translation>
+        <translation>Este arquivo tem 16 bits por canal. O Patchy o converteu para 8 bits para edição: houve perda de precisão, e salvar gera um arquivo de 8 bits. Mantenha o original se precisar dos dados de 16 bits.</translation>
     </message>
     <message>
         <source>PSD composite image data is missing</source>
@@ -2597,31 +2597,31 @@
     </message>
     <message>
         <source>PSD pattern channel list is truncated</source>
-        <translation>A lista de canais padrão PSD está truncada</translation>
+        <translation>A lista de canais do padrão PSD está truncada</translation>
     </message>
     <message>
         <source>PSD pattern channel length is truncated</source>
-        <translation>O comprimento do canal padrão PSD está truncado</translation>
+        <translation>O comprimento do canal do padrão PSD está truncado</translation>
     </message>
     <message>
         <source>PSD pattern channel is truncated</source>
-        <translation>O canal padrão PSD está truncado</translation>
+        <translation>O canal do padrão PSD está truncado</translation>
     </message>
     <message>
         <source>PSD pattern channel rectangle is invalid</source>
-        <translation>O retângulo do canal padrão PSD é inválido</translation>
+        <translation>O retângulo do canal do padrão PSD é inválido</translation>
     </message>
     <message>
         <source>PSD pattern channel has too many pixels</source>
-        <translation>O canal padrão PSD tem muitos pixels</translation>
+        <translation>O canal do padrão PSD tem muitos pixels</translation>
     </message>
     <message>
         <source>PSD pattern channel depth is unsupported</source>
-        <translation>A profundidade do canal padrão PSD não é suportada</translation>
+        <translation>A profundidade do canal do padrão PSD não é suportada</translation>
     </message>
     <message>
         <source>PSD pattern channel data is truncated</source>
-        <translation>Os dados do canal padrão PSD estão truncados</translation>
+        <translation>Os dados do canal do padrão PSD estão truncados</translation>
     </message>
     <message>
         <source>PSD pattern RLE table is truncated</source>
@@ -2757,15 +2757,15 @@
     </message>
     <message>
         <source>Show pixels clipped to black</source>
-        <translation>Mostrar pixels cortados em preto</translation>
+        <translation>Mostrar pixels limitados ao preto</translation>
     </message>
     <message>
         <source>Highlights</source>
-        <translation>Destaques</translation>
+        <translation>Realces</translation>
     </message>
     <message>
         <source>Show pixels clipped to white</source>
-        <translation>Mostrar pixels cortados em branco</translation>
+        <translation>Mostrar pixels limitados ao branco</translation>
     </message>
     <message>
         <source>Both</source>
@@ -2773,7 +2773,7 @@
     </message>
     <message>
         <source>Show shadow and highlight clipping together</source>
-        <translation>Mostrar recorte de sombra e realce juntos</translation>
+        <translation>Mostrar o corte de sombras e realces juntos</translation>
     </message>
     <message>
         <source>Curves presets</source>
@@ -2813,7 +2813,7 @@
     </message>
     <message>
         <source>Load Curves Preset</source>
-        <translation>Predefinição de curvas de carga</translation>
+        <translation>Carregar predefinição de Curvas</translation>
     </message>
     <message>
         <source>Photoshop Curves Preset (*.acv)</source>
@@ -3041,11 +3041,11 @@
     </message>
     <message>
         <source>Soft Round</source>
-        <translation>Rodada Suave</translation>
+        <translation>Redondo suave</translation>
     </message>
     <message>
         <source>Hard Round</source>
-        <translation>Rodada Difícil</translation>
+        <translation>Redondo rígido</translation>
     </message>
     <message>
         <source>Pencil</source>
@@ -3106,7 +3106,7 @@
     </message>
     <message>
         <source>Folder for the selected brush tip(s); leave empty to remove them from folders</source>
-        <translation>Pasta para a(s) ponta(s) do pincel selecionada(s); deixe em branco para removê-los das pastas</translation>
+        <translation>Pasta para as pontas de pincel selecionadas; deixe em branco para removê-las das pastas</translation>
     </message>
     <message>
         <source>Folder:</source>
@@ -3146,7 +3146,7 @@
     </message>
     <message>
         <source>Create a brush tip from the current selection (or the whole image): dark pixels paint, light pixels stay clear</source>
-        <translation>Crie uma ponta de pincel a partir da seleção atual (ou de toda a imagem): pixels escuros são pintados, pixels claros permanecem claros</translation>
+        <translation>Crie uma ponta de pincel a partir da seleção atual (ou da imagem inteira): pixels escuros pintam, pixels claros permanecem transparentes</translation>
     </message>
     <message>
         <source>Duplicate</source>
@@ -3250,7 +3250,7 @@
     </message>
     <message>
         <source>%1 Copy</source>
-        <translation>%1 Copiar</translation>
+        <translation>%1 Cópia</translation>
     </message>
     <message>
         <source>%1 is a smart object linked to an external file; Patchy preserves it and can update it from disk when the source file is available.</source>
@@ -3270,11 +3270,11 @@
     </message>
     <message>
         <source>%1 contains Photoshop Satin contour settings that Patchy cannot render or edit (a custom curve or anti-aliasing). Patchy preserves them until layer styles are edited, then uses the non-anti-aliased Linear contour.</source>
-        <translation>%1 contém configurações de contorno do Photoshop Satin que o Patchy não pode renderizar ou editar (uma curva personalizada ou suavização de serrilhado). Patchy os preserva até que os estilos de camada sejam editados e, em seguida, usa o contorno linear sem suavização de serrilhado.</translation>
+        <translation>%1 contém configurações de contorno de Acetinado do Photoshop que o Patchy não pode renderizar nem editar (uma curva personalizada ou suavização de serrilhado). O Patchy as preserva até que os estilos de camada sejam editados; depois, usa o contorno Linear sem suavização de serrilhado.</translation>
     </message>
     <message>
         <source>%1 contains Photoshop Blend If data for an unsupported color mode or payload shape. Patchy preserves it for PSD round-trip but does not render or edit it.</source>
-        <translation>%1 contém dados do Photoshop Mesclar se para um modo de cor ou forma de carga útil não suportado. Patchy o preserva para ida e volta em PSD, mas não o renderiza ou edita.</translation>
+        <translation>%1 contém dados de Mesclar se do Photoshop para um modo de cor ou estrutura de dados não suportado. O Patchy os preserva ao abrir e salvar o PSD, mas não os renderiza nem edita.</translation>
     </message>
     <message>
         <source>%1 contains Blend If data on a Photoshop group-boundary record. Patchy preserves that boundary data but does not render or edit it.</source>
@@ -3282,7 +3282,7 @@
     </message>
     <message>
         <source>%1 contains Photoshop channel blending restrictions for an unsupported color mode or payload shape. Patchy preserves them for PSD round-trip but does not render or edit them.</source>
-        <translation>%1 contém restrições de mesclagem de canal do Photoshop para um modo de cor ou formato de carga não suportado. Patchy os preserva para ida e volta em PSD, mas não os renderiza ou edita.</translation>
+        <translation>%1 contém restrições de mesclagem de canais do Photoshop para um modo de cor ou estrutura de dados não suportado. O Patchy as preserva ao abrir e salvar o PSD, mas não as renderiza nem edita.</translation>
     </message>
     <message>
         <source>%1 preserves %2 unknown PSD layer block(s).</source>
@@ -3302,11 +3302,11 @@
     </message>
     <message>
         <source>%1 is a Patchy-native adjustment layer; it round-trips in Patchy PSDs but may appear as an unsupported adjustment in other editors.</source>
-        <translation>%1 é uma camada de ajuste nativa do Patchy; ele circula em PSDs Patchy, mas pode aparecer como um ajuste não suportado em outros editores.</translation>
+        <translation>%1 é uma camada de ajuste nativa do Patchy; ela é preservada ao salvar e reabrir PSDs no Patchy, mas pode aparecer como um ajuste não suportado em outros editores.</translation>
     </message>
     <message>
         <source>%1 uses an unsupported layer kind and may not export as editable PSD data.</source>
-        <translation>%1 usa um tipo de camada não suportado e não pode ser exportado como dados PSD editáveis.</translation>
+        <translation>%1 usa um tipo de camada não suportado e pode não ser exportado como dados PSD editáveis.</translation>
     </message>
     <message>
         <source>%1 uses a pixel format that can render but is not fully editable in this build.</source>
@@ -3326,7 +3326,7 @@
     </message>
     <message>
         <source>The source is %1 bits per channel; Patchy converted it to 8-bit for editing and saves an 8-bit file. Keep the original if you need the deeper data.</source>
-        <translation>A origem é %1 bits por canal; Patchy o converteu para 8 bits para edição e salvou um arquivo de 8 bits. Mantenha o original se precisar de dados mais profundos.</translation>
+        <translation>A origem tem %1 bits por canal; o Patchy a converteu para 8 bits para edição e salva um arquivo de 8 bits. Mantenha o original se precisar da maior profundidade de bits.</translation>
     </message>
     <message>
         <source>The document preserves %1 unknown PSD image resource(s).</source>
@@ -3334,7 +3334,7 @@
     </message>
     <message>
         <source>The document embeds %1 smart object source file(s) (%2 MB); they round-trip byte-for-byte.</source>
-        <translation>O documento incorpora %1 arquivo(s) de origem de objeto inteligente (%2 MB); eles fazem uma viagem de ida e volta byte por byte.</translation>
+        <translation>O documento incorpora %1 arquivo(s) de origem de objetos inteligentes (%2 MB); eles são preservados byte a byte ao salvar e reabrir.</translation>
     </message>
     <message>
         <source>PSD Compatibility Report</source>
@@ -3390,11 +3390,11 @@
     </message>
     <message>
         <source>Lift Shadows</source>
-        <translation>Levantar sombras</translation>
+        <translation>Clarear sombras</translation>
     </message>
     <message>
         <source>Recover Highlights</source>
-        <translation>Recuperar destaques</translation>
+        <translation>Recuperar realces</translation>
     </message>
     <message>
         <source>Matte</source>
@@ -3566,7 +3566,7 @@
     </message>
     <message>
         <source>Wet Edge Wash</source>
-        <translation>Lavagem de borda úmida</translation>
+        <translation>Aguada com bordas úmidas</translation>
     </message>
     <message>
         <source>Arrow Right</source>
@@ -3590,7 +3590,7 @@
     </message>
     <message>
         <source>Arrow Double</source>
-        <translation>Flecha Dupla</translation>
+        <translation>Seta dupla</translation>
     </message>
     <message>
         <source>Chevron</source>
@@ -3626,7 +3626,7 @@
     </message>
     <message>
         <source>Speech Bubble</source>
-        <translation>Bolha de fala</translation>
+        <translation>Balão de fala</translation>
     </message>
     <message>
         <source>Lightning Bolt</source>
@@ -3642,7 +3642,7 @@
     </message>
     <message>
         <source>Increase %1</source>
-        <translation>Aumento %1</translation>
+        <translation>Aumentar %1</translation>
     </message>
     <message>
         <source>Apply and Close</source>
@@ -3674,7 +3674,7 @@
     </message>
     <message>
         <source>Divide Scanned Photos</source>
-        <translation>Divida fotos digitalizadas</translation>
+        <translation>Dividir fotos digitalizadas</translation>
     </message>
     <message>
         <source>Detection</source>
@@ -3698,7 +3698,7 @@
     </message>
     <message>
         <source>Top edge of the photos points:</source>
-        <translation>A borda superior dos pontos das fotos:</translation>
+        <translation>A borda superior das fotos aponta para:</translation>
     </message>
     <message>
         <source>Top edge points up (no rotation)</source>
@@ -3714,7 +3714,7 @@
     </message>
     <message>
         <source>Top edge points left</source>
-        <translation>Pontos da borda superior à esquerda</translation>
+        <translation>A borda superior aponta para a esquerda</translation>
     </message>
     <message>
         <source>Regions</source>
@@ -3778,7 +3778,7 @@
     </message>
     <message>
         <source>Add continues numbering after the files already in the folder; Overwrite starts at 001 and asks before replacing anything.</source>
-        <translation>Adicionar continua a numeração após os arquivos já existentes na pasta; A substituição começa em 001 e pergunta antes de substituir qualquer coisa.</translation>
+        <translation>Adicionar continua a numeração após os arquivos já existentes na pasta; Substituir começa em 001 e pergunta antes de substituir qualquer arquivo.</translation>
     </message>
     <message>
         <source>Choose Folder</source>
@@ -3842,7 +3842,7 @@
     </message>
     <message>
         <source>Add continues numbering after the files already in the folder; Overwrite starts at the chosen number and asks before replacing anything.</source>
-        <translation>Adicionar continua a numeração após os arquivos já existentes na pasta; A substituição começa no número escolhido e pergunta antes de substituir qualquer coisa.</translation>
+        <translation>Adicionar continua a numeração após os arquivos já existentes na pasta; Substituir começa no número escolhido e pergunta antes de substituir qualquer arquivo.</translation>
     </message>
     <message>
         <source>Export</source>
@@ -3897,7 +3897,7 @@
     </message>
     <message>
         <source>Noir</source>
-        <translation>Preto</translation>
+        <translation>Noir</translation>
     </message>
     <message>
         <source>Cinematic Matte</source>
@@ -3925,7 +3925,7 @@
     </message>
     <message>
         <source>High Pass</source>
-        <translation>Passa alta</translation>
+        <translation>Alta frequência</translation>
     </message>
     <message>
         <source>Median</source>
@@ -3953,7 +3953,7 @@
     </message>
     <message>
         <source>Plastic Wrap</source>
-        <translation>Envoltório plástico</translation>
+        <translation>Plastificação</translation>
     </message>
     <message>
         <source>Gaussian Blur</source>
@@ -4097,7 +4097,7 @@
     </message>
     <message>
         <source>Highlight Strength</source>
-        <translation>Destacar força</translation>
+        <translation>Intensidade dos realces</translation>
     </message>
     <message>
         <source>Height</source>
@@ -4165,7 +4165,7 @@
     </message>
     <message>
         <source>Focus Half-Width</source>
-        <translation>Foco em meia largura</translation>
+        <translation>Meia largura do foco</translation>
     </message>
     <message>
         <source>Transition Width</source>
@@ -4181,7 +4181,7 @@
     </message>
     <message>
         <source>Sharpening pixels</source>
-        <translation>Nitidez de pixels</translation>
+        <translation>Aplicando nitidez aos pixels</translation>
     </message>
     <message>
         <source>Detecting edges</source>
@@ -4197,7 +4197,7 @@
     </message>
     <message>
         <source>Embossing pixels</source>
-        <translation>Pixels de gravação</translation>
+        <translation>Aplicando relevo aos pixels</translation>
     </message>
     <message>
         <source>Generating clouds</source>
@@ -4205,7 +4205,7 @@
     </message>
     <message>
         <source>Pixelating blocks</source>
-        <translation>Blocos de pixelização</translation>
+        <translation>Pixelizando blocos</translation>
     </message>
     <message>
         <source>Rendering halftone</source>
@@ -4245,7 +4245,7 @@
     </message>
     <message>
         <source>Blending</source>
-        <translation>Mistura</translation>
+        <translation>Mesclagem</translation>
     </message>
     <message>
         <source>Mode:</source>
@@ -4257,7 +4257,7 @@
     </message>
     <message>
         <source>Gradient Manager</source>
-        <translation>Gerenciador de degradê</translation>
+        <translation>Gerenciador de degradês</translation>
     </message>
     <message>
         <source>Name</source>
@@ -4265,7 +4265,7 @@
     </message>
     <message>
         <source>New from Current</source>
-        <translation>Novo do Atual</translation>
+        <translation>Novo a partir do atual</translation>
     </message>
     <message>
         <source>Import .grd...</source>
@@ -4369,11 +4369,11 @@
     </message>
     <message>
         <source>Keep transparent</source>
-        <translation>Mantenha-se transparente</translation>
+        <translation>Manter transparência</translation>
     </message>
     <message>
         <source>Fill with:</source>
-        <translation>Preencha com:</translation>
+        <translation>Preencher com:</translation>
     </message>
     <message>
         <source>Background:</source>
@@ -4413,7 +4413,7 @@
     </message>
     <message>
         <source>How image data is stored in the PDF. Gray pages are written as one channel either way. Pages that keep editable shapes or text use a fixed high JPEG quality for every lossy choice.</source>
-        <translation>Como os dados da imagem são armazenados no PDF. As páginas cinzas são escritas como um canal de qualquer maneira. As páginas que mantêm formas ou texto editáveis usam uma qualidade JPEG fixa e alta para cada escolha com perdas.</translation>
+        <translation>Como os dados de imagem são armazenados no PDF. Páginas em tons de cinza são gravadas com um único canal em qualquer opção. Páginas que mantêm formas ou texto editáveis usam uma qualidade JPEG alta e fixa em todas as opções com perdas.</translation>
     </message>
     <message>
         <source>Keep original image data for unchanged PDF pages</source>
@@ -4473,7 +4473,7 @@
     </message>
     <message>
         <source>Pad to a power of two</source>
-        <translation>Pad elevado a uma potência de dois</translation>
+        <translation>Completar até uma potência de dois</translation>
     </message>
     <message>
         <source>Stretch to a power of two</source>
@@ -4501,7 +4501,7 @@
     </message>
     <message>
         <source>The texture is padded to a power of two and its true size is recorded in the header, so it opens again at the true size. JPEG applies only to images without transparency (RTPack&apos;s rule): a transparent image is written lossless instead.</source>
-        <translation>A textura é preenchida com uma potência de dois e seu tamanho real é registrado no cabeçalho, para que ela abra novamente no tamanho real. JPEG aplica-se apenas a imagens sem transparência (regra do RTPack): em vez disso, uma imagem transparente é escrita sem perdas.</translation>
+        <translation>A textura recebe preenchimento até atingir dimensões em potências de dois, e seu tamanho real é registrado no cabeçalho, para que ela reabra no tamanho original. JPEG se aplica apenas a imagens sem transparência (regra do RTPack): imagens transparentes são gravadas sem perdas.</translation>
     </message>
     <message>
         <source>Cursor Options</source>
@@ -4533,15 +4533,15 @@
     </message>
     <message>
         <source>Hotspot X:</source>
-        <translation>Ponto de acesso X:</translation>
+        <translation>Ponto ativo X:</translation>
     </message>
     <message>
         <source>Hotspot Y:</source>
-        <translation>Ponto de acesso Y:</translation>
+        <translation>Ponto ativo Y:</translation>
     </message>
     <message>
         <source>Hotspot is in pixels of the largest size; smaller sizes scale it.</source>
-        <translation>O ponto de acesso está em pixels de maior tamanho; tamanhos menores dimensionam-no.</translation>
+        <translation>O ponto ativo usa as coordenadas em pixels do maior tamanho; os tamanhos menores o redimensionam proporcionalmente.</translation>
     </message>
     <message>
         <source>BMP Options</source>
@@ -4617,7 +4617,7 @@
     </message>
     <message>
         <source>Unchecked, text in a font that is not installed is written as editable text in a substitute font, so it can look different from the canvas. Checked, that text is written as an image of the layer&apos;s pixels instead.</source>
-        <translation>Desmarcada, o texto em uma fonte que não está instalada é escrito como texto editável em uma fonte substituta, portanto pode parecer diferente da tela. Marcado, esse texto é escrito como uma imagem dos pixels da camada.</translation>
+        <translation>Com a opção desmarcada, o texto cuja fonte não está instalada é gravado como texto editável em uma fonte substituta, podendo diferir da tela. Com a opção marcada, esse texto é gravado como uma imagem dos pixels da camada.</translation>
     </message>
     <message>
         <source>The page is sized from the document&apos;s resolution, so it prints at the image&apos;s own size.</source>
@@ -4649,11 +4649,11 @@
     </message>
     <message>
         <source> s</source>
-        <translation> é</translation>
+        <translation> s</translation>
     </message>
     <message>
         <source>Each visible top-level layer becomes one frame, with the top layer first. Hidden layers are skipped. A layer name ending in a time, like &quot;blink 0.25s&quot;, overrides the default delay for that frame. The animation loops forever.</source>
-        <translation>Cada camada visível de nível superior torna-se um quadro, com a camada superior primeiro. As camadas ocultas são ignoradas. Um nome de camada que termina em um tempo, como &quot;piscar 0,25s&quot;, substitui o atraso padrão desse quadro. A animação fica em loop para sempre.</translation>
+        <translation>Cada camada visível de nível superior se torna um quadro, começando pela camada do topo. Camadas ocultas são ignoradas. Um nome de camada que termina com um tempo, como &quot;piscar 0.25s&quot;, substitui o atraso padrão desse quadro. A animação se repete indefinidamente.</translation>
     </message>
     <message>
         <source>%1: %2</source>
@@ -4709,7 +4709,7 @@
     </message>
     <message>
         <source>Drag to pan. The mouse wheel zooms.</source>
-        <translation>Arraste para deslocar. A roda do mouse aumenta o zoom.</translation>
+        <translation>Arraste para deslocar. A roda do mouse ajusta o zoom.</translation>
     </message>
     <message>
         <source>Black and White Logo</source>
@@ -4753,7 +4753,7 @@
     </message>
     <message>
         <source>Trace Image to Shapes</source>
-        <translation>Rastrear imagem em formas</translation>
+        <translation>Vetorizar imagem em formas</translation>
     </message>
     <message>
         <source>Save the current settings as a preset</source>
@@ -4834,7 +4834,7 @@
     </message>
     <message>
         <source>Limits the total anchor count by loosening the curve fit until the result fits; Off keeps every anchor</source>
-        <translation>Limita a contagem total de âncoras afrouxando o ajuste da curva até que o resultado se ajuste; Off mantém todas as âncoras</translation>
+        <translation>Limita o número total de âncoras, reduzindo a precisão do ajuste das curvas até atingir o limite; Desligado mantém todas as âncoras</translation>
     </message>
     <message>
         <source>Abutting (cutout shapes)</source>
@@ -4878,7 +4878,7 @@
     </message>
     <message>
         <source>Tracing inside the selection</source>
-        <translation>Rastreando dentro da seleção</translation>
+        <translation>Vetorizando dentro da seleção</translation>
     </message>
     <message>
         <source>Pick colors from the whole layer</source>
@@ -4890,7 +4890,7 @@
     </message>
     <message>
         <source>Large result: editing will be slower and exported SVG files will be large. Lower Paths, raise Noise, or set Max anchors to simplify.</source>
-        <translation>Resultado grande: a edição será mais lenta e os arquivos SVG exportados serão grandes. Abaixe demarcadores, aumente o ruído ou defina âncoras máximas para simplificar.</translation>
+        <translation>Resultado grande: a edição será mais lenta e os arquivos SVG exportados serão grandes. Reduza Demarcadores, aumente Ruído ou defina Âncoras máximas para simplificar.</translation>
     </message>
     <message>
         <source>Grays:</source>
@@ -4898,11 +4898,11 @@
     </message>
     <message>
         <source>Tracing...</source>
-        <translation>Rastreando...</translation>
+        <translation>Vetorizando...</translation>
     </message>
     <message>
         <source>Nothing to trace with these settings.</source>
-        <translation>Nada para rastrear com essas configurações.</translation>
+        <translation>Nada para vetorizar com essas configurações.</translation>
     </message>
     <message numerus="yes">
         <source>%n shape layer(s)</source>
@@ -4920,11 +4920,11 @@
     </message>
     <message>
         <source>Save Trace Preset</source>
-        <translation>Salvar predefinição de rastreamento</translation>
+        <translation>Salvar predefinição de vetorização</translation>
     </message>
     <message>
         <source>Preset name:</source>
-        <translation>Nome predefinido:</translation>
+        <translation>Nome da predefinição:</translation>
     </message>
     <message>
         <source>Save</source>
@@ -4944,7 +4944,7 @@
     </message>
     <message>
         <source>Delete Trace Preset</source>
-        <translation>Excluir predefinição de rastreamento</translation>
+        <translation>Excluir predefinição de vetorização</translation>
     </message>
     <message>
         <source>Delete the preset &quot;%1&quot;?</source>
@@ -4960,7 +4960,7 @@
     </message>
     <message>
         <source>Photoshop Satin custom contours and contour anti-aliasing are preserved until you edit layer styles. Patchy previews and saves edited Satin with the non-anti-aliased Linear contour.</source>
-        <translation>Os contornos personalizados e a suavização de contorno do Photoshop Satin são preservados até que você edite os estilos de camada. Patchy visualiza e salva o Satin editado com o contorno Linear sem suavização de serrilhado.</translation>
+        <translation>Os contornos personalizados e a suavização de contorno de Acetinado do Photoshop são preservados até que você edite os estilos de camada. O Patchy visualiza e salva o Acetinado editado com o contorno Linear sem suavização de serrilhado.</translation>
     </message>
     <message>
         <source>renders a regular drop shadow at the Distance value</source>
@@ -4968,7 +4968,7 @@
     </message>
     <message>
         <source>This layer contains Photoshop Blend If data for an unsupported color mode or payload shape. Patchy preserves it unchanged and does not preview it unless you replace it.</source>
-        <translation>Esta camada contém dados do Photoshop Mesclar se para um modo de cor ou formato de carga não suportado. Patchy o preserva inalterado e não o visualiza, a menos que você o substitua.</translation>
+        <translation>Esta camada contém dados de Mesclar se do Photoshop para um modo de cor ou estrutura de dados não suportado. O Patchy os preserva sem alterações e não os exibe na visualização, a menos que você os substitua.</translation>
     </message>
     <message>
         <source>Replace with Editable Defaults</source>
@@ -5098,7 +5098,7 @@
     <message>
         <source>Angle</source>
         <comment>gradient style</comment>
-        <translation>Ângulo</translation>
+        <translation>Angular</translation>
     </message>
     <message>
         <source>Reflected</source>
@@ -5186,11 +5186,11 @@
     </message>
     <message>
         <source>Blend Interior Effects as Group</source>
-        <translation>Misture efeitos interiores como grupo</translation>
+        <translation>Mesclar efeitos internos como grupo</translation>
     </message>
     <message>
         <source>Put the layer&apos;s blend mode over its overlays, satin, and inner glow instead of letting them blend with their own modes</source>
-        <translation>Coloque o modo de mesclagem da camada sobre suas sobreposições, cetim e brilho interno, em vez de deixá-los se mesclarem com seus próprios modos</translation>
+        <translation>Aplique o modo de mesclagem da camada às suas sobreposições, acetinado e brilho interno, em vez de permitir que usem seus próprios modos de mesclagem</translation>
     </message>
     <message>
         <source>Blend Clipped Layers as Group</source>
@@ -5198,7 +5198,7 @@
     </message>
     <message>
         <source>Keep the layers clipped to this one under its interior effects; turn this off together with Blend Interior Effects as Group to draw them over the overlays instead</source>
-        <translation>Mantenha as camadas recortadas a esta sob seus efeitos internos; desligue isso junto com Blend Interior Effects as Group para desenhá-los sobre as sobreposições</translation>
+        <translation>Mantenha as camadas recortadas a esta camada sob seus efeitos internos; desative esta opção e Mesclar efeitos internos como grupo para desenhá-las sobre as sobreposições</translation>
     </message>
     <message>
         <source>Blend If</source>
@@ -5214,7 +5214,7 @@
     </message>
     <message>
         <source>%1 Blend If range</source>
-        <translation>%1 Misturar se intervalo</translation>
+        <translation>Intervalo de Mesclar se de %1</translation>
     </message>
     <message>
         <source>Use Page Up or Page Down to select a handle, arrow keys to move it, and %ALT%-drag to split a joined handle.</source>
@@ -5246,19 +5246,19 @@
     </message>
     <message>
         <source>Bevel &amp; Emboss</source>
-        <translation>Gravação chanfrada</translation>
+        <translation>Chanfro e entalhe</translation>
     </message>
     <message>
         <source>Inner Bevel</source>
-        <translation>Bisel Interno</translation>
+        <translation>Chanfro interno</translation>
     </message>
     <message>
         <source>Outer Bevel</source>
-        <translation>Bisel Externo</translation>
+        <translation>Chanfro externo</translation>
     </message>
     <message>
         <source>Pillow Emboss</source>
-        <translation>Almofada em relevo</translation>
+        <translation>Entalhe elevado</translation>
     </message>
     <message>
         <source>Stroke Emboss</source>
@@ -5266,11 +5266,11 @@
     </message>
     <message>
         <source>Chisel Hard</source>
-        <translation>Cinzel Duro</translation>
+        <translation>Talhado rígido</translation>
     </message>
     <message>
         <source>Chisel Soft</source>
-        <translation>Cinzel macio</translation>
+        <translation>Talhado suave</translation>
     </message>
     <message>
         <source>Technique</source>
@@ -5306,11 +5306,11 @@
     </message>
     <message>
         <source>Gloss Contour</source>
-        <translation>Contorno Brilho</translation>
+        <translation>Contorno de reflexo</translation>
     </message>
     <message>
         <source>Highlight</source>
-        <translation>Destaque</translation>
+        <translation>Realce</translation>
     </message>
     <message>
         <source>Shadow</source>
@@ -5382,11 +5382,11 @@
     </message>
     <message>
         <source>Blend the stroke against the layer&apos;s own content. When off, the stroke knocks the content out of its band and blends with the layers below, like Photoshop</source>
-        <translation>Misture o traço com o conteúdo da própria camada. Quando desativado, o traço tira o conteúdo da faixa e se mistura com as camadas abaixo, como no Photoshop</translation>
+        <translation>Mescle o traçado com o conteúdo da própria camada. Quando desativado, o traçado remove o conteúdo da área que ocupa e se mescla com as camadas abaixo, como no Photoshop</translation>
     </message>
     <message>
         <source>Fill</source>
-        <translation>Preencher</translation>
+        <translation>Preenchimento</translation>
     </message>
     <message>
         <source>Choose Gradient Stop Color</source>
@@ -5486,11 +5486,11 @@
     </message>
     <message>
         <source>Add Stroke</source>
-        <translation>Adicionar traço</translation>
+        <translation>Adicionar traçado</translation>
     </message>
     <message>
         <source>Add Satin</source>
-        <translation>Adicionar cetim</translation>
+        <translation>Adicionar acetinado</translation>
     </message>
     <message>
         <source>Add Color Overlay</source>
@@ -5518,7 +5518,7 @@
     </message>
     <message>
         <source>The preserved Photoshop Blend If payload will be replaced with editable RGB defaults when you choose OK.</source>
-        <translation>A carga preservada do Photoshop Mesclar se será substituída por padrões RGB editáveis quando você escolher OK.</translation>
+        <translation>Os dados preservados de Mesclar se do Photoshop serão substituídos por valores RGB padrão editáveis quando você escolher OK.</translation>
     </message>
     <message>
         <source>New Style</source>
@@ -5542,7 +5542,7 @@
     </message>
     <message>
         <source>Choose Highlight Color</source>
-        <translation>Escolha a cor de destaque</translation>
+        <translation>Escolha a cor de realce</translation>
     </message>
     <message>
         <source>Choose Shadow Color</source>
@@ -5562,7 +5562,7 @@
     </message>
     <message>
         <source>Choose Satin Color</source>
-        <translation>Escolha a cor acetinada</translation>
+        <translation>Escolher cor de Acetinado</translation>
     </message>
     <message>
         <source>Choose Drop Shadow Color</source>
@@ -5626,7 +5626,7 @@
     </message>
     <message>
         <source>Liquify edits pixels directly. Rasterize a Smart Object before using it.</source>
-        <translation>Liquify edita pixels diretamente. Rasterize um objeto inteligente antes de usá-lo.</translation>
+        <translation>Dissolver edita os pixels diretamente. Rasterize o objeto inteligente antes de usar esse filtro.</translation>
     </message>
     <message>
         <source>Missing Font</source>
@@ -5634,23 +5634,23 @@
     </message>
     <message>
         <source>Patchy can&apos;t locate these fonts: %1. These fonts have no glyphs for their text: %2. Editing this PSD raster preview will substitute other fonts. Continue?</source>
-        <translation>Patchy não consegue localizar estas fontes: %1. Estas fontes não possuem glifos para seu texto: %2. A edição desta visualização raster PSD substituirá outras fontes. Continuar?</translation>
+        <translation>O Patchy não consegue localizar estas fontes: %1. Estas fontes não possuem glifos para seu texto: %2. Editar esta visualização rasterizada do PSD usará fontes substitutas. Continuar?</translation>
     </message>
     <message>
         <source>The font &quot;%1&quot; has no glyphs for this text. Editing this PSD raster preview will substitute another font. Continue?</source>
-        <translation>A fonte &quot;%1&quot; não possui glifos para este texto. A edição desta visualização raster PSD substituirá outra fonte. Continuar?</translation>
+        <translation>A fonte &quot;%1&quot; não possui glifos para este texto. Editar esta visualização rasterizada do PSD usará uma fonte substituta. Continuar?</translation>
     </message>
     <message>
         <source>These fonts have no glyphs for their text: %1. Editing this PSD raster preview will substitute other fonts. Continue?</source>
-        <translation>Estas fontes não possuem glifos para seu texto: %1. A edição desta visualização raster PSD substituirá outras fontes. Continuar?</translation>
+        <translation>Estas fontes não possuem glifos para seu texto: %1. Editar esta visualização rasterizada do PSD usará fontes substitutas. Continuar?</translation>
     </message>
     <message>
         <source>Patchy can&apos;t locate the font &quot;%1&quot;. Editing this PSD raster preview will substitute another font. Continue?</source>
-        <translation>Patchy não consegue localizar a fonte &quot;%1&quot;. A edição desta visualização raster PSD substituirá outra fonte. Continuar?</translation>
+        <translation>O Patchy não consegue localizar a fonte &quot;%1&quot;. Editar esta visualização rasterizada do PSD usará uma fonte substituta. Continuar?</translation>
     </message>
     <message>
         <source>Patchy can&apos;t locate these fonts: %1. Editing this PSD raster preview will substitute other fonts. Continue?</source>
-        <translation>Patchy não consegue localizar estas fontes: %1. A edição desta visualização raster PSD substituirá outras fontes. Continuar?</translation>
+        <translation>O Patchy não consegue localizar estas fontes: %1. Editar esta visualização rasterizada do PSD usará fontes substitutas. Continuar?</translation>
     </message>
     <message>
         <source>Continue</source>
@@ -5666,7 +5666,7 @@
     </message>
     <message>
         <source>Fixed Ratio</source>
-        <translation>Razão Fixa</translation>
+        <translation>Proporção fixa</translation>
     </message>
     <message>
         <source>Fixed Size</source>
@@ -5714,11 +5714,11 @@
     </message>
     <message>
         <source>%1M</source>
-        <translation>%1 milhão</translation>
+        <translation>%1M</translation>
     </message>
     <message>
         <source>%1K</source>
-        <translation>%1 mil</translation>
+        <translation>%1K</translation>
     </message>
     <message>
         <source>Image Size</source>
@@ -5786,7 +5786,7 @@
     </message>
     <message>
         <source>Bicubic Smoother (enlargement)</source>
-        <translation>Suave Bicúbico (ampliação)</translation>
+        <translation>Bicúbico mais suave (ampliação)</translation>
     </message>
     <message>
         <source>Nearest Neighbor</source>
@@ -5795,8 +5795,8 @@
     <message>
         <source>Create a new, larger document with more detail
 Open in Generative Upscale...</source>
-        <translation>Crie um documento novo, maior e com mais detalhes
-Aberto em Upscale Generativo...</translation>
+        <translation>Criar um documento novo e maior, com mais detalhes
+Abrir em Ampliação generativa...</translation>
     </message>
     <message>
         <source>%1 px x %2 px</source>
@@ -5832,7 +5832,7 @@ Aberto em Upscale Generativo...</translation>
     </message>
     <message>
         <source>Anchor top</source>
-        <translation>Topo da âncora</translation>
+        <translation>Âncora no topo</translation>
     </message>
     <message>
         <source>Anchor top right</source>
@@ -5844,7 +5844,7 @@ Aberto em Upscale Generativo...</translation>
     </message>
     <message>
         <source>Anchor center</source>
-        <translation>Centro âncora</translation>
+        <translation>Âncora no centro</translation>
     </message>
     <message>
         <source>Anchor right</source>
@@ -5856,7 +5856,7 @@ Aberto em Upscale Generativo...</translation>
     </message>
     <message>
         <source>Anchor bottom</source>
-        <translation>Fundo da âncora</translation>
+        <translation>Âncora na base</translation>
     </message>
     <message>
         <source>Anchor bottom right</source>
@@ -5928,7 +5928,7 @@ Aberto em Upscale Generativo...</translation>
     </message>
     <message>
         <source>Aseprite Image</source>
-        <translation>Imagem asseprita</translation>
+        <translation>Imagem Aseprite</translation>
     </message>
     <message>
         <source>Targa Image</source>
@@ -5960,11 +5960,11 @@ Aberto em Upscale Generativo...</translation>
     </message>
     <message>
         <source>Camera Raw Image</source>
-        <translation>Imagem bruta da câmera</translation>
+        <translation>Imagem RAW de câmera</translation>
     </message>
     <message>
         <source>Affinity Document</source>
-        <translation>Documento de afinidade</translation>
+        <translation>Documento do Affinity</translation>
     </message>
     <message>
         <source>HEIF Image</source>
@@ -6016,7 +6016,7 @@ Aberto em Upscale Generativo...</translation>
     </message>
     <message>
         <source>Linked file %1 was not found</source>
-        <translation>O ficheiro ligado %1 não foi encontrado</translation>
+        <translation>O arquivo vinculado %1 não foi encontrado</translation>
     </message>
     <message>
         <source>Linked file %1 has changed on disk; use Update Smart Object Content</source>
@@ -6024,7 +6024,7 @@ Aberto em Upscale Generativo...</translation>
     </message>
     <message>
         <source>SVG was imported as flattened raster: %1</source>
-        <translation>O SVG foi importado como raster nivelado: %1</translation>
+        <translation>O SVG foi importado como imagem rasterizada achatada: %1</translation>
     </message>
     <message>
         <source>%1 opened with notes:
@@ -6036,7 +6036,7 @@ Aberto em Upscale Generativo...</translation>
     </message>
     <message>
         <source>Import Notes</source>
-        <translation>Importar notas</translation>
+        <translation>Notas de importação</translation>
     </message>
     <message>
         <source>Open failed</source>
@@ -6193,7 +6193,7 @@ Seleção mista</translation>
     </message>
     <message>
         <source>32-bit float</source>
-        <translation>Flutuador de 32 bits</translation>
+        <translation>Ponto flutuante de 32 bits</translation>
     </message>
     <message>
         <source>CMYK</source>
@@ -6221,7 +6221,7 @@ Seleção mista</translation>
     </message>
     <message>
         <source>Bevel</source>
-        <translation>Bisel</translation>
+        <translation>Chanfro</translation>
     </message>
     <message>
         <source>none</source>
@@ -6261,7 +6261,7 @@ Seleção mista</translation>
     </message>
     <message>
         <source>Threshold: level %1</source>
-        <translation>Limite: nível %1</translation>
+        <translation>Limiar: nível %1</translation>
     </message>
     <message>
         <source>Brightness/Contrast: brightness %1, contrast %2</source>
@@ -6309,7 +6309,7 @@ Seleção mista</translation>
     </message>
     <message>
         <source>Source: PSD %1</source>
-        <translation>Fonte: PSD %1</translation>
+        <translation>Origem: PSD %1</translation>
     </message>
     <message>
         <source> placeholder preview</source>
@@ -6333,11 +6333,11 @@ Fluxo: %6
     </message>
     <message>
         <source>, %1</source>
-        <translation>,%1</translation>
+        <translation>, %1</translation>
     </message>
     <message>
         <source>Clipped to the layer below. Click to release.</source>
-        <translation>Cortado na camada abaixo. Clique para liberar.</translation>
+        <translation>Recortada pela camada abaixo. Clique para liberar.</translation>
     </message>
     <message>
         <source>Folder is empty</source>
@@ -6353,15 +6353,15 @@ Fluxo: %6
     </message>
     <message>
         <source>Text layer. Missing font: %1. No glyphs for this text in: %2. Other fonts are being substituted, so the text does not look as it was authored.</source>
-        <translation>Camada de texto. Fonte ausente: %1. Não há glifos para este texto em: %2. Outras fontes estão sendo substituídas, para que o texto não tenha a aparência de sua autoria.</translation>
+        <translation>Camada de texto. Fonte ausente: %1. Não há glifos para este texto em: %2. Fontes substitutas estão sendo usadas, por isso o texto difere da aparência original.</translation>
     </message>
     <message>
         <source>Text layer. No glyphs for this text in: %1. Another font is being substituted, so the text does not look as it was authored.</source>
-        <translation>Camada de texto. Não há glifos para este texto em: %1. Outra fonte está sendo substituída, para que o texto não pareça ter sido escrito.</translation>
+        <translation>Camada de texto. Não há glifos para este texto em: %1. Uma fonte substituta está sendo usada, por isso o texto difere da aparência original.</translation>
     </message>
     <message>
         <source>Text layer. Missing font: %1. Another font is being substituted, so the text does not look as it was authored.</source>
-        <translation>Camada de texto. Fonte ausente: %1. Outra fonte está sendo substituída, para que o texto não pareça ter sido escrito.</translation>
+        <translation>Camada de texto. Fonte ausente: %1. Uma fonte substituta está sendo usada, por isso o texto difere da aparência original.</translation>
     </message>
     <message>
         <source>Folder layer</source>
@@ -6389,11 +6389,11 @@ Fluxo: %6
     </message>
     <message>
         <source>Layer mask. Click to edit it with the paint tools, %ALT%-click to view it, Shift-click to disable it.</source>
-        <translation>Máscara de camada. Clique para editá-lo com as ferramentas de pintura, %ALT%-clique para visualizá-lo, Shift-clique para desativá-lo.</translation>
+        <translation>Máscara de camada. Clique para editá-la com as ferramentas de pintura, %ALT%-clique para visualizá-la, Shift-clique para desativá-la.</translation>
     </message>
     <message>
         <source>Vector mask. Click to edit its path with the pen and path tools, %CTRL%-click to load it as a selection, %ALT%-click to view it, Shift-click to disable it.</source>
-        <translation>Máscara vetorial. Clique para editar seu demarcador com as ferramentas caneta e demarcador, %CTRL%-clique para carregá-lo como uma seleção, %ALT%-clique para visualizá-lo, Shift-clique para desativá-lo.</translation>
+        <translation>Máscara vetorial. Clique para editar seu demarcador com as ferramentas Caneta e Demarcador, %CTRL%-clique para carregá-la como seleção, %ALT%-clique para visualizá-la, Shift-clique para desativá-la.</translation>
     </message>
     <message>
         <source>mask</source>
@@ -6425,7 +6425,7 @@ Fluxo: %6
     </message>
     <message>
         <source>This Smart Object is preview-locked. Its Smart Filters are preserved unchanged.</source>
-        <translation>Este objeto inteligente está bloqueado para visualização. Seus filtros inteligentes são preservados inalterados.</translation>
+        <translation>Este objeto inteligente mantém a visualização original bloqueada para edição. Seus filtros inteligentes são preservados sem alterações.</translation>
     </message>
     <message>
         <source>This Smart Filter stack contains unsupported Photoshop data. Patchy preserves it unchanged, so the controls are disabled.</source>
@@ -6445,7 +6445,7 @@ Fluxo: %6
     </message>
     <message>
         <source>Shared Smart Filter mask. Click to edit it, %CTRL%-click to load it as a selection, %ALT%-click to view it, or Shift-click to disable it.</source>
-        <translation>Máscara de filtro inteligente compartilhada. Clique para editá-lo, %CTRL%-clique para carregá-lo como uma seleção, %ALT%-clique para visualizá-lo ou Shift-clique para desativá-lo.</translation>
+        <translation>Máscara compartilhada de filtros inteligentes. Clique para editá-la, %CTRL%-clique para carregá-la como seleção, %ALT%-clique para visualizá-la ou Shift-clique para desativá-la.</translation>
     </message>
     <message>
         <source>This Smart Filter mask can only be preserved, not edited</source>
@@ -6465,11 +6465,11 @@ Fluxo: %6
     </message>
     <message>
         <source> (Radius %1 px, Threshold %2)</source>
-        <translation> (Raio %1 px, Limite %2)</translation>
+        <translation> (Raio %1 px, Limiar %2)</translation>
     </message>
     <message>
         <source> (Amount %1%, Radius %2 px, Threshold %3)</source>
-        <translation> (Quantidade %1%, Raio %2 px, Limite %3)</translation>
+        <translation> (Intensidade %1%, Raio %2 px, Limiar %3)</translation>
     </message>
     <message>
         <source> (Angle %1 degrees, Distance %2 px)</source>
@@ -6477,7 +6477,7 @@ Fluxo: %6
     </message>
     <message>
         <source> (Highlight %1, Detail %2, Smoothness %3)</source>
-        <translation> (Destaque %1, Detalhe %2, Suavidade %3)</translation>
+        <translation> (Realce %1, Detalhe %2, Suavidade %3)</translation>
     </message>
     <message>
         <source> (Cell Size %1 px)</source>
@@ -6505,7 +6505,7 @@ Fluxo: %6
     </message>
     <message>
         <source> (%1%, %2%3)</source>
-        <translation> (%1%,%2%3)</translation>
+        <translation> (%1%, %2%3)</translation>
     </message>
     <message>
         <source>Uniform</source>
@@ -6821,7 +6821,7 @@ Fluxo: %6
     </message>
     <message>
         <source>Social Story</source>
-        <translation>História social</translation>
+        <translation>Story para redes sociais</translation>
     </message>
     <message>
         <source>Photo 3:2</source>
@@ -6845,7 +6845,7 @@ Fluxo: %6
     </message>
     <message>
         <source>US Legal</source>
-        <translation>Jurídico dos EUA</translation>
+        <translation>Ofício dos EUA</translation>
     </message>
     <message>
         <source>5 x 7 in</source>
@@ -6897,7 +6897,7 @@ Fluxo: %6
     </message>
     <message>
         <source>%1 x %2 in at %3 ppi</source>
-        <translation>%1 x %2 em %3 ppi</translation>
+        <translation>%1 x %2 pol a %3 ppi</translation>
     </message>
     <message>
         <source>Clipboard does not contain an image</source>
@@ -6945,11 +6945,11 @@ Fluxo: %6
     </message>
     <message>
         <source>Ordered 4x4</source>
-        <translation>Encomendado 4x4</translation>
+        <translation>Ordenado 4x4</translation>
     </message>
     <message>
         <source>Ordered 8x8</source>
-        <translation>Encomendado 8x8</translation>
+        <translation>Ordenado 8x8</translation>
     </message>
     <message>
         <source>Dither:</source>
@@ -6957,11 +6957,11 @@ Fluxo: %6
     </message>
     <message>
         <source>Pixels with alpha below this become fully transparent; the rest become opaque</source>
-        <translation>Pixels com alfa abaixo tornam-se totalmente transparentes; o resto fica opaco</translation>
+        <translation>Pixels com alfa abaixo deste valor ficam totalmente transparentes; os demais ficam opacos</translation>
     </message>
     <message>
         <source>Alpha threshold:</source>
-        <translation>Limite alfa:</translation>
+        <translation>Limiar alfa:</translation>
     </message>
     <message>
         <source>The image has more than 256 colors; choose Optimized instead.</source>
@@ -7028,7 +7028,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>GIMP Palette (*.gpl);;Hex Colors (*.hex);;JASC Palette (*.pal);;Adobe Color Table (*.act);;Adobe Color Swatches (*.aco);;PNG Swatch Strip (*.png)</source>
-        <translation>Paleta GIMP (*.gpl);;Cores hexadecimais (*.hex);;Paleta JASC (*.pal);;Adobe Color Table (*.act);;Adobe Color Swatches (*.aco);;PNG Swatch Strip (*.png)</translation>
+        <translation>Paleta GIMP (*.gpl);;Cores hexadecimais (*.hex);;Paleta JASC (*.pal);;Tabela de cores Adobe (*.act);;Amostras de cores Adobe (*.aco);;Faixa de amostras PNG (*.png)</translation>
     </message>
     <message>
         <source>Could not save the palette file.
@@ -7042,7 +7042,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Drag to pan. Mouse wheel zooms. Double-click resets the view.</source>
-        <translation>Arraste para deslocar. Zoom da roda do mouse. Clique duas vezes para redefinir a visualização.</translation>
+        <translation>Arraste para deslocar. A roda do mouse ajusta o zoom. Clique duas vezes para redefinir a visualização.</translation>
     </message>
     <message>
         <source>Patterns</source>
@@ -7074,11 +7074,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Restore Default Patterns</source>
-        <translation>Restaurar padrões padrão</translation>
+        <translation>Restaurar padrões originais</translation>
     </message>
     <message>
         <source>Bring back deleted built-in patterns and reset changed defaults</source>
-        <translation>Traga de volta os padrões integrados excluídos e redefina os padrões alterados</translation>
+        <translation>Restaurar padrões integrados excluídos e redefinir os originais que foram alterados</translation>
     </message>
     <message>
         <source>Use Pattern</source>
@@ -7150,11 +7150,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>All default patterns are already present with factory settings.</source>
-        <translation>Todos os padrões padrão já estão presentes nas configurações de fábrica.</translation>
+        <translation>Todos os padrões originais já estão presentes com as configurações de fábrica.</translation>
     </message>
     <message>
         <source>Some default patterns could not be restored. Check that the pattern library folder is writable.</source>
-        <translation>Alguns padrões padrão não puderam ser restaurados. Verifique se a pasta da biblioteca de padrões é gravável.</translation>
+        <translation>Alguns padrões originais não puderam ser restaurados. Verifique se a pasta da biblioteca de padrões permite gravação.</translation>
     </message>
     <message numerus="yes">
         <source>Restored %n default pattern(s).</source>
@@ -7235,7 +7235,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>%1 pages imported as layers; only the first starts visible.</source>
-        <translation>%1 páginas importadas como camadas; apenas o primeiro começa visível.</translation>
+        <translation>%1 páginas importadas como camadas; apenas a primeira começa visível.</translation>
     </message>
     <message>
         <source>Only page 1 of %1 was imported.</source>
@@ -7299,7 +7299,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Anti-alias</source>
-        <translation>Anti-alias</translation>
+        <translation>Suavizar serrilhado</translation>
     </message>
     <message>
         <source>Trim to content</source>
@@ -7335,7 +7335,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Editable import was not possible for page %1 (%2); it was flattened instead.</source>
-        <translation>A importação editável não foi possível para a página %1 (%2); em vez disso, foi achatado.</translation>
+        <translation>Não foi possível importar a página %1 como conteúdo editável (%2); ela foi importada como imagem achatada.</translation>
     </message>
     <message>
         <source>Editable import brings in one page; page %1 was imported.</source>
@@ -7439,7 +7439,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Center Image</source>
-        <translation>Imagem central</translation>
+        <translation>Centralizar imagem</translation>
     </message>
     <message>
         <source>X</source>
@@ -7491,7 +7491,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Save Print PDF</source>
-        <translation>Salvar Imprimir PDF</translation>
+        <translation>Salvar impressão em PDF</translation>
     </message>
     <message>
         <source>PDF failed</source>
@@ -7587,7 +7587,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>As Shot</source>
-        <translation>Como tiro</translation>
+        <translation>Como capturado</translation>
     </message>
     <message>
         <source>Temperature:</source>
@@ -7611,7 +7611,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Highlights:</source>
-        <translation>Destaques:</translation>
+        <translation>Realces:</translation>
     </message>
     <message>
         <source>Shadows:</source>
@@ -7631,11 +7631,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Rebuild detail</source>
-        <translation>Detalhe da reconstrução</translation>
+        <translation>Reconstruir detalhes</translation>
     </message>
     <message>
         <source>Highlight recovery:</source>
-        <translation>Recuperação de destaque:</translation>
+        <translation>Recuperação de realce:</translation>
     </message>
     <message>
         <source>Auto brighten</source>
@@ -7751,15 +7751,15 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Estimated white balance temperature. Adjust to use Custom white balance.</source>
-        <translation>Temperatura estimada de equilíbrio de branco. Ajuste para usar o equilíbrio de branco personalizado.</translation>
+        <translation>Temperatura estimada do balanço de branco. Ajuste para usar um balanço de branco personalizado.</translation>
     </message>
     <message>
         <source>Estimated white balance tint. Adjust to use Custom white balance.</source>
-        <translation>Matiz de equilíbrio de branco estimado. Ajuste para usar o equilíbrio de branco personalizado.</translation>
+        <translation>Matiz estimado do balanço de branco. Ajuste para usar um balanço de branco personalizado.</translation>
     </message>
     <message>
         <source>%1 K</source>
-        <translation>%1 mil</translation>
+        <translation>%1 K</translation>
     </message>
     <message>
         <source>Calculating...</source>
@@ -7863,19 +7863,19 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Start X:</source>
-        <translation>Iniciar X:</translation>
+        <translation>X inicial:</translation>
     </message>
     <message>
         <source>Start Y:</source>
-        <translation>Comece Y:</translation>
+        <translation>Y inicial:</translation>
     </message>
     <message>
         <source>End X:</source>
-        <translation>Fim X:</translation>
+        <translation>X final:</translation>
     </message>
     <message>
         <source>End Y:</source>
-        <translation>Fim Y:</translation>
+        <translation>Y final:</translation>
     </message>
     <message>
         <source>Weight:</source>
@@ -7971,7 +7971,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Softens the whole shape, stroke included, like Photoshop&apos;s vector mask feather</source>
-        <translation>Suaviza toda a forma, incluindo o traço, como a pena da máscara vetorial do Photoshop</translation>
+        <translation>Suaviza a forma inteira, incluindo o traçado, como a difusão da máscara vetorial do Photoshop</translation>
     </message>
     <message>
         <source>Feather:</source>
@@ -8080,7 +8080,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>%1 MB</source>
-        <translation>%1MB</translation>
+        <translation>%1 MB</translation>
     </message>
     <message>
         <source>Memory used: %1 (heap %2, limit %3)</source>
@@ -8104,7 +8104,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Version %1 (built %2)</source>
-        <translation>Versão %1 (construída %2)</translation>
+        <translation>Versão %1 (compilada em %2)</translation>
     </message>
     <message>
         <source>Created by %1</source>
@@ -8164,7 +8164,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Export Sprite Sheet</source>
-        <translation>Exportar planilha Sprite</translation>
+        <translation>Exportar folha de sprites</translation>
     </message>
     <message>
         <source>%1 frames, one per visible top-level layer</source>
@@ -8184,7 +8184,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Sprite Sheet to Layers</source>
-        <translation>Folha Sprite para Camadas</translation>
+        <translation>Folha de sprites para camadas</translation>
     </message>
     <message>
         <source>Cell width:</source>
@@ -8386,7 +8386,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Search filters</source>
-        <translation>Filtros de pesquisa</translation>
+        <translation>Pesquisar filtros</translation>
     </message>
     <message>
         <source>All</source>
@@ -8402,15 +8402,15 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Live Canvas Preview</source>
-        <translation>Visualização da tela ao vivo</translation>
+        <translation>Visualização em tempo real na tela</translation>
     </message>
     <message>
         <source>Saved Looks</source>
-        <translation>Looks salvos</translation>
+        <translation>Aparências salvas</translation>
     </message>
     <message>
         <source>Save Look...</source>
-        <translation>Salvar Veja...</translation>
+        <translation>Salvar aparência...</translation>
     </message>
     <message>
         <source>Rename...</source>
@@ -8474,11 +8474,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Apply this saved Look</source>
-        <translation>Aplique este Look salvo</translation>
+        <translation>Aplicar esta aparência salva</translation>
     </message>
     <message>
         <source>This Look uses filters or settings that this version of Patchy cannot apply.</source>
-        <translation>Este Look usa filtros ou configurações que esta versão do Patchy não pode aplicar.</translation>
+        <translation>Esta aparência usa filtros ou configurações que esta versão do Patchy não pode aplicar.</translation>
     </message>
     <message>
         <source>Applies as editable Smart Filters.</source>
@@ -8494,7 +8494,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Rendering preview...</source>
-        <translation>Visualização da renderização...</translation>
+        <translation>Renderizando visualização...</translation>
     </message>
     <message>
         <source>Choose a filter to adjust its settings.</source>
@@ -8502,23 +8502,23 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Look name:</source>
-        <translation>Veja o nome:</translation>
+        <translation>Nome da aparência:</translation>
     </message>
     <message>
         <source>Enter a name for the Look.</source>
-        <translation>Digite um nome para o visual.</translation>
+        <translation>Digite um nome para a aparência.</translation>
     </message>
     <message>
         <source>This Look cannot be saved.</source>
-        <translation>Este Look não pode ser salvo.</translation>
+        <translation>Esta aparência não pode ser salva.</translation>
     </message>
     <message>
         <source>The selected Look no longer exists.</source>
-        <translation>O Look selecionado não existe mais.</translation>
+        <translation>A aparência selecionada não existe mais.</translation>
     </message>
     <message>
         <source>Could not %1 the Look. Check that the Looks folder is writable.</source>
-        <translation>Não foi possível %1 a aparência. Verifique se a pasta Looks é gravável.</translation>
+        <translation>Não foi possível %1 a aparência. Verifique se a pasta de aparências permite gravação.</translation>
     </message>
     <message>
         <source>Unsupported Look</source>
@@ -8574,11 +8574,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Shell Lower</source>
-        <translation>Inferior da carcaça</translation>
+        <translation>Concha inferior</translation>
     </message>
     <message>
         <source>Shell Upper</source>
-        <translation>Parte superior da concha</translation>
+        <translation>Concha superior</translation>
     </message>
     <message>
         <source>Flag</source>
@@ -8630,7 +8630,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Drag the center or radius handle to position the filter. Drag elsewhere to pan; the mouse wheel zooms.</source>
-        <translation>Arraste a alça central ou do raio para posicionar o filtro. Arraste para outro lugar para deslocar; a roda do mouse aumenta o zoom.</translation>
+        <translation>Arraste a alça central ou do raio para posicionar o filtro. Arraste em outra área para deslocar a visualização; a roda do mouse ajusta o zoom.</translation>
     </message>
     <message>
         <source>UI language for this run only, not saved: en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN, or zh_TW.</source>
@@ -8653,7 +8653,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>The scan could not be completed (%1)</source>
-        <translation>A verificação não pôde ser concluída (%1)</translation>
+        <translation>A digitalização não pôde ser concluída (%1)</translation>
     </message>
     <message>
         <source>The scanner did not return an image file.</source>
@@ -8669,7 +8669,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>The temporary scan folder could not be created.</source>
-        <translation>A pasta de verificação temporária não pôde ser criada.</translation>
+        <translation>Não foi possível criar a pasta temporária de digitalização.</translation>
     </message>
     <message>
         <source>Windows Image Acquisition is unavailable (%1)</source>
@@ -8715,7 +8715,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Theme file&apos;s &quot;roles&quot; is not an object.</source>
-        <translation>As &quot;funções&quot; do arquivo de tema não são um objeto.</translation>
+        <translation>O campo &quot;roles&quot; do arquivo de tema não é um objeto.</translation>
     </message>
     <message>
         <source>Unknown color role &quot;%1&quot; (ignored).</source>
@@ -8801,7 +8801,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Use the image I attach as a reference for a cute 64x64 portrait in Patchy. Keep its recognizable features, compare your preview with the reference as you refine it, and save both an editable PSD and a PNG.</source>
-        <translation>Use a imagem que anexei como referência para um lindo retrato 64x64 em Patchy. Mantenha seus recursos reconhecíveis, compare sua visualização com a referência à medida que você a refina e salve um PSD editável e um PNG.</translation>
+        <translation>Use a imagem que anexei como referência para um retrato fofo de 64x64 no Patchy. Mantenha seus traços reconhecíveis, compare a visualização com a referência durante os ajustes e salve um PSD editável e um PNG.</translation>
     </message>
     <message>
         <source>Export sizes from my open document</source>
@@ -8817,7 +8817,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Use Patchy in the background to make a labeled contact sheet from a folder of images. Ask me which folder if I have not provided one, keep the original files unchanged, and show me the finished sheet.</source>
-        <translation>Use Patchy em segundo plano para criar uma folha de contato etiquetada a partir de uma pasta de imagens. Pergunte-me qual pasta, caso eu não tenha fornecido uma, mantenha os arquivos originais inalterados e mostre-me a planilha finalizada.</translation>
+        <translation>Use o Patchy em segundo plano para criar uma folha de contato com legendas a partir de uma pasta de imagens. Pergunte qual pasta se eu não tiver informado, mantenha os arquivos originais inalterados e mostre a folha pronta.</translation>
     </message>
     <message>
         <source>Review my open document</source>
@@ -8865,7 +8865,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Open Online Guide</source>
-        <translation>Guia on-line aberto</translation>
+        <translation>Abrir guia on-line</translation>
     </message>
     <message>
         <source>Close</source>
@@ -8888,7 +8888,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source> s</source>
-        <translation> é</translation>
+        <translation> s</translation>
     </message>
     <message>
         <source>Selected layers:</source>
@@ -8896,11 +8896,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Set Time</source>
-        <translation>Definir hora</translation>
+        <translation>Definir duração</translation>
     </message>
     <message>
         <source>Renames the selected layers to end with this frame time, like &quot;blink 0.25s&quot;.</source>
-        <translation>Renomeia as camadas selecionadas para terminar com esse tempo de quadro, como &quot;piscar 0,25s&quot;.</translation>
+        <translation>Renomeia as camadas selecionadas para que terminem com esta duração de quadro, como &quot;piscar 0.25s&quot;.</translation>
     </message>
     <message>
         <source>Remove</source>
@@ -8908,11 +8908,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Removes the trailing frame time from the selected layers&apos; names.</source>
-        <translation>Remove o tempo do quadro final dos nomes das camadas selecionadas.</translation>
+        <translation>Remove a duração de quadro do final dos nomes das camadas selecionadas.</translation>
     </message>
     <message>
         <source>Plays the visible top-level layers as frames, top layer first, exactly like the animated GIF export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
-        <translation>Reproduz as camadas visíveis de nível superior como quadros, primeiro a camada superior, exatamente como a exportação de GIF animado. Um nome de camada que termina em um tempo, como &quot;piscar 0,25s&quot;, define o atraso desse quadro.</translation>
+        <translation>Reproduz as camadas visíveis de nível superior como quadros, começando pela camada do topo, como na exportação de GIF animado. Um nome de camada que termina com um tempo, como &quot;piscar 0.25s&quot;, define o atraso desse quadro.</translation>
     </message>
     <message>
         <source>No visible layers</source>
@@ -8955,15 +8955,15 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>mixer: mixer tool only</source>
-        <translation>mixer: apenas ferramenta mixer</translation>
+        <translation>mixer: somente ferramenta Pincel misturador</translation>
     </message>
     <message>
         <source>preset directory</source>
-        <translation>diretório predefinido</translation>
+        <translation>diretório de predefinições</translation>
     </message>
     <message>
         <source>preset library busy</source>
-        <translation>biblioteca predefinida ocupada</translation>
+        <translation>biblioteca de predefinições ocupada</translation>
     </message>
     <message>
         <source>preset is read-only</source>
@@ -8971,15 +8971,15 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>preset tip</source>
-        <translation>ponta predefinida</translation>
+        <translation>ponta da predefinição</translation>
     </message>
     <message>
         <source>preset write</source>
-        <translation>gravação predefinida</translation>
+        <translation>gravação da predefinição</translation>
     </message>
     <message>
         <source>preset remove</source>
-        <translation>remoção predefinida</translation>
+        <translation>remoção da predefinição</translation>
     </message>
     <message>
         <source>active document</source>
@@ -9015,7 +9015,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>preview write</source>
-        <translation>visualizar gravação</translation>
+        <translation>gravação da visualização</translation>
     </message>
 </context>
 <context>
@@ -9069,7 +9069,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Spacing steps to fade over</source>
-        <translation>Espaçamento de etapas para desaparecer</translation>
+        <translation>Número de passos de espaçamento até a atenuação total</translation>
     </message>
     <message>
         <source>Tip Shape</source>
@@ -9089,7 +9089,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Size Jitter:</source>
-        <translation>Tremor de tamanho:</translation>
+        <translation>Tremulação de tamanho:</translation>
     </message>
     <message>
         <source>Minimum Diameter:</source>
@@ -9129,11 +9129,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Flip X Jitter</source>
-        <translation>Virar X Tremor</translation>
+        <translation>Tremulação com inversão em X</translation>
     </message>
     <message>
         <source>Flip Y Jitter</source>
-        <translation>Inverter e Jitter</translation>
+        <translation>Tremulação com inversão em Y</translation>
     </message>
     <message>
         <source>Scattering</source>
@@ -9157,7 +9157,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Count Jitter:</source>
-        <translation>Contagem de nervosismo:</translation>
+        <translation>Tremulação de quantidade:</translation>
     </message>
     <message>
         <source>Count Control:</source>
@@ -9165,7 +9165,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Transfer</source>
-        <translation>Transferir</translation>
+        <translation>Transferência</translation>
     </message>
     <message>
         <source>Opacity Jitter:</source>
@@ -9225,7 +9225,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Invert Texture</source>
-        <translation>Textura Invertida</translation>
+        <translation>Inverter textura</translation>
     </message>
     <message>
         <source>Dual Brush</source>
@@ -9293,7 +9293,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Builds paint along stroke edges for a watercolor wash. It does not smear canvas colors; use Smudge for that.</source>
-        <translation>Constrói tinta ao longo das bordas do traço para um toque de aquarela. Não mancha as cores da tela; use o Smudge para isso.</translation>
+        <translation>Acumula tinta nas bordas das pinceladas para um efeito de aquarela. Não arrasta as cores da tela; use Borrar para isso.</translation>
     </message>
     <message>
         <source>Reset</source>
@@ -9359,11 +9359,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>New from Selection…</source>
-        <translation>Novidades da Seleção…</translation>
+        <translation>Novo a partir da seleção…</translation>
     </message>
     <message>
         <source>Create a brush tip from the current selection (or the whole image): dark pixels paint, light pixels stay clear</source>
-        <translation>Crie uma ponta de pincel a partir da seleção atual (ou de toda a imagem): pixels escuros são pintados, pixels claros permanecem claros</translation>
+        <translation>Crie uma ponta de pincel a partir da seleção atual (ou da imagem inteira): pixels escuros pintam, pixels claros permanecem transparentes</translation>
     </message>
     <message>
         <source>Manage…</source>
@@ -9410,7 +9410,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Healing source set at %1, %2</source>
-        <translation>Fonte de cura definida como %1, %2</translation>
+        <translation>Origem de recuperação definida em %1, %2</translation>
     </message>
     <message>
         <source>Clone source set at %1, %2</source>
@@ -9422,7 +9422,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Drag the handles or edges to adjust. Enter crops, Esc cancels.</source>
-        <translation>Arraste as alças ou bordas para ajustar. Insira colheitas, Esc cancela.</translation>
+        <translation>Arraste as alças ou bordas para ajustar. Enter aplica o corte; Esc cancela.</translation>
     </message>
     <message>
         <source>%1 x %2 px</source>
@@ -9450,7 +9450,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>%ALT%-click to set a healing source</source>
-        <translation>%ALT%-clique para definir uma fonte de cura</translation>
+        <translation>%ALT%-clique para definir uma origem de recuperação</translation>
     </message>
     <message>
         <source>%ALT%-click to set a clone source</source>
@@ -9498,7 +9498,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Patch is unavailable while editing a grayscale channel</source>
-        <translation>Patch não está disponível durante a edição de um canal em tons de cinza</translation>
+        <translation>Correção não está disponível durante a edição de um canal em tons de cinza</translation>
     </message>
     <message>
         <source>Magic Wand</source>
@@ -9534,7 +9534,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Pattern stamp</source>
-        <translation>Carimbo padrão</translation>
+        <translation>Carimbo de padrão</translation>
     </message>
     <message>
         <source>Smudge</source>
@@ -9666,7 +9666,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Clear Guides</source>
-        <translation>Guias claros</translation>
+        <translation>Limpar guias</translation>
     </message>
     <message>
         <source>Clear Selected Guide</source>
@@ -9674,7 +9674,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Move Guide</source>
-        <translation>Guia de movimentação</translation>
+        <translation>Mover guia</translation>
     </message>
     <message>
         <source>Default</source>
@@ -9746,7 +9746,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Rendering preview...</source>
-        <translation>Visualização da renderização...</translation>
+        <translation>Renderizando visualização...</translation>
     </message>
     <message>
         <source>Inverted Quick Mask</source>
@@ -9766,7 +9766,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Contracted selection by %1 px</source>
-        <translation>Seleção contratada por %1 px</translation>
+        <translation>Seleção contraída em %1 px</translation>
     </message>
     <message>
         <source>Selected %1 px border</source>
@@ -9798,7 +9798,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Make a selection before growing</source>
-        <translation>Faça uma seleção antes de cultivar</translation>
+        <translation>Faça uma seleção antes de expandi-la</translation>
     </message>
     <message>
         <source>Grew selection to %1 px</source>
@@ -9810,7 +9810,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Selected %1 similar px</source>
-        <translation>Selecionado %1 px semelhante</translation>
+        <translation>%1 pixels semelhantes selecionados</translation>
     </message>
     <message>
         <source>Select a pixel layer before using Magic Wand</source>
@@ -9818,7 +9818,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Magic Wand selected %1 px</source>
-        <translation>Varinha Mágica selecionada %1 px</translation>
+        <translation>A Varinha mágica selecionou %1 px</translation>
     </message>
     <message>
         <source>Select a pixel layer before using Quick Select</source>
@@ -9830,11 +9830,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Quick Select removed %1 px</source>
-        <translation>Seleção rápida removida %1 px</translation>
+        <translation>A Seleção rápida removeu %1 px</translation>
     </message>
     <message>
         <source>Quick Select selected %1 px</source>
-        <translation>Seleção rápida selecionada %1 px</translation>
+        <translation>A Seleção rápida selecionou %1 px</translation>
     </message>
     <message>
         <source>Magnetic Lasso</source>
@@ -9886,15 +9886,15 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Removed object with content-aware fill, variation %1 (%2 patches)</source>
-        <translation>Objeto removido com preenchimento sensível ao conteúdo, variação %1 (%2 patches)</translation>
+        <translation>Objeto removido com preenchimento sensível ao conteúdo, variação %1 (%2 retalhos)</translation>
     </message>
     <message>
         <source>Removed object with content-aware fill (%1 patches)</source>
-        <translation>Objeto removido com preenchimento sensível ao conteúdo (%1 patches)</translation>
+        <translation>Objeto removido com preenchimento sensível ao conteúdo (%1 retalhos)</translation>
     </message>
     <message>
         <source>Remove Object found no clean source patches nearby; used the nearest edge instead (source %1 of %2)</source>
-        <translation>Remover objeto não encontrou patches de origem limpos nas proximidades; usei a aresta mais próxima (fonte %1 de %2)</translation>
+        <translation>Remover objeto não encontrou retalhos de origem limpos por perto; foi usada a borda mais próxima (origem %1 de %2)</translation>
     </message>
     <message>
         <source>Removed object with source %1 of %2. Run again to try another.</source>
@@ -9946,7 +9946,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Y: %1</source>
-        <translation>S: %1</translation>
+        <translation>Y: %1</translation>
     </message>
     <message>
         <source>X: %1  Y: %2</source>
@@ -9986,7 +9986,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Free Transform cancelled</source>
-        <translation>Transformação gratuita cancelada</translation>
+        <translation>Transformação livre cancelada</translation>
     </message>
     <message>
         <source>Transformed layers</source>
@@ -10130,7 +10130,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Drag to move the point. Shift+click adds it to the selection; Delete removes the selected points.</source>
-        <translation>Arraste para mover o ponto. Shift+clique adiciona-o à seleção; Excluir remove os pontos selecionados.</translation>
+        <translation>Arraste para mover o ponto. Shift+clique o adiciona à seleção; Delete remove os pontos selecionados.</translation>
     </message>
     <message>
         <source>Drag the handle to reshape the curve</source>
@@ -10174,7 +10174,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Transform path: drag inside to move, handles to scale, outside to rotate. Enter commits, Esc cancels.</source>
-        <translation>Demarcador de transformação: arraste para dentro para mover, alças para dimensionar, para fora para girar. Digite commits, Esc cancela.</translation>
+        <translation>Transformar demarcador: arraste dentro para mover, nas alças para dimensionar e fora para girar. Enter confirma; Esc cancela.</translation>
     </message>
     <message>
         <source>Transform path</source>
@@ -10205,7 +10205,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Temporary selection mask. White selects, black masks, and gray creates partial selection.</source>
-        <translation>Máscara de seleção temporária. O branco seleciona, as máscaras pretas e o cinza cria uma seleção parcial.</translation>
+        <translation>Máscara de seleção temporária. Branco seleciona, preto protege e cinza cria uma seleção parcial.</translation>
     </message>
     <message>
         <source>Show the normal composite image.</source>
@@ -10264,7 +10264,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>%1 Copy</source>
-        <translation>%1 Copiar</translation>
+        <translation>%1 Cópia</translation>
     </message>
     <message>
         <source>Could not read the GRD file.</source>
@@ -10299,7 +10299,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Built-in canvas keys (not editable)</source>
-        <translation>Chaves de tela integradas (não editáveis)</translation>
+        <translation>Teclas integradas da tela (não editáveis)</translation>
     </message>
     <message>
         <source>Pan canvas (hold); while dragging, moves the selection or shape</source>
@@ -10406,7 +10406,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Force Stop Plug-in</source>
-        <translation>Plug-in Forçar Parada</translation>
+        <translation>Forçar encerramento do plug-in</translation>
     </message>
     <message>
         <source>Ends the plug-in without applying it. Use it only if the plug-in&apos;s window has stopped responding.</source>
@@ -10503,7 +10503,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Rotate Latin (vertical text)</source>
-        <translation>Girar latim (texto vertical)</translation>
+        <translation>Girar letras latinas (texto vertical)</translation>
     </message>
     <message>
         <source>Lay Latin letters on their side along the column instead of upright (Photoshop&apos;s Standard Vertical Roman Alignment)</source>
@@ -10511,7 +10511,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Line spacing (Photoshop leading). Entering a value turns Auto leading off.</source>
-        <translation>Espaçamento entre linhas (inicialização do Photoshop). Inserir um valor desativa o início automático.</translation>
+        <translation>Espaçamento entre linhas (entrelinha do Photoshop). Inserir um valor desativa a entrelinha automática.</translation>
     </message>
     <message>
         <source>Leading:</source>
@@ -10611,7 +10611,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Faux bold is not available on warped text. Remove the text warp first.</source>
-        <translation>Negrito falso não está disponível em texto distorcido. Remova a distorção do texto primeiro.</translation>
+        <translation>Negrito simulado não está disponível em texto distorcido. Remova a distorção do texto primeiro.</translation>
     </message>
     <message>
         <source>Select a text layer to warp.</source>
@@ -10679,7 +10679,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Select a layer to merge down</source>
-        <translation>Selecione uma camada para mesclar</translation>
+        <translation>Selecione uma camada para mesclar com a camada abaixo</translation>
     </message>
     <message>
         <source>No layer below to merge</source>
@@ -10691,7 +10691,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Merge down</source>
-        <translation>Mesclar</translation>
+        <translation>Mesclar para baixo</translation>
     </message>
     <message>
         <source>Merged shapes down</source>
@@ -10707,7 +10707,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Nothing to merge down</source>
-        <translation>Nada para fundir</translation>
+        <translation>Nada para mesclar com a camada abaixo</translation>
     </message>
     <message>
         <source>Target layer pixels are locked. Unlock image pixels to merge down.</source>
@@ -10779,7 +10779,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Open Recent &amp;Folder</source>
-        <translation>&amp;Abrir pasta recente</translation>
+        <translation>Abrir &amp;pasta recente</translation>
     </message>
     <message>
         <source>&amp;Save</source>
@@ -10791,7 +10791,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>&amp;Flat Image...</source>
-        <translation>&amp;Imagem plana...</translation>
+        <translation>&amp;Imagem achatada...</translation>
     </message>
     <message>
         <source>Page Set&amp;up...</source>
@@ -10835,7 +10835,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Copy Merged</source>
-        <translation>Cópia mesclada</translation>
+        <translation>Copiar mesclado</translation>
     </message>
     <message>
         <source>&amp;Paste</source>
@@ -11179,7 +11179,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Lock Guides</source>
-        <translation>Guias de bloqueio</translation>
+        <translation>Bloquear guias</translation>
     </message>
     <message>
         <source>Snap &amp;To</source>
@@ -11223,7 +11223,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Clear Guides</source>
-        <translation>Guias claros</translation>
+        <translation>Limpar guias</translation>
     </message>
     <message>
         <source>Set Screen Size</source>
@@ -11315,7 +11315,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Scrubby Zoom</source>
-        <translation>Zoom Esfregado</translation>
+        <translation>Zoom por arraste</translation>
     </message>
     <message>
         <source>100%</source>
@@ -11427,7 +11427,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Sprite Sheet to &amp;Layers...</source>
-        <translation>Fo&amp;lha Sprite para Camadas...</translation>
+        <translation>Fo&amp;lha de sprites para camadas...</translation>
     </message>
     <message>
         <source>&amp;Image Sequence to Layers...</source>
@@ -11459,7 +11459,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Layers as Sprite S&amp;heet...</source>
-        <translation>Camadas como fol&amp;ha Sprite...</translation>
+        <translation>Camadas como fol&amp;ha de sprites...</translation>
     </message>
     <message>
         <source>Layers as Image Se&amp;quence...</source>
@@ -11527,7 +11527,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Grow Selection</source>
-        <translation>Crescer seleção</translation>
+        <translation>Aumentar seleção</translation>
     </message>
     <message>
         <source>Select Similar</source>
@@ -11543,11 +11543,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Release the selected folder&apos;s layers into their parent</source>
-        <translation>Solte as camadas da pasta selecionada em seu pai</translation>
+        <translation>Mover as camadas da pasta selecionada para o nível superior</translation>
     </message>
     <message>
         <source>Trace Image to Shapes...</source>
-        <translation>Rastrear imagem em formas...</translation>
+        <translation>Vetorizar imagem em formas...</translation>
     </message>
     <message>
         <source>Convert the pixel layer into editable shape layers, one per color</source>
@@ -11895,11 +11895,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Dry, Light Load</source>
-        <translation>Carga seca e leve</translation>
+        <translation>Seco, pouca carga</translation>
     </message>
     <message>
         <source>Dry, Heavy Load</source>
-        <translation>Carga seca e pesada</translation>
+        <translation>Seco, muita carga</translation>
     </message>
     <message>
         <source>Moist</source>
@@ -11907,11 +11907,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Moist, Light Mix</source>
-        <translation>Mistura úmida e leve</translation>
+        <translation>Úmido, pouca mistura</translation>
     </message>
     <message>
         <source>Moist, Heavy Mix</source>
-        <translation>Mistura úmida e pesada</translation>
+        <translation>Úmido, muita mistura</translation>
     </message>
     <message>
         <source>Wet</source>
@@ -11919,11 +11919,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Wet, Light Mix</source>
-        <translation>Mistura leve e úmida</translation>
+        <translation>Molhado, pouca mistura</translation>
     </message>
     <message>
         <source>Wet, Heavy Mix</source>
-        <translation>Mistura úmida e pesada</translation>
+        <translation>Molhado, muita mistura</translation>
     </message>
     <message>
         <source>Very Wet</source>
@@ -11931,11 +11931,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Very Wet, Light Mix</source>
-        <translation>Muito molhado, mistura leve</translation>
+        <translation>Muito molhado, pouca mistura</translation>
     </message>
     <message>
         <source>Very Wet, Heavy Mix</source>
-        <translation>Mistura muito úmida e pesada</translation>
+        <translation>Muito molhado, muita mistura</translation>
     </message>
     <message>
         <source>Custom</source>
@@ -11951,7 +11951,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Snap moved layers to other layers, guides, the grid, and the canvas (View &gt; Snap). Choose the targets under View &gt; Snap To.</source>
-        <translation>Encaixe as camadas movidas em outras camadas, guias, grade e tela (Exibir &gt; Ajustar). Escolha os alvos em Exibir &gt; Ajustar a.</translation>
+        <translation>Ajuste as camadas movidas a outras camadas, guias, grade e tela (Visualizar &gt; Ajustar). Escolha os alvos em Visualizar &gt; Ajustar para.</translation>
     </message>
     <message>
         <source>Distribute layers and choose what to align to</source>
@@ -12079,11 +12079,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Shell Lower</source>
-        <translation>Inferior da carcaça</translation>
+        <translation>Concha inferior</translation>
     </message>
     <message>
         <source>Shell Upper</source>
-        <translation>Parte superior da concha</translation>
+        <translation>Concha superior</translation>
     </message>
     <message>
         <source>Flag</source>
@@ -12159,7 +12159,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Anti-alias</source>
-        <translation>Anti-alias</translation>
+        <translation>Suavizar serrilhado</translation>
     </message>
     <message>
         <source>Radius:</source>
@@ -12179,7 +12179,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Fixed Ratio</source>
-        <translation>Razão Fixa</translation>
+        <translation>Proporção fixa</translation>
     </message>
     <message>
         <source>Fixed Size</source>
@@ -12427,7 +12427,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Source heals the dragged-from region; Destination copies it onto the drop point</source>
-        <translation>A Fonte cura a região arrastada; O destino copia-o para o ponto de entrega</translation>
+        <translation>Origem recupera a região de onde você arrastou; Destino a copia para o ponto onde você soltar</translation>
     </message>
     <message>
         <source>Keep the region and add only the sampled texture instead of replacing it; clearest when the source has distinct marks over a plain background</source>
@@ -12463,7 +12463,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Highlights</source>
-        <translation>Destaques</translation>
+        <translation>Realces</translation>
     </message>
     <message>
         <source>Protect Tones</source>
@@ -12491,7 +12491,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Quick Select brush size: press [ or ]</source>
-        <translation>Seleção rápida do tamanho do pincel: pressione [ou]</translation>
+        <translation>Tamanho do pincel de Seleção rápida: pressione [ ou ]</translation>
     </message>
     <message>
         <source>Smooth the selection boundary after each stroke</source>
@@ -12499,7 +12499,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Edge search width in document pixels: press [ or ]</source>
-        <translation>Largura da pesquisa de borda em pixels do documento: pressione [ou]</translation>
+        <translation>Largura da busca de bordas em pixels do documento: pressione [ ou ]</translation>
     </message>
     <message>
         <source>Contrast:</source>
@@ -12615,11 +12615,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Star inset:</source>
-        <translation>Inserção de estrela:</translation>
+        <translation>Recuo da estrela:</translation>
     </message>
     <message>
         <source>0 makes a plain polygon; higher values pull in star points</source>
-        <translation>0 forma um polígono simples; valores mais altos atraem pontos estelares</translation>
+        <translation>0 cria um polígono comum; valores maiores aprofundam as reentrâncias da estrela</translation>
     </message>
     <message>
         <source>Shape:</source>
@@ -12675,19 +12675,19 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Drag right to zoom in and left to zoom out around the point you pressed. Off: drag a rectangle to zoom to it</source>
-        <translation>Arraste para a direita para aumentar o zoom e para a esquerda para diminuir o zoom em torno do ponto pressionado. Desativado: arraste um retângulo para aumentá-lo</translation>
+        <translation>Arraste para a direita para ampliar e para a esquerda para reduzir em torno do ponto pressionado. Desativado: arraste um retângulo para ampliar essa região</translation>
     </message>
     <message>
         <source>Show the image at actual pixels (View &gt; Actual Pixels)</source>
-        <translation>Mostrar a imagem em pixels reais (Exibir &gt; Pixels reais)</translation>
+        <translation>Mostrar a imagem em pixels reais (Visualizar &gt; Pixels reais)</translation>
     </message>
     <message>
         <source>Fit the whole image in the window (View &gt; Fit on Screen)</source>
-        <translation>Ajustar a imagem inteira na janela (Exibir &gt; Ajustar na tela)</translation>
+        <translation>Ajustar a imagem inteira à janela (Visualizar &gt; Ajustar na tela)</translation>
     </message>
     <message>
         <source>Zoom until the image fills the window (View &gt; Fill Screen)</source>
-        <translation>Aplique zoom até que a imagem preencha a janela (Exibir &gt; Preencher tela)</translation>
+        <translation>Ampliar até a imagem preencher a janela (Visualizar &gt; Preencher tela)</translation>
     </message>
     <message>
         <source>Font:</source>
@@ -12723,7 +12723,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Windows LCD</source>
-        <translation>LCD das janelas</translation>
+        <translation>Windows LCD</translation>
     </message>
     <message>
         <source>Windows</source>
@@ -12955,7 +12955,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. Shift constrains layer movement.</source>
-        <translation>Shift+clique ou %CTRL%+clique alterna camadas. %CTRL%+arrastar seleciona camadas em um retângulo; segure Shift antes de arrastar para adicionar. Shift restringe o movimento da camada.</translation>
+        <translation>Shift+clique ou %CTRL%+clique alterna a seleção de camadas. %CTRL%+arrastar seleciona camadas em um retângulo; mantenha Shift pressionado antes de arrastar para adicionar. Shift restringe o movimento da camada.</translation>
     </message>
     <message>
         <source>Click to place points, drag for curves. On a path: click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL% moves points.</source>
@@ -12967,7 +12967,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Select and drag points and handles. Delete removes the selected points.</source>
-        <translation>Selecione e arraste pontos e alças. Excluir remove os pontos selecionados.</translation>
+        <translation>Selecione e arraste pontos e alças. Delete remove os pontos selecionados.</translation>
     </message>
     <message>
         <source>Click a path segment to insert a point.</source>
@@ -13011,7 +13011,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Patch: draw around the area to fix, then drag the selection to a clean source area, or press Enter to remove the object automatically</source>
-        <translation>Patch: desenhe ao redor da área a ser corrigida e arraste a seleção para uma área de origem limpa ou pressione Enter para remover o objeto automaticamente</translation>
+        <translation>Correção: desenhe ao redor da área a corrigir e arraste a seleção para uma área de origem limpa ou pressione Enter para remover o objeto automaticamente</translation>
     </message>
     <message>
         <source>Rectangular Marquee: drag to select. Drag a handle to resize the selection, or drag inside it to move it.</source>
@@ -13023,7 +13023,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Marquee Tools</source>
-        <translation>Ferramentas de letreiro</translation>
+        <translation>Ferramentas de seleção retangular e elíptica</translation>
     </message>
     <message>
         <source>Cycle Marquee Tools</source>
@@ -13063,7 +13063,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Healing Tools</source>
-        <translation>Ferramentas de cura</translation>
+        <translation>Ferramentas de recuperação</translation>
     </message>
     <message>
         <source>Cycle Healing Tools</source>
@@ -13163,7 +13163,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Cancelled Color Balance</source>
-        <translation>Balanço de cores cancelado</translation>
+        <translation>Equilíbrio de cores cancelado</translation>
     </message>
     <message>
         <source>Invert</source>
@@ -13183,7 +13183,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Cancelled Threshold</source>
-        <translation>Limite cancelado</translation>
+        <translation>Limiar cancelado</translation>
     </message>
     <message>
         <source>Brightness/Contrast</source>
@@ -13211,7 +13211,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Invert has no settings to edit</source>
-        <translation>Invert não tem configurações para editar</translation>
+        <translation>Inverter não tem configurações para editar</translation>
     </message>
     <message>
         <source>Cancelled adjustment edit</source>
@@ -13255,7 +13255,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Select a saved brush. Update replaces it with the current brush settings. Document Undo does not change saved brushes.</source>
-        <translation>Selecione um pincel salvo. A atualização substitui-a pelas configurações atuais do pincel. Desfazer documento não altera os pincéis salvos.</translation>
+        <translation>Selecione um pincel salvo. Atualizar o substitui pelas configurações atuais do pincel. Desfazer alterações no documento não altera os pincéis salvos.</translation>
     </message>
     <message>
         <source>Use</source>
@@ -13327,7 +13327,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Previewing spot channel (read-only): %1</source>
-        <translation>Pré-visualizando canal spot (somente leitura): %1</translation>
+        <translation>Visualizando canal de cor especial (somente leitura): %1</translation>
     </message>
     <message>
         <source>Editing channel: %1</source>
@@ -13359,7 +13359,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Saved selection as %1</source>
-        <translation>Selecção guardada como %1</translation>
+        <translation>Seleção salva como %1</translation>
     </message>
     <message>
         <source>Save Selection as Channel</source>
@@ -13371,7 +13371,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Loaded %1 as selection</source>
-        <translation>Carregado %1 como selecção</translation>
+        <translation>%1 carregado como seleção</translation>
     </message>
     <message>
         <source>Rename Channel</source>
@@ -13549,7 +13549,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Fill: </source>
-        <translation>Preencher: </translation>
+        <translation>Preench.: </translation>
     </message>
     <message>
         <source>Lock</source>
@@ -13565,7 +13565,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Lock position</source>
-        <translation>Posição de bloqueio</translation>
+        <translation>Bloquear posição</translation>
     </message>
     <message>
         <source>Lock all</source>
@@ -13677,9 +13677,9 @@ Y: -
 RGB: -
 Rect: -</source>
         <translation>X: -
-E: -
+Y: -
 RGB: -
-Reto: -</translation>
+Retângulo: -</translation>
     </message>
     <message>
         <source>Palette</source>
@@ -13948,7 +13948,7 @@ Reto: -</translation>
     </message>
     <message>
         <source>Affinity Image Layers</source>
-        <translation>Camadas de imagem de afinidade</translation>
+        <translation>Camadas de imagem do Affinity</translation>
     </message>
     <message numerus="yes">
         <source>This document places %n image file(s) as Affinity &quot;Image&quot; layers.</source>
@@ -14010,7 +14010,7 @@ Reto: -</translation>
     </message>
     <message>
         <source>%1 has unsaved changes. Reopen the file from disk and discard them?</source>
-        <translation>%1 tem alterações não salvas. Reabrir o arquivo do disco e descartá-lo?</translation>
+        <translation>%1 tem alterações não salvas. Reabrir o arquivo do disco e descartar essas alterações?</translation>
     </message>
     <message>
         <source>Reopen</source>
@@ -14062,7 +14062,7 @@ Reto: -</translation>
     </message>
     <message>
         <source>Divide Scanned Photos</source>
-        <translation>Divida fotos digitalizadas</translation>
+        <translation>Dividir fotos digitalizadas</translation>
     </message>
     <message>
         <source>Scan another batch of photos?</source>
@@ -14088,11 +14088,11 @@ Reto: -</translation>
     </message>
     <message>
         <source>Cancelled Divide Scanned Photos</source>
-        <translation>Fotos digitalizadas de divisão cancelada</translation>
+        <translation>Divisão de fotos digitalizadas cancelada</translation>
     </message>
     <message>
         <source>Divide scanned photos</source>
-        <translation>Divida fotos digitalizadas</translation>
+        <translation>Dividir fotos digitalizadas</translation>
     </message>
     <message numerus="yes">
         <source>Saved %n photo(s) to %1 and opened them</source>
@@ -14143,7 +14143,7 @@ Reto: -</translation>
     </message>
     <message>
         <source>Sprite Sheet to Layers</source>
-        <translation>Folha Sprite para Camadas</translation>
+        <translation>Folha de sprites para camadas</translation>
     </message>
     <message>
         <source>Frame %1</source>
@@ -14155,11 +14155,11 @@ Reto: -</translation>
     </message>
     <message>
         <source>Sprite Frames</source>
-        <translation>Molduras Sprite</translation>
+        <translation>Quadros de sprites</translation>
     </message>
     <message>
         <source>Import sprite sheet</source>
-        <translation>Importar planilha de sprites</translation>
+        <translation>Importar folha de sprites</translation>
     </message>
     <message>
         <source>Imported %1 frames from %2</source>
@@ -14167,7 +14167,7 @@ Reto: -</translation>
     </message>
     <message>
         <source>Export Sprite Sheet</source>
-        <translation>Exportar planilha Sprite</translation>
+        <translation>Exportar folha de sprites</translation>
     </message>
     <message>
         <source>There are no visible layers to export.</source>
@@ -14175,11 +14175,11 @@ Reto: -</translation>
     </message>
     <message>
         <source>Sprite Sheet</source>
-        <translation>Folha de Sprite</translation>
+        <translation>Folha de sprites</translation>
     </message>
     <message>
         <source>Exported sprite sheet %1</source>
-        <translation>Folha de entidades gráficas exportada %1</translation>
+        <translation>Folha de sprites exportada: %1</translation>
     </message>
     <message>
         <source>Export failed</source>
@@ -14259,11 +14259,11 @@ Incorporado em imagens: %1.</translation>
     </message>
     <message>
         <source>This file format cannot store layers. Continue saving and flatten the linked file?</source>
-        <translation>Este formato de arquivo não pode armazenar camadas. Continuar salvando e nivelar o arquivo vinculado?</translation>
+        <translation>Este formato de arquivo não pode armazenar camadas. Continuar salvando e achatar o arquivo vinculado?</translation>
     </message>
     <message>
         <source>This file format cannot store layers, so Patchy will save a flattened copy. The open document will keep its layers and unsaved changes. To keep layers in the file, save as a Photoshop document (.psd) instead.</source>
-        <translation>Este formato de arquivo não pode armazenar camadas, então o Patchy salvará uma cópia nivelada. O documento aberto manterá suas camadas e alterações não salvas. Para manter as camadas no arquivo, salve como um documento do Photoshop (.psd).</translation>
+        <translation>Este formato de arquivo não pode armazenar camadas, então o Patchy salvará uma cópia achatada. O documento aberto manterá suas camadas e alterações não salvas. Para manter as camadas no arquivo, salve como documento do Photoshop (.psd).</translation>
     </message>
     <message>
         <source>Layers Will Be Flattened</source>
@@ -14327,11 +14327,11 @@ De qualquer forma, Patchy escreve uma cópia; o documento aberto mantém suas ca
     </message>
     <message>
         <source>Saved animated GIF copy %1</source>
-        <translation>Cópia GIF animada guardada %1</translation>
+        <translation>Cópia de GIF animado salva: %1</translation>
     </message>
     <message>
         <source>Saved flattened copy %1</source>
-        <translation>Cópia nivelada guardada %1</translation>
+        <translation>Cópia achatada salva: %1</translation>
     </message>
     <message>
         <source>Saved %1</source>
@@ -14339,7 +14339,7 @@ De qualquer forma, Patchy escreve uma cópia; o documento aberto mantém suas ca
     </message>
     <message>
         <source>Export Flat Image</source>
-        <translation>Exportar imagem plana</translation>
+        <translation>Exportar imagem achatada</translation>
     </message>
     <message>
         <source>Export Multi-Page PDF</source>
@@ -14414,7 +14414,7 @@ Salve seu trabalho e feche o Patchy antes de executar o instalador.</translation
     </message>
     <message>
         <source>Copy Command</source>
-        <translation>Comando Copiar</translation>
+        <translation>Copiar comando</translation>
     </message>
     <message>
         <source>Download</source>
@@ -14514,315 +14514,315 @@ Salve seu trabalho e feche o Patchy antes de executar o instalador.</translation
     </message>
     <message>
         <source>Cancelled Radial Blur</source>
-        <translation>Desfoque radial cancelado</translation>
+        <translation>Filtro cancelado: Desfoque radial</translation>
     </message>
     <message>
         <source>Cancelled Add Noise</source>
-        <translation>Cancelado Adicionar ruído</translation>
+        <translation>Filtro cancelado: Adicionar ruído</translation>
     </message>
     <message>
         <source>Cancelled Box Blur</source>
-        <translation>Desfoque de caixa cancelado</translation>
+        <translation>Filtro cancelado: Desfoque de caixa</translation>
     </message>
     <message>
         <source>Cancelled Emboss</source>
-        <translation>Gravação cancelada</translation>
+        <translation>Filtro cancelado: Entalhe</translation>
     </message>
     <message>
         <source>Cancelled Mosaic</source>
-        <translation>Mosaico cancelado</translation>
+        <translation>Filtro cancelado: Mosaico</translation>
     </message>
     <message>
         <source>Cancelled Plastic Wrap</source>
-        <translation>Filme plástico cancelado</translation>
+        <translation>Filtro cancelado: Plastificação</translation>
     </message>
     <message>
         <source>Cancelled Unsharp Mask</source>
-        <translation>Máscara de nitidez cancelada</translation>
+        <translation>Filtro cancelado: Máscara de nitidez</translation>
     </message>
     <message>
         <source>Cancelled Motion Blur</source>
-        <translation>Desfoque de movimento cancelado</translation>
+        <translation>Filtro cancelado: Desfoque de movimento</translation>
     </message>
     <message>
         <source>Cancelled Surface Blur</source>
-        <translation>Desfoque de superfície cancelado</translation>
+        <translation>Filtro cancelado: Desfoque de superfície</translation>
     </message>
     <message>
         <source>Cancelled Dust &amp; Scratches</source>
-        <translation>Poeira e riscos cancelados</translation>
+        <translation>Filtro cancelado: Poeira e riscos</translation>
     </message>
     <message>
         <source>Cancelled Median</source>
-        <translation>Mediana cancelada</translation>
+        <translation>Filtro cancelado: Mediana</translation>
     </message>
     <message>
         <source>Cancelled High Pass</source>
-        <translation>Passagem alta cancelada</translation>
+        <translation>Filtro cancelado: Alta frequência</translation>
     </message>
     <message>
         <source>Cancelled Gaussian Blur</source>
-        <translation>Desfoque Gaussiano Cancelado</translation>
+        <translation>Filtro cancelado: Desfoque gaussiano</translation>
     </message>
     <message>
         <source>Add Radial Blur Smart Filter</source>
-        <translation>Adicionar filtro inteligente de desfoque radial</translation>
+        <translation>Adicionar filtro inteligente: Desfoque radial</translation>
     </message>
     <message>
         <source>Edit Radial Blur Smart Filter</source>
-        <translation>Editar filtro inteligente de desfoque radial</translation>
+        <translation>Editar filtro inteligente: Desfoque radial</translation>
     </message>
     <message>
         <source>Add Add Noise Smart Filter</source>
-        <translation>Adicionar Adicionar Filtro Inteligente de Ruído</translation>
+        <translation>Adicionar filtro inteligente: Adicionar ruído</translation>
     </message>
     <message>
         <source>Edit Add Noise Smart Filter</source>
-        <translation>Editar Adicionar Filtro Inteligente de Ruído</translation>
+        <translation>Editar filtro inteligente: Adicionar ruído</translation>
     </message>
     <message>
         <source>Add Box Blur Smart Filter</source>
-        <translation>Adicionar filtro inteligente de desfoque de caixa</translation>
+        <translation>Adicionar filtro inteligente: Desfoque de caixa</translation>
     </message>
     <message>
         <source>Edit Box Blur Smart Filter</source>
-        <translation>Editar filtro inteligente de desfoque de caixa</translation>
+        <translation>Editar filtro inteligente: Desfoque de caixa</translation>
     </message>
     <message>
         <source>Add Emboss Smart Filter</source>
-        <translation>Adicionar filtro inteligente de relevo</translation>
+        <translation>Adicionar filtro inteligente: Entalhe</translation>
     </message>
     <message>
         <source>Edit Emboss Smart Filter</source>
-        <translation>Editar filtro inteligente de relevo</translation>
+        <translation>Editar filtro inteligente: Entalhe</translation>
     </message>
     <message>
         <source>Add Mosaic Smart Filter</source>
-        <translation>Adicionar filtro inteligente Mosaic</translation>
+        <translation>Adicionar filtro inteligente: Mosaico</translation>
     </message>
     <message>
         <source>Edit Mosaic Smart Filter</source>
-        <translation>Editar filtro inteligente Mosaic</translation>
+        <translation>Editar filtro inteligente: Mosaico</translation>
     </message>
     <message>
         <source>Add Plastic Wrap Smart Filter</source>
-        <translation>Adicionar filtro inteligente de filme plástico</translation>
+        <translation>Adicionar filtro inteligente: Plastificação</translation>
     </message>
     <message>
         <source>Edit Plastic Wrap Smart Filter</source>
-        <translation>Editar filtro inteligente de filme plástico</translation>
+        <translation>Editar filtro inteligente: Plastificação</translation>
     </message>
     <message>
         <source>Add Unsharp Mask Smart Filter</source>
-        <translation>Adicionar filtro inteligente de máscara de nitidez</translation>
+        <translation>Adicionar filtro inteligente: Máscara de nitidez</translation>
     </message>
     <message>
         <source>Edit Unsharp Mask Smart Filter</source>
-        <translation>Editar filtro inteligente de máscara de nitidez</translation>
+        <translation>Editar filtro inteligente: Máscara de nitidez</translation>
     </message>
     <message>
         <source>Add Motion Blur Smart Filter</source>
-        <translation>Adicionar filtro inteligente de desfoque de movimento</translation>
+        <translation>Adicionar filtro inteligente: Desfoque de movimento</translation>
     </message>
     <message>
         <source>Edit Motion Blur Smart Filter</source>
-        <translation>Editar filtro inteligente de desfoque de movimento</translation>
+        <translation>Editar filtro inteligente: Desfoque de movimento</translation>
     </message>
     <message>
         <source>Add Surface Blur Smart Filter</source>
-        <translation>Adicionar filtro inteligente de desfoque de superfície</translation>
+        <translation>Adicionar filtro inteligente: Desfoque de superfície</translation>
     </message>
     <message>
         <source>Edit Surface Blur Smart Filter</source>
-        <translation>Editar filtro inteligente de desfoque de superfície</translation>
+        <translation>Editar filtro inteligente: Desfoque de superfície</translation>
     </message>
     <message>
         <source>Add Dust &amp; Scratches Smart Filter</source>
-        <translation>Adicionar filtro inteligente de Poeira e riscos</translation>
+        <translation>Adicionar filtro inteligente: Poeira e riscos</translation>
     </message>
     <message>
         <source>Edit Dust &amp; Scratches Smart Filter</source>
-        <translation>Editar filtro inteligente de Poeira e riscos</translation>
+        <translation>Editar filtro inteligente: Poeira e riscos</translation>
     </message>
     <message>
         <source>Add Median Smart Filter</source>
-        <translation>Adicionar filtro inteligente de mediana</translation>
+        <translation>Adicionar filtro inteligente: Mediana</translation>
     </message>
     <message>
         <source>Edit Median Smart Filter</source>
-        <translation>Editar filtro inteligente mediano</translation>
+        <translation>Editar filtro inteligente: Mediana</translation>
     </message>
     <message>
         <source>Add High Pass Smart Filter</source>
-        <translation>Adicionar filtro inteligente passa-alta</translation>
+        <translation>Adicionar filtro inteligente: Alta frequência</translation>
     </message>
     <message>
         <source>Edit High Pass Smart Filter</source>
-        <translation>Editar filtro inteligente passa-alta</translation>
+        <translation>Editar filtro inteligente: Alta frequência</translation>
     </message>
     <message>
         <source>Add Gaussian Blur Smart Filter</source>
-        <translation>Adicionar filtro inteligente de desfoque gaussiano</translation>
+        <translation>Adicionar filtro inteligente: Desfoque gaussiano</translation>
     </message>
     <message>
         <source>Edit Gaussian Blur Smart Filter</source>
-        <translation>Editar filtro inteligente de desfoque gaussiano</translation>
+        <translation>Editar filtro inteligente: Desfoque gaussiano</translation>
     </message>
     <message>
         <source>Added Radial Blur as a Smart Filter</source>
-        <translation>Adicionado Radial Blur como filtro inteligente</translation>
+        <translation>Filtro inteligente adicionado: Desfoque radial</translation>
     </message>
     <message>
         <source>Added another Radial Blur Smart Filter</source>
-        <translation>Adicionado outro filtro inteligente Radial Blur</translation>
+        <translation>Outro filtro inteligente adicionado: Desfoque radial</translation>
     </message>
     <message>
         <source>Updated Radial Blur Smart Filter</source>
-        <translation>Filtro inteligente de desfoque radial atualizado</translation>
+        <translation>Filtro inteligente atualizado: Desfoque radial</translation>
     </message>
     <message>
         <source>Added Add Noise as a Smart Filter</source>
-        <translation>Adicionado Adicionar ruído como filtro inteligente</translation>
+        <translation>Filtro inteligente adicionado: Adicionar ruído</translation>
     </message>
     <message>
         <source>Added another Add Noise Smart Filter</source>
-        <translation>Adicionado outro filtro inteligente de adição de ruído</translation>
+        <translation>Outro filtro inteligente adicionado: Adicionar ruído</translation>
     </message>
     <message>
         <source>Updated Add Noise Smart Filter</source>
-        <translation>Filtro inteligente de adição de ruído atualizado</translation>
+        <translation>Filtro inteligente atualizado: Adicionar ruído</translation>
     </message>
     <message>
         <source>Added Box Blur as a Smart Filter</source>
-        <translation>Adicionado Box Blur como filtro inteligente</translation>
+        <translation>Filtro inteligente adicionado: Desfoque de caixa</translation>
     </message>
     <message>
         <source>Added another Box Blur Smart Filter</source>
-        <translation>Adicionado outro filtro inteligente Box Blur</translation>
+        <translation>Outro filtro inteligente adicionado: Desfoque de caixa</translation>
     </message>
     <message>
         <source>Updated Box Blur Smart Filter</source>
-        <translation>Filtro inteligente de desfoque de caixa atualizado</translation>
+        <translation>Filtro inteligente atualizado: Desfoque de caixa</translation>
     </message>
     <message>
         <source>Added Emboss as a Smart Filter</source>
-        <translation>Adicionado relevo como filtro inteligente</translation>
+        <translation>Filtro inteligente adicionado: Entalhe</translation>
     </message>
     <message>
         <source>Added another Emboss Smart Filter</source>
-        <translation>Adicionado outro filtro inteligente Emboss</translation>
+        <translation>Outro filtro inteligente adicionado: Entalhe</translation>
     </message>
     <message>
         <source>Updated Emboss Smart Filter</source>
-        <translation>Filtro Inteligente Emboss atualizado</translation>
+        <translation>Filtro inteligente atualizado: Entalhe</translation>
     </message>
     <message>
         <source>Added Mosaic as a Smart Filter</source>
-        <translation>Adicionado Mosaico como Filtro Inteligente</translation>
+        <translation>Filtro inteligente adicionado: Mosaico</translation>
     </message>
     <message>
         <source>Added another Mosaic Smart Filter</source>
-        <translation>Adicionado outro filtro inteligente Mosaic</translation>
+        <translation>Outro filtro inteligente adicionado: Mosaico</translation>
     </message>
     <message>
         <source>Updated Mosaic Smart Filter</source>
-        <translation>Filtro inteligente Mosaic atualizado</translation>
+        <translation>Filtro inteligente atualizado: Mosaico</translation>
     </message>
     <message>
         <source>Added Plastic Wrap as a Smart Filter</source>
-        <translation>Adicionado filme plástico como filtro inteligente</translation>
+        <translation>Filtro inteligente adicionado: Plastificação</translation>
     </message>
     <message>
         <source>Added another Plastic Wrap Smart Filter</source>
-        <translation>Adicionado outro filtro inteligente de plástico</translation>
+        <translation>Outro filtro inteligente adicionado: Plastificação</translation>
     </message>
     <message>
         <source>Updated Plastic Wrap Smart Filter</source>
-        <translation>Filtro inteligente de envoltório plástico atualizado</translation>
+        <translation>Filtro inteligente atualizado: Plastificação</translation>
     </message>
     <message>
         <source>Added Unsharp Mask as a Smart Filter</source>
-        <translation>Adicionada máscara Unsharp como filtro inteligente</translation>
+        <translation>Filtro inteligente adicionado: Máscara de nitidez</translation>
     </message>
     <message>
         <source>Added another Unsharp Mask Smart Filter</source>
-        <translation>Adicionado outro filtro inteligente Máscara de nitidez</translation>
+        <translation>Outro filtro inteligente adicionado: Máscara de nitidez</translation>
     </message>
     <message>
         <source>Updated Unsharp Mask Smart Filter</source>
-        <translation>Filtro inteligente de máscara de nitidez atualizado</translation>
+        <translation>Filtro inteligente atualizado: Máscara de nitidez</translation>
     </message>
     <message>
         <source>Added Motion Blur as a Smart Filter</source>
-        <translation>Adicionado Motion Blur como filtro inteligente</translation>
+        <translation>Filtro inteligente adicionado: Desfoque de movimento</translation>
     </message>
     <message>
         <source>Added another Motion Blur Smart Filter</source>
-        <translation>Adicionado outro filtro inteligente Motion Blur</translation>
+        <translation>Outro filtro inteligente adicionado: Desfoque de movimento</translation>
     </message>
     <message>
         <source>Updated Motion Blur Smart Filter</source>
-        <translation>Filtro inteligente de desfoque de movimento atualizado</translation>
+        <translation>Filtro inteligente atualizado: Desfoque de movimento</translation>
     </message>
     <message>
         <source>Added Surface Blur as a Smart Filter</source>
-        <translation>Adicionado Surface Blur como filtro inteligente</translation>
+        <translation>Filtro inteligente adicionado: Desfoque de superfície</translation>
     </message>
     <message>
         <source>Added another Surface Blur Smart Filter</source>
-        <translation>Adicionado outro filtro inteligente Surface Blur</translation>
+        <translation>Outro filtro inteligente adicionado: Desfoque de superfície</translation>
     </message>
     <message>
         <source>Updated Surface Blur Smart Filter</source>
-        <translation>Filtro inteligente de desfoque de superfície atualizado</translation>
+        <translation>Filtro inteligente atualizado: Desfoque de superfície</translation>
     </message>
     <message>
         <source>Added Dust &amp; Scratches as a Smart Filter</source>
-        <translation>Adicionados Poeira e riscos como filtro inteligente</translation>
+        <translation>Filtro inteligente adicionado: Poeira e riscos</translation>
     </message>
     <message>
         <source>Added another Dust &amp; Scratches Smart Filter</source>
-        <translation>Adicionado outro filtro inteligente de Poeira e riscos</translation>
+        <translation>Outro filtro inteligente adicionado: Poeira e riscos</translation>
     </message>
     <message>
         <source>Updated Dust &amp; Scratches Smart Filter</source>
-        <translation>Filtro inteligente de Poeira e riscos atualizado</translation>
+        <translation>Filtro inteligente atualizado: Poeira e riscos</translation>
     </message>
     <message>
         <source>Added Median as a Smart Filter</source>
-        <translation>Adicionada mediana como filtro inteligente</translation>
+        <translation>Filtro inteligente adicionado: Mediana</translation>
     </message>
     <message>
         <source>Added another Median Smart Filter</source>
-        <translation>Adicionado outro filtro inteligente de mediana</translation>
+        <translation>Outro filtro inteligente adicionado: Mediana</translation>
     </message>
     <message>
         <source>Updated Median Smart Filter</source>
-        <translation>Filtro inteligente mediano atualizado</translation>
+        <translation>Filtro inteligente atualizado: Mediana</translation>
     </message>
     <message>
         <source>Added High Pass as a Smart Filter</source>
-        <translation>Adicionado High Pass como filtro inteligente</translation>
+        <translation>Filtro inteligente adicionado: Alta frequência</translation>
     </message>
     <message>
         <source>Added another High Pass Smart Filter</source>
-        <translation>Adicionado outro filtro inteligente passa-altas</translation>
+        <translation>Outro filtro inteligente adicionado: Alta frequência</translation>
     </message>
     <message>
         <source>Updated High Pass Smart Filter</source>
-        <translation>Filtro inteligente passa-alta atualizado</translation>
+        <translation>Filtro inteligente atualizado: Alta frequência</translation>
     </message>
     <message>
         <source>Added Gaussian Blur as a Smart Filter</source>
-        <translation>Adicionado Desfoque Gaussiano como Filtro Inteligente</translation>
+        <translation>Filtro inteligente adicionado: Desfoque gaussiano</translation>
     </message>
     <message>
         <source>Added another Gaussian Blur Smart Filter</source>
-        <translation>Adicionado outro filtro inteligente de desfoque gaussiano</translation>
+        <translation>Outro filtro inteligente adicionado: Desfoque gaussiano</translation>
     </message>
     <message>
         <source>Updated Gaussian Blur Smart Filter</source>
-        <translation>Filtro inteligente de desfoque gaussiano atualizado</translation>
+        <translation>Filtro inteligente atualizado: Desfoque gaussiano</translation>
     </message>
     <message>
         <source>This Smart Filter descriptor cannot be edited safely</source>
@@ -15002,7 +15002,7 @@ Salve seu trabalho e feche o Patchy antes de executar o instalador.</translation
     </message>
     <message>
         <source>Rasterize the Smart Object before using Liquify</source>
-        <translation>Rasterize o objeto inteligente antes de usar o Liquify</translation>
+        <translation>Rasterize o objeto inteligente antes de usar Dissolver</translation>
     </message>
     <message>
         <source>Liquify</source>
@@ -15010,15 +15010,15 @@ Salve seu trabalho e feche o Patchy antes de executar o instalador.</translation
     </message>
     <message>
         <source>Cancelled Liquify</source>
-        <translation>Liquidificar cancelado</translation>
+        <translation>Dissolver cancelado</translation>
     </message>
     <message>
         <source>Liquify made no changes</source>
-        <translation>Liquify não fez alterações</translation>
+        <translation>Dissolver não fez alterações</translation>
     </message>
     <message>
         <source>Applying Liquify...</source>
-        <translation>Aplicando Liquify...</translation>
+        <translation>Aplicando Dissolver...</translation>
     </message>
     <message>
         <source>Applied Liquify</source>
@@ -15030,7 +15030,7 @@ Salve seu trabalho e feche o Patchy antes de executar o instalador.</translation
     </message>
     <message>
         <source>Cancelled Filter Gallery</source>
-        <translation>Galeria de filtros cancelados</translation>
+        <translation>Galeria de filtros cancelada</translation>
     </message>
     <message>
         <source>No visual filter applied</source>
@@ -15042,7 +15042,7 @@ Salve seu trabalho e feche o Patchy antes de executar o instalador.</translation
     </message>
     <message>
         <source>This Look includes effects without an editable Photoshop Smart Filter mapping. Rasterize the Smart Object and apply the complete Look destructively?</source>
-        <translation>Este visual inclui efeitos sem um mapeamento editável do Filtro Inteligente do Photoshop. Rasterizar o Objeto Inteligente e aplicar o Look completo de forma destrutiva?</translation>
+        <translation>Esta aparência inclui efeitos sem correspondência editável entre os filtros inteligentes do Photoshop. Rasterizar o objeto inteligente e aplicar a aparência completa de forma destrutiva?</translation>
     </message>
     <message>
         <source>Add Smart Filter Stack</source>
@@ -15078,7 +15078,7 @@ Salve seu trabalho e feche o Patchy antes de executar o instalador.</translation
     </message>
     <message>
         <source>Could not build SVG: %1</source>
-        <translation>Não foi possível compilar o SVG: %1</translation>
+        <translation>Não foi possível gerar o SVG: %1</translation>
     </message>
     <message numerus="yes">
         <source>Copied %n layer(s) as SVG</source>
@@ -15101,7 +15101,7 @@ Salve seu trabalho e feche o Patchy antes de executar o instalador.</translation
     </message>
     <message>
         <source>Ungrouped the folder; its opacity, blend mode, or mask was discarded</source>
-        <translation>Desagrupe a pasta; sua opacidade, modo de mesclagem ou máscara foram descartados</translation>
+        <translation>Pasta desagrupada; sua opacidade, modo de mesclagem ou máscara foram descartados</translation>
     </message>
     <message numerus="yes">
         <source>Ungrouped %n folder(s)</source>
@@ -15112,7 +15112,7 @@ Salve seu trabalho e feche o Patchy antes de executar o instalador.</translation
     </message>
     <message>
         <source>Cut custom color %1</source>
-        <translation>Cortar a cor personalizada %1</translation>
+        <translation>Cor personalizada %1 recortada</translation>
     </message>
     <message>
         <source>Copied color %1</source>
@@ -15132,7 +15132,7 @@ Salve seu trabalho e feche o Patchy antes de executar o instalador.</translation
     </message>
     <message>
         <source>Cut %1 layer(s)</source>
-        <translation>Cortar %1 camada(s)</translation>
+        <translation>%1 camada(s) recortada(s)</translation>
     </message>
     <message>
         <source>Select a layer to copy</source>
@@ -15255,11 +15255,11 @@ Salve seu trabalho e feche o Patchy antes de executar o instalador.</translation
     </message>
     <message>
         <source>Cut selection to a new layer</source>
-        <translation>Cortar a seleção para uma nova camada</translation>
+        <translation>Seleção recortada para uma nova camada</translation>
     </message>
     <message>
         <source>Select a pixel, adjustment, or group layer before adding a mask</source>
-        <translation>Selecione um pixel, ajuste ou camada de grupo antes de adicionar uma máscara</translation>
+        <translation>Selecione uma camada de pixels, de ajuste ou de grupo antes de adicionar uma máscara</translation>
     </message>
     <message>
         <source>Layer already has a mask</source>
@@ -15291,7 +15291,7 @@ Salve seu trabalho e feche o Patchy antes de executar o instalador.</translation
     </message>
     <message>
         <source>Link layer mask</source>
-        <translation>Máscara de camada de link</translation>
+        <translation>Vincular máscara de camada</translation>
     </message>
     <message>
         <source>Unlink layer mask</source>
@@ -15351,7 +15351,7 @@ Salve seu trabalho e feche o Patchy antes de executar o instalador.</translation
     </message>
     <message>
         <source>Invert layer mask</source>
-        <translation>Máscara de camada invertida</translation>
+        <translation>Inverter máscara de camada</translation>
     </message>
     <message>
         <source>Inverted layer mask</source>
@@ -15411,7 +15411,7 @@ Salve seu trabalho e feche o Patchy antes de executar o instalador.</translation
     </message>
     <message>
         <source>Selected layers already end with that time</source>
-        <translation>As camadas selecionadas já terminam com esse horário</translation>
+        <translation>As camadas selecionadas já terminam com essa duração</translation>
     </message>
     <message>
         <source>No frame times on the selected layers</source>
@@ -15483,7 +15483,7 @@ Salve seu trabalho e feche o Patchy antes de executar o instalador.</translation
     </message>
     <message>
         <source>Warp Text...</source>
-        <translation>Texto distorcido...</translation>
+        <translation>Distorcer texto...</translation>
     </message>
     <message>
         <source>Horizontal Text</source>
@@ -15527,7 +15527,7 @@ Salve seu trabalho e feche o Patchy antes de executar o instalador.</translation
     </message>
     <message>
         <source>Lock Position</source>
-        <translation>Posição de bloqueio</translation>
+        <translation>Bloquear posição</translation>
     </message>
     <message>
         <source>Lock All</source>
@@ -15643,7 +15643,7 @@ Salve seu trabalho e feche o Patchy antes de executar o instalador.</translation
     </message>
     <message>
         <source>Text and smart object layers can&apos;t be cleared. Deselect first, then Delete removes the layer.</source>
-        <translation>As camadas de texto e objetos inteligentes não podem ser apagadas. Desmarque primeiro e depois Excluir remove a camada.</translation>
+        <translation>Não é possível apagar o conteúdo de camadas de texto e objetos inteligentes. Cancele a seleção primeiro; depois, Delete remove a camada.</translation>
     </message>
     <message>
         <source>Deleted layer</source>
@@ -15679,7 +15679,7 @@ Salve seu trabalho e feche o Patchy antes de executar o instalador.</translation
     </message>
     <message>
         <source>Softens the fill&apos;s edge outward from the selection, on top of its own feather. The filled area grows by the feather, so keep it small when the selection hugs an edge</source>
-        <translation>Suaviza a borda do preenchimento para fora da seleção, sobre sua própria difusão. A área preenchida cresce conforme a pena, então mantenha-a pequena quando a seleção abrange uma borda</translation>
+        <translation>Suaviza a borda do preenchimento para fora da seleção, além da difusão já existente. A área preenchida cresce com a difusão; use um valor baixo quando a seleção acompanha de perto uma borda</translation>
     </message>
     <message>
         <source>Reroll</source>
@@ -15711,11 +15711,11 @@ Salve seu trabalho e feche o Patchy antes de executar o instalador.</translation
     </message>
     <message>
         <source>Content-aware fill (%1 patches)</source>
-        <translation>Preenchimento com reconhecimento de conteúdo (%1 patches)</translation>
+        <translation>Preenchimento sensível ao conteúdo (%1 retalhos)</translation>
     </message>
     <message>
         <source>No clean source patches nearby; used the nearest edge (source %1 of %2)</source>
-        <translation>Não há patches de origem limpos por perto; usou a aresta mais próxima (fonte %1 de %2)</translation>
+        <translation>Nenhum retalho de origem limpo por perto; foi usada a borda mais próxima (origem %1 de %2)</translation>
     </message>
     <message>
         <source>Duplicate Remove Object variation to layer</source>
@@ -15723,7 +15723,7 @@ Salve seu trabalho e feche o Patchy antes de executar o instalador.</translation
     </message>
     <message>
         <source>Remove Object variation %1</source>
-        <translation>Remover a variação do objeto %1</translation>
+        <translation>Variação %1 de Remover objeto</translation>
     </message>
     <message>
         <source>Copied variation %1 to the hidden layer &quot;%2&quot;</source>
@@ -15735,7 +15735,7 @@ Salve seu trabalho e feche o Patchy antes de executar o instalador.</translation
     </message>
     <message>
         <source>Removed object with content-aware fill, variation %1 (%2 patches)</source>
-        <translation>Objeto removido com preenchimento sensível ao conteúdo, variação %1 (%2 patches)</translation>
+        <translation>Objeto removido com preenchimento sensível ao conteúdo, variação %1 (%2 retalhos)</translation>
     </message>
     <message>
         <source>Removed object with the nearest edge (source %1 of %2)</source>
@@ -15743,7 +15743,7 @@ Salve seu trabalho e feche o Patchy antes de executar o instalador.</translation
     </message>
     <message>
         <source>Make a selection before stroking</source>
-        <translation>Faça uma seleção antes de acariciar</translation>
+        <translation>Faça uma seleção antes de traçá-la</translation>
     </message>
     <message>
         <source>Nothing to stroke</source>
@@ -15771,15 +15771,15 @@ Salve seu trabalho e feche o Patchy antes de executar o instalador.</translation
     </message>
     <message>
         <source>Make a selection before contracting</source>
-        <translation>Faça uma seleção antes de contratar</translation>
+        <translation>Faça uma seleção antes de contraí-la</translation>
     </message>
     <message>
         <source>Contract Selection</source>
-        <translation>Seleção de Contrato</translation>
+        <translation>Contrair seleção</translation>
     </message>
     <message>
         <source>Contract by</source>
-        <translation>Contrato por</translation>
+        <translation>Contrair por</translation>
     </message>
     <message>
         <source>Make a selection before selecting a border</source>
@@ -15865,19 +15865,19 @@ Salve seu trabalho e feche o Patchy antes de executar o instalador.</translation
     </message>
     <message>
         <source>Document too small to shift seams</source>
-        <translation>Documento muito pequeno para deslocar as costuras</translation>
+        <translation>Documento pequeno demais para deslocar as emendas</translation>
     </message>
     <message>
         <source>Shift seams</source>
-        <translation>Costuras de mudança</translation>
+        <translation>Deslocar emendas</translation>
     </message>
     <message>
         <source>Shifted seams back to the edges</source>
-        <translation>Costuras deslocadas de volta para as bordas</translation>
+        <translation>Emendas deslocadas de volta para as bordas</translation>
     </message>
     <message>
         <source>Shifted seams to the center</source>
-        <translation>Costuras deslocadas para o centro</translation>
+        <translation>Emendas deslocadas para o centro</translation>
     </message>
     <message>
         <source>Reorder layers</source>
@@ -15977,7 +15977,7 @@ Máscara de camada</translation>
         <source>
 Clipped to the layer below</source>
         <translation>
-Cortado na camada abaixo</translation>
+Recortada pela camada abaixo</translation>
     </message>
     <message>
         <source>Layer: No active layer</source>
@@ -16181,7 +16181,7 @@ Cortado na camada abaixo</translation>
     </message>
     <message>
         <source>raw edge</source>
-        <translation>borda crua</translation>
+        <translation>borda sem refinamento</translation>
     </message>
     <message>
         <source>Width: %1 px | Contrast: %2% | Frequency: %3</source>
@@ -16213,7 +16213,7 @@ Cortado na camada abaixo</translation>
     </message>
     <message>
         <source>Rect: -</source>
-        <translation>Reto: -</translation>
+        <translation>Retângulo: -</translation>
     </message>
     <message>
         <source>%1: %2 x %3  at %4, %5</source>
@@ -16225,7 +16225,7 @@ Y: %2
 %3
 %4</source>
         <translation>X: %1
-S: %2
+Y: %2
 %3
 %4</translation>
     </message>
@@ -16326,7 +16326,7 @@ S: %2
     </message>
     <message>
         <source>Saved palette %1</source>
-        <translation>Paleta guardada %1</translation>
+        <translation>Paleta salva: %1</translation>
     </message>
     <message>
         <source>Converting to palette...</source>
@@ -16515,7 +16515,7 @@ S: %2
     </message>
     <message>
         <source>Set %1 as the clipping path.</source>
-        <translation>Defina %1 como demarcador de recorte.</translation>
+        <translation>%1 definido como demarcador de recorte.</translation>
     </message>
     <message>
         <source>Cleared the clipping path.</source>
@@ -16599,7 +16599,7 @@ S: %2
     </message>
     <message>
         <source>Tapers the stroke from thin to full and back, as if drawn with a pressure pen.</source>
-        <translation>Afunila o traço de fino para completo e para trás, como se fosse desenhado com uma caneta de pressão.</translation>
+        <translation>Faz o traçado começar fino, atingir a espessura total e terminar fino, como se fosse desenhado com uma caneta sensível à pressão.</translation>
     </message>
     <message>
         <source>Stroke path</source>
@@ -16643,7 +16643,7 @@ S: %2
     </message>
     <message>
         <source>The selection is too small to trace</source>
-        <translation>A seleção é muito pequena para ser rastreada</translation>
+        <translation>A seleção é pequena demais para ser vetorizada</translation>
     </message>
     <message>
         <source>Make work path</source>
@@ -16701,7 +16701,7 @@ S: %2
     <message>
         <source>%1 Settings...</source>
         <extracomment>Plugins menu; %1 is the plug-in that ran last. Opens its settings dialog again, starting from the last settings.</extracomment>
-        <translation>%1 Configurações...</translation>
+        <translation>Configurações de %1...</translation>
     </message>
     <message>
         <source>Select a pixel layer before running the plug-in</source>
@@ -16874,7 +16874,7 @@ S: %2
     </message>
     <message>
         <source>When enabled, opening a file shows the PSD compatibility report and an Import Notes popup. When disabled, import notes appear only in the status bar.</source>
-        <translation>Quando ativado, a abertura de um arquivo mostra o relatório de compatibilidade PSD e um pop-up Importar Notas. Quando desabilitada, as notas de importação aparecem apenas na barra de status.</translation>
+        <translation>Quando ativado, abrir um arquivo mostra o relatório de compatibilidade PSD e a janela Notas de importação. Quando desativado, as notas de importação aparecem apenas na barra de status.</translation>
     </message>
     <message>
         <source>Show the develop dialog when opening camera raw files</source>
@@ -16890,7 +16890,7 @@ S: %2
     </message>
     <message>
         <source>When enabled, layer thumbnails crop to the layer&apos;s visible pixels instead of previewing the whole canvas, so small layers fill their thumbnail.</source>
-        <translation>Quando ativado, as miniaturas das camadas cortam os pixels visíveis da camada em vez de visualizar toda a tela, de modo que as camadas pequenas preenchem suas miniaturas.</translation>
+        <translation>Quando ativado, as miniaturas mostram apenas a região dos pixels visíveis da camada, em vez da tela inteira, para que camadas pequenas preencham suas miniaturas.</translation>
     </message>
     <message>
         <source>Keep vector artwork sharp when zooming, including in documents with pixel layers. Saved files and exports keep their pixel resolution.</source>
@@ -16954,11 +16954,11 @@ S: %2
     </message>
     <message>
         <source>Remove all fonts you added to Patchy? They stay usable until you reload the page.</source>
-        <translation>Remover todas as fontes que você adicionou ao Patchy? Eles permanecem utilizáveis até você recarregar a página.</translation>
+        <translation>Remover todas as fontes que você adicionou ao Patchy? Elas continuam disponíveis até você recarregar a página.</translation>
     </message>
     <message>
         <source>Remove all fonts you added to Patchy? They stay usable until you restart Patchy.</source>
-        <translation>Remover todas as fontes que você adicionou ao Patchy? Eles permanecem utilizáveis até você reiniciar o Patchy.</translation>
+        <translation>Remover todas as fontes que você adicionou ao Patchy? Elas continuam disponíveis até você reiniciar o Patchy.</translation>
     </message>
     <message>
         <source>Remove</source>
@@ -16970,7 +16970,7 @@ S: %2
     </message>
     <message>
         <source>The profiling stress test builds a large scripted scene to measure rendering performance. It closes all open documents and takes several minutes. Primarily a development tool.</source>
-        <translation>O teste de estresse de criação de perfil cria uma grande cena com script para medir o desempenho de renderização. Fecha todos os documentos abertos e leva vários minutos. Principalmente uma ferramenta de desenvolvimento.</translation>
+        <translation>O teste de estresse para análise de desempenho cria uma cena grande por script para medir o desempenho de renderização. Ele fecha todos os documentos abertos e leva vários minutos. É principalmente uma ferramenta de desenvolvimento.</translation>
     </message>
     <message>
         <source>Quick (1024 px)</source>
@@ -16994,7 +16994,7 @@ S: %2
     </message>
     <message>
         <source>Run Profiling Stress Test...</source>
-        <translation>Executar teste de estresse de criação de perfil...</translation>
+        <translation>Executar teste de estresse para análise de desempenho...</translation>
     </message>
     <message>
         <source>Application</source>
@@ -17002,7 +17002,7 @@ S: %2
     </message>
     <message>
         <source>Mouse wheel zooms the canvas</source>
-        <translation>A roda do mouse amplia a tela</translation>
+        <translation>A roda do mouse ajusta o zoom da tela</translation>
     </message>
     <message>
         <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan. Two-finger scrolling on a trackpad always pans; pinch to zoom.</source>
@@ -17014,7 +17014,7 @@ S: %2
     </message>
     <message>
         <source>When off, corner handles keep the aspect ratio and Shift resizes freely, matching current Photoshop. When on, corner handles resize freely and Shift keeps the aspect ratio.</source>
-        <translation>Quando desativadas, as alças dos cantos mantêm a proporção e o Shift é redimensionado livremente, correspondendo ao Photoshop atual. Quando ativado, as alças dos cantos são redimensionadas livremente e Shift mantém a proporção.</translation>
+        <translation>Quando desativado, as alças dos cantos mantêm a proporção e Shift permite redimensionar livremente, como no Photoshop atual. Quando ativado, as alças dos cantos redimensionam livremente e Shift mantém a proporção.</translation>
     </message>
     <message>
         <source>Show transformation values while dragging</source>
@@ -17030,7 +17030,7 @@ S: %2
     </message>
     <message>
         <source>Positions and sizes typed into the Free Transform bar land on whole pixels, like Photoshop&apos;s &quot;Snap Vector Tools and Transforms to Pixel Grid&quot;. Rotated transforms are not snapped. When off, a typed fraction such as 3.4 px is kept and the pixels are resampled.</source>
-        <translation>As posições e os tamanhos digitados na barra Transformação livre são ajustados a pixels inteiros, como a opção &quot;Ajustar ferramentas vetoriais e transformações à grade de pixels&quot; do Photoshop. Transformações giradas não são ajustadas. Quando desativado, valores fracionários como 3,4 px são mantidos e os pixels são reamostrados.</translation>
+        <translation>As posições e os tamanhos digitados na barra Transformação livre são ajustados a pixels inteiros, como a opção &quot;Ajustar ferramentas vetoriais e transformações à grade de pixels&quot; do Photoshop. Transformações giradas não são ajustadas. Quando desativado, valores fracionários como 3.4 px são mantidos e os pixels são reamostrados.</translation>
     </message>
     <message>
         <source>Tools</source>
@@ -17058,7 +17058,7 @@ S: %2
     </message>
     <message>
         <source>Zoom canvas (drag)</source>
-        <translation>Tela de zoom (arrastar)</translation>
+        <translation>Zoom na tela (arrastar)</translation>
     </message>
     <message>
         <source>Pick color</source>
@@ -17114,7 +17114,7 @@ S: %2
     </message>
     <message>
         <source>Show rulers</source>
-        <translation>Mostrar governantes</translation>
+        <translation>Mostrar réguas</translation>
     </message>
     <message>
         <source>Show grid</source>
@@ -17126,7 +17126,7 @@ S: %2
     </message>
     <message>
         <source>Lock guides</source>
-        <translation>Guias de bloqueio</translation>
+        <translation>Bloquear guias</translation>
     </message>
     <message>
         <source>Enable snapping</source>
@@ -17202,7 +17202,7 @@ S: %2
     </message>
     <message>
         <source>Snap targets:</source>
-        <translation>Alvos instantâneos:</translation>
+        <translation>Alvos do ajuste:</translation>
     </message>
     <message>
         <source>Snapping</source>
@@ -17218,7 +17218,7 @@ S: %2
     </message>
     <message>
         <source>Always scanned:</source>
-        <translation>Sempre digitalizado:</translation>
+        <translation>Sempre verificar:</translation>
     </message>
     <message>
         <source>Add Folder...</source>
@@ -17348,7 +17348,7 @@ S: %2
     </message>
     <message>
         <source>Close Tab</source>
-        <translation>Fechar guia</translation>
+        <translation>Fechar aba</translation>
     </message>
     <message>
         <source>Close smart object contents?</source>
@@ -17356,7 +17356,7 @@ S: %2
     </message>
     <message>
         <source>%1 has smart object contents open for editing. Close those tabs too?</source>
-        <translation>%1 tem conteúdo de objeto inteligente aberto para edição. Fechar essas guias também?</translation>
+        <translation>%1 tem conteúdo de objetos inteligentes aberto para edição. Fechar essas abas também?</translation>
     </message>
     <message>
         <source>Close Others</source>
@@ -17400,7 +17400,7 @@ S: %2
     </message>
     <message>
         <source>Could not decode %1</source>
-        <translation>Não foi possível descodificar %1</translation>
+        <translation>Não foi possível decodificar %1</translation>
     </message>
     <message>
         <source>Select a smart object layer first</source>
@@ -17444,7 +17444,7 @@ S: %2
     </message>
     <message>
         <source>Linked file %1 was not found. Use Relink to File... to point it at a new location</source>
-        <translation>O arquivo vinculado %1 não foi encontrado. Use Relink to File... para apontá-lo para um novo local</translation>
+        <translation>O arquivo vinculado %1 não foi encontrado. Use Vincular novamente ao arquivo... para indicar um novo local</translation>
     </message>
     <message>
         <source>Editing linked file. Save (%CTRL%+S) writes %1 and updates %2</source>
@@ -17492,7 +17492,7 @@ S: %2
     </message>
     <message>
         <source>Rasterized layer. Paint again to draw on it.</source>
-        <translation>Camada rasterizada. Pinte novamente para desenhar nele.</translation>
+        <translation>Camada rasterizada. Pinte novamente para desenhar nela.</translation>
     </message>
     <message>
         <source>The original document is closed; saving a copy instead</source>
@@ -17560,7 +17560,7 @@ S: %2
     </message>
     <message>
         <source>Embedded linked smart object %1</source>
-        <translation>Objeto inteligente ligado e incorporado %1</translation>
+        <translation>Objeto inteligente vinculado %1 incorporado</translation>
     </message>
     <message>
         <source>Replace Smart Object Contents</source>
@@ -17643,7 +17643,7 @@ S: %2
     </message>
     <message>
         <source>Place failed</source>
-        <translation>Falha no local</translation>
+        <translation>Falha ao inserir</translation>
     </message>
     <message>
         <source>Placed %1 as a smart object</source>
@@ -17699,7 +17699,7 @@ S: %2
     </message>
     <message>
         <source>Profiling Stress Test</source>
-        <translation>Teste de estresse de perfil</translation>
+        <translation>Teste de estresse para análise de desempenho</translation>
     </message>
     <message>
         <source>Running stress test...</source>
@@ -17719,7 +17719,7 @@ S: %2
     </message>
     <message>
         <source>The profiling stress test closes all open documents, then builds a large scripted scene to measure performance. It takes several minutes; please leave the mouse and keyboard alone while it runs. This is primarily a development tool.</source>
-        <translation>O teste de estresse de criação de perfil fecha todos os documentos abertos e, em seguida, cria uma grande cena com script para medir o desempenho. Demora vários minutos; deixe o mouse e o teclado sozinhos enquanto ele é executado. Esta é principalmente uma ferramenta de desenvolvimento.</translation>
+        <translation>O teste de estresse para análise de desempenho fecha todos os documentos abertos e cria uma cena grande por script para medir o desempenho. Ele leva vários minutos; não use o mouse nem o teclado durante a execução. É principalmente uma ferramenta de desenvolvimento.</translation>
     </message>
     <message>
         <source>Warning: this is a DEBUG build - results will not reflect release performance.</source>
@@ -17807,7 +17807,7 @@ S: %2
     </message>
     <message>
         <source>Lock layer</source>
-        <translation>Camada de bloqueio</translation>
+        <translation>Bloquear camada</translation>
     </message>
     <message>
         <source>Layer lock enabled</source>
@@ -17819,11 +17819,11 @@ S: %2
     </message>
     <message>
         <source>Release Clipping Mask</source>
-        <translation>Liberar máscara de corte</translation>
+        <translation>Liberar máscara de recorte</translation>
     </message>
     <message>
         <source>Create Clipping Mask needs a pixel layer or group below</source>
-        <translation>Criar máscara de corte precisa de uma camada ou grupo de pixels abaixo</translation>
+        <translation>Criar máscara de recorte precisa de uma camada de pixels ou grupo abaixo</translation>
     </message>
     <message>
         <source>Release clipping mask</source>
@@ -17907,7 +17907,7 @@ S: %2
     </message>
     <message>
         <source>Rectangle %1</source>
-        <translation>Rectângulo %1</translation>
+        <translation>Retângulo %1</translation>
     </message>
     <message>
         <source>Add to vector mask</source>
@@ -18094,7 +18094,7 @@ S: %2
     </message>
     <message>
         <source>Rasterized the vector mask into the layer mask</source>
-        <translation>Rasterizei a máscara vetorial na máscara de camada</translation>
+        <translation>Máscara vetorial rasterizada na máscara de camada</translation>
     </message>
     <message>
         <source>&amp;Reveal All</source>
@@ -18158,7 +18158,7 @@ S: %2
     </message>
     <message>
         <source>SVG Shape</source>
-        <translation>Formato SVG</translation>
+        <translation>Forma SVG</translation>
     </message>
     <message>
         <source>Defined custom shape %1 from the SVG</source>
@@ -18194,23 +18194,23 @@ S: %2
     </message>
     <message>
         <source>Tracing is unavailable in Quick Mask mode</source>
-        <translation>O rastreamento não está disponível no modo Máscara Rápida</translation>
+        <translation>A vetorização não está disponível no modo Máscara rápida</translation>
     </message>
     <message>
         <source>Select a pixel layer to trace</source>
-        <translation>Selecione uma camada de pixels para rastrear</translation>
+        <translation>Selecione uma camada de pixels para vetorizar</translation>
     </message>
     <message>
         <source>Trace Image to Shapes</source>
-        <translation>Rastrear imagem em formas</translation>
+        <translation>Vetorizar imagem em formas</translation>
     </message>
     <message>
         <source>The layer has no pixels to trace</source>
-        <translation>A camada não tem pixels para rastrear</translation>
+        <translation>A camada não tem pixels para vetorizar</translation>
     </message>
     <message>
         <source>Nothing to trace with these settings</source>
-        <translation>Nada para rastrear com essas configurações</translation>
+        <translation>Nada para vetorizar com essas configurações</translation>
     </message>
     <message numerus="yes">
         <source>Traced the layer into %n shape layer(s).</source>
@@ -18221,11 +18221,11 @@ S: %2
     </message>
     <message>
         <source>Trace image to shapes</source>
-        <translation>Rastrear imagem em formas</translation>
+        <translation>Vetorizar imagem em formas</translation>
     </message>
     <message>
         <source>Traced %1</source>
-        <translation>Rastreado %1</translation>
+        <translation>Vetorizado %1</translation>
     </message>
     <message>
         <source>Select a path or shape layer to simplify</source>
@@ -18241,7 +18241,7 @@ S: %2
     </message>
     <message>
         <source>Bends sharper than this angle stay corners</source>
-        <translation>Curvas mais acentuadas do que este ângulo permanecem nos cantos</translation>
+        <translation>Curvas mais acentuadas que este ângulo são mantidas como cantos</translation>
     </message>
     <message>
         <source>Corners:</source>
@@ -18339,15 +18339,15 @@ S: %2
     </message>
     <message>
         <source>Script pausing: %1</source>
-        <translation>Pausa do script: %1</translation>
+        <translation>Pausando script: %1</translation>
     </message>
     <message>
         <source>AI pausing: %1</source>
-        <translation>Pausa da IA: %1</translation>
+        <translation>Pausando IA: %1</translation>
     </message>
     <message>
         <source>%1 is using this workspace. You can browse while it works. Pause to edit; Stop keeps completed changes available for Undo.</source>
-        <translation>%1 está usando esta área de trabalho. Você pode navegar enquanto funciona. Pausa para editar; Parar mantém as alterações concluídas disponíveis para Desfazer.</translation>
+        <translation>%1 está usando este espaço de trabalho. Você pode navegar enquanto ele trabalha. Pause para editar; Parar mantém as alterações concluídas disponíveis para Desfazer.</translation>
     </message>
     <message>
         <source>Connected to %1 through MCP. Waiting for a Patchy request; the assistant may still be thinking.</source>
@@ -18363,7 +18363,7 @@ S: %2
     </message>
     <message>
         <source>Pausing...</source>
-        <translation>Pausa...</translation>
+        <translation>Pausando...</translation>
     </message>
     <message>
         <source>Pause</source>
@@ -18399,7 +18399,7 @@ S: %2
     </message>
     <message>
         <source>Finishing the current edit. Manual editing is available when Resume appears.</source>
-        <translation>Finalizando a edição atual. A edição manual está disponível quando Continuar aparece.</translation>
+        <translation>Finalizando a edição atual. A edição manual fica disponível quando Retomar aparece.</translation>
     </message>
     <message>
         <source>Pause automation to change the document or its editing controls. Browsing and scrolling are available while it works.</source>
@@ -18513,7 +18513,7 @@ S: %2
     </message>
     <message>
         <source>No palette. Pick a preset, load a palette file, or extract one from the image.</source>
-        <translation>Sem paleta. Escolha uma predefinição, carregue um arquivo de paleta ou extraia um da imagem.</translation>
+        <translation>Nenhuma paleta. Escolha uma predefinição, carregue um arquivo de paleta ou extraia uma da imagem.</translation>
     </message>
     <message>
         <source>Convert to Indexed (Palette)...</source>
@@ -18690,7 +18690,7 @@ S: %2
     <name>patchy::ui::PathsPanel</name>
     <message>
         <source>Saved path. Double-click to rename; select to edit with the pen and path tools.</source>
-        <translation>Demarcador salvo. Clique duas vezes para renomear; selecione editar com as ferramentas caneta e demarcador.</translation>
+        <translation>Demarcador salvo. Clique duas vezes para renomear; selecione para editar com as ferramentas Caneta e Demarcador.</translation>
     </message>
     <message>
         <source>%CTRL%-click or %CTRL%+Enter loads the path as a selection; drag to reorder.</source>
@@ -18733,7 +18733,7 @@ S: %2
     </message>
     <message>
         <source>Some pattern data was skipped or repaired because it is unsupported or damaged.</source>
-        <translation>Alguns dados padrão foram ignorados ou reparados porque não são suportados ou estão danificados.</translation>
+        <translation>Alguns dados dos padrões foram ignorados ou reparados porque não são compatíveis ou estão danificados.</translation>
     </message>
     <message>
         <source>Imported Patterns</source>
@@ -18777,7 +18777,7 @@ S: %2
     </message>
     <message>
         <source>%1 Copy</source>
-        <translation>%1 Copiar</translation>
+        <translation>%1 Cópia</translation>
     </message>
 </context>
 <context>
@@ -18864,7 +18864,7 @@ S: %2
     </message>
     <message>
         <source>My Scripts</source>
-        <translation>Meus roteiros</translation>
+        <translation>Meus scripts</translation>
     </message>
     <message>
         <source>Discard unsaved changes to %1?</source>
@@ -18872,7 +18872,7 @@ S: %2
     </message>
     <message>
         <source>New Script</source>
-        <translation>Novo roteiro</translation>
+        <translation>Novo script</translation>
     </message>
     <message>
         <source>Show in Folder</source>
@@ -18892,7 +18892,7 @@ S: %2
     </message>
     <message>
         <source>Revert to Bundled</source>
-        <translation>Reverter para pacote</translation>
+        <translation>Reverter para versão incluída</translation>
     </message>
     <message>
         <source>A script is already running: %1</source>
@@ -18908,7 +18908,7 @@ S: %2
     </message>
     <message>
         <source>Saved icon to %1</source>
-        <translation>Ícone guardado em %1</translation>
+        <translation>Ícone salvo em %1</translation>
     </message>
     <message>
         <source>Delete your modified copy of %1 and restore the bundled script?</source>
@@ -18964,11 +18964,11 @@ S: %2
     </message>
     <message>
         <source>Saved your copy to %1; it now runs instead of the bundled script (right-click it for Revert to Bundled).</source>
-        <translation>Salvei sua cópia em %1; agora ele é executado em vez do script incluído (clique com o botão direito para Reverter para incluído).</translation>
+        <translation>Sua cópia foi salva em %1; agora ela é executada em vez do script incluído (clique com o botão direito para Reverter para versão incluída).</translation>
     </message>
     <message>
         <source>Save Script</source>
-        <translation>Salvar roteiro</translation>
+        <translation>Salvar script</translation>
     </message>
     <message>
         <source>JavaScript files (*.js)</source>
@@ -19115,7 +19115,7 @@ S: %2
     </message>
     <message>
         <source>Traced %1</source>
-        <translation>Rastreado %1</translation>
+        <translation>Vetorizado %1</translation>
     </message>
     <message>
         <source>simplifyPath: unknown option %1</source>
@@ -19171,7 +19171,7 @@ S: %2
     </message>
     <message>
         <source>Palette alphaThreshold must be an integer from 0 to 255.</source>
-        <translation>A paleta alphaThreshold deve ser um número inteiro de 0 a 255.</translation>
+        <translation>alphaThreshold da paleta deve ser um número inteiro de 0 a 255.</translation>
     </message>
     <message>
         <source>Unknown or invalid palette option: %1</source>
@@ -19191,7 +19191,7 @@ S: %2
     </message>
     <message>
         <source>Could not save palette: %1</source>
-        <translation>Não foi possível guardar a paleta: %1</translation>
+        <translation>Não foi possível salvar a paleta: %1</translation>
     </message>
     <message>
         <source>activeLayer needs a layer of this document.</source>
@@ -19475,7 +19475,7 @@ S: %2
     </message>
     <message>
         <source>Could not save the preview: %1</source>
-        <translation>Não foi possível guardar a pré-visualização: %1</translation>
+        <translation>Não foi possível salvar a pré-visualização: %1</translation>
     </message>
     <message>
         <source>Invalid brush argument: %1</source>
@@ -19746,7 +19746,7 @@ S: %2
     </message>
     <message>
         <source>More power on your desktop</source>
-        <translation>Mais potência na sua área de trabalho</translation>
+        <translation>Mais recursos no seu computador</translation>
     </message>
     <message>
         <source>More features, faster editing, and full access to your system fonts.</source>
@@ -19754,11 +19754,11 @@ S: %2
     </message>
     <message>
         <source>Download Patchy for Desktop</source>
-        <translation>Baixe Patchy para desktop</translation>
+        <translation>Baixar Patchy para desktop</translation>
     </message>
     <message>
         <source>Free · Windows, macOS &amp; Linux</source>
-        <translation>Gratuito · Windows, macOS Linux</translation>
+        <translation>Gratuito · Windows, macOS e Linux</translation>
     </message>
     <message>
         <source>Recent Files</source>
@@ -19782,7 +19782,7 @@ S: %2
     </message>
     <message>
         <source>Version %1 (built %2)</source>
-        <translation>Versão %1 (construída %2)</translation>
+        <translation>Versão %1 (compilada em %2)</translation>
     </message>
     <message>
         <source>Created by %1</source>
@@ -19899,7 +19899,7 @@ S: %2
     </message>
     <message>
         <source>%1 Copy</source>
-        <translation>%1 Copiar</translation>
+        <translation>%1 Cópia</translation>
     </message>
 </context>
 <context>
@@ -19922,11 +19922,11 @@ S: %2
     </message>
     <message>
         <source>Wrap the image by half its size so the seams land in the middle for painting over. Press again to shift them back to the edges.</source>
-        <translation>Enrole a imagem pela metade do tamanho para que as costuras fiquem no meio para pintar. Pressione novamente para deslocá-los de volta às bordas.</translation>
+        <translation>Desloque a imagem pela metade do tamanho, com retorno pelas bordas, para colocar as emendas no centro e pintar sobre elas. Pressione novamente para devolvê-las às bordas.</translation>
     </message>
     <message>
         <source>Drag to pan. Mouse wheel zooms. Double-click to recenter.</source>
-        <translation>Arraste para deslocar. Zoom da roda do mouse. Clique duas vezes para centralizar novamente.</translation>
+        <translation>Arraste para deslocar a visualização. Use a roda do mouse para ajustar o zoom. Clique duas vezes para centralizar novamente.</translation>
     </message>
     <message>
         <source>Shift Seams Back</source>

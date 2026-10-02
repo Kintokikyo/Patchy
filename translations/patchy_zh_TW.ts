@@ -3191,7 +3191,7 @@
     </message>
     <message>
         <source>%1 contains Photoshop Blend If data for an unsupported color mode or payload shape. Patchy preserves it for PSD round-trip but does not render or edit it.</source>
-        <translation>%1 含有色彩模式或資料格式不受支援的 Photoshop「混合範圍」資料。Patchy 會保留這些資料以便 PSD 往返，但不會演算或編輯。</translation>
+        <translation>%1 含有色彩模式或資料格式不受支援的 Photoshop「混合範圍」資料。Patchy 會在重新儲存 PSD 時保留這些資料，但不會演算或編輯。</translation>
     </message>
     <message>
         <source>%1 contains Blend If data on a Photoshop group-boundary record. Patchy preserves that boundary data but does not render or edit it.</source>
@@ -3199,7 +3199,7 @@
     </message>
     <message>
         <source>%1 contains Photoshop channel blending restrictions for an unsupported color mode or payload shape. Patchy preserves them for PSD round-trip but does not render or edit them.</source>
-        <translation>%1 含有色彩模式或資料格式不受支援的 Photoshop 色版混合限制。Patchy 會保留這些設定以便 PSD 往返，但不會演算或編輯。</translation>
+        <translation>%1 含有色彩模式或資料格式不受支援的 Photoshop 色版混合限制。Patchy 會在重新儲存 PSD 時保留這些設定，但不會演算或編輯。</translation>
     </message>
     <message>
         <source>%1 preserves %2 unknown PSD layer block(s).</source>
@@ -3219,7 +3219,7 @@
     </message>
     <message>
         <source>%1 is a Patchy-native adjustment layer; it round-trips in Patchy PSDs but may appear as an unsupported adjustment in other editors.</source>
-        <translation>%1 是 Patchy 原生的調整圖層；它可在 Patchy 的 PSD 中往返，但在其他編輯器中可能顯示為不受支援的調整。</translation>
+        <translation>%1 是 Patchy 原生的調整圖層；在 Patchy 中儲存並重新開啟 PSD 後仍可保留，但在其他編輯器中可能顯示為不受支援的調整。</translation>
     </message>
     <message>
         <source>%1 uses an unsupported layer kind and may not export as editable PSD data.</source>
@@ -3243,7 +3243,7 @@
     </message>
     <message>
         <source>The document embeds %1 smart object source file(s) (%2 MB); they round-trip byte-for-byte.</source>
-        <translation>此文件內嵌了 %1 個智慧型物件來源檔案 (%2 MB)；它們會逐位元組完整往返。</translation>
+        <translation>此文件內嵌了 %1 個智慧型物件來源檔案 (%2 MB)；重新儲存時會逐位元組完整保留這些檔案。</translation>
     </message>
     <message>
         <source>PSD Compatibility Report</source>
@@ -3539,7 +3539,7 @@
     </message>
     <message>
         <source>Speech Bubble</source>
-        <translation>對話框</translation>
+        <translation>對話泡泡</translation>
     </message>
     <message>
         <source>Lightning Bolt</source>
@@ -4155,7 +4155,7 @@
     </message>
     <message>
         <source>Trim transparent edges kept the full canvas: the image has no visible pixels.</source>
-        <translation>修剪透明邊緣後仍保留整個版面：影像沒有可見的像素。</translation>
+        <translation>影像沒有可見的像素，因此未裁去透明邊緣，保留了整個版面。</translation>
     </message>
     <message>
         <source>Show in Explorer when done</source>
@@ -4644,7 +4644,7 @@
     </message>
     <message>
         <source>Abutting (cutout shapes)</source>
-        <translation>相鄰（鏤空形狀）</translation>
+        <translation>相鄰（拼接形狀）</translation>
     </message>
     <message>
         <source>Overlapping (stacked shapes)</source>
@@ -5310,7 +5310,7 @@
     </message>
     <message>
         <source>The preserved Photoshop Blend If payload will be replaced with editable RGB defaults when you choose OK.</source>
-        <translation>保留的 Photoshop 混合顏色帶資料會在您按下確定時，由可編輯的 RGB 預設值取代。</translation>
+        <translation>保留的 Photoshop 混合範圍資料會在您按下確定時，由可編輯的 RGB 預設值取代。</translation>
     </message>
     <message>
         <source>New Style</source>
@@ -5322,7 +5322,7 @@
     </message>
     <message>
         <source>Include blending options (opacity, Fill, blend mode, Blend If)</source>
-        <translation>包含混合選項 (不透明度、填滿、混合模式、混合顏色帶)</translation>
+        <translation>包含混合選項 (不透明度、填滿、混合模式、混合範圍)</translation>
     </message>
     <message>
         <source>Could not save the style. Check that the style library folder is writable.</source>
@@ -5760,15 +5760,15 @@ Open in Generative Upscale...</source>
     </message>
     <message>
         <source>Patchy preserved unsupported Photoshop Blend If payloads but does not render or edit them (%1 layer(s)).</source>
-        <translation>Patchy 已保留不支援的 Photoshop 混合顏色帶資料，但不會顯示或編輯 (%1 個圖層)。</translation>
+        <translation>Patchy 已保留不支援的 Photoshop 混合範圍資料，但不會顯示或編輯 (%1 個圖層)。</translation>
     </message>
     <message>
         <source>Patchy preserved Blend If data on Photoshop group-boundary records but does not render or edit it (%1 group(s)).</source>
-        <translation>Patchy 已保留 Photoshop 群組邊界記錄上的混合顏色帶資料，但不會顯示或編輯 (%1 個群組)。</translation>
+        <translation>Patchy 已保留 Photoshop 群組邊界記錄上的混合範圍資料，但不會顯示或編輯 (%1 個群組)。</translation>
     </message>
     <message>
         <source>Patchy preserved unsupported Photoshop Blend If data without rendering it (%1 layer payload(s), %2 group-boundary record(s)).</source>
-        <translation>Patchy 已保留不支援的 Photoshop 混合顏色帶資料，但不會顯示 (%1 筆圖層資料、%2 筆群組邊界記錄)。</translation>
+        <translation>Patchy 已保留不支援的 Photoshop 混合範圍資料，但不會顯示 (%1 筆圖層資料、%2 筆群組邊界記錄)。</translation>
     </message>
     <message>
         <source>Layer &apos;%1&apos;: invalid Gaussian blur radius; effect skipped</source>
@@ -6061,9 +6061,9 @@ Color: %5
 Flow: %6
 %7</source>
         <translation>%1
-字體：%2，%3 pt%4
+字體：%2, %3 pt%4
 顏色：%5
-流量：%6
+排版：%6
 %7</translation>
     </message>
     <message>
@@ -6902,7 +6902,7 @@ RGB：%2, %3, %4</translation>
     </message>
     <message>
         <source>Only page 1 of %1 was imported.</source>
-        <translation>只匯入了 %1 的第 1 頁。</translation>
+        <translation>共 %1 頁，只匯入了第 1 頁。</translation>
     </message>
     <message>
         <source>Annotations were not drawn.</source>
@@ -7142,7 +7142,7 @@ RGB：%2, %3, %4</translation>
     </message>
     <message>
         <source>Develop Raw - %1</source>
-        <translation>沖印 Raw - %1</translation>
+        <translation>Raw 顯影 - %1</translation>
     </message>
     <message>
         <source>Rendering</source>
@@ -7390,11 +7390,11 @@ RGB：%2, %3, %4</translation>
     </message>
     <message>
         <source>Developing half size... %1%</source>
-        <translation>正在沖印一半尺寸... %1%</translation>
+        <translation>正在以一半尺寸顯影... %1%</translation>
     </message>
     <message>
         <source>Developing full resolution... %1%</source>
-        <translation>正在沖印完整解析度... %1%</translation>
+        <translation>正在以完整解析度顯影... %1%</translation>
     </message>
     <message>
         <source>Refining... %1%</source>
@@ -9266,7 +9266,7 @@ RGB：%2, %3, %4</translation>
     </message>
     <message>
         <source>Builds paint along stroke edges for a watercolor wash. It does not smear canvas colors; use Smudge for that.</source>
-        <translation>沿著筆畫邊緣堆疊顏料,形成水彩渲染的效果。它不會塗抹畫布上的顏色,若要塗抹請使用塗抹工具。</translation>
+        <translation>沿著筆畫邊緣堆疊顏料,形成水彩渲染的效果。它不會塗抹畫布上的顏色,若要塗抹請使用指尖工具。</translation>
     </message>
     <message>
         <source>Reset</source>
@@ -9487,7 +9487,7 @@ RGB：%2, %3, %4</translation>
     </message>
     <message>
         <source>Smudge is unavailable while editing a grayscale channel</source>
-        <translation>編輯灰階色版時無法使用塗抹工具</translation>
+        <translation>編輯灰階色版時無法使用指尖工具</translation>
     </message>
     <message>
         <source>Erase</source>
@@ -9511,7 +9511,7 @@ RGB：%2, %3, %4</translation>
     </message>
     <message>
         <source>Smudge</source>
-        <translation>塗抹</translation>
+        <translation>指尖</translation>
     </message>
     <message>
         <source>Gradient</source>
@@ -9711,7 +9711,7 @@ RGB：%2, %3, %4</translation>
     </message>
     <message>
         <source>Selected layer opacity</source>
-        <translation>已選取圖層不透明度</translation>
+        <translation>已選取圖層的不透明區域</translation>
     </message>
     <message>
         <source>Layer has no mask</source>
@@ -12388,7 +12388,7 @@ RGB：%2, %3, %4</translation>
     </message>
     <message>
         <source>Smudge</source>
-        <translation>塗抹</translation>
+        <translation>指尖</translation>
     </message>
     <message>
         <source>Dodge</source>
@@ -13819,7 +13819,7 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Cancelled High Pass</source>
-        <translation>已取消高反差保留</translation>
+        <translation>已取消顏色快調</translation>
     </message>
     <message>
         <source>Cancelled Gaussian Blur</source>
@@ -13915,11 +13915,11 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Add High Pass Smart Filter</source>
-        <translation>新增高反差保留智慧型濾鏡</translation>
+        <translation>新增顏色快調智慧型濾鏡</translation>
     </message>
     <message>
         <source>Edit High Pass Smart Filter</source>
-        <translation>編輯高反差保留智慧型濾鏡</translation>
+        <translation>編輯顏色快調智慧型濾鏡</translation>
     </message>
     <message>
         <source>Add Gaussian Blur Smart Filter</source>
@@ -14063,15 +14063,15 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Added High Pass as a Smart Filter</source>
-        <translation>已將高反差保留新增為智慧型濾鏡</translation>
+        <translation>已將顏色快調新增為智慧型濾鏡</translation>
     </message>
     <message>
         <source>Added another High Pass Smart Filter</source>
-        <translation>已再新增一個高反差保留智慧型濾鏡</translation>
+        <translation>已再新增一個顏色快調智慧型濾鏡</translation>
     </message>
     <message>
         <source>Updated High Pass Smart Filter</source>
-        <translation>已更新高反差保留智慧型濾鏡</translation>
+        <translation>已更新顏色快調智慧型濾鏡</translation>
     </message>
     <message>
         <source>Added Gaussian Blur as a Smart Filter</source>
@@ -14633,7 +14633,7 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Choose a different document to copy the layers into</source>
-        <translation>請選擇要複製圖層的目標文件</translation>
+        <translation>請選擇另一個文件作為圖層的複製目標</translation>
     </message>
     <message>
         <source>Copied %1 layer(s) to %2</source>
@@ -15539,7 +15539,7 @@ Y：%2
     </message>
     <message>
         <source>Some layers contain colors outside the palette (filters, layer styles, or text can cause this). Use Image &gt; Snap Image to Palette to fix them. Click to show the Palette panel.</source>
-        <translation>部分圖層包含色盤以外的顏色 (濾鏡、圖層樣式或文字都可能造成這種情形)。請使用「影像 &gt; 將影像靠齊色盤」來修正。按一下以顯示「色盤」面板。</translation>
+        <translation>部分圖層包含色盤以外的顏色 (濾鏡、圖層樣式或文字都可能造成這種情形)。請使用「影像 &gt; 將影像對應至色盤」來修正。按一下以顯示「色盤」面板。</translation>
     </message>
     <message>
         <source>%1 Shape Path</source>
@@ -17885,7 +17885,7 @@ Y：%2
     </message>
     <message>
         <source>Photoshop filter plug-ins (.8bf, 32-bit or 64-bit) are found in these folders and their subfolders and listed under Plugins &gt; Legacy Photoshop Plug-ins. Only run plug-ins you trust: they execute with your permissions.</source>
-        <translation>Patchy 會在這些資料夾及其子資料夾中尋找 Photoshop 濾鏡外掛程式（.8bf，32 位元或 64 位元），並列在「Plugins &gt; 舊版 Photoshop 外掛程式」下。只執行你信任的外掛程式：它們會以你的權限執行。</translation>
+        <translation>Patchy 會在這些資料夾及其子資料夾中尋找 Photoshop 濾鏡外掛程式（.8bf，32 位元或 64 位元），並列在「增效模組 &gt; 舊版 Photoshop 增效模組」下。只執行你信任的外掛程式：它們會以你的權限執行。</translation>
     </message>
     <message>
         <source>Always scanned:</source>
@@ -19161,7 +19161,7 @@ Baked into images: %1.</source>
     </message>
     <message>
         <source>crop rectangle is outside the canvas.</source>
-        <translation>裁切矩形位於版面之外。</translation>
+        <translation>crop 矩形位於版面之外。</translation>
     </message>
     <message>
         <source>Undo history cannot be disabled in a connector session.</source>
@@ -19425,7 +19425,7 @@ Baked into images: %1.</source>
     </message>
     <message>
         <source>[alert] %1</source>
-        <translation>[警告] %1</translation>
+        <translation>[alert] %1</translation>
     </message>
     <message>
         <source>Choose Folder</source>

@@ -56,7 +56,7 @@
     </message>
     <message>
         <source>Keep folders and merge their contents separately. Turn off to merge across ordinary Pass Through groups.</source>
-        <translation>Mantiene le cartelle e ne unisce il contenuto separatamente. Disattiva per unire anche attraverso i normali gruppi Passa attraverso.</translation>
+        <translation>Mantiene le cartelle e ne unisce il contenuto separatamente. Disattiva per unire anche attraverso i normali gruppi con metodo Attraversa.</translation>
     </message>
     <message>
         <source>Separate merges for different vector types</source>
@@ -853,11 +853,11 @@
     </message>
     <message>
         <source>Tilt-Shift Blur supports UInt8 buffers only</source>
-        <translation>Sfocatura inclinazione-spostamento supporta solo buffer UInt8</translation>
+        <translation>Scostamento inclinazione supporta solo buffer UInt8</translation>
     </message>
     <message>
         <source>Invalid Tilt-Shift Blur settings</source>
-        <translation>Impostazioni di Sfocatura inclinazione-spostamento non valide</translation>
+        <translation>Impostazioni di Scostamento inclinazione non valide</translation>
     </message>
     <message>
         <source>Filter recipe changed the pixel format</source>
@@ -961,7 +961,7 @@
     </message>
     <message>
         <source>Invalid Box Blur input</source>
-        <translation>Input di Sfocatura casella non valido</translation>
+        <translation>Input di Sfocatura selezione non valido</translation>
     </message>
     <message>
         <source>Invalid Emboss input</source>
@@ -1733,7 +1733,7 @@
     </message>
     <message>
         <source>A PDF form was nested too deeply and was skipped.</source>
-        <translation>Un modulo PDF era annidato troppo in profondità ed è stato ignorato.</translation>
+        <translation>Un Form XObject PDF era annidato troppo in profondità ed è stato ignorato.</translation>
     </message>
     <message>
         <source>A PDF spot or separation colour was approximated as a shade of grey.</source>
@@ -2093,7 +2093,7 @@
     </message>
     <message>
         <source>Pass-through group opacity is approximated (SVG group opacity isolates the group)</source>
-        <translation>L&apos;opacità del gruppo Attraverso è approssimata (l&apos;opacità di gruppo SVG isola il gruppo)</translation>
+        <translation>L&apos;opacità dei gruppi con metodo Attraversa è approssimata (l&apos;opacità di gruppo SVG isola il gruppo)</translation>
     </message>
     <message>
         <source>Cannot export an empty document as SVG</source>
@@ -2433,7 +2433,7 @@
     </message>
     <message>
         <source>PSD filter-effects record cannot be rekeyed safely</source>
-        <translation>Impossibile ricodificare in sicurezza la chiave del record degli effetti filtro PSD</translation>
+        <translation>Impossibile modificare in sicurezza l&apos;identificatore del record degli effetti filtro PSD</translation>
     </message>
     <message>
         <source>PSD filter-effects record id does not match its raw body</source>
@@ -2581,7 +2581,7 @@
     </message>
     <message>
         <source>Unsupported authored Smart Filter stack</source>
-        <translation>Pila di filtri avanzati creata non supportata</translation>
+        <translation>Stack di filtri avanzati creato non supportato</translation>
     </message>
     <message>
         <source>The starter compositor currently supports RGB8 destinations only</source>
@@ -2857,7 +2857,7 @@
     </message>
     <message>
         <source>Pass Through</source>
-        <translation>Attraverso</translation>
+        <translation>Attraversa</translation>
     </message>
     <message>
         <source>Normal</source>
@@ -2949,7 +2949,7 @@
     </message>
     <message>
         <source>Hard Mix</source>
-        <translation>Miscela dura</translation>
+        <translation>Sovrapponi colori</translation>
     </message>
     <message>
         <source>Darker Color</source>
@@ -3750,7 +3750,7 @@
     </message>
     <message>
         <source>Box Blur</source>
-        <translation>Sfocatura casella</translation>
+        <translation>Sfocatura selezione</translation>
     </message>
     <message>
         <source>Sharpen</source>
@@ -3786,7 +3786,7 @@
     </message>
     <message>
         <source>Tilt-Shift Blur</source>
-        <translation>Sfocatura inclina-sposta</translation>
+        <translation>Scostamento inclinazione</translation>
     </message>
     <message>
         <source>Plastic Wrap</source>
@@ -5896,7 +5896,7 @@ Apri in Upscaling generativo...</translation>
     </message>
     <message>
         <source>%1 by folder</source>
-        <translation>%1 per cartella</translation>
+        <translation>%1 dalla cartella</translation>
     </message>
     <message>
         <source>%1
@@ -7247,11 +7247,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Clip to white</source>
-        <translation>Ritaglia sul bianco</translation>
+        <translation>Limita al bianco</translation>
     </message>
     <message>
         <source>Unclipped</source>
-        <translation>Senza ritaglio</translation>
+        <translation>Senza limitazione</translation>
     </message>
     <message>
         <source>Blend</source>
@@ -8312,7 +8312,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Editable import was not possible for page %1 (%2); it was flattened instead.</source>
-        <translation>L&apos;importazione modificabile non è stata possibile per la pagina %1 (%2); è stata unita al suo posto.</translation>
+        <translation>Non è stato possibile importare la pagina %1 in forma modificabile (%2); è stata invece convertita in un&apos;unica immagine.</translation>
     </message>
     <message>
         <source>Portrait</source>
@@ -8634,7 +8634,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>UI language for this run only, not saved: en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN, or zh_TW.</source>
-        <translation>Lingua dell'interfaccia solo per questa esecuzione, non salvata: en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN o zh_TW.</translation>
+        <translation>Lingua dell&apos;interfaccia solo per questa esecuzione, non salvata: en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN o zh_TW.</translation>
     </message>
 </context>
 <context>
@@ -8908,7 +8908,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Removes the trailing frame time from the selected layers&apos; names.</source>
-        <translation>Rimuove il tempo del fotogramma finale dai nomi dei livelli selezionati.</translation>
+        <translation>Rimuove il tempo del fotogramma aggiunto alla fine dei nomi dei livelli selezionati.</translation>
     </message>
     <message>
         <source>Plays the visible top-level layers as frames, top layer first, exactly like the animated GIF export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
@@ -9738,7 +9738,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Selected layer opacity</source>
-        <translation>Opacità del livello selezionata</translation>
+        <translation>Opacità del livello caricata come selezione</translation>
     </message>
     <message>
         <source>Layer has no mask</source>
@@ -9750,7 +9750,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Selected layer mask</source>
-        <translation>Maschera di livello selezionata</translation>
+        <translation>Maschera di livello caricata come selezione</translation>
     </message>
     <message>
         <source>Make a selection before growing</source>
@@ -12519,7 +12519,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. Shift constrains layer movement.</source>
-        <translation>Shift+clic o %CTRL%+clic attiva o disattiva i livelli. %CTRL%+trascina seleziona i livelli in un rettangolo; tieni premuto Shift prima di trascinare per aggiungere. Shift vincola lo spostamento del livello.</translation>
+        <translation>Shift+clic o %CTRL%+clic seleziona o deseleziona i livelli. %CTRL%+trascina seleziona i livelli in un rettangolo; tieni premuto Shift prima di trascinare per aggiungerli alla selezione. Shift vincola lo spostamento del livello.</translation>
     </message>
     <message>
         <source>Click to place points, drag for curves. On a path: click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL% moves points.</source>
@@ -12547,7 +12547,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Move: Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it.</source>
-        <translation>Sposta: Shift+clic o %CTRL%+clic attiva o disattiva i livelli. %CTRL%+trascina seleziona un rettangolo; Shift aggiunge. Trascina il contenuto selezionato per spostarlo.</translation>
+        <translation>Sposta: Shift+clic o %CTRL%+clic seleziona o deseleziona i livelli. %CTRL%+trascina seleziona i livelli in un rettangolo; Shift aggiunge alla selezione. Trascina il contenuto selezionato per spostarlo.</translation>
     </message>
     <message>
         <source>Pen: click to add points, drag for curves. On a path, click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL%+drag selects or moves points.</source>
@@ -13815,7 +13815,7 @@ Salva il lavoro e chiudi Patchy prima di eseguire il programma di installazione.
     </message>
     <message>
         <source>Cancelled Box Blur</source>
-        <translation>Sfocatura casella annullata</translation>
+        <translation>Sfocatura selezione annullata</translation>
     </message>
     <message>
         <source>Cancelled Emboss</source>
@@ -13827,7 +13827,7 @@ Salva il lavoro e chiudi Patchy prima di eseguire il programma di installazione.
     </message>
     <message>
         <source>Cancelled Plastic Wrap</source>
-        <translation>Plastica annullato</translation>
+        <translation>Involucro di plastica annullato</translation>
     </message>
     <message>
         <source>Cancelled Unsharp Mask</source>
@@ -13875,11 +13875,11 @@ Salva il lavoro e chiudi Patchy prima di eseguire il programma di installazione.
     </message>
     <message>
         <source>Add Box Blur Smart Filter</source>
-        <translation>Aggiungi filtro avanzato Sfocatura casella</translation>
+        <translation>Aggiungi filtro avanzato Sfocatura selezione</translation>
     </message>
     <message>
         <source>Edit Box Blur Smart Filter</source>
-        <translation>Modifica filtro avanzato Sfocatura casella</translation>
+        <translation>Modifica filtro avanzato Sfocatura selezione</translation>
     </message>
     <message>
         <source>Add Emboss Smart Filter</source>
@@ -13987,15 +13987,15 @@ Salva il lavoro e chiudi Patchy prima di eseguire il programma di installazione.
     </message>
     <message>
         <source>Added Box Blur as a Smart Filter</source>
-        <translation>Sfocatura casella aggiunta come filtro avanzato</translation>
+        <translation>Sfocatura selezione aggiunta come filtro avanzato</translation>
     </message>
     <message>
         <source>Added another Box Blur Smart Filter</source>
-        <translation>Aggiunto un altro filtro avanzato Sfocatura casella</translation>
+        <translation>Aggiunto un altro filtro avanzato Sfocatura selezione</translation>
     </message>
     <message>
         <source>Updated Box Blur Smart Filter</source>
-        <translation>Filtro avanzato Sfocatura casella aggiornato</translation>
+        <translation>Filtro avanzato Sfocatura selezione aggiornato</translation>
     </message>
     <message>
         <source>Added Emboss as a Smart Filter</source>
@@ -16250,7 +16250,7 @@ Y: %2
     </message>
     <message>
         <source>Float in Window</source>
-        <translation>Mobile nella finestra</translation>
+        <translation>Apri in una finestra separata</translation>
     </message>
     <message>
         <source>Reopen Document</source>
@@ -16310,7 +16310,7 @@ Y: %2
     </message>
     <message>
         <source>This smart object has a warp or perspective transform; Patchy keeps Photoshop&apos;s preview</source>
-        <translation>Questo oggetto avanzato ha una trasformazione altera o prospettica; Patchy mantiene l&apos;anteprima di Photoshop</translation>
+        <translation>Questo oggetto avanzato ha una deformazione o una trasformazione prospettica; Patchy mantiene l&apos;anteprima di Photoshop</translation>
     </message>
     <message>
         <source>This smart object can only be preserved, not edited</source>
@@ -17374,8 +17374,8 @@ Y: %2
     <message numerus="yes">
         <source> (%n could not be opened)</source>
         <translation>
-            <numerusform> (%n non è stato possibile aprirlo)</numerusform>
-            <numerusform> (%n non è stato possibile aprirli)</numerusform>
+            <numerusform> (%n non è stato aperto)</numerusform>
+            <numerusform> (%n non sono stati aperti)</numerusform>
         </translation>
     </message>
     <message>
@@ -17496,7 +17496,7 @@ Y: %2
     </message>
     <message>
         <source>Align To: &amp;Canvas</source>
-        <translation>Allinea a: &amp;Tela</translation>
+        <translation>Allinea a: &amp;Quadro</translation>
     </message>
     <message>
         <source>Distribute &amp;Left Edges</source>
@@ -17532,7 +17532,7 @@ Y: %2
     </message>
     <message>
         <source>Snap moved layers to other layers, guides, the grid, and the canvas (View &gt; Snap). Choose the targets under View &gt; Snap To.</source>
-        <translation>Aggancia i livelli spostati ad altri livelli, alle guide, alla griglia e alla tela (Vista &gt; Aggancia). Scegli i bersagli in Vista &gt; Aggancia a.</translation>
+        <translation>Aggancia i livelli spostati ad altri livelli, alle guide, alla griglia e al quadro (Visualizza &gt; Effetto calamita). Scegli le destinazioni in Visualizza &gt; Effetto calamita su.</translation>
     </message>
     <message>
         <source>Distribute layers and choose what to align to</source>
@@ -17590,7 +17590,7 @@ Y: %2
     </message>
     <message>
         <source>Positions and sizes typed into the Free Transform bar land on whole pixels, like Photoshop&apos;s &quot;Snap Vector Tools and Transforms to Pixel Grid&quot;. Rotated transforms are not snapped. When off, a typed fraction such as 3.4 px is kept and the pixels are resampled.</source>
-        <translation>Le posizioni e le dimensioni digitate nella barra di Trasformazione libera cadono su pixel interi, come «Allinea strumenti vettoriali e trasformazioni alla griglia di pixel» di Photoshop. Le trasformazioni ruotate non vengono allineate. Se disattivato, una frazione digitata come 3,4 px viene mantenuta e i pixel vengono ricampionati.</translation>
+        <translation>Le posizioni e le dimensioni digitate nella barra di Trasformazione libera cadono su pixel interi, come «Allinea strumenti vettoriali e trasformazioni alla griglia di pixel» di Photoshop. Le trasformazioni ruotate non vengono allineate. Se disattivato, una frazione digitata come 3.4 px viene mantenuta e i pixel vengono ricampionati.</translation>
     </message>
     <message>
         <source>&amp;Stroke Selection...</source>
@@ -18155,15 +18155,15 @@ Y: %2
     </message>
     <message>
         <source>Show the image at actual pixels (View &gt; Actual Pixels)</source>
-        <translation>Mostra l&apos;immagine a pixel reali (Vista &gt; Pixel reali)</translation>
+        <translation>Mostra l&apos;immagine a pixel reali (Visualizza &gt; Pixel reali)</translation>
     </message>
     <message>
         <source>Fit the whole image in the window (View &gt; Fit on Screen)</source>
-        <translation>Adatta l&apos;intera immagine alla finestra (Vista &gt; Adatta allo schermo)</translation>
+        <translation>Adatta l&apos;intera immagine alla finestra (Visualizza &gt; Adatta allo schermo)</translation>
     </message>
     <message>
         <source>Zoom until the image fills the window (View &gt; Fill Screen)</source>
-        <translation>Ingrandisci finché l&apos;immagine riempie la finestra (Vista &gt; Riempi schermo)</translation>
+        <translation>Ingrandisci finché l&apos;immagine riempie la finestra (Visualizza &gt; Riempi schermo)</translation>
     </message>
     <message>
         <source>Stroke width:</source>
@@ -19651,15 +19651,15 @@ Convertiti in immagini: %1.</translation>
     </message>
     <message>
         <source>%1: run %2 needs a text string.</source>
-        <translation>%1: il tratto %2 richiede una stringa di testo.</translation>
+        <translation>%1: il segmento di testo %2 richiede una stringa di testo.</translation>
     </message>
     <message>
         <source>%1: run %2 has a non-positive size.</source>
-        <translation>%1: il tratto %2 ha una dimensione non positiva.</translation>
+        <translation>%1: il segmento di testo %2 ha una dimensione non positiva.</translation>
     </message>
     <message>
         <source>%1: run %2 must be a string or an object.</source>
-        <translation>%1: il tratto %2 deve essere una stringa o un oggetto.</translation>
+        <translation>%1: il segmento di testo %2 deve essere una stringa o un oggetto.</translation>
     </message>
     <message>
         <source>%1: runs must not be empty.</source>
@@ -19667,7 +19667,7 @@ Convertiti in immagini: %1.</translation>
     </message>
     <message>
         <source>addTextLayer: text must be a string or an array of runs.</source>
-        <translation>addTextLayer: text deve essere una stringa o un array di tratti.</translation>
+        <translation>addTextLayer: text deve essere una stringa o un array di segmenti di testo.</translation>
     </message>
     <message>
         <source>box must be {width, height} of at least 16 document pixels each.</source>

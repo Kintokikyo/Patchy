@@ -409,7 +409,7 @@
     </message>
     <message>
         <source>Blend If thresholds must remain ordered</source>
-        <translation>Die Schwellenwerte von &quot;Farbbereich&quot; müssen geordnet bleiben</translation>
+        <translation>Die Schwellenwerte von „Mischen, wenn“ müssen geordnet bleiben</translation>
     </message>
     <message>
         <source>Photoshop layer id 0 is reserved</source>
@@ -2433,7 +2433,7 @@
     </message>
     <message>
         <source>PSD filter-effects record cannot be rekeyed safely</source>
-        <translation>Der PSD-Filtereffekte-Datensatz kann nicht sicher neu verschlüsselt werden</translation>
+        <translation>Die Kennung des PSD-Filtereffekte-Datensatzes kann nicht sicher geändert werden</translation>
     </message>
     <message>
         <source>PSD filter-effects record id does not match its raw body</source>
@@ -2581,7 +2581,7 @@
     </message>
     <message>
         <source>Unsupported authored Smart Filter stack</source>
-        <translation>Nicht unterstützter, extern erstellter Smartfilter-Stapel</translation>
+        <translation>Nicht unterstützter selbst erstellter Smartfilter-Stapel</translation>
     </message>
     <message>
         <source>The starter compositor currently supports RGB8 destinations only</source>
@@ -3198,11 +3198,11 @@
     </message>
     <message>
         <source>%1 contains Photoshop Blend If data for an unsupported color mode or payload shape. Patchy preserves it for PSD round-trip but does not render or edit it.</source>
-        <translation>%1 enthält Photoshop-Farbbereich-Daten (Blend If) für einen nicht unterstützten Farbmodus oder ein nicht unterstütztes Datenformat. Patchy behält sie für den PSD-Roundtrip bei, rendert oder bearbeitet sie jedoch nicht.</translation>
+        <translation>%1 enthält Photoshop-Daten zu „Mischen, wenn“ für einen nicht unterstützten Farbmodus oder eine nicht unterstützte Datenstruktur. Patchy behält sie beim Öffnen und Speichern als PSD bei, rendert oder bearbeitet sie jedoch nicht.</translation>
     </message>
     <message>
         <source>%1 contains Blend If data on a Photoshop group-boundary record. Patchy preserves that boundary data but does not render or edit it.</source>
-        <translation>%1 enthält Farbbereich-Daten (Blend If) in einem Photoshop-Gruppenbegrenzungseintrag. Patchy behält diese Begrenzungsdaten bei, rendert oder bearbeitet sie jedoch nicht.</translation>
+        <translation>%1 enthält Daten zu „Mischen, wenn“ in einem Photoshop-Gruppenbegrenzungseintrag. Patchy behält diese Begrenzungsdaten bei, rendert oder bearbeitet sie jedoch nicht.</translation>
     </message>
     <message>
         <source>%1 contains Photoshop channel blending restrictions for an unsupported color mode or payload shape. Patchy preserves them for PSD round-trip but does not render or edit them.</source>
@@ -5435,11 +5435,11 @@
     </message>
     <message>
         <source>Patchy can&apos;t locate the font &quot;%1&quot;. Editing this PSD raster preview will substitute another font. Continue?</source>
-        <translation>Patchy kann die Schriftart „%1“ nicht finden. Beim Bearbeiten dieser PSD-Rastervorschau wird eine andere Schriftart ersetzt. Fortfahren?</translation>
+        <translation>Patchy kann die Schriftart „%1“ nicht finden. Beim Bearbeiten dieser PSD-Rastervorschau wird sie durch eine andere Schriftart ersetzt. Fortfahren?</translation>
     </message>
     <message>
         <source>Patchy can&apos;t locate these fonts: %1. Editing this PSD raster preview will substitute other fonts. Continue?</source>
-        <translation>Patchy kann diese Schriftarten nicht finden: %1. Beim Bearbeiten dieser PSD-Rastervorschau werden andere Schriftarten ersetzt. Fortfahren?</translation>
+        <translation>Patchy kann diese Schriftarten nicht finden: %1. Beim Bearbeiten dieser PSD-Rastervorschau werden sie durch andere Schriftarten ersetzt. Fortfahren?</translation>
     </message>
     <message>
         <source>Continue</source>
@@ -5896,7 +5896,7 @@ In „Generatives Hochskalieren“ öffnen...</translation>
     </message>
     <message>
         <source>%1 by folder</source>
-        <translation>%1 nach Ordner</translation>
+        <translation>%1 durch Ordner</translation>
     </message>
     <message>
         <source>%1
@@ -8222,7 +8222,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Softens the whole shape, stroke included, like Photoshop&apos;s vector mask feather</source>
-        <translation>Weicht die ganze Form einschließlich Kontur auf, wie die Vektormasken-Kante in Photoshop</translation>
+        <translation>Zeichnet die ganze Form einschließlich Kontur weich, wie die weiche Kante einer Vektormaske in Photoshop</translation>
     </message>
     <message>
         <source>Feather:</source>
@@ -8614,15 +8614,15 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Patchy can&apos;t locate these fonts: %1. These fonts have no glyphs for their text: %2. Editing this PSD raster preview will substitute other fonts. Continue?</source>
-        <translation>Patchy kann diese Schriftarten nicht finden: %1. Diese Schriftarten enthalten keine Glyphen für ihren Text: %2. Beim Bearbeiten dieser PSD-Rastervorschau werden andere Schriftarten ersetzt. Fortfahren?</translation>
+        <translation>Patchy kann diese Schriftarten nicht finden: %1. Diese Schriftarten enthalten keine Glyphen für ihren Text: %2. Beim Bearbeiten dieser PSD-Rastervorschau werden Ersatzschriften verwendet. Fortfahren?</translation>
     </message>
     <message>
         <source>The font &quot;%1&quot; has no glyphs for this text. Editing this PSD raster preview will substitute another font. Continue?</source>
-        <translation>Die Schriftart „%1“ enthält keine Glyphen für diesen Text. Beim Bearbeiten dieser PSD-Rastervorschau wird eine andere Schriftart ersetzt. Fortfahren?</translation>
+        <translation>Die Schriftart „%1“ enthält keine Glyphen für diesen Text. Beim Bearbeiten dieser PSD-Rastervorschau wird eine Ersatzschrift verwendet. Fortfahren?</translation>
     </message>
     <message>
         <source>These fonts have no glyphs for their text: %1. Editing this PSD raster preview will substitute other fonts. Continue?</source>
-        <translation>Diese Schriftarten enthalten keine Glyphen für ihren Text: %1. Beim Bearbeiten dieser PSD-Rastervorschau werden andere Schriftarten ersetzt. Fortfahren?</translation>
+        <translation>Diese Schriftarten enthalten keine Glyphen für ihren Text: %1. Beim Bearbeiten dieser PSD-Rastervorschau werden Ersatzschriften verwendet. Fortfahren?</translation>
     </message>
     <message>
         <source>Text layer. Missing font: %1. No glyphs for this text in: %2. Other fonts are being substituted, so the text does not look as it was authored.</source>
@@ -10615,7 +10615,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Merged layers</source>
-        <translation>Ebenen auf eine Ebene reduziert</translation>
+        <translation>Ebenen zusammengefügt</translation>
     </message>
     <message>
         <source>Merging layers...</source>
@@ -12519,7 +12519,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. Shift constrains layer movement.</source>
-        <translation>Shift+Klick oder %CTRL%+Klick schaltet Ebenen um. %CTRL%+Ziehen wählt Ebenen in einem Rechteck aus; halten Sie vor dem Ziehen Shift gedrückt, um hinzuzufügen. Shift beschränkt die Ebenenbewegung.</translation>
+        <translation>Shift+Klick oder %CTRL%+Klick wählt Ebenen aus oder hebt ihre Auswahl auf. %CTRL%+Ziehen wählt Ebenen in einem Rechteck aus; halten Sie vor dem Ziehen Shift gedrückt, um zur Auswahl hinzuzufügen. Shift beschränkt die Ebenenbewegung.</translation>
     </message>
     <message>
         <source>Click to place points, drag for curves. On a path: click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL% moves points.</source>
@@ -12547,7 +12547,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Move: Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it.</source>
-        <translation>Verschieben: Shift+Klick oder %CTRL%+Klick schaltet Ebenen um. %CTRL%+Ziehen wählt ein Rechteck aus; Shift fügt hinzu. Ziehen Sie ausgewählte Inhalte, um sie zu verschieben.</translation>
+        <translation>Verschieben: Shift+Klick oder %CTRL%+Klick wählt Ebenen aus oder hebt ihre Auswahl auf. %CTRL%+Ziehen wählt Ebenen in einem Rechteck aus; Shift fügt zur Auswahl hinzu. Ziehen Sie ausgewählte Inhalte, um sie zu verschieben.</translation>
     </message>
     <message>
         <source>Pen: click to add points, drag for curves. On a path, click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL%+drag selects or moves points.</source>
@@ -14892,31 +14892,31 @@ Speichern Sie Ihre Arbeit und schließen Sie Patchy, bevor Sie das Installations
     </message>
     <message>
         <source>Clear Quick Mask</source>
-        <translation>Schnellmaske löschen</translation>
+        <translation>Schnellmaske leeren</translation>
     </message>
     <message>
         <source>Clear Smart Filter mask</source>
-        <translation>Smartfilter-Maske löschen</translation>
+        <translation>Smartfilter-Maske leeren</translation>
     </message>
     <message>
         <source>Cleared Smart Filter mask</source>
-        <translation>Smartfilter-Maske gelöscht</translation>
+        <translation>Smartfilter-Maske geleert</translation>
     </message>
     <message>
         <source>Clear channel</source>
-        <translation>Kanal löschen</translation>
+        <translation>Kanal leeren</translation>
     </message>
     <message>
         <source>Clear layer mask</source>
-        <translation>Ebenenmaske löschen</translation>
+        <translation>Ebenenmaske leeren</translation>
     </message>
     <message>
         <source>Cleared channel</source>
-        <translation>Kanal gelöscht</translation>
+        <translation>Kanal geleert</translation>
     </message>
     <message>
         <source>Cleared layer mask</source>
-        <translation>Ebenenmaske gelöscht</translation>
+        <translation>Ebenenmaske geleert</translation>
     </message>
     <message>
         <source>Clearing...</source>
@@ -14932,7 +14932,7 @@ Speichern Sie Ihre Arbeit und schließen Sie Patchy, bevor Sie das Installations
     </message>
     <message>
         <source>Text and smart object layers can&apos;t be cleared. Deselect first, then Delete removes the layer.</source>
-        <translation>Text- und Smartobjekt-Ebenen können nicht gelöscht werden. Heben Sie zuerst die Auswahl auf, dann entfernt Delete die Ebene.</translation>
+        <translation>Die Inhalte von Text- und Smartobjekt-Ebenen können nicht gelöscht werden. Heben Sie zuerst die Auswahl auf, dann entfernt Delete die Ebene.</translation>
     </message>
     <message>
         <source>Deleted layer</source>
@@ -16250,7 +16250,7 @@ Y: %2
     </message>
     <message>
         <source>Float in Window</source>
-        <translation>Verschiebbar in Fenster</translation>
+        <translation>In separatem Fenster anzeigen</translation>
     </message>
     <message>
         <source>Reopen Document</source>
@@ -17590,7 +17590,7 @@ Y: %2
     </message>
     <message>
         <source>Positions and sizes typed into the Free Transform bar land on whole pixels, like Photoshop&apos;s &quot;Snap Vector Tools and Transforms to Pixel Grid&quot;. Rotated transforms are not snapped. When off, a typed fraction such as 3.4 px is kept and the pixels are resampled.</source>
-        <translation>In die Frei-transformieren-Leiste eingegebene Positionen und Größen landen auf ganzen Pixeln, wie Photoshops „Vektorwerkzeuge und Transformationen am Pixelraster ausrichten“. Gedrehte Transformationen werden nicht ausgerichtet. Wenn aus, bleibt ein eingegebener Bruchteil wie 3,4 px erhalten und die Pixel werden neu berechnet.</translation>
+        <translation>In die Frei-transformieren-Leiste eingegebene Positionen und Größen landen auf ganzen Pixeln, wie Photoshops „Vektorwerkzeuge und Transformationen am Pixelraster ausrichten“. Gedrehte Transformationen werden nicht ausgerichtet. Wenn aus, bleibt ein eingegebener Bruchteil wie 3.4 px erhalten und die Pixel werden neu berechnet.</translation>
     </message>
     <message>
         <source>&amp;Stroke Selection...</source>
@@ -19651,15 +19651,15 @@ In Bilder umgewandelt: %1.</translation>
     </message>
     <message>
         <source>%1: run %2 needs a text string.</source>
-        <translation>%1: Lauf %2 braucht eine Textzeichenkette.</translation>
+        <translation>%1: Textabschnitt %2 benötigt eine Zeichenkette.</translation>
     </message>
     <message>
         <source>%1: run %2 has a non-positive size.</source>
-        <translation>%1: Lauf %2 hat eine Größe, die nicht positiv ist.</translation>
+        <translation>%1: Textabschnitt %2 hat eine nicht positive Größe.</translation>
     </message>
     <message>
         <source>%1: run %2 must be a string or an object.</source>
-        <translation>%1: Lauf %2 muss eine Zeichenkette oder ein Objekt sein.</translation>
+        <translation>%1: Textabschnitt %2 muss eine Zeichenkette oder ein Objekt sein.</translation>
     </message>
     <message>
         <source>%1: runs must not be empty.</source>
@@ -19667,7 +19667,7 @@ In Bilder umgewandelt: %1.</translation>
     </message>
     <message>
         <source>addTextLayer: text must be a string or an array of runs.</source>
-        <translation>addTextLayer: text muss eine Zeichenkette oder ein Array von Läufen sein.</translation>
+        <translation>addTextLayer: text muss eine Zeichenkette oder ein Array von Textabschnitten sein.</translation>
     </message>
     <message>
         <source>box must be {width, height} of at least 16 document pixels each.</source>

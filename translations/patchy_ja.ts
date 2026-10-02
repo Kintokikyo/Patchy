@@ -551,7 +551,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Trim transparent edges kept the full canvas: the image has no visible pixels.</source>
-        <translation>透明な縁の切り落としはキャンバス全体を残しました: 画像に表示されるピクセルがありません。</translation>
+        <translation>画像に表示可能なピクセルがないため、透明な縁を切り落とさずにキャンバス全体を保持しました。</translation>
     </message>
     <message>
         <source>Export Sprite Sheet</source>
@@ -2231,11 +2231,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>%1 contains Photoshop Blend If data for an unsupported color mode or payload shape. Patchy preserves it for PSD round-trip but does not render or edit it.</source>
-        <translation>%1 には、未対応のカラーモードまたはペイロード形式の Photoshop「ブレンド条件 (Blend If)」データが含まれています。Patchy は PSD 往復用に保持しますが、描画や編集は行いません。</translation>
+        <translation>%1 には、未対応のカラーモードまたはデータ形式の Photoshop「ブレンド条件 (Blend If)」データが含まれています。Patchy は PSD の再保存時にこのデータを保持しますが、描画や編集は行いません。</translation>
     </message>
     <message>
         <source>%1 contains Photoshop channel blending restrictions for an unsupported color mode or payload shape. Patchy preserves them for PSD round-trip but does not render or edit them.</source>
-        <translation>%1 には、未対応のカラーモードまたはペイロード形式の Photoshop チャンネル合成制限が含まれています。Patchy は PSD 往復用に保持しますが、描画や編集は行いません。</translation>
+        <translation>%1 には、未対応のカラーモードまたはデータ形式の Photoshop チャンネル合成制限が含まれています。Patchy は PSD の再保存時にこのデータを保持しますが、描画や編集は行いません。</translation>
     </message>
     <message>
         <source>%1 contains Blend If data on a Photoshop group-boundary record. Patchy preserves that boundary data but does not render or edit it.</source>
@@ -2259,7 +2259,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>%1 is a Patchy-native adjustment layer; it round-trips in Patchy PSDs but may appear as an unsupported adjustment in other editors.</source>
-        <translation>%1 は Patchy ネイティブの調整レイヤーです。Patchy PSD では往復できますが、他のエディターでは未対応の調整として表示される場合があります。</translation>
+        <translation>%1 は Patchy 独自の調整レイヤーです。Patchy の PSD では保存して開き直しても保持されますが、他のエディターでは未対応の調整として表示される場合があります。</translation>
     </message>
     <message>
         <source>%1 uses an unsupported layer kind and may not export as editable PSD data.</source>
@@ -2768,11 +2768,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Lasso</source>
-        <translation>投げ縄</translation>
+        <translation>なげなわ</translation>
     </message>
     <message>
         <source>Magnetic Lasso</source>
-        <translation>マグネット投げ縄</translation>
+        <translation>マグネット選択</translation>
     </message>
     <message>
         <source>Magic Wand</source>
@@ -2792,7 +2792,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Clone Stamp</source>
-        <translation>クローンスタンプ</translation>
+        <translation>コピースタンプ</translation>
     </message>
     <message>
         <source>Healing Brush</source>
@@ -3126,8 +3126,8 @@ Flow: %6
 %7</source>
         <translation>%1
 フォント: %2、%3 pt%4
-色: %5
-フロー: %6
+カラー: %5
+文字形式: %6
 %7</translation>
     </message>
     <message>
@@ -9611,7 +9611,7 @@ Mixed selection</source>
     </message>
     <message>
         <source>Clone stamp</source>
-        <translation>クローンスタンプ</translation>
+        <translation>コピースタンプ</translation>
     </message>
     <message>
         <source>Healing brush</source>
@@ -9755,7 +9755,7 @@ Mixed selection</source>
     </message>
     <message>
         <source>Lasso</source>
-        <translation>投げ縄</translation>
+        <translation>なげなわ</translation>
     </message>
     <message>
         <source>Smart object contents can&apos;t be painted. Rasterize the layer to edit its pixels.</source>
@@ -9827,7 +9827,7 @@ Mixed selection</source>
     </message>
     <message>
         <source>Magnetic Lasso</source>
-        <translation>マグネット投げ縄</translation>
+        <translation>マグネット選択</translation>
     </message>
     <message>
         <source>Free Transform</source>
@@ -10047,27 +10047,27 @@ Mixed selection</source>
     </message>
     <message>
         <source>Remove Object needs an open document</source>
-        <translation>オブジェクトを除去には開いているドキュメントが必要です</translation>
+        <translation>「オブジェクトを除去」には開いているドキュメントが必要です</translation>
     </message>
     <message>
         <source>Remove Object needs a selection: select the area to remove first</source>
-        <translation>オブジェクトを除去には選択範囲が必要です。先に除去する領域を選択してください</translation>
+        <translation>「オブジェクトを除去」には選択範囲が必要です。先に除去する領域を選択してください</translation>
     </message>
     <message>
         <source>Remove Object needs a selection on the canvas</source>
-        <translation>オブジェクトを除去にはキャンバス上の選択範囲が必要です</translation>
+        <translation>「オブジェクトを除去」にはキャンバス上の選択範囲が必要です</translation>
     </message>
     <message>
         <source>Remove Object needs an editable pixel layer</source>
-        <translation>オブジェクトを除去には編集可能なピクセルレイヤーが必要です</translation>
+        <translation>「オブジェクトを除去」には編集可能なピクセルレイヤーが必要です</translation>
     </message>
     <message>
         <source>Remove Object needs unselected pixels around the selection to sample</source>
-        <translation>オブジェクトを除去には選択範囲の周囲にサンプルできる未選択のピクセルが必要です</translation>
+        <translation>「オブジェクトを除去」には選択範囲の周囲にサンプルできる未選択のピクセルが必要です</translation>
     </message>
     <message>
         <source>Remove Object could not read the document pixels</source>
-        <translation>オブジェクトを除去はドキュメントのピクセルを読み取れませんでした</translation>
+        <translation>「オブジェクトを除去」はドキュメントのピクセルを読み取れませんでした</translation>
     </message>
     <message>
         <source>Remove Object</source>
@@ -10075,7 +10075,7 @@ Mixed selection</source>
     </message>
     <message>
         <source>Remove Object needs a pixel layer</source>
-        <translation>オブジェクトを除去にはピクセルレイヤーが必要です</translation>
+        <translation>「オブジェクトを除去」にはピクセルレイヤーが必要です</translation>
     </message>
     <message>
         <source>Removed object with source %1 of %2. Run again to try another.</source>
@@ -10087,7 +10087,7 @@ Mixed selection</source>
     </message>
     <message>
         <source>Remove Object found no clean source patches nearby; used the nearest edge instead (source %1 of %2)</source>
-        <translation>オブジェクトを除去は近くにきれいなソースパッチを見つけられなかったため、代わりに最寄りの端を使用しました (ソース %1/%2)</translation>
+        <translation>「オブジェクトを除去」は近くにきれいなソースパッチを見つけられなかったため、代わりに最寄りの端を使用しました (ソース %1/%2)</translation>
     </message>
     <message>
         <source>Removing object...</source>
@@ -10115,7 +10115,7 @@ Mixed selection</source>
     </message>
     <message>
         <source>Remove Object was cancelled</source>
-        <translation>オブジェクトを除去はキャンセルされました</translation>
+        <translation>「オブジェクトを除去」はキャンセルされました</translation>
     </message>
     <message>
         <source>Guide X: %1</source>
@@ -10960,11 +10960,11 @@ Mixed selection</source>
     </message>
     <message>
         <source>&amp;Grow</source>
-        <translation>拡張(&amp;G)</translation>
+        <translation>選択範囲を拡張(&amp;G)</translation>
     </message>
     <message>
         <source>Simi&amp;lar</source>
-        <translation>類似部分を選択(&amp;L)</translation>
+        <translation>近似色を選択(&amp;L)</translation>
     </message>
     <message>
         <source>&amp;Expand...</source>
@@ -10980,7 +10980,7 @@ Mixed selection</source>
     </message>
     <message>
         <source>Load Layer &amp;Transparency</source>
-        <translation>レイヤーの透明部分を読み込み(&amp;T)</translation>
+        <translation>レイヤーの透明度を読み込み(&amp;T)</translation>
     </message>
     <message>
         <source>Select All</source>
@@ -11004,7 +11004,7 @@ Mixed selection</source>
     </message>
     <message>
         <source>Select Similar</source>
-        <translation>類似部分を選択</translation>
+        <translation>近似色を選択</translation>
     </message>
     <message>
         <source>&amp;New Layer</source>
@@ -11366,7 +11366,7 @@ Either way Patchy writes a copy; the open document keeps its layers and unsaved 
     </message>
     <message>
         <source>The image has more than 256 colors. Use Image &gt; Mode &gt; Indexed (Palette) to optimize it down.</source>
-        <translation>画像の色数が 256 を超えています。イメージ &gt; モード &gt; インデックスカラー (パレット) で色数を最適化してください。</translation>
+        <translation>画像の色数が 256 を超えています。画像 &gt; モード &gt; インデックスカラー (パレット) で色数を最適化してください。</translation>
     </message>
     <message>
         <source>Extract palette</source>
@@ -11456,7 +11456,7 @@ Either way Patchy writes a copy; the open document keeps its layers and unsaved 
     </message>
     <message>
         <source>Keep editing with the palette? Painting will snap to its colors; you can switch back any time with Image &gt; Mode &gt; RGB Color.</source>
-        <translation>このパレットで編集を続けますか？描画はパレットの色にスナップされます。イメージ &gt; モード &gt; RGB カラーでいつでも戻せます。</translation>
+        <translation>このパレットで編集を続けますか？描画はパレットの色にスナップされます。画像 &gt; モード &gt; RGB カラーでいつでも戻せます。</translation>
     </message>
     <message>
         <source>Use Palette</source>
@@ -11490,7 +11490,7 @@ Either way Patchy writes a copy; the open document keeps its layers and unsaved 
     </message>
     <message>
         <source>Some layers contain colors outside the palette (filters, layer styles, or text can cause this). Use Image &gt; Snap Image to Palette to fix them. Click to show the Palette panel.</source>
-        <translation>パレット外の色を含むレイヤーがあります (フィルター、レイヤースタイル、テキストなどが原因になります)。イメージ &gt; 画像をパレットにスナップで修正できます。クリックでパレットパネルを表示します。</translation>
+        <translation>パレット外の色を含むレイヤーがあります (フィルター、レイヤースタイル、テキストなどが原因になります)。画像 &gt; 画像をパレットにスナップで修正できます。クリックでパレットパネルを表示します。</translation>
     </message>
     <message>
         <source>Clipboard Image</source>
@@ -11814,11 +11814,11 @@ Either way Patchy writes a copy; the open document keeps its layers and unsaved 
     </message>
     <message>
         <source>Lasso Tools</source>
-        <translation>投げ縄ツール</translation>
+        <translation>なげなわツール</translation>
     </message>
     <message>
         <source>Magnetic Lasso</source>
-        <translation>マグネット投げ縄</translation>
+        <translation>マグネット選択</translation>
     </message>
     <message>
         <source>Contrast:</source>
@@ -11942,7 +11942,7 @@ Either way Patchy writes a copy; the open document keeps its layers and unsaved 
     </message>
     <message>
         <source>Lasso</source>
-        <translation>投げ縄</translation>
+        <translation>なげなわ</translation>
     </message>
     <message>
         <source>Magic Wand</source>
@@ -13427,11 +13427,11 @@ To update, paste this into a terminal:
     </message>
     <message>
         <source>Convert the layer to a smart object to keep the text editable, or rasterize it into plain pixels. Rasterized text can&apos;t be edited again.</source>
-        <translation>テキストを編集可能なまま保つにはレイヤーをスマートオブジェクトに変換するか、通常のピクセルにラスタライズしてください。ラスタライズしたテキストは再編集できません。</translation>
+        <translation>テキストを編集可能なまま保つには、レイヤーをスマートオブジェクトに変換してください。または、通常のピクセルにラスタライズできます。ラスタライズしたテキストは再編集できません。</translation>
     </message>
     <message>
         <source>Convert the layer to a smart object to keep the shape editable, or rasterize it into plain pixels. A rasterized shape can&apos;t be edited as a vector again.</source>
-        <translation>シェイプを編集可能なまま保つにはレイヤーをスマートオブジェクトに変換するか、通常のピクセルにラスタライズしてください。ラスタライズしたシェイプはベクターとして再編集できません。</translation>
+        <translation>シェイプを編集可能なまま保つには、レイヤーをスマートオブジェクトに変換してください。または、通常のピクセルにラスタライズできます。ラスタライズしたシェイプはベクターとして再編集できません。</translation>
     </message>
     <message>
         <source>Rasterize the layer into plain pixels to use %1. Rasterized text can&apos;t be edited again.</source>
@@ -13555,7 +13555,7 @@ To update, paste this into a terminal:
     </message>
     <message>
         <source>Load Layer Transparency</source>
-        <translation>レイヤーの透明部分を読み込み</translation>
+        <translation>レイヤーの透明度を読み込み</translation>
     </message>
     <message>
         <source>Add Layer Mask</source>
@@ -13611,7 +13611,7 @@ To update, paste this into a terminal:
     </message>
     <message>
         <source>Merged layers down</source>
-        <translation>レイヤーを結合しました</translation>
+        <translation>レイヤーを下のレイヤーと結合しました</translation>
     </message>
     <message>
         <source>Filled layer mask</source>
@@ -13793,7 +13793,7 @@ To update, paste this into a terminal:
     </message>
     <message>
         <source>Embeddable Files (*.psd *.psb *.png *.jpg *.jpeg *.tif *.tiff *.bmp *.svg *.svgz);;All Files (*.*)</source>
-        <translation>埋め込み可能なファイル (*.psd *.psb *.png *.jpg *.jpeg *.tif *.tiff *.bmp);;すべてのファイル (*.*)</translation>
+        <translation>埋め込み可能なファイル (*.psd *.psb *.png *.jpg *.jpeg *.tif *.tiff *.bmp *.svg *.svgz);;すべてのファイル (*.*)</translation>
     </message>
     <message>
         <source>Replace failed</source>
@@ -15131,7 +15131,7 @@ Clipped to the layer below</source>
     </message>
     <message>
         <source>Cancelled Add Noise</source>
-        <translation>ノイズを加えるをキャンセルしました</translation>
+        <translation>「ノイズを加える」をキャンセルしました</translation>
     </message>
     <message>
         <source>Add Radial Blur Smart Filter</source>
@@ -15143,11 +15143,11 @@ Clipped to the layer below</source>
     </message>
     <message>
         <source>Add Add Noise Smart Filter</source>
-        <translation>ノイズを加えるスマートフィルターを追加</translation>
+        <translation>「ノイズを加える」スマートフィルターを追加</translation>
     </message>
     <message>
         <source>Edit Add Noise Smart Filter</source>
-        <translation>ノイズを加えるスマートフィルターを編集</translation>
+        <translation>「ノイズを加える」スマートフィルターを編集</translation>
     </message>
     <message>
         <source>Added Radial Blur as a Smart Filter</source>
@@ -15163,15 +15163,15 @@ Clipped to the layer below</source>
     </message>
     <message>
         <source>Added Add Noise as a Smart Filter</source>
-        <translation>ノイズを加えるをスマートフィルターとして追加しました</translation>
+        <translation>「ノイズを加える」をスマートフィルターとして追加しました</translation>
     </message>
     <message>
         <source>Added another Add Noise Smart Filter</source>
-        <translation>ノイズを加えるスマートフィルターをもう1つ追加しました</translation>
+        <translation>「ノイズを加える」スマートフィルターをもう1つ追加しました</translation>
     </message>
     <message>
         <source>Updated Add Noise Smart Filter</source>
-        <translation>ノイズを加えるスマートフィルターを更新しました</translation>
+        <translation>「ノイズを加える」スマートフィルターを更新しました</translation>
     </message>
     <message>
         <source>Add Box Blur Smart Filter</source>
@@ -17173,7 +17173,7 @@ Clipped to the layer below</source>
     </message>
     <message>
         <source>Paragraph direction (auto follows the first strong character)</source>
-        <translation>段落の方向（自動は最初の強い文字に従います）</translation>
+        <translation>段落の方向（自動では、最初に方向性が明確な文字に従います）</translation>
     </message>
     <message>
         <source>Auto</source>
@@ -17563,7 +17563,7 @@ Clipped to the layer below</source>
     </message>
     <message>
         <source>Remove Object needs a selection: select the area to remove first</source>
-        <translation>オブジェクトを除去には選択範囲が必要です。先に除去する領域を選択してください</translation>
+        <translation>「オブジェクトを除去」には選択範囲が必要です。先に除去する領域を選択してください</translation>
     </message>
     <message>
         <source>Tone match</source>
@@ -17603,7 +17603,7 @@ Clipped to the layer below</source>
     </message>
     <message>
         <source>Cancelled Remove Object</source>
-        <translation>オブジェクトを除去をキャンセルしました</translation>
+        <translation>「オブジェクトを除去」をキャンセルしました</translation>
     </message>
     <message>
         <source>Removed object with content-aware fill, variation %1 (%2 patches)</source>
@@ -17635,7 +17635,7 @@ Clipped to the layer below</source>
     </message>
     <message>
         <source>Duplicate Remove Object variation to layer</source>
-        <translation>オブジェクトを除去のバリエーションをレイヤーに複製</translation>
+        <translation>「オブジェクトを除去」のバリエーションをレイヤーに複製</translation>
     </message>
     <message>
         <source>Remove Object variation %1</source>
@@ -17885,7 +17885,7 @@ Clipped to the layer below</source>
     </message>
     <message>
         <source>Photoshop filter plug-ins (.8bf, 32-bit or 64-bit) are found in these folders and their subfolders and listed under Plugins &gt; Legacy Photoshop Plug-ins. Only run plug-ins you trust: they execute with your permissions.</source>
-        <translation>Photoshop フィルタープラグイン (.8bf、32 ビットまたは 64 ビット) はこれらのフォルダーとそのサブフォルダーから検索され、「Plugins &gt; 従来の Photoshop プラグイン」に表示されます。信頼できるプラグインだけを実行してください。プラグインはあなたの権限で実行されます。</translation>
+        <translation>Photoshop フィルタープラグイン (.8bf、32 ビットまたは 64 ビット) はこれらのフォルダーとそのサブフォルダーから検索され、「プラグイン &gt; 従来の Photoshop プラグイン」に表示されます。信頼できるプラグインだけを実行してください。プラグインはあなたの権限で実行されます。</translation>
     </message>
     <message>
         <source>Always scanned:</source>
@@ -18027,7 +18027,7 @@ Clipped to the layer below</source>
     </message>
     <message>
         <source>Cycle Lasso Tools</source>
-        <translation>投げ縄ツールを切り替え</translation>
+        <translation>なげなわツールを切り替え</translation>
     </message>
     <message>
         <source>Cycle Wand Tools</source>

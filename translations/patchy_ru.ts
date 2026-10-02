@@ -9,7 +9,7 @@
     </message>
     <message>
         <source>Drag around the dial to set the angle. Use the arrow keys for precise changes; hold Shift for larger steps.</source>
-        <translation>Перетащите циферблат, чтобы установить угол. Используйте клавиши со стрелками для точных изменений; удерживайте Shift для более крупных шагов.</translation>
+        <translation>Перетаскивайте указатель по окружности шкалы, чтобы задать угол. Клавиши со стрелками изменяют угол точно; удерживайте Shift для большего шага.</translation>
     </message>
     <message>
         <source>Waveform</source>
@@ -48,7 +48,7 @@
     </message>
     <message>
         <source>Keep editable shapes. Turn off to merge the artwork into bitmap layers.</source>
-        <translation>Сохраняйте редактируемые формы. Выключите, чтобы объединить изображение в растровые слои.</translation>
+        <translation>Сохранить редактируемые фигуры. Отключите, чтобы объединить изображение в растровые слои.</translation>
     </message>
     <message>
         <source>Merge within each group separately</source>
@@ -56,15 +56,15 @@
     </message>
     <message>
         <source>Keep folders and merge their contents separately. Turn off to merge across ordinary Pass Through groups.</source>
-        <translation>Сохраняйте папки и объединяйте их содержимое отдельно. Выключите, чтобы объединить обычные группы Pass Through.</translation>
+        <translation>Сохранить папки и объединять их содержимое отдельно. Отключите, чтобы объединять слои из разных обычных групп с режимом «Пропустить».</translation>
     </message>
     <message>
         <source>Separate merges for different vector types</source>
-        <translation>Отдельные слияния для разных типов векторов</translation>
+        <translation>Объединять разные типы векторных объектов отдельно</translation>
     </message>
     <message>
         <source>Merge solid artwork, gradients, and patterns separately. Colors and stroke settings stay intact within each merged vector layer.</source>
-        <translation>Объединяйте сплошные изображения, градиенты и узоры по отдельности. Настройки цвета и обводки остаются неизменными в каждом объединенном векторном слое.</translation>
+        <translation>Объединять объекты со сплошной заливкой, градиентами и узорами отдельно. Цвета и параметры обводки сохраняются в каждом полученном векторном слое.</translation>
     </message>
     <message>
         <source>Hide original layers</source>
@@ -84,11 +84,11 @@
     </message>
     <message>
         <source>Merged vectors keep their colors, strokes, and paint order. Masks, effects, and blending that need separate layers stay intact.</source>
-        <translation>Объединенные векторы сохраняют свои цвета, штрихи и порядок рисования. Маски, эффекты и смешивание, требующие отдельных слоев, остаются нетронутыми.</translation>
+        <translation>Объединённые векторные объекты сохраняют цвета, обводки и порядок отрисовки. Маски, эффекты и наложение, которым нужны отдельные слои, остаются без изменений.</translation>
     </message>
     <message>
         <source>Merged artwork becomes pixels. Undo restores the original layers.</source>
-        <translation>Объединенные изображения становятся пикселями. Отменить восстанавливает исходные слои.</translation>
+        <translation>Объединённое изображение становится растровым. Отмена восстанавливает исходные слои.</translation>
     </message>
     <message>
         <source>Result: %1 vector layers, %2 bitmap layers, %3 other layers kept.</source>
@@ -96,7 +96,7 @@
     </message>
     <message>
         <source>The original layers are kept. Multiple outputs are placed in a new group.</source>
-        <translation>Исходные слои сохраняются. Несколько выходов помещаются в новую группу.</translation>
+        <translation>Исходные слои сохраняются. Если получено несколько слоёв, они помещаются в новую группу.</translation>
     </message>
     <message>
         <source>%1 layers removed by merging.</source>
@@ -169,11 +169,11 @@
     </message>
     <message>
         <source>Run without a display (Qt offscreen platform) and never reuse a running instance. Needs --run-script, --export, --stress-test, or --screenshot; exits 2 otherwise.</source>
-        <translation>Запускайте без отображения (внеэкранная платформа Qt) и никогда не используйте повторно работающий экземпляр. Требуется --run-script, --export, --stress-test или --screenshot; в противном случае выходит из 2.</translation>
+        <translation>Запустить без экрана (внеэкранная платформа Qt), не используя работающий экземпляр. Требуется --run-script, --export, --stress-test или --screenshot; иначе завершение с кодом 2.</translation>
     </message>
     <message>
         <source>Run the profiling stress test and exit (preset: quick, small, standard, or huge).</source>
-        <translation>Запустите стресс-тест профилирования и выйдите (предустановленные настройки: быстрый, маленький, стандартный или огромный).</translation>
+        <translation>Выполнить нагрузочный тест с профилированием и выйти (набор: quick, small, standard или huge).</translation>
     </message>
     <message>
         <source>Directory for stress test reports (with --stress-test).</source>
@@ -181,7 +181,7 @@
     </message>
     <message>
         <source>Save a PNG of the Patchy window to &lt;path&gt;. With a running instance this forwards the request and exits; otherwise the new instance captures after startup and exits.</source>
-        <translation>Сохраните PNG окна Patchy в &lt;path&gt;. При работающем экземпляре это пересылает запрос и завершает работу; в противном случае новый экземпляр захватывает данные после запуска и завершает работу.</translation>
+        <translation>Сохранить снимок окна Patchy в PNG по адресу &lt;path&gt;. Если экземпляр уже работает, передать ему запрос и выйти; иначе новый экземпляр делает снимок после запуска и выходит.</translation>
     </message>
     <message>
         <source>Limit --screenshot to the child widget with this Qt object name.</source>
@@ -197,7 +197,7 @@
     </message>
     <message>
         <source>With --export: append this text to every text layer, re-rendering each through Patchy&apos;s text engine, before saving.</source>
-        <translation>С --export: добавьте этот текст к каждому текстовому слою, повторно визуализируя каждый из текстовых движков Patchy перед сохранением.</translation>
+        <translation>С --export: перед сохранением добавить этот текст к каждому текстовому слою и заново отрисовать каждый слой текстовым движком Patchy.</translation>
     </message>
     <message>
         <source>Run the JavaScript file. With a running instance this forwards the request and exits; otherwise a new unattended instance opens the given files, runs the script, and exits (0 = ok, 4 = script error).</source>
@@ -209,7 +209,7 @@
     </message>
     <message>
         <source>With --run-script: pass key=value to the script as patchy.args.key (repeatable).</source>
-        <translation>С помощью --run-script: передайте ключ=значение в скрипт как patchy.args.key (повторяемый).</translation>
+        <translation>С --run-script: передать key=value в скрипт как patchy.args.key (можно указать несколько раз).</translation>
     </message>
     <message>
         <source>Color preview placeholder currently accepts RGB8 buffers only</source>
@@ -313,7 +313,7 @@
     </message>
     <message>
         <source>Document channel display opacity must be in the inclusive range [0, 1]</source>
-        <translation>Непрозрачность отображения канала документа должна находиться в инклюзивном диапазоне [0, 1].</translation>
+        <translation>Непрозрачность отображения канала документа должна быть в диапазоне [0, 1] включительно</translation>
     </message>
     <message>
         <source>Foreground to Background</source>
@@ -421,11 +421,11 @@
     </message>
     <message>
         <source>Layer opacity must be in the inclusive range [0, 1]</source>
-        <translation>Непрозрачность слоя должна находиться в инклюзивном диапазоне [0, 1].</translation>
+        <translation>Непрозрачность слоя должна быть в диапазоне [0, 1] включительно</translation>
     </message>
     <message>
         <source>Layer fill opacity must be in the inclusive range [0, 1]</source>
-        <translation>Непрозрачность заливки слоя должна находиться в инклюзивном диапазоне [0, 1].</translation>
+        <translation>Непрозрачность заливки слоя должна быть в диапазоне [0, 1] включительно</translation>
     </message>
     <message>
         <source>Layer masks must use 8-bit grayscale pixels</source>
@@ -437,11 +437,11 @@
     </message>
     <message>
         <source>Liquify mesh dimensions must be positive</source>
-        <translation>Размеры сетки Liquify должны быть положительными.</translation>
+        <translation>Размеры сетки фильтра «Пластика» должны быть положительными</translation>
     </message>
     <message>
         <source>Liquify requires RGB or RGBA UInt8 pixels</source>
-        <translation>Для Liquify требуются пиксели RGB или RGBA UInt8.</translation>
+        <translation>Для фильтра «Пластика» требуются пиксели RGB или RGBA UInt8</translation>
     </message>
     <message>
         <source>Cannot quantize an empty color box</source>
@@ -829,7 +829,7 @@
     </message>
     <message>
         <source>Starter built-in filters support UInt8 buffers only</source>
-        <translation>Встроенные фильтры Starter поддерживают только буферы UInt8.</translation>
+        <translation>Базовые встроенные фильтры поддерживают только буферы UInt8</translation>
     </message>
     <message>
         <source>Filter previews support UInt8 buffers only</source>
@@ -909,7 +909,7 @@
     </message>
     <message>
         <source>Surface Blur produced an empty range kernel</source>
-        <translation>Surface Blur создал ядро ​​с пустым диапазоном</translation>
+        <translation>Фильтр «Размытие по поверхности» создал пустое ядро диапазона</translation>
     </message>
     <message>
         <source>Smart Filters require a bounds-matched RGBA8 preview</source>
@@ -1069,27 +1069,27 @@
     </message>
     <message>
         <source>Affinity document stream table is out of range</source>
-        <translation>Таблица потоков документов Affinity выходит за пределы диапазона</translation>
+        <translation>Таблица потоков документа Affinity выходит за допустимые границы</translation>
     </message>
     <message>
         <source>Affinity document stream table is corrupt</source>
-        <translation>Таблица потоков документов Affinity повреждена</translation>
+        <translation>Таблица потоков документа Affinity повреждена</translation>
     </message>
     <message>
         <source>Affinity document stream table is implausible</source>
-        <translation>Таблица потоков документов Affinity неправдоподобна</translation>
+        <translation>Таблица потоков документа Affinity имеет неправдоподобные параметры</translation>
     </message>
     <message>
         <source>Affinity document stream entry is corrupt</source>
-        <translation>Запись потока документов Affinity повреждена</translation>
+        <translation>Запись потока документа Affinity повреждена</translation>
     </message>
     <message>
         <source>Affinity document stream name is implausible</source>
-        <translation>Имя потока документов Affinity неправдоподобно</translation>
+        <translation>Имя потока документа Affinity имеет неправдоподобные параметры</translation>
     </message>
     <message>
         <source>Affinity document directory name is implausible</source>
-        <translation>Имя каталога документов Affinity неправдоподобно</translation>
+        <translation>Имя каталога документа Affinity имеет неправдоподобные параметры</translation>
     </message>
     <message>
         <source>Affinity preview image is not a PNG</source>
@@ -1121,7 +1121,7 @@
     </message>
     <message>
         <source>Affinity document has an implausible number of layers</source>
-        <translation>Документ Affinity имеет невероятное количество слоев</translation>
+        <translation>Документ Affinity содержит неправдоподобное количество слоёв</translation>
     </message>
     <message>
         <source>Affinity document tree is empty</source>
@@ -1153,7 +1153,7 @@
     </message>
     <message>
         <source>Affinity document tree is implausibly large</source>
-        <translation>Дерево документов Affinity невероятно велико</translation>
+        <translation>Дерево документа Affinity неправдоподобно велико</translation>
     </message>
     <message>
         <source>Affinity document tree nests too deeply</source>
@@ -1181,7 +1181,7 @@
     </message>
     <message>
         <source>Affinity document tree has an invalid flags count</source>
-        <translation>В дереве документов Affinity указано количество недопустимых флагов.</translation>
+        <translation>В дереве документа Affinity указано недопустимое количество флагов</translation>
     </message>
     <message>
         <source>Affinity document tree has an invalid shared class</source>
@@ -1209,7 +1209,7 @@
     </message>
     <message>
         <source>This is an Adobe swatch palette (.ase), not an Aseprite image. Load it from the Palette panel&apos;s Load Palette File instead.</source>
-        <translation>Это палитра образцов Adobe (.ase), а не изображение Aseprite. Вместо этого загрузите его из файла палитры панели «Палитра».</translation>
+        <translation>Это палитра образцов Adobe (.ase), а не изображение Aseprite. Загрузите её командой «Загрузить файл палитры» на панели «Палитра».</translation>
     </message>
     <message>
         <source>File is not an Aseprite image</source>
@@ -1245,7 +1245,7 @@
     </message>
     <message>
         <source>Aseprite dimensions must be between 1 and 65535</source>
-        <translation>Размеры асеприта должны находиться в диапазоне от 1 до 65535.</translation>
+        <translation>Размеры изображения Aseprite должны быть от 1 до 65535</translation>
     </message>
     <message>
         <source>Cannot write an Aseprite file without layers</source>
@@ -1433,7 +1433,7 @@
     </message>
     <message>
         <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</source>
-        <translation>Невозможно декодировать это изображение HEIC. Для декодирования HEIC требуется расширение кодека Flatpak; установите его с помощью: Flatpak install --user Flathub org.freedesktop.Platform.ffmpeg-full//24.08</translation>
+        <translation>Не удалось декодировать изображение HEIC. Требуется расширение кодеков Flatpak; установите его командой: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</translation>
     </message>
     <message>
         <source>This file is not a supported HEIC/HEIF image</source>
@@ -1473,7 +1473,7 @@
     </message>
     <message>
         <source>ICO entry palette is too large</source>
-        <translation>Палитра входа в ICO слишком велика</translation>
+        <translation>Палитра изображения в ICO слишком велика</translation>
     </message>
     <message>
         <source>ICO entry has an unsupported bit depth</source>
@@ -1521,7 +1521,7 @@
     </message>
     <message>
         <source>Only 1-8 bitplane IFF ILBM images are supported (no 24-bit deep ILBM yet)</source>
-        <translation>Поддерживаются только 1-8-битные изображения IFF ILBM (24-битные ILBM пока нет)</translation>
+        <translation>Поддерживаются только изображения IFF ILBM с 1–8 битовыми плоскостями (24-битный ILBM пока не поддерживается)</translation>
     </message>
     <message>
         <source>Only 8-bit IFF PBM images are supported</source>
@@ -1533,11 +1533,11 @@
     </message>
     <message>
         <source>IFF ILBM body data ended unexpectedly</source>
-        <translation>Данные о корпусе IFF ILBM неожиданно закончились</translation>
+        <translation>Данные изображения IFF ILBM неожиданно закончились</translation>
     </message>
     <message>
         <source>IFF ILBM dimensions must be between 1 and 65535</source>
-        <translation>Размеры БРПЛ IFF должны находиться в диапазоне от 1 до 65535.</translation>
+        <translation>Размеры IFF ILBM должны быть от 1 до 65535</translation>
     </message>
     <message>
         <source>IFF ILBM palettes cannot exceed 256 colors</source>
@@ -1545,11 +1545,11 @@
     </message>
     <message>
         <source>JPEG XR tone map input has no pixels</source>
-        <translation>Входная карта тонов JPEG XR не содержит пикселей</translation>
+        <translation>Входные данные тонального отображения JPEG XR не содержат пикселей</translation>
     </message>
     <message>
         <source>JPEG XR tone map input buffer is too small</source>
-        <translation>Входной буфер карты тонов JPEG XR слишком мал</translation>
+        <translation>Входной буфер тонального отображения JPEG XR слишком мал</translation>
     </message>
     <message>
         <source>Cannot write an empty document as JPEG XR</source>
@@ -1581,7 +1581,7 @@
     </message>
     <message>
         <source>The Windows JPEG XR encoder did not accept a BGR or BGRA frame</source>
-        <translation>Кодер Windows JPEG XR не принимал кадр BGR или BGRA.</translation>
+        <translation>Кодировщик Windows JPEG XR не принял кадр BGR или BGRA</translation>
     </message>
     <message>
         <source>Unable to read back the encoded JPEG XR image</source>
@@ -1773,7 +1773,7 @@
     </message>
     <message>
         <source>A PDF soft mask was not applied; the affected artwork imported without it.</source>
-        <translation>Мягкая маска PDF не применялась; затронутое произведение искусства импортировано без него.</translation>
+        <translation>Мягкая маска PDF не применена; соответствующие объекты импортированы без неё.</translation>
     </message>
     <message>
         <source>A PDF graphics state set a font directly; that text may be positioned differently.</source>
@@ -1849,23 +1849,23 @@
     </message>
     <message>
         <source>Proton texture is truncated: the RTPACK header promises more data than the file holds</source>
-        <translation>Текстура протона обрезана: заголовок RTPACK обещает больше данных, чем вмещает файл</translation>
+        <translation>Текстура Proton обрезана: в заголовке RTPACK указан больший объём данных, чем есть в файле</translation>
     </message>
     <message>
         <source>Proton texture has an invalid RTPACK payload size</source>
-        <translation>Текстура протона имеет недопустимый размер полезной нагрузки RTPACK.</translation>
+        <translation>Недопустимый размер данных RTPACK текстуры Proton</translation>
     </message>
     <message>
         <source>Proton texture uses an unknown RTPACK compression type</source>
-        <translation>Текстура протона использует неизвестный тип сжатия RTPACK.</translation>
+        <translation>Текстура Proton использует неизвестный тип сжатия RTPACK</translation>
     </message>
     <message>
         <source>Proton texture&apos;s zlib payload is damaged</source>
-        <translation>Полезная нагрузка zlib текстуры Proton повреждена</translation>
+        <translation>Данные zlib текстуры Proton повреждены</translation>
     </message>
     <message>
         <source>Proton texture is truncated: the pixel data is shorter than the header promises</source>
-        <translation>Текстура протона усечена: данные пикселей короче, чем обещает заголовок</translation>
+        <translation>Текстура Proton обрезана: данных пикселей меньше, чем указано в заголовке</translation>
     </message>
     <message>
         <source>PVRTC-compressed Proton textures cannot be opened; re-export the source image with RTPack -8888 first</source>
@@ -1873,15 +1873,15 @@
     </message>
     <message>
         <source>Proton texture&apos;s embedded payload is neither a JPEG nor raw RGB pixels</source>
-        <translation>Встроенная полезная нагрузка текстуры Proton не является ни JPEG, ни необработанными RGB-пикселями.</translation>
+        <translation>Встроенные данные текстуры Proton не являются ни JPEG, ни несжатыми пикселями RGB</translation>
     </message>
     <message>
         <source>Proton texture&apos;s embedded JPEG could not be read</source>
-        <translation>Невозможно прочитать встроенный JPEG текстуры Протона.</translation>
+        <translation>Не удалось прочитать встроенный JPEG текстуры Proton</translation>
     </message>
     <message>
         <source>Proton texture&apos;s embedded JPEG could not be decoded</source>
-        <translation>Не удалось декодировать встроенный JPEG текстуры протона.</translation>
+        <translation>Не удалось декодировать встроенный JPEG текстуры Proton</translation>
     </message>
     <message>
         <source>This RTPACK file is not a Proton texture (an .rtfont or .rtpak package cannot be opened as an image)</source>
@@ -1889,31 +1889,31 @@
     </message>
     <message>
         <source>Not a Proton texture: the RTTXTR header is missing</source>
-        <translation>Не текстура Протона: отсутствует заголовок RTTXTR</translation>
+        <translation>Файл не является текстурой Proton: отсутствует заголовок RTTXTR</translation>
     </message>
     <message>
         <source>Proton texture carries no mip levels</source>
-        <translation>Текстура протона не содержит MIP-уровней.</translation>
+        <translation>Текстура Proton не содержит mip-уровней</translation>
     </message>
     <message>
         <source>Recorded original width was invalid; using the texture width</source>
-        <translation>Записанная исходная ширина недействительна; используя ширину текстуры</translation>
+        <translation>Записанная исходная ширина некорректна; используется ширина текстуры</translation>
     </message>
     <message>
         <source>Recorded original height was invalid; using the texture height</source>
-        <translation>Записанная исходная высота недействительна; использование высоты текстуры</translation>
+        <translation>Записанная исходная высота некорректна; используется высота текстуры</translation>
     </message>
     <message>
         <source>Proton texture&apos;s first mip level does not match the texture size</source>
-        <translation>Первый MIP-уровень текстуры Протона не соответствует размеру текстуры</translation>
+        <translation>Первый mip-уровень текстуры Proton не соответствует размеру текстуры</translation>
     </message>
     <message>
         <source>Proton texture is truncated: the pixel data runs past the end of the file</source>
-        <translation>Текстура протона обрезана: данные пикселей выходят за конец файла.</translation>
+        <translation>Текстура Proton обрезана: данные пикселей выходят за конец файла</translation>
     </message>
     <message>
         <source>Cannot write an empty document as a Proton texture</source>
-        <translation>Невозможно записать пустой документ как текстуру Протона.</translation>
+        <translation>Нельзя записать пустой документ как текстуру Proton</translation>
     </message>
     <message>
         <source>JPEG-encoded Proton textures need the application&apos;s JPEG encoder, which is not installed</source>
@@ -1921,19 +1921,19 @@
     </message>
     <message>
         <source>The JPEG encoder produced no data for the Proton texture</source>
-        <translation>Кодер JPEG не предоставил данных для текстуры Протона.</translation>
+        <translation>Кодировщик JPEG не создал данных для текстуры Proton</translation>
     </message>
     <message>
         <source>Could not compress the Proton texture</source>
-        <translation>Не удалось сжать текстуру Протона.</translation>
+        <translation>Не удалось сжать текстуру Proton</translation>
     </message>
     <message>
         <source>SVG path data must begin with a command letter</source>
-        <translation>Данные пути SVG должны начинаться с командной буквы.</translation>
+        <translation>Данные контура SVG должны начинаться с буквы команды</translation>
     </message>
     <message>
         <source>SVG path command is missing its coordinates</source>
-        <translation>В команде пути SVG отсутствуют координаты</translation>
+        <translation>В команде контура SVG отсутствуют координаты</translation>
     </message>
     <message>
         <source>Invalid SVG move command</source>
@@ -1941,7 +1941,7 @@
     </message>
     <message>
         <source>Invalid SVG line command</source>
-        <translation>Неверная команда строки SVG</translation>
+        <translation>Недопустимая команда линии SVG</translation>
     </message>
     <message>
         <source>Invalid SVG horizontal-line command</source>
@@ -1957,7 +1957,7 @@
     </message>
     <message>
         <source>Invalid SVG smooth-cubic command</source>
-        <translation>Неверная команда SVG Smooth-Cubic.</translation>
+        <translation>Недопустимая команда гладкой кубической кривой SVG</translation>
     </message>
     <message>
         <source>Invalid SVG quadratic-curve command</source>
@@ -1965,7 +1965,7 @@
     </message>
     <message>
         <source>Invalid SVG smooth-quadratic command</source>
-        <translation>Неверная команда сглаживания квадратов SVG.</translation>
+        <translation>Недопустимая команда гладкой квадратичной кривой SVG</translation>
     </message>
     <message>
         <source>Invalid SVG arc command</source>
@@ -1973,15 +1973,15 @@
     </message>
     <message>
         <source>SVG radial-gradient focal points are not supported; the center was used</source>
-        <translation>Фокальные точки радиального градиента SVG не поддерживаются; центр использовался</translation>
+        <translation>Фокальные точки радиального градиента SVG не поддерживаются; использован центр</translation>
     </message>
     <message>
         <source>SVG pattern content beyond plain shapes was skipped</source>
-        <translation>Содержимое шаблона SVG, выходящее за рамки простых фигур, было пропущено.</translation>
+        <translation>Элементы узора SVG, кроме простых фигур, пропущены</translation>
     </message>
     <message>
         <source>Nested SVG patterns are not supported</source>
-        <translation>Вложенные шаблоны SVG не поддерживаются.</translation>
+        <translation>Вложенные узоры SVG не поддерживаются.</translation>
     </message>
     <message>
         <source>SVG patternTransform skew was approximated</source>
@@ -1989,27 +1989,27 @@
     </message>
     <message>
         <source>An SVG paint reference could not be resolved and was replaced with gray</source>
-        <translation>Ссылку на краску SVG не удалось разрешить, и она была заменена на серый цвет.</translation>
+        <translation>Не удалось разрешить ссылку на заливку SVG; использован серый цвет</translation>
     </message>
     <message>
         <source>An SVG pattern paint was approximated with gray</source>
-        <translation>Краска узора SVG была аппроксимирована серым цветом.</translation>
+        <translation>Заливка узором SVG приближённо заменена серым цветом</translation>
     </message>
     <message>
         <source>An unsupported SVG paint definition was replaced with gray</source>
-        <translation>Неподдерживаемое определение краски SVG было заменено на серое.</translation>
+        <translation>Неподдерживаемое определение заливки SVG заменено серым цветом</translation>
     </message>
     <message>
         <source>An unsupported SVG clip-path was skipped</source>
-        <translation>Неподдерживаемый путь обрезки SVG был пропущен.</translation>
+        <translation>Неподдерживаемый обтравочный контур SVG пропущен</translation>
     </message>
     <message>
         <source>SVG clip paths in objectBoundingBox units are not supported and were skipped</source>
-        <translation>Пути обрезки SVG в модулях objectBoundingBox не поддерживаются и были пропущены.</translation>
+        <translation>Обтравочные контуры SVG в единицах objectBoundingBox не поддерживаются и пропущены</translation>
     </message>
     <message>
         <source>SVG clip-path content beyond plain shapes was skipped</source>
-        <translation>Содержимое пути обрезки SVG, выходящее за рамки простых фигур, было пропущено.</translation>
+        <translation>Элементы обтравочного контура SVG, кроме простых фигур, пропущены</translation>
     </message>
     <message>
         <source>An unsupported SVG mask was skipped</source>
@@ -2025,11 +2025,11 @@
     </message>
     <message>
         <source>An anisotropic SVG transform approximated a stroke width by its area scale</source>
-        <translation>Анизотропное преобразование SVG аппроксимировало ширину штриха масштабом площади.</translation>
+        <translation>При анизотропном преобразовании SVG толщина обводки приближённо вычислена по масштабу площади</translation>
     </message>
     <message>
         <source>An SVG stroke more opaque than its fill was clamped to the fill opacity</source>
-        <translation>Обводка SVG, более непрозрачная, чем ее заливка, была привязана к непрозрачности заливки.</translation>
+        <translation>Непрозрачность обводки SVG, превышавшая непрозрачность заливки, ограничена значением заливки</translation>
     </message>
     <message>
         <source>Complex SVG text positioning was reduced to a plain text layer</source>
@@ -2117,11 +2117,11 @@
     </message>
     <message>
         <source>A layer-linked pattern fill was exported anchored to the document origin</source>
-        <translation>Заливка узором, связанная со слоями, была экспортирована с привязкой к источнику документа.</translation>
+        <translation>Связанная со слоем заливка узором экспортирована с привязкой к началу координат документа</translation>
     </message>
     <message>
         <source>Pass-through group opacity is approximated (SVG group opacity isolates the group)</source>
-        <translation>Непрозрачность сквозной группы аппроксимируется (непрозрачность группы SVG изолирует группу)</translation>
+        <translation>Непрозрачность группы с режимом «Пропустить» воспроизведена приблизительно (непрозрачность группы SVG изолирует группу)</translation>
     </message>
     <message>
         <source>Cannot export an empty document as SVG</source>
@@ -2249,7 +2249,7 @@
     </message>
     <message>
         <source>ABR tagged block has a corrupt signature</source>
-        <translation>Блок с тегом ABR имеет поврежденную подпись</translation>
+        <translation>Повреждена сигнатура блока ABR с тегом</translation>
     </message>
     <message>
         <source>ABR tagged block is truncated</source>
@@ -2257,7 +2257,7 @@
     </message>
     <message>
         <source>Ignored a truncated trailing brush entry</source>
-        <translation>Игнорировался обрезанный конец записи кисти.</translation>
+        <translation>Обрезанная последняя запись кисти пропущена</translation>
     </message>
     <message>
         <source>The file is damaged past the last decoded style</source>
@@ -2269,43 +2269,43 @@
     </message>
     <message>
         <source>PAT pattern channel is truncated</source>
-        <translation>Канал шаблона PAT усечен</translation>
+        <translation>Канал узора PAT усечен</translation>
     </message>
     <message>
         <source>PAT pattern channel rectangle is invalid</source>
-        <translation>Недопустимый прямоугольник канала шаблона PAT.</translation>
+        <translation>Недопустимый прямоугольник канала узора PAT</translation>
     </message>
     <message>
         <source>PAT pattern channel has too many pixels</source>
-        <translation>В канале шаблона PAT слишком много пикселей.</translation>
+        <translation>В канале узора PAT слишком много пикселей.</translation>
     </message>
     <message>
         <source>PAT pattern VMA is truncated</source>
-        <translation>Шаблон PAT VMA усекается</translation>
+        <translation>Узор PAT VMA усекается</translation>
     </message>
     <message>
         <source>PAT pattern record is truncated</source>
-        <translation>Запись шаблона PAT обрезана</translation>
+        <translation>Запись узора PAT обрезана</translation>
     </message>
     <message>
         <source>PAT pattern VMA version is unsupported</source>
-        <translation>Версия VMA шаблона PAT не поддерживается.</translation>
+        <translation>Версия VMA узора PAT не поддерживается.</translation>
     </message>
     <message>
         <source>PAT pattern VMA length is invalid</source>
-        <translation>Недопустимая длина VMA шаблона PAT.</translation>
+        <translation>Недопустимая длина VMA узора PAT.</translation>
     </message>
     <message>
         <source>PAT pattern channel count is invalid</source>
-        <translation>Неверное количество каналов шаблона PAT.</translation>
+        <translation>Неверное количество каналов узора PAT.</translation>
     </message>
     <message>
         <source>PAT pattern plane sample count is too large</source>
-        <translation>Количество образцов плоскости шаблона PAT слишком велико</translation>
+        <translation>Слишком много отсчётов в плоскости узора PAT</translation>
     </message>
     <message>
         <source>PAT indexed pattern has no color plane</source>
-        <translation>Индексированный шаблон PAT не имеет цветовой плоскости.</translation>
+        <translation>Индексированный узор PAT не имеет цветовой плоскости.</translation>
     </message>
     <message>
         <source>PAT indexed channel is truncated</source>
@@ -2341,7 +2341,7 @@
     </message>
     <message>
         <source>PAT pattern record is too large</source>
-        <translation>Запись шаблона PAT слишком велика</translation>
+        <translation>Запись узора PAT слишком велика</translation>
     </message>
     <message>
         <source>channel data could not be decoded</source>
@@ -2377,7 +2377,7 @@
     </message>
     <message>
         <source>PSD zip-compressed channel data is corrupt</source>
-        <translation>Данные канала, сжатые в формате PSD в формате zip, повреждены.</translation>
+        <translation>Данные канала PSD, сжатые ZIP, повреждены</translation>
     </message>
     <message>
         <source>PSD saved channel dimensions do not match the document</source>
@@ -2413,7 +2413,7 @@
     </message>
     <message>
         <source>PSD reference form must be a 4-character key</source>
-        <translation>Справочная форма PSD должна представлять собой 4-значный ключ.</translation>
+        <translation>Форма ссылки PSD должна быть ключом из 4 символов</translation>
     </message>
     <message>
         <source>Cannot serialize an empty PSD descriptor value</source>
@@ -2425,11 +2425,11 @@
     </message>
     <message>
         <source>PSD PackBits literal run is truncated</source>
-        <translation>Буквальный запуск PSD PackBits усекается</translation>
+        <translation>Серия буквальных байтов PSD PackBits обрезана</translation>
     </message>
     <message>
         <source>PSD PackBits repeat run is truncated</source>
-        <translation>Повторный запуск PSD PackBits усекается</translation>
+        <translation>Серия повторений PSD PackBits обрезана</translation>
     </message>
     <message>
         <source>PSD PackBits row decoded to the wrong length</source>
@@ -2437,7 +2437,7 @@
     </message>
     <message>
         <source>PSD saved channels must be full-canvas 8-bit grayscale images</source>
-        <translation>Сохраненные PSD-каналы должны представлять собой полноцветные 8-битные изображения в оттенках серого.</translation>
+        <translation>Сохранённые каналы PSD должны быть 8-битными изображениями в градациях серого размером со весь холст</translation>
     </message>
     <message>
         <source>PSD files support at most 56 total channels, including merged transparency</source>
@@ -2461,11 +2461,11 @@
     </message>
     <message>
         <source>Invalid PSD layer and mask information length</source>
-        <translation>Неверная длина слоя PSD и маски.</translation>
+        <translation>Недопустимая длина раздела данных слоёв и масок PSD</translation>
     </message>
     <message>
         <source>This file is 32-bit per channel (HDR). Patchy converted it to 8-bit for editing: precision and dynamic range beyond 8-bit were lost, and saving writes an 8-bit file. Keep the original if you need the 32-bit data.</source>
-        <translation>Этот файл имеет разрешение 32 бита на канал (HDR). Patchy преобразовал его в 8-битный для редактирования: точность и динамический диапазон за пределами 8-бит были потеряны, а при сохранении записывался 8-битный файл. Сохраните оригинал, если вам нужны 32-битные данные.</translation>
+        <translation>Файл содержит 32 бита на канал (HDR). Patchy преобразовал его в 8-битный для редактирования: дополнительная точность и динамический диапазон утрачены; при сохранении записывается 8-битный файл. Сохраните оригинал, если вам нужны 32-битные данные.</translation>
     </message>
     <message>
         <source>This file is 16-bit per channel. Patchy converted it to 8-bit for editing: some precision was lost, and saving writes an 8-bit file. Keep the original if you need the 16-bit data.</source>
@@ -2513,7 +2513,7 @@
     </message>
     <message>
         <source>Invalid PSD saved channel layout</source>
-        <translation>Недопустимый PSD-файл сохраненного макета канала.</translation>
+        <translation>Недопустимая структура сохранённых каналов PSD</translation>
     </message>
     <message>
         <source>PSD saved channel count does not match the composite data</source>
@@ -2525,11 +2525,11 @@
     </message>
     <message>
         <source>The starter PSD reader currently supports 8, 16, and 32-bit files only</source>
-        <translation>Начальная программа чтения PSD в настоящее время поддерживает только 8, 16 и 32-битные файлы.</translation>
+        <translation>Базовый модуль чтения PSD пока поддерживает только 8-, 16- и 32-битные файлы</translation>
     </message>
     <message>
         <source>The starter PSD reader currently supports RGB, CMYK, and Grayscale files only</source>
-        <translation>Начальная программа чтения PSD в настоящее время поддерживает только файлы RGB, CMYK и оттенки серого.</translation>
+        <translation>Базовый модуль чтения PSD пока поддерживает только файлы RGB, CMYK и в градациях серого</translation>
     </message>
     <message>
         <source>PSD files cannot contain more than 56 channels</source>
@@ -2581,7 +2581,7 @@
     </message>
     <message>
         <source>Invalid PSD layer blend mode signature</source>
-        <translation>Неверная подпись режима наложения слоя PSD</translation>
+        <translation>Недопустимая сигнатура режима наложения слоя PSD</translation>
     </message>
     <message>
         <source>PSD layer mask exceeds the layer record</source>
@@ -2597,59 +2597,59 @@
     </message>
     <message>
         <source>PSD pattern channel list is truncated</source>
-        <translation>Список каналов шаблонов PSD усечен</translation>
+        <translation>Список каналов узоров PSD усечен</translation>
     </message>
     <message>
         <source>PSD pattern channel length is truncated</source>
-        <translation>Длина канала шаблона PSD усекается</translation>
+        <translation>Длина канала узора PSD усекается</translation>
     </message>
     <message>
         <source>PSD pattern channel is truncated</source>
-        <translation>Канал шаблона PSD усечен</translation>
+        <translation>Канал узора PSD усечен</translation>
     </message>
     <message>
         <source>PSD pattern channel rectangle is invalid</source>
-        <translation>Недопустимый прямоугольник канала шаблона PSD.</translation>
+        <translation>Недопустимый прямоугольник канала узора PSD</translation>
     </message>
     <message>
         <source>PSD pattern channel has too many pixels</source>
-        <translation>В канале шаблона PSD слишком много пикселей.</translation>
+        <translation>В канале узора PSD слишком много пикселей.</translation>
     </message>
     <message>
         <source>PSD pattern channel depth is unsupported</source>
-        <translation>Глубина канала шаблона PSD не поддерживается.</translation>
+        <translation>Разрядность канала узора PSD не поддерживается</translation>
     </message>
     <message>
         <source>PSD pattern channel data is truncated</source>
-        <translation>Данные канала шаблона PSD усекаются</translation>
+        <translation>Данные канала узора PSD усекаются</translation>
     </message>
     <message>
         <source>PSD pattern RLE table is truncated</source>
-        <translation>Таблица RLE шаблона PSD усечена</translation>
+        <translation>Таблица RLE узора PSD усечена</translation>
     </message>
     <message>
         <source>PSD pattern RLE row is truncated</source>
-        <translation>Строка RLE шаблона PSD усекается</translation>
+        <translation>Строка RLE узора PSD усекается</translation>
     </message>
     <message>
         <source>PSD pattern compression mode is unsupported</source>
-        <translation>Режим сжатия шаблонов PSD не поддерживается.</translation>
+        <translation>Режим сжатия узора PSD не поддерживается</translation>
     </message>
     <message>
         <source>PSD pattern length is invalid</source>
-        <translation>Недопустимая длина шаблона PSD.</translation>
+        <translation>Недопустимая длина узора PSD.</translation>
     </message>
     <message>
         <source>PSD pattern VMA header is truncated</source>
-        <translation>Заголовок VMA шаблона PSD усекается</translation>
+        <translation>Заголовок VMA узора PSD усекается</translation>
     </message>
     <message>
         <source>PSD pattern VMA header is invalid</source>
-        <translation>Неверный заголовок VMA шаблона PSD.</translation>
+        <translation>Неверный заголовок VMA узора PSD.</translation>
     </message>
     <message>
         <source>PSD pattern channel count is invalid</source>
-        <translation>Недопустимое количество каналов шаблона PSD.</translation>
+        <translation>Недопустимое количество каналов узора PSD.</translation>
     </message>
     <message>
         <source>Unsupported authored Smart Filter stack</source>
@@ -2657,11 +2657,11 @@
     </message>
     <message>
         <source>The starter compositor currently supports RGB8 destinations only</source>
-        <translation>Начальный наборщик в настоящее время поддерживает только назначения RGB8.</translation>
+        <translation>Базовый модуль композиции пока поддерживает только вывод в RGB8</translation>
     </message>
     <message>
         <source>The starter compositor currently supports RGB/RGBA 8-bit layers only</source>
-        <translation>Стартовый композитор в настоящее время поддерживает только 8-битные слои RGB/RGBA.</translation>
+        <translation>Базовый модуль композиции пока поддерживает только 8-битные слои RGB/RGBA</translation>
     </message>
     <message>
         <source>Tile size must be positive</source>
@@ -2725,7 +2725,7 @@
     </message>
     <message>
         <source>Click and drag on the image to adjust the selected channel</source>
-        <translation>Нажмите и перетащите изображение, чтобы настроить выбранный канал.</translation>
+        <translation>Щёлкните и перетаскивайте указатель по изображению, чтобы настроить выбранный канал</translation>
     </message>
     <message>
         <source>Black</source>
@@ -2773,7 +2773,7 @@
     </message>
     <message>
         <source>Show shadow and highlight clipping together</source>
-        <translation>Совместное отображение теней и светлых участков</translation>
+        <translation>Показать отсечение в тенях и светах одновременно</translation>
     </message>
     <message>
         <source>Curves presets</source>
@@ -3109,7 +3109,7 @@
     </message>
     <message>
         <source>Folder for the selected brush tip(s); leave empty to remove them from folders</source>
-        <translation>Папка для выбранных кончиков кистей; оставьте пустым, чтобы удалить их из папок</translation>
+        <translation>Папка для выбранных отпечатков кистей; оставьте поле пустым, чтобы убрать их из папок</translation>
     </message>
     <message>
         <source>Folder:</source>
@@ -3129,7 +3129,7 @@
     </message>
     <message>
         <source>Tip shape, dynamics, texture, dual brush, color, and effects for the selected brush tip</source>
-        <translation>Форма кончика, динамика, текстура, двойная кисть, цвет и эффекты для выбранного кончика кисти.</translation>
+        <translation>Форма, динамика, текстура, двойная кисть, цвет и эффекты выбранного отпечатка кисти</translation>
     </message>
     <message>
         <source>Dynamics:</source>
@@ -3161,7 +3161,7 @@
     </message>
     <message>
         <source>Delete the selected brush tips or folders (Del)</source>
-        <translation>Удалить выбранные кончики кистей или папки (Del)</translation>
+        <translation>Удалить выбранные отпечатки кистей или папки (Del)</translation>
     </message>
     <message>
         <source>Restore Default Brushes</source>
@@ -3169,7 +3169,7 @@
     </message>
     <message>
         <source>Bring back any deleted built-in brush tips</source>
-        <translation>Верните все удаленные встроенные кончики кистей.</translation>
+        <translation>Восстановить удалённые стандартные отпечатки кистей</translation>
     </message>
     <message>
         <source>Use Brush</source>
@@ -3233,7 +3233,7 @@
     </message>
     <message>
         <source>The selection is empty or too large to use as a brush tip.</source>
-        <translation>Выделение пусто или слишком велико для использования в качестве кончика кисти.</translation>
+        <translation>Выделение пусто или слишком велико для использования как отпечатка кисти.</translation>
     </message>
     <message numerus="yes">
         <source>Restored %n default brush tip(s).</source>
@@ -3253,7 +3253,7 @@
     </message>
     <message>
         <source>All default brush tips are already present with factory settings.</source>
-        <translation>Все кончики кистей по умолчанию уже присутствуют в заводских настройках.</translation>
+        <translation>Все стандартные отпечатки кистей уже имеют заводские настройки.</translation>
     </message>
     <message>
         <source>%1 Copy</source>
@@ -3265,11 +3265,11 @@
     </message>
     <message>
         <source>%1 is a smart object with Smart Filters; Patchy preserves them and shows Photoshop&apos;s preview (rasterize the layer to edit it here).</source>
-        <translation>%1 — смарт-объект со смарт-фильтрами; Patchy сохраняет их и показывает предварительный просмотр в Photoshop (растрируйте слой, чтобы отредактировать его здесь).</translation>
+        <translation>%1 содержит смарт-фильтры; Patchy сохраняет их и показывает изображение предпросмотра, созданное Photoshop (для редактирования здесь растрируйте слой).</translation>
     </message>
     <message>
         <source>%1 is a smart object with a warp or perspective transform; Patchy preserves it and shows Photoshop&apos;s preview (rasterize the layer to edit it here).</source>
-        <translation>%1 — смарт-объект с преобразованием деформации или перспективы; Patchy сохраняет его и показывает предварительный просмотр в Photoshop (растрируйте слой, чтобы отредактировать его здесь).</translation>
+        <translation>%1 содержит деформацию или перспективное преобразование; Patchy сохраняет смарт-объект и показывает изображение предпросмотра, созданное Photoshop (для редактирования здесь растрируйте слой).</translation>
     </message>
     <message>
         <source>%1 is a smart object Patchy can only preserve, not edit (%2).</source>
@@ -3277,23 +3277,23 @@
     </message>
     <message>
         <source>%1 contains Photoshop Satin contour settings that Patchy cannot render or edit (a custom curve or anti-aliasing). Patchy preserves them until layer styles are edited, then uses the non-anti-aliased Linear contour.</source>
-        <translation>%1 содержит настройки контура Photoshop Satin, которые Patchy не может визуализировать или редактировать (пользовательская кривая или сглаживание). Patchy сохраняет их до тех пор, пока стили слоя не будут отредактированы, а затем использует линейный контур без сглаживания.</translation>
+        <translation>%1 содержит параметры контура эффекта «Глянец» Photoshop, которые Patchy не может отображать или редактировать (произвольная кривая или сглаживание). Они сохраняются до изменения стилей слоя; затем используется линейный контур без сглаживания.</translation>
     </message>
     <message>
         <source>%1 contains Photoshop Blend If data for an unsupported color mode or payload shape. Patchy preserves it for PSD round-trip but does not render or edit it.</source>
-        <translation>%1 содержит данные Photoshop Blend If для неподдерживаемого цветового режима или формы полезных данных. Patchy сохраняет его для прохождения PSD, но не визуализирует и не редактирует его.</translation>
+        <translation>%1 содержит данные «Наложение, если» Photoshop для неподдерживаемого цветового режима или структуры данных. Patchy сохраняет их при повторном сохранении PSD, но не отображает и не редактирует.</translation>
     </message>
     <message>
         <source>%1 contains Blend If data on a Photoshop group-boundary record. Patchy preserves that boundary data but does not render or edit it.</source>
-        <translation>%1 содержит данные Blend If в записи границы группы Photoshop. Patchy сохраняет эти граничные данные, но не отображает и не редактирует их.</translation>
+        <translation>%1 содержит данные «Наложение, если» в записи границы группы Photoshop. Patchy сохраняет эти данные, но не отображает и не редактирует их.</translation>
     </message>
     <message>
         <source>%1 contains Photoshop channel blending restrictions for an unsupported color mode or payload shape. Patchy preserves them for PSD round-trip but does not render or edit them.</source>
-        <translation>%1 содержит ограничения на смешивание каналов Photoshop для неподдерживаемого цветового режима или формы полезных данных. Patchy сохраняет их для прохождения PSD, но не визуализирует и не редактирует их.</translation>
+        <translation>%1 содержит ограничения наложения каналов Photoshop для неподдерживаемого цветового режима или структуры данных. Patchy сохраняет их при повторном сохранении PSD, но не отображает и не редактирует.</translation>
     </message>
     <message>
         <source>%1 preserves %2 unknown PSD layer block(s).</source>
-        <translation>%1 сохраняет неизвестные блоки слоя PSD %2.</translation>
+        <translation>%1 сохраняет неизвестные блоки слоя PSD: %2.</translation>
     </message>
     <message>
         <source>%1: extracted editable PSD text from %2, but Patchy generated a placeholder raster preview because the PSD text pixels were not visible.</source>
@@ -3309,11 +3309,11 @@
     </message>
     <message>
         <source>%1 is a Patchy-native adjustment layer; it round-trips in Patchy PSDs but may appear as an unsupported adjustment in other editors.</source>
-        <translation>%1 — корректирующий слой Patchy; он присутствует в Patchy PSD, но может отображаться как неподдерживаемая настройка в других редакторах.</translation>
+        <translation>%1 является собственным корректирующим слоем Patchy; он сохраняется без изменений в PSD Patchy, но может отображаться как неподдерживаемая коррекция в других редакторах.</translation>
     </message>
     <message>
         <source>%1 uses an unsupported layer kind and may not export as editable PSD data.</source>
-        <translation>%1 использует неподдерживаемый тип слоя и не может экспортироваться как редактируемые данные PSD.</translation>
+        <translation>%1 использует неподдерживаемый тип слоя и может не сохраниться в PSD в редактируемом виде.</translation>
     </message>
     <message>
         <source>%1 uses a pixel format that can render but is not fully editable in this build.</source>
@@ -3329,19 +3329,19 @@
     </message>
     <message>
         <source>The source color mode is %1; Patchy currently edits through RGB/RGBA workflows.</source>
-        <translation>Исходный цветовой режим — %1; В настоящее время Patchy редактирует с помощью рабочих процессов RGB/RGBA.</translation>
+        <translation>Исходный цветовой режим: %1; Patchy пока поддерживает редактирование в RGB/RGBA.</translation>
     </message>
     <message>
         <source>The source is %1 bits per channel; Patchy converted it to 8-bit for editing and saves an 8-bit file. Keep the original if you need the deeper data.</source>
-        <translation>Источник — %1 бит на канал; Patchy преобразовал его в 8-битный для редактирования и сохранил 8-битный файл. Сохраните оригинал, если вам нужны более глубокие данные.</translation>
+        <translation>Исходная глубина: %1 бит на канал. Patchy преобразовал файл в 8-битный для редактирования и сохраняет его в 8-битном виде. Сохраните оригинал, если нужны данные большей разрядности.</translation>
     </message>
     <message>
         <source>The document preserves %1 unknown PSD image resource(s).</source>
-        <translation>В документе сохранен %1 неизвестных ресурсов изображений PSD.</translation>
+        <translation>В документе сохранены неизвестные ресурсы изображения PSD: %1.</translation>
     </message>
     <message>
         <source>The document embeds %1 smart object source file(s) (%2 MB); they round-trip byte-for-byte.</source>
-        <translation>В документ внедрен %1 исходный файл(ы) смарт-объекта (%2 МБ); они передаются туда и обратно байт за байтом.</translation>
+        <translation>В документ встроены исходные файлы смарт-объектов: %1 (%2 МБ). Они сохраняются побайтно без изменений.</translation>
     </message>
     <message>
         <source>PSD Compatibility Report</source>
@@ -3737,7 +3737,7 @@
     </message>
     <message>
         <source>Drag on the image to add a photo by hand; drag corners to adjust.</source>
-        <translation>Перетащите изображение, чтобы добавить фотографию вручную; перетащите углы, чтобы отрегулировать.</translation>
+        <translation>Протяните указатель по изображению, чтобы добавить область фотографии вручную; перетаскивайте углы для настройки.</translation>
     </message>
     <message>
         <source>Output</source>
@@ -3785,7 +3785,7 @@
     </message>
     <message>
         <source>Add continues numbering after the files already in the folder; Overwrite starts at 001 and asks before replacing anything.</source>
-        <translation>Добавить продолжение нумерации после файлов, уже находящихся в папке; Перезапись начинается с 001 и запрашивается перед заменой чего-либо.</translation>
+        <translation>Режим «Добавить» продолжает нумерацию после имеющихся в папке файлов; «Перезаписать» начинает с 001 и запрашивает подтверждение замены.</translation>
     </message>
     <message>
         <source>Choose Folder</source>
@@ -3821,7 +3821,7 @@
     </message>
     <message>
         <source>Order the documents by name, numbering-aware (2 before 10).</source>
-        <translation>Упорядочивайте документы по названию, учитывая нумерацию (от 2 до 10).</translation>
+        <translation>Упорядочить документы по имени с учётом чисел (2 перед 10).</translation>
     </message>
     <message>
         <source>Reverse</source>
@@ -3849,7 +3849,7 @@
     </message>
     <message>
         <source>Add continues numbering after the files already in the folder; Overwrite starts at the chosen number and asks before replacing anything.</source>
-        <translation>Добавить продолжение нумерации после файлов, уже находящихся в папке; Перезапись начинается с выбранного номера и запрашивается перед заменой чего-либо.</translation>
+        <translation>Режим «Добавить» продолжает нумерацию после имеющихся в папке файлов; «Перезаписать» начинает с выбранного номера и запрашивает подтверждение замены.</translation>
     </message>
     <message>
         <source>Export</source>
@@ -4329,7 +4329,7 @@
     </message>
     <message>
         <source>Trim transparent edges kept the full canvas: the image has no visible pixels.</source>
-        <translation>Обрезка прозрачных краев сохраняла весь холст: изображение не имеет видимых пикселей.</translation>
+        <translation>Обрезка прозрачных краёв сохранила весь холст: в изображении нет видимых пикселей.</translation>
     </message>
     <message>
         <source>Show in Explorer when done</source>
@@ -4549,7 +4549,7 @@
     </message>
     <message>
         <source>Hotspot is in pixels of the largest size; smaller sizes scale it.</source>
-        <translation>Хотспот указывается в пикселях наибольшего размера; меньшие размеры масштабируют его.</translation>
+        <translation>Активная точка задаётся в пикселях самого большого размера; для меньших размеров её координаты масштабируются.</translation>
     </message>
     <message>
         <source>BMP Options</source>
@@ -4661,7 +4661,7 @@
     </message>
     <message>
         <source>Each visible top-level layer becomes one frame, with the top layer first. Hidden layers are skipped. A layer name ending in a time, like &quot;blink 0.25s&quot;, overrides the default delay for that frame. The animation loops forever.</source>
-        <translation>Каждый видимый слой верхнего уровня становится одним кадром, начиная с верхнего слоя. Скрытые слои пропускаются. Имя слоя, оканчивающееся на время, например «мигание 0,25 с», переопределяет задержку по умолчанию для этого кадра. Анимация зацикливается навсегда.</translation>
+        <translation>Каждый видимый слой верхнего уровня становится кадром, начиная с верхнего. Скрытые слои пропускаются. Время в конце имени слоя, например «blink 0.25s», заменяет стандартную задержку этого кадра. Анимация повторяется бесконечно.</translation>
     </message>
     <message>
         <source>%1: %2</source>
@@ -4798,7 +4798,7 @@
     </message>
     <message>
         <source>Higher values follow the pixels more tightly and use more anchors</source>
-        <translation>Более высокие значения более точно следуют за пикселями и используют больше привязок.</translation>
+        <translation>При больших значениях контуры точнее следуют пикселям и содержат больше опорных точек</translation>
     </message>
     <message>
         <source>Corners:</source>
@@ -4842,7 +4842,7 @@
     </message>
     <message>
         <source>Limits the total anchor count by loosening the curve fit until the result fits; Off keeps every anchor</source>
-        <translation>Ограничивает общее количество привязок, ослабляя соответствие кривой до тех пор, пока результат не будет соответствовать; Выкл. сохраняет каждый якорь</translation>
+        <translation>Ограничивает общее число опорных точек, снижая точность приближения кривых до соблюдения лимита; «Выкл.» сохраняет все точки</translation>
     </message>
     <message>
         <source>Abutting (cutout shapes)</source>
@@ -4882,7 +4882,7 @@
     </message>
     <message>
         <source>Mark the anchor points of the traced paths on the preview</source>
-        <translation>Отметьте опорные точки прослеживаемых путей на предварительном просмотре.</translation>
+        <translation>Показать опорные точки полученных контуров в предпросмотре</translation>
     </message>
     <message>
         <source>Tracing inside the selection</source>
@@ -4898,7 +4898,7 @@
     </message>
     <message>
         <source>Large result: editing will be slower and exported SVG files will be large. Lower Paths, raise Noise, or set Max anchors to simplify.</source>
-        <translation>Большой результат: редактирование будет медленнее, а экспортированные файлы SVG будут большими. Уменьшите пути, увеличьте шум или установите максимальное количество якорей для упрощения.</translation>
+        <translation>Слишком сложный результат: редактирование замедлится, а SVG-файлы будут большими. Для упрощения уменьшите «Контуры», увеличьте «Шум» или задайте «Макс. опорных точек».</translation>
     </message>
     <message>
         <source>Grays:</source>
@@ -4966,7 +4966,7 @@
     </message>
     <message>
         <source>Pattern &quot;%1&quot; is not embedded in this document, so the effect that references it cannot render until you choose another pattern.</source>
-        <translation>Шаблон «%1» не встроен в этот документ, поэтому эффект, ссылающийся на него, не может быть отображен, пока вы не выберете другой шаблон.</translation>
+        <translation>Узор «%1» не встроен в документ; использующий его эффект не отображается, пока вы не выберете другой узор.</translation>
     </message>
     <message>
         <source>Photoshop Satin custom contours and contour anti-aliasing are preserved until you edit layer styles. Patchy previews and saves edited Satin with the non-anti-aliased Linear contour.</source>
@@ -4978,7 +4978,7 @@
     </message>
     <message>
         <source>This layer contains Photoshop Blend If data for an unsupported color mode or payload shape. Patchy preserves it unchanged and does not preview it unless you replace it.</source>
-        <translation>Этот слой содержит данные Photoshop Blend If для неподдерживаемого цветового режима или формы полезной нагрузки. Patchy сохраняет его без изменений и не просматривает его, пока вы его не замените.</translation>
+        <translation>Слой содержит данные «Наложение, если» Photoshop для неподдерживаемого цветового режима или структуры данных. Patchy сохраняет их без изменений, но не отображает до замены.</translation>
     </message>
     <message>
         <source>Replace with Editable Defaults</source>
@@ -4986,7 +4986,7 @@
     </message>
     <message>
         <source>This folder&apos;s closing PSD record contains separate Blend If data. Patchy preserves that boundary data unchanged; the controls below edit only the visible folder record.</source>
-        <translation>Закрывающая PSD-запись этой папки содержит отдельные данные Blend If. Patchy сохраняет эти граничные данные без изменений; элементы управления ниже редактируют только видимую запись папки.</translation>
+        <translation>Закрывающая запись папки в PSD содержит отдельные данные «Наложение, если». Patchy сохраняет их без изменений; элементы ниже изменяют только видимую запись папки.</translation>
     </message>
     <message>
         <source>Remove Selected Instance</source>
@@ -5172,7 +5172,7 @@
     </message>
     <message>
         <source>An unchecked channel keeps the layers below instead of compositing</source>
-        <translation>Непроверенный канал сохраняет слои ниже вместо композиции.</translation>
+        <translation>Если канал отключён, для него сохраняется изображение нижележащих слоёв без наложения этого слоя</translation>
     </message>
     <message>
         <source>This layer preserves Photoshop channel restrictions Patchy cannot edit for this file&apos;s color mode</source>
@@ -5200,7 +5200,7 @@
     </message>
     <message>
         <source>Put the layer&apos;s blend mode over its overlays, satin, and inner glow instead of letting them blend with their own modes</source>
-        <translation>Поместите режим наложения слоя на его наложения, атлас и внутреннее свечение вместо того, чтобы позволять им смешиваться со своими собственными режимами.</translation>
+        <translation>Применить режим наложения слоя к наложениям цвета, градиента и узора, глянцу и внутреннему свечению, вместо их собственных режимов наложения</translation>
     </message>
     <message>
         <source>Blend Clipped Layers as Group</source>
@@ -5208,7 +5208,7 @@
     </message>
     <message>
         <source>Keep the layers clipped to this one under its interior effects; turn this off together with Blend Interior Effects as Group to draw them over the overlays instead</source>
-        <translation>Оставьте слои прикрепленными к этому слою под его внутренними эффектами; отключите это вместе с Blend Interior Effects as Group, чтобы вместо этого рисовать их поверх наложений.</translation>
+        <translation>Оставить слои с обтравочной маской под внутренними эффектами этого слоя; отключите вместе с «Внутренние эффекты как группа», чтобы отрисовывать их поверх наложений</translation>
     </message>
     <message>
         <source>Blend If</source>
@@ -5228,7 +5228,7 @@
     </message>
     <message>
         <source>Use Page Up or Page Down to select a handle, arrow keys to move it, and %ALT%-drag to split a joined handle.</source>
-        <translation>Используйте Page Up или Page Down, чтобы выбрать маркер, клавиши со стрелками, чтобы переместить его, и перетащите %ALT%, чтобы разделить объединенный маркер.</translation>
+        <translation>Выберите маркер клавишами Page Up или Page Down, перемещайте стрелками; для разделения совмещённого маркера перетаскивайте его с %ALT%.</translation>
     </message>
     <message>
         <source>%1 black transition start</source>
@@ -5492,7 +5492,7 @@
     </message>
     <message>
         <source>Hide the shadow under the layer&apos;s own shape so it never shows through knocked-out or semi-transparent content, like Photoshop</source>
-        <translation>Скройте тень под собственной формой слоя, чтобы она никогда не отображалась сквозь затемненный или полупрозрачный контент, как в Photoshop.</translation>
+        <translation>Скрыть тень под формой самого слоя, чтобы она не просвечивала через вырезанные или полупрозрачные участки, как в Photoshop</translation>
     </message>
     <message>
         <source>Add Stroke</source>
@@ -5528,7 +5528,7 @@
     </message>
     <message>
         <source>The preserved Photoshop Blend If payload will be replaced with editable RGB defaults when you choose OK.</source>
-        <translation>Сохраненные полезные данные Photoshop Blend If будут заменены редактируемыми значениями RGB по умолчанию, когда вы нажмете «ОК».</translation>
+        <translation>После нажатия «ОК» сохранённые данные «Наложение, если» Photoshop будут заменены редактируемыми стандартными параметрами RGB.</translation>
     </message>
     <message>
         <source>New Style</source>
@@ -5636,7 +5636,7 @@
     </message>
     <message>
         <source>Liquify edits pixels directly. Rasterize a Smart Object before using it.</source>
-        <translation>Liquify редактирует пиксели напрямую. Растеризуйте смарт-объект перед его использованием.</translation>
+        <translation>Фильтр «Пластика» изменяет пиксели напрямую. Перед его использованием растрируйте смарт-объект.</translation>
     </message>
     <message>
         <source>Missing Font</source>
@@ -5644,7 +5644,7 @@
     </message>
     <message>
         <source>Patchy can&apos;t locate these fonts: %1. These fonts have no glyphs for their text: %2. Editing this PSD raster preview will substitute other fonts. Continue?</source>
-        <translation>Patchy не может найти эти шрифты: %1. В тексте этих шрифтов нет глифов: %2. Редактирование этого предварительного просмотра растра PSD приведет к замене других шрифтов. Продолжать?</translation>
+        <translation>Patchy не находит шрифты: %1. В этих шрифтах нет символов для их текста: %2. При редактировании растрового предпросмотра PSD будут подставлены другие шрифты. Продолжить?</translation>
     </message>
     <message>
         <source>The font &quot;%1&quot; has no glyphs for this text. Editing this PSD raster preview will substitute another font. Continue?</source>
@@ -5652,7 +5652,7 @@
     </message>
     <message>
         <source>These fonts have no glyphs for their text: %1. Editing this PSD raster preview will substitute other fonts. Continue?</source>
-        <translation>В тексте этих шрифтов нет глифов: %1. Редактирование этого предварительного просмотра растра PSD приведет к замене других шрифтов. Продолжать?</translation>
+        <translation>В этих шрифтах нет символов для их текста: %1. При редактировании растрового предпросмотра PSD будут подставлены другие шрифты. Продолжить?</translation>
     </message>
     <message>
         <source>Patchy can&apos;t locate the font &quot;%1&quot;. Editing this PSD raster preview will substitute another font. Continue?</source>
@@ -5660,7 +5660,7 @@
     </message>
     <message>
         <source>Patchy can&apos;t locate these fonts: %1. Editing this PSD raster preview will substitute other fonts. Continue?</source>
-        <translation>Patchy не может найти эти шрифты: %1. Редактирование этого предварительного просмотра растра PSD приведет к замене других шрифтов. Продолжать?</translation>
+        <translation>Patchy не находит шрифты: %1. При редактировании растрового предпросмотра PSD будут подставлены другие шрифты. Продолжить?</translation>
     </message>
     <message>
         <source>Continue</source>
@@ -5724,11 +5724,11 @@
     </message>
     <message>
         <source>%1M</source>
-        <translation>%1M</translation>
+        <translation>%1 МБ</translation>
     </message>
     <message>
         <source>%1K</source>
-        <translation>%1 тыс.</translation>
+        <translation>%1 КБ</translation>
     </message>
     <message>
         <source>Image Size</source>
@@ -5998,7 +5998,7 @@ Open in Generative Upscale...</source>
     </message>
     <message>
         <source>Patchy preserved unsupported Photoshop Blend If payloads but does not render or edit them (%1 layer(s)).</source>
-        <translation>Patchy сохранил неподдерживаемые полезные нагрузки Photoshop Blend If, но не визуализирует и не редактирует их (слои %1).</translation>
+        <translation>Patchy сохранил неподдерживаемые данные «Наложение, если» Photoshop, но не отображает и не редактирует их (слоёв: %1).</translation>
     </message>
     <message>
         <source>Patchy preserved Blend If data on Photoshop group-boundary records but does not render or edit it (%1 group(s)).</source>
@@ -6006,7 +6006,7 @@ Open in Generative Upscale...</source>
     </message>
     <message>
         <source>Patchy preserved unsupported Photoshop Blend If data without rendering it (%1 layer payload(s), %2 group-boundary record(s)).</source>
-        <translation>Patchy сохранил неподдерживаемые данные Photoshop Blend If без их рендеринга (полезные данные слоя %1, записи границ группы %2).</translation>
+        <translation>Patchy сохранил неподдерживаемые данные «Наложение, если» Photoshop без отображения (записей слоёв: %1, записей границ групп: %2).</translation>
     </message>
     <message>
         <source>Layer &apos;%1&apos;: invalid Gaussian blur radius; effect skipped</source>
@@ -6034,7 +6034,7 @@ Open in Generative Upscale...</source>
     </message>
     <message>
         <source>SVG was imported as flattened raster: %1</source>
-        <translation>SVG был импортирован как сглаженный растр: %1.</translation>
+        <translation>SVG импортирован как сведённое растровое изображение: %1</translation>
     </message>
     <message>
         <source>%1 opened with notes:
@@ -6256,11 +6256,11 @@ Mixed selection</source>
     </message>
     <message>
         <source>Colorize: hue %1, saturation %2, lightness %3</source>
-        <translation>Раскрасить: оттенок %1, насыщенность %2, яркость %3.</translation>
+        <translation>Тонирование: цветовой тон %1, насыщенность %2, светлота %3</translation>
     </message>
     <message>
         <source>Hue/Saturation: hue %1, saturation %2, lightness %3</source>
-        <translation>Цветовой тон/Насыщенность: оттенок %1, насыщенность %2, яркость %3.</translation>
+        <translation>Цветовой тон/Насыщенность: цветовой тон %1, насыщенность %2, светлота %3</translation>
     </message>
     <message>
         <source>Color Balance: C/R %1, M/G %2, Y/B %3</source>
@@ -6348,7 +6348,7 @@ Flow: %6
     </message>
     <message>
         <source>Clipped to the layer below. Click to release.</source>
-        <translation>Вырезано до слоя ниже. Нажмите, чтобы освободить.</translation>
+        <translation>Применена обтравочная маска по нижележащему слою. Щёлкните, чтобы освободить.</translation>
     </message>
     <message>
         <source>Folder is empty</source>
@@ -6388,7 +6388,7 @@ Flow: %6
     </message>
     <message>
         <source>Layer pixels. Click to edit them instead of the mask.</source>
-        <translation>Слой пикселей. Нажмите, чтобы редактировать их вместо маски.</translation>
+        <translation>Пиксели слоя. Щёлкните для редактирования пикселей вместо маски.</translation>
     </message>
     <message>
         <source>Layer and mask are linked. Click to unlink.</source>
@@ -6396,15 +6396,15 @@ Flow: %6
     </message>
     <message>
         <source>Layer and mask are unlinked. Click to link.</source>
-        <translation>Слой и маска не связаны. Нажмите, чтобы создать ссылку.</translation>
+        <translation>Слой и маска не связаны. Щёлкните, чтобы связать.</translation>
     </message>
     <message>
         <source>Layer mask. Click to edit it with the paint tools, %ALT%-click to view it, Shift-click to disable it.</source>
-        <translation>Маска слоя. Нажмите, чтобы отредактировать его с помощью инструментов рисования, нажмите %ALT%, чтобы просмотреть его, щелкните, удерживая клавишу Shift, чтобы отключить его.</translation>
+        <translation>Слой-маска. Щёлкните для редактирования инструментами рисования; щёлкните с %ALT% для просмотра, с Shift для отключения.</translation>
     </message>
     <message>
         <source>Vector mask. Click to edit its path with the pen and path tools, %CTRL%-click to load it as a selection, %ALT%-click to view it, Shift-click to disable it.</source>
-        <translation>Векторная маска. Щелкните, чтобы отредактировать его путь с помощью инструментов «Перо» и «Контур», щелкните %CTRL%, чтобы загрузить его как выделение, щелкните %ALT%, чтобы просмотреть его, щелкните, удерживая Shift, чтобы отключить его.</translation>
+        <translation>Векторная маска. Щёлкните для редактирования контура инструментами пера и контура; с %CTRL% загрузите выделение, с %ALT% просмотрите маску, с Shift отключите её.</translation>
     </message>
     <message>
         <source>mask</source>
@@ -6424,11 +6424,11 @@ Flow: %6
     </message>
     <message>
         <source>Smart object. Click to edit its contents.</source>
-        <translation>Умный объект. Нажмите, чтобы отредактировать его содержимое.</translation>
+        <translation>Смарт-объект. Щёлкните для редактирования содержимого.</translation>
     </message>
     <message>
         <source>Vector shape layer. Click to edit its appearance.</source>
-        <translation>Слой векторной формы. Нажмите, чтобы изменить его внешний вид.</translation>
+        <translation>Слой векторной фигуры. Щёлкните для изменения внешнего вида.</translation>
     </message>
     <message>
         <source>Layer pixels are locked.</source>
@@ -6436,7 +6436,7 @@ Flow: %6
     </message>
     <message>
         <source>This Smart Object is preview-locked. Its Smart Filters are preserved unchanged.</source>
-        <translation>Этот смарт-объект заблокирован для предварительного просмотра. Его смарт-фильтры сохраняются без изменений.</translation>
+        <translation>Этот смарт-объект использует фиксированный предпросмотр. Его смарт-фильтры сохраняются без изменений.</translation>
     </message>
     <message>
         <source>This Smart Filter stack contains unsupported Photoshop data. Patchy preserves it unchanged, so the controls are disabled.</source>
@@ -6456,7 +6456,7 @@ Flow: %6
     </message>
     <message>
         <source>Shared Smart Filter mask. Click to edit it, %CTRL%-click to load it as a selection, %ALT%-click to view it, or Shift-click to disable it.</source>
-        <translation>Общая маска смарт-фильтра. Щелкните, чтобы отредактировать его, щелкните, удерживая %CTRL%, чтобы загрузить его как выделенный, щелкните, удерживая нажатой %ALT%, чтобы просмотреть его, или щелкните, удерживая клавишу Shift, чтобы отключить его.</translation>
+        <translation>Общая маска смарт-фильтров. Щёлкните для редактирования; с %CTRL% загрузите выделение, с %ALT% просмотрите маску, с Shift отключите её.</translation>
     </message>
     <message>
         <source>This Smart Filter mask can only be preserved, not edited</source>
@@ -6480,7 +6480,7 @@ Flow: %6
     </message>
     <message>
         <source> (Amount %1%, Radius %2 px, Threshold %3)</source>
-        <translation> (Количество %1%, Радиус %2 пикселей, Порог %3)</translation>
+        <translation> (Эффект %1%, Радиус %2 пикс., Порог %3)</translation>
     </message>
     <message>
         <source> (Angle %1 degrees, Distance %2 px)</source>
@@ -6488,7 +6488,7 @@ Flow: %6
     </message>
     <message>
         <source> (Highlight %1, Detail %2, Smoothness %3)</source>
-        <translation> (Выделение %1, Детализация %2, Гладкость %3)</translation>
+        <translation> (Свет %1, Детализация %2, Сглаживание %3)</translation>
     </message>
     <message>
         <source> (Cell Size %1 px)</source>
@@ -6496,7 +6496,7 @@ Flow: %6
     </message>
     <message>
         <source> (Angle %1 degrees, Height %2 px, Amount %3%)</source>
-        <translation> (Угол %1 градус, Высота %2 пикселей, Количество %3%)</translation>
+        <translation> (Угол %1 град., Высота %2 пикс., Эффект %3%)</translation>
     </message>
     <message>
         <source>Draft</source>
@@ -6797,7 +6797,7 @@ Flow: %6
     </message>
     <message>
         <source>Shapes and text stay editable; blend modes, adjustment layers, and layer styles flatten to images on each page.</source>
-        <translation>Формы и текст остаются редактируемыми; режимы наложения, корректирующие слои и стили слоев выравнивают изображения на каждой странице.</translation>
+        <translation>Фигуры и текст остаются редактируемыми; режимы наложения, корректирующие слои и стили слоёв сводятся в растровые изображения на каждой странице.</translation>
     </message>
     <message numerus="yes">
         <source>%n page(s) will be written.</source>
@@ -7064,7 +7064,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Folder for the selected pattern(s); leave empty to remove them from folders</source>
-        <translation>Папка для выбранных рисунков; оставьте пустым, чтобы удалить их из папок</translation>
+        <translation>Папка для выбранных узоров; оставьте пустым, чтобы убрать их из папок</translation>
     </message>
     <message>
         <source>Import…</source>
@@ -7072,7 +7072,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Import Photoshop .pat pattern files or images</source>
-        <translation>Импортируйте файлы или изображения шаблонов Photoshop .pat.</translation>
+        <translation>Импорт файлов узоров Photoshop .pat или изображений</translation>
     </message>
     <message>
         <source>Open as Image</source>
@@ -7084,7 +7084,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Delete the selected patterns or folders (Del)</source>
-        <translation>Удалить выбранные рисунки или папки (Del)</translation>
+        <translation>Удалить выбранные узоры или папки (Del)</translation>
     </message>
     <message>
         <source>Restore Default Patterns</source>
@@ -7092,7 +7092,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Bring back deleted built-in patterns and reset changed defaults</source>
-        <translation>Верните удаленные встроенные шаблоны и сбросьте измененные настройки по умолчанию.</translation>
+        <translation>Восстановить удалённые стандартные узоры и сбросить изменения стандартных настроек</translation>
     </message>
     <message>
         <source>Use Pattern</source>
@@ -7100,7 +7100,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Could not update the selected pattern. Check that the pattern library folder is writable.</source>
-        <translation>Не удалось обновить выбранный шаблон. Убедитесь, что папка библиотеки рисунков доступна для записи.</translation>
+        <translation>Не удалось обновить выбранный узор. Убедитесь, что папка библиотеки узоров доступна для записи.</translation>
     </message>
     <message numerus="yes">
         <source>%n pattern(s) selected</source>
@@ -7168,11 +7168,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>All default patterns are already present with factory settings.</source>
-        <translation>Все шаблоны по умолчанию уже присутствуют с заводскими настройками.</translation>
+        <translation>Все стандартные узоры уже имеют заводские настройки.</translation>
     </message>
     <message>
         <source>Some default patterns could not be restored. Check that the pattern library folder is writable.</source>
-        <translation>Некоторые шаблоны по умолчанию не удалось восстановить. Убедитесь, что папка библиотеки рисунков доступна для записи.</translation>
+        <translation>Не удалось восстановить некоторые стандартные узоры. Убедитесь, что папка библиотеки узоров доступна для записи.</translation>
     </message>
     <message numerus="yes">
         <source>Restored %n default pattern(s).</source>
@@ -7256,7 +7256,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>%1 pages imported as layers; only the first starts visible.</source>
-        <translation>Страницы %1 импортированы как слои; видны только первые старты.</translation>
+        <translation>Страницы импортированы как слои: %1; изначально виден только первый.</translation>
     </message>
     <message>
         <source>Only page 1 of %1 was imported.</source>
@@ -7356,7 +7356,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Editable import was not possible for page %1 (%2); it was flattened instead.</source>
-        <translation>Редактируемый импорт невозможен для страницы %1 (%2); вместо этого он был сплющен.</translation>
+        <translation>Не удалось импортировать страницу %1 в редактируемом виде (%2); она импортирована как сведённое изображение.</translation>
     </message>
     <message>
         <source>Editable import brings in one page; page %1 was imported.</source>
@@ -7368,7 +7368,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Editable import was not possible (%1); the page was flattened instead.</source>
-        <translation>Редактируемый импорт невозможен (%1); вместо этого страница была сплющена.</translation>
+        <translation>Не удалось импортировать в редактируемом виде (%1); страница импортирована как сведённое изображение.</translation>
     </message>
     <message>
         <source>Only the desktop version of Patchy can import PDF files. All versions, including this one, can export PDF.</source>
@@ -7772,11 +7772,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Estimated white balance temperature. Adjust to use Custom white balance.</source>
-        <translation>Ориентировочная температура баланса белого. Отрегулируйте использование пользовательского баланса белого.</translation>
+        <translation>Оценка цветовой температуры баланса белого. Измените значение, чтобы задать собственный баланс белого.</translation>
     </message>
     <message>
         <source>Estimated white balance tint. Adjust to use Custom white balance.</source>
-        <translation>Предполагаемый оттенок баланса белого. Отрегулируйте использование пользовательского баланса белого.</translation>
+        <translation>Оценка оттенка баланса белого. Измените значение, чтобы задать собственный баланс белого.</translation>
     </message>
     <message>
         <source>%1 K</source>
@@ -7988,11 +7988,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Anchor the tile grid to the layer&apos;s position; unchecked anchors it to the document origin</source>
-        <translation>Привяжите сетку листов к положению слоя; если флажок снят, он привязывается к источнику документа</translation>
+        <translation>Привязать сетку узора к положению слоя; если отключено, привязать к началу координат документа</translation>
     </message>
     <message>
         <source>Softens the whole shape, stroke included, like Photoshop&apos;s vector mask feather</source>
-        <translation>Смягчает всю форму, включая обводку, как перо векторной маски Photoshop.</translation>
+        <translation>Смягчает всю фигуру вместе с обводкой, подобно растушёвке векторной маски Photoshop</translation>
     </message>
     <message>
         <source>Feather:</source>
@@ -8125,7 +8125,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Version %1 (built %2)</source>
-        <translation>Версия %1 (построено %2)</translation>
+        <translation>Версия %1 (сборка %2)</translation>
     </message>
     <message>
         <source>Created by %1</source>
@@ -8489,7 +8489,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>This filter can run as an editable Smart Filter. Use Filter &gt; Convert for Smart Filters on this layer to keep it editable.</source>
-        <translation>Этот фильтр может работать как редактируемый смарт-фильтр. Используйте «Фильтр» &gt; «Преобразовать» для смарт-фильтров на этом слое, чтобы сохранить его редактируемым.</translation>
+        <translation>Фильтр поддерживает редактирование как смарт-фильтр. Сначала выберите для слоя «Фильтр &gt; Конвертировать для смарт-фильтров».</translation>
     </message>
     <message>
         <source>This filter has no Smart Filter mapping. Applying it will rasterize the Smart Object.</source>
@@ -8545,7 +8545,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Could not %1 the Look. Check that the Looks folder is writable.</source>
-        <translation>Не удалось %1 посмотреть. Убедитесь, что папка Looks доступна для записи.</translation>
+        <translation>Не удалось %1 образ. Убедитесь, что папка образов доступна для записи.</translation>
     </message>
     <message>
         <source>Unsupported Look</source>
@@ -8700,7 +8700,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Windows Image Acquisition is unavailable (%1)</source>
-        <translation>Получение образа Windows недоступно (%1)</translation>
+        <translation>Служба Windows Image Acquisition недоступна (%1)</translation>
     </message>
 </context>
 <context>
@@ -8738,7 +8738,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Theme file is missing a valid &quot;base&quot; (must be &quot;dark&quot; or &quot;light&quot;).</source>
-        <translation>В файле темы отсутствует допустимая «база» (должна быть «темная» или «светлая»).</translation>
+        <translation>В файле темы отсутствует допустимое поле «base» (требуется «dark» или «light»).</translation>
     </message>
     <message>
         <source>Theme file&apos;s &quot;roles&quot; is not an object.</source>
@@ -8820,7 +8820,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Use Patchy in the background, without opening a window, to create three matching 32x32 app icons: a folder, a paintbrush, and a heart. Give them transparent backgrounds and show me the previews and saved PNG files.</source>
-        <translation>Используйте Patchy в фоновом режиме, не открывая окно, чтобы создать три одинаковых значка приложения размером 32x32: папку, кисть и сердце. Предоставьте им прозрачный фон и покажите мне превью и сохраненные файлы PNG.</translation>
+        <translation>Используйте Patchy в фоновом режиме, не открывая окно, чтобы создать три значка приложения размером 32x32 в едином стиле: папку, кисть и сердце. Сделайте фон прозрачным и покажите предпросмотры и сохранённые PNG-файлы.</translation>
     </message>
     <message>
         <source>Turn a reference image into artwork</source>
@@ -8880,7 +8880,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>The patchy-mcp connector was not found next to Patchy. Reinstall Patchy or download a full package.</source>
-        <translation>Разъем patchy-mcp рядом с Patchy не обнаружен. Переустановите Patchy или загрузите полный пакет.</translation>
+        <translation>Коннектор patchy-mcp не найден рядом с Patchy. Переустановите Patchy или загрузите полный пакет.</translation>
     </message>
     <message>
         <source>The patchy-control skill folder was not found. Reinstall Patchy or download a full package.</source>
@@ -8927,7 +8927,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Renames the selected layers to end with this frame time, like &quot;blink 0.25s&quot;.</source>
-        <translation>Переименовывает выбранные слои, чтобы они заканчивались этим временем кадра, например «мигание 0,25 с».</translation>
+        <translation>Добавляет время кадра в конец имён выбранных слоёв, например «blink 0.25s».</translation>
     </message>
     <message>
         <source>Remove</source>
@@ -8935,11 +8935,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Removes the trailing frame time from the selected layers&apos; names.</source>
-        <translation>Удаляет время конечного кадра из названий выбранных слоев.</translation>
+        <translation>Удаляет время кадра из конца имён выбранных слоёв.</translation>
     </message>
     <message>
         <source>Plays the visible top-level layers as frames, top layer first, exactly like the animated GIF export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
-        <translation>Воспроизводит видимые слои верхнего уровня как кадры, сначала верхний слой, точно так же, как при экспорте анимированного GIF-файла. Имя слоя, заканчивающееся временем, например «мигание 0,25 с», устанавливает задержку этого кадра.</translation>
+        <translation>Воспроизводит видимые слои верхнего уровня как кадры, начиная с верхнего, как при экспорте анимированного GIF. Время в конце имени слоя, например «blink 0.25s», задаёт задержку этого кадра.</translation>
     </message>
     <message>
         <source>No visible layers</source>
@@ -9053,7 +9053,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Brush dynamics and effects for the active brush tip</source>
-        <translation>Динамика и эффекты кисти для активного кончика кисти</translation>
+        <translation>Динамика и эффекты активного отпечатка кисти</translation>
     </message>
     <message>
         <source>Brush dynamics and effects for the Square brush (this session only; resets on the next launch)</source>
@@ -9320,7 +9320,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Builds paint along stroke edges for a watercolor wash. It does not smear canvas colors; use Smudge for that.</source>
-        <translation>Распределяет краску по краям обводки для акварельной размывки. Он не размазывает цвета холста; используйте для этого Smudge.</translation>
+        <translation>Накапливает краску по краям мазка для эффекта акварели. Не размазывает цвета холста; для этого используйте «Палец».</translation>
     </message>
     <message>
         <source>Reset</source>
@@ -9328,7 +9328,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Reset the tip shape and all dynamics to defaults</source>
-        <translation>Сбросьте форму кончика и всю динамику до значений по умолчанию.</translation>
+        <translation>Сбросить форму отпечатка и всю динамику по умолчанию</translation>
     </message>
 </context>
 <context>
@@ -9347,7 +9347,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>No brush tips could be imported from &quot;%1&quot;.</source>
-        <translation>Не удалось импортировать кончики кисти из «%1».</translation>
+        <translation>Не удалось импортировать отпечатки кистей из «%1».</translation>
     </message>
 </context>
 <context>
@@ -9525,7 +9525,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Patch is unavailable while editing a grayscale channel</source>
-        <translation>Исправление недоступно при редактировании канала оттенков серого.</translation>
+        <translation>Инструмент «Заплатка» недоступен при редактировании канала в градациях серого</translation>
     </message>
     <message>
         <source>Magic Wand</source>
@@ -9537,7 +9537,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Mixer Brush is unavailable while editing a grayscale channel</source>
-        <translation>Микшер-кисть недоступна при редактировании канала оттенков серого.</translation>
+        <translation>Микс-кисть недоступна при редактировании канала в градациях серого</translation>
     </message>
     <message>
         <source>Smudge is unavailable while editing a grayscale channel</source>
@@ -9617,7 +9617,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Select All is unavailable in Quick Mask mode</source>
-        <translation>Функция «Выбрать все» недоступна в режиме быстрой маски.</translation>
+        <translation>Команда «Выделить всё» недоступна в режиме быстрой маски</translation>
     </message>
     <message>
         <source>Brush flow: %1%</source>
@@ -9661,7 +9661,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Select a normal pixel layer before painting on text</source>
-        <translation>Прежде чем рисовать текст, выберите обычный пиксельный слой.</translation>
+        <translation>Чтобы рисовать поверх текста, сначала выберите обычный растровый слой</translation>
     </message>
     <message>
         <source>Smart object contents can&apos;t be painted. Rasterize the layer to edit its pixels.</source>
@@ -9757,7 +9757,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Select the Clone or Healing Brush tool to set a sample source</source>
-        <translation>Выберите инструмент «Клонировать» или «Восстанавливающую кисть», чтобы установить источник образца.</translation>
+        <translation>Выберите «Штамп» или «Восстанавливающая кисть», чтобы задать источник образца</translation>
     </message>
     <message>
         <source>Processing...</source>
@@ -9833,7 +9833,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Make a selection before selecting similar pixels</source>
-        <translation>Сделайте выбор, прежде чем выбирать похожие пиксели</translation>
+        <translation>Создайте выделение перед поиском похожих пикселей</translation>
     </message>
     <message>
         <source>Selected %1 similar px</source>
@@ -9841,7 +9841,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Select a pixel layer before using Magic Wand</source>
-        <translation>Прежде чем использовать Magic Wand, выберите слой пикселей.</translation>
+        <translation>Перед использованием «Волшебной палочки» выберите растровый слой</translation>
     </message>
     <message>
         <source>Magic Wand selected %1 px</source>
@@ -9849,7 +9849,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Select a pixel layer before using Quick Select</source>
-        <translation>Выберите слой пикселей перед использованием быстрого выбора</translation>
+        <translation>Перед использованием «Быстрого выделения» выберите растровый слой</translation>
     </message>
     <message>
         <source>Quick Select</source>
@@ -9893,7 +9893,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Remove Object could not read the document pixels</source>
-        <translation>Удалить объект не удалось прочитать пиксели документа</translation>
+        <translation>Не удалось прочитать пиксели документа для удаления объекта</translation>
     </message>
     <message>
         <source>Remove Object was cancelled</source>
@@ -9913,15 +9913,15 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Removed object with content-aware fill, variation %1 (%2 patches)</source>
-        <translation>Удален объект с заливкой с учетом содержимого, вариант %1 (исправлений %2).</translation>
+        <translation>Объект удалён заливкой с учётом содержимого, вариант %1 (фрагментов: %2)</translation>
     </message>
     <message>
         <source>Removed object with content-aware fill (%1 patches)</source>
-        <translation>Удален объект с заливкой с учетом содержимого (исправлений %1).</translation>
+        <translation>Объект удалён заливкой с учётом содержимого (фрагментов: %1)</translation>
     </message>
     <message>
         <source>Remove Object found no clean source patches nearby; used the nearest edge instead (source %1 of %2)</source>
-        <translation>Команда Remove Object не обнаружила поблизости никаких исправлений с чистым исходным кодом; вместо этого использовалось ближайшее ребро (источник %1 из %2)</translation>
+        <translation>Для удаления объекта не найдено подходящих чистых фрагментов поблизости; использован ближайший край (источник %1 из %2)</translation>
     </message>
     <message>
         <source>Removed object with source %1 of %2. Run again to try another.</source>
@@ -10033,7 +10033,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Warp works on a single layer. Select one layer to warp.</source>
-        <translation>Warp работает на одном слое. Выберите один слой для деформации.</translation>
+        <translation>Деформация работает с одним слоем. Выберите один слой.</translation>
     </message>
     <message>
         <source>Select an editable pixel layer to warp</source>
@@ -10061,7 +10061,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Drag the warp grid handles. Enter applies, Esc cancels.</source>
-        <translation>Перетащите маркеры сетки деформации. Enter применяется, Esc отменяет.</translation>
+        <translation>Перетаскивайте маркеры сетки деформации. Enter применяет изменения, Esc отменяет.</translation>
     </message>
     <message>
         <source>Dynamic Vector Preview: pixel view at this zoom.</source>
@@ -10081,7 +10081,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Dynamic Vector Preview: no vector artwork to sharpen.</source>
-        <translation>Динамический векторный просмотр: не нужно повышать резкость векторных изображений.</translation>
+        <translation>Динамический векторный просмотр: нет векторных объектов для чёткого отображения.</translation>
     </message>
     <message>
         <source>Dynamic Vector Preview: rendering sharp vectors...</source>
@@ -10097,11 +10097,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Click to add points, drag for curves. Click the first point to close; Enter commits an open path; Esc cancels.</source>
-        <translation>Нажмите, чтобы добавить точки, перетащите кривые. Нажмите первую точку, чтобы закрыть; Enter фиксирует открытый путь; Esc отменяет.</translation>
+        <translation>Щёлкайте для добавления точек, перетаскивайте для создания кривых. Щёлкните первую точку для замыкания; Enter завершает открытый контур, Esc отменяет.</translation>
     </message>
     <message>
         <source>Select a shape layer or draw a path first</source>
-        <translation>Выберите слой формы или сначала нарисуйте путь</translation>
+        <translation>Выберите слой-фигуру или сначала нарисуйте контур</translation>
     </message>
     <message>
         <source>Move shape</source>
@@ -10157,7 +10157,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Drag to move the point. Shift+click adds it to the selection; Delete removes the selected points.</source>
-        <translation>Перетащите, чтобы переместить точку. Shift+щелчок добавляет его к выделению; Удалить удаляет выбранные точки.</translation>
+        <translation>Перетаскивайте точку для перемещения. Shift+щелчок добавляет её к выделению; Delete удаляет выделенные точки.</translation>
     </message>
     <message>
         <source>Drag the handle to reshape the curve</source>
@@ -10201,7 +10201,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Transform path: drag inside to move, handles to scale, outside to rotate. Enter commits, Esc cancels.</source>
-        <translation>Трансформация пути: перетащите внутрь, чтобы переместить, маркеры для масштабирования, снаружи, чтобы повернуть. Enter фиксирует, Esc отменяет.</translation>
+        <translation>Трансформирование контура: перетаскивайте внутри для перемещения, маркеры для масштабирования, снаружи для поворота. Enter применяет, Esc отменяет.</translation>
     </message>
     <message>
         <source>Transform path</source>
@@ -10228,7 +10228,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Spot channels can be previewed but not edited.</source>
-        <translation>Spot-каналы можно просматривать, но нельзя редактировать.</translation>
+        <translation>Плашечные каналы можно просматривать, но нельзя редактировать.</translation>
     </message>
     <message>
         <source>Temporary selection mask. White selects, black masks, and gray creates partial selection.</source>
@@ -10322,7 +10322,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Click a shortcut to change it. Backspace clears it. Esc cancels. Changes apply when you click OK.</source>
-        <translation>Нажмите ярлык, чтобы изменить его. Backspace очищает его. Esc отменяет. Изменения вступят в силу, когда вы нажмете «ОК».</translation>
+        <translation>Щёлкните сочетание клавиш, чтобы изменить его. Backspace очищает, Esc отменяет. Изменения применяются после нажатия «ОК».</translation>
     </message>
     <message>
         <source>Built-in canvas keys (not editable)</source>
@@ -10518,7 +10518,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Thicken the current face synthetically instead of switching to the family&apos;s bold face</source>
-        <translation>Утолщайте текущее лицо синтетически вместо переключения на жирное лицо семейства.</translation>
+        <translation>Искусственно утолщить текущее начертание вместо переключения на полужирное начертание гарнитуры</translation>
     </message>
     <message>
         <source>Faux italic</source>
@@ -10526,7 +10526,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Slant the current face synthetically instead of switching to the family&apos;s italic face</source>
-        <translation>Синтетически наклоните текущее начертание вместо переключения на курсив семейства.</translation>
+        <translation>Искусственно наклонить текущее начертание вместо переключения на курсивное начертание гарнитуры</translation>
     </message>
     <message>
         <source>Rotate Latin (vertical text)</source>
@@ -10534,11 +10534,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Lay Latin letters on their side along the column instead of upright (Photoshop&apos;s Standard Vertical Roman Alignment)</source>
-        <translation>Расположите латинские буквы на боку вдоль столбца, а не вертикально (стандартное вертикальное римское выравнивание Photoshop).</translation>
+        <translation>Повернуть латинские буквы набок вдоль столбца вместо вертикального положения (стандартное вертикальное выравнивание латиницы в Photoshop)</translation>
     </message>
     <message>
         <source>Line spacing (Photoshop leading). Entering a value turns Auto leading off.</source>
-        <translation>Межстрочный интервал (интервал Photoshop). Ввод значения отключает автоматическое начало.</translation>
+        <translation>Межстрочный интервал (интерлиньяж Photoshop). Ввод значения отключает автоматический интерлиньяж.</translation>
     </message>
     <message>
         <source>Leading:</source>
@@ -10546,7 +10546,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Space between characters, in 1/1000 em (Photoshop tracking)</source>
-        <translation>Расстояние между символами, 1/1000 эм (отслеживание в Photoshop)</translation>
+        <translation>Интервал между символами в тысячных долях em (трекинг Photoshop)</translation>
     </message>
     <message>
         <source>Tracking:</source>
@@ -10586,7 +10586,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Paragraph alignment; Justify spreads every line but the last across the box</source>
-        <translation>Выравнивание абзацев; Justify распределяет каждую строку, кроме последней, по всему блоку.</translation>
+        <translation>Выравнивание абзаца; выравнивание по ширине растягивает все строки, кроме последней, до границ блока</translation>
     </message>
     <message>
         <source>Alignment:</source>
@@ -10598,7 +10598,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Indent of each paragraph&apos;s first line; negative with a left indent makes a hanging indent</source>
-        <translation>Отступ первой строки каждого абзаца; негатив с отступом влево образует висячий отступ</translation>
+        <translation>Отступ первой строки абзаца; отрицательное значение вместе с левым отступом создаёт выступ</translation>
     </message>
     <message>
         <source>Left indent:</source>
@@ -11570,7 +11570,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Release the selected folder&apos;s layers into their parent</source>
-        <translation>Освободите слои выбранной папки в их родительские слои.</translation>
+        <translation>Переместить слои выбранной папки в её родительскую папку</translation>
     </message>
     <message>
         <source>Trace Image to Shapes...</source>
@@ -11642,7 +11642,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Refit the targeted path with fewer points</source>
-        <translation>Измените целевой путь с меньшим количеством точек.</translation>
+        <translation>Перестроить целевой контур с меньшим количеством точек</translation>
     </message>
     <message>
         <source>Unite Shapes</source>
@@ -11790,7 +11790,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Open Canvas Size prefilled with the selection so the crop can be adjusted before it is applied</source>
-        <translation>Открытый размер холста с предварительно заполненным выделением, чтобы можно было отрегулировать обрезку перед ее применением.</translation>
+        <translation>Открыть «Размер холста» с размерами выделения, чтобы настроить кадрирование перед применением</translation>
     </message>
     <message>
         <source>Rotate the canvas 90 degrees clockwise</source>
@@ -11806,7 +11806,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Wrap the image by half its size so tiling seams land in the middle; press again to shift back</source>
-        <translation>Оберните изображение на половину его размера так, чтобы швы плитки располагались посередине; нажмите еще раз, чтобы переключиться назад</translation>
+        <translation>Циклически сдвинуть изображение на половину размера, чтобы швы мозаики оказались в центре; повторное нажатие возвращает их к краям</translation>
     </message>
     <message>
         <source>Divide Scanned P&amp;hotos...</source>
@@ -11830,7 +11830,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Preview and apply visual filters and photo looks</source>
-        <translation>Предварительный просмотр и применение визуальных фильтров и внешнего вида фотографий.</translation>
+        <translation>Просмотр и применение визуальных фильтров и фотообразов</translation>
     </message>
     <message>
         <source>&amp;Liquify...</source>
@@ -11974,11 +11974,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Show transform controls when selecting a layer with Move</source>
-        <translation>Показывать элементы управления преобразованием при выборе слоя с помощью функции «Переместить»</translation>
+        <translation>Показывать маркеры трансформирования при выборе слоя инструментом «Перемещение»</translation>
     </message>
     <message>
         <source>Snap moved layers to other layers, guides, the grid, and the canvas (View &gt; Snap). Choose the targets under View &gt; Snap To.</source>
-        <translation>Привязывайте перемещенные слои к другим слоям, направляющим, сетке и холсту (Просмотр &gt; Привязка). Выберите цели в разделе «Просмотр» &gt; «Привязать к».</translation>
+        <translation>Привязывать перемещаемые слои к другим слоям, направляющим, сетке и холсту (Вид &gt; Привязка). Цели выбираются в меню «Вид &gt; Привязать к».</translation>
     </message>
     <message>
         <source>Distribute layers and choose what to align to</source>
@@ -12282,7 +12282,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>What the shape tools create: a shape layer, work-path subpaths, or raster pixels</source>
-        <translation>Что создают инструменты формы: слой формы, подпути рабочего пути или растровые пиксели.</translation>
+        <translation>Что создают инструменты фигур: слой-фигуру, подконтуры рабочего контура или растровые пиксели</translation>
     </message>
     <message>
         <source>Size:</source>
@@ -12302,7 +12302,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Soft:</source>
-        <translation>Мягкий:</translation>
+        <translation>Мягкость:</translation>
     </message>
     <message>
         <source>Brush edge softness: %ALT%+Right-drag up or down on the canvas</source>
@@ -12314,7 +12314,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Brush flow: Shift+number keys (number keys with Airbrush)</source>
-        <translation>Наложение кисти: Shift+цифровые клавиши (цифровые клавиши с аэрографом)</translation>
+        <translation>Нажим кисти: Shift+цифры (с аэрографом только цифры)</translation>
     </message>
     <message>
         <source>Airbrush</source>
@@ -12322,11 +12322,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Build paint while the pointer is held still</source>
-        <translation>Нарисуйте краску, удерживая указатель неподвижно</translation>
+        <translation>Накапливать краску при неподвижном указателе</translation>
     </message>
     <message>
         <source>Stroke smoothing - 0% paints the raw pointer path</source>
-        <translation>Сглаживание обводки — 0&#xa0;% рисует необработанный путь указателя.</translation>
+        <translation>Сглаживание мазка: при 0% кисть точно следует траектории указателя</translation>
     </message>
     <message>
         <source>Smoothing options</source>
@@ -12370,7 +12370,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Smooth:</source>
-        <translation>Гладкий:</translation>
+        <translation>Сглаживание:</translation>
     </message>
     <message>
         <source>Brush preset operation failed: %1</source>
@@ -12394,7 +12394,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Import or manage patterns</source>
-        <translation>Импортируйте шаблоны или управляйте ими</translation>
+        <translation>Импортируйте узоры или управляйте ими</translation>
     </message>
     <message>
         <source>Keep pattern alignment continuous across strokes</source>
@@ -12454,7 +12454,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Source heals the dragged-from region; Destination copies it onto the drop point</source>
-        <translation>Источник лечит вытащенную область; Пункт назначения копирует его в точку пересылки.</translation>
+        <translation>«Источник» восстанавливает исходную область перетаскивания; «Назначение» копирует её в место отпускания</translation>
     </message>
     <message>
         <source>Keep the region and add only the sampled texture instead of replacing it; clearest when the source has distinct marks over a plain background</source>
@@ -12474,7 +12474,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Maximum adjustment applied during one stroke</source>
-        <translation>Максимальная регулировка, применяемая за один ход</translation>
+        <translation>Максимальная коррекция за один мазок</translation>
     </message>
     <message>
         <source>Range:</source>
@@ -12550,7 +12550,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Limit Magic Wand selection to connected pixels</source>
-        <translation>Ограничить выбор Magic Wand подключенными пикселями</translation>
+        <translation>Ограничить выделение «Волшебной палочкой» смежными пикселями</translation>
     </message>
     <message>
         <source>Fill:</source>
@@ -12646,7 +12646,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>0 makes a plain polygon; higher values pull in star points</source>
-        <translation>0 создает простой многоугольник; более высокие значения приносят звездные баллы</translation>
+        <translation>0 создаёт обычный многоугольник; большие значения углубляют впадины звезды</translation>
     </message>
     <message>
         <source>Shape:</source>
@@ -12706,7 +12706,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Show the image at actual pixels (View &gt; Actual Pixels)</source>
-        <translation>Покажите изображение в реальных пикселях (Просмотр &gt; Фактические пиксели).</translation>
+        <translation>Показать изображение пиксель в пиксель (Вид &gt; Реальные пиксели)</translation>
     </message>
     <message>
         <source>Fit the whole image in the window (View &gt; Fit on Screen)</source>
@@ -12986,15 +12986,15 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Click to place points, drag for curves. On a path: click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL% moves points.</source>
-        <translation>Щелкните, чтобы разместить точки, перетащите кривые. На пути: щелкните сегмент, чтобы добавить точку, щелкните точку, чтобы удалить ее, %ALT%+щелчок преобразует ее, %CTRL% перемещает точки.</translation>
+        <translation>Щёлкайте для добавления точек, перетаскивайте для создания кривых. На контуре: щелчок по сегменту добавляет точку, по точке удаляет её; %ALT%+щелчок преобразует точку, %CTRL% перемещает точки.</translation>
     </message>
     <message>
         <source>Select and move whole shapes. %CTRL%+T transforms the path.</source>
-        <translation>Выделяйте и перемещайте целые фигуры. %CTRL%+T преобразует путь.</translation>
+        <translation>Выделять и перемещать целые фигуры. %CTRL%+T трансформирует контур.</translation>
     </message>
     <message>
         <source>Select and drag points and handles. Delete removes the selected points.</source>
-        <translation>Выберите и перетащите точки и маркеры. Удалить удаляет выбранные точки.</translation>
+        <translation>Выделяйте и перетаскивайте точки и направляющие. Delete удаляет выделенные точки.</translation>
     </message>
     <message>
         <source>Click a path segment to insert a point.</source>
@@ -13010,23 +13010,23 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Move: Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it.</source>
-        <translation>Переместить: Shift+щелчок или %CTRL%+щелчок переключает слои. %CTRL%+перетаскивание выделяет прямоугольник; Шифт добавляет. Перетащите выбранную иллюстрацию, чтобы переместить ее.</translation>
+        <translation>Перемещение: Shift+щелчок или %CTRL%+щелчок меняет выделение слоёв. %CTRL%+перетаскивание выделяет слои прямоугольником; Shift добавляет. Перетаскивайте выделенные объекты для перемещения.</translation>
     </message>
     <message>
         <source>Pen: click to add points, drag for curves. On a path, click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL%+drag selects or moves points.</source>
-        <translation>Перо: щелкните, чтобы добавить точки, перетащите, чтобы создать кривые. На пути щелкните сегмент, чтобы добавить точку, щелкните точку, чтобы удалить ее, %ALT%+щелчок преобразует ее, %CTRL%+перетаскивание выбирает или перемещает точки.</translation>
+        <translation>Перо: щёлкайте для добавления точек, перетаскивайте для создания кривых. На контуре: щелчок по сегменту добавляет точку, по точке удаляет её; %ALT%+щелчок преобразует точку, %CTRL%+перетаскивание выделяет или перемещает точки.</translation>
     </message>
     <message>
         <source>Path Select: click a shape to select it, drag to move it. %CTRL%+T transforms the path, Delete removes the selected points.</source>
-        <translation>Выбор пути: щелкните фигуру, чтобы выбрать ее, перетащите, чтобы переместить. %CTRL%+T преобразует путь, Удалить удаляет выбранные точки.</translation>
+        <translation>Выделение контура: щёлкните фигуру для выделения, перетаскивайте для перемещения. %CTRL%+T трансформирует контур, Delete удаляет выделенные точки.</translation>
     </message>
     <message>
         <source>Direct Select: click or marquee points, drag points or handles. Shift adds, arrows nudge, Delete removes, %CTRL%+T transforms the selected points.</source>
-        <translation>Прямой выбор: щелкните или выделите точки, перетащите точки или маркеры. Shift добавляет, стрелки перемещают, Delete удаляет, %CTRL%+T преобразует выбранные точки.</translation>
+        <translation>Выделение узла: выделяйте точки щелчком или рамкой, перетаскивайте точки и направляющие. Shift добавляет, стрелки сдвигают, Delete удаляет, %CTRL%+T трансформирует выделенные точки.</translation>
     </message>
     <message>
         <source>Add Anchor Point: click a path segment to insert a point.</source>
-        <translation>Добавить опорную точку: щелкните сегмент пути, чтобы вставить точку.</translation>
+        <translation>Добавить опорную точку: щёлкните сегмент контура для вставки точки.</translation>
     </message>
     <message>
         <source>Delete Anchor Point: click a point to remove it.</source>
@@ -13042,11 +13042,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Rectangular Marquee: drag to select. Drag a handle to resize the selection, or drag inside it to move it.</source>
-        <translation>Прямоугольная область: перетащите, чтобы выбрать. Перетащите маркер, чтобы изменить размер выделения, или перетащите его внутрь, чтобы переместить.</translation>
+        <translation>Прямоугольная область: протяните указатель для выделения. Маркеры изменяют размер выделения; перетаскивание внутри перемещает его.</translation>
     </message>
     <message>
         <source>Elliptical Marquee: drag to select. Drag a handle to resize the selection, or drag inside it to move it.</source>
-        <translation>Эллиптическая область выделения: перетащите, чтобы выбрать. Перетащите маркер, чтобы изменить размер выделения, или перетащите его внутрь, чтобы переместить.</translation>
+        <translation>Овальная область: протяните указатель для выделения. Маркеры изменяют размер выделения; перетаскивание внутри перемещает его.</translation>
     </message>
     <message>
         <source>Marquee Tools</source>
@@ -13564,7 +13564,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Editing the vector mask path with the pen and path tools</source>
-        <translation>Редактирование пути векторной маски с помощью инструментов «Перо» и «Контур».</translation>
+        <translation>Редактирование контура векторной маски инструментами пера и контура</translation>
     </message>
     <message>
         <source>Blend mode</source>
@@ -13726,7 +13726,7 @@ RGB: -
     </message>
     <message>
         <source>Palette set to %1</source>
-        <translation>Палитра установлена ​​на %1</translation>
+        <translation>Палитра установлена на %1</translation>
     </message>
     <message>
         <source>Edit palette entry</source>
@@ -14043,7 +14043,7 @@ RGB: -
     </message>
     <message>
         <source>%1 has unsaved changes. Reopen the file from disk and discard them?</source>
-        <translation>%1 имеет несохраненные изменения. Снова открыть файл с диска и удалить его?</translation>
+        <translation>В %1 есть несохранённые изменения. Заново открыть файл с диска и отменить эти изменения?</translation>
     </message>
     <message>
         <source>Reopen</source>
@@ -14091,7 +14091,7 @@ RGB: -
     </message>
     <message>
         <source>Photocopy sent to printer</source>
-        <translation>Фотокопия отправлена ​​на принтер</translation>
+        <translation>Фотокопия отправлена на принтер</translation>
     </message>
     <message>
         <source>Divide Scanned Photos</source>
@@ -14281,17 +14281,17 @@ RGB: -
         <source>SVG keeps shape layers as vectors, but this document has content SVG cannot hold as vectors. Continue saving and bake it into images in the linked file?
 
 Baked into images: %1.</source>
-        <translation>SVG сохраняет слои фигур как векторы, но в этом документе есть контент, который SVG не может хранить как векторы. Продолжить сохранение и превратить его в изображения в связанном файле?
+        <translation>SVG сохраняет слои-фигуры в векторном виде, но часть содержимого этого документа нельзя представить в SVG как векторы. Продолжить сохранение, преобразовав это содержимое в растровые изображения в связанном файле?
 
-Запеченные в изображениях: %1.</translation>
+Будет растрировано: %1.</translation>
     </message>
     <message>
         <source>SVG keeps shape layers as vectors, but this document has content SVG cannot hold as vectors, so Patchy will save a copy with that content baked into images. The open document will keep its layers and unsaved changes. To keep everything editable, save as a Photoshop document (.psd) instead.
 
 Baked into images: %1.</source>
-        <translation>SVG сохраняет слои фигур как векторы, но в этом документе есть содержимое, которое SVG не может хранить в векторном виде, поэтому Patchy сохранит копию с этим содержимым, встроенным в изображения. В открытом документе сохранятся слои и несохраненные изменения. Чтобы все оставалось доступным для редактирования, сохраните вместо этого как документ Photoshop (.psd).
+        <translation>SVG сохраняет слои-фигуры в векторном виде, но часть содержимого этого документа нельзя представить в SVG как векторы. Patchy сохранит копию с этим содержимым в виде растровых изображений. Открытый документ сохранит слои и несохранённые изменения. Чтобы всё осталось редактируемым, сохраните документ Photoshop (.psd).
 
-Запеченные в изображениях: %1.</translation>
+Будет растрировано: %1.</translation>
     </message>
     <message>
         <source>This file format cannot store layers. Continue saving and flatten the linked file?</source>
@@ -14421,9 +14421,9 @@ Either way Patchy writes a copy; the open document keeps its layers and unsaved 
         <source>Patchy %1 is available. You are using version %2.
 
 Download the DMG, quit Patchy, and drag the new Patchy into Applications.</source>
-        <translation>Доступен патч %1. Вы используете версию %2.
+        <translation>Доступна версия Patchy %1. Вы используете версию %2.
 
-Загрузите DMG, закройте Patchy и перетащите новый Patchy в Приложения.</translation>
+Загрузите DMG, выйдите из Patchy и перетащите новый Patchy в папку «Программы».</translation>
     </message>
     <message>
         <source>Patchy %1 is available. You are using version %2.
@@ -14441,9 +14441,9 @@ To update, paste this into a terminal:
         <source>Patchy %1 is available. You are using version %2.
 
 Save your work and close Patchy before running the installer.</source>
-        <translation>Доступен патч %1. Вы используете версию %2.
+        <translation>Доступна версия Patchy %1. Вы используете версию %2.
 
-Сохраните свою работу и закройте Patchy перед запуском установщика.</translation>
+Сохраните работу и закройте Patchy перед запуском установщика.</translation>
     </message>
     <message>
         <source>Update Available</source>
@@ -14915,7 +14915,7 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Updated Smart Filter mask</source>
-        <translation>Обновлена ​​маска смарт-фильтра.</translation>
+        <translation>Обновлена маска смарт-фильтра.</translation>
     </message>
     <message>
         <source>This Smart Filter mask cannot be edited safely</source>
@@ -15035,11 +15035,11 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Liquify is unavailable while viewing a document channel</source>
-        <translation>Liquify недоступен при просмотре канала документа.</translation>
+        <translation>Фильтр «Пластика» недоступен при просмотре канала документа</translation>
     </message>
     <message>
         <source>Rasterize the Smart Object before using Liquify</source>
-        <translation>Растеризуйте смарт-объект перед использованием Liquify.</translation>
+        <translation>Перед использованием фильтра «Пластика» растрируйте смарт-объект</translation>
     </message>
     <message>
         <source>Liquify</source>
@@ -15079,7 +15079,7 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>This Look includes effects without an editable Photoshop Smart Filter mapping. Rasterize the Smart Object and apply the complete Look destructively?</source>
-        <translation>Этот образ включает эффекты без редактируемого сопоставления смарт-фильтра Photoshop. Растеризовать смарт-объект и применить полный внешний вид разрушительно?</translation>
+        <translation>Некоторые эффекты этого образа не поддерживают редактирование как смарт-фильтры Photoshop. Растрировать смарт-объект и применить весь образ с изменением пикселей?</translation>
     </message>
     <message>
         <source>Add Smart Filter Stack</source>
@@ -15139,7 +15139,7 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Ungrouped the folder; its opacity, blend mode, or mask was discarded</source>
-        <translation>Разгруппировал папку; его непрозрачность, режим наложения или маска были удалены</translation>
+        <translation>Папка разгруппирована; её непрозрачность, режим наложения или маска отброшены</translation>
     </message>
     <message numerus="yes">
         <source>Ungrouped %n folder(s)</source>
@@ -15311,11 +15311,11 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Added layer mask from selection</source>
-        <translation>Добавлена ​​маска слоя из выделения.</translation>
+        <translation>Добавлена маска слоя из выделения.</translation>
     </message>
     <message>
         <source>Added layer mask. Paint with black to hide and white to reveal.</source>
-        <translation>Добавлена ​​маска слоя. Закрасьте черным, чтобы скрыть, и белым, чтобы показать.</translation>
+        <translation>Добавлена маска слоя. Закрасьте черным, чтобы скрыть, и белым, чтобы показать.</translation>
     </message>
     <message>
         <source>Active layer has no mask</source>
@@ -15683,7 +15683,7 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Text and smart object layers can&apos;t be cleared. Deselect first, then Delete removes the layer.</source>
-        <translation>Слои текста и смарт-объектов невозможно очистить. Сначала снимите выделение, затем «Удалить» удаляет слой.</translation>
+        <translation>Текстовые слои и смарт-объекты нельзя очистить. Снимите выделение, затем нажмите Delete для удаления слоя.</translation>
     </message>
     <message>
         <source>Deleted layer</source>
@@ -15755,7 +15755,7 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>No clean source patches nearby; used the nearest edge (source %1 of %2)</source>
-        <translation>Никаких патчей с чистым исходным кодом поблизости нет; использовал ближайшее ребро (источник %1 из %2)</translation>
+        <translation>Поблизости нет подходящих чистых фрагментов; использован ближайший край (источник %1 из %2)</translation>
     </message>
     <message>
         <source>Duplicate Remove Object variation to layer</source>
@@ -15775,7 +15775,7 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Removed object with content-aware fill, variation %1 (%2 patches)</source>
-        <translation>Удален объект с заливкой с учетом содержимого, вариант %1 (исправлений %2).</translation>
+        <translation>Объект удалён заливкой с учётом содержимого, вариант %1 (фрагментов: %2)</translation>
     </message>
     <message>
         <source>Removed object with the nearest edge (source %1 of %2)</source>
@@ -15967,7 +15967,7 @@ Save your work and close Patchy before running the installer.</source>
     </message>
     <message>
         <source>Restored layer visibility</source>
-        <translation>Восстановлена ​​видимость слоя.</translation>
+        <translation>Восстановлена видимость слоя.</translation>
     </message>
     <message>
         <source>Hid other layers</source>
@@ -16147,7 +16147,7 @@ Clipped to the layer below</source>
     </message>
     <message>
         <source>Wet: %1% | Load: %2% | Mix: %3% | Flow: %4%</source>
-        <translation>Мокрый: %1% | Загрузка: %2% | Микс: %3% | Поток: %4%</translation>
+        <translation>Влажность: %1% | Заполнение: %2% | Смешивание: %3% | Нажим: %4%</translation>
     </message>
     <message>
         <source>Opacity: %1%</source>
@@ -16289,7 +16289,7 @@ Y: %2
     </message>
     <message>
         <source>Palette color updated</source>
-        <translation>Обновлена ​​цветовая палитра</translation>
+        <translation>Обновлена цветовая палитра</translation>
     </message>
     <message>
         <source>Rasterize Smart Objects before changing palette pixels</source>
@@ -16393,11 +16393,11 @@ Y: %2
     </message>
     <message>
         <source>Some layers contain colors outside the palette, so the canvas shows them snapped to it (filters, adjustments, pasting, and text can cause this).</source>
-        <translation>Некоторые слои содержат цвета вне палитры, поэтому на холсте они отображаются привязанными к нему (это могут быть вызваны фильтрами, корректировками, вставкой и текстом).</translation>
+        <translation>Некоторые слои содержат цвета вне палитры, поэтому на холсте они заменяются ближайшими цветами палитры (причиной могут быть фильтры, коррекции, вставка или текст).</translation>
     </message>
     <message>
         <source>Keep the palettized look by making those snapped colors permanent, or restore the layers&apos; original colors?</source>
-        <translation>Сохраните вид палитры, сделав закрепленные цвета постоянными, или восстановите исходные цвета слоев?</translation>
+        <translation>Сохранить вид с ограниченной палитрой, окончательно заменив цвета ближайшими, или восстановить исходные цвета слоёв?</translation>
     </message>
     <message>
         <source>Keep Palettized Look</source>
@@ -16445,7 +16445,7 @@ Y: %2
     </message>
     <message>
         <source>Keep editing with the palette? Painting will snap to its colors; you can switch back any time with Image &gt; Mode &gt; RGB Color.</source>
-        <translation>Продолжать редактировать с помощью палитры? Картина будет соответствовать своим цветам; вы можете переключиться обратно в любое время, выбрав «Изображение» &gt; «Режим» &gt; «Цвет RGB».</translation>
+        <translation>Продолжить редактирование с палитрой? При рисовании будут использоваться её цвета; вернуться можно в любое время через «Изображение &gt; Режим &gt; Цвет RGB».</translation>
     </message>
     <message>
         <source>Use Palette</source>
@@ -16481,7 +16481,7 @@ Y: %2
     </message>
     <message>
         <source>Some layers contain colors outside the palette (filters, layer styles, or text can cause this). Use Image &gt; Snap Image to Palette to fix them. Click to show the Palette panel.</source>
-        <translation>Некоторые слои содержат цвета за пределами палитры (это могут быть вызваны фильтрами, стилями слоя или текстом). Используйте «Изображение» &gt; «Привязать изображение к палитре», чтобы исправить их. Нажмите, чтобы отобразить панель «Палитра».</translation>
+        <translation>В некоторых слоях есть цвета вне палитры (причиной могут быть фильтры, стили слоёв или текст). Используйте «Изображение &gt; Привести изображение к палитре», чтобы исправить их. Щёлкните для открытия панели «Палитра».</translation>
     </message>
     <message>
         <source>%1 Shape Path</source>
@@ -16505,7 +16505,7 @@ Y: %2
     </message>
     <message>
         <source>Select a saved path or the work path to duplicate</source>
-        <translation>Выберите сохраненный путь или рабочий путь для дублирования.</translation>
+        <translation>Выберите сохранённый или рабочий контур для создания дубликата</translation>
     </message>
     <message>
         <source>Duplicate path</source>
@@ -16553,7 +16553,7 @@ Y: %2
     </message>
     <message>
         <source>Select a saved path to use as the clipping path</source>
-        <translation>Выберите сохраненный путь для использования в качестве контура обрезки.</translation>
+        <translation>Выберите сохранённый контур для назначения обтравочным</translation>
     </message>
     <message>
         <source>Clipping path</source>
@@ -16569,7 +16569,7 @@ Y: %2
     </message>
     <message>
         <source>Select a saved path or the work path to delete</source>
-        <translation>Выберите сохраненный путь или рабочий путь для удаления.</translation>
+        <translation>Выберите сохранённый или рабочий контур для удаления</translation>
     </message>
     <message>
         <source>Delete path</source>
@@ -16613,7 +16613,7 @@ Y: %2
     </message>
     <message>
         <source>Anchor the tile grid to the layer&apos;s position; unchecked anchors it to the document origin</source>
-        <translation>Привяжите сетку листов к положению слоя; если флажок снят, он привязывается к источнику документа</translation>
+        <translation>Привязать сетку узора к положению слоя; если отключено, привязать к началу координат документа</translation>
     </message>
     <message>
         <source>Choose a pattern to fill with</source>
@@ -16645,7 +16645,7 @@ Y: %2
     </message>
     <message>
         <source>Tapers the stroke from thin to full and back, as if drawn with a pressure pen.</source>
-        <translation>Обводка сужается от тонкой к полной и обратно, как будто нарисована пером.</translation>
+        <translation>Плавно изменяет толщину мазка от минимальной до полной и обратно, имитируя перо с чувствительностью к нажиму.</translation>
     </message>
     <message>
         <source>Stroke path</source>
@@ -16759,7 +16759,7 @@ Y: %2
     </message>
     <message>
         <source>Plug-ins work on one layer at a time. Select a single layer and run it again.</source>
-        <translation>Плагины работают на одном уровне одновременно. Выберите один слой и запустите его еще раз.</translation>
+        <translation>Плагины работают с одним слоем за раз. Выберите один слой и запустите плагин снова.</translation>
     </message>
     <message>
         <source>Select an editable 8-bit pixel layer before running the plug-in</source>
@@ -16860,7 +16860,7 @@ Y: %2
     </message>
     <message>
         <source>Delete the theme &quot;%1&quot;? Its file is removed from the themes folder.</source>
-        <translation>Удалить тему &quot;%1&quot;? Его файл удален из папки тем.</translation>
+        <translation>Удалить тему «%1»? Её файл будет удалён из папки тем.</translation>
     </message>
     <message>
         <source>Could not delete &quot;%1&quot;.</source>
@@ -16921,7 +16921,7 @@ Y: %2
     </message>
     <message>
         <source>When enabled, opening a file shows the PSD compatibility report and an Import Notes popup. When disabled, import notes appear only in the status bar.</source>
-        <translation>Если этот параметр включен, при открытии файла отображается отчет о совместимости PSD и всплывающее окно «Импорт примечаний». Если этот параметр отключен, примечания к импорту отображаются только в строке состояния.</translation>
+        <translation>Если включено, при открытии файла показываются отчёт о совместимости PSD и окно «Примечания об импорте». Иначе примечания показываются только в строке состояния.</translation>
     </message>
     <message>
         <source>Show the develop dialog when opening camera raw files</source>
@@ -16985,7 +16985,7 @@ Y: %2
     </message>
     <message>
         <source>Editable objects keep shape layers as paths, text as real text, and pixel layers as images, so the PDF opens as separate pieces; blend modes, adjustments, layer styles, and pixel masks are flattened into images where needed, so the page may not look exactly like the canvas. One flattened image always looks exactly like the canvas.</source>
-        <translation>Редактируемые объекты сохраняют слои фигур как пути, текст как реальный текст, а пиксельные слои как изображения, поэтому PDF-файл открывается как отдельные части; Режимы наложения, настройки, стили слоев и пиксельные маски сводятся к изображениям там, где это необходимо, поэтому страница может выглядеть не совсем так, как холст. Одно сплющенное изображение всегда выглядит точно так же, как холст.</translation>
+        <translation>Редактируемые объекты сохраняют слои-фигуры как контуры, текст как текст, растровые слои как изображения, поэтому PDF открывается отдельными частями. Режимы наложения, коррекции, стили слоёв и растровые маски при необходимости сводятся в изображения; вид страницы может отличаться от холста. Одно сведённое изображение всегда выглядит в точности как холст.</translation>
     </message>
     <message>
         <source>Saving layered documents as PDF:</source>
@@ -17053,7 +17053,7 @@ Y: %2
     </message>
     <message>
         <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan. Two-finger scrolling on a trackpad always pans; pinch to zoom.</source>
-        <translation>Также применимо к кнопке пера, для которой установлен режим «Прокрутка». Удерживайте %CTRL% или Shift во время прокрутки для панорамирования. Прокрутка двумя пальцами на трекпаде всегда выполняется; ущипнуть, чтобы увеличить.</translation>
+        <translation>Применяется и к кнопке пера с действием «Прокрутка». Удерживайте %CTRL% или Shift при прокрутке для перемещения холста. Два пальца на трекпаде всегда перемещают холст; сведение и разведение пальцев изменяет масштаб.</translation>
     </message>
     <message>
         <source>Hold Shift to keep the aspect ratio when transforming</source>
@@ -17077,7 +17077,7 @@ Y: %2
     </message>
     <message>
         <source>Positions and sizes typed into the Free Transform bar land on whole pixels, like Photoshop&apos;s &quot;Snap Vector Tools and Transforms to Pixel Grid&quot;. Rotated transforms are not snapped. When off, a typed fraction such as 3.4 px is kept and the pixels are resampled.</source>
-        <translation>Позиции и размеры, введенные в панель «Свободное преобразование», относятся к целым пикселям, как в Photoshop «Инструменты привязки векторов и преобразования в пиксельную сетку». Повернутые преобразования не привязываются. Если этот параметр отключен, типизированная дробь, например 3,4 пикселя, сохраняется, а пиксели подвергаются повторной выборке.</translation>
+        <translation>Положение и размеры, введённые на панели «Свободное трансформирование», округляются до целых пикселей, как при включённом параметре Photoshop «Привязать векторные инструменты и трансформирование к пиксельной сетке». Трансформирование с поворотом не привязывается к сетке. Если параметр отключён, введённые дробные значения, например 3.4 пикс., сохраняются, а пиксели пересчитываются при интерполяции.</translation>
     </message>
     <message>
         <source>Tools</source>
@@ -17261,7 +17261,7 @@ Y: %2
     </message>
     <message>
         <source>Photoshop filter plug-ins (.8bf, 32-bit or 64-bit) are found in these folders and their subfolders and listed under Plugins &gt; Legacy Photoshop Plug-ins. Only run plug-ins you trust: they execute with your permissions.</source>
-        <translation>Плагины фильтров Photoshop (.8bf, 32-битные или 64-битные версии) находятся в этих папках и их подпапках и перечислены в разделе «Плагины» &gt; «Устаревшие плагины Photoshop». Запускайте только те плагины, которым вы доверяете: они выполняются с вашего разрешения.</translation>
+        <translation>Фильтры Photoshop (.8bf, 32- или 64-битные) ищутся в этих папках и подпапках и перечисляются в меню «Плагины &gt; Устаревшие плагины Photoshop». Запускайте только проверенные плагины: они выполняются с вашими правами доступа.</translation>
     </message>
     <message>
         <source>Always scanned:</source>
@@ -17285,7 +17285,7 @@ Y: %2
     </message>
     <message>
         <source>Plug-in windows open on the monitor showing Patchy. Plug-ins with full-screen interfaces size themselves to this screen size, so a smaller size keeps them usable on large monitors.</source>
-        <translation>На мониторе открываются окна плагина, в которых отображается Patchy. Плагины с полноэкранными интерфейсами имеют размер, соответствующий этому размеру экрана, поэтому меньший размер позволяет использовать их на больших мониторах.</translation>
+        <translation>Окна плагинов открываются на мониторе с Patchy. Плагины с полноэкранным интерфейсом используют указанный размер экрана; меньший размер удобнее на больших мониторах.</translation>
     </message>
     <message>
         <source>Screen size for plug-in windows:</source>
@@ -17477,7 +17477,7 @@ Y: %2
     </message>
     <message>
         <source>This smart object has Smart Filters; Patchy keeps Photoshop&apos;s preview (rasterize to edit pixels)</source>
-        <translation>Этот смарт-объект имеет смарт-фильтры; Patchy сохраняет предварительный просмотр Photoshop (растрирует для редактирования пикселей).</translation>
+        <translation>Смарт-объект содержит смарт-фильтры; Patchy сохраняет предпросмотр Photoshop (для редактирования пикселей растрируйте слой)</translation>
     </message>
     <message>
         <source>This smart object has a warp or perspective transform; Patchy keeps Photoshop&apos;s preview</source>
@@ -17493,7 +17493,7 @@ Y: %2
     </message>
     <message>
         <source>Linked file %1 was not found. Use Relink to File... to point it at a new location</source>
-        <translation>Связанный файл %1 не найден. Используйте Relink to File..., чтобы указать его в новом месте.</translation>
+        <translation>Связанный файл %1 не найден. Используйте «Связать с другим файлом...», чтобы указать новое расположение</translation>
     </message>
     <message>
         <source>Editing linked file. Save (%CTRL%+S) writes %1 and updates %2</source>
@@ -17545,7 +17545,7 @@ Y: %2
     </message>
     <message>
         <source>The original document is closed; saving a copy instead</source>
-        <translation>Исходный документ закрывается; вместо этого сохраняю копию</translation>
+        <translation>Исходный документ закрыт; вместо этого сохраняется копия</translation>
     </message>
     <message>
         <source>The smart object no longer exists in %1</source>
@@ -17673,7 +17673,7 @@ Y: %2
     </message>
     <message>
         <source>The contents contain Smart Filters, which can&apos;t be moved out of the Smart Object yet</source>
-        <translation>Содержимое содержит смарт-фильтры, которые пока нельзя удалить из смарт-объекта.</translation>
+        <translation>В содержимом есть смарт-фильтры, которые пока нельзя переместить из смарт-объекта наружу</translation>
     </message>
     <message>
         <source>Could not convert the smart object to layers</source>
@@ -17817,7 +17817,7 @@ Y: %2
     </message>
     <message>
         <source>The selection is empty or too large to use as a brush tip (max 4096px)</source>
-        <translation>Выделение пусто или слишком велико для использования в качестве кончика кисти (максимум 4096 пикселей).</translation>
+        <translation>Выделение пусто или слишком велико для отпечатка кисти (максимум 4096 пикс.)</translation>
     </message>
     <message>
         <source>Define Brush Tip</source>
@@ -17873,7 +17873,7 @@ Y: %2
     </message>
     <message>
         <source>Create Clipping Mask needs a pixel layer or group below</source>
-        <translation>Для создания обтравочной маски требуется слой или группа пикселей ниже.</translation>
+        <translation>Для создания обтравочной маски ниже должен находиться растровый слой или группа</translation>
     </message>
     <message>
         <source>Release clipping mask</source>
@@ -18113,7 +18113,7 @@ Y: %2
     </message>
     <message>
         <source>Added a vector mask</source>
-        <translation>Добавлена ​​векторная маска.</translation>
+        <translation>Добавлена векторная маска.</translation>
     </message>
     <message>
         <source>Delete vector mask</source>
@@ -18173,7 +18173,7 @@ Y: %2
     </message>
     <message>
         <source>Select a path or shape layer to define a custom shape</source>
-        <translation>Выберите слой контура или формы, чтобы определить собственную форму.</translation>
+        <translation>Выберите контур или слой-фигуру, чтобы определить произвольную фигуру</translation>
     </message>
     <message>
         <source>The path is too small to define a shape</source>
@@ -18281,7 +18281,7 @@ Y: %2
     </message>
     <message>
         <source>Select a path or shape layer to simplify</source>
-        <translation>Выберите слой пути или формы, чтобы упростить</translation>
+        <translation>Выберите контур или слой-фигуру для упрощения</translation>
     </message>
     <message>
         <source>Simplify Path</source>
@@ -18293,7 +18293,7 @@ Y: %2
     </message>
     <message>
         <source>Bends sharper than this angle stay corners</source>
-        <translation>Изгибается резче, чем этот угол. Углы стойки.</translation>
+        <translation>Изгибы острее этого угла сохраняются как угловые точки</translation>
     </message>
     <message>
         <source>Corners:</source>
@@ -18436,7 +18436,7 @@ Y: %2
     </message>
     <message>
         <source>Show each stroke or edit with a short pause and a separate Undo step. You can change this while work is running. History limits still apply.</source>
-        <translation>Показывайте каждый штрих или редактируйте его с небольшой паузой и отдельным шагом отмены. Вы можете изменить это во время работы. Ограничения по истории все еще применяются.</translation>
+        <translation>Показывать каждый мазок или изменение с короткой паузой и отдельным шагом отмены. Параметр можно менять во время работы. Ограничения истории сохраняются.</translation>
     </message>
     <message>
         <source>Stop this operation and keep its changes available for Undo.</source>
@@ -18452,7 +18452,7 @@ Y: %2
     </message>
     <message>
         <source>Finishing the current edit. Manual editing is available when Resume appears.</source>
-        <translation>Завершение текущего редактирования. Ручное редактирование доступно, когда появляется «Возобновить».</translation>
+        <translation>Завершается текущее изменение. Ручное редактирование станет доступным при появлении кнопки «Продолжить».</translation>
     </message>
     <message>
         <source>Pause automation to change the document or its editing controls. Browsing and scrolling are available while it works.</source>
@@ -18744,11 +18744,11 @@ Y: %2
     <name>patchy::ui::PathsPanel</name>
     <message>
         <source>Saved path. Double-click to rename; select to edit with the pen and path tools.</source>
-        <translation>Сохраненный путь. Дважды щелкните, чтобы переименовать; выберите для редактирования с помощью инструментов «Перо» и «Контур».</translation>
+        <translation>Сохранённый контур. Двойной щелчок переименовывает; выберите для редактирования инструментами пера и контура.</translation>
     </message>
     <message>
         <source>%CTRL%-click or %CTRL%+Enter loads the path as a selection; drag to reorder.</source>
-        <translation>Щелчок %CTRL% или %CTRL%+Enter загружает путь как выделенный; перетащите, чтобы изменить порядок.</translation>
+        <translation>Щелчок с %CTRL% или %CTRL%+Enter загружает контур как выделение; перетаскивайте для изменения порядка.</translation>
     </message>
     <message>
         <source>This is the document&apos;s clipping path.</source>
@@ -18756,11 +18756,11 @@ Y: %2
     </message>
     <message>
         <source>The temporary work path. Double-click to save it as a named path.</source>
-        <translation>Временный рабочий путь. Дважды щелкните, чтобы сохранить его как именованный путь.</translation>
+        <translation>Временный рабочий контур. Дважды щёлкните, чтобы сохранить его с именем.</translation>
     </message>
     <message>
         <source>The active layer&apos;s path (shape or vector mask).</source>
-        <translation>Путь активного слоя (форма или векторная маска).</translation>
+        <translation>Контур активного слоя (фигура или векторная маска).</translation>
     </message>
 </context>
 <context>
@@ -18783,11 +18783,11 @@ Y: %2
     </message>
     <message>
         <source>Could not import patterns from &quot;%1&quot;. The file is not a supported Photoshop PAT file or is damaged.</source>
-        <translation>Не удалось импортировать шаблоны из &quot;%1&quot;. Этот файл не является поддерживаемым Photoshop PAT-файлом или поврежден.</translation>
+        <translation>Не удалось импортировать узоры из «%1». Файл Photoshop PAT повреждён или не поддерживается.</translation>
     </message>
     <message>
         <source>Some pattern data was skipped or repaired because it is unsupported or damaged.</source>
-        <translation>Некоторые данные шаблонов были пропущены или исправлены, поскольку они не поддерживаются или повреждены.</translation>
+        <translation>Часть данных узоров пропущена или восстановлена, поскольку она повреждена или не поддерживается.</translation>
     </message>
     <message>
         <source>Imported Patterns</source>
@@ -18799,11 +18799,11 @@ Y: %2
     </message>
     <message>
         <source>Skipped pattern &quot;%1&quot; because its pixels could not be decoded.</source>
-        <translation>Пропущен шаблон «%1», поскольку его пиксели не удалось декодировать.</translation>
+        <translation>Узор «%1» пропущен: не удалось декодировать его пиксели.</translation>
     </message>
     <message>
         <source>Pattern &quot;%1&quot; used an id already assigned to different pixels; it was imported with a new id.</source>
-        <translation>Шаблон &quot;%1&quot; использовал идентификатор, уже назначенный различным пикселям; он был импортирован с новым идентификатором.</translation>
+        <translation>Идентификатор узора «%1» уже назначен другим пикселям; узор импортирован с новым идентификатором.</translation>
     </message>
     <message>
         <source>Could not save pattern &quot;%1&quot;.</source>
@@ -18811,15 +18811,15 @@ Y: %2
     </message>
     <message>
         <source>No patterns could be imported from &quot;%1&quot;.</source>
-        <translation>Не удалось импортировать шаблоны из «%1».</translation>
+        <translation>Не удалось импортировать узоры из «%1».</translation>
     </message>
     <message>
         <source>&quot;%1&quot; is too large to use as a pattern (over 30,000 pixels wide or tall).</source>
-        <translation>«%1» слишком велик для использования в качестве шаблона (более 30 000 пикселей в ширину или высоту).</translation>
+        <translation>«%1» слишком велик для узора (ширина или высота превышает 30 000 пикселей).</translation>
     </message>
     <message>
         <source>&quot;%1&quot; is too large to use as a pattern (over 8 million pixels).</source>
-        <translation>«%1» слишком велик для использования в качестве шаблона (более 8 миллионов пикселей).</translation>
+        <translation>«%1» слишком велик для узора (более 8 миллионов пикселей).</translation>
     </message>
     <message>
         <source>Could not read &quot;%1&quot; as an image.</source>
@@ -19018,7 +19018,7 @@ Y: %2
     </message>
     <message>
         <source>Saved your copy to %1; it now runs instead of the bundled script (right-click it for Revert to Bundled).</source>
-        <translation>Сохранил вашу копию в %1; теперь он запускается вместо встроенного сценария (щелкните его правой кнопкой мыши, чтобы вернуться к включенному сценарию).</translation>
+        <translation>Ваша копия сохранена в %1 и запускается вместо встроенного скрипта (для восстановления встроенного щёлкните правой кнопкой и выберите «Вернуться к пакету»).</translation>
     </message>
     <message>
         <source>Save Script</source>
@@ -19836,7 +19836,7 @@ Y: %2
     </message>
     <message>
         <source>Version %1 (built %2)</source>
-        <translation>Версия %1 (построено %2)</translation>
+        <translation>Версия %1 (сборка %2)</translation>
     </message>
     <message>
         <source>Created by %1</source>
@@ -19977,7 +19977,7 @@ Y: %2
     </message>
     <message>
         <source>Wrap the image by half its size so the seams land in the middle for painting over. Press again to shift them back to the edges.</source>
-        <translation>Оберните изображение вдвое меньше его размера, чтобы швы располагались посередине для закрашивания. Нажмите еще раз, чтобы сдвинуть их обратно к краям.</translation>
+        <translation>Циклически сдвинуть изображение на половину размера, чтобы швы оказались в центре для закрашивания. Нажмите снова, чтобы вернуть швы к краям.</translation>
     </message>
     <message>
         <source>Drag to pan. Mouse wheel zooms. Double-click to recenter.</source>

@@ -92,7 +92,7 @@
     </message>
     <message>
         <source>Result: %1 vector layers, %2 bitmap layers, %3 other layers kept.</source>
-        <translation>结果：保留 %1 个矢量图层、%2 个位图图层和 %3 个其他图层。</translation>
+        <translation>结果：%1 个矢量图层、%2 个位图图层，另有 %3 个其他图层保持不变。</translation>
     </message>
     <message>
         <source>The original layers are kept. Multiple outputs are placed in a new group.</source>
@@ -853,11 +853,11 @@
     </message>
     <message>
         <source>Tilt-Shift Blur supports UInt8 buffers only</source>
-        <translation>倾斜偏移模糊仅支持 UInt8 缓冲区</translation>
+        <translation>移轴模糊仅支持 UInt8 缓冲区</translation>
     </message>
     <message>
         <source>Invalid Tilt-Shift Blur settings</source>
-        <translation>无效的倾斜偏移模糊设置</translation>
+        <translation>无效的移轴模糊设置</translation>
     </message>
     <message>
         <source>Filter recipe changed the pixel format</source>
@@ -3191,7 +3191,7 @@
     </message>
     <message>
         <source>%1 contains Photoshop Blend If data for an unsupported color mode or payload shape. Patchy preserves it for PSD round-trip but does not render or edit it.</source>
-        <translation>%1 包含 Photoshop 混合颜色带数据，其颜色模式或数据结构不受支持。Patchy 会保留这些数据以便 PSD 往返，但不会渲染或编辑它们。</translation>
+        <translation>%1 包含 Photoshop 混合颜色带数据，其颜色模式或数据结构不受支持。Patchy 会在重新保存 PSD 时保留这些数据，但不会渲染或编辑它们。</translation>
     </message>
     <message>
         <source>%1 contains Blend If data on a Photoshop group-boundary record. Patchy preserves that boundary data but does not render or edit it.</source>
@@ -3199,7 +3199,7 @@
     </message>
     <message>
         <source>%1 contains Photoshop channel blending restrictions for an unsupported color mode or payload shape. Patchy preserves them for PSD round-trip but does not render or edit them.</source>
-        <translation>%1 包含 Photoshop 通道混合限制，其颜色模式或数据结构不受支持。Patchy 会保留这些设置以便 PSD 往返，但不会渲染或编辑它们。</translation>
+        <translation>%1 包含 Photoshop 通道混合限制，其颜色模式或数据结构不受支持。Patchy 会在重新保存 PSD 时保留这些设置，但不会渲染或编辑它们。</translation>
     </message>
     <message>
         <source>%1 preserves %2 unknown PSD layer block(s).</source>
@@ -3219,7 +3219,7 @@
     </message>
     <message>
         <source>%1 is a Patchy-native adjustment layer; it round-trips in Patchy PSDs but may appear as an unsupported adjustment in other editors.</source>
-        <translation>%1 是 Patchy 原生的调整图层；它可在 Patchy 的 PSD 中往返，但在其他编辑器中可能显示为不支持的调整。</translation>
+        <translation>%1 是 Patchy 原生的调整图层；在 Patchy 中保存并重新打开 PSD 后仍可保留，但在其他编辑器中可能显示为不支持的调整。</translation>
     </message>
     <message>
         <source>%1 uses an unsupported layer kind and may not export as editable PSD data.</source>
@@ -3243,7 +3243,7 @@
     </message>
     <message>
         <source>The document embeds %1 smart object source file(s) (%2 MB); they round-trip byte-for-byte.</source>
-        <translation>此文档嵌入了 %1 个智能对象源文件(%2 MB)；它们将逐字节往返。</translation>
+        <translation>此文档嵌入了 %1 个智能对象源文件(%2 MB)；重新保存时会逐字节完整保留这些文件。</translation>
     </message>
     <message>
         <source>PSD Compatibility Report</source>
@@ -4644,7 +4644,7 @@
     </message>
     <message>
         <source>Abutting (cutout shapes)</source>
-        <translation>邻接(镂空形状)</translation>
+        <translation>邻接(拼接形状)</translation>
     </message>
     <message>
         <source>Overlapping (stacked shapes)</source>
@@ -5660,7 +5660,7 @@ Open in Generative Upscale...</source>
     </message>
     <message>
         <source>New Size: %1</source>
-        <translation>新建大小：%1</translation>
+        <translation>新尺寸：%1</translation>
     </message>
     <message>
         <source>OK</source>
@@ -6878,7 +6878,7 @@ RGB：%2, %3, %4</translation>
     </message>
     <message>
         <source>Page %1 of %2 could not be rendered.</source>
-        <translation>无法渲染第 %1 页 (共 %2 页)。</translation>
+        <translation>无法渲染 %2 的第 %1 页。</translation>
     </message>
     <message>
         <source>Page %1</source>
@@ -9711,7 +9711,7 @@ RGB：%2, %3, %4</translation>
     </message>
     <message>
         <source>Selected layer opacity</source>
-        <translation>已选择图层不透明度</translation>
+        <translation>已选择图层的不透明区域</translation>
     </message>
     <message>
         <source>Layer has no mask</source>
@@ -10083,11 +10083,11 @@ RGB：%2, %3, %4</translation>
     </message>
     <message>
         <source>Removed object with content-aware fill (%1 patches)</source>
-        <translation>已使用内容识别填充移除对象（%1 个补丁）</translation>
+        <translation>已使用内容识别填充移除对象（%1 个图块）</translation>
     </message>
     <message>
         <source>Remove Object found no clean source patches nearby; used the nearest edge instead (source %1 of %2)</source>
-        <translation>移除对象在附近未找到干净的来源补丁，改用最近边缘（来源 %1/%2）</translation>
+        <translation>移除对象在附近未找到干净的来源图块，改用最近边缘（来源 %1/%2）</translation>
     </message>
     <message>
         <source>Removing object...</source>
@@ -10111,7 +10111,7 @@ RGB：%2, %3, %4</translation>
     </message>
     <message>
         <source>Removed object with content-aware fill, variation %1 (%2 patches)</source>
-        <translation>已使用内容识别填充移除对象，变体 %1（%2 个补丁）</translation>
+        <translation>已使用内容识别填充移除对象，变体 %1（%2 个图块）</translation>
     </message>
     <message>
         <source>Remove Object was cancelled</source>
@@ -15539,7 +15539,7 @@ Y: %2
     </message>
     <message>
         <source>Some layers contain colors outside the palette (filters, layer styles, or text can cause this). Use Image &gt; Snap Image to Palette to fix them. Click to show the Palette panel.</source>
-        <translation>部分图层包含调色板之外的颜色(滤镜、图层样式或文字都可能导致这种情况)。请使用“图像 &gt; 将图像吸附到调色板”进行修复。单击可显示“调色板”面板。</translation>
+        <translation>部分图层包含调色板之外的颜色(滤镜、图层样式或文字都可能导致这种情况)。请使用“图像 &gt; 将图像颜色匹配到调色板”进行修复。单击可显示“调色板”面板。</translation>
     </message>
     <message>
         <source>%1 Shape Path</source>
@@ -17595,11 +17595,11 @@ Y: %2
     </message>
     <message>
         <source>Content-aware fill (%1 patches)</source>
-        <translation>内容识别填充（%1 个补丁）</translation>
+        <translation>内容识别填充（%1 个图块）</translation>
     </message>
     <message>
         <source>No clean source patches nearby; used the nearest edge (source %1 of %2)</source>
-        <translation>附近没有干净的来源补丁，已改用最近边缘（来源 %1/%2）</translation>
+        <translation>附近没有干净的来源图块，已改用最近边缘（来源 %1/%2）</translation>
     </message>
     <message>
         <source>Cancelled Remove Object</source>
@@ -17607,7 +17607,7 @@ Y: %2
     </message>
     <message>
         <source>Removed object with content-aware fill, variation %1 (%2 patches)</source>
-        <translation>已使用内容识别填充移除对象，变体 %1（%2 个补丁）</translation>
+        <translation>已使用内容识别填充移除对象，变体 %1（%2 个图块）</translation>
     </message>
     <message>
         <source>Removed object with the nearest edge (source %1 of %2)</source>
@@ -17885,7 +17885,7 @@ Y: %2
     </message>
     <message>
         <source>Photoshop filter plug-ins (.8bf, 32-bit or 64-bit) are found in these folders and their subfolders and listed under Plugins &gt; Legacy Photoshop Plug-ins. Only run plug-ins you trust: they execute with your permissions.</source>
-        <translation>Patchy 会在这些文件夹及其子文件夹中查找 Photoshop 滤镜插件（.8bf，32 位或 64 位），并将其列在“Plugins &gt; 旧版 Photoshop 插件”下。只运行你信任的插件：它们以你的权限执行。</translation>
+        <translation>Patchy 会在这些文件夹及其子文件夹中查找 Photoshop 滤镜插件（.8bf，32 位或 64 位），并将其列在“增效工具 &gt; 旧版 Photoshop 增效工具”下。只运行你信任的插件：它们以你的权限执行。</translation>
     </message>
     <message>
         <source>Always scanned:</source>
