@@ -674,7 +674,7 @@ function Show-PatchyInstallerWizard {
     $form.FormBorderStyle = "FixedDialog"
     $form.MaximizeBox = $false
     $form.MinimizeBox = $true
-    $form.ClientSize = New-Object System.Drawing.Size 560, 340
+    $form.ClientSize = New-Object System.Drawing.Size 560, 380
     $form.Font = New-Object System.Drawing.Font "Segoe UI", 9
     $form.BackColor = [System.Drawing.Color]::White
     $form.Tag = "ready"
@@ -724,7 +724,7 @@ function Show-PatchyInstallerWizard {
 
     $contentLeft = 176
     $title = New-Object System.Windows.Forms.Label
-    $title.Text = "Install Patchy"
+    $title.Text = "Install Patchy $Version"
     $title.Font = New-Object System.Drawing.Font "Segoe UI Semibold", 15
     $title.ForeColor = [System.Drawing.Color]::FromArgb(23, 30, 40)
     $title.AutoSize = $true
@@ -763,7 +763,7 @@ function Show-PatchyInstallerWizard {
     $legalNotice = New-Object System.Windows.Forms.Label
     $legalNotice.Text = "Patchy is provided under the MIT License as-is, without warranty. Keep backups of important files."
     $legalNotice.ForeColor = [System.Drawing.Color]::FromArgb(83, 92, 104)
-    $legalNotice.Size = New-Object System.Drawing.Size 344, 36
+    $legalNotice.Size = New-Object System.Drawing.Size 344, 40
     $legalNotice.Location = New-Object System.Drawing.Point $contentLeft, 218
     $form.Controls.Add($legalNotice)
 
@@ -771,11 +771,12 @@ function Show-PatchyInstallerWizard {
     $status.Text = ""
     $status.ForeColor = [System.Drawing.Color]::FromArgb(63, 72, 84)
     $status.Size = New-Object System.Drawing.Size 344, 24
-    $status.Location = New-Object System.Drawing.Point $contentLeft, 248
+    # Keep separate rows for the legal notice, status, and progress bar.
+    $status.Location = New-Object System.Drawing.Point $contentLeft, ($legalNotice.Bottom + 8)
     $form.Controls.Add($status)
 
     $progress = New-Object System.Windows.Forms.ProgressBar
-    $progress.Location = New-Object System.Drawing.Point $contentLeft, 274
+    $progress.Location = New-Object System.Drawing.Point $contentLeft, ($status.Bottom + 6)
     $progress.Size = New-Object System.Drawing.Size 344, 18
     $progress.Style = [System.Windows.Forms.ProgressBarStyle]::Marquee
     $progress.MarqueeAnimationSpeed = 30

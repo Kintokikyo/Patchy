@@ -27,6 +27,8 @@ build\package\PatchyWindowsInstaller.exe
 
 `PatchyWindowsInstaller.exe` is built with Windows IExpress from the zip payload plus installer-only helper executables. It opens a small per-user setup wizard, installs to `%LOCALAPPDATA%\Programs\Patchy`, creates a Start Menu shortcut, offers a default-checked desktop shortcut, registers a Windows uninstall entry under the current user, and offers to launch Patchy when setup finishes.
 
+The wizard heading shows `Install Patchy <version>` using the version passed by the packaged launcher. The legal notice, installation status, progress bar, and bottom buttons occupy separate rows with space between them.
+
 The package is intentionally limited to the files needed by end users:
 
 - `patchy.exe`
