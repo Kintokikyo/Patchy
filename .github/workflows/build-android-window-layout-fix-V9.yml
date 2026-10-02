@@ -20,7 +20,7 @@
 # Cleanup is deferred until unplug() has returned and the original DragState
 # is still alive.
 
-name: Build Patchy Window Layout Fix V10 Android
+name: Build Patchy Native Android - Window Geometry Fix V12
 
 on:
   workflow_dispatch:
@@ -32,6 +32,47 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Patch Patchy Android MainWindow to full screen geometry
+        run: |
+          echo "===== PATCH PATCHY MAINWINDOW GEOMETRY ====="
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/ui/main_window.cpp")
+          text = path.read_text()
+
+          old = """const QRect available = screen->availableGeometry();
+        setGeometry(available);
+        // Android: keep MainWindow fixed to the screen viewport.
+        setMinimumSize(available.size());
+        setMaximumSize(available.size());"""
+
+          new = """const QRect geometry = screen->geometry();
+        setGeometry(geometry);
+        // Android: keep MainWindow fixed to the full screen geometry.
+        setMinimumSize(geometry.size());
+        setMaximumSize(geometry.size());"""
+
+          if text.count(old) != 1:
+              raise SystemExit(
+                  "ERROR: expected exactly 1 Patchy Android MainWindow "
+                  f"availableGeometry block, found {text.count(old)}"
+              )
+
+          text = text.replace(old, new, 1)
+          path.write_text(text)
+
+          verify = path.read_text()
+
+          if new not in verify:
+              raise SystemExit(
+                  "ERROR: Patchy MainWindow geometry patch verification failed"
+              )
+
+          print("PATCHY MAINWINDOW GEOMETRY PATCH: OK")
+          PY
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
@@ -187,144 +228,6 @@ jobs:
           test -f qtbase-src/src/widgets/widgets/qdockwidget_p.h
 
           echo "QtBase source verified."
-
-      # ================================================================
-      # PATCH QTROOTLAYOUT: KEEP ROOT GEOMETRY WHILE IME IS VISIBLE
-      # ================================================================
-      - name: Patch QtRootLayout IME window layout
-        run: |
-          echo "===== PATCH QTROOTLAYOUT IME WINDOW LAYOUT ====="
-
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-
-          path = Path(
-              "qtbase-src/src/android/jar/src/org/qtproject/qt/android/QtRootLayout.java"
-          )
-
-          if not path.is_file():
-              raise SystemExit(f"ERROR: QtRootLayout.java not found: {path}")
-
-          text = path.read_text()
-
-          if "m_imeVisible" in text:
-              raise SystemExit("ERROR: QtRootLayout already appears patched")
-
-          constructor = re.compile(
-              r"(    QtRootLayout\(Context context\)\n"
-              r"    \{\n"
-              r"        super\(context\);\n"
-              r"    \})",
-              re.M
-          )
-
-          replacement = "\n".join([
-              "    private boolean m_imeVisible = false;",
-              "    private int m_lastStableWidth = 0;",
-              "    private int m_lastStableHeight = 0;",
-              "",
-              "    QtRootLayout(Context context)",
-              "    {",
-              "        super(context);",
-              "",
-              "        if (android.os.Build.VERSION.SDK_INT >= 30) {",
-              "            setOnApplyWindowInsetsListener((view, insets) -> {",
-              "                boolean visible = insets.isVisible(",
-              "                        android.view.WindowInsets.Type.ime());",
-              "",
-              "                if (m_imeVisible != visible) {",
-              "                    m_imeVisible = visible;",
-              "",
-              "                    if (!m_imeVisible)",
-              "                        requestLayout();",
-              "                }",
-              "",
-              "                return view.onApplyWindowInsets(insets);",
-              "            });",
-              "        }",
-              "    }",
-          ])
-
-          text2, count = constructor.subn(replacement, text, count=1)
-
-          if count != 1:
-              raise SystemExit("ERROR: QtRootLayout constructor patch failed")
-
-          marker = (
-              "    @Override\n"
-              "    protected void onSizeChanged("
-              "int w, int h, int oldw, int oldh)"
-          )
-
-          if marker not in text2:
-              raise SystemExit("ERROR: QtRootLayout onSizeChanged marker not found")
-
-          measure = "\n".join([
-              "    @Override",
-              "    protected void onMeasure("
-              "int widthMeasureSpec, int heightMeasureSpec)",
-              "    {",
-              "        if (m_imeVisible &&",
-              "                m_lastStableWidth > 0 &&",
-              "                m_lastStableHeight > 0) {",
-              "            setMeasuredDimension(",
-              "                    m_lastStableWidth,",
-              "                    m_lastStableHeight);",
-              "            return;",
-              "        }",
-              "",
-              "        super.onMeasure(widthMeasureSpec, heightMeasureSpec);",
-              "",
-              "        m_lastStableWidth = getMeasuredWidth();",
-              "        m_lastStableHeight = getMeasuredHeight();",
-              "    }",
-              "",
-          ])
-
-          text3 = text2.replace(marker, measure + marker, 1)
-
-          if text3.count(
-              "protected void onMeasure("
-              "int widthMeasureSpec, int heightMeasureSpec)"
-          ) != 1:
-              raise SystemExit("ERROR: QtRootLayout onMeasure insertion failed")
-
-          old = "        QtDisplayManager.handleLayoutSizeChanged(w, h);"
-          new = (
-              "        if (!m_imeVisible)\n"
-              "            QtDisplayManager.handleLayoutSizeChanged(w, h);"
-          )
-
-          if text3.count(old) != 1:
-              raise SystemExit(
-                  "ERROR: QtRootLayout size-change call marker not found exactly once"
-              )
-
-          text3 = text3.replace(old, new, 1)
-          path.write_text(text3)
-
-          final = path.read_text()
-
-          required = [
-              "private boolean m_imeVisible = false;",
-              "private int m_lastStableWidth = 0;",
-              "private int m_lastStableHeight = 0;",
-              "protected void onMeasure("
-              "int widthMeasureSpec, int heightMeasureSpec)",
-              "WindowInsets.Type.ime()",
-              "setMeasuredDimension(",
-              "QtDisplayManager.handleLayoutSizeChanged(w, h);",
-          ]
-
-          for marker in required:
-              if marker not in final:
-                  raise SystemExit(
-                      "ERROR: QtRootLayout verification failed: " + marker
-                  )
-
-          print("QtRootLayout IME layout patch: OK")
-          PY
 
       # ================================================================
       # PATCH QDOCKWIDGET SOURCE
@@ -823,6 +726,78 @@ jobs:
             qtbase-src/src/widgets/widgets/qdockwidget.cpp
 
       # ================================================================
+      # PATCH QPLATFORMSCREEN FULL-SCREEN WINDOW GEOMETRY
+      # ================================================================
+      - name: Patch Qt 6.10.3 QPlatformScreen full-screen geometry
+        run: |
+          echo "===== PATCH QPLATFORMSCREEN FULL-SCREEN GEOMETRY ====="
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("qtbase-src/src/gui/kernel/qplatformscreen.cpp")
+          text = path.read_text()
+
+          old = """        if (supportsMaximizeUsingFullscreen
+                && w->windowState() & Qt::WindowMaximized
+                && w->flags() & Qt::ExpandedClientAreaHint) {
+            w->handle()->setGeometry(newNativeGeometry);
+        } else if (w->windowState() & Qt::WindowMaximized
+                   || w->geometry() == oldAvailableGeometry) {
+            w->handle()->setGeometry(newNativeAvailableGeometry);
+        } else if (w->windowState() & Qt::WindowFullScreen
+                   || w->geometry() == oldGeometry) {
+            w->handle()->setGeometry(newNativeGeometry);
+        }"""
+
+          new = """        if (supportsMaximizeUsingFullscreen
+                && w->windowState() & Qt::WindowMaximized
+                && w->flags() & Qt::ExpandedClientAreaHint) {
+            w->handle()->setGeometry(newNativeGeometry);
+        } else if (w->windowState() & Qt::WindowMaximized
+                   || w->geometry() == oldAvailableGeometry) {
+            // Do not resize a window explicitly pinned to the full screen
+            // when Android temporarily reduces availableGeometry.
+            const bool pinnedToFullScreen =
+                    w->geometry() == oldGeometry
+                    && w->minimumSize() == oldGeometry.size()
+                    && w->maximumSize() == oldGeometry.size();
+
+            if (!pinnedToFullScreen)
+                w->handle()->setGeometry(newNativeAvailableGeometry);
+        } else if (w->windowState() & Qt::WindowFullScreen
+                   || w->geometry() == oldGeometry) {
+            w->handle()->setGeometry(newNativeGeometry);
+        }"""
+
+          if text.count(old) != 1:
+              raise SystemExit(
+                  "ERROR: expected exactly 1 qplatformscreen resize block, "
+                  f"found {text.count(old)}"
+              )
+
+          path.write_text(text.replace(old, new, 1))
+
+          verify = path.read_text()
+          for marker in (
+              "pinnedToFullScreen",
+              "w->minimumSize() == oldGeometry.size()",
+              "w->maximumSize() == oldGeometry.size()",
+              "if (!pinnedToFullScreen)",
+          ):
+              if marker not in verify:
+                  raise SystemExit(
+                      "ERROR: qplatformscreen verification failed: " + marker
+                  )
+
+          print("QPLATFORMSCREEN FULL-SCREEN PATCH: OK")
+          PY
+
+          grep -n -A28 -B8 \
+            "pinnedToFullScreen" \
+            qtbase-src/src/gui/kernel/qplatformscreen.cpp
+
+      # ================================================================
       # CONFIGURE QTBASE
       # ================================================================
       - name: Configure patched Qt 6.10.3 for Android
@@ -875,48 +850,6 @@ jobs:
           echo "===== INSTALL PATCHED QTBASE ====="
 
           cmake --install "$QTBASE_BUILD"
-
-      # ================================================================
-      # OVERLAY PATCHED Qt6Android.jar
-      # ================================================================
-      - name: Overlay patched Qt Android Java jar
-        env:
-          QTBASE_INSTALL: ${{ github.workspace }}/qtbase-install
-        run: |
-          echo "===== OVERLAY PATCHED Qt6Android.jar ====="
-
-          PATCHED_ANDROID_JAR=$(find "$QTBASE_INSTALL" \
-            -type f \
-            -name "Qt6Android.jar" \
-            -print -quit)
-
-          ORIGINAL_ANDROID_JAR=$(find "$QT_ROOT_DIR" \
-            -type f \
-            -name "Qt6Android.jar" \
-            -print -quit)
-
-          if [ -z "$PATCHED_ANDROID_JAR" ]; then
-            echo "ERROR: patched Qt6Android.jar not found"
-            exit 1
-          fi
-
-          if [ -z "$ORIGINAL_ANDROID_JAR" ]; then
-            echo "ERROR: original Qt6Android.jar not found"
-            exit 1
-          fi
-
-          cp -f "$PATCHED_ANDROID_JAR" "$ORIGINAL_ANDROID_JAR"
-
-          echo "Qt6Android.jar replacement: OK"
-
-          if ! jar tf "$ORIGINAL_ANDROID_JAR" \
-              | grep -q "org/qtproject/qt/android/QtRootLayout.class"; then
-            echo "ERROR: QtRootLayout.class not found in final Qt6Android.jar"
-            exit 1
-          fi
-
-          echo "QtRootLayout.class found in final Qt6Android.jar"
-          ls -lh "$ORIGINAL_ANDROID_JAR"
 
       # ================================================================
       # VERIFY PATCHED QTWIDGETS BINARY BEFORE OVERLAY
@@ -1018,66 +951,48 @@ jobs:
           sha256sum "$PATCHED_WIDGETS"
 
       # ================================================================
-      # OVERLAY ONLY PATCHED QTWIDGETS
+      # OVERLAY PATCHED QTWIDGETS + QTGUI
       # ================================================================
-      - name: Overlay only patched QtWidgets onto Qt Android
+      - name: Overlay patched QtWidgets and QtGui onto Qt Android
         env:
           QTBASE_INSTALL: ${{ github.workspace }}/qtbase-install
         run: |
-          echo "===== OVERLAY ONLY PATCHED QTWIDGETS ====="
+          echo "===== OVERLAY PATCHED QTWIDGETS + QTGUI ====="
 
-          PATCHED_WIDGETS=$(find "$QTBASE_INSTALL" \
-            -type f \
-            -name "libQt6Widgets_arm64-v8a.so" \
-            -print -quit)
+          PATCHED_WIDGETS=$(find "$QTBASE_INSTALL" -type f -name "libQt6Widgets_arm64-v8a.so" -print -quit)
+          PATCHED_GUI=$(find "$QTBASE_INSTALL" -type f -name "libQt6Gui_arm64-v8a.so" -print -quit)
 
           QT_ANDROID_PATCHED="$QT_ROOT_DIR"
 
-          ORIGINAL_WIDGETS=$(find "$QT_ANDROID_PATCHED" \
-            -type f \
-            -name "libQt6Widgets_arm64-v8a.so" \
-            -print -quit)
+          ORIGINAL_WIDGETS=$(find "$QT_ANDROID_PATCHED" -type f -name "libQt6Widgets_arm64-v8a.so" -print -quit)
+          ORIGINAL_GUI=$(find "$QT_ANDROID_PATCHED" -type f -name "libQt6Gui_arm64-v8a.so" -print -quit)
 
-          if [ -z "$PATCHED_WIDGETS" ]; then
-            echo "ERROR: patched QtWidgets not found"
+          if [ -z "$PATCHED_WIDGETS" ] || [ -z "$PATCHED_GUI" ]; then
+            echo "ERROR: patched QtWidgets or QtGui not found"
             exit 1
           fi
 
-          if [ -z "$ORIGINAL_WIDGETS" ]; then
-            echo "ERROR: original QtWidgets not found"
+          if [ -z "$ORIGINAL_WIDGETS" ] || [ -z "$ORIGINAL_GUI" ]; then
+            echo "ERROR: original QtWidgets or QtGui not found"
             exit 1
           fi
 
-          echo "Patched QtWidgets:"
-          echo "$PATCHED_WIDGETS"
-
-          echo "Original QtWidgets:"
-          echo "$ORIGINAL_WIDGETS"
-
-          cp -f \
-            "$PATCHED_WIDGETS" \
-            "$ORIGINAL_WIDGETS"
+          cp -f "$PATCHED_WIDGETS" "$ORIGINAL_WIDGETS"
+          cp -f "$PATCHED_GUI" "$ORIGINAL_GUI"
 
           echo "QtWidgets replacement: OK"
+          echo "QtGui replacement: OK"
 
           echo "===== VERIFY EGL PLUGIN WAS PRESERVED ====="
 
-          QT_EGL_PLUGIN=$(find "$QT_ANDROID_PATCHED" \
-            -type f \
-            -name "libplugins_platforms_qtforandroid_arm64-v8a.so" \
-            -print -quit)
+          QT_EGL_PLUGIN=$(find "$QT_ANDROID_PATCHED" -type f             -name "libplugins_platforms_qtforandroid_arm64-v8a.so" -print -quit)
 
           if [ -z "$QT_EGL_PLUGIN" ]; then
             echo "ERROR: EGL plugin disappeared"
             exit 1
           fi
 
-          echo "EGL plugin:"
-          echo "$QT_EGL_PLUGIN"
-
-          ls -lh \
-            "$ORIGINAL_WIDGETS" \
-            "$QT_EGL_PLUGIN"
+          ls -lh "$ORIGINAL_WIDGETS" "$ORIGINAL_GUI" "$QT_EGL_PLUGIN"
 
           echo "QT_ROOT_DIR=$QT_ANDROID_PATCHED" >> "$GITHUB_ENV"
           echo "QT_ANDROID_PATCHED=$QT_ANDROID_PATCHED" >> "$GITHUB_ENV"
@@ -1543,7 +1458,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: patchy-window-layout-fix-v10-qt6103
+          name: patchy-dock-fix-qt6103
           path: |
             build/android-release/**/*.apk
             build/android-release/*.apk
