@@ -6,6 +6,9 @@
 // mutations run prepare_mutation() first so the run's single undo entry exists.
 
 #include "ui/script_api.hpp"
+#include "ui/image_document_io.hpp"
+#include "formats/animation_timing.hpp"
+#include "formats/webp_animation_io.hpp"
 
 #include "ui/pdf_export.hpp"
 
@@ -2133,6 +2136,59 @@ bool ScriptDocumentObject::saveAs(const QString& path) {
 }
 
 bool ScriptDocumentObject::exportAs(const QString& path) { const ScriptApiCall api_call(host_); return saveAs(path); }
+
+bool ScriptDocumentObject::exportAnimatedWebp(const QString& path, const QJSValue& options) {
+  const ScriptApiCall api_call(host_);
+  const auto* document = read_document();
+  if (document == nullptr) return false;
+  if (path.trimmed().isEmpty() || QFileInfo(path).suffix().compare(QStringLiteral("webp"), Qt::CaseInsensitive) != 0) {
+    host_.throw_js_error(ScriptEngineHost::tr("exportAnimatedWebp needs a .webp output path."));
+    return false;
+  }
+  ImageSaveOptions output;
+  output.webp_animate = true;
+  const auto& values = document->metadata().values;
+  if (const auto found = values.find(webp::kLoopCountMetadata); found != values.end()) {
+    output.webp_loop_count = std::clamp(QString::fromStdString(found->second).toInt(), 0, 65535);
+  }
+  if (!options.isUndefined() && (!options.isObject() || options.isArray() || options.isNull())) {
+    host_.throw_js_error(ScriptEngineHost::tr("exportAnimatedWebp options must be an object."));
+    return false;
+  }
+  if (options.isObject()) {
+    QJSValueIterator it(options);
+    while (it.hasNext()) {
+      it.next();
+      const auto key = it.name();
+      const auto value = it.value();
+      if (key == QStringLiteral("lossless") && value.isBool()) {
+        output.webp_lossless = value.toBool();
+        continue;
+      }
+      int* target = nullptr;
+      int limit = 0;
+      if (key == QStringLiteral("quality")) { target = &output.webp_quality; limit = 100; }
+      if (key == QStringLiteral("loopCount")) { target = &output.webp_loop_count; limit = 65535; }
+      if (key == QStringLiteral("frameDelayMs")) {
+        target = &output.animation_frame_delay_ms;
+        limit = static_cast<int>(animation::kMaxFrameDelayMs);
+      }
+      const auto number = value.toNumber();
+      if (target == nullptr || !value.isNumber() || !std::isfinite(number) ||
+          number < 0 || number > limit || number != std::floor(number)) {
+        host_.throw_js_error(ScriptEngineHost::tr("exportAnimatedWebp: invalid option %1.").arg(key));
+        return false;
+      }
+      *target = static_cast<int>(number);
+    }
+  }
+  QString error;
+  if (!host_.export_session_animated_webp(session_id_, path, output, &error)) {
+    host_.throw_js_error(error);
+    return false;
+  }
+  return true;
+}
 
 void ScriptDocumentObject::close() {
   const ScriptApiCall api_call(host_);

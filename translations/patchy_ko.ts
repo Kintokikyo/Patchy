@@ -8609,6 +8609,66 @@ RGB: %2, %3, %4</translation>
         <source>UI language for this run only, not saved: en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN, or zh_TW.</source>
         <translation>이번 실행에만 적용할 UI 언어(저장되지 않음): en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN 또는 zh_TW.</translation>
     </message>
+    <message>
+        <source>Invalid or damaged animated WebP.</source>
+        <translation>애니메이션 WebP가 잘못되었거나 손상되었습니다.</translation>
+    </message>
+    <message>
+        <source>Animated WebP exceeds the image allocation limit.</source>
+        <translation>애니메이션 WebP가 이미지 메모리 할당 한도를 초과합니다.</translation>
+    </message>
+    <message>
+        <source>Invalid animated WebP dimensions or quality.</source>
+        <translation>애니메이션 WebP의 크기 또는 품질이 잘못되었습니다.</translation>
+    </message>
+    <message>
+        <source>Could not create animated WebP encoder.</source>
+        <translation>애니메이션 WebP 인코더를 만들 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Invalid animated WebP frame or duration.</source>
+        <translation>애니메이션 WebP의 프레임 또는 시간이 잘못되었습니다.</translation>
+    </message>
+    <message>
+        <source>Could not encode animated WebP frame.</source>
+        <translation>애니메이션 WebP 프레임을 인코딩할 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Animated WebP needs at least one frame.</source>
+        <translation>애니메이션 WebP에는 프레임이 하나 이상 필요합니다.</translation>
+    </message>
+    <message>
+        <source>Could not finish animated WebP.</source>
+        <translation>애니메이션 WebP를 완료할 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Forever</source>
+        <translation>무한 반복</translation>
+    </message>
+    <message>
+        <source>Play count:</source>
+        <translation>재생 횟수:</translation>
+    </message>
+    <message>
+        <source>Each visible top-level layer becomes one frame, with the top layer first. A name ending in a time, like &quot;blink 0.033s&quot;, sets that frame&apos;s delay. Play count includes the first play.</source>
+        <translation>표시된 최상위 레이어를 위에서부터 각각 한 프레임으로 만듭니다. 이름 끝에 &quot;blink 0.033s&quot;처럼 시간을 붙이면 해당 프레임의 표시 시간이 됩니다. 재생 횟수에는 첫 재생도 포함됩니다.</translation>
+    </message>
+    <message>
+        <source>Animated WebP: imported %1 frames as layers</source>
+        <translation>애니메이션 WebP: %1개 프레임을 레이어로 가져왔습니다</translation>
+    </message>
+    <message>
+        <source>The document has no visible top-level layers to export as an animated WebP.</source>
+        <translation>문서에 애니메이션 WebP로 내보낼 표시된 최상위 레이어가 없습니다.</translation>
+    </message>
+    <message>
+        <source>Could not open WebP file for writing</source>
+        <translation>WebP 파일을 쓰기용으로 열 수 없습니다</translation>
+    </message>
+    <message>
+        <source>Could not write WebP file</source>
+        <translation>WebP 파일을 쓸 수 없습니다</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -8884,10 +8944,6 @@ RGB: %2, %3, %4</translation>
         <translation>선택한 레이어 이름에서 후행 프레임 시간을 제거합니다.</translation>
     </message>
     <message>
-        <source>Plays the visible top-level layers as frames, top layer first, exactly like the animated GIF export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
-        <translation>애니메이션 GIF 내보내기와 똑같이 보이는 최상위 레이어를 프레임으로 최상위 레이어부터 재생합니다. &quot;blink 0.25s&quot;와 같이 시간으로 끝나는 레이어 이름은 해당 프레임의 지연을 설정합니다.</translation>
-    </message>
-    <message>
         <source>No visible layers</source>
         <translation>보이는 레이어가 없습니다.</translation>
     </message>
@@ -8898,6 +8954,10 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Stop</source>
         <translation>정지</translation>
+    </message>
+    <message>
+        <source>Plays the visible top-level layers as frames, top layer first, like animated GIF and WebP export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
+        <translation>애니메이션 GIF 및 WebP 내보내기처럼 표시된 최상위 레이어를 위에서부터 프레임으로 재생합니다. 레이어 이름 끝에 &quot;blink 0.25s&quot;처럼 시간을 붙이면 해당 프레임의 표시 시간이 됩니다.</translation>
     </message>
 </context>
 <context>
@@ -18257,6 +18317,18 @@ Y: %2
             <numerusform>모양 레이어 %n개를 결합했습니다</numerusform>
         </translation>
     </message>
+    <message>
+        <source>Layers as Animated &amp;WebP...</source>
+        <translation>레이어를 애니메이션 &amp;WebP로...</translation>
+    </message>
+    <message>
+        <source>Export Animated WebP</source>
+        <translation>애니메이션 WebP 내보내기</translation>
+    </message>
+    <message>
+        <source>Saved animated WebP copy %1</source>
+        <translation>애니메이션 WebP 사본 저장됨: %1</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -19670,6 +19742,18 @@ Y: %2
     <message>
         <source>Work Path</source>
         <translation>작업 패스</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp needs a .webp output path.</source>
+        <translation>exportAnimatedWebp에는 .webp 출력 경로가 필요합니다.</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp options must be an object.</source>
+        <translation>exportAnimatedWebp 옵션은 객체여야 합니다.</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp: invalid option %1.</source>
+        <translation>exportAnimatedWebp: 잘못된 옵션 %1.</translation>
     </message>
 </context>
 <context>

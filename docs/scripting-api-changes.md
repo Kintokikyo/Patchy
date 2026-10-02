@@ -1,5 +1,11 @@
 # Scripting API compatibility
 
+2026-10-02 additive (API 1): `doc.exportAnimatedWebp(path, options?)` writes visible
+top-level layers as animation, with millisecond timing, finite or infinite play counts,
+quality and lossless options. It preserves the source document path and dirty state.
+Defaults and validation are in `scripts/bundled/patchy.d.ts`; ordinary `saveAs` and
+`exportAs` WebP output stays flat. MCP uses the same method via `execute_script`.
+
 2026-10-01 behavioral correction (API 1): text font warnings name their cause, and the text
 setters log them too. A font that is installed but has no glyph for any character of the text
 (the bundled Noto Naskh Arabic asked for Latin text) now logs `addTextLayer: font has no

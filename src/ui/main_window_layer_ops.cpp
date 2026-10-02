@@ -1,3 +1,4 @@
+#include "formats/animation_timing.hpp"
 // MainWindow's clipboard and layer operations, split out of main_window.cpp:
 // the cut/copy/copy-merged/paste flows and system-clipboard plumbing, the
 // transform/warp dialogs, layer add/folder/via-copy/via-cut, masks, duplicate,
@@ -2248,7 +2249,7 @@ void MainWindow::apply_layer_rename(LayerId id, const QString& name) {
   refresh_layer_controls();
 }
 
-void MainWindow::set_selected_layers_frame_time(std::optional<std::uint16_t> delay_cs) {
+void MainWindow::set_selected_layers_frame_time(std::optional<std::uint32_t> delay_ms) {
   if (!has_active_document()) {
     show_status_error(tr("No document"));
     return;
@@ -2267,11 +2268,11 @@ void MainWindow::set_selected_layers_frame_time(std::optional<std::uint16_t> del
       continue;
     }
     std::string next{gif::strip_layer_name_delay_token(layer->name())};
-    if (delay_cs.has_value()) {
+    if (delay_ms.has_value()) {
       if (!next.empty()) {
         next += ' ';
       }
-      next += gif::format_delay_seconds_token(*delay_cs);
+      next += animation::format_delay_seconds_token(*delay_ms);
     } else if (next.empty()) {
       continue;  // a name that is nothing but a token keeps it; empty layer names help nobody
     }
@@ -2280,11 +2281,11 @@ void MainWindow::set_selected_layers_frame_time(std::optional<std::uint16_t> del
     }
   }
   if (renames.empty()) {
-    show_status_error(delay_cs.has_value() ? tr("Selected layers already end with that time")
+    show_status_error(delay_ms.has_value() ? tr("Selected layers already end with that time")
                                            : tr("No frame times on the selected layers"));
     return;
   }
-  push_undo_snapshot(delay_cs.has_value() ? tr("Set frame time") : tr("Remove frame time"));
+  push_undo_snapshot(delay_ms.has_value() ? tr("Set frame time") : tr("Remove frame time"));
   for (auto& [id, name] : renames) {
     if (auto* layer = doc.find_layer(id); layer != nullptr) {
       layer->set_name(std::move(name));

@@ -8609,6 +8609,66 @@ Mixed selection</source>
         <source>UI language for this run only, not saved: en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN, or zh_TW.</source>
         <translation>この実行のみに適用される UI 言語 (保存されません): en、de、es、fr、it、ja、ko、pl、pt_BR、ru、zh_CN、zh_TW。</translation>
     </message>
+    <message>
+        <source>Invalid or damaged animated WebP.</source>
+        <translation>アニメーションWebPが無効または破損しています。</translation>
+    </message>
+    <message>
+        <source>Animated WebP exceeds the image allocation limit.</source>
+        <translation>アニメーションWebPが画像のメモリ割り当て上限を超えています。</translation>
+    </message>
+    <message>
+        <source>Invalid animated WebP dimensions or quality.</source>
+        <translation>アニメーションWebPのサイズまたは品質が無効です。</translation>
+    </message>
+    <message>
+        <source>Could not create animated WebP encoder.</source>
+        <translation>アニメーションWebPエンコーダーを作成できませんでした。</translation>
+    </message>
+    <message>
+        <source>Invalid animated WebP frame or duration.</source>
+        <translation>アニメーションWebPのフレームまたは表示時間が無効です。</translation>
+    </message>
+    <message>
+        <source>Could not encode animated WebP frame.</source>
+        <translation>アニメーションWebPのフレームをエンコードできませんでした。</translation>
+    </message>
+    <message>
+        <source>Animated WebP needs at least one frame.</source>
+        <translation>アニメーションWebPには少なくとも1つのフレームが必要です。</translation>
+    </message>
+    <message>
+        <source>Could not finish animated WebP.</source>
+        <translation>アニメーションWebPの作成を完了できませんでした。</translation>
+    </message>
+    <message>
+        <source>Forever</source>
+        <translation>無限ループ</translation>
+    </message>
+    <message>
+        <source>Play count:</source>
+        <translation>再生回数:</translation>
+    </message>
+    <message>
+        <source>Each visible top-level layer becomes one frame, with the top layer first. A name ending in a time, like &quot;blink 0.033s&quot;, sets that frame&apos;s delay. Play count includes the first play.</source>
+        <translation>表示されている最上位レイヤーを、上から順に1フレームずつ書き出します。「blink 0.033s」のように名前の末尾に時間を指定すると、そのフレームの表示時間になります。再生回数には初回の再生も含まれます。</translation>
+    </message>
+    <message>
+        <source>Animated WebP: imported %1 frames as layers</source>
+        <translation>アニメーションWebP: %1フレームをレイヤーとして読み込みました</translation>
+    </message>
+    <message>
+        <source>The document has no visible top-level layers to export as an animated WebP.</source>
+        <translation>アニメーションWebPとして書き出せる、表示中の最上位レイヤーがありません。</translation>
+    </message>
+    <message>
+        <source>Could not open WebP file for writing</source>
+        <translation>WebPファイルを書き込み用に開けませんでした</translation>
+    </message>
+    <message>
+        <source>Could not write WebP file</source>
+        <translation>WebPファイルに書き込めませんでした</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -8868,10 +8928,6 @@ Mixed selection</source>
         <translation> 秒</translation>
     </message>
     <message>
-        <source>Plays the visible top-level layers as frames, top layer first, exactly like the animated GIF export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
-        <translation>表示されているトップレベルのレイヤーを、いちばん上のレイヤーから順にフレームとして再生します (アニメーション GIF の書き出しと同じ順序です)。レイヤー名が「blink 0.25s」のように時間で終わる場合、そのフレームはその時間だけ表示されます。</translation>
-    </message>
-    <message>
         <source>No visible layers</source>
         <translation>表示中のレイヤーがありません</translation>
     </message>
@@ -8898,6 +8954,10 @@ Mixed selection</source>
     <message>
         <source>Removes the trailing frame time from the selected layers&apos; names.</source>
         <translation>選択したレイヤー名の末尾のフレーム時間を取り除きます。</translation>
+    </message>
+    <message>
+        <source>Plays the visible top-level layers as frames, top layer first, like animated GIF and WebP export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
+        <translation>アニメーションGIFやWebPの書き出しと同様に、表示されている最上位レイヤーを上から順にフレームとして再生します。「blink 0.25s」のようにレイヤー名の末尾に時間を指定すると、そのフレームの表示時間になります。</translation>
     </message>
 </context>
 <context>
@@ -18257,6 +18317,18 @@ Baked into images: %1.</source>
         <source>Tools</source>
         <translation>ツール</translation>
     </message>
+    <message>
+        <source>Layers as Animated &amp;WebP...</source>
+        <translation>レイヤーをアニメーションWebPとして書き出す(&amp;W)...</translation>
+    </message>
+    <message>
+        <source>Export Animated WebP</source>
+        <translation>アニメーションWebPを書き出す</translation>
+    </message>
+    <message>
+        <source>Saved animated WebP copy %1</source>
+        <translation>アニメーションWebPのコピーを保存しました: %1</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -19670,6 +19742,18 @@ Baked into images: %1.</source>
     <message>
         <source>%1: font has no glyphs for this text, rendered with a fallback: %2</source>
         <translation>%1: フォントにこのテキストのグリフがないため、代替フォントで描画しました: %2</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp needs a .webp output path.</source>
+        <translation>exportAnimatedWebpには拡張子.webpの出力パスが必要です。</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp options must be an object.</source>
+        <translation>exportAnimatedWebpのオプションはオブジェクトである必要があります。</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp: invalid option %1.</source>
+        <translation>exportAnimatedWebp: オプション%1が無効です。</translation>
     </message>
 </context>
 <context>

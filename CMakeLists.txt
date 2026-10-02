@@ -462,7 +462,11 @@ if(EMSCRIPTEN AND PATCHY_BUILD_APP)
   patchy_add_wasm_libheif()
 endif()
 
+include(cmake/patchy_webp.cmake)
+
 add_library(patchy_formats
+  src/formats/animation_timing.cpp
+  src/formats/webp_animation_io.cpp
   src/formats/af_document_io.cpp
   src/formats/af_tree.cpp
   src/formats/aseprite_document_io.cpp
@@ -508,6 +512,8 @@ add_library(patchy_formats
 # PRIVATE too: af_document_io.cpp bakes Gaussian-blur layer effects through the calibrated
 # smart-filter blur (filters depends only on core, so no cycle).
 target_link_libraries(patchy_formats PUBLIC patchy_core patchy_render patchy_psd PRIVATE patchy_filters patchy_libraw)
+target_link_libraries(patchy_formats PRIVATE webp webpdemux libwebpmux)
+target_include_directories(patchy_formats PRIVATE src/formats/libwebp/src)
 if(EMSCRIPTEN AND PATCHY_BUILD_APP)
   target_sources(patchy_formats PRIVATE src/formats/heif_document_io_wasm.cpp)
   target_compile_definitions(patchy_formats PRIVATE PATCHY_HEIF_WEBCODECS=1)

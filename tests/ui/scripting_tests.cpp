@@ -10,6 +10,8 @@
 #include "core/layer_metadata.hpp"
 #include "core/palette.hpp"
 #include "formats/document_flatten.hpp"
+#include "formats/webp_animation_io.hpp"
+#include <QImageReader>
 #include "formats/pdf_document_io.hpp"
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -3149,6 +3151,61 @@ void ui_script_active_layer_setter_reveals_row() {
   CHECK(active_document.active_layer_id() == nested_layer->id());
 }
 
+
+void ui_script_webp_animation_export_preserves_document_and_validates_options() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  window.set_cli_automation_mode(true);
+  QTemporaryDir directory;
+  CHECK(directory.isValid());
+  const auto stem = patchy::test::kUnicodePathStems[0];
+  const auto base = directory.path() + QLatin1Char('/') +
+      QString::fromUtf8(reinterpret_cast<const char*>(stem.data()), static_cast<qsizetype>(stem.size()));
+  auto& host = window.script_engine_host();
+  patchy::ui::ScriptEngineHost::RunOptions options;
+  options.name = QStringLiteral("webp-export");
+  options.args = QStringList{QStringLiteral("base=") + base};
+  const auto source = QStringLiteral(R"JS(
+    var d = app.newDocument(16, 12);
+    d.activeLayer.name = 'Bottom 0.067s'; d.activeLayer.fill('#ff0000');
+    var top = d.addLayer('Top pixel'); top.fill('#00ff00');
+    d.groupLayers([top], 'Top 0.033s');
+    var hidden = d.addLayer('Hidden'); hidden.fill('#0000ff'); hidden.visible = false;
+    var oldPath = d.path, oldModified = d.modified;
+    var p = patchy.args.base;
+    if (!d.exportAnimatedWebp(p+'.webp', {lossless:true,loopCount:3})) throw Error('export');
+    if (d.path !== oldPath || d.modified !== oldModified) throw Error('source changed');
+    var size = patchy.io.fileSize(p+'.webp');
+    var invalid = [{quality:-1},{quality:101},{quality:1.2},{frameDelayMs:16777216},
+      {frameDelayMs:NaN},{loopCount:65536},{loopCount:-1},{lossless:1},{typo:1},null,[]];
+    invalid.forEach(function(o) {
+      var threw=false;
+      try { d.exportAnimatedWebp(p+'.webp',o); } catch(e) { threw=true; }
+      if(!threw) throw Error('accepted invalid options');
+    });
+    if (patchy.io.fileSize(p+'.webp') !== size) throw Error('failed export changed destination');
+    var threw=false;
+    try { d.exportAnimatedWebp(p+'.png'); } catch(e) { threw=true; }
+    if(!threw) throw Error('accepted wrong extension');
+    if (!d.exportAnimatedWebp(p+'-inherited.webp', {quality:100})) throw Error('inherited export');
+    if (!d.exportAs(p+'-flat.webp')) throw Error('flat export');
+  )JS");
+  (void)host.run_source(source, std::move(options));
+  wait_for_run_end(host);
+  CHECK(!host.run_active());
+  if (host.last_run_had_error()) for (const auto& line : host.message_backlog()) std::cerr << line.toStdString() << '\n';
+  CHECK(!host.last_run_had_error());
+  for (const auto& suffix : {QStringLiteral(".webp"), QStringLiteral("-inherited.webp")}) {
+    QImageReader reader(base + suffix);
+    CHECK(reader.imageCount() == 2);
+    CHECK(reader.loopCount() == 2);
+    CHECK(reader.read().pixelColor(0, 0) == QColor(Qt::green)); CHECK(reader.nextImageDelay() == 33);
+    CHECK(reader.read().pixelColor(0, 0) == QColor(Qt::red)); CHECK(reader.nextImageDelay() == 67);
+  }
+  QImageReader still(base + QStringLiteral("-flat.webp"));
+  CHECK(still.imageCount() == 1);
+}
+
 void ui_script_io_round_trips_unicode_path() {
   // The patchy.io probes plus saveAs/open on a Unicode, special-character path. The
   // directory comes in through --script-arg style args; the file name is built in the
@@ -3930,6 +3987,7 @@ std::vector<patchy::test::TestCase> scripting_tests() {
       {"ui_script_ui_view_zoom", ui_script_ui_view_zoom},
       {"ui_script_ui_staging_apis", ui_script_ui_staging_apis},
       {"ui_script_active_layer_setter_reveals_row", ui_script_active_layer_setter_reveals_row},
+      {"ui_script_webp_animation_export_preserves_document_and_validates_options", ui_script_webp_animation_export_preserves_document_and_validates_options},
       {"ui_script_io_round_trips_unicode_path", ui_script_io_round_trips_unicode_path},
       {"ui_script_unattended_normalizes_forms_and_guards_commands", ui_script_unattended_normalizes_forms_and_guards_commands},
       {"ui_script_geometry_rgb_fill_and_empty_text_regressions", ui_script_geometry_rgb_fill_and_empty_text_regressions},

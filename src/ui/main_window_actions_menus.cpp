@@ -433,6 +433,13 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   register_hotkey(export_animated_gif_action, "file.export_animated_gif");
   connect(export_animated_gif_action, &QAction::triggered, this, [this] { export_animated_gif(); });
   register_document_action(export_animated_gif_action);
+  auto* export_animated_webp_action = export_menu->addAction(tr("Layers as Animated &WebP..."));
+  bind_action_text(export_animated_webp_action, QT_TR_NOOP("Layers as Animated &WebP..."));
+  export_animated_webp_action->setObjectName(QStringLiteral("fileExportAnimatedWebpAction"));
+  export_animated_webp_action->setMenuRole(QAction::NoRole);
+  register_hotkey(export_animated_webp_action, "file.export_animated_webp");
+  connect(export_animated_webp_action, &QAction::triggered, this, [this] { export_animated_webp(); });
+  register_document_action(export_animated_webp_action);
   auto* page_setup_action = file_menu->addAction(tr("Page Set&up..."));
   auto* print_action = file_menu->addAction(tr("&Print..."));
 #ifdef Q_OS_WASM

@@ -780,6 +780,7 @@ private:
   void import_image_sequence();
   void export_image_sequence();
   void export_animated_gif();
+  void export_animated_webp();
   void set_tile_preview_visible(bool visible, QAction* toggle_action);
   void toggle_animation_preview_window();
   bool accept_open_file_drag(QDropEvent* event);
@@ -1127,7 +1128,7 @@ private:
   // Animation Preview's name-token edits: stamps (a value) or strips (nullopt) the
   // trailing frame-time token on the selected (else active) layers' names, as one
   // undoable rename batch.
-  void set_selected_layers_frame_time(std::optional<std::uint16_t> delay_cs);
+  void set_selected_layers_frame_time(std::optional<std::uint32_t> delay_ms);
   void edit_active_layer_style();
   void copy_active_layer_style();
   void paste_layer_style_to_selected_layers();

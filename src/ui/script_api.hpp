@@ -269,6 +269,7 @@ public:
   Q_INVOKABLE void crop(int x, int y, int width, int height);
   Q_INVOKABLE bool saveAs(const QString& path);
   Q_INVOKABLE bool exportAs(const QString& path);
+  Q_INVOKABLE bool exportAnimatedWebp(const QString& path, const QJSValue& options = QJSValue());
   Q_INVOKABLE void close();
   Q_INVOKABLE void activate();
 

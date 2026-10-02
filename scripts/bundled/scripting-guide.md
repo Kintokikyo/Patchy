@@ -348,9 +348,29 @@ Field types: `number`, `slider`, `checkbox`, `choice`, `text`, `color`, `folder`
 | `doc.selection` | The selection object (below). |
 | `doc.flatten()` | Flattens the document. |
 | `doc.resizeImage(w, h)` / `doc.resizeCanvas(w, h)` / `doc.crop(x, y, w, h)` | Geometry operations. `crop` clips to the canvas and throws for a disjoint rectangle. |
-| `doc.saveAs(path)` / `doc.exportAs(path)` | Saves to the path; the format follows the extension (`.psd`, `.png`, `.jpg`, ...). |
+| `doc.saveAs(path)` / `doc.exportAs(path)` | Saves to the path; the format follows the extension (`.psd`, `.png`, `.jpg`, ...). WebP stays a single flattened image. |
+| `doc.exportAnimatedWebp(path, options?)` | Exports visible top-level layers top first, with each group rendered as one frame. Leaves the document path and modified state unchanged. |
 | `doc.close()` | Closes without prompting. |
 | `doc.activate()` | Makes this the active tab. |
+
+### Animated WebP
+
+Animated WebP example (also available through MCP `execute_script`):
+
+```js
+app.activeDocument.exportAnimatedWebp("animation.webp", {
+  frameDelayMs: 100, loopCount: 0, quality: 75, lossless: false
+});
+```
+
+Those are the defaults, except `loopCount` uses the document's imported or last exported
+count when available. Zero means forever; a positive count includes the first play.
+Layer names ending in seconds, such as `blink 0.033s`, override the default delay.
+Delays are integer milliseconds (0 through 16777215), play counts are integers
+0 through 65535, and quality is an integer 0 through 100. Quality 100 also selects
+lossless. Invalid options, an output extension other than `.webp`, or an export failure
+throw an error. Hidden layers are skipped. Identical consecutive frames can be combined
+by the encoder. Loop counts are retained for the open document, not in PSD or recovery files.
 
 ### Palettes and indexed PNG
 
@@ -506,6 +526,7 @@ Windows builds run classic Photoshop filter plug-ins (`.8bf`, 32-bit and 64-bit)
 ### Command-line arguments (patchy.args)
 
 Each `--script-arg key=value` on the command line becomes `patchy.args.key` (always a string). `patchy.isMainScript()` is `true` in the script the user ran and `false` inside an `include()`d file, so one file can be both a library and a runnable script.
+
 
 ## Command line
 

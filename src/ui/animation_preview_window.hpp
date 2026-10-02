@@ -19,10 +19,10 @@ namespace patchy::ui {
 
 // The layers panel's film button opens this small floating tool window. Play hides every
 // top-level layer except the current frame and cycles through the layers that were
-// visible when playback started, top to bottom (exactly the frames the animated GIF
-// export writes); Stop restores the visibility captured at start. A trailing "0.25s"
+// visible when playback started, top to bottom (the GIF and WebP export order);
+// Stop restores the visibility captured at start. A trailing "0.25s"
 // layer-name token overrides the default frame delay, matching the export; the delay spin
-// edits the shared saveOptions/gifFrameDelayCs default the export dialog reads. Playback
+// edits the shared saveOptions/animationFrameDelayMs default. Playback
 // mutates visibility directly (visibility is deliberately non-undoable and does not dirty
 // the session) and never outlives its document: MainWindow stops playback on tab switches
 // and before a session's document is destroyed, and stop re-checks the provider anyway.
@@ -40,7 +40,7 @@ public:
   // frame's visibility.
   AnimationPreviewWindow(std::function<Document*()> document_provider,
                          std::function<void(bool final_refresh)> visuals_changed,
-                         std::function<void(std::optional<std::uint16_t> delay_cs)> apply_selection_frame_time,
+                         std::function<void(std::optional<std::uint32_t> delay_ms)> apply_selection_frame_time,
                          QWidget* parent);
 
   [[nodiscard]] bool playing() const noexcept { return playback_document_ != nullptr; }
@@ -66,12 +66,12 @@ public:
 
 private:
   void show_current_frame();
-  [[nodiscard]] std::uint16_t frame_delay_cs(std::size_t index) const;
+  [[nodiscard]] std::uint32_t frame_delay_ms(std::size_t index) const;
   void update_playback_controls();
 
   std::function<Document*()> provider_;
   std::function<void(bool final_refresh)> visuals_changed_;
-  std::function<void(std::optional<std::uint16_t> delay_cs)> apply_selection_frame_time_;
+  std::function<void(std::optional<std::uint32_t> delay_ms)> apply_selection_frame_time_;
   QTimer timer_;
   QPushButton* play_button_{nullptr};
   QDoubleSpinBox* delay_spin_{nullptr};

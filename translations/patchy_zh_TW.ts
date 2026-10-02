@@ -8609,6 +8609,66 @@ RGB：%2, %3, %4</translation>
         <source>UI language for this run only, not saved: en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN, or zh_TW.</source>
         <translation>僅本次執行使用的介面語言，不會儲存：en、de、es、fr、it、ja、ko、pl、pt_BR、ru、zh_CN 或 zh_TW。</translation>
     </message>
+    <message>
+        <source>Invalid or damaged animated WebP.</source>
+        <translation>動畫 WebP 無效或已損毀。</translation>
+    </message>
+    <message>
+        <source>Animated WebP exceeds the image allocation limit.</source>
+        <translation>動畫 WebP 超出影像記憶體配置限制。</translation>
+    </message>
+    <message>
+        <source>Invalid animated WebP dimensions or quality.</source>
+        <translation>動畫 WebP 的尺寸或品質無效。</translation>
+    </message>
+    <message>
+        <source>Could not create animated WebP encoder.</source>
+        <translation>無法建立動畫 WebP 編碼器。</translation>
+    </message>
+    <message>
+        <source>Invalid animated WebP frame or duration.</source>
+        <translation>動畫 WebP 的影格或時長無效。</translation>
+    </message>
+    <message>
+        <source>Could not encode animated WebP frame.</source>
+        <translation>無法編碼動畫 WebP 影格。</translation>
+    </message>
+    <message>
+        <source>Animated WebP needs at least one frame.</source>
+        <translation>動畫 WebP 至少需要一個影格。</translation>
+    </message>
+    <message>
+        <source>Could not finish animated WebP.</source>
+        <translation>無法完成動畫 WebP。</translation>
+    </message>
+    <message>
+        <source>Forever</source>
+        <translation>無限循環</translation>
+    </message>
+    <message>
+        <source>Play count:</source>
+        <translation>播放次數:</translation>
+    </message>
+    <message>
+        <source>Each visible top-level layer becomes one frame, with the top layer first. A name ending in a time, like &quot;blink 0.033s&quot;, sets that frame&apos;s delay. Play count includes the first play.</source>
+        <translation>每個可見的頂層圖層產生一個影格，從最上面的圖層開始。名稱結尾的時間（如 &quot;blink 0.033s&quot;）指定該影格的顯示時長。播放次數包含首次播放。</translation>
+    </message>
+    <message>
+        <source>Animated WebP: imported %1 frames as layers</source>
+        <translation>動畫 WebP: 已將 %1 個影格匯入為圖層</translation>
+    </message>
+    <message>
+        <source>The document has no visible top-level layers to export as an animated WebP.</source>
+        <translation>文件沒有可匯出為動畫 WebP 的可見頂層圖層。</translation>
+    </message>
+    <message>
+        <source>Could not open WebP file for writing</source>
+        <translation>無法開啟 WebP 檔案以寫入</translation>
+    </message>
+    <message>
+        <source>Could not write WebP file</source>
+        <translation>無法寫入 WebP 檔案</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -8884,10 +8944,6 @@ RGB：%2, %3, %4</translation>
         <translation>從選取圖層的名稱中移除結尾的影格時間。</translation>
     </message>
     <message>
-        <source>Plays the visible top-level layers as frames, top layer first, exactly like the animated GIF export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
-        <translation>將可見的最上層圖層當作影格播放,從最上面的圖層開始,與轉存動畫 GIF 的方式完全相同。圖層名稱結尾若是時間,例如「blink 0.25s」,即可設定該影格的延遲。</translation>
-    </message>
-    <message>
         <source>No visible layers</source>
         <translation>沒有可見的圖層</translation>
     </message>
@@ -8898,6 +8954,10 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Stop</source>
         <translation>停止</translation>
+    </message>
+    <message>
+        <source>Plays the visible top-level layers as frames, top layer first, like animated GIF and WebP export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
+        <translation>將可見的頂層圖層由上到下作為影格播放，與動畫 GIF 和 WebP 匯出相同。圖層名稱結尾的時間（如 &quot;blink 0.25s&quot;）指定該影格的顯示時長。</translation>
     </message>
 </context>
 <context>
@@ -18257,6 +18317,18 @@ Baked into images: %1.</source>
         <source>Tools</source>
         <translation>工具</translation>
     </message>
+    <message>
+        <source>Layers as Animated &amp;WebP...</source>
+        <translation>圖層匯出為動畫 &amp;WebP...</translation>
+    </message>
+    <message>
+        <source>Export Animated WebP</source>
+        <translation>匯出動畫 WebP</translation>
+    </message>
+    <message>
+        <source>Saved animated WebP copy %1</source>
+        <translation>已儲存動畫 WebP 副本 %1</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -19670,6 +19742,18 @@ Baked into images: %1.</source>
     <message>
         <source>%1: font has no glyphs for this text, rendered with a fallback: %2</source>
         <translation>%1：字型沒有這段文字所需的字符，已改用替代字型轉譯：%2</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp needs a .webp output path.</source>
+        <translation>exportAnimatedWebp 需要 .webp 輸出路徑。</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp options must be an object.</source>
+        <translation>exportAnimatedWebp 的選項必須是物件。</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp: invalid option %1.</source>
+        <translation>exportAnimatedWebp: 選項 %1 無效。</translation>
     </message>
 </context>
 <context>

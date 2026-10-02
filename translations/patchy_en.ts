@@ -8625,6 +8625,66 @@ RGB: %2, %3, %4</source>
         <source>UI language for this run only, not saved: en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN, or zh_TW.</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Invalid or damaged animated WebP.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Animated WebP exceeds the image allocation limit.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Invalid animated WebP dimensions or quality.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not create animated WebP encoder.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Invalid animated WebP frame or duration.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not encode animated WebP frame.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Animated WebP needs at least one frame.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not finish animated WebP.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Forever</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Play count:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Each visible top-level layer becomes one frame, with the top layer first. A name ending in a time, like &quot;blink 0.033s&quot;, sets that frame&apos;s delay. Play count includes the first play.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Animated WebP: imported %1 frames as layers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The document has no visible top-level layers to export as an animated WebP.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not open WebP file for writing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not write WebP file</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -8900,10 +8960,6 @@ RGB: %2, %3, %4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Plays the visible top-level layers as frames, top layer first, exactly like the animated GIF export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>No visible layers</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8913,6 +8969,10 @@ RGB: %2, %3, %4</source>
     </message>
     <message>
         <source>Stop</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Plays the visible top-level layers as frames, top layer first, like animated GIF and WebP export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -18260,6 +18320,18 @@ Baked into images: %1.</source>
         <source>Tools</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Layers as Animated &amp;WebP...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export Animated WebP</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Saved animated WebP copy %1</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -19673,6 +19745,18 @@ Baked into images: %1.</source>
     </message>
     <message>
         <source>%1: font has no glyphs for this text, rendered with a fallback: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp needs a .webp output path.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp options must be an object.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp: invalid option %1.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

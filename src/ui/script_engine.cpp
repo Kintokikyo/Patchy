@@ -1,3 +1,6 @@
+#include "ui/image_document_io.hpp"
+#include "ui/animation_preview_window.hpp"
+#include "formats/webp_animation_io.hpp"
 // The JS scripting engine host (docs/scripting.md): per-run QJSEngine lifecycle,
 // the bootstrap prelude (console/timers/include/patchy namespace), the watchdog,
 // undo/refresh integration, and the MainWindow-facing services the API wrappers
@@ -1041,6 +1044,31 @@ bool ScriptEngineHost::save_session_to_path(std::int64_t session_id, const QStri
   }
   window_.activate_document_session(*session);
   return window_.save_document_to_path(path, std::nullopt, /*flatten_confirmed=*/true);
+}
+
+bool ScriptEngineHost::export_session_animated_webp(std::int64_t session_id, const QString& path,
+                                                   const ImageSaveOptions& options, QString* error) {
+  pump_progress_indicator();
+  auto* session = window_.session_with_id(session_id);
+  if (session == nullptr) {
+    *error = tr("One of the documents is no longer open.");
+    return false;
+  }
+  window_.activate_document_session(*session);
+  window_.finish_active_text_editor();
+  if (window_.animation_preview_window_ != nullptr) {
+    window_.animation_preview_window_->stop_playback_for(&session->document);
+  }
+  try {
+    write_animated_webp_file(std::as_const(session->document), path, options);
+  } catch (const std::exception& exception) {
+    *error = translate_data_text(exception.what());
+    return false;
+  }
+  session->document.metadata().values[webp::kLoopCountMetadata] = std::to_string(options.webp_loop_count);
+  window_.add_recent_file(path);
+  offer_browser_download_for_saved_file(path);
+  return true;
 }
 
 bool ScriptEngineHost::export_sessions_to_pdf(const std::vector<std::int64_t>& session_ids, const QString& path,

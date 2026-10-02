@@ -8663,6 +8663,66 @@ RGB: %2, %3, %4</translation>
         <source>UI language for this run only, not saved: en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN, or zh_TW.</source>
         <translation>Язык интерфейса только для этого запуска (не сохраняется): en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN или zh_TW.</translation>
     </message>
+    <message>
+        <source>Invalid or damaged animated WebP.</source>
+        <translation>Неверный или повреждённый анимированный WebP.</translation>
+    </message>
+    <message>
+        <source>Animated WebP exceeds the image allocation limit.</source>
+        <translation>Анимированный WebP превышает лимит памяти для изображений.</translation>
+    </message>
+    <message>
+        <source>Invalid animated WebP dimensions or quality.</source>
+        <translation>Неверные размеры или качество анимированного WebP.</translation>
+    </message>
+    <message>
+        <source>Could not create animated WebP encoder.</source>
+        <translation>Не удалось создать кодировщик анимированного WebP.</translation>
+    </message>
+    <message>
+        <source>Invalid animated WebP frame or duration.</source>
+        <translation>Неверный кадр или длительность анимированного WebP.</translation>
+    </message>
+    <message>
+        <source>Could not encode animated WebP frame.</source>
+        <translation>Не удалось закодировать кадр анимированного WebP.</translation>
+    </message>
+    <message>
+        <source>Animated WebP needs at least one frame.</source>
+        <translation>Для анимированного WebP нужен хотя бы один кадр.</translation>
+    </message>
+    <message>
+        <source>Could not finish animated WebP.</source>
+        <translation>Не удалось завершить анимированный WebP.</translation>
+    </message>
+    <message>
+        <source>Forever</source>
+        <translation>Бесконечно</translation>
+    </message>
+    <message>
+        <source>Play count:</source>
+        <translation>Число воспроизведений:</translation>
+    </message>
+    <message>
+        <source>Each visible top-level layer becomes one frame, with the top layer first. A name ending in a time, like &quot;blink 0.033s&quot;, sets that frame&apos;s delay. Play count includes the first play.</source>
+        <translation>Каждый видимый слой верхнего уровня становится кадром, начиная с самого верхнего. Время в конце имени, например &quot;blink 0.033s&quot;, задаёт длительность кадра. Число воспроизведений включает первое.</translation>
+    </message>
+    <message>
+        <source>Animated WebP: imported %1 frames as layers</source>
+        <translation>Анимированный WebP: %1 кадров импортировано как слои</translation>
+    </message>
+    <message>
+        <source>The document has no visible top-level layers to export as an animated WebP.</source>
+        <translation>В документе нет видимых слоёв верхнего уровня для экспорта в анимированный WebP.</translation>
+    </message>
+    <message>
+        <source>Could not open WebP file for writing</source>
+        <translation>Не удалось открыть файл WebP для записи</translation>
+    </message>
+    <message>
+        <source>Could not write WebP file</source>
+        <translation>Не удалось записать файл WebP</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -8938,10 +8998,6 @@ RGB: %2, %3, %4</translation>
         <translation>Удаляет время кадра из конца имён выбранных слоёв.</translation>
     </message>
     <message>
-        <source>Plays the visible top-level layers as frames, top layer first, exactly like the animated GIF export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
-        <translation>Воспроизводит видимые слои верхнего уровня как кадры, начиная с верхнего, как при экспорте анимированного GIF. Время в конце имени слоя, например «blink 0.25s», задаёт задержку этого кадра.</translation>
-    </message>
-    <message>
         <source>No visible layers</source>
         <translation>Нет видимых слоев</translation>
     </message>
@@ -8952,6 +9008,10 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Stop</source>
         <translation>Остановить</translation>
+    </message>
+    <message>
+        <source>Plays the visible top-level layers as frames, top layer first, like animated GIF and WebP export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
+        <translation>Воспроизводит видимые слои верхнего уровня как кадры, сверху вниз, как при экспорте анимированных GIF и WebP. Время в конце имени слоя, например &quot;blink 0.25s&quot;, задаёт длительность кадра.</translation>
     </message>
 </context>
 <context>
@@ -18363,6 +18423,18 @@ Y: %2
             <numerusform>Объединено %n слоёв-фигур</numerusform>
         </translation>
     </message>
+    <message>
+        <source>Layers as Animated &amp;WebP...</source>
+        <translation>Слои как анимированный &amp;WebP...</translation>
+    </message>
+    <message>
+        <source>Export Animated WebP</source>
+        <translation>Экспорт анимированного WebP</translation>
+    </message>
+    <message>
+        <source>Saved animated WebP copy %1</source>
+        <translation>Сохранена копия анимированного WebP: %1</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -19778,6 +19850,18 @@ Y: %2
     <message>
         <source>Work Path</source>
         <translation>Рабочий контур</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp needs a .webp output path.</source>
+        <translation>exportAnimatedWebp требует путь вывода с расширением .webp.</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp options must be an object.</source>
+        <translation>Параметры exportAnimatedWebp должны быть объектом.</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp: invalid option %1.</source>
+        <translation>exportAnimatedWebp: неверный параметр %1.</translation>
     </message>
 </context>
 <context>

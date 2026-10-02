@@ -8636,6 +8636,66 @@ RGB: %2, %3, %4</translation>
         <source>UI language for this run only, not saved: en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN, or zh_TW.</source>
         <translation>Lingua dell&apos;interfaccia solo per questa esecuzione, non salvata: en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN o zh_TW.</translation>
     </message>
+    <message>
+        <source>Invalid or damaged animated WebP.</source>
+        <translation>WebP animato non valido o danneggiato.</translation>
+    </message>
+    <message>
+        <source>Animated WebP exceeds the image allocation limit.</source>
+        <translation>Il WebP animato supera il limite di memoria per le immagini.</translation>
+    </message>
+    <message>
+        <source>Invalid animated WebP dimensions or quality.</source>
+        <translation>Dimensioni o qualità del WebP animato non valide.</translation>
+    </message>
+    <message>
+        <source>Could not create animated WebP encoder.</source>
+        <translation>Impossibile creare il codificatore WebP animato.</translation>
+    </message>
+    <message>
+        <source>Invalid animated WebP frame or duration.</source>
+        <translation>Fotogramma o durata del WebP animato non validi.</translation>
+    </message>
+    <message>
+        <source>Could not encode animated WebP frame.</source>
+        <translation>Impossibile codificare un fotogramma del WebP animato.</translation>
+    </message>
+    <message>
+        <source>Animated WebP needs at least one frame.</source>
+        <translation>Il WebP animato richiede almeno un fotogramma.</translation>
+    </message>
+    <message>
+        <source>Could not finish animated WebP.</source>
+        <translation>Impossibile completare il WebP animato.</translation>
+    </message>
+    <message>
+        <source>Forever</source>
+        <translation>Sempre</translation>
+    </message>
+    <message>
+        <source>Play count:</source>
+        <translation>Numero di riproduzioni:</translation>
+    </message>
+    <message>
+        <source>Each visible top-level layer becomes one frame, with the top layer first. A name ending in a time, like &quot;blink 0.033s&quot;, sets that frame&apos;s delay. Play count includes the first play.</source>
+        <translation>Ogni livello visibile di primo livello diventa un fotogramma, partendo da quello più in alto. Un tempo alla fine del nome, come &quot;blink 0.033s&quot;, imposta la durata del fotogramma. Il conteggio include la prima riproduzione.</translation>
+    </message>
+    <message>
+        <source>Animated WebP: imported %1 frames as layers</source>
+        <translation>WebP animato: %1 fotogrammi importati come livelli</translation>
+    </message>
+    <message>
+        <source>The document has no visible top-level layers to export as an animated WebP.</source>
+        <translation>Il documento non ha livelli visibili di primo livello da esportare come WebP animato.</translation>
+    </message>
+    <message>
+        <source>Could not open WebP file for writing</source>
+        <translation>Impossibile aprire il file WebP in scrittura</translation>
+    </message>
+    <message>
+        <source>Could not write WebP file</source>
+        <translation>Impossibile scrivere il file WebP</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -8911,10 +8971,6 @@ RGB: %2, %3, %4</translation>
         <translation>Rimuove il tempo del fotogramma aggiunto alla fine dei nomi dei livelli selezionati.</translation>
     </message>
     <message>
-        <source>Plays the visible top-level layers as frames, top layer first, exactly like the animated GIF export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
-        <translation>Riproduce i livelli visibili di primo livello come fotogrammi, partendo dal livello più in alto, esattamente come l&apos;esportazione in GIF animata. Un nome di livello che termina con un tempo, ad esempio &quot;blink 0.25s&quot;, imposta il ritardo di quel fotogramma.</translation>
-    </message>
-    <message>
         <source>No visible layers</source>
         <translation>Nessun livello visibile</translation>
     </message>
@@ -8925,6 +8981,10 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Stop</source>
         <translation>Interrompi</translation>
+    </message>
+    <message>
+        <source>Plays the visible top-level layers as frames, top layer first, like animated GIF and WebP export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
+        <translation>Riproduce i livelli visibili di primo livello come fotogrammi, dall’alto verso il basso, come nell’esportazione GIF e WebP animati. Un tempo alla fine del nome, come &quot;blink 0.25s&quot;, imposta la durata del fotogramma.</translation>
     </message>
 </context>
 <context>
@@ -18310,6 +18370,18 @@ Convertiti in immagini: %1.</translation>
         <source>Tools</source>
         <translation>Strumenti</translation>
     </message>
+    <message>
+        <source>Layers as Animated &amp;WebP...</source>
+        <translation>Livelli come &amp;WebP animato...</translation>
+    </message>
+    <message>
+        <source>Export Animated WebP</source>
+        <translation>Esporta WebP animato</translation>
+    </message>
+    <message>
+        <source>Saved animated WebP copy %1</source>
+        <translation>Copia WebP animata salvata: %1</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -19724,6 +19796,18 @@ Convertiti in immagini: %1.</translation>
     <message>
         <source>%1: font has no glyphs for this text, rendered with a fallback: %2</source>
         <translation>%1: il carattere non ha glifi per questo testo, reso con un carattere sostitutivo: %2</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp needs a .webp output path.</source>
+        <translation>exportAnimatedWebp richiede un percorso di uscita .webp.</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp options must be an object.</source>
+        <translation>Le opzioni di exportAnimatedWebp devono essere un oggetto.</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp: invalid option %1.</source>
+        <translation>exportAnimatedWebp: opzione %1 non valida.</translation>
     </message>
 </context>
 <context>

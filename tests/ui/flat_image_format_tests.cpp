@@ -1,3 +1,7 @@
+#include "formats/animation_timing.hpp"
+#include "formats/webp_animation_io.hpp"
+#include "ui/qt_paths.hpp"
+#include "unicode_path_names.hpp"
 #include "ui/canvas_widget.hpp"
 #include "core/adjustment_layer.hpp"
 #include "core/contour_presets.hpp"
@@ -1556,7 +1560,7 @@ void ui_export_trim_keeps_document_alpha_mask_colors() {
   CHECK(filled.pixelColor(1, 0) == QColor(200, 100, 50, 255));
 }
 
-void ui_animated_gif_export_trims_frames_to_union_bounds() {
+void check_animated_export_trims_frames_to_union_bounds(const QString& extension) {
   std::filesystem::create_directories("test-artifacts");
   patchy::Document document(16, 8, patchy::PixelFormat::rgba8());
   const auto add_sprite = [&document](const std::string& name, QColor color, QRect rect) {
@@ -1578,9 +1582,11 @@ void ui_animated_gif_export_trims_frames_to_union_bounds() {
 
   patchy::ui::ImageSaveOptions options;
   options.gif_animate = true;
+  options.webp_animate = true;
+  options.webp_lossless = true;
   options.export_trim_transparent = true;
-  const auto path = QStringLiteral("test-artifacts/ui_animated_gif_trimmed.gif");
-  patchy::ui::write_flat_image_file(document, path, QStringLiteral("gif"), options);
+  const auto path = QStringLiteral("test-artifacts/ui_animated_trimmed.") + extension;
+  patchy::ui::write_flat_image_file(document, path, extension, options);
   QImageReader reader(path);
   CHECK(reader.imageCount() == 2);
   // The union of both sprites is x 2..13, y 1..6: every frame is 12x6.
@@ -1595,14 +1601,22 @@ void ui_animated_gif_export_trims_frames_to_union_bounds() {
   options.export_fill_transparent = true;
   options.export_background_color = QColor(Qt::white);
   options.export_scale = 2;
-  const auto filled_path = QStringLiteral("test-artifacts/ui_animated_gif_trimmed_filled.gif");
-  patchy::ui::write_flat_image_file(document, filled_path, QStringLiteral("gif"), options);
+  const auto filled_path = QStringLiteral("test-artifacts/ui_animated_trimmed_filled.") + extension;
+  patchy::ui::write_flat_image_file(document, filled_path, extension, options);
   QImageReader filled_reader(filled_path);
   CHECK(filled_reader.imageCount() == 2);
   const auto filled = filled_reader.read().convertToFormat(QImage::Format_RGBA8888);
   CHECK(filled.size() == QSize(24, 12));
   CHECK(filled.pixelColor(0, 0) == QColor(255, 255, 255, 255));
   CHECK(filled.pixelColor(16, 6) == QColor(0, 0, 255, 255));
+}
+
+void ui_animated_gif_export_trims_frames_to_union_bounds() {
+  check_animated_export_trims_frames_to_union_bounds(QStringLiteral("gif"));
+}
+
+void ui_webp_animation_export_trims_frames_to_union_bounds() {
+  check_animated_export_trims_frames_to_union_bounds(QStringLiteral("webp"));
 }
 
 void ui_webp_lossless_round_trips_and_quality_orders_size() {
@@ -2078,6 +2092,205 @@ void ui_export_options_sections_do_not_clip_labels() {
   settings.sync();
 }
 
+void check_gif_webp_gif_round_trip(const char* fixture, const QString& artifact) {
+  const auto input = patchy::ui::to_qstring(
+      patchy::test::committed_format_fixture_path("gif", fixture));
+  QImageReader source(input);
+  CHECK(source.imageCount() == 3);
+  const auto original_loops = source.loopCount();
+  std::vector<QImage> expected;
+  std::vector<int> delays;
+  for (int frame = 0; frame < 3; ++frame) {
+    expected.push_back(source.read().convertToFormat(QImage::Format_RGBA8888));
+    CHECK(!expected.back().isNull());
+    delays.push_back(source.nextImageDelay());
+  }
+  SettingsValueRestorer notes_setting(QStringLiteral("imports/showPsdWarningsAndInfo"));
+  patchy::ui::app_settings().setValue(QStringLiteral("imports/showPsdWarningsAndInfo"), false);
+  patchy::ui::MainWindow window;
+  show_window(window);
+  patchy::ui::MainWindowTestAccess::open_document_path(window, input);
+  const auto& document = std::as_const(patchy::ui::MainWindowTestAccess::document(window));
+  CHECK(document.layers().size() == 3);
+  patchy::test::ui::ensure_artifact_dir();
+  for (const bool lossless : {true, false}) {
+    patchy::ui::ImageSaveOptions options;
+    options.webp_animate = true;
+    options.webp_lossless = lossless;
+    const auto output = lossless ? artifact + QStringLiteral("-lossless.webp")
+                                 : artifact + QStringLiteral("-default.webp");
+    patchy::ui::write_flat_image_file(document, output, QStringLiteral("webp"), options);
+    QImageReader reader(output);
+    CHECK(reader.imageCount() == 3);
+    CHECK(reader.loopCount() == original_loops);
+    for (std::size_t frame = 0; frame < expected.size(); ++frame) {
+      const auto actual = reader.read().convertToFormat(QImage::Format_RGBA8888);
+      CHECK(actual.size() == expected[frame].size());
+      CHECK(reader.nextImageDelay() == delays[frame]);
+      std::uint64_t color_error = 0;
+      std::uint64_t color_samples = 0;
+      for (int y = 0; y < actual.height(); ++y) for (int x = 0; x < actual.width(); ++x) {
+        const auto* a = actual.constScanLine(y) + x * 4;
+        const auto* e = expected[frame].constScanLine(y) + x * 4;
+        CHECK(a[3] == e[3]);
+        if (e[3] != 0) for (int channel = 0; channel < 3; ++channel) {
+          const auto difference = std::abs(static_cast<int>(a[channel]) - e[channel]);
+          if (lossless) CHECK(difference == 0);
+          color_error += static_cast<unsigned>(difference);
+          ++color_samples;
+        }
+      }
+      // Default lossy quality may alter colors, but must preserve the pictured frame.
+      CHECK(color_samples > 0);
+      CHECK(color_error <= color_samples * 10);
+    }
+  }
+  patchy::ui::MainWindowTestAccess::open_document_path(window,
+      artifact + QStringLiteral("-lossless.webp"));
+  const auto& reopened = std::as_const(patchy::ui::MainWindowTestAccess::document(window));
+  CHECK(reopened.layers().size() == 3);
+  for (std::size_t frame = 0; frame < delays.size(); ++frame) {
+    CHECK(patchy::animation::parse_layer_name_delay_ms(reopened.layers()[2 - frame].name()) ==
+          static_cast<std::uint32_t>(delays[frame]));
+  }
+  patchy::ui::ImageSaveOptions gif_options;
+  gif_options.gif_animate = true;
+  const auto round_trip = artifact + QStringLiteral("-round-trip.gif");
+  patchy::ui::write_flat_image_file(reopened, round_trip, QStringLiteral("gif"), gif_options);
+  QImageReader final_gif(round_trip);
+  CHECK(final_gif.imageCount() == 3);
+  CHECK(final_gif.loopCount() == original_loops);
+  for (std::size_t frame = 0; frame < expected.size(); ++frame) {
+    const auto actual = final_gif.read().convertToFormat(QImage::Format_RGBA8888);
+    CHECK(actual.size() == expected[frame].size());
+    CHECK(final_gif.nextImageDelay() == delays[frame]);
+    for (int y = 0; y < actual.height(); ++y) for (int x = 0; x < actual.width(); ++x) {
+      const auto* a = actual.constScanLine(y) + x * 4;
+      const auto* e = expected[frame].constScanLine(y) + x * 4;
+      CHECK(a[3] == e[3]);
+      if (e[3] != 0) CHECK(std::equal(a, a + 3, e));
+    }
+  }
+}
+
+void ui_animated_gif_webp_gif_round_trip_preserves_animation() {
+  check_gif_webp_gif_round_trip("pillow-animated.gif", QStringLiteral("test-artifacts/gif-webp-gif"));
+  check_gif_webp_gif_round_trip("pillow-animated-transparent.gif", QStringLiteral("test-artifacts/transparent-gif-webp-gif"));
+}
+
+void ui_webp_animation_import_export_unicode_round_trip() {
+  const auto fixture = patchy::test::committed_format_fixture_path("webp", "pillow-animation.webp");
+  SettingsValueRestorer notes_setting(QStringLiteral("imports/showPsdWarningsAndInfo"));
+  patchy::ui::app_settings().setValue(QStringLiteral("imports/showPsdWarningsAndInfo"), false);
+  patchy::ui::MainWindow window;
+  show_window(window);
+  patchy::ui::MainWindowTestAccess::open_document_path(window, patchy::ui::to_qstring(fixture));
+  const auto& document = std::as_const(patchy::ui::MainWindowTestAccess::document(window));
+  CHECK(document.layers().size() == 3);
+  CHECK(document.metadata().values.at(patchy::webp::kLoopCountMetadata) == "3");
+  const std::array<unsigned, 3> delays{33, 67, 101};
+  for (std::size_t frame = 0; frame < 3; ++frame) {
+    const auto& layer = document.layers()[2 - frame];
+    CHECK(layer.visible());
+    CHECK(patchy::animation::parse_layer_name_delay_ms(layer.name()) == delays[frame]);
+    QImage expected(patchy::ui::to_qstring(fixture.parent_path() / ("animation-frame-" + std::to_string(frame + 1) + ".png")));
+    expected = expected.convertToFormat(QImage::Format_RGBA8888);
+    for (int y = 0; y < 24; ++y) for (int x = 0; x < 32; ++x) {
+      const auto* pixel = layer.pixels().pixel(x, y);
+      const auto* original = expected.constScanLine(y) + x * 4;
+      CHECK(pixel[3] == original[3]);
+      if (pixel[3] != 0) CHECK(std::equal(pixel, pixel + 3, original));
+    }
+  }
+  QTemporaryDir directory;
+  CHECK(directory.isValid());
+  const auto stem = patchy::test::kUnicodePathStems[0];
+  const auto path = directory.path() + QLatin1Char('/') + QString::fromUtf8(reinterpret_cast<const char*>(stem.data()), static_cast<qsizetype>(stem.size())) + QStringLiteral(".webp");
+  patchy::ui::ImageSaveOptions options;
+  options.webp_animate = true; options.webp_lossless = true; options.webp_loop_count = 3;
+  patchy::ui::write_flat_image_file(document, path, QStringLiteral("webp"), options);
+  QImageReader reader(path);
+  CHECK(reader.imageCount() == 3); CHECK(reader.loopCount() == 2);
+  for (const auto delay : delays) {
+    CHECK(!reader.read().isNull());
+    CHECK(reader.nextImageDelay() == static_cast<int>(delay));
+  }
+  patchy::ui::MainWindowTestAccess::open_document_path(window, path);
+  const auto& reopened = std::as_const(patchy::ui::MainWindowTestAccess::document(window));
+  CHECK(reopened.layers().size() == 3);
+  CHECK(reopened.metadata().values.at(patchy::webp::kLoopCountMetadata) == "3");
+  // Failure leaves a previous file untouched.
+  QFile old_file(path); CHECK(old_file.open(QIODevice::ReadOnly)); const auto old_bytes = old_file.readAll(); old_file.close();
+  options.webp_loop_count = 65536;
+  bool threw = false;
+  try { patchy::ui::write_flat_image_file(reopened, path, QStringLiteral("webp"), options); }
+  catch (const std::exception&) { threw = true; }
+  CHECK(threw); CHECK(old_file.open(QIODevice::ReadOnly)); CHECK(old_file.readAll() == old_bytes);
+}
+
+void ui_webp_animation_options_and_empty_layers() {
+  auto settings = patchy::ui::app_settings(); settings.remove(QStringLiteral("saveOptions"));
+  patchy::ui::MainWindow window;
+  show_window(window);
+  patchy::ui::ImageSaveOptions seed;
+  seed.webp_offer_animation = true; seed.webp_loop_count = 3; seed.animation_frame_delay_ms = 33;
+  std::exception_ptr failure;
+  QTimer::singleShot(0, [&] {
+    auto* dialog = find_top_level_dialog(QStringLiteral("webpSaveOptionsDialog"));
+    try {
+      CHECK(dialog != nullptr);
+      auto* mode = dialog->findChild<QRadioButton*>(QStringLiteral("webpAnimationRadio"));
+      auto* delay = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("webpFrameDelaySpin"));
+      auto* forever_check = dialog->findChild<QCheckBox*>(QStringLiteral("webpForeverCheck"));
+      auto* count = dialog->findChild<QSpinBox*>(QStringLiteral("webpPlayCountSpin"));
+      CHECK(mode && delay && forever_check && count);
+      CHECK(mode->isChecked()); CHECK(delay->value() == 0.033); CHECK(count->value() == 3);
+      CHECK(no_clipped_labels(*dialog));
+      patchy::test::ui::save_widget_artifact("webp-animation-options", *dialog);
+      forever_check->setChecked(true); CHECK(!count->isEnabled());
+      forever_check->setChecked(false); count->setValue(5); delay->setValue(0.067);
+      dialog->accept();
+    } catch (...) { failure = std::current_exception(); if (dialog) dialog->reject(); }
+  });
+  const auto chosen = patchy::ui::prompt_image_save_options(&window, QStringLiteral("webp"), seed);
+  if (failure) std::rethrow_exception(failure);
+  CHECK(chosen.has_value()); CHECK(chosen->webp_animate);
+  CHECK(chosen->animation_frame_delay_ms == 67); CHECK(chosen->webp_loop_count == 5);
+  patchy::ui::save_image_save_option_defaults(*chosen);
+  CHECK(patchy::ui::load_image_save_option_defaults().animation_frame_delay_ms == 67);
+  CHECK(patchy::ui::load_image_save_option_defaults().webp_loop_count == 0);
+  seed.webp_has_visible_frames = false;
+  QTimer::singleShot(0, [&] {
+    auto* dialog = find_top_level_dialog(QStringLiteral("webpSaveOptionsDialog"));
+    try {
+      CHECK(dialog != nullptr);
+      auto* mode = dialog->findChild<QRadioButton*>(QStringLiteral("webpAnimationRadio"));
+      CHECK(mode && !mode->isEnabled() && !mode->isChecked());
+      dialog->accept();
+    } catch (...) { failure = std::current_exception(); if (dialog) dialog->reject(); }
+  });
+  const auto flat = patchy::ui::prompt_image_save_options(&window, QStringLiteral("webp"), seed);
+  if (failure) std::rethrow_exception(failure);
+  CHECK(flat.has_value() && !flat->webp_animate);
+  seed.webp_offer_animation = false;
+  seed.webp_animate = true;
+  QTimer::singleShot(0, [&] {
+    auto* dialog = find_top_level_dialog(QStringLiteral("webpSaveOptionsDialog"));
+    try {
+      CHECK(dialog != nullptr);
+      CHECK(dialog->findChild<QRadioButton*>(QStringLiteral("webpAnimationRadio")) == nullptr);
+      CHECK(dialog->findChild<QComboBox*>(QStringLiteral("exportScaleCombo")) != nullptr);
+      CHECK(no_clipped_labels(*dialog));
+      patchy::test::ui::save_widget_artifact("webp-animation-export-options", *dialog);
+      dialog->accept();
+    } catch (...) { failure = std::current_exception(); if (dialog) dialog->reject(); }
+  });
+  const auto animated = patchy::ui::prompt_image_save_options(&window, QStringLiteral("webp"), seed, true, QSize(32, 24));
+  if (failure) std::rethrow_exception(failure);
+  CHECK(animated.has_value() && animated->webp_animate);
+  settings.remove(QStringLiteral("saveOptions"));
+}
+
 }  // namespace
 
 std::vector<patchy::test::TestCase> flat_image_format_tests() {
@@ -2107,6 +2320,11 @@ std::vector<patchy::test::TestCase> flat_image_format_tests() {
        ui_rttex_save_options_persist_and_dialog_prefills_from_source},
       {"ui_export_trim_keeps_document_alpha_mask_colors", ui_export_trim_keeps_document_alpha_mask_colors},
       {"ui_animated_gif_export_trims_frames_to_union_bounds", ui_animated_gif_export_trims_frames_to_union_bounds},
+      {"ui_webp_animation_import_export_unicode_round_trip", ui_webp_animation_import_export_unicode_round_trip},
+      {"ui_animated_gif_webp_gif_round_trip_preserves_animation",
+       ui_animated_gif_webp_gif_round_trip_preserves_animation},
+      {"ui_webp_animation_export_trims_frames_to_union_bounds", ui_webp_animation_export_trims_frames_to_union_bounds},
+      {"ui_webp_animation_options_and_empty_layers", ui_webp_animation_options_and_empty_layers},
       {"ui_webp_lossless_round_trips_and_quality_orders_size", ui_webp_lossless_round_trips_and_quality_orders_size},
       {"ui_export_options_dialog_shared_section", ui_export_options_dialog_shared_section},
       {"ui_export_options_jpeg_forces_background_fill", ui_export_options_jpeg_forces_background_fill},

@@ -8663,6 +8663,66 @@ RGB: %2, %3, %4</translation>
         <source>UI language for this run only, not saved: en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN, or zh_TW.</source>
         <translation>Język interfejsu tylko dla tego uruchomienia (bez zapisywania): en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN lub zh_TW.</translation>
     </message>
+    <message>
+        <source>Invalid or damaged animated WebP.</source>
+        <translation>Nieprawidłowy lub uszkodzony animowany WebP.</translation>
+    </message>
+    <message>
+        <source>Animated WebP exceeds the image allocation limit.</source>
+        <translation>Animowany WebP przekracza limit pamięci dla obrazów.</translation>
+    </message>
+    <message>
+        <source>Invalid animated WebP dimensions or quality.</source>
+        <translation>Nieprawidłowe wymiary lub jakość animowanego WebP.</translation>
+    </message>
+    <message>
+        <source>Could not create animated WebP encoder.</source>
+        <translation>Nie można utworzyć kodera animowanego WebP.</translation>
+    </message>
+    <message>
+        <source>Invalid animated WebP frame or duration.</source>
+        <translation>Nieprawidłowa klatka lub czas trwania animowanego WebP.</translation>
+    </message>
+    <message>
+        <source>Could not encode animated WebP frame.</source>
+        <translation>Nie można zakodować klatki animowanego WebP.</translation>
+    </message>
+    <message>
+        <source>Animated WebP needs at least one frame.</source>
+        <translation>Animowany WebP wymaga co najmniej jednej klatki.</translation>
+    </message>
+    <message>
+        <source>Could not finish animated WebP.</source>
+        <translation>Nie można ukończyć animowanego WebP.</translation>
+    </message>
+    <message>
+        <source>Forever</source>
+        <translation>Bez końca</translation>
+    </message>
+    <message>
+        <source>Play count:</source>
+        <translation>Liczba odtworzeń:</translation>
+    </message>
+    <message>
+        <source>Each visible top-level layer becomes one frame, with the top layer first. A name ending in a time, like &quot;blink 0.033s&quot;, sets that frame&apos;s delay. Play count includes the first play.</source>
+        <translation>Każda widoczna warstwa najwyższego poziomu staje się jedną klatką, zaczynając od górnej. Czas na końcu nazwy, np. &quot;blink 0.033s&quot;, określa czas wyświetlania klatki. Liczba odtworzeń obejmuje pierwsze odtworzenie.</translation>
+    </message>
+    <message>
+        <source>Animated WebP: imported %1 frames as layers</source>
+        <translation>Animowany WebP: zaimportowano %1 klatek jako warstwy</translation>
+    </message>
+    <message>
+        <source>The document has no visible top-level layers to export as an animated WebP.</source>
+        <translation>Dokument nie ma widocznych warstw najwyższego poziomu do eksportu jako animowany WebP.</translation>
+    </message>
+    <message>
+        <source>Could not open WebP file for writing</source>
+        <translation>Nie można otworzyć pliku WebP do zapisu</translation>
+    </message>
+    <message>
+        <source>Could not write WebP file</source>
+        <translation>Nie można zapisać pliku WebP</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -8938,10 +8998,6 @@ RGB: %2, %3, %4</translation>
         <translation>Usuwa czas klatki dopisany na końcu nazw wybranych warstw.</translation>
     </message>
     <message>
-        <source>Plays the visible top-level layers as frames, top layer first, exactly like the animated GIF export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
-        <translation>Odtwarza widoczne warstwy najwyższego poziomu jako klatki, zaczynając od górnej, tak samo jak przy eksporcie animowanego GIF-a. Czas na końcu nazwy warstwy, np. „mrugnięcie 0.25s”, określa czas wyświetlania tej klatki.</translation>
-    </message>
-    <message>
         <source>No visible layers</source>
         <translation>Brak widocznych warstw</translation>
     </message>
@@ -8952,6 +9008,10 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Stop</source>
         <translation>Zatrzymaj</translation>
+    </message>
+    <message>
+        <source>Plays the visible top-level layers as frames, top layer first, like animated GIF and WebP export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
+        <translation>Odtwarza widoczne warstwy najwyższego poziomu jako klatki, od góry, tak jak eksport animowanego GIF i WebP. Czas na końcu nazwy warstwy, np. &quot;blink 0.25s&quot;, określa czas wyświetlania klatki.</translation>
     </message>
 </context>
 <context>
@@ -18363,6 +18423,18 @@ Y: %2
             <numerusform>Połączono %n warstw kształtów</numerusform>
         </translation>
     </message>
+    <message>
+        <source>Layers as Animated &amp;WebP...</source>
+        <translation>Warstwy jako animowany &amp;WebP...</translation>
+    </message>
+    <message>
+        <source>Export Animated WebP</source>
+        <translation>Eksportuj animowany WebP</translation>
+    </message>
+    <message>
+        <source>Saved animated WebP copy %1</source>
+        <translation>Zapisano kopię animowanego WebP: %1</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -19778,6 +19850,18 @@ Y: %2
     <message>
         <source>Work Path</source>
         <translation>Ścieżka robocza</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp needs a .webp output path.</source>
+        <translation>exportAnimatedWebp wymaga ścieżki wyjściowej .webp.</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp options must be an object.</source>
+        <translation>Opcje exportAnimatedWebp muszą być obiektem.</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp: invalid option %1.</source>
+        <translation>exportAnimatedWebp: nieprawidłowa opcja %1.</translation>
     </message>
 </context>
 <context>

@@ -103,6 +103,7 @@ private:
 // hold session ids + LayerIds, never pointers (sessions close and the layers
 // vector reallocates). See docs/scripting.md.
 struct PdfExportOptions;
+struct ImageSaveOptions;
 
 class ScriptEngineHost : public QObject {
   Q_OBJECT
@@ -184,6 +185,8 @@ public:
   std::int64_t open_document_file(const QString& path);  // 0 on failure
   std::int64_t create_document(int width, int height);
   bool save_session_to_path(std::int64_t session_id, const QString& path);
+  bool export_session_animated_webp(std::int64_t session_id, const QString& path,
+                                    const ImageSaveOptions& options, QString* error);
   // app.exportPdf: the sessions as the pages of one PDF, in order. False with *error
   // set when a session is gone or the writer refuses.
   bool export_sessions_to_pdf(const std::vector<std::int64_t>& session_ids, const QString& path,

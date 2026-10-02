@@ -85,6 +85,8 @@
 #include "formats/gif_document_io.hpp"
 #include "ui/sprite_sheet_dialog.hpp"
 #include "ui/animation_preview_window.hpp"
+#include "formats/animation_timing.hpp"
+#include "formats/webp_animation_io.hpp"
 #include "ui/tile_preview_window.hpp"
 #include "ui/user_fonts.hpp"
 #include "ui/warp_text_dialog.hpp"
@@ -995,6 +997,26 @@ OpenDocumentResult load_document_from_path(QString path) {
   QStringList import_notices;
   bool force_import_notices_popup = false;
   const auto load_via_qt = [&] {
+    if (extension == QStringLiteral("webp")) {
+      const auto bytes = read_all_file_bytes(path);
+      int index = 0;
+      if (webp::decode_animation(bytes, static_cast<std::uint64_t>(std::max(0, QImageReader::allocationLimit())) * 1024 * 1024,
+          [&](const webp::AnimationInfo& info) {
+            opened = Document(info.width, info.height, PixelFormat::rgba8());
+            opened.metadata().values[webp::kLoopCountMetadata] = std::to_string(info.loop_count);
+          }, [&](PixelBuffer pixels, std::uint32_t delay) {
+            const auto name = QObject::tr("Frame %1").arg(++index) + QLatin1Char(' ') +
+                              QString::fromStdString(animation::format_delay_seconds_token(delay));
+            opened.add_pixel_layer(name.toStdString(), std::move(pixels));
+          })) {
+        std::reverse(opened.layers().begin(), opened.layers().end());
+        if (!opened.layers().empty()) opened.set_active_layer(opened.layers().back().id());
+        opened.print_settings().horizontal_ppi = kUntaggedImportPpi;
+        opened.print_settings().vertical_ppi = kUntaggedImportPpi;
+        import_notices.push_back(QObject::tr("Animated WebP: imported %1 frames as layers").arg(index));
+        return;
+      }
+    }
     QImageReader reader(path);
     reader.setAutoTransform(true);
     const auto image = reader.read();
@@ -3245,6 +3267,7 @@ void MainWindow::export_animated_gif() {
     return;
   }
   finish_active_text_editor();
+  if (animation_preview_window_ != nullptr) animation_preview_window_->stop_playback_for(&document());
   // One frame per visible top-level layer, top to bottom; the options dialog restates
   // the rules (hidden layers skipped, "0.25s" name tokens override the default delay).
   if (!has_visible_top_level_layer(std::as_const(document()))) {
@@ -3272,6 +3295,53 @@ void MainWindow::export_animated_gif() {
   try {
     std::vector<std::string> writer_notices;
     write_flat_image_file(document(), path, QStringLiteral("gif"), *options, &writer_notices);
+    offer_browser_download_for_saved_file(path);
+    remember_save_directory_for_path(path);
+    statusBar()->showMessage(tr("Exported %1").arg(path) + export_notes_suffix_for(writer_notices));
+    if (options->export_reveal_in_file_explorer) {
+      reveal_path_in_file_explorer(path, /*is_file*/ true);
+    }
+  } catch (const std::exception& error) {
+    show_critical_message(this, tr("Export failed"), translated_file_message(error.what()),
+                          QStringLiteral("exportFailedMessageBox"));
+  }
+}
+
+void MainWindow::export_animated_webp() {
+  if (!has_active_document()) {
+    show_status_error(tr("No document"));
+    return;
+  }
+  finish_active_text_editor();
+  if (animation_preview_window_ != nullptr) animation_preview_window_->stop_playback_for(&document());
+  // One frame per visible top-level layer, top to bottom; the options dialog restates
+  // the rules (hidden layers skipped, "0.25s" name tokens override the default delay).
+  if (!has_visible_top_level_layer(std::as_const(document()))) {
+    show_information_message(this, tr("Export Animated WebP"), tr("There are no visible layers to export."),
+                             QStringLiteral("animatedWebpNoLayersMessageBox"));
+    return;
+  }
+  QString selected_filter;
+  const auto base_name = QFileInfo(session().title.isEmpty() ? tr("Untitled") : session().title).completeBaseName();
+  const auto initial_path = file_dialog_initial_path(QString(), base_name + QStringLiteral(".webp"));
+  auto path = get_save_file_name(this, tr("Export Animated WebP"), initial_path,
+                                 save_file_filter_for_path(initial_path), &selected_filter,
+                                 QStringLiteral("animatedWebpExportFileDialog"));
+  if (path.isEmpty()) {
+    return;
+  }
+  path = path_with_default_extension(path, selected_filter);
+  auto defaults = image_save_defaults_for_document();
+  defaults.webp_animate = true;
+  auto options = prompt_image_save_options(this, QStringLiteral("webp"), defaults, true,
+      QSize(std::as_const(document()).width(), std::as_const(document()).height()));
+  if (!options.has_value()) {
+    return;
+  }
+  try {
+    std::vector<std::string> writer_notices;
+    write_flat_image_file(document(), path, QStringLiteral("webp"), *options, &writer_notices);
+    persist_image_save_defaults(*options);
     offer_browser_download_for_saved_file(path);
     remember_save_directory_for_path(path);
     statusBar()->showMessage(tr("Exported %1").arg(path) + export_notes_suffix_for(writer_notices));
@@ -3329,7 +3399,7 @@ void MainWindow::toggle_animation_preview_window() {
             sync_layer_row_visibility_indicators();
           }
         },
-        [this](std::optional<std::uint16_t> delay_cs) { set_selected_layers_frame_time(delay_cs); },
+        [this](std::optional<std::uint32_t> delay_ms) { set_selected_layers_frame_time(delay_ms); },
         this);
     window->setAttribute(Qt::WA_DeleteOnClose);
     animation_preview_window_ = window;
@@ -3448,16 +3518,21 @@ bool MainWindow::save_document_as() {
       if (!pdf_editable_layers.has_value()) {
         return false;
       }
-    } else if (extension == QStringLiteral("gif") && std::as_const(document()).layers().size() >= 2) {
+    } else if ((extension == QStringLiteral("gif") || extension == QStringLiteral("webp")) &&
+               std::as_const(document()).layers().size() >= 2) {
       // GIF asks animation-or-flatten instead of the plain flatten warning; an explicit
       // animation choice needs no warning (the frames round-trip through reopening).
-      auto gif_options =
-          prompt_gif_save_options(this, image_save_defaults_for_document(), /*offer_flatten_choice*/ true,
-                                  /*for_export*/ false, has_visible_top_level_layer(std::as_const(document())));
+      auto defaults = image_save_defaults_for_document();
+      defaults.webp_offer_animation = true;
+      defaults.webp_has_visible_frames = has_visible_top_level_layer(std::as_const(document()));
+      auto gif_options = extension == QStringLiteral("webp")
+          ? prompt_image_save_options(this, extension, defaults)
+          : prompt_gif_save_options(this, defaults, /*offer_flatten_choice*/ true,
+                                    /*for_export*/ false, defaults.webp_has_visible_frames);
       if (!gif_options.has_value()) {
         return false;
       }
-      if (!gif_options->gif_animate && !confirm_flatten_layers_for_save(extension)) {
+      if (!gif_options->gif_animate && !gif_options->webp_animate && !confirm_flatten_layers_for_save(extension)) {
         return false;
       }
       image_options = std::move(gif_options);
@@ -3696,6 +3771,8 @@ bool MainWindow::save_document_to_path(QString path, std::optional<ImageSaveOpti
                                     ? tr("Saved PDF copy with editable layers %1.")
                                 : extension == QStringLiteral("gif") && effective_image_options.gif_animate
                                     ? tr("Saved animated GIF copy %1")
+                                : extension == QStringLiteral("webp") && effective_image_options.webp_animate
+                                    ? tr("Saved animated WebP copy %1")
                                     : tr("Saved flattened copy %1"))
                                    .arg(path) +
                                export_notes_suffix);
@@ -3743,6 +3820,7 @@ void MainWindow::export_flat_image() {
     return;
   }
   finish_active_text_editor();
+  if (animation_preview_window_ != nullptr) animation_preview_window_->stop_playback_for(&document());
   QString selected_filter;
   const auto base_name = QFileInfo(session().title.isEmpty() ? tr("Untitled") : session().title).completeBaseName();
   auto path =
@@ -3760,6 +3838,8 @@ void MainWindow::export_flat_image() {
     std::optional<ImageSaveOptions> image_options;
     if (!is_photoshop_document_extension(extension) && !svg_export) {
       auto defaults = image_save_defaults_for_document();
+      defaults.webp_offer_animation = std::as_const(document()).layers().size() >= 2;
+      defaults.webp_has_visible_frames = has_visible_top_level_layer(std::as_const(document()));
       if (is_pdf_extension(extension) && flat_save_discards_layers(std::as_const(document()))) {
         // Flatten or keep layers editable: the remembered policy or the question.
         const auto pdf_editable_layers = resolve_pdf_layer_choice(/*for_export*/ true, /*allow_prompt*/ true);

@@ -683,6 +683,16 @@ interface PatchyDocument {
   saveAs(path: string): boolean;
   /** Same as saveAs; reads better for export-a-copy flows. */
   exportAs(path: string): boolean;
+  /** Exports visible top-level layers, top first, as animated WebP. Groups become one frame.
+   * Trailing seconds tokens ("blink 0.033s") override frameDelayMs. Preserves the document path
+   * and modified state. loopCount is total plays (0 = forever), defaults to the imported or
+   * last exported count, otherwise 0. Other defaults: frameDelayMs 100, quality 75, lossless false.
+   * quality 100 also selects lossless. Integers: frameDelayMs 0..16777215, loopCount 0..65535,
+   * quality 0..100. Unknown/invalid options, non-.webp paths and export failures throw.
+   * saveAs/exportAs with .webp continue to write a single flattened image. */
+  exportAnimatedWebp(path: string, options?: {
+    frameDelayMs?: number; loopCount?: number; quality?: number; lossless?: boolean;
+  }): boolean;
   /** Closes without prompting (the script decided). */
   close(): void;
   /** Makes this the active document tab. */
