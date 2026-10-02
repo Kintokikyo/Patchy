@@ -4,6 +4,8 @@
 #include "ui/dialog_utils.hpp"
 #include "ui/theme_palette.hpp"
 
+#include "ui/user_fonts.hpp"
+
 #include <QAbstractItemView>
 #include <QApplication>
 #include <QCloseEvent>
@@ -22,11 +24,147 @@
 #include <QStyledItemDelegate>
 #include <QVBoxLayout>
 
+#include <QDir>
+#include <QEventLoop>
+#include <QFileInfo>
+#include <QElapsedTimer>
+#include <QMessageBox>
+#include <QPushButton>
+#include <QTemporaryFile>
+#include <QTimer>
+
+#ifdef Q_OS_ANDROID
+#include <QJniObject>
+#include <QJniEnvironment>
+#include <QNativeInterface>
+#include <QThread>
+#endif
+
 #include <algorithm>
+#include <optional>
 
 namespace patchy::ui {
 
 namespace {
+
+#ifdef Q_OS_ANDROID
+
+std::optional<QString> pick_android_font()
+{
+  const QJniObject context =
+      QNativeInterface::QAndroidApplication::context();
+
+  if (!context.isValid()) {
+    return std::nullopt;
+  }
+
+  constexpr jint request_code = 0x5048;
+
+  context.callMethod<void>(
+      "pickPatchyFont",
+      "(I)V",
+      request_code);
+
+  QJniEnvironment env;
+
+  if (env.checkAndClearExceptions(
+          QJniEnvironment::OutputMode::Silent)) {
+    return std::nullopt;
+  }
+
+  QElapsedTimer timer;
+  timer.start();
+
+  while (timer.elapsed() < 120000) {
+    QApplication::processEvents(
+        QEventLoop::AllEvents,
+        25);
+
+    const QJniObject result =
+        context.callObjectMethod(
+            "consumePatchyFontResult",
+            "(I)Ljava/lang/String;",
+            request_code);
+
+    if (result.isValid()) {
+      const QString uri = result.toString();
+
+      if (uri.isEmpty()) {
+        return std::nullopt;
+      }
+
+      return uri;
+    }
+
+    QThread::msleep(25);
+  }
+
+  return std::nullopt;
+}
+
+QString android_uri_display_name(const QString& uri_string)
+{
+  const QJniObject context =
+      QNativeInterface::QAndroidApplication::context();
+
+  if (!context.isValid()) {
+    return {};
+  }
+
+  const QJniObject uri =
+      QJniObject::fromString(uri_string);
+
+  const QJniObject result =
+      context.callObjectMethod(
+          "getUriDisplayName",
+          "(Ljava/lang/String;)Ljava/lang/String;",
+          uri.object<jstring>());
+
+  QJniEnvironment env;
+
+  if (env.checkAndClearExceptions(
+          QJniEnvironment::OutputMode::Silent)) {
+    return {};
+  }
+
+  return result.isValid() ? result.toString() : QString{};
+}
+
+bool copy_android_font_to_local(
+    const QString& uri_string,
+    const QString& local_path)
+{
+  const QJniObject context =
+      QNativeInterface::QAndroidApplication::context();
+
+  if (!context.isValid()) {
+    return false;
+  }
+
+  const QJniObject uri =
+      QJniObject::fromString(uri_string);
+
+  const QJniObject path =
+      QJniObject::fromString(local_path);
+
+  const jboolean result =
+      context.callMethod<jboolean>(
+          "copyUriToLocalFile",
+          "(Ljava/lang/String;Ljava/lang/String;)Z",
+          uri.object<jstring>(),
+          path.object<jstring>());
+
+  QJniEnvironment env;
+
+  if (env.checkAndClearExceptions(
+          QJniEnvironment::OutputMode::Silent)) {
+    return false;
+  }
+
+  return result;
+}
+
+#endif
 
 const QString kPopupSizeSettingsKey = QStringLiteral("ui/textFontPickerPopupSize");
 
@@ -512,9 +650,124 @@ void FontPickerCombo::showPopup() {
 
   auto* bottom = new QHBoxLayout();
   bottom->setContentsMargins(0, 0, 0, 0);
+  bottom->setSpacing(6);
+
+#ifdef Q_OS_ANDROID
+
+  auto* add_font_button =
+    new QPushButton(tr("Add Font…"), popup);
+
+  add_font_button->setObjectName(
+    QStringLiteral("textFontPickerAddFontButton"));
+
+  bottom->addWidget(
+    add_font_button,
+    0,
+    Qt::AlignLeft | Qt::AlignBottom);
+
+  connect(
+    add_font_button,
+    &QPushButton::clicked,
+    popup,
+    [this, popup] {
+      popup->close();
+
+      QTimer::singleShot(
+          0,
+          this,
+          [this] {
+
+            const auto uri =
+                pick_android_font();
+
+            if (!uri.has_value()) {
+              return;
+            }
+
+            const QString file_name =
+                android_uri_display_name(*uri);
+
+            const QString suffix =
+                QFileInfo(file_name)
+                    .suffix()
+                    .toLower();
+
+            if (suffix != QStringLiteral("ttf") &&
+                suffix != QStringLiteral("otf") &&
+                suffix != QStringLiteral("ttc") &&
+                suffix != QStringLiteral("zip")) {
+
+              QMessageBox::warning(
+                  this,
+                  tr("Add Font"),
+                  tr("Please select a TTF, OTF, TTC, or ZIP font file."));
+
+              return;
+            }
+
+            QTemporaryFile temporary_file(
+                QDir::tempPath() +
+                QStringLiteral("/patchy-font-XXXXXX.") +
+                suffix);
+
+            if (!temporary_file.open()) {
+
+              QMessageBox::warning(
+                  this,
+                  tr("Add Font"),
+                  tr("Could not create a temporary font file."));
+
+              return;
+            }
+
+            const QString local_path =
+                temporary_file.fileName();
+
+            temporary_file.close();
+
+            if (!copy_android_font_to_local(
+                    *uri,
+                    local_path)) {
+
+              QMessageBox::warning(
+                  this,
+                  tr("Add Font"),
+                  tr("Could not read the selected font file."));
+
+              return;
+            }
+
+            const auto result =
+                user_fonts::add_user_fonts(
+                    QStringList{local_path});
+
+            if (!result.invalid_names.isEmpty()) {
+
+              QMessageBox::warning(
+                  this,
+                  tr("Add Font"),
+                  tr("The selected file is not a valid font."));
+            }
+            else if (!result.zips_without_fonts.isEmpty()) {
+
+              QMessageBox::warning(
+                  this,
+                  tr("Add Font"),
+                  tr("The ZIP file does not contain any supported fonts."));
+            }
+          });
+    });
+
+#endif
+
   bottom->addStretch(1);
+
   // A frameless popup has no native resize border; the grip is the resize handle.
-  bottom->addWidget(new VisibleSizeGrip(popup), 0, Qt::AlignBottom);
+  bottom->addWidget(
+    new VisibleSizeGrip(popup),
+    0,
+    Qt::AlignBottom);
+
   layout->addLayout(bottom);
 
   search->installEventFilter(new SearchKeyForwarder(list, search));
