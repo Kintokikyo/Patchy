@@ -20,7 +20,7 @@
 # Cleanup is deferred until unplug() has returned and the original DragState
 # is still alive.
 
-name: Build Patchy Window Layout Fix V9 Android
+name: Build Patchy Window Layout Fix V10 Android
 
 on:
   workflow_dispatch:
@@ -649,7 +649,7 @@ jobs:
               r"(?P<indent>^[ \\t]*)"
               r"if\s*\(\s*d->state\s*\)\s*$"
               r"\n"
-              r"(?P=indent)d->endDrag\s*\(\s*"
+              r"[ \t]+d->endDrag\s*\(\s*"
               r"QDockWidgetPrivate::EndDragMode::Abort"
               r"\s*\)\s*;",
               re.M
@@ -1543,7 +1543,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: patchy-window-layout-fix-v9-qt6103
+          name: patchy-window-layout-fix-v10-qt6103
           path: |
             build/android-release/**/*.apk
             build/android-release/*.apk
