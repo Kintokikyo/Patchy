@@ -8696,6 +8696,55 @@ RGB: %2, %3, %4</translation>
         <source>Default frame delay:</source>
         <translation>Standard-Bilddauer:</translation>
     </message>
+    <message>
+        <source>Mixed: selected layers have different values</source>
+        <translation>Gemischt: Ausgewählte Ebenen haben unterschiedliche Werte</translation>
+    </message>
+    <message>
+        <source> (Mixed)</source>
+        <translation> (Gemischt)</translation>
+    </message>
+    <message>
+        <source>Values from: %1</source>
+        <translation>Werte von: %1</translation>
+    </message>
+    <message>
+        <source>Apply All Settings to Selected Layers</source>
+        <translation>Alle Einstellungen auf ausgewählte Ebenen anwenden</translation>
+    </message>
+    <message>
+        <source>Present on %1 of %2 layers</source>
+        <translation>Auf %1 von %2 Ebenen vorhanden</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n layers selected</source>
+        <translation>
+            <numerusform>%n Ebene ausgewählt</numerusform>
+            <numerusform>%n Ebenen ausgewählt</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Editable layers: %n</source>
+        <translation>
+            <numerusform>%n bearbeitbare Ebene</numerusform>
+            <numerusform>%n bearbeitbare Ebenen</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Editable rectangles for corner radii: %n</source>
+        <translation>
+            <numerusform>Eckenradien: %n bearbeitbares Rechteck</numerusform>
+            <numerusform>Eckenradien: %n bearbeitbare Rechtecke</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Gradient settings apply to %1 of %2 editable layers.</source>
+        <translation>Verlaufseinstellungen gelten für %1 von %2 bearbeitbaren Ebenen.</translation>
+    </message>
+    <message>
+        <source>Pattern settings apply to %1 of %2 editable layers.</source>
+        <translation>Mustereinstellungen gelten für %1 von %2 bearbeitbaren Ebenen.</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -16848,28 +16897,12 @@ Y: %2
         </translation>
     </message>
     <message>
-        <source>Select a shape layer to edit its appearance</source>
-        <translation>Wählen Sie eine Formebene aus, um ihr Aussehen zu bearbeiten</translation>
-    </message>
-    <message>
-        <source>This shape layer&apos;s vector data is preserved but can&apos;t be edited.</source>
-        <translation>Die Vektordaten dieser Formebene bleiben erhalten, können aber nicht bearbeitet werden.</translation>
-    </message>
-    <message>
-        <source>Updating shape...</source>
-        <translation>Form wird aktualisiert...</translation>
-    </message>
-    <message>
         <source>Cancelled shape appearance</source>
         <translation>Formaussehen abgebrochen</translation>
     </message>
     <message>
         <source>Shape appearance</source>
         <translation>Formaussehen</translation>
-    </message>
-    <message>
-        <source>Updated the shape appearance</source>
-        <translation>Formaussehen aktualisiert</translation>
     </message>
     <message>
         <source>Created fill layer %1.</source>
@@ -18381,6 +18414,30 @@ In Bilder umgewandelt: %1.</translation>
     <message>
         <source>Saved animated WebP copy %1</source>
         <translation>Kopie der WebP-Animation gespeichert: %1</translation>
+    </message>
+    <message>
+        <source>Locked layers are skipped. Groups receive their own style; their children are unchanged.</source>
+        <translation>Gesperrte Ebenen werden übersprungen. Gruppen erhalten einen eigenen Stil; ihre untergeordneten Ebenen bleiben unverändert.</translation>
+    </message>
+    <message>
+        <source>Select an unlocked, editable shape layer</source>
+        <translation>Wählen Sie eine entsperrte, bearbeitbare Formebene aus</translation>
+    </message>
+    <message>
+        <source>Locked layers and layers without editable shapes are skipped.</source>
+        <translation>Gesperrte Ebenen und Ebenen ohne bearbeitbare Formen werden übersprungen.</translation>
+    </message>
+    <message>
+        <source>Updating shapes...</source>
+        <translation>Formen werden aktualisiert...</translation>
+    </message>
+    <message>
+        <source>%1: preserved blending data remains protected.</source>
+        <translation>%1: Erhaltene Mischdaten bleiben geschützt.</translation>
+    </message>
+    <message>
+        <source>%1: editing effects normalizes unsupported Satin contours.</source>
+        <translation>%1: Das Bearbeiten von Effekten normalisiert nicht unterstützte Satin-Konturen.</translation>
     </message>
 </context>
 <context>

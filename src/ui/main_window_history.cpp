@@ -532,6 +532,7 @@ void MainWindow::undo() {
   if (canvas_ == nullptr || canvas_->pointer_gesture_active()) {
     return;
   }
+  finish_pending_shape_appearance_edit();
   finish_pending_layer_opacity_edit();
   finish_pending_layer_fill_opacity_edit();
   finish_pending_layer_blend_edit();
@@ -551,6 +552,7 @@ void MainWindow::redo() {
   if (canvas_ == nullptr || canvas_->pointer_gesture_active()) {
     return;
   }
+  finish_pending_shape_appearance_edit();
   finish_pending_layer_opacity_edit();
   finish_pending_layer_fill_opacity_edit();
   finish_pending_layer_blend_edit();
@@ -573,6 +575,7 @@ void MainWindow::push_undo_snapshot(DocumentSession& target_session, QString lab
   if (target_is_active) {
     // The pending layer-opacity edit belongs to the ACTIVE document; a snapshot
     // fired by a background canvas must not flush (and split) its coalesced run.
+    finish_pending_shape_appearance_edit();
     finish_pending_layer_opacity_edit();
     finish_pending_layer_fill_opacity_edit();
     finish_pending_layer_blend_edit();
@@ -633,6 +636,7 @@ void MainWindow::push_selection_history(DocumentSession& target_session, QString
                                         CanvasWidget::SelectionSnapshot before, bool coalesce) {
   const bool target_is_active = &target_session == active_session();
   if (target_is_active) {
+    finish_pending_shape_appearance_edit();
     finish_pending_layer_opacity_edit();
     finish_pending_layer_fill_opacity_edit();
     finish_pending_layer_blend_edit();
@@ -717,6 +721,7 @@ void MainWindow::jump_to_history_state(std::int64_t state_id) {
   }
   // Flushing a pending opacity edit can push a history entry (which clears the
   // redo stack), so it must happen before the clicked id is resolved.
+  finish_pending_shape_appearance_edit();
   finish_pending_layer_opacity_edit();
   finish_pending_layer_fill_opacity_edit();
   finish_pending_layer_blend_edit();

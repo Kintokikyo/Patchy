@@ -8685,6 +8685,55 @@ RGB: %2, %3, %4</source>
         <source>Default frame delay:</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Mixed: selected layers have different values</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> (Mixed)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Values from: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Apply All Settings to Selected Layers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Present on %1 of %2 layers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n layers selected</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Editable layers: %n</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Editable rectangles for corner radii: %n</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Gradient settings apply to %1 of %2 editable layers.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pattern settings apply to %1 of %2 editable layers.</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -16808,27 +16857,11 @@ Y: %2
         </translation>
     </message>
     <message>
-        <source>Select a shape layer to edit its appearance</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>This shape layer&apos;s vector data is preserved but can&apos;t be edited.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Updating shape...</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Cancelled shape appearance</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Shape appearance</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Updated the shape appearance</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -18330,6 +18363,30 @@ Baked into images: %1.</source>
     </message>
     <message>
         <source>Saved animated WebP copy %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Locked layers are skipped. Groups receive their own style; their children are unchanged.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select an unlocked, editable shape layer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Locked layers and layers without editable shapes are skipped.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Updating shapes...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1: preserved blending data remains protected.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1: editing effects normalizes unsupported Satin contours.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

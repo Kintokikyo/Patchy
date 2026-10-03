@@ -1,5 +1,9 @@
 # Layers panel
 
+Shape and style editors preserve an existing multi-selection when opened from
+a selected row or badge. Unselected rows become the sole target. See
+[batch appearance](batch-appearance.md) for editor selection and matching rules.
+
 Read this before changing layer rows, thumbnails, click selection, the disclosure arrow, the visibility eye, or the blend and opacity row. Generic item-widget row rules (selection painting, transparent containers, `bind_widget_text`) stay in [ui-conventions.md](ui-conventions.md).
 
 ## Row styling

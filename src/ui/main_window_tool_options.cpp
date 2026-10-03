@@ -1036,6 +1036,7 @@ bool MainWindow::show_pixel_lock_message_if_all_locked(const std::vector<LayerId
 }
 
 void MainWindow::set_active_layer_from_selection() {
+  if (!updating_layer_controls_) finish_pending_shape_appearance_edit();
   if (updating_layer_controls_) {
     return;
   }

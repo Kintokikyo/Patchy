@@ -8723,6 +8723,58 @@ RGB: %2, %3, %4</translation>
         <source>Default frame delay:</source>
         <translation>Domyślny czas klatki:</translation>
     </message>
+    <message>
+        <source>Mixed: selected layers have different values</source>
+        <translation>Różne: wybrane warstwy mają różne wartości</translation>
+    </message>
+    <message>
+        <source> (Mixed)</source>
+        <translation> (Różne)</translation>
+    </message>
+    <message>
+        <source>Values from: %1</source>
+        <translation>Wartości z: %1</translation>
+    </message>
+    <message>
+        <source>Apply All Settings to Selected Layers</source>
+        <translation>Zastosuj wszystkie ustawienia do wybranych warstw</translation>
+    </message>
+    <message>
+        <source>Present on %1 of %2 layers</source>
+        <translation>Obecny na %1 z %2 warstw</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n layers selected</source>
+        <translation>
+            <numerusform>Wybrano %n warstwę</numerusform>
+            <numerusform>Wybrano %n warstwy</numerusform>
+            <numerusform>Wybrano %n warstw</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Editable layers: %n</source>
+        <translation>
+            <numerusform>%n edytowalna warstwa</numerusform>
+            <numerusform>%n edytowalne warstwy</numerusform>
+            <numerusform>%n edytowalnych warstw</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Editable rectangles for corner radii: %n</source>
+        <translation>
+            <numerusform>Promienie narożników: %n edytowalny prostokąt</numerusform>
+            <numerusform>Promienie narożników: %n edytowalne prostokąty</numerusform>
+            <numerusform>Promienie narożników: %n edytowalnych prostokątów</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Gradient settings apply to %1 of %2 editable layers.</source>
+        <translation>Ustawienia gradientu dotyczą %1 z %2 edytowalnych warstw.</translation>
+    </message>
+    <message>
+        <source>Pattern settings apply to %1 of %2 editable layers.</source>
+        <translation>Ustawienia wzorku dotyczą %1 z %2 edytowalnych warstw.</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -18076,28 +18128,12 @@ Y: %2
         </translation>
     </message>
     <message>
-        <source>Select a shape layer to edit its appearance</source>
-        <translation>Wybierz warstwę kształtu, aby edytować jej wygląd</translation>
-    </message>
-    <message>
-        <source>This shape layer&apos;s vector data is preserved but can&apos;t be edited.</source>
-        <translation>Dane wektorowe tej warstwy kształtu są zachowywane, ale nie można ich edytować.</translation>
-    </message>
-    <message>
-        <source>Updating shape...</source>
-        <translation>Aktualizuję kształt...</translation>
-    </message>
-    <message>
         <source>Cancelled shape appearance</source>
         <translation>Anulowano edycję wyglądu kształtu</translation>
     </message>
     <message>
         <source>Shape appearance</source>
         <translation>Wygląd kształtu</translation>
-    </message>
-    <message>
-        <source>Updated the shape appearance</source>
-        <translation>Zaktualizowano wygląd kształtu</translation>
     </message>
     <message>
         <source>Created fill layer %1.</source>
@@ -18434,6 +18470,30 @@ Y: %2
     <message>
         <source>Saved animated WebP copy %1</source>
         <translation>Zapisano kopię animowanego WebP: %1</translation>
+    </message>
+    <message>
+        <source>Locked layers are skipped. Groups receive their own style; their children are unchanged.</source>
+        <translation>Zablokowane warstwy są pomijane. Grupy otrzymują własny styl; ich warstwy podrzędne pozostają bez zmian.</translation>
+    </message>
+    <message>
+        <source>Select an unlocked, editable shape layer</source>
+        <translation>Wybierz odblokowaną, edytowalną warstwę kształtu</translation>
+    </message>
+    <message>
+        <source>Locked layers and layers without editable shapes are skipped.</source>
+        <translation>Zablokowane warstwy i warstwy bez edytowalnych kształtów są pomijane.</translation>
+    </message>
+    <message>
+        <source>Updating shapes...</source>
+        <translation>Aktualizowanie kształtów...</translation>
+    </message>
+    <message>
+        <source>%1: preserved blending data remains protected.</source>
+        <translation>%1: zachowane dane mieszania pozostają chronione.</translation>
+    </message>
+    <message>
+        <source>%1: editing effects normalizes unsupported Satin contours.</source>
+        <translation>%1: edycja efektów normalizuje nieobsługiwane kontury satyny.</translation>
     </message>
 </context>
 <context>

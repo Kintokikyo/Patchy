@@ -3322,10 +3322,11 @@ void MainWindow::refresh_layer_list(bool retire_automation_rows, const std::func
         if (document().find_layer(layer_id) == nullptr) {
           return;
         }
-        reveal_layer_in_layer_list(layer_id);
-        if (document().active_layer_id() != layer_id) {
-          document().set_active_layer(layer_id);
-        }
+        const auto selected = selected_layer_ids();
+        if (std::find(selected.begin(), selected.end(), layer_id) != selected.end())
+          select_layers_in_layer_list(selected, layer_id);
+        else reveal_layer_in_layer_list(layer_id);
+        if (document().active_layer_id() != layer_id) document().set_active_layer(layer_id);
         edit_active_layer_style();
       },
                                       [this](LayerId layer_id) {
@@ -3342,10 +3343,11 @@ void MainWindow::refresh_layer_list(bool retire_automation_rows, const std::func
         if (!has_active_document() || document().find_layer(layer_id) == nullptr) {
           return;
         }
-        reveal_layer_in_layer_list(layer_id);
-        if (document().active_layer_id() != layer_id) {
-          document().set_active_layer(layer_id);
-        }
+        const auto selected = selected_layer_ids();
+        if (std::find(selected.begin(), selected.end(), layer_id) != selected.end())
+          select_layers_in_layer_list(selected, layer_id);
+        else reveal_layer_in_layer_list(layer_id);
+        if (document().active_layer_id() != layer_id) document().set_active_layer(layer_id);
         edit_active_shape_appearance();
       },
                                       row_clipped,
@@ -3560,6 +3562,7 @@ void MainWindow::refresh_layer_controls() {
   }
   sync_vector_shape_size_spins();  // the W / H readouts follow the active shape
   if (!updating_layer_controls_) {
+    finish_pending_shape_appearance_edit();
     finish_pending_layer_opacity_edit();
     finish_pending_layer_fill_opacity_edit();
     finish_pending_layer_blend_edit();

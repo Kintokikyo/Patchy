@@ -8723,6 +8723,58 @@ RGB: %2, %3, %4</translation>
         <source>Default frame delay:</source>
         <translation>Длительность кадра по умолчанию:</translation>
     </message>
+    <message>
+        <source>Mixed: selected layers have different values</source>
+        <translation>Разные: у выбранных слоёв различаются значения</translation>
+    </message>
+    <message>
+        <source> (Mixed)</source>
+        <translation> (Разные)</translation>
+    </message>
+    <message>
+        <source>Values from: %1</source>
+        <translation>Значения из: %1</translation>
+    </message>
+    <message>
+        <source>Apply All Settings to Selected Layers</source>
+        <translation>Применить все настройки к выбранным слоям</translation>
+    </message>
+    <message>
+        <source>Present on %1 of %2 layers</source>
+        <translation>Присутствует на %1 из %2 слоёв</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n layers selected</source>
+        <translation>
+            <numerusform>Выбран %n слой</numerusform>
+            <numerusform>Выбрано %n слоя</numerusform>
+            <numerusform>Выбрано %n слоёв</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Editable layers: %n</source>
+        <translation>
+            <numerusform>%n редактируемый слой</numerusform>
+            <numerusform>%n редактируемых слоя</numerusform>
+            <numerusform>%n редактируемых слоёв</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Editable rectangles for corner radii: %n</source>
+        <translation>
+            <numerusform>Радиусы углов: %n редактируемый прямоугольник</numerusform>
+            <numerusform>Радиусы углов: %n редактируемых прямоугольника</numerusform>
+            <numerusform>Радиусы углов: %n редактируемых прямоугольников</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Gradient settings apply to %1 of %2 editable layers.</source>
+        <translation>Настройки градиента применяются к %1 из %2 редактируемых слоёв.</translation>
+    </message>
+    <message>
+        <source>Pattern settings apply to %1 of %2 editable layers.</source>
+        <translation>Настройки узора применяются к %1 из %2 редактируемых слоёв.</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -18076,28 +18128,12 @@ Y: %2
         </translation>
     </message>
     <message>
-        <source>Select a shape layer to edit its appearance</source>
-        <translation>Выберите слой-фигуру, чтобы изменить его внешний вид.</translation>
-    </message>
-    <message>
-        <source>This shape layer&apos;s vector data is preserved but can&apos;t be edited.</source>
-        <translation>Векторные данные этого слоя формы сохраняются, но их нельзя редактировать.</translation>
-    </message>
-    <message>
-        <source>Updating shape...</source>
-        <translation>Обновление формы...</translation>
-    </message>
-    <message>
         <source>Cancelled shape appearance</source>
         <translation>Отмененный внешний вид формы</translation>
     </message>
     <message>
         <source>Shape appearance</source>
         <translation>Внешний вид формы</translation>
-    </message>
-    <message>
-        <source>Updated the shape appearance</source>
-        <translation>Обновлен внешний вид фигуры</translation>
     </message>
     <message>
         <source>Created fill layer %1.</source>
@@ -18434,6 +18470,30 @@ Y: %2
     <message>
         <source>Saved animated WebP copy %1</source>
         <translation>Сохранена копия анимированного WebP: %1</translation>
+    </message>
+    <message>
+        <source>Locked layers are skipped. Groups receive their own style; their children are unchanged.</source>
+        <translation>Заблокированные слои пропускаются. Стиль применяется к самим группам; их дочерние слои не меняются.</translation>
+    </message>
+    <message>
+        <source>Select an unlocked, editable shape layer</source>
+        <translation>Выберите разблокированный редактируемый слой фигуры</translation>
+    </message>
+    <message>
+        <source>Locked layers and layers without editable shapes are skipped.</source>
+        <translation>Заблокированные слои и слои без редактируемых фигур пропускаются.</translation>
+    </message>
+    <message>
+        <source>Updating shapes...</source>
+        <translation>Обновление фигур...</translation>
+    </message>
+    <message>
+        <source>%1: preserved blending data remains protected.</source>
+        <translation>%1: сохранённые данные наложения остаются защищёнными.</translation>
+    </message>
+    <message>
+        <source>%1: editing effects normalizes unsupported Satin contours.</source>
+        <translation>%1: редактирование эффектов нормализует неподдерживаемые контуры атласа.</translation>
     </message>
 </context>
 <context>

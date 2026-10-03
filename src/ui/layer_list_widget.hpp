@@ -1,5 +1,7 @@
 #pragma once
 
+#include <QElapsedTimer>
+
 #include "core/layer_tree.hpp"
 
 #include <QAbstractNativeEventFilter>
@@ -222,6 +224,9 @@ private:
   int scroll_bar_drag_travel_{0};
   bool row_widget_drag_candidate_{false};
   bool pending_single_select_on_release_{false};
+  std::vector<LayerId> editor_click_selection_;
+  std::optional<LayerId> editor_click_layer_;
+  QElapsedTimer editor_click_time_;
   bool visibility_sweep_active_{false};
   bool visibility_sweep_target_visible_{false};
   int visibility_sweep_min_x_{0};

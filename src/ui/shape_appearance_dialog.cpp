@@ -4,6 +4,7 @@
 // GradientLibrary; patterns list the document store first, then the library
 // (adoption into the store happens in the caller when applying).
 #include "ui/shape_appearance_dialog.hpp"
+#include "ui/appearance_properties.hpp"
 
 #include "core/pattern_resource.hpp"
 #include "ui/color_panel.hpp"
@@ -152,7 +153,8 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
     ShapeAppearanceSettings initial, ShapeAppearanceSettings reset_defaults,
     GradientLibrary* gradient_library,
     PatternLibrary* pattern_library, const PatternStore* document_patterns, RgbColor foreground,
-    RgbColor background, const DocumentFieldUnits& units) {
+    RgbColor background, const DocumentFieldUnits& units,
+    const AppearanceDialogContext<ShapeAppearanceSettings>* batch) {
   QDialog dialog(parent);
   dialog.setObjectName(QStringLiteral("shapeAppearanceDialog"));
   // Thicknesses and radii have no percent basis; positions and sizes take the
@@ -217,11 +219,42 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   auto state = std::make_shared<DialogState>();
   state->settings = std::move(initial);
 
-  const auto notify = [state, preview_changed] {
-    if (preview_changed) {
-      preview_changed(state->settings);
+
+  const bool multiple = batch != nullptr && batch->selected_count > 1;
+  if (multiple) {
+    const auto rectangle = std::find_if(batch->originals.begin(), batch->originals.end(),
+                                        appearance_has_editable_radii);
+    state->settings.geometry = rectangle != batch->originals.end() ? rectangle->geometry : std::nullopt;
+  }
+  if (batch != nullptr && batch->selected_count > 1) {
+    auto* summary = new QLabel(appearance_selection_summary(
+        batch->selected_count, batch->originals.size(),
+        batch->names.empty() ? QString() : batch->names.front(), batch->skipped_reason), &dialog);
+    summary->setObjectName(QStringLiteral("shapeAppearanceSelectionSummary"));
+    summary->setWordWrap(true);
+    dialog_layout->insertWidget(0, summary);
+  }
+  const auto properties = shape_appearance_properties();
+  auto edits = std::make_shared<AppearanceEdits<ShapeAppearanceSettings>>();
+  auto previous = std::make_shared<ShapeAppearanceSettings>(state->settings);
+  auto refresh_mixed = std::make_shared<std::function<void()>>();
+  const auto notify = [state, previous, edits, properties, batch, preview_changed, refresh_mixed](
+                          const std::vector<std::string>& fields = {}) {
+    if (batch != nullptr) {
+      if (fields.empty()) {
+        capture_appearance_edits(*edits, properties, *previous, state->settings);
+      } else {
+        for (const auto& property : properties)
+          if (std::find(fields.begin(), fields.end(), property.key) != fields.end())
+            edits->append(property.capture(state->settings));
+      }
+      state->settings.edits = std::make_shared<AppearanceEdits<ShapeAppearanceSettings>>(*edits);
     }
+    *previous = state->settings;
+    if (*refresh_mixed) (*refresh_mixed)();
+    if (preview_changed) preview_changed(state->settings);
   };
+
 
   // --- Layer (opacity and fill opacity, the Layers panel values) ---
   auto* layer_group = new QGroupBox(QObject::tr("Layer"), left_widget);
@@ -244,12 +277,12 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
       /*row_spacing=*/8, /*step_buttons=*/true);
   QObject::connect(layer_opacity_spin, &QSpinBox::valueChanged, &dialog, [state, notify](int value) {
     state->settings.layer_opacity = static_cast<float>(value) / 100.0F;
-    notify();
+    notify({"layer_opacity"});
   });
   QObject::connect(layer_fill_opacity_spin, &QSpinBox::valueChanged, &dialog,
                    [state, notify](int value) {
     state->settings.fill_opacity = static_cast<float>(value) / 100.0F;
-    notify();
+    notify({"fill_opacity"});
   });
   left_column->addWidget(layer_group);
 
@@ -345,7 +378,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
           params.arrow_width = params.line_weight * 5.0;
           params.arrow_length = params.line_weight * 10.0;
         }
-        notify();
+        notify({"geometry"});
       };
       for (auto* spin : {start_x, start_y, end_x, end_y, weight}) {
         QObject::connect(spin, &QDoubleSpinBox::valueChanged, &dialog, apply_line);
@@ -423,7 +456,17 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
             std::abs(geometry.corner_radii[1] - geometry.corner_radii[0]) < 1e-9 &&
             std::abs(geometry.corner_radii[2] - geometry.corner_radii[0]) < 1e-9 &&
             std::abs(geometry.corner_radii[3] - geometry.corner_radii[0]) < 1e-9;
-        radius_link->setChecked(corners_agree);
+
+        const bool every_shape_symmetric = batch == nullptr ||
+            std::all_of(batch->originals.begin(), batch->originals.end(), [](const auto& value) {
+              if (!appearance_has_editable_radii(value)) return true;
+              const auto& radii = value.geometry->corner_radii;
+              return std::all_of(radii.begin(), radii.end(), [&](double radius) {
+                return std::abs(radius - radii.front()) < 1e-9;
+              });
+            });
+        radius_link->setChecked(corners_agree && every_shape_symmetric);
+
         // Connected before apply_box below (the same ordering as the W / H
         // link) so every corner is already updated when the geometry applies.
         for (auto* spin : radius_spins) {
@@ -442,7 +485,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
         }
       }
       const auto apply_box = [state, notify, x_spin, y_spin, width_spin, height_spin,
-                              radius_spins] {
+                              radius_spins](const std::vector<std::string>& fields) {
         auto& params = *state->settings.geometry;
         params.left = x_spin->value();
         params.top = y_spin->value();
@@ -459,14 +502,21 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
             params.kind = LiveShapeKind::RoundedRectangle;
           }
         }
-        notify();
+        notify(fields);
       };
       for (auto* spin : {x_spin, y_spin, width_spin, height_spin}) {
-        QObject::connect(spin, &QDoubleSpinBox::valueChanged, &dialog, apply_box);
+        QObject::connect(spin, &QDoubleSpinBox::valueChanged, &dialog,
+                         [apply_box] { apply_box({"geometry"}); });
       }
-      for (auto* spin : radius_spins) {
+      for (std::size_t corner = 0; corner < radius_spins.size(); ++corner) {
+        auto* spin = radius_spins[corner];
         if (spin != nullptr) {
-          QObject::connect(spin, &QDoubleSpinBox::valueChanged, &dialog, apply_box);
+          QObject::connect(spin, &QDoubleSpinBox::valueChanged, &dialog,
+                           [apply_box, corner, &dialog] {
+            const auto* link = dialog.findChild<QToolButton*>(QStringLiteral("shapeGeometryRadiusLinkButton"));
+            if (link && link->isChecked()) apply_box({"radius.0", "radius.1", "radius.2", "radius.3"});
+            else apply_box({"radius." + std::to_string(corner)});
+          });
         }
       }
     }
@@ -651,11 +701,11 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   add_spin_row(edge_form, QObject::tr("Density:"), density_spin);
   QObject::connect(feather_spin, &QDoubleSpinBox::valueChanged, &dialog, [state, notify](double value) {
     state->settings.feather = value;
-    notify();
+    notify({"feather"});
   });
   QObject::connect(density_spin, &QSpinBox::valueChanged, &dialog, [state, notify](int value) {
     state->settings.density = static_cast<std::uint8_t>(std::lround(value * 255.0 / 100.0));
-    notify();
+    notify({"density"});
   });
   left_column->addWidget(edge_group);
 
@@ -695,7 +745,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   add_spin_row(stroke_form, QObject::tr("Opacity:"), stroke_opacity_spin);
   QObject::connect(stroke_opacity_spin, &QSpinBox::valueChanged, &dialog, [state, notify](int value) {
     state->settings.stroke.opacity = value / 100.0;
-    notify();
+    notify({"stroke.opacity"});
   });
 
   // Stroke paint: solid color, gradient, or pattern (vstk strokeStyleContent
@@ -836,6 +886,38 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
   QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
   dialog_layout->addWidget(buttons);
+  auto* preview_check = new QCheckBox(QObject::tr("Preview"), &dialog);
+  preview_check->setObjectName(QStringLiteral("shapeAppearancePreviewCheck"));
+  preview_check->setChecked(true);
+  dialog_layout->insertWidget(dialog_layout->count() - 1, preview_check);
+  QObject::connect(preview_check, &QCheckBox::toggled, &dialog, [=](bool checked) {
+    state->settings.preview_enabled = checked;
+    notify();
+  });
+
+
+  if (batch != nullptr && batch->selected_count > 1) {
+    auto* apply_all = buttons->addButton(QObject::tr("Apply All Settings to Selected Layers"),
+                                       QDialogButtonBox::ActionRole);
+    apply_all->setObjectName(QStringLiteral("shapeAppearanceApplyAllButton"));
+    QObject::connect(apply_all, &QPushButton::clicked, &dialog, [=] {
+      auto recipe = state->settings;
+      recipe.edits.reset();
+      edits->append({{}, [recipe](ShapeAppearanceSettings& target) {
+        const auto geometry = target.geometry;
+        target = recipe;
+        target.geometry = geometry;
+        if (appearance_has_editable_radii(target) && appearance_has_editable_radii(recipe)) {
+          target.geometry->corner_radii = recipe.geometry->corner_radii;
+          if (std::any_of(target.geometry->corner_radii.begin(), target.geometry->corner_radii.end(),
+                          [](double value) { return value > 0.0; }))
+            target.geometry->kind = LiveShapeKind::RoundedRectangle;
+        }
+      }});
+      *previous = state->settings;
+      notify();
+    });
+  }
 
   // Per-kind row visibility.
   const auto refresh_fill_rows = [=] {
@@ -870,7 +952,8 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
   // rather than hiding so the dialog never changes height under the pointer.
   // The per-paint-kind rows additionally hide like the fill section's.
   const auto refresh_stroke_rows = [=] {
-    const bool enabled = stroke_check->isChecked();
+    const bool enabled = stroke_check->isChecked() || (batch != nullptr && std::any_of(
+        batch->originals.begin(), batch->originals.end(), [](const auto& value) { return value.stroke.enabled; }));
     const auto set_row = [stroke_form, field_rows](QWidget* field, bool row_enabled) {
       if (const auto row = field_rows.find(field); row != field_rows.end()) {
         field = row->second;
@@ -1067,7 +1150,19 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
     // Factory appearance; the geometry the dialog opened with stays.
     auto restored = reset_defaults;
     restored.geometry = state->settings.geometry;
+    restored.preview_enabled = state->settings.preview_enabled;
+
     state->settings = std::move(restored);
+    if (batch != nullptr) {
+      auto recipe = reset_defaults;
+      recipe.edits.reset();
+      edits->append({{}, [recipe](ShapeAppearanceSettings& target) {
+        const auto geometry = target.geometry;
+        target = recipe;
+        target.geometry = geometry;
+      }});
+      *previous = state->settings;
+    }
     state->stroke_paint_touched = true;
     state->custom_dashes.clear();
     sync_all_controls();
@@ -1104,18 +1199,34 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
       state->settings.fill.pattern_name = fill_pattern_combo->currentText().toStdString();
     }
     refresh_fill_rows();
-    notify();
+    notify({"fill.kind"});
   });
+
   QObject::connect(fill_color_button, &QPushButton::clicked, &dialog, [=, &dialog] {
-    const auto& current = state->settings.fill.color;
-    const auto chosen = request_patchy_color(
-        &dialog, QColor(current.red, current.green, current.blue), QObject::tr("Shape Fill Color"));
-    if (chosen.has_value()) {
-      state->settings.fill.color = RgbColor{static_cast<std::uint8_t>(chosen->red()),
-                                            static_cast<std::uint8_t>(chosen->green()),
-                                            static_cast<std::uint8_t>(chosen->blue())};
+    const auto saved = state->settings;
+    const auto saved_edits = *edits;
+    const auto& current = saved.fill.color;
+    bool selected = false;
+    const auto apply_color = [=](QColor color) {
+      state->settings.fill.kind = VectorFillKind::Solid;
+      state->settings.fill.color = RgbColor{
+          static_cast<std::uint8_t>(color.red()), static_cast<std::uint8_t>(color.green()),
+          static_cast<std::uint8_t>(color.blue())};
+      state->stroke_paint_touched = true;
       fill_color_button->setIcon(color_swatch_icon(state->settings.fill.color));
+      notify({"fill.color"});
+    };
+    const auto chosen = request_patchy_color(
+        &dialog, QColor(current.red, current.green, current.blue), QObject::tr("Shape Fill Color"),
+        apply_color, &selected);
+    if (!chosen.has_value()) {
+      state->settings = saved;
+      *edits = saved_edits;
+      *previous = saved;
+      fill_color_button->setIcon(color_swatch_icon(saved.fill.color));
       notify();
+    } else if (selected || batch == nullptr) {
+      apply_color(*chosen);
     }
   });
   QObject::connect(fill_gradient_combo, &QComboBox::currentIndexChanged, &dialog, [=](int) {
@@ -1129,93 +1240,105 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
       // reverse) is the user's and stays.
       static_cast<GradientDefinition&>(state->settings.fill.gradient) =
           resolve_gradient_definition(entry->definition, foreground, background);
-      notify();
+      notify({"fill.gradient.definition"});
     }
   });
   QObject::connect(gradient_type_combo, &QComboBox::currentIndexChanged, &dialog, [=](int) {
     state->settings.fill.gradient.type =
         static_cast<LayerStyleGradientType>(gradient_type_combo->currentData().toInt());
-    notify();
+    notify({"fill.gradient.type"});
   });
   QObject::connect(gradient_angle_spin, &QSpinBox::valueChanged, &dialog, [=](int value) {
     state->settings.fill.gradient.angle_degrees = static_cast<float>(value);
-    notify();
+    notify({"fill.gradient.angle_degrees"});
   });
   QObject::connect(gradient_scale_spin, &QSpinBox::valueChanged, &dialog, [=](int value) {
     state->settings.fill.gradient.scale = static_cast<float>(value) / 100.0F;
-    notify();
+    notify({"fill.gradient.scale"});
   });
   QObject::connect(gradient_reverse_check, &QCheckBox::toggled, &dialog, [=](bool checked) {
     state->settings.fill.gradient.reverse = checked;
-    notify();
+    notify({"fill.gradient.reverse"});
   });
   QObject::connect(fill_pattern_combo, &QComboBox::currentIndexChanged, &dialog, [=](int) {
     state->settings.fill.pattern_id = fill_pattern_combo->currentData().toString().toStdString();
     state->settings.fill.pattern_name = fill_pattern_combo->currentText().toStdString();
-    notify();
+    notify({"fill.pattern_id", "fill.pattern_name"});
   });
   QObject::connect(pattern_scale_spin, &QSpinBox::valueChanged, &dialog, [=](int value) {
     state->settings.fill.pattern_scale = static_cast<double>(value) / 100.0;
-    notify();
+    notify({"fill.pattern_scale"});
   });
   QObject::connect(pattern_angle_spin, &QDoubleSpinBox::valueChanged, &dialog, [=](double value) {
     state->settings.fill.pattern_angle_degrees = value;
-    notify();
+    notify({"fill.pattern_angle_degrees"});
   });
   QObject::connect(pattern_offset_x_spin, &QDoubleSpinBox::valueChanged, &dialog, [=](double value) {
     state->settings.fill.pattern_phase_x = value;
-    notify();
+    notify({"fill.pattern_phase_x"});
   });
   QObject::connect(pattern_offset_y_spin, &QDoubleSpinBox::valueChanged, &dialog, [=](double value) {
     state->settings.fill.pattern_phase_y = value;
-    notify();
+    notify({"fill.pattern_phase_y"});
   });
   QObject::connect(pattern_align_check, &QCheckBox::toggled, &dialog, [=](bool checked) {
     state->settings.fill.pattern_linked = checked;
-    notify();
+    notify({"fill.pattern_linked"});
   });
   QObject::connect(stroke_check, &QCheckBox::toggled, &dialog, [=](bool checked) {
     state->settings.stroke.enabled = checked;
     refresh_stroke_rows();
-    notify();
+    notify({"stroke.enabled"});
   });
   QObject::connect(stroke_width_spin, &QDoubleSpinBox::valueChanged, &dialog, [=](double value) {
     state->settings.stroke.width = value;
-    notify();
+    notify({"stroke.width"});
   });
+
   QObject::connect(stroke_color_button, &QPushButton::clicked, &dialog, [=, &dialog] {
-    const auto& current = state->settings.stroke.content.color;
-    const auto chosen =
-        request_patchy_color(&dialog, QColor(current.red, current.green, current.blue),
-                             QObject::tr("Shape Stroke Color"));
-    if (chosen.has_value()) {
+    const auto saved = state->settings;
+    const auto saved_edits = *edits;
+    const auto& current = saved.stroke.content.color;
+    bool selected = false;
+    const auto apply_color = [=](QColor color) {
       state->settings.stroke.content.kind = VectorFillKind::Solid;
-      state->settings.stroke.content.color =
-          RgbColor{static_cast<std::uint8_t>(chosen->red()),
-                   static_cast<std::uint8_t>(chosen->green()),
-                   static_cast<std::uint8_t>(chosen->blue())};
+      state->settings.stroke.content.color = RgbColor{
+          static_cast<std::uint8_t>(color.red()), static_cast<std::uint8_t>(color.green()),
+          static_cast<std::uint8_t>(color.blue())};
       state->stroke_paint_touched = true;
       stroke_color_button->setIcon(color_swatch_icon(state->settings.stroke.content.color));
+      notify({"stroke.content.color"});
+    };
+    const auto chosen = request_patchy_color(
+        &dialog, QColor(current.red, current.green, current.blue), QObject::tr("Shape Stroke Color"),
+        apply_color, &selected);
+    if (!chosen.has_value()) {
+      state->settings = saved;
+      *edits = saved_edits;
+      *previous = saved;
+      stroke_color_button->setIcon(color_swatch_icon(saved.stroke.content.color));
       notify();
+    } else if (selected || batch == nullptr) {
+      apply_color(*chosen);
     }
   });
   QObject::connect(stroke_align_combo, &QComboBox::currentIndexChanged, &dialog, [=](int) {
     state->settings.stroke.alignment =
         static_cast<VectorStrokeAlignment>(stroke_align_combo->currentData().toInt());
-    notify();
+    notify({"stroke.alignment"});
   });
   QObject::connect(stroke_cap_combo, &QComboBox::currentIndexChanged, &dialog, [=](int) {
     state->settings.stroke.cap = static_cast<VectorStrokeCap>(stroke_cap_combo->currentData().toInt());
-    notify();
+    notify({"stroke.cap"});
   });
   QObject::connect(stroke_join_combo, &QComboBox::currentIndexChanged, &dialog, [=](int) {
     state->settings.stroke.join =
         static_cast<VectorStrokeJoin>(stroke_join_combo->currentData().toInt());
-    notify();
+    notify({"stroke.join"});
   });
   QObject::connect(stroke_dash_combo, &QComboBox::currentIndexChanged, &dialog, [=](int index) {
     state->settings.stroke.dashes = index <= 2 ? dash_preset(index) : state->custom_dashes;
-    notify();
+    notify({"stroke.dashes"});
   });
   QObject::connect(stroke_paint_combo, &QComboBox::currentIndexChanged, &dialog, [=](int) {
     auto& content = state->settings.stroke.content;
@@ -1246,7 +1369,7 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
       content.pattern_name = stroke_pattern_combo->currentText().toStdString();
     }
     refresh_stroke_rows();
-    notify();
+    notify({"stroke.content.kind"});
   });
   QObject::connect(stroke_gradient_combo, &QComboBox::currentIndexChanged, &dialog, [=](int) {
     if (gradient_library == nullptr) {
@@ -1258,65 +1381,209 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
       static_cast<GradientDefinition&>(state->settings.stroke.content.gradient) =
           resolve_gradient_definition(entry->definition, foreground, background);
       state->stroke_paint_touched = true;
-      notify();
+      notify({"stroke.content.gradient.definition"});
     }
   });
   QObject::connect(stroke_gradient_type_combo, &QComboBox::currentIndexChanged, &dialog, [=](int) {
     state->settings.stroke.content.gradient.type =
         static_cast<LayerStyleGradientType>(stroke_gradient_type_combo->currentData().toInt());
     state->stroke_paint_touched = true;
-    notify();
+    notify({"stroke.content.gradient.type"});
   });
   QObject::connect(stroke_gradient_angle_spin, &QSpinBox::valueChanged, &dialog, [=](int value) {
     state->settings.stroke.content.gradient.angle_degrees = static_cast<float>(value);
     state->stroke_paint_touched = true;
-    notify();
+    notify({"stroke.content.gradient.angle_degrees"});
   });
   QObject::connect(stroke_gradient_scale_spin, &QSpinBox::valueChanged, &dialog, [=](int value) {
     state->settings.stroke.content.gradient.scale = static_cast<float>(value) / 100.0F;
     state->stroke_paint_touched = true;
-    notify();
+    notify({"stroke.content.gradient.scale"});
   });
   QObject::connect(stroke_gradient_reverse_check, &QCheckBox::toggled, &dialog, [=](bool checked) {
     state->settings.stroke.content.gradient.reverse = checked;
     state->stroke_paint_touched = true;
-    notify();
+    notify({"stroke.content.gradient.reverse"});
   });
   QObject::connect(stroke_pattern_combo, &QComboBox::currentIndexChanged, &dialog, [=](int) {
     state->settings.stroke.content.pattern_id =
         stroke_pattern_combo->currentData().toString().toStdString();
     state->settings.stroke.content.pattern_name = stroke_pattern_combo->currentText().toStdString();
     state->stroke_paint_touched = true;
-    notify();
+    notify({"stroke.content.pattern_id", "stroke.content.pattern_name"});
   });
   QObject::connect(stroke_pattern_scale_spin, &QSpinBox::valueChanged, &dialog, [=](int value) {
     state->settings.stroke.content.pattern_scale = static_cast<double>(value) / 100.0;
     state->stroke_paint_touched = true;
-    notify();
+    notify({"stroke.content.pattern_scale"});
   });
   QObject::connect(stroke_pattern_angle_spin, &QDoubleSpinBox::valueChanged, &dialog,
                    [=](double value) {
     state->settings.stroke.content.pattern_angle_degrees = value;
     state->stroke_paint_touched = true;
-    notify();
+    notify({"stroke.content.pattern_angle_degrees"});
   });
   QObject::connect(stroke_pattern_offset_x_spin, &QDoubleSpinBox::valueChanged, &dialog,
                    [=](double value) {
     state->settings.stroke.content.pattern_phase_x = value;
     state->stroke_paint_touched = true;
-    notify();
+    notify({"stroke.content.pattern_phase_x"});
   });
   QObject::connect(stroke_pattern_offset_y_spin, &QDoubleSpinBox::valueChanged, &dialog,
                    [=](double value) {
     state->settings.stroke.content.pattern_phase_y = value;
     state->stroke_paint_touched = true;
-    notify();
+    notify({"stroke.content.pattern_phase_y"});
   });
   QObject::connect(stroke_pattern_align_check, &QCheckBox::toggled, &dialog, [=](bool checked) {
     state->settings.stroke.content.pattern_linked = checked;
     state->stroke_paint_touched = true;
-    notify();
+    notify({"stroke.content.pattern_linked"});
   });
+
+
+  if (batch != nullptr) {
+    auto* fill_applicability = new QLabel(fill_group);
+    auto* stroke_applicability = new QLabel(stroke_group);
+    fill_applicability->setObjectName(QStringLiteral("shapeFillPaintApplicability"));
+    stroke_applicability->setObjectName(QStringLiteral("shapeStrokePaintApplicability"));
+    for (auto* label : {fill_applicability, stroke_applicability}) label->setWordWrap(true);
+    fill_layout->addWidget(fill_applicability);
+    stroke_layout->addWidget(stroke_applicability);
+    auto bindings = std::make_shared<std::vector<std::pair<QWidget*, std::vector<std::string>>>>();
+    const auto bind_field = [=](QWidget* widget, std::vector<std::string> keys) {
+      bindings->emplace_back(widget, keys);
+      // The color buttons launch a picker; opening one is not a color edit.
+      if (qobject_cast<QAbstractSpinBox*>(widget) || qobject_cast<QComboBox*>(widget))
+        install_appearance_edit_intent(widget, [=] {
+          // Re-read the displayed value: imported values may have more
+          // precision than this control, even when its text did not change.
+          if (auto* spin = qobject_cast<QDoubleSpinBox*>(widget))
+            QMetaObject::invokeMethod(spin, "valueChanged", Qt::DirectConnection, Q_ARG(double, spin->value()));
+          else if (auto* integer_spin = qobject_cast<QSpinBox*>(widget))
+            QMetaObject::invokeMethod(integer_spin, "valueChanged", Qt::DirectConnection, Q_ARG(int, integer_spin->value()));
+          else notify(keys);
+        });
+    };
+    bind_field(layer_opacity_spin, {"layer_opacity"});
+    bind_field(layer_fill_opacity_spin, {"fill_opacity"});
+    bind_field(feather_spin, {"feather"});
+    bind_field(density_spin, {"density"});
+    bind_field(stroke_opacity_spin, {"stroke.opacity"});
+    bind_field(fill_kind_combo, {"fill.kind"});
+    bind_field(fill_gradient_combo, {"fill.gradient.definition"});
+    bind_field(gradient_type_combo, {"fill.gradient.type"});
+    bind_field(gradient_angle_spin, {"fill.gradient.angle_degrees"});
+    bind_field(gradient_scale_spin, {"fill.gradient.scale"});
+    bind_field(gradient_reverse_check, {"fill.gradient.reverse"});
+    bind_field(fill_pattern_combo, {"fill.pattern_id", "fill.pattern_name"});
+    bind_field(pattern_scale_spin, {"fill.pattern_scale"});
+    bind_field(pattern_angle_spin, {"fill.pattern_angle_degrees"});
+    bind_field(pattern_offset_x_spin, {"fill.pattern_phase_x"});
+    bind_field(pattern_offset_y_spin, {"fill.pattern_phase_y"});
+    bind_field(pattern_align_check, {"fill.pattern_linked"});
+    bind_field(stroke_check, {"stroke.enabled"});
+    bind_field(stroke_width_spin, {"stroke.width"});
+    bind_field(stroke_align_combo, {"stroke.alignment"});
+    bind_field(stroke_cap_combo, {"stroke.cap"});
+    bind_field(stroke_join_combo, {"stroke.join"});
+    bind_field(stroke_dash_combo, {"stroke.dashes"});
+    bind_field(stroke_paint_combo, {"stroke.content.kind"});
+    bind_field(stroke_gradient_combo, {"stroke.content.gradient.definition"});
+    bind_field(stroke_gradient_type_combo, {"stroke.content.gradient.type"});
+    bind_field(stroke_gradient_angle_spin, {"stroke.content.gradient.angle_degrees"});
+    bind_field(stroke_gradient_scale_spin, {"stroke.content.gradient.scale"});
+    bind_field(stroke_gradient_reverse_check, {"stroke.content.gradient.reverse"});
+    bind_field(stroke_pattern_combo, {"stroke.content.pattern_id", "stroke.content.pattern_name"});
+    bind_field(stroke_pattern_scale_spin, {"stroke.content.pattern_scale"});
+    bind_field(stroke_pattern_angle_spin, {"stroke.content.pattern_angle_degrees"});
+    bind_field(stroke_pattern_offset_x_spin, {"stroke.content.pattern_phase_x"});
+    bind_field(stroke_pattern_offset_y_spin, {"stroke.content.pattern_phase_y"});
+    bind_field(stroke_pattern_align_check, {"stroke.content.pattern_linked"});
+    bind_field(fill_color_button, {"fill.color"});
+    bind_field(stroke_color_button, {"stroke.content.color"});
+    const std::array<const char*, 4> names{
+        "shapeGeometryRadiusTopLeftSpin", "shapeGeometryRadiusTopRightSpin",
+        "shapeGeometryRadiusBottomRightSpin", "shapeGeometryRadiusBottomLeftSpin"};
+    for (std::size_t corner = 0; corner < names.size(); ++corner) {
+      if (auto* spin = dialog.findChild<QDoubleSpinBox*>(QLatin1String(names[corner]))) {
+        const auto key = "radius." + std::to_string(corner);
+        bindings->emplace_back(spin, std::vector<std::string>{key});
+        install_appearance_edit_intent(spin, [=, &dialog] {
+          auto* link = dialog.findChild<QToolButton*>(QStringLiteral("shapeGeometryRadiusLinkButton"));
+          if (link && link->isChecked()) {
+            state->settings.geometry->corner_radii.fill(spin->value());
+            if (spin->value() > 0) state->settings.geometry->kind = LiveShapeKind::RoundedRectangle;
+            for (const char* name : {"shapeGeometryRadiusTopLeftSpin", "shapeGeometryRadiusTopRightSpin",
+                                     "shapeGeometryRadiusBottomRightSpin", "shapeGeometryRadiusBottomLeftSpin"}) {
+              if (auto* other = dialog.findChild<QDoubleSpinBox*>(QLatin1String(name))) {
+                const QSignalBlocker blocker(other);
+                other->setValue(spin->value());
+              }
+            }
+            notify({"radius.0", "radius.1", "radius.2", "radius.3"});
+          }
+          else {
+            state->settings.geometry->corner_radii[corner] = spin->value();
+            if (spin->value() > 0) state->settings.geometry->kind = LiveShapeKind::RoundedRectangle;
+            notify({key});
+          }
+        });
+      }
+    }
+    if (multiple) {
+      for (const char* name : {"shapeGeometryXSpin", "shapeGeometryYSpin", "shapeGeometryWidthSpin",
+                               "shapeGeometryHeightSpin", "shapeGeometryLinkButton"})
+        if (auto* widget = dialog.findChild<QWidget*>(QLatin1String(name))) {
+          widget->setEnabled(false);
+          if (const auto row = field_rows.find(widget); row != field_rows.end()) row->second->setEnabled(false);
+        }
+      const auto count = std::count_if(batch->originals.begin(), batch->originals.end(),
+                                       appearance_has_editable_radii);
+      if (count > 0) {
+        const auto first = std::find_if(batch->originals.begin(), batch->originals.end(), appearance_has_editable_radii);
+        const auto index = static_cast<std::size_t>(std::distance(batch->originals.begin(), first));
+        auto* hint = new QLabel(QObject::tr("Editable rectangles for corner radii: %n", nullptr, static_cast<int>(count)) +
+            QStringLiteral("\n") + QObject::tr("Values from: %1").arg(batch->names[index]), left_widget);
+        hint->setObjectName(QStringLiteral("shapeRadiusSelectionSummary"));
+        hint->setWordWrap(true);
+        left_column->insertWidget(1, hint);
+      }
+    }
+    *refresh_mixed = [=] {
+      std::vector<ShapeAppearanceSettings> current;
+      for (const auto& original : batch->originals) current.push_back(edits->applied(original));
+      const auto describe_paint_targets = [&](QLabel* label, bool stroke) {
+        const auto kind = stroke ? state->settings.stroke.content.kind : state->settings.fill.kind;
+        const auto count = std::count_if(current.begin(), current.end(), [&](const auto& value) {
+          return (stroke ? value.stroke.content.kind : value.fill.kind) == kind;
+        });
+        const bool specific = kind == VectorFillKind::Gradient || kind == VectorFillKind::Pattern;
+        label->setVisible(specific && count != static_cast<std::ptrdiff_t>(current.size()));
+        if (specific) label->setText((kind == VectorFillKind::Gradient
+            ? QObject::tr("Gradient settings apply to %1 of %2 editable layers.")
+            : QObject::tr("Pattern settings apply to %1 of %2 editable layers."))
+                .arg(count).arg(current.size()));
+      };
+      describe_paint_targets(fill_applicability, false);
+      describe_paint_targets(stroke_applicability, true);
+      for (const auto& [widget, keys] : *bindings) {
+        bool mixed = false;
+        for (const auto& property : properties) {
+          if (std::find(keys.begin(), keys.end(), property.key) == keys.end()) continue;
+          if (property.key.starts_with("radius.")) {
+            const auto rectangle = std::find_if(current.begin(), current.end(), appearance_has_editable_radii);
+            if (rectangle != current.end()) for (const auto& value : current)
+              if (appearance_has_editable_radii(value)) mixed = mixed || !property.equal(*rectangle, value);
+          } else for (const auto& value : current)
+            mixed = mixed || !property.equal(current.front(), value);
+        }
+        set_appearance_mixed(widget, mixed);
+      }
+    };
+    (*refresh_mixed)();
+    state->settings.edits = std::make_shared<AppearanceEdits<ShapeAppearanceSettings>>(*edits);
+  }
 
   // Value spins commit on Enter/arrows/focus-out only: per-keystroke preview
   // renders made typing "10" into the pattern scale render at "1" first (a
@@ -1366,6 +1633,10 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
 
   if (run_non_modal_dialog(dialog) != QDialog::Accepted) {
     return std::nullopt;
+  }
+  if (!state->settings.preview_enabled) {
+    state->settings.preview_enabled = true;
+    notify();
   }
   return state->settings;
 }

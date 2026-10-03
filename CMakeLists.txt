@@ -1081,6 +1081,10 @@ ${PATCHY_LUPDATE_MANIFEST_SOURCES}
       src/ui/default_custom_shapes.cpp
       src/ui/shape_appearance_dialog.hpp
       src/ui/shape_appearance_dialog.cpp
+      src/ui/appearance_edits.hpp
+      src/ui/appearance_edits.cpp
+      src/ui/appearance_properties.hpp
+      src/ui/appearance_properties.cpp
       src/ui/shape_create_dialog.hpp
       src/ui/shape_create_dialog.cpp
       src/ui/measurement_units.hpp
@@ -1802,6 +1806,7 @@ if(PATCHY_BUILD_TESTS)
       tests/ui/misc_visuals_outline_stress_tests.cpp
       tests/ui/float_window_tests.cpp
       tests/ui/vector_shape_tool_tests.cpp
+      tests/ui/batch_appearance_tests.cpp
       tests/ui/vector_preview_tests.cpp
       tests/ui/vector_point_editing_tests.cpp
       tests/ui/vector_commands_tests.cpp

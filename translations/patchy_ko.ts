@@ -8669,6 +8669,52 @@ RGB: %2, %3, %4</translation>
         <source>Default frame delay:</source>
         <translation>기본 프레임 지연:</translation>
     </message>
+    <message>
+        <source>Mixed: selected layers have different values</source>
+        <translation>혼합: 선택한 레이어의 값이 서로 다릅니다</translation>
+    </message>
+    <message>
+        <source> (Mixed)</source>
+        <translation> (혼합)</translation>
+    </message>
+    <message>
+        <source>Values from: %1</source>
+        <translation>값 참조: %1</translation>
+    </message>
+    <message>
+        <source>Apply All Settings to Selected Layers</source>
+        <translation>모든 설정을 선택한 레이어에 적용</translation>
+    </message>
+    <message>
+        <source>Present on %1 of %2 layers</source>
+        <translation>%2개 레이어 중 %1개에 있음</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n layers selected</source>
+        <translation>
+            <numerusform>레이어 %n개 선택됨</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Editable layers: %n</source>
+        <translation>
+            <numerusform>편집 가능한 레이어 %n개</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Editable rectangles for corner radii: %n</source>
+        <translation>
+            <numerusform>모서리 반경: 편집 가능한 사각형 %n개</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Gradient settings apply to %1 of %2 editable layers.</source>
+        <translation>그레이디언트 설정은 편집 가능한 레이어 %2개 중 %1개에 적용됩니다.</translation>
+    </message>
+    <message>
+        <source>Pattern settings apply to %1 of %2 editable layers.</source>
+        <translation>패턴 설정은 편집 가능한 레이어 %2개 중 %1개에 적용됩니다.</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -17974,28 +18020,12 @@ Y: %2
         </translation>
     </message>
     <message>
-        <source>Select a shape layer to edit its appearance</source>
-        <translation>모양 레이어를 선택하여 모양을 편집하세요.</translation>
-    </message>
-    <message>
-        <source>This shape layer&apos;s vector data is preserved but can&apos;t be edited.</source>
-        <translation>이 모양 레이어의 벡터 데이터는 보존되지만 편집할 수는 없습니다.</translation>
-    </message>
-    <message>
-        <source>Updating shape...</source>
-        <translation>도형 업데이트 중...</translation>
-    </message>
-    <message>
         <source>Cancelled shape appearance</source>
         <translation>모양 외형 편집을 취소했습니다</translation>
     </message>
     <message>
         <source>Shape appearance</source>
         <translation>모양 외형</translation>
-    </message>
-    <message>
-        <source>Updated the shape appearance</source>
-        <translation>모양 외형을 업데이트했습니다</translation>
     </message>
     <message>
         <source>Created fill layer %1.</source>
@@ -18328,6 +18358,30 @@ Y: %2
     <message>
         <source>Saved animated WebP copy %1</source>
         <translation>애니메이션 WebP 사본 저장됨: %1</translation>
+    </message>
+    <message>
+        <source>Locked layers are skipped. Groups receive their own style; their children are unchanged.</source>
+        <translation>잠긴 레이어는 건너뜁니다. 그룹 자체에 스타일이 적용되며 하위 레이어는 변경되지 않습니다.</translation>
+    </message>
+    <message>
+        <source>Select an unlocked, editable shape layer</source>
+        <translation>잠금 해제된 편집 가능한 모양 레이어를 선택하세요</translation>
+    </message>
+    <message>
+        <source>Locked layers and layers without editable shapes are skipped.</source>
+        <translation>잠긴 레이어와 편집 가능한 모양이 없는 레이어는 건너뜁니다.</translation>
+    </message>
+    <message>
+        <source>Updating shapes...</source>
+        <translation>모양 업데이트 중...</translation>
+    </message>
+    <message>
+        <source>%1: preserved blending data remains protected.</source>
+        <translation>%1: 보존된 혼합 데이터는 계속 보호됩니다.</translation>
+    </message>
+    <message>
+        <source>%1: editing effects normalizes unsupported Satin contours.</source>
+        <translation>%1: 효과를 편집하면 지원되지 않는 새틴 윤곽이 표준화됩니다.</translation>
     </message>
 </context>
 <context>

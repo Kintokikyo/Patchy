@@ -94,6 +94,7 @@ struct LayerDropRequest;
 namespace patchy::ui {
 
 struct PdfImportedDocument;
+struct ShapeAppearanceSettings;
 
 namespace user_fonts {
 struct AddFontsResult;
@@ -1171,6 +1172,7 @@ private:
   void pick_vector_gradient(bool for_stroke);
   void pick_vector_pattern(bool for_stroke);
   [[nodiscard]] patchy::Layer* editable_active_vector_shape_layer();
+  [[nodiscard]] std::vector<patchy::LayerId> editable_selected_shape_layer_ids() const;
   [[nodiscard]] bool vector_appearance_controls_live() const;
   // Resolves a pattern id to renderable tiles: document store first, then the
   // library, then the bundled presets (the rasterizer's own fallback order).
@@ -1178,8 +1180,13 @@ private:
       const std::string& pattern_id);
   void sync_shape_appearance_options_from_active_layer();
   void refresh_vector_stroke_controls();
-  bool apply_options_bar_appearance_to_active_shape();
+  bool apply_options_bar_appearance_to_active_shape(const std::vector<std::string>& fields = {});
   void schedule_vector_appearance_apply();
+  void finish_pending_shape_appearance_edit();
+  void apply_selected_shape_corner_radius(double radius);
+  void queue_shape_appearance_edit(const ShapeAppearanceSettings& settings);
+  bool commit_shape_appearance_edit(const std::vector<LayerId>& ids,
+                                    const ShapeAppearanceSettings& settings);
   // Options-bar W / H of the active shape layer (Photoshop's readouts): the
   // spins mirror its path bounds and a debounced edit scales the shape about
   // its top-left corner (live shapes stay live under an axis-aligned scale).
@@ -1205,7 +1212,9 @@ private:
   // Fill/stroke editing (main_window_vector.cpp): the live-preview appearance
   // dialog for the active shape layer, and Layer > New Fill Layer creation
   // (a shape layer with an empty path = the whole canvas).
-  bool edit_active_shape_appearance(bool record_undo = true);
+  bool edit_active_shape_appearance(bool record_undo = true,
+      std::function<std::optional<ShapeAppearanceSettings>(const ShapeAppearanceSettings&,
+          std::function<void(const ShapeAppearanceSettings&)>)> editor = {});
   void create_fill_layer_with_appearance(const VectorFill& fill, const QString& name);
   [[nodiscard]] Layer build_fill_layer(const patchy::VectorFill& fill, const QString& name);
   [[nodiscard]] QString unique_fill_layer_name(const QString& base);
@@ -2297,6 +2306,8 @@ private:
   // Debounces live-editing bursts (stroke-width spin / its popup slider) into
   // one undo entry + one rasterize.
   QTimer* vector_appearance_apply_timer_{nullptr};
+  std::function<void()> pending_shape_appearance_edit_;
+  std::string pending_shape_appearance_property_;
   UnitSpinBox* vector_shape_width_spin_{nullptr};
   UnitSpinBox* vector_shape_height_spin_{nullptr};
   QPushButton* vector_shape_link_size_button_{nullptr};

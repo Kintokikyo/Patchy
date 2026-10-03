@@ -1,3 +1,5 @@
+#include "ui/appearance_properties.hpp"
+#include <QScopeGuard>
 #include "formats/animation_timing.hpp"
 // MainWindow's clipboard and layer operations, split out of main_window.cpp:
 // the cut/copy/copy-merged/paste flows and system-clipboard plumbing, the
@@ -2332,117 +2334,85 @@ void ensure_patterns_for_style(Document& doc, const LayerStyle& style,
 }  // namespace
 
 void MainWindow::edit_active_layer_style() {
-  // A layer-style dialog is itself a preview dialog. Never open a second one on
-  // top of an existing one (e.g. by double-clicking another layer in the list
-  // while one is open) -- the stacked nested event loops crash.
-  if (preview_dialog_edit_locked()) {
-    show_preview_dialog_edit_lock_message();
-    return;
-  }
-  if (refuse_layer_dialog_during_transform()) {
-    return;
-  }
-  if (canvas_ != nullptr &&
-      canvas_->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor")) != nullptr) {
-    finish_active_text_editor();
-  }
+  if (preview_dialog_edit_locked()) { show_preview_dialog_edit_lock_message(); return; }
+  if (!has_active_document() || refuse_layer_dialog_during_transform()) return;
+  finish_pending_shape_appearance_edit();
+  finish_pending_layer_opacity_edit();
+  finish_pending_layer_fill_opacity_edit();
+  finish_pending_layer_blend_edit();
+  finish_active_text_editor();
   auto& doc = document();
-  if (!doc.active_layer_id().has_value()) {
-    return;
+  const auto selected = selected_or_active_layer_ids();
+  auto ids = selected;
+  const auto active = doc.active_layer_id();
+  if (active) {
+    const auto it = std::find(ids.begin(), ids.end(), *active);
+    if (it != ids.end()) std::rotate(ids.begin(), it, it + 1);
   }
-  const auto layer_id = *doc.active_layer_id();
-  auto* layer = doc.find_layer(layer_id);
-  if (layer == nullptr) {
-    return;
+  std::erase_if(ids, [&](LayerId id) {
+    return !std::as_const(doc).find_layer(id) || layer_is_effectively_locked(doc.layers(), id);
+  });
+  if (ids.empty()) return;
+  std::vector<Layer> originals;
+  AppearanceDialogContext<LayerStyleSettings> context;
+  context.selected_count = selected.size();
+  context.skipped_reason = tr("Locked layers are skipped. Groups receive their own style; their children are unchanged.");
+  for (const auto id : ids) {
+    const auto& layer = *std::as_const(doc).find_layer(id);
+    originals.push_back(layer);
+    context.originals.push_back(layer_style_settings(layer));
+    context.names.push_back(QString::fromStdString(layer.name()));
+    if (layer.blend_if_payload_status() == BlendIfPayloadStatus::Unsupported || !layer.channel_restriction_supported()) {
+      if (!context.notices.isEmpty()) context.notices += QLatin1Char('\n');
+      context.notices += tr("%1: preserved blending data remains protected.").arg(context.names.back());
+    }
+    if (std::any_of(layer.layer_style().satins.begin(), layer.layer_style().satins.end(),
+                    [](const auto& satin) { return satin.unsupported_contour_options; })) {
+      if (!context.notices.isEmpty()) context.notices += QLatin1Char('\n');
+      context.notices += tr("%1: editing effects normalizes unsupported Satin contours.").arg(context.names.back());
+    }
   }
-
-  const auto original_opacity = layer->opacity();
-  const auto original_fill_opacity = layer->fill_opacity();
-  const auto original_blend_mode = layer->blend_mode();
-  const auto original_style = layer->layer_style();
-  const auto original_blend_if = layer->blend_if();
-  const auto original_blend_if_payload = layer->raw_psd_blending_ranges();
-  const auto original_blend_if_rgb_compatible = layer->blend_if_rgb_compatible();
-  const auto original_restricted_channels = layer->restricted_channels();
   const auto original_patterns = doc.metadata().patterns;
-  auto set_layer_style_settings = [original_blend_if, original_blend_if_payload,
-                                   original_blend_if_rgb_compatible](Layer& target,
-                                                                     const LayerStyleSettings& settings) {
-    target.set_opacity(static_cast<float>(settings.opacity) / 100.0F);
-    target.set_fill_opacity(static_cast<float>(settings.fill_opacity) / 100.0F);
-    target.set_blend_mode(settings.blend_mode);
-    target.layer_style() = settings.style;
-    if (target.channel_restriction_supported()) {
-      // Unsupported preserved 'brst' payloads stay untouched: the dialog
-      // presents disabled checkboxes and reports a zero mask for them.
-      target.set_restricted_channels(settings.restricted_channels);
-    }
-    if (!settings.replace_unsupported_blend_if && settings.blend_if == original_blend_if) {
-      target.set_blend_if_payload(original_blend_if_payload, original_blend_if_rgb_compatible);
-    } else {
-      (void)target.set_blend_if(settings.blend_if, settings.replace_unsupported_blend_if);
-    }
+  const auto effects_equal = [](const LayerStyle& a, const LayerStyle& b) {
+    LayerStyleSettings left, right;
+    left.style = a; right.style = b;
+    return layer_style_settings_equal(left, right);
   };
-  auto apply_preview_settings = [this, &doc, layer_id, set_layer_style_settings,
-                                 original_patterns](const LayerStyleSettings& settings) {
-    auto* target = doc.find_layer(layer_id);
-    if (target == nullptr) {
-      return;
+  const auto apply_settings = [&](Layer& target, const Layer& original, const LayerStyleSettings& next) {
+    const auto baseline = layer_style_settings(original);
+    // Percent controls must not quantize untouched imported opacity values.
+    target.set_opacity(!next.opacity_edited && next.opacity == baseline.opacity ? original.opacity() : next.opacity / 100.0F);
+    target.set_fill_opacity(!next.fill_opacity_edited && next.fill_opacity == baseline.fill_opacity ? original.fill_opacity() : next.fill_opacity / 100.0F);
+    target.set_blend_mode(next.blend_mode);
+    const bool style_changed = !effects_equal(original.layer_style(), next.style);
+    target.layer_style() = next.style;
+    if (style_changed) {
+      for (auto& satin : target.layer_style().satins) satin.unsupported_contour_options = false;
+      clear_layer_psd_style_source(target);
     }
-    // Every preview starts from the original document store. The temporary
-    // store may contain a manager-selected collision alias, so use it as a
-    // fallback while materializing only patterns referenced by this preview.
-    const auto available_patterns = doc.metadata().patterns;
+    if (original.channel_restriction_supported()) target.set_restricted_channels(next.restricted_channels);
+    target.set_blend_if_payload(original.raw_psd_blending_ranges(), original.blend_if_rgb_compatible());
+    if (next.replace_unsupported_blend_if || next.blend_if != baseline.blend_if)
+      (void)target.set_blend_if(next.blend_if, next.replace_unsupported_blend_if);
+  };
+  const auto restore = [&] {
     doc.metadata().patterns = original_patterns;
-    ensure_patterns_for_style(doc, settings.style, pattern_library(), &available_patterns);
-    set_layer_style_settings(*target, settings);
-    if (canvas_ != nullptr) {
-      canvas_->document_changed_async_preview();
-    }
+    for (const auto& original : originals)
+      if (auto* target = doc.find_layer(original.id())) *target = original;
+    if (canvas_) canvas_->document_changed_async_preview();
   };
-  auto apply_committed_settings = [this, &doc, layer_id, set_layer_style_settings](
-                                      const LayerStyleSettings& settings,
-                                      const PatternStore* transient_patterns) {
-    auto* target = doc.find_layer(layer_id);
-    if (target == nullptr) {
-      return;
+  const auto preview = [&](const LayerStyleSettings& settings) {
+    const auto available = doc.metadata().patterns;
+    restore();
+    if (!settings.preview_enabled) return;
+    for (std::size_t index = 0; index < originals.size(); ++index) {
+      const auto& original = originals[index];
+      const auto next = apply_layer_style_edits(context.originals[index], settings);
+      ensure_patterns_for_style(doc, next.style, pattern_library(), &available);
+      if (auto* target = doc.find_layer(original.id())) apply_settings(*target, original, next);
     }
-    ensure_patterns_for_style(doc, settings.style, pattern_library(), transient_patterns);
-    const auto before = layer_render_bounds(*target);
-    set_layer_style_settings(*target, settings);
-    const auto after = layer_render_bounds(*target);
-    if (canvas_ != nullptr) {
-      canvas_->document_changed(to_qrect(unite_rect(before, after)));
-    }
+    if (canvas_) canvas_->document_changed_async_preview();
   };
-  auto restore_original = [this, &doc, layer_id, original_opacity, original_fill_opacity,
-                           original_blend_mode, original_style,
-                           original_blend_if_payload, original_blend_if_rgb_compatible,
-                           original_restricted_channels, original_patterns] {
-    doc.metadata().patterns = original_patterns;
-    auto* target = doc.find_layer(layer_id);
-    if (target == nullptr) {
-      return;
-    }
-    const auto before = layer_render_bounds(*target);
-    target->set_opacity(original_opacity);
-    target->set_fill_opacity(original_fill_opacity);
-    target->set_blend_mode(original_blend_mode);
-    target->layer_style() = original_style;
-    if (target->channel_restriction_supported()) {
-      target->set_restricted_channels(original_restricted_channels);
-    }
-    target->set_blend_if_payload(original_blend_if_payload, original_blend_if_rgb_compatible);
-    const auto after = layer_render_bounds(*target);
-    if (canvas_ != nullptr) {
-      canvas_->document_changed(to_qrect(unite_rect(before, after)));
-    }
-  };
-
-  // "Open as Image" requests from the nested Pattern Manager are deferred until the
-  // dialog closes: add_document_session must never run while the preview-dialog edit
-  // lock is held (its activation tail and the preview lambdas' captured canvas/document
-  // would desync — see the comment in add_document_session).
   std::vector<std::pair<QString, PixelBuffer>> pending_pattern_images;
   auto queue_pattern_image = [this, &pending_pattern_images](const QString& name,
                                                              const PixelBuffer& tile) {
@@ -2464,71 +2434,57 @@ void MainWindow::edit_active_layer_style() {
     pending_pattern_images.clear();
   };
 
-  const auto phase_ms = [](std::chrono::steady_clock::time_point from) {
-    return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - from).count();
-  };
-  auto preview_edit_lock = lock_preview_dialog_edits();
-  const auto dialog_started = std::chrono::steady_clock::now();
-  const auto settings =
-      request_layer_style_settings(this, *layer, apply_preview_settings, &doc.metadata().patterns,
-                                   &pattern_library(), &style_library(), queue_pattern_image,
-                                   &gradient_library(),
-                                   RgbColor{static_cast<std::uint8_t>(canvas_->primary_color().red()),
-                                            static_cast<std::uint8_t>(canvas_->primary_color().green()),
-                                            static_cast<std::uint8_t>(canvas_->primary_color().blue())},
-                                   RgbColor{static_cast<std::uint8_t>(canvas_->secondary_color().red()),
-                                            static_cast<std::uint8_t>(canvas_->secondary_color().green()),
-                                            static_cast<std::uint8_t>(canvas_->secondary_color().blue())});
-  const auto dialog_ms = phase_ms(dialog_started);
-  if (!settings.has_value()) {
-    const auto restore_started = std::chrono::steady_clock::now();
-    restore_original();
-    const auto restore_ms = phase_ms(restore_started);
-    preview_edit_lock.release();
-    // Cancel restored the exact pre-dialog state: no row structure, name,
-    // badge, or detail text changed, so a full row rebuild (seconds on a
-    // many-layer document) would be pure waste. Only the previewed layer's
-    // thumbnail revision moved.
-    const auto list_started = std::chrono::steady_clock::now();
-    refresh_layer_thumbnails();
-    const auto list_ms = phase_ms(list_started);
-    const auto controls_started = std::chrono::steady_clock::now();
-    refresh_layer_controls();
-    const auto controls_ms = phase_ms(controls_started);
-    std::ostringstream detail;
-    detail << "cancelled dialog_ms=" << dialog_ms << " restore_ms=" << restore_ms
-           << " thumbs_ms=" << list_ms << " controls_ms=" << controls_ms;
-    log_ui_profile("edit_active_layer_style", phase_ms(dialog_started), detail.str());
-    open_pending_pattern_images();
-    return;
-  }
 
-  const auto dialog_patterns = doc.metadata().patterns;
-  const auto restore_started = std::chrono::steady_clock::now();
-  restore_original();
-  const auto restore_ms = phase_ms(restore_started);
-  preview_edit_lock.release();
-  const auto undo_started = std::chrono::steady_clock::now();
-  push_undo_snapshot(tr("Layer style"));
-  const auto undo_ms = phase_ms(undo_started);
-  if (auto* target = doc.find_layer(layer_id); target != nullptr) {
-    clear_layer_psd_style_source(*target);
+  auto lock = lock_preview_dialog_edits();
+  auto cleanup = qScopeGuard(restore);
+  const auto fg = canvas_->primary_color(), bg = canvas_->secondary_color();
+  const auto accepted = request_layer_style_settings(this, originals.front(), preview,
+      &doc.metadata().patterns, &pattern_library(), &style_library(), queue_pattern_image,
+      &gradient_library(),
+      {static_cast<std::uint8_t>(fg.red()), static_cast<std::uint8_t>(fg.green()), static_cast<std::uint8_t>(fg.blue())},
+      {static_cast<std::uint8_t>(bg.red()), static_cast<std::uint8_t>(bg.green()), static_cast<std::uint8_t>(bg.blue())},
+      &context);
+  const auto available = doc.metadata().patterns;
+  restore();
+  bool changed = false;
+  if (accepted) {
+    std::vector<std::pair<std::size_t, LayerStyleSettings>> changes;
+    for (std::size_t index = 0; index < originals.size(); ++index) {
+      auto next = apply_layer_style_edits(context.originals[index], *accepted);
+      // Unsupported native payloads require the existing explicit replacement action.
+      if (originals[index].blend_if_payload_status() == BlendIfPayloadStatus::Unsupported &&
+          !next.replace_unsupported_blend_if) next.blend_if = context.originals[index].blend_if;
+      if (!originals[index].channel_restriction_supported())
+        next.restricted_channels = context.originals[index].restricted_channels;
+      if (!layer_style_settings_equal(context.originals[index], next) ||
+          (next.opacity_edited && originals[index].opacity() != next.opacity / 100.0F) ||
+          (next.fill_opacity_edited && originals[index].fill_opacity() != next.fill_opacity / 100.0F))
+        changes.emplace_back(index, std::move(next));
+    }
+    if (!changes.empty()) {
+      // Finish allocations and pattern resolution before publishing anything or
+      // recording history. Applying fields to the prepared tree also keeps an
+      // explicitly selected child independent of its selected parent group.
+      auto prepared = doc;
+      for (const auto& [index, next] : changes) {
+        ensure_patterns_for_style(prepared, next.style, pattern_library(), &available);
+        if (auto* target = prepared.find_layer(originals[index].id())) apply_settings(*target, originals[index], next);
+      }
+      push_undo_snapshot(tr("Layer style"));
+      doc = std::move(prepared);
+      changed = true;
+    }
   }
-  const auto apply_started = std::chrono::steady_clock::now();
-  apply_committed_settings(*settings, &dialog_patterns);
-  const auto apply_ms = phase_ms(apply_started);
-  const auto list_started = std::chrono::steady_clock::now();
-  refresh_layer_list();
-  const auto list_ms = phase_ms(list_started);
-  const auto controls_started = std::chrono::steady_clock::now();
+  cleanup.dismiss();
+  lock.release();
+  if (changed) {
+    canvas_->document_changed();
+    refresh_layer_list();
+    select_layers_in_layer_list(selected, active.value_or(ids.front()));
+    statusBar()->showMessage(tr("Updated layer style"));
+  }
+  refresh_layer_thumbnails();
   refresh_layer_controls();
-  const auto controls_ms = phase_ms(controls_started);
-  std::ostringstream detail;
-  detail << "committed dialog_ms=" << dialog_ms << " restore_ms=" << restore_ms
-         << " undo_ms=" << undo_ms << " apply_ms=" << apply_ms << " list_ms=" << list_ms
-         << " controls_ms=" << controls_ms;
-  log_ui_profile("edit_active_layer_style", phase_ms(dialog_started), detail.str());
-  statusBar()->showMessage(tr("Updated layer style"));
   open_pending_pattern_images();
 }
 
@@ -2832,8 +2788,7 @@ void MainWindow::show_layer_context_menu(QPoint position) {
   // Shape and fill layers surface their appearance editor here too (double-
   // click on the row is the other entry point); same gate as that site.
   QAction* edit_shape_appearance_action = nullptr;
-  if (active_layer != nullptr && layer_is_vector_shape(*active_layer) &&
-      vector_lock_reason(*active_layer).empty()) {
+  if (!editable_selected_shape_layer_ids().empty()) {
     edit_shape_appearance_action =
         menu.addAction(simple_icon(QStringLiteral("SHP"), QColor(190, 220, 255)),
                        tr("Edit Shape Appearance..."));

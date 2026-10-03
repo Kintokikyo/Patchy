@@ -6,6 +6,7 @@
 // order is load-bearing (see create_actions() for the phase order).
 
 #include "ui/main_window.hpp"
+#include "ui/appearance_edits.hpp"
 #include "ui/main_window_shared.hpp"
 #include "ui/main_window_actions_internal.hpp"
 
@@ -2447,7 +2448,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     current_vector_stroke_enabled_ = checked;
     refresh_vector_stroke_controls();
     schedule_save_tool_settings();
-    apply_options_bar_appearance_to_active_shape();
+    apply_options_bar_appearance_to_active_shape({"stroke.enabled"});
   });
 
   vector_stroke_swatch_button_ = new QToolButton(toolbar);
@@ -2485,6 +2486,14 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     schedule_save_tool_settings();
     schedule_vector_appearance_apply();
   });
+
+  install_appearance_edit_intent(vector_stroke_width, [this, vector_stroke_width] {
+    current_vector_stroke_width_ = vector_stroke_width->value();
+    schedule_save_tool_settings();
+    schedule_vector_appearance_apply();
+  });
+  connect(vector_stroke_width, &QDoubleSpinBox::editingFinished, this,
+          [this] { finish_pending_shape_appearance_edit(); });
 
   // W / H of the ACTIVE shape layer (Photoshop's options-bar readouts): they
   // mirror the selected shape's bounds and resize it live (top-left anchored,
@@ -2713,11 +2722,21 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   add_option_widget(shape_corner_radius, {CanvasTool::Rectangle});
   connect(shape_corner_radius, &QSpinBox::valueChanged, this, [this](int value) {
     current_shape_corner_radius_ = value;
+    apply_selected_shape_corner_radius(value);
     if (canvas_ != nullptr) {
       canvas_->set_shape_corner_radius(value);
       schedule_save_tool_settings();
     }
   });
+
+  install_appearance_edit_intent(shape_corner_radius, [this, shape_corner_radius] {
+    current_shape_corner_radius_ = shape_corner_radius->value();
+    apply_selected_shape_corner_radius(current_shape_corner_radius_);
+    if (canvas_ != nullptr) canvas_->set_shape_corner_radius(current_shape_corner_radius_);
+    schedule_save_tool_settings();
+  });
+  connect(shape_corner_radius, &QSpinBox::editingFinished, this,
+          [this] { finish_pending_shape_appearance_edit(); });
 
   // Style / Width / Height for the shape draw tools, mirroring the marquee's
   // Normal / Fixed Ratio / Fixed Size options (session-only, like the marquee's).

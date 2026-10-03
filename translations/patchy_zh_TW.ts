@@ -8669,6 +8669,52 @@ RGB：%2, %3, %4</translation>
         <source>Default frame delay:</source>
         <translation>預設影格間隔:</translation>
     </message>
+    <message>
+        <source>Mixed: selected layers have different values</source>
+        <translation>混合：選取圖層的值不同</translation>
+    </message>
+    <message>
+        <source> (Mixed)</source>
+        <translation> (混合)</translation>
+    </message>
+    <message>
+        <source>Values from: %1</source>
+        <translation>參考值來自：%1</translation>
+    </message>
+    <message>
+        <source>Apply All Settings to Selected Layers</source>
+        <translation>將所有設定套用至選取的圖層</translation>
+    </message>
+    <message>
+        <source>Present on %1 of %2 layers</source>
+        <translation>存在於 %2 個圖層中的 %1 個</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n layers selected</source>
+        <translation>
+            <numerusform>已選取 %n 個圖層</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Editable layers: %n</source>
+        <translation>
+            <numerusform>%n 個可編輯圖層</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Editable rectangles for corner radii: %n</source>
+        <translation>
+            <numerusform>圓角半徑：%n 個可編輯矩形</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Gradient settings apply to %1 of %2 editable layers.</source>
+        <translation>漸層設定適用於 %2 個可編輯圖層中的 %1 個。</translation>
+    </message>
+    <message>
+        <source>Pattern settings apply to %1 of %2 editable layers.</source>
+        <translation>圖樣設定適用於 %2 個可編輯圖層中的 %1 個。</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -16808,28 +16854,12 @@ Y：%2
         </translation>
     </message>
     <message>
-        <source>Select a shape layer to edit its appearance</source>
-        <translation>請選取形狀圖層以編輯它的外觀</translation>
-    </message>
-    <message>
-        <source>This shape layer&apos;s vector data is preserved but can&apos;t be edited.</source>
-        <translation>這個形狀圖層的向量資料已保留，但無法編輯。</translation>
-    </message>
-    <message>
-        <source>Updating shape...</source>
-        <translation>正在更新形狀...</translation>
-    </message>
-    <message>
         <source>Cancelled shape appearance</source>
         <translation>已取消形狀外觀</translation>
     </message>
     <message>
         <source>Shape appearance</source>
         <translation>形狀外觀</translation>
-    </message>
-    <message>
-        <source>Updated the shape appearance</source>
-        <translation>已更新形狀外觀</translation>
     </message>
     <message>
         <source>Created fill layer %1.</source>
@@ -18328,6 +18358,30 @@ Baked into images: %1.</source>
     <message>
         <source>Saved animated WebP copy %1</source>
         <translation>已儲存動畫 WebP 副本 %1</translation>
+    </message>
+    <message>
+        <source>Locked layers are skipped. Groups receive their own style; their children are unchanged.</source>
+        <translation>將略過鎖定的圖層。樣式套用至群組本身，其子圖層保持不變。</translation>
+    </message>
+    <message>
+        <source>Select an unlocked, editable shape layer</source>
+        <translation>請選取未鎖定且可編輯的形狀圖層</translation>
+    </message>
+    <message>
+        <source>Locked layers and layers without editable shapes are skipped.</source>
+        <translation>將略過鎖定的圖層以及沒有可編輯形狀的圖層。</translation>
+    </message>
+    <message>
+        <source>Updating shapes...</source>
+        <translation>正在更新形狀...</translation>
+    </message>
+    <message>
+        <source>%1: preserved blending data remains protected.</source>
+        <translation>%1：保留的混合資料仍受保護。</translation>
+    </message>
+    <message>
+        <source>%1: editing effects normalizes unsupported Satin contours.</source>
+        <translation>%1：編輯效果將標準化不支援的光澤輪廓。</translation>
     </message>
 </context>
 <context>

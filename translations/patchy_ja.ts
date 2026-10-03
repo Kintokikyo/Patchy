@@ -8669,6 +8669,52 @@ Mixed selection</source>
         <source>Default frame delay:</source>
         <translation>既定のフレーム表示時間:</translation>
     </message>
+    <message>
+        <source>Mixed: selected layers have different values</source>
+        <translation>混在：選択したレイヤーの値が異なります</translation>
+    </message>
+    <message>
+        <source> (Mixed)</source>
+        <translation> (混在)</translation>
+    </message>
+    <message>
+        <source>Values from: %1</source>
+        <translation>値の参照元：%1</translation>
+    </message>
+    <message>
+        <source>Apply All Settings to Selected Layers</source>
+        <translation>すべての設定を選択したレイヤーに適用</translation>
+    </message>
+    <message>
+        <source>Present on %1 of %2 layers</source>
+        <translation>%2 個のレイヤーのうち %1 個に存在</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n layers selected</source>
+        <translation>
+            <numerusform>%n 個のレイヤーを選択中</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Editable layers: %n</source>
+        <translation>
+            <numerusform>編集可能なレイヤー：%n 個</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Editable rectangles for corner radii: %n</source>
+        <translation>
+            <numerusform>角の半径：編集可能な長方形 %n 個</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Gradient settings apply to %1 of %2 editable layers.</source>
+        <translation>グラデーション設定は編集可能な %2 個のレイヤーのうち %1 個に適用されます。</translation>
+    </message>
+    <message>
+        <source>Pattern settings apply to %1 of %2 editable layers.</source>
+        <translation>パターン設定は編集可能な %2 個のレイヤーのうち %1 個に適用されます。</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -15950,24 +15996,12 @@ Clipped to the layer below</source>
         <translation>パスを作業用パスに追加しました。</translation>
     </message>
     <message>
-        <source>Select a shape layer to edit its appearance</source>
-        <translation>外観を編集するシェイプレイヤーを選択してください</translation>
-    </message>
-    <message>
-        <source>This shape layer&apos;s vector data is preserved but can&apos;t be edited.</source>
-        <translation>このシェイプレイヤーのベクトルデータは保持されていますが編集できません。</translation>
-    </message>
-    <message>
         <source>Cancelled shape appearance</source>
         <translation>シェイプの外観をキャンセルしました</translation>
     </message>
     <message>
         <source>Shape appearance</source>
         <translation>シェイプの外観</translation>
-    </message>
-    <message>
-        <source>Updated the shape appearance</source>
-        <translation>シェイプの外観を更新しました</translation>
     </message>
     <message>
         <source>Color Fill %1</source>
@@ -17142,10 +17176,6 @@ Clipped to the layer below</source>
     <message>
         <source>Embeddable Files (*.psd *.psb *.png *.jpg *.jpeg *.tif *.tiff *.bmp);;All Files (*.*)</source>
         <translation>埋め込み可能なファイル (*.psd *.psb *.png *.jpg *.jpeg *.tif *.tiff *.bmp);;すべてのファイル (*.*)</translation>
-    </message>
-    <message>
-        <source>Updating shape...</source>
-        <translation>シェイプを更新しています...</translation>
     </message>
     <message>
         <source>1280 x 720 (HD)</source>
@@ -18328,6 +18358,30 @@ Baked into images: %1.</source>
     <message>
         <source>Saved animated WebP copy %1</source>
         <translation>アニメーションWebPのコピーを保存しました: %1</translation>
+    </message>
+    <message>
+        <source>Locked layers are skipped. Groups receive their own style; their children are unchanged.</source>
+        <translation>ロックされたレイヤーはスキップされます。グループ自体にスタイルが適用され、子レイヤーは変更されません。</translation>
+    </message>
+    <message>
+        <source>Select an unlocked, editable shape layer</source>
+        <translation>ロックされていない編集可能なシェイプレイヤーを選択してください</translation>
+    </message>
+    <message>
+        <source>Locked layers and layers without editable shapes are skipped.</source>
+        <translation>ロックされたレイヤーと編集可能なシェイプのないレイヤーはスキップされます。</translation>
+    </message>
+    <message>
+        <source>Updating shapes...</source>
+        <translation>シェイプを更新中...</translation>
+    </message>
+    <message>
+        <source>%1: preserved blending data remains protected.</source>
+        <translation>%1：保持されている描画設定データは保護されます。</translation>
+    </message>
+    <message>
+        <source>%1: editing effects normalizes unsupported Satin contours.</source>
+        <translation>%1：効果を編集すると、未対応のサテン輪郭が標準化されます。</translation>
     </message>
 </context>
 <context>

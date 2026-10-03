@@ -49,6 +49,7 @@ std::vector<patchy::test::TestCase> legacy_plugin_tests();
 std::vector<patchy::test::TestCase> misc_visuals_outline_stress_tests();
 std::vector<patchy::test::TestCase> float_window_tests();
 std::vector<patchy::test::TestCase> vector_shape_tool_tests();
+std::vector<patchy::test::TestCase> batch_appearance_tests();
 std::vector<patchy::test::TestCase> vector_preview_tests();
 std::vector<patchy::test::TestCase> vector_point_editing_tests();
 std::vector<patchy::test::TestCase> vector_commands_tests();

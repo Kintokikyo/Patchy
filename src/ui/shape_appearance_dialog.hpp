@@ -2,6 +2,7 @@
 
 #include "core/vector_shape.hpp"
 #include "ui/unit_spin_box.hpp"
+#include "ui/appearance_edits.hpp"
 
 #include <functional>
 #include <optional>
@@ -33,6 +34,8 @@ struct ShapeAppearanceSettings {
   float fill_opacity{1.0F};
   double feather{0.0};
   std::uint8_t density{255};
+  std::shared_ptr<const AppearanceEdits<ShapeAppearanceSettings>> edits{};
+  bool preview_enabled{true};
 };
 
 // GRD presets may defer stops to the tool colors; shape fills store concrete
@@ -56,6 +59,7 @@ struct ShapeAppearanceSettings {
     ShapeAppearanceSettings initial, ShapeAppearanceSettings reset_defaults,
     GradientLibrary* gradient_library,
     PatternLibrary* pattern_library, const PatternStore* document_patterns, RgbColor foreground,
-    RgbColor background, const DocumentFieldUnits& units = {});
+    RgbColor background, const DocumentFieldUnits& units = {},
+    const AppearanceDialogContext<ShapeAppearanceSettings>* batch = nullptr);
 
 }  // namespace patchy::ui

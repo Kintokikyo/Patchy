@@ -8696,6 +8696,55 @@ RVB : %2, %3, %4</translation>
         <source>Default frame delay:</source>
         <translation>Durée d’image par défaut :</translation>
     </message>
+    <message>
+        <source>Mixed: selected layers have different values</source>
+        <translation>Mixte : les calques sélectionnés ont des valeurs différentes</translation>
+    </message>
+    <message>
+        <source> (Mixed)</source>
+        <translation> (Mixte)</translation>
+    </message>
+    <message>
+        <source>Values from: %1</source>
+        <translation>Valeurs de : %1</translation>
+    </message>
+    <message>
+        <source>Apply All Settings to Selected Layers</source>
+        <translation>Appliquer tous les réglages aux calques sélectionnés</translation>
+    </message>
+    <message>
+        <source>Present on %1 of %2 layers</source>
+        <translation>Présent sur %1 calques sur %2</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n layers selected</source>
+        <translation>
+            <numerusform>%n calque sélectionné</numerusform>
+            <numerusform>%n calques sélectionnés</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Editable layers: %n</source>
+        <translation>
+            <numerusform>%n calque modifiable</numerusform>
+            <numerusform>%n calques modifiables</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Editable rectangles for corner radii: %n</source>
+        <translation>
+            <numerusform>Rayons des coins : %n rectangle modifiable</numerusform>
+            <numerusform>Rayons des coins : %n rectangles modifiables</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Gradient settings apply to %1 of %2 editable layers.</source>
+        <translation>Les réglages du dégradé s’appliquent à %1 calques modifiables sur %2.</translation>
+    </message>
+    <message>
+        <source>Pattern settings apply to %1 of %2 editable layers.</source>
+        <translation>Les réglages du motif s’appliquent à %1 calques modifiables sur %2.</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -16848,28 +16897,12 @@ Y : %2
         </translation>
     </message>
     <message>
-        <source>Select a shape layer to edit its appearance</source>
-        <translation>Sélectionnez un calque de forme pour modifier son aspect</translation>
-    </message>
-    <message>
-        <source>This shape layer&apos;s vector data is preserved but can&apos;t be edited.</source>
-        <translation>Les données vectorielles de ce calque de forme sont conservées mais ne peuvent pas être modifiées.</translation>
-    </message>
-    <message>
-        <source>Updating shape...</source>
-        <translation>Mise à jour de la forme...</translation>
-    </message>
-    <message>
         <source>Cancelled shape appearance</source>
         <translation>Aspect de la forme annulé</translation>
     </message>
     <message>
         <source>Shape appearance</source>
         <translation>Aspect de la forme</translation>
-    </message>
-    <message>
-        <source>Updated the shape appearance</source>
-        <translation>Aspect de la forme mis à jour</translation>
     </message>
     <message>
         <source>Created fill layer %1.</source>
@@ -18381,6 +18414,30 @@ Convertis en images : %1.</translation>
     <message>
         <source>Saved animated WebP copy %1</source>
         <translation>Copie WebP animée enregistrée : %1</translation>
+    </message>
+    <message>
+        <source>Locked layers are skipped. Groups receive their own style; their children are unchanged.</source>
+        <translation>Les calques verrouillés sont ignorés. Les groupes reçoivent leur propre style ; leurs calques enfants restent inchangés.</translation>
+    </message>
+    <message>
+        <source>Select an unlocked, editable shape layer</source>
+        <translation>Sélectionnez un calque de forme déverrouillé et modifiable</translation>
+    </message>
+    <message>
+        <source>Locked layers and layers without editable shapes are skipped.</source>
+        <translation>Les calques verrouillés et ceux sans formes modifiables sont ignorés.</translation>
+    </message>
+    <message>
+        <source>Updating shapes...</source>
+        <translation>Mise à jour des formes...</translation>
+    </message>
+    <message>
+        <source>%1: preserved blending data remains protected.</source>
+        <translation>%1 : les données de fusion conservées restent protégées.</translation>
+    </message>
+    <message>
+        <source>%1: editing effects normalizes unsupported Satin contours.</source>
+        <translation>%1 : la modification des effets normalise les contours Satin non pris en charge.</translation>
     </message>
 </context>
 <context>

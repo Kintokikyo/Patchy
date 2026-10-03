@@ -8696,6 +8696,55 @@ RGB: %2, %3, %4</translation>
         <source>Default frame delay:</source>
         <translation>Durata predefinita del fotogramma:</translation>
     </message>
+    <message>
+        <source>Mixed: selected layers have different values</source>
+        <translation>Misto: i livelli selezionati hanno valori diversi</translation>
+    </message>
+    <message>
+        <source> (Mixed)</source>
+        <translation> (Misto)</translation>
+    </message>
+    <message>
+        <source>Values from: %1</source>
+        <translation>Valori da: %1</translation>
+    </message>
+    <message>
+        <source>Apply All Settings to Selected Layers</source>
+        <translation>Applica tutte le impostazioni ai livelli selezionati</translation>
+    </message>
+    <message>
+        <source>Present on %1 of %2 layers</source>
+        <translation>Presente su %1 di %2 livelli</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n layers selected</source>
+        <translation>
+            <numerusform>%n livello selezionato</numerusform>
+            <numerusform>%n livelli selezionati</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Editable layers: %n</source>
+        <translation>
+            <numerusform>%n livello modificabile</numerusform>
+            <numerusform>%n livelli modificabili</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Editable rectangles for corner radii: %n</source>
+        <translation>
+            <numerusform>Raggi degli angoli: %n rettangolo modificabile</numerusform>
+            <numerusform>Raggi degli angoli: %n rettangoli modificabili</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Gradient settings apply to %1 of %2 editable layers.</source>
+        <translation>Le impostazioni del gradiente si applicano a %1 di %2 livelli modificabili.</translation>
+    </message>
+    <message>
+        <source>Pattern settings apply to %1 of %2 editable layers.</source>
+        <translation>Le impostazioni del motivo si applicano a %1 di %2 livelli modificabili.</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -16848,28 +16897,12 @@ Y: %2
         </translation>
     </message>
     <message>
-        <source>Select a shape layer to edit its appearance</source>
-        <translation>Seleziona un livello forma per modificarne l&apos;aspetto</translation>
-    </message>
-    <message>
-        <source>This shape layer&apos;s vector data is preserved but can&apos;t be edited.</source>
-        <translation>I dati vettoriali di questo livello forma sono conservati ma non possono essere modificati.</translation>
-    </message>
-    <message>
-        <source>Updating shape...</source>
-        <translation>Aggiornamento della forma...</translation>
-    </message>
-    <message>
         <source>Cancelled shape appearance</source>
         <translation>Aspetto forma annullato</translation>
     </message>
     <message>
         <source>Shape appearance</source>
         <translation>Aspetto forma</translation>
-    </message>
-    <message>
-        <source>Updated the shape appearance</source>
-        <translation>Aspetto della forma aggiornato</translation>
     </message>
     <message>
         <source>Created fill layer %1.</source>
@@ -18381,6 +18414,30 @@ Convertiti in immagini: %1.</translation>
     <message>
         <source>Saved animated WebP copy %1</source>
         <translation>Copia WebP animata salvata: %1</translation>
+    </message>
+    <message>
+        <source>Locked layers are skipped. Groups receive their own style; their children are unchanged.</source>
+        <translation>I livelli bloccati vengono ignorati. I gruppi ricevono il proprio stile; i livelli al loro interno restano invariati.</translation>
+    </message>
+    <message>
+        <source>Select an unlocked, editable shape layer</source>
+        <translation>Seleziona un livello forma sbloccato e modificabile</translation>
+    </message>
+    <message>
+        <source>Locked layers and layers without editable shapes are skipped.</source>
+        <translation>I livelli bloccati e quelli senza forme modificabili vengono ignorati.</translation>
+    </message>
+    <message>
+        <source>Updating shapes...</source>
+        <translation>Aggiornamento delle forme...</translation>
+    </message>
+    <message>
+        <source>%1: preserved blending data remains protected.</source>
+        <translation>%1: i dati di fusione conservati restano protetti.</translation>
+    </message>
+    <message>
+        <source>%1: editing effects normalizes unsupported Satin contours.</source>
+        <translation>%1: la modifica degli effetti normalizza i contorni Satinatura non supportati.</translation>
     </message>
 </context>
 <context>

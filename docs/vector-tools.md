@@ -23,12 +23,11 @@ preset's FG/BG stops at pick time; pattern picks adopt into the document
 store at commit (`ensure_vector_fill_patterns`, honoring the Patt-block
 refusal rule below). Kind and preset ids persist under
 vectorFill*/vectorStrokePaint* keys; gradient/pattern PLACEMENT resets each
-launch. Selecting an editable shape layer syncs the controls (also for Path
-Select / Direct Select); edits apply live (one "Shape appearance" undo per
-gesture, width spin debounced) and stick as next-shape defaults.
-Stroke precedes its swatch and scrub-enabled Stroke width label/field;
-turning it off disables all three without clearing their values.
-Appearance... ends the shape options row.
+launch. Selected shapes share property edits and corner radii, with mixed-value
+markers and one undo per gesture; see [batch appearance](batch-appearance.md).
+The controls also serve Path Select / Direct Select and next-shape defaults.
+Stroke controls remain enabled when any eligible target has a stroke.
+Appearance... ends the row. Position and size edits require one selected layer.
 
 A bare click (no drag) with Rectangle, Ellipse, Polygon, or Custom Shape
 opens the Create <Shape> dialog (shape_create_dialog.cpp): Width, Height,

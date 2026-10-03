@@ -494,6 +494,7 @@ void MainWindow::activate_document_canvas(CanvasWidget* canvas, const std::funct
     show_preview_dialog_edit_lock_message();
     return;
   }
+  if (canvas != canvas_) finish_pending_shape_appearance_edit();
   const auto canvas_changed = canvas != canvas_;
   if (canvas_changed) {
     // Animation-preview playback belongs to the outgoing document: stop it and restore
@@ -684,6 +685,7 @@ bool MainWindow::close_document_session(DocumentSession& target_session) {
   // smart-object child recursion both run arbitrary UI code (dialogs, nested
   // closes) that can erase sessions_ entries.
   const auto target_id = target_session.session_id;
+  if (&target_session == active_session()) finish_pending_shape_appearance_edit();
   // Commit any in-progress inline text edit while its canvas is still active:
   // the pending text belongs in the save-changes decision below, and an editor
   // that survives into removeTab() auto-commits on the focus change mid

@@ -1,3 +1,4 @@
+#include "ui/appearance_properties.hpp"
 #include "ui/layer_style_dialog.hpp"
 
 #include "core/contour_presets.hpp"
@@ -355,7 +356,7 @@ constexpr const char *kContourCustomId = "custom";
 
 GradientDefinition resolved_gradient_definition(GradientDefinition definition,
                                                 RgbColor foreground,
-                                                RgbColor background) {
+    RgbColor background) {
   for (auto &stop : definition.color_stops) {
     if (stop.kind == GradientColorStop::Kind::Foreground)
       stop.color = foreground;
@@ -562,6 +563,26 @@ enum class LayerStyleEffectKind {
   BevelTexture
 };
 
+std::string effect_property_prefix(LayerStyleEffectKind kind, int index) {
+  const char* name = "";
+  switch (kind) {
+    case LayerStyleEffectKind::BevelEmboss: name = "bevels"; break;
+    case LayerStyleEffectKind::BevelContour: return "bevels.0.contour";
+    case LayerStyleEffectKind::BevelTexture: return "bevels.0.texture";
+    case LayerStyleEffectKind::Stroke: name = "strokes"; break;
+    case LayerStyleEffectKind::InnerShadow: name = "inner_shadows"; break;
+    case LayerStyleEffectKind::InnerGlow: name = "inner_glows"; break;
+    case LayerStyleEffectKind::Satin: name = "satins"; break;
+    case LayerStyleEffectKind::ColorOverlay: name = "color_overlays"; break;
+    case LayerStyleEffectKind::GradientOverlay: name = "gradient_fills"; break;
+    case LayerStyleEffectKind::OuterGlow: name = "outer_glows"; break;
+    case LayerStyleEffectKind::DropShadow: name = "drop_shadows"; break;
+    case LayerStyleEffectKind::PatternOverlay: name = "pattern_overlays"; break;
+    case LayerStyleEffectKind::None: return {};
+  }
+  return std::string(name) + "." + std::to_string(std::max(0, index));
+}
+
 constexpr int kLayerStylePageRole = Qt::UserRole + 1;
 constexpr int kLayerStyleEffectKindRole = Qt::UserRole + 2;
 constexpr int kLayerStyleEffectIndexRole = Qt::UserRole + 3;
@@ -587,6 +608,7 @@ struct LayerStyleEffectVectorOps {
   int (*add_instance)(LayerStyle& target, int source_index);
   // Erases index when present; returns the index to select next.
   int (*remove_instance)(LayerStyle& target, int index);
+  void (*duplicate_for_batch)(LayerStyle& target, const LayerStyle& reference, int index);
 };
 
 template <auto Member, auto MakeDefault>
@@ -612,6 +634,21 @@ constexpr LayerStyleEffectVectorOps effect_vector_ops() {
           vector.erase(vector.begin() + index);
         }
         return vector.empty() ? 0 : std::min(index, static_cast<int>(vector.size()) - 1);
+      },
+      [](LayerStyle& target, const LayerStyle& reference, int index) {
+        auto& values = target.*Member;
+        const auto& templates = reference.*Member;
+        const auto slot = static_cast<std::size_t>(std::max(0, index));
+        auto value = slot < values.size() ? values[slot] :
+                     slot < templates.size() ? templates[slot] : MakeDefault();
+        value.enabled = true;
+        // With no occurrence on the reference, '+' adds the first instance.
+        const auto insertion = templates.empty() ? 0U : slot + 1U;
+        while (values.size() < insertion) {
+          auto disabled = MakeDefault(); disabled.enabled = false;
+          values.push_back(std::move(disabled));
+        }
+        values.insert(values.begin() + static_cast<std::ptrdiff_t>(insertion), std::move(value));
       },
   };
 }
@@ -825,7 +862,7 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
     PatternStore* document_patterns, PatternLibrary* pattern_library, StyleLibrary* style_library,
     std::function<void(const QString& name, const PixelBuffer& tile)> open_pattern_as_image,
     GradientLibrary *gradient_library, RgbColor foreground,
-    RgbColor background) {
+    RgbColor background, const AppearanceDialogContext<LayerStyleSettings>* batch) {
   const auto request_started = std::chrono::steady_clock::now();
   const LayerStyleSettings original_settings{
       static_cast<int>(std::round(layer.opacity() * 100.0F)),
@@ -835,6 +872,11 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
       false,
       static_cast<int>(std::round(layer.fill_opacity() * 100.0F)),
       layer.channel_restriction_supported() ? layer.restricted_channels() : std::uint8_t{0}};
+  auto batch_edits = std::make_shared<AppearanceEdits<LayerStyleSettings>>();
+  std::optional<LayerStyleSettings> last_displayed;
+  std::vector<std::string> explicit_fields;
+  std::function<void()> reset_batch_capture;
+  std::function<void()> refresh_batch_mixed;
   auto style = layer.layer_style();
   auto blend_if = layer.blend_if();
   const auto blend_if_payload_status = layer.blend_if_payload_status();
@@ -894,6 +936,14 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
   name->setReadOnly(true);
   name_row->addWidget(name, 1);
   root->addLayout(name_row);
+  if (batch && batch->selected_count > 1) {
+    auto* summary = new QLabel(appearance_selection_summary(batch->selected_count, batch->originals.size(),
+        QString::fromStdString(layer.name()), batch->skipped_reason), &dialog);
+    summary->setObjectName(QStringLiteral("layerStyleSelectionSummary"));
+    summary->setWordWrap(true);
+    if (!batch->notices.isEmpty()) summary->setText(summary->text() + QStringLiteral("\n") + batch->notices);
+    root->addWidget(summary);
+  }
 
   // A pattern reference resolves if its tile is embedded in the document or is
   // one of Patchy's built-in presets (materialized into the document on apply).
@@ -1159,18 +1209,26 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
                                     const QString& color_picker_title, bool offer_shape_burst = false) {
     auto controls_state = std::make_unique<LayerStyleGradientControls>();
     auto* state = controls_state.get();
+    const auto mark_ramp_edit = [&, object_prefix] {
+      if (!batch) return;
+      const auto* current = categories->currentItem();
+      const auto index = current ? current->data(kLayerStyleEffectIndexRole).toInt() : 0;
+      explicit_fields = {effect_property_prefix(object_prefix.contains(QStringLiteral("Stroke"))
+          ? LayerStyleEffectKind::Stroke : LayerStyleEffectKind::GradientOverlay, index) + ".gradient.definition"};
+    };
 
     auto *preset_button = new QPushButton(QObject::tr("Preset..."),parent_widget);
     preset_button->setObjectName(object_prefix + QStringLiteral("PresetButton"));
     preset_button->setEnabled(gradient_library != nullptr);
     form->addRow(QObject::tr("Preset"), preset_button);
     if (gradient_library != nullptr) {
-      const auto apply_preset = [state, foreground, background](
+      const auto apply_preset = [state, foreground, background, mark_ramp_edit](
                                     const GradientLibraryEntry &entry) {
         auto value = state->value();
         static_cast<GradientDefinition &>(value) = resolved_gradient_definition(
             entry.definition, foreground, background);
         state->load(value);
+        mark_ramp_edit();
         if (state->changed)
           state->changed(true);
       };QObject::connect(preset_button, &QPushButton::clicked, &dialog,
@@ -1720,7 +1778,12 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
                        state->update_previews();
                        notify_changed(false);
                      });
-    QObject::connect(state->stop_hex, &QLineEdit::editingFinished, &dialog, [state, notify_changed] {
+    QObject::connect(state->stop_hex, &QLineEdit::textEdited, &dialog, [state] {
+      state->stop_hex->setProperty("appearanceUserTyped", true);
+    });
+    QObject::connect(state->stop_hex, &QLineEdit::editingFinished, &dialog, [state, notify_changed, mark_ramp_edit] {
+      const bool user_typed = state->stop_hex->property("appearanceUserTyped").toBool();
+      state->stop_hex->setProperty("appearanceUserTyped", false);
       if (state->loading || state->selected_color_stop < 0 ||
           state->selected_color_stop >= static_cast<int>(state->color_stops.size())) {
         return;
@@ -1738,15 +1801,24 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
           RgbColor{static_cast<std::uint8_t>(color.red()), static_cast<std::uint8_t>(color.green()),
                    static_cast<std::uint8_t>(color.blue())};
       state->update_previews();
+      if (user_typed) mark_ramp_edit();
       notify_changed(true);
     });
-    auto choose_stop_color = [&, state, notify_changed, color_picker_title] {
+    auto choose_stop_color = [&, state, notify_changed, color_picker_title, object_prefix] {
       if (state->selected_color_stop < 0 ||
           state->selected_color_stop >= static_cast<int>(state->color_stops.size())) {
         return;
       }
       const auto row = state->selected_color_stop;
       const auto original = state->color_stops[static_cast<std::size_t>(row)].color;
+      const auto saved_edits = *batch_edits;
+      const auto ramp_key = [&] {
+        const auto* current = categories->currentItem();
+        const auto index = current ? current->data(kLayerStyleEffectIndexRole).toInt() : 0;
+        return effect_property_prefix(object_prefix.contains(QStringLiteral("Stroke"))
+            ? LayerStyleEffectKind::Stroke : LayerStyleEffectKind::GradientOverlay, index) + ".gradient.definition";
+      };
+      bool selected = false;
       auto apply_color = [state, row](QColor color) {
         if (!color.isValid() || row >= static_cast<int>(state->color_stops.size())) {
           return;
@@ -1759,15 +1831,21 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
       const auto chosen = request_patchy_color(&dialog, QColor(original.red, original.green, original.blue),
                                                color_picker_title, [&](QColor color) {
                                                  apply_color(color);
+                                                 if (batch) explicit_fields = {ramp_key()};
                                                  notify_changed(false);
-                                               });
+                                               }, &selected);
       if (!chosen.has_value()) {
         apply_color(QColor(original.red, original.green, original.blue));
+        *batch_edits = saved_edits;
+        if (reset_batch_capture) reset_batch_capture();
         notify_changed(true);
         return;
       }
-      apply_color(*chosen);
-      notify_changed(true);
+      if (selected || !batch) {
+        apply_color(*chosen);
+        if (batch) explicit_fields = {ramp_key()};
+        notify_changed(true);
+      }
     };
     QObject::connect(state->stop_swatch, &QPushButton::clicked, &dialog, choose_stop_color);
     state->editor->choose_stop_color_requested = [state, choose_stop_color](int row) {
@@ -3050,7 +3128,7 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
     const auto enabled = item_checked(category);
     switch (item_kind(category)) {
       case LayerStyleEffectKind::BevelEmboss: {
-        if (!enabled && result.bevels.empty()) {
+        if (batch == nullptr && !enabled && result.bevels.empty()) {
           return;
         }
         auto& target = ensure_bevel(result, index);
@@ -3075,7 +3153,7 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
         break;
       }
       case LayerStyleEffectKind::BevelContour: {
-        if (!enabled && result.bevels.empty()) {
+        if (batch == nullptr && !enabled && result.bevels.empty()) {
           return;
         }
         const auto had_bevel = !result.bevels.empty();
@@ -3090,7 +3168,7 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
         break;
       }
       case LayerStyleEffectKind::BevelTexture: {
-        if (!enabled && result.bevels.empty()) {
+        if (batch == nullptr && !enabled && result.bevels.empty()) {
           return;
         }
         const auto had_bevel = !result.bevels.empty();
@@ -3110,7 +3188,7 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
         break;
       }
       case LayerStyleEffectKind::Stroke: {
-        if (!enabled && result.strokes.size() <= static_cast<std::size_t>(index)) {
+        if (batch == nullptr && !enabled && result.strokes.size() <= static_cast<std::size_t>(index)) {
           return;
         }
         auto& target = ensure_effect(result.strokes, index, default_stroke);
@@ -3128,7 +3206,7 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
         break;
       }
       case LayerStyleEffectKind::InnerShadow: {
-        if (!enabled && result.inner_shadows.size() <= static_cast<std::size_t>(index)) {
+        if (batch == nullptr && !enabled && result.inner_shadows.size() <= static_cast<std::size_t>(index)) {
           return;
         }
         auto& target = ensure_effect(result.inner_shadows, index, default_inner_shadow);
@@ -3145,7 +3223,7 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
         break;
       }
       case LayerStyleEffectKind::InnerGlow: {
-        if (!enabled && result.inner_glows.size() <= static_cast<std::size_t>(index)) {
+        if (batch == nullptr && !enabled && result.inner_glows.size() <= static_cast<std::size_t>(index)) {
           return;
         }
         auto& target = ensure_effect(result.inner_glows, index, default_inner_glow);
@@ -3163,7 +3241,7 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
         break;
       }
       case LayerStyleEffectKind::Satin: {
-        if (!enabled && result.satins.size() <= static_cast<std::size_t>(index)) {
+        if (batch == nullptr && !enabled && result.satins.size() <= static_cast<std::size_t>(index)) {
           return;
         }
         auto& target = ensure_effect(result.satins, index, default_satin);
@@ -3180,7 +3258,7 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
         break;
       }
       case LayerStyleEffectKind::ColorOverlay: {
-        if (!enabled && result.color_overlays.size() <= static_cast<std::size_t>(index)) {
+        if (batch == nullptr && !enabled && result.color_overlays.size() <= static_cast<std::size_t>(index)) {
           return;
         }
         auto& target = ensure_effect(result.color_overlays, index, default_color_overlay);
@@ -3193,7 +3271,7 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
         break;
       }
       case LayerStyleEffectKind::GradientOverlay: {
-        if (!enabled && result.gradient_fills.size() <= static_cast<std::size_t>(index)) {
+        if (batch == nullptr && !enabled && result.gradient_fills.size() <= static_cast<std::size_t>(index)) {
           return;
         }
         auto& target = ensure_effect(result.gradient_fills, index, default_gradient_fill);
@@ -3204,7 +3282,7 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
         break;
       }
       case LayerStyleEffectKind::PatternOverlay: {
-        if (!enabled && result.pattern_overlays.size() <= static_cast<std::size_t>(index)) {
+        if (batch == nullptr && !enabled && result.pattern_overlays.size() <= static_cast<std::size_t>(index)) {
           return;
         }
         auto& target = ensure_effect(result.pattern_overlays, index, default_pattern_overlay);
@@ -3221,7 +3299,7 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
         break;
       }
       case LayerStyleEffectKind::OuterGlow: {
-        if (!enabled && result.outer_glows.size() <= static_cast<std::size_t>(index)) {
+        if (batch == nullptr && !enabled && result.outer_glows.size() <= static_cast<std::size_t>(index)) {
           return;
         }
         auto& target = ensure_effect(result.outer_glows, index, default_outer_glow);
@@ -3238,7 +3316,7 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
         break;
       }
       case LayerStyleEffectKind::DropShadow: {
-        if (!enabled && result.drop_shadows.size() <= static_cast<std::size_t>(index)) {
+        if (batch == nullptr && !enabled && result.drop_shadows.size() <= static_cast<std::size_t>(index)) {
           return;
         }
         auto& target = ensure_effect(result.drop_shadows, index, default_drop_shadow);
@@ -3280,7 +3358,7 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
     // Accepting any style edit regenerates the complete native lfx2 descriptor.
     // Every modeled Satin is therefore written with the Linear contour, even
     // when a different effect page is active.
-    for (auto& satin : result.satins) {
+    if (batch == nullptr) for (auto& satin : result.satins) {
       satin.unsupported_contour_options = false;
     }
     return LayerStyleSettings{opacity->value(), static_cast<BlendMode>(blend->currentData().toInt()),
@@ -3498,15 +3576,26 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
     shadow_rows.update_preview();
     inner_shadow_rows.update_preview();
     loading_controls = false;
+    if (reset_batch_capture) reset_batch_capture();
+    if (refresh_batch_mixed) refresh_batch_mixed();
   };
 
   auto add_effect_instance = [&](LayerStyleEffectKind kind, int source_index) {
     const auto* ops = effect_vector_ops_for_kind(kind);
+    if (batch && ops) {
+      const auto recipe = style;
+      batch_edits->append({{}, [ops, recipe, source_index](LayerStyleSettings& target) {
+        ops->duplicate_for_batch(target.style, recipe, source_index);
+      }});
+    }
     return ops != nullptr ? ops->add_instance(style, source_index) : 0;
   };
 
   auto remove_effect_instance = [&](LayerStyleEffectKind kind, int index) {
     const auto* ops = effect_vector_ops_for_kind(kind);
+    if (batch && ops) batch_edits->append({{}, [ops, index](LayerStyleSettings& target) {
+      ops->remove_instance(target.style, index);
+    }});
     return ops != nullptr ? ops->remove_instance(style, index) : 0;
   };
 
@@ -3787,14 +3876,31 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
     shadow_rows.update_preview();
     inner_shadow_rows.update_preview();
     auto settings = build_current_settings();
+    if (batch) {
+      const auto properties = layer_style_properties(settings);
+      if (!explicit_fields.empty()) {
+        for (const auto& property : properties)
+          if (std::find(explicit_fields.begin(), explicit_fields.end(), property.key) != explicit_fields.end())
+            batch_edits->append(property.capture(settings));
+      } else if (last_displayed) {
+        capture_appearance_edits(*batch_edits, properties, *last_displayed, settings);
+      }
+      explicit_fields.clear();
+      last_displayed = settings;
+      settings.edits = std::make_shared<const AppearanceEdits<LayerStyleSettings>>(*batch_edits);
+    }
     style = settings.style;
-    auto preview_settings = preview_check->isChecked() ? settings : original_settings;
+    auto preview_settings = batch || preview_check->isChecked() ? settings : original_settings;
+    if (batch) preview_settings.preview_enabled = preview_check->isChecked();
+    if (refresh_batch_mixed) refresh_batch_mixed();
     if (immediate) {
       preview_emitter.flush(std::move(preview_settings));
     } else {
       preview_emitter.schedule(std::move(preview_settings));
     }
   };
+
+  reset_batch_capture = [&] { if (batch) last_displayed = build_current_settings(); };
 
   const auto connect_blend_if_row = [&](BlendIfRowWidgets& row, bool this_layer) {
     auto* row_ptr = &row;
@@ -3872,6 +3978,8 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
                      emit_preview(true);
                    });
   QObject::connect(categories, &QListWidget::itemChanged, &dialog, [&](QListWidgetItem* changed) {
+    if (batch && !loading_controls && !rebuilding_categories)
+      explicit_fields = {effect_property_prefix(item_kind(changed), item_effect_index(changed)) + ".enabled"};
     if (auto* widget = categories->itemWidget(changed); widget != nullptr) {
       if (auto* check = widget->findChild<QCheckBox*>(); check != nullptr) {
         const QSignalBlocker blocker(check);
@@ -4087,6 +4195,25 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
         load_blend_if_controls();
       }
     }
+    if (batch) {
+      const auto recipe = style;
+      const auto blending = entry->blend_settings;
+      batch_edits->append({{}, [recipe, blending](LayerStyleSettings& target) {
+        auto replacement = recipe;
+        replacement.layer_mask_hides_effects = target.style.layer_mask_hides_effects;
+        replacement.blend_interior_elements = target.style.blend_interior_elements;
+        replacement.blend_clipped_elements = target.style.blend_clipped_elements;
+        target.style = std::move(replacement);
+        if (blending) {
+          target.opacity = blending->opacity;
+          target.opacity_edited = true;
+          target.fill_opacity = blending->fill_opacity;
+          target.fill_opacity_edited = true;
+          target.blend_mode = blending->blend_mode;
+          target.blend_if = blending->blend_if;
+        }
+      }});
+    }
     rebuild_category_list(LayerStyleEffectKind::None, kStylesCategoryIndex);
     load_controls_from_style(categories->currentItem());
     emit_preview(true);
@@ -4102,6 +4229,14 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
     cleared.blend_interior_elements = blend_interior->isChecked();
     cleared.blend_clipped_elements = blend_clipped->isChecked();
     style = std::move(cleared);
+    if (batch) batch_edits->append({{}, [](LayerStyleSettings& target) {
+      LayerStyle empty;
+      empty.effects_visible = target.style.effects_visible;
+      empty.layer_mask_hides_effects = target.style.layer_mask_hides_effects;
+      empty.blend_interior_elements = target.style.blend_interior_elements;
+      empty.blend_clipped_elements = target.style.blend_clipped_elements;
+      target.style = std::move(empty);
+    }});
     rebuild_category_list(LayerStyleEffectKind::None, kStylesCategoryIndex);
     load_controls_from_style(categories->currentItem());
     emit_preview(true);
@@ -4196,6 +4331,7 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
   QObject::connect(bevel_texture_snap, &QPushButton::clicked, &dialog, [&] {
     bevel.texture.phase_x = 0.0F;
     bevel.texture.phase_y = 0.0F;
+    if (batch) explicit_fields = {"bevels.0.texture.phase_x", "bevels.0.texture.phase_y"};
     emit_preview(true);
   });
   QObject::connect(pattern_overlay_blend, &QComboBox::currentIndexChanged, &dialog,
@@ -4207,6 +4343,11 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
   QObject::connect(pattern_overlay_snap, &QPushButton::clicked, &dialog, [&] {
     pattern_overlay.phase_x = 0.0F;
     pattern_overlay.phase_y = 0.0F;
+    if (batch) {
+      const auto prefix = effect_property_prefix(LayerStyleEffectKind::PatternOverlay,
+                                                 item_effect_index(categories->currentItem()));
+      explicit_fields = {prefix + ".phase_x", prefix + ".phase_y"};
+    }
     emit_preview(true);
   });
   QObject::connect(color_overlay_blend, &QComboBox::currentIndexChanged, &dialog,
@@ -4247,25 +4388,38 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
   });
   QObject::connect(gradient_blend, &QComboBox::currentIndexChanged, &dialog,
                    [&emit_preview](int) { emit_preview(true); });
-  // Shared modal picker for the RGB color rows: no live preview while picking
-  // (unlike the bevel and gradient-stop pickers), commit on accept only.
   const auto connect_color_row_picker = [&](const RgbColorRowWidgets& rows, const QString& title) {
     QObject::connect(rows.picker, &QAbstractButton::clicked, &dialog, [&, rows, title] {
-      const auto current = rows.value();
-      const auto chosen =
-          request_patchy_color(&dialog, QColor(current.red, current.green, current.blue), title);
-      if (!chosen.has_value()) {
-        return;
-      }
-      rows.set_value(RgbColor{static_cast<std::uint8_t>(chosen->red()),
-                              static_cast<std::uint8_t>(chosen->green()),
-                              static_cast<std::uint8_t>(chosen->blue())});
-      emit_preview(true);
+      const auto original = rows.value();
+      const auto saved_edits = *batch_edits;
+      const auto key = effect_property_prefix(item_kind(categories->currentItem()),
+          item_effect_index(categories->currentItem())) + ".color";
+      const auto apply = [&](QColor color) {
+        const QSignalBlocker red(rows.red), green(rows.green), blue(rows.blue);
+        rows.set_value({static_cast<std::uint8_t>(color.red()), static_cast<std::uint8_t>(color.green()),
+                        static_cast<std::uint8_t>(color.blue())});
+        if (batch) explicit_fields = {key};
+        emit_preview(true);
+      };
+      bool selected = false;
+      const auto chosen = request_patchy_color(&dialog,
+          QColor(original.red, original.green, original.blue), title, apply, &selected);
+      if (!chosen) {
+        const QSignalBlocker red(rows.red), green(rows.green), blue(rows.blue);
+        rows.set_value(original);
+        *batch_edits = saved_edits;
+        reset_batch_capture();
+        emit_preview(true);
+      } else if (selected || !batch) apply(*chosen);
     });
   };
   connect_color_row_picker(stroke_rows, QObject::tr("Choose Stroke Color"));
   auto choose_bevel_color = [&](RgbColor& target, const QString& title) {
     const auto original = target;
+    const auto saved_edits = *batch_edits;
+    const auto key = effect_property_prefix(LayerStyleEffectKind::BevelEmboss, 0) +
+        (&target == &bevel_highlight_color ? ".highlight_color" : ".shadow_color");
+    bool selected = false;
     auto apply_color = [&](QColor color) {
       if (!color.isValid()) {
         return;
@@ -4277,15 +4431,21 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
     const auto chosen = request_patchy_color(&dialog, QColor(original.red, original.green, original.blue), title,
                                              [&](QColor color) {
                                                apply_color(color);
+                                               if (batch) explicit_fields = {key};
                                                emit_preview(false);
-                                             });
+                                             }, &selected);
     if (!chosen.has_value()) {
       apply_color(QColor(original.red, original.green, original.blue));
+      *batch_edits = saved_edits;
+      reset_batch_capture();
       emit_preview(true);
       return;
     }
-    apply_color(*chosen);
-    emit_preview(true);
+    if (selected || !batch) {
+      apply_color(*chosen);
+      if (batch) explicit_fields = {key};
+      emit_preview(true);
+    }
   };
   QObject::connect(bevel_highlight_color_button, &QPushButton::clicked, &dialog, [&] {
     choose_bevel_color(bevel_highlight_color, QObject::tr("Choose Highlight Color"));
@@ -4333,6 +4493,21 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
   auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
   auto* footer = new QHBoxLayout();
   footer->addWidget(preview_check);
+  if (batch && batch->selected_count > 1) {
+    auto* apply_all = new QPushButton(QObject::tr("Apply All Settings to Selected Layers"), &dialog);
+    apply_all->setObjectName(QStringLiteral("layerStyleApplyAllButton"));
+    footer->addWidget(apply_all);
+    QObject::connect(apply_all, &QPushButton::clicked, &dialog, [&] {
+      auto recipe = build_current_settings();
+      recipe.opacity_edited = true;
+      recipe.fill_opacity_edited = true;
+      // Template-only pages do not create disabled placeholder effects.
+      recipe.style = batch_edits->applied(batch->originals.front()).style;
+      batch_edits->append({{}, [recipe](LayerStyleSettings& target) { target = recipe; }});
+      reset_batch_capture();
+      emit_preview(true);
+    });
+  }
   footer->addStretch(1);
   footer->addWidget(buttons);
   root->addLayout(footer);
@@ -4375,6 +4550,222 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
     }
   }
 
+  if (batch) {
+    using Binding = std::pair<QWidget*, std::function<std::string()>>;
+    auto bindings = std::make_shared<std::vector<Binding>>();
+    const auto bind = [&](QWidget* widget, std::function<std::string()> key, bool intent = true) {
+      bindings->emplace_back(widget, key);
+      if (intent) install_appearance_edit_intent(widget, [&, key] {
+        if (loading_controls || rebuilding_categories) return;
+        explicit_fields = {key()};
+        emit_preview(true);
+      });
+    };
+    const auto global = [&](QWidget* widget, const std::string& key) {
+      bind(widget, [key] { return key; });
+    };
+    const auto effect = [&](QWidget* widget, LayerStyleEffectKind kind, const std::string& leaf, bool intent = true) {
+      bind(widget, [&, kind, leaf] {
+        const auto* current = categories->currentItem();
+        const auto index = item_kind(current) == kind ? item_effect_index(current) : 0;
+        return effect_property_prefix(kind, index) + "." + leaf;
+      }, intent);
+    };
+    global(blend, "blend_mode");
+    global(opacity, "opacity");
+    global(fill_opacity, "fill_opacity");
+    global(show_effects, "style.effects_visible");
+    global(mask_hides_effects, "style.layer_mask_hides_effects");
+    global(blend_interior, "style.blend_interior_elements");
+    global(blend_clipped, "style.blend_clipped_elements");
+    global(channel_red, "restricted_channels.0");
+    global(channel_green, "restricted_channels.1");
+    global(channel_blue, "restricted_channels.2");
+    effect(bevel_style, LayerStyleEffectKind::BevelEmboss, "style");
+    effect(bevel_technique, LayerStyleEffectKind::BevelEmboss, "technique");
+    effect(bevel_size, LayerStyleEffectKind::BevelEmboss, "size");
+    effect(bevel_soften, LayerStyleEffectKind::BevelEmboss, "soften");
+    effect(bevel_depth, LayerStyleEffectKind::BevelEmboss, "depth");
+    effect(bevel_angle, LayerStyleEffectKind::BevelEmboss, "angle_degrees");
+    effect(bevel_altitude, LayerStyleEffectKind::BevelEmboss, "altitude_degrees");
+    effect(bevel_direction, LayerStyleEffectKind::BevelEmboss, "direction_up");
+    effect(bevel_highlight_blend, LayerStyleEffectKind::BevelEmboss, "highlight_blend_mode");
+    effect(bevel_highlight_opacity, LayerStyleEffectKind::BevelEmboss, "highlight_opacity");
+    effect(bevel_shadow_blend, LayerStyleEffectKind::BevelEmboss, "shadow_blend_mode");
+    effect(bevel_shadow_opacity, LayerStyleEffectKind::BevelEmboss, "shadow_opacity");
+    effect(bevel_gloss_contour, LayerStyleEffectKind::BevelEmboss, "gloss_contour");
+    effect(bevel_gloss_anti_aliased, LayerStyleEffectKind::BevelEmboss, "gloss_anti_aliased");
+    effect(bevel_contour_combo, LayerStyleEffectKind::BevelContour, "contour");
+    effect(bevel_contour_range, LayerStyleEffectKind::BevelContour, "range");
+    effect(bevel_contour_anti_aliased, LayerStyleEffectKind::BevelContour, "anti_aliased");
+    effect(bevel_texture_pattern, LayerStyleEffectKind::BevelTexture, "pattern_id");
+    effect(bevel_texture_scale, LayerStyleEffectKind::BevelTexture, "scale");
+    effect(bevel_texture_depth, LayerStyleEffectKind::BevelTexture, "depth");
+    effect(bevel_texture_invert, LayerStyleEffectKind::BevelTexture, "invert");
+    effect(bevel_texture_link, LayerStyleEffectKind::BevelTexture, "link_with_layer");
+    effect(pattern_overlay_blend, LayerStyleEffectKind::PatternOverlay, "blend_mode");
+    effect(pattern_overlay_opacity, LayerStyleEffectKind::PatternOverlay, "opacity");
+    effect(pattern_overlay_pattern, LayerStyleEffectKind::PatternOverlay, "pattern_id");
+    effect(pattern_overlay_angle, LayerStyleEffectKind::PatternOverlay, "angle_degrees");
+    effect(pattern_overlay_scale, LayerStyleEffectKind::PatternOverlay, "scale");
+    effect(pattern_overlay_link, LayerStyleEffectKind::PatternOverlay, "link_with_layer");
+    effect(stroke_blend, LayerStyleEffectKind::Stroke, "blend_mode");
+    effect(stroke_size, LayerStyleEffectKind::Stroke, "size");
+    effect(stroke_opacity, LayerStyleEffectKind::Stroke, "opacity");
+    effect(stroke_position, LayerStyleEffectKind::Stroke, "position");
+    effect(stroke_overprint, LayerStyleEffectKind::Stroke, "overprint");
+    effect(stroke_fill, LayerStyleEffectKind::Stroke, "uses_gradient");
+    effect(color_overlay_blend, LayerStyleEffectKind::ColorOverlay, "blend_mode");
+    effect(color_overlay_opacity, LayerStyleEffectKind::ColorOverlay, "opacity");
+    effect(gradient_blend, LayerStyleEffectKind::GradientOverlay, "blend_mode");
+    effect(gradient_opacity, LayerStyleEffectKind::GradientOverlay, "opacity");
+    effect(outer_glow_blend, LayerStyleEffectKind::OuterGlow, "blend_mode");
+    effect(outer_glow_technique, LayerStyleEffectKind::OuterGlow, "technique");
+    effect(outer_glow_opacity, LayerStyleEffectKind::OuterGlow, "opacity");
+    effect(outer_glow_size, LayerStyleEffectKind::OuterGlow, "size");
+    effect(outer_glow_spread, LayerStyleEffectKind::OuterGlow, "spread");
+    effect(outer_glow_range, LayerStyleEffectKind::OuterGlow, "range");
+    effect(inner_glow_blend, LayerStyleEffectKind::InnerGlow, "blend_mode");
+    effect(inner_glow_technique, LayerStyleEffectKind::InnerGlow, "technique");
+    effect(inner_glow_source, LayerStyleEffectKind::InnerGlow, "source");
+    effect(inner_glow_opacity, LayerStyleEffectKind::InnerGlow, "opacity");
+    effect(inner_glow_size, LayerStyleEffectKind::InnerGlow, "size");
+    effect(inner_glow_choke, LayerStyleEffectKind::InnerGlow, "choke");
+    effect(inner_glow_range, LayerStyleEffectKind::InnerGlow, "range");
+    effect(satin_blend, LayerStyleEffectKind::Satin, "blend_mode");
+    effect(satin_opacity, LayerStyleEffectKind::Satin, "opacity");
+    effect(satin_angle, LayerStyleEffectKind::Satin, "angle_degrees");
+    effect(satin_distance, LayerStyleEffectKind::Satin, "distance");
+    effect(satin_size, LayerStyleEffectKind::Satin, "size");
+    effect(satin_invert, LayerStyleEffectKind::Satin, "invert");
+    effect(shadow_blend, LayerStyleEffectKind::DropShadow, "blend_mode");
+    effect(shadow_opacity, LayerStyleEffectKind::DropShadow, "opacity");
+    effect(shadow_angle, LayerStyleEffectKind::DropShadow, "angle_degrees");
+    effect(shadow_distance, LayerStyleEffectKind::DropShadow, "distance");
+    effect(shadow_size, LayerStyleEffectKind::DropShadow, "size");
+    effect(shadow_spread, LayerStyleEffectKind::DropShadow, "spread");
+    effect(shadow_conceals, LayerStyleEffectKind::DropShadow, "layer_conceals");
+    effect(shadow_continuous, LayerStyleEffectKind::DropShadow, "continuous");
+    effect(shadow_fade, LayerStyleEffectKind::DropShadow, "fade");
+    effect(inner_shadow_blend, LayerStyleEffectKind::InnerShadow, "blend_mode");
+    effect(inner_shadow_opacity, LayerStyleEffectKind::InnerShadow, "opacity");
+    effect(inner_shadow_angle, LayerStyleEffectKind::InnerShadow, "angle_degrees");
+    effect(inner_shadow_distance, LayerStyleEffectKind::InnerShadow, "distance");
+    effect(inner_shadow_size, LayerStyleEffectKind::InnerShadow, "size");
+    effect(inner_shadow_choke, LayerStyleEffectKind::InnerShadow, "choke");
+    effect(stroke_rows.red, LayerStyleEffectKind::Stroke, "color", true);
+    effect(stroke_rows.green, LayerStyleEffectKind::Stroke, "color", true);
+    effect(stroke_rows.blue, LayerStyleEffectKind::Stroke, "color", true);
+    effect(stroke_rows.picker, LayerStyleEffectKind::Stroke, "color", false);
+    effect(color_overlay_rows.red, LayerStyleEffectKind::ColorOverlay, "color", true);
+    effect(color_overlay_rows.green, LayerStyleEffectKind::ColorOverlay, "color", true);
+    effect(color_overlay_rows.blue, LayerStyleEffectKind::ColorOverlay, "color", true);
+    effect(color_overlay_rows.picker, LayerStyleEffectKind::ColorOverlay, "color", false);
+    effect(outer_glow_rows.red, LayerStyleEffectKind::OuterGlow, "color", true);
+    effect(outer_glow_rows.green, LayerStyleEffectKind::OuterGlow, "color", true);
+    effect(outer_glow_rows.blue, LayerStyleEffectKind::OuterGlow, "color", true);
+    effect(outer_glow_rows.picker, LayerStyleEffectKind::OuterGlow, "color", false);
+    effect(inner_glow_rows.red, LayerStyleEffectKind::InnerGlow, "color", true);
+    effect(inner_glow_rows.green, LayerStyleEffectKind::InnerGlow, "color", true);
+    effect(inner_glow_rows.blue, LayerStyleEffectKind::InnerGlow, "color", true);
+    effect(inner_glow_rows.picker, LayerStyleEffectKind::InnerGlow, "color", false);
+    effect(satin_rows.red, LayerStyleEffectKind::Satin, "color", true);
+    effect(satin_rows.green, LayerStyleEffectKind::Satin, "color", true);
+    effect(satin_rows.blue, LayerStyleEffectKind::Satin, "color", true);
+    effect(satin_rows.picker, LayerStyleEffectKind::Satin, "color", false);
+    effect(shadow_rows.red, LayerStyleEffectKind::DropShadow, "color", true);
+    effect(shadow_rows.green, LayerStyleEffectKind::DropShadow, "color", true);
+    effect(shadow_rows.blue, LayerStyleEffectKind::DropShadow, "color", true);
+    effect(shadow_rows.picker, LayerStyleEffectKind::DropShadow, "color", false);
+    effect(inner_shadow_rows.red, LayerStyleEffectKind::InnerShadow, "color", true);
+    effect(inner_shadow_rows.green, LayerStyleEffectKind::InnerShadow, "color", true);
+    effect(inner_shadow_rows.blue, LayerStyleEffectKind::InnerShadow, "color", true);
+    effect(inner_shadow_rows.picker, LayerStyleEffectKind::InnerShadow, "color", false);
+    effect(bevel_highlight_color_button, LayerStyleEffectKind::BevelEmboss, "highlight_color", false);
+    effect(bevel_shadow_color_button, LayerStyleEffectKind::BevelEmboss, "shadow_color", false);
+    const auto gradient_bindings = [&](LayerStyleGradientControls* fields, LayerStyleEffectKind kind) {
+      effect(fields->reverse, kind, "gradient.reverse");
+      effect(fields->dither, kind, "gradient.dither");
+      effect(fields->align, kind, "gradient.align_with_layer");
+      effect(fields->interpolation, kind, "gradient.interpolation");
+      effect(fields->style_combo, kind, "gradient.type");
+      effect(fields->angle, kind, "gradient.angle_degrees");
+      effect(fields->scale, kind, "gradient.scale");
+      effect(fields->offset_x, kind, "gradient.offset_x_percent");
+      effect(fields->offset_y, kind, "gradient.offset_y_percent");
+      effect(fields->form_combo, kind, "gradient.definition");
+      effect(fields->smoothness, kind, "gradient.definition");
+      effect(fields->noise_seed, kind, "gradient.definition");
+      effect(fields->noise_roughness, kind, "gradient.definition");
+      effect(fields->noise_transparency, kind, "gradient.definition");
+      effect(fields->noise_restrict, kind, "gradient.definition");
+      effect(fields->noise_color_model, kind, "gradient.definition");
+      effect(fields->stop_location, kind, "gradient.definition");
+      effect(fields->stop_opacity, kind, "gradient.definition");
+      effect(fields->stop_midpoint, kind, "gradient.definition");
+      for (auto* widget : fields->noise_minimum) effect(widget, kind, "gradient.definition");
+      for (auto* widget : fields->noise_maximum) effect(widget, kind, "gradient.definition");
+      effect(fields->stop_swatch, kind, "gradient.definition", false);
+      effect(fields->stop_hex, kind, "gradient.definition", false);
+      effect(fields->editor, kind, "gradient.definition", false);
+    };
+    gradient_bindings(gradient_controls.get(), LayerStyleEffectKind::GradientOverlay);
+    gradient_bindings(stroke_gradient_controls.get(), LayerStyleEffectKind::Stroke);
+    const auto blend_row_bindings = [&](BlendIfRowWidgets& row, const std::string& side) {
+      const auto field = [&](QWidget* widget, const std::string& leaf) {
+        bind(widget, [&, side, leaf] {
+          return "blend_if." + std::to_string(current_blend_if_channel_index()) + "." + side + "." + leaf;
+        });
+      };
+      field(row.black_low.spin, "black_low"); field(row.black_high.spin, "black_high");
+      field(row.white_low.spin, "white_low"); field(row.white_high.spin, "white_high");
+    };
+    blend_row_bindings(blend_if_this, "this_layer");
+    blend_row_bindings(blend_if_underlying, "underlying_layer");
+    refresh_batch_mixed = [&, bindings] {
+      std::vector<LayerStyleSettings> current;
+      for (const auto& original : batch->originals) current.push_back(batch_edits->applied(original));
+      if (current.empty()) return;
+      const auto properties = layer_style_properties(build_current_settings());
+      for (const auto& [widget, key] : *bindings) {
+        const auto name = key();
+        const auto property = std::find_if(properties.begin(), properties.end(), [&](const auto& field) { return field.key == name; });
+        const bool mixed = property != properties.end() && std::any_of(current.begin() + 1, current.end(),
+            [&](const auto& value) { return !property->equal(current.front(), value); });
+        set_appearance_mixed(widget, mixed);
+      }
+      for (int row = 0; row < categories->count(); ++row) {
+        auto* item = categories->item(row);
+        if (item_kind(item) == LayerStyleEffectKind::None) continue;
+        const auto prefix = effect_property_prefix(item_kind(item), item_effect_index(item)) + ".";
+        const bool different = std::any_of(properties.begin(), properties.end(), [&](const auto& property) {
+          return property.key.starts_with(prefix) && std::any_of(current.begin() + 1, current.end(),
+              [&](const auto& value) { return !property.equal(current.front(), value); });
+        });
+        if (auto* widget = categories->itemWidget(item)) {
+          set_appearance_mixed(widget, different);
+          const auto kind = item_kind(item);
+          const auto* ops = effect_vector_ops_for_kind(kind);
+          const auto index = static_cast<std::size_t>(std::max(0, item_effect_index(item)));
+          const auto present = std::count_if(current.begin(), current.end(), [&](const auto& settings) {
+            return ops ? ops->count(settings.style) > index : !settings.style.bevels.empty();
+          });
+          const auto presence = QObject::tr("Present on %1 of %2 layers").arg(present).arg(current.size());
+          widget->setToolTip(presence + (different ? QStringLiteral("\n") +
+              QObject::tr("Mixed: selected layers have different values") : QString()));
+          widget->setAccessibleDescription(widget->toolTip());
+          if (auto* label = widget->findChild<QLabel*>()) {
+            const auto occurrence = ops && ops->count(current.front().style) > 1
+                ? QStringLiteral(" %1").arg(index + 1) : QString();
+            label->setText(item->text() + occurrence + QStringLiteral(" (%1/%2)").arg(present).arg(current.size()));
+          }
+        }
+      }
+    };
+    reset_batch_capture();
+    refresh_batch_mixed();
+  }
+
   log_ui_profile("layer_style_dialog_build",
                  std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() -
                                                            request_started)
@@ -4395,7 +4786,9 @@ std::optional<LayerStyleSettings> request_layer_style_settings(
     }
   }
 
-  return build_current_settings();
+  auto result = build_current_settings();
+  if (batch) result.edits = std::make_shared<const AppearanceEdits<LayerStyleSettings>>(*batch_edits);
+  return result;
 }
 
 
