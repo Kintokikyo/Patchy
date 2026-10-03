@@ -9995,6 +9995,34 @@ RGB：%2, %3, %4</translation>
         <source>Search fonts...</source>
         <translation>搜尋字體...</translation>
     </message>
+    <message>
+        <source>Add Font…</source>
+        <translation>新增字型…</translation>
+    </message>
+    <message>
+        <source>Add Font</source>
+        <translation>新增字型</translation>
+    </message>
+    <message>
+        <source>Could not create a temporary font file.</source>
+        <translation>無法建立暫存字型檔案。</translation>
+    </message>
+    <message>
+        <source>Could not read the selected font file.</source>
+        <translation>無法讀取所選的字型檔案。</translation>
+    </message>
+    <message>
+        <source>Please select a TTF, OTF, TTC, or ZIP font file.</source>
+        <translation>請選擇 TTF、OTF、TTC 或 ZIP 字型檔案。</translation>
+    </message>
+    <message>
+        <source>The ZIP file does not contain any supported fonts.</source>
+        <translation>ZIP 檔案不包含任何支援的字型。</translation>
+    </message>
+    <message>
+        <source>The selected file is not a valid font.</source>
+        <translation>所選檔案不是有效的字型。</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::GradientLibrary</name>

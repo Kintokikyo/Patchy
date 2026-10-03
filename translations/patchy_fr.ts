@@ -10022,6 +10022,34 @@ RVB : %2, %3, %4</translation>
         <source>Search fonts...</source>
         <translation>Rechercher des polices...</translation>
     </message>
+    <message>
+        <source>Add Font…</source>
+        <translation>Ajouter une police…</translation>
+    </message>
+    <message>
+        <source>Add Font</source>
+        <translation>Ajouter une police</translation>
+    </message>
+    <message>
+        <source>Could not create a temporary font file.</source>
+        <translation>Impossible de créer un fichier de police temporaire.</translation>
+    </message>
+    <message>
+        <source>Could not read the selected font file.</source>
+        <translation>Impossible de lire le fichier de police sélectionné.</translation>
+    </message>
+    <message>
+        <source>Please select a TTF, OTF, TTC, or ZIP font file.</source>
+        <translation>Veuillez sélectionner un fichier de police TTF, OTF, TTC ou ZIP.</translation>
+    </message>
+    <message>
+        <source>The ZIP file does not contain any supported fonts.</source>
+        <translation>Le fichier ZIP ne contient aucune police compatible.</translation>
+    </message>
+    <message>
+        <source>The selected file is not a valid font.</source>
+        <translation>Le fichier sélectionné n’est pas une police valide.</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::GradientLibrary</name>

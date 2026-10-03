@@ -10022,6 +10022,34 @@ RGB: %2, %3, %4</translation>
         <source>Search fonts...</source>
         <translation>Schriften suchen...</translation>
     </message>
+    <message>
+        <source>Add Font…</source>
+        <translation>Schrift hinzufügen…</translation>
+    </message>
+    <message>
+        <source>Add Font</source>
+        <translation>Schrift hinzufügen</translation>
+    </message>
+    <message>
+        <source>Could not create a temporary font file.</source>
+        <translation>Temporäre Schriftdatei konnte nicht erstellt werden.</translation>
+    </message>
+    <message>
+        <source>Could not read the selected font file.</source>
+        <translation>Die ausgewählte Schriftdatei konnte nicht gelesen werden.</translation>
+    </message>
+    <message>
+        <source>Please select a TTF, OTF, TTC, or ZIP font file.</source>
+        <translation>Bitte wählen Sie eine TTF-, OTF-, TTC- oder ZIP-Schriftdatei aus.</translation>
+    </message>
+    <message>
+        <source>The ZIP file does not contain any supported fonts.</source>
+        <translation>Die ZIP-Datei enthält keine unterstützten Schriftarten.</translation>
+    </message>
+    <message>
+        <source>The selected file is not a valid font.</source>
+        <translation>Die ausgewählte Datei ist keine gültige Schriftart.</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::GradientLibrary</name>

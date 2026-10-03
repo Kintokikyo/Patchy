@@ -9995,6 +9995,34 @@ Mixed selection</source>
         <source>Search fonts...</source>
         <translation>フォントを検索...</translation>
     </message>
+    <message>
+        <source>Add Font…</source>
+        <translation>フォントを追加…</translation>
+    </message>
+    <message>
+        <source>Add Font</source>
+        <translation>フォントを追加</translation>
+    </message>
+    <message>
+        <source>Could not create a temporary font file.</source>
+        <translation>一時フォントファイルを作成できませんでした。</translation>
+    </message>
+    <message>
+        <source>Could not read the selected font file.</source>
+        <translation>選択したフォントファイルを読み込めませんでした。</translation>
+    </message>
+    <message>
+        <source>Please select a TTF, OTF, TTC, or ZIP font file.</source>
+        <translation>TTF、OTF、TTC、またはZIPのフォントファイルを選択してください。</translation>
+    </message>
+    <message>
+        <source>The ZIP file does not contain any supported fonts.</source>
+        <translation>ZIPファイルに対応するフォントが含まれていません。</translation>
+    </message>
+    <message>
+        <source>The selected file is not a valid font.</source>
+        <translation>選択したファイルは有効なフォントではありません。</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::GradientLibrary</name>
