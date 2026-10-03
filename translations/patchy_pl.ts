@@ -43,10 +43,6 @@
         <translation>Wybierz sposób scalania wybranych warstw i ich grup.</translation>
     </message>
     <message>
-        <source>Keep vectors and bitmaps separate</source>
-        <translation>Zachowaj wektory i bitmapy oddzielnie</translation>
-    </message>
-    <message>
         <source>Keep editable shapes. Turn off to merge the artwork into bitmap layers.</source>
         <translation>Zachowaj edytowalne kształty. Wyłącz, aby scalić kompozycję w warstwy bitmapy.</translation>
     </message>
@@ -105,6 +101,14 @@
     <message>
         <source>These layers need to stay separate with the selected options.</source>
         <translation>Przy wybranych opcjach te warstwy muszą pozostać oddzielne.</translation>
+    </message>
+    <message>
+        <source>Keep vector layers editable</source>
+        <translation>Zachowaj edytowalność warstw wektorowych</translation>
+    </message>
+    <message>
+        <source>These layers keep their own effects and stay separate in a vector merge. Turning off &quot;Keep vector layers editable&quot; rasterizes merged artwork.</source>
+        <translation>Te warstwy zachowują własne efekty i pozostają oddzielne podczas scalania wektorów. Wyłączenie opcji „Zachowaj edytowalność warstw wektorowych” rasteruje scalany obraz.</translation>
     </message>
 </context>
 <context>

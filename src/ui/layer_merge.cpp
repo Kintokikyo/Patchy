@@ -15,10 +15,13 @@
 #include <QCoreApplication>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QFontMetrics>
 #include <QLabel>
+#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QPointer>
 #include <QScopeGuard>
+#include <QStringList>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -433,7 +436,7 @@ std::optional<LayerMergeOptions> show_layer_merge_dialog(QWidget* parent, const 
                                : LayerMergeStrings::tr("Choose how to merge the selected layers and their groups."), &dialog);
   intro->setWordWrap(true);
   layout->addWidget(intro);
-  auto* vectors = new QCheckBox(LayerMergeStrings::tr("Keep vectors and bitmaps separate"), &dialog);
+  auto* vectors = new QCheckBox(LayerMergeStrings::tr("Keep vector layers editable"), &dialog);
   vectors->setObjectName(QStringLiteral("mergeKeepVectorsCheck"));
   vectors->setChecked(true);
   vectors->setToolTip(LayerMergeStrings::tr("Keep editable shapes. Turn off to merge the artwork into bitmap layers."));
@@ -463,6 +466,23 @@ std::optional<LayerMergeOptions> show_layer_merge_dialog(QWidget* parent, const 
   summary->setObjectName(QStringLiteral("mergeLayersSummaryLabel"));
   summary->setWordWrap(true);
   layout->addWidget(summary);
+  auto* effects_details = new QPlainTextEdit(&dialog);
+  effects_details->setObjectName(QStringLiteral("mergeLayersEffectsDetails"));
+  effects_details->setReadOnly(true);
+  effects_details->setMaximumHeight(8 * effects_details->fontMetrics().height() + 12);
+  const auto effects_explanation = LayerMergeStrings::tr("These layers keep their own effects and stay separate in a vector merge. Turning off \"Keep vector layers editable\" rasterizes merged artwork.");
+  effects_details->setAccessibleName(effects_explanation);
+  layout->addWidget(effects_details);
+  std::map<LayerId, QString> styled_layer_names;
+  const auto index_styled_layers = [&](const auto& self, const std::vector<Layer>& layers) -> void {
+    for (const auto& layer : layers) {
+      if (!layer.layer_style().empty()) {
+        styled_layer_names.emplace(layer.id(), QString::fromStdString(layer.name()));
+      }
+      self(self, layer.children());
+    }
+  };
+  index_styled_layers(index_styled_layers, document.layers());
   auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
   buttons->button(QDialogButtonBox::Ok)->setText(copy ? LayerMergeStrings::tr("Create Copy") : LayerMergeStrings::tr("Merge"));
   layout->addWidget(buttons);
@@ -477,6 +497,20 @@ std::optional<LayerMergeOptions> show_layer_merge_dialog(QWidget* parent, const 
         ? LayerMergeStrings::tr("Merged vectors keep their colors, strokes, and paint order. Masks, effects, and blending that need separate layers stay intact.")
         : LayerMergeStrings::tr("Merged artwork becomes pixels. Undo restores the original layers."));
     const auto plan = plan_layer_merge(document, ids, choice, copy);
+    QStringList styled_layers;
+    const auto collect_styled_layers = [&](const auto& self, const std::vector<LayerMergeNode>& nodes) -> void {
+      for (const auto& node : nodes) {
+        if (node.selected && (node.vector || node.rebuild_group)) {
+          if (const auto found = styled_layer_names.find(node.sources.front()); found != styled_layer_names.end()) {
+            styled_layers.push_back(found->second);
+          }
+        }
+        self(self, node.children);
+      }
+    };
+    if (choice.keep_vectors) { collect_styled_layers(collect_styled_layers, plan.roots); }
+    effects_details->setPlainText(effects_explanation + QStringLiteral("\n\n") + styled_layers.join(QChar('\n')));
+    effects_details->setVisible(!styled_layers.isEmpty());
     summary->setText(LayerMergeStrings::tr("Result: %1 vector layers, %2 bitmap layers, %3 other layers kept.")
         .arg(static_cast<qulonglong>(plan.vector_layers)).arg(static_cast<qulonglong>(plan.bitmap_layers))
         .arg(static_cast<qulonglong>(plan.kept_layers)) + QStringLiteral("\n") +

@@ -43,10 +43,6 @@
         <translation>선택한 레이어와 해당 그룹을 병합하는 방법을 선택합니다.</translation>
     </message>
     <message>
-        <source>Keep vectors and bitmaps separate</source>
-        <translation>벡터와 비트맵을 별도로 유지</translation>
-    </message>
-    <message>
         <source>Keep editable shapes. Turn off to merge the artwork into bitmap layers.</source>
         <translation>편집 가능한 모양을 유지합니다. 아트웍을 비트맵 레이어로 병합하려면 끄십시오.</translation>
     </message>
@@ -105,6 +101,14 @@
     <message>
         <source>These layers need to stay separate with the selected options.</source>
         <translation>선택한 옵션에서는 이 레이어들을 별도로 유지해야 합니다.</translation>
+    </message>
+    <message>
+        <source>Keep vector layers editable</source>
+        <translation>벡터 레이어를 편집 가능한 상태로 유지</translation>
+    </message>
+    <message>
+        <source>These layers keep their own effects and stay separate in a vector merge. Turning off &quot;Keep vector layers editable&quot; rasterizes merged artwork.</source>
+        <translation>이 레이어들은 각자의 효과를 유지하므로 벡터 병합 시 별도로 남습니다. "벡터 레이어를 편집 가능한 상태로 유지"를 끄면 병합되는 아트워크가 래스터화됩니다.</translation>
     </message>
 </context>
 <context>

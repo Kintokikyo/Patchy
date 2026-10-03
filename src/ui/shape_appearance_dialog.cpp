@@ -581,7 +581,8 @@ std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
       for (const auto& resource : document_patterns->patterns) {
         const auto name = resource.name.empty() ? QObject::tr("Embedded pattern")
                                                 : QString::fromStdString(resource.name);
-        combo->addItem(name, QString::fromStdString(resource.id));
+        combo->addItem(QIcon(pattern_thumbnail(resource.tile, combo->iconSize().width())), name,
+                       QString::fromStdString(resource.id));
       }
     }
     if (pattern_library != nullptr) {

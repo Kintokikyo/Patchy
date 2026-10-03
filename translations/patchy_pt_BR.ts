@@ -43,10 +43,6 @@
         <translation>Escolha como mesclar as camadas selecionadas e seus grupos.</translation>
     </message>
     <message>
-        <source>Keep vectors and bitmaps separate</source>
-        <translation>Manter vetores e bitmaps separados</translation>
-    </message>
-    <message>
         <source>Keep editable shapes. Turn off to merge the artwork into bitmap layers.</source>
         <translation>Mantenha formas editáveis. Desative para mesclar o trabalho artístico em camadas de bitmap.</translation>
     </message>
@@ -105,6 +101,14 @@
     <message>
         <source>These layers need to stay separate with the selected options.</source>
         <translation>Com as opções selecionadas, essas camadas precisam permanecer separadas.</translation>
+    </message>
+    <message>
+        <source>Keep vector layers editable</source>
+        <translation>Manter camadas vetoriais editáveis</translation>
+    </message>
+    <message>
+        <source>These layers keep their own effects and stay separate in a vector merge. Turning off &quot;Keep vector layers editable&quot; rasterizes merged artwork.</source>
+        <translation>Estas camadas mantêm seus próprios efeitos e permanecem separadas na mesclagem vetorial. Desativar "Manter camadas vetoriais editáveis" rasteriza a arte mesclada.</translation>
     </message>
 </context>
 <context>

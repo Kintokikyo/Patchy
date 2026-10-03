@@ -31,10 +31,6 @@
         <translation>選択したレイヤーとグループの結合方法を選択します。</translation>
     </message>
     <message>
-        <source>Keep vectors and bitmaps separate</source>
-        <translation>ベクターとビットマップを分けて結合</translation>
-    </message>
-    <message>
         <source>Keep editable shapes. Turn off to merge the artwork into bitmap layers.</source>
         <translation>編集可能なシェイプを保持します。オフにすると、アートワークをビットマップレイヤーに結合します。</translation>
     </message>
@@ -105,6 +101,14 @@
     <message>
         <source>The original layers are kept. Multiple outputs are placed in a new group.</source>
         <translation>元のレイヤーは保持されます。複数の結果は新しいグループにまとめられます。</translation>
+    </message>
+    <message>
+        <source>Keep vector layers editable</source>
+        <translation>ベクターレイヤーを編集可能なまま保持</translation>
+    </message>
+    <message>
+        <source>These layers keep their own effects and stay separate in a vector merge. Turning off &quot;Keep vector layers editable&quot; rasterizes merged artwork.</source>
+        <translation>これらのレイヤーは個別の効果を保持するため、ベクターとして結合する際も分かれたままになります。「ベクターレイヤーを編集可能なまま保持」をオフにすると、結合するアートワークがラスタライズされます。</translation>
     </message>
 </context>
 <context>

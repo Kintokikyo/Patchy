@@ -43,10 +43,6 @@
         <translation>Choisissez comment fusionner les calques sélectionnés et leurs groupes.</translation>
     </message>
     <message>
-        <source>Keep vectors and bitmaps separate</source>
-        <translation>Séparer les vecteurs et les bitmaps</translation>
-    </message>
-    <message>
         <source>Keep editable shapes. Turn off to merge the artwork into bitmap layers.</source>
         <translation>Conserve les formes modifiables. Désactivez cette option pour fusionner le contenu en calques bitmap.</translation>
     </message>
@@ -105,6 +101,14 @@
     <message>
         <source>These layers need to stay separate with the selected options.</source>
         <translation>Ces calques doivent rester séparés avec les options sélectionnées.</translation>
+    </message>
+    <message>
+        <source>Keep vector layers editable</source>
+        <translation>Garder les calques vectoriels modifiables</translation>
+    </message>
+    <message>
+        <source>These layers keep their own effects and stay separate in a vector merge. Turning off &quot;Keep vector layers editable&quot; rasterizes merged artwork.</source>
+        <translation>Ces calques conservent leurs propres effets et restent séparés lors d’une fusion vectorielle. Désactiver « Garder les calques vectoriels modifiables » pixellise le contenu fusionné.</translation>
     </message>
 </context>
 <context>

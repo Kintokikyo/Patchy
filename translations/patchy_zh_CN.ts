@@ -43,10 +43,6 @@
         <translation>选择如何合并所选图层及其编组。</translation>
     </message>
     <message>
-        <source>Keep vectors and bitmaps separate</source>
-        <translation>矢量与位图分开保留</translation>
-    </message>
-    <message>
         <source>Keep editable shapes. Turn off to merge the artwork into bitmap layers.</source>
         <translation>保留可编辑的形状。关闭此选项可将图稿合并为位图图层。</translation>
     </message>
@@ -105,6 +101,14 @@
     <message>
         <source>These layers need to stay separate with the selected options.</source>
         <translation>在所选选项下，这些图层需要保持独立。</translation>
+    </message>
+    <message>
+        <source>Keep vector layers editable</source>
+        <translation>保留矢量图层的可编辑性</translation>
+    </message>
+    <message>
+        <source>These layers keep their own effects and stay separate in a vector merge. Turning off &quot;Keep vector layers editable&quot; rasterizes merged artwork.</source>
+        <translation>这些图层会保留各自的效果，在矢量合并时保持独立。关闭“保留矢量图层的可编辑性”会将合并的图像栅格化。</translation>
     </message>
 </context>
 <context>

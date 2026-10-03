@@ -20,9 +20,11 @@
 #include <QDialogButtonBox>
 #include <QElapsedTimer>
 #include <QLabel>
+#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QTimer>
 
+#include <array>
 #include <cstdio>
 #include <utility>
 
@@ -312,6 +314,51 @@ void run_merge_script(MainWindow& window, const QString& script) {
   (void)window.script_engine_host().run_source(script, options);
   CHECK(process_events_until([&] { return !window.script_engine_host().run_active(); }));
   CHECK(!window.script_engine_host().last_run_had_error());
+}
+
+void ui_layer_merge_dialog_explains_separate_effects() {
+  Document doc(160, 80, PixelFormat::rgba8());
+  const std::array<std::string, 4> names{"Styled rectangle", "Styled star", "Styled <triangle>",
+                                        "Unselected shape"};
+  for (std::size_t i = 0; i < names.size(); ++i) {
+    auto layer = vector_layer(doc, rectangle(10 + 30 * static_cast<int>(i), 10, 20, 20));
+    layer.set_name(names[i]);
+    layer.layer_style().drop_shadows.push_back({true});
+    doc.add_layer(std::move(layer));
+  }
+  auto ids = roots(doc);
+  ids.pop_back();
+  QTimer::singleShot(0, [&] {
+    try {
+      auto* dialog = find_top_level_dialog(QStringLiteral("mergeLayersDialog"));
+      CHECK(dialog != nullptr);
+      auto* keep = dialog->findChild<QCheckBox*>(QStringLiteral("mergeKeepVectorsCheck"));
+      auto* types = dialog->findChild<QCheckBox*>(QStringLiteral("mergeSeparateVectorTypesCheck"));
+      auto* details = dialog->findChild<QPlainTextEdit*>(QStringLiteral("mergeLayersEffectsDetails"));
+      auto* buttons = dialog->findChild<QDialogButtonBox*>();
+      CHECK(keep && types && details && buttons);
+      CHECK(keep->text() == QStringLiteral("Keep vector layers editable"));
+      types->setChecked(false);
+      CHECK(!buttons->button(QDialogButtonBox::Ok)->isEnabled());
+      CHECK(details->isVisible() && details->isReadOnly());
+      CHECK(details->toPlainText().contains(QStringLiteral("stay separate in a vector merge")));
+      for (std::size_t i = 0; i < ids.size(); ++i) {
+        CHECK(details->toPlainText().contains(QString::fromStdString(names[i])));
+      }
+      CHECK(!details->toPlainText().contains(QString::fromStdString(names.back())));
+      save_widget_artifact("ui_layer_merge_separate_effects", *dialog);
+      keep->setChecked(false);
+      CHECK(!details->isVisible());
+      CHECK(buttons->button(QDialogButtonBox::Ok)->isEnabled());
+      CHECK(dialog->findChild<QLabel*>(QStringLiteral("mergeLayersSummaryLabel"))->text().contains(
+          QStringLiteral("0 vector layers, 1 bitmap layers")));
+      keep->setChecked(true);
+      CHECK(details->isVisible());
+      CHECK(!buttons->button(QDialogButtonBox::Ok)->isEnabled());
+      dialog->reject();
+    } catch (...) { (void)unwind_non_modal_dialog_loop(std::current_exception()); }
+  });
+  CHECK(!show_layer_merge_dialog(nullptr, doc, ids).has_value());
 }
 
 void ui_layer_merge_dialog_cancel_accept_and_history() {
@@ -980,6 +1027,7 @@ std::vector<patchy::test::TestCase> layer_merge_tests() {
       {"ui_layer_merge_gradients_patterns_and_paint_alignment", ui_layer_merge_gradients_patterns_and_paint_alignment},
       {"ui_layer_merge_group_and_vector_type_choices", ui_layer_merge_group_and_vector_type_choices},
       {"ui_layer_merge_protected_layers_and_unselected_order_are_barriers", ui_layer_merge_protected_layers_and_unselected_order_are_barriers},
+      {"ui_layer_merge_dialog_explains_separate_effects", ui_layer_merge_dialog_explains_separate_effects},
       {"ui_layer_merge_dialog_cancel_accept_and_history", ui_layer_merge_dialog_cancel_accept_and_history},
       {"ui_layer_merge_script_validation_noop_and_undo", ui_layer_merge_script_validation_noop_and_undo},
       {"ui_layer_merge_little_everywhere_if_available", ui_layer_merge_little_everywhere_if_available},

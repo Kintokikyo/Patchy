@@ -43,10 +43,6 @@
         <translation>Выберите, как объединить выбранные слои и их группы.</translation>
     </message>
     <message>
-        <source>Keep vectors and bitmaps separate</source>
-        <translation>Разделять векторные и растровые слои</translation>
-    </message>
-    <message>
         <source>Keep editable shapes. Turn off to merge the artwork into bitmap layers.</source>
         <translation>Сохранить редактируемые фигуры. Отключите, чтобы объединить изображение в растровые слои.</translation>
     </message>
@@ -105,6 +101,14 @@
     <message>
         <source>These layers need to stay separate with the selected options.</source>
         <translation>Эти слои должны оставаться отдельными с выбранными параметрами.</translation>
+    </message>
+    <message>
+        <source>Keep vector layers editable</source>
+        <translation>Сохранить возможность редактирования векторных слоёв</translation>
+    </message>
+    <message>
+        <source>These layers keep their own effects and stay separate in a vector merge. Turning off &quot;Keep vector layers editable&quot; rasterizes merged artwork.</source>
+        <translation>Эти слои сохраняют собственные эффекты и остаются отдельными при векторном объединении. Отключение параметра «Сохранить возможность редактирования векторных слоёв» растрирует объединяемое изображение.</translation>
     </message>
 </context>
 <context>

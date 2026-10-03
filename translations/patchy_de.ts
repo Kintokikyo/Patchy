@@ -43,10 +43,6 @@
         <translation>Wählen Sie, wie die ausgewählten Ebenen und ihre Gruppen zusammengefügt werden sollen.</translation>
     </message>
     <message>
-        <source>Keep vectors and bitmaps separate</source>
-        <translation>Vektoren und Bitmaps getrennt halten</translation>
-    </message>
-    <message>
         <source>Keep editable shapes. Turn off to merge the artwork into bitmap layers.</source>
         <translation>Bearbeitbare Formen beibehalten. Deaktivieren Sie die Option, um das Bildmaterial in Bitmap-Ebenen zusammenzufügen.</translation>
     </message>
@@ -105,6 +101,14 @@
     <message>
         <source>These layers need to stay separate with the selected options.</source>
         <translation>Diese Ebenen müssen mit den gewählten Optionen getrennt bleiben.</translation>
+    </message>
+    <message>
+        <source>Keep vector layers editable</source>
+        <translation>Vektorebenen bearbeitbar halten</translation>
+    </message>
+    <message>
+        <source>These layers keep their own effects and stay separate in a vector merge. Turning off &quot;Keep vector layers editable&quot; rasterizes merged artwork.</source>
+        <translation>Diese Ebenen behalten ihre eigenen Effekte und bleiben beim Zusammenfügen von Vektoren getrennt. Wenn Sie „Vektorebenen bearbeitbar halten“ deaktivieren, wird das zusammengefügte Bildmaterial gerastert.</translation>
     </message>
 </context>
 <context>

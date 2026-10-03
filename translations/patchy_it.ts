@@ -43,10 +43,6 @@
         <translation>Scegli come unire i livelli selezionati e i relativi gruppi.</translation>
     </message>
     <message>
-        <source>Keep vectors and bitmaps separate</source>
-        <translation>Mantieni separati vettori e bitmap</translation>
-    </message>
-    <message>
         <source>Keep editable shapes. Turn off to merge the artwork into bitmap layers.</source>
         <translation>Mantiene le forme modificabili. Disattiva per unire il contenuto in livelli bitmap.</translation>
     </message>
@@ -105,6 +101,14 @@
     <message>
         <source>These layers need to stay separate with the selected options.</source>
         <translation>Con le opzioni selezionate questi livelli devono restare separati.</translation>
+    </message>
+    <message>
+        <source>Keep vector layers editable</source>
+        <translation>Mantieni modificabili i livelli vettoriali</translation>
+    </message>
+    <message>
+        <source>These layers keep their own effects and stay separate in a vector merge. Turning off &quot;Keep vector layers editable&quot; rasterizes merged artwork.</source>
+        <translation>Questi livelli mantengono i propri effetti e restano separati durante l’unione vettoriale. Disattivando «Mantieni modificabili i livelli vettoriali», il contenuto unito viene rasterizzato.</translation>
     </message>
 </context>
 <context>

@@ -8,7 +8,7 @@ Selections containing vectors use `src/ui/layer_merge.{hpp,cpp}`. Shapes that
 produce one vector output merge immediately; groups and mixed selections open
 **Merge Layers** with three independent options:
 
-- **Keep vectors and bitmaps separate** preserves editable vector objects and
+- **Keep vector layers editable** preserves editable vector objects and
   merges bitmap runs separately (default on). Turn off to rasterize the merge.
 - **Merge within each group separately** keeps folders and merges each folder's
   compatible children (default off). An ordinary all-vector folder in one paint
@@ -25,6 +25,9 @@ All three options work together. The readout reports output leaf counts and
 removed layers. Merge is disabled only when the choices cannot change anything.
 Cancel leaves revisions, saved bytes, dirty state and history unchanged.
 Bitmap-only Merge Down keeps its existing flattening behavior without a dialog.
+When source layer effects require separate layers, the dialog lists those layers
+and explains that turning off vector preservation rasterizes merged artwork.
+The explanation also applies when every selected layer is a vector.
 
 **Merge Visible to New Layer (Copy)** (`layer.merge_visible`, Ctrl+Shift+E) copies
 all effectively visible content, independent of selection. Visible vectors open

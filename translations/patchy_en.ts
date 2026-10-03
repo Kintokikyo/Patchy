@@ -43,10 +43,6 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Keep vectors and bitmaps separate</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Keep editable shapes. Turn off to merge the artwork into bitmap layers.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -104,6 +100,14 @@
     </message>
     <message>
         <source>These layers need to stay separate with the selected options.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Keep vector layers editable</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>These layers keep their own effects and stay separate in a vector merge. Turning off &quot;Keep vector layers editable&quot; rasterizes merged artwork.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

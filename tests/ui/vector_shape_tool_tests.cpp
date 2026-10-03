@@ -11,6 +11,7 @@
 #include "ui/dialog_utils.hpp"
 #include "ui/measurement_units.hpp"
 #include "ui/pattern_library.hpp"
+#include "ui/shape_appearance_dialog.hpp"
 #include "ui/unit_spin_box.hpp"
 
 #include <QAction>
@@ -40,6 +41,7 @@
 
 #include <array>
 #include <cmath>
+#include <exception>
 #include <functional>
 #include <cstdio>
 #include <cstring>
@@ -1377,6 +1379,76 @@ void ui_path_edits_refresh_panel_thumbnails() {
   CHECK(paths_list->count() == 1);
   const auto after = paths_list->item(0)->icon().pixmap(QSize(42, 30)).toImage();
   CHECK(before != after);
+}
+
+void ui_shape_pattern_dropdowns_show_embedded_thumbnails() {
+  QTemporaryDir library_dir;
+  CHECK(library_dir.isValid());
+  patchy::ui::PatternLibrary library(library_dir.path());
+  const std::array<QString, 3> ids{QStringLiteral("embedded-only"),
+                                 QStringLiteral("shared-pattern-id"),
+                                 QStringLiteral("library-only")};
+  const std::array<QColor, 3> colors{QColor(220, 40, 60), QColor(30, 180, 70),
+                                   QColor(40, 80, 220)};
+  const auto tile = [](QColor color) {
+    return solid_pixels(8, 8, patchy::PixelFormat::rgba8(), color);
+  };
+  patchy::PatternStore patterns;
+  patterns.adopt({ids[0].toStdString(), "Embedded pattern", tile(colors[0])});
+  patterns.adopt({ids[1].toStdString(), "Document version", tile(colors[1])});
+  CHECK(!library.add_pattern(QStringLiteral("Library version"), tile(QColor(200, 90, 210)),
+                             {}, ids[1]).isEmpty());
+  CHECK(!library.add_pattern(QStringLiteral("Library only"), tile(colors[2]), {}, ids[2]).isEmpty());
+
+  patchy::ui::ShapeAppearanceSettings initial;
+  initial.fill.kind = patchy::VectorFillKind::Pattern;
+  initial.fill.pattern_id = ids[0].toStdString();
+  initial.fill.pattern_name = "Embedded pattern";
+  initial.stroke.enabled = true;
+  initial.stroke.width = 4;
+  initial.stroke.content.kind = patchy::VectorFillKind::Pattern;
+  initial.stroke.content.pattern_id = ids[1].toStdString();
+  initial.stroke.content.pattern_name = "Document version";
+  QTimer::singleShot(0, [&] {
+    try {
+      auto* dialog = find_top_level_dialog(QStringLiteral("shapeAppearanceDialog"));
+      CHECK(dialog != nullptr);
+      const std::array<QString, 2> combo_names{QStringLiteral("shapeFillPatternCombo"),
+                                             QStringLiteral("shapeStrokePatternCombo")};
+      for (std::size_t paint = 0; paint < combo_names.size(); ++paint) {
+        auto* combo = dialog->findChild<QComboBox*>(combo_names[paint]);
+        CHECK(combo != nullptr);
+        CHECK(combo->currentData().toString() == ids[paint]);
+        // A shared id appears once, with the document's pixels, even when
+        // the library has a different tile under that same id.
+        CHECK(combo->count() == 3);
+        for (std::size_t pattern = 0; pattern < ids.size(); ++pattern) {
+          const auto index = combo->findData(ids[pattern]);
+          CHECK(index >= 0);
+          const auto icon = combo->itemIcon(index);
+          CHECK(!icon.isNull());
+          const auto preview = icon.pixmap(combo->iconSize()).toImage();
+          CHECK(!preview.isNull());
+          CHECK(color_close(preview.pixelColor(preview.width() / 2, preview.height() / 2),
+                            colors[pattern], 1));
+        }
+        combo->showPopup();
+        QApplication::processEvents();
+        save_widget_artifact(paint == 0 ? "ui_shape_fill_pattern_thumbnails"
+                                       : "ui_shape_stroke_pattern_thumbnails",
+                             *combo->view()->window());
+        combo->hidePopup();
+      }
+      dialog->accept();
+    } catch (...) {
+      patchy::ui::unwind_non_modal_dialog_loop(std::current_exception());
+    }
+  });
+  const auto edited = patchy::ui::request_shape_appearance_settings(
+      nullptr, {}, initial, {}, nullptr, &library, &patterns, {}, {});
+  CHECK(edited.has_value());
+  CHECK(edited->fill == initial.fill);
+  CHECK(edited->stroke == initial.stroke);
 }
 
 void ui_shape_pattern_fill_uses_custom_library_pattern() {
@@ -4409,6 +4481,8 @@ std::vector<patchy::test::TestCase> vector_shape_tool_tests() {
       {"ui_new_fill_layer_clips_to_targeted_path", ui_new_fill_layer_clips_to_targeted_path},
       {"ui_shape_pattern_fill_uses_custom_library_pattern",
        ui_shape_pattern_fill_uses_custom_library_pattern},
+      {"ui_shape_pattern_dropdowns_show_embedded_thumbnails",
+       ui_shape_pattern_dropdowns_show_embedded_thumbnails},
       {"ui_options_bar_pattern_fill_creates_pattern_shape",
        ui_options_bar_pattern_fill_creates_pattern_shape},
       {"ui_options_bar_edits_selected_shape_appearance",

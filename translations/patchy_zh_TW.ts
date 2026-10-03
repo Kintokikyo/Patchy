@@ -43,10 +43,6 @@
         <translation>選擇如何合併選取的圖層及其群組。</translation>
     </message>
     <message>
-        <source>Keep vectors and bitmaps separate</source>
-        <translation>將向量與點陣圖分開保留</translation>
-    </message>
-    <message>
         <source>Keep editable shapes. Turn off to merge the artwork into bitmap layers.</source>
         <translation>保留可編輯的形狀。關閉此選項可將圖稿合併為點陣圖層。</translation>
     </message>
@@ -105,6 +101,14 @@
     <message>
         <source>These layers need to stay separate with the selected options.</source>
         <translation>在目前選取的選項下，這些圖層必須保持獨立。</translation>
+    </message>
+    <message>
+        <source>Keep vector layers editable</source>
+        <translation>保留向量圖層的可編輯性</translation>
+    </message>
+    <message>
+        <source>These layers keep their own effects and stay separate in a vector merge. Turning off &quot;Keep vector layers editable&quot; rasterizes merged artwork.</source>
+        <translation>這些圖層會保留各自的效果，在向量合併時維持獨立。關閉「保留向量圖層的可編輯性」會將合併的圖像點陣化。</translation>
     </message>
 </context>
 <context>

@@ -43,10 +43,6 @@
         <translation>Elija cómo combinar las capas seleccionadas y sus grupos.</translation>
     </message>
     <message>
-        <source>Keep vectors and bitmaps separate</source>
-        <translation>Mantener vectores y mapas de bits separados</translation>
-    </message>
-    <message>
         <source>Keep editable shapes. Turn off to merge the artwork into bitmap layers.</source>
         <translation>Conserva las formas editables. Desactive esta opción para combinar la ilustración en capas de mapa de bits.</translation>
     </message>
@@ -105,6 +101,14 @@
     <message>
         <source>These layers need to stay separate with the selected options.</source>
         <translation>Estas capas deben permanecer separadas con las opciones seleccionadas.</translation>
+    </message>
+    <message>
+        <source>Keep vector layers editable</source>
+        <translation>Mantener editables las capas vectoriales</translation>
+    </message>
+    <message>
+        <source>These layers keep their own effects and stay separate in a vector merge. Turning off &quot;Keep vector layers editable&quot; rasterizes merged artwork.</source>
+        <translation>Estas capas conservan sus propios efectos y permanecen separadas al combinar vectores. Desactivar «Mantener editables las capas vectoriales» rasteriza la ilustración combinada.</translation>
     </message>
 </context>
 <context>
