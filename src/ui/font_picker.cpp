@@ -36,7 +36,7 @@
 #ifdef Q_OS_ANDROID
 #include <QJniObject>
 #include <QJniEnvironment>
-#include <QNativeInterface>
+#include <QCoreApplication>
 #include <QThread>
 #endif
 
