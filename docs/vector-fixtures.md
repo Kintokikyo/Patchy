@@ -41,6 +41,18 @@ headless-stale (ps-compat.md).
   differs by a few /255 there (gradient fixture: mean 1.2, max 8).
 - Stroke dashes: arc-length integration differs, so a few dash-edge pixels
   flip (mean ~0.3 on the strokes fixture).
+- Inside/outside dashed strokes have a larger geometry error (confirmed against
+  Photoshop 27.10, October 2026). `rasterize_vector_stroke` doubles the band width
+  before clipping against the fill, also doubling square/round cap reach while
+  leaving dash spacing unchanged. The Dotted `{0,2}` and Dashed `{2,2}` presets
+  with square caps lose their straight-edge gaps; round caps form clipped,
+  oversized scallops. Photoshop retains separate dots and dashes at the selected
+  width. Centered strokes avoid this width inflation. Calibrate an offset stroke
+  contour at the original width, including corner spacing and round caps; merely
+  shortening square caps cannot repair the round-dot geometry. Force a native
+  rerasterization when comparing imported PSDs: Photoshop's saved pixels can hide
+  the fault until a shape edit. Existing alignment tests cover solid strokes and
+  dash tests cover centered strokes, leaving this combination untested.
 - ROTATED pattern fills: the placement mapping is pinned exactly
   (R(angle) @ (p - anchor) / scale), but PS resamples rotated tiles with a
   soft per-cell filter: cell-edge deltas are large, the structure matches; psd_pattern_params_probe_render_parity_if_available
