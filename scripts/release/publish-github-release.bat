@@ -2,7 +2,9 @@
 rem Publishes the release in build\package to GitHub Releases (tag v<version>, the four
 rem desktop artifacts, SHA256SUMS.txt) as a verified draft-then-public release. GitHub
 rem is the canonical download location; upload-to-rtsoft.bat keeps the rtsoft.com
-rem mirror. The release commit must be committed and pushed to origin/main first.
+rem mirror. The build commit must be committed and pushed to origin/main first,
+rem with latest_version.json still announcing the previous release. After publishing
+rem and verifying public downloads, commit/push the updated manifest separately.
 rem Extra arguments are passed to publish-github-release.ps1 (-Version, -Target,
 rem -AssetDir for a backfill). "nopause" as the first argument, or NO_PAUSE, skips the
 rem final pause. cd to the repo root (this script lives in scripts\release).

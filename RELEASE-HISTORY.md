@@ -3,6 +3,25 @@
 Older Patchy release notes are collected here. The two most recent releases
 remain in [README.md](README.md#whats-new).
 
+## 1.02 - October 1, 2026
+
+- New logo and app icon
+- Place Linked: File > Place Linked adds a Smart Object that points at a file on disk instead of embedding it (SVGs stay sharp at any size), and Image Size, Free Transform and Warp re-render linked Smart Objects from their files
+- Zoom tool: Scrubby Zoom (drag left or right to zoom, issue 51), plus Zoom In/Out, 100%, Fit Screen and Fill Screen buttons in the options bar
+- Trackpad two-finger scroll pans the canvas in any direction, and the mouse wheel zooms by default on macOS (issue 44)
+- Canvas Size: a link button to constrain proportions, an option to delete layers left completely off the canvas, and a new Image > Crop to Selection (Advanced) that opens it prefilled with the selection
+- Dimension fields follow the ruler unit, and New Document, Image Size and Canvas Size remember the unit you picked (issue 53)
+- Preferences has a new Tools tab for the mouse wheel and transform options
+- A document with only one layer no longer makes you click the layer first; commands and tools just use it
+- Opening a 16 or 32-bit PSD always shows the Import Notes popup so the conversion to 8-bit is not a surprise (issue 52)
+- Legacy plug-ins: a slow filter shows that Patchy is waiting on it instead of looking frozen
+- Lasso, Stroke and Liquify no longer stall on very fragmented selections
+- Layers panel: double-clicking a shape layer's vector badge opens Shape Appearance
+- SVG import: gradients and patterns follow the element's transforms. SVG save only warns about flattening when something really gets rasterized, and editable PDF export rotates pattern fills the right way
+- Convert to Smart Object no longer shifts a linked layer mask twice
+- macOS: resizing the brush and the eyedropper no longer raise permission prompts
+- Scripting/MCP improvements: `doc.addSmartObject`, `getSmartObject` and `updateSmartObject`, and layer moves carry text, shape, Smart Object and mask placement along
+
 ## 1.01 - September 29, 2026
 
 - UI themes! Dark, Light, seven bundled ones (Solarized, Nord, Dracula, Gruvbox and more) or make your own with a small `.patchytheme` file. Big thanks to [@lucastucious](https://github.com/lucastucious) for the theme system

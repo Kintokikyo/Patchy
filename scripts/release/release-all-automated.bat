@@ -8,7 +8,11 @@ rem one-liners load the right modules even when launched from pwsh 7), logs the
 rem target to build\release-logs\<target>.log, and writes exit=<code> to
 rem build\release-logs\<target>.exit when it ends. Wait for the .exit files; never
 rem wait for the consoles. Targets: windows mac linux wasm upload-wasm upload-all
-rem upload-github (the GitHub Releases publish; needs the release commit pushed first).
+rem upload-github (publish after pushing the build commit with the OLD update manifest).
+rem All requested targets launch in parallel. Run builds, upload-all, and upload-github
+rem in separate invocations, waiting for successful exit markers between phases.
+rem Only after the public release downloads are verified, update latest_version.json
+rem and commit/push that announcement separately. Keep the tag on the build commit.
 rem With no arguments it starts the four builders; name targets to run a subset,
 rem e.g. release-all-automated.bat windows wasm, or release-all-automated.bat upload-wasm.
 rem Always go through this script (or release-worker.bat) for an unattended run: a

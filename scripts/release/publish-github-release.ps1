@@ -27,8 +27,10 @@ Assets, taken from -AssetDir (default build\package):
   versioned file, the stable names are used as-is: that is the backfill case.)
 
 Without -Target the release commit must be HEAD, clean, and already pushed to
-origin/main: the tag and latest_version.json both have to point at the commit that
-produced the build. With -Target (backfill), the commit only has to be on origin/main.
+origin/main: the tag must point at the commit that produced the build. Leave
+latest_version.json at the previous version until this release is public and its
+downloads are verified, then announce it in a separate manifest-only commit.
+With -Target (backfill), the build commit only has to be on origin/main.
 
 Requires gh (authenticated: gh auth status) and git on PATH. Windows PowerShell 5.1 and
 pwsh 7 both work. Exit code 0 only after the release is public and verified.

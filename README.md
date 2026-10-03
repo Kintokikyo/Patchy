@@ -16,7 +16,7 @@ For bug reports and feature requests, please [open an issue](https://github.com/
 
 ## Download
 
-**Latest release: 1.03** · October 2, 2026 · [Release notes](#whats-new) · [All releases](https://github.com/SethRobinson/Patchy/releases)
+**Latest release: 1.04** · October 3, 2026 · [Release notes](#whats-new) · [All releases](https://github.com/SethRobinson/Patchy/releases)
 
 Windows releases are code signed by Seth A. Robinson; the macOS app is signed and
 notarized (Robinson Technologies Corporation). Every release is published on the
@@ -107,6 +107,13 @@ and Affinity import has format-specific limitations. See [current compatibility]
 
 ## What's New
 
+### 1.04 - October 3, 2026
+
+- Edit shape appearance and layer styles across selected layers, with mixed-value indicators, live previews, and one undo step per edit
+- Merge selected vectors into one editable vector layer, with a preview and a choice to remove layer effects or use the effects from one source layer
+- Fixed caps on inside and outside dashed vector strokes, and pattern thumbnails in Shape Appearance
+- Windows installer: clearer status spacing and a visible version number
+
 ### 1.03 - October 2, 2026
 
 - Animated WebP import and export: open frames as layers, preview their timing, and export layers as an animation, with lossless output, partial transparency, and loop counts
@@ -114,25 +121,6 @@ and Affinity import has format-specific limitations. See [current compatibility]
 - PSD compatibility: fixed legacy gradient fills and empty layer masks
 - Text fonts: clearer notices when an installed font cannot draw the text, and scripting warns whenever a requested font is replaced
 
-
-### 1.02 - October 1, 2026
-
-- New logo and app icon
-- Place Linked: File > Place Linked adds a Smart Object that points at a file on disk instead of embedding it (SVGs stay sharp at any size), and Image Size, Free Transform and Warp re-render linked Smart Objects from their files
-- Zoom tool: Scrubby Zoom (drag left or right to zoom, issue 51), plus Zoom In/Out, 100%, Fit Screen and Fill Screen buttons in the options bar
-- Trackpad two-finger scroll pans the canvas in any direction, and the mouse wheel zooms by default on macOS (issue 44)
-- Canvas Size: a link button to constrain proportions, an option to delete layers left completely off the canvas, and a new Image > Crop to Selection (Advanced) that opens it prefilled with the selection
-- Dimension fields follow the ruler unit, and New Document, Image Size and Canvas Size remember the unit you picked (issue 53)
-- Preferences has a new Tools tab for the mouse wheel and transform options
-- A document with only one layer no longer makes you click the layer first; commands and tools just use it
-- Opening a 16 or 32-bit PSD always shows the Import Notes popup so the conversion to 8-bit is not a surprise (issue 52)
-- Legacy plug-ins: a slow filter shows that Patchy is waiting on it instead of looking frozen
-- Lasso, Stroke and Liquify no longer stall on very fragmented selections
-- Layers panel: double-clicking a shape layer's vector badge opens Shape Appearance
-- SVG import: gradients and patterns follow the element's transforms. SVG save only warns about flattening when something really gets rasterized, and editable PDF export rotates pattern fills the right way
-- Convert to Smart Object no longer shifts a linked layer mask twice
-- macOS: resizing the brush and the eyedropper no longer raise permission prompts
-- Scripting/MCP improvements: `doc.addSmartObject`, `getSmartObject` and `updateSmartObject`, and layer moves carry text, shape, Smart Object and mask placement along
 
 [Older releases](RELEASE-HISTORY.md)
 
