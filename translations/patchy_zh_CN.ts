@@ -18499,6 +18499,10 @@ Baked into images: %1.</source>
         <source>%1: editing effects normalizes unsupported Satin contours.</source>
         <translation>%1：编辑效果将标准化不受支持的光泽轮廓。</translation>
     </message>
+    <message>
+        <source>Open from &amp;Clipboard</source>
+        <translation>从剪贴板打开(&amp;C)</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

@@ -18555,6 +18555,10 @@ Convertido en imágenes: %1.</translation>
         <source>%1: editing effects normalizes unsupported Satin contours.</source>
         <translation>%1: editar efectos normaliza los contornos Satinado no compatibles.</translation>
     </message>
+    <message>
+        <source>Open from &amp;Clipboard</source>
+        <translation>Abrir desde el &amp;portapapeles</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

@@ -20,8 +20,7 @@ All three configurations use Emscripten 4.0.7:
   declares `QThread::loopLevel()` without defining it (an ST-only link error);
   `canvas_widget_move.cpp` reads `QThreadData` via `Qt6::CorePrivate` instead.
 
-Wasm lives in the presets, `if(EMSCRIPTEN)` CMake branches, `Q_OS_WASM` gates,
-and `scripts/wasm/`. Stress/A-B harness: [performance.md](performance.md).
+Stress/A-B harness: [performance.md](performance.md).
 
 ## Toolchain setup
 
@@ -205,6 +204,8 @@ onto setTimeout before qtloader runs (harness below).
   `globalThis.patchyPthreadPoolSize`, which the baked pool formula prefers.
   Perf-only: an undersized pool degrades blocking fan-outs to sequential, it
   cannot deadlock).
+- **Open from Clipboard** is hidden/disabled: browser reads are cached
+  ([clipboard.md](clipboard.md)).
 - **Compiled out or stubbed:** QtPrintSupport does not exist on wasm
   (`print_dialog_wasm.cpp` stubs; File menu hides Print/Page Setup; the
   portable half stays in `print_layout.cpp`). Qt publishes no wasm qtpdf

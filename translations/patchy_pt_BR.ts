@@ -18555,6 +18555,10 @@ Y: %2
         <source>%1: editing effects normalizes unsupported Satin contours.</source>
         <translation>%1: editar efeitos normaliza os contornos de Cetim sem suporte.</translation>
     </message>
+    <message>
+        <source>Open from &amp;Clipboard</source>
+        <translation>Abrir da área de &amp;transferência</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

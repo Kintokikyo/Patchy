@@ -18505,6 +18505,10 @@ Baked into images: %1.</source>
         <source>%1: editing effects normalizes unsupported Satin contours.</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Open from &amp;Clipboard</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

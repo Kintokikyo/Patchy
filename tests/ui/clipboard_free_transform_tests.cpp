@@ -202,6 +202,99 @@ namespace {
 
 using namespace patchy::test::ui;
 
+void ui_open_clipboard_creates_unsaved_document_with_exact_pixels() {
+  patchy::ui::MainWindow window;
+  show_window_empty(window);
+  auto* action = require_hotkey_action(window, QStringLiteral("file.open_clipboard"));
+  CHECK(action == require_action(window, "fileOpenClipboardAction"));
+  CHECK(action->isVisible());
+  CHECK(action->isEnabled());
+  CHECK(action->shortcut() == QKeySequence(Qt::CTRL | Qt::ALT | Qt::SHIFT | Qt::Key_N));
+  auto* file_menu = window.menuBar()->actions().front()->menu();
+  CHECK(file_menu != nullptr);
+  CHECK(file_menu->actions().indexOf(action) ==
+        file_menu->actions().indexOf(require_action(window, "fileOpenAction")) + 1);
+
+  QImage image(19, 13, QImage::Format_RGBA8888);
+  image.fill(QColor(25, 90, 170, 128));
+  image.setPixelColor(0, 0, QColor(1, 2, 3, 0));
+  image.setPixelColor(18, 12, QColor(240, 110, 15, 255));
+  image.setDevicePixelRatio(2.0);  // Canvas dimensions are pixels, not logical display points.
+  QApplication::clipboard()->setImage(image);
+  action->trigger();
+
+  using Access = patchy::ui::MainWindowTestAccess;
+  CHECK(Access::session_count(window) == 1U);
+  CHECK(Access::active_session_path(window).isEmpty());
+  CHECK(Access::active_session_is_modified(window));
+  const auto& document = std::as_const(Access::document(window));
+  CHECK(document.width() == image.width());
+  CHECK(document.height() == image.height());
+  CHECK(document.layers().size() == 1U);
+  CHECK(document.print_settings().horizontal_ppi == 72.0);
+  CHECK(document.print_settings().vertical_ppi == 72.0);
+  const auto& pixels = document.layers().front().pixels();
+  for (int y = 0; y < image.height(); ++y) {
+    for (int x = 0; x < image.width(); ++x) {
+      const auto* pixel = pixels.pixel(x, y);
+      CHECK(QColor(pixel[0], pixel[1], pixel[2], pixel[3]) == image.pixelColor(x, y));
+    }
+  }
+  CHECK(require_canvas(window)->active_layer_document_rect() == QRect(0, 0, 19, 13));
+  QApplication::clipboard()->clear();
+}
+
+void ui_open_clipboard_shortcut_keeps_existing_document_and_uses_current_image() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  require_action(window, "editCopyMergedAction")->trigger();
+  using Access = patchy::ui::MainWindowTestAccess;
+  const auto original_id = Access::session_id(window, 0);
+  const auto original_layers = std::as_const(Access::document(window)).layers().size();
+  const auto original_undo = Access::active_session_undo_depth(window);
+
+  QImage image(7, 5, QImage::Format_RGB32);
+  image.fill(QColor(80, 140, 210));
+  QApplication::clipboard()->setImage(image);
+  window.activateWindow();
+  canvas->setFocus();
+  QApplication::processEvents();
+  send_key(*canvas, Qt::Key_N, Qt::ControlModifier | Qt::AltModifier | Qt::ShiftModifier);
+  QApplication::processEvents();
+  CHECK(Access::session_count(window) == 2U);
+  CHECK(Access::session_id(window, 0) == original_id);
+  CHECK(require_canvas(window)->active_layer_document_rect() == QRect(0, 0, 7, 5));
+  const auto& pixels = std::as_const(Access::document(window)).layers().front().pixels();
+  CHECK(pixels.pixel(0, 0)[0] == 80);
+  CHECK(pixels.pixel(0, 0)[3] == 255);
+  Access::activate_session(window, 0);
+  CHECK(std::as_const(Access::document(window)).layers().size() == original_layers);
+  CHECK(Access::active_session_undo_depth(window) == original_undo);
+  QApplication::clipboard()->clear();
+}
+
+void ui_open_clipboard_rejects_empty_and_non_image_data_without_creating_tabs() {
+  patchy::ui::MainWindow window;
+  show_window_empty(window);
+  using Access = patchy::ui::MainWindowTestAccess;
+  auto* action = require_action(window, "fileOpenClipboardAction");
+  for (const bool with_document : {false, true}) {
+    if (with_document) {
+      Access::create_default_document(window);
+      require_action(window, "editCopyMergedAction")->trigger();
+    }
+    const auto count = Access::session_count(window);
+    for (const auto& text : {QString(), QStringLiteral("Plain text is not an image")}) {
+      QApplication::clipboard()->setText(text);
+      action->trigger();
+      CHECK(Access::session_count(window) == count);
+      CHECK(window.statusBar()->currentMessage() == QStringLiteral("Clipboard does not contain an image"));
+    }
+  }
+  QApplication::clipboard()->clear();
+}
+
 void ui_copy_paste_and_transform_pasted_layer_work() {
   patchy::ui::MainWindow window;
   show_window(window);
@@ -2594,6 +2687,12 @@ void ui_edit_conversion_scanline_rewrites_are_byte_identical() {
 
 std::vector<patchy::test::TestCase> clipboard_free_transform_tests() {
   return {
+      {"ui_open_clipboard_creates_unsaved_document_with_exact_pixels",
+       ui_open_clipboard_creates_unsaved_document_with_exact_pixels},
+      {"ui_open_clipboard_shortcut_keeps_existing_document_and_uses_current_image",
+       ui_open_clipboard_shortcut_keeps_existing_document_and_uses_current_image},
+      {"ui_open_clipboard_rejects_empty_and_non_image_data_without_creating_tabs",
+       ui_open_clipboard_rejects_empty_and_non_image_data_without_creating_tabs},
       {"ui_copy_paste_and_transform_pasted_layer_work", ui_copy_paste_and_transform_pasted_layer_work},
       {"ui_paste_clears_selection_and_undo_restores_it", ui_paste_clears_selection_and_undo_restores_it},
       {"ui_paste_file_urls_adds_layers", ui_paste_file_urls_adds_layers},

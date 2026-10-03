@@ -306,6 +306,28 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
 
   auto* new_action = file_menu->addAction(tr("&New"));
   auto* open_action = file_menu->addAction(tr("&Open..."));
+  auto* open_clipboard_action = file_menu->addAction(tr("Open from &Clipboard"));
+  bind_action_text(open_clipboard_action, QT_TR_NOOP("Open from &Clipboard"));
+  open_clipboard_action->setObjectName(QStringLiteral("fileOpenClipboardAction"));
+  open_clipboard_action->setIcon(simple_icon(QStringLiteral("paste")));
+  register_hotkey(open_clipboard_action, "file.open_clipboard",
+                  QKeySequence(Qt::CTRL | Qt::ALT | Qt::SHIFT | Qt::Key_N));
+#ifdef Q_OS_WASM
+  // Qt 6.10's browser clipboard is a cache filled by native paste events.
+  // This shortcut does not request a fresh browser read; never open stale pixels.
+  // Keep the command id registered, as with the other desktop-only commands.
+  open_clipboard_action->setVisible(false);
+  open_clipboard_action->setEnabled(false);
+#else
+  connect(open_clipboard_action, &QAction::triggered, this, [this] {
+    if (preview_dialog_edit_locked()) {
+      show_preview_dialog_edit_lock_message();
+      return;
+    }
+    const auto* clipboard = QApplication::clipboard();
+    create_clipboard_document(clipboard != nullptr ? clipboard->image() : QImage(), tr("New document"));
+  });
+#endif
   // A whole folder of images as tabs (the other half of the PDF round trip: pages
   // exported to a folder come back as one document each).
   auto* open_folder_action = file_menu->addAction(tr("Open Fol&der..."));

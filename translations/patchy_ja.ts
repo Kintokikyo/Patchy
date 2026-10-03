@@ -18499,6 +18499,10 @@ Baked into images: %1.</source>
         <source>%1: editing effects normalizes unsupported Satin contours.</source>
         <translation>%1：効果を編集すると、未対応のサテン輪郭が標準化されます。</translation>
     </message>
+    <message>
+        <source>Open from &amp;Clipboard</source>
+        <translation>クリップボードから開く(&amp;C)</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

@@ -18499,6 +18499,10 @@ Y: %2
         <source>%1: editing effects normalizes unsupported Satin contours.</source>
         <translation>%1: 효과를 편집하면 지원되지 않는 새틴 윤곽이 표준화됩니다.</translation>
     </message>
+    <message>
+        <source>Open from &amp;Clipboard</source>
+        <translation>클립보드에서 열기(&amp;C)</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

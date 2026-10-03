@@ -18611,6 +18611,10 @@ Y: %2
         <source>%1: editing effects normalizes unsupported Satin contours.</source>
         <translation>%1: edycja efektów normalizuje nieobsługiwane kontury satyny.</translation>
     </message>
+    <message>
+        <source>Open from &amp;Clipboard</source>
+        <translation>Otwórz ze &amp;schowka</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

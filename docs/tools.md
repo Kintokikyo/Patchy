@@ -1,9 +1,10 @@
 # Shape tools, Crop tool, Free Transform modifiers, Merge Down, and tool icons
 
-Small tool/command behaviors that don't have their own doc. Selection tools live in [selection-tools.md](selection-tools.md); brushes in [brushes.md](brushes.md); the text tool in [text-tool.md](text-tool.md). The vector side of the shape tools (Shape/Path modes, pen, path editing, vector masks, Paths panel, shape library) lives in [vector-tools.md](vector-tools.md); this page covers the legacy Pixels-mode raster behavior, which must stay byte-identical.
+Small tool/command behaviors. See [selection-tools.md](selection-tools.md), [brushes.md](brushes.md), [text-tool.md](text-tool.md), and [vector-tools.md](vector-tools.md) for those features. The legacy Pixels-mode raster behavior here must stay byte-identical.
 
 ## Clipboard pixel placement
 
+- File > Open from Clipboard: [behavior, platforms, and legal review](clipboard.md).
 - Edit > Paste (`edit.paste`, Ctrl+V) centers copied/cut selection pixels and external clipboard images on the active canvas viewport, using the current pan and zoom. Each axis is clamped so the pasted rectangle fits inside the document.
 - Edit > Paste in Place (`edit.paste_in_place`, Ctrl+Shift+V) uses the selection's original document coordinates, including across documents, with the same bounds clamp. External images have no source coordinates and use the viewport center.
 - Pasting preserves pixel dimensions and content. If the pixels exceed the canvas on an axis, that axis is centered with overflow instead of being resized or cropped. Both commands clear the selection in the paste history entry; Undo restores it and Redo restores placement.
