@@ -108,7 +108,119 @@
     </message>
     <message>
         <source>These layers keep their own effects and stay separate in a vector merge. Turning off &quot;Keep vector layers editable&quot; rasterizes merged artwork.</source>
-        <translation>이 레이어들은 각자의 효과를 유지하므로 벡터 병합 시 별도로 남습니다. "벡터 레이어를 편집 가능한 상태로 유지"를 끄면 병합되는 아트워크가 래스터화됩니다.</translation>
+        <translation>이 레이어들은 각자의 효과를 유지하므로 벡터 병합 시 별도로 남습니다. &quot;벡터 레이어를 편집 가능한 상태로 유지&quot;를 끄면 병합되는 아트워크가 래스터화됩니다.</translation>
+    </message>
+    <message>
+        <source>Select at least two editable vector layers.</source>
+        <translation>편집 가능한 벡터 레이어를 두 개 이상 선택하세요.</translation>
+    </message>
+    <message>
+        <source>This layer is not an editable vector layer.</source>
+        <translation>이 레이어는 편집 가능한 벡터 레이어가 아닙니다.</translation>
+    </message>
+    <message>
+        <source>Unlock this layer and its parent groups first.</source>
+        <translation>먼저 이 레이어와 상위 그룹의 잠금을 해제하세요.</translation>
+    </message>
+    <message>
+        <source>Show this layer and its parent groups first.</source>
+        <translation>먼저 이 레이어와 상위 그룹을 표시하세요.</translation>
+    </message>
+    <message>
+        <source>A clipping relationship requires this layer to stay separate.</source>
+        <translation>클리핑 관계로 인해 이 레이어를 별도로 유지해야 합니다.</translation>
+    </message>
+    <message>
+        <source>A separate mask prevents this vector merge.</source>
+        <translation>별도의 마스크가 있어 이 벡터를 병합할 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Smart Filters require this layer to stay separate.</source>
+        <translation>고급 필터가 있어 이 레이어를 별도로 유지해야 합니다.</translation>
+    </message>
+    <message>
+        <source>The blend mode, Blend If, or channel settings require a separate layer.</source>
+        <translation>혼합 모드, 혼합 조건 또는 채널 설정에 별도의 레이어가 필요합니다.</translation>
+    </message>
+    <message>
+        <source>Preserved vector data cannot be edited.</source>
+        <translation>보존된 벡터 데이터는 편집할 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>This compound vector&apos;s opacity requires it to stay separate.</source>
+        <translation>이 복합 벡터의 불투명도를 유지하려면 별도로 두어야 합니다.</translation>
+    </message>
+    <message>
+        <source>This group&apos;s appearance prevents moving shapes across its boundary.</source>
+        <translation>이 그룹의 모양을 유지해야 하므로 그룹 경계를 넘어 도형을 이동할 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Choose effects from a vector layer included in the merge.</source>
+        <translation>병합에 포함된 벡터 레이어에서 효과를 선택하세요.</translation>
+    </message>
+    <message>
+        <source>Vector feather or density requires this shape to stay separate.</source>
+        <translation>벡터 페더 또는 농도로 인해 이 도형을 별도로 유지해야 합니다.</translation>
+    </message>
+    <message>
+        <source>%1: %2</source>
+        <translation>%1: %2</translation>
+    </message>
+    <message>
+        <source>Merge into one vector layer</source>
+        <translation>하나의 벡터 레이어로 병합</translation>
+    </message>
+    <message>
+        <source>Remove layer effects</source>
+        <translation>레이어 효과 제거</translation>
+    </message>
+    <message>
+        <source>Use effects from a layer</source>
+        <translation>레이어의 효과 사용</translation>
+    </message>
+    <message>
+        <source>Layer effects:</source>
+        <translation>레이어 효과:</translation>
+    </message>
+    <message>
+        <source>Use effects from:</source>
+        <translation>효과를 가져올 레이어:</translation>
+    </message>
+    <message>
+        <source>Preview</source>
+        <translation>미리 보기</translation>
+    </message>
+    <message>
+        <source>Preview unavailable.</source>
+        <translation>미리 보기를 사용할 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>Merged artwork</source>
+        <translation>병합된 이미지</translation>
+    </message>
+    <message>
+        <source>Original artwork</source>
+        <translation>원본 이미지</translation>
+    </message>
+    <message>
+        <source>Effects from %1 apply once to the combined silhouette. Each shape keeps its own fill and vector stroke.</source>
+        <translation>%1의 효과가 결합된 윤곽 전체에 한 번 적용됩니다. 각 도형의 채우기와 벡터 획은 유지됩니다.</translation>
+    </message>
+    <message>
+        <source>Individual layer effects will be removed. Each shape keeps its own fill and vector stroke.</source>
+        <translation>개별 레이어 효과가 제거됩니다. 각 도형의 채우기와 벡터 획은 유지됩니다.</translation>
+    </message>
+    <message>
+        <source>Result: 1 editable vector layer, replacing %1 in the layer stack.</source>
+        <translation>결과: 레이어 순서에서 %1을 대체하는 편집 가능한 벡터 레이어 1개.</translation>
+    </message>
+    <message>
+        <source>Stacking relative to unselected layers will change. Review the preview before merging.</source>
+        <translation>선택하지 않은 레이어와의 쌓임 순서가 변경됩니다. 병합 전에 미리 보기를 확인하세요.</translation>
+    </message>
+    <message>
+        <source>Updating preview...</source>
+        <translation>미리 보기 업데이트 중...</translation>
     </message>
 </context>
 <context>
@@ -19302,10 +19414,6 @@ Y: %2
         <translation>combineShapes: 모양 레이어는 하나의 폴더를 공유해야 합니다.</translation>
     </message>
     <message>
-        <source>mergeLayers: options must be an object of booleans.</source>
-        <translation>mergeLayers: 옵션은 부울의 객체여야 합니다.</translation>
-    </message>
-    <message>
         <source>mergeLayers: unknown option %1</source>
         <translation>mergeLayers: 알 수 없는 옵션 %1</translation>
     </message>
@@ -19812,6 +19920,22 @@ Y: %2
     <message>
         <source>exportAnimatedWebp: invalid option %1.</source>
         <translation>exportAnimatedWebp: 잘못된 옵션 %1.</translation>
+    </message>
+    <message>
+        <source>mergeLayers: options must be an object.</source>
+        <translation>mergeLayers: options는 객체여야 합니다.</translation>
+    </message>
+    <message>
+        <source>mergeLayers: effectsFrom must be a layer of this document.</source>
+        <translation>mergeLayers: effectsFrom은 이 문서의 레이어여야 합니다.</translation>
+    </message>
+    <message>
+        <source>mergeLayers: %1 must be a boolean.</source>
+        <translation>mergeLayers: %1은 불리언 값이어야 합니다.</translation>
+    </message>
+    <message>
+        <source>mergeLayers: effectsFrom requires singleVector.</source>
+        <translation>mergeLayers: effectsFrom에는 singleVector가 필요합니다.</translation>
     </message>
 </context>
 <context>

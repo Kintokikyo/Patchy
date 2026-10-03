@@ -656,9 +656,15 @@ interface PatchyDocument {
    * keepVectors=false explicitly rasterizes merges; separateVectorTypes separates
    * solid, gradient, pattern and mixed-paint categories, irrespective of colors/stroke settings.
    * A single leaf is unchanged (no implicit layer below, unlike Merge Down).
+   * singleVector=true overrides the three options above: at least two editable vector
+   * layers become one at the bottommost source's stack position, including across unselected layers.
+   * Removes individual layer effects unless effectsFrom names a vector included in the merge;
+   * that layer's effects apply once to the combined silhouette. Masks, clipping, locks,
+   * unsupported data and incompatible blending/group boundaries throw before mutation.
    */
   mergeLayers(layers: PatchyLayer[], options?: {
     keepVectors?: boolean; withinGroups?: boolean; separateVectorTypes?: boolean;
+    singleVector?: boolean; effectsFrom?: PatchyLayer;
   }): PatchyLayer[];
   /** Layer > Arrange > Align: lines the layers' edges or centers up with the reference
    *  (the selection when one exists and alignTo is "selection", the canvas when alignTo is

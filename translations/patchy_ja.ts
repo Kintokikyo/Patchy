@@ -110,6 +110,118 @@
         <source>These layers keep their own effects and stay separate in a vector merge. Turning off &quot;Keep vector layers editable&quot; rasterizes merged artwork.</source>
         <translation>これらのレイヤーは個別の効果を保持するため、ベクターとして結合する際も分かれたままになります。「ベクターレイヤーを編集可能なまま保持」をオフにすると、結合するアートワークがラスタライズされます。</translation>
     </message>
+    <message>
+        <source>Select at least two editable vector layers.</source>
+        <translation>編集可能なベクターレイヤーを2つ以上選択してください。</translation>
+    </message>
+    <message>
+        <source>This layer is not an editable vector layer.</source>
+        <translation>このレイヤーは編集可能なベクターレイヤーではありません。</translation>
+    </message>
+    <message>
+        <source>Unlock this layer and its parent groups first.</source>
+        <translation>先にこのレイヤーと親グループのロックを解除してください。</translation>
+    </message>
+    <message>
+        <source>Show this layer and its parent groups first.</source>
+        <translation>先にこのレイヤーと親グループを表示してください。</translation>
+    </message>
+    <message>
+        <source>A clipping relationship requires this layer to stay separate.</source>
+        <translation>クリッピング関係があるため、このレイヤーは分離しておく必要があります。</translation>
+    </message>
+    <message>
+        <source>A separate mask prevents this vector merge.</source>
+        <translation>別のマスクがあるため、このベクター結合はできません。</translation>
+    </message>
+    <message>
+        <source>Smart Filters require this layer to stay separate.</source>
+        <translation>スマートフィルターがあるため、このレイヤーは分離しておく必要があります。</translation>
+    </message>
+    <message>
+        <source>The blend mode, Blend If, or channel settings require a separate layer.</source>
+        <translation>描画モード、ブレンド条件、またはチャンネル設定により、別のレイヤーが必要です。</translation>
+    </message>
+    <message>
+        <source>Preserved vector data cannot be edited.</source>
+        <translation>保持されたベクターデータは編集できません。</translation>
+    </message>
+    <message>
+        <source>This compound vector&apos;s opacity requires it to stay separate.</source>
+        <translation>この複合ベクターの不透明度を維持するには、分離しておく必要があります。</translation>
+    </message>
+    <message>
+        <source>This group&apos;s appearance prevents moving shapes across its boundary.</source>
+        <translation>このグループの外観を維持するため、境界を越えてシェイプを移動できません。</translation>
+    </message>
+    <message>
+        <source>Choose effects from a vector layer included in the merge.</source>
+        <translation>結合に含まれるベクターレイヤーから効果を選択してください。</translation>
+    </message>
+    <message>
+        <source>Vector feather or density requires this shape to stay separate.</source>
+        <translation>ベクターのぼかしまたは濃度により、このシェイプは分離しておく必要があります。</translation>
+    </message>
+    <message>
+        <source>%1: %2</source>
+        <translation>%1: %2</translation>
+    </message>
+    <message>
+        <source>Merge into one vector layer</source>
+        <translation>1つのベクターレイヤーに結合</translation>
+    </message>
+    <message>
+        <source>Remove layer effects</source>
+        <translation>レイヤー効果を削除</translation>
+    </message>
+    <message>
+        <source>Use effects from a layer</source>
+        <translation>レイヤーの効果を使用</translation>
+    </message>
+    <message>
+        <source>Layer effects:</source>
+        <translation>レイヤー効果:</translation>
+    </message>
+    <message>
+        <source>Use effects from:</source>
+        <translation>効果の使用元:</translation>
+    </message>
+    <message>
+        <source>Preview</source>
+        <translation>プレビュー</translation>
+    </message>
+    <message>
+        <source>Preview unavailable.</source>
+        <translation>プレビューを表示できません。</translation>
+    </message>
+    <message>
+        <source>Merged artwork</source>
+        <translation>結合後の画像</translation>
+    </message>
+    <message>
+        <source>Original artwork</source>
+        <translation>元の画像</translation>
+    </message>
+    <message>
+        <source>Effects from %1 apply once to the combined silhouette. Each shape keeps its own fill and vector stroke.</source>
+        <translation>%1の効果を結合された輪郭全体に1回適用します。各シェイプの塗りとベクターの線は維持されます。</translation>
+    </message>
+    <message>
+        <source>Individual layer effects will be removed. Each shape keeps its own fill and vector stroke.</source>
+        <translation>個々のレイヤー効果は削除されます。各シェイプの塗りとベクターの線は維持されます。</translation>
+    </message>
+    <message>
+        <source>Result: 1 editable vector layer, replacing %1 in the layer stack.</source>
+        <translation>結果: 編集可能なベクターレイヤー1つで、レイヤーの重なり順における%1を置き換えます。</translation>
+    </message>
+    <message>
+        <source>Stacking relative to unselected layers will change. Review the preview before merging.</source>
+        <translation>未選択レイヤーとの重なり順が変わります。結合前にプレビューを確認してください。</translation>
+    </message>
+    <message>
+        <source>Updating preview...</source>
+        <translation>プレビューを更新中...</translation>
+    </message>
 </context>
 <context>
     <name>LegacyPluginFolder</name>
@@ -19590,10 +19702,6 @@ Baked into images: %1.</source>
         <translation>一時停止中にストロークの対象が変更されました。続行する前にドキュメントを確認してください。</translation>
     </message>
     <message>
-        <source>mergeLayers: options must be an object of booleans.</source>
-        <translation>mergeLayers: オプションには真偽値のオブジェクトを指定してください。</translation>
-    </message>
-    <message>
         <source>mergeLayers: unknown option %1</source>
         <translation>mergeLayers: 不明なオプション %1</translation>
     </message>
@@ -19812,6 +19920,22 @@ Baked into images: %1.</source>
     <message>
         <source>exportAnimatedWebp: invalid option %1.</source>
         <translation>exportAnimatedWebp: オプション%1が無効です。</translation>
+    </message>
+    <message>
+        <source>mergeLayers: options must be an object.</source>
+        <translation>mergeLayers: optionsはオブジェクトである必要があります。</translation>
+    </message>
+    <message>
+        <source>mergeLayers: effectsFrom must be a layer of this document.</source>
+        <translation>mergeLayers: effectsFromはこのドキュメントのレイヤーである必要があります。</translation>
+    </message>
+    <message>
+        <source>mergeLayers: %1 must be a boolean.</source>
+        <translation>mergeLayers: %1はブール値である必要があります。</translation>
+    </message>
+    <message>
+        <source>mergeLayers: effectsFrom requires singleVector.</source>
+        <translation>mergeLayers: effectsFromにはsingleVectorが必要です。</translation>
     </message>
 </context>
 <context>

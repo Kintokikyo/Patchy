@@ -1676,28 +1676,43 @@ QJSValue ScriptDocumentObject::mergeLayers(const QJSValue& layers, const QJSValu
   LayerMergeOptions choice;
   if (!options.isUndefined()) {
     if (!options.isObject() || options.isArray() || options.isCallable()) {
-      host_.throw_js_error(ScriptEngineHost::tr("mergeLayers: options must be an object of booleans."));
+      host_.throw_js_error(ScriptEngineHost::tr("mergeLayers: options must be an object."));
       return QJSValue();
     }
     QJSValueIterator it(options);
     while (it.hasNext()) {
       it.next();
+      const auto key = it.name();
+      if (key == QLatin1String("effectsFrom")) {
+        const auto* wrapper = qobject_cast<ScriptLayerObject*>(it.value().toQObject());
+        if (wrapper == nullptr || wrapper->session_id() != session_id_ || document->find_layer(wrapper->layer_id()) == nullptr) {
+          host_.throw_js_error(ScriptEngineHost::tr("mergeLayers: effectsFrom must be a layer of this document."));
+          return QJSValue();
+        }
+        choice.effects_source = wrapper->layer_id();
+        continue;
+      }
       if (!it.value().isBool()) {
-        host_.throw_js_error(ScriptEngineHost::tr("mergeLayers: options must be an object of booleans."));
+        host_.throw_js_error(ScriptEngineHost::tr("mergeLayers: %1 must be a boolean.").arg(key));
         return QJSValue();
       }
-      const auto key = it.name();
       if (key == QLatin1String("keepVectors")) {
         choice.keep_vectors = it.value().toBool();
       } else if (key == QLatin1String("withinGroups")) {
         choice.within_groups = it.value().toBool();
       } else if (key == QLatin1String("separateVectorTypes")) {
         choice.separate_vector_types = it.value().toBool();
+      } else if (key == QLatin1String("singleVector")) {
+        choice.single_vector = it.value().toBool();
       } else {
         host_.throw_js_error(ScriptEngineHost::tr("mergeLayers: unknown option %1").arg(key));
         return QJSValue();
       }
     }
+  }
+  if (choice.effects_source && !choice.single_vector) {
+    host_.throw_js_error(ScriptEngineHost::tr("mergeLayers: effectsFrom requires singleVector."));
+    return QJSValue();
   }
   std::vector<LayerId> ids;
   const auto length = layers.isArray() ? layers.property(QStringLiteral("length")).toUInt() : 0U;
@@ -1717,6 +1732,10 @@ QJSValue ScriptDocumentObject::mergeLayers(const QJSValue& layers, const QJSValu
   std::optional<Document> prepared;
   try {
     plan = plan_layer_merge(*document, ids, choice);
+    if (!plan.blockers.empty()) {
+      host_.throw_js_error(layer_merge_blocker_messages(*document, plan).join(QChar('\n')));
+      return QJSValue();
+    }
     if (plan.changed) {
       prepared = render_layer_merge(*document, plan);
     }

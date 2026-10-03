@@ -110,6 +110,118 @@
         <source>These layers keep their own effects and stay separate in a vector merge. Turning off &quot;Keep vector layers editable&quot; rasterizes merged artwork.</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Select at least two editable vector layers.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This layer is not an editable vector layer.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unlock this layer and its parent groups first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show this layer and its parent groups first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A clipping relationship requires this layer to stay separate.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A separate mask prevents this vector merge.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Smart Filters require this layer to stay separate.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The blend mode, Blend If, or channel settings require a separate layer.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preserved vector data cannot be edited.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This compound vector&apos;s opacity requires it to stay separate.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This group&apos;s appearance prevents moving shapes across its boundary.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose effects from a vector layer included in the merge.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Vector feather or density requires this shape to stay separate.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Merge into one vector layer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove layer effects</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Use effects from a layer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Layer effects:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Use effects from:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preview</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preview unavailable.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Merged artwork</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Original artwork</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Effects from %1 apply once to the combined silhouette. Each shape keeps its own fill and vector stroke.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Individual layer effects will be removed. Each shape keeps its own fill and vector stroke.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Result: 1 editable vector layer, replacing %1 in the layer stack.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stacking relative to unselected layers will change. Review the preview before merging.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Updating preview...</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>LegacyPluginFolder</name>
@@ -19257,10 +19369,6 @@ Baked into images: %1.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>mergeLayers: options must be an object of booleans.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>mergeLayers: unknown option %1</source>
         <translation type="unfinished"></translation>
     </message>
@@ -19818,6 +19926,22 @@ Baked into images: %1.</source>
     </message>
     <message>
         <source>exportAnimatedWebp: invalid option %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>mergeLayers: options must be an object.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>mergeLayers: effectsFrom must be a layer of this document.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>mergeLayers: %1 must be a boolean.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>mergeLayers: effectsFrom requires singleVector.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

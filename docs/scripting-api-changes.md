@@ -1,5 +1,12 @@
 # Scripting API compatibility
 
+2026-10-03 additive (API 1): `doc.mergeLayers(layers, {singleVector: true,
+effectsFrom?: layer})` explicitly combines selected vectors at the bottommost
+source's stack position. It removes individual layer effects unless `effectsFrom`
+selects one source stack to apply to the combined silhouette. Fills, vector strokes
+and curves remain editable. Protected or incompatible inputs throw before mutation.
+See [layer-merging.md](layer-merging.md); pinned by `ui_layer_merge_single_vector_*`.
+
 2026-10-02 behavioral correction (API 1): text font warnings recognize compact family
 spellings such as `LiberationSans` as the same font as `Liberation Sans`. Creating or
 editing text with that spelling no longer reports a missing font when the requested

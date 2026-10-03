@@ -110,6 +110,118 @@
         <source>These layers keep their own effects and stay separate in a vector merge. Turning off &quot;Keep vector layers editable&quot; rasterizes merged artwork.</source>
         <translation>这些图层会保留各自的效果，在矢量合并时保持独立。关闭“保留矢量图层的可编辑性”会将合并的图像栅格化。</translation>
     </message>
+    <message>
+        <source>Select at least two editable vector layers.</source>
+        <translation>请至少选择两个可编辑的矢量图层。</translation>
+    </message>
+    <message>
+        <source>This layer is not an editable vector layer.</source>
+        <translation>此图层不是可编辑的矢量图层。</translation>
+    </message>
+    <message>
+        <source>Unlock this layer and its parent groups first.</source>
+        <translation>请先解锁此图层及其父级组。</translation>
+    </message>
+    <message>
+        <source>Show this layer and its parent groups first.</source>
+        <translation>请先显示此图层及其父级组。</translation>
+    </message>
+    <message>
+        <source>A clipping relationship requires this layer to stay separate.</source>
+        <translation>剪贴关系要求此图层保持独立。</translation>
+    </message>
+    <message>
+        <source>A separate mask prevents this vector merge.</source>
+        <translation>单独的蒙版阻止了此次矢量合并。</translation>
+    </message>
+    <message>
+        <source>Smart Filters require this layer to stay separate.</source>
+        <translation>智能滤镜要求此图层保持独立。</translation>
+    </message>
+    <message>
+        <source>The blend mode, Blend If, or channel settings require a separate layer.</source>
+        <translation>混合模式、混合颜色带或通道设置需要单独的图层。</translation>
+    </message>
+    <message>
+        <source>Preserved vector data cannot be edited.</source>
+        <translation>保留的矢量数据无法编辑。</translation>
+    </message>
+    <message>
+        <source>This compound vector&apos;s opacity requires it to stay separate.</source>
+        <translation>此复合矢量的不透明度要求它保持独立。</translation>
+    </message>
+    <message>
+        <source>This group&apos;s appearance prevents moving shapes across its boundary.</source>
+        <translation>此组的外观不允许跨越组边界移动形状。</translation>
+    </message>
+    <message>
+        <source>Choose effects from a vector layer included in the merge.</source>
+        <translation>请选择参与合并的矢量图层作为效果来源。</translation>
+    </message>
+    <message>
+        <source>Vector feather or density requires this shape to stay separate.</source>
+        <translation>矢量羽化或浓度要求此形状保持独立。</translation>
+    </message>
+    <message>
+        <source>%1: %2</source>
+        <translation>%1：%2</translation>
+    </message>
+    <message>
+        <source>Merge into one vector layer</source>
+        <translation>合并为一个矢量图层</translation>
+    </message>
+    <message>
+        <source>Remove layer effects</source>
+        <translation>移除图层效果</translation>
+    </message>
+    <message>
+        <source>Use effects from a layer</source>
+        <translation>使用某个图层的效果</translation>
+    </message>
+    <message>
+        <source>Layer effects:</source>
+        <translation>图层效果：</translation>
+    </message>
+    <message>
+        <source>Use effects from:</source>
+        <translation>效果来源：</translation>
+    </message>
+    <message>
+        <source>Preview</source>
+        <translation>预览</translation>
+    </message>
+    <message>
+        <source>Preview unavailable.</source>
+        <translation>预览不可用。</translation>
+    </message>
+    <message>
+        <source>Merged artwork</source>
+        <translation>合并后的图像</translation>
+    </message>
+    <message>
+        <source>Original artwork</source>
+        <translation>原始图像</translation>
+    </message>
+    <message>
+        <source>Effects from %1 apply once to the combined silhouette. Each shape keeps its own fill and vector stroke.</source>
+        <translation>%1 的效果会对合并后的整个轮廓应用一次。每个形状保留自己的填充和矢量描边。</translation>
+    </message>
+    <message>
+        <source>Individual layer effects will be removed. Each shape keeps its own fill and vector stroke.</source>
+        <translation>各个图层的效果将被移除。每个形状保留自己的填充和矢量描边。</translation>
+    </message>
+    <message>
+        <source>Result: 1 editable vector layer, replacing %1 in the layer stack.</source>
+        <translation>结果：1 个可编辑的矢量图层，在图层堆栈中替换 %1。</translation>
+    </message>
+    <message>
+        <source>Stacking relative to unselected layers will change. Review the preview before merging.</source>
+        <translation>与未选中图层的叠放顺序将发生变化。请在合并前查看预览。</translation>
+    </message>
+    <message>
+        <source>Updating preview...</source>
+        <translation>正在更新预览...</translation>
+    </message>
 </context>
 <context>
     <name>LegacyPluginFolder</name>
@@ -19250,10 +19362,6 @@ Baked into images: %1.</source>
         <translation>combineShapes：形状图层必须位于同一文件夹中。</translation>
     </message>
     <message>
-        <source>mergeLayers: options must be an object of booleans.</source>
-        <translation>mergeLayers：选项必须是一个布尔值对象。</translation>
-    </message>
-    <message>
         <source>mergeLayers: unknown option %1</source>
         <translation>mergeLayers：未知选项 %1</translation>
     </message>
@@ -19812,6 +19920,22 @@ Baked into images: %1.</source>
     <message>
         <source>exportAnimatedWebp: invalid option %1.</source>
         <translation>exportAnimatedWebp: 选项 %1 无效。</translation>
+    </message>
+    <message>
+        <source>mergeLayers: options must be an object.</source>
+        <translation>mergeLayers：options 必须是对象。</translation>
+    </message>
+    <message>
+        <source>mergeLayers: effectsFrom must be a layer of this document.</source>
+        <translation>mergeLayers：effectsFrom 必须是此文档的图层。</translation>
+    </message>
+    <message>
+        <source>mergeLayers: %1 must be a boolean.</source>
+        <translation>mergeLayers：%1 必须是布尔值。</translation>
+    </message>
+    <message>
+        <source>mergeLayers: effectsFrom requires singleVector.</source>
+        <translation>mergeLayers：effectsFrom 需要 singleVector。</translation>
     </message>
 </context>
 <context>

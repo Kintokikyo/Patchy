@@ -110,6 +110,118 @@
         <source>These layers keep their own effects and stay separate in a vector merge. Turning off &quot;Keep vector layers editable&quot; rasterizes merged artwork.</source>
         <translation>這些圖層會保留各自的效果，在向量合併時維持獨立。關閉「保留向量圖層的可編輯性」會將合併的圖像點陣化。</translation>
     </message>
+    <message>
+        <source>Select at least two editable vector layers.</source>
+        <translation>請至少選取兩個可編輯的向量圖層。</translation>
+    </message>
+    <message>
+        <source>This layer is not an editable vector layer.</source>
+        <translation>此圖層不是可編輯的向量圖層。</translation>
+    </message>
+    <message>
+        <source>Unlock this layer and its parent groups first.</source>
+        <translation>請先解除此圖層及其父群組的鎖定。</translation>
+    </message>
+    <message>
+        <source>Show this layer and its parent groups first.</source>
+        <translation>請先顯示此圖層及其父群組。</translation>
+    </message>
+    <message>
+        <source>A clipping relationship requires this layer to stay separate.</source>
+        <translation>剪裁關係要求此圖層保持獨立。</translation>
+    </message>
+    <message>
+        <source>A separate mask prevents this vector merge.</source>
+        <translation>獨立的遮色片阻止了此次向量合併。</translation>
+    </message>
+    <message>
+        <source>Smart Filters require this layer to stay separate.</source>
+        <translation>智慧型濾鏡要求此圖層保持獨立。</translation>
+    </message>
+    <message>
+        <source>The blend mode, Blend If, or channel settings require a separate layer.</source>
+        <translation>混合模式、混合條件或色版設定需要獨立的圖層。</translation>
+    </message>
+    <message>
+        <source>Preserved vector data cannot be edited.</source>
+        <translation>保留的向量資料無法編輯。</translation>
+    </message>
+    <message>
+        <source>This compound vector&apos;s opacity requires it to stay separate.</source>
+        <translation>此複合向量的不透明度要求它保持獨立。</translation>
+    </message>
+    <message>
+        <source>This group&apos;s appearance prevents moving shapes across its boundary.</source>
+        <translation>此群組的外觀不允許跨越群組邊界移動形狀。</translation>
+    </message>
+    <message>
+        <source>Choose effects from a vector layer included in the merge.</source>
+        <translation>請選擇參與合併的向量圖層作為效果來源。</translation>
+    </message>
+    <message>
+        <source>Vector feather or density requires this shape to stay separate.</source>
+        <translation>向量羽化或濃度要求此形狀保持獨立。</translation>
+    </message>
+    <message>
+        <source>%1: %2</source>
+        <translation>%1：%2</translation>
+    </message>
+    <message>
+        <source>Merge into one vector layer</source>
+        <translation>合併為一個向量圖層</translation>
+    </message>
+    <message>
+        <source>Remove layer effects</source>
+        <translation>移除圖層效果</translation>
+    </message>
+    <message>
+        <source>Use effects from a layer</source>
+        <translation>使用某個圖層的效果</translation>
+    </message>
+    <message>
+        <source>Layer effects:</source>
+        <translation>圖層效果：</translation>
+    </message>
+    <message>
+        <source>Use effects from:</source>
+        <translation>效果來源：</translation>
+    </message>
+    <message>
+        <source>Preview</source>
+        <translation>預覽</translation>
+    </message>
+    <message>
+        <source>Preview unavailable.</source>
+        <translation>無法使用預覽。</translation>
+    </message>
+    <message>
+        <source>Merged artwork</source>
+        <translation>合併後的圖像</translation>
+    </message>
+    <message>
+        <source>Original artwork</source>
+        <translation>原始圖像</translation>
+    </message>
+    <message>
+        <source>Effects from %1 apply once to the combined silhouette. Each shape keeps its own fill and vector stroke.</source>
+        <translation>%1 的效果會對合併後的整個輪廓套用一次。每個形狀保留自己的填色和向量筆畫。</translation>
+    </message>
+    <message>
+        <source>Individual layer effects will be removed. Each shape keeps its own fill and vector stroke.</source>
+        <translation>各個圖層的效果將被移除。每個形狀保留自己的填色和向量筆畫。</translation>
+    </message>
+    <message>
+        <source>Result: 1 editable vector layer, replacing %1 in the layer stack.</source>
+        <translation>結果：1 個可編輯的向量圖層，在圖層堆疊中取代 %1。</translation>
+    </message>
+    <message>
+        <source>Stacking relative to unselected layers will change. Review the preview before merging.</source>
+        <translation>與未選取圖層的堆疊順序將會改變。請在合併前查看預覽。</translation>
+    </message>
+    <message>
+        <source>Updating preview...</source>
+        <translation>正在更新預覽...</translation>
+    </message>
 </context>
 <context>
     <name>LegacyPluginFolder</name>
@@ -19250,10 +19362,6 @@ Baked into images: %1.</source>
         <translation>combineShapes：這些形狀圖層必須位於同一個群組中。</translation>
     </message>
     <message>
-        <source>mergeLayers: options must be an object of booleans.</source>
-        <translation>mergeLayers：options 必須是由布林值組成的物件。</translation>
-    </message>
-    <message>
         <source>mergeLayers: unknown option %1</source>
         <translation>mergeLayers：不明的選項 %1</translation>
     </message>
@@ -19812,6 +19920,22 @@ Baked into images: %1.</source>
     <message>
         <source>exportAnimatedWebp: invalid option %1.</source>
         <translation>exportAnimatedWebp: 選項 %1 無效。</translation>
+    </message>
+    <message>
+        <source>mergeLayers: options must be an object.</source>
+        <translation>mergeLayers：options 必須是物件。</translation>
+    </message>
+    <message>
+        <source>mergeLayers: effectsFrom must be a layer of this document.</source>
+        <translation>mergeLayers：effectsFrom 必須是此文件的圖層。</translation>
+    </message>
+    <message>
+        <source>mergeLayers: %1 must be a boolean.</source>
+        <translation>mergeLayers：%1 必須是布林值。</translation>
+    </message>
+    <message>
+        <source>mergeLayers: effectsFrom requires singleVector.</source>
+        <translation>mergeLayers：effectsFrom 需要 singleVector。</translation>
     </message>
 </context>
 <context>

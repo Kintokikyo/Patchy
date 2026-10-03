@@ -110,6 +110,118 @@
         <source>These layers keep their own effects and stay separate in a vector merge. Turning off &quot;Keep vector layers editable&quot; rasterizes merged artwork.</source>
         <translation>Estas capas conservan sus propios efectos y permanecen separadas al combinar vectores. Desactivar «Mantener editables las capas vectoriales» rasteriza la ilustración combinada.</translation>
     </message>
+    <message>
+        <source>Select at least two editable vector layers.</source>
+        <translation>Selecciona al menos dos capas vectoriales editables.</translation>
+    </message>
+    <message>
+        <source>This layer is not an editable vector layer.</source>
+        <translation>Esta capa no es una capa vectorial editable.</translation>
+    </message>
+    <message>
+        <source>Unlock this layer and its parent groups first.</source>
+        <translation>Desbloquea primero esta capa y sus grupos superiores.</translation>
+    </message>
+    <message>
+        <source>Show this layer and its parent groups first.</source>
+        <translation>Muestra primero esta capa y sus grupos superiores.</translation>
+    </message>
+    <message>
+        <source>A clipping relationship requires this layer to stay separate.</source>
+        <translation>Una relación de recorte requiere que esta capa permanezca separada.</translation>
+    </message>
+    <message>
+        <source>A separate mask prevents this vector merge.</source>
+        <translation>Una máscara independiente impide esta combinación vectorial.</translation>
+    </message>
+    <message>
+        <source>Smart Filters require this layer to stay separate.</source>
+        <translation>Los filtros inteligentes requieren que esta capa permanezca separada.</translation>
+    </message>
+    <message>
+        <source>The blend mode, Blend If, or channel settings require a separate layer.</source>
+        <translation>El modo de fusión, Fusionar si o los ajustes de canales requieren una capa separada.</translation>
+    </message>
+    <message>
+        <source>Preserved vector data cannot be edited.</source>
+        <translation>Los datos vectoriales conservados no se pueden editar.</translation>
+    </message>
+    <message>
+        <source>This compound vector&apos;s opacity requires it to stay separate.</source>
+        <translation>La opacidad de este vector compuesto requiere que permanezca separado.</translation>
+    </message>
+    <message>
+        <source>This group&apos;s appearance prevents moving shapes across its boundary.</source>
+        <translation>La apariencia de este grupo impide mover formas a través de su límite.</translation>
+    </message>
+    <message>
+        <source>Choose effects from a vector layer included in the merge.</source>
+        <translation>Elige los efectos de una capa vectorial incluida en la combinación.</translation>
+    </message>
+    <message>
+        <source>Vector feather or density requires this shape to stay separate.</source>
+        <translation>El desvanecimiento o la densidad vectorial requiere que esta forma permanezca separada.</translation>
+    </message>
+    <message>
+        <source>%1: %2</source>
+        <translation>%1: %2</translation>
+    </message>
+    <message>
+        <source>Merge into one vector layer</source>
+        <translation>Combinar en una sola capa vectorial</translation>
+    </message>
+    <message>
+        <source>Remove layer effects</source>
+        <translation>Eliminar efectos de capa</translation>
+    </message>
+    <message>
+        <source>Use effects from a layer</source>
+        <translation>Usar efectos de una capa</translation>
+    </message>
+    <message>
+        <source>Layer effects:</source>
+        <translation>Efectos de capa:</translation>
+    </message>
+    <message>
+        <source>Use effects from:</source>
+        <translation>Usar efectos de:</translation>
+    </message>
+    <message>
+        <source>Preview</source>
+        <translation>Vista previa</translation>
+    </message>
+    <message>
+        <source>Preview unavailable.</source>
+        <translation>Vista previa no disponible.</translation>
+    </message>
+    <message>
+        <source>Merged artwork</source>
+        <translation>Ilustración combinada</translation>
+    </message>
+    <message>
+        <source>Original artwork</source>
+        <translation>Ilustración original</translation>
+    </message>
+    <message>
+        <source>Effects from %1 apply once to the combined silhouette. Each shape keeps its own fill and vector stroke.</source>
+        <translation>Los efectos de %1 se aplican una vez a la silueta combinada. Cada forma conserva su propio relleno y trazo vectorial.</translation>
+    </message>
+    <message>
+        <source>Individual layer effects will be removed. Each shape keeps its own fill and vector stroke.</source>
+        <translation>Se eliminarán los efectos de cada capa. Cada forma conserva su propio relleno y trazo vectorial.</translation>
+    </message>
+    <message>
+        <source>Result: 1 editable vector layer, replacing %1 in the layer stack.</source>
+        <translation>Resultado: 1 capa vectorial editable que reemplaza a %1 en la pila de capas.</translation>
+    </message>
+    <message>
+        <source>Stacking relative to unselected layers will change. Review the preview before merging.</source>
+        <translation>Cambiará el orden respecto a las capas no seleccionadas. Revisa la vista previa antes de combinar.</translation>
+    </message>
+    <message>
+        <source>Updating preview...</source>
+        <translation>Actualizando vista previa...</translation>
+    </message>
 </context>
 <context>
     <name>LegacyPluginFolder</name>
@@ -19307,10 +19419,6 @@ Convertido en imágenes: %1.</translation>
         <translation>combineShapes: las capas de forma deben estar en la misma carpeta.</translation>
     </message>
     <message>
-        <source>mergeLayers: options must be an object of booleans.</source>
-        <translation>mergeLayers: las opciones deben ser un objeto de valores booleanos.</translation>
-    </message>
-    <message>
         <source>mergeLayers: unknown option %1</source>
         <translation>mergeLayers: opción desconocida %1</translation>
     </message>
@@ -19869,6 +19977,22 @@ Convertido en imágenes: %1.</translation>
     <message>
         <source>exportAnimatedWebp: invalid option %1.</source>
         <translation>exportAnimatedWebp: opción %1 no válida.</translation>
+    </message>
+    <message>
+        <source>mergeLayers: options must be an object.</source>
+        <translation>mergeLayers: options debe ser un objeto.</translation>
+    </message>
+    <message>
+        <source>mergeLayers: effectsFrom must be a layer of this document.</source>
+        <translation>mergeLayers: effectsFrom debe ser una capa de este documento.</translation>
+    </message>
+    <message>
+        <source>mergeLayers: %1 must be a boolean.</source>
+        <translation>mergeLayers: %1 debe ser un valor booleano.</translation>
+    </message>
+    <message>
+        <source>mergeLayers: effectsFrom requires singleVector.</source>
+        <translation>mergeLayers: effectsFrom requiere singleVector.</translation>
     </message>
 </context>
 <context>

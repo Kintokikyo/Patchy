@@ -110,6 +110,118 @@
         <source>These layers keep their own effects and stay separate in a vector merge. Turning off &quot;Keep vector layers editable&quot; rasterizes merged artwork.</source>
         <translation>Te warstwy zachowują własne efekty i pozostają oddzielne podczas scalania wektorów. Wyłączenie opcji „Zachowaj edytowalność warstw wektorowych” rasteruje scalany obraz.</translation>
     </message>
+    <message>
+        <source>Select at least two editable vector layers.</source>
+        <translation>Zaznacz co najmniej dwie edytowalne warstwy wektorowe.</translation>
+    </message>
+    <message>
+        <source>This layer is not an editable vector layer.</source>
+        <translation>Ta warstwa nie jest edytowalną warstwą wektorową.</translation>
+    </message>
+    <message>
+        <source>Unlock this layer and its parent groups first.</source>
+        <translation>Najpierw odblokuj tę warstwę i jej grupy nadrzędne.</translation>
+    </message>
+    <message>
+        <source>Show this layer and its parent groups first.</source>
+        <translation>Najpierw pokaż tę warstwę i jej grupy nadrzędne.</translation>
+    </message>
+    <message>
+        <source>A clipping relationship requires this layer to stay separate.</source>
+        <translation>Powiązanie przycinania wymaga zachowania tej warstwy oddzielnie.</translation>
+    </message>
+    <message>
+        <source>A separate mask prevents this vector merge.</source>
+        <translation>Oddzielna maska uniemożliwia to scalenie wektorów.</translation>
+    </message>
+    <message>
+        <source>Smart Filters require this layer to stay separate.</source>
+        <translation>Filtry inteligentne wymagają zachowania tej warstwy oddzielnie.</translation>
+    </message>
+    <message>
+        <source>The blend mode, Blend If, or channel settings require a separate layer.</source>
+        <translation>Tryb mieszania, Mieszaj gdy lub ustawienia kanałów wymagają oddzielnej warstwy.</translation>
+    </message>
+    <message>
+        <source>Preserved vector data cannot be edited.</source>
+        <translation>Zachowanych danych wektorowych nie można edytować.</translation>
+    </message>
+    <message>
+        <source>This compound vector&apos;s opacity requires it to stay separate.</source>
+        <translation>Krycie tego wektora złożonego wymaga zachowania go oddzielnie.</translation>
+    </message>
+    <message>
+        <source>This group&apos;s appearance prevents moving shapes across its boundary.</source>
+        <translation>Wygląd tej grupy uniemożliwia przenoszenie kształtów przez jej granicę.</translation>
+    </message>
+    <message>
+        <source>Choose effects from a vector layer included in the merge.</source>
+        <translation>Wybierz efekty z warstwy wektorowej uwzględnionej w scaleniu.</translation>
+    </message>
+    <message>
+        <source>Vector feather or density requires this shape to stay separate.</source>
+        <translation>Wtapianie lub gęstość wektora wymaga zachowania tego kształtu oddzielnie.</translation>
+    </message>
+    <message>
+        <source>%1: %2</source>
+        <translation>%1: %2</translation>
+    </message>
+    <message>
+        <source>Merge into one vector layer</source>
+        <translation>Scal w jedną warstwę wektorową</translation>
+    </message>
+    <message>
+        <source>Remove layer effects</source>
+        <translation>Usuń efekty warstwy</translation>
+    </message>
+    <message>
+        <source>Use effects from a layer</source>
+        <translation>Użyj efektów z warstwy</translation>
+    </message>
+    <message>
+        <source>Layer effects:</source>
+        <translation>Efekty warstwy:</translation>
+    </message>
+    <message>
+        <source>Use effects from:</source>
+        <translation>Użyj efektów z:</translation>
+    </message>
+    <message>
+        <source>Preview</source>
+        <translation>Podgląd</translation>
+    </message>
+    <message>
+        <source>Preview unavailable.</source>
+        <translation>Podgląd niedostępny.</translation>
+    </message>
+    <message>
+        <source>Merged artwork</source>
+        <translation>Scalona grafika</translation>
+    </message>
+    <message>
+        <source>Original artwork</source>
+        <translation>Oryginalna grafika</translation>
+    </message>
+    <message>
+        <source>Effects from %1 apply once to the combined silhouette. Each shape keeps its own fill and vector stroke.</source>
+        <translation>Efekty z %1 są stosowane raz do połączonej sylwetki. Każdy kształt zachowuje własne wypełnienie i obrys wektorowy.</translation>
+    </message>
+    <message>
+        <source>Individual layer effects will be removed. Each shape keeps its own fill and vector stroke.</source>
+        <translation>Efekty poszczególnych warstw zostaną usunięte. Każdy kształt zachowuje własne wypełnienie i obrys wektorowy.</translation>
+    </message>
+    <message>
+        <source>Result: 1 editable vector layer, replacing %1 in the layer stack.</source>
+        <translation>Wynik: 1 edytowalna warstwa wektorowa zastępująca %1 w stosie warstw.</translation>
+    </message>
+    <message>
+        <source>Stacking relative to unselected layers will change. Review the preview before merging.</source>
+        <translation>Kolejność względem niezaznaczonych warstw ulegnie zmianie. Sprawdź podgląd przed scaleniem.</translation>
+    </message>
+    <message>
+        <source>Updating preview...</source>
+        <translation>Aktualizowanie podglądu...</translation>
+    </message>
 </context>
 <context>
     <name>LegacyPluginFolder</name>
@@ -19416,10 +19528,6 @@ Y: %2
         <translation>combineShapes: warstwy kształtów muszą znajdować się w jednym folderze.</translation>
     </message>
     <message>
-        <source>mergeLayers: options must be an object of booleans.</source>
-        <translation>mergeLayers: options musi być obiektem o wartościach logicznych.</translation>
-    </message>
-    <message>
         <source>mergeLayers: unknown option %1</source>
         <translation>mergeLayers: nieznana opcja %1</translation>
     </message>
@@ -19926,6 +20034,22 @@ Y: %2
     <message>
         <source>exportAnimatedWebp: invalid option %1.</source>
         <translation>exportAnimatedWebp: nieprawidłowa opcja %1.</translation>
+    </message>
+    <message>
+        <source>mergeLayers: options must be an object.</source>
+        <translation>mergeLayers: options musi być obiektem.</translation>
+    </message>
+    <message>
+        <source>mergeLayers: effectsFrom must be a layer of this document.</source>
+        <translation>mergeLayers: effectsFrom musi być warstwą tego dokumentu.</translation>
+    </message>
+    <message>
+        <source>mergeLayers: %1 must be a boolean.</source>
+        <translation>mergeLayers: %1 musi być wartością logiczną.</translation>
+    </message>
+    <message>
+        <source>mergeLayers: effectsFrom requires singleVector.</source>
+        <translation>mergeLayers: effectsFrom wymaga singleVector.</translation>
     </message>
 </context>
 <context>

@@ -110,6 +110,118 @@
         <source>These layers keep their own effects and stay separate in a vector merge. Turning off &quot;Keep vector layers editable&quot; rasterizes merged artwork.</source>
         <translation>Эти слои сохраняют собственные эффекты и остаются отдельными при векторном объединении. Отключение параметра «Сохранить возможность редактирования векторных слоёв» растрирует объединяемое изображение.</translation>
     </message>
+    <message>
+        <source>Select at least two editable vector layers.</source>
+        <translation>Выберите не менее двух редактируемых векторных слоёв.</translation>
+    </message>
+    <message>
+        <source>This layer is not an editable vector layer.</source>
+        <translation>Этот слой не является редактируемым векторным слоем.</translation>
+    </message>
+    <message>
+        <source>Unlock this layer and its parent groups first.</source>
+        <translation>Сначала разблокируйте этот слой и его родительские группы.</translation>
+    </message>
+    <message>
+        <source>Show this layer and its parent groups first.</source>
+        <translation>Сначала сделайте этот слой и его родительские группы видимыми.</translation>
+    </message>
+    <message>
+        <source>A clipping relationship requires this layer to stay separate.</source>
+        <translation>Связь обтравки требует сохранить этот слой отдельно.</translation>
+    </message>
+    <message>
+        <source>A separate mask prevents this vector merge.</source>
+        <translation>Отдельная маска препятствует этому объединению векторов.</translation>
+    </message>
+    <message>
+        <source>Smart Filters require this layer to stay separate.</source>
+        <translation>Смарт-фильтры требуют сохранить этот слой отдельно.</translation>
+    </message>
+    <message>
+        <source>The blend mode, Blend If, or channel settings require a separate layer.</source>
+        <translation>Режим наложения, «Наложение, если» или настройки каналов требуют отдельного слоя.</translation>
+    </message>
+    <message>
+        <source>Preserved vector data cannot be edited.</source>
+        <translation>Сохранённые векторные данные нельзя редактировать.</translation>
+    </message>
+    <message>
+        <source>This compound vector&apos;s opacity requires it to stay separate.</source>
+        <translation>Непрозрачность этого составного вектора требует сохранить его отдельно.</translation>
+    </message>
+    <message>
+        <source>This group&apos;s appearance prevents moving shapes across its boundary.</source>
+        <translation>Оформление этой группы не позволяет перемещать фигуры через её границу.</translation>
+    </message>
+    <message>
+        <source>Choose effects from a vector layer included in the merge.</source>
+        <translation>Выберите эффекты векторного слоя, включённого в объединение.</translation>
+    </message>
+    <message>
+        <source>Vector feather or density requires this shape to stay separate.</source>
+        <translation>Растушёвка или плотность вектора требует сохранить эту фигуру отдельно.</translation>
+    </message>
+    <message>
+        <source>%1: %2</source>
+        <translation>%1: %2</translation>
+    </message>
+    <message>
+        <source>Merge into one vector layer</source>
+        <translation>Объединить в один векторный слой</translation>
+    </message>
+    <message>
+        <source>Remove layer effects</source>
+        <translation>Удалить эффекты слоёв</translation>
+    </message>
+    <message>
+        <source>Use effects from a layer</source>
+        <translation>Использовать эффекты слоя</translation>
+    </message>
+    <message>
+        <source>Layer effects:</source>
+        <translation>Эффекты слоя:</translation>
+    </message>
+    <message>
+        <source>Use effects from:</source>
+        <translation>Использовать эффекты из:</translation>
+    </message>
+    <message>
+        <source>Preview</source>
+        <translation>Предпросмотр</translation>
+    </message>
+    <message>
+        <source>Preview unavailable.</source>
+        <translation>Предпросмотр недоступен.</translation>
+    </message>
+    <message>
+        <source>Merged artwork</source>
+        <translation>Объединённое изображение</translation>
+    </message>
+    <message>
+        <source>Original artwork</source>
+        <translation>Исходное изображение</translation>
+    </message>
+    <message>
+        <source>Effects from %1 apply once to the combined silhouette. Each shape keeps its own fill and vector stroke.</source>
+        <translation>Эффекты из %1 применяются один раз ко всему объединённому силуэту. Каждая фигура сохраняет свою заливку и векторную обводку.</translation>
+    </message>
+    <message>
+        <source>Individual layer effects will be removed. Each shape keeps its own fill and vector stroke.</source>
+        <translation>Эффекты отдельных слоёв будут удалены. Каждая фигура сохраняет свою заливку и векторную обводку.</translation>
+    </message>
+    <message>
+        <source>Result: 1 editable vector layer, replacing %1 in the layer stack.</source>
+        <translation>Результат: 1 редактируемый векторный слой, заменяющий %1 в стеке слоёв.</translation>
+    </message>
+    <message>
+        <source>Stacking relative to unselected layers will change. Review the preview before merging.</source>
+        <translation>Порядок относительно невыбранных слоёв изменится. Проверьте предпросмотр перед объединением.</translation>
+    </message>
+    <message>
+        <source>Updating preview...</source>
+        <translation>Обновление предпросмотра...</translation>
+    </message>
 </context>
 <context>
     <name>LegacyPluginFolder</name>
@@ -19416,10 +19528,6 @@ Y: %2
         <translation>combineShapes: слои-фигуры должны находиться в одной папке.</translation>
     </message>
     <message>
-        <source>mergeLayers: options must be an object of booleans.</source>
-        <translation>mergeLayers: параметры должны быть объектом логических значений.</translation>
-    </message>
-    <message>
         <source>mergeLayers: unknown option %1</source>
         <translation>mergeLayers: неизвестная опция %1</translation>
     </message>
@@ -19926,6 +20034,22 @@ Y: %2
     <message>
         <source>exportAnimatedWebp: invalid option %1.</source>
         <translation>exportAnimatedWebp: неверный параметр %1.</translation>
+    </message>
+    <message>
+        <source>mergeLayers: options must be an object.</source>
+        <translation>mergeLayers: options должен быть объектом.</translation>
+    </message>
+    <message>
+        <source>mergeLayers: effectsFrom must be a layer of this document.</source>
+        <translation>mergeLayers: effectsFrom должен быть слоем этого документа.</translation>
+    </message>
+    <message>
+        <source>mergeLayers: %1 must be a boolean.</source>
+        <translation>mergeLayers: %1 должен быть логическим значением.</translation>
+    </message>
+    <message>
+        <source>mergeLayers: effectsFrom requires singleVector.</source>
+        <translation>mergeLayers: effectsFrom требует singleVector.</translation>
     </message>
 </context>
 <context>

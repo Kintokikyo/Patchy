@@ -6,6 +6,7 @@
 #include "core/smart_object.hpp"
 #include "core/vector_raster.hpp"
 #include "render/raster_view_context.hpp"
+#include "render/layer_compositor.hpp"
 #include "ui/image_document_io.hpp"
 
 #include <QCoreApplication>
@@ -412,12 +413,12 @@ void raster_nodes(const std::vector<VectorPreviewNode>& nodes, std::vector<Layer
       const auto retained = budget.retained;
       PixelBuffer combined;
       {
-        Document parts(view.pixels.width(), view.pixels.height(), PixelFormat::rgba8());
-        parts.metadata().patterns = patterns;
-        raster_nodes(node.children, parts.layers(), area, view, canvas, patterns, budget, depth + 1, cancelled);
-        const auto image = qimage_from_document_rect(parts, QRect(area.x, area.y, area.width, area.height), true);
-        if (image.isNull()) { throw VectorPreviewFallback::Memory; }
-        combined = pixels_from_image_rgba(image);
+        Layer parts(0, {}, LayerKind::Group);
+        raster_nodes(node.children, parts.children(), area, view, canvas, patterns, budget, depth + 1, cancelled);
+        // Keep the entire padded area, including silhouettes outside the viewport
+        // whose effects reach into it. A document render clips that area to its
+        // canvas, leaving a smaller pixel buffer paired with the original bounds.
+        combined = render_detail::group_silhouette_for_render(parts, area, nullptr, false, nullptr, &patterns);
       }
       budget.retained = retained;
       budget.keep(combined);

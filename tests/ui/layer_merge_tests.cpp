@@ -14,9 +14,13 @@
 #include "ui/layer_merge.hpp"
 #include "ui/script_engine.hpp"
 #include "ui/vector_preview_renderer.hpp"
+#include "ui/zoomable_image_preview.hpp"
+#include "ui/background_workers.hpp"
+#include "ui/main_window_shared.hpp"
 #include "formats/svg_document_io.hpp"
 
 #include <QCheckBox>
+#include <QComboBox>
 #include <QDialogButtonBox>
 #include <QElapsedTimer>
 #include <QLabel>
@@ -314,6 +318,376 @@ void run_merge_script(MainWindow& window, const QString& script) {
   (void)window.script_engine_host().run_source(script, options);
   CHECK(process_events_until([&] { return !window.script_engine_host().run_active(); }));
   CHECK(!window.script_engine_host().last_run_had_error());
+}
+
+Document single_vector_sample() {
+  Document doc(160, 120, PixelFormat::rgba8());
+  PatternResource tile;
+  tile.id = "81ec3610-d086-4e1e-96b3-49b9c079b3bb";
+  tile.name = "Merge pattern";
+  tile.tile = pixel_layer(doc, 0, 0, {60, 170, 90}).pixels();
+  doc.metadata().patterns.adopt(tile);
+  for (int i = 0; i < 3; ++i) {
+    LiveShapeParams params;
+    params.kind = LiveShapeKind::RoundedRectangle;
+    params.left = 10 + i * 22; params.top = 10 + i * 20;
+    params.right = params.left + 65; params.bottom = params.top + 50;
+    params.corner_radii = {3, 8, 12, 5};
+    params.index = 7; // Every source deliberately starts with the same group id.
+    populate_live_shape_box_corners(params);
+    VectorShapeContent shape;
+    shape.path.subpaths = generate_live_shape_subpaths(params);
+    shape.origination.push_back(params);
+    shape.fill.color = {220, 65, 30};
+    if (i == 1) {
+      shape.fill.kind = VectorFillKind::Gradient;
+      shape.fill.gradient.color_stops = {{0, {10, 50, 210}}, {1, {250, 190, 20}}};
+      shape.fill.gradient.alpha_stops = {{0, 1.0F}, {1, 0.6F}};
+      shape.fill.gradient.angle_degrees = 23;
+    } else if (i == 2) {
+      shape.fill.kind = VectorFillKind::Pattern;
+      shape.fill.pattern_id = tile.id; shape.fill.pattern_name = tile.name;
+      shape.fill.pattern_scale = 0.8; shape.fill.pattern_angle_degrees = 15;
+    }
+    shape.stroke.enabled = true;
+    shape.stroke.width = 2 + i;
+    shape.stroke.content.color = {40, 30, 90};
+    auto layer = vector_layer(doc, shape);
+    layer.set_name("Styled " + std::to_string(i + 1));
+    layer.set_opacity(0.8F); layer.set_fill_opacity(0.9F);
+    layer.layer_style().drop_shadows.push_back({true});
+    layer.layer_style().drop_shadows[0].distance = static_cast<float>(4 + i * 3);
+    layer.layer_style().drop_shadows.push_back({false});
+    layer.layer_style().blend_interior_elements = i == 2;
+    set_layer_effects_reference_point(layer, i * 3, i * 5);
+    doc.add_layer(std::move(layer));
+    if (i == 0) { doc.add_layer(pixel_layer(doc, 30, 30, {10, 210, 80})); }
+  }
+  return doc;
+}
+
+std::vector<LayerId> styled_ids(const Document& doc) {
+  return {doc.layers()[0].id(), doc.layers()[2].id(), doc.layers()[3].id()};
+}
+
+LayerMergeOptions single_vector_options(std::optional<LayerId> effects = {}) {
+  LayerMergeOptions result;
+  result.single_vector = true;
+  result.effects_source = effects;
+  return result;
+}
+
+void ui_layer_merge_single_vector_paints_effects_order_and_psd() {
+  // Start with imported native descriptors as well as modeled effects.
+  const auto doc = psd::DocumentIo::read(psd::DocumentIo::write_layered_rgb8(single_vector_sample()));
+  const auto ids = styled_ids(doc);
+  const auto bytes = psd::DocumentIo::write_layered_rgb8(doc);
+  CHECK(!plan_layer_merge(doc, ids).changed);
+  for (const auto source : {std::optional<LayerId>{}, std::optional<LayerId>{ids.back()}}) {
+    const auto plan = plan_layer_merge(doc, ids, single_vector_options(source));
+    CHECK(plan.changed && plan.blockers.empty() && plan.changes_stacking_order);
+    CHECK(plan.vector_layers == 1 && plan.result_ids == std::vector<LayerId>{ids[0]});
+    const auto result = render_layer_merge(doc, plan);
+    CHECK(result.layers().size() == 2 && result.layers()[0].id() == ids[0]);
+    CHECK(result.layers()[1].id() == doc.layers()[1].id());
+    CHECK(result.layers()[0].name() == doc.layers()[0].name());
+    const auto& output = result.layers()[0];
+    const auto& shape = *output.vector_shape();
+    CHECK(shape.parts.size() == 3 && shape.origination.size() == 3);
+    for (std::size_t i = 0; i < ids.size(); ++i) {
+      const auto& original = *doc.find_layer(ids[i]);
+      const auto& content = *original.vector_shape();
+      CHECK(shape.parts[i].fill == content.fill && shape.parts[i].stroke == content.stroke);
+      CHECK(shape.parts[i].opacity == original.opacity());
+      CHECK(shape.parts[i].fill_opacity == original.fill_opacity());
+      CHECK(shape.parts[i].pattern_anchor == layer_effects_reference_point(original));
+      auto path = shape.path.subpaths[i];
+      path.shape_group = content.path.subpaths[0].shape_group;
+      CHECK(path == content.path.subpaths[0]);
+      auto origin = shape.origination[i];
+      origin.index = content.origination[0].index;
+      CHECK(origin == content.origination[0]);
+      if (i > 0) { CHECK(shape.parts[i].groups != shape.parts[i - 1].groups); }
+    }
+    CHECK(output.opacity() == 1 && output.fill_opacity() == 1);
+    if (source) {
+      CHECK(psd::photoshop_lfx2_layer_style_payload(output.layer_style()) ==
+            psd::photoshop_lfx2_layer_style_payload(doc.find_layer(*source)->layer_style()));
+      CHECK(output.layer_style().blend_interior_elements);
+      CHECK(layer_effects_reference_point(output) == layer_effects_reference_point(*doc.find_layer(*source)));
+      CHECK(std::any_of(output.unknown_psd_blocks().begin(), output.unknown_psd_blocks().end(),
+                        [](const auto& block) { return block.key == "lfx2"; }));
+    } else {
+      CHECK(output.layer_style().drop_shadows.empty());
+      CHECK(std::none_of(output.unknown_psd_blocks().begin(), output.unknown_psd_blocks().end(),
+                        [](const auto& block) { return block.key == "lfx2" || block.key == "lrFX" ||
+                                                      block.key == "plFX" || block.key == "lmfx"; }));
+      Document expected = doc;
+      expected.layers().clear();
+      for (const auto id : ids) {
+        Layer layer = *doc.find_layer(id);
+        layer.layer_style() = {};
+        clear_layer_psd_style_source(layer);
+        expected.add_layer(std::move(layer));
+      }
+      expected.add_layer(doc.layers()[1]);
+      check_close_images(qimage_from_document(expected, true), qimage_from_document(result, true));
+    }
+    for (const bool psb : {false, true}) {
+      const auto reread = psd::DocumentIo::read(psd::DocumentIo::write_layered_rgb8(result, {psb}));
+      CHECK(reread.layers().size() == 2 && layer_is_compound_vector(reread.layers()[0]));
+      CHECK(reread.layers()[0].vector_shape()->parts.size() == 3);
+      CHECK(reread.layers()[0].layer_style().drop_shadows.size() ==
+            (source ? doc.find_layer(*source)->layer_style().drop_shadows.size() : 0U));
+      if (source) {
+        // PSD import models enabled shadows; the preserved descriptor also
+        // carries disabled instances and must survive this transfer verbatim.
+        const auto& blocks = reread.layers()[0].unknown_psd_blocks();
+        for (const auto& block : doc.find_layer(*source)->unknown_psd_blocks()) {
+          if (block.key == "lfx2") {
+            CHECK(std::any_of(blocks.begin(), blocks.end(), [&](const auto& candidate) {
+              return candidate.key == block.key && candidate.payload == block.payload;
+            }));
+          }
+        }
+      }
+      check_close_images(qimage_from_document(result, true), qimage_from_document(reread, true), 2);
+      std::filesystem::create_directories("test-artifacts");
+      const auto path = std::filesystem::path("test-artifacts") /
+          (std::string("single-vector-") + (source ? "source-effects" : "remove-effects") + (psb ? ".psb" : ".psd"));
+      psd::DocumentIo::write_layered_rgb8_file(result, path, {psb});
+    }
+  }
+  CHECK(psd::DocumentIo::write_layered_rgb8(doc) == bytes);
+}
+
+void ui_layer_merge_single_vector_protections_and_group_boundaries() {
+  Document basic(96, 80, PixelFormat::rgba8());
+  basic.add_layer(vector_layer(basic, rectangle(5, 5, 40, 40)));
+  basic.add_layer(vector_layer(basic, rectangle(30, 20, 40, 40)));
+  const auto check_blocked = [&](Document doc, LayerMergeBlocker reason) {
+    const auto plan = plan_layer_merge(doc, roots(doc), single_vector_options());
+    CHECK(!plan.changed && std::any_of(plan.blockers.begin(), plan.blockers.end(),
+                                     [&](const auto& issue) { return issue.reason == reason; }));
+    CHECK(!layer_merge_blocker_messages(doc, plan).isEmpty());
+    bool threw = false;
+    try { (void)render_layer_merge(doc, plan); } catch (const std::exception&) { threw = true; }
+    CHECK(threw);
+  };
+  for (const auto flag : {kLayerLockPosition, kLayerLockImagePixels, kLayerLockTransparentPixels}) {
+    auto doc = basic; doc.layers()[0].set_lock_flags(flag); check_blocked(doc, LayerMergeBlocker::Locked);
+  }
+  auto doc = basic; doc.layers()[0].set_visible(false); check_blocked(doc, LayerMergeBlocker::Hidden);
+  doc = basic; doc.layers()[1].set_clipped(true); check_blocked(doc, LayerMergeBlocker::Clipping);
+  LayerMask mask;
+  mask.bounds = {0, 0, 1, 1}; mask.pixels = PixelBuffer(1, 1, PixelFormat::gray8());
+  doc = basic; doc.layers()[0].set_mask(mask); check_blocked(doc, LayerMergeBlocker::Mask);
+  doc = basic; doc.layers()[0].set_vector_mask(LayerVectorMask{}); check_blocked(doc, LayerMergeBlocker::Mask);
+  doc = basic; doc.layers()[0].set_smart_filter_stack(SmartFilterStack{}); check_blocked(doc, LayerMergeBlocker::Filters);
+  doc = basic; doc.layers()[0].set_blend_mode(BlendMode::Multiply); check_blocked(doc, LayerMergeBlocker::Blending);
+  doc = basic; doc.layers()[0].set_blend_if_payload({1}); check_blocked(doc, LayerMergeBlocker::Blending);
+  doc = basic; doc.layers()[0].set_restricted_channels(1); check_blocked(doc, LayerMergeBlocker::Blending);
+  doc = basic; doc.layers()[0].metadata()[kLayerMetadataVectorLock] = "unparsed";
+  check_blocked(doc, LayerMergeBlocker::UnsupportedVector);
+  doc = basic; doc.add_layer(pixel_layer(doc, 0, 0, {})); check_blocked(doc, LayerMergeBlocker::NotVector);
+  for (const bool feather : {false, true}) {
+    doc = basic;
+    auto shape = *std::as_const(doc).layers()[0].vector_shape();
+    if (feather) { shape.feather = 1; } else { shape.density = 128; }
+    doc.layers()[0].set_vector_shape(shape); check_blocked(doc, LayerMergeBlocker::VectorEdges);
+  }
+  doc = render_layer_merge(basic, plan_layer_merge(basic, roots(basic), single_vector_options()));
+  doc.layers()[0].set_opacity(0.7F);
+  doc.add_layer(vector_layer(doc, rectangle(50, 40, 20, 20)));
+  check_blocked(doc, LayerMergeBlocker::OpacityBoundary);
+  CHECK(!plan_layer_merge(basic, roots(basic), single_vector_options(99999)).changed);
+  CHECK(!plan_layer_merge(basic, {basic.layers()[0].id()}, single_vector_options()).changed);
+
+  doc = basic;
+  Layer group(doc.allocate_layer_id(), "Enclosing style", LayerKind::Group);
+  group.set_blend_mode(BlendMode::Normal);
+  group.set_opacity(0.6F);
+  group.layer_style().drop_shadows.push_back({true});
+  group.children() = std::as_const(doc).layers();
+  doc.layers().clear(); doc.add_layer(group);
+  const auto plan = plan_layer_merge(doc, roots(doc), single_vector_options());
+  CHECK(plan.changed && plan.blockers.empty());
+  const auto inside = render_layer_merge(doc, plan);
+  CHECK(inside.layers()[0].children().size() == 1 && inside.layers()[0].opacity() == 0.6F);
+  CHECK(inside.layers()[0].layer_style().drop_shadows.size() == 1);
+  doc.layers()[0].set_lock_flags(kLayerLockPosition); check_blocked(doc, LayerMergeBlocker::Locked);
+  doc.layers()[0].set_lock_flags(kLayerLockNone);
+  doc.add_layer(vector_layer(doc, rectangle(45, 35, 25, 25)));
+  check_blocked(doc, LayerMergeBlocker::GroupBoundary);
+  doc.layers()[0].set_opacity(1); doc.layers()[0].layer_style() = {};
+  doc.layers()[0].set_blend_mode(BlendMode::PassThrough);
+  const auto across = render_layer_merge(doc, plan_layer_merge(doc, roots(doc), single_vector_options()));
+  CHECK(across.layers().size() == 1 && across.layers()[0].vector_shape()->parts.size() == 3);
+}
+
+void ui_vector_preview_compound_effect_halos_match_cropped_view() {
+  const auto sample = single_vector_sample();
+  const auto result = render_layer_merge(sample, plan_layer_merge(sample, styled_ids(sample),
+                                         single_vector_options(styled_ids(sample).back())));
+  const auto scene = build_vector_preview_scene(result);
+  const auto native = render_vector_preview(scene, {{160, 120}, 1.0, {}});
+  CHECK(native.fallback == VectorPreviewFallback::None);
+  check_close_images(native.image, qimage_from_document(result, true), 2);
+  const VectorPreviewView full{{520, 420}, 3.0, {23, 17}};
+  const auto large = render_vector_preview(scene, full);
+  const auto crop = render_vector_preview(scene, {{180, 160}, full.scale, full.offset - QPointF(110, 90)});
+  CHECK(large.fallback == VectorPreviewFallback::None && crop.fallback == VectorPreviewFallback::None);
+  check_close_images(crop.image, large.image.copy(110, 90, 180, 160));
+}
+
+void ui_layer_merge_single_vector_dialog_preview_cancel_and_history() {
+  MainWindow window;
+  show_window(window);
+  window.add_document_session(single_vector_sample(), QStringLiteral("Single vector merge"));
+  auto& doc = MainWindowTestAccess::document(window);
+  auto* list = window.findChild<QListWidget*>(QStringLiteral("layerList"));
+  CHECK(list);
+  list->clearSelection();
+  for (const auto id : styled_ids(doc)) {
+    require_layer_item(*list, QString::fromStdString(std::as_const(doc).find_layer(id)->name()))->setSelected(true);
+  }
+  const auto original = psd::DocumentIo::write_layered_rgb8(doc);
+  const auto undo = MainWindowTestAccess::active_session_undo_depth(window);
+  const auto dirty = MainWindowTestAccess::active_session_is_modified(window);
+  for (const bool accept : {false, true}) {
+    QTimer::singleShot(0, [&] {
+      try {
+        auto* dialog = find_top_level_dialog(QStringLiteral("mergeLayersDialog")); CHECK(dialog);
+        auto* single = dialog->findChild<QCheckBox*>(QStringLiteral("mergeSingleVectorCheck"));
+        auto* effects = dialog->findChild<QComboBox*>(QStringLiteral("mergeVectorEffectsCombo"));
+        auto* source = dialog->findChild<QComboBox*>(QStringLiteral("mergeEffectsSourceCombo"));
+        auto* check = dialog->findChild<QCheckBox*>(QStringLiteral("mergePreviewCheck"));
+        auto* preview = static_cast<ZoomableImagePreview*>(dialog->findChild<QWidget*>(QStringLiteral("mergeVectorPreview")));
+        auto* ok = dialog->findChild<QDialogButtonBox*>()->button(QDialogButtonBox::Ok);
+        CHECK(single && effects && source && check && preview && !ok->isEnabled());
+        single->setChecked(true);
+        CHECK(!dialog->findChild<QCheckBox*>(QStringLiteral("mergeWithinGroupsCheck"))->isEnabled());
+        CHECK(!dialog->findChild<QCheckBox*>(QStringLiteral("mergeSeparateVectorTypesCheck"))->isEnabled());
+        CHECK(dialog->findChild<QLabel*>(QStringLiteral("mergeLayersSummaryLabel"))->text().contains("Stacking"));
+        // Change the policy while the first render is in flight. Only the final
+        // source is eligible for display or acceptance.
+        effects->setCurrentIndex(1); source->setCurrentIndex(0); source->setCurrentIndex(2);
+        CHECK(!ok->isEnabled());
+        CHECK(process_events_until([&] { return ok->isEnabled(); }, 15000));
+        auto* summary = dialog->findChild<QLabel*>(QStringLiteral("mergeLayersSummaryLabel"));
+        CHECK(preview->mapTo(dialog, QPoint()).x() >= summary->mapTo(dialog, QPoint(summary->width(), 0)).x());
+        CHECK(preview->mapTo(dialog, QPoint(preview->width(), 0)).x() <= dialog->width());
+        const auto merged_preview = preview->image(); CHECK(!merged_preview.isNull());
+        check->setChecked(false);
+        CHECK(!preview->image().isNull() && preview->image() != merged_preview);
+        check->setChecked(true); CHECK(preview->image() == merged_preview);
+        CHECK(psd::DocumentIo::write_layered_rgb8(doc) == original);
+        CHECK(MainWindowTestAccess::active_session_undo_depth(window) == undo);
+        save_widget_artifact("ui_layer_merge_single_vector", *dialog);
+        if (accept) { ok->click(); } else { dialog->reject(); }
+      } catch (...) { (void)unwind_non_modal_dialog_loop(std::current_exception()); }
+    });
+    require_action(window, "layerMergeDownAction")->trigger();
+    if (!accept) {
+      CHECK(psd::DocumentIo::write_layered_rgb8(doc) == original);
+      CHECK(MainWindowTestAccess::active_session_undo_depth(window) == undo);
+      CHECK(MainWindowTestAccess::active_session_is_modified(window) == dirty);
+    }
+  }
+  CHECK(std::as_const(doc).layers().size() == 2);
+  CHECK(std::as_const(doc).layers()[0].layer_style().drop_shadows[0].distance == 10);
+  CHECK(list->selectedItems().size() == 1);
+  CHECK(MainWindowTestAccess::active_session_undo_depth(window) == undo + 1);
+  const auto merged = psd::DocumentIo::write_layered_rgb8(doc);
+  MainWindowTestAccess::undo(window); CHECK(psd::DocumentIo::write_layered_rgb8(doc) == original);
+  MainWindowTestAccess::redo(window); CHECK(psd::DocumentIo::write_layered_rgb8(doc) == merged);
+
+  const auto sample = single_vector_sample();
+  std::optional<Document> prepared;
+  QTimer::singleShot(0, [&] {
+    try {
+      auto* dialog = find_top_level_dialog(QStringLiteral("mergeLayersDialog")); CHECK(dialog);
+      dialog->findChild<QCheckBox*>(QStringLiteral("mergeSingleVectorCheck"))->setChecked(true);
+      dialog->reject(); // Close before the worker's queued completion.
+    } catch (...) { (void)unwind_non_modal_dialog_loop(std::current_exception()); }
+  });
+  CHECK(!show_layer_merge_dialog(nullptr, sample, styled_ids(sample), false, &prepared));
+  CHECK(!prepared);
+  CHECK(process_events_until([] { return tracked_background_worker_count() == 0; }, 15000));
+  QApplication::processEvents();
+}
+
+void ui_layer_merge_single_vector_script_validation_and_undo() {
+  MainWindow window; show_window(window);
+  window.add_document_session(single_vector_sample(), QStringLiteral("Script vector merge"));
+  auto& doc = MainWindowTestAccess::document(window);
+  const auto bytes = psd::DocumentIo::write_layered_rgb8(doc);
+  const auto undo = MainWindowTestAccess::active_session_undo_depth(window);
+  run_merge_script(window, QStringLiteral(R"JS(
+    const doc = app.activeDocument;
+    const vectors = [doc.layers[0], doc.layers[2], doc.layers[3]];
+    for (const options of [{singleVector:1}, {singleVector:true, effectsFrom:4},
+                           {effectsFrom:vectors[0]}, {singleVector:true, effectsFrom:doc.layers[1]}]) {
+      let threw = false;
+      try { doc.mergeLayers(vectors, options); } catch (e) { threw = true; }
+      if (!threw) throw new Error('invalid vector policy accepted');
+    }
+    let threw = false;
+    try { doc.mergeLayers(doc.layers, {singleVector:true}); } catch (e) { threw = true; }
+    if (!threw) throw new Error('bitmap silently discarded');
+  )JS"));
+  CHECK(psd::DocumentIo::write_layered_rgb8(doc) == bytes);
+  CHECK(MainWindowTestAccess::active_session_undo_depth(window) == undo);
+  for (const bool keep_effects : {false, true}) {
+    run_merge_script(window, QStringLiteral(R"JS(
+      const doc = app.activeDocument;
+      const vectors = [doc.layers[0], doc.layers[2], doc.layers[3]];
+      const options = {singleVector:true};
+      if (%1) options.effectsFrom = vectors[2];
+      const output = doc.mergeLayers(vectors, options);
+      if (output.length !== 1 || output[0].getShape().parts.length !== 3 || doc.layers.length !== 2)
+        throw new Error('wrong vector merge result');
+    )JS").arg(keep_effects ? QStringLiteral("true") : QStringLiteral("false")));
+    CHECK(MainWindowTestAccess::active_session_undo_depth(window) == undo + 1);
+    CHECK(std::as_const(doc).layers()[0].layer_style().drop_shadows.size() == (keep_effects ? 2U : 0U));
+    MainWindowTestAccess::undo(window);
+    CHECK(psd::DocumentIo::write_layered_rgb8(doc) == bytes);
+  }
+}
+
+void ui_merge_visible_copy_explicit_vector_mode_keeps_originals() {
+  auto sample = single_vector_sample();
+  sample.layers().erase(sample.layers().begin() + 1);
+  const auto source = sample;
+  const auto ids = roots(source);
+  MainWindow window; show_window(window);
+  window.add_document_session(std::move(sample), QStringLiteral("Copy vectors"));
+  auto& doc = MainWindowTestAccess::document(window);
+  const auto original = psd::DocumentIo::write_layered_rgb8(doc);
+  const auto undo = MainWindowTestAccess::active_session_undo_depth(window);
+  QTimer::singleShot(0, [&] {
+    try {
+      auto* dialog = find_top_level_dialog(QStringLiteral("mergeLayersDialog")); CHECK(dialog);
+      dialog->findChild<QCheckBox*>(QStringLiteral("mergeSingleVectorCheck"))->setChecked(true);
+      auto* ok = dialog->findChild<QDialogButtonBox*>()->button(QDialogButtonBox::Ok);
+      CHECK(process_events_until([&] { return ok->isEnabled(); }, 15000));
+      ok->click();
+    } catch (...) { (void)unwind_non_modal_dialog_loop(std::current_exception()); }
+  });
+  require_action(window, "layerMergeVisibleAction")->trigger();
+  CHECK(std::as_const(doc).layers().size() == 4);
+  for (const auto id : ids) {
+    const auto& layer = *std::as_const(doc).find_layer(id);
+    CHECK(!layer.visible() && layer.vector_shape() == source.find_layer(id)->vector_shape());
+    CHECK(layer.layer_style().drop_shadows.size() == 2);
+  }
+  const auto& copy = std::as_const(doc).layers().back();
+  CHECK(copy.visible() && layer_is_compound_vector(copy));
+  CHECK(copy.vector_shape()->parts.size() == 3 && copy.layer_style().drop_shadows.empty());
+  CHECK(std::find(ids.begin(), ids.end(), copy.id()) == ids.end());
+  CHECK(MainWindowTestAccess::active_session_undo_depth(window) == undo + 1);
+  MainWindowTestAccess::undo(window);
+  CHECK(psd::DocumentIo::write_layered_rgb8(doc) == original);
 }
 
 void ui_layer_merge_dialog_explains_separate_effects() {
@@ -1016,6 +1390,7 @@ std::vector<patchy::test::TestCase> layer_merge_tests() {
       {"ui_layer_selection_count_includes_collapsed_descendants", ui_layer_selection_count_includes_collapsed_descendants},
       {"ui_layer_selection_count_little_everywhere_if_available", ui_layer_selection_count_little_everywhere_if_available},
       {"ui_merge_visible_copy_bitmap_preserves_alpha_and_history", ui_merge_visible_copy_bitmap_preserves_alpha_and_history},
+      {"ui_merge_visible_copy_explicit_vector_mode_keeps_originals", ui_merge_visible_copy_explicit_vector_mode_keeps_originals},
       {"ui_merge_visible_copy_bitmap_preserves_fully_transparent_canvas", ui_merge_visible_copy_bitmap_preserves_fully_transparent_canvas},
       {"ui_merge_visible_copy_dialog_preserves_sources_and_history", ui_merge_visible_copy_dialog_preserves_sources_and_history},
       {"ui_merge_visible_copy_single_vector_raster_and_visibility_choices", ui_merge_visible_copy_single_vector_raster_and_visibility_choices},
@@ -1027,6 +1402,11 @@ std::vector<patchy::test::TestCase> layer_merge_tests() {
       {"ui_layer_merge_gradients_patterns_and_paint_alignment", ui_layer_merge_gradients_patterns_and_paint_alignment},
       {"ui_layer_merge_group_and_vector_type_choices", ui_layer_merge_group_and_vector_type_choices},
       {"ui_layer_merge_protected_layers_and_unselected_order_are_barriers", ui_layer_merge_protected_layers_and_unselected_order_are_barriers},
+      {"ui_layer_merge_single_vector_paints_effects_order_and_psd", ui_layer_merge_single_vector_paints_effects_order_and_psd},
+      {"ui_layer_merge_single_vector_protections_and_group_boundaries", ui_layer_merge_single_vector_protections_and_group_boundaries},
+      {"ui_vector_preview_compound_effect_halos_match_cropped_view", ui_vector_preview_compound_effect_halos_match_cropped_view},
+      {"ui_layer_merge_single_vector_dialog_preview_cancel_and_history", ui_layer_merge_single_vector_dialog_preview_cancel_and_history},
+      {"ui_layer_merge_single_vector_script_validation_and_undo", ui_layer_merge_single_vector_script_validation_and_undo},
       {"ui_layer_merge_dialog_explains_separate_effects", ui_layer_merge_dialog_explains_separate_effects},
       {"ui_layer_merge_dialog_cancel_accept_and_history", ui_layer_merge_dialog_cancel_accept_and_history},
       {"ui_layer_merge_script_validation_noop_and_undo", ui_layer_merge_script_validation_noop_and_undo},

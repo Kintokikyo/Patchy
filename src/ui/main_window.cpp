@@ -11692,6 +11692,7 @@ void MainWindow::merge_down() {
   // planner. Bitmap-only Merge Down retains its established flattening behavior.
   if (merge_selection_contains_vectors(std::as_const(doc), merge_list)) {
     auto plan = plan_layer_merge(std::as_const(doc), merge_list);
+    std::optional<Document> prepared;
     const bool simple_shapes = merge_list.size() > 1 && plan.changed && plan.result_ids.size() == 1 &&
         std::all_of(merge_list.begin(), merge_list.end(), [&](LayerId id) {
           const auto* layer = std::as_const(doc).find_layer(id);
@@ -11703,7 +11704,7 @@ void MainWindow::merge_down() {
       const auto session_id = active_session()->session_id;
       const Document source = std::as_const(doc);
       auto edit_lock = lock_preview_dialog_edits();
-      const auto options = show_layer_merge_dialog(this, source, merge_list);
+      const auto options = show_layer_merge_dialog(this, source, merge_list, false, &prepared);
       if (!options.has_value() || active_session() == nullptr || active_session()->session_id != session_id) {
         return;
       }
@@ -11712,16 +11713,17 @@ void MainWindow::merge_down() {
     if (!plan.changed) {
       return;
     }
-    std::optional<Document> prepared;
     const auto merging_session = active_session()->session_id;
     auto merge_edit_lock = lock_preview_dialog_edits();
     try {
-      prepared = render_layer_merge_with_processing(canvas_, std::as_const(doc), plan, [](const Layer& layer) -> std::optional<Layer> {
-        if (layer.kind() == LayerKind::Group || layer.kind() == LayerKind::Adjustment) {
-          return layer;
-        }
-        return renderable_merge_layer_copy(layer);
-      });
+      if (!prepared) {
+        prepared = render_layer_merge_with_processing(canvas_, std::as_const(doc), plan, [](const Layer& layer) -> std::optional<Layer> {
+          if (layer.kind() == LayerKind::Group || layer.kind() == LayerKind::Adjustment) {
+            return layer;
+          }
+          return renderable_merge_layer_copy(layer);
+        });
+      }
     } catch (const std::exception&) {
       show_status_error(tr("Could not merge the layers. The original layers are unchanged."));
       return;
@@ -11732,6 +11734,8 @@ void MainWindow::merge_down() {
     doc = std::move(*prepared);
     if (canvas_ != nullptr) {
       canvas_->clear_path_edit_selection();
+      canvas_->set_layer_edit_target(CanvasWidget::LayerEditTarget::Content);
+      canvas_->set_selected_layer_ids(plan.result_ids);
     }
     refresh_layer_list();
     refresh_layer_controls();

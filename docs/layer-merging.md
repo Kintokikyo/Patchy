@@ -6,7 +6,7 @@ includes its contents. Ancestor selections include descendants only once.
 
 Selections containing vectors use `src/ui/layer_merge.{hpp,cpp}`. Shapes that
 produce one vector output merge immediately; groups and mixed selections open
-**Merge Layers** with three independent options:
+**Merge Layers** with three appearance-preserving options:
 
 - **Keep vector layers editable** preserves editable vector objects and
   merges bitmap runs separately (default on). Turn off to rasterize the merge.
@@ -29,9 +29,36 @@ When source layer effects require separate layers, the dialog lists those layers
 and explains that turning off vector preservation rasterizes merged artwork.
 The explanation also applies when every selected layer is a vector.
 
+**Merge into one vector layer** explicitly combines the selected vectors even
+when their layer effects or intervening unselected layers prevent a preserving
+merge. It overrides the group and paint-category options. Each shape keeps its
+fill, vector stroke, curves, live-shape annotations and paint placement.
+
+- **Remove layer effects** discards the individual effect stacks (default).
+- **Use effects from a layer** takes the complete stack from the selected source,
+  including disabled instances and preserved native settings. Those effects apply
+  once to the combined silhouette. It does not copy source opacity or blending.
+
+The result replaces the bottommost selected vector in the layer stack. Selected
+shapes keep their relative paint order; moving them past unselected layers can
+change overlap. The dialog identifies that placement and reports stacking changes.
+Its bounded preview shows the complete resulting artwork; unchecking **Preview**
+shows the original. Changing the policy updates the preview before Merge becomes
+available. Preview failure is reported; a preparation failure disables Merge.
+Cancel never alters the document, including when a render is still running.
+
+This mode requires at least two editable vectors and explains blockers by layer
+name. Hidden or locked sources (including inherited locks/visibility), non-vector
+content, separate masks, clipping relationships, Smart Filters, non-Normal blending,
+Blend If, channel restrictions, preserved uneditable vector data, vector feather or
+density, and compound outer opacity/Fill still require separate layers. A shared
+enclosing group's effects/isolation remain intact. Moving shapes across a group
+boundary requires an ordinary Pass Through group. Selected ordinary groups are
+released; unselected folders remain. No source is silently omitted or rasterized.
+
 **Merge Visible to New Layer (Copy)** (`layer.merge_visible`, Ctrl+Shift+E) copies
 all effectively visible content, independent of selection. Visible vectors open
-the same dialog, including all three merge choices. Copy remains available even
+the same dialog, including the explicit single-vector mode. Copy remains available even
 when its layers cannot be combined further. Multiple outputs form one new Normal
 group. Hidden folders and children are excluded, including clipped artwork whose
 base is hidden. Source locks protect the originals and do not block copying.
@@ -68,8 +95,9 @@ in paint order. Dynamic Vector Preview expands the parts into temporary native
 vector nodes, using the existing bounded tiles, culling and memory budget.
 Their tile composite becomes a temporary pixel layer before outer opacity,
 Fill, masks, clipping and effects apply.
-Unchanged canvas repaints do not rebuild this representation. Object-level
-styles apply to the combined object; source layers with styles do not merge.
+Unchanged canvas repaints do not rebuild this representation. Object-level styles
+apply to the combined object. Source layers with styles stay separate unless the
+explicit single-vector effect policy is chosen.
 
 ## Preservation boundaries
 
@@ -135,10 +163,19 @@ Native vector and bitmap merging run expensive rendering on background workers.
 The existing delayed **Merging layers...** processing overlay animates during
 slow work, and disappears when it completes. Session identity is checked before
 applying the prepared result. Undo and Redo restore the complete tree.
+The single-vector dialog coalesces background work with generation checks and
+publishes only the latest completed document/preview pair. Closing invalidates
+pending results; tracked workers own immutable snapshots. Acceptance reuses the
+prepared document and raster caches instead of rendering the same merge again.
 
 `doc.mergeLayers(layers, options?)` exposes the same planner without a dialog.
 Boolean options `keepVectors`, `withinGroups`, `separateVectorTypes` default to
 true, false, true. It returns surviving selected leaf wrappers bottom-to-top.
+`singleVector: true` overrides those options and performs the explicit vector
+merge above. Omit `effectsFrom` to remove effects, or pass a selected vector's
+layer wrapper to use its stack. `effectsFrom` requires `singleVector`; a foreign,
+missing or unselected source throws. Any single-vector blocker throws before
+mutation, with the same reasons as the dialog.
 A single leaf does not imply its lower sibling. Invalid or foreign wrappers and
 invalid options throw before mutation. A no-op adds no history. Scripts use the
 host's existing progress and cancellation lifecycle. `getShape().parts` exposes
@@ -146,7 +183,10 @@ read-only part appearances and group references. API version remains 1.
 
 Tests in `tests/ui/layer_merge_tests.cpp` cover the three-option combination,
 colors/strokes, holes/inversion, paint placement, ordering barriers, processing,
-transforms, PSD reopening, dialog cancellation, history and scripting. Bitmap-copy
+transforms, PSD/PSB reopening, dialog cancellation, history and scripting. Explicit
+vector-mode cases cover heterogeneous paints, live geometry, effect-stack transfer
+and removal, nonadjacent placement, group boundaries, blocker diagnostics, latest
+preview publication, preview-off and cancellation during work. Bitmap-copy
 tests cover transparent and opaque backgrounds, masks, group opacity, an entirely
 transparent canvas, unchanged sources and Undo/Redo. The
 optional ignored Little-Everywhere fixture verifies one vector child per folder,

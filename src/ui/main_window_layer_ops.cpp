@@ -3144,8 +3144,9 @@ void MainWindow::merge_visible_to_new_layer() {
   const bool vectors = merge_selection_contains_vectors(visible, ids);
   auto edit_lock = lock_preview_dialog_edits();
   LayerMergeOptions options;
+  std::optional<Document> preview_result;
   if (vectors) {
-    const auto choice = show_layer_merge_dialog(this, visible, ids, true);
+    const auto choice = show_layer_merge_dialog(this, visible, ids, true, &preview_result);
     if (!choice || active_session() == nullptr || active_session()->session_id != session_id) { return; }
     options = *choice;
   }
@@ -3157,7 +3158,7 @@ void MainWindow::merge_visible_to_new_layer() {
   try {
     if (vectors) {
       const auto plan = plan_layer_merge(visible, ids, options, true);
-      auto rendered = render_layer_merge_with_processing(target, visible, plan);
+      auto rendered = preview_result ? std::move(*preview_result) : render_layer_merge_with_processing(target, visible, plan);
       Layer group(0, {}, LayerKind::Group);
       group.set_blend_mode(BlendMode::Normal);
       group.children() = std::as_const(rendered).layers();
