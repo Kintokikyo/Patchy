@@ -41,18 +41,22 @@ headless-stale (ps-compat.md).
   differs by a few /255 there (gradient fixture: mean 1.2, max 8).
 - Stroke dashes: arc-length integration differs, so a few dash-edge pixels
   flip (mean ~0.3 on the strokes fixture).
-- Inside/outside dashed strokes have a larger geometry error (confirmed against
-  Photoshop 27.10, October 2026). `rasterize_vector_stroke` doubles the band width
-  before clipping against the fill, also doubling square/round cap reach while
-  leaving dash spacing unchanged. The Dotted `{0,2}` and Dashed `{2,2}` presets
-  with square caps lose their straight-edge gaps; round caps form clipped,
-  oversized scallops. Photoshop retains separate dots and dashes at the selected
-  width. Centered strokes avoid this width inflation. Calibrate an offset stroke
-  contour at the original width, including corner spacing and round caps; merely
-  shortening square caps cannot repair the round-dot geometry. Force a native
-  rerasterization when comparing imported PSDs: Photoshop's saved pixels can hide
-  the fault until a shape edit. Existing alignment tests cover solid strokes and
-  dash tests cover centered strokes, leaving this combination untested.
+- Inside/outside dash cap sizes are calibrated against Photoshop 27.10 (October
+  2026): the Dotted `{0,2}` preset at width 12 keeps 12 px dots and approximately
+  12 px straight-edge gaps with square caps; round dots remain full circles on
+  the selected side. `stroke_aligned_*` pins cap size, gaps, curves, compound
+  holes, reversed contours and first-subpath subtraction. Photoshop's aligned
+  dash phase/corner spacing still differs from Patchy's path-length traversal.
+  Force a native rerasterization when comparing imported PSDs: Photoshop's
+  saved pixels can hide a rendering fault until a shape edit.
+
+  Inside/outside bands clip a double-width stroke against the fill or its
+  complement. Each half-band gets an original-sized cap centered half a stroke
+  width from the path; fill clipping selects the side, including holes and
+  reversed contours. Doubling cap size too closes square-dot/dash gaps and
+  creates oversized clipped round dots. Zero-length on-entries carry their
+  path tangent explicitly and emit caps at the first dot too; never synthesize
+  epsilon-length segments to orient dots.
 - ROTATED pattern fills: the placement mapping is pinned exactly
   (R(angle) @ (p - anchor) / scale), but PS resamples rotated tiles with a
   soft per-cell filter: cell-edge deltas are large, the structure matches; psd_pattern_params_probe_render_parity_if_available

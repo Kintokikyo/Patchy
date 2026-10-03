@@ -17,11 +17,10 @@ Intersect / Exclude) appends a group with that op to the active shape layer.
 Path mode appends the same subpaths to the work path; Pixels keeps the legacy
 raster commit byte-identical.
 
-The Fill and Stroke swatches are popup pickers (No Fill / Solid / Gradient /
-Pattern) backed by app-wide `VectorFill` mirrors. Gradient picks resolve the
-preset's FG/BG stops at pick time; pattern picks adopt into the document
-store at commit (`ensure_vector_fill_patterns`, honoring the Patt-block
-refusal rule below). Kind and preset ids persist under
+Fill/Stroke popups (No Fill / Solid / Gradient / Pattern) use app-wide
+`VectorFill` mirrors. Gradient picks resolve FG/BG stops immediately; patterns
+enter the document store at commit (`ensure_vector_fill_patterns`, honoring
+the Patt-block refusal below). Kind and preset ids persist under
 vectorFill*/vectorStrokePaint* keys; gradient/pattern PLACEMENT resets each
 launch. Selected shapes share property edits and corner radii, with mixed-value
 markers and one undo per gesture; see [batch appearance](batch-appearance.md).
@@ -53,8 +52,7 @@ editable shape layer; both share
 
 ## Pen tool
 
-The Pen (P) draws bezier paths by anchor: click places a corner,
-click-drag pulls symmetric smooth handles (Alt breaks the pair), clicking
+Pen (P): click adds a corner, drag pulls symmetric handles (Alt breaks the pair), clicking
 the first anchor closes and commits, Enter commits the open path (it fills
 its implied chord, the PS open-subpath rule), Backspace pops the last
 anchor, Escape cancels; tool switches commit, document switches cancel.
@@ -201,10 +199,9 @@ width, alignment, caps, joins, dash presets (Custom keeps PSD dash arrays).
 `pattern_linked` anchors at the effects reference point when on and document
 origin when off; offsets add either way (PatternTileSampler).
 
-Geometry appears when one modeled origination covers every subpath: rect
-bounds and corner radii, ellipse bounds, or line endpoints/weight. A radius
-promotes a rect to rounded. Chain buttons between label and field sit on a
-bracket over the rows they tie (the Image Size link):
+Geometry requires one modeled origination covering every subpath: rect bounds
+and radii, ellipse bounds, or line endpoints/weight. A radius makes a rect rounded.
+Chain buttons bracket their linked rows between labels and fields:
 `shapeGeometryLinkButton` keeps W/H in the ratio captured when switched on;
 `shapeGeometryRadiusLinkButton` edits all four radii together, on by default
 only when the corners agree. generate_live_shape_subpaths keeps live
@@ -401,6 +398,8 @@ src/core/vector_live_shapes.hpp.
 
 ### Stroke rasterization (winding, lattice, bounds)
 
+- Aligned dashes retain original-width caps; zero-length dots carry their path
+  tangent. Geometry, tests and residuals: [vector-fixtures.md](vector-fixtures.md).
 - The stroker builds the band as a union of per-segment quads plus join/cap
   wedges under the nonzero rule; every loop must carry the SAME orientation
   (append_outline_loop normalizes by signed area), or an opposite-winding

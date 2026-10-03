@@ -493,6 +493,8 @@ std::vector<DPoint> subpath_polyline(const PathSubpath& subpath) {
 struct StrokeRun {
   std::vector<DPoint> points;
   bool closed{false};
+  // A zero-length dash still needs its path tangent to orient square/round caps.
+  DPoint dot_direction{};
 };
 
 double distance(const DPoint& a, const DPoint& b) noexcept {
@@ -542,7 +544,7 @@ std::vector<StrokeRun> apply_dashes(const std::vector<DPoint>& points, bool clos
     phase += pattern_total;
   }
   std::size_t dash_index = 0;
-  while (phase >= std::max(dashes_px[dash_index], 0.0)) {
+  while (phase > 0.0 && phase >= std::max(dashes_px[dash_index], 0.0)) {
     phase -= std::max(dashes_px[dash_index], 0.0);
     dash_index = (dash_index + 1) % dashes_px.size();
     if (phase <= 0.0) {
@@ -557,9 +559,9 @@ std::vector<StrokeRun> apply_dashes(const std::vector<DPoint>& points, bool clos
     current.points.clear();
     current.points.push_back(at);
   };
-  const auto finish_run = [&runs, &current]() {
+  const auto finish_run = [&runs, &current](DPoint dot_direction = {}) {
     if (current.points.size() >= 2) {
-      runs.push_back(StrokeRun{current.points, false});
+      runs.push_back(StrokeRun{current.points, false, dot_direction});
     }
     current.points.clear();
   };
@@ -578,7 +580,7 @@ std::vector<StrokeRun> apply_dashes(const std::vector<DPoint>& points, bool clos
       const DPoint cut{a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t};
       if (on) {
         current.points.push_back(cut);
-        finish_run();
+        finish_run(DPoint{(b.x - a.x) / segment_left, (b.y - a.y) / segment_left});
       } else {
         begin_run(cut);
       }
@@ -587,9 +589,8 @@ std::vector<StrokeRun> apply_dashes(const std::vector<DPoint>& points, bool clos
       a = cut;
       dash_index = (dash_index + 1) % dashes_px.size();
       remaining = std::max(dashes_px[dash_index], 0.0);
-      if (remaining <= 0.0) {
-        remaining = 1e-9;  // zero-length entries advance without emitting
-      }
+      // Zero entries advance on the next iteration, emitting a real dot for
+      // an on-entry. An epsilon segment loses its direction at large coordinates.
     }
     remaining -= segment_left;
     if (on) {
@@ -670,7 +671,8 @@ void append_arc_fan(const DPoint& center, DPoint from_unit, DPoint to_unit, doub
 }
 
 // Builds the stroke outline loops for one run at half-width h.
-void append_run_outline(const StrokeRun& run, double h, VectorStrokeCap cap, VectorStrokeJoin join,
+void append_run_outline(const StrokeRun& run, double h, double cap_half_width,
+                        VectorStrokeCap cap, VectorStrokeJoin join,
                         double miter_limit, std::int32_t origin_x, std::int32_t origin_y,
                         std::vector<Edge>& edges) {
   const auto& pts = run.points;
@@ -758,27 +760,42 @@ void append_run_outline(const StrokeRun& run, double h, VectorStrokeCap cap, Vec
         return;
       }
       const DPoint n{-direction.y, direction.x};
-      if (cap == VectorStrokeCap::Square) {
-        append_outline_loop(
-            {DPoint{end.x + n.x * h, end.y + n.y * h},
-             DPoint{end.x + n.x * h + direction.x * h, end.y + n.y * h + direction.y * h},
-             DPoint{end.x - n.x * h + direction.x * h, end.y - n.y * h + direction.y * h},
-             DPoint{end.x - n.x * h, end.y - n.y * h}},
-            origin_x, origin_y, edges);
+      const auto emit_cap = [&](const DPoint& center) {
+        const double radius = cap_half_width;
+        if (cap == VectorStrokeCap::Square) {
+          append_outline_loop(
+              {DPoint{center.x + n.x * radius, center.y + n.y * radius},
+               DPoint{center.x + n.x * radius + direction.x * radius,
+                      center.y + n.y * radius + direction.y * radius},
+               DPoint{center.x - n.x * radius + direction.x * radius,
+                      center.y - n.y * radius + direction.y * radius},
+               DPoint{center.x - n.x * radius, center.y - n.y * radius}},
+              origin_x, origin_y, edges);
+        } else {
+          append_arc_fan(center, n, direction, radius, origin_x, origin_y, edges);
+          append_arc_fan(center, direction, DPoint{-n.x, -n.y}, radius, origin_x, origin_y, edges);
+        }
+      };
+      const double shift = h - cap_half_width;
+      if (shift > 0.0) {
+        // An aligned dash has the original width on EACH side of the path.
+        // Give each half-band its own normal-sized cap; fill clipping below
+        // selects the appropriate side even for holes and reversed contours.
+        emit_cap(DPoint{end.x + n.x * shift, end.y + n.y * shift});
+        emit_cap(DPoint{end.x - n.x * shift, end.y - n.y * shift});
       } else {
-        append_arc_fan(end, n, direction, h, origin_x, origin_y, edges);
-        append_arc_fan(end, direction, DPoint{-n.x, -n.y}, h, origin_x, origin_y, edges);
+        emit_cap(end);
       }
     };
     // Find the first/last non-degenerate directions.
-    DPoint first_dir{0.0, 0.0};
+    DPoint first_dir = run.dot_direction;
     for (const auto& d : directions) {
       if (d.x != 0.0 || d.y != 0.0) {
         first_dir = d;
         break;
       }
     }
-    DPoint last_dir{0.0, 0.0};
+    DPoint last_dir = run.dot_direction;
     for (auto it = directions.rbegin(); it != directions.rend(); ++it) {
       if (it->x != 0.0 || it->y != 0.0) {
         last_dir = *it;
@@ -939,6 +956,9 @@ CoverageBuffer rasterize_vector_stroke(const VectorPath& path, const VectorStrok
   const bool centered = stroke.alignment == VectorStrokeAlignment::Center;
   const double geometry_width = centered ? stroke.width : stroke.width * 2.0;
   const double half = geometry_width / 2.0;
+  // Doubling the band must not double dash caps: that fills the gaps of the
+  // {0,2}/{2,2} presets and clips round dots into oversized semicircles.
+  const double cap_half_width = !centered && !stroke.dashes.empty() ? stroke.width / 2.0 : half;
 
   // Resolve dash entries (stroke-width multiples) to pixels.
   std::vector<double> dashes_px;
@@ -962,7 +982,7 @@ CoverageBuffer rasterize_vector_stroke(const VectorPath& path, const VectorStrok
     }
     const auto runs = apply_dashes(polyline, subpath.closed, dashes_px, offset_px);
     for (const auto& run : runs) {
-      append_run_outline(run, half, stroke.cap, stroke.join, stroke.miter_limit, 0, 0, edges);
+      append_run_outline(run, half, cap_half_width, stroke.cap, stroke.join, stroke.miter_limit, 0, 0, edges);
     }
   }
   if (edges.empty()) {

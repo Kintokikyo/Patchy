@@ -49,8 +49,8 @@ struct VectorRasterOptions {
 [[nodiscard]] CoverageBuffer rasterize_vector_mask_coverage(const LayerVectorMask& mask, Rect clip);
 
 // Stroke coverage for the path with the stroke's width/caps/joins/dashes and
-// alignment applied (inside/outside clip against the path's fill region, the
-// centered-double-width construction). Ignores stroke.enabled so callers can
+// alignment applied (inside/outside clip a double-width band against the fill
+// region, with original-width dash caps on each side). Ignores stroke.enabled so callers can
 // preview; returns empty coverage for degenerate widths.
 [[nodiscard]] CoverageBuffer rasterize_vector_stroke(const VectorPath& path, const VectorStroke& stroke,
                                                      const VectorRasterOptions& options);
