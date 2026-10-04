@@ -2528,6 +2528,19 @@ public:
     return editor_point.has_value() && editor_local_rect().adjusted(-4, -4, 4, 4).contains(editor_point->toPoint());
   }
 
+  // Caret index under a canvas point for a drag that began outside the session (the press that
+  // opened it). Unlike a click, a drag keeps tracking once it leaves the text's rectangle.
+  [[nodiscard]] std::optional<int> drag_cursor_position_for_canvas_point(QPointF canvas_point) const {
+    if (editor_ == nullptr) {
+      return std::nullopt;
+    }
+    const auto editor_point = map_canvas_point_to_editor(canvas_point);
+    if (!editor_point.has_value()) {
+      return std::nullopt;
+    }
+    return text_editor_position_at_local_point(*editor_, *editor_point / zoom());
+  }
+
   [[nodiscard]] bool has_resize_handle_at_canvas_point(QPointF canvas_point) const {
     if (editor_ == nullptr || !isVisible()) {
       return false;
@@ -8293,6 +8306,9 @@ void MainWindow::configure_canvas(CanvasWidget* canvas) {
   canvas->set_text_requested_callback([this](QPoint point, QRect requested_text_box) {
     add_text_at(point, requested_text_box);
   });
+  canvas->set_text_entry_selection_drag_callback([this, canvas](QPointF widget_point, bool begin) {
+    return canvas == canvas_ && extend_text_entry_selection(widget_point, begin);
+  });
   canvas->set_shape_appearance_requested_callback([this, canvas] {
     if (canvas == canvas_) {
       edit_active_shape_appearance();
@@ -12455,6 +12471,48 @@ bool MainWindow::handle_text_editor_viewport_mouse_event(QTextEdit* editor, QEve
   }
   editor->setTextCursor(cursor);
   mouse_event->accept();
+  return true;
+}
+
+// The drag half of the Type-tool press that opened a session on an existing layer. That press
+// went to the canvas, so Qt delivers the rest of the gesture there too and the editor-side
+// handlers above never see it; the canvas forwards it here. `begin` records the caret add_text_at
+// placed as the anchor, every later call selects from it to the pointer.
+bool MainWindow::extend_text_entry_selection(QPointF canvas_point, bool begin) {
+  auto* editor = canvas_ == nullptr ? nullptr : canvas_->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
+  if (editor == nullptr || !editor->isVisible() || editor->property(kTextEditorFinishedProperty).toBool()) {
+    text_entry_selection_editor_ = nullptr;
+    return false;
+  }
+  if (begin) {
+    text_entry_selection_editor_ = editor;
+    text_entry_selection_anchor_ = editor->textCursor().position();
+    return true;
+  }
+  if (text_entry_selection_editor_ != editor) {
+    return false;
+  }
+
+  std::optional<int> position;
+  if (editor->property(kTextEditorTransformedOverlayProperty).toBool()) {
+    const auto* overlay = transformed_text_edit_overlay_for_canvas(canvas_);
+    if (overlay != nullptr && overlay->editor() == editor) {
+      position = overlay->drag_cursor_position_for_canvas_point(canvas_point);
+    }
+  } else if (editor->viewport() != nullptr) {
+    position = text_editor_position_at_viewport_point(
+        *editor, canvas_point - QPointF(editor->viewport()->mapTo(canvas_, QPoint(0, 0))));
+  }
+  if (!position.has_value()) {
+    return true;  // still this gesture; the pointer just has no answer here
+  }
+  auto cursor = editor->textCursor();
+  const auto anchor = std::clamp(text_entry_selection_anchor_, 0, std::max(0, editor->document()->characterCount() - 1));
+  if (cursor.anchor() != anchor || cursor.position() != *position) {
+    cursor.setPosition(anchor);
+    cursor.setPosition(*position, QTextCursor::KeepAnchor);
+    editor->setTextCursor(cursor);
+  }
   return true;
 }
 

@@ -459,6 +459,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent* event) {
   }
   // Momentum still coasting from a trackpad flick ends at a press (see wheelEvent).
   swallow_scroll_momentum_ = true;
+  dragging_text_entry_selection_ = false;
   setFocus(Qt::MouseFocusReason);
   last_mouse_position_ = event->pos();
   emit_info_for_widget_position(event->pos());
@@ -882,6 +883,11 @@ void CanvasWidget::mousePressEvent(QMouseEvent* event) {
       if (text_requested_callback_) {
         text_requested_callback_(document_point, QRect());
       }
+      // The session opened inside this press, so the drag that follows arrives here and not at
+      // the new editor: keep it selecting from the caret the press placed, as one gesture.
+      dragging_text_entry_selection_ =
+          event->button() == Qt::LeftButton && text_entry_selection_drag_callback_ &&
+          text_entry_selection_drag_callback_(event->position(), true);
       event->accept();
       update();
       return;
@@ -1421,6 +1427,18 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
     last_mouse_position_ = event->pos();
     event->accept();
     return;
+  }
+
+  if (dragging_text_entry_selection_) {
+    // A move without the button means the release went elsewhere (a prompt shown while the
+    // session opened): the gesture is over, and this move takes its normal path.
+    if ((event->buttons() & Qt::LeftButton) != 0 && text_entry_selection_drag_callback_ &&
+        text_entry_selection_drag_callback_(event->position(), false)) {
+      last_mouse_position_ = event->pos();
+      event->accept();
+      return;
+    }
+    dragging_text_entry_selection_ = false;
   }
 
   if (edit_locked_ && !zooming_) {
@@ -2193,6 +2211,12 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
     } else {
       notify_document_changed(DocumentChangeReason::BrushStrokeFinished);
     }
+    return;
+  }
+
+  if (dragging_text_entry_selection_ && event->button() == Qt::LeftButton) {
+    dragging_text_entry_selection_ = false;
+    event->accept();
     return;
   }
 
@@ -3564,7 +3588,7 @@ void CanvasWidget::cancel_pointer_gestures() {
   lasso_points_.clear();
   cancel_spot_heal_stroke();
   cancel_patch_tool_drag();
-  drawing_shape_ = dragging_text_rect_ = false;
+  drawing_shape_ = dragging_text_rect_ = dragging_text_entry_selection_ = false;
   move_drag_pending_ = moving_layer_ = false;
   moving_layers_.clear();
   move_readout_base_rect_.reset();

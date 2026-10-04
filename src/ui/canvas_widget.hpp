@@ -1206,6 +1206,11 @@ public:
   void set_brush_settings_changed_callback(std::function<void()> callback);
   void set_pen_button_action_callback(std::function<void(PenButtonAction)> callback);
   void set_text_requested_callback(std::function<void(QPoint, QRect)> callback);
+  // The Type-tool press that opens a session on an existing layer keeps the rest of its gesture
+  // on the canvas (Qt delivers a gesture to the widget that took the press), so the canvas hands
+  // the drag to the host: begin = true right after the session opened (returns whether a live
+  // editor is there to select in), then begin = false with each left-held move's widget point.
+  void set_text_entry_selection_drag_callback(std::function<bool(QPointF, bool)> callback);
   void set_active_layer_changed_callback(std::function<void(LayerId)> callback);
   // The canvas asks the host (the layer panel is the selection's source of
   // truth) to make exactly these layers selected with active_id current; the
@@ -2386,6 +2391,7 @@ private:
   bool opacity_digit_targets_flow_{false};
   bool drawing_shape_{false};
   bool dragging_text_rect_{false};
+  bool dragging_text_entry_selection_{false};
   bool move_drag_pending_{false};
   struct MoveLayerSelectionGesture {
     QPoint press_widget;
@@ -2877,6 +2883,7 @@ private:
   std::function<void()> brush_settings_changed_callback_;
   std::function<void(PenButtonAction)> pen_button_action_callback_;
   std::function<void(QPoint, QRect)> text_requested_callback_;
+  std::function<bool(QPointF, bool)> text_entry_selection_drag_callback_;
   std::function<void(LayerId)> active_layer_changed_callback_;
   std::function<void(std::vector<LayerId>, LayerId)> layer_selection_requested_callback_;
   std::function<void(QString)> status_callback_;

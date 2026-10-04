@@ -502,6 +502,7 @@ void CanvasWidget::set_edit_locked(bool locked) noexcept {
     clear_retained_move_caches();
     reset_move_live_latch();
     dragging_text_rect_ = false;
+    dragging_text_entry_selection_ = false;
     selecting_ = false;
     lassoing_ = false;
     cancel_magnetic_lasso();
@@ -1118,6 +1119,10 @@ void CanvasWidget::set_pen_button_action_callback(std::function<void(PenButtonAc
 
 void CanvasWidget::set_text_requested_callback(std::function<void(QPoint, QRect)> callback) {
   text_requested_callback_ = std::move(callback);
+}
+
+void CanvasWidget::set_text_entry_selection_drag_callback(std::function<bool(QPointF, bool)> callback) {
+  text_entry_selection_drag_callback_ = std::move(callback);
 }
 
 void CanvasWidget::set_active_layer_changed_callback(std::function<void(LayerId)> callback) {

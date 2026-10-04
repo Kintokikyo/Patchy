@@ -50,6 +50,11 @@ is SIZED from that layout too, never `QTextDocument::size()`: its rect is its hi
 line past a too-short bottom edge clicks through to the canvas, whose focus-loss auto-commit ends
 the session (`ui_transformed_text_click_returns_to_the_caret_it_drew`).
 
+The Type-tool press that OPENS a session on an existing layer goes to the canvas, so Qt delivers
+that gesture's drag there, not to the new editor. The canvas forwards it
+(`dragging_text_entry_selection_` to `MainWindow::extend_text_entry_selection`), so one
+press-drag enters and selects (`ui_text_press_drag_from_outside_session_selects_range`).
+
 `render_text_pixels_with_local_rect` = `build_text_render_plan` (layout, line plan, local rect,
 post-fold residual transform) + `draw_text_render_plan(plan, QPainter&)`. The raster path draws
 the plan into a QImage; `draw_text_layer_to_painter` (`ui/text_layer_painter.hpp`, editable PDF

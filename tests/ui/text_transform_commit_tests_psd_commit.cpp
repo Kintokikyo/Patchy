@@ -3275,6 +3275,133 @@ void ui_transformed_text_click_returns_to_the_caret_it_drew() {
   }
 }
 
+void ui_transformed_text_press_drag_from_outside_session_selects_range() {
+  // The one-gesture press-drag (see ui_text_press_drag_from_outside_session_selects_range) on a
+  // rotated layer: the drag half is inverse-mapped through the text transform like the overlay's
+  // own clicks, so it selects the glyphs under the pointer and not their unrotated positions.
+  patchy::test::register_test_fonts(patchy::test::TestFontRole::UiDefault);
+  const auto path = patchy::test::committed_psd_fixture_path("photoshop-text-point-fixed-leading.psd");
+  auto document = patchy::psd::DocumentIo::read_file(path);
+  patchy::LayerId layer_id = 0;
+  bool found = false;
+  std::function<void(const std::vector<patchy::Layer>&)> find_text_layer =
+      [&](const std::vector<patchy::Layer>& layers) {
+        for (const auto& layer : layers) {
+          if (!found) {
+            if (const auto it = layer.metadata().find(patchy::kLayerMetadataText);
+                it != layer.metadata().end() && it->second.find("HHHH") != std::string::npos) {
+              layer_id = layer.id();
+              found = true;
+            }
+          }
+          find_text_layer(layer.children());
+        }
+      };
+  find_text_layer(document.layers());
+  CHECK(found);
+  if (!found) {
+    return;
+  }
+
+  patchy::ui::MainWindow window;
+  show_window(window);
+  window.add_document_session(std::move(document), QStringLiteral("Transformed Press Drag"));
+  auto* canvas = require_canvas(window);
+  canvas->set_zoom(1.0);
+  QApplication::processEvents();
+
+  auto& live_document = patchy::ui::MainWindowTestAccess::document(window);
+  auto* source = live_document.find_layer(layer_id);
+  CHECK(source != nullptr);
+  if (source == nullptr) {
+    return;
+  }
+  const auto bounds_now = source->bounds();
+  QTransform rotated;
+  rotated.translate(bounds_now.x, bounds_now.y);
+  rotated.rotate(20.0);
+  source->metadata()[patchy::kLayerMetadataTextTransform] = patchy::serialize_layer_affine_transform(
+      patchy::LayerAffineTransform{rotated.m11(), rotated.m12(), rotated.m21(), rotated.m22(),
+                                   rotated.dx(), rotated.dy()});
+  live_document.set_active_layer(layer_id);
+  require_action_by_text(window, QStringLiteral("Type"))->trigger();
+  const auto hit_point = canvas->widget_position_for_document_point(
+      QPoint(bounds_now.x + bounds_now.width / 2, bounds_now.y + 12));
+  accept_missing_psd_text_font_warning_if_present();
+  send_mouse(*canvas, QEvent::MouseButtonPress, hit_point, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, hit_point, Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  process_events_for(250);
+
+  const auto live_editor = [&] { return canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor")); };
+  auto* editor = live_editor();
+  auto* overlay = canvas->findChild<QWidget*>(QStringLiteral("transformedTextEditOverlay"));
+  CHECK(editor != nullptr);
+  CHECK(overlay != nullptr);
+  if (editor == nullptr || overlay == nullptr) {
+    return;
+  }
+  CHECK(editor->property("patchy.transformedPreviewOverlayActive").toBool());
+
+  // Where two carets of the SECOND line sit on the canvas, read from the open session. The
+  // canvas hit-tests the opening press against the layer's stored (unrotated) bounds, and the
+  // rotation pivots on the first baseline: the first line swings above those bounds, the start
+  // of the second stays inside them.
+  int line_start = -1;
+  int lines_seen = 0;
+  for (auto block = editor->document()->begin(); block.isValid() && line_start < 0; block = block.next()) {
+    if (block.text().trimmed().size() >= 4 && ++lines_seen == 2) {
+      line_start = block.position();
+    }
+  }
+  CHECK(line_start >= 0);
+  const auto caret_canvas_point = [&](int position) -> std::optional<QPoint> {
+    auto cursor = editor->textCursor();
+    cursor.setPosition(position);
+    editor->setTextCursor(cursor);
+    QApplication::processEvents();
+    overlay->repaint();  // publishes patchy.transformedTextCaretPolygon for this cursor
+    const auto polygon = overlay->property("patchy.transformedTextCaretPolygon").toList();
+    if (polygon.size() != 4) {
+      return std::nullopt;
+    }
+    QPointF centre;
+    for (const auto& value : polygon) {
+      centre += value.toPointF();
+    }
+    return (centre / 4.0).toPoint();
+  };
+  const auto drag_from = caret_canvas_point(line_start + 1);
+  const auto drag_to = caret_canvas_point(line_start + 3);
+  CHECK(drag_from.has_value());
+  CHECK(drag_to.has_value());
+  send_key(*editor, Qt::Key_Escape);
+  QApplication::processEvents();
+  process_events_for(150);
+  CHECK(live_editor() == nullptr);
+  if (!drag_from.has_value() || !drag_to.has_value() || line_start < 0 || live_editor() != nullptr) {
+    return;
+  }
+
+  accept_missing_psd_text_font_warning_if_present();
+  send_mouse(*canvas, QEvent::MouseButtonPress, *drag_from, Qt::LeftButton, Qt::LeftButton);
+  // The press alone opened the session (on the layer, not as a new text box at release).
+  CHECK(live_editor() != nullptr);
+  send_mouse(*canvas, QEvent::MouseMove, (*drag_from + *drag_to) / 2, Qt::NoButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseMove, *drag_to, Qt::NoButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, *drag_to, Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  auto* entered = live_editor();
+  CHECK(entered != nullptr);
+  if (entered != nullptr) {
+    CHECK(entered->textCursor().selectionStart() == line_start + 1);
+    CHECK(entered->textCursor().selectionEnd() == line_start + 3);
+    send_key(*entered, Qt::Key_Escape);
+    QApplication::processEvents();
+    process_events_for(150);
+  }
+}
+
 void ui_psd_frame_text_highlight_matches_scaled_glyphs() {
   // A PSD-frame session keeps its runs in raw engine units and folds the frame transform's
   // vertical scale into the glyph sizes only at RENDER time. The caret/selection layout was built
@@ -3988,6 +4115,8 @@ std::vector<patchy::test::TestCase> text_transform_commit_tests_part2() {
        ui_psd_frame_text_highlight_matches_scaled_glyphs},
       {"ui_transformed_text_click_returns_to_the_caret_it_drew",
        ui_transformed_text_click_returns_to_the_caret_it_drew},
+      {"ui_transformed_text_press_drag_from_outside_session_selects_range",
+       ui_transformed_text_press_drag_from_outside_session_selects_range},
       {"ui_psd_text_caret_follows_photoshop_leading", ui_psd_text_caret_follows_photoshop_leading},
       {"ui_psd_text_click_returns_to_the_caret_it_drew", ui_psd_text_click_returns_to_the_caret_it_drew},
       {"ui_psd_text_fixed_leading_commit_matches_photoshop_row_bands",

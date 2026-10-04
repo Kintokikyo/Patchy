@@ -1584,6 +1584,136 @@ void ui_text_mouse_and_keyboard_selection_match_glyphs() {
   check_text_selection_matches_glyphs(true);
 }
 
+// With the Type tool and no session open, one press-drag across an existing text layer opens the
+// session AND selects the dragged range, as in Photoshop. The press that opens the session goes
+// to the canvas, so the canvas has to carry the rest of that gesture to the new editor; it used
+// to drop it, and selecting took a second press-drag.
+void ui_text_press_drag_from_outside_session_selects_range() {
+  patchy::test::register_test_fonts(patchy::test::TestFontRole::UiDefault);
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_zoom(1.0);
+  require_action_by_text(window, QStringLiteral("Type"))->trigger();
+  canvas->set_primary_color(QColor(20, 20, 20));
+
+  const auto widget_point = canvas->widget_position_for_document_point(QPoint(60, 80));
+  send_mouse(*canvas, QEvent::MouseButtonPress, widget_point, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, widget_point, Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  auto* editor = canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
+  CHECK(editor != nullptr);
+  if (editor == nullptr) {
+    return;
+  }
+  editor->setPlainText(QStringLiteral("Handgloves"));
+  QApplication::processEvents();
+  process_events_for(150);
+  require_action_by_text(window, QStringLiteral("Move"))->trigger();
+  QApplication::processEvents();
+  process_events_for(150);
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  const auto* committed = std::as_const(document).find_layer(document.active_layer_id().value_or(patchy::LayerId{}));
+  CHECK(committed != nullptr);
+  if (committed == nullptr) {
+    return;
+  }
+  const auto bounds = committed->bounds();
+  const auto layer_centre =
+      canvas->widget_position_for_document_point(QPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2));
+  require_action_by_text(window, QStringLiteral("Type"))->trigger();
+
+  const auto live_editor = [&] { return canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor")); };
+  const auto cancel_session = [&] {
+    if (auto* open = live_editor(); open != nullptr) {
+      send_key(*open, Qt::Key_Escape);
+      QApplication::processEvents();
+      process_events_for(100);
+    }
+  };
+
+  // Open the session once the old way to learn where carets 1 and 5 sit on the canvas, then
+  // cancel it: the layer is untouched, so the next session lays out identically.
+  send_mouse(*canvas, QEvent::MouseButtonPress, layer_centre, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, layer_centre, Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  process_events_for(200);
+  editor = live_editor();
+  CHECK(editor != nullptr);
+  if (editor == nullptr) {
+    return;
+  }
+  const auto caret_canvas_point = [&](int position) {
+    auto cursor = editor->textCursor();
+    cursor.setPosition(position);
+    editor->setTextCursor(cursor);
+    QApplication::processEvents();
+    auto caret = editor->property("patchy.previewCaretRect").toRect();
+    if (caret.isEmpty()) {
+      caret = editor->cursorRect();
+    }
+    return editor->viewport()->mapTo(canvas, QPoint(caret.left(), (caret.top() + caret.bottom()) / 2));
+  };
+  const auto drag_from = caret_canvas_point(1);
+  const auto drag_to = caret_canvas_point(5);
+  cancel_session();
+  CHECK(live_editor() == nullptr);
+  CHECK(drag_to.x() > drag_from.x());
+
+  // One gesture: press on the text, drag, release.
+  send_mouse(*canvas, QEvent::MouseButtonPress, drag_from, Qt::LeftButton, Qt::LeftButton);
+  auto* entered = live_editor();
+  CHECK(entered != nullptr);
+  if (entered == nullptr) {
+    return;
+  }
+  CHECK(!entered->textCursor().hasSelection());
+  CHECK(entered->textCursor().position() == 1);
+  send_mouse(*canvas, QEvent::MouseMove, QPoint((drag_from.x() + drag_to.x()) / 2, drag_to.y()), Qt::NoButton,
+             Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseMove, drag_to, Qt::NoButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, drag_to, Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  CHECK(live_editor() == entered);
+  CHECK(entered->textCursor().selectedText() == QStringLiteral("andg"));
+  CHECK(entered->textCursor().anchor() == 1);
+
+  // The gesture ended at the release: later moves over the canvas leave the selection alone,
+  // with or without a button (a held button here belongs to some other gesture).
+  send_mouse(*canvas, QEvent::MouseMove, drag_from, Qt::NoButton, Qt::NoButton);
+  send_mouse(*canvas, QEvent::MouseMove, drag_from, Qt::NoButton, Qt::LeftButton);
+  QApplication::processEvents();
+  CHECK(live_editor() == entered);
+  CHECK(entered->textCursor().selectedText() == QStringLiteral("andg"));
+  cancel_session();
+
+  // A plain click still leaves a bare caret.
+  send_mouse(*canvas, QEvent::MouseButtonPress, drag_from, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, drag_from, Qt::LeftButton, Qt::NoButton);
+  send_mouse(*canvas, QEvent::MouseMove, drag_to, Qt::NoButton, Qt::NoButton);
+  QApplication::processEvents();
+  entered = live_editor();
+  CHECK(entered != nullptr);
+  if (entered != nullptr) {
+    CHECK(!entered->textCursor().hasSelection());
+    CHECK(entered->textCursor().position() == 1);
+  }
+  cancel_session();
+
+  // A release the canvas never saw (a prompt took it while the session opened): the first move
+  // without the button ends the gesture, and a button held after that does not revive it.
+  send_mouse(*canvas, QEvent::MouseButtonPress, drag_from, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseMove, drag_from, Qt::NoButton, Qt::NoButton);
+  send_mouse(*canvas, QEvent::MouseMove, drag_to, Qt::NoButton, Qt::LeftButton);
+  QApplication::processEvents();
+  entered = live_editor();
+  CHECK(entered != nullptr);
+  if (entered != nullptr) {
+    CHECK(!entered->textCursor().hasSelection());
+  }
+  cancel_session();
+}
+
 void ui_text_commit_is_zoom_independent() {
   // The same text typed at the same place must commit the same pixels whatever the canvas zoom
   // happened to be. The inline editor's font used to be set to an integer pixel size of
@@ -2268,6 +2398,8 @@ std::vector<patchy::test::TestCase> text_editor_font_picker_tests() {
       {"ui_text_commit_is_zoom_independent", ui_text_commit_is_zoom_independent},
       {"ui_text_mouse_and_keyboard_selection_match_glyphs",
        ui_text_mouse_and_keyboard_selection_match_glyphs},
+      {"ui_text_press_drag_from_outside_session_selects_range",
+       ui_text_press_drag_from_outside_session_selects_range},
       {"ui_expensive_text_style_preview_never_blanks_while_typing",
        ui_expensive_text_style_preview_never_blanks_while_typing},
       {"ui_text_editor_paste_uses_current_format_for_rich_emoji_clipboard",

@@ -1652,6 +1652,8 @@ private:
   // Resolves left-button clicks and drags inside a flat inline editor through the shared
   // TextLineGeometry instead of QTextEdit's own (zoom-scaled, different) layout.
   bool handle_text_editor_viewport_mouse_event(QTextEdit* editor, QEvent* event);
+  // Continues the press that opened a text session as a selection drag (canvas coordinates).
+  bool extend_text_entry_selection(QPointF canvas_point, bool begin);
   void mark_text_editor_changed(QTextEdit* editor);
   void schedule_text_editor_preview(QTextEdit* editor);
   void update_text_editor_preview(QTextEdit* editor);
@@ -1821,6 +1823,8 @@ private:
   std::uint64_t quick_mask_thumbnail_revision_{0};
   QPixmap quick_mask_thumbnail_;
   bool swallow_next_canvas_left_press_{false};
+  QPointer<QTextEdit> text_entry_selection_editor_;
+  int text_entry_selection_anchor_{0};
   QListWidget* layer_list_{nullptr};
   QLineEdit* layer_name_filter_edit_{nullptr};
   ChannelPanel* channel_panel_{nullptr};
