@@ -199,8 +199,8 @@ to `mergeCurrentCharFormat`, which only formats the NEXT typed character.
   size-spin write is signal-blocked like the family combo. The size spin has keyboard tracking
   OFF (Enter, focus loss or a step applies, never each keystroke). The text color panel is
   live, so its layer apply is debounced (`apply_text_color_to_selected_layers_debounced`). A
-  Palette swatch click mirrors into the open panel signal-blocked, so the swatch handler calls
-  that apply itself (issue 61).
+  Palette swatch click takes the same apply (Type tool or open panel; see
+  [palette-mode.md](palette-mode.md)).
 - **The bar mirrors the active text layer** (`sync_text_options_from_active_layer`, from
   `refresh_options_bar` and `refresh_layer_controls`, keyed so an unchanged layer costs nothing;
   the alignment buttons read the first paragraph run). A mixed selection shows the active

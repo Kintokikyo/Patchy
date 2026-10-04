@@ -1991,6 +1991,22 @@ void MainWindow::pick_vector_solid_color(bool for_stroke) {
   });
 }
 
+void MainWindow::apply_swatch_color_to_shape_paint(QColor color) {
+  if (!vector_appearance_controls_live() || preview_dialog_edit_locked()) return;
+  finish_pending_shape_appearance_edit();
+  const bool to_fill = current_vector_fill_.kind == VectorFillKind::Solid;
+  const bool to_stroke = !to_fill && current_vector_fill_.kind == VectorFillKind::None &&
+                         current_vector_stroke_enabled_ &&
+                         current_vector_stroke_paint_.kind == VectorFillKind::Solid;
+  if (!to_fill && !to_stroke) return;
+  auto& target = to_fill ? current_vector_fill_ : current_vector_stroke_paint_;
+  target.color = {static_cast<std::uint8_t>(color.red()), static_cast<std::uint8_t>(color.green()),
+                  static_cast<std::uint8_t>(color.blue())};
+  update_vector_swatch_icons();
+  schedule_save_tool_settings();
+  apply_options_bar_appearance_to_active_shape({to_fill ? "fill.color" : "stroke.content.color"});
+}
+
 void MainWindow::pick_vector_gradient(bool for_stroke) {
   finish_pending_shape_appearance_edit();
   if (preview_dialog_edit_locked()) { show_preview_dialog_edit_lock_message(); return; }

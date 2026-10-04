@@ -1169,6 +1169,9 @@ private:
   // (Photoshop's live options-bar editing).
   void show_vector_paint_menu(bool for_stroke);
   void pick_vector_solid_color(bool for_stroke);
+  // A Palette swatch click: recolors the options-bar solid Fill (or, with No Fill, an
+  // enabled solid Stroke) and the selected shape layers. Gradient/pattern paint is left alone.
+  void apply_swatch_color_to_shape_paint(QColor color);
   void pick_vector_gradient(bool for_stroke);
   void pick_vector_pattern(bool for_stroke);
   [[nodiscard]] patchy::Layer* editable_active_vector_shape_layer();

@@ -4,6 +4,8 @@
 #include "ui_test_support.hpp"
 
 #include "core/document_path.hpp"
+#include "core/palette.hpp"
+#include "core/palette_presets.hpp"
 #include "core/pixel_buffer.hpp"
 #include "core/vector_shape.hpp"
 #include "core/vector_raster.hpp"
@@ -172,6 +174,82 @@ void ui_shape_tool_path_mode_populates_work_path() {
   QApplication::processEvents();
   auto* second_canvas = require_canvas(window);
   CHECK(second_canvas->vector_tool_mode() == patchy::ui::VectorToolMode::Path);
+}
+
+// A Palette swatch click recolors the options-bar solid Fill and the selected shape layer
+// (GitHub issue 61); gradient paint is left alone.
+void ui_palette_swatch_click_recolors_selected_shape() {
+  VectorSettingsGuard settings_guard;
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+
+  const auto* preset = patchy::find_builtin_palette_preset("pico8");
+  CHECK(preset != nullptr);
+  patchy::DocumentPaletteEditing editing;
+  editing.palette.colors.assign(preset->colors.begin(), preset->colors.end());
+  editing.palette_revision = 1;
+  document.palette_editing() = editing;
+  patchy::ui::MainWindowTestAccess::refresh_document_info(window);
+  QApplication::processEvents();
+  auto* grid = window.findChild<QWidget*>(QStringLiteral("paletteSwatchGrid"));
+  CHECK(grid != nullptr);
+  const auto click_swatch = [grid](int index) {
+    const QPoint center((index % 12) * 20 + 9, (index / 12) * 20 + 9);
+    send_mouse(*grid, QEvent::MouseButtonPress, center, Qt::LeftButton, Qt::LeftButton);
+    send_mouse(*grid, QEvent::MouseButtonRelease, center, Qt::LeftButton, Qt::NoButton);
+    QApplication::processEvents();
+  };
+  const auto swatch = [preset](int index) { return preset->colors[static_cast<std::size_t>(index)]; };
+
+  require_action_by_text(window, QStringLiteral("Ellipse"))->trigger();
+  auto* mode_combo = window.findChild<QComboBox*>(QStringLiteral("vectorModeCombo"));
+  CHECK(mode_combo != nullptr);
+  mode_combo->setCurrentIndex(0);  // Shape
+  auto& fill = patchy::ui::MainWindowTestAccess::current_vector_fill(window);
+  fill = {};
+  fill.kind = patchy::VectorFillKind::Solid;
+  fill.color = {10, 20, 30};
+  shape_drag(*canvas, QPoint(150, 150), QPoint(350, 280));
+  const auto shape_id = std::as_const(document).active_layer_id();
+  CHECK(shape_id.has_value());
+  const auto shape = [&]() -> const patchy::VectorShapeContent* {
+    const auto* layer = std::as_const(document).find_layer(shape_id.value_or(0));
+    return layer != nullptr ? layer->vector_shape() : nullptr;
+  };
+  CHECK(shape() != nullptr);
+  if (shape() == nullptr) {
+    return;
+  }
+  CHECK(shape()->fill.color == (patchy::RgbColor{10, 20, 30}));
+
+  // Solid fill: the box and the layer take the swatch, as one undo step.
+  const auto depth = patchy::ui::MainWindowTestAccess::active_session_undo_depth(window);
+  click_swatch(8);
+  CHECK(fill.kind == patchy::VectorFillKind::Solid);
+  CHECK(fill.color == swatch(8));
+  CHECK(shape()->fill.color == swatch(8));
+  CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == depth + 1);
+  CHECK(canvas->primary_color() == QColor(swatch(8).red, swatch(8).green, swatch(8).blue));
+
+  // Another tool: the swatch only sets the foreground.
+  require_action_by_text(window, QStringLiteral("Brush"))->trigger();
+  QApplication::processEvents();
+  click_swatch(9);
+  CHECK(shape()->fill.color == swatch(8));
+  CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == depth + 1);
+
+  // Gradient fill: left alone.
+  require_action_by_text(window, QStringLiteral("Ellipse"))->trigger();
+  QApplication::processEvents();
+  fill.kind = patchy::VectorFillKind::Gradient;
+  CHECK(patchy::ui::MainWindowTestAccess::apply_options_bar_appearance(window));
+  const auto gradient_depth = patchy::ui::MainWindowTestAccess::active_session_undo_depth(window);
+  click_swatch(10);
+  CHECK(shape()->fill.kind == patchy::VectorFillKind::Gradient);
+  CHECK(shape()->fill.color == swatch(8));
+  CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == gradient_depth);
 }
 
 void ui_shape_tool_pixels_mode_keeps_raster_commit() {
@@ -4438,6 +4516,7 @@ std::vector<patchy::test::TestCase> vector_shape_tool_tests() {
       {"ui_shape_tool_combine_extends_active_shape_layer",
        ui_shape_tool_combine_extends_active_shape_layer},
       {"ui_shape_tool_path_mode_populates_work_path", ui_shape_tool_path_mode_populates_work_path},
+      {"ui_palette_swatch_click_recolors_selected_shape", ui_palette_swatch_click_recolors_selected_shape},
       {"ui_shape_tool_pixels_mode_keeps_raster_commit", ui_shape_tool_pixels_mode_keeps_raster_commit},
       {"ui_line_shape_layer_uses_weight_and_stroke_settings",
        ui_line_shape_layer_uses_weight_and_stroke_settings},

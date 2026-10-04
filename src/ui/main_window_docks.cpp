@@ -1859,23 +1859,30 @@ void MainWindow::create_palette_dock() {
     // picker (layer-style colors, gradient stops, ...) takes it live through its
     // callback, and the persistent Foreground/Text color panel mirrors the new
     // state (blocked: set_primary_color above already applied it).
-    apply_color_to_open_color_picker(color);
+    const bool request_picker_took_color = apply_color_to_open_color_picker(color);
+    bool text_color_panel_open = false;
     if (color_dialog_ != nullptr) {
       const auto target = color_dialog_->property("patchy.colorTarget").toString();
-      if (target == QStringLiteral("foreground") || target == QStringLiteral("text")) {
+      text_color_panel_open = target == QStringLiteral("text");
+      if (target == QStringLiteral("foreground") || text_color_panel_open) {
         if (auto* picker = color_dialog_->findChild<PatchyColorPicker*>(
                 QStringLiteral("patchyAdvancedColorPicker"))) {
           const QSignalBlocker blocker(picker);
           picker->setCurrentColor(color);
         }
       }
-      // The Text Color panel with no session open recolors the selected text layers
-      // (issue 31); the blocked mirror above skips the panel's own callback, so a
-      // swatch click has to take that path here (issue 61).
-      if (target == QStringLiteral("text") &&
+    }
+    // A swatch click also recolors what the active tool's options-bar color box edits
+    // (issue 61), unless a request picker took the color for its own target: the selected
+    // text layers with no session open (the Type tool, or the Text Color panel whose
+    // blocked mirror above skips its own callback), and the solid shape paint plus the
+    // selected shape layers while the shape appearance controls are live.
+    if (!request_picker_took_color) {
+      if ((current_tool_ == CanvasTool::Text || text_color_panel_open) &&
           canvas_->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor")) == nullptr) {
         apply_text_color_to_selected_layers_debounced(color);
       }
+      apply_swatch_color_to_shape_paint(color);
     }
     refresh_color_buttons();
     refresh_palette_panel();

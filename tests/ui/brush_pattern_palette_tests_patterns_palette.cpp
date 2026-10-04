@@ -1070,6 +1070,48 @@ void ui_palette_panel_copy_hex_and_updates_open_picker() {
   CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == undo_depth + 1);
   text_panel->close();
   QApplication::processEvents();
+
+  // Panel closed: a swatch click with the Type tool still recolors the selected text layer,
+  // and a click with another tool leaves it alone.
+  const auto ink_count = [&document, text_layer_id](QColor color) {
+    const auto* layer = std::as_const(document).find_layer(text_layer_id);
+    int count = 0;
+    if (layer != nullptr) {
+      const auto& pixels = layer->pixels();
+      for (int y = 0; y < pixels.height(); ++y) {
+        for (int x = 0; x < pixels.width(); ++x) {
+          const auto pixel = pixels.pixel(x, y);
+          count += pixel[3] == 255 && pixel[0] == color.red() && pixel[1] == color.green() &&
+                   pixel[2] == color.blue();
+        }
+      }
+    }
+    return count;
+  };
+  const QColor closed_color(preset->colors[12].red, preset->colors[12].green, preset->colors[12].blue);
+  const QColor other_tool_color(preset->colors[14].red, preset->colors[14].green, preset->colors[14].blue);
+  CHECK(find_top_level_dialog(QStringLiteral("patchyColorDialog")) == nullptr);
+  require_action_by_text(window, QStringLiteral("Brush"))->trigger();
+  QApplication::processEvents();
+  send_mouse(*grid, QEvent::MouseButtonPress, cell_center(14), Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*grid, QEvent::MouseButtonRelease, cell_center(14), Qt::LeftButton, Qt::NoButton);
+  process_events_for(400);
+  CHECK(canvas->primary_color() == other_tool_color);
+  CHECK(ink_count(other_tool_color) == 0);
+  CHECK(ink_count(swatch_color) > 0);
+
+  require_action_by_text(window, QStringLiteral("Type"))->trigger();
+  QApplication::processEvents();
+  CHECK(canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor")) == nullptr);
+  CHECK(std::as_const(document).active_layer_id() == active_text_layer);
+  send_mouse(*grid, QEvent::MouseButtonPress, cell_center(12), Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*grid, QEvent::MouseButtonRelease, cell_center(12), Qt::LeftButton, Qt::NoButton);
+  process_events_for(400);
+  CHECK(ink_count(closed_color) > 0);
+  CHECK(ink_count(swatch_color) == 0);
+  CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == undo_depth + 2);
+  require_action_by_text(window, QStringLiteral("Move"))->trigger();
+  QApplication::processEvents();
 }
 
 void ui_convert_to_indexed_preview_zoom_and_pan() {
