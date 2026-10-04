@@ -542,7 +542,7 @@ void CanvasWidget::append_snap_target_candidates(std::vector<double>& x_candidat
   }
 }
 
-QPoint CanvasWidget::snapped_rect_delta(QRect source_rect, QPoint raw_delta) const {
+QPoint CanvasWidget::snapped_rect_delta(QRect source_rect, QPoint raw_delta, const std::vector<LayerId>& exclude_ids) const {
   if (document_ == nullptr || !snap_enabled_ || source_rect.isEmpty()) {
     return raw_delta;
   }
@@ -553,9 +553,22 @@ QPoint CanvasWidget::snapped_rect_delta(QRect source_rect, QPoint raw_delta) con
   double best_x = tolerance + 0.0001;
   double best_y = tolerance + 0.0001;
 
+  std::vector<SnapCandidate> x_candidates;
+  std::vector<SnapCandidate> y_candidates;
+  collect_snap_candidates(exclude_ids, x_candidates, y_candidates);
+
   std::vector<double> target_x;
   std::vector<double> target_y;
-  append_snap_target_candidates(target_x, target_y);
+  target_x.reserve(x_candidates.size());
+  target_y.reserve(y_candidates.size());
+
+  for (const auto& candidate : x_candidates) {
+    target_x.push_back(candidate.position);
+  }
+
+  for (const auto& candidate : y_candidates) {
+    target_y.push_back(candidate.position);
+  }
 
   const auto consider_x = [&](double source, double target) {
     const auto correction = target - (source + static_cast<double>(raw_delta.x()));
