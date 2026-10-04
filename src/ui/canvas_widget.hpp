@@ -1438,6 +1438,10 @@ private:
     QRect source_rect,
     QPoint raw_delta,
     const std::vector<LayerId>& exclude_ids = {}) const;
+  [[nodiscard]] QPointF snapped_path_delta(
+    QRectF source_rect,
+    QPointF raw_delta,
+    const std::vector<LayerId>& exclude_ids = {}) const;
   [[nodiscard]] QPoint snapped_marquee_current_point(QPoint anchor, QPoint current) const;
   [[nodiscard]] QPoint snapped_move_delta(QPoint raw_delta) const;
   [[nodiscard]] MoveSnapResult snapped_move_delta_with_matches(QPoint raw_delta) const;
