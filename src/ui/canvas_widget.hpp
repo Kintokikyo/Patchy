@@ -1434,7 +1434,10 @@ private:
                                std::vector<SnapCandidate>& y_candidates) const;
   void append_snap_target_candidates(std::vector<double>& x_candidates,
                                      std::vector<double>& y_candidates) const;
-  [[nodiscard]] QPoint snapped_rect_delta(QRect source_rect, QPoint raw_delta) const;
+  [[nodiscard]] QPoint snapped_rect_delta(
+    QRect source_rect,
+    QPoint raw_delta,
+    const std::vector<LayerId>& exclude_ids = {}) const;
   [[nodiscard]] QPoint snapped_marquee_current_point(QPoint anchor, QPoint current) const;
   [[nodiscard]] QPoint snapped_move_delta(QPoint raw_delta) const;
   [[nodiscard]] MoveSnapResult snapped_move_delta_with_matches(QPoint raw_delta) const;
