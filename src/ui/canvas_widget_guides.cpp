@@ -629,6 +629,139 @@ QPoint CanvasWidget::snapped_rect_delta(QRect source_rect, QPoint raw_delta, con
   return QPoint(static_cast<int>(std::lround(adjusted_x)), static_cast<int>(std::lround(adjusted_y)));
 }
 
+QPointF CanvasWidget::snapped_path_delta(
+    QRectF source_rect,
+    QPointF raw_delta,
+    const std::vector<LayerId>& exclude_ids) const {
+  if (document_ == nullptr || !snap_enabled_ || source_rect.isEmpty()) {
+    return raw_delta;
+  }
+
+  const auto tolerance =
+      kSnapToleranceScreenPixels / std::max(zoom_, 0.0001);
+
+  auto adjusted_x = raw_delta.x();
+  auto adjusted_y = raw_delta.y();
+
+  double best_x = tolerance + 0.0001;
+  double best_y = tolerance + 0.0001;
+
+  std::vector<SnapCandidate> target_x;
+  std::vector<SnapCandidate> target_y;
+  collect_snap_candidates(exclude_ids, target_x, target_y);
+
+  const auto consider_x =
+      [&](double source, const SnapCandidate& target) {
+        const auto correction =
+            target.position - (source + raw_delta.x());
+        const auto distance = std::abs(correction);
+
+        if (distance <= best_x) {
+          best_x = distance;
+          adjusted_x = raw_delta.x() + correction;
+        }
+      };
+
+  const auto consider_y =
+      [&](double source, const SnapCandidate& target) {
+        const auto correction =
+            target.position - (source + raw_delta.y());
+        const auto distance = std::abs(correction);
+
+        if (distance <= best_y) {
+          best_y = distance;
+          adjusted_y = raw_delta.y() + correction;
+        }
+      };
+
+  const auto consider_grid_x =
+      [&](double source) {
+        if (!snap_to_grid_ || !grid_visible_) {
+          return;
+        }
+
+        const auto step =
+            grid_cycle_pixels(
+                document_->grid_settings().horizontal_cycle_32) /
+            static_cast<double>(std::max(1, grid_subdivisions_));
+
+        if (step <= 0.0) {
+          return;
+        }
+
+        const auto position =
+            std::round((source + raw_delta.x()) / step) * step;
+
+        const auto correction =
+            position - (source + raw_delta.x());
+        const auto distance = std::abs(correction);
+
+        if (distance <= best_x) {
+          best_x = distance;
+          adjusted_x = raw_delta.x() + correction;
+        }
+      };
+
+  const auto consider_grid_y =
+      [&](double source) {
+        if (!snap_to_grid_ || !grid_visible_) {
+          return;
+        }
+
+        const auto step =
+            grid_cycle_pixels(
+                document_->grid_settings().vertical_cycle_32) /
+            static_cast<double>(std::max(1, grid_subdivisions_));
+
+        if (step <= 0.0) {
+          return;
+        }
+
+        const auto position =
+            std::round((source + raw_delta.y()) / step) * step;
+
+        const auto correction =
+            position - (source + raw_delta.y());
+        const auto distance = std::abs(correction);
+
+        if (distance <= best_y) {
+          best_y = distance;
+          adjusted_y = raw_delta.y() + correction;
+        }
+      };
+
+  const auto left = source_rect.left();
+  const auto right = source_rect.right();
+  const auto top = source_rect.top();
+  const auto bottom = source_rect.bottom();
+
+  const std::array<double, 3> source_x{
+      left,
+      (left + right) * 0.5,
+      right};
+
+  const std::array<double, 3> source_y{
+      top,
+      (top + bottom) * 0.5,
+      bottom};
+
+  for (const auto source : source_x) {
+    for (const auto& target : target_x) {
+      consider_x(source, target);
+    }
+    consider_grid_x(source);
+  }
+
+  for (const auto source : source_y) {
+    for (const auto& target : target_y) {
+      consider_y(source, target);
+    }
+    consider_grid_y(source);
+  }
+
+  return QPointF(adjusted_x, adjusted_y);
+}
+
 QPoint CanvasWidget::snapped_marquee_current_point(QPoint anchor, QPoint current) const {
   if (document_ == nullptr || !snap_enabled_) {
     return current;
