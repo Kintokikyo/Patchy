@@ -42,7 +42,7 @@ constexpr double kPenSmoothDragThresholdPx = 2.0;  // document pixels
 constexpr double kPathHitRadiusPx = 7.0;       // half of the 14 px hit rect
 constexpr qint64 kPathNudgeCoalesceMs = 800;
 
-std::optional<QRect> selected_path_snap_rect(
+std::optional<QRectF> selected_path_snap_rect(
     const VectorPath& path,
     const std::set<std::pair<int, int>>& selected_anchors) {
   if (selected_anchors.empty()) {
@@ -117,7 +117,7 @@ std::optional<QRect> selected_path_snap_rect(
     return std::nullopt;
   }
 
-  return bounds.toAlignedRect();
+  return bounds;
 }
 
 // De Casteljau split of the cubic (a.anchor, a.out, b.in, b.anchor) at t,
@@ -1361,20 +1361,13 @@ bool CanvasWidget::update_path_edit_drag(QPointF document_point, Qt::KeyboardMod
           exclude_ids.push_back(*active);
         }
 
-        const auto raw_snap_delta =
-          QPoint(
-            static_cast<int>(std::lround(effective_total.x())),
-            static_cast<int>(std::lround(effective_total.y())));
-
         const auto snapped =
-          snapped_rect_delta(
+          snapped_path_delta(
             *source_rect,
-            raw_snap_delta,
+            effective_total,
             exclude_ids);
 
-        effective_total = QPointF(
-          static_cast<double>(snapped.x()),
-          static_cast<double>(snapped.y()));
+        effective_total = snapped;
       }
     }
     
