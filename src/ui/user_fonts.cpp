@@ -246,6 +246,12 @@ QString user_fonts_directory() {
 #ifdef Q_OS_WASM
   return {};
 #else
+  // Isolation knob, like PATCHY_SETTINGS_DIR: the UI suite gives every test process
+  // its own store, because a process keeps its registered store files open and two
+  // processes sharing one break each other (docs/fonts.md).
+  if (const auto override_dir = qEnvironmentVariable("PATCHY_USER_FONTS_DIR"); !override_dir.isEmpty()) {
+    return QDir::cleanPath(override_dir);
+  }
   const auto base = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
   if (base.isEmpty()) {
     return {};

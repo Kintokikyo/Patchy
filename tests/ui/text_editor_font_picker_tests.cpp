@@ -200,6 +200,9 @@
 #include "ui_test_access.hpp"
 #include "ui_test_groups.hpp"
 #include "ui_test_support.hpp"
+#include "unicode_path_names.hpp"
+
+#include <cstdlib>
 
 namespace {
 
@@ -2107,8 +2110,9 @@ void ui_user_fonts_add_persist_and_clear() {
 
   const auto store_dir = user_fonts::user_fonts_directory();
   CHECK(!store_dir.isEmpty());
-  // What an earlier run left behind. Deleting is safe here and only here: this is the first
-  // test of the process to register anything from the store.
+  // The store is private to this process (tests/ui/main.cpp), so only this process could have
+  // put anything in it. Deleting is safe here and only here: this is the first test of the
+  // process to register anything from the store.
   user_fonts::clear_user_font_store();
   user_fonts::apply_pending_user_font_removals(store_dir);
   const QStringList font_filters = {QStringLiteral("*.ttf"), QStringLiteral("*.otf"),
@@ -2295,6 +2299,44 @@ void ui_user_fonts_add_persist_and_clear() {
   CHECK(!QFileInfo::exists(scratch_file(QStringLiteral(".remove-at-next-launch"))));
 }
 
+// Two suite processes must never share a store: a process keeps its registered store files
+// open, so a shared store fails the second process's cleanup on Windows and pulls live fonts
+// out from under the first one elsewhere. The harness therefore points PATCHY_USER_FONTS_DIR
+// at a per-process directory, which wins over QStandardPaths in either mode.
+void ui_user_fonts_store_is_private_to_the_process() {
+  namespace user_fonts = patchy::ui::user_fonts;
+  const auto configured = qEnvironmentVariable("PATCHY_USER_FONTS_DIR");
+  CHECK(!configured.isEmpty());
+  const auto store_dir = user_fonts::user_fonts_directory();
+  CHECK(store_dir == QDir::cleanPath(configured));
+  CHECK(QFileInfo(store_dir).fileName() == QString::number(QCoreApplication::applicationPid()));
+  CHECK(QFileInfo::exists(store_dir + QStringLiteral("/store.lock")));
+  {
+    struct StandardPathsTestMode {
+      StandardPathsTestMode() { QStandardPaths::setTestModeEnabled(true); }
+      ~StandardPathsTestMode() { QStandardPaths::setTestModeEnabled(false); }
+    } standard_paths_test_mode;
+    CHECK(user_fonts::user_fonts_directory() == store_dir);
+    CHECK(!store_dir.startsWith(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)));
+  }
+
+  // The override is read as Unicode, and an empty one falls back to the app-data folder.
+  const EnvironmentVariableRestorer restore_override("PATCHY_USER_FONTS_DIR");
+  const auto unicode_dir =
+      QDir::current().filePath(QStringLiteral("test-artifacts/") +
+                               QString::fromUtf8(patchy::test::utf8_string(patchy::test::kUnicodeDirName)) +
+                               QStringLiteral("/user fonts"));
+#ifdef Q_OS_WIN
+  CHECK(_wputenv_s(L"PATCHY_USER_FONTS_DIR", reinterpret_cast<const wchar_t*>(unicode_dir.utf16())) == 0);
+#else
+  qputenv("PATCHY_USER_FONTS_DIR", unicode_dir.toUtf8());
+#endif
+  CHECK(user_fonts::user_fonts_directory() == QDir::cleanPath(unicode_dir));
+  qputenv("PATCHY_USER_FONTS_DIR", QByteArray());
+  CHECK(user_fonts::user_fonts_directory() ==
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QStringLiteral("/user-fonts"));
+}
+
 // Every bundled web font must register in the FreeType font database (the
 // offscreen platform uses the same Qt-bundled FreeType the wasm build uses)
 // and produce a working engine for each of its families. Guards the wasm
@@ -2408,6 +2450,7 @@ std::vector<patchy::test::TestCase> text_editor_font_picker_tests() {
        ui_text_tool_drag_creates_resizable_wrapped_text_box},
       {"ui_text_size_popup_slider_caps_at_200pt", ui_text_size_popup_slider_caps_at_200pt},
       {"ui_user_fonts_add_persist_and_clear", ui_user_fonts_add_persist_and_clear},
+      {"ui_user_fonts_store_is_private_to_the_process", ui_user_fonts_store_is_private_to_the_process},
       {"ui_bundled_web_fonts_register_and_create_engines",
        ui_bundled_web_fonts_register_and_create_engines},
       {"ui_font_drop_registers_instead_of_opening", ui_font_drop_registers_instead_of_opening},

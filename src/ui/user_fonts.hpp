@@ -26,6 +26,7 @@ bool is_zip_path(const QString& path);
 AddFontsResult add_user_fonts(const QStringList& paths);
 
 // Desktop persistence directory; empty on wasm (the store is IndexedDB).
+// PATCHY_USER_FONTS_DIR in the environment replaces it.
 QString user_fonts_directory();
 
 // Desktop: synchronously registers every persisted font. Wasm: arms a QTimer

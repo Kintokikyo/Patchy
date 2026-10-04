@@ -17,6 +17,7 @@
 #include <QApplication>
 #include <QByteArray>
 #include <QDir>
+#include <QLockFile>
 #include <QSettings>
 #include <QString>
 
@@ -189,6 +190,32 @@ int main(int argc, char* argv[]) {
   // per-user AutoRecover store (a test window is never a crashed user session).
   if (qEnvironmentVariableIsEmpty("PATCHY_RECOVERY_DIR")) {
     qputenv("PATCHY_RECOVERY_DIR", QDir::current().filePath(QStringLiteral("test-artifacts/recovery")).toUtf8());
+  }
+  // The dropped-font store is private to this PROCESS. It used to be QStandardPaths'
+  // test-mode app-data folder, one directory shared by every checkout and worktree on the
+  // machine. A process keeps the store files it registered open until it exits, so a second
+  // suite process could not delete them in its start-of-test cleanup on Windows (the full UI
+  // suite failed that way during the October 2026 1.05 release, with another session's tests
+  // running), and on Linux and macOS the same cleanup deletes fonts the first process is
+  // still drawing with. Stores left by processes that have exited are removed here; a lock
+  // file marks the ones still in use.
+  if (qEnvironmentVariableIsEmpty("PATCHY_USER_FONTS_DIR")) {
+    const QDir stores(QDir::current().filePath(QStringLiteral("test-artifacts/user-fonts")));
+    for (const auto& stale : stores.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+      QLockFile stale_lock(stale.absoluteFilePath() + QStringLiteral("/store.lock"));
+      stale_lock.setStaleLockTime(0);
+      if (stale_lock.tryLock(0)) {
+        stale_lock.unlock();
+        QDir(stale.absoluteFilePath()).removeRecursively();
+      }
+    }
+    const auto store = stores.filePath(QString::number(QCoreApplication::applicationPid()));
+    CHECK(QDir().mkpath(store));
+    // Deliberately leaked: held until the process exits, which is what frees the fonts.
+    auto* store_lock = new QLockFile(store + QStringLiteral("/store.lock"));
+    store_lock->setStaleLockTime(0);
+    CHECK(store_lock->tryLock(0));
+    qputenv("PATCHY_USER_FONTS_DIR", store.toUtf8());
   }
   {
     auto settings = patchy::ui::app_settings();

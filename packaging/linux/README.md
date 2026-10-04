@@ -138,6 +138,16 @@ support this attachment. `make-flatpak.sh` runs the headless command inside the 
 sandbox (`flatpak-builder --run`, nothing installed) before anything is exported and
 fails unless the script output ends in `[done]`.
 
+Running `tests/mcp_client_tests.py` inside the sandbox (the release check: `flatpak run
+--user --devel --command=bash com.rtsoft.patchy -c 'cd ~/patchy/src &&
+.deps/mcp-client-flatpak/bin/python tests/mcp_client_tests.py /app/bin/patchy-mcp'`)
+needs a virtualenv made by the SDK's own Python. The host's `.deps/mcp-client` targets
+the host Python and fails there with `No module named 'mcp'` once the versions differ
+(6.11 ships Python 3.13). Create it once per runtime bump from the same sandbox shell:
+`python3 -m venv .deps/mcp-client-flatpak && .deps/mcp-client-flatpak/bin/python -m pip
+install 'mcp>=1.26,<2'`. `tests/flatpak_mcp_tests.py` runs on the host and keeps using
+`.deps/mcp-client`.
+
 The Patchy Flatpak installed on the linux build host is a manual test install and the
 release flow never refreshes it. To test the shipped bundle there, reinstall it first:
 `flatpak install --user -y --reinstall --bundle build/package/Patchy-<version>.flatpak`,

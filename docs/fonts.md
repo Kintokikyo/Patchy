@@ -161,6 +161,28 @@ Tests: `tests/core/font_zip_tests.cpp` (extractor) and the two `ui_user_fonts`
 (`--bundled-web-fonts-probe`) so the suite's font database stays clean; see
 [testing.md](testing.md).
 
+## One store per process
+
+A process keeps every store file it registered open until it exits (the FreeType
+database reopens the file for each new engine). Two processes sharing a store therefore
+break each other: on Windows the second cannot delete the first one's files, and on Linux
+and macOS it deletes fonts the first is still drawing with.
+
+- `PATCHY_USER_FONTS_DIR=<dir>` replaces the store directory (`user_fonts_directory()`).
+- The UI suite sets it for every test process (`tests/ui/main.cpp`):
+  `test-artifacts/user-fonts/<pid>` with a `store.lock` held for the life of the process.
+  At startup it removes the stores whose lock it can take, which are the ones left by
+  processes that have exited. Before October 2026 the suite used QStandardPaths' test-mode
+  app-data folder, one directory for every checkout and worktree on the machine; the full
+  UI suite failed `ui_user_fonts_add_persist_and_clear` during the 1.05 release while
+  another session's tests were running. `ui_user_fonts_store_is_private_to_the_process`
+  pins the isolation and the Unicode read of the override.
+- Known limit, not fixed: two running Patchy instances (a second one needs
+  `PATCHY_NO_SINGLE_INSTANCE=1`, `--headless`, or the MCP connector's own app) share the
+  real store. On Windows a file the other instance holds simply stays on the removal list.
+  On Linux and macOS an instance that starts after Remove Added Fonts deletes files the
+  other instance may still load new sizes from.
+
 ## Per-user app-data folder
 
 `QStandardPaths::AppDataLocation` holds the dropped-font store (`user-fonts/`) and the
