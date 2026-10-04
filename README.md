@@ -29,7 +29,7 @@ checksums.
 | Windows 10/11 (64-bit)    | Installer                      | [PatchyWindowsInstaller.exe](https://github.com/SethRobinson/Patchy/releases/latest/download/PatchyWindowsInstaller.exe) (65 MB)     |
 | Windows 10/11 (64-bit)    | Portable ZIP (no installer)    | [PatchyWindowsNoInstaller.zip](https://github.com/SethRobinson/Patchy/releases/latest/download/PatchyWindowsNoInstaller.zip) (65 MB) |
 | macOS 12+ (Apple Silicon) | DMG - drag to Applications     | [PatchyMacOS.dmg](https://github.com/SethRobinson/Patchy/releases/latest/download/PatchyMacOS.dmg) (70 MB)                           |
-| Linux (x86_64)            | Flatpak, from our repository   | [com.rtsoft.patchy.flatpakref](https://rtsoft.com/flatpak/com.rtsoft.patchy.flatpakref), or the [command below](#linux)            |
+| Linux (x86_64)            | Flatpak, from our repository   | The [command below](#linux), or [com.rtsoft.patchy.flatpakref](https://rtsoft.com/flatpak/com.rtsoft.patchy.flatpakref)            |
 | Linux (x86_64)            | Flatpak bundle (single file)   | [PatchyLinux.flatpak](https://github.com/SethRobinson/Patchy/releases/latest/download/PatchyLinux.flatpak) (35 MB)                   |
 | Any modern browser        | Nothing to install             | [patchyimageeditor.com](https://www.patchyimageeditor.com) or [rtsoft.com/patchy](https://www.rtsoft.com/patchy/)                    |
 
@@ -42,13 +42,22 @@ repository and pulls the shared KDE runtime from Flathub. No root needed.
 flatpak install --user -y https://rtsoft.com/flatpak/com.rtsoft.patchy.flatpakref
 ```
 
-Patchy then updates with `flatpak update` or through your software center.
-Clicking the `.flatpakref` link in the table does the same through your software
-center (GNOME Software, KDE Discover).
+Patchy then updates with `flatpak update` or through your software center, and starts
+from your application menu or with `flatpak run com.rtsoft.patchy`.
+
+This needs the `flatpak` tool. If needed, install it first with
+`sudo apt install flatpak`.
+
+The `.flatpakref` link in the table downloads a small file that a Flatpak-aware
+software center (GNOME Software, KDE Discover) can open to install Patchy. Ubuntu has
+none by default, and on Ubuntu 24.04 GNOME Software's Open button fails to start
+Flatpak apps, so use the terminal command above instead.
 
 The single-file bundle is the same build, for when you would rather download a file
 first. Install it with `flatpak install --user -y PatchyLinux.flatpak`. It still fetches
 the KDE runtime from Flathub, and it updates from the same repository afterwards.
+
+My flatpak knowledge is limited, so I hope all this makes sense.  I hope to submit Patchy to Flathub eventually, but for now we have our own repository.
 
 ## Screenshots
 
