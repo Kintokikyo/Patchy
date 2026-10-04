@@ -14,13 +14,13 @@ remain in [README.md](README.md#whats-new).
 
 - New logo and app icon
 - Place Linked: File > Place Linked adds a Smart Object that points at a file on disk instead of embedding it (SVGs stay sharp at any size), and Image Size, Free Transform and Warp re-render linked Smart Objects from their files
-- Zoom tool: Scrubby Zoom (drag left or right to zoom, issue 51), plus Zoom In/Out, 100%, Fit Screen and Fill Screen buttons in the options bar
-- Trackpad two-finger scroll pans the canvas in any direction, and the mouse wheel zooms by default on macOS (issue 44)
+- Zoom tool: Scrubby Zoom (drag left or right to zoom, [issue 51](https://github.com/SethRobinson/Patchy/issues/51)), plus Zoom In/Out, 100%, Fit Screen and Fill Screen buttons in the options bar
+- Trackpad two-finger scroll pans the canvas in any direction, and the mouse wheel zooms by default on macOS ([issue 44](https://github.com/SethRobinson/Patchy/issues/44))
 - Canvas Size: a link button to constrain proportions, an option to delete layers left completely off the canvas, and a new Image > Crop to Selection (Advanced) that opens it prefilled with the selection
-- Dimension fields follow the ruler unit, and New Document, Image Size and Canvas Size remember the unit you picked (issue 53)
+- Dimension fields follow the ruler unit, and New Document, Image Size and Canvas Size remember the unit you picked ([issue 53](https://github.com/SethRobinson/Patchy/issues/53))
 - Preferences has a new Tools tab for the mouse wheel and transform options
 - A document with only one layer no longer makes you click the layer first; commands and tools just use it
-- Opening a 16 or 32-bit PSD always shows the Import Notes popup so the conversion to 8-bit is not a surprise (issue 52)
+- Opening a 16 or 32-bit PSD always shows the Import Notes popup so the conversion to 8-bit is not a surprise ([issue 52](https://github.com/SethRobinson/Patchy/issues/52))
 - Legacy plug-ins: a slow filter shows that Patchy is waiting on it instead of looking frozen
 - Lasso, Stroke and Liquify no longer stall on very fragmented selections
 - Layers panel: double-clicking a shape layer's vector badge opens Shape Appearance
@@ -33,31 +33,31 @@ remain in [README.md](README.md#whats-new).
 
 - UI themes! Dark, Light, seven bundled ones (Solarized, Nord, Dracula, Gruvbox and more) or make your own with a small `.patchytheme` file. Big thanks to [@lucastucious](https://github.com/lucastucious) for the theme system
 - Classic Photoshop .8bf filter plug-ins now run on Windows, 32-bit and 64-bit (Filter Foundry, Mehdi's filters, even Kai's Power Tools 5 works). Drop them in the plug-ins folder and they show up in the new Plugins menu
-- Scrubby labels: drag the label next to any number field to change its value, like Photoshop (issue 46)
-- Right-click the gray area around the canvas to change its color (issue 47)
-- Shift+letter cycles through a tool flyout, so Shift+M flips between the marquee tools and so on (issue 45)
+- Scrubby labels: drag the label next to any number field to change its value, like Photoshop ([issue 46](https://github.com/SethRobinson/Patchy/issues/46))
+- Right-click the gray area around the canvas to change its color ([issue 47](https://github.com/SethRobinson/Patchy/issues/47))
+- Shift+letter cycles through a tool flyout, so Shift+M flips between the marquee tools and so on ([issue 45](https://github.com/SethRobinson/Patchy/issues/45))
 - Canvas Size uses real units now
 - Photoshop 5.x era text layers open as editable text instead of pixels
-- Grayscale PSDs open as RGB instead of coming out garbled (issue 39)
-- Duplicate Layer puts the copy directly above the original (issue 38)
-- Layer effects on a clipping base draw over the clipped layers, the way Photoshop does it (issue 41), and size 0 Inner Shadow and Inner Glow render like Photoshop too
+- Grayscale PSDs open as RGB instead of coming out garbled ([issue 39](https://github.com/SethRobinson/Patchy/issues/39))
+- Duplicate Layer puts the copy directly above the original ([issue 38](https://github.com/SethRobinson/Patchy/issues/38))
+- Layer effects on a clipping base draw over the clipped layers, the way Photoshop does it ([issue 41](https://github.com/SethRobinson/Patchy/issues/41)), and size 0 Inner Shadow and Inner Glow render like Photoshop too
 - Size sliders spend most of the track on the small values, so tiny brushes are easier to hit
 - Better font matching for PSD text (fonts are looked up by their real names), and user-added fonts work on the Mac under their Windows names
-- macOS: quitting no longer freezes when a network drive or a DNS lookup is stuck (issue 48)
+- macOS: quitting no longer freezes when a network drive or a DNS lookup is stuck ([issue 48](https://github.com/SethRobinson/Patchy/issues/48))
 - Progress dialogs always pop up centered on the window
 
 ## 1.00 - September 27, 2026
 
 - A lot of work on the text engine, better compatibility with Photoshop, a new "Paragraph" panel with indentation options
 - New Paragraph panel (Paragraph... in the Type tool's options bar): alignment, first line and left/right indents, and space before and after, all of which round-trip to Photoshop
-- Text options bar: font, size, face, smoothing, alignment, and color apply to every selected text layer without entering an edit session, and the Character panel edits all selected layers as one undo step (issue 31)
-- Smart Objects: Layer > Smart Objects > Convert to Layers unpacks the contents into a group in the Smart Object's place (issue 35)
-- Guide drags show their position in the ruler's unit (issue 36)
-- Levels and Curves histograms are scaled the way Photoshop's are, so midtone peaks no longer get crushed under a clipping spike (issue 32)
-- Filling a complex Magic Wand selection is much faster (issue 34)
+- Text options bar: font, size, face, smoothing, alignment, and color apply to every selected text layer without entering an edit session, and the Character panel edits all selected layers as one undo step ([issue 31](https://github.com/SethRobinson/Patchy/issues/31))
+- Smart Objects: Layer > Smart Objects > Convert to Layers unpacks the contents into a group in the Smart Object's place ([issue 35](https://github.com/SethRobinson/Patchy/issues/35))
+- Guide drags show their position in the ruler's unit ([issue 36](https://github.com/SethRobinson/Patchy/issues/36))
+- Levels and Curves histograms are scaled the way Photoshop's are, so midtone peaks no longer get crushed under a clipping spike ([issue 32](https://github.com/SethRobinson/Patchy/issues/32))
+- Filling a complex Magic Wand selection is much faster ([issue 34](https://github.com/SethRobinson/Patchy/issues/34))
 - Filters and commands reach Photoshop's ranges: Gaussian Blur to 1000 px (with decimal radii), Box Blur and Motion Blur to 2000 px (and much faster at large sizes), Drop Shadow distance to 30000 px, Feather to 1000 px, Expand/Contract to 500 px, plus the full ranges of Wave, Mosaic, Color Halftone, Posterize, and Iris Blur. High Pass and Unsharp Mask sliders reach 100 px, and Filter Gallery fields accept any typed value in range
 - PSD fixes for Photoshop: an opaque layer above the Background no longer hides everything under it, compound shapes (donuts, converted text) keep their holes, gradient fills no longer trigger Photoshop's "unknown data" prompt (older files heal on save), and saves after rasterizing or deleting a linked Smart Object open again in Photoshop 2026
-- macOS: switching the interface language no longer crashes on the next window activation (issue 29)
+- macOS: switching the interface language no longer crashes on the next window activation ([issue 29](https://github.com/SethRobinson/Patchy/issues/29))
 - Blend mode menus step with the Left and Right arrow keys, and a run of blend changes from the Layers panel is one undo step
 - Windows: launching Patchy while it is already running (or double-clicking a file) now brings the open window to the front instead of only flashing its taskbar button, and focuses any dialog that is open
 - The recent files list no longer stalls startup or the File menu when entries sit on slow or disconnected network drives
@@ -66,13 +66,13 @@ remain in [README.md](README.md#whats-new).
 ## 0.99 - September 25, 2026
 
 - Automatic document recovery: a recovery copy of every modified document is written every 10 minutes (Preferences > Application sets the interval or turns it off). After a crash, a kill, or a power cut, the next launch reopens them as "(Recovered)" documents. Saving also writes to a temporary file first and swaps it in, so a crash or a full disk mid-save can no longer damage the original
-- Files as Layers: drop image files on the Layers panel, use File > Import > Files as Layers, or paste copied files, and each file becomes its own layer, with a cancellable progress dialog for big batches (issue 25)
-- Fill (paint bucket) tool: Tolerance and Contiguous options in the options bar, and Opacity and Soft now actually apply to the fill (issue 30)
+- Files as Layers: drop image files on the Layers panel, use File > Import > Files as Layers, or paste copied files, and each file becomes its own layer, with a cancellable progress dialog for big batches ([issue 25](https://github.com/SethRobinson/Patchy/issues/25))
+- Fill (paint bucket) tool: Tolerance and Contiguous options in the options bar, and Opacity and Soft now actually apply to the fill ([issue 30](https://github.com/SethRobinson/Patchy/issues/30))
 - Remove Object: the Reroll button, Tone match slider, and Edge feather setting the 0.98 notes described ship in this build (they missed the 0.98 packages), plus a Duplicate to New Layer option, and the fill runs on a worker thread so the dialog stays responsive and cancels cleanly
 - Layers panel: F2 or a double-click on the name renames a layer in place, and double-clicking a shape layer's row opens Layer Style like every other row
-- Imported Photoshop text renders pixel-exact against Photoshop on all three font engines, and glyph ink that overhangs the advance box is kept, so an unchanged edit of imported PSD text no longer shifts it (issue 20)
+- Imported Photoshop text renders pixel-exact against Photoshop on all three font engines, and glyph ink that overhangs the advance box is kept, so an unchanged edit of imported PSD text no longer shifts it ([issue 20](https://github.com/SethRobinson/Patchy/issues/20))
 - Scripting: setting layer.text keeps the first character's formatting, so retyped Photoshop layers commit at their interactive size
-- Downloads come from GitHub Releases now, with rtsoft.com as a mirror, and the in-app update check points there (issue 26)
+- Downloads come from GitHub Releases now, with rtsoft.com as a mirror, and the in-app update check points there ([issue 26](https://github.com/SethRobinson/Patchy/issues/26))
 - The user-data folder moved from "Seth A. Robinson" to "RTsoft" (migrated automatically on first launch); the About dialog shows where it is
 - Options bar number boxes size themselves to their widest value, so the Fill tool's Tolerance no longer clips at 255
 

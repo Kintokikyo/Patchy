@@ -1,0 +1,13 @@
+# Served from rtsoft.com/flatpak, beside the Patchy Flatpak repository
+# (scripts\release\upload-linux-to-rtsoft.bat uploads it; packaging/linux/README.md).
+#
+# With these types a browser hands a clicked .flatpakref or .flatpakrepo link to the
+# desktop's software center instead of showing it as text. The repository itself needs
+# no rules: flatpak reads it as plain static files.
+#
+# Wrapped in IfModule so a host without mod_mime serves the files untyped instead of
+# failing with a 500.
+<IfModule mod_mime.c>
+AddType application/vnd.flatpak.ref .flatpakref
+AddType application/vnd.flatpak.repo .flatpakrepo
+</IfModule>

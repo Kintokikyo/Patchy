@@ -7,6 +7,8 @@
 /agents_secret.md
 # Local backups of signing keys and other secret material. Never commit anything from it.
 /local-secrets/
+# Leftovers an assistant could not delete itself, parked for Seth to remove.
+/ThingsToDelete/
 /scripts/remote/hosts.local.json
 
 # Testy compatibility-harness output and machine-local settings (see docs/testy.md)

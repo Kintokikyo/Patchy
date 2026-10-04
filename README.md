@@ -19,32 +19,36 @@ For bug reports and feature requests, please [open an issue](https://github.com/
 **Latest release: 1.05** · October 4, 2026 · [Release notes](#whats-new) · [All releases](https://github.com/SethRobinson/Patchy/releases)
 
 Windows releases are code signed by Seth A. Robinson; the macOS app is signed and
-notarized (Robinson Technologies Corporation). Every release is published on the
+notarized (Robinson Technologies Corporation); the Linux Flatpak repository is GPG
+signed. Every release is published on the
 [GitHub Releases page](https://github.com/SethRobinson/Patchy/releases) with SHA-256
-checksums, and mirrored at rtsoft.com.
+checksums.
 
-| Platform                  | Package                     | Download                                                                                                                |
-| ------------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Windows 10/11 (64-bit)    | Installer                   | [PatchyWindowsInstaller.exe](https://github.com/SethRobinson/Patchy/releases/latest/download/PatchyWindowsInstaller.exe) (65 MB)     |
-| Windows 10/11 (64-bit)    | Portable ZIP (no installer) | [PatchyWindowsNoInstaller.zip](https://github.com/SethRobinson/Patchy/releases/latest/download/PatchyWindowsNoInstaller.zip) (65 MB) |
-| macOS 12+ (Apple Silicon) | DMG - drag to Applications  | [PatchyMacOS.dmg](https://github.com/SethRobinson/Patchy/releases/latest/download/PatchyMacOS.dmg) (70 MB)                           |
-| Linux                     | Flatpak bundle              | [PatchyLinux.flatpak](https://github.com/SethRobinson/Patchy/releases/latest/download/PatchyLinux.flatpak) (35 MB)                   |
-| Any modern browser        | Nothing to install          | [patchyimageeditor.com](https://www.patchyimageeditor.com) or [rtsoft.com/patchy](https://www.rtsoft.com/patchy/)                    |
+| Platform                  | Package                        | Download                                                                                                                             |
+| ------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Windows 10/11 (64-bit)    | Installer                      | [PatchyWindowsInstaller.exe](https://github.com/SethRobinson/Patchy/releases/latest/download/PatchyWindowsInstaller.exe) (65 MB)     |
+| Windows 10/11 (64-bit)    | Portable ZIP (no installer)    | [PatchyWindowsNoInstaller.zip](https://github.com/SethRobinson/Patchy/releases/latest/download/PatchyWindowsNoInstaller.zip) (65 MB) |
+| macOS 12+ (Apple Silicon) | DMG - drag to Applications     | [PatchyMacOS.dmg](https://github.com/SethRobinson/Patchy/releases/latest/download/PatchyMacOS.dmg) (70 MB)                           |
+| Linux (x86_64)            | Flatpak, from our repository   | [com.rtsoft.patchy.flatpakref](https://rtsoft.com/flatpak/com.rtsoft.patchy.flatpakref), or the [command below](#linux)            |
+| Linux (x86_64)            | Flatpak bundle (single file)   | [PatchyLinux.flatpak](https://github.com/SethRobinson/Patchy/releases/latest/download/PatchyLinux.flatpak) (35 MB)                   |
+| Any modern browser        | Nothing to install             | [patchyimageeditor.com](https://www.patchyimageeditor.com) or [rtsoft.com/patchy](https://www.rtsoft.com/patchy/)                    |
 
-Mirror: the same files are also at [rtsoft.com/files](https://rtsoft.com/files/PatchyWindowsInstaller.exe)
-(`PatchyWindowsInstaller.exe`, `PatchyWindowsNoInstaller.zip`, `PatchyMacOS.dmg`, `PatchyLinux.flatpak`).
+### Linux
 
-Linux one-line install (paste into a terminal; installs for your user from the Patchy
-Flatpak repository, pulling the shared KDE runtime from Flathub automatically, no root
-needed):
+Paste this into a terminal. It installs Patchy for your user from the Patchy Flatpak
+repository and pulls the shared KDE runtime from Flathub. No root needed.
 
 ```sh
 flatpak install --user -y https://rtsoft.com/flatpak/com.rtsoft.patchy.flatpakref
 ```
 
-Patchy then updates with `flatpak update` or your software center. The downloadable
-bundle installs with `flatpak install --user -y PatchyLinux.flatpak` and updates the
-same way.
+Patchy then updates with `flatpak update` or through your software center.
+Clicking the `.flatpakref` link in the table does the same through your software
+center (GNOME Software, KDE Discover).
+
+The single-file bundle is the same build, for when you would rather download a file
+first. Install it with `flatpak install --user -y PatchyLinux.flatpak`. It still fetches
+the KDE runtime from Flathub, and it updates from the same repository afterwards.
 
 ## Screenshots
 
@@ -65,8 +69,7 @@ See it in action.  Click an image for the full-size capture.
   </tr>
 </table>
 
-[See the full gallery](docs/screenshots.md) for painting, palette mode, seamless textures,
-Camera Raw, long shadows, scripting, and more.
+[See the full gallery](docs/screenshots.md) for painting, palette mode, seamless textures, Camera Raw, long shadows, scripting, and more.
 
 ## Features
 
@@ -106,12 +109,12 @@ and Affinity import has format-specific limitations. See [current compatibility]
 
 ### 1.05 - October 4, 2026
 
-- Linux: Patchy now updates through `flatpak update` and the software center, from a signed Flatpak repository (issue 28). The Flatpak moved to the current KDE runtime, and iPhone HEIC photos open without installing an extra codec package
+- Linux: Patchy now updates through `flatpak update` and the software center, from a signed Flatpak repository ([issue 28](https://github.com/SethRobinson/Patchy/issues/28)). The Flatpak moved to the current KDE runtime, and iPhone HEIC photos open without installing an extra codec package
 - Open from Clipboard: File > Open from Clipboard (Ctrl+Alt+Shift+N) opens the copied image as a new document
-- Clicking a palette swatch recolors the selected text and shape layers (issue 61)
+- Clicking a palette swatch recolors the selected text and shape layers ([issue 61](https://github.com/SethRobinson/Patchy/issues/61))
 - Type tool: pressing on a text layer and dragging selects text in one gesture, without a second click to enter editing first
 - Windows installer: Patchy now appears under Explorer's "Open with" for the image types it opens, without changing any default program
-- Fixed a freeze on KDE when a drag crossed the layer action buttons (issue 62)
+- Fixed a freeze on KDE when a drag crossed the layer action buttons ([issue 62](https://github.com/SethRobinson/Patchy/issues/62))
 
 ### 1.04 - October 3, 2026
 
@@ -145,7 +148,11 @@ Patchy is released under the MIT License. Third-party runtime notices are tracke
 
 ## Trademark Notice
 
-Adobe and Photoshop are either registered trademarks or trademarks of Adobe in the United States and/or other countries. Patchy is an independent project and is not authorized, endorsed, or sponsored by Adobe. References to Photoshop, its file formats (PSD, Smart Objects, Smart Filters) and its plug-in format (8BF) are only there to describe compatibility.
+Adobe, Illustrator, and Photoshop are either registered trademarks or trademarks of Adobe in the United States and/or other countries. Patchy is an independent project and is not authorized, endorsed, or sponsored by Adobe. References to Photoshop, its file formats (PSD, Smart Objects, Smart Filters) and its plug-in format (8BF) are only there to describe compatibility.
+
+Affinity is a trademark of Canva and its subsidiary Serif (Europe) Ltd. Patchy is not affiliated with, authorized, endorsed, or sponsored by Canva or Serif; Affinity is named only to describe which files Patchy can import.
+
+All other product and company names, including Aseprite, Kai's Power Tools, Windows, macOS, and Linux, are trademarks of their respective owners. They are used only to identify file formats, plug-ins, and platforms Patchy works with, and no endorsement is implied.
 
 ## AI Disclosure
 
@@ -155,15 +162,15 @@ Note:  All included textures/materials are real images taken by humans, not AI g
 
 ## Missing features / contributions?
 
-AI has reached the point where you can use your favorite AI to add the missing feature you want.
+AI has reached the point where you can use your favorite AI agent to add the missing feature you want.
 
-Just give it the link to this repo and say "Add .tiff support" and in about 10 minutes it will be done and working on your computer.  Amazing, right?
+Just give it the link to this repo and say "Add .tiff support" and after a bit, it will be done and working on your computer.  Amazing, right?
 
-I mean, that's kind of the power of open source.
+I mean, that's kind the power of open source, amplified.
 
-Whatever AI you use, tell it (or more likely, it's reading this right now) to read AGENTS.md before doing anything else. It contains the build and repository-wide rules, then routes feature work to the relevant document under `docs/`.
+Whatever AI you use (the smarter the better), tell it (or more likely, it's reading this right now) to read AGENTS.md before doing anything else. It contains the build and repository-wide rules, then routes feature work to the relevant document under `docs/`.
 
-There are 2200+ regression and benchmarking tests. AGENTS.md links agents to the testing guide that explains how to select and run them.  Due to the size of some of the test files I use they aren't all included, it will skip tests that require missing files.\
+There are 2600+ regression and benchmarking tests. AGENTS.md links agents to the testing guide that explains how to select and run them.  Due to the size of some of the test files I use they aren't all included, it will skip tests that require missing files.\
 \
 I probably don't want any major features coming from outside, as there are wrong and right ways to do things, some of it a bit subjective. Remember, you can always go crazy in your own fork, have some fun!\
 \

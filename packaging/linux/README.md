@@ -43,6 +43,12 @@ The upload unpacks the tar beside the live copy, checks that the signed summary 
 there, swaps the `repo` directory in with two renames, then requires HTTP 200 from the
 public `summary`, `summary.sig`, flatpakref and flatpakrepo URLs.
 
+`site/.htaccess` is uploaded beside the repository on every release. It gives
+`.flatpakref` and `.flatpakrepo` their MIME types (`application/vnd.flatpak.ref` and
+`.repo`), which is what makes a clicked link open in a software center instead of
+showing as text. flatpak itself ignores the type, so the upload only warns when it is
+missing.
+
 What each kind of install does once a release has shipped the repository (verified on
 the linux build host with flatpak 1.14.6 in empty installations, October 2026):
 

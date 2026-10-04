@@ -45,6 +45,9 @@ ssh rtsoft@rtsoft.com "mkdir -p www/flatpak"
 if errorlevel 1 goto repo_fail
 call "%~dp0upload-one-file.bat" build\package\PatchyFlatpakRepo.tar flatpak
 if errorlevel 1 goto repo_fail
+rem The MIME types that make a clicked .flatpakref link open in a software center.
+call "%~dp0upload-one-file.bat" packaging\linux\site\.htaccess flatpak
+if errorlevel 1 goto repo_fail
 rem Unpack beside the live copy, check the signed summary is there, then swap the
 rem directory in with two renames so a client never reads a half-written repository.
 rem The descriptor files move last: they only name the repository URL and key.
@@ -57,6 +60,10 @@ curl -sfI https://rtsoft.com/flatpak/repo/summary >nul || goto repo_fail
 curl -sfI https://rtsoft.com/flatpak/repo/summary.sig >nul || goto repo_fail
 curl -sfI https://rtsoft.com/flatpak/com.rtsoft.patchy.flatpakref >nul || goto repo_fail
 curl -sfI https://rtsoft.com/flatpak/patchy.flatpakrepo >nul || goto repo_fail
+rem A convenience, not a correctness gate: flatpak itself ignores the type, so a host
+rem without mod_mime only loses the click-to-install behavior in browsers.
+curl -sI https://rtsoft.com/flatpak/com.rtsoft.patchy.flatpakref | findstr /i "application/vnd.flatpak.ref" >nul
+if errorlevel 1 echo WARNING: the flatpakref is not served as application/vnd.flatpak.ref; check packaging\linux\site\.htaccess on the server.
 echo Linux repository OK: https://rtsoft.com/flatpak/com.rtsoft.patchy.flatpakref
 if /i not "%~1"=="nopause" pause
 exit /b 0
