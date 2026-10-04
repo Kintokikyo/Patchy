@@ -131,6 +131,53 @@ $wizard = Invoke-Bounded -FilePath $powershellExe -Arguments $wizardArgs -Timeou
 $wizardOk = (-not $wizard.TimedOut) -and ($wizard.ExitCode -eq 0) -and ($wizard.Output -match "smoke test passed")
 Write-Step $wizardOk "installer wizard smoke test" $(if ($wizard.TimedOut) { "timed out (a dialog is probably waiting)" } elseif (-not $wizardOk) { "exit code " + $wizard.ExitCode + "; " + $wizard.Output } else { "" })
 
+# 3b. The "Open with" registration, written under a scratch key so the real
+#     HKCU:\Software\Classes tree is never touched, then removed again.
+$openWithRoot = "HKCU:\Software\PatchyVerify-" + [guid]::NewGuid().ToString("N")
+try {
+    $openWithArgs = "-NoLogo -NoProfile -ExecutionPolicy Bypass -File " + (Quote (Join-Path $payloadDir "InstallPatchy.ps1")) +
+        " -PayloadZip " + (Quote $payloadZip) + " -OpenWithCheckRoot " + (Quote $openWithRoot)
+    $openWith = Invoke-Bounded -FilePath $powershellExe -Arguments $openWithArgs -TimeoutSeconds 60 -WorkingDirectory $payloadDir
+    $openWithProblem = ""
+    if ($openWith.TimedOut) {
+        $openWithProblem = "timed out"
+    } elseif ($openWith.ExitCode -ne 0) {
+        $openWithProblem = "exit code " + $openWith.ExitCode + "; " + $openWith.Output
+    } else {
+        $applicationKey = Join-Path $openWithRoot "Applications\patchy.exe"
+        $friendlyName = (Get-ItemProperty -Path $applicationKey).FriendlyAppName
+        $command = (Get-ItemProperty -Path (Join-Path $applicationKey "shell\open\command")).'(default)'
+        $types = @((Get-Item -Path (Join-Path $applicationKey "SupportedTypes")).GetValueNames())
+        if ($friendlyName -ne "Patchy") {
+            $openWithProblem = "FriendlyAppName is '$friendlyName'"
+        } elseif ($command -notmatch '^"[^"]+\\patchy\.exe" "%1"$') {
+            $openWithProblem = "command is $command"
+        } elseif (($types -notcontains ".psd") -or ($types -notcontains ".png") -or ($types -contains ".pdf")) {
+            $openWithProblem = "unexpected SupportedTypes: " + ($types -join " ")
+        } else {
+            # The ProgID in each extension's OpenWithProgids list is what reaches the
+            # "Open with" submenu; the extension's own default value must stay unset.
+            $progIdCommand = (Get-ItemProperty -Path (Join-Path $openWithRoot "Patchy.Image\shell\open\command")).'(default)'
+            $psdKey = Get-Item -Path (Join-Path $openWithRoot ".psd")
+            $psdProgIds = @((Get-Item -Path (Join-Path $openWithRoot ".psd\OpenWithProgids")).GetValueNames())
+            if ($progIdCommand -ne $command) {
+                $openWithProblem = "ProgID command is $progIdCommand"
+            } elseif ($psdProgIds -notcontains "Patchy.Image") {
+                $openWithProblem = ".psd OpenWithProgids lacks Patchy.Image"
+            } elseif ($psdKey.ValueCount -ne 0) {
+                $openWithProblem = ".psd key has values: " + ($psdKey.GetValueNames() -join " ")
+            } elseif (Test-Path -LiteralPath (Join-Path $openWithRoot ".pdf")) {
+                $openWithProblem = ".pdf is registered"
+            }
+        }
+    }
+    Write-Step ($openWithProblem -eq "") "installer Open with registration" $openWithProblem
+} finally {
+    if (Test-Path -LiteralPath $openWithRoot) {
+        Remove-Item -LiteralPath $openWithRoot -Recurse -Force
+    }
+}
+
 # 4. Unpack the zip and compare it with its own manifest, before anything runs in it.
 Expand-Archive -LiteralPath $Zip -DestinationPath $appParent -Force
 $manifestPath = Join-Path $appDir "PatchyInstallManifest.txt"

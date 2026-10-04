@@ -46,12 +46,27 @@ The zip does not include build files, tests, test fixtures, Qt translations for 
 
 The installer copies a signed `UninstallPatchy.exe` into the installed app folder and records it in `PatchyInstallManifest.txt`. The uninstaller uses that manifest to remove only files installed by the package. If a user saves documents into the install directory, those files are left in place and the install directory remains until the user removes them.
 
+## Open with
+
+The installer lists Patchy under Explorer's "Open with" for the image types it opens (the `$PatchyOpenWithExtensions` list in `InstallPatchy.ps1`; PDF is left out). It writes, all under `HKCU\Software\Classes`:
+
+- `Applications\patchy.exe` (`FriendlyAppName`, `shell\open\command`, `SupportedTypes`), which names the app;
+- the `Patchy.Image` ProgID (a persisted identifier) with the same open command;
+- a `Patchy.Image` value in each extension's `OpenWithProgids` list. This is what puts Patchy in the "Open with" submenu: the `Applications` key alone only reaches "Choose another app" (measured with `SHAssocEnumHandlers` on Windows 11, October 2026).
+
+An `SHChangeNotify` follows so Explorer sees it at once.
+
+This registration must stay passive: no extension's default value, `UserChoice`, or Default Apps entry is written, and nothing goes to HKLM. A type that already has a default program keeps it. A type no installed program handles (on a machine without Photoshop, `.psd`; `.rttex` almost everywhere) has Patchy as its only candidate, so a double-click offers it. A failure to register only warns.
+
+The uninstaller removes all of it when the registered command points into the install being removed, taking only its own value out of each `OpenWithProgids` list and deleting an extension key only when that leaves it empty. On the Windows offload host an install followed by an uninstall left the `HKCU\Software\Classes` extension keys identical to before. The portable zip registers nothing.
+
 ## Package verification
 
-After signing, `build-release.bat` runs `scripts\release\verify-windows-package.ps1` on the finished installer and zip. Nothing is installed: no install folder, shortcut, or registry key is touched. It:
+After signing, `build-release.bat` runs `scripts\release\verify-windows-package.ps1` on the finished installer and zip. Nothing is installed: no install folder, shortcut, or registry key is touched, apart from a `HKCU\Software\PatchyVerify-<guid>` scratch key the "Open with" check writes and deletes. It:
 
 - unpacks the installer with IExpress's extract-only switches (`/Q /C /T:<folder>`) and checks that its payload is complete, carries the same zip as the portable download, and names the expected version;
 - runs the unpacked `InstallPatchy.ps1` with the launcher's arguments plus `-SmokeTest`, which builds the whole wizard, shows it invisibly, and closes it. A wizard that cannot open fails here (issue 55);
+- runs it again with `-OpenWithCheckRoot <scratch key>`, which writes the "Open with" registration under that key instead of the real Classes tree, and checks the name, the command, the type list, and that an extension gets the ProgID in `OpenWithProgids` with no default value;
 - unpacks the zip and compares it with `PatchyInstallManifest.txt`;
 - reads the imports of every executable and DLL with `dumpbin` and requires each one to be in the package or part of Windows. Qt and Visual C++ runtime DLLs must be in the package even when the build machine has copies in System32;
 - runs `packaging\package-selftest.js` on the unpacked `patchy.exe` with only Windows on `PATH`: every image format plugin writes and reads a file, the bundled font is listed, the scripts, translations, AI kit and TLS plugin are present, and a 32-bit and a 64-bit legacy plug-in run through their hosts;

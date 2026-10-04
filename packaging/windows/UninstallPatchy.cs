@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
 using Microsoft.Win32;
@@ -10,6 +11,10 @@ internal static class UninstallPatchy
 {
     private const string InstallManifestName = "PatchyInstallManifest.txt";
     private const string UninstallKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\Patchy";
+    private const string ClassesKeyPath = @"Software\Classes";
+    private const string OpenWithKeyPath = ClassesKeyPath + @"\Applications\patchy.exe";
+    // Matches $PatchyOpenWithProgId in InstallPatchy.ps1.
+    private const string OpenWithProgId = "Patchy.Image";
     private const string ShortcutRelativePath = @"Microsoft\Windows\Start Menu\Programs\Patchy.lnk";
     private const string DesktopShortcutName = "Patchy.lnk";
 
@@ -80,6 +85,7 @@ internal static class UninstallPatchy
             string[] installedFiles = ReadInstalledRelativePaths(installRoot);
             RemoveShortcuts();
             RemoveUninstallEntry();
+            RemoveOpenWithEntry(installRoot);
             StartHiddenCleanup(installRoot, installedFiles, Process.GetCurrentProcess().Id);
             return 0;
         }
@@ -239,6 +245,99 @@ internal static class UninstallPatchy
         using (RegistryKey currentUser = Registry.CurrentUser)
         {
             currentUser.DeleteSubKeyTree(UninstallKeyPath, false);
+        }
+    }
+
+    [DllImport("shell32.dll")]
+    private static extern void SHChangeNotify(int eventId, uint flags, IntPtr item1, IntPtr item2);
+
+    // Removes the "Open with" registration InstallPatchy.ps1 wrote, but only when its
+    // command points into this install: Windows creates the same Applications key by
+    // itself when a user browses to some other patchy.exe from "Choose another app".
+    private static void RemoveOpenWithEntry(string installRoot)
+    {
+        try
+        {
+            using (RegistryKey currentUser = Registry.CurrentUser)
+            {
+                string command = null;
+                using (RegistryKey commandKey = currentUser.OpenSubKey(OpenWithKeyPath + @"\shell\open\command"))
+                {
+                    if (commandKey != null)
+                    {
+                        command = commandKey.GetValue(null) as string;
+                    }
+                }
+
+                string ownCommandPrefix = "\"" + installRoot + Path.DirectorySeparatorChar;
+                if (command == null || !command.StartsWith(ownCommandPrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
+                RemoveOpenWithProgIdValues(currentUser);
+                currentUser.DeleteSubKeyTree(OpenWithKeyPath, false);
+                currentUser.DeleteSubKeyTree(ClassesKeyPath + @"\" + OpenWithProgId, false);
+            }
+
+            // SHCNE_ASSOCCHANGED, SHCNF_IDLIST
+            SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero);
+        }
+        catch
+        {
+            // A leftover "Open with" entry must not stop the uninstall.
+        }
+    }
+
+    // Takes Patchy's ProgID out of each registered extension's OpenWithProgids list. An
+    // extension key is deleted only when that leaves it empty, so another program's
+    // entries and the user's own choices stay.
+    private static void RemoveOpenWithProgIdValues(RegistryKey currentUser)
+    {
+        string[] extensions;
+        using (RegistryKey supportedTypes = currentUser.OpenSubKey(OpenWithKeyPath + @"\SupportedTypes"))
+        {
+            if (supportedTypes == null)
+            {
+                return;
+            }
+            extensions = supportedTypes.GetValueNames();
+        }
+
+        foreach (string extension in extensions)
+        {
+            if (extension.Length < 2 || extension[0] != '.' || extension.IndexOf('\\') >= 0)
+            {
+                continue;
+            }
+
+            string extensionPath = ClassesKeyPath + @"\" + extension;
+            string progIdsPath = extensionPath + @"\OpenWithProgids";
+            using (RegistryKey progIds = currentUser.OpenSubKey(progIdsPath, true))
+            {
+                if (progIds == null)
+                {
+                    continue;
+                }
+                progIds.DeleteValue(OpenWithProgId, false);
+            }
+
+            if (IsEmptyKey(currentUser, progIdsPath))
+            {
+                currentUser.DeleteSubKey(progIdsPath, false);
+                if (IsEmptyKey(currentUser, extensionPath))
+                {
+                    currentUser.DeleteSubKey(extensionPath, false);
+                }
+            }
+        }
+    }
+
+    private static bool IsEmptyKey(RegistryKey currentUser, string path)
+    {
+        using (RegistryKey key = currentUser.OpenSubKey(path))
+        {
+            return key != null && key.ValueCount == 0 && key.SubKeyCount == 0;
         }
     }
 

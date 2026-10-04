@@ -12,7 +12,12 @@ param(
 
     # Packaging check: build the whole wizard, show it invisibly, close it, and exit
     # without installing. Used by scripts\release\verify-windows-package.ps1.
-    [switch]$SmokeTest
+    [switch]$SmokeTest,
+
+    # Packaging check: write the "Open with" registration under this scratch registry key
+    # instead of HKCU:\Software\Classes and exit without installing. Used by
+    # scripts\release\verify-windows-package.ps1.
+    [string]$OpenWithCheckRoot = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -410,6 +415,104 @@ function Add-PatchyInstalledRelativePath {
     }
 }
 
+# Extensions Patchy is offered for in Explorer's "Open with" list. Keep in step with
+# file_format_entries() in src/ui/main_window_files.cpp and the camera raw list in
+# src/formats/raw_document_io.cpp. PDF is left out on purpose.
+$PatchyOpenWithExtensions = @(
+    "psd", "psb", "png", "jpg", "jpeg", "bmp", "tif", "tiff", "webp", "gif",
+    "aseprite", "ase", "tga", "ico", "cur", "pcx", "lbm", "iff", "bbm", "svg", "svgz",
+    "heic", "heif", "hif", "jxr", "wdp", "hdp", "rttex",
+    "af", "afphoto", "afdesign", "afpub",
+    "dng", "cr2", "cr3", "crw", "nef", "nrw", "arw", "sr2", "srf", "orf", "raf", "rw2",
+    "pef", "srw", "mrw", "3fr", "fff", "iiq", "erf", "kdc", "dcr", "mos", "rwl", "x3f"
+)
+
+# The ProgID named in each extension's OpenWithProgids list. A persisted identifier:
+# UninstallPatchy.cs and installed machines know it by this name.
+$PatchyOpenWithProgId = "Patchy.Image"
+
+# Removes what Register-PatchyOpenWith wrote. The extensions come from the registered
+# SupportedTypes list, so an upgrade also clears types a newer list no longer has. An
+# extension key is deleted only when removing Patchy's value leaves it empty.
+function Unregister-PatchyOpenWith {
+    param(
+        [string]$ClassesRoot = "HKCU:\Software\Classes"
+    )
+
+    $applicationKey = Join-Path $ClassesRoot "Applications\patchy.exe"
+    $supportedTypesKey = Join-Path $applicationKey "SupportedTypes"
+    if (Test-Path -LiteralPath $supportedTypesKey) {
+        foreach ($extension in @((Get-Item -LiteralPath $supportedTypesKey).GetValueNames())) {
+            if ($extension -notmatch '^\.[A-Za-z0-9]+$') { continue }
+            $extensionKey = Join-Path $ClassesRoot $extension
+            $progIdsKey = Join-Path $extensionKey "OpenWithProgids"
+            if (-not (Test-Path -LiteralPath $progIdsKey)) { continue }
+            Remove-ItemProperty -LiteralPath $progIdsKey -Name $PatchyOpenWithProgId -ErrorAction SilentlyContinue
+            foreach ($emptyCandidate in @($progIdsKey, $extensionKey)) {
+                $key = Get-Item -LiteralPath $emptyCandidate
+                if ($key.ValueCount -eq 0 -and $key.SubKeyCount -eq 0) {
+                    Remove-Item -LiteralPath $emptyCandidate -Force
+                } else {
+                    break
+                }
+            }
+        }
+    }
+
+    foreach ($ownedKey in @($applicationKey, (Join-Path $ClassesRoot $PatchyOpenWithProgId))) {
+        if (Test-Path -LiteralPath $ownedKey) {
+            Remove-Item -LiteralPath $ownedKey -Recurse -Force
+        }
+    }
+}
+
+# Lists Patchy as a choice under "Open with" for the types above, without making it the
+# default for any of them. Two parts: the Applications\<exe> key names the app, and a
+# Patchy ProgID added to each extension's OpenWithProgids list is what puts it in the
+# "Open with" submenu (the Applications key alone only reaches "Choose another app").
+# An extension's own default value and the user's choice are never written.
+# UninstallPatchy.exe removes all of it.
+function Register-PatchyOpenWith {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$InstalledExe,
+
+        [string]$ClassesRoot = "HKCU:\Software\Classes"
+    )
+
+    Unregister-PatchyOpenWith -ClassesRoot $ClassesRoot
+
+    $command = "`"$InstalledExe`" `"%1`""
+    $applicationKey = Join-Path $ClassesRoot "Applications\patchy.exe"
+    $supportedTypesKey = Join-Path $applicationKey "SupportedTypes"
+    $progIdKey = Join-Path $ClassesRoot $PatchyOpenWithProgId
+    foreach ($commandOwner in @($applicationKey, $progIdKey)) {
+        $commandKey = Join-Path $commandOwner "shell\open\command"
+        New-Item -Path $commandKey -Force | Out-Null
+        Set-ItemProperty -Path $commandKey -Name "(default)" -Value $command
+    }
+    New-Item -Path $supportedTypesKey -Force | Out-Null
+    New-ItemProperty -Path $applicationKey -Name "FriendlyAppName" -Value "Patchy" -PropertyType String -Force | Out-Null
+    foreach ($extension in $PatchyOpenWithExtensions) {
+        New-ItemProperty -Path $supportedTypesKey -Name ".$extension" -Value "" -PropertyType String -Force | Out-Null
+        $progIdsKey = Join-Path $ClassesRoot ".$extension\OpenWithProgids"
+        if (-not (Test-Path -LiteralPath $progIdsKey)) {
+            New-Item -Path $progIdsKey -Force | Out-Null
+        }
+        New-ItemProperty -Path $progIdsKey -Name $PatchyOpenWithProgId -Value "" -PropertyType String -Force | Out-Null
+    }
+}
+
+# Tells Explorer the registration changed, so the entry appears without a sign-out.
+function Send-PatchyAssociationChanged {
+    Add-Type -Namespace PatchySetup -Name Shell -MemberDefinition @"
+[DllImport("shell32.dll")]
+public static extern void SHChangeNotify(int eventId, uint flags, IntPtr item1, IntPtr item2);
+"@
+    # SHCNE_ASSOCCHANGED, SHCNF_IDLIST
+    [PatchySetup.Shell]::SHChangeNotify(0x08000000, 0, [IntPtr]::Zero, [IntPtr]::Zero)
+}
+
 function Invoke-PatchyInstall {
     param(
         [Parameter(Mandatory = $true)]
@@ -513,6 +616,13 @@ function Invoke-PatchyInstall {
         New-ItemProperty -Path $UninstallKey -Name "NoModify" -Value 1 -PropertyType DWord -Force | Out-Null
         New-ItemProperty -Path $UninstallKey -Name "NoRepair" -Value 1 -PropertyType DWord -Force | Out-Null
         New-ItemProperty -Path $UninstallKey -Name "EstimatedSize" -Value $estimatedSizeKb -PropertyType DWord -Force | Out-Null
+
+        try {
+            Register-PatchyOpenWith -InstalledExe $installedExe
+            Send-PatchyAssociationChanged
+        } catch {
+            Write-Warning "Could not add Patchy to the Open with list: $($_.Exception.Message)"
+        }
 
         return $installedExe
     } finally {
@@ -915,6 +1025,22 @@ if ($CheckLogo) {
     $windowIcon = New-Object System.Drawing.Icon $checkIcon
     Write-Host "Installer logo check passed ($($logoBitmap.Width) x $($logoBitmap.Height))."
     exit 0
+}
+
+if ($OpenWithCheckRoot) {
+    # Only a scratch key: the real Classes tree is never a valid target for the check.
+    if ($OpenWithCheckRoot -notlike "HKCU:\Software\PatchyVerify-*") {
+        Write-Host "Open with check needs a HKCU:\Software\PatchyVerify-* scratch key."
+        exit 1
+    }
+    try {
+        Register-PatchyOpenWith -InstalledExe (Join-Path $installRoot "patchy.exe") -ClassesRoot $OpenWithCheckRoot
+        Write-Host "Open with registration check wrote $OpenWithCheckRoot."
+        exit 0
+    } catch {
+        Write-Host "Open with registration check FAILED: $($_.Exception.Message)"
+        exit 1
+    }
 }
 
 if ($SmokeTest) {
