@@ -1869,6 +1869,13 @@ void MainWindow::create_palette_dock() {
           picker->setCurrentColor(color);
         }
       }
+      // The Text Color panel with no session open recolors the selected text layers
+      // (issue 31); the blocked mirror above skips the panel's own callback, so a
+      // swatch click has to take that path here (issue 61).
+      if (target == QStringLiteral("text") &&
+          canvas_->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor")) == nullptr) {
+        apply_text_color_to_selected_layers_debounced(color);
+      }
     }
     refresh_color_buttons();
     refresh_palette_panel();
