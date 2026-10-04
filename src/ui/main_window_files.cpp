@@ -4170,23 +4170,19 @@ void MainWindow::print_document() {
 
 void MainWindow::show_update_available(const UpdateInfo& update) {
   // The install advice is artifact-specific: Windows ships an installer exe, macOS a
-  // drag-to-Applications DMG, Linux a Flatpak bundle.
+  // drag-to-Applications DMG, Linux a Flatpak that updates from its repository.
 #if defined(Q_OS_MACOS)
   const auto update_text = tr("Patchy %1 is available. You are using version %2.\n\n"
                               "Download the DMG, quit Patchy, and drag the new Patchy into Applications.")
                                .arg(update.version, QStringLiteral(PATCHY_VERSION));
 #elif defined(Q_OS_LINUX)
-  // A flatpak bundle installs from a local path only (URLs work only for repo-backed
-  // flatpakrefs), so the one-liner fetches the stable URL first. curl ships by default
-  // on Ubuntu/Fedora/Arch/openSUSE. The bundle needs org.kde.Platform from Flathub, and
-  // distros such as CachyOS ship no remote at all; bundles from 0.97 on carry
-  // --runtime-repo metadata, so flatpak adds the Flathub remote and pulls the runtime by
-  // itself, and the command only needs --user (no polkit/root prompt). Keep it identical
-  // to the README download section (GitHub issue 14).
-  const auto bundle_name = QFileInfo(update.download_url.path()).fileName();
-  const auto install_command =
-      QStringLiteral("curl -L -o /tmp/%1 %2 && flatpak install --user -y /tmp/%1")
-          .arg(bundle_name, update.download_url.toString());
+  // Every install from 1.05 on has the Patchy repository as its origin: the flatpakref
+  // names it, and the bundle carries it as --repo-url, which also rewrites the origin of
+  // an older bundle install it is installed over (packaging/linux/README.md). So one
+  // command updates them all. --user matches every documented install command (no
+  // polkit/root prompt, GitHub issue 14); without it flatpak 1.14 also fails outright on
+  // a machine that has no system-wide installation ("While opening repository").
+  const auto install_command = QStringLiteral("flatpak update --user -y com.rtsoft.patchy");
   const auto update_text = tr("Patchy %1 is available. You are using version %2.\n\n"
                               "To update, paste this into a terminal:\n\n%3")
                                .arg(update.version, QStringLiteral(PATCHY_VERSION), install_command);
@@ -4234,6 +4230,9 @@ void MainWindow::begin_startup_update_check() {
   // would only fail CORS and surface a network error on the start panel.
   return;
 #endif
+  if (!update_checks_available()) {
+    return;
+  }
   {
     auto settings = app_settings();
     if (!settings.value(QStringLiteral("updates/checkOnStartup"), true).toBool()) {

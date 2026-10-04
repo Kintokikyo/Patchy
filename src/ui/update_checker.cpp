@@ -118,6 +118,14 @@ QUrl cache_busted_manifest_url() {
 
 }  // namespace
 
+bool update_checks_available() {
+#if defined(Q_OS_WASM) || defined(PATCHY_STORE_BUILD)
+  return false;
+#else
+  return qEnvironmentVariableIntValue("PATCHY_NO_UPDATE_CHECK") == 0;
+#endif
+}
+
 QString current_update_platform() {
 #if defined(Q_OS_WIN)
   return QStringLiteral("windows");

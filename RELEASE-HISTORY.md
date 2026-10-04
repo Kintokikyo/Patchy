@@ -3,6 +3,13 @@
 Older Patchy release notes are collected here. The two most recent releases
 remain in [README.md](README.md#whats-new).
 
+## 1.03 - October 2, 2026
+
+- Animated WebP import and export: open frames as layers, preview their timing, and export layers as an animation, with lossless output, partial transparency, and loop counts
+- Four more interface languages: Brazilian Portuguese, Russian, Polish, and Korean, plus translation improvements across all twelve languages
+- PSD compatibility: fixed legacy gradient fills and empty layer masks
+- Text fonts: clearer notices when an installed font cannot draw the text, and scripting warns whenever a requested font is replaced
+
 ## 1.02 - October 1, 2026
 
 - New logo and app icon

@@ -22,7 +22,7 @@ namespace patchy::heif {
 //     is compiled into the application.
 //   - macOS/Linux: read_heif() always throws; the registry-error -> QImageReader fallback
 //     in load_document_from_path then decodes via Qt's qmacheif (ImageIO) / the KDE
-//     runtime's kimg_heif (libheif + the ffmpeg-full Flatpak extension). The thrown
+//     runtime's kimg_heif (libheif + the runtime's codecs-extra extension). The thrown
 //     message is what the user sees when Qt cannot decode either.
 
 // Lowercase extensions (no dot) routed to the HEIF reader; single source of truth for the

@@ -1548,10 +1548,6 @@
         <translation>Nie można zdekodować tego obrazu HEIC poza przeglądarką.</translation>
     </message>
     <message>
-        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</source>
-        <translation>Nie można zdekodować tego obrazu HEIC. Dekodowanie HEIC wymaga rozszerzenia kodeka Flatpak; zainstaluj go za pomocą: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</translation>
-    </message>
-    <message>
         <source>This file is not a supported HEIC/HEIF image</source>
         <translation>Ten plik nie jest obsługiwanym obrazem HEIC/HEIF</translation>
     </message>
@@ -8890,6 +8886,10 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Pattern settings apply to %1 of %2 editable layers.</source>
         <translation>Ustawienia wzorku dotyczą %1 z %2 edytowalnych warstw.</translation>
+    </message>
+    <message>
+        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</source>
+        <translation>Nie można zdekodować tego obrazu HEIC. Dekodowanie HEIC wymaga rozszerzenia kodeka Flatpak; zainstaluj go za pomocą: flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</translation>
     </message>
 </context>
 <context>

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.26)
 
 project(
   Patchy
-  VERSION 1.04
+  VERSION 1.05
   DESCRIPTION "A native, PSD-oriented image editor foundation"
   LANGUAGES CXX
 )
@@ -35,6 +35,7 @@ include(GNUInstallDirs)
 option(PATCHY_BUILD_APP "Build the Qt desktop application when Qt 6 is available" ON)
 option(PATCHY_BUILD_TESTS "Build unit tests" ON)
 option(PATCHY_ENABLE_STRICT_WARNINGS "Enable strict compiler warnings" ON)
+option(PATCHY_STORE_BUILD "Build for a store that delivers updates itself: no in-app update check" OFF)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -1304,6 +1305,12 @@ ${PATCHY_LUPDATE_MANIFEST_SOURCES}
     set_source_files_properties(src/ui/build_info.cpp PROPERTIES
       INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}/generated"
     )
+    if(PATCHY_STORE_BUILD)
+      # One source, not the target: update_checks_available() is the only reader.
+      set_source_files_properties(src/ui/update_checker.cpp PROPERTIES
+        COMPILE_DEFINITIONS PATCHY_STORE_BUILD
+      )
+    endif()
     # main_window.cpp exceeds the default COFF section limit under MSVC.
     target_compile_options(patchy_ui PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/bigobj>)
     if(APPLE)
@@ -1646,6 +1653,11 @@ ${PATCHY_LUPDATE_MANIFEST_SOURCES}
               DESTINATION "${CMAKE_INSTALL_DATADIR}/applications")
       install(FILES "${PROJECT_SOURCE_DIR}/packaging/linux/com.rtsoft.patchy.metainfo.xml"
               DESTINATION "${CMAKE_INSTALL_DATADIR}/metainfo")
+      # Flathub requires each module's license files here; the notice covers the
+      # vendored libraries and the bundled font.
+      install(FILES "${PROJECT_SOURCE_DIR}/LICENSE"
+                    "${PROJECT_SOURCE_DIR}/NOTICE-THIRD-PARTY.md"
+              DESTINATION "${CMAKE_INSTALL_DATADIR}/licenses/com.rtsoft.patchy")
       foreach(icon_size 16 32 48 64 128 256 512)
         install(FILES "${PROJECT_SOURCE_DIR}/packaging/linux/icons/hicolor/${icon_size}x${icon_size}/apps/com.rtsoft.patchy.png"
                 DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/${icon_size}x${icon_size}/apps")

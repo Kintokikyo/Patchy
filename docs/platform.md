@@ -5,7 +5,7 @@ Deep reference for cross-platform work. Read this before hunting a platform-spec
 ## Cross-platform implementation rules
 
 Linux offscreen app and MCP startup disables the process's desktop D-Bus session
-before constructing QApplication. Qt 6.8 loads the Flatpak portal theme even for
+before constructing QApplication. Qt loads the Flatpak portal theme even for
 offscreen and synchronously queries appearance; a missing portal otherwise delays
 startup and client EOF. Interactive desktop runs retain the normal bus and portals.
 
@@ -61,7 +61,7 @@ A warning reported by the flatpak release build usually cannot be reproduced or
 verified by `remote-build.ps1 -Target linux`. The two use different compilers and
 different flags: `linux-release` on the linux build host is the system `/usr/bin/c++` (GCC 13.3.0 on
 Ubuntu 24.04) with only `-O3 -DNDEBUG -std=c++20 -Wall -Wextra -Wpedantic`, while
-`packaging/linux/make-flatpak.sh` builds inside `org.kde.Sdk//6.8` with GCC 14.3.0 and
+`packaging/linux/make-flatpak.sh` builds inside `org.kde.Sdk//6.11` with GCC 15.2.0 and
 flatpak-builder's hardening flags (`-Wp,-D_FORTIFY_SOURCE=3 -Wp,-D_GLIBCXX_ASSERTIONS
 -fstack-protector-strong -fstack-clash-protection -fcf-protection -fno-omit-frame-pointer`,
 then `-O3 -DNDEBUG` on top). Both the newer libstdc++ headers and `_GLIBCXX_ASSERTIONS`
@@ -75,7 +75,7 @@ object's `FLAGS` and `INCLUDES` from a previous flatpak build tree
 (`packaging/linux/.flatpak-builder/build/patchy-*/build.ninja`, which survives
 `--force-clean`) and compile it with the SDK compiler:
 
-    flatpak run --filesystem=home --command=g++ org.kde.Sdk//6.8 <INCLUDES> <FLAGS> \
+    flatpak run --filesystem=home --command=g++ org.kde.Sdk//6.11 <INCLUDES> <FLAGS> \
       -c ~/patchy/src/src/formats/af_document_io.cpp -o /dev/null
 
 Compiling a copy of the pre-fix file the same way confirms a fix actually removed the

@@ -1548,10 +1548,6 @@
         <translation>브라우저 외부에서 이 HEIC 이미지를 디코딩할 수 없습니다.</translation>
     </message>
     <message>
-        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</source>
-        <translation>이 HEIC 이미지를 디코딩할 수 없습니다. HEIC 디코딩에는 Flatpak 코덱 확장이 필요합니다. 다음을 사용하여 설치하세요: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</translation>
-    </message>
-    <message>
         <source>This file is not a supported HEIC/HEIF image</source>
         <translation>이 파일은 지원되는 HEIC/HEIF 이미지가 아닙니다.</translation>
     </message>
@@ -8830,6 +8826,10 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Pattern settings apply to %1 of %2 editable layers.</source>
         <translation>패턴 설정은 편집 가능한 레이어 %2개 중 %1개에 적용됩니다.</translation>
+    </message>
+    <message>
+        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</source>
+        <translation>이 HEIC 이미지를 디코딩할 수 없습니다. HEIC 디코딩에는 Flatpak 코덱 확장이 필요합니다. 다음을 사용하여 설치하세요: flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</translation>
     </message>
 </context>
 <context>

@@ -1961,19 +1961,15 @@ void ui_update_available_dialog_warns_to_close_patchy_before_installing() {
   QTimer::singleShot(0, [&] {
     auto* dialog = qobject_cast<QMessageBox*>(find_top_level_dialog(QStringLiteral("updateAvailableMessageBox")));
     CHECK(dialog != nullptr);
-    // The install advice is per-platform (installer exe / DMG / Flatpak bundle).
+    // The install advice is per-platform (installer exe / DMG / Flatpak update).
 #if defined(Q_OS_MACOS)
     CHECK(dialog->text().contains(QStringLiteral("drag the new Patchy into Applications")));
 #elif defined(Q_OS_LINUX)
-    // The command must work with no root and no preconfigured remote (GitHub issue 14):
-    // it fetches the bundle and installs per user; the bundle's --runtime-repo metadata
-    // makes flatpak add the Flathub remote and pull the runtime itself, so no
-    // remote-add step is shown.
-    CHECK(!dialog->text().contains(QStringLiteral("flatpak remote-add")));
-    CHECK(dialog->text().contains(
-        QStringLiteral("curl -L -o /tmp/PatchyLinux.flatpak "
-                       "https://github.com/SethRobinson/Patchy/releases/latest/download/PatchyLinux.flatpak && ")));
-    CHECK(dialog->text().contains(QStringLiteral("flatpak install --user -y /tmp/PatchyLinux.flatpak")));
+    // Installs update from the Patchy Flatpak repository (GitHub issue 28), so the
+    // advice is one flatpak command: no bundle download, and --user like every
+    // documented install command (no root, GitHub issue 14).
+    CHECK(dialog->text().contains(QStringLiteral("flatpak update --user -y com.rtsoft.patchy")));
+    CHECK(!dialog->text().contains(QStringLiteral("curl ")));
     CHECK(dialog->findChild<QAbstractButton*>(QStringLiteral("updateCopyCommandButton")) != nullptr);
 #else
     CHECK(dialog->text().contains(
@@ -1983,9 +1979,8 @@ void ui_update_available_dialog_warns_to_close_patchy_before_installing() {
     dialog->reject();
   });
 
-  // The Linux dialog embeds the bundle name from the download URL in its command, so
-  // that platform gets the real Flatpak URL (the GitHub latest-release permalink that
-  // latest_version.json carries); the others only show generic advice.
+  // Each platform gets its real download URL (the GitHub latest-release permalink that
+  // latest_version.json carries), which is what the Download button opens.
 #if defined(Q_OS_LINUX)
   const QUrl download_url(
       QStringLiteral("https://github.com/SethRobinson/Patchy/releases/latest/download/PatchyLinux.flatpak"));
@@ -2031,6 +2026,49 @@ void ui_update_preference_persists_startup_check_setting() {
 
   auto settings = patchy::ui::app_settings();
   CHECK(!settings.value(QStringLiteral("updates/checkOnStartup"), true).toBool());
+}
+
+// A store build (CMake PATCHY_STORE_BUILD) and PATCHY_NO_UPDATE_CHECK=1 share one switch:
+// no startup request leaves the machine and Preferences offers no setting for it.
+void ui_update_checks_can_be_switched_off() {
+  CHECK(patchy::ui::update_checks_available());
+  const EnvironmentVariableRestorer restore_switch("PATCHY_NO_UPDATE_CHECK");
+  qputenv("PATCHY_NO_UPDATE_CHECK", "1");
+  CHECK(!patchy::ui::update_checks_available());
+
+  SettingsValueRestorer restore_update_check(QStringLiteral("updates/checkOnStartup"));
+  {
+    auto settings = patchy::ui::app_settings();
+    settings.setValue(QStringLiteral("updates/checkOnStartup"), true);
+    settings.sync();
+  }
+  ManifestServer server(R"({"platforms": {"windows": {"version": "9.9", "download_url": "https://rtsoft.com/w.exe"},
+                                          "macos": {"version": "9.9", "download_url": "https://rtsoft.com/m.dmg"},
+                                          "linux": {"version": "9.9", "download_url": "https://rtsoft.com/l.flatpak"}}})");
+  const UpdateManifestUrlOverride override(server.manifest_url());
+
+  patchy::ui::MainWindow window;
+  show_window(window);
+  window.begin_startup_update_check();
+  process_events_for(500);
+  CHECK(server.requests() == 0);
+  CHECK(find_top_level_dialog(QStringLiteral("updateAvailableMessageBox")) == nullptr);
+
+  bool saw_dialog = false;
+  QTimer::singleShot(0, [&] {
+    auto* dialog = find_top_level_dialog(QStringLiteral("patchyPreferencesDialog"));
+    CHECK(dialog != nullptr);
+    CHECK(dialog->findChild<QCheckBox*>(QStringLiteral("preferencesCheckForUpdatesCheck")) == nullptr);
+    saw_dialog = true;
+    dialog->accept();
+  });
+  require_action(window, "filePreferencesAction")->trigger();
+  QApplication::processEvents();
+  CHECK(saw_dialog);
+
+  // Accepting Preferences without the checkbox leaves the stored choice alone.
+  auto settings = patchy::ui::app_settings();
+  CHECK(settings.value(QStringLiteral("updates/checkOnStartup"), false).toBool());
 }
 
 struct GuiScaleDialogRun {
@@ -5085,6 +5123,7 @@ std::vector<patchy::test::TestCase> app_shell_tests() {
       {"ui_update_preference_defaults_startup_check_setting_to_enabled",
        ui_update_preference_defaults_startup_check_setting_to_enabled},
       {"ui_update_preference_persists_startup_check_setting", ui_update_preference_persists_startup_check_setting},
+      {"ui_update_checks_can_be_switched_off", ui_update_checks_can_be_switched_off},
       {"ui_gui_scale_preference_persists_setting", ui_gui_scale_preference_persists_setting},
       {"ui_gui_scale_preference_persists_step_below_full_size",
        ui_gui_scale_preference_persists_step_below_full_size},

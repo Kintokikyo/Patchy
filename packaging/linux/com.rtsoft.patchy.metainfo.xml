@@ -91,9 +91,40 @@
   <launchable type="desktop-id">com.rtsoft.patchy.desktop</launchable>
   <url type="homepage">https://github.com/SethRobinson/Patchy</url>
   <url type="bugtracker">https://github.com/SethRobinson/Patchy/issues</url>
+  <url type="vcs-browser">https://github.com/SethRobinson/Patchy</url>
   <developer id="com.rtsoft">
     <name>Seth A. Robinson</name>
   </developer>
+  <branding>
+    <color type="primary" scheme_preference="light">#a9c7bb</color>
+    <color type="primary" scheme_preference="dark">#2b3a35</color>
+  </branding>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Adjustment layers, Smart Filters and editable text in a layered document</caption>
+      <image type="source" width="1600" height="1000">https://raw.githubusercontent.com/SethRobinson/Patchy/v1.04/docs/images/screenshots/smart_filters.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Layer styles with several effects and blending controls</caption>
+      <image type="source" width="1600" height="1000">https://raw.githubusercontent.com/SethRobinson/Patchy/v1.04/docs/images/screenshots/layer_styles.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Editable vector paths with gradient and pattern paint</caption>
+      <image type="source" width="1600" height="1000">https://raw.githubusercontent.com/SethRobinson/Patchy/v1.04/docs/images/screenshots/vector_tools.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Warped text, mixed fonts in one paragraph and vertical Japanese</caption>
+      <image type="source" width="1600" height="1000">https://raw.githubusercontent.com/SethRobinson/Patchy/v1.04/docs/images/screenshots/warp_text.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Palette mode for indexed-color pixel art</caption>
+      <image type="source" width="1600" height="1000">https://raw.githubusercontent.com/SethRobinson/Patchy/v1.04/docs/images/screenshots/palette_mode.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Brush tips and dynamics</caption>
+      <image type="source" width="1600" height="1000">https://raw.githubusercontent.com/SethRobinson/Patchy/v1.04/docs/images/screenshots/brush_tips.png</image>
+    </screenshot>
+  </screenshots>
   <content_rating type="oars-1.1"/>
   <supports>
     <control>pointing</control>
@@ -101,8 +132,35 @@
     <control>tablet</control>
   </supports>
   <releases>
-    <release version="1.04" date="2026-10-03"/>
-    <release version="1.03" date="2026-10-02"/>
+    <release version="1.05" date="2026-10-04">
+      <description>
+        <ul>
+          <li>Patchy now updates through flatpak update and the software center, from a signed repository</li>
+          <li>Open from Clipboard: File menu command that opens the copied image as a new document</li>
+          <li>Clicking a palette swatch recolors the selected text and shape layers</li>
+          <li>Fixed a freeze on KDE when a drag crossed the layer action buttons</li>
+        </ul>
+      </description>
+    </release>
+    <release version="1.04" date="2026-10-03">
+      <description>
+        <ul>
+          <li>Edit shape appearance and layer styles across selected layers, with mixed-value indicators, live previews, and one undo step per edit</li>
+          <li>Merge selected vectors into one editable vector layer, with a preview and a choice of what happens to layer effects</li>
+          <li>Fixed caps on inside and outside dashed vector strokes, and pattern thumbnails in Shape Appearance</li>
+        </ul>
+      </description>
+    </release>
+    <release version="1.03" date="2026-10-02">
+      <description>
+        <ul>
+          <li>Animated WebP import and export, with frame timing preview, lossless output, partial transparency, and loop counts</li>
+          <li>Four more interface languages: Brazilian Portuguese, Russian, Polish, and Korean</li>
+          <li>PSD compatibility: fixed legacy gradient fills and empty layer masks</li>
+          <li>Clearer notices when an installed font cannot draw the text</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.02" date="2026-10-01"/>
     <release version="1.01" date="2026-09-29"/>
     <release version="1.00" date="2026-09-27"/>

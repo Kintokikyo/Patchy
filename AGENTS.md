@@ -165,4 +165,4 @@ Read the linked document before working on the feature; it owns the detailed con
 - **README screenshots and contact sheets:** [docs/testing.md](docs/testing.md).
 - **Performance and the stress harness:** [docs/performance.md](docs/performance.md); the Move/Free Transform drag-preview machinery is in [docs/interactive-previews.md](docs/interactive-previews.md).
 - **Testy PSD benchmark:** [docs/testy.md](docs/testy.md).
-- **Refactor and cleanup work:** [docs/refactor-backlog.md](docs/refactor-backlog.md) and [docs/code-organization.md](docs/code-organization.md).
+- **Flatpak packaging and its update repository:** [packaging/linux/README.md](packaging/linux/README.md).

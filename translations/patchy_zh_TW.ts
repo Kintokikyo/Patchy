@@ -8258,10 +8258,6 @@ RGB：%2, %3, %4</translation>
         <translation>同時將每個圖層本身裁剪至畫布區域</translation>
     </message>
     <message>
-        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</source>
-        <translation>無法解碼此 HEIC 影像。HEIC 解碼需要 Flatpak 編解碼器擴充功能；請以下列指令安裝：flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</translation>
-    </message>
-    <message>
         <source>Create Ellipse</source>
         <translation>建立橢圓</translation>
     </message>
@@ -8830,6 +8826,10 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Pattern settings apply to %1 of %2 editable layers.</source>
         <translation>圖樣設定適用於 %2 個可編輯圖層中的 %1 個。</translation>
+    </message>
+    <message>
+        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</source>
+        <translation>無法解碼此 HEIC 影像。HEIC 解碼需要 Flatpak 編解碼器擴充功能；請以下列指令安裝：flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</translation>
     </message>
 </context>
 <context>

@@ -8272,10 +8272,6 @@ RGB: %2, %3, %4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Create Ellipse</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8848,6 +8844,10 @@ RGB: %2, %3, %4</source>
     </message>
     <message>
         <source>Pattern settings apply to %1 of %2 editable layers.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

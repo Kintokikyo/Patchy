@@ -8281,10 +8281,6 @@ RVB : %2, %3, %4</translation>
         <translation>Recadrer également chaque calque à la zone de travail</translation>
     </message>
     <message>
-        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</source>
-        <translation>Impossible de décoder cette image HEIC. Le décodage HEIC nécessite l&apos;extension de codecs Flatpak ; installez-la avec : flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</translation>
-    </message>
-    <message>
         <source>Create Ellipse</source>
         <translation>Créer une ellipse</translation>
     </message>
@@ -8860,6 +8856,10 @@ RVB : %2, %3, %4</translation>
     <message>
         <source>Pattern settings apply to %1 of %2 editable layers.</source>
         <translation>Les réglages du motif s’appliquent à %1 calques modifiables sur %2.</translation>
+    </message>
+    <message>
+        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</source>
+        <translation>Impossible de décoder cette image HEIC. Le décodage HEIC nécessite l&apos;extension de codecs Flatpak ; installez-la avec : flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</translation>
     </message>
 </context>
 <context>

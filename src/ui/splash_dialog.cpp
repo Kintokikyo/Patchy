@@ -402,8 +402,11 @@ void show_about_splash(QWidget* parent) {
   PatchySplashDialog splash(parent);
 #ifndef Q_OS_WASM
   // The web build always runs the latest deployed site, so there is no update
-  // to check for; the status label keeps its "Patchy is ready." text.
-  splash.begin_update_check();
+  // to check for; the status label keeps its "Patchy is ready." text. The same
+  // goes for a store build, where the store delivers updates.
+  if (update_checks_available()) {
+    splash.begin_update_check();
+  }
 #endif
   // exec_dialog centers the dialog on its owner clamped to the screen (a raw
   // parent-centered move could push the Close button below a low main window)

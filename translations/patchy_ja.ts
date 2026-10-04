@@ -8258,10 +8258,6 @@ Mixed selection</source>
         <translation>各レイヤー自体もカンバス領域に切り抜く</translation>
     </message>
     <message>
-        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</source>
-        <translation>この HEIC 画像をデコードできません。HEIC のデコードには Flatpak のコーデック拡張が必要です。次のコマンドでインストールしてください: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</translation>
-    </message>
-    <message>
         <source>Create Ellipse</source>
         <translation>楕円を作成</translation>
     </message>
@@ -8830,6 +8826,10 @@ Mixed selection</source>
     <message>
         <source>Pattern settings apply to %1 of %2 editable layers.</source>
         <translation>パターン設定は編集可能な %2 個のレイヤーのうち %1 個に適用されます。</translation>
+    </message>
+    <message>
+        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</source>
+        <translation>この HEIC 画像をデコードできません。HEIC のデコードには Flatpak のコーデック拡張が必要です。次のコマンドでインストールしてください: flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</translation>
     </message>
 </context>
 <context>

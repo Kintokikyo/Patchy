@@ -16,7 +16,7 @@ For bug reports and feature requests, please [open an issue](https://github.com/
 
 ## Download
 
-**Latest release: 1.04** · October 3, 2026 · [Release notes](#whats-new) · [All releases](https://github.com/SethRobinson/Patchy/releases)
+**Latest release: 1.05** · October 4, 2026 · [Release notes](#whats-new) · [All releases](https://github.com/SethRobinson/Patchy/releases)
 
 Windows releases are code signed by Seth A. Robinson; the macOS app is signed and
 notarized (Robinson Technologies Corporation). Every release is published on the
@@ -28,26 +28,23 @@ checksums, and mirrored at rtsoft.com.
 | Windows 10/11 (64-bit)    | Installer                   | [PatchyWindowsInstaller.exe](https://github.com/SethRobinson/Patchy/releases/latest/download/PatchyWindowsInstaller.exe) (59 MB)     |
 | Windows 10/11 (64-bit)    | Portable ZIP (no installer) | [PatchyWindowsNoInstaller.zip](https://github.com/SethRobinson/Patchy/releases/latest/download/PatchyWindowsNoInstaller.zip) (59 MB) |
 | macOS 12+ (Apple Silicon) | DMG - drag to Applications  | [PatchyMacOS.dmg](https://github.com/SethRobinson/Patchy/releases/latest/download/PatchyMacOS.dmg) (64 MB)                           |
-| Linux                     | Flatpak bundle              | [PatchyLinux.flatpak](https://github.com/SethRobinson/Patchy/releases/latest/download/PatchyLinux.flatpak) (31 MB)                   |
+| Linux                     | Flatpak bundle              | [PatchyLinux.flatpak](https://github.com/SethRobinson/Patchy/releases/latest/download/PatchyLinux.flatpak) (35 MB)                   |
 | Any modern browser        | Nothing to install          | [patchyimageeditor.com](https://www.patchyimageeditor.com) or [rtsoft.com/patchy](https://www.rtsoft.com/patchy/)                    |
 
 Mirror: the same files are also at [rtsoft.com/files](https://rtsoft.com/files/PatchyWindowsInstaller.exe)
 (`PatchyWindowsInstaller.exe`, `PatchyWindowsNoInstaller.zip`, `PatchyMacOS.dmg`, `PatchyLinux.flatpak`).
 
-Linux one-line install (paste into a terminal; fetches the bundle and installs it for
-your user, pulling the shared KDE runtime from Flathub automatically, no root needed):
+Linux one-line install (paste into a terminal; installs for your user from the Patchy
+Flatpak repository, pulling the shared KDE runtime from Flathub automatically, no root
+needed):
 
 ```sh
-curl -L -o /tmp/PatchyLinux.flatpak https://github.com/SethRobinson/Patchy/releases/latest/download/PatchyLinux.flatpak && flatpak install --user -y /tmp/PatchyLinux.flatpak
+flatpak install --user -y https://rtsoft.com/flatpak/com.rtsoft.patchy.flatpakref
 ```
 
-Optional: opening iPhone HEIC photos on Linux uses the shared Freedesktop codec
-extension, which bundle installs do not fetch on their own. Patchy will show this
-command if it is needed:
-
-```sh
-flatpak install --user -y flathub org.freedesktop.Platform.ffmpeg-full//24.08
-```
+Patchy then updates with `flatpak update` or your software center. The downloadable
+bundle installs with `flatpak install --user -y PatchyLinux.flatpak` and updates the
+same way.
 
 ## Screenshots
 
@@ -107,19 +104,19 @@ and Affinity import has format-specific limitations. See [current compatibility]
 
 ## What's New
 
+### 1.05 - October 4, 2026
+
+- Linux: Patchy now updates through `flatpak update` and the software center, from a signed Flatpak repository (issue 28). The Flatpak moved to the current KDE runtime, and iPhone HEIC photos open without installing an extra codec package
+- Open from Clipboard: File > Open from Clipboard (Ctrl+Alt+Shift+N) opens the copied image as a new document
+- Clicking a palette swatch recolors the selected text and shape layers (issue 61)
+- Fixed a freeze on KDE when a drag crossed the layer action buttons (issue 62)
+
 ### 1.04 - October 3, 2026
 
 - Edit shape appearance and layer styles across selected layers, with mixed-value indicators, live previews, and one undo step per edit
 - Merge selected vectors into one editable vector layer, with a preview and a choice to remove layer effects or use the effects from one source layer
 - Fixed caps on inside and outside dashed vector strokes, and pattern thumbnails in Shape Appearance
 - Windows installer: clearer status spacing and a visible version number
-
-### 1.03 - October 2, 2026
-
-- Animated WebP import and export: open frames as layers, preview their timing, and export layers as an animation, with lossless output, partial transparency, and loop counts
-- Four more interface languages: Brazilian Portuguese, Russian, Polish, and Korean, plus translation improvements across all twelve languages
-- PSD compatibility: fixed legacy gradient fills and empty layer masks
-- Text fonts: clearer notices when an installed font cannot draw the text, and scripting warns whenever a requested font is replaced
 
 
 [Older releases](RELEASE-HISTORY.md)

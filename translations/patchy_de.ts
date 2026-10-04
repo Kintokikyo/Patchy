@@ -8281,10 +8281,6 @@ RGB: %2, %3, %4</translation>
         <translation>Auch jede einzelne Ebene auf den Leinwandbereich zuschneiden</translation>
     </message>
     <message>
-        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</source>
-        <translation>Dieses HEIC-Bild kann nicht dekodiert werden. Die HEIC-Dekodierung benötigt die Flatpak-Codec-Erweiterung. Installieren Sie sie mit: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</translation>
-    </message>
-    <message>
         <source>Create Ellipse</source>
         <translation>Ellipse erstellen</translation>
     </message>
@@ -8860,6 +8856,10 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Pattern settings apply to %1 of %2 editable layers.</source>
         <translation>Mustereinstellungen gelten für %1 von %2 bearbeitbaren Ebenen.</translation>
+    </message>
+    <message>
+        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</source>
+        <translation>Dieses HEIC-Bild kann nicht dekodiert werden. Die HEIC-Dekodierung benötigt die Flatpak-Codec-Erweiterung. Installieren Sie sie mit: flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</translation>
     </message>
 </context>
 <context>

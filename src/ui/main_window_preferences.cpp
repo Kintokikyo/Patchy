@@ -814,11 +814,14 @@ void MainWindow::show_preferences() {
 
 #ifndef Q_OS_WASM
   // The web build has no update check to configure: the deployed site is
-  // always the current version.
-  auto* update_check = new QCheckBox(tr("Check for updates on startup"), application_group);
-  update_check->setObjectName(QStringLiteral("preferencesCheckForUpdatesCheck"));
-  update_check->setChecked(settings.value(QStringLiteral("updates/checkOnStartup"), true).toBool());
-  application_form->addRow(update_check);
+  // always the current version. A store build has none either (the store updates it).
+  QCheckBox* update_check = nullptr;
+  if (update_checks_available()) {
+    update_check = new QCheckBox(tr("Check for updates on startup"), application_group);
+    update_check->setObjectName(QStringLiteral("preferencesCheckForUpdatesCheck"));
+    update_check->setChecked(settings.value(QStringLiteral("updates/checkOnStartup"), true).toBool());
+    application_form->addRow(update_check);
+  }
   // Automatic document recovery (docs/document-recovery.md): a checkbox and the
   // interval combo on one row, the way Photoshop's File Handling page lays it out.
   auto* recovery_row = new QWidget(application_group);
@@ -1573,7 +1576,9 @@ void MainWindow::show_preferences() {
     const auto new_grid_spacing_32 =
         std::clamp(static_cast<int>(std::lround(grid_spacing_spin->value() * 32.0)), 1, 320000);
 #ifndef Q_OS_WASM
-    settings.setValue(QStringLiteral("updates/checkOnStartup"), update_check->isChecked());
+    if (update_check != nullptr) {
+      settings.setValue(QStringLiteral("updates/checkOnStartup"), update_check->isChecked());
+    }
     set_stored_recovery_enabled(recovery_check->isChecked());
     set_stored_recovery_interval_minutes(recovery_combo->currentData().toInt());
     apply_recovery_preferences();

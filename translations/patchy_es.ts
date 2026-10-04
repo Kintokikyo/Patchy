@@ -8281,10 +8281,6 @@ RGB: %2, %3, %4</translation>
         <translation>Recortar también cada capa al área del lienzo</translation>
     </message>
     <message>
-        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</source>
-        <translation>No se puede descodificar esta imagen HEIC. La descodificación de HEIC necesita la extensión de códecs de Flatpak; instálela con: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</translation>
-    </message>
-    <message>
         <source>Create Ellipse</source>
         <translation>Crear elipse</translation>
     </message>
@@ -8860,6 +8856,10 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Pattern settings apply to %1 of %2 editable layers.</source>
         <translation>Los ajustes de motivo se aplican a %1 de %2 capas editables.</translation>
+    </message>
+    <message>
+        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</source>
+        <translation>No se puede descodificar esta imagen HEIC. La descodificación de HEIC necesita la extensión de códecs de Flatpak; instálela con: flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</translation>
     </message>
 </context>
 <context>

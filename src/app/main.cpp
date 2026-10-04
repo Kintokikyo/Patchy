@@ -364,7 +364,7 @@ int main(int argc, char* argv[]) {
   }
 #endif
 #ifdef Q_OS_LINUX
-  // Qt 6.8 loads Flatpak's portal theme even with the offscreen platform. Its
+  // Qt loads Flatpak's portal theme even with the offscreen platform. Its
   // synchronous appearance query can block startup on an absent desktop portal,
   // before MCP can observe client EOF. Offscreen runs need no desktop session
   // services; an unsupported D-Bus transport fails immediately without autolaunch.
