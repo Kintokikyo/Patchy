@@ -2255,11 +2255,22 @@ bool MainWindow::handle_layer_action_button_drag_event(QObject* watched, QEvent*
                                 event->type() == QEvent::Drop || event->type() == QEvent::DragLeave);
   }
 
+  // Never repolish the button from inside this filter. A style whose polish()
+  // installs event filters (KDE's Breeze) moves them ahead of this one, so Qt's
+  // filter loop reaches this filter again for the same event; repolishing on
+  // every pass never ends (GitHub issue 62: on Wayland a dock drag is a real
+  // QDrag, so dragging a panel across these buttons froze Patchy on KDE).
+  // Repolish only on a change, one event-loop hop later.
   const auto set_drop_active = [button](bool active) {
+    if (button->property("layerDropActive").toBool() == active) {
+      return;
+    }
     button->setProperty("layerDropActive", active);
-    button->style()->unpolish(button);
-    button->style()->polish(button);
-    button->update();
+    QTimer::singleShot(0, button, [button] {
+      button->style()->unpolish(button);
+      button->style()->polish(button);
+      button->update();
+    });
   };
   const auto hide_tooltip = [] {
     QToolTip::hideText();

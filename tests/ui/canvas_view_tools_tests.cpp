@@ -136,6 +136,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QPointer>
+#include <QProxyStyle>
 #include <QPolygonF>
 #include <QThread>
 #include <QPaintEvent>
@@ -3732,6 +3733,57 @@ void ui_tabbed_dock_title_drag_floats_single_dock() {
   CHECK(layers_dock->isFloating());
 }
 
+// Stands in for KDE's Breeze: polishing a widget installs an event filter on it,
+// which Qt puts ahead of the filters already there. The reinstall is capped so
+// a regression fails the test instead of hanging the suite.
+class FilterInstallingStyle : public QProxyStyle {
+public:
+  using QProxyStyle::polish;
+  void polish(QWidget* widget) override {
+    QProxyStyle::polish(widget);
+    ++polish_count;
+    if (polish_count < 200) {
+      widget->removeEventFilter(&probe_);
+      widget->installEventFilter(&probe_);
+    }
+  }
+  int polish_count = 0;
+
+private:
+  QObject probe_;
+};
+
+void ui_layer_action_button_foreign_drag_never_repolishes_in_filter() {
+  // GitHub issue 62: on Wayland a dock drag is a real QDrag, so the layer
+  // action buttons see drag events that carry no layers. Repolishing the
+  // button from inside its event filter froze Patchy under Breeze, whose
+  // polish() reinstalls filters and sends Qt's filter loop back to Patchy's.
+  FilterInstallingStyle style;
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* button = window.findChild<QPushButton*>(QStringLiteral("layerNewButton"));
+  CHECK(button != nullptr);
+  CHECK(button->property("layerDropAction").isValid());
+  button->setEnabled(true);
+  button->setStyle(&style);
+  QApplication::processEvents();
+  style.polish_count = 0;
+
+  QMimeData dock_drag;
+  dock_drag.setData(QStringLiteral("application/x-qt-mainwindowdrag-window"), QByteArray("1"));
+  QDragEnterEvent enter(button->rect().center(), Qt::MoveAction, &dock_drag, Qt::LeftButton, Qt::NoModifier);
+  QApplication::sendEvent(button, &enter);
+  QDragMoveEvent move(button->rect().center(), Qt::MoveAction, &dock_drag, Qt::LeftButton, Qt::NoModifier);
+  QApplication::sendEvent(button, &move);
+  QDragLeaveEvent leave;
+  QApplication::sendEvent(button, &leave);
+  CHECK(style.polish_count == 0);
+  CHECK(!button->property("layerDropActive").toBool());
+  QApplication::processEvents();
+  CHECK(style.polish_count == 0);
+  button->setStyle(nullptr);
+}
+
 void ui_dock_group_window_drags_by_blank_chrome() {
   // Qt's floating dock tab-group window has no grabbable chrome: the blank
   // strip beside the tabs must move the window, presses on the widened frame
@@ -3936,6 +3988,8 @@ std::vector<patchy::test::TestCase> canvas_view_tools_tests() {
       {"ui_tabbed_right_dock_drags_out_by_tab", ui_tabbed_right_dock_drags_out_by_tab},
       {"ui_floating_right_dock_auto_expands", ui_floating_right_dock_auto_expands},
       {"ui_tabbed_dock_title_drag_floats_single_dock", ui_tabbed_dock_title_drag_floats_single_dock},
+      {"ui_layer_action_button_foreign_drag_never_repolishes_in_filter",
+       ui_layer_action_button_foreign_drag_never_repolishes_in_filter},
       {"ui_dock_group_window_drags_by_blank_chrome", ui_dock_group_window_drags_by_blank_chrome},
       {"ui_menu_disabled_items_render_grayed", ui_menu_disabled_items_render_grayed},
   };
