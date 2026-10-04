@@ -138,6 +138,7 @@
           <li>Patchy now updates through flatpak update and the software center, from a signed repository</li>
           <li>Open from Clipboard: File menu command that opens the copied image as a new document</li>
           <li>Clicking a palette swatch recolors the selected text and shape layers</li>
+          <li>Type tool: press on a text layer and drag to select text in one gesture</li>
           <li>Fixed a freeze on KDE when a drag crossed the layer action buttons</li>
         </ul>
       </description>
