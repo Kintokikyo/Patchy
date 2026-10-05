@@ -151,6 +151,20 @@ artifact directories through the entry's `dir` key (`x~psb`). The core test
 `psd_tools_corpus_reads_and_round_trips_if_available` covers the same files
 without Photoshop.
 
+## Publishing a run as a static site
+
+`python testy\export_static.py <run name>` writes `testy/public/<run name>/` (gitignored):
+`index.html` (a short overview with the editor versions), `report.html`, `status.json`,
+`results.json` and every image the report links to. Copy that one folder to any web
+host; it needs no server code. Off the Testy server the report hides its run controls,
+stops polling once the run is finished, and its Back link goes to the folder's own
+`index.html`. The export leaves out every .psd/.psb (the corpus is third-party work and
+the report does not need the files) and the cache-free leg's working renders, turns
+each file's source into its path below the corpus folder, replaces this machine's
+folders inside error messages with `<run>`, `<patchy>` and `<home>`, and refuses to
+write if a local path is still left. It only ever replaces a folder an earlier export
+made (`testy-export.txt` marks it). Nothing is uploaded by the tool.
+
 ## Scan mode
 
 `--scan` (or the panel's "scan: keep only flagged" checkbox) turns a run into a
@@ -364,6 +378,7 @@ testy/
   manifest.py        original-vs-resave structural diff
   report.py          status.json + live report.html + history
   rerun.py           one-image updates and previous-result snapshots
+  export_static.py   one finished run as a folder a plain web host can serve
   affinity_js.py     MCP/JS client for the Affinity app (also reused by .af tooling)
   win_dialogs.py     modal-dialog guard for scripted apps (--selftest included)
   drivers/           one per editor: photoshop (COM, --selftest included), patchy,

@@ -170,8 +170,13 @@ let rowRerunError = "";
 const rowRerunScopes = {};
 // The Back link only makes sense while the Testy server is serving this page; a
 // frozen report.html opened from disk has no control panel at "/" to go back to.
-if (location.protocol === "http:" || location.protocol === "https:")
-  document.getElementById("back-link").style.display = "";
+if (location.protocol === "http:" || location.protocol === "https:") {
+  const back = document.getElementById("back-link");
+  back.style.display = "";
+  // A copy published by export_static.py sits beside its own index.html, on a host
+  // whose "/" is somebody's home page, not the Testy control panel.
+  if (!RUN_ID) { back.href = "index.html"; back.title = "back to the overview"; }
+}
 
 function pct(x, digits) { return (100 * x).toFixed(digits === undefined ? 1 : digits) + "%"; }
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g,
@@ -1157,6 +1162,8 @@ async function tick() {
     }
   }
   if (S) render();
+  // A finished run on a plain web host never changes: stop asking for it.
+  if (!RUN_ID && S && S.state !== "running") return;
   tickTimer = setTimeout(tick, (rowRerunState && rowRerunState.state === "running") || (S && S.state === "running") ? 1200 : 5000);
 }
 

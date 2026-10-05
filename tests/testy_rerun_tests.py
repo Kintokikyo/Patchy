@@ -572,6 +572,66 @@ class RerunTests(unittest.TestCase):
             self.assertFalse(output.exists())
             self.assertEqual([p.name for p in root.iterdir()], [])
 
+    def test_static_export_is_self_contained_and_names_nothing_local(self):
+        import export_static
+        from PIL import Image
+
+        with tempfile.TemporaryDirectory() as temp:
+            run_dir = Path(temp) / "runs" / "20260101-000000"
+            cell_dir = run_dir / "files" / "art" / "gimp"
+            cell_dir.mkdir(parents=True)
+            Image.new("RGB", (2, 2)).save(cell_dir / "render.png")
+            (cell_dir / "resave.psd").write_bytes(b"8BPS")
+            (cell_dir / "nocache_plain.png").write_bytes(b"not linked")
+            corpus = str(ROOT / "local-test-fixtures" / "set")
+            status = {
+                "state": "done",
+                "run": {"name": "20260101-000000", "editorOrder": ["gimp"], "startedAt": "a", "finishedAt": "b"},
+                "editors": {"gimp": {"displayName": "GIMP", "version": "3.2"}},
+                "files": [
+                    {"name": "art.psd", "source": corpus + "\\layers\\art.psd",
+                     "groundTruth": {"state": "done", "artifacts": {}},
+                     "cells": {"gimp": {"state": "failed",
+                                        "error": "could not open (" + str(run_dir / "files" / "art") + "/x.psd)",
+                                        "artifacts": {"render": "files/art/gimp/render.png",
+                                                      "resavePsd": "files/art/gimp/resave.psd",
+                                                      "gone": "files/art/gimp/missing.png"}}}},
+                    {"name": "b.psd", "source": corpus + "\\masks\\b.psd", "cells": {}},
+                ],
+            }
+            (run_dir / "status.json").write_text(json.dumps(status), encoding="utf-8")
+            (run_dir / "report.html").write_text("old page", encoding="utf-8")
+            out = Path(temp) / "public"
+            summary = export_static.export_run(run_dir, out, "A title <here>")
+            self.assertEqual((summary["images"], summary["missing"], summary["files"]), (1, 1, 2))
+            exported = json.loads((out / "status.json").read_text(encoding="utf-8"))
+            # Sources keep the folder below the common one, so "By folder" still groups.
+            self.assertEqual([f["source"] for f in exported["files"]], ["set/layers/art.psd", "set/masks/b.psd"])
+            cell = exported["files"][0]["cells"]["gimp"]
+            self.assertNotIn("resavePsd", cell["artifacts"])
+            self.assertIn("<run>", cell["error"])
+            self.assertEqual(export_static.private_strings(exported), [])
+            names = sorted(p.relative_to(out).as_posix() for p in out.rglob("*") if p.is_file())
+            self.assertEqual(names, ["files/art/gimp/render.png", "index.html", "report.html", "status.json",
+                                     "testy-export.txt"])
+            self.assertIn("A title &lt;here&gt;", (out / "index.html").read_text(encoding="utf-8"))
+            self.assertIn('href="report.html"', (out / "index.html").read_text(encoding="utf-8"))
+            # The page is the current one, which stops polling and links back to the index.
+            page = (out / "report.html").read_text(encoding="utf-8")
+            self.assertIn('back.href = "index.html"', page)
+            self.assertIn("if (!RUN_ID && S && S.state !== \"running\") return;", page)
+            # It replaces its own earlier output, and nothing else.
+            export_static.export_run(run_dir, out, "Again")
+            other = Path(temp) / "mine"
+            other.mkdir()
+            (other / "keep.txt").write_text("x", encoding="utf-8")
+            with self.assertRaises(SystemExit):
+                export_static.export_run(run_dir, other, "No")
+            self.assertTrue((other / "keep.txt").exists())
+            # A leftover local path anywhere stops the export.
+            status["editors"]["gimp"]["notes"] = [str(Path.home() / "Desktop" / "x")]
+            self.assertTrue(export_static.private_strings(status))
+
     def test_reference_cache_key_follows_what_the_reference_re_renders(self):
         import psd_sections
 
