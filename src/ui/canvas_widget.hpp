@@ -2109,6 +2109,7 @@ private:
   QPointF path_drag_origin_document_{};
   QPointF path_drag_raw_document_{};
   QPointF path_drag_applied_delta_{};
+  std::optional<QRectF> path_drag_snap_source_rect_;
   QPointF path_marquee_start_{};
   QPointF path_marquee_current_{};
   // Last raw pointer position of the marquee drag; Shift key toggles replay
