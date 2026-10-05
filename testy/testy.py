@@ -977,6 +977,25 @@ def _file_size(path: Path) -> int | None:
         return None
 
 
+def file_traits(path: Path) -> dict | None:
+    """What the report's "known limitations" switch keys on: the PSD header's bit
+    depth and color mode, and whether any layer carries artboard data. None for a
+    source that is gone or is not a PSD/PSB."""
+    try:
+        data = path.read_bytes()
+    except OSError:
+        return None
+    if len(data) < 26 or data[:4] != b"8BPS":
+        return None
+    traits = {"depth": int.from_bytes(data[22:24], "big"),
+              "mode": int.from_bytes(data[24:26], "big")}
+    # Artboard groups carry an 'artb' (or older 'artd') tagged block.
+    if any(signature + key in data for signature in (b"8BIM", b"8B64")
+           for key in (b"artb", b"artd")):
+        traits["artboards"] = True
+    return traits
+
+
 class Runner:
     def __init__(self, args: argparse.Namespace) -> None:
         global _in_process_run_dir
@@ -1066,6 +1085,7 @@ class Runner:
                     "name": path.name,
                     "source": str(path),
                     "sizeBytes": _file_size(path),
+                    "traits": file_traits(path),
                     "groundTruth": {"state": "pending"},
                     "cells": {key: {"state": "pending"} for key in self.editor_order},
                 }
@@ -1817,6 +1837,8 @@ class Runner:
             # per file fills them in, so a resume upgrades the whole report.
             if entry.get("sizeBytes") is None:
                 entry["sizeBytes"] = _file_size(Path(entry["source"]))
+            if "traits" not in entry:
+                entry["traits"] = file_traits(Path(entry["source"]))
         self.push()
 
     def _file_complete(self, entry: dict) -> bool:

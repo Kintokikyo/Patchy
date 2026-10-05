@@ -144,7 +144,8 @@ Useful flags:
 into `local-test-fixtures/psd-tools` and writes `testy/corpus/psd-tools.txt`; run
 it with `--corpus corpus\psd-tools.txt` (relative to `testy/`). A multi-folder corpus gets a "By folder" table above
 the matrix (matches, data kept, bad saves per editor); clicking a
-row filters the matrix. Files sharing a stem (`x.psd` beside `x.psb`) get distinct
+row filters the matrix. The "Score without known limitations" checkbox drops
+16/32-bit and artboard files (entry `traits`) from the totals. Files sharing a stem (`x.psd` beside `x.psb`) get distinct
 artifact directories through the entry's `dir` key (`x~psb`). The core test
 `psd_tools_corpus_reads_and_round_trips_if_available` covers the same files
 without Photoshop.
@@ -176,8 +177,6 @@ after a Patchy fix skips the slow Photoshop leg.
 
 A paused scan resumes normally: files already given their verdict are not
 re-scrubbed or re-flagged, and `flagged.txt` is written once at true completion.
-One benign loss: cells finished just before the pause in a partially-done file stay
-in the report but are not cell-cached.
 
 ## What each cell measures
 

@@ -116,6 +116,9 @@ _PAGE = r"""<!DOCTYPE html>
   .copyable { cursor: pointer; border-bottom: 1px dotted var(--dim); }
   .copyable:hover { color: var(--accent); }
   .copied-flash { color: var(--good); font-size: 11px; margin-left: 6px; }
+  #known-toggle { padding: 0 22px 10px; font-size: 12px; color: var(--dim); }
+  #known-toggle label { cursor: pointer; color: var(--text); }
+  tr.known-limit td.file b { color: var(--dim); }
   #groups { margin: 0 0 18px; }
   #groups h2 { font-size: 14px; margin: 0 0 6px; }
   #groups table { border-collapse: collapse; font-size: 12px; }
@@ -140,6 +143,7 @@ _PAGE = r"""<!DOCTYPE html>
   <span id="run-controls"></span>
 </header>
 <div id="summary"></div>
+<div id="known-toggle"></div>
 <main>
   <section id="groups"></section>
   <table class="matrix"><thead id="matrix-head"></thead><tbody id="matrix-body"></tbody></table>
@@ -252,6 +256,34 @@ function groupRollup(files, groups, editors, badFraction, limit) {
   return out;
 }
 
+// Files exercising things Patchy deliberately does not do: 16/32-bit documents (it
+// converts to 8-bit on open) and artboards. The header switch leaves them out of
+// every editor's totals, so the scores read as "of the files in scope".
+function knownLimit(f) {
+  const t = f.traits;
+  if (!t) return "";
+  const why = [];
+  if (t.depth > 8) why.push(t.depth + "-bit");
+  if (t.artboards) why.push("artboards");
+  return why.join(", ");
+}
+let skipKnown = false;
+try { skipKnown = localStorage.getItem("testy.skipKnown") === "1"; } catch (e) {}
+function setSkipKnown(on) {
+  skipKnown = !!on;
+  try { localStorage.setItem("testy.skipKnown", skipKnown ? "1" : "0"); } catch (e) {}
+  render();
+}
+function scoredFiles() { return skipKnown ? S.files.filter(f => !knownLimit(f)) : S.files; }
+function renderKnownToggle() {
+  const box = document.getElementById("known-toggle");
+  const known = S.files.filter(f => knownLimit(f)).length;
+  if (!S.files.some(f => f.traits)) { box.innerHTML = ""; return; }
+  box.innerHTML = '<label><input type="checkbox"' + (skipKnown ? " checked" : "") +
+    ' onchange="setSkipKnown(this.checked)"> Score without known limitations</label> (16/32-bit and artboard files: ' +
+    known + " of " + S.files.length + (skipKnown ? ", left out of the totals above and the folder table" : "") + ")";
+}
+
 let groupFilter = null;
 function pickGroup(index) {
   const names = [...new Set(fileGroups(S.files))].sort();
@@ -263,7 +295,10 @@ function renderGroups(groups, editors) {
   const box = document.getElementById("groups");
   const names = [...new Set(groups)].sort();
   if (names.length < 2) { box.innerHTML = ""; groupFilter = null; return; }
-  const roll = groupRollup(S.files, groups, editors, compareBadFraction, poorMatchLimit());
+  const scored = S.files.map((f, i) => i).filter(i => !(skipKnown && knownLimit(S.files[i])));
+  const roll = groupRollup(scored.map(i => S.files[i]), scored.map(i => groups[i]), editors,
+                           compareBadFraction, poorMatchLimit());
+  names.forEach(name => { roll[name] = roll[name] || { files: 0, editors: {} }; });
   const cell = a => {
     if (!a || !a.total) return "<td>-</td>";
     const failed = a.total - a.opened;
@@ -577,16 +612,19 @@ function render() {
     const revision = latest ? '<div class="nums">Updated ' + esc(latest.at) + ' (' +
       Object.entries(latest.editors).map(([k, v]) => esc(v.displayName || k) + ' ' + esc(v.version || '?')).join(', ') +
       ') · <a href="' + esc(artUrl(latest.previous)) + '" target="_blank">Previous results</a></div>' : "";
-    return "<tr><td class='file'><b class='copyable' title='" + esc(f.source) +
+    const limit = knownLimit(f);
+    const limitNote = limit ? '<div class="nums">known limitation: ' + esc(limit) + "</div>" : "";
+    return "<tr" + (limit ? " class='known-limit'" : "") + "><td class='file'><b class='copyable' title='" + esc(f.source) +
       " (click to copy path)' onclick='copyPath(" + fi + ", this)'>" + esc(f.name) + "</b>" +
-      '<div class="nums">' + fileFacts(f) + "</div>" + gtNote + scanNote + revision + rerunRowControls(f, fi) + "</td>" +
+      '<div class="nums">' + fileFacts(f) + "</div>" + limitNote + gtNote + scanNote + revision + rerunRowControls(f, fi) + "</td>" +
       editors.map(k => "<td class='cell' onclick='openDetail(" + fi + ",\"" + k + "\")'>" +
                        cellSummary((f.cells || {})[k], (f.cells || {}).photoshop) + "</td>").join("") + "</tr>";
   }).join("");
 
   const agg = {};
   editors.forEach(k => agg[k] = { opened: 0, total: 0, badSaves: 0, acc: [], vis: [], native: [], text: [0, 0], adj: [0, 0], smart: [0, 0], fx: [0, 0] });
-  S.files.forEach(f => editors.forEach(k => {
+  renderKnownToggle();
+  scoredFiles().forEach(f => editors.forEach(k => {
     const c = (f.cells || {})[k];
     if (!c || c.state === "pending" || c.state === "running" || c.state === "skipped") return;
     const a = agg[k];

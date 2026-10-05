@@ -209,6 +209,18 @@ class RerunTests(unittest.TestCase):
         self.assertEqual(resolved, ['x', 'x~psb', 'X~psd', 'x~2', 'y'])
         self.assertEqual(len({r.lower() for r in resolved}), len(resolved))
 
+    def test_file_traits_read_depth_mode_and_artboards(self):
+        header = b'8BPS' + (1).to_bytes(2, 'big') + bytes(6) + (3).to_bytes(2, 'big') + bytes(8)
+        plain = self.runs / 'plain.psd'
+        plain.write_bytes(header + (8).to_bytes(2, 'big') + (3).to_bytes(2, 'big') + bytes(32))
+        deep = self.runs / 'deep.psb'
+        deep.write_bytes(header + (32).to_bytes(2, 'big') + (1).to_bytes(2, 'big') + b'....8B64artb....')
+        self.assertEqual(testy.file_traits(plain), {'depth': 8, 'mode': 3})
+        self.assertEqual(testy.file_traits(deep), {'depth': 32, 'mode': 1, 'artboards': True})
+        self.assertIsNone(testy.file_traits(self.runs / 'missing.psd'))
+        (self.runs / 'not.psd').write_bytes(b'not a psd at all, but long enough')
+        self.assertIsNone(testy.file_traits(self.runs / 'not.psd'))
+
     def test_psdtools_column_is_opt_in_and_names_missing_packages(self):
         from drivers import psdtools
         self.assertNotIn('psdtools', testy.DEFAULT_EDITORS)
@@ -312,6 +324,15 @@ const rolled = groupRollup(groupFiles, groupNames, ['patchy'], c => c.bad == nul
 assert.deepEqual(rolled[TOP_GROUP].editors.patchy, {total:1,opened:1,matched:1,compared:1,badSaves:0,native:[1]});
 assert.equal(rolled.fx.files, 3);
 assert.deepEqual(rolled.fx.editors.patchy, {total:2,opened:1,matched:0,compared:1,badSaves:1,native:[0.5]});
+"""
+        known = script.split('function knownLimit', 1)[1].split('let skipKnown', 1)[0]
+        test_js += 'function knownLimit' + known + """
+assert.equal(knownLimit({}), '');
+assert.equal(knownLimit({traits:{depth:8,mode:3}}), '');
+assert.equal(knownLimit({traits:{depth:1,mode:0}}), '');
+assert.equal(knownLimit({traits:{depth:16,mode:3}}), '16-bit');
+assert.equal(knownLimit({traits:{depth:32,mode:3,artboards:true}}), '32-bit, artboards');
+assert.equal(knownLimit({traits:{depth:8,mode:3,artboards:true}}), 'artboards');
 """
         js_file.write_text(test_js, encoding='utf-8')
         result = subprocess.run(['node', str(js_file)], capture_output=True, text=True)
