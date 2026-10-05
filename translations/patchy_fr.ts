@@ -8881,6 +8881,18 @@ RVB : %2, %3, %4</translation>
         <source>Lab PSD file must contain at least 3 channels</source>
         <translation>Un fichier PSD Lab doit contenir au moins 3 couches</translation>
     </message>
+    <message>
+        <source>This file uses a color mode Patchy does not edit in (Bitmap, Indexed, Duotone, Lab or Multichannel). Patchy converted it to RGB for editing, and saving writes an RGB file. Keep the original if you need its color mode.</source>
+        <translation>Ce fichier utilise un mode colorimétrique dans lequel Patchy ne travaille pas (Bitmap, Couleurs indexées, Bichromie, Lab ou Multicouche). Patchy l&apos;a converti en RVB pour l&apos;édition, et l&apos;enregistrement écrit un fichier RVB. Conservez l&apos;original si vous avez besoin de son mode colorimétrique.</translation>
+    </message>
+    <message>
+        <source>This CMYK file has adjustment layers that act on its CMYK inks. Patchy shows them that way, but it saves RGB files: in a saved file those layers are applied to RGB and the colors will look different. Keep the original, or merge those layers before saving.</source>
+        <translation>Ce fichier CMJN contient des calques de réglage qui agissent sur ses encres CMJN. Patchy les affiche ainsi, mais il enregistre des fichiers RVB : dans un fichier enregistré, ces calques sont appliqués au RVB et les couleurs seront différentes. Conservez l&apos;original ou fusionnez ces calques avant d&apos;enregistrer.</translation>
+    </message>
+    <message>
+        <source>%1 came from a CMYK document and adjusts its CMYK inks here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its colors will look different.</source>
+        <translation>%1 provient d&apos;un document CMJN et règle ici ses encres CMJN. Patchy enregistre des fichiers RVB : dans le fichier enregistré, Photoshop et Patchy l&apos;appliquent au RVB et ses couleurs seront différentes.</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

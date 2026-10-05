@@ -8851,6 +8851,18 @@ Mixed selection</source>
         <source>Lab PSD file must contain at least 3 channels</source>
         <translation>Lab の PSD ファイルには少なくとも 3 つのチャンネルが必要です</translation>
     </message>
+    <message>
+        <source>This file uses a color mode Patchy does not edit in (Bitmap, Indexed, Duotone, Lab or Multichannel). Patchy converted it to RGB for editing, and saving writes an RGB file. Keep the original if you need its color mode.</source>
+        <translation>このファイルは Patchy が編集に使わないカラーモード（モノクロ 2 階調、インデックスカラー、ダブルトーン、Lab、マルチチャンネル）を使用しています。編集のために RGB に変換され、保存すると RGB ファイルになります。元のカラーモードが必要な場合は元のファイルを残してください。</translation>
+    </message>
+    <message>
+        <source>This CMYK file has adjustment layers that act on its CMYK inks. Patchy shows them that way, but it saves RGB files: in a saved file those layers are applied to RGB and the colors will look different. Keep the original, or merge those layers before saving.</source>
+        <translation>この CMYK ファイルには、CMYK インキに作用する調整レイヤーがあります。Patchy ではそのとおりに表示されますが、保存されるのは RGB ファイルです。保存したファイルではこれらのレイヤーが RGB に適用され、色が変わります。元のファイルを残すか、保存前にこれらのレイヤーを結合してください。</translation>
+    </message>
+    <message>
+        <source>%1 came from a CMYK document and adjusts its CMYK inks here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its colors will look different.</source>
+        <translation>%1 は CMYK ドキュメントのもので、ここでは CMYK インキに対して調整されます。Patchy は RGB ファイルを保存するため、保存したファイルでは Photoshop でも Patchy でも RGB に適用され、色が変わります。</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

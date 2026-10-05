@@ -94,6 +94,7 @@ endif()
 add_library(patchy_core
   src/core/gradient_presets.cpp
   src/core/adjustment_layer.cpp
+  src/core/ink_space.cpp
   src/core/blend_math.cpp
   src/core/brush_dynamics.cpp
   src/core/brush_tip.cpp

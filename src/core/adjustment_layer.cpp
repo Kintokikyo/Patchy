@@ -111,7 +111,13 @@ std::optional<CurvesAdjustment> metadata_curves_adjustment(const Layer& layer) {
   if (!rgb.has_value() || !red.has_value() || !green.has_value() || !blue.has_value()) {
     return std::nullopt;
   }
-  return CurvesAdjustment{*rgb, *red, *green, *blue};
+  auto curves = CurvesAdjustment{*rgb, *red, *green, *blue};
+  if (const auto black = parse_curve_control_points(
+          metadata_string_or(layer, kLayerMetadataAdjustmentCurvesBlackPoints, {}));
+      black.has_value()) {
+    curves.black_ink = *black;
+  }
+  return curves;
 }
 
 // "r0;r1;r2;r3;hue;saturation;lightness". A malformed or missing value leaves
@@ -1201,6 +1207,13 @@ std::optional<AdjustmentSettings> adjustment_settings_from_layer(const Layer& la
                                 kLayerMetadataAdjustmentLevelsBlueGammaPercent,
                                 kLayerMetadataAdjustmentLevelsBlueBlackOutput,
                                 kLayerMetadataAdjustmentLevelsBlueWhiteOutput);
+  settings.levels.black_ink =
+      metadata_levels_record_or(layer, kLayerMetadataAdjustmentLevelsBlackInkBlackInput,
+                                kLayerMetadataAdjustmentLevelsBlackInkWhiteInput,
+                                kLayerMetadataAdjustmentLevelsBlackInkGammaPercent,
+                                kLayerMetadataAdjustmentLevelsBlackInkBlackOutput,
+                                kLayerMetadataAdjustmentLevelsBlackInkWhiteOutput);
+  settings.ink_space = find_ink_space(metadata_string_or(layer, kLayerMetadataAdjustmentInkSpace, {}));
   settings.curves = curves_adjustment_from_legacy_outputs(
       metadata_int_or(layer, kLayerMetadataAdjustmentCurvesShadowOutput, 0),
       metadata_int_or(layer, kLayerMetadataAdjustmentCurvesMidtoneOutput, 128),
@@ -1286,6 +1299,16 @@ void configure_adjustment_layer(Layer& layer, const AdjustmentSettings& settings
                              kLayerMetadataAdjustmentLevelsBlueGammaPercent,
                              kLayerMetadataAdjustmentLevelsBlueBlackOutput,
                              kLayerMetadataAdjustmentLevelsBlueWhiteOutput);
+  // The ink space and the black ink's record are written only for an adjustment that
+  // has them, so layers from RGB documents keep exactly the metadata they always had.
+  if (settings.ink_space != nullptr) {
+    set_metadata_string(layer, kLayerMetadataAdjustmentInkSpace, settings.ink_space->id);
+    set_metadata_levels_record(layer, settings.levels.black_ink, kLayerMetadataAdjustmentLevelsBlackInkBlackInput,
+                               kLayerMetadataAdjustmentLevelsBlackInkWhiteInput,
+                               kLayerMetadataAdjustmentLevelsBlackInkGammaPercent,
+                               kLayerMetadataAdjustmentLevelsBlackInkBlackOutput,
+                               kLayerMetadataAdjustmentLevelsBlackInkWhiteOutput);
+  }
   const auto composite_curve_lut = build_curve_lut(settings.curves.rgb);
   set_metadata_int(layer, kLayerMetadataAdjustmentCurvesShadowOutput, composite_curve_lut[0]);
   set_metadata_int(layer, kLayerMetadataAdjustmentCurvesMidtoneOutput, composite_curve_lut[128]);
@@ -1296,6 +1319,10 @@ void configure_adjustment_layer(Layer& layer, const AdjustmentSettings& settings
     metadata[kLayerMetadataAdjustmentCurvesRedPoints] = serialize_curve_control_points(settings.curves.red);
     metadata[kLayerMetadataAdjustmentCurvesGreenPoints] = serialize_curve_control_points(settings.curves.green);
     metadata[kLayerMetadataAdjustmentCurvesBluePoints] = serialize_curve_control_points(settings.curves.blue);
+    if (settings.ink_space != nullptr) {
+      metadata[kLayerMetadataAdjustmentCurvesBlackPoints] =
+          serialize_curve_control_points(settings.curves.black_ink);
+    }
   } else {
     metadata.erase(kLayerMetadataAdjustmentCurvesRgbPoints);
     metadata.erase(kLayerMetadataAdjustmentCurvesRedPoints);
@@ -1350,7 +1377,98 @@ void configure_adjustment_layer(Layer& layer, const AdjustmentSettings& settings
                    settings.brightness_contrast.use_legacy ? 1 : 0);
 }
 
+namespace {
+
+// One 256-entry transfer per ink for an adjustment that runs in its ink space, built
+// from the same per-channel math the RGB path uses. Cyan, magenta and yellow read the
+// records RGB documents call red, green and blue; the black ink has its own.
+struct InkAdjustmentTables {
+  AdjustmentSettings settings;
+  std::array<std::array<std::uint8_t, 256>, 4> ink{};
+  bool valid{false};
+};
+
+bool same_ink_adjustment(const AdjustmentSettings& a, const AdjustmentSettings& b) {
+  return a.kind == b.kind && a.ink_space == b.ink_space && a.levels == b.levels && a.curves == b.curves &&
+         a.posterize.levels == b.posterize.levels &&
+         a.brightness_contrast.brightness == b.brightness_contrast.brightness &&
+         a.brightness_contrast.contrast == b.brightness_contrast.contrast &&
+         a.brightness_contrast.use_legacy == b.brightness_contrast.use_legacy &&
+         a.exposure.exposure_hundredths == b.exposure.exposure_hundredths &&
+         a.exposure.offset_ten_thousandths == b.exposure.offset_ten_thousandths &&
+         a.exposure.gamma_hundredths == b.exposure.gamma_hundredths;
+}
+
+RgbColor apply_adjustment_on_rgb(RgbColor color, const AdjustmentSettings& settings);
+
+void build_ink_adjustment_tables(InkAdjustmentTables& tables, const AdjustmentSettings& settings) {
+  tables.settings = settings;
+  auto rgb_settings = settings;
+  rgb_settings.ink_space = nullptr;
+  // The black ink goes through the same stages as the others, with its own record: run
+  // it as the "red" channel of a second pass.
+  auto black_settings = rgb_settings;
+  black_settings.levels.red = settings.levels.black_ink;
+  black_settings.curves.red = settings.curves.black_ink;
+  for (int value = 0; value < 256; ++value) {
+    const auto probe = static_cast<std::uint8_t>(value);
+    const auto adjusted = apply_adjustment_on_rgb(RgbColor{probe, probe, probe}, rgb_settings);
+    const auto black = apply_adjustment_on_rgb(RgbColor{probe, probe, probe}, black_settings);
+    tables.ink[0][static_cast<std::size_t>(value)] = adjusted.red;
+    tables.ink[1][static_cast<std::size_t>(value)] = adjusted.green;
+    tables.ink[2][static_cast<std::size_t>(value)] = adjusted.blue;
+    tables.ink[3][static_cast<std::size_t>(value)] = black.red;
+  }
+  tables.valid = true;
+}
+
+RgbColor apply_adjustment_in_ink_space(RgbColor color, const AdjustmentSettings& settings) {
+  // Per render thread, like apply_curves: the single-color hook is called per pixel.
+  thread_local InkAdjustmentTables tables;
+  if (!tables.valid || !same_ink_adjustment(tables.settings, settings)) {
+    build_ink_adjustment_tables(tables, settings);
+  }
+  auto ink = settings.ink_space->ink_from_rgb(color);
+  for (std::size_t channel = 0; channel < ink.size(); ++channel) {
+    ink[channel] = tables.ink[channel][ink[channel]];
+  }
+  return settings.ink_space->rgb_from_ink(ink);
+}
+
+}  // namespace
+
+bool adjustment_runs_in_ink_space(const AdjustmentSettings& settings) noexcept {
+  if (settings.ink_space == nullptr) {
+    return false;
+  }
+  switch (settings.kind) {
+    case AdjustmentKind::Levels:
+    case AdjustmentKind::Curves:
+    case AdjustmentKind::Invert:
+    case AdjustmentKind::Posterize:
+    case AdjustmentKind::BrightnessContrast:
+    case AdjustmentKind::Exposure:
+      return true;
+    // Hue/Saturation, Color Balance and Threshold mix channels; Photoshop's CMYK forms
+    // of them are not modeled, so they stay on the RGB math.
+    case AdjustmentKind::HueSaturation:
+    case AdjustmentKind::ColorBalance:
+    case AdjustmentKind::Threshold:
+      return false;
+  }
+  return false;
+}
+
 RgbColor apply_adjustment_to_color(RgbColor color, const AdjustmentSettings& settings) {
+  if (adjustment_runs_in_ink_space(settings)) {
+    return apply_adjustment_in_ink_space(color, settings);
+  }
+  return apply_adjustment_on_rgb(color, settings);
+}
+
+namespace {
+
+RgbColor apply_adjustment_on_rgb(RgbColor color, const AdjustmentSettings& settings) {
   switch (settings.kind) {
     case AdjustmentKind::Levels:
       return apply_levels(color, settings.levels);
@@ -1391,6 +1509,8 @@ RgbColor apply_adjustment_to_color(RgbColor color, const AdjustmentSettings& set
   return color;
 }
 
+}  // namespace
+
 void apply_adjustment_to_pixels(PixelBuffer& pixels, const AdjustmentSettings& settings) {
   if (pixels.empty() || pixels.format().bit_depth != BitDepth::UInt8 || pixels.format().channels < 3) {
     return;
@@ -1415,6 +1535,10 @@ void apply_adjustment_to_pixels(PixelBuffer& pixels, const AdjustmentSettings& s
 }
 
 std::optional<AdjustmentLut> build_adjustment_lut(const AdjustmentSettings& settings) {
+  // An ink-space adjustment is channel-wise on the inks, not on RGB: no RGB table exists.
+  if (adjustment_runs_in_ink_space(settings)) {
+    return std::nullopt;
+  }
   // Hue/Saturation mixes channels through HSL; Threshold compares the mixed
   // RGB luminance, so a per-channel gray-probe LUT would be wrong for any
   // colored pixel. Both take the per-pixel path.
@@ -1442,7 +1566,8 @@ bool adjustment_has_effect(const AdjustmentSettings& settings) {
     case AdjustmentKind::Levels:
       return levels_record_has_effect(levels_master_record(settings.levels)) ||
              levels_record_has_effect(settings.levels.red) || levels_record_has_effect(settings.levels.green) ||
-             levels_record_has_effect(settings.levels.blue);
+             levels_record_has_effect(settings.levels.blue) ||
+             (settings.ink_space != nullptr && levels_record_has_effect(settings.levels.black_ink));
     case AdjustmentKind::Curves:
       {
         const auto lut = build_curves_lut(settings.curves);

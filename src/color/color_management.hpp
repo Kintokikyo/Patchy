@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/document.hpp"
+#include "core/ink_space.hpp"
 #include "core/layer.hpp"
 
 #include <cstdint>
@@ -49,6 +50,13 @@ private:
   explicit CmykToRgbTransform(std::unique_ptr<Impl> impl);
   std::unique_ptr<Impl> impl_;
 };
+
+// Samples a CMYK ICC profile into the two tables of an InkSpace (core/ink_space.hpp):
+// sRGB to the profile's inks and back, with the same intent and black point compensation
+// as CmykToRgbTransform. `id` names the space in layer metadata. Returns null when the
+// bytes are not a usable CMYK profile or it has no sRGB-to-ink direction.
+[[nodiscard]] std::shared_ptr<const InkSpace> build_cmyk_ink_space(std::span<const std::uint8_t> profile_bytes,
+                                                                   std::string id);
 
 // Converts single-channel gray data to sRGB through an ICC gray profile (Dot Gain 20%,
 // Gray Gamma 2.2, sGray, ...). Inputs use the PSD channel convention: 0 = black,

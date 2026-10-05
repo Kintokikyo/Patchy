@@ -679,6 +679,42 @@ void ui_compatibility_report_treats_levels_as_native_psd_adjustment() {
   CHECK(warnings.isEmpty());
 }
 
+// An adjustment layer read from a CMYK document runs on the inks; saving writes RGB, where
+// the same numbers mean something else, and the report says so.
+void ui_compatibility_report_warns_about_cmyk_ink_adjustments() {
+  auto space = std::make_shared<patchy::InkSpace>();
+  space->id = "test-ink-space";
+  space->rgb_grid = 2;
+  space->ink_grid = 2;
+  space->rgb_to_ink.assign(2U * 2U * 2U * 4U, std::uint16_t{32768});
+  space->ink_to_rgb.assign(2U * 2U * 2U * 2U * 3U, std::uint16_t{32768});
+  patchy::register_ink_space(space);
+
+  const auto warnings_for = [&](patchy::AdjustmentKind kind, bool in_ink_space) {
+    patchy::Document document(60, 40, patchy::PixelFormat::rgb8());
+    document.add_pixel_layer("Background", solid_pixels(60, 40, patchy::PixelFormat::rgb8(), QColor(Qt::white)));
+    patchy::AdjustmentSettings settings;
+    settings.kind = kind;
+    settings.levels.gamma_percent = 150;
+    if (in_ink_space) {
+      settings.ink_space = space;
+    }
+    patchy::Layer adjustment(document.allocate_layer_id(), "Ink Levels", patchy::LayerKind::Adjustment);
+    adjustment.set_bounds(patchy::Rect::from_size(document.width(), document.height()));
+    patchy::configure_adjustment_layer(adjustment, settings);
+    document.add_layer(std::move(adjustment));
+    return patchy::ui::compatibility_warnings_for_document(document);
+  };
+
+  const auto ink = warnings_for(patchy::AdjustmentKind::Levels, true);
+  CHECK(ink.size() == 1);
+  CHECK(!ink.isEmpty() && ink.front().contains(QStringLiteral("Ink Levels")));
+  CHECK(!ink.isEmpty() && ink.front().contains(QStringLiteral("CMYK")));
+  // The same layer in an RGB document, and a kind that stays on RGB math, say nothing.
+  CHECK(warnings_for(patchy::AdjustmentKind::Levels, false).isEmpty());
+  CHECK(warnings_for(patchy::AdjustmentKind::HueSaturation, true).isEmpty());
+}
+
 void ui_compatibility_report_pins_native_vs_private_adjustment_kinds() {
   const auto adjustment_warnings = [](patchy::AdjustmentKind kind) {
     patchy::Document document(120, 90, patchy::PixelFormat::rgb8());
@@ -1978,6 +2014,8 @@ std::vector<patchy::test::TestCase> pickers_notices_hotkeys_tests() {
        ui_compatibility_report_handles_supported_unsupported_and_boundary_blend_if},
       {"ui_compatibility_report_describes_linked_smart_object_updates",
        ui_compatibility_report_describes_linked_smart_object_updates},
+      {"ui_compatibility_report_warns_about_cmyk_ink_adjustments",
+       ui_compatibility_report_warns_about_cmyk_ink_adjustments},
       {"ui_psd_import_notice_reports_unrendered_layer_effects",
        ui_psd_import_notice_reports_unrendered_layer_effects},
       {"ui_psd_import_notice_reports_only_unsupported_blend_if",

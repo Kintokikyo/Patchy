@@ -1654,6 +1654,77 @@ void psd_tools_other_color_modes_open_if_available() {
   CHECK(has_black && has_white);
 }
 
+// Adjustment layers of a CMYK document act on the inks. Photoshop 2026's flatten of
+// psd-tools' levels_cmyk.psd (four masked Levels layers, each with a black-ink record,
+// over a photo and four color ramps; U.S. Web Coated (SWOP) v2 embedded), sampled in each
+// strip. Running the same records on RGB, as Patchy did, is off by 60 and more here.
+void psd_tools_cmyk_levels_run_on_the_inks_if_available() {
+  const auto path = patchy::test::source_root_path() / "local-test-fixtures" / "psd-tools" / "tests" /
+                    "psd_files" / "adjustments" / "levels_cmyk.psd";
+  if (!std::filesystem::exists(path)) {
+    std::cout << "[SKIP] psd-tools collection missing: " << path.string() << '\n';
+    return;
+  }
+  const auto document = patchy::psd::DocumentIo::read_file(path);
+  int ink_adjustments = 0;
+  const std::function<void(const std::vector<patchy::Layer>&)> count = [&](const std::vector<patchy::Layer>& layers) {
+    for (const auto& layer : layers) {
+      if (const auto settings = patchy::adjustment_settings_from_layer(layer); settings.has_value()) {
+        CHECK(settings->kind == patchy::AdjustmentKind::Levels);
+        CHECK(settings->ink_space != nullptr);
+        CHECK(patchy::adjustment_runs_in_ink_space(*settings));
+        // No per-channel RGB table exists for an ink-space adjustment.
+        CHECK(!patchy::build_adjustment_lut(*settings).has_value());
+        ++ink_adjustments;
+      }
+      count(layer.children());
+    }
+  };
+  count(document.layers());
+  CHECK(ink_adjustments == 4);
+
+  const auto flattened = patchy::Compositor{}.flatten_rgb8(document);
+  struct Probe {
+    std::int32_t x;
+    std::int32_t y;
+    int red;
+    int green;
+    int blue;
+  };
+  const std::array<Probe, 16> photoshop{{
+      {25, 40, 0, 44, 40},      {25, 100, 0, 130, 117},    {25, 150, 0, 146, 131},   {25, 185, 237, 28, 43},
+      {75, 40, 179, 184, 219},  {75, 100, 252, 241, 247},  {75, 150, 106, 109, 164}, {75, 185, 238, 29, 37},
+      {125, 40, 213, 178, 175}, {125, 100, 193, 167, 170}, {125, 150, 114, 82, 73},  {125, 185, 243, 108, 34},
+      {175, 40, 67, 54, 55},    {175, 100, 167, 134, 141}, {175, 150, 76, 43, 40},   {175, 185, 239, 64, 47},
+  }};
+  int worst = 0;
+  for (const auto& probe : photoshop) {
+    const auto* px = flattened.pixel(probe.x, probe.y);
+    const auto miss = std::max({std::abs(px[0] - probe.red), std::abs(px[1] - probe.green),
+                                std::abs(px[2] - probe.blue)});
+    if (miss > 12) {
+      std::cout << "[INFO] levels_cmyk " << probe.x << "," << probe.y << " is " << int{px[0]} << ", " << int{px[1]}
+                << ", " << int{px[2]} << " (Photoshop " << probe.red << ", " << probe.green << ", " << probe.blue
+                << ")\n";
+    }
+    worst = std::max(worst, miss);
+  }
+  std::cout << "[INFO] levels_cmyk worst channel miss against Photoshop: " << worst << '\n';
+  CHECK(worst <= 12);
+
+  // A layer that loses its ink space (the id is not registered in this process) falls
+  // back to RGB math instead of failing.
+  auto orphan = patchy::Layer(0, "orphan", patchy::LayerKind::Adjustment);
+  patchy::AdjustmentSettings settings;
+  settings.kind = patchy::AdjustmentKind::Levels;
+  settings.levels.gamma_percent = 150;
+  patchy::configure_adjustment_layer(orphan, settings);
+  orphan.metadata()[patchy::kLayerMetadataAdjustmentInkSpace] = "cmyk-0-0";
+  const auto reread = patchy::adjustment_settings_from_layer(orphan);
+  CHECK(reread.has_value() && reread->ink_space == nullptr);
+  CHECK(reread.has_value() && !patchy::adjustment_runs_in_ink_space(*reread));
+}
+
 // Reads every file of the psd-tools test collection (testy/fetch_psd_tools_corpus.py puts
 // it under local-test-fixtures/psd-tools), then writes each document that loaded and reads
 // the result back. A reader exception is a clean refusal and only counted (the collection
@@ -3106,6 +3177,7 @@ std::vector<patchy::test::TestCase> psd_core_io_tests() {
       {"psd_interface_mock2_loads_if_available", psd_interface_mock2_loads_if_available},
       {"psd_other_color_modes_convert_to_rgb_on_read", psd_other_color_modes_convert_to_rgb_on_read},
       {"psd_tools_other_color_modes_open_if_available", psd_tools_other_color_modes_open_if_available},
+      {"psd_tools_cmyk_levels_run_on_the_inks_if_available", psd_tools_cmyk_levels_run_on_the_inks_if_available},
       {"psd_tools_corpus_reads_and_round_trips_if_available", psd_tools_corpus_reads_and_round_trips_if_available},
       {"psd_tools_group_fill_matches_photoshop_if_available", psd_tools_group_fill_matches_photoshop_if_available},
       {"psd_tools_noise_gradient_fill_survives_resave_if_available",

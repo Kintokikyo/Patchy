@@ -8851,6 +8851,18 @@ RGB: %2, %3, %4</translation>
         <source>Lab PSD file must contain at least 3 channels</source>
         <translation>Lab PSD 파일에는 채널이 3개 이상 포함되어야 합니다.</translation>
     </message>
+    <message>
+        <source>This file uses a color mode Patchy does not edit in (Bitmap, Indexed, Duotone, Lab or Multichannel). Patchy converted it to RGB for editing, and saving writes an RGB file. Keep the original if you need its color mode.</source>
+        <translation>이 파일은 Patchy에서 편집하지 않는 색상 모드(비트맵, 인덱스 색상, 이중톤, Lab 또는 다중 채널)를 사용합니다. 편집을 위해 RGB로 변환되었으며 저장하면 RGB 파일이 됩니다. 원래 색상 모드가 필요하면 원본을 보관하세요.</translation>
+    </message>
+    <message>
+        <source>This CMYK file has adjustment layers that act on its CMYK inks. Patchy shows them that way, but it saves RGB files: in a saved file those layers are applied to RGB and the colors will look different. Keep the original, or merge those layers before saving.</source>
+        <translation>이 CMYK 파일에는 CMYK 잉크에 작용하는 조정 레이어가 있습니다. Patchy는 그대로 표시하지만 RGB 파일로 저장합니다. 저장된 파일에서는 해당 레이어가 RGB에 적용되어 색상이 달라집니다. 원본을 보관하거나 저장하기 전에 해당 레이어를 병합하세요.</translation>
+    </message>
+    <message>
+        <source>%1 came from a CMYK document and adjusts its CMYK inks here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its colors will look different.</source>
+        <translation>%1은(는) CMYK 문서에서 가져온 것으로, 여기서는 CMYK 잉크에 적용됩니다. Patchy는 RGB 파일로 저장하므로 저장된 파일에서는 Photoshop과 Patchy 모두 RGB에 적용하여 색상이 달라집니다.</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

@@ -28,6 +28,7 @@
 #include <climits>
 #include <cstdlib>
 #include <fstream>
+#include <functional>
 #include <future>
 #include <iomanip>
 #include <iterator>
@@ -819,6 +820,10 @@ std::vector<Layer> read_layer_info_records(BigEndianReader& layer_reader, std::i
       adjustment_settings->levels.channel = patchy_adjustment_settings->levels.channel;
     }
 
+    if (adjustment_settings.has_value()) {
+      // An adjustment layer of a CMYK document acts on the inks (see InkSpace).
+      adjustment_settings->ink_space = source_colors.ink_space;
+    }
     Layer layer = adjustment_settings.has_value() ? Layer(0, record.name, LayerKind::Adjustment)
                                                   : Layer(0, record.name, std::move(pixels));
     if (adjustment_settings.has_value()) {
@@ -1253,6 +1258,16 @@ Document DocumentIo::read(std::span<const std::uint8_t> bytes, ReadOptions optio
   // Indexed documents keep their 256-color table here (768 bytes); Duotone keeps its ink
   // curves, which are not read (the gray plane stands in for the image).
   const auto color_mode_data = read_length_block(reader, "color mode data");
+  // Like the depth conversion above, this is permanent once the document is saved, so the
+  // UI forces the Import Notes popup for it ("psd.color_mode" below tells it which).
+  if (header.color_mode != kColorModeRgb && header.color_mode != kColorModeCmyk &&
+      header.color_mode != kColorModeGrayscale && options.notices != nullptr) {
+    options.notices->push_back(PATCHY_TRANSLATE_NOOP(
+        "QObject",
+        "This file uses a color mode Patchy does not edit in (Bitmap, Indexed, Duotone, Lab or "
+        "Multichannel). Patchy converted it to RGB for editing, and saving writes an RGB file. Keep the "
+        "original if you need its color mode."));
+  }
   auto image_resources = read_length_block(reader, "image resources");
   const auto channel_resources = parse_composite_channel_resources(image_resources);
 
@@ -1311,10 +1326,29 @@ Document DocumentIo::read(std::span<const std::uint8_t> bytes, ReadOptions optio
       }
     }
   }
+  // The same profile, sampled both ways, for the document's adjustment layers. Keyed by
+  // a hash of the profile so reopening the file finds the tables already built.
+  std::shared_ptr<const InkSpace> ink_space;
+  if (cmyk_icc_transform.has_value()) {
+    if (auto icc_profile = find_image_resource_payload(image_resources, kImageResourceIccProfile);
+        icc_profile.has_value()) {
+      std::uint64_t hash = 1469598103934665603ULL;  // FNV-1a
+      for (const auto byte : *icc_profile) {
+        hash = (hash ^ byte) * 1099511628211ULL;
+      }
+      const auto id = "cmyk-" + std::to_string(icc_profile->size()) + "-" + std::to_string(hash);
+      ink_space = find_ink_space(id);
+      if (ink_space == nullptr) {
+        ink_space = build_cmyk_ink_space(*icc_profile, id);
+        register_ink_space(ink_space);
+      }
+    }
+  }
   const CmykColorConverter source_colors{
       cmyk_icc_transform.has_value() ? &*cmyk_icc_transform : nullptr,
       gray_icc_transform.has_value() ? &*gray_icc_transform : nullptr,
-      header.color_mode == kColorModeIndexed && color_mode_data.size() >= 768U ? color_mode_data.data() : nullptr};
+      header.color_mode == kColorModeIndexed && color_mode_data.size() >= 768U ? color_mode_data.data() : nullptr,
+      ink_space};
   const auto* cmyk_icc = source_colors.icc;
   if (auto resolution = find_image_resource_payload(image_resources, kImageResourceResolutionInfo);
       resolution.has_value()) {
@@ -1572,6 +1606,33 @@ Document DocumentIo::read(std::span<const std::uint8_t> bytes, ReadOptions optio
 
   document.metadata().values["psd.version"] = header.large_document ? "PSB" : "PSD";
   document.metadata().values["psd.color_mode"] = color_mode_name(header.color_mode);
+  // Adjustment layers that run on the document's CMYK inks (InkSpace) cannot keep that
+  // meaning in the RGB file Patchy saves. That loses real data, so it is said on import,
+  // and the UI forces the Import Notes popup for it ("psd.ink_adjustments" tells it to).
+  if (ink_space != nullptr) {
+    int ink_adjustments = 0;
+    const std::function<void(const std::vector<Layer>&)> count_ink_adjustments =
+        [&](const std::vector<Layer>& layers) {
+          for (const auto& layer : layers) {
+            if (const auto settings = adjustment_settings_from_layer(layer);
+                settings.has_value() && adjustment_runs_in_ink_space(*settings)) {
+              ++ink_adjustments;
+            }
+            count_ink_adjustments(layer.children());
+          }
+        };
+    count_ink_adjustments(std::as_const(document).layers());
+    if (ink_adjustments > 0) {
+      document.metadata().values["psd.ink_adjustments"] = std::to_string(ink_adjustments);
+      if (options.notices != nullptr) {
+        options.notices->push_back(PATCHY_TRANSLATE_NOOP(
+            "QObject",
+            "This CMYK file has adjustment layers that act on its CMYK inks. Patchy shows them that way, "
+            "but it saves RGB files: in a saved file those layers are applied to RGB and the colors will "
+            "look different. Keep the original, or merge those layers before saving."));
+      }
+    }
+  }
   if (auto palette = find_image_resource_payload(image_resources, kImageResourcePatchyPalette);
       palette.has_value()) {
     apply_patchy_palette_resource(document, *palette);

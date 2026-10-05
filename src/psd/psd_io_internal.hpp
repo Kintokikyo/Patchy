@@ -357,6 +357,9 @@ struct CmykColorConverter {
   // Indexed documents: the 768-byte color table from the color mode data section (all
   // reds, then all greens, then all blues). Null for every other mode.
   const std::uint8_t* indexed_palette{nullptr};
+  // CMYK documents with a usable profile: the space their adjustment layers run in
+  // (core/ink_space.hpp). Null otherwise, which leaves adjustments on RGB math.
+  std::shared_ptr<const InkSpace> ink_space{};
 
   [[nodiscard]] RgbColor rgb_from_ink(double cyan, double magenta, double yellow,
                                       double black) const {

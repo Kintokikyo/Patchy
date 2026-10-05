@@ -48,6 +48,35 @@ Fitted against Photoshop's renders of psd-tools' `adjustments/levels_rgb.psd` an
 - Refuted: the piecewise sRGB curve in place of the plain 2.2 power (up to 7/255 off at +2 stops).
 - Unprobed: Grayscale and CMYK documents (Photoshop adjusts in the document's space; Patchy converts to sRGB on open first) and 16/32-bit sources.
 
+## Adjustment layers of CMYK documents (October 2026)
+
+Patchy converts a CMYK file's pixels to RGB when it reads it, but an adjustment layer is
+not pixels: Photoshop evaluates it on the ink channels. The same Levels numbers run on RGB
+matched Photoshop on 28 percent of the pixels of psd-tools' `levels_cmyk.psd`; run on the
+inks they match on 99.9 percent (worst channel miss 7/255 at the 16 pinned probes).
+
+- `InkSpace` (`core/ink_space.hpp`) is the document's CMYK profile sampled both ways:
+  sRGB to inks on a 33-node grid, inks to sRGB on a 17-node grid, 16-bit samples,
+  integer trilinear and quadrilinear interpolation (deterministic across toolchains).
+  `build_cmyk_ink_space` (color module, lcms2, relative colorimetric with black point
+  compensation, like the pixel conversion) builds it; the PSD reader registers it under
+  an id hashed from the profile bytes and stamps it on every adjustment layer it reads
+  (`kLayerMetadataAdjustmentInkSpace`).
+- `adjustment_runs_in_ink_space`: Levels, Curves, Invert, Posterize, Brightness/Contrast
+  and Exposure. `apply_adjustment_to_color` then takes the color to the inks, maps each
+  ink through a 256-entry table built from the ordinary per-channel math, and returns to
+  sRGB. Cyan, magenta and yellow read the records an RGB document calls red, green and
+  blue; the black ink has its own (`LevelsAdjustment::black_ink`, the `levl` block's
+  fifth record, and `CurvesAdjustment::black_ink`, curve index 4), which Patchy used to
+  drop. Ink values are the stored ones (0 = full ink), the domain Photoshop's CMYK
+  Levels reads. `build_adjustment_lut` returns nullopt for these, so every compositor
+  takes the per-pixel path.
+- Hue/Saturation, Color Balance and Threshold stay on RGB math in CMYK documents.
+- No profile, or one lcms2 cannot use: no ink space, RGB math as before.
+- Gap: Patchy saves RGB. The layer is written as an ordinary RGB adjustment, so
+  Photoshop, and Patchy after a reopen in another run (the id is then unregistered),
+  evaluate it on RGB again. Pinned by `psd_tools_cmyk_levels_run_on_the_inks_if_available`.
+
 ## Auto adjustments calibration (August 2026)
 
 Six self-authored ramp/outlier fixtures through PS COM (`autoLevels()`, `autoContrast()`, the `Lvls` event) vs Patchy's `auto_levels_math`:

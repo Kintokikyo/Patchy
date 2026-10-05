@@ -962,6 +962,82 @@ void ui_deep_psd_import_forces_notices_popup() {
   CHECK(document.metadata().values.at("psd.depth") == "16");
 }
 
+// Opens `path` with the notes preference off and returns the forced Import Notes text
+// ("" when no box appeared).
+QString forced_import_notice_text(const QString& path) {
+  SettingsValueRestorer notes_setting(QStringLiteral("imports/showPsdWarningsAndInfo"));
+  patchy::ui::app_settings().remove(QStringLiteral("imports/showPsdWarningsAndInfo"));
+  patchy::ui::MainWindow window;
+  show_window(window);
+  const auto compatibility_report_done = std::make_shared<bool>(false);
+  accept_compatibility_report_when_present(compatibility_report_done);
+
+  QString notice_text;
+  int poll_attempts = 0;
+  QTimer poller;
+  QObject::connect(&poller, &QTimer::timeout, [&notice_text, &poll_attempts, &poller] {
+    if (++poll_attempts > 500) {
+      poller.stop();
+      return;
+    }
+    for (auto* widget : QApplication::topLevelWidgets()) {
+      auto* box = qobject_cast<QMessageBox*>(widget);
+      if (box != nullptr && box->objectName() == QStringLiteral("importNoticesMessageBox") && box->isVisible()) {
+        notice_text = box->text();
+        CHECK(box->icon() == QMessageBox::Warning);
+        box->accept();
+        poller.stop();
+        return;
+      }
+    }
+  });
+  poller.start(10);
+  patchy::ui::MainWindowTestAccess::open_document_path(window, path);
+  QApplication::processEvents();
+  poller.stop();
+  *compatibility_report_done = true;
+  return notice_text;
+}
+
+// The other two conversions a save makes permanent pop up the same way as the 16-bit one:
+// a color mode Patchy converts to RGB, and CMYK adjustment layers that acted on the inks.
+void ui_color_mode_and_ink_adjustment_imports_force_notices_popup() {
+  ensure_artifact_dir();
+  const auto path = QFileInfo(QStringLiteral("test-artifacts/ui_indexed_mode.psd")).absoluteFilePath();
+  {
+    // A 2x1 Indexed file: a 768-byte color table and one plane of indices.
+    patchy::psd::BigEndianWriter writer;
+    patchy::psd::write_header(writer, patchy::psd::Header{false, 1, 1, 2, 8, 2});
+    writer.write_u32(768);
+    for (int entry = 0; entry < 768; ++entry) {
+      writer.write_u8(static_cast<std::uint8_t>(entry % 256));
+    }
+    writer.write_u32(0);
+    writer.write_u32(0);
+    writer.write_u16(0);
+    writer.write_u8(0);
+    writer.write_u8(200);
+    QFile file(path);
+    CHECK(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    const auto bytes = writer.bytes();
+    file.write(reinterpret_cast<const char*>(bytes.data()), static_cast<qint64>(bytes.size()));
+  }
+  const auto indexed = forced_import_notice_text(path);
+  CHECK(indexed.contains(QStringLiteral("Indexed")));
+  CHECK(indexed.contains(QStringLiteral("RGB file")));
+
+  // psd-tools' CMYK Levels file (testy/fetch_psd_tools_corpus.py), when it is there.
+  const auto cmyk = patchy::test::source_root_path() / "local-test-fixtures" / "psd-tools" / "tests" /
+                    "psd_files" / "adjustments" / "levels_cmyk.psd";
+  if (!std::filesystem::exists(cmyk)) {
+    std::cout << "[SKIP] psd-tools collection missing: " << cmyk.string() << '\n';
+    return;
+  }
+  const auto ink = forced_import_notice_text(patchy::ui::to_qstring(cmyk));
+  CHECK(ink.contains(QStringLiteral("CMYK inks")));
+  CHECK(ink.contains(QStringLiteral("saves RGB files")));
+}
+
 void ui_animated_gif_export_round_trips() {
   std::filesystem::create_directories("test-artifacts");
   // Four layers bottom to top: a base, a hidden layer that must be skipped, a name-token
@@ -2308,6 +2384,8 @@ std::vector<patchy::test::TestCase> flat_image_format_tests() {
       {"ui_import_notices_dialog_shown_when_setting_enabled",
        ui_import_notices_dialog_shown_when_setting_enabled},
       {"ui_deep_psd_import_forces_notices_popup", ui_deep_psd_import_forces_notices_popup},
+      {"ui_color_mode_and_ink_adjustment_imports_force_notices_popup",
+       ui_color_mode_and_ink_adjustment_imports_force_notices_popup},
       {"ui_animated_gif_export_round_trips", ui_animated_gif_export_round_trips},
       {"ui_animated_gif_open_save_round_trip", ui_animated_gif_open_save_round_trip},
       {"ui_gif_save_options_dialog_choices", ui_gif_save_options_dialog_choices},

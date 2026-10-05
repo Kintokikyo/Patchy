@@ -5,6 +5,7 @@
 #include <array>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 // lcms2.h still spells `register` for pre-C++17 compilers; the opt-out keeps the C++ TU
 // warning-clean.
@@ -114,6 +115,88 @@ RgbColor CmykToRgbTransform::convert_single(std::uint8_t cyan_inverted,
 
 const std::string& CmykToRgbTransform::profile_description() const {
   return impl_->description;
+}
+
+std::shared_ptr<const InkSpace> build_cmyk_ink_space(std::span<const std::uint8_t> profile_bytes,
+                                                     std::string id) {
+  if (profile_bytes.empty() || profile_bytes.size() > 0xFFFFFFFFULL) {
+    return nullptr;
+  }
+  cmsContext context = cmsCreateContext(nullptr, nullptr);
+  if (context == nullptr) {
+    return nullptr;
+  }
+  cmsSetLogErrorHandlerTHR(context, ignore_lcms_error);
+  cmsHPROFILE ink_profile = cmsOpenProfileFromMemTHR(context, profile_bytes.data(),
+                                                     static_cast<cmsUInt32Number>(profile_bytes.size()));
+  cmsHPROFILE srgb_profile = cmsCreate_sRGBProfileTHR(context);
+  cmsHTRANSFORM to_ink = nullptr;
+  cmsHTRANSFORM to_rgb = nullptr;
+  if (ink_profile != nullptr && srgb_profile != nullptr && cmsGetColorSpace(ink_profile) == cmsSigCmykData) {
+    constexpr cmsUInt32Number flags = cmsFLAGS_BLACKPOINTCOMPENSATION | cmsFLAGS_NOCACHE;
+    to_ink = cmsCreateTransformTHR(context, srgb_profile, TYPE_RGB_16, ink_profile, TYPE_CMYK_16_REV,
+                                   INTENT_RELATIVE_COLORIMETRIC, flags);
+    to_rgb = cmsCreateTransformTHR(context, ink_profile, TYPE_CMYK_16_REV, srgb_profile, TYPE_RGB_16,
+                                   INTENT_RELATIVE_COLORIMETRIC, flags);
+  }
+  std::shared_ptr<InkSpace> space;
+  if (to_ink != nullptr && to_rgb != nullptr) {
+    space = std::make_shared<InkSpace>();
+    space->id = std::move(id);
+    space->rgb_grid = 33;
+    space->ink_grid = 17;
+    const auto node_value = [](int node, int grid) {
+      return static_cast<std::uint16_t>((static_cast<std::uint32_t>(node) * 65535U + static_cast<std::uint32_t>(grid - 1) / 2U) /
+                                        static_cast<std::uint32_t>(grid - 1));
+    };
+    // One row of nodes per transform call keeps the buffers small.
+    std::vector<std::uint16_t> input;
+    space->rgb_to_ink.resize(static_cast<std::size_t>(33) * 33U * 33U * 4U);
+    input.resize(33U * 3U);
+    std::size_t out = 0;
+    for (int red = 0; red < 33; ++red) {
+      for (int green = 0; green < 33; ++green) {
+        for (int blue = 0; blue < 33; ++blue) {
+          input[static_cast<std::size_t>(blue) * 3U] = node_value(red, 33);
+          input[static_cast<std::size_t>(blue) * 3U + 1U] = node_value(green, 33);
+          input[static_cast<std::size_t>(blue) * 3U + 2U] = node_value(blue, 33);
+        }
+        cmsDoTransform(to_ink, input.data(), space->rgb_to_ink.data() + out, 33U);
+        out += 33U * 4U;
+      }
+    }
+    space->ink_to_rgb.resize(static_cast<std::size_t>(17) * 17U * 17U * 17U * 3U);
+    input.resize(17U * 4U);
+    out = 0;
+    for (int cyan = 0; cyan < 17; ++cyan) {
+      for (int magenta = 0; magenta < 17; ++magenta) {
+        for (int yellow = 0; yellow < 17; ++yellow) {
+          for (int black = 0; black < 17; ++black) {
+            input[static_cast<std::size_t>(black) * 4U] = node_value(cyan, 17);
+            input[static_cast<std::size_t>(black) * 4U + 1U] = node_value(magenta, 17);
+            input[static_cast<std::size_t>(black) * 4U + 2U] = node_value(yellow, 17);
+            input[static_cast<std::size_t>(black) * 4U + 3U] = node_value(black, 17);
+          }
+          cmsDoTransform(to_rgb, input.data(), space->ink_to_rgb.data() + out, 17U);
+          out += 17U * 3U;
+        }
+      }
+    }
+  }
+  if (to_ink != nullptr) {
+    cmsDeleteTransform(to_ink);
+  }
+  if (to_rgb != nullptr) {
+    cmsDeleteTransform(to_rgb);
+  }
+  if (srgb_profile != nullptr) {
+    cmsCloseProfile(srgb_profile);
+  }
+  if (ink_profile != nullptr) {
+    cmsCloseProfile(ink_profile);
+  }
+  cmsDeleteContext(context);
+  return space;
 }
 
 struct GrayToRgbTransform::Impl : IccToSrgbState {};

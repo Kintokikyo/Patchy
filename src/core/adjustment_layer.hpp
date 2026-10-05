@@ -1,10 +1,12 @@
 #pragma once
 
+#include "core/ink_space.hpp"
 #include "core/layer.hpp"
 
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -52,6 +54,20 @@ inline constexpr const char* kLayerMetadataAdjustmentCurvesMidtoneOutput = "patc
 inline constexpr const char* kLayerMetadataAdjustmentCurvesHighlightOutput =
     "patchy.adjustment.curves.highlight_output";
 inline constexpr const char* kLayerMetadataAdjustmentCurvesRgbPoints = "patchy.adjustment.curves.rgb.points";
+// Adjustments read from a CMYK document (see InkSpace): the space's id, and the black
+// ink's Levels record and curve, which have no RGB counterpart.
+inline constexpr const char* kLayerMetadataAdjustmentInkSpace = "patchy.adjustment.ink_space";
+inline constexpr const char* kLayerMetadataAdjustmentCurvesBlackPoints = "patchy.adjustment.curves.black.points";
+inline constexpr const char* kLayerMetadataAdjustmentLevelsBlackInkBlackInput =
+    "patchy.adjustment.levels.black_ink.black_input";
+inline constexpr const char* kLayerMetadataAdjustmentLevelsBlackInkWhiteInput =
+    "patchy.adjustment.levels.black_ink.white_input";
+inline constexpr const char* kLayerMetadataAdjustmentLevelsBlackInkGammaPercent =
+    "patchy.adjustment.levels.black_ink.gamma_percent";
+inline constexpr const char* kLayerMetadataAdjustmentLevelsBlackInkBlackOutput =
+    "patchy.adjustment.levels.black_ink.black_output";
+inline constexpr const char* kLayerMetadataAdjustmentLevelsBlackInkWhiteOutput =
+    "patchy.adjustment.levels.black_ink.white_output";
 inline constexpr const char* kLayerMetadataAdjustmentCurvesRedPoints = "patchy.adjustment.curves.red.points";
 inline constexpr const char* kLayerMetadataAdjustmentCurvesGreenPoints = "patchy.adjustment.curves.green.points";
 inline constexpr const char* kLayerMetadataAdjustmentCurvesBluePoints = "patchy.adjustment.curves.blue.points";
@@ -118,6 +134,8 @@ struct LevelsRecord {
   int gamma_percent{100};
   int black_output{0};
   int white_output{255};
+
+  friend bool operator==(const LevelsRecord&, const LevelsRecord&) = default;
 };
 
 struct LevelsAdjustment {
@@ -130,6 +148,11 @@ struct LevelsAdjustment {
   LevelsRecord red{};
   LevelsRecord green{};
   LevelsRecord blue{};
+  // The fifth record of a CMYK document's Levels (the black ink). Only an adjustment
+  // with an ink space reads it; there red, green and blue hold cyan, magenta and yellow.
+  LevelsRecord black_ink{};
+
+  friend bool operator==(const LevelsAdjustment&, const LevelsAdjustment&) = default;
 };
 
 enum class CurvesChannel {
@@ -153,6 +176,8 @@ struct CurvesAdjustment {
   CurveControlPoints red{{0, 0}, {255, 255}};
   CurveControlPoints green{{0, 0}, {255, 255}};
   CurveControlPoints blue{{0, 0}, {255, 255}};
+  // The fifth curve of a CMYK document's Curves (the black ink); see LevelsAdjustment.
+  CurveControlPoints black_ink{{0, 0}, {255, 255}};
 
   friend bool operator==(const CurvesAdjustment&, const CurvesAdjustment&) = default;
 };
@@ -274,7 +299,13 @@ struct AdjustmentSettings {
   ThresholdAdjustment threshold{};
   BrightnessContrastAdjustment brightness_contrast{};
   ExposureAdjustment exposure{};
+  // Set for an adjustment layer that came from a CMYK document whose profile could be
+  // read: the channel-wise kinds (Levels, Curves, Invert, Posterize, Brightness/Contrast,
+  // Exposure) then run on the four inks instead of on RGB. See core/ink_space.hpp.
+  std::shared_ptr<const InkSpace> ink_space;
 };
+// True when `settings` runs in its ink space (it has one and its kind is channel-wise).
+[[nodiscard]] bool adjustment_runs_in_ink_space(const AdjustmentSettings& settings) noexcept;
 
 // Levels record math shared by the UI dialogs and the PSD lvls codec: the
 // single source of truth for the clamp ranges (black_input 0..254,

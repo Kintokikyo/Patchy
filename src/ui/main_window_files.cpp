@@ -1099,6 +1099,16 @@ OpenDocumentResult load_document_from_path(QString path) {
         depth != opened.metadata().values.end() && depth->second != "8") {
       force_import_notices_popup = true;
     }
+    // The other conversions a save makes permanent: a color mode with no RGB, CMYK or
+    // Grayscale equivalent, and adjustment layers that acted on CMYK inks.
+    if (const auto mode = opened.metadata().values.find("psd.color_mode");
+        mode != opened.metadata().values.end() && mode->second != "RGB" && mode->second != "CMYK" &&
+        mode->second != "Grayscale") {
+      force_import_notices_popup = true;
+    }
+    if (opened.metadata().values.contains("psd.ink_adjustments")) {
+      force_import_notices_popup = true;
+    }
     if (const auto notice = unsupported_blend_if_import_notice(opened); !notice.isEmpty()) {
       import_notices.push_back(notice);
     }

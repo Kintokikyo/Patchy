@@ -113,6 +113,8 @@ LevelsRecord levels_record_for_photoshop_index(LevelsAdjustment settings, int in
       return clamp_levels_record(settings.green);
     case 3:
       return clamp_levels_record(settings.blue);
+    case 4:
+      return clamp_levels_record(settings.black_ink);
     default:
       return {};
   }
@@ -132,6 +134,10 @@ void set_levels_record_for_photoshop_index(LevelsAdjustment& settings, int index
       return;
     case 3:
       settings.blue = record;
+      return;
+    case 4:
+      // A CMYK document's black ink. RGB documents leave this record at its identity.
+      settings.black_ink = record;
       return;
     default:
       return;
@@ -274,7 +280,7 @@ std::optional<AdjustmentSettings> parse_photoshop_levels_adjustment(std::span<co
     settings.kind = AdjustmentKind::Levels;
     for (int index = 0; index < kPhotoshopLevelsRecordCount; ++index) {
       const auto record = read_photoshop_levels_record(reader);
-      if (index < 4) {
+      if (index < 5) {
         set_levels_record_for_photoshop_index(settings.levels, index, record);
       }
     }
