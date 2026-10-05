@@ -1390,7 +1390,7 @@ struct InkAdjustmentTables {
 
 bool same_ink_adjustment(const AdjustmentSettings& a, const AdjustmentSettings& b) {
   return a.kind == b.kind && a.ink_space == b.ink_space && a.levels == b.levels && a.curves == b.curves &&
-         a.posterize.levels == b.posterize.levels &&
+         a.posterize.levels == b.posterize.levels && a.threshold.level == b.threshold.level &&
          a.brightness_contrast.brightness == b.brightness_contrast.brightness &&
          a.brightness_contrast.contrast == b.brightness_contrast.contrast &&
          a.brightness_contrast.use_legacy == b.brightness_contrast.use_legacy &&
