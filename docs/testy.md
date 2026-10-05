@@ -135,7 +135,8 @@ Useful flags:
   perceptual). Both numbers are always computed and shown either way; a resumed run
   keeps the mode it started with, and runs from before this option flag strictly.
 - `--exit-when-done`, `--no-browser`, `--no-serve`, `--port N` - dashboard behavior.
-- `--suffix "~TESTY~"` - the marker string used by the forced text re-render test.
+- `--suffix "~TESTY~"` - a marker that is now only part of cache entry names (it was the
+  text the retired appended-text leg added).
 
 ## The psd-tools collection and the By folder table
 
@@ -154,7 +155,7 @@ without Photoshop.
 
 `--scan` (or the panel's "scan: keep only flagged" checkbox) turns a run into a
 triage pass: a file is FLAGGED if anything failed (ground truth, open, resave, trap,
-text mutation, a skipped/broken editor, a resave Photoshop rejects, a trap sentinel
+a skipped/broken editor, a resave Photoshop rejects, a trap sentinel
 hit Photoshop's own trap render does not share) or if any editor's render differs
 from Photoshop's on more than the threshold fraction of pixels (default 10%,
 `--scan 25` for 25%). The fraction follows the run's comparison mode:
@@ -181,7 +182,7 @@ re-scrubbed or re-flagged, and `flagged.txt` is written once at true completion.
 ## What each cell measures
 
 Opens, render accuracy, the trap, data kept in the .psd save, the round-trip render,
-the forced text re-render, and the cache-free leg that scores an editor on what it
+and the cache-free leg that scores an editor on what it
 draws itself: all in [testy-scoring.md](testy-scoring.md), with the reference-render
 rules and the "never mark an editor down for the harness's mistake" safeguards.
 
@@ -190,7 +191,7 @@ rules and the "never mark an editor down for the harness's mistake" safeguards.
 - Photoshop 2026 via COM (`Photoshop.Application`); techniques per docs/ps-compat.md.
   The driver opens each file once per probe: manifest walk (DOM + ActionManager by
   layer id), duplicate-flatten-save render (copy-merged fallback for damaged files),
-  optional save-as-copy resave, optional text mutation + second render.
+  optional save-as-copy resave.
 - Krita 5.3.2 headless CLI: `krita.com <in> --export --export-filename <out>` (format
   by extension; PSD export works). Its console shim prints nothing through pipes;
   success is exit code + output existence (Fontconfig warnings are filtered out of
@@ -210,8 +211,9 @@ rules and the "never mark an editor down for the harness's mistake" safeguards.
   next to the `App\` folder or PhotoDemon refuses to start. Editor discovery
   deliberately ignores stock install locations (a stock build would open its GUI and
   burn the cell timeout); only the sibling checkout or an explicit `photodemon` path
-  in config.local.json is used. PhotoDemon keeps text layers editable on PSD import,
-  but with no scripting there is no mutation leg. CLI mode disables PhotoDemon's
+  in config.local.json is used. PhotoDemon imports every PSD layer as plain
+  pixels (pdPSD.cls creates `PDL_Image` only and never reads `TySh`), so there is no
+  text to mutate. CLI mode disables PhotoDemon's
   ExifTool plugin (Testy does not measure metadata). Related defenses: every CLI driver
   (PhotoDemon, Krita, GIMP) spawns its editor inside
   `drivers/winproc.suppressed_error_dialogs()` so Windows Error Reporting dialogs
@@ -351,6 +353,7 @@ testy/
   staging.py         run-dir copies: trap, cache-stripped and plain variants
   psd_sections.py    minimal PSD/PSB section walker (trap patching, cache stripping)
   analyze.py         render metrics, sentinel detection, heatmaps (--selftest included)
+  fonts.py           installed font files by PostScript name (handed to Photopea)
   manifest.py        original-vs-resave structural diff
   report.py          status.json + live report.html + history
   rerun.py           one-image updates and previous-result snapshots

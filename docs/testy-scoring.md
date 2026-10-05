@@ -51,25 +51,19 @@ touched; a SHA check at the end of every run proves it), and Testy records:
   refuses to open scores as rejected.
 - **Round-trip render** - Photoshop's render of the editor's resave vs the
   original's render.
-- **Forced text re-render** - scriptable editors append `~TESTY~` to every text
-  layer so cached rasters cannot satisfy the render: Photoshop via COM
-  (`textItem.contents`), Patchy via `patchy.exe --append-text` (real inline-editor
-  sessions per layer). Mutated renders are compared within text-layer regions.
-  Before mutation, Photoshop checks every unlocked text layer's style ranges
-  against its available fonts. If a required font is missing or cannot be
-  inspected, the whole image's forced-text comparison is explicitly skipped,
-  with the font names/reason shown in the detail panel. Neither editor mutates
-  text for that comparison; ordinary rendering and PSD preservation checks still
-  run. No font is silently replaced, and a skipped comparison has no score.
-  Mutation errors also suppress the comparison. The font inventory participates
-  in ground-truth and Patchy caches, so installing fonts invalidates old text
-  results on the next run. Dialog suppression is limited to the mutation step
-  when a probe enables opening warnings; it does not conceal PSD opening errors.
-  Krita 5.3 and Affinity re-render text on open by design, and GIMP's PSD import
-  keeps text layers as baked rasters, so none of them has a mutation leg. The detail panel shows the "render, text appended" pair only
-  for editors with the leg (Patchy; Photoshop's lives with the ground truth);
-  others state why it is absent (`TEXT_MUTATION_SKIPPED` in testy.py). Photopea
-  has no mutation pass; its text is exercised by the cache-free leg below.
+- **Missing fonts** - Photoshop checks every text layer's style ranges against its
+  installed fonts (`textFontProblems`). If a font the text needs is missing or cannot
+  be inspected, Photoshop cannot draw that text faithfully either: the reference keeps
+  the baked pixels, no editor's own text render is scored for that file (the
+  cache-free leg is skipped), and the detail panel names the fonts. No font is
+  silently replaced. The font inventory is part of the ground-truth and Patchy cache
+  keys, so installing fonts invalidates old text results on the next run.
+
+(The old "forced text re-render" leg, which appended `~TESTY~` to every text layer in
+Photoshop and Patchy and compared those renders, was retired in October 2026: the
+scripted re-renders below force the same engines without changing the document, and
+they cover every editor with the same metric. `patchy.exe --append-text` remains a
+product CLI flag; Testy no longer uses it.)
 
 The Photoshop column doubles as a control: ~100% render accuracy and full native
 preservation validate the pipeline itself.
@@ -135,8 +129,9 @@ with such layers the scored render comes from a copy with the caches removed.
 - `_no_cache_leg` renders the stripped copy (`nocache.png`), keeps the normal render
   as `render_as_opened.png`, and writes the scored `render.png`: the stripped render,
   with each layer the editor drew nothing for outlined and labeled ("Cannot render
-  text objects", "Cannot render shape or fill layers", "Cannot render smart
-  objects"). The cell's `noCache` block lists `notRendered` and `notMeasured` layers.
+  Photoshop text objects", and the same for shape or fill layers and smart objects).
+  The wording names Photoshop on purpose: several of these editors render their own
+  text objects perfectly well, and the claim is only about the ones in a PSD. The cell's `noCache` block lists `notRendered` and `notMeasured` layers.
 
 The leg must never mark an editor down for the harness's own mistake:
 
@@ -145,23 +140,35 @@ The leg must never mark an editor down for the harness's own mistake:
   A blank one counts against an editor only where `BLANK_IS_FAILURE` says the editor
   is known to draw that kind from the layer's data (or to have no engine for it).
   Otherwise the box keeps the as-opened pixels and the layer is reported as "not
-  measured (cache shown)". Today that is PhotoDemon's text: it keeps PSD text
-  editable but has no scripting to make it lay the text out. Blank shape and fill
+  measured (cache shown)". No editor in the roster is in that state today: PhotoDemon
+  was until its source settled it (pdPSD.cls creates every PSD layer as `PDL_Image`
+  and never reads `TySh`, so it has no PSD text to lay out). Blank shape and fill
   layers always count: Photoshop draws those from the layer's data.
-- **Patchy's type layers keep their cache and are re-rendered by script**
-  (`TEXT_CACHE_KEPT`; the `*_textkept` staged copies strip everything else). Patchy
-  takes a type layer's placement from the cached layer, so on a fully stripped copy
-  its text comes out small and misplaced, which says nothing about its text engine.
-  `patchy.render_text_afresh` runs `drivers/patchy_text_afresh.js`, which calls
-  `layer.rerenderText()` on every type layer (lays the layer out again and changes
-  nothing else) and exports. This is how Photoshop's own reference is produced. A
-  layer the script did not reach is not measured.
+- **Patchy's type layers and smart objects keep their cache and are re-rendered by
+  script** (`TEXT_CACHE_KEPT`; the `*_textkept` staged copies strip everything else).
+  Patchy, like Photoshop, shows the stored pixels until the layer is edited and takes
+  the layer's placement from them, so on a fully stripped copy its text comes out
+  small and misplaced and a smart object not at all, which says nothing about its
+  engines. `patchy.render_text_afresh` runs `drivers/patchy_text_afresh.js`, which
+  calls `layer.rerenderText()` on every type layer and `layer.rerenderSmartObject()`
+  once per embedded source, then exports. This is how Photoshop's own reference is
+  produced. A layer the script did not reach (a smart object Patchy keeps locked,
+  for one) is not measured.
 - **Photopea** shows cached text until a text layer is edited, so its stripped render
   goes through `photopea.render_text_afresh`: the host page assigns each text
   layer's `kind` to itself, one layer per script with its own timeout. Only
   `LayerKind.TEXT` layers are touched; reading `textItem` on any other layer makes
   the script engine hang without answering. A text layer the edit did not reach is
   not measured.
+- **Photopea is handed the fonts the text uses.** It runs in a browser with only its
+  own web fonts, so text in a font installed here (the one Photoshop drew the
+  reference with) was laid out in a substitute. `fonts.py` finds this machine's file
+  for each PostScript name in Photoshop's manifest (a face inside a .ttc is written
+  out as its own .ttf), and the host page posts the files to Photopea before the
+  document opens (`fonts` URL parameter). Nothing is uploaded: Photopea reads the
+  bytes inside the local browser. Measured on `layer_effects.psd` (Arial Black): 17.1%
+  of pixels off without the font, 5.5% with it. Only the first font of a mixed-font
+  layer is known to the manifest. Photopea text cells carry `-fonts1` in their key.
 - **The extra renders must be of the same document.** A stripped or plain render that
   comes back at another size, or differs from the as-opened render outside the
   cached layers' boxes (grown by a quarter plus 8 px) on more than 5% of those
@@ -177,10 +184,10 @@ The leg must never mark an editor down for the harness's own mistake:
 - A layer invisible in the as-opened render too (covered, zero fill) is no finding.
 
 Measured on open, caches removed (October 2026): Affinity redraws text, shapes and
-fills; Patchy redraws shapes and fills (not smart objects); Krita redraws text and gradient fills but nothing for
+fills; Patchy redraws shapes and fills (text and smart objects through its script); Krita redraws text and gradient fills but nothing for
 vector-masked solid fills; Photopea redraws shapes, fills and smart objects, and
 text after the scripted edit; psd-tools redraws shapes and fills only; GIMP and
-PhotoDemon draw nothing. Cell cache keys carry `-nocache4`.
+PhotoDemon draw nothing. Cell cache keys carry `-nocache9`.
 
 Known harness gap (open, October 2026): `krita --export` is not deterministic on fill
 and vector layers. The same PSD comes out drawn on one run and blank on the next,
@@ -188,9 +195,38 @@ apparently because the export does not wait for Krita's asynchronous layer
 rendering, so Krita's scores on such files are unreliable. `kritarunner` (a script
 that waits with `waitForDone`) silently runs nothing on this install.
 
-## Text rendering in the Standing card
+## The two text rules that score 0%
 
-`TEXT_RENDER_BASIS` says what an editor's text score rests on: "forced" (Patchy,
-the appended-text leg; its scored render also carries re-rendered text), "open" (Krita, Affinity, and Photopea through the scripted
-edit), "replay" (GIMP, psd-tools: no text engine, cached pixels only) or
-"unmeasured" (PhotoDemon). The Standing card ranks the first two and names the rest.
+Text is the thing people assume survives, so two failures zero a file's score
+outright, and the report says why on the cell (a red flag) and at the top of the
+detail panel (`textZeroReasons` in report.py):
+
+- **Cannot render a Photoshop text object: render 0%.** When the cache-free leg finds a type
+  layer the editor draws nothing for (it can only show the pixels Photoshop cached),
+  the file's byte-match and perceptual scores become 0% (`_apply_text_render_rule`).
+  The measured numbers stay in `renderMetrics.measured`; `textNotRendered` names the
+  layers. A text layer that is "not measured" is not zeroed: that verdict means
+  Testy could not make the editor's engine run, not that it has none.
+- **Cannot save a Photoshop text object as text: data kept 0%.** When any type layer of the
+  original is not a type layer in the editor's resave (rasterized, converted or
+  dropped), `nativeScore` becomes 0 (`manifest.apply_text_save_rule`). The object
+  counts stay as measured, the replaced score is `nativeScoreMeasured`, and
+  `textNotSaved` holds `{lost, total}`.
+
+Both rules are applied to cached cells on reuse. An editor that writes no .psd at
+all has no "data kept" score to zero (open: it is simply absent from that average).
+
+## psd text handling in the Standing card
+
+Strict on purpose (`psdTextStanding` in report.py). Over the files with type layers,
+a file scores 0 for an editor that cannot render its Photoshop text objects (the
+cache-free leg found a type layer it draws nothing for, or `TEXT_RENDER_BASIS` says
+"replay": the editor only ever shows the baked pixels) or cannot save them back into
+the .psd as text (`textNotSaved`). Otherwise the file scores what the editor's own
+text render scored: the scored render of that file, for editors that lay text out on
+open or after Testy's scripted re-render ("open": Patchy, Krita, Affinity, Photopea).
+Every editor is measured with the same metric. An editor that fails every file reads "0% (FAIL *)", and the
+marks are explained under the list ("Cannot save text objects back out into the .psd
+as text", "Cannot render psd text objects, only uses the baked pixels saved in the
+file"); editors with the same failure share a mark. An editor that fails some files
+keeps its average, with a footnote giving the count.

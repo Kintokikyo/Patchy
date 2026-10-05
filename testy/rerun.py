@@ -108,7 +108,7 @@ def apply(runs_root: Path, child_dir: Path, request: dict, *, summarize, scan_re
         cell = fresh["cells"].get(editor, {})
         if cell.get("state") != "done" and not (cell.get("state") == "failed" and cell.get("fileRejected")):
             raise ValueError(f"{editor} did not finish; previous results kept")
-        if cell.get("uncacheable") or any(cell.get(k) for k in ("mutateError", "trapError")):
+        if cell.get("uncacheable") or cell.get("trapError"):
             raise ValueError(f"{editor} verification was incomplete; previous results kept")
         if cell.get("opens") != "fail" and not cell.get("renderMetrics"):
             raise ValueError(f"{editor} render comparison is missing; previous results kept")

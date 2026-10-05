@@ -295,12 +295,104 @@ function standingRows(scores, editors) {
     .sort((a, b) => b.score - a.score || a.key.localeCompare(b.key));
 }
 
+// The Standing card's "psd text handling" block. Strict on purpose: a file with type
+// layers scores 0 for an editor that cannot render its Photoshop text objects (it
+// only shows the pixels baked into the file) or cannot save them back into the .psd as
+// text; otherwise the file scores what the editor's own text render scored. `tally`
+// maps editor -> {scores: [per-file score], files, noRender, noSave} (files counted
+// where the editor produced a result). Returns the ranked rows, each with its label
+// ("0% (FAIL *)" when every file failed) and the footnotes those marks point at
+// (editors with the same failure share a mark).
+function psdTextStanding(tally, editors, names, helpNotes) {
+  const notes = [];
+  const helps = [];
+  const markFor = text => {
+    let note = notes.find(n => n.text === text);
+    if (!note) { note = { mark: "*".repeat(notes.length + 1), text: text }; notes.push(note); }
+    return note.mark;
+  };
+  const rows = [];
+  editors.forEach(k => {
+    const t = tally[k];
+    if (k === "photoshop" || !t || !t.scores.length) return;
+    const name = names[k] || k;
+    const score = t.scores.reduce((a, b) => a + b, 0) / t.scores.length;
+    const marks = [];
+    const reasons = [];
+    const mark = text => { reasons.push(text); marks.push(markFor(text)); };
+    if (t.noRender)
+      mark((t.noRender >= t.files
+        ? "Cannot render psd text objects, only uses the baked pixels saved in the file"
+        : name + " could not render the psd text objects in " + t.noRender + " of " + t.files +
+          " files (baked pixels only); those files count as 0"));
+    if (t.noSave)
+      mark((t.noSave >= t.files
+        ? "Cannot save text objects back out into the .psd as text"
+        : name + " did not save the text objects back into the .psd as text in " + t.noSave + " of " +
+          t.files + " files; those files count as 0"));
+    const failed = score === 0 && marks.length > 0;
+    // Help Testy gives this editor (Photopea: the fonts), marked with a dagger.
+    const help = (helpNotes || {})[k] || "";
+    let helpMark = "";
+    if (help && !failed) {
+      helpMark = " " + "†".repeat(helps.length + 1);
+      helps.push({ mark: helpMark.trim(), text: help });
+      reasons.push(help);
+    }
+    rows.push({ key: k, score: score, failed: failed, reasons: reasons,
+                label: (failed ? "0% (FAIL " + marks.join(" ") + ")"
+                               : Math.round(100 * score) + "%" + (marks.length ? " " + marks.join(" ") : "") +
+                                 helpMark) });
+  });
+  rows.sort((a, b) => b.score - a.score || a.key.localeCompare(b.key));
+  return { rows: rows, notes: notes.concat(helps) };
+}
+
 // The editor refused a file Photoshop rendered: counted as a zero in the averages.
 // A harness failure (timeout, dead app, skipped cell) is not the editor's verdict on
 // the file and stays out, as does a file with no reference render at all.
 function refusedWithReference(f, c) {
   const gt = f.groundTruth || {};
   return !!c && c.opens === "fail" && gt.state === "done" && !!(gt.artifacts || {}).render;
+}
+
+// The two text rules that zero a score outright, each with the sentence that says why:
+// an editor that cannot render a Photoshop text object (it can only show the pixels
+// Photoshop cached in the file) gets 0% for that file's render, and one that cannot
+// save a text object back out as text gets 0% for the file's "data kept in .psd save".
+function textZeroReasons(cell) {
+  const reasons = [];
+  if (!cell) return reasons;
+  const m = cell.renderMetrics;
+  if (m && m.textNotRendered && m.textNotRendered.length) {
+    const measured = m.measured || {};
+    const was = S.run.compare === "perceptual" && measured.perceptualAccuracy != null
+      ? measured.perceptualAccuracy : measured.accuracy;
+    reasons.push({
+      kind: "render",
+      short: "render 0%: cannot render Photoshop text objects",
+      long: "Render scored 0%: this editor cannot render " + m.textNotRendered.length +
+            " Photoshop text object(s) in this file (" + m.textNotRendered.join(", ") +
+            "). It can only show the pixels Photoshop cached in the .psd, so with that cache " +
+            "removed it draws nothing for them." +
+            (was != null ? " The rest of the picture measured " + pct(was) + "." : ""),
+    });
+  }
+  const n = cell.native;
+  if (n && n.textNotSaved) {
+    reasons.push({
+      kind: "save",
+      short: "data kept 0%: text not saved as text",
+      long: "Data kept scored 0%: " + n.textNotSaved.lost + " of " + n.textNotSaved.total +
+            " Photoshop text object(s) did not come back as text in this editor's .psd save " +
+            "(rasterized, converted or dropped), so the text is no longer editable." +
+            (n.nativeScoreMeasured != null
+              ? " Counting every object, " + n.nativeKept + "/" + n.nativeTotal + " (" +
+                pct(n.nativeScoreMeasured) + ") survived."
+              : ""),
+    });
+  }
+  return reasons;
 }
 
 // Files with cached layers are scored on the editor's render with those caches
@@ -314,7 +406,7 @@ function replayNote(f, k) {
   let html = "";
   if (leg.notRendered && leg.notRendered.length)
     html += '<div class="flag" title="' + esc(leg.notRendered.join(", ")) + '">cannot render ' +
-            leg.notRendered.length + " of " + leg.cachedLayers + " text/shape/smart layer(s)</div>";
+            leg.notRendered.length + " of " + leg.cachedLayers + " Photoshop text/shape/smart layer(s)</div>";
   if (leg.notMeasured && leg.notMeasured.length)
     html += '<div class="nums" title="' + esc((leg.notMeasuredReason || "") + ": " + leg.notMeasured.join(", ")) +
             '">' + leg.notMeasured.length + " layer(s) not measured (cache shown)</div>";
@@ -408,7 +500,8 @@ function cellSummary(cell, psCell) {
   if (cell.renderMetrics && cell.renderMetrics.perceptual)
     bits.push("perceptual " + pct(cell.renderMetrics.perceptual.accuracy));
   if (cell.native && cell.native.perCategory)
-    bits.push("kept in .psd save " + cell.native.nativeKept + "/" + cell.native.nativeTotal);
+    bits.push("kept in .psd save " + cell.native.nativeKept + "/" + cell.native.nativeTotal +
+              (cell.native.textNotSaved ? " = 0% (text lost)" : ""));
   if (cell.renderMetrics && cell.renderMetrics.objectsScored) {
     const m = cell.renderMetrics;
     const objectsOk = S.run.compare === "perceptual" && m.objectsRenderedOkPerceptual != null
@@ -432,6 +525,7 @@ function cellSummary(cell, psCell) {
         : "renders from the baked composite (so does Photoshop)";
   }
   if (cell.renderMetrics && cell.renderMetrics.sizeMismatch) flags.push("size mismatch");
+  textZeroReasons(cell).forEach(reason => flags.push(reason.short));
   if (cell.opens === "fallback-render") flags.push("PS needed fallback render");
   // The two verdicts worth reading from across the matrix ride on the status line
   // itself, next to the dot, instead of down in the flag list.
@@ -660,7 +754,8 @@ function render() {
   }).join("");
 
   const agg = {};
-  editors.forEach(k => agg[k] = { opened: 0, total: 0, badSaves: 0, acc: [], vis: [], native: [], text: [0, 0], adj: [0, 0], smart: [0, 0], fx: [0, 0], textFiles: [] });
+  editors.forEach(k => agg[k] = { opened: 0, total: 0, badSaves: 0, acc: [], vis: [], native: [], text: [0, 0], adj: [0, 0], smart: [0, 0], fx: [0, 0], textFiles: [],
+                                   textTally: { scores: [], files: 0, noRender: 0, noSave: 0 } });
   renderKnownToggle();
   scoredFiles().forEach(f => editors.forEach(k => {
     const c = (f.cells || {})[k];
@@ -673,15 +768,28 @@ function render() {
     if (c.renderMetrics && c.renderMetrics.perceptual) a.vis.push(c.renderMetrics.perceptual.accuracy);
     if (!c.renderMetrics && refusedWithReference(f, c)) { a.acc.push(0); a.vis.push(0); }
     if (f.textLayers) {
-      // The text score comes from the leg that really exercises the editor's text
-      // engine: the forced re-render where there is one, the plain render for an
-      // editor that lays text out on open. Anything else is not a text score.
+      // The text score is the scored render of a file with type layers, for an
+      // editor whose own text engine drew that text (on open, or after Testy's
+      // scripted re-render). Anything else is not a text score.
       const basis = (S.editors[k] || {}).textBasis;
-      const metrics = basis === "forced" ? c.textRender : basis === "open" ? c.renderMetrics : null;
+      const metrics = basis === "open" ? c.renderMetrics : null;
       const score = metrics
         ? (S.run.compare === "perceptual" && metrics.perceptual ? metrics.perceptual.accuracy : metrics.accuracy)
         : (basis === "open" && refusedWithReference(f, c) ? 0 : null);
       if (score != null) a.textFiles.push(score);
+      // psd text handling (Standing card): the same score, but a file whose Photoshop
+      // text the editor cannot render, or cannot save back as text, counts as 0.
+      const m = c.renderMetrics;
+      const noRender = basis === "replay" || !!(m && m.textNotRendered && m.textNotRendered.length);
+      const noSave = !!(c.native && c.native.textNotSaved);
+      const judged = score != null || ((noRender || noSave) && c.state === "done");
+      if (judged) {
+        const t = a.textTally;
+        t.files++;
+        if (noRender) t.noRender++;
+        if (noSave) t.noSave++;
+        t.scores.push(noRender || noSave ? 0 : score);
+      }
     }
     if (c.native && typeof c.native.nativeScore === "number") {
       a.native.push(c.native.nativeScore);
@@ -739,27 +847,24 @@ function render() {
     editors.forEach(k => { scores[k] = mean(perceptual && agg[k].vis.length ? agg[k].vis : agg[k].acc); });
     const ranked = standingRows(scores, editors);
     if (ranked.length < 2) return "";
-    // Text rendering, ranked on its own from the leg that exercises each editor's
-    // text engine (see textBasis). Editors with no engine, or one Testy cannot
-    // drive, are named without a score.
-    const textScores = {};
-    const unranked = [];
+    // psd text handling, ranked on its own and strict (see psdTextStanding): an editor
+    // that cannot render Photoshop text objects, or cannot save them back as text,
+    // scores 0 on that file, and the reason is spelled out under the list.
     const textFiles = scoredFiles().filter(f => f.textLayers).length;
-    editors.forEach(k => {
-      const basis = (S.editors[k] || {}).textBasis;
-      if (k === "photoshop" || !basis) return;
-      if (basis === "replay" || basis === "unmeasured") unranked.push(k);
-      else if (agg[k].textFiles.length) textScores[k] = mean(agg[k].textFiles);
-    });
-    const textRanked = standingRows(textScores, editors);
-    const textBlock = !textFiles || (!textRanked.length && !unranked.length) ? "" :
-      '<div class="ver" style="margin-top:8px">text rendering (' + textFiles + " files with type layers)</div>" +
-      textRanked.map((r, i) => '<div class="row' + (r.key === "patchy" ? " me" : "") + '" title="' +
-        esc((S.editors[r.key] || {}).textBasisNote || "") + '"><span>' + (i + 1) + ". " +
-        esc((S.editors[r.key] || {}).displayName || r.key) + "</span><b>" + pct(r.score, 0) + "</b></div>").join("") +
-      unranked.map(k => '<div class="row" title="' + esc((S.editors[k] || {}).textBasisNote || "") + '"><span>' +
-        esc((S.editors[k] || {}).displayName || k) + '</span><b class="warn-text">' +
-        ((S.editors[k] || {}).textBasis === "replay" ? "replays cache" : "not measured") + "</b></div>").join("");
+    const tally = {}, names = {};
+    editors.forEach(k => { tally[k] = agg[k].textTally; names[k] = (S.editors[k] || {}).displayName || k; });
+    const helpNotes = {};
+    editors.forEach(k => { helpNotes[k] = (S.editors[k] || {}).textHelpNote || ""; });
+    const text = psdTextStanding(tally, editors, names, helpNotes);
+    const textBlock = !textFiles || !text.rows.length ? "" :
+      '<div class="ver" style="margin-top:8px">psd text handling (' + textFiles + " files with type layers)</div>" +
+      text.rows.map((r, i) => '<div class="row' + (r.key === "patchy" ? " me" : "") + '" title="' +
+        esc([(S.editors[r.key] || {}).textBasisNote || ""].concat(r.reasons).filter(x => x).join(". ")) +
+        '"><span>' + (i + 1) + ". " +
+        esc(names[r.key]) + "</span><b" + (r.failed ? ' class="bad-text"' : "") + ">" + esc(r.label) +
+        "</b></div>").join("") +
+      text.notes.map(n => '<div class="nums" style="margin-top:4px">' + esc(n.mark) + " - " + esc(n.text) +
+        "</div>").join("");
     return '<div class="card standing"><h3>Standing</h3><div class="ver">' +
       (perceptual ? "perceptual" : "byte") + " match to Photoshop" +
       (skipKnown ? ", known limitations left out" : "") + "; unopened files count as 0</div>" +
@@ -838,27 +943,38 @@ function openDetail(fi, ek, keep) {
       " of pixels come from the baked composite, but Photoshop's own trap render shows " +
       pct(psTrap) + " - the file has layers even the ground truth cannot re-render " +
       "(e.g. missing fonts), so this is not counted as a cheat</div>";
-  // The mutated pair only makes sense for editors that HAVE a forced text
-  // re-render leg (Patchy; Photoshop's lives with the ground truth). Showing
-  // the lone Photoshop image for other editors reads as a missing test, so
-  // those panels get the skip reason instead.
-  const mutationSkipped = (S.editors[ek] || {}).mutationSkipped;
-  if (gt.mutateSkipped || cell.textRenderSkipped)
-    html += '<div class="nums">Forced text comparison skipped: ' + esc(gt.mutateSkipped || cell.textRenderSkipped) + '</div>';
-  if (!art.mutatedThumb && ek !== "photoshop" && mutationSkipped)
-    html += '<div class="nums">forced text re-render not run for ' + editorName + ": " +
-      esc(mutationSkipped) + "</div>";
+  const fontsMissing = gt.textFontsMissing || gt.mutateSkipped || cell.textRenderSkipped;
+  if (fontsMissing)
+    html += '<div class="nums">Text is scored from the baked pixels for this file: ' + esc(fontsMissing) +
+            " (Photoshop cannot draw this text faithfully either).</div>";
   html += '<div class="imgs">' +
     img(gart.renderThumb, "Photoshop ground truth", gart.render) +
-    img(art.renderThumb, editorName + " render", art.render) +
+    img(art.renderThumb, editorName + (cell.noCache && cell.noCache.state === "done"
+        ? " render, baked pixels removed (scored)" : " render"), art.render) +
+    (art.renderAsOpened ? img(art.renderAsOpened, editorName + " render as opened (includes Photoshop's baked pixels)",
+                              art.renderAsOpened) : "") +
     img(art.heatmap, "Difference heatmap") +
     img(art.trapThumb, editorName + " trap render (sentinel = used baked composite)", art.trap) +
     img(art.roundtripThumb, editorName + " resave reopened in Photoshop", art.roundtripRender) +
-    (art.mutatedThumb || ek === "photoshop"
-      ? img(gart.mutatedThumb, "Photoshop render, text appended", gart.mutated) +
-        img(art.mutatedThumb, editorName + " render, text appended", art.mutated)
-      : "") +
     "</div>";
+  textZeroReasons(cell).filter(r => r.kind === "render").forEach(r => {
+    html += '<div class="loss-banner"><b>' + esc(r.long) + "</b></div>";
+  });
+  // The placeholder boxes in the scored render, in words (a small layer has no room
+  // for the label inside its box).
+  const leg = cell.noCache;
+  if (leg && leg.state === "done" && leg.notRendered && leg.notRendered.length)
+    html += '<div class="loss-banner"><b>The red outline(s) in this render mark ' + leg.notRendered.length +
+            " Photoshop text, shape or smart-object layer(s) this editor drew nothing for: " +
+            esc(leg.notRendered.join(", ")) + "</b>" +
+            '<div class="nums">Photoshop keeps a baked copy of such a layer in the .psd. This render is of ' +
+            "the file with those baked pixels removed, so it shows only what the editor draws itself." +
+            "</div></div>";
+  if (leg && leg.state === "done" && leg.notMeasured && leg.notMeasured.length)
+    html += '<div class="nums">Not measured (baked pixels shown): ' + esc(leg.notMeasured.join(", ")) +
+            ". " + esc(leg.notMeasuredReason || "") + "</div>";
+  if (leg && leg.state !== "done")
+    html += '<div class="nums">Own rendering not measured, scored as opened: ' + esc(leg.reason || "") + "</div>";
   if (cell.renderMetrics) {
     const m = cell.renderMetrics;
     const p = m.perceptual;
@@ -889,6 +1005,9 @@ function openDetail(fi, ek, keep) {
   if (cell.native && cell.native.perCategory) {
     const n = cell.native, pc = n.perCategory, at = n.attributes;
     html += "<h3>Data kept in .psd save (via Photoshop reopen): " + n.nativeKept + "/" + n.nativeTotal + "</h3>";
+    textZeroReasons(cell).filter(r => r.kind === "save").forEach(r => {
+      html += '<div class="loss-banner"><b>' + esc(r.long) + "</b></div>";
+    });
     const losses = lossSummary(n);
     if (losses.length) {
       const changed = n.changedLayers || [];
@@ -931,12 +1050,6 @@ function openDetail(fi, ek, keep) {
     html += "<h3>Round trip back into Photoshop</h3><table><tr><th>Byte match vs original</th><th>Perceptual match</th><th>Pixels off</th></tr>" +
       "<tr><td>" + pct(cell.roundtripRender.accuracy) + "</td><td>" + (rp ? pct(rp.accuracy) : "-") +
       "</td><td>" + pct(cell.roundtripRender.badFraction) + "</td></tr></table>";
-  }
-  if (cell.textRender) {
-    const tp = cell.textRender.perceptual;
-    html += "<h3>Forced text re-render vs Photoshop</h3><table><tr><th>Byte match</th><th>Perceptual match</th><th>Pixels off</th></tr>" +
-      "<tr><td>" + pct(cell.textRender.accuracy) + "</td><td>" + (tp ? pct(tp.accuracy) : "-") +
-      "</td><td>" + pct(cell.textRender.badFraction) + "</td></tr></table>";
   }
   document.getElementById("detail-body").innerHTML = html;
   document.getElementById("detail").classList.add("open");

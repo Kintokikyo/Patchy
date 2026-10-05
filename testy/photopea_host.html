@@ -24,14 +24,16 @@ const fileUrl = params.get("file");
 const uploadBase = params.get("upload");        // e.g. http://127.0.0.1:8901/testy-upload?name=
 const renderName = params.get("render");        // runs/<run>/.../render.png
 const resaveName = params.get("resave") || ""; // optional psd upload target
-const mutatedName = params.get("mutated") || "";
-const suffix = params.get("suffix") || "";
 // Optional (nudge=1): make Photopea lay its text layers out afresh before the export.
 // It shows the raster cached in the file until a text layer is edited; assigning a
 // text property its own value is such an edit and changes nothing else. Each layer
 // gets its own script and its own timeout (the script engine never answers when
 // textItem is touched on a layer that is not text, so only LayerKind.TEXT is listed); result.nudge lists the layer names done and the ones that failed.
 const nudge = params.get("nudge") || "";
+// Optional: font files (URLs separated by "|") to hand Photopea before the document
+// opens. It only has its own web fonts; these are the faces the document's text
+// uses, as installed on this machine. result.fonts counts those loaded and failed.
+const fontUrls = (params.get("fonts") || "").split("|").filter(u => u.length > 0);
 const NUDGE_LIST_SCRIPT =
   "var out=[];function walk(ls,path){for(var i=0;i<ls.length;i++){var L=ls[i];var p=path.concat([i]);" +
   "if(L.typename==\"LayerSet\"){walk(L.layers,p);continue;}" +
@@ -120,6 +122,24 @@ async function main() {
     "https://www.photopea.com#" + encodeURIComponent(JSON.stringify({ environment: {} }));
   log("waiting for the Photopea editor");
   await waitReady(60000);
+  const fontReport = { loaded: 0, failed: 0 };
+  for (const fontUrl of fontUrls) {
+    try {
+      const fontResponse = await fetch(fontUrl);
+      if (!fontResponse.ok) throw new Error("fetch " + fontResponse.status);
+      const fontBuffer = await fontResponse.arrayBuffer();
+      log("loading font " + (fontReport.loaded + fontReport.failed + 1) + " of " + fontUrls.length);
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => { resolver = null; reject(new Error("font load timed out")); }, 30000);
+        resolver = result => { clearTimeout(timer); resolve(result); };
+        document.getElementById("pea").contentWindow.postMessage(fontBuffer, "*");
+      });
+      fontReport.loaded++;
+    } catch (error) {
+      fontReport.failed++;
+      log("font not loaded: " + error);
+    }
+  }
   log("editor ready; fetching " + fileUrl);
   const fileResponse = await fetch(fileUrl);
   if (!fileResponse.ok) throw new Error("file fetch failed: " + fileResponse.status);
@@ -185,38 +205,7 @@ async function main() {
   // The forced-text-re-render pass is strictly best-effort for Photopea: contents
   // assignment can hang its engine on some documents (the script's "done" never
   // arrives), and the exports above are already secured - never fail the cell here.
-  let mutatedCount = -1;
-  if (mutatedName && suffix) {
-    try {
-      log("appending text suffix (best effort)");
-      const script =
-        "var n=0;" +
-        "function walk(ls){for(var i=0;i<ls.length;i++){var L=ls[i];" +
-        "if(L.typename==\"LayerSet\"){walk(L.layers);continue;}" +
-        "var t=null;try{t=L.textItem;}catch(e){}" +
-        "if(!t)continue;" +
-        "try{t.contents=t.contents+" + JSON.stringify(suffix) + ";n++;}catch(e){}}}" +
-        "walk(app.activeDocument.layers);app.echoToOE(\"mutated:\"+n);";
-      result = await runScript(script, 60000);
-      const echo = result.echoes.find(e => e.indexOf("mutated:") === 0);
-      mutatedCount = echo ? parseInt(echo.slice(8), 10) : -1;
-      if (mutatedCount > 0) {
-        log("mutated " + mutatedCount + " text layer(s); exporting mutated PNG");
-        result = await runScript('app.activeDocument.saveToOE("png");');
-        if (result.buffers.length === 1) {
-          await upload(mutatedName, result.buffers[0]);
-          log("mutated render uploaded");
-        }
-      } else {
-        // No mutated export: an unmutated render would masquerade as a (bad)
-        // forced-text-re-render score.
-        log("no text layers mutated; skipping mutated render");
-      }
-    } catch (error) {
-      log("text mutation skipped: " + error);
-    }
-  }
-  finish({ ok: true, mutated: mutatedCount, nudge: nudgeReport });
+  finish({ ok: true, nudge: nudgeReport, fonts: fontReport });
 }
 
 main().catch(error => finish({ ok: false, error: String(error) }));

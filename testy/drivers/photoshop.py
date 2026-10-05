@@ -75,8 +75,6 @@ _PROBE_JSX = r"""
   var INPUT = new File(%(input)s);
   var RENDER_PNG = %(render_png)s;
   var RESAVE_PSD = %(resave_psd)s;
-  var MUTATE_SUFFIX = %(mutate_suffix)s;
-  var MUTATED_PNG = %(mutated_png)s;
 
   function q(s) {
     s = String(s);
@@ -347,28 +345,6 @@ _PROBE_JSX = r"""
     }
   }
 
-  // Append the suffix to every unlocked text layer; Photoshop re-lays-out on
-  // assignment. Mirrors Patchy's --append-text (pixel-locked layers skipped).
-  function mutateText(layers, suffix, counter) {
-    for (var i = 0; i < layers.length; i++) {
-      var L = layers[i];
-      if (L.typename == 'LayerSet') { mutateText(L.layers, suffix, counter); continue; }
-      var kind = '';
-      try { kind = String(L.kind); } catch (e) {}
-      if (kind != 'LayerKind.TEXT') { continue; }
-      // Only the full lock blocks a contents edit: Photoshop reports pixelsLocked=true
-      // for EVERY type layer (painting is inherently locked there), so checking it
-      // would skip all text.
-      var locked = false;
-      try { locked = L.allLocked; } catch (e) {}
-      if (locked) { continue; }
-      try {
-        L.textItem.contents = L.textItem.contents + suffix;
-        counter.n++;
-      } catch (e) { counter.errors++; }
-    }
-  }
-
   var opened = null;
   try {
     opened = app.open(INPUT);
@@ -382,51 +358,30 @@ _PROBE_JSX = r"""
     // The reference render re-renders text, unless a font the text needs is missing:
     // then Photoshop cannot draw it faithfully either and the cache is the reference.
     var freshText = {n: 0, errors: 0}, freshFonts = [];
+    textFontProblems(opened.layers, freshFonts);
     var freshSmart = {n: 0, errors: 0, skipped: 0, seen: {}, started: (new Date()).getTime()};
     if (RENDER_PNG !== null) {
-      textFontProblems(opened.layers, freshFonts);
       renderStatus = renderTo(opened, RENDER_PNG, freshFonts.length ? null : freshText, freshSmart);
     }
     var resaveStatus = 'skipped';
     if (RESAVE_PSD !== null) {
-      // Before any mutation: the resave must reflect the file as opened.
       try {
         opened.saveAs(new File(RESAVE_PSD), new PhotoshopSaveOptions(), true, Extension.LOWERCASE);
         resaveStatus = 'ok';
       } catch (e) { resaveStatus = 'resave-error: ' + e; }
     }
-    var mutateCount = -1, mutateErrors = 0, mutatedStatus = 'skipped';
-    var missingFonts = [], mutateSkipped = null;
-    if (MUTATE_SUFFIX !== null) {
-      textFontProblems(opened.layers, missingFonts);
-      if (missingFonts.length) {
-        mutateSkipped = 'Required fonts unavailable: ' + missingFonts.join(', ');
-      } else {
-        var counter = { n: 0, errors: 0 };
-        var mutationDialogs = app.displayDialogs;
-        try {
-          app.displayDialogs = DialogModes.NO;
-          mutateText(opened.layers, MUTATE_SUFFIX, counter);
-        } finally { app.displayDialogs = mutationDialogs; }
-        mutateCount = counter.n;
-        mutateErrors = counter.errors;
-        if (MUTATED_PNG !== null && mutateErrors == 0) {
-          mutatedStatus = renderTo(opened, MUTATED_PNG);
-        } else if (mutateErrors) {
-          mutateSkipped = 'Photoshop could not edit every eligible text layer';
-        }
-      }
-    }
+    // Fonts the text needs that Photoshop lacks: it then cannot draw that text
+    // faithfully either, so the reference keeps the baked pixels and nobody's own
+    // text render is scored for this file.
+    var missingFonts = freshFonts;
+    var textFontsMissing = missingFonts.length ? 'Required fonts unavailable: ' + missingFonts.join(', ') : null;
     var missingJson = [];
     for (var m = 0; m < missingFonts.length; m++) { missingJson.push(q(missingFonts[m])); }
     var result = '{"ok":true,"width":' + opened.width.as('px') + ',"height":' + opened.height.as('px') +
       ',"resolution":' + opened.resolution +
       ',"render":' + q(renderStatus) +
       ',"resave":' + q(resaveStatus) +
-      ',"mutated":' + q(mutatedStatus) +
-      ',"mutateCount":' + mutateCount +
-      ',"mutateErrors":' + mutateErrors +
-      ',"mutateSkipped":' + (mutateSkipped === null ? 'null' : q(mutateSkipped)) +
+      ',"textFontsMissing":' + (textFontsMissing === null ? 'null' : q(textFontsMissing)) +
       ',"freshText":' + freshText.n + ',"freshTextErrors":' + freshText.errors +
       ',"freshSmart":' + freshSmart.n + ',"freshSmartErrors":' + freshSmart.errors +
       ',"freshSmartSkipped":' + freshSmart.skipped +
@@ -580,8 +535,6 @@ class PhotoshopDriver:
         self,
         psd_path: Path,
         render_png: Path | None,
-        mutate_suffix: str | None = None,
-        mutated_png: Path | None = None,
         resave_psd: Path | None = None,
     ) -> dict:
         """Open psd_path; return manifest + render statuses as a dict (ok=False on failure).
@@ -597,12 +550,12 @@ class PhotoshopDriver:
         """
         if self.unavailable:
             return {"ok": False, "launchFailure": True, "error": self._unavailable_reason}
-        result = self._probe_once(psd_path, render_png, mutate_suffix, mutated_png, resave_psd)
+        result = self._probe_once(psd_path, render_png, resave_psd)
         if result.get("ok"):
             self._launch_failures = 0
             return result
         self.restart()
-        retry = self._probe_once(psd_path, render_png, mutate_suffix, mutated_png, resave_psd)
+        retry = self._probe_once(psd_path, render_png, resave_psd)
         # Dialogs the first attempt reported are part of this file's story even when
         # the retry is the one that carries the result.
         dialogs = list(result.get("dialogs") or [])
@@ -637,17 +590,12 @@ class PhotoshopDriver:
         self,
         psd_path: Path,
         render_png: Path | None,
-        mutate_suffix: str | None,
-        mutated_png: Path | None,
         resave_psd: Path | None,
     ) -> dict:
         jsx = _PROBE_JSX % {
             "input": _js_path(psd_path),
             "render_png": _js_path(render_png),
             "resave_psd": _js_path(resave_psd),
-            # Text appended to layer contents, not a path: it must reach Photoshop verbatim.
-            "mutate_suffix": _js_string(mutate_suffix),
-            "mutated_png": _js_path(mutated_png),
         }
         # The guard answers modal alerts Photoshop raises behind the blocked COM call
         # (see the module docstring) and force-kills Photoshop.exe once nothing has

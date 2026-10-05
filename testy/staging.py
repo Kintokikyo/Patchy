@@ -36,8 +36,9 @@ class StagedPsd:
     # stripper does not look (16/32-bit documents).
     cache_stripped: Path | None = None
     cache_plain: Path | None = None
-    # The stripped and plain copies with the type layers left as they were, for an
-    # editor whose text cannot be measured that way (None when only text is cached).
+    # The stripped and plain copies with type layers and smart objects left as they
+    # were, for an editor that redraws those by script instead (None when nothing
+    # else is cached).
     cache_stripped_text_kept: Path | None = None
     cache_plain_text_kept: Path | None = None
 
@@ -79,8 +80,8 @@ def stage_psd(source: Path, staging_dir: Path) -> StagedPsd:
     try:
         if cache_stripped is None:
             raise PsdParseError("nothing to strip")
-        write_stripped_caches(str(original), str(stripped_text_kept), keep_kinds=("text",))
-        write_stripped_caches(str(original), str(plain_text_kept), plain=True, keep_kinds=("text",))
+        write_stripped_caches(str(original), str(stripped_text_kept), keep_kinds=("text", "smart"))
+        write_stripped_caches(str(original), str(plain_text_kept), plain=True, keep_kinds=("text", "smart"))
     except (PsdParseError, OSError, ValueError, IndexError, struct_error):
         stripped_text_kept = plain_text_kept = None
 

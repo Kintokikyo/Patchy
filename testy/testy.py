@@ -57,11 +57,11 @@ DEFAULT_SUFFIX = "~TESTY~"
 # the cache is gone. An editor that shows such a layer from the cache has not rendered
 # it, and a reader cannot tell; so these files are scored with the caches removed.
 CACHED_LAYER_LABELS = {
-    "TEXT": "Cannot render text objects",
-    "SOLIDFILL": "Cannot render shape or fill layers",
-    "GRADIENTFILL": "Cannot render shape or fill layers",
-    "PATTERNFILL": "Cannot render shape or fill layers",
-    "SMARTOBJECT": "Cannot render smart objects",
+    "TEXT": "Cannot render Photoshop text objects",
+    "SOLIDFILL": "Cannot render Photoshop shape or fill layers",
+    "GRADIENTFILL": "Cannot render Photoshop shape or fill layers",
+    "PATTERNFILL": "Cannot render Photoshop shape or fill layers",
+    "SMARTOBJECT": "Cannot render Photoshop smart objects",
 }
 
 # When a cached layer comes out blank once its cache is gone, is that the editor's
@@ -80,20 +80,24 @@ BLANK_IS_FAILURE = {
     "gimp": ("TEXT", "SMARTOBJECT"),        # imports both as the pixels in the file
     "psdtools": ("TEXT", "SMARTOBJECT"),    # no text engine, no smart-object renderer
     "photopea": ("TEXT", "SMARTOBJECT"),    # smart objects on open; text after the scripted edit
-    "photodemon": ("SMARTOBJECT",),         # no smart objects; its text engine cannot be scripted
+    # PhotoDemon's PSD importer (pdPSD.cls) creates every layer as PDL_Image and never
+    # reads the 'TySh' block, so a PSD type layer is only ever its cached pixels there.
+    "photodemon": ("TEXT", "SMARTOBJECT"),
 }
 NOT_MEASURED_REASON = {
     "TEXT": "this editor may only lay text out after an edit made inside the app, which Testy cannot make",
     "SMARTOBJECT": "this editor may only render a smart object after an edit made inside the app",
 }
-# Editors whose type layers keep their cache in the copies they are given, and are
-# made to lay the text out by a script instead (the way Photoshop's own reference is
-# produced). Patchy takes a type layer's placement from the cached layer, so with the
-# cache gone its text comes out small and misplaced, which says nothing about its
-# text engine; drivers/patchy_text_afresh.js calls layer.rerenderText() on each type
-# layer. A layer the script did not reach is reported as not measured.
+# Editors whose type layers and smart objects keep their cache in the copies they are
+# given, and are made to draw them by a script instead (the way Photoshop's own
+# reference is produced). Patchy, like Photoshop, shows the stored pixels until the
+# layer is edited and takes its placement from them, so with the cache gone its text
+# comes out small and misplaced and a smart object not at all, which says nothing
+# about its engines; drivers/patchy_text_afresh.js calls layer.rerenderText() and
+# layer.rerenderSmartObject() on each such layer. A layer the script did not reach is
+# reported as not measured.
 TEXT_CACHE_KEPT = {
-    "patchy": "Patchy's script could not re-render this text layer",
+    "patchy": "Patchy's script could not re-render this layer",
 }
 # A stripped-copy render that differs from the as-opened one outside the cached layers
 # by more than this is not a render of the same document (a stale tab, a fallback):
@@ -109,13 +113,20 @@ NO_CACHE_BOX_UNCHANGED = 0.005
 # "replay" editors have no text engine at all, and "unmeasured" ones have one that
 # Testy cannot drive. The report ranks only the first two and names the rest.
 TEXT_RENDER_BASIS = {
-    "patchy": ("forced", "scored on the forced text re-render"),
+    "patchy": ("open", "Patchy's text is laid out afresh by layer.rerenderText()"),
     "krita": ("open", "Krita lays text out afresh on every open"),
     "affinity": ("open", "Affinity lays text out afresh on every open"),
     "gimp": ("replay", "GIMP imports PSD text layers as the rasters Photoshop cached"),
     "psdtools": ("replay", "psd-tools has no text engine; it composites the rasters Photoshop cached"),
-    "photopea": ("open", "Photopea's text is laid out afresh by a scripted edit that changes nothing"),
-    "photodemon": ("unmeasured", "the patched PhotoDemon CLI cannot script a text edit"),
+    "photopea": ("open", "Photopea's text is laid out afresh by a scripted edit that changes nothing, "
+                         "with the document's fonts handed to it"),
+    "photodemon": ("replay", "PhotoDemon imports PSD text layers as the rasters Photoshop cached"),
+}
+# Help an editor gets from Testy for the text score, stated on the Standing card so the
+# number is read for what it is.
+TEXT_HELP_NOTES = {
+    "photopea": "Photopea is fed the correct fonts: it runs in a browser with only its own web fonts, "
+                "so Testy hands it this machine's font files for the fonts each document's text uses",
 }
 # Affinity is deliberately opt-in (--editors photoshop,patchy,krita,photopea,affinity):
 # its driver is background-UIA best-effort and the app's cold-start timing is flaky,
@@ -125,19 +136,6 @@ DEFAULT_EDITORS = ["photoshop", "patchy", "krita", "gimp", "photodemon", "photop
 # psdtools is opt-in too: a Python PSD library, not an editor, measured for its layer
 # compositor and for what a load-then-save keeps (see drivers/psdtools.py).
 OPT_IN_EDITORS = ["affinity", "psdtools"]
-
-# Why an editor's cell has no forced text re-render leg (surfaced in the report's
-# detail panel so a missing "render, text appended" image reads as deliberate).
-# Photoshop and Patchy are the only editors whose text can be scripted; the
-# Photoshop leg lives with the ground truth rather than its own cell.
-TEXT_MUTATION_SKIPPED = {
-    "krita": "Krita re-renders text layers on open by design, so a forced re-render adds no signal",
-    "affinity": "Affinity re-renders text layers on open by design, so a forced re-render adds no signal",
-    "photopea": "deliberately disabled: Photopea's script engine hangs on text-contents assignment for some documents",
-    "gimp": "GIMP imports PSD text layers as baked rasters, so there is no text object to mutate",
-    "photodemon": "the patched /testy-export CLI cannot script text edits",
-    "psdtools": "psd-tools has no text engine; it composites the stored text pixels",
-}
 
 # The Patchy release-build refresh command comes from config.local.json
 # ("build_command"); without one, runs measure the existing patchy.exe as-is.
@@ -1104,6 +1102,17 @@ def refused_with_reference(entry: dict, cell: dict) -> bool:
             and bool((truth.get("artifacts") or {}).get("render")))
 
 
+def text_fonts_missing(truth: dict | None) -> str | None:
+    """Why no editor's own text render is scored for this file, or None: Photoshop
+    lacks a font the text needs, so it cannot draw the text faithfully either and the
+    baked pixels stay the reference. (Results cached before the appended-text leg
+    was retired carry the same reason as mutateSkipped.)"""
+    if not truth:
+        return None
+    reason = truth.get("textFontsMissing") or truth.get("mutateSkipped")
+    return reason if reason and "fonts unavailable" in reason else None
+
+
 def reference_space_key(traits: dict | None) -> str:
     """Cache qualifier for files whose Photoshop reference changed: anything not plain
     8-bit RGB or carrying a non-sRGB profile (the probe now saves 8-bit sRGB), and any
@@ -1127,6 +1136,7 @@ class Runner:
         self.args = args
         self.server: _ExclusiveHTTPServer | None = None
         self.suffix = args.suffix
+        self._text_fonts: list[str] = []
         # Scan mode: files whose render stays within this bad-pixel fraction of the
         # Photoshop ground truth (and hit no failure of any kind) are "passed" and
         # their run artifacts are discarded. None = normal run, keep everything.
@@ -1201,9 +1211,9 @@ class Runner:
                     "version": info.version,
                     "available": info.available,
                     "notes": info.notes,
-                    "mutationSkipped": TEXT_MUTATION_SKIPPED.get(key),
                     "textBasis": TEXT_RENDER_BASIS.get(key, (None, None))[0],
                     "textBasisNote": TEXT_RENDER_BASIS.get(key, (None, None))[1],
+                    "textHelpNote": TEXT_HELP_NOTES.get(key),
                 }
                 for key, info in self.editors.items()
             },
@@ -1264,22 +1274,19 @@ class Runner:
 
         if result_path.exists() and not self.args.fresh:
             result = json.loads(result_path.read_text(encoding="utf-8"))
-            for name in ("render.png", "mutated.png"):
-                if (cache_dir / name).exists():
-                    shutil.copyfile(cache_dir / name, gt_dir / name)
+            if (cache_dir / "render.png").exists():
+                shutil.copyfile(cache_dir / "render.png", gt_dir / "render.png")
         else:
-            result = self.ps.probe(
-                staged.original,
-                gt_dir / "render.png",
-                mutate_suffix=self.suffix,
-                mutated_png=gt_dir / "mutated.png",
-            )
+            result = self.ps.probe(staged.original, gt_dir / "render.png")
             if result.get("ok"):
                 cache_dir.mkdir(parents=True, exist_ok=True)
                 result_path.write_text(json.dumps(result), encoding="utf-8")
-                for name in ("render.png", "mutated.png"):
-                    if (gt_dir / name).exists():
-                        shutil.copyfile(gt_dir / name, cache_dir / name)
+                if (gt_dir / "render.png").exists():
+                    shutil.copyfile(gt_dir / "render.png", cache_dir / "render.png")
+        if result.get("ok"):
+            # (Ground truth cached before the appended-text leg was retired calls it
+            # mutateSkipped; only its missing-fonts reason still means anything.)
+            result["textFontsMissing"] = text_fonts_missing(result)
 
         if not result.get("ok"):
             entry["groundTruth"] = {"state": "failed", "error": result.get("error", "unknown")}
@@ -1309,17 +1316,10 @@ class Runner:
             thumb = _thumb(gt_dir / "render.png", gt_dir / "render_thumb.png")
             if thumb:
                 artifacts["renderThumb"] = self._rel(gt_dir / thumb)
-        if (gt_dir / "mutated.png").exists():
-            artifacts["mutated"] = self._rel(gt_dir / "mutated.png")
-            thumb = _thumb(gt_dir / "mutated.png", gt_dir / "mutated_thumb.png")
-            if thumb:
-                artifacts["mutatedThumb"] = self._rel(gt_dir / thumb)
         entry["groundTruth"] = {
             "state": "done",
             "render": result.get("render"),
-            "mutated": result.get("mutated"),
-            "mutateCount": result.get("mutateCount"),
-            "mutateSkipped": result.get("mutateSkipped"),
+            "textFontsMissing": result.get("textFontsMissing"),
             "missingFonts": result.get("missingFonts", []),
             "artifacts": artifacts,
         }
@@ -1379,7 +1379,9 @@ class Runner:
         version_key += reference_space_key(entry.get("traits"))
         if editor_key != "photoshop" and entry.get("cachedLayers"):
             # Cells for files with cached layers are scored with those caches removed.
-            version_key += "-nocache4"
+            version_key += "-nocache9"
+        if editor_key == "photopea" and (entry.get("traits") or {}).get("text"):
+            version_key += "-fonts1"  # Photopea is now handed the fonts the text uses
         cache_dir = config.CACHE_DIR / (
             f"cell-{staged.sha1}-{editor_key}-{_version_slug(version_key)}-{self.suffix}"
         )
@@ -1403,12 +1405,15 @@ class Runner:
         render_png = cell_dir / "render.png"
         resave_psd = cell_dir / "resave.psd"
         trap_png = cell_dir / "trap.png"
-        mutated_png = cell_dir / "mutated.png"
         artifacts: dict = {}
         cell["artifacts"] = artifacts
 
         try:
-            self._drive_editor(editor_key, info, staged, cell, render_png, resave_psd, trap_png, mutated_png)
+            # The fonts this file's text uses (PostScript names from Photoshop's
+            # manifest), for the one editor that has to be handed them: Photopea.
+            self._text_fonts = sorted({str(layer.get("font")) for layer in (truth or {}).get("layers", [])
+                                       if layer.get("kind") == "TEXT" and layer.get("font")})
+            self._drive_editor(editor_key, info, staged, cell, render_png, resave_psd, trap_png)
         except Exception as error:
             cell.update({"state": "failed", "error": f"driver error: {error}"})
             self.push()
@@ -1425,7 +1430,6 @@ class Runner:
         for path, key, thumb_key in (
             (render_png, "render", "renderThumb"),
             (trap_png, "trap", "trapThumb"),
-            (mutated_png, "mutated", "mutatedThumb"),
         ):
             if path.exists():
                 artifacts[key] = self._rel(path)
@@ -1446,16 +1450,10 @@ class Runner:
             )
             if (cell_dir / "heatmap.png").exists():
                 artifacts["heatmap"] = self._rel(cell_dir / "heatmap.png")
+            self._apply_text_render_rule(cell)
 
         if trap_png.exists():
             cell["trapSentinelFraction"] = round(analyze.sentinel_fraction(trap_png), 4)
-
-        truth_mutated = self.files_dir / artifact_dir_name(entry) / "_truth" / "mutated.png"
-        if not cell.get("textRenderSkipped") and mutated_png.exists() and truth_mutated.exists() and truth is not None and document_size[0]:
-            text_objects = [l for l in truth["layers"] if l.get("kind") == "TEXT"]
-            cell["textRender"] = analyze.compare_renders(
-                truth_mutated, mutated_png, document_size, text_objects, None
-            )
 
         if resave_psd.exists() and truth is not None:
             cell["stage"] = "reopening resave in Photoshop"
@@ -1528,7 +1526,8 @@ class Runner:
         if editor_key == "photopea" and self.server_base is not None:
             from drivers import photopea as photopea_driver
 
-            result = photopea_driver.render_text_afresh(self.server_base, config.TESTY_ROOT, source, output)
+            result = photopea_driver.render_text_afresh(self.server_base, config.TESTY_ROOT, source, output,
+                                                        text_fonts=self._text_fonts)
             return bool(result.get("ok")) and output.exists(), result
         if editor_key == "affinity":
             from drivers import affinity as affinity_driver
@@ -1563,7 +1562,7 @@ class Runner:
         Skipped when Photoshop itself lacks a font the text needs (nobody can render
         that text faithfully, the cache is the reference)."""
         if (editor_key == "photoshop" or truth is None or staged.cache_stripped is None
-                or staged.cache_plain is None or truth.get("mutateSkipped") or not render_png.exists()):
+                or staged.cache_plain is None or text_fonts_missing(truth) or not render_png.exists()):
             return
         cached = [layer for layer in truth["layers"]
                   if layer.get("kind") in CACHED_LAYER_LABELS and layer.get("visible", True)
@@ -1643,11 +1642,14 @@ class Runner:
                          and opened_vs_stripped[index] > NO_CACHE_BOX_UNCHANGED]
 
             failures = BLANK_IS_FAILURE.get(editor_key, ())
-            unreached: set[str] = set()
+            unreached: set[tuple[str, str]] = set()
             if editor_key == "photopea" or text_kept:
-                unreached = set(details.get("failed") or [])
+                scripted = ("TEXT", "SMARTOBJECT") if text_kept else ("TEXT",)
+                unreached = {("TEXT", name) for name in details.get("failed") or []}
+                unreached |= {("SMARTOBJECT", name) for name in details.get("smartFailed") or []}
                 if details.get("error"):
-                    unreached = {layer.get("name", "") for layer in cached if layer["kind"] == "TEXT"}
+                    unreached = {(layer["kind"], layer.get("name", "")) for layer in cached
+                                 if layer["kind"] in scripted}
             unreached_reason = TEXT_CACHE_KEPT.get(
                 editor_key, "Photopea's scripted edit did not reach this text layer")
             failed: list[int] = []
@@ -1655,8 +1657,8 @@ class Runner:
             reasons: list[str] = []
             for index, layer in enumerate(cached):
                 kind = layer["kind"]
-                if kind == "TEXT" and layer.get("name", "") in unreached:
-                    # Never edited, so Photopea never laid it out: blank or not, the
+                if (kind, layer.get("name", "")) in unreached:
+                    # Never edited, so the editor never drew it: blank or not, the
                     # box says nothing about its engine.
                     unmeasured.append(index)
                     reasons.append(unreached_reason)
@@ -1679,6 +1681,10 @@ class Runner:
                 "notRendered": [cached[index].get("name", "") for index in failed],
                 "notMeasured": [cached[index].get("name", "") for index in unmeasured],
             }
+            text_failed = [cached[index].get("name", "") for index in failed
+                           if cached[index]["kind"] == "TEXT"]
+            if text_failed:
+                cell["noCache"]["textNotRendered"] = text_failed
             if showed_composite:
                 cell["noCache"]["showedComposite"] = True
             if unmeasured:
@@ -1689,13 +1695,40 @@ class Runner:
             void(f"harness error: {str(error)[:200]}")
 
     @staticmethod
+    def _apply_text_render_rule(cell: dict) -> bool:
+        """An editor that cannot render a Photoshop text object (it can only show the
+        pixels Photoshop cached in the file) scores 0% for the file's render, whatever
+        the rest of the picture looks like. The measured numbers stay under
+        renderMetrics.measured; renderMetrics.textNotRendered names the layers.
+        Returns True when it changed the cell."""
+        names = (cell.get("noCache") or {}).get("textNotRendered")
+        metrics = cell.get("renderMetrics")
+        if not names or not metrics or "textNotRendered" in metrics:
+            return False
+        perceptual = metrics.get("perceptual") or {}
+        metrics["measured"] = {
+            "accuracy": metrics.get("accuracy"), "badFraction": metrics.get("badFraction"),
+            "perceptualAccuracy": perceptual.get("accuracy"),
+            "perceptualBadFraction": perceptual.get("badFraction"),
+        }
+        metrics["accuracy"], metrics["badFraction"] = 0.0, 1.0
+        if perceptual:
+            perceptual["accuracy"], perceptual["badFraction"] = 0.0, 1.0
+        metrics["textNotRendered"] = list(names)
+        return True
+
+    @staticmethod
     def _skip_unavailable_text_comparison(cell: dict, truth: dict | None) -> None:
-        if truth and truth.get("mutateSkipped"):
-            cell["textRenderSkipped"] = truth["mutateSkipped"]
-            cell.pop("textRender", None)
-            cell.pop("mutateError", None)
-            for key in ("mutated", "mutatedThumb"):
-                cell.get("artifacts", {}).pop(key, None)
+        """Note on the cell when Photoshop lacks a font the file's text needs (no
+        editor's own text render is scored then), and drop what a cell cached before
+        the appended-text leg was retired still carries from it."""
+        missing = text_fonts_missing(truth)
+        if missing:
+            cell["textRenderSkipped"] = missing
+        cell.pop("textRender", None)
+        cell.pop("mutateError", None)
+        for key in ("mutated", "mutatedThumb"):
+            (cell.get("artifacts") or {}).pop(key, None)
 
     def _upgrade_cached_metrics(
         self, entry: dict, cell: dict, cell_dir: Path, cache_dir: Path,
@@ -1738,6 +1771,12 @@ class Runner:
                 cell["renderMetrics"] = analyze.compare_renders(
                     truth_render, render_png, document_size, truth["layers"], None
                 )
+        # Cells cached before the two text rules (no text saved as text, no text
+        # rendered: 0% for that score) are brought up to date in place.
+        if manifest_mod.apply_text_save_rule(cell.get("native")):
+            changed = True
+        if self._apply_text_render_rule(cell):
+            changed = True
         if staged.trap is None and (
             "trapSentinelFraction" in cell or "trapError" in cell
         ):
@@ -1782,7 +1821,6 @@ class Runner:
         render_png: Path,
         resave_psd: Path,
         trap_png: Path,
-        mutated_png: Path,
     ) -> None:
         if editor_key == "photoshop":
             result = self.ps.probe(staged.original, render_png, resave_psd=resave_psd)
@@ -1818,10 +1856,6 @@ class Runner:
                 cell["resaveError"] = patchy_driver.failure_text(resaved)
             if staged.trap is not None:
                 patchy_driver.export(info.exe, staged.trap, trap_png)
-            if not cell.get("textRenderSkipped"):
-                mutated = patchy_driver.export(info.exe, staged.original, mutated_png, append_text=self.suffix)
-                if not mutated["ok"]:
-                    cell["mutateError"] = patchy_driver.failure_text(mutated)
             return
 
         if editor_key == "krita":
@@ -1909,9 +1943,8 @@ class Runner:
                 render_png=render_png,
                 resave_psd=resave_psd,
                 trap_png=trap_png,
-                mutated_png=mutated_png,
-                suffix=self.suffix,
                 progress=lambda stage: (cell.__setitem__("stage", stage), self.push()),
+                text_fonts=self._text_fonts,
             )
             if not result["ok"]:
                 cell.update({"state": "failed", "opens": result.get("opens", "fail"),
@@ -1982,7 +2015,7 @@ class Runner:
                    "manifest.json")
     SCRUB_CELL = ("render.png", "render_thumb.png", "render_as_opened.png", "nocache.png",
                   "nocache_plain.png", "nocache_resave.psd", "nocache_unused.png", "resave.psd", "trap.png",
-                  "trap_thumb.png", "mutated.png", "mutated_thumb.png", "heatmap.png",
+                  "trap_thumb.png", "mutated.png", "mutated_thumb.png", "heatmap.png",  # mutated*: older runs
                   "roundtrip.png", "roundtrip_thumb.png", "roundtrip_manifest.json")
 
     def _apply_scan_policy(self, index: int) -> None:
@@ -2057,7 +2090,6 @@ class Runner:
                         f"{ps_sentinel * 100:.1f}%")
             for key, label in (
                 ("resaveError", "resave failed"),
-                ("mutateError", "text mutation failed"),
                 ("trapError", "trap render failed"),
             ):
                 if cell.get(key):

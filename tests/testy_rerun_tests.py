@@ -353,15 +353,76 @@ class RerunTests(unittest.TestCase):
     def test_a_blank_text_layer_only_counts_against_editors_known_to_draw_text(self):
         # Photoshop itself shows nothing for a type layer whose cache is gone, so an
         # editor is marked down for one only when its text engine is known to run.
-        for editor in ("patchy", "krita", "affinity", "gimp", "psdtools", "photopea"):
+        for editor in ("patchy", "krita", "affinity", "gimp", "psdtools", "photopea", "photodemon"):
             self.assertIn("TEXT", testy.BLANK_IS_FAILURE[editor])
-        self.assertNotIn("TEXT", testy.BLANK_IS_FAILURE["photodemon"])
+        # An editor Testy knows nothing about is never marked down for a blank text layer.
+        self.assertEqual(testy.BLANK_IS_FAILURE.get("some-new-editor", ()), ())
         # Patchy's text keeps its cache and is re-rendered by script (layer.rerenderText).
         self.assertIn("patchy", testy.TEXT_CACHE_KEPT)
         script = (ROOT / "testy" / "drivers" / "patchy_text_afresh.js").read_text(encoding="utf-8")
         self.assertIn("layer.rerenderText()", script)
         self.assertEqual(set(testy.NOT_MEASURED_REASON), {"TEXT", "SMARTOBJECT"})
         self.assertNotIn("photoshop", testy.BLANK_IS_FAILURE)
+
+    def test_text_that_is_not_rendered_or_not_saved_scores_zero_with_the_reason(self):
+        import manifest
+
+        text = dict(name="Title", kind="TEXT")
+        pixels = dict(name="Photo", kind="NORMAL")
+        kept = manifest.compare_manifests([text, pixels], [dict(text), dict(pixels)])
+        self.assertEqual(kept["nativeScore"], 1.0)
+        self.assertNotIn("textNotSaved", kept)
+        # The text came back as pixels: half the objects survived, the score is 0.
+        lost = manifest.compare_manifests([text, pixels], [dict(name="Title", kind="NORMAL"), dict(pixels)])
+        self.assertEqual(lost["nativeScore"], 0.0)
+        self.assertEqual(lost["nativeScoreMeasured"], 0.5)
+        self.assertEqual(lost["textNotSaved"], {"lost": 1, "total": 1})
+        self.assertEqual((lost["nativeKept"], lost["nativeTotal"]), (1, 2))
+        self.assertFalse(manifest.apply_text_save_rule(lost))  # applied once
+        # A file with no text is untouched by the rule.
+        no_text = manifest.compare_manifests([pixels], [dict(name="Photo", kind="SMARTOBJECT")])
+        self.assertNotIn("textNotSaved", no_text)
+
+        rendered = dict(renderMetrics=dict(accuracy=0.9, badFraction=0.1,
+                                           perceptual=dict(accuracy=0.95, badFraction=0.05)),
+                        noCache=dict(state="done", notRendered=["Logo"], notMeasured=[]))
+        self.assertFalse(testy.Runner._apply_text_render_rule(rendered))  # a shape, not text
+        blank = copy.deepcopy(rendered)
+        blank["noCache"]["textNotRendered"] = ["Title"]
+        self.assertTrue(testy.Runner._apply_text_render_rule(blank))
+        metrics = blank["renderMetrics"]
+        self.assertEqual((metrics["accuracy"], metrics["badFraction"]), (0.0, 1.0))
+        self.assertEqual((metrics["perceptual"]["accuracy"], metrics["perceptual"]["badFraction"]), (0.0, 1.0))
+        self.assertEqual(metrics["measured"]["perceptualAccuracy"], 0.95)
+        self.assertEqual(metrics["textNotRendered"], ["Title"])
+        self.assertFalse(testy.Runner._apply_text_render_rule(blank))
+        # Not measured is not "cannot render": no zero.
+        unmeasured = copy.deepcopy(rendered)
+        unmeasured["noCache"]["notMeasured"] = ["Title"]
+        self.assertFalse(testy.Runner._apply_text_render_rule(unmeasured))
+
+    def test_photopea_is_handed_the_font_files_the_text_uses(self):
+        import config
+        import fonts
+        from drivers import photopea
+
+        carlito = ROOT / "third_party" / "fonts-web" / "carlito" / "Carlito-Bold.ttf"
+        with tempfile.TemporaryDirectory(dir=ROOT / "testy") as temp, \
+                mock.patch.object(config, "CACHE_DIR", Path(temp)), \
+                mock.patch.object(fonts, "_index", {"Carlito-Bold": (carlito, 0)}):
+            served = fonts.font_file("Carlito-Bold")
+            self.assertEqual(served.read_bytes(), carlito.read_bytes())
+            self.assertIsNone(fonts.font_file("NoSuchFont-Regular"))
+            self.assertIsNone(fonts.font_file(""))
+            # Names are deduplicated and unknown ones skipped.
+            self.assertEqual(fonts.font_files(["Carlito-Bold", "NoSuchFont", "Carlito-Bold"]), [served])
+            query = photopea._fonts_query("http://127.0.0.1:1", ROOT / "testy", ["Carlito-Bold", "NoSuchFont"])
+            self.assertTrue(query["fonts"].startswith("http://127.0.0.1:1/"))
+            self.assertTrue(query["fonts"].endswith("/photopea-fonts/Carlito-Bold.ttf"))
+            self.assertEqual(photopea._fonts_query("http://127.0.0.1:1", ROOT / "testy", ["NoSuchFont"]), {})
+            self.assertEqual(photopea._fonts_query("http://127.0.0.1:1", ROOT / "testy", None), {})
+        host = (ROOT / "testy" / "photopea_host.html").read_text(encoding="utf-8")
+        self.assertIn('params.get("fonts")', host)
 
     def test_reference_cache_key_follows_what_the_reference_re_renders(self):
         import psd_sections
@@ -393,18 +454,32 @@ class RerunTests(unittest.TestCase):
         self.assertNotIn('mutateError', cached)
         self.assertNotIn('mutated', cached['artifacts'])
         self.assertEqual(cached['renderMetrics']['accuracy'], .8)
+        self.assertEqual(cached['textRenderSkipped'], 'Required fonts unavailable: Example')
+        # The retired appended-text leg's leftovers go even when no font is missing,
+        # and its other skip reason ("could not edit every layer") no longer means anything.
+        stale = cell(.8)
+        stale.update(textRender={'accuracy': .1})
+        testy.Runner._skip_unavailable_text_comparison(
+            stale, {'mutateSkipped': 'Photoshop could not edit every eligible text layer'})
+        self.assertNotIn('textRender', stale)
+        self.assertNotIn('textRenderSkipped', stale)
+        self.assertEqual(testy.text_fonts_missing({'textFontsMissing': 'Required fonts unavailable: A'}),
+                         'Required fonts unavailable: A')
+        self.assertIsNone(testy.text_fonts_missing({'textFontsMissing': None}))
+        self.assertEqual(testy.TEXT_RENDER_BASIS['patchy'][0], 'open')
+        self.assertNotIn('mutate', photoshop._PROBE_JSX)
 
     def test_report_javascript_and_photoshop_font_preflight(self):
         script = report._PAGE.split('<script>', 1)[1].split('</script>', 1)[0]
         js_file = self.runs/'report.js'
         js_file.write_text(script, encoding='utf-8')
         subprocess.run(['node', '--check', str(js_file)], check=True, capture_output=True)
-        preflight = photoshop._PROBE_JSX.split('  function textFontProblems', 1)[1].split('  // Append the suffix', 1)[0]
+        preflight = photoshop._PROBE_JSX.split('  function textFontProblems', 1)[1].split('  var opened = null;', 1)[0]
         preflight = 'function textFontProblems' + preflight
         controls = script.split('function rerunRowControls', 1)[1].split('function render()', 1)[0]
         controls = 'function rerunRowControls' + controls
-        mutation = photoshop._PROBE_JSX.split('    var mutateCount', 1)[1].split('    var result =', 1)[0]
-        mutation = 'var mutateCount' + mutation
+        fonts = photoshop._PROBE_JSX.split('    var missingFonts = freshFonts;', 1)[1].split('    var missingJson', 1)[0]
+        fonts = 'var missingFonts = freshFonts;' + fonts
         test_js = """
 const assert = require('node:assert/strict');
 const stringIDToTypeID = x => x;
@@ -419,7 +494,7 @@ styles.pop(); missing=[]; textFontProblems([layer],missing); assert.deepEqual(mi
 styles[0].fontAvailable=false; missing=[]; textFontProblems([layer],missing); assert.deepEqual(missing,['Installed']);
 missing=[]; textFontProblems([{typename:'LayerSet',layers:[{...layer,allLocked:true}]}],missing); assert.deepEqual(missing,[]);
 let RUN_ID='batch', runState={running:false}, S={state:'done',run:{editorOrder:['patchy','photoshop']}}, rowRerunState=null,rowRerunPending=null,rowRerunError='';
-const rowRerunScopes={}; const esc=s=>String(s).replaceAll('<','&lt;').replaceAll('"','&quot;');
+const rowRerunScopes={}; const pct=(x,d)=>(100*x).toFixed(d===undefined?1:d)+'%'; const esc=s=>String(s).replaceAll('<','&lt;').replaceAll('"','&quot;');
 """ + controls + """
 let markup=rerunRowControls({source:'one',name:'Image <one>'},0); assert(markup.includes('Rerun</button>')); assert(markup.includes('value="patchy" selected')); assert(!markup.includes(' disabled'));
 runState.running=true; assert(rerunRowControls({source:'one',name:'Image'},0).includes(' disabled'));
@@ -427,19 +502,12 @@ rowRerunState={state:'running',source:'one'}; assert(rerunRowControls({source:'o
 runState=null; assert.equal(rerunRowControls({source:'one',name:'Image'},0),'');
 """
         test_js += """
-let edits=0, renders=0, failMutation=false;
-const MUTATE_SUFFIX='~TESTY~', MUTATED_PNG='output.png', opened={layers:[layer]};
-const DialogModes={NO:0}; app.displayDialogs=2;
-const q=JSON.stringify;
-function mutateText(layers,suffix,counter) {edits++; counter.n++; if(failMutation)counter.errors++;}
-function renderTo() {renders++;return 'ok';}
-function runMutation() {
-""" + mutation + """
-return {mutateSkipped,missingFonts,mutatedStatus,mutateErrors};
+function fontVerdict(freshFonts) {
+""" + fonts + """
+return textFontsMissing;
 }
-let verdict=runMutation(); assert(verdict.mutateSkipped.includes('Installed')); assert.equal(edits,0); assert.equal(renders,0); assert.equal(app.displayDialogs,2);
-styles[0].fontAvailable=true; verdict=runMutation(); assert.equal(verdict.mutateSkipped,null); assert.equal(edits,1); assert.equal(renders,1); assert.equal(app.displayDialogs,2);
-failMutation=true; verdict=runMutation(); assert.equal(edits,2); assert.equal(renders,1); assert(verdict.mutateSkipped.includes('could not edit')); assert.equal(app.displayDialogs,2);
+assert.equal(fontVerdict([]), null);
+assert.equal(fontVerdict(['Installed','Other']), 'Required fonts unavailable: Installed, Other');
 """
         rollup = script.split('const TOP_GROUP', 1)[1].split('let groupFilter', 1)[0]
         test_js += 'const TOP_GROUP' + rollup + r"""
@@ -477,6 +545,39 @@ assert.equal(replayNote({cells:{gimp:{}}}, 'gimp'), '');
 assert.equal(replayNote(legCell({state:'done', cachedLayers:3, notRendered:[], notMeasured:[]}), 'gimp'), '');
 assert(replayNote(legCell({state:'done', cachedLayers:3, notRendered:['Title','Logo'], notMeasured:[]}), 'gimp').includes('cannot render 2 of 3'));
 assert(replayNote(legCell({state:'done', cachedLayers:3, notRendered:[], notMeasured:['Title']}), 'gimp').includes('1 layer(s) not measured'));
+assert.equal(textZeroReasons({renderMetrics:{accuracy:0.9}, native:{nativeScore:1}}).length, 0);
+const textStanding = psdTextStanding({
+  patchy:{scores:[0.9,0.7], files:2, noRender:0, noSave:0},
+  affinity:{scores:[0,0], files:2, noRender:0, noSave:2},
+  gimp:{scores:[0,0], files:2, noRender:2, noSave:2},
+  krita:{scores:[0.6,0], files:2, noRender:0, noSave:1},
+  photoshop:{scores:[1], files:1, noRender:0, noSave:0}, photopea:{scores:[], files:0, noRender:0, noSave:0}},
+  ['photoshop','patchy','krita','gimp','affinity','photopea'], {affinity:'Affinity', gimp:'GIMP', krita:'Krita', patchy:'Patchy'});
+assert.deepEqual(textStanding.rows.map(r => r.key), ['patchy','krita','affinity','gimp']);
+assert.equal(textStanding.rows[0].label, '80%');
+assert.equal(textStanding.rows[1].label, '30% *');
+assert.equal(textStanding.rows[2].label, '0% (FAIL ***)');
+assert.equal(textStanding.rows[3].label, '0% (FAIL ** ***)');
+assert(textStanding.rows[2].failed && !textStanding.rows[1].failed);
+assert.deepEqual(textStanding.rows[2].reasons, ['Cannot save text objects back out into the .psd as text']);
+assert.equal(textStanding.rows[3].reasons.length, 2); assert.equal(textStanding.rows[0].reasons.length, 0);
+const helped = psdTextStanding({photopea:{scores:[0.96], files:1, noRender:0, noSave:0}, patchy:{scores:[0.9], files:1, noRender:0, noSave:0}},
+  ['patchy','photopea'], {}, {photopea:'Photopea is fed the correct fonts'});
+assert.equal(helped.rows[0].key, 'photopea'); assert.equal(helped.rows[0].label, '96% †');
+assert.deepEqual(helped.rows[0].reasons, ['Photopea is fed the correct fonts']);
+assert.deepEqual(helped.notes, [{mark:'†', text:'Photopea is fed the correct fonts'}]);
+assert.equal(helped.rows[1].label, '90%');
+const noteFor = mark => textStanding.notes.find(n => n.mark === mark).text;
+assert.equal(noteFor('***'), 'Cannot save text objects back out into the .psd as text');
+assert.equal(noteFor('**'), 'Cannot render psd text objects, only uses the baked pixels saved in the file');
+assert(noteFor('*').includes('Krita did not save the text objects back into the .psd as text in 1 of 2 files'));
+const zeroed = textZeroReasons({renderMetrics:{accuracy:0, textNotRendered:['Title'], measured:{accuracy:0.9, perceptualAccuracy:0.95}},
+  native:{nativeScore:0, nativeScoreMeasured:0.5, nativeKept:1, nativeTotal:2, textNotSaved:{lost:1, total:1}}});
+assert.equal(zeroed.length, 2);
+assert(zeroed[0].long.includes('cannot render 1 Photoshop text object(s)') && zeroed[0].long.includes('Title'));
+assert(zeroed[0].long.includes('can only show the pixels Photoshop cached'));
+assert(zeroed[1].long.includes('1 of 1 Photoshop text object(s) did not come back as text'));
+assert(zeroed[1].long.includes('1/2'));
 assert(replayNote(legCell({state:'not measured', reason:'could not open'}), 'gimp').includes('not measured'));
 """
         standing = script.split('function standingRows', 1)[1].split('let groupFilter', 1)[0]

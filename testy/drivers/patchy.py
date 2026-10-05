@@ -47,10 +47,11 @@ def export(exe: Path, input_path: Path, output_path: Path, append_text: str | No
 def render_text_afresh(exe: Path, input_path: Path, output_path: Path) -> dict:
     """Export `input_path` after Patchy has laid out every type layer itself.
 
-    Patchy shows the pixels saved in the file for a type layer until the layer is
-    edited; drivers/patchy_text_afresh.js calls layer.rerenderText() on each one, which
-    changes nothing else. Returns {"ok", "done": [layer names], "failed": [layer
-    names], "error"}."""
+    Patchy shows the pixels saved in the file for a type layer or a smart object until
+    the layer is edited; drivers/patchy_text_afresh.js calls layer.rerenderText() and
+    layer.rerenderSmartObject() on each one, which change nothing else. Returns {"ok",
+    "done"/"failed": [type layer names], "smartDone"/"smartFailed": [embedded smart
+    object names], "error"}."""
     script = Path(__file__).with_name("patchy_text_afresh.js")
     report = output_path.with_name(output_path.stem + ".script.txt")
     report.unlink(missing_ok=True)
@@ -69,7 +70,8 @@ def render_text_afresh(exe: Path, input_path: Path, output_path: Path) -> dict:
           and output_path.exists() and output_path.stat().st_size > 0)
     error = "" if ok else (result.get("stderr") or " | ".join(lines[-3:]) or f"exit {result['exitCode']}")
     return {"ok": ok, "done": list(answer.get("done") or []), "failed": list(answer.get("failed") or []),
-            "error": error}
+            "smartDone": list(answer.get("smartDone") or []),
+            "smartFailed": list(answer.get("smartFailed") or []), "error": error}
 
 
 def failure_text(result: dict) -> str:
