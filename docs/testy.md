@@ -124,7 +124,7 @@ Useful flags:
   to run. Affinity is opt-in: enable the app's connector once in Affinity's settings
   (it serves the local MCP endpoint); with it off, Affinity
   cells fail with an actionable message and the rest runs. `psdtools` (opt-in) is
-  psd-tools' own compositor, render leg only (`pip install "psd-tools[composite]"`).
+  the psd-tools library: its compositor and a load-and-save (`pip install "psd-tools[composite]"`).
 - `--no-build` - skip the release build refresh (measures the current patchy.exe).
 - `--fresh` - ignore cached ground truth / cells (cache in `testy/cache/`, keyed by
   file hash + editor version, plus Patchy git hash for the Patchy column).
@@ -144,7 +144,7 @@ Useful flags:
 into `local-test-fixtures/psd-tools` and writes `testy/corpus/psd-tools.txt`; run
 it with `--corpus corpus\psd-tools.txt` (relative to `testy/`). A multi-folder corpus gets a "By folder" table above
 the matrix (matches, data kept, bad saves per editor); clicking a
-row filters the matrix. The "Score without known limitations" checkbox drops
+row filters it. The "Score without known limitations" checkbox drops
 16/32-bit and artboard files (entry `traits`) from the totals. Files sharing a stem (`x.psd` beside `x.psb`) get distinct
 artifact directories through the entry's `dir` key (`x~psb`). The core test
 `psd_tools_corpus_reads_and_round_trips_if_available` covers the same files

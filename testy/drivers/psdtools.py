@@ -7,9 +7,10 @@ library hands back the file's baked preview whenever one exists, which is exactl
 the shortcut Testy's trap leg exists to catch. A file with no layer records has
 only that preview, so it is read as-is there.
 
-There is no resave leg: psd-tools writes back the blocks it read, so a "resave"
-would measure nothing. Each render runs in a child interpreter so a hang or crash
-in the compositor costs one cell, not the run.
+The output extension picks the leg, as with the CLI editors: an image extension
+renders, .psd/.psb loads the document and saves it again (`PSDImage.save`), which
+Photoshop then reopens for the "data kept" comparison like any editor's resave.
+Each call runs in a child interpreter so a hang or crash costs one cell, not the run.
 """
 
 from __future__ import annotations
@@ -64,13 +65,16 @@ def export(input_path: Path, output_path: Path) -> dict:
     }
 
 
-def _render(input_path: str, output_path: str) -> None:
+def _run(input_path: str, output_path: str) -> None:
     from psd_tools import PSDImage
 
     psd = PSDImage.open(input_path)
+    if Path(output_path).suffix.lower() in (".psd", ".psb"):
+        psd.save(output_path)
+        return
     image = psd.composite(force=True) if len(psd) else psd.composite()
     image.save(output_path)
 
 
 if __name__ == "__main__":
-    _render(sys.argv[1], sys.argv[2])
+    _run(sys.argv[1], sys.argv[2])

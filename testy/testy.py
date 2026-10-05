@@ -56,7 +56,7 @@ DEFAULT_SUFFIX = "~TESTY~"
 # PSD I/O at all and removed from the roster entirely.)
 DEFAULT_EDITORS = ["photoshop", "patchy", "krita", "gimp", "photodemon", "photopea"]
 # psdtools is opt-in too: a Python PSD library, not an editor, measured for its layer
-# compositor only (render leg, no resave; see drivers/psdtools.py).
+# compositor and for what a load-then-save keeps (see drivers/psdtools.py).
 OPT_IN_EDITORS = ["affinity", "psdtools"]
 
 # Why an editor's cell has no forced text re-render leg (surfaced in the report's
@@ -69,7 +69,7 @@ TEXT_MUTATION_SKIPPED = {
     "photopea": "deliberately disabled: Photopea's script engine hangs on text-contents assignment for some documents",
     "gimp": "GIMP imports PSD text layers as baked rasters, so there is no text object to mutate",
     "photodemon": "the patched /testy-export CLI cannot script text edits",
-    "psdtools": "psd-tools is measured for its render only",
+    "psdtools": "psd-tools has no text engine; it composites the stored text pixels",
 }
 
 # The Patchy release-build refresh command comes from config.local.json
@@ -1240,6 +1240,10 @@ class Runner:
             # Its forced-text pixels change when Photoshop's font environment
             # changes too; older cells must not retain an unqualified text score.
             version_key += "-fontcheck1-" + self.ps.font_cache_key()
+        if editor_key == "psdtools":
+            # Cells cached before the column had its load-and-save leg carry no
+            # "data kept" score; the qualifier keeps them from being reused.
+            version_key += "-resave1"
         cache_dir = config.CACHE_DIR / (
             f"cell-{staged.sha1}-{editor_key}-{_version_slug(version_key)}-{self.suffix}"
         )
@@ -1610,6 +1614,14 @@ class Runner:
                 self._note_file_rejection(cell, exported)
                 return
             cell["opens"] = "ok"
+            resaved = psdtools_driver.export(staged.original, resave_psd)
+            if not resaved["ok"]:
+                detail = resaved["stderr"] or f"exit {resaved['exitCode']}, no output"
+                cell["resaveError"] = f"opened, but psd-tools could not save the PSD ({detail})"
+            # The trap leg checks the driver's one promise: force=True really
+            # composites the layers instead of returning the baked preview.
+            if staged.trap is not None:
+                psdtools_driver.export(staged.trap, trap_png)
             return
 
         cell.update({"state": "failed", "error": f"no driver for editor '{editor_key}'"})
@@ -2047,6 +2059,9 @@ class Runner:
                 "render": sum(render_scores) / len(render_scores) if render_scores else 0.0,
                 "visual": sum(visual_scores) / len(visual_scores) if visual_scores else 0.0,
                 "native": sum(native_scores) / len(native_scores) if native_scores else 0.0,
+                # False when no cell produced a resave score (an editor without that
+                # leg, or a run that never got one): "native" is then a placeholder 0.
+                "nativeMeasured": bool(native_scores),
             }
         return aggregate
 
@@ -2087,7 +2102,8 @@ class Runner:
             log(
                 f"  {self.editors[editor_key].display_name:<10} "
                 f"byte {a['render'] * 100:5.1f}%   perceptual {a['visual'] * 100:5.1f}%   "
-                f"kept {a['native'] * 100:5.1f}%   "
+                + (f"kept {a['native'] * 100:5.1f}%   " if a["nativeMeasured"] else "kept     -    ")
+                +
                 f"opened {a['opened']}/{a['total']}"
                 + (f"   bad .psd saves {a['badSaves']}" if a["badSaves"] else "")
             )

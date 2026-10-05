@@ -215,7 +215,7 @@ def discover_editors(patchy_git_hash: str) -> dict[str, EditorInfo]:
     if psdtools_version and not missing:
         psdtools.available = True
         psdtools.version = psdtools_version
-        psdtools.notes.append("Python library; render leg only")
+        psdtools.notes.append("Python library, not an editor")
     else:
         psdtools.notes.append('psd-tools compositor unavailable: pip install "psd-tools[composite]"'
                               + (f" (missing {', '.join(missing)})" if missing else ""))

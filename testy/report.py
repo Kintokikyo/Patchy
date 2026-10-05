@@ -955,7 +955,7 @@ async function renderHistory() {
       lines.slice(-14).reverse().map(r => "<tr><td>" + esc(r.run) + "</td><td>" + r.files + "</td>" +
         editors.map(k => {
           const e = (r.editors || {})[k];
-          return "<td>" + (e ? pct(e.render, 0) + " / " + pct(e.native, 0) : "-") + "</td>";
+          return "<td>" + (e ? pct(e.render, 0) + " / " + (e.nativeMeasured === false ? "-" : pct(e.native, 0)) : "-") + "</td>";
         }).join("") + "</tr>").join("") + "</table>";
   } catch (e) { /* history is optional */ }
 }
