@@ -448,6 +448,7 @@ preview. PNG export may reserve one extra palette entry for transparency.
 | `layer.bounds` | The content bounding box. |
 | `layer.isGroup` / `layer.children` / `layer.isText` / `layer.text` | Group and text access. Setting `text` re-renders the layer; the new text keeps the first character's formatting. |
 | `layer.textOrientation` / `layer.textDirection` | Text layers: `"horizontal"` or `"vertical"`, and the paragraph direction `"auto"`, `"ltr"` or `"rtl"`. Setting either re-renders the layer. |
+| `layer.rerenderText()` | Text layers: renders the layer again from its stored text and formatting without changing them. A type layer opened from a PSD shows the pixels saved in the file until it is edited; this replaces them with Patchy's own render. |
 | `layer.textFont` | Text layers: the font family name the layer uses (read-only; `""` for other layers). |
 | `layer.duplicate(targetDocument?)` / `layer.remove()` | Copy above itself, or into another open document above its active layer; or delete. |
 | `layer.ungroup()` | Releases a folder's layers into its parent (top to bottom) and removes the folder. |

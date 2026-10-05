@@ -1,5 +1,12 @@
 # Scripting API compatibility
 
+2026-10-05 additive (API 1): `layer.rerenderText()` renders a text layer again from its
+stored text, fonts and formatting, changing none of them. A type layer opened from a PSD
+shows the pixels saved in the file until it is edited; this replaces them with Patchy's
+own render (what Testy uses to score Patchy's text engine instead of Photoshop's cached
+pixels). Throws on a layer that is not text or is locked. Pinned by
+`ui_script_rerender_text_replaces_stored_pixels`.
+
 2026-10-03 additive (API 1): `doc.mergeLayers(layers, {singleVector: true,
 effectsFrom?: layer})` explicitly combines selected vectors at the bottommost
 source's stack position. It removes individual layer effects unless `effectsFrom`

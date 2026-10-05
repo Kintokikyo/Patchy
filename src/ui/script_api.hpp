@@ -116,6 +116,8 @@ public:
   [[nodiscard]] QJSValue text_paragraph() const;
   void set_text_paragraph(const QJSValue& paragraph);
   Q_INVOKABLE void setTextRuns(const QJSValue& runs);
+  // Renders the layer again from its stored text, with no change to the text itself.
+  Q_INVOKABLE void rerenderText();
 
   Q_INVOKABLE void moveTo(double x, double y);
   Q_INVOKABLE QJSValue duplicate(const QJSValue& target = QJSValue());

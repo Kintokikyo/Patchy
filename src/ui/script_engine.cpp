@@ -2079,6 +2079,13 @@ bool ScriptEngineHost::set_text_layer_orientation(std::int64_t session_id, Layer
   });
 }
 
+bool ScriptEngineHost::rerender_text_layer(std::int64_t session_id, LayerId layer_id) {
+  // An untouched session of a box or PSD-frame layer keeps the source raster on commit
+  // (finish_active_text_editor); marking it changed is what makes the commit render.
+  return edit_text_layer_session(session_id, layer_id, "layer.rerenderText",
+                                 [this](QTextEdit& editor) { window_.mark_text_editor_changed(&editor); });
+}
+
 bool ScriptEngineHost::set_text_layer_direction(std::int64_t session_id, LayerId layer_id,
                                                 const QString& direction) {
   const auto resolved = layout_direction_for_name(direction);

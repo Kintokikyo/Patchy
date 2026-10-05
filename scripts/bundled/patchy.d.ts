@@ -335,6 +335,13 @@ interface PatchyLayer {
    * layer's face and size and bolds one word.
    */
   setTextRuns(runs: (PatchyTextRun | string)[]): void;
+  /**
+   * Text layers: renders the layer again from its stored text, fonts and formatting,
+   * changing none of them. A type layer opened from a PSD shows the pixels saved in the
+   * file until it is edited; this replaces them with Patchy's own render. Logs the same
+   * font warnings as the text setters. Throws on a layer that is not text or is locked.
+   */
+  rerenderText(): void;
 
   /**
    * Finite signed 32-bit positions; throws if the position or resulting bounds overflow.

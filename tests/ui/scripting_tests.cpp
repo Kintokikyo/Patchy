@@ -1429,6 +1429,76 @@ void ui_script_text_box_wraps_and_aligns() {
   CHECK(backlog_contains(window, QStringLiteral("tiny-box-throws=true")));
 }
 
+// rerenderText lays a text layer out again from what it stores. The layer's pixels are wiped
+// first, standing in for a raster a PSD carried: the call must bring the ink back without
+// touching the text, its runs or its position, and must refuse a layer that is not text.
+void ui_script_rerender_text_replaces_stored_pixels() {
+  patchy::test::register_test_fonts(patchy::test::TestFontRole::UiDefault);
+  patchy::ui::MainWindow window;
+  show_window(window);
+  CHECK(run_script(window, QStringLiteral(R"JS(
+    var doc = app.activeDocument;
+    var layer = doc.addTextLayer([{text: 'Ask '}, {text: 'Seth', bold: true, color: '#ff0000'}],
+                                 {size: 24, x: 10, y: 40, color: '#102030'});
+    var before = layer.bounds;
+    var runsBefore = JSON.stringify(layer.textRuns);
+    console.log('ink-before=' + (before.width > 0 && before.height > 0));
+  )JS")));
+  CHECK(backlog_contains(window, QStringLiteral("ink-before=true")));
+  // Wipe the raster behind the script's back, as if the file had brought other pixels.
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  const auto layer_id = document.active_layer_id();
+  CHECK(layer_id.has_value());
+  if (!layer_id.has_value()) {
+    return;
+  }
+  auto* layer = document.find_layer(*layer_id);
+  CHECK(layer != nullptr);
+  if (layer == nullptr) {
+    return;
+  }
+  const auto bounds_before = std::as_const(*layer).bounds();
+  {
+    auto& pixels = layer->pixels();
+    for (std::int32_t y = 0; y < pixels.height(); ++y) {
+      auto row = pixels.row(y);
+      std::fill(row.begin(), row.end(), std::uint8_t{0});
+    }
+  }
+  CHECK(run_script(window, QStringLiteral(R"JS(
+    var doc = app.activeDocument;
+    var layer = doc.activeLayer;
+    layer.rerenderText();
+    console.log('text-kept=' + layer.text);
+    console.log('runs-kept=' + (layer.textRuns.length === 2 && layer.textRuns[1].bold && layer.textRuns[1].color === '#ff0000'));
+    var plain = doc.addLayer('plain');
+    var threw = false;
+    try { plain.rerenderText(); } catch (e) { threw = true; }
+    console.log('plain-throws=' + threw);
+  )JS")));
+  CHECK(backlog_contains(window, QStringLiteral("text-kept=Ask Seth")));
+  CHECK(backlog_contains(window, QStringLiteral("runs-kept=true")));
+  CHECK(backlog_contains(window, QStringLiteral("plain-throws=true")));
+  const auto* after = std::as_const(document).find_layer(*layer_id);
+  CHECK(after != nullptr);
+  if (after == nullptr) {
+    return;
+  }
+  // The ink is back, where it was.
+  bool has_ink = false;
+  const auto& pixels = after->pixels();
+  for (std::int32_t y = 0; y < pixels.height() && !has_ink; ++y) {
+    const auto row = pixels.row(y);
+    has_ink = std::any_of(row.begin(), row.end(), [](std::uint8_t value) { return value != 0; });
+  }
+  CHECK(has_ink);
+  const auto bounds_after = after->bounds();
+  CHECK(std::abs(bounds_after.x - bounds_before.x) <= 1);
+  CHECK(std::abs(bounds_after.y - bounds_before.y) <= 1);
+  CHECK(std::abs(bounds_after.width - bounds_before.width) <= 2);
+  CHECK(std::abs(bounds_after.height - bounds_before.height) <= 2);
+}
+
 // setTextRuns retypes an existing layer with formatted runs on top of the first character's
 // formatting (the family and size survive, the runs' own bold and color apply), and a plain
 // `text` assignment afterwards keeps the first run's formatting as before.
@@ -3950,6 +4020,7 @@ std::vector<patchy::test::TestCase> scripting_tests() {
       {"ui_script_text_runs_create_and_read_back", ui_script_text_runs_create_and_read_back},
       {"ui_script_text_box_wraps_and_aligns", ui_script_text_box_wraps_and_aligns},
       {"ui_script_set_text_runs_edits_existing_layer", ui_script_set_text_runs_edits_existing_layer},
+      {"ui_script_rerender_text_replaces_stored_pixels", ui_script_rerender_text_replaces_stored_pixels},
       {"ui_script_text_paragraph_reads_and_sets_metrics", ui_script_text_paragraph_reads_and_sets_metrics},
       {"ui_script_text_auto_leading_ignores_spacer_paragraphs", ui_script_text_auto_leading_ignores_spacer_paragraphs},
       {"ui_script_list_fonts_reports_registered_families", ui_script_list_fonts_reports_registered_families},

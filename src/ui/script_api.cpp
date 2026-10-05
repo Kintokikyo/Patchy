@@ -735,6 +735,17 @@ void ScriptLayerObject::setTextRuns(const QJSValue& runs) {
   }
 }
 
+void ScriptLayerObject::rerenderText() {
+  const ScriptApiCall api_call(host_);
+  if (!host_.layer_is_text_layer(session_id_, layer_id_)) {
+    host_.throw_js_error(ScriptEngineHost::tr("This layer is not a text layer."));
+    return;
+  }
+  if (!host_.rerender_text_layer(session_id_, layer_id_)) {
+    host_.throw_js_error(ScriptEngineHost::tr("Could not edit the text layer."));
+  }
+}
+
 void ScriptLayerObject::set_text_direction(const QString& direction) {
   const ScriptApiCall api_call(host_);
   if (!host_.layer_is_text_layer(session_id_, layer_id_)) {
