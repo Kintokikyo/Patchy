@@ -120,6 +120,37 @@ def refresh_patchy_build() -> bool:
     return built and completed.returncode == 0
 
 
+def artifact_dir_name(entry: dict) -> str:
+    """The files/<dir> name holding one corpus file's artifacts: its stem, unless
+    init_status had to disambiguate it (entry["dir"])."""
+    return entry.get("dir") or Path(entry["name"]).stem
+
+
+def unique_artifact_dirs(corpus: list[Path]) -> list[str | None]:
+    """Per corpus file, None when its stem is free, else a distinct directory name.
+
+    Two files with one stem (x.psd beside x.psb, or the same name in two folders)
+    would otherwise share files/<stem>/ and overwrite each other's artifacts. The
+    first keeps the plain stem, so runs without a clash look as they always did.
+    Compared case-insensitively: Windows directories are."""
+    taken: set[str] = set()
+    names: list[str | None] = []
+    for path in corpus:
+        candidate = path.stem
+        if candidate.lower() not in taken:
+            taken.add(candidate.lower())
+            names.append(None)
+            continue
+        candidate = f"{path.stem}~{path.suffix.lstrip('.').lower() or 'file'}"
+        counter = 2
+        while candidate.lower() in taken:
+            candidate = f"{path.stem}~{counter}"
+            counter += 1
+        taken.add(candidate.lower())
+        names.append(candidate)
+    return names
+
+
 def read_corpus_file(corpus_path: Path) -> list[Path]:
     files: list[Path] = []
     for line in corpus_path.read_text(encoding="utf-8").splitlines():
@@ -1037,6 +1068,9 @@ class Runner:
                 for path in corpus
             ],
         }
+        for entry, name in zip(self.status["files"], unique_artifact_dirs(corpus)):
+            if name:
+                entry["dir"] = name
         if self.scan_threshold is not None:
             self.status["run"]["scan"] = {"thresholdPct": self.scan_threshold * 100.0}
         if getattr(self.args, "apply_to_run", None):
@@ -1066,7 +1100,7 @@ class Runner:
 
     def ground_truth(self, index: int, staged: staging.StagedPsd) -> dict | None:
         entry = self.file_entry(index)
-        gt_dir = self.files_dir / Path(entry["name"]).stem / "_truth"
+        gt_dir = self.files_dir / artifact_dir_name(entry) / "_truth"
         gt_dir.mkdir(parents=True, exist_ok=True)
         font_key = self.ps.font_cache_key()
         cache_dir = config.CACHE_DIR / f"gt-{staged.sha1}-{_version_slug(self.ps.version())}-{self.suffix}-fontcheck1-{font_key}"
@@ -1153,7 +1187,7 @@ class Runner:
         entry = self.file_entry(index)
         cell = entry["cells"][editor_key]
         info = self.editors[editor_key]
-        cell_dir = self.files_dir / Path(entry["name"]).stem / editor_key
+        cell_dir = self.files_dir / artifact_dir_name(entry) / editor_key
         cell_dir.mkdir(parents=True, exist_ok=True)
 
         if not info.available:
@@ -1230,7 +1264,7 @@ class Runner:
         if resave_psd.exists():
             artifacts["resavePsd"] = self._rel(resave_psd)
 
-        truth_render = self.files_dir / Path(entry["name"]).stem / "_truth" / "render.png"
+        truth_render = self.files_dir / artifact_dir_name(entry) / "_truth" / "render.png"
         document_size = tuple(entry.get("docSize", (0, 0)))
 
         if truth is not None and render_png.exists() and truth_render.exists() and document_size[0]:
@@ -1245,7 +1279,7 @@ class Runner:
         if trap_png.exists():
             cell["trapSentinelFraction"] = round(analyze.sentinel_fraction(trap_png), 4)
 
-        truth_mutated = self.files_dir / Path(entry["name"]).stem / "_truth" / "mutated.png"
+        truth_mutated = self.files_dir / artifact_dir_name(entry) / "_truth" / "mutated.png"
         if not cell.get("textRenderSkipped") and mutated_png.exists() and truth_mutated.exists() and truth is not None and document_size[0]:
             text_objects = [l for l in truth["layers"] if l.get("kind") == "TEXT"]
             cell["textRender"] = analyze.compare_renders(
@@ -1324,7 +1358,7 @@ class Runner:
         changed = False
         metrics = cell.get("renderMetrics")
         if metrics and "perceptual" not in metrics and truth is not None:
-            truth_render = self.files_dir / Path(entry["name"]).stem / "_truth" / "render.png"
+            truth_render = self.files_dir / artifact_dir_name(entry) / "_truth" / "render.png"
             render_png = cell_dir / "render.png"
             document_size = tuple(entry.get("docSize", (0, 0)))
             if truth_render.exists() and render_png.exists() and document_size and document_size[0]:
@@ -1637,7 +1671,7 @@ class Runner:
     def _scrub_passed_file(self, entry: dict) -> None:
         """Delete a passing file's artifacts by exact name; keep its metrics."""
         files_root = self.files_dir.resolve()
-        stem = Path(entry["name"]).stem
+        stem = artifact_dir_name(entry)
         file_dir = (self.files_dir / stem).resolve()
         if not stem or file_dir.parent != files_root or file_dir == files_root:
             log(f"scan: refusing to scrub unexpected path: {file_dir}")
@@ -1872,7 +1906,7 @@ class Runner:
                 if self.scan_threshold is not None and "scan" not in entry:
                     self._apply_scan_policy(index)
                 continue
-            staged = staging.stage_psd(source, self.files_dir / source.stem / "_staged")
+            staged = staging.stage_psd(source, self.files_dir / artifact_dir_name(entry) / "_staged")
             entry["sha1"] = staged.sha1
             if staged.trap_error:
                 entry["trapError"] = staged.trap_error

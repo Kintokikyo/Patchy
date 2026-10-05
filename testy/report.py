@@ -116,6 +116,14 @@ _PAGE = r"""<!DOCTYPE html>
   .copyable { cursor: pointer; border-bottom: 1px dotted var(--dim); }
   .copyable:hover { color: var(--accent); }
   .copied-flash { color: var(--good); font-size: 11px; margin-left: 6px; }
+  #groups { margin: 0 0 18px; }
+  #groups h2 { font-size: 14px; margin: 0 0 6px; }
+  #groups table { border-collapse: collapse; font-size: 12px; }
+  #groups th, #groups td { border: 1px solid var(--line); padding: 4px 10px; text-align: left; }
+  #groups th { background: var(--panel); }
+  #groups tr.pick { cursor: pointer; }
+  #groups tr.pick:hover td, #groups tr.on td { background: var(--panel2); }
+  #groups tr.on td:first-child { color: var(--accent); }
   #history { margin-top: 28px; }
   #history h2 { font-size: 14px; }
   #history table { border-collapse: collapse; font-size: 12px; }
@@ -133,6 +141,7 @@ _PAGE = r"""<!DOCTYPE html>
 </header>
 <div id="summary"></div>
 <main>
+  <section id="groups"></section>
   <table class="matrix"><thead id="matrix-head"></thead><tbody id="matrix-body"></tbody></table>
   <section id="history"></section>
 </main>
@@ -203,6 +212,80 @@ function compareBadFraction(cell) {
   if (!m) return null;
   if (S.run.compare === "perceptual" && m.perceptual) return m.perceptual.badFraction;
   return m.badFraction;
+}
+
+// A corpus spread over several folders (psd-tools sorts its files by feature:
+// adjustments, blend-modes, effects, ...) is grouped by the first folder below the
+// one all its files share. Derived from the source paths, so every run has it.
+const TOP_GROUP = "(top level)";
+function fileGroups(files) {
+  const dirs = files.map(f => String(f.source || "").split(/[\\/]/).slice(0, -1));
+  let common = dirs.length ? dirs[0].length : 0;
+  dirs.forEach(d => {
+    let i = 0;
+    while (i < common && i < d.length && d[i] === dirs[0][i]) i++;
+    common = i;
+  });
+  return dirs.map(d => d.length > common ? d[common] : TOP_GROUP);
+}
+
+// Per group and editor: cells measured, opened, renders within the poor-match limit,
+// mean share of data kept in the resave, and resaves Photoshop rejected.
+function groupRollup(files, groups, editors, badFraction, limit) {
+  const out = {};
+  files.forEach((f, i) => {
+    const row = out[groups[i]] = out[groups[i]] || { files: 0, editors: {} };
+    row.files++;
+    editors.forEach(k => {
+      const a = row.editors[k] = row.editors[k] ||
+        { total: 0, opened: 0, matched: 0, compared: 0, badSaves: 0, native: [] };
+      const c = (f.cells || {})[k];
+      if (!c || c.state === "pending" || c.state === "running" || c.state === "skipped") return;
+      a.total++;
+      if (c.state === "done" && c.opens !== "fail") a.opened++;
+      if (c.resaveRejected) a.badSaves++;
+      const bad = badFraction(c);
+      if (bad != null) { a.compared++; if (bad <= limit) a.matched++; }
+      if (c.native && typeof c.native.nativeScore === "number") a.native.push(c.native.nativeScore);
+    });
+  });
+  return out;
+}
+
+let groupFilter = null;
+function pickGroup(index) {
+  const names = [...new Set(fileGroups(S.files))].sort();
+  groupFilter = index < 0 || groupFilter === names[index] ? null : names[index];
+  render();
+}
+
+function renderGroups(groups, editors) {
+  const box = document.getElementById("groups");
+  const names = [...new Set(groups)].sort();
+  if (names.length < 2) { box.innerHTML = ""; groupFilter = null; return; }
+  const roll = groupRollup(S.files, groups, editors, compareBadFraction, poorMatchLimit());
+  const cell = a => {
+    if (!a || !a.total) return "<td>-</td>";
+    const failed = a.total - a.opened;
+    const parts = [];
+    if (a.compared) parts.push('<span class="' + (a.matched < a.total ? "" : "ok-text") + '">' +
+                               a.matched + "/" + a.total + " match</span>");
+    if (failed) parts.push('<span class="bad-text">' + failed + " not opened</span>");
+    if (a.native.length) parts.push("kept " + pct(a.native.reduce((p, c) => p + c, 0) / a.native.length, 0));
+    if (a.badSaves) parts.push('<span class="bad-text">' + a.badSaves + " bad save" + (a.badSaves > 1 ? "s" : "") + "</span>");
+    return "<td>" + (parts.join(" · ") || "-") + "</td>";
+  };
+  box.innerHTML = "<h2>By folder" + (groupFilter == null ? "" :
+      ' <span class="nums">showing ' + esc(groupFilter) + ' only · <a href="#" onclick="pickGroup(-1);return false">show all</a></span>') +
+    "</h2><table><tr><th>Folder</th><th>Files</th>" +
+    editors.map(k => "<th>" + esc((S.editors[k] || {}).displayName || k) + "</th>").join("") + "</tr>" +
+    names.map((name, i) => "<tr class='pick" + (groupFilter === name ? " on" : "") +
+      "' title='click to show only these files' onclick='pickGroup(" + i + ")'><td>" + esc(name) +
+      "</td><td>" + roll[name].files + "</td>" +
+      editors.map(k => cell(roll[name].editors[k])).join("") + "</tr>").join("") +
+    '</table><div class="nums">match: render within ' + pct(poorMatchLimit(), 0) +
+    " of Photoshop's pixels (" + (S.run.compare === "perceptual" ? "perceptual" : "byte") +
+    "); kept: mean share of layer data surviving a .psd resave.</div>";
 }
 
 const LOSS_LABELS = [
@@ -479,7 +562,10 @@ function render() {
              '<div class="nums">' + esc(editorVersionLabel(k)) + "</div></th>";
     }).join("") + "</tr>";
 
+  const groups = fileGroups(S.files);
+  renderGroups(groups, editors);
   document.getElementById("matrix-body").innerHTML = S.files.map((f, fi) => {
+    if (groupFilter != null && groups[fi] !== groupFilter) return "";
     const gt = f.groundTruth || {};
     const gtNote = gt.state === "failed" ? '<div class="flag">ground truth failed</div>'
       : (gt.state === "running" ? '<div class="nums">ground truth: ' + esc(gt.stage || "...") + "</div>" : "");

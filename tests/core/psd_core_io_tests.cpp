@@ -1499,6 +1499,65 @@ void psd_interface_mock2_loads_if_available() {
   CHECK(flattened.height() == 600);
 }
 
+// Reads every file of the psd-tools test collection (testy/fetch_psd_tools_corpus.py puts
+// it under local-test-fixtures/psd-tools), then writes each document that loaded and reads
+// the result back. A reader exception is a clean refusal and only counted (the collection
+// holds color modes Patchy does not import); the test is for crashes, hangs, and documents
+// Patchy accepts but cannot round-trip through its own writer.
+void psd_tools_corpus_reads_and_round_trips_if_available() {
+  const auto root =
+      patchy::test::source_root_path() / "local-test-fixtures" / "psd-tools" / "tests" / "psd_files";
+  if (!std::filesystem::exists(root)) {
+    std::cout << "[SKIP] psd-tools collection missing: " << root.string() << '\n';
+    return;
+  }
+
+  std::vector<std::filesystem::path> files;
+  for (const auto& entry : std::filesystem::recursive_directory_iterator(root)) {
+    const auto extension = entry.path().extension();
+    if (entry.is_regular_file() && (extension == ".psd" || extension == ".psb")) {
+      files.push_back(entry.path());
+    }
+  }
+  std::sort(files.begin(), files.end());
+
+  int loaded = 0;
+  int refused = 0;
+  for (const auto& path : files) {
+    const auto name = path.lexically_relative(root).generic_string();
+    std::optional<patchy::Document> document;
+    try {
+      document = patchy::psd::DocumentIo::read_file(path);
+    } catch (const std::exception& error) {
+      ++refused;
+      std::cout << "[INFO] psd-tools " << name << " refused: " << error.what() << '\n';
+      continue;
+    }
+    ++loaded;
+    CHECK(document->width() > 0);
+    CHECK(document->height() > 0);
+
+    try {
+      patchy::psd::WriteOptions options;
+      options.large_document = path.extension() == ".psb";
+      const auto bytes = patchy::psd::DocumentIo::write_layered_rgb8(*document, options);
+      const auto reread = patchy::psd::DocumentIo::read(bytes);
+      const bool same_shape = reread.width() == document->width() && reread.height() == document->height() &&
+                              reread.layers().size() == std::as_const(*document).layers().size();
+      if (!same_shape) {
+        std::cout << "[INFO] psd-tools " << name << " changed shape in a round trip\n";
+      }
+      CHECK(same_shape);
+    } catch (const std::exception& error) {
+      std::cout << "[INFO] psd-tools " << name << " failed its round trip: " << error.what() << '\n';
+      CHECK(false);
+    }
+  }
+  std::cout << "[INFO] psd-tools collection: " << files.size() << " files, " << loaded << " loaded, " << refused
+            << " refused\n";
+  CHECK(loaded > 0);
+}
+
 // Builds a one-layer RGB PSD whose blue layer channel is RLE-compressed, with the
 // caller's raw PackBits bytes substituted for the middle row. Real legacy files carry
 // blocks of corrupt scanlines (a 2017 Dink map PSD has 58 of them in one channel) and
@@ -2705,6 +2764,7 @@ std::vector<patchy::test::TestCase> psd_core_io_tests() {
       {"psd_layered_rgb8_round_trips_pixel_layers", psd_layered_rgb8_round_trips_pixel_layers},
       {"psd_zero_length_layer_channels_read_as_empty", psd_zero_length_layer_channels_read_as_empty},
       {"psd_interface_mock2_loads_if_available", psd_interface_mock2_loads_if_available},
+      {"psd_tools_corpus_reads_and_round_trips_if_available", psd_tools_corpus_reads_and_round_trips_if_available},
       {"psd_empty_real_user_mask_channel_does_not_truncate_layer",
        psd_empty_real_user_mask_channel_does_not_truncate_layer},
       {"psd_real_user_mask_payload_is_skipped_without_losing_channel_alignment",

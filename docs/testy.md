@@ -82,8 +82,7 @@ partial refresh. These batches contain measurements from multiple builds.
 Existing batches get current controls when served by an updated Testy server;
 restart the server after updating Testy. Frozen reports have no rerun controls.
 Editor-free regressions: run `tests\testy_rerun_tests.py` and
-`tests\testy_shutdown_tests.py` through `scripts\run-throttled.bat python`
-(Python and Node required).
+`tests\testy_shutdown_tests.py` through `scripts\run-throttled.bat python`.
 
 **Retest file** in the detail panel creates a separate one-file run, reusing
 caches and refreshing Patchy's build. Both controls require an idle Testy server.
@@ -99,8 +98,7 @@ refreshes the Patchy release build first (when configured), serves a live dashbo
 and leaves the frozen report + `results.json` in `testy/runs/<timestamp>/`. The
 server root is the same control panel. Clicking a file
 name in a report copies its full path to the clipboard; clicking a thumbnail opens
-the full-size image. The matrix header stays pinned while the page scrolls (the grid
-uses per-cell borders because Chromium drops collapsed borders from a pinned row).
+the full-size image. The matrix header stays pinned while the page scrolls.
 Lost native data is called out: matrix cells get a red "lost: ..." line and a warn
 dot, and the detail panel's native-preservation banner separates objects GONE from
 the resaved file from ones converted to a different kind (e.g. text rasterized);
@@ -110,7 +108,7 @@ broken panel.
 
 Each file's row shows document size, layer count, and file size (shown even when
 ground truth failed); the header totals the corpus, and a scan run's card adds a
-bytes done/total row (older runs backfill sizes on resume). A cell's status line
+bytes done/total row. A cell's status line
 qualifies "opened": a render missing the scan threshold (10% default, by the run's
 comparison mode) reads "opened - poor matching" with a yellow dot; a resave
 Photoshop cannot reopen reads "opened - saves corrupted .psd" with a red dot, as
@@ -125,8 +123,7 @@ Useful flags:
 - `--editors photoshop,patchy,krita,gimp,photodemon,photopea,affinity` - which columns
   to run. Affinity is opt-in: enable the app's connector once in Affinity's settings
   (it serves the local MCP endpoint the scripting rides on); with it off, Affinity
-  cells fail with an actionable message and the rest runs. Aseprite has no PSD I/O
-  and is not in the roster.
+  cells fail with an actionable message and the rest runs.
 - `--no-build` - skip the release build refresh (measures the current patchy.exe).
 - `--fresh` - ignore cached ground truth / cells (cache in `testy/cache/`, keyed by
   file hash + editor version, plus Patchy git hash for the Patchy column).
@@ -138,6 +135,18 @@ Useful flags:
   keeps the mode it started with, and runs from before this option flag strictly.
 - `--exit-when-done`, `--no-browser`, `--no-serve`, `--port N` - dashboard behavior.
 - `--suffix "~TESTY~"` - the marker string used by the forced text re-render test.
+
+## The psd-tools collection and the By folder table
+
+`python testy\fetch_psd_tools_corpus.py` checks out psd-tools' `tests/psd_files`
+(309 single-feature PSD/PSB files, GitHub issue 65) at a pinned commit
+into `local-test-fixtures/psd-tools` and writes `testy/corpus/psd-tools.txt`; run
+it with `--corpus corpus\psd-tools.txt` (relative to `testy/`). A multi-folder corpus gets a "By folder" table above
+the matrix (matches, data kept, bad saves per editor); clicking a
+row filters the matrix. Files sharing a stem (`x.psd` beside `x.psb`) get distinct
+artifact directories through the entry's `dir` key (`x~psb`). The core test
+`psd_tools_corpus_reads_and_round_trips_if_available` covers the same files
+without Photoshop.
 
 ## Scan mode
 
@@ -270,8 +279,7 @@ preservation validate the pipeline itself.
   burn the cell timeout); only the sibling checkout or an explicit `photodemon` path
   in config.local.json is used. PhotoDemon keeps text layers editable on PSD import,
   but with no scripting there is no mutation leg. CLI mode disables PhotoDemon's
-  ExifTool plugin (Testy does not measure metadata, and its async pipe once wedged
-  an export after the .psd was fully written). Related defenses: every CLI driver
+  ExifTool plugin (Testy does not measure metadata). Related defenses: every CLI driver
   (PhotoDemon, Krita, GIMP) spawns its editor inside
   `drivers/winproc.suppressed_error_dialogs()` so Windows Error Reporting dialogs
   cannot hold a crashed editor open, and the PhotoDemon driver judges a leg by its
@@ -333,7 +341,7 @@ preservation validate the pipeline itself.
   engine so EVERY `app.open` returns error 8000 ("open options are incorrect")
   regardless of file, until a restart. On any probe failure the driver fully
   restarts Photoshop (Quit, wait, taskkill what remains, relaunch) and retries
-  once; a wedge costs one ~35s restart. A hang watchdog force-kills Photoshop when
+  once. A hang watchdog force-kills Photoshop when
   a script blocks past 120s (a stuck modal). Failed cells and cells scored without
   ground truth are never cached, so re-runs retry them.
 - Never force-kill Photoshop while it is quitting: it saves preferences on the way
@@ -356,10 +364,7 @@ preservation validate the pipeline itself.
   `python testy\drivers\photoshop.py --selftest` pins the classification, wording,
   give-up rule, and what a restart may kill; no Photoshop needed.
 - A file that fails scripted open even on a freshly restarted engine (with a
-  passing control immediately before) is genuinely bad, not a wedge. The one such
-  corpus file, `akiko_cycling_okinawa_with_filters.psd`, was confirmed bad in the
-  Photoshop UI and deleted; the `smart_objects_warp` core test that used it now
-  [SKIP]s on the missing fixture.
+  passing control immediately before) is genuinely bad, not a wedge.
 - Runs fail fast: the Photopea driver aborts when the host page's step log stalls
   for 45s, and the orchestrator trips a per-editor circuit breaker after 3
   consecutive failed cells (remaining cells report "skipped"). Only failures OF
@@ -376,8 +381,7 @@ preservation validate the pipeline itself.
   and `testy/affinity_js.py` speaks it directly with the standard library (no AI,
   no tokens). One execute_script call per document runs Document.load plus
   doc.export for both legs (PNG render, then the "PSD (preserve editability)"
-  preset; preset names resolve by enumeration with a prefix fallback). Typical
-  cell: under 3s even for a 40 MB PSD.
+  preset; preset names resolve by enumeration with a prefix fallback).
 - Affinity JS constraints (verified on 3.2.3.4646): the server demands MCP
   protocol "2025-11-25" and a per-session read of its "preamble" documentation
   topic before execute_script works (affinity_js handles both); scripts may only
@@ -388,13 +392,11 @@ preservation validate the pipeline itself.
   RESETS them, so connecting retries until a session survives a prime-pause-ping
   sequence. NOT_ALLOWED means the user restricted scripting/filesystem access in
   the app's settings; a load refusal (INAPPROPRIATE_FILE_TYPE_OR_FORMAT) is
-  Affinity's own import rejecting the file and scores honestly as opens=fail
-  (vectors_overlay_stroke.psd is such a file; the UI refuses it too).
+  Affinity's own import rejecting the file and scores honestly as opens=fail.
 - Affinity staging I/O rides through `_retry_locked`, which waits out transient
   Windows sharing violations (up to ~2s) on every staged-file unlink, copy, and
   move: Affinity can briefly hold a just-loaded document's handle and antivirus
-  scans grab fresh Desktop copies. Cleanup is non-fatal (a finally-block unlink
-  failure once replaced a cell's real result); a stubbornly locked file is left
+  scans grab fresh Desktop copies. Cleanup is non-fatal; a stubbornly locked file is left
   for the next cell's staging retry or cleanup()'s rmtree.
 - Affinity lifecycle: Document.close is NOT_IMPLEMENTED on Windows, so opened
   documents pile up as tabs; an instance the driver launched restarts after 10

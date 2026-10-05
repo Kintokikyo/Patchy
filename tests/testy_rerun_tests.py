@@ -200,6 +200,15 @@ class RerunTests(unittest.TestCase):
             response.read()
             spawn.assert_not_called()
 
+    def test_colliding_stems_get_distinct_artifact_directories(self):
+        corpus = [Path('a/x.psd'), Path('a/x.psb'), Path('b/X.psd'), Path('b/x.psb'), Path('y.psd')]
+        names = testy.unique_artifact_dirs(corpus)
+        self.assertEqual(names, [None, 'x~psb', 'X~psd', 'x~2', None])
+        entries = [dict(name=p.name, **({'dir': n} if n else {})) for p, n in zip(corpus, names)]
+        resolved = [testy.artifact_dir_name(e) for e in entries]
+        self.assertEqual(resolved, ['x', 'x~psb', 'X~psd', 'x~2', 'y'])
+        self.assertEqual(len({r.lower() for r in resolved}), len(resolved))
+
     def test_failed_build_is_not_success_even_with_compile_output(self):
         with mock.patch.object(testy.config, 'REPO_ROOT', self.runs), \
              mock.patch.object(testy.config, 'BUILD_COMMAND', 'cmake --build --preset release'), \
@@ -265,6 +274,22 @@ return {mutateSkipped,missingFonts,mutatedStatus,mutateErrors};
 let verdict=runMutation(); assert(verdict.mutateSkipped.includes('Installed')); assert.equal(edits,0); assert.equal(renders,0); assert.equal(app.displayDialogs,2);
 styles[0].fontAvailable=true; verdict=runMutation(); assert.equal(verdict.mutateSkipped,null); assert.equal(edits,1); assert.equal(renders,1); assert.equal(app.displayDialogs,2);
 failMutation=true; verdict=runMutation(); assert.equal(edits,2); assert.equal(renders,1); assert(verdict.mutateSkipped.includes('could not edit')); assert.equal(app.displayDialogs,2);
+"""
+        rollup = script.split('const TOP_GROUP', 1)[1].split('let groupFilter', 1)[0]
+        test_js += 'const TOP_GROUP' + rollup + r"""
+const groupFiles = [
+  {source:'D:\\c\\psd_files\\a.psd', cells:{patchy:{state:'done',opens:'ok',bad:0.02,native:{nativeScore:1}}}},
+  {source:'D:\\c\\psd_files\\fx\\b.psd', cells:{patchy:{state:'done',opens:'ok',bad:0.5,resaveRejected:true,native:{nativeScore:0.5}}}},
+  {source:'D:/c/psd_files/fx/c.psb', cells:{patchy:{state:'failed',opens:'fail'}}},
+  {source:'D:\\c\\psd_files\\fx\\deep\\d.psd', cells:{patchy:{state:'pending'}}},
+];
+const groupNames = fileGroups(groupFiles);
+assert.deepEqual(groupNames, [TOP_GROUP,'fx','fx','fx']);
+assert.deepEqual(fileGroups([{source:'D:\\c\\one.psd'},{source:'D:\\c\\two.psd'}]), [TOP_GROUP,TOP_GROUP]);
+const rolled = groupRollup(groupFiles, groupNames, ['patchy'], c => c.bad == null ? null : c.bad, 0.10);
+assert.deepEqual(rolled[TOP_GROUP].editors.patchy, {total:1,opened:1,matched:1,compared:1,badSaves:0,native:[1]});
+assert.equal(rolled.fx.files, 3);
+assert.deepEqual(rolled.fx.editors.patchy, {total:2,opened:1,matched:0,compared:1,badSaves:1,native:[0.5]});
 """
         js_file.write_text(test_js, encoding='utf-8')
         result = subprocess.run(['node', str(js_file)], capture_output=True, text=True)
