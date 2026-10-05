@@ -199,7 +199,9 @@ def write_sentinel_composite(source_path: str, output_path: str) -> PsdLayout:
 # Additional-layer-info keys that mark a layer whose pixels are a cache, by kind.
 CACHED_LAYER_KEYS = {
     "text": (b"TySh",),
-    "smart": (b"SoLd", b"PlLd", b"SoLE"),
+    # Embedded smart objects only: a linked one ('SoLE') has nothing in the file to
+    # render from, so its pixels are the only picture any reader can show.
+    "smart": (b"SoLd", b"PlLd"),
     "vector": (b"SoCo", b"GdFl", b"PtFl", b"vscg"),
 }
 # The user mask (-2) and real user mask (-3) describe the layer and are kept; every

@@ -363,6 +363,18 @@ class RerunTests(unittest.TestCase):
         self.assertEqual(set(testy.NOT_MEASURED_REASON), {"TEXT", "SMARTOBJECT"})
         self.assertNotIn("photoshop", testy.BLANK_IS_FAILURE)
 
+    def test_reference_cache_key_follows_what_the_reference_re_renders(self):
+        import psd_sections
+
+        self.assertEqual(testy.reference_space_key({"depth": 8, "mode": 3}), "")
+        self.assertEqual(testy.reference_space_key({"depth": 8, "mode": 3, "text": True}), "-freshtext1")
+        self.assertEqual(testy.reference_space_key({"depth": 8, "mode": 3, "smart": True}), "-freshsmart1")
+        self.assertEqual(testy.reference_space_key({"depth": 16, "mode": 3, "text": True, "smart": True}),
+                         "-srgb1-freshtext1-freshsmart1")
+        # A linked smart object has nothing in the file to render from: never stripped.
+        self.assertNotIn(b"SoLE", psd_sections.CACHED_LAYER_KEYS["smart"])
+        self.assertIn(b"SoLd", psd_sections.CACHED_LAYER_KEYS["smart"])
+
     def test_failed_build_is_not_success_even_with_compile_output(self):
         with mock.patch.object(testy.config, 'REPO_ROOT', self.runs), \
              mock.patch.object(testy.config, 'BUILD_COMMAND', 'cmake --build --preset release'), \

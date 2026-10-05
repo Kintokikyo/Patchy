@@ -219,11 +219,74 @@ _PROBE_JSX = r"""
     }
   }
 
-  function renderTo(doc, pngPath, freshText) {
+  // The reference render also re-renders embedded smart objects, whose pixels in the
+  // file are a cache as well: opening the contents, making a change that leaves
+  // nothing behind (a layer added and removed) and saving makes Photoshop render the
+  // layer from its contents again, smart filters included. Only where that is
+  // lossless: raster contents stored in a format a save does not degrade. Linked
+  // files (nothing embedded to render) and vector contents (they open in another
+  // app) keep their cache. Run on the duplicate only, like refreshText.
+  // Layers that share one embedded document are all re-rendered by the first of them,
+  // so each document is opened once (a 54-layer file with two embedded documents made
+  // Photoshop open and save them 54 times); and the work stops after 30 seconds, well
+  // inside the probe's hang watchdog, leaving the remaining layers on their cache.
+  function refreshSmartObjects(doc, layers, counter) {
+    for (var i = 0; i < layers.length; i++) {
+      var L = layers[i];
+      if (L.typename == 'LayerSet') { refreshSmartObjects(doc, L.layers, counter); continue; }
+      var kind = '';
+      try { kind = String(L.kind); } catch (e) {}
+      if (kind != 'LayerKind.SMARTOBJECT') { continue; }
+      var locked = false;
+      try { locked = L.allLocked; } catch (e) {}
+      if (locked) { counter.skipped++; continue; }
+      var inner = null;
+      try {
+        var wasVisible = L.visible;
+        doc.activeLayer = L;
+        var ref = new ActionReference();
+        ref.putEnumerated(charIDToTypeID('Lyr '), charIDToTypeID('Ordn'), charIDToTypeID('Trgt'));
+        var so = executeActionGet(ref).getObjectValue(stringIDToTypeID('smartObject'));
+        var placed = typeIDToStringID(so.getEnumerationValue(stringIDToTypeID('placed')));
+        var linked = so.hasKey(stringIDToTypeID('linked')) && so.getBoolean(stringIDToTypeID('linked'));
+        var name = so.hasKey(stringIDToTypeID('fileReference')) ? so.getString(stringIDToTypeID('fileReference')) : '';
+        var contentId = so.hasKey(stringIDToTypeID('documentID')) ? so.getString(stringIDToTypeID('documentID')) : '';
+        var dot = name.lastIndexOf('.');
+        var ext = dot < 0 ? '' : name.substring(dot + 1).toLowerCase();
+        var lossless = ext == '' || ext == 'psd' || ext == 'psb' || ext == 'png' || ext == 'tif' || ext == 'tiff';
+        var shared = contentId != '' && counter.seen[contentId] === true;
+        var late = (new Date()).getTime() - counter.started > 30000;
+        if (placed != 'rasterizeContent' || linked || !lossless || shared || late) {
+          if (L.visible != wasVisible) { L.visible = wasVisible; }
+          if (shared) { counter.n++; } else { counter.skipped++; }
+          continue;
+        }
+        if (contentId != '') { counter.seen[contentId] = true; }
+        executeAction(stringIDToTypeID('placedLayerEditContents'), new ActionDescriptor(), DialogModes.NO);
+        if (app.activeDocument == doc) { throw new Error('contents did not open'); }
+        inner = app.activeDocument;
+        var scratch = inner.artLayers.add();
+        scratch.remove();
+        inner.save();
+        inner.close(SaveOptions.SAVECHANGES);
+        inner = null;
+        app.activeDocument = doc;
+        if (L.visible != wasVisible) { L.visible = wasVisible; }
+        counter.n++;
+      } catch (e) {
+        counter.errors++;
+        try { if (inner !== null) { inner.close(SaveOptions.DONOTSAVECHANGES); } } catch (e2) {}
+        try { app.activeDocument = doc; } catch (e3) {}
+      }
+    }
+  }
+
+  function renderTo(doc, pngPath, freshText, freshSmart) {
     var dup = null;
     try {
       dup = doc.duplicate();
       if (freshText) { refreshText(dup, dup.layers, freshText); }
+      if (freshSmart) { refreshSmartObjects(dup, dup.layers, freshSmart); }
       dup.flatten();
       normalizeForPng(dup);
       dup.saveAs(new File(pngPath), pngOptions(), true, Extension.LOWERCASE);
@@ -319,9 +382,10 @@ _PROBE_JSX = r"""
     // The reference render re-renders text, unless a font the text needs is missing:
     // then Photoshop cannot draw it faithfully either and the cache is the reference.
     var freshText = {n: 0, errors: 0}, freshFonts = [];
+    var freshSmart = {n: 0, errors: 0, skipped: 0, seen: {}, started: (new Date()).getTime()};
     if (RENDER_PNG !== null) {
       textFontProblems(opened.layers, freshFonts);
-      renderStatus = renderTo(opened, RENDER_PNG, freshFonts.length ? null : freshText);
+      renderStatus = renderTo(opened, RENDER_PNG, freshFonts.length ? null : freshText, freshSmart);
     }
     var resaveStatus = 'skipped';
     if (RESAVE_PSD !== null) {
@@ -364,6 +428,8 @@ _PROBE_JSX = r"""
       ',"mutateErrors":' + mutateErrors +
       ',"mutateSkipped":' + (mutateSkipped === null ? 'null' : q(mutateSkipped)) +
       ',"freshText":' + freshText.n + ',"freshTextErrors":' + freshText.errors +
+      ',"freshSmart":' + freshSmart.n + ',"freshSmartErrors":' + freshSmart.errors +
+      ',"freshSmartSkipped":' + freshSmart.skipped +
       ',"missingFonts":[' + missingJson.join(',') + ']' +
       ',"layers":[' + entries.join(',') + ']}';
     opened.close(SaveOptions.DONOTSAVECHANGES);

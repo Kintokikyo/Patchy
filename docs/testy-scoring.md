@@ -90,8 +90,21 @@ preservation validate the pipeline itself.
   Photoshop render the text again and changes nothing else. An old file's cached
   text pixels can differ from what today's Photoshop draws. Skipped when a font is
   missing (the cache is then the only faithful picture).
-- `reference_space_key` adds `-srgb1` and `-freshtext1` to the ground-truth and cell
-  cache keys for the files these rules change, so older cache entries are not reused.
+- Embedded smart objects are rendered afresh too (`refreshSmartObjects`): the
+  contents are opened, a layer is added and removed, and the save makes Photoshop
+  render the layer from its contents, smart filters included. Verified by giving
+  Photoshop copies with those caches removed: the refreshed render is identical to
+  the refreshed original. Each embedded document is opened once (layers sharing it
+  are all updated by the first), within a 30 second budget. Linked files, vector
+  contents and lossy formats (a save would recompress a JPEG) keep their cache.
+- Shape and fill layers need nothing: Photoshop's render is identical with and
+  without their cached pixels on all 133 corpus files that have them.
+- `reference_space_key` adds `-srgb1`, `-freshtext1` and `-freshsmart1` to the
+  ground-truth and cell cache keys for the files these rules change, so older cache
+  entries are not reused.
+- Not yet forced (open): the rasterized combination a file stores when a layer has
+  both a pixel mask and a vector mask, and anything in 16/32-bit files, whose layer
+  records the stripper does not handle.
 
 ## Files an editor refuses
 
@@ -110,7 +123,8 @@ with such layers the scored render comes from a copy with the caches removed.
   transparency channels of each such layer (keys in `CACHED_LAYER_KEYS`); records,
   blocks, masks and layer order stay byte-identical, and the flat composite becomes
   the sentinel. This is the state Photoshop itself writes for fill layers in 16-bit
-  files. Testy writes it natively, with no third-party PSD library. Files whose layer
+  files. Linked smart objects (`SoLE`) are left alone: nothing in the file can
+  redraw them. Testy writes it natively, with no third-party PSD library. Files whose layer
   records sit in an `Lr16`/`Lr32` block (16/32-bit) are not stripped and are scored as
   opened.
 - The "plain" copy also renames the defining blocks to an unknown key (`tsTY`),

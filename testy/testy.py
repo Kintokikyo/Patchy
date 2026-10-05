@@ -1082,6 +1082,9 @@ def file_traits(path: Path) -> dict | None:
     # A type layer ('TySh' block): the Photoshop reference re-renders its text.
     if b"8BIMTySh" in data or b"8B64TySh" in data:
         traits["text"] = True
+    # An embedded smart object ('SoLd'): the reference re-renders it from its contents.
+    if b"8BIMSoLd" in data or b"8B64SoLd" in data:
+        traits["smart"] = True
     # An embedded ICC profile (image resource 1039) that is not plain sRGB.
     if b"8BIM\x04\x0f" in data and b"sRGB IEC61966" not in data:
         traits["profile"] = True
@@ -1113,6 +1116,8 @@ def reference_space_key(traits: dict | None) -> str:
         key += "-srgb1"
     if traits.get("text"):
         key += "-freshtext1"  # the reference now re-renders text instead of showing its cache
+    if traits.get("smart"):
+        key += "-freshsmart1"  # and embedded smart objects from their contents
     return key
 
 
