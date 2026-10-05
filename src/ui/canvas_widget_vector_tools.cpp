@@ -1088,6 +1088,7 @@ bool CanvasWidget::handle_path_edit_press(QMouseEvent* event, QPointF document_p
   path_drag_origin_document_ = document_point;
   path_drag_raw_document_ = document_point;
   path_drag_applied_delta_ = QPointF(0.0, 0.0);
+  path_drag_snap_source_rect_.reset();
   const auto selection_before = path_selected_anchors_;
   const auto extras_before = extra_selected_anchors_;
   const auto notify_if_changed = [&] {
@@ -1124,6 +1125,10 @@ bool CanvasWidget::handle_path_edit_press(QMouseEvent* event, QPointF document_p
              ++a) {
           path_selected_anchors_.insert({s, a});
         }
+      }
+      if (edit_tool == CanvasTool::PathSelect && snap_enabled_ && !path_selected_anchors_.empty()) {
+        path_drag_snap_source_rect_ =
+          selected_path_snap_rect(*path, path_selected_anchors_);
       }
     } else {
       if (additive) {
@@ -1351,24 +1356,19 @@ bool CanvasWidget::update_path_edit_drag(QPointF document_point, Qt::KeyboardMod
                                      ? constrain_drag_to_axes(raw_total)
                                      : raw_total;
                                      
-    if (edit_tool == CanvasTool::PathSelect && snap_enabled_ && !path_selected_anchors_.empty()) {
-      if (const auto source_rect = selected_path_snap_rect(*path, path_selected_anchors_);
-        source_rect.has_value()) {
-        std::vector<LayerId> exclude_ids;
+    if (edit_tool == CanvasTool::PathSelect && snap_enabled_ && path_drag_snap_source_rect_.has_value()) {
+      std::vector<LayerId> exclude_ids;
 
-        if (const auto active = document_->active_layer_id();
-          active.has_value()) {
-          exclude_ids.push_back(*active);
-        }
-
-        const auto snapped =
-          snapped_path_delta(
-            *source_rect,
-            effective_total,
-            exclude_ids);
-
-        effective_total = snapped;
+      if (const auto active = document_->active_layer_id();
+        active.has_value()) {
+        exclude_ids.push_back(*active);
       }
+
+      effective_total =
+        snapped_path_delta(
+          *path_drag_snap_source_rect_,
+          effective_total,
+          exclude_ids);
     }
     
     dx = effective_total.x() - path_drag_applied_delta_.x();
@@ -1556,6 +1556,7 @@ bool CanvasWidget::handle_path_edit_release(QMouseEvent* event) {
     }
   }
   path_drag_mode_ = PathEditDrag::None;
+  path_drag_snap_source_rect_.reset();
   update();
   return true;
 }
