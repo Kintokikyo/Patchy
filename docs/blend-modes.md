@@ -21,7 +21,7 @@ Most of the exhaustive `switch (mode)` maps are caught by `-Wswitch` because the
 ## Calibrated math rules
 
 - Non-separable modes (Hue/Saturation/Color/Luminosity) use the PDF-spec set_lum/set_sat algorithm.
-- Exclusion rounds the s*d/255 product BEFORE doubling; Divide rounds to nearest. Both verified against Photoshop and Aseprite.
+- Exclusion rounds the s*d/255 product BEFORE doubling; Divide rounds to nearest, and its 0/0 corner follows the destination (d=0 gives 0 even at s=0; psd-tools' `divide.psd`, October 2026). Both verified against Photoshop and Aseprite.
 - Color Burn and Color Dodge round their quotient to NEAREST half-up (the
   `(2a+b)/(2b)` form, same as Aseprite's DIV_UN8), and the 0/0 division corner
   follows the destination: Burn returns 255 at d=255 even when s=0, Dodge

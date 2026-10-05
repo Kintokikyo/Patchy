@@ -1405,6 +1405,12 @@ void blend_math_color_burn_dodge_match_photoshop_captures() {
     CHECK(patchy::blend_rgb(gray(t.source), gray(t.destination),
                             patchy::BlendMode::ColorDodge)[0] == t.expected);
   }
+  // Divide's zero corners, from Photoshop's render of psd-tools' divide.psd (pure
+  // primaries at 50% over each other): 0/0 is 0, anything else over 0 is 255.
+  static constexpr Triple kDivide[] = {{0, 0, 0}, {255, 0, 0}, {0, 255, 255}, {0, 1, 255}, {255, 255, 255}, {128, 64, 128}};
+  for (const auto& t : kDivide) {
+    CHECK(patchy::blend_rgb(gray(t.source), gray(t.destination), patchy::BlendMode::Divide)[0] == t.expected);
+  }
 }
 
 void compositor_channel_restriction_keeps_backdrop_channel() {
