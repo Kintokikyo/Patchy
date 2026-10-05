@@ -50,6 +50,9 @@ _PAGE = r"""<!DOCTYPE html>
   .card .ver { color: var(--dim); font-size: 11px; margin-bottom: 6px; }
   .card .row { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; }
   .card .row b { font-variant-numeric: tabular-nums; }
+  .card.standing { min-width: 210px; }
+  .card.standing .row { font-size: 13px; padding: 2px 0; }
+  .card.standing .row.me span, .card.standing .row.me b { color: var(--accent); }
   main { padding: 0 22px 40px; }
   /* Every cell draws its own grid lines rather than collapsing them into the table's:
      a collapsed border belongs to the table, so Chromium leaves it behind when the
@@ -282,6 +285,14 @@ function renderKnownToggle() {
   box.innerHTML = '<label><input type="checkbox"' + (skipKnown ? " checked" : "") +
     ' onchange="setSkipKnown(this.checked)"> Score without known limitations</label> (16/32-bit and artboard files: ' +
     known + " of " + S.files.length + (skipKnown ? ", left out of the totals above and the folder table" : "") + ")";
+}
+
+// The one-glance ranking: every editor but the ground truth, best render match first,
+// by the run's comparison mode. scores is {editorKey: mean accuracy or null}.
+function standingRows(scores, editors) {
+  return editors.filter(k => k !== "photoshop" && scores[k] != null)
+    .map(k => ({ key: k, score: scores[k] }))
+    .sort((a, b) => b.score - a.score || a.key.localeCompare(b.key));
 }
 
 let groupFilter = null;
@@ -683,7 +694,19 @@ function render() {
       esc(editorVersionLabel(k)) + "</div>" +
       rows.map(r => '<div class="row"><span>' + r[0] + "</span><b>" + r[1] + "</b></div>").join("") +
       "</div>";
-  }).join("");
+  }).join("") + (() => {
+    const perceptual = S.run.compare === "perceptual";
+    const scores = {};
+    editors.forEach(k => { scores[k] = mean(perceptual && agg[k].vis.length ? agg[k].vis : agg[k].acc); });
+    const ranked = standingRows(scores, editors);
+    if (ranked.length < 2) return "";
+    return '<div class="card standing"><h3>Standing</h3><div class="ver">' +
+      (perceptual ? "perceptual" : "byte") + " match to Photoshop" +
+      (skipKnown ? ", known limitations left out" : "") + "</div>" +
+      ranked.map((r, i) => '<div class="row' + (r.key === "patchy" ? " me" : "") + '"><span>' + (i + 1) + ". " +
+        esc((S.editors[r.key] || {}).displayName || r.key) + "</span><b>" + pct(r.score, 0) + "</b></div>").join("") +
+      "</div>";
+  })();
   renderHistory();
   if (selected) openDetail(selected[0], selected[1], true);
 }

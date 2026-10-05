@@ -334,6 +334,11 @@ assert.equal(knownLimit({traits:{depth:16,mode:3}}), '16-bit');
 assert.equal(knownLimit({traits:{depth:32,mode:3,artboards:true}}), '32-bit, artboards');
 assert.equal(knownLimit({traits:{depth:8,mode:3,artboards:true}}), 'artboards');
 """
+        standing = script.split('function standingRows', 1)[1].split('let groupFilter', 1)[0]
+        test_js += 'function standingRows' + standing + """
+assert.deepEqual(standingRows({photoshop:1, patchy:0.79, krita:0.37, photopea:0.88, gimp:null},
+  ['photoshop','patchy','krita','gimp','photopea']).map(r => r.key), ['photopea','patchy','krita']);
+"""
         js_file.write_text(test_js, encoding='utf-8')
         result = subprocess.run(['node', str(js_file)], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
