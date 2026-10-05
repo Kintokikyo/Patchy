@@ -237,11 +237,17 @@ class RerunTests(unittest.TestCase):
             info = testy.config.discover_editors('hash')['psdtools']
         self.assertTrue(info.available)
         self.assertEqual(info.version, '1.17.0')
-        failed = mock.Mock(returncode=1, stderr='Traceback\nValueError: bad file\n')
+        failed = mock.Mock(returncode=1, stdout='', stderr='Traceback\nValueError: bad file\n')
         with mock.patch.object(psdtools.subprocess, 'run', return_value=failed):
             result = psdtools.export(self.runs / 'in.psd', self.runs / 'missing.png')
-        self.assertEqual((result['ok'], result['fileRejected'], result['stderr']),
-                         (False, True, 'ValueError: bad file'))
+        self.assertEqual((result['ok'], result['fileRejected'], result['stderr'], result['note']),
+                         (False, True, 'ValueError: bad file', ''))
+        rendered = self.runs / 'out.png'
+        rendered.write_bytes(b'png')
+        noted = mock.Mock(returncode=0, stderr='', stdout='x\n' + psdtools.NOTE_MARKER + 'fell back\n')
+        with mock.patch.object(psdtools.subprocess, 'run', return_value=noted):
+            result = psdtools.export(self.runs / 'in.psd', rendered)
+        self.assertEqual((result['ok'], result['note']), (True, 'fell back'))
 
     def test_failed_build_is_not_success_even_with_compile_output(self):
         with mock.patch.object(testy.config, 'REPO_ROOT', self.runs), \
