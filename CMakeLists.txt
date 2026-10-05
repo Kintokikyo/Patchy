@@ -1393,6 +1393,11 @@ ${PATCHY_LUPDATE_MANIFEST_SOURCES}
         src/app/main.cpp
       )
     endif()
+    if(ANDROID)
+      set_target_properties(patchy PROPERTIES
+        QT_ANDROID_PACKAGE_NAME "com.DKapp.SethRobinson.patchy"
+      )
+    endif()
     target_link_libraries(patchy PRIVATE patchy_ui)
     if(NOT EMSCRIPTEN AND NOT ANDROID)
       add_executable(patchy-mcp src/app/main.cpp src/app/mcp_server.cpp src/app/mcp_stdio.cpp)
