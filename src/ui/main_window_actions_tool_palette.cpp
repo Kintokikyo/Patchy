@@ -1104,6 +1104,7 @@ void MainWindow::build_tool_palette(ActionBuildContext& ctx) {
     }
     current_tool_ = selected;
     canvas_->set_tool(selected);
+    apply_selection_edge_settings_for_tool(selected);
     set_eraser_brush_settings_active(selected == CanvasTool::Eraser);
     if (selected != CanvasTool::Text ||
         canvas_->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor")) == nullptr) {

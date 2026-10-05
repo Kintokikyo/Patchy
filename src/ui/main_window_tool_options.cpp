@@ -1708,6 +1708,27 @@ void MainWindow::refresh_gradient_controls_from_canvas() {
   }
 }
 
+namespace {
+
+// Settings keys for each selection tool's Feather and Anti-alias. Permanent identifiers.
+// Quick Select has no Anti-alias control; the Patch tool has neither and keeps the defaults.
+struct SelectionEdgeSettingKeys {
+  CanvasTool tool;
+  const char* feather;
+  const char* anti_alias;
+};
+
+constexpr std::array<SelectionEdgeSettingKeys, 6> kSelectionEdgeSettingKeys{{
+    {CanvasTool::Marquee, "tools/marqueeFeather", "tools/marqueeAntiAlias"},
+    {CanvasTool::EllipticalMarquee, "tools/ellipticalMarqueeFeather", "tools/ellipticalMarqueeAntiAlias"},
+    {CanvasTool::Lasso, "tools/lassoFeather", "tools/lassoAntiAlias"},
+    {CanvasTool::MagneticLasso, "tools/magneticLassoFeather", "tools/magneticLassoAntiAlias"},
+    {CanvasTool::MagicWand, "tools/wandFeather", "tools/wandAntiAlias"},
+    {CanvasTool::QuickSelect, "tools/quickSelectFeather", nullptr},
+}};
+
+}  // namespace
+
 void MainWindow::activate_tool(CanvasTool tool) {
   if (tool_action_group_ == nullptr) {
     return;
@@ -1779,6 +1800,17 @@ void MainWindow::load_tool_settings() {
   canvas_->set_wand_contiguous(settings.value(QStringLiteral("tools/wandContiguous"), canvas_->wand_contiguous()).toBool());
   canvas_->set_wand_sample_all_layers(
       settings.value(QStringLiteral("tools/wandSampleAllLayers"), canvas_->wand_sample_all_layers()).toBool());
+  for (const auto& keys : kSelectionEdgeSettingKeys) {
+    const auto index = static_cast<std::size_t>(CanvasWidget::selection_tool_index(keys.tool));
+    selection_feather_by_tool_[index] =
+        std::clamp(settings.value(QLatin1StringView(keys.feather), selection_feather_by_tool_[index]).toInt(), 0,
+                   kMaxSelectionFeatherRadius);
+    if (keys.anti_alias != nullptr) {
+      selection_antialias_by_tool_[index] =
+          settings.value(QLatin1StringView(keys.anti_alias), selection_antialias_by_tool_[index]).toBool();
+    }
+  }
+  apply_selection_edge_settings_for_tool(current_tool_);
   canvas_->set_quick_select_size(
       settings.value(QStringLiteral("tools/quickSelectSize"), canvas_->quick_select_size()).toInt());
   canvas_->set_quick_select_sample_all_layers(
@@ -2098,6 +2130,13 @@ void MainWindow::save_tool_settings() const {
   settings.setValue(QStringLiteral("tools/wandTolerance"), canvas_->wand_tolerance());
   settings.setValue(QStringLiteral("tools/wandContiguous"), canvas_->wand_contiguous());
   settings.setValue(QStringLiteral("tools/wandSampleAllLayers"), canvas_->wand_sample_all_layers());
+  for (const auto& keys : kSelectionEdgeSettingKeys) {
+    const auto index = static_cast<std::size_t>(CanvasWidget::selection_tool_index(keys.tool));
+    settings.setValue(QLatin1StringView(keys.feather), selection_feather_by_tool_[index]);
+    if (keys.anti_alias != nullptr) {
+      settings.setValue(QLatin1StringView(keys.anti_alias), selection_antialias_by_tool_[index]);
+    }
+  }
   settings.setValue(QStringLiteral("tools/quickSelectSize"), canvas_->quick_select_size());
   settings.setValue(QStringLiteral("tools/quickSelectSampleAllLayers"), canvas_->quick_select_sample_all_layers());
   settings.setValue(QStringLiteral("tools/quickSelectEnhanceEdge"), canvas_->quick_select_enhance_edge());
@@ -2749,6 +2788,27 @@ void MainWindow::apply_selection_modes_to_canvas(CanvasWidget* canvas) {
     if (const auto index = CanvasWidget::selection_tool_index(tool); index >= 0) {
       canvas->set_selection_mode_for_tool(tool, selection_modes_[static_cast<std::size_t>(index)]);
     }
+  }
+}
+
+void MainWindow::apply_selection_edge_settings_for_tool(CanvasTool tool) {
+  const auto index = CanvasWidget::selection_tool_index(tool);
+  if (index < 0) {
+    return;
+  }
+  current_selection_feather_radius_ = selection_feather_by_tool_[static_cast<std::size_t>(index)];
+  current_selection_antialias_ = selection_antialias_by_tool_[static_cast<std::size_t>(index)];
+  if (canvas_ != nullptr) {
+    canvas_->set_selection_feather_radius(current_selection_feather_radius_);
+    canvas_->set_selection_antialias(current_selection_antialias_);
+  }
+  if (auto* feather = findChild<QSpinBox*>(QStringLiteral("selectionFeatherSpin")); feather != nullptr) {
+    const QSignalBlocker blocker(feather);
+    feather->setValue(current_selection_feather_radius_);
+  }
+  if (auto* anti_alias = findChild<QCheckBox*>(QStringLiteral("selectionAntiAliasCheck")); anti_alias != nullptr) {
+    const QSignalBlocker blocker(anti_alias);
+    anti_alias->setChecked(current_selection_antialias_);
   }
 }
 

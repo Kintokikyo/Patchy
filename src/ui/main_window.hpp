@@ -1475,6 +1475,9 @@ private:
   void update_selection_mode_buttons(CanvasWidget::SelectionMode mode);
   // Apply the stored per-tool combine modes to a (new) canvas.
   void apply_selection_modes_to_canvas(CanvasWidget* canvas);
+  // Make the given selection tool's stored Feather and Anti-alias the current ones: canvas
+  // and options-bar controls. Does nothing for a tool without those options.
+  void apply_selection_edge_settings_for_tool(CanvasTool tool);
   void refresh_layer_list(bool retire_automation_rows = false, const std::function<void()>& progress = {});
   void refresh_layer_thumbnails();
   // Revision-keyed thumbnail pixmaps for the ACTIVE document's layer rows.
@@ -2256,6 +2259,12 @@ private:
   int current_marquee_width_{1024};
   int current_marquee_height_{768};
   int current_marquee_corner_radius_{0};
+  // Feather and Anti-alias per selection tool (indexed by CanvasWidget::selection_tool_index),
+  // persisted as tools/<tool>Feather and tools/<tool>AntiAlias. current_selection_* mirror
+  // the active selection tool's slot, which is what the canvas and the options bar hold.
+  std::array<int, CanvasWidget::kSelectionToolCount> selection_feather_by_tool_{};
+  std::array<bool, CanvasWidget::kSelectionToolCount> selection_antialias_by_tool_{true, true, true, true,
+                                                                                    true, true, true};
   int current_selection_feather_radius_{0};
   bool current_selection_antialias_{true};
   double current_crop_ratio_w_{0.0};

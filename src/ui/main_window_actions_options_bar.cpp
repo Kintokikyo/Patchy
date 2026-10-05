@@ -1118,17 +1118,24 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   const auto apply_selection_edge_settings = [this, feather, anti_alias] {
     current_selection_feather_radius_ = feather->value();
     current_selection_antialias_ = anti_alias->isChecked();
+    // Each selection tool keeps its own Feather and Anti-alias.
+    if (const auto index = CanvasWidget::selection_tool_index(current_tool_); index >= 0) {
+      selection_feather_by_tool_[static_cast<std::size_t>(index)] = current_selection_feather_radius_;
+      selection_antialias_by_tool_[static_cast<std::size_t>(index)] = current_selection_antialias_;
+    }
     if (canvas_ != nullptr) {
       canvas_->set_selection_feather_radius(current_selection_feather_radius_);
       canvas_->set_selection_antialias(current_selection_antialias_);
     }
     refresh_document_info();
   };
-  connect(feather, &QSpinBox::valueChanged, this, [apply_selection_edge_settings](int) {
+  connect(feather, &QSpinBox::valueChanged, this, [this, apply_selection_edge_settings](int) {
     apply_selection_edge_settings();
+    schedule_save_tool_settings();
   });
-  connect(anti_alias, &QCheckBox::toggled, this, [apply_selection_edge_settings](bool) {
+  connect(anti_alias, &QCheckBox::toggled, this, [this, apply_selection_edge_settings](bool) {
     apply_selection_edge_settings();
+    save_tool_settings();
   });
   add_option_label(QT_TR_NOOP("Radius:"), {CanvasTool::Marquee});
   auto* marquee_corner_radius = new UnitIntSpinBox(SpinUnit::Pixels, toolbar);

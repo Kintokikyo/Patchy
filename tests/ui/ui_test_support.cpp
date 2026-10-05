@@ -727,6 +727,15 @@ void cleanup_after_visual_test() {
   patchy::ui::LocalizationManager::instance().set_language(QStringLiteral("en"), false);
   auto settings = patchy::ui::app_settings();
   settings.remove(QStringLiteral("preferences/language"));
+  // Each selection tool's Feather and Anti-alias persist as soon as a test touches the
+  // options bar; a soft edge left behind would reshape every later test's selections.
+  for (const char* key :
+       {"tools/marqueeFeather", "tools/marqueeAntiAlias", "tools/ellipticalMarqueeFeather",
+        "tools/ellipticalMarqueeAntiAlias", "tools/lassoFeather", "tools/lassoAntiAlias",
+        "tools/magneticLassoFeather", "tools/magneticLassoAntiAlias", "tools/wandFeather", "tools/wandAntiAlias",
+        "tools/quickSelectFeather"}) {
+    settings.remove(QLatin1StringView(key));
+  }
   settings.sync();
 }
 
