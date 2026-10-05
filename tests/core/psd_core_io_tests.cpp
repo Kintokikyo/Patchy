@@ -1657,6 +1657,67 @@ void psd_tools_noise_gradient_fill_survives_resave_if_available() {
   }
 }
 
+// Photoshop stores a gradient's interpolation method as a four-character code ("Lnr ",
+// "Perc") as well as the long stringID. adjustment_clipping.psd holds a full-canvas
+// "Lnr " gradient with the pixels Photoshop rendered for it, so redrawing the layer
+// checks both the parse and Patchy's own linear-light ramp against Photoshop: read as
+// Classic it was up to 60/255 off down the whole column.
+void psd_tools_linear_gradient_fill_redraw_matches_photoshop_if_available() {
+  const auto path = patchy::test::source_root_path() / "local-test-fixtures" / "psd-tools" / "tests" / "psd_files" /
+                    "adjustments" / "adjustment_clipping.psd";
+  if (!std::filesystem::exists(path)) {
+    std::cout << "[SKIP] psd-tools collection missing: " << path.string() << '\n';
+    return;
+  }
+  auto document = patchy::psd::DocumentIo::read_file(path);
+  patchy::Layer* fill = nullptr;
+  const auto find = [&](auto&& self, std::vector<patchy::Layer>& layers) -> void {
+    for (auto& layer : layers) {
+      if (layer.name() == "Gradient Fill 1") {
+        fill = &layer;
+      }
+      if (!layer.children().empty()) {
+        self(self, layer.children());
+      }
+    }
+  };
+  find(find, document.layers());
+  CHECK(fill != nullptr);
+  if (fill == nullptr) {
+    return;
+  }
+  const auto* shape = std::as_const(*fill).vector_shape();
+  CHECK(shape != nullptr);
+  if (shape == nullptr) {
+    return;
+  }
+  CHECK(shape->fill.gradient.interpolation == patchy::GradientInterpolationMethod::Linear);
+  const auto stored = std::as_const(*fill).pixels();
+  CHECK(stored.width() == 200 && stored.height() == 200);
+  patchy::update_vector_shape_raster(*fill, patchy::Rect::from_size(document.width(), document.height()),
+                                     &document.metadata().patterns);
+  const auto& redrawn = std::as_const(*fill).pixels();
+  CHECK(redrawn.width() == 200 && redrawn.height() == 200);
+  if (redrawn.width() != 200 || redrawn.height() != 200 || stored.width() != 200 || stored.height() != 200) {
+    return;
+  }
+  // The first row is skipped: Photoshop starts the ramp exactly on the first stop there.
+  int worst = 0;
+  for (std::int32_t y = 1; y < 200; ++y) {
+    const auto* a = stored.pixel(100, y);
+    const auto* b = redrawn.pixel(100, y);
+    for (int channel = 0; channel < 3; ++channel) {
+      worst = std::max(worst, std::abs(int{a[channel]} - int{b[channel]}));
+    }
+  }
+  // 13/255 at worst today, in the steep first tenth of the ramp (a half-pixel phase
+  // difference there); the bound leaves room for that and nothing like the old 60.
+  if (worst > 16) {
+    std::cout << "[INFO] linear gradient redraw is " << worst << "/255 off Photoshop at worst\n";
+  }
+  CHECK(worst <= 16);
+}
+
 // Photoshop names an unnamed layer "Layer N" by its position among the ordinary layers;
 // its own manifest for these two files is the reference.
 void psd_tools_unnamed_layers_take_photoshop_names_if_available() {
@@ -2893,6 +2954,8 @@ std::vector<patchy::test::TestCase> psd_core_io_tests() {
       {"psd_tools_group_fill_matches_photoshop_if_available", psd_tools_group_fill_matches_photoshop_if_available},
       {"psd_tools_noise_gradient_fill_survives_resave_if_available",
        psd_tools_noise_gradient_fill_survives_resave_if_available},
+      {"psd_tools_linear_gradient_fill_redraw_matches_photoshop_if_available",
+       psd_tools_linear_gradient_fill_redraw_matches_photoshop_if_available},
       {"psd_tools_unnamed_layers_take_photoshop_names_if_available",
        psd_tools_unnamed_layers_take_photoshop_names_if_available},
       {"psd_empty_real_user_mask_channel_does_not_truncate_layer",

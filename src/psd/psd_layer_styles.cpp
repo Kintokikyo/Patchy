@@ -122,10 +122,13 @@ LayerStyleGradientType gradient_type_from_descriptor(std::string_view value) {
 }
 
 GradientInterpolationMethod gradient_interpolation_from_descriptor(std::string_view value) {
-  if (value == "perceptual" || value == "Smoo") {
+  // Photoshop writes either the long stringID or the four-character code; its own
+  // fill layers in psd-tools' collection carry "Perc" and "Lnr " (October 2026: a
+  // "Lnr " gradient read as Classic was up to 60/255 off Photoshop's pixels).
+  if (value == "perceptual" || value == "Perc" || value == "Smoo") {
     return GradientInterpolationMethod::Perceptual;
   }
-  if (value == "linear") {
+  if (value == "linear" || value == "Lnr ") {
     return GradientInterpolationMethod::Linear;
   }
   return GradientInterpolationMethod::Classic;
