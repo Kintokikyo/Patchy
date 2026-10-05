@@ -508,6 +508,8 @@ void convert_indexed_plane_to_rgb(PixelBuffer& pixels, const std::uint8_t* indic
 // Lab: the buffer's first three components hold L, a, b as stored (L 0..255 = 0..100,
 // a and b offset by 128) and are replaced in place by sRGB. Alpha is left untouched.
 void convert_lab_pixels_to_rgb(PixelBuffer& pixels);
+// One CIE Lab color (D50; lightness 0..100, a and b about -128..127) as sRGB.
+std::array<std::uint8_t, 3> srgb8_from_lab(double lightness, double a, double b);
 // Multichannel: the planes are inks, stored like CMYK's (255 = none). The first three
 // are read as cyan, magenta and yellow; a missing plane counts as no ink.
 void convert_multichannel_planes_to_rgb(PixelBuffer& pixels, std::span<const std::vector<std::uint8_t>> planes,

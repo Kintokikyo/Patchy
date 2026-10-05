@@ -92,6 +92,35 @@ RgbColor descriptor_rgb_color(const DescriptorObject& object, std::string_view k
     // Grayscale-mode documents: 'Gry ' is the black percentage (100 = black).
     return cmyk.rgb_from_gray(1.0 - descriptor_number(*color_object, "Gry ") / 100.0);
   }
+  if (color_object->class_id == "LbCl") {
+    // Lab colors (every color of a Lab-mode document, and any color picked as Lab):
+    // luminance 0..100, a and b about -128..127. Read as RGB they came out black.
+    const auto rgb = srgb8_from_lab(descriptor_number(*color_object, "Lmnc"), descriptor_number(*color_object, "A   "),
+                                    descriptor_number(*color_object, "B   "));
+    return RgbColor{rgb[0], rgb[1], rgb[2]};
+  }
+  if (color_object->class_id == "HSBC") {
+    // Hue in degrees, saturation and brightness in percent.
+    const auto hue = std::fmod(std::fmod(descriptor_number(*color_object, "H   "), 360.0) + 360.0, 360.0) / 60.0;
+    const auto saturation = std::clamp(descriptor_number(*color_object, "Strt") / 100.0, 0.0, 1.0);
+    const auto brightness = std::clamp(descriptor_number(*color_object, "Brgh") / 100.0, 0.0, 1.0);
+    const auto sector = static_cast<int>(hue) % 6;
+    const auto fraction = hue - std::floor(hue);
+    const auto low = brightness * (1.0 - saturation);
+    const auto falling = brightness * (1.0 - saturation * fraction);
+    const auto rising = brightness * (1.0 - saturation * (1.0 - fraction));
+    const std::array<std::array<double, 3>, 6> sectors{{{brightness, rising, low},
+                                                        {falling, brightness, low},
+                                                        {low, brightness, rising},
+                                                        {low, falling, brightness},
+                                                        {rising, low, brightness},
+                                                        {brightness, low, falling}}};
+    const auto byte = [](double value) {
+      return static_cast<std::uint8_t>(std::clamp(std::lround(value * 255.0), 0L, 255L));
+    };
+    const auto& rgb = sectors[static_cast<std::size_t>(sector)];
+    return RgbColor{byte(rgb[0]), byte(rgb[1]), byte(rgb[2])};
+  }
   return RgbColor{static_cast<std::uint8_t>(std::clamp(std::lround(descriptor_number(*color_object, "Rd  ")), 0L, 255L)),
                   static_cast<std::uint8_t>(
                       std::clamp(std::lround(descriptor_number(*color_object, "Grn ")), 0L, 255L)),

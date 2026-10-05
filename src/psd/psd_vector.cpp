@@ -168,6 +168,12 @@ std::optional<VectorFill> parse_fill_content(VectorFillKind kind, const Descript
     }
     case VectorFillKind::Gradient: {
       fill.gradient = parse_layer_style_gradient(object, cmyk);
+      // A gradient FILL layer without an 'Angl' key runs at 0 degrees (left to right),
+      // not at the 90 a gradient effect defaults to: Photoshop draws psd-tools'
+      // gradient-styles.psd noise fills, which omit the key, as vertical bands.
+      if (descriptor_value(object, "Angl") == nullptr) {
+        fill.gradient.angle_degrees = 0.0F;
+      }
       if (fill.gradient.form == GradientDefinitionForm::Solid && fill.gradient.color_stops.empty()) {
         return std::nullopt;
       }

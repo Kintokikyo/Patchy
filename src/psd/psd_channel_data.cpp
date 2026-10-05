@@ -548,8 +548,6 @@ void convert_indexed_plane_to_rgb(PixelBuffer& pixels, const std::uint8_t* indic
   }
 }
 
-namespace {
-
 // CIE Lab (D50, as Photoshop stores it) to sRGB (D65): Lab to XYZ, Bradford adaptation,
 // the sRGB matrix, then the shared transfer function. Out-of-gamut colors clip.
 std::array<std::uint8_t, 3> srgb8_from_lab(double lightness, double a, double b) {
@@ -571,8 +569,6 @@ std::array<std::uint8_t, 3> srgb8_from_lab(double lightness, double a, double b)
   return {linear_to_srgb8(static_cast<float>(red)), linear_to_srgb8(static_cast<float>(green)),
           linear_to_srgb8(static_cast<float>(blue))};
 }
-
-}  // namespace
 
 void convert_lab_pixels_to_rgb(PixelBuffer& pixels) {
   const auto channels = static_cast<std::size_t>(pixels.format().channels);

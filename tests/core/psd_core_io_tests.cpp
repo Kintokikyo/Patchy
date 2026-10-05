@@ -1815,6 +1815,89 @@ void psd_tools_grayscale_adjustments_apply_to_the_gray_channel_if_available() {
   }
 }
 
+// A gradient fill layer whose descriptor has no angle runs left to right. The noise fills
+// of psd-tools' gradient-styles.psd omit it; at the effect default of 90 degrees their
+// vertical bands were redrawn as horizontal ones.
+void psd_tools_gradient_fill_without_angle_runs_left_to_right_if_available() {
+  const auto path = patchy::test::source_root_path() / "local-test-fixtures" / "psd-tools" / "tests" /
+                    "psd_files" / "gradient-styles.psd";
+  if (!std::filesystem::exists(path)) {
+    std::cout << "[SKIP] psd-tools collection missing: " << path.string() << '\n';
+    return;
+  }
+  const auto document = patchy::psd::DocumentIo::read_file(path);
+  int noise = 0;
+  int angled = 0;
+  const std::function<void(const std::vector<patchy::Layer>&)> visit = [&](const std::vector<patchy::Layer>& layers) {
+    for (const auto& layer : layers) {
+      visit(layer.children());
+      const auto* shape = layer.vector_shape();
+      if (shape == nullptr || shape->fill.kind != patchy::VectorFillKind::Gradient) {
+        continue;
+      }
+      if (layer.name().starts_with("Roughness")) {
+        CHECK(shape->fill.gradient.angle_degrees == 0.0F);
+        // Bands that run down the layer: one row is the same color all the way across
+        // only for a horizontal ramp's transpose, so compare along a column instead.
+        const auto& pixels = layer.pixels();
+        if (pixels.width() > 8 && pixels.height() > 8) {
+          const auto* top = pixels.pixel(pixels.width() / 2, 1);
+          const auto* bottom = pixels.pixel(pixels.width() / 2, pixels.height() - 2);
+          CHECK(std::abs(top[0] - bottom[0]) <= 8 && std::abs(top[1] - bottom[1]) <= 8);
+        }
+        ++noise;
+      } else if (shape->fill.gradient.angle_degrees != 0.0F) {
+        ++angled;
+      }
+    }
+  };
+  visit(document.layers());
+  CHECK(noise == 5);
+  CHECK(angled == 15);  // the fills that do carry an angle keep it
+}
+
+// A Lab-mode document writes every color as a Lab descriptor ('LbCl'). Read as RGB, each
+// fill layer's color came out black, which showed as soon as the layer was redrawn. Each
+// solid fill of psd-tools' lab-color-swatches.psd has to parse to the color Photoshop
+// baked into that layer's own pixels.
+void psd_tools_lab_color_descriptors_parse_if_available() {
+  const auto path = patchy::test::source_root_path() / "local-test-fixtures" / "psd-tools" / "tests" /
+                    "psd_files" / "descriptors" / "lab-color-swatches.psd";
+  if (!std::filesystem::exists(path)) {
+    std::cout << "[SKIP] psd-tools collection missing: " << path.string() << '\n';
+    return;
+  }
+  const auto document = patchy::psd::DocumentIo::read_file(path);
+  int fills = 0;
+  int worst = 0;
+  bool any_color = false;
+  for (const auto& layer : document.layers()) {
+    const auto* shape = layer.vector_shape();
+    const auto& pixels = layer.pixels();
+    if (shape == nullptr || pixels.empty()) {
+      continue;
+    }
+    const auto* baked = pixels.pixel(pixels.width() / 2, pixels.height() / 2);
+    const auto color = shape->fill.color;
+    const auto miss = std::max({std::abs(color.red - baked[0]), std::abs(color.green - baked[1]),
+                                std::abs(color.blue - baked[2])});
+    if (miss > 14) {
+      std::cout << "[INFO] " << layer.name() << " parsed " << int{color.red} << ", " << int{color.green} << ", "
+                << int{color.blue} << " but Photoshop baked " << int{baked[0]} << ", " << int{baked[1]} << ", "
+                << int{baked[2]} << '\n';
+    }
+    worst = std::max(worst, miss);
+    any_color = any_color || color.red != color.green || color.green != color.blue;
+    ++fills;
+  }
+  std::cout << "[INFO] lab-color-swatches: " << fills << " fills, worst channel miss " << worst << '\n';
+  CHECK(fills >= 10);
+  CHECK(any_color);
+  // (The saturated yellow is outside sRGB; Photoshop and this conversion clip it a little
+  // differently, 12/255 on blue. Everything else is within 3.)
+  CHECK(worst <= 14);
+}
+
 // Reads every file of the psd-tools test collection (testy/fetch_psd_tools_corpus.py puts
 // it under local-test-fixtures/psd-tools), then writes each document that loaded and reads
 // the result back. A reader exception is a clean refusal and only counted (the collection
@@ -3268,6 +3351,9 @@ std::vector<patchy::test::TestCase> psd_core_io_tests() {
       {"psd_other_color_modes_convert_to_rgb_on_read", psd_other_color_modes_convert_to_rgb_on_read},
       {"psd_tools_other_color_modes_open_if_available", psd_tools_other_color_modes_open_if_available},
       {"psd_tools_cmyk_levels_run_on_the_inks_if_available", psd_tools_cmyk_levels_run_on_the_inks_if_available},
+      {"psd_tools_lab_color_descriptors_parse_if_available", psd_tools_lab_color_descriptors_parse_if_available},
+      {"psd_tools_gradient_fill_without_angle_runs_left_to_right_if_available",
+       psd_tools_gradient_fill_without_angle_runs_left_to_right_if_available},
       {"psd_tools_grayscale_adjustments_apply_to_the_gray_channel_if_available",
        psd_tools_grayscale_adjustments_apply_to_the_gray_channel_if_available},
       {"psd_tools_corpus_reads_and_round_trips_if_available", psd_tools_corpus_reads_and_round_trips_if_available},
