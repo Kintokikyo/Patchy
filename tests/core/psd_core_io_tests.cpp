@@ -1712,6 +1712,37 @@ void psd_tools_cmyk_levels_run_on_the_inks_if_available() {
   std::cout << "[INFO] levels_cmyk worst channel miss against Photoshop: " << worst << '\n';
   CHECK(worst <= 12);
 
+  // Saved as RGB, the Levels layers stay Levels layers, and each one's fifth record (the
+  // black ink) is written as the identity: Photoshop 2026 discards a Levels layer of an
+  // RGB document whose fifth record is anything else, leaving a plain empty layer.
+  const auto saved = patchy::psd::DocumentIo::write_layered_rgb8(document);
+  int levels_blocks = 0;
+  const std::array<std::uint8_t, 8> key{'8', 'B', 'I', 'M', 'l', 'e', 'v', 'l'};
+  for (auto at = std::search(saved.begin(), saved.end(), key.begin(), key.end()); at != saved.end();
+       at = std::search(at + 1, saved.end(), key.begin(), key.end())) {
+    const auto payload = static_cast<std::size_t>(at - saved.begin()) + 12U;
+    const auto u16 = [&saved](std::size_t offset) { return (saved[offset] << 8) | saved[offset + 1U]; };
+    const auto fifth = payload + 2U + 4U * 10U;
+    CHECK(u16(fifth) == 0 && u16(fifth + 2U) == 255 && u16(fifth + 4U) == 0 && u16(fifth + 6U) == 255 &&
+          u16(fifth + 8U) == 100);
+    ++levels_blocks;
+  }
+  CHECK(levels_blocks == 4);
+  int reread_levels = 0;
+  const auto reread_document = patchy::psd::DocumentIo::read(saved);
+  const std::function<void(const std::vector<patchy::Layer>&)> count_levels = [&](const std::vector<patchy::Layer>& layers) {
+    for (const auto& layer : layers) {
+      if (const auto settings = patchy::adjustment_settings_from_layer(layer);
+          settings.has_value() && settings->kind == patchy::AdjustmentKind::Levels) {
+        CHECK(layer.mask().has_value());
+        ++reread_levels;
+      }
+      count_levels(layer.children());
+    }
+  };
+  count_levels(reread_document.layers());
+  CHECK(reread_levels == 4);
+
   // A layer that loses its ink space (the id is not registered in this process) falls
   // back to RGB math instead of failing.
   auto orphan = patchy::Layer(0, "orphan", patchy::LayerKind::Adjustment);

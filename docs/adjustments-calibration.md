@@ -73,6 +73,11 @@ inks they match on 99.9 percent (worst channel miss 7/255 at the 16 pinned probe
   takes the per-pixel path.
 - Hue/Saturation, Color Balance and Threshold stay on RGB math in CMYK documents.
 - No profile, or one lcms2 cannot use: no ink space, RGB math as before.
+- The black ink's record is never written: Photoshop 2026 silently turns a Levels layer
+  of an RGB document into a plain empty layer, mask gone, when the `levl` block's fifth
+  record is not the identity (found by Testy the night the record was first written).
+  A `curv` payload that carries a fifth curve is regenerated without it for the same
+  reason instead of being passed through.
 - Gap: Patchy saves RGB. The layer is written as an ordinary RGB adjustment, so
   Photoshop, and Patchy after a reopen in another run (the id is then unregistered),
   evaluate it on RGB again. Pinned by `psd_tools_cmyk_levels_run_on_the_inks_if_available`.

@@ -113,9 +113,11 @@ LevelsRecord levels_record_for_photoshop_index(LevelsAdjustment settings, int in
       return clamp_levels_record(settings.green);
     case 3:
       return clamp_levels_record(settings.blue);
-    case 4:
-      return clamp_levels_record(settings.black_ink);
     default:
+      // Index 4 included: Patchy writes RGB files, and Photoshop 2026 silently turns a
+      // Levels layer into a plain empty layer (mask gone too) when an RGB document's
+      // fifth record is not the identity. The black ink's record stays in the model
+      // (LevelsAdjustment::black_ink) and is never written.
       return {};
   }
 }
@@ -392,8 +394,12 @@ std::optional<AdjustmentSettings> parse_photoshop_curves_adjustment(
 std::vector<std::uint8_t> photoshop_curves_payload(const CurvesAdjustment& curves,
                                                    const UnknownPsdBlock* original) {
   if (original != nullptr) {
+    // (Not when the original carries a black-ink curve: that payload came from a CMYK
+    // document, and Patchy writes RGB, where a fifth channel does not belong. See the
+    // Levels note in levels_record_for_photoshop_index.)
     if (const auto parsed = parse_photoshop_curves_adjustment(original->payload);
-        parsed.has_value() && parsed->curves == curves) {
+        parsed.has_value() && parsed->curves == curves &&
+        curve_points_are_exact_identity(normalized_curve_control_points(curves.black_ink))) {
       // The imported payload may contain compatibility details Patchy does not
       // model. Keep every byte until the modeled control points actually change.
       return original->payload;
