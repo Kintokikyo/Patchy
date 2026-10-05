@@ -20,6 +20,9 @@ import sys
 from pathlib import Path
 
 TIMEOUT_SECONDS = 180
+# A line the child prints on stdout to explain how a leg was produced; export()
+# returns it as "note" for the cell's driver notes.
+NOTE_MARKER = "TESTY-NOTE: "
 
 
 def version() -> str | None:
@@ -50,14 +53,17 @@ def export(input_path: Path, output_path: Path) -> dict:
         exit_code = completed.returncode
         lines = [line for line in (completed.stderr or "").splitlines() if line.strip()]
         stderr = lines[-1][-2000:] if lines else ""
+        note = next((line[len(NOTE_MARKER):].strip() for line in (completed.stdout or "").splitlines()
+                     if line.startswith(NOTE_MARKER)), "")
     except subprocess.TimeoutExpired:
-        exit_code, stderr = -1, f"timeout after {TIMEOUT_SECONDS}s"
+        exit_code, stderr, note = -1, f"timeout after {TIMEOUT_SECONDS}s", ""
     except OSError as error:
-        exit_code, stderr = -1, str(error)
+        exit_code, stderr, note = -1, str(error), ""
     ok = exit_code == 0 and output_path.exists() and output_path.stat().st_size > 0
     return {
         "exitCode": exit_code,
         "stderr": stderr,
+        "note": note,
         "ok": ok,
         # Exit 1 is a Python exception from psd-tools: its verdict on the file. A
         # timeout or a crashed interpreter counts against the driver instead.
@@ -72,7 +78,23 @@ def _run(input_path: str, output_path: str) -> None:
     if Path(output_path).suffix.lower() in (".psd", ".psb"):
         psd.save(output_path)
         return
-    image = psd.composite(force=True) if len(psd) else psd.composite()
+    if not len(psd):
+        image = psd.composite()
+    else:
+        try:
+            image = psd.composite(force=True)
+        except Exception as error:
+            # force=True also re-rasterizes vector shapes, and that path cannot build a
+            # CMYK-plus-alpha image (psd-tools 1.17: "Cannot handle this data type:
+            # (1, 1, 5)"). ignore_preview still composites the layers itself, which is
+            # all the trap leg requires; stored shape pixels are used instead.
+            print(f"{NOTE_MARKER}composited with ignore_preview after force=True failed "
+                  f"({type(error).__name__}: {str(error)[:120]})")
+            image = psd.composite(ignore_preview=True)
+    if image.mode not in ("1", "L", "LA", "RGB", "RGBA"):
+        # PNG cannot hold CMYK; psd-tools normally converts through the ICC profile
+        # itself, and this covers the documents where it hands back the raw mode.
+        image = image.convert("RGBA" if "A" in image.getbands() else "RGB")
     image.save(output_path)
 
 

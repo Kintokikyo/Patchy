@@ -1607,6 +1607,8 @@ class Runner:
             from drivers import psdtools as psdtools_driver
 
             exported = psdtools_driver.export(staged.original, render_png)
+            if exported["note"]:
+                cell["driverNotes"] = [f"render: {exported['note']}"]
             if not exported["ok"]:
                 detail = exported["stderr"] or f"exit {exported['exitCode']}, no output"
                 cell.update({"state": "failed", "opens": "fail",
