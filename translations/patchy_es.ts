@@ -8893,6 +8893,14 @@ RGB: %2, %3, %4</translation>
         <source>%1 came from a CMYK document and adjusts its CMYK inks here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its colors will look different.</source>
         <translation>%1 procede de un documento CMYK y aquí ajusta sus tintas CMYK. Patchy guarda archivos RGB, así que en el archivo guardado Photoshop y Patchy la aplican a RGB y sus colores se verán distintos.</translation>
     </message>
+    <message>
+        <source>This grayscale file has adjustment layers that act on its gray channel. Patchy shows them that way, but it saves RGB files: in a saved file those layers are applied to RGB and the tones will look different. Keep the original, or merge those layers before saving.</source>
+        <translation>Este archivo en escala de grises tiene capas de ajuste que actúan sobre su canal de gris. Patchy las muestra así, pero guarda archivos RGB: en un archivo guardado esas capas se aplican a RGB y los tonos se verán distintos. Conserva el original o combina esas capas antes de guardar.</translation>
+    </message>
+    <message>
+        <source>%1 came from a grayscale document and adjusts its gray channel here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its tones will look different.</source>
+        <translation>%1 procede de un documento en escala de grises y aquí ajusta su canal de gris. Patchy guarda archivos RGB, así que en el archivo guardado Photoshop y Patchy la aplican a RGB y sus tonos se verán distintos.</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

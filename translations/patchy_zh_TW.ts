@@ -8863,6 +8863,14 @@ RGB：%2, %3, %4</translation>
         <source>%1 came from a CMYK document and adjusts its CMYK inks here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its colors will look different.</source>
         <translation>%1 來自 CMYK 文件，在這裡調整的是它的 CMYK 油墨。Patchy 儲存的是 RGB 檔案，因此在儲存後的檔案中，Photoshop 和 Patchy 都會將它套用於 RGB，顏色會有所不同。</translation>
     </message>
+    <message>
+        <source>This grayscale file has adjustment layers that act on its gray channel. Patchy shows them that way, but it saves RGB files: in a saved file those layers are applied to RGB and the tones will look different. Keep the original, or merge those layers before saving.</source>
+        <translation>此灰階檔案包含作用於灰色色版的調整圖層。Patchy 會依這種方式顯示它們，但儲存的是 RGB 檔案：在儲存後的檔案中，這些圖層會套用於 RGB，色調會有所不同。請保留原始檔案，或在儲存前合併這些圖層。</translation>
+    </message>
+    <message>
+        <source>%1 came from a grayscale document and adjusts its gray channel here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its tones will look different.</source>
+        <translation>%1 來自灰階文件，在這裡調整的是它的灰色色版。Patchy 儲存的是 RGB 檔案，因此在儲存後的檔案中，Photoshop 和 Patchy 都會將它套用於 RGB，色調會有所不同。</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

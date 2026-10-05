@@ -12,7 +12,8 @@
 namespace patchy {
 
 // A CMYK document's ink space, as two lookup tables sampled from its ICC profile: sRGB
-// to the four inks and the inks back to sRGB.
+// to the four inks and the inks back to sRGB. (A grayscale document with a gray profile
+// gets the one-channel form of the same thing; see is_gray below.)
 //
 // Patchy edits in RGB: a CMYK file's pixels are converted when it is read. Its adjustment
 // layers are not pixels, though. Photoshop evaluates them on the ink channels, and the
@@ -33,6 +34,19 @@ struct InkSpace {
   std::vector<std::uint16_t> rgb_to_ink;
   std::vector<std::uint16_t> ink_to_rgb;
 
+  // A grayscale document's space instead: its one channel through the gray profile
+  // (Dot Gain 20%, Gray Gamma 2.2, ...). gray_to_rgb holds the sRGB triple for each of
+  // the 256 stored gray values, rgb_to_gray the stored value whose triple is nearest a
+  // given sRGB level. When these are filled the four tables above are empty.
+  std::vector<std::uint8_t> gray_to_rgb;
+  std::vector<std::uint8_t> rgb_to_gray;
+
+  [[nodiscard]] bool is_gray() const noexcept { return gray_to_rgb.size() == 768U && rgb_to_gray.size() == 256U; }
+  [[nodiscard]] std::uint8_t gray_from_rgb(RgbColor color) const noexcept { return rgb_to_gray[color.green]; }
+  [[nodiscard]] RgbColor rgb_from_gray(std::uint8_t gray) const noexcept {
+    const auto* triple = gray_to_rgb.data() + static_cast<std::size_t>(gray) * 3U;
+    return RgbColor{triple[0], triple[1], triple[2]};
+  }
   [[nodiscard]] bool valid() const noexcept;
   // Trilinear / quadrilinear interpolation between the sampled nodes.
   [[nodiscard]] std::array<std::uint8_t, 4> ink_from_rgb(RgbColor color) const noexcept;

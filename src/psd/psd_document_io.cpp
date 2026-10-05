@@ -823,6 +823,16 @@ std::vector<Layer> read_layer_info_records(BigEndianReader& layer_reader, std::i
     if (adjustment_settings.has_value()) {
       // An adjustment layer of a CMYK document acts on the inks (see InkSpace).
       adjustment_settings->ink_space = source_colors.ink_space;
+      if (is_grayscale_color_mode(source_color_mode)) {
+        // A one-plane document has one channel, and its Levels record and curve sit in
+        // the slot an RGB document calls red (index 1; index 0, the composite, stays at
+        // the identity). The plane became R = G = B on read, so the record applies to all
+        // three; left on red alone it tinted the picture cyan or red.
+        adjustment_settings->levels.green = adjustment_settings->levels.red;
+        adjustment_settings->levels.blue = adjustment_settings->levels.red;
+        adjustment_settings->curves.green = adjustment_settings->curves.red;
+        adjustment_settings->curves.blue = adjustment_settings->curves.red;
+      }
     }
     Layer layer = adjustment_settings.has_value() ? Layer(0, record.name, LayerKind::Adjustment)
                                                   : Layer(0, record.name, std::move(pixels));
@@ -1344,6 +1354,22 @@ Document DocumentIo::read(std::span<const std::uint8_t> bytes, ReadOptions optio
       }
     }
   }
+  // A grayscale document with a usable gray profile gets the one-channel form.
+  if (gray_icc_transform.has_value()) {
+    if (auto icc_profile = find_image_resource_payload(image_resources, kImageResourceIccProfile);
+        icc_profile.has_value()) {
+      std::uint64_t hash = 1469598103934665603ULL;  // FNV-1a
+      for (const auto byte : *icc_profile) {
+        hash = (hash ^ byte) * 1099511628211ULL;
+      }
+      const auto id = "gray-" + std::to_string(icc_profile->size()) + "-" + std::to_string(hash);
+      ink_space = find_ink_space(id);
+      if (ink_space == nullptr) {
+        ink_space = build_gray_ink_space(*icc_profile, id);
+        register_ink_space(ink_space);
+      }
+    }
+  }
   const CmykColorConverter source_colors{
       cmyk_icc_transform.has_value() ? &*cmyk_icc_transform : nullptr,
       gray_icc_transform.has_value() ? &*gray_icc_transform : nullptr,
@@ -1625,11 +1651,19 @@ Document DocumentIo::read(std::span<const std::uint8_t> bytes, ReadOptions optio
     if (ink_adjustments > 0) {
       document.metadata().values["psd.ink_adjustments"] = std::to_string(ink_adjustments);
       if (options.notices != nullptr) {
-        options.notices->push_back(PATCHY_TRANSLATE_NOOP(
-            "QObject",
-            "This CMYK file has adjustment layers that act on its CMYK inks. Patchy shows them that way, "
-            "but it saves RGB files: in a saved file those layers are applied to RGB and the colors will "
-            "look different. Keep the original, or merge those layers before saving."));
+        options.notices->push_back(
+            ink_space->is_gray()
+                ? PATCHY_TRANSLATE_NOOP(
+                      "QObject",
+                      "This grayscale file has adjustment layers that act on its gray channel. Patchy shows "
+                      "them that way, but it saves RGB files: in a saved file those layers are applied to RGB "
+                      "and the tones will look different. Keep the original, or merge those layers before "
+                      "saving.")
+                : PATCHY_TRANSLATE_NOOP(
+                      "QObject",
+                      "This CMYK file has adjustment layers that act on its CMYK inks. Patchy shows them that "
+                      "way, but it saves RGB files: in a saved file those layers are applied to RGB and the "
+                      "colors will look different. Keep the original, or merge those layers before saving."));
       }
     }
   }

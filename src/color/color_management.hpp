@@ -58,6 +58,11 @@ private:
 [[nodiscard]] std::shared_ptr<const InkSpace> build_cmyk_ink_space(std::span<const std::uint8_t> profile_bytes,
                                                                    std::string id);
 
+// The one-channel form for a grayscale document: `profile_bytes` is its gray ICC profile.
+// Returns null when the profile is not usable.
+[[nodiscard]] std::shared_ptr<const InkSpace> build_gray_ink_space(std::span<const std::uint8_t> profile_bytes,
+                                                                   std::string id);
+
 // Converts single-channel gray data to sRGB through an ICC gray profile (Dot Gain 20%,
 // Gray Gamma 2.2, sGray, ...). Inputs use the PSD channel convention: 0 = black,
 // 255 = white. Same intent, black point compensation and cache-free construction as the

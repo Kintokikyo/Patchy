@@ -44,6 +44,9 @@ std::map<std::string, std::shared_ptr<const InkSpace>, std::less<>>& registry() 
 }  // namespace
 
 bool InkSpace::valid() const noexcept {
+  if (is_gray()) {
+    return true;
+  }
   if (rgb_grid < 2 || ink_grid < 2) {
     return false;
   }

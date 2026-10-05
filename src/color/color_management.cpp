@@ -3,6 +3,7 @@
 #include "support/translate_noop.hpp"
 
 #include <array>
+#include <cstdlib>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -228,6 +229,38 @@ RgbColor GrayToRgbTransform::convert_single(std::uint8_t gray) const {
 
 const std::string& GrayToRgbTransform::profile_description() const {
   return impl_->description;
+}
+
+std::shared_ptr<const InkSpace> build_gray_ink_space(std::span<const std::uint8_t> profile_bytes,
+                                                     std::string id) {
+  const auto transform = GrayToRgbTransform::from_icc_profile(profile_bytes);
+  if (!transform.has_value()) {
+    return nullptr;
+  }
+  auto space = std::make_shared<InkSpace>();
+  space->id = std::move(id);
+  std::array<std::uint8_t, 256> ramp{};
+  for (std::size_t value = 0; value < ramp.size(); ++value) {
+    ramp[value] = static_cast<std::uint8_t>(value);
+  }
+  space->gray_to_rgb.resize(768U);
+  transform->convert(ramp.data(), space->gray_to_rgb.data(), ramp.size());
+  // The inverse: for each sRGB level, the stored gray whose converted green is nearest
+  // (the lower one on a tie, so the table does not depend on search order).
+  space->rgb_to_gray.resize(256U);
+  for (int level = 0; level < 256; ++level) {
+    int best = 0;
+    int best_distance = 256;
+    for (int gray = 0; gray < 256; ++gray) {
+      const auto distance = std::abs(static_cast<int>(space->gray_to_rgb[static_cast<std::size_t>(gray) * 3U + 1U]) - level);
+      if (distance < best_distance) {
+        best_distance = distance;
+        best = gray;
+      }
+    }
+    space->rgb_to_gray[static_cast<std::size_t>(level)] = static_cast<std::uint8_t>(best);
+  }
+  return space;
 }
 
 struct LabToRgbTransform::Impl {

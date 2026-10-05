@@ -8923,6 +8923,14 @@ RGB: %2, %3, %4</translation>
         <source>%1 came from a CMYK document and adjusts its CMYK inks here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its colors will look different.</source>
         <translation>Warstwa %1 pochodzi z dokumentu CMYK i tutaj koryguje jego farby CMYK. Patchy zapisuje pliki RGB, więc w zapisanym pliku Photoshop i Patchy zastosują ją do RGB, a jej kolory będą wyglądać inaczej.</translation>
     </message>
+    <message>
+        <source>This grayscale file has adjustment layers that act on its gray channel. Patchy shows them that way, but it saves RGB files: in a saved file those layers are applied to RGB and the tones will look different. Keep the original, or merge those layers before saving.</source>
+        <translation>Ten plik w skali szarości zawiera warstwy dopasowania, które działają na jego kanał szarości. Patchy tak je wyświetla, ale zapisuje pliki RGB: w zapisanym pliku te warstwy zostaną zastosowane do RGB, a tony będą wyglądać inaczej. Zachowaj oryginał albo scal te warstwy przed zapisaniem.</translation>
+    </message>
+    <message>
+        <source>%1 came from a grayscale document and adjusts its gray channel here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its tones will look different.</source>
+        <translation>Warstwa %1 pochodzi z dokumentu w skali szarości i tutaj koryguje jego kanał szarości. Patchy zapisuje pliki RGB, więc w zapisanym pliku Photoshop i Patchy zastosują ją do RGB, a jej tony będą wyglądać inaczej.</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

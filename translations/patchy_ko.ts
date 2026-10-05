@@ -8863,6 +8863,14 @@ RGB: %2, %3, %4</translation>
         <source>%1 came from a CMYK document and adjusts its CMYK inks here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its colors will look different.</source>
         <translation>%1은(는) CMYK 문서에서 가져온 것으로, 여기서는 CMYK 잉크에 적용됩니다. Patchy는 RGB 파일로 저장하므로 저장된 파일에서는 Photoshop과 Patchy 모두 RGB에 적용하여 색상이 달라집니다.</translation>
     </message>
+    <message>
+        <source>This grayscale file has adjustment layers that act on its gray channel. Patchy shows them that way, but it saves RGB files: in a saved file those layers are applied to RGB and the tones will look different. Keep the original, or merge those layers before saving.</source>
+        <translation>이 회색 음영 파일에는 회색 채널에 작용하는 조정 레이어가 있습니다. Patchy는 그대로 표시하지만 RGB 파일로 저장합니다. 저장된 파일에서는 해당 레이어가 RGB에 적용되어 색조가 달라집니다. 원본을 보관하거나 저장하기 전에 해당 레이어를 병합하세요.</translation>
+    </message>
+    <message>
+        <source>%1 came from a grayscale document and adjusts its gray channel here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its tones will look different.</source>
+        <translation>%1은(는) 회색 음영 문서에서 가져온 것으로, 여기서는 회색 채널에 적용됩니다. Patchy는 RGB 파일로 저장하므로 저장된 파일에서는 Photoshop과 Patchy 모두 RGB에 적용하여 색조가 달라집니다.</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

@@ -1428,6 +1428,10 @@ RgbColor apply_adjustment_in_ink_space(RgbColor color, const AdjustmentSettings&
   if (!tables.valid || !same_ink_adjustment(tables.settings, settings)) {
     build_ink_adjustment_tables(tables, settings);
   }
+  if (settings.ink_space->is_gray()) {
+    // One channel: its record is the one RGB documents call red (see the PSD reader).
+    return settings.ink_space->rgb_from_gray(tables.ink[0][settings.ink_space->gray_from_rgb(color)]);
+  }
   auto ink = settings.ink_space->ink_from_rgb(color);
   for (std::size_t channel = 0; channel < ink.size(); ++channel) {
     ink[channel] = tables.ink[channel][ink[channel]];
@@ -1449,11 +1453,13 @@ bool adjustment_runs_in_ink_space(const AdjustmentSettings& settings) noexcept {
     case AdjustmentKind::BrightnessContrast:
     case AdjustmentKind::Exposure:
       return true;
-    // Hue/Saturation, Color Balance and Threshold mix channels; Photoshop's CMYK forms
-    // of them are not modeled, so they stay on the RGB math.
+    // Threshold compares one value: on a single gray channel that is channel-wise.
+    case AdjustmentKind::Threshold:
+      return settings.ink_space->is_gray();
+    // Hue/Saturation and Color Balance mix channels (as does Threshold on four inks);
+    // Photoshop's CMYK forms of them are not modeled, so they stay on the RGB math.
     case AdjustmentKind::HueSaturation:
     case AdjustmentKind::ColorBalance:
-    case AdjustmentKind::Threshold:
       return false;
   }
   return false;

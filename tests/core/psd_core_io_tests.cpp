@@ -1756,6 +1756,54 @@ void psd_tools_cmyk_levels_run_on_the_inks_if_available() {
   CHECK(reread.has_value() && !patchy::adjustment_runs_in_ink_space(*reread));
 }
 
+// A grayscale document's Levels record and curve sit in the slot an RGB document calls red.
+// Applied to red alone they tinted the picture; they belong to the one gray channel.
+// Photoshop 2026's flatten of psd-tools' levels_grayscale.psd and curves_grayscale.psd
+// (four masked adjustment layers each), sampled in every strip.
+void psd_tools_grayscale_adjustments_apply_to_the_gray_channel_if_available() {
+  const auto root = patchy::test::source_root_path() / "local-test-fixtures" / "psd-tools" / "tests" /
+                    "psd_files" / "adjustments";
+  struct Probe {
+    std::int32_t x;
+    std::int32_t y;
+    int gray;
+  };
+  struct Case {
+    const char* name;
+    std::array<Probe, 16> photoshop;
+  };
+  const std::array<Case, 2> cases{{
+      {"levels_grayscale.psd",
+       {{{25, 40, 3}, {25, 100, 67}, {25, 150, 85}, {25, 185, 58}, {75, 40, 181}, {75, 100, 235}, {75, 150, 81},
+         {75, 185, 160}, {125, 40, 175}, {125, 100, 166}, {125, 150, 138}, {125, 185, 164}, {175, 40, 37},
+         {175, 100, 131}, {175, 150, 36}, {175, 185, 160}}}},
+      {"curves_grayscale.psd",
+       {{{25, 40, 42}, {25, 100, 90}, {25, 150, 103}, {25, 185, 84}, {75, 40, 142}, {75, 100, 198}, {75, 150, 78},
+         {75, 185, 125}, {125, 40, 205}, {125, 100, 186}, {125, 150, 123}, {125, 185, 182}, {175, 40, 70},
+         {175, 100, 158}, {175, 150, 44}, {175, 185, 166}}}},
+  }};
+  for (const auto& entry : cases) {
+    const auto path = root / entry.name;
+    if (!std::filesystem::exists(path)) {
+      std::cout << "[SKIP] psd-tools collection missing: " << path.string() << '\n';
+      return;
+    }
+    const auto flattened = patchy::Compositor{}.flatten_rgb8(patchy::psd::DocumentIo::read_file(path));
+    int worst = 0;
+    int worst_tint = 0;
+    for (const auto& probe : entry.photoshop) {
+      const auto* px = flattened.pixel(probe.x, probe.y);
+      worst_tint = std::max({worst_tint, std::abs(px[0] - px[1]), std::abs(px[1] - px[2])});
+      worst = std::max({worst, std::abs(px[0] - probe.gray), std::abs(px[1] - probe.gray),
+                        std::abs(px[2] - probe.gray)});
+    }
+    std::cout << "[INFO] " << entry.name << " worst miss against Photoshop " << worst << ", worst tint "
+              << worst_tint << '\n';
+    CHECK(worst_tint == 0);
+    CHECK(worst <= 12);
+  }
+}
+
 // Reads every file of the psd-tools test collection (testy/fetch_psd_tools_corpus.py puts
 // it under local-test-fixtures/psd-tools), then writes each document that loaded and reads
 // the result back. A reader exception is a clean refusal and only counted (the collection
@@ -3209,6 +3257,8 @@ std::vector<patchy::test::TestCase> psd_core_io_tests() {
       {"psd_other_color_modes_convert_to_rgb_on_read", psd_other_color_modes_convert_to_rgb_on_read},
       {"psd_tools_other_color_modes_open_if_available", psd_tools_other_color_modes_open_if_available},
       {"psd_tools_cmyk_levels_run_on_the_inks_if_available", psd_tools_cmyk_levels_run_on_the_inks_if_available},
+      {"psd_tools_grayscale_adjustments_apply_to_the_gray_channel_if_available",
+       psd_tools_grayscale_adjustments_apply_to_the_gray_channel_if_available},
       {"psd_tools_corpus_reads_and_round_trips_if_available", psd_tools_corpus_reads_and_round_trips_if_available},
       {"psd_tools_group_fill_matches_photoshop_if_available", psd_tools_group_fill_matches_photoshop_if_available},
       {"psd_tools_noise_gradient_fill_survives_resave_if_available",

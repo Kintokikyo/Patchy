@@ -8893,6 +8893,14 @@ RVB : %2, %3, %4</translation>
         <source>%1 came from a CMYK document and adjusts its CMYK inks here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its colors will look different.</source>
         <translation>%1 provient d&apos;un document CMJN et règle ici ses encres CMJN. Patchy enregistre des fichiers RVB : dans le fichier enregistré, Photoshop et Patchy l&apos;appliquent au RVB et ses couleurs seront différentes.</translation>
     </message>
+    <message>
+        <source>This grayscale file has adjustment layers that act on its gray channel. Patchy shows them that way, but it saves RGB files: in a saved file those layers are applied to RGB and the tones will look different. Keep the original, or merge those layers before saving.</source>
+        <translation>Ce fichier en niveaux de gris contient des calques de réglage qui agissent sur sa couche de gris. Patchy les affiche ainsi, mais il enregistre des fichiers RVB : dans un fichier enregistré, ces calques sont appliqués au RVB et les tons seront différents. Conservez l&apos;original ou fusionnez ces calques avant d&apos;enregistrer.</translation>
+    </message>
+    <message>
+        <source>%1 came from a grayscale document and adjusts its gray channel here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its tones will look different.</source>
+        <translation>%1 provient d&apos;un document en niveaux de gris et règle ici sa couche de gris. Patchy enregistre des fichiers RVB : dans le fichier enregistré, Photoshop et Patchy l&apos;appliquent au RVB et ses tons seront différents.</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

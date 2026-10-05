@@ -682,7 +682,7 @@ void ui_compatibility_report_treats_levels_as_native_psd_adjustment() {
 // An adjustment layer read from a CMYK document runs on the inks; saving writes RGB, where
 // the same numbers mean something else, and the report says so.
 void ui_compatibility_report_warns_about_cmyk_ink_adjustments() {
-  auto space = std::make_shared<patchy::InkSpace>();
+  std::shared_ptr<patchy::InkSpace> space = std::make_shared<patchy::InkSpace>();
   space->id = "test-ink-space";
   space->rgb_grid = 2;
   space->ink_grid = 2;
@@ -713,6 +713,18 @@ void ui_compatibility_report_warns_about_cmyk_ink_adjustments() {
   // The same layer in an RGB document, and a kind that stays on RGB math, say nothing.
   CHECK(warnings_for(patchy::AdjustmentKind::Levels, false).isEmpty());
   CHECK(warnings_for(patchy::AdjustmentKind::HueSaturation, true).isEmpty());
+
+  // A grayscale document's space is the one-channel form, and the wording follows it.
+  auto gray = std::make_shared<patchy::InkSpace>();
+  gray->id = "test-gray-space";
+  gray->gray_to_rgb.assign(768U, std::uint8_t{128});
+  gray->rgb_to_gray.assign(256U, std::uint8_t{128});
+  patchy::register_ink_space(gray);
+  space = gray;
+  const auto gray_warning = warnings_for(patchy::AdjustmentKind::Threshold, true);
+  CHECK(gray_warning.size() == 1);
+  CHECK(!gray_warning.isEmpty() && gray_warning.front().contains(QStringLiteral("grayscale")));
+  CHECK(!gray_warning.isEmpty() && !gray_warning.front().contains(QStringLiteral("CMYK")));
 }
 
 void ui_compatibility_report_pins_native_vs_private_adjustment_kinds() {

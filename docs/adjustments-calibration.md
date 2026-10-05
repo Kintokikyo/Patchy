@@ -72,6 +72,14 @@ inks they match on 99.9 percent (worst channel miss 7/255 at the 16 pinned probe
   Levels reads. `build_adjustment_lut` returns nullopt for these, so every compositor
   takes the per-pixel path.
 - Hue/Saturation, Color Balance and Threshold stay on RGB math in CMYK documents.
+- Grayscale documents get the one-channel form (`InkSpace::is_gray`, `build_gray_ink_space`):
+  the 256 stored gray values through the gray profile and the nearest-value inverse.
+  Their Levels record and curve sit in the slot RGB calls red (index 1; the composite
+  stays at the identity), so the reader copies it to green and blue; on red alone it
+  tinted the picture. Threshold is channel-wise here too. Photoshop's flatten of
+  psd-tools' `levels_grayscale.psd` and `curves_grayscale.psd` is matched within 3/255 and
+  1/255 (22/255 without the gray space, a visible tint before the copy). Pinned by
+  `psd_tools_grayscale_adjustments_apply_to_the_gray_channel_if_available`.
 - No profile, or one lcms2 cannot use: no ink space, RGB math as before.
 - The black ink's record is never written: Photoshop 2026 silently turns a Levels layer
   of an RGB document into a plain empty layer, mask gone, when the `levl` block's fifth
