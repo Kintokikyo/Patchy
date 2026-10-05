@@ -1396,6 +1396,7 @@ ${PATCHY_LUPDATE_MANIFEST_SOURCES}
     if(ANDROID)
       set_target_properties(patchy PROPERTIES
         QT_ANDROID_PACKAGE_NAME "com.DKapp.SethRobinson.patchy"
+        QT_ANDROID_APP_ICON "@mipmap/ic_launcher"
       )
     endif()
     target_link_libraries(patchy PRIVATE patchy_ui)
