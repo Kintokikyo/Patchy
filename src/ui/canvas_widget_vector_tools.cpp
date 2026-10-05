@@ -1126,7 +1126,7 @@ bool CanvasWidget::handle_path_edit_press(QMouseEvent* event, QPointF document_p
           path_selected_anchors_.insert({s, a});
         }
       }
-      if (edit_tool == CanvasTool::PathSelect && snap_enabled_ && !path_selected_anchors_.empty()) {
+      if (snap_enabled_ && !path_selected_anchors_.empty()) {
         path_drag_snap_source_rect_ =
           selected_path_snap_rect(*path, path_selected_anchors_);
       }
@@ -1199,6 +1199,10 @@ bool CanvasWidget::handle_path_edit_press(QMouseEvent* event, QPointF document_p
              ++a) {
           path_selected_anchors_.insert({s, a});
         }
+      }
+      if (snap_enabled_ && !path_selected_anchors_.empty()) {
+        path_drag_snap_source_rect_ =
+          selected_path_snap_rect(*path, path_selected_anchors_);
       }
     } else {
       // A segment whose ends are already selected drags the whole selection
