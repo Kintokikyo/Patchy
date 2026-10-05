@@ -295,6 +295,32 @@ function standingRows(scores, editors) {
     .sort((a, b) => b.score - a.score || a.key.localeCompare(b.key));
 }
 
+// The editor refused a file Photoshop rendered: counted as a zero in the averages.
+// A harness failure (timeout, dead app, skipped cell) is not the editor's verdict on
+// the file and stays out, as does a file with no reference render at all.
+function refusedWithReference(f, c) {
+  const gt = f.groundTruth || {};
+  return !!c && c.opens === "fail" && gt.state === "done" && !!(gt.artifacts || {}).render;
+}
+
+// Files with cached layers are scored on the editor's render with those caches
+// removed (no-cache leg). Say on the cell which layers it drew nothing for, and which
+// could not be measured, with the layers' names on hover.
+function replayNote(f, k) {
+  const leg = ((f.cells || {})[k] || {}).noCache;
+  if (!leg) return "";
+  if (leg.state !== "done")
+    return '<div class="nums" title="' + esc(leg.reason || "") + '">own rendering not measured (scored as opened, with any cached pixels)</div>';
+  let html = "";
+  if (leg.notRendered && leg.notRendered.length)
+    html += '<div class="flag" title="' + esc(leg.notRendered.join(", ")) + '">cannot render ' +
+            leg.notRendered.length + " of " + leg.cachedLayers + " text/shape/smart layer(s)</div>";
+  if (leg.notMeasured && leg.notMeasured.length)
+    html += '<div class="nums" title="' + esc((leg.notMeasuredReason || "") + ": " + leg.notMeasured.join(", ")) +
+            '">' + leg.notMeasured.length + " layer(s) not measured (cache shown)</div>";
+  return html;
+}
+
 let groupFilter = null;
 function pickGroup(index) {
   const names = [...new Set(fileGroups(S.files))].sort();
@@ -629,11 +655,12 @@ function render() {
       " (click to copy path)' onclick='copyPath(" + fi + ", this)'>" + esc(f.name) + "</b>" +
       '<div class="nums">' + fileFacts(f) + "</div>" + limitNote + gtNote + scanNote + revision + rerunRowControls(f, fi) + "</td>" +
       editors.map(k => "<td class='cell' onclick='openDetail(" + fi + ",\"" + k + "\")'>" +
-                       cellSummary((f.cells || {})[k], (f.cells || {}).photoshop) + "</td>").join("") + "</tr>";
+                       cellSummary((f.cells || {})[k], (f.cells || {}).photoshop) + replayNote(f, k) +
+                       "</td>").join("") + "</tr>";
   }).join("");
 
   const agg = {};
-  editors.forEach(k => agg[k] = { opened: 0, total: 0, badSaves: 0, acc: [], vis: [], native: [], text: [0, 0], adj: [0, 0], smart: [0, 0], fx: [0, 0] });
+  editors.forEach(k => agg[k] = { opened: 0, total: 0, badSaves: 0, acc: [], vis: [], native: [], text: [0, 0], adj: [0, 0], smart: [0, 0], fx: [0, 0], textFiles: [] });
   renderKnownToggle();
   scoredFiles().forEach(f => editors.forEach(k => {
     const c = (f.cells || {})[k];
@@ -644,6 +671,18 @@ function render() {
     if (c.resaveRejected) a.badSaves++;
     if (c.renderMetrics) a.acc.push(c.renderMetrics.accuracy);
     if (c.renderMetrics && c.renderMetrics.perceptual) a.vis.push(c.renderMetrics.perceptual.accuracy);
+    if (!c.renderMetrics && refusedWithReference(f, c)) { a.acc.push(0); a.vis.push(0); }
+    if (f.textLayers) {
+      // The text score comes from the leg that really exercises the editor's text
+      // engine: the forced re-render where there is one, the plain render for an
+      // editor that lays text out on open. Anything else is not a text score.
+      const basis = (S.editors[k] || {}).textBasis;
+      const metrics = basis === "forced" ? c.textRender : basis === "open" ? c.renderMetrics : null;
+      const score = metrics
+        ? (S.run.compare === "perceptual" && metrics.perceptual ? metrics.perceptual.accuracy : metrics.accuracy)
+        : (basis === "open" && refusedWithReference(f, c) ? 0 : null);
+      if (score != null) a.textFiles.push(score);
+    }
     if (c.native && typeof c.native.nativeScore === "number") {
       a.native.push(c.native.nativeScore);
       const pc = c.native.perCategory || {};
@@ -700,12 +739,33 @@ function render() {
     editors.forEach(k => { scores[k] = mean(perceptual && agg[k].vis.length ? agg[k].vis : agg[k].acc); });
     const ranked = standingRows(scores, editors);
     if (ranked.length < 2) return "";
+    // Text rendering, ranked on its own from the leg that exercises each editor's
+    // text engine (see textBasis). Editors with no engine, or one Testy cannot
+    // drive, are named without a score.
+    const textScores = {};
+    const unranked = [];
+    const textFiles = scoredFiles().filter(f => f.textLayers).length;
+    editors.forEach(k => {
+      const basis = (S.editors[k] || {}).textBasis;
+      if (k === "photoshop" || !basis) return;
+      if (basis === "replay" || basis === "unmeasured") unranked.push(k);
+      else if (agg[k].textFiles.length) textScores[k] = mean(agg[k].textFiles);
+    });
+    const textRanked = standingRows(textScores, editors);
+    const textBlock = !textFiles || (!textRanked.length && !unranked.length) ? "" :
+      '<div class="ver" style="margin-top:8px">text rendering (' + textFiles + " files with type layers)</div>" +
+      textRanked.map((r, i) => '<div class="row' + (r.key === "patchy" ? " me" : "") + '" title="' +
+        esc((S.editors[r.key] || {}).textBasisNote || "") + '"><span>' + (i + 1) + ". " +
+        esc((S.editors[r.key] || {}).displayName || r.key) + "</span><b>" + pct(r.score, 0) + "</b></div>").join("") +
+      unranked.map(k => '<div class="row" title="' + esc((S.editors[k] || {}).textBasisNote || "") + '"><span>' +
+        esc((S.editors[k] || {}).displayName || k) + '</span><b class="warn-text">' +
+        ((S.editors[k] || {}).textBasis === "replay" ? "replays cache" : "not measured") + "</b></div>").join("");
     return '<div class="card standing"><h3>Standing</h3><div class="ver">' +
       (perceptual ? "perceptual" : "byte") + " match to Photoshop" +
-      (skipKnown ? ", known limitations left out" : "") + "</div>" +
+      (skipKnown ? ", known limitations left out" : "") + "; unopened files count as 0</div>" +
       ranked.map((r, i) => '<div class="row' + (r.key === "patchy" ? " me" : "") + '"><span>' + (i + 1) + ". " +
         esc((S.editors[r.key] || {}).displayName || r.key) + "</span><b>" + pct(r.score, 0) + "</b></div>").join("") +
-      "</div>";
+      textBlock + "</div>";
   })();
   renderHistory();
   if (selected) openDetail(selected[0], selected[1], true);

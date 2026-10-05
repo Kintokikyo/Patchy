@@ -26,6 +26,24 @@ const renderName = params.get("render");        // runs/<run>/.../render.png
 const resaveName = params.get("resave") || ""; // optional psd upload target
 const mutatedName = params.get("mutated") || "";
 const suffix = params.get("suffix") || "";
+// Optional (nudge=1): make Photopea lay its text layers out afresh before the export.
+// It shows the raster cached in the file until a text layer is edited; assigning a
+// text property its own value is such an edit and changes nothing else. Each layer
+// gets its own script and its own timeout (the script engine never answers when
+// textItem is touched on a layer that is not text, so only LayerKind.TEXT is listed); result.nudge lists the layer names done and the ones that failed.
+const nudge = params.get("nudge") || "";
+const NUDGE_LIST_SCRIPT =
+  "var out=[];function walk(ls,path){for(var i=0;i<ls.length;i++){var L=ls[i];var p=path.concat([i]);" +
+  "if(L.typename==\"LayerSet\"){walk(L.layers,p);continue;}" +
+  "var isText=false;try{isText=(L.kind==LayerKind.TEXT);}catch(e){}if(!isText)continue;" +
+  "out.push(p.join(\".\")+\":\"+encodeURIComponent(L.name));}}" +
+  "walk(app.activeDocument.layers,[]);app.echoToOE(\"textlayers:\"+out.join(\"|\"));";
+function nudgeLayerScript(path) {
+  return "var L=app.activeDocument;var p=[" + path.split(".").join(",") + "];" +
+    "for(var i=0;i<p.length;i++){L=L.layers[p[i]];}" +
+    "var t=L.textItem;t.kind=t.kind;app.echoToOE(\"nudged-ok\");";
+}
+const NUDGE_LAYER_TIMEOUT_MS = 20000;
 
 const logDiv = document.getElementById("log");
 const notes = [];
@@ -122,6 +140,33 @@ async function main() {
     log("document not open yet (attempt " + (attempt + 1) + ")");
   }
   if (!documentReady) throw new Error("document never finished loading in Photopea");
+  let nudgeReport = null;
+  if (nudge) {
+    nudgeReport = { done: [], failed: [], error: "" };
+    try {
+      const listed = await runScript(NUDGE_LIST_SCRIPT, 45000);
+      const listEcho = listed.echoes.find(e => e.indexOf("textlayers:") === 0);
+      if (listEcho === undefined) throw new Error("text layers were not listed");
+      const items = listEcho.slice(11).split("|").filter(item => item.length > 0);
+      for (const item of items) {
+        const colon = item.indexOf(":");
+        const name = decodeURIComponent(item.slice(colon + 1));
+        log("re-rendering text layer " + (nudgeReport.done.length + nudgeReport.failed.length + 1) +
+            " of " + items.length);
+        try {
+          const one = await runScript(nudgeLayerScript(item.slice(0, colon)), NUDGE_LAYER_TIMEOUT_MS);
+          if (one.echoes.indexOf("nudged-ok") < 0) throw new Error("no confirmation");
+          nudgeReport.done.push(name);
+        } catch (error) {
+          nudgeReport.failed.push(name);
+          log("text layer not re-rendered: " + error);
+        }
+      }
+    } catch (error) {
+      nudgeReport.error = String(error);
+      log("text re-render failed: " + error);
+    }
+  }
   log("document ready; exporting PNG");
 
   let result = await runScript('app.activeDocument.saveToOE("png");');
@@ -171,7 +216,7 @@ async function main() {
       log("text mutation skipped: " + error);
     }
   }
-  finish({ ok: true, mutated: mutatedCount });
+  finish({ ok: true, mutated: mutatedCount, nudge: nudgeReport });
 }
 
 main().catch(error => finish({ ok: false, error: String(error) }));

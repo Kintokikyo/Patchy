@@ -180,76 +180,10 @@ re-scrubbed or re-flagged, and `flagged.txt` is written once at true completion.
 
 ## What each cell measures
 
-For every (PSD, editor) pair, the editor opens a staged COPY (corpus files are never
-touched; a SHA check at the end of every run proves it), and Testy records:
-
-- **Opens** - did the file load at all.
-- **Render accuracy** - the editor's flattened PNG vs Photoshop's, composited over
-  white at document size. Two comparisons always run, labeled **byte match** and
-  **perceptual** in the report. Byte match counts pixels off by more than 6/255 per
-  channel (plus RMSE); honest about raw data, but a subtle color-management shift
-  can mark a visually identical render ~100% different. Perceptual counts pixels
-  that actually look wrong: SSIM's contrast-structure term combined with CIEDE2000
-  deltaE, both computed on lightly blurred copies so anti-aliasing jitter stays
-  quiet, with the deltaE threshold scaled up under strong local contrast. A global
-  8/255 shift scores ~0% perceptually while byte match reports ~100%; a genuinely
-  missing, misplaced, or recolored object fires both. Each metric also gets a
-  per-object breakdown using ground-truth layer bounds; an object "renders ok"
-  while under 25% of its region's pixels are off (text legitimately differs on
-  glyph edges; a bbox also contains what renders behind it, so one error can hit
-  several objects). Worst offenders are named in the detail panel, ranked by the
-  run's comparison mode. Byte match runs at document resolution; perceptual costs
-  about a second and 150 MB of numpy temporaries per megapixel, so it runs on
-  copies area-averaged down to `PERCEPTUAL_MAX_PIXELS` (4 MP) and is skipped when
-  the renders match pixel for pixel. Above 4 MP the downsample can shift the
-  perceptual `badFraction` in relative terms; it drives a 10% triage threshold, not
-  a pinned number, and the byte-match figure is unchanged.
-  `python testy\analyze.py --selftest` pins all of it against synthetic renders; no
-  Photoshop or corpus needed.
-- **Honest rendering (trap)** - the editor also opens a byte-patched variant whose
-  embedded flat composite is replaced with magenta (`psd_sections.py` rewrites only
-  the trailing image-data section; all layer data stays byte-identical). Magenta in
-  the render means the editor displayed Photoshop's baked composite instead of
-  compositing layers itself. Flattened files (zero layer records) get no trap: the
-  composite is the only image data, so reading it is correct and even Photoshop
-  would trip the sentinel (noted in the detail panel; old cached cells are fixed
-  on reuse). Photoshop tripping its own trap means even the ground
-  truth could not re-render the layers (missing fonts etc.) and fell back to the
-  baked composite; another editor matching that is not a cheat (a neutral note says
-  so) and does not flag in scan mode. Only sentinel coverage more than 5 points
-  beyond Photoshop's own counts as a cheat.
-- **Native preservation** (labeled "data kept in .psd save" in the report and CLI
-  summary; the results.json/history.jsonl keys stay `native`/`nativeScore`) - the
-  editor's re-saved PSD is reopened in Photoshop and its layer manifest compared
-  against the original's: text still `TEXT`, each adjustment still its exact kind,
-  smart objects still smart, groups/masks/vector masks/live effects/clipping/blend
-  modes intact. This is the "23/40 objects survived" number; a resave Photoshop
-  refuses to open scores as rejected.
-- **Round-trip render** - Photoshop's render of the editor's resave vs the
-  original's render.
-- **Forced text re-render** - scriptable editors append `~TESTY~` to every text
-  layer so cached rasters cannot satisfy the render: Photoshop via COM
-  (`textItem.contents`), Patchy via `patchy.exe --append-text` (real inline-editor
-  sessions per layer). Mutated renders are compared within text-layer regions.
-  Before mutation, Photoshop checks every unlocked text layer's style ranges
-  against its available fonts. If a required font is missing or cannot be
-  inspected, the whole image's forced-text comparison is explicitly skipped,
-  with the font names/reason shown in the detail panel. Neither editor mutates
-  text for that comparison; ordinary rendering and PSD preservation checks still
-  run. No font is silently replaced, and a skipped comparison has no score.
-  Mutation errors also suppress the comparison. The font inventory participates
-  in ground-truth and Patchy caches, so installing fonts invalidates old text
-  results on the next run. Dialog suppression is limited to the mutation step
-  when a probe enables opening warnings; it does not conceal PSD opening errors.
-  Krita 5.3 and Affinity re-render text on open by design, and GIMP's PSD import
-  keeps text layers as baked rasters, so none of them has a mutation leg. The detail panel shows the "render, text appended" pair only
-  for editors with the leg (Patchy; Photoshop's lives with the ground truth);
-  others state why it is absent (`TEXT_MUTATION_SKIPPED` in testy.py). Photopea's
-  mutation pass is deliberately disabled: its script engine hangs on contents
-  assignment for some documents and its DOM never matched text layers reliably.
-
-The Photoshop column doubles as a control: ~100% render accuracy and full native
-preservation validate the pipeline itself.
+Opens, render accuracy, the trap, data kept in the .psd save, the round-trip render,
+the forced text re-render, and the cache-free leg that scores an editor on what it
+draws itself: all in [testy-scoring.md](testy-scoring.md), with the reference-render
+rules and the "never mark an editor down for the harness's mistake" safeguards.
 
 ## Machine specifics (July 2026)
 
@@ -414,8 +348,8 @@ preservation validate the pipeline itself.
 testy/
   testy.py           orchestrator + dashboard server
   config.py          editor discovery + versions
-  staging.py         run-dir copies + trap generation
-  psd_sections.py    minimal PSD/PSB section walker (trap patching only)
+  staging.py         run-dir copies: trap, cache-stripped and plain variants
+  psd_sections.py    minimal PSD/PSB section walker (trap patching, cache stripping)
   analyze.py         render metrics, sentinel detection, heatmaps (--selftest included)
   manifest.py        original-vs-resave structural diff
   report.py          status.json + live report.html + history

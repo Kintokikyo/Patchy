@@ -7,7 +7,9 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
-from psd_sections import PsdParseError, read_layout, write_sentinel_composite
+from struct import error as struct_error
+
+from psd_sections import PsdParseError, read_layout, write_sentinel_composite, write_stripped_caches
 
 
 def sha1_of_file(path: Path) -> str:
@@ -26,6 +28,18 @@ class StagedPsd:
     trap: Path | None  # sentinel-composite variant (None if skipped or the walker balked)
     trap_error: str | None = None
     trap_skipped: str | None = None  # why no trap was made (not an error)
+    # Two more variants (psd_sections.write_stripped_caches): one with the cached
+    # pixels of every text, shape, fill and smart-object layer REMOVED, so what an
+    # editor shows for those layers is what its own engine draws, and one with the
+    # same layers merely hidden, the picture of "that layer contributed nothing".
+    # Both None when the file has no such layer or keeps its layers where the
+    # stripper does not look (16/32-bit documents).
+    cache_stripped: Path | None = None
+    cache_plain: Path | None = None
+    # The stripped and plain copies with the type layers left as they were, for an
+    # editor whose text cannot be measured that way (None when only text is cached).
+    cache_stripped_text_kept: Path | None = None
+    cache_plain_text_kept: Path | None = None
 
 
 def stage_psd(source: Path, staging_dir: Path) -> StagedPsd:
@@ -51,6 +65,25 @@ def stage_psd(source: Path, staging_dir: Path) -> StagedPsd:
         trap = None
         trap_error = str(error)
 
+    cache_stripped: Path | None = staging_dir / f"nocache{suffix}"
+    cache_plain: Path | None = staging_dir / f"nocache_plain{suffix}"
+    try:
+        write_stripped_caches(str(original), str(cache_stripped))
+        write_stripped_caches(str(original), str(cache_plain), plain=True)
+    except (PsdParseError, OSError, ValueError, IndexError, struct_error):
+        # Nothing cached to strip, or a layout the stripper does not handle: the
+        # cells are scored on the file as opened.
+        cache_stripped = cache_plain = None
+    stripped_text_kept: Path | None = staging_dir / f"nocache_textkept{suffix}"
+    plain_text_kept: Path | None = staging_dir / f"nocache_plain_textkept{suffix}"
+    try:
+        if cache_stripped is None:
+            raise PsdParseError("nothing to strip")
+        write_stripped_caches(str(original), str(stripped_text_kept), keep_kinds=("text",))
+        write_stripped_caches(str(original), str(plain_text_kept), plain=True, keep_kinds=("text",))
+    except (PsdParseError, OSError, ValueError, IndexError, struct_error):
+        stripped_text_kept = plain_text_kept = None
+
     return StagedPsd(
         source=source,
         sha1=sha1_of_file(source),
@@ -58,4 +91,8 @@ def stage_psd(source: Path, staging_dir: Path) -> StagedPsd:
         trap=trap,
         trap_error=trap_error,
         trap_skipped=trap_skipped,
+        cache_stripped=cache_stripped,
+        cache_plain=cache_plain,
+        cache_stripped_text_kept=stripped_text_kept,
+        cache_plain_text_kept=plain_text_kept,
     )

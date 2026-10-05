@@ -165,14 +165,67 @@ _PROBE_JSX = r"""
   // Render the document's flattened appearance to PNG. Returns 'ok', 'fallback', or
   // an error string. The fallback path is the documented copy-merged workaround for
   // files whose damaged smart-object references make duplicate/saveAs fail.
-  function renderTo(doc, pngPath) {
+  // The reference PNG is always 8-bit sRGB: what Photoshop shows, in the space every
+  // comparison assumes. Saved as-is, a Grayscale document's PNG holds raw dot-gain
+  // values with no profile (an editor that color-manages correctly then reads as
+  // wrong), a 16-bit one a format the comparison misreads, and a Bitmap one cannot
+  // be rendered at all (no direct Bitmap-to-RGB change, no Copy Merged). Each step
+  // is best effort; 32-bit keeps Photoshop's own conversion on save.
+  function normalizeForPng(dup) {
+    try { if (dup.mode == DocumentMode.BITMAP) { dup.changeMode(ChangeMode.GRAYSCALE); } } catch (e1) {}
+    try { if (dup.mode != DocumentMode.RGB) { dup.changeMode(ChangeMode.RGB); } } catch (e2) {}
+    if (dup.bitsPerChannel != BitsPerChannelType.THIRTYTWO) {
+      try {
+        dup.convertProfile('sRGB IEC61966-2.1', Intent.RELATIVECOLORIMETRIC, true, false);
+      } catch (e3) {}
+    }
+    try {
+      if (dup.bitsPerChannel == BitsPerChannelType.SIXTEEN) { dup.bitsPerChannel = BitsPerChannelType.EIGHT; }
+    } catch (e4) {}
+  }
+
+  // Photoshop shows a type layer from the raster cached in the file until the text
+  // changes, and an old file's cache can differ from what this Photoshop would draw.
+  // Writing each layer's own text descriptor back to it makes Photoshop lay the text
+  // out afresh with nothing altered (style runs, transform and warp all ride in the
+  // descriptor). Run on the flattened-for-render duplicate only, so the document
+  // itself, and any resave of it, stays exactly as opened.
+  function refreshText(doc, layers, counter) {
+    for (var i = 0; i < layers.length; i++) {
+      var L = layers[i];
+      if (L.typename == 'LayerSet') { refreshText(doc, L.layers, counter); continue; }
+      var kind = '';
+      try { kind = String(L.kind); } catch (e) {}
+      if (kind != 'LayerKind.TEXT') { continue; }
+      var locked = false;
+      try { locked = L.allLocked; } catch (e) {}
+      if (locked) { continue; }
+      try {
+        var wasVisible = L.visible;
+        doc.activeLayer = L;
+        var ref = new ActionReference();
+        ref.putEnumerated(charIDToTypeID('Lyr '), charIDToTypeID('Ordn'), charIDToTypeID('Trgt'));
+        var textKey = executeActionGet(ref).getObjectValue(stringIDToTypeID('textKey'));
+        var target = new ActionReference();
+        target.putEnumerated(stringIDToTypeID('textLayer'), charIDToTypeID('Ordn'), charIDToTypeID('Trgt'));
+        var set = new ActionDescriptor();
+        set.putReference(charIDToTypeID('null'), target);
+        set.putObject(charIDToTypeID('T   '), stringIDToTypeID('textLayer'), textKey);
+        executeAction(charIDToTypeID('setd'), set, DialogModes.NO);
+        // Selecting a hidden layer shows it; put it back.
+        if (L.visible != wasVisible) { L.visible = wasVisible; }
+        counter.n++;
+      } catch (e) { counter.errors++; }
+    }
+  }
+
+  function renderTo(doc, pngPath, freshText) {
     var dup = null;
     try {
       dup = doc.duplicate();
+      if (freshText) { refreshText(dup, dup.layers, freshText); }
       dup.flatten();
-      if (dup.mode != DocumentMode.RGB && dup.mode != DocumentMode.GRAYSCALE) {
-        dup.changeMode(ChangeMode.RGB);
-      }
+      normalizeForPng(dup);
       dup.saveAs(new File(pngPath), pngOptions(), true, Extension.LOWERCASE);
       dup.close(SaveOptions.DONOTSAVECHANGES);
       return 'ok';
@@ -263,8 +316,12 @@ _PROBE_JSX = r"""
     var entries = [];
     walk(opened.layers, '', entries);
     var renderStatus = 'skipped';
+    // The reference render re-renders text, unless a font the text needs is missing:
+    // then Photoshop cannot draw it faithfully either and the cache is the reference.
+    var freshText = {n: 0, errors: 0}, freshFonts = [];
     if (RENDER_PNG !== null) {
-      renderStatus = renderTo(opened, RENDER_PNG);
+      textFontProblems(opened.layers, freshFonts);
+      renderStatus = renderTo(opened, RENDER_PNG, freshFonts.length ? null : freshText);
     }
     var resaveStatus = 'skipped';
     if (RESAVE_PSD !== null) {
@@ -306,6 +363,7 @@ _PROBE_JSX = r"""
       ',"mutateCount":' + mutateCount +
       ',"mutateErrors":' + mutateErrors +
       ',"mutateSkipped":' + (mutateSkipped === null ? 'null' : q(mutateSkipped)) +
+      ',"freshText":' + freshText.n + ',"freshTextErrors":' + freshText.errors +
       ',"missingFonts":[' + missingJson.join(',') + ']' +
       ',"layers":[' + entries.join(',') + ']}';
     opened.close(SaveOptions.DONOTSAVECHANGES);

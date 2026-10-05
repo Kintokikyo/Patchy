@@ -155,6 +155,29 @@ def export_all(
         return {"ok": False, "opens": "fail", "error": f"driver crash: {error}", "notes": notes}
 
 
+def render_text_afresh(base_url: str, testy_root: Path, source: Path, render_png: Path) -> dict:
+    """Render `source` after making Photopea lay out every text layer itself (it shows
+    the raster cached in the file until a text layer is edited; the host page assigns
+    each one a property's own value, which changes nothing else). Returns
+    {"ok", "done": [layer names], "failed": [layer names], "error"}."""
+    try:
+        result = _run_host_page(
+            base_url,
+            {
+                "file": _file_url(base_url, testy_root, source),
+                "upload": f"{base_url}/testy-upload?name=",
+                "render": _rel_url(testy_root, render_png),
+                "nudge": "1",
+            },
+            [render_png],
+        )
+    except PhotopeaError as error:
+        return {"ok": False, "done": [], "failed": [], "error": str(error)}
+    report = result.get("nudge") or {}
+    return {"ok": True, "done": list(report.get("done") or []),
+            "failed": list(report.get("failed") or []), "error": str(report.get("error") or "")}
+
+
 def cleanup() -> None:
     global _driver
     if _driver is not None:

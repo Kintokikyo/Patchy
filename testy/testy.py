@@ -50,6 +50,73 @@ from drivers import photodemon as photodemon_driver
 from drivers.photoshop import PhotoshopDriver
 
 DEFAULT_SUFFIX = "~TESTY~"
+
+# Photoshop layer kinds whose pixels in a PSD are only a CACHE of something the layer
+# defines another way (text and fonts, a path and a fill, an embedded document), with
+# the label one gets in the scored render when the editor draws nothing for it once
+# the cache is gone. An editor that shows such a layer from the cache has not rendered
+# it, and a reader cannot tell; so these files are scored with the caches removed.
+CACHED_LAYER_LABELS = {
+    "TEXT": "Cannot render text objects",
+    "SOLIDFILL": "Cannot render shape or fill layers",
+    "GRADIENTFILL": "Cannot render shape or fill layers",
+    "PATTERNFILL": "Cannot render shape or fill layers",
+    "SMARTOBJECT": "Cannot render smart objects",
+}
+
+# When a cached layer comes out blank once its cache is gone, is that the editor's
+# failure or the test's? A shape or fill layer without cached pixels is a state
+# Photoshop writes itself (16-bit files) and draws from the layer's data, so a blank
+# one is the editor's failure. A type layer or smart object without them is not:
+# Photoshop itself then shows nothing until the layer is edited, and an editor built
+# the same way would be misjudged. For those two kinds a blank layer counts against
+# the editor only when it is known to draw the kind from the layer's data on open (or
+# after Testy's scripted no-op edit), or known to have no engine for it at all.
+# Any other blank keeps the as-opened pixels and is reported as not measured.
+BLANK_IS_FAILURE = {
+    "patchy": ("TEXT", "SMARTOBJECT"),      # text after the scripted re-render (TEXT_CACHE_KEPT)
+    "affinity": ("TEXT", "SMARTOBJECT"),    # lays out and renders everything afresh
+    "krita": ("TEXT", "SMARTOBJECT"),       # converts text to its own on open; no smart objects
+    "gimp": ("TEXT", "SMARTOBJECT"),        # imports both as the pixels in the file
+    "psdtools": ("TEXT", "SMARTOBJECT"),    # no text engine, no smart-object renderer
+    "photopea": ("TEXT", "SMARTOBJECT"),    # smart objects on open; text after the scripted edit
+    "photodemon": ("SMARTOBJECT",),         # no smart objects; its text engine cannot be scripted
+}
+NOT_MEASURED_REASON = {
+    "TEXT": "this editor may only lay text out after an edit made inside the app, which Testy cannot make",
+    "SMARTOBJECT": "this editor may only render a smart object after an edit made inside the app",
+}
+# Editors whose type layers keep their cache in the copies they are given, and are
+# made to lay the text out by a script instead (the way Photoshop's own reference is
+# produced). Patchy takes a type layer's placement from the cached layer, so with the
+# cache gone its text comes out small and misplaced, which says nothing about its
+# text engine; drivers/patchy_text_afresh.js calls layer.rerenderText() on each type
+# layer. A layer the script did not reach is reported as not measured.
+TEXT_CACHE_KEPT = {
+    "patchy": "Patchy's script could not re-render this text layer",
+}
+# A stripped-copy render that differs from the as-opened one outside the cached layers
+# by more than this is not a render of the same document (a stale tab, a fallback):
+# the leg is then void and the cell stays scored as opened.
+NO_CACHE_OUTSIDE_LIMIT = 0.05
+# A box whose two renders differ in no more than this fraction of its pixels is unchanged.
+NO_CACHE_BOX_UNCHANGED = 0.005
+
+# What an editor's text-rendering score can honestly be based on. Merely opening a
+# PSD proves little: Photoshop, Patchy and others show the raster cached in the file
+# until the text changes. "forced" editors are scored on the forced re-render leg,
+# "open" editors lay text out afresh on every open so their plain render counts,
+# "replay" editors have no text engine at all, and "unmeasured" ones have one that
+# Testy cannot drive. The report ranks only the first two and names the rest.
+TEXT_RENDER_BASIS = {
+    "patchy": ("forced", "scored on the forced text re-render"),
+    "krita": ("open", "Krita lays text out afresh on every open"),
+    "affinity": ("open", "Affinity lays text out afresh on every open"),
+    "gimp": ("replay", "GIMP imports PSD text layers as the rasters Photoshop cached"),
+    "psdtools": ("replay", "psd-tools has no text engine; it composites the rasters Photoshop cached"),
+    "photopea": ("open", "Photopea's text is laid out afresh by a scripted edit that changes nothing"),
+    "photodemon": ("unmeasured", "the patched PhotoDemon CLI cannot script a text edit"),
+}
 # Affinity is deliberately opt-in (--editors photoshop,patchy,krita,photopea,affinity):
 # its driver is background-UIA best-effort and the app's cold-start timing is flaky,
 # so default runs stay fast and reliable without it. (Aseprite was verified to have no
@@ -1012,11 +1079,41 @@ def file_traits(path: Path) -> dict | None:
         return None
     traits = {"depth": int.from_bytes(data[22:24], "big"),
               "mode": int.from_bytes(data[24:26], "big")}
+    # A type layer ('TySh' block): the Photoshop reference re-renders its text.
+    if b"8BIMTySh" in data or b"8B64TySh" in data:
+        traits["text"] = True
+    # An embedded ICC profile (image resource 1039) that is not plain sRGB.
+    if b"8BIM\x04\x0f" in data and b"sRGB IEC61966" not in data:
+        traits["profile"] = True
     # Artboard groups carry an 'artb' (or older 'artd') tagged block.
     if any(signature + key in data for signature in (b"8BIM", b"8B64")
            for key in (b"artb", b"artd")):
         traits["artboards"] = True
     return traits
+
+
+def refused_with_reference(entry: dict, cell: dict) -> bool:
+    """The editor refused a file Photoshop rendered: a zero for the render averages.
+    Harness failures (timeouts, a dead app, breaker skips) are not the editor's
+    verdict on the file and stay out, as does any file with no reference render."""
+    truth = entry.get("groundTruth") or {}
+    return (cell.get("opens") == "fail" and truth.get("state") == "done"
+            and bool((truth.get("artifacts") or {}).get("render")))
+
+
+def reference_space_key(traits: dict | None) -> str:
+    """Cache qualifier for files whose Photoshop reference changed: anything not plain
+    8-bit RGB or carrying a non-sRGB profile (the probe now saves 8-bit sRGB), and any
+    file with type layers (the probe now re-renders their text). Their ground truth
+    and every editor's cell are measured afresh; other files keep their caches."""
+    if not traits:
+        return ""
+    key = ""
+    if traits.get("depth", 8) != 8 or traits.get("mode", 3) != 3 or traits.get("profile"):
+        key += "-srgb1"
+    if traits.get("text"):
+        key += "-freshtext1"  # the reference now re-renders text instead of showing its cache
+    return key
 
 
 class Runner:
@@ -1100,6 +1197,8 @@ class Runner:
                     "available": info.available,
                     "notes": info.notes,
                     "mutationSkipped": TEXT_MUTATION_SKIPPED.get(key),
+                    "textBasis": TEXT_RENDER_BASIS.get(key, (None, None))[0],
+                    "textBasisNote": TEXT_RENDER_BASIS.get(key, (None, None))[1],
                 }
                 for key, info in self.editors.items()
             },
@@ -1150,7 +1249,9 @@ class Runner:
         gt_dir = self.files_dir / artifact_dir_name(entry) / "_truth"
         gt_dir.mkdir(parents=True, exist_ok=True)
         font_key = self.ps.font_cache_key()
-        cache_dir = config.CACHE_DIR / f"gt-{staged.sha1}-{_version_slug(self.ps.version())}-{self.suffix}-fontcheck1-{font_key}"
+        cache_dir = config.CACHE_DIR / (
+            f"gt-{staged.sha1}-{_version_slug(self.ps.version())}-{self.suffix}-fontcheck1-{font_key}"
+            f"{reference_space_key(entry.get('traits'))}")
         result_path = cache_dir / "result.json"
 
         entry["groundTruth"] = {"state": "running", "stage": "Photoshop ground truth"}
@@ -1195,6 +1296,8 @@ class Runner:
 
         entry["docSize"] = [int(result["width"]), int(result["height"])]
         entry["layerCount"] = len(result["layers"])
+        entry["textLayers"] = sum(1 for layer in result["layers"] if layer.get("kind") == "TEXT")
+        entry["cachedLayers"] = sum(1 for layer in result["layers"] if layer.get("kind") in CACHED_LAYER_LABELS)
         artifacts = {}
         if (gt_dir / "render.png").exists():
             artifacts["render"] = self._rel(gt_dir / "render.png")
@@ -1268,6 +1371,10 @@ class Runner:
             # Cells cached before the column had its load-and-save leg carry no
             # "data kept" score; the qualifier keeps them from being reused.
             version_key += "-resave1"
+        version_key += reference_space_key(entry.get("traits"))
+        if editor_key != "photoshop" and entry.get("cachedLayers"):
+            # Cells for files with cached layers are scored with those caches removed.
+            version_key += "-nocache4"
         cache_dir = config.CACHE_DIR / (
             f"cell-{staged.sha1}-{editor_key}-{_version_slug(version_key)}-{self.suffix}"
         )
@@ -1305,6 +1412,10 @@ class Runner:
         if cell.get("state") in ("failed", "unsupported"):
             self.push()
             return
+
+        self._no_cache_leg(entry, editor_key, info, staged, cell, cell_dir, render_png, truth)
+        if (cell_dir / "render_as_opened.png").exists():
+            artifacts["renderAsOpened"] = self._rel(cell_dir / "render_as_opened.png")
 
         for path, key, thumb_key in (
             (render_png, "render", "renderThumb"),
@@ -1373,6 +1484,7 @@ class Runner:
                     cell["resaveRejected"] = True
 
         cell["state"] = "done"
+        cell["profileAware"] = True
         cell.pop("stage", None)
         self.push()
 
@@ -1386,6 +1498,190 @@ class Runner:
                 self._write_cell_cache(cell_dir, cache_dir, cell)
             else:
                 self._deferred_cell_caches.setdefault(index, []).append((cell_dir, cache_dir, cell))
+
+    def _render_only(self, editor_key: str, info: config.EditorInfo, source: Path, output: Path,
+                     scratch_dir: Path, text_afresh: bool = False) -> tuple[bool, dict]:
+        """One extra render of `source` by this editor, for the no-cache leg. Returns
+        (rendered, details); Photopea's and Patchy's details name the text layers
+        their scripted re-render did and did not reach. `text_afresh` asks for that
+        re-render where the copy still carries the text's cached pixels (Patchy)."""
+        if editor_key == "patchy" and text_afresh:
+            result = patchy_driver.render_text_afresh(info.exe, source, output)
+            return bool(result["ok"]), result
+        if editor_key == "patchy":
+            return bool(patchy_driver.export(info.exe, source, output)["ok"]), {}
+        if editor_key == "krita":
+            return bool(krita_driver.export(info.exe, source, output)["ok"]), {}
+        if editor_key == "gimp":
+            return bool(gimp_driver.export(info.exe, source, output)["ok"]), {}
+        if editor_key == "photodemon":
+            return bool(photodemon_driver.export(info.exe, source, output)["ok"]), {}
+        if editor_key == "psdtools":
+            from drivers import psdtools as psdtools_driver
+
+            return bool(psdtools_driver.export(source, output)["ok"]), {}
+        if editor_key == "photopea" and self.server_base is not None:
+            from drivers import photopea as photopea_driver
+
+            result = photopea_driver.render_text_afresh(self.server_base, config.TESTY_ROOT, source, output)
+            return bool(result.get("ok")) and output.exists(), result
+        if editor_key == "affinity":
+            from drivers import affinity as affinity_driver
+
+            result = affinity_driver.export_all(
+                info.exe, source, None, output, scratch_dir / "nocache_resave.psd",
+                scratch_dir / "nocache_unused.png")
+            return bool(result.get("ok")) and output.exists(), {}
+        return False, {}
+
+    def _no_cache_leg(self, entry: dict, editor_key: str, info: config.EditorInfo,
+                      staged: staging.StagedPsd, cell: dict, cell_dir: Path, render_png: Path,
+                      truth: dict | None) -> None:
+        """Score this editor on what it draws itself, not on Photoshop's cached pixels.
+
+        The editor renders the copy of the file whose cached text, shape, fill and
+        smart-object pixels were removed. That render replaces render.png as the one
+        that gets scored (the render of the file as opened is kept beside it as
+        render_as_opened.png). A cached layer the editor draws nothing for is found by
+        comparing with its render of the "plain" copy, where those layers are ordinary
+        empty pixel layers: no difference in the layer's box means the layer
+        contributed nothing. Such a layer is outlined and labeled in the scored image
+        when the blank is the editor's failure (see BLANK_IS_FAILURE); otherwise its
+        box keeps the as-opened pixels and the layer is reported as not measured.
+
+        The leg must never mark an editor down for the harness's own mistake, so the
+        cell stays scored as opened (noCache.state "not measured", with the reason)
+        whenever the extra renders cannot be trusted: the editor cannot open a copy,
+        a render comes back at another size, or it differs from the as-opened render
+        outside the cached layers, which only a different document would.
+
+        Skipped when Photoshop itself lacks a font the text needs (nobody can render
+        that text faithfully, the cache is the reference)."""
+        if (editor_key == "photoshop" or truth is None or staged.cache_stripped is None
+                or staged.cache_plain is None or truth.get("mutateSkipped") or not render_png.exists()):
+            return
+        cached = [layer for layer in truth["layers"]
+                  if layer.get("kind") in CACHED_LAYER_LABELS and layer.get("visible", True)
+                  and layer.get("bounds")]
+        if not cached:
+            return
+        stripped_copy, plain_copy = staged.cache_stripped, staged.cache_plain
+        text_kept = editor_key in TEXT_CACHE_KEPT
+        if text_kept:
+            # (A file whose only cached layers are text has no such copies: the
+            # original already is one.)
+            stripped_copy = staged.cache_stripped_text_kept or staged.original
+            plain_copy = staged.cache_plain_text_kept or staged.original
+        cell["stage"] = "rendering without Photoshop's cached pixels"
+        self.push()
+        boxes = [layer["bounds"] for layer in cached]
+
+        def void(reason: str) -> None:
+            cell["noCache"] = {"state": "not measured", "reason": reason, "cachedLayers": len(cached)}
+            log(f"    no-cache leg not measured for {editor_key}: {reason}")
+
+        def render(source: Path, name: str, text_afresh: bool = False) -> tuple[Path | None, dict, str]:
+            """(render, driver details, why it cannot be trusted or "")."""
+            output = cell_dir / name
+            problem = ""
+            details: dict = {}
+            for _attempt in range(2):
+                try:
+                    output.unlink(missing_ok=True)
+                    ok, details = self._render_only(editor_key, info, source, output, cell_dir, text_afresh)
+                except Exception as error:
+                    ok = False
+                    details = {"error": str(error)}
+                for leftover in ("nocache_resave.psd", "nocache_unused.png"):
+                    try:
+                        (cell_dir / leftover).unlink()
+                    except OSError:
+                        pass
+                if not ok or not output.exists():
+                    problem = "the editor could not open the copy of this file with its caches removed"
+                    continue
+                outside = analyze.changed_outside_boxes(render_png, output, boxes)
+                if outside is None:
+                    problem = "its render of the cache-free copy came back at a different size"
+                elif outside > NO_CACHE_OUTSIDE_LIMIT and analyze.sentinel_fraction(output) < 0.5:
+                    problem = (f"its render of the cache-free copy differs from its normal render "
+                               f"outside the cached layers ({outside:.0%} of those pixels)")
+                else:
+                    return output, details, ""
+            return None, details, problem
+
+        try:
+            stripped_render, details, problem = render(stripped_copy, "nocache.png", text_afresh=text_kept)
+            if stripped_render is None:
+                void(problem)
+                return
+            # With no layer left that has pixels, some editors show the file's
+            # flattened image instead, which the copies replace with the sentinel.
+            showed_composite = (analyze.sentinel_fraction(stripped_render) >= 0.5
+                                and analyze.sentinel_fraction(render_png) < 0.5)
+            opened_vs_stripped = analyze.boxes_changed(render_png, stripped_render, boxes) or []
+            blank: list[int] = []
+            if showed_composite:
+                blank = list(range(len(cached)))
+            elif any(fraction > NO_CACHE_BOX_UNCHANGED for fraction in opened_vs_stripped):
+                # (Identical to the as-opened render in every box means every layer
+                # was drawn the same way either way: nothing to find.)
+                plain_render, _plain_details, problem = render(plain_copy, "nocache_plain.png")
+                if plain_render is None:
+                    void(problem)
+                    return
+                contributed = analyze.boxes_changed(plain_render, stripped_render, boxes) or []
+                # Blank: nothing drawn for the layer, and that is a visible loss (a
+                # layer nobody can see in the as-opened render is no finding).
+                blank = [index for index, fraction in enumerate(contributed)
+                         if 0 <= fraction <= NO_CACHE_BOX_UNCHANGED
+                         and opened_vs_stripped[index] > NO_CACHE_BOX_UNCHANGED]
+
+            failures = BLANK_IS_FAILURE.get(editor_key, ())
+            unreached: set[str] = set()
+            if editor_key == "photopea" or text_kept:
+                unreached = set(details.get("failed") or [])
+                if details.get("error"):
+                    unreached = {layer.get("name", "") for layer in cached if layer["kind"] == "TEXT"}
+            unreached_reason = TEXT_CACHE_KEPT.get(
+                editor_key, "Photopea's scripted edit did not reach this text layer")
+            failed: list[int] = []
+            unmeasured: list[int] = []
+            reasons: list[str] = []
+            for index, layer in enumerate(cached):
+                kind = layer["kind"]
+                if kind == "TEXT" and layer.get("name", "") in unreached:
+                    # Never edited, so Photopea never laid it out: blank or not, the
+                    # box says nothing about its engine.
+                    unmeasured.append(index)
+                    reasons.append(unreached_reason)
+                elif index not in blank:
+                    continue
+                elif kind in NOT_MEASURED_REASON and kind not in failures:
+                    unmeasured.append(index)
+                    reasons.append(NOT_MEASURED_REASON[kind])
+                else:
+                    failed.append(index)
+            opened_copy = cell_dir / "render_as_opened.png"
+            shutil.copyfile(render_png, opened_copy)
+            analyze.compose_scored_render(
+                render_png, opened_copy if showed_composite else stripped_render,
+                [(cached[index]["bounds"], CACHED_LAYER_LABELS[cached[index]["kind"]]) for index in failed],
+                opened_copy, [cached[index]["bounds"] for index in unmeasured],
+                clear_placeholders=showed_composite)
+            cell["noCache"] = {
+                "state": "done", "cachedLayers": len(cached),
+                "notRendered": [cached[index].get("name", "") for index in failed],
+                "notMeasured": [cached[index].get("name", "") for index in unmeasured],
+            }
+            if showed_composite:
+                cell["noCache"]["showedComposite"] = True
+            if unmeasured:
+                cell["noCache"]["notMeasuredReason"] = reasons[0]
+            if failed:
+                log(f"    no-cache leg: draws nothing for {len(failed)} of {len(cached)} cached layer(s)")
+        except Exception as error:
+            void(f"harness error: {str(error)[:200]}")
 
     @staticmethod
     def _skip_unavailable_text_comparison(cell: dict, truth: dict | None) -> None:
@@ -1422,6 +1718,21 @@ class Runner:
                     truth_render, render_png, document_size, truth["layers"], None
                 )
                 changed = True
+        if not cell.get("profileAware"):
+            # Cells scored before the comparison honored embedded ICC profiles: only a
+            # render that carries one can have changed, so only those are re-scored.
+            cell["profileAware"] = True
+            changed = True
+            truth_render = self.files_dir / artifact_dir_name(entry) / "_truth" / "render.png"
+            render_png = cell_dir / "render.png"
+            document_size = tuple(entry.get("docSize", (0, 0)))
+            if (truth is not None and cell.get("renderMetrics") and truth_render.exists()
+                    and render_png.exists() and document_size and document_size[0]
+                    and analyze.has_embedded_profile(render_png)):
+                log("    re-scoring a cached render that carries an ICC profile")
+                cell["renderMetrics"] = analyze.compare_renders(
+                    truth_render, render_png, document_size, truth["layers"], None
+                )
         if staged.trap is None and (
             "trapSentinelFraction" in cell or "trapError" in cell
         ):
@@ -1658,10 +1969,14 @@ class Runner:
     # cleanup deletes ONLY these names, one by one, and removes directories with
     # rmdir (which refuses non-empty ones) - never a wildcard, glob, or recursive
     # delete - so anything unexpected inside a run directory survives and is logged.
-    SCRUB_STAGED = ("original.psd", "original.psb", "trap.psd", "trap.psb")
+    SCRUB_STAGED = ("original.psd", "original.psb", "trap.psd", "trap.psb",
+                    "nocache.psd", "nocache.psb", "nocache_plain.psd", "nocache_plain.psb",
+                    "nocache_textkept.psd", "nocache_textkept.psb",
+                    "nocache_plain_textkept.psd", "nocache_plain_textkept.psb")
     SCRUB_TRUTH = ("render.png", "render_thumb.png", "mutated.png", "mutated_thumb.png",
                    "manifest.json")
-    SCRUB_CELL = ("render.png", "render_thumb.png", "resave.psd", "trap.png",
+    SCRUB_CELL = ("render.png", "render_thumb.png", "render_as_opened.png", "nocache.png",
+                  "nocache_plain.png", "nocache_resave.psd", "nocache_unused.png", "resave.psd", "trap.png",
                   "trap_thumb.png", "mutated.png", "mutated_thumb.png", "heatmap.png",
                   "roundtrip.png", "roundtrip_thumb.png", "roundtrip_manifest.json")
 
@@ -2075,6 +2390,11 @@ class Runner:
                     render_scores.append(metrics["accuracy"])
                     if metrics.get("perceptual"):
                         visual_scores.append(metrics["perceptual"]["accuracy"])
+                elif refused_with_reference(entry, cell):
+                    # A file the editor would not open scores zero, not "no data":
+                    # leaving it out let an editor raise its average by refusing files.
+                    render_scores.append(0.0)
+                    visual_scores.append(0.0)
                 native = cell.get("native")
                 if native and "nativeScore" in native:
                     native_scores.append(native["nativeScore"])

@@ -165,6 +165,26 @@ class RerunTests(unittest.TestCase):
         second._app.DoJavaScript.return_value = 'Installed\nNewFace'
         self.assertNotEqual(second.font_cache_key(), before)
 
+    def test_refused_files_score_zero_and_harness_failures_stay_out(self):
+        truth = dict(state='done', artifacts=dict(render='files/a/_truth/render.png'))
+        opened = dict(state='done', opens='ok', renderMetrics=dict(
+            accuracy=0.8, badFraction=0.2, perceptual=dict(accuracy=0.9, badFraction=0.1)))
+        refused = dict(state='failed', opens='fail', fileRejected=True, error='unsupported mode')
+        timed_out = dict(state='failed', error='timeout after 180s')
+        self.assertTrue(testy.refused_with_reference(dict(groundTruth=truth), refused))
+        self.assertFalse(testy.refused_with_reference(dict(groundTruth=truth), timed_out))
+        self.assertFalse(testy.refused_with_reference(dict(groundTruth=dict(state='failed')), refused))
+        self.assertFalse(testy.refused_with_reference(dict(groundTruth=dict(state='done', artifacts={})), refused))
+        status = dict(run=dict(editorOrder=['krita'], name='r', patchyGit='x'), files=[
+            dict(groundTruth=truth, cells=dict(krita=opened)),
+            dict(groundTruth=truth, cells=dict(krita=refused)),
+            dict(groundTruth=truth, cells=dict(krita=timed_out)),
+        ])
+        summary = testy.Runner.summarize_status(status)['editors']['krita']
+        self.assertAlmostEqual(summary['render'], 0.4)
+        self.assertAlmostEqual(summary['visual'], 0.45)
+        self.assertEqual((summary['opened'], summary['total']), (1, 3))
+
     def test_patchy_cache_key_follows_the_exe_not_the_commit(self):
         exe = self.runs / 'patchy.exe'
         exe.write_bytes(b'build one')
@@ -260,6 +280,89 @@ class RerunTests(unittest.TestCase):
             result = psdtools.export(self.runs / 'in.psd', rendered)
         self.assertEqual((result['ok'], result['note']), (True, 'fell back'))
 
+    def test_cache_stripper_empties_cached_layers_and_only_those(self):
+        import psd_sections
+
+        source = Path(__file__).resolve().parents[1] / "test-fixtures" / "psd" / "photoshop-text-tracking.psd"
+        data = source.read_bytes()
+        stripped, changed = psd_sections.strip_cached_pixels(data)
+        plain, changed_plain = psd_sections.strip_cached_pixels(data, plain=True)
+        self.assertTrue(changed)
+        self.assertEqual(changed, changed_plain)
+        self.assertTrue(any(layer["kind"] == "text" for layer in changed))
+        for layer in changed:
+            left, top, right, bottom = layer["bounds"]
+            self.assertTrue(right > left and bottom > top)
+        # The stripped copy keeps what defines the layers; the plain copy does not,
+        # and differs from the stripped one in nothing but those four-byte keys.
+        self.assertIn(b"8BIMTySh", stripped)
+        self.assertNotIn(b"8BIMTySh", plain)
+        self.assertEqual(len(stripped), len(plain))
+        self.assertLess(len(stripped), len(data))
+        differing = sum(1 for a, b in zip(stripped, plain) if a != b)
+        self.assertLessEqual(differing, 4 * len(changed))
+        # Both still parse, with the same layer count as the original.
+        self.assertEqual(psd_sections.read_layout(stripped).layer_count,
+                         psd_sections.read_layout(data).layer_count)
+        # Kinds can be left alone: with text kept, this text-only file has nothing to strip.
+        with self.assertRaises(psd_sections.PsdParseError):
+            psd_sections.strip_cached_pixels(data, keep_kinds=("text",))
+        # Nothing left to strip the second time round.
+        with self.assertRaises(psd_sections.PsdParseError):
+            psd_sections.strip_cached_pixels(stripped)
+
+    def test_no_cache_render_checks_tell_a_blank_layer_from_another_document(self):
+        import analyze
+        from PIL import Image
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+
+            def picture(name, size=(40, 40), fills=()):
+                image = Image.new("RGBA", size, (255, 255, 255, 255))
+                for box, color in fills:
+                    image.paste(color, box)
+                image.save(root / name)
+                return root / name
+
+            box = [10, 10, 20, 20]
+            opened = picture("opened.png", fills=[((10, 10, 20, 20), (0, 0, 200, 255))])
+            blank = picture("blank.png")
+            other_size = picture("small.png", size=(20, 20))
+            elsewhere = picture("elsewhere.png", fills=[((0, 30, 40, 40), (0, 0, 0, 255))])
+
+            self.assertEqual(analyze.boxes_changed(opened, blank, [box, [100, 100, 120, 120]]), [1.0, -1.0])
+            self.assertEqual(analyze.boxes_changed(blank, blank, [box]), [0.0])
+            # Two sizes are not two renders of one document: no verdict at all.
+            self.assertIsNone(analyze.boxes_changed(opened, other_size, [box]))
+            self.assertIsNone(analyze.changed_outside_boxes(opened, other_size, [box]))
+            # A change inside the layer's box is what the leg measures...
+            self.assertEqual(analyze.changed_outside_boxes(opened, blank, [box]), 0.0)
+            # ...and one far outside it means the render is of something else.
+            self.assertGreater(analyze.changed_outside_boxes(opened, elsewhere, [box]), 0.05)
+            self.assertEqual(analyze.changed_outside_boxes(opened, elsewhere, [[0, 0, 40, 40]]), 0.0)
+
+            scored = root / "scored.png"
+            analyze.compose_scored_render(scored, opened, [(box, "x")], clear_placeholders=True)
+            pixels = Image.open(scored).convert("RGBA")
+            self.assertEqual(pixels.getpixel((15, 15))[3], 0)        # cached pixels pruned
+            self.assertEqual(pixels.getpixel((10, 10)), (200, 0, 0, 255))  # outlined
+            analyze.compose_scored_render(scored, blank, [], opened, [box])
+            self.assertEqual(Image.open(scored).convert("RGBA").getpixel((15, 15)), (0, 0, 200, 255))
+
+    def test_a_blank_text_layer_only_counts_against_editors_known_to_draw_text(self):
+        # Photoshop itself shows nothing for a type layer whose cache is gone, so an
+        # editor is marked down for one only when its text engine is known to run.
+        for editor in ("patchy", "krita", "affinity", "gimp", "psdtools", "photopea"):
+            self.assertIn("TEXT", testy.BLANK_IS_FAILURE[editor])
+        self.assertNotIn("TEXT", testy.BLANK_IS_FAILURE["photodemon"])
+        # Patchy's text keeps its cache and is re-rendered by script (layer.rerenderText).
+        self.assertIn("patchy", testy.TEXT_CACHE_KEPT)
+        script = (ROOT / "testy" / "drivers" / "patchy_text_afresh.js").read_text(encoding="utf-8")
+        self.assertIn("layer.rerenderText()", script)
+        self.assertEqual(set(testy.NOT_MEASURED_REASON), {"TEXT", "SMARTOBJECT"})
+        self.assertNotIn("photoshop", testy.BLANK_IS_FAILURE)
+
     def test_failed_build_is_not_success_even_with_compile_output(self):
         with mock.patch.object(testy.config, 'REPO_ROOT', self.runs), \
              mock.patch.object(testy.config, 'BUILD_COMMAND', 'cmake --build --preset release'), \
@@ -350,6 +453,19 @@ assert.equal(knownLimit({traits:{depth:1,mode:0}}), '');
 assert.equal(knownLimit({traits:{depth:16,mode:3}}), '16-bit');
 assert.equal(knownLimit({traits:{depth:32,mode:3,artboards:true}}), '32-bit, artboards');
 assert.equal(knownLimit({traits:{depth:8,mode:3,artboards:true}}), 'artboards');
+"""
+        scoring = script.split('function refusedWithReference', 1)[1].split('let groupFilter', 1)[0]
+        test_js += 'function refusedWithReference' + scoring + """
+const gtOk = {state:'done', artifacts:{render:'r.png'}};
+assert.equal(refusedWithReference({groundTruth:gtOk}, {state:'failed', opens:'fail'}), true);
+assert.equal(refusedWithReference({groundTruth:gtOk}, {state:'failed', error:'timeout'}), false);
+assert.equal(refusedWithReference({groundTruth:{state:'done', artifacts:{}}}, {state:'failed', opens:'fail'}), false);
+const legCell = state => ({cells:{gimp:{noCache:state}}});
+assert.equal(replayNote({cells:{gimp:{}}}, 'gimp'), '');
+assert.equal(replayNote(legCell({state:'done', cachedLayers:3, notRendered:[], notMeasured:[]}), 'gimp'), '');
+assert(replayNote(legCell({state:'done', cachedLayers:3, notRendered:['Title','Logo'], notMeasured:[]}), 'gimp').includes('cannot render 2 of 3'));
+assert(replayNote(legCell({state:'done', cachedLayers:3, notRendered:[], notMeasured:['Title']}), 'gimp').includes('1 layer(s) not measured'));
+assert(replayNote(legCell({state:'not measured', reason:'could not open'}), 'gimp').includes('not measured'));
 """
         standing = script.split('function standingRows', 1)[1].split('let groupFilter', 1)[0]
         test_js += 'function standingRows' + standing + """
