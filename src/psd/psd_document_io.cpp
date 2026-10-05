@@ -500,8 +500,32 @@ std::vector<Layer> read_layer_info_records(BigEndianReader& layer_reader, std::i
   const CmykColorConverter& cmyk_converter = source_colors;
   std::vector<LayerRecord> records;
   records.reserve(layer_count);
+  // A record with no name: Photoshop shows "Layer N", N counting the ordinary
+  // (non-folder) layers from the bottom, 1-based. Its layer manifest for psd-tools'
+  // stroke-color-descriptors-hsb-with-rgb-mode.psd (eight unnamed layers: Layer 1..8)
+  // and issue397.psd (Background, then an unnamed layer inside a folder: Layer 2).
+  // Using the same name keeps a resave recognizably the same layer.
+  int ordinary_layer_number = 0;
   for (std::uint16_t i = 0; i < layer_count; ++i) {
     records.push_back(read_layer_record(layer_reader, large_document, cmyk_converter));
+    auto& record = records.back();
+    if (record.section_divider_type == 0U) {
+      ++ordinary_layer_number;
+    }
+    if (record.name.empty()) {
+      // An unnamed bottom record without a transparency channel (id 0xFFFF) is the
+      // background layer of a legacy file; Photoshop lists it as "Background" (the
+      // local Title02.psd fixture, which also holds a real "Layer 1").
+      const bool has_transparency =
+          std::any_of(record.channels.begin(), record.channels.end(),
+                      [](const LayerChannelInfo& channel) { return channel.id == 0xFFFFU; });
+      if (i == 0 && record.section_divider_type == 0U && !has_transparency) {
+        record.name = "Background";
+      } else {
+        record.name =
+            record.section_divider_type == 0U ? "Layer " + std::to_string(ordinary_layer_number) : "Layer";
+      }
+    }
   }
 
   std::vector<DecodedLayer> decoded_layers;
@@ -910,10 +934,16 @@ std::vector<Layer> read_layer_info_records(BigEndianReader& layer_reader, std::i
       // wrote an empty Trns list (before September 2026): Photoshop treats that as unknown
       // data and drops the layer on open. Mark the blocks dirty so the next save regenerates
       // them with the writer's opaque default stops instead of re-emitting the preserved bytes.
+      // A NOISE gradient has no stop lists at all, so it is never "healed": regenerating
+      // one as a stop gradient wrote an empty color list, and Photoshop then dropped the
+      // fill layer (psd-tools' noise-gradient-*.psd, October 2026).
+      const auto lacks_stops = [](const LayerStyleGradient& gradient) {
+        return gradient.form != GradientDefinitionForm::Noise && gradient.alpha_stops.empty();
+      };
       const bool heals_gradient_stops =
-          (content.fill.kind == VectorFillKind::Gradient && content.fill.gradient.alpha_stops.empty()) ||
+          (content.fill.kind == VectorFillKind::Gradient && lacks_stops(content.fill.gradient)) ||
           (content.stroke.enabled && content.stroke.content.kind == VectorFillKind::Gradient &&
-           content.stroke.content.gradient.alpha_stops.empty());
+           lacks_stops(content.stroke.content.gradient));
       layer.set_vector_shape(std::move(content));
       layer.metadata()[kLayerMetadataVectorShape] = "1";
       layer.metadata()[kLayerMetadataVectorRasterStatus] = kVectorRasterStatusPhotoshop;

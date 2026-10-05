@@ -609,6 +609,30 @@ DescriptorObject gradient_object(const LayerStyleGradient& gradient) {
   object.name = "Gradient";
   object.class_id = "Grdn";
   put_value(object, "Nm  ", make_text_value(gradient.name));
+  if (gradient.form == GradientDefinitionForm::Noise) {
+    // Photoshop's noise form, keys and order from its own fill layers (psd-tools'
+    // noise-gradient-rgb.psd): no stop lists, and the channel ranges as doubles.
+    put_value(object, "GrdF", make_enum_value("GrdF", "ClNs"));
+    put_value(object, "ShTr", make_bool_value(gradient.noise.add_transparency));
+    put_value(object, "VctC", make_bool_value(gradient.noise.restrict_colors));
+    put_value(object, "ClrS",
+              make_enum_value("ClrS", gradient.noise.color_model == GradientNoiseColorModel::HSB   ? "HSBC"
+                                      : gradient.noise.color_model == GradientNoiseColorModel::Lab ? "LABC"
+                                                                                                   : "RGBC"));
+    put_value(object, "RndS", make_long_value(static_cast<std::int32_t>(gradient.noise.seed)));
+    put_value(object, "Smth", make_long_value(gradient.noise.roughness));
+    const auto range = [](const std::array<std::uint16_t, 4>& values) {
+      DescriptorValue list;
+      list.type = DescriptorValue::Type::List;
+      for (const auto value : values) {
+        list.list_value.push_back(make_double_value(static_cast<double>(std::min<std::uint16_t>(value, 100))));
+      }
+      return list;
+    };
+    put_value(object, "Mnm ", range(gradient.noise.minimum));
+    put_value(object, "Mxm ", range(gradient.noise.maximum));
+    return object;
+  }
   put_value(object, "GrdF", make_enum_value("GrdF", "CstS"));
   put_value(object, "Intr", make_double_value(gradient.smoothness));
   DescriptorValue colors;

@@ -752,9 +752,6 @@ LayerRecord read_layer_record(BigEndianReader& reader, bool large_document,
     merge_missing_layer_style_effects(
         record.layer_style, parse_lrfx_layer_style(record.additional_blocks[*lrfx_block_index].payload, cmyk));
   }
-  if (record.name.empty()) {
-    record.name = "Layer";
-  }
   return record;
 }
 

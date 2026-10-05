@@ -96,6 +96,7 @@ namespace {
 using patchy::test::PsdLayerChannelRecord;
 using patchy::test::psd_first_layer_extra_data;
 using patchy::test::psd_layer_block_payload;
+using patchy::test::psd_layer_extra_data;
 using patchy::test::psd_layer_channel_records;
 using patchy::test::read_pascal_padded;
 using patchy::test::read_u32_be_at;
@@ -1558,6 +1559,130 @@ void psd_tools_corpus_reads_and_round_trips_if_available() {
   CHECK(loaded > 0);
 }
 
+// Photoshop 2026's flatten of the psd-tools group Fill files: a blue layer inside a
+// Fill 50% group over red is 127, 0, 128 whether the group is Normal or Pass Through.
+void psd_tools_group_fill_matches_photoshop_if_available() {
+  const auto root = patchy::test::source_root_path() / "local-test-fixtures" / "psd-tools" / "tests" / "psd_files" /
+                    "transparency";
+  for (const char* name : {"knockout-none-normal.psd", "knockout-none-passthrough.psd"}) {
+    const auto path = root / name;
+    if (!std::filesystem::exists(path)) {
+      std::cout << "[SKIP] psd-tools collection missing: " << path.string() << '\n';
+      return;
+    }
+    const auto document = patchy::psd::DocumentIo::read_file(path);
+    const auto flattened = patchy::Compositor{}.flatten_rgb8(document);
+    const auto* px = flattened.pixel(16, 16);
+    if (std::abs(px[0] - 127) > 1 || px[1] != 0 || std::abs(px[2] - 128) > 1) {
+      std::cout << "[INFO] " << name << " center is " << int{px[0]} << ", " << int{px[1]} << ", " << int{px[2]}
+                << '\n';
+    }
+    CHECK(std::abs(px[0] - 127) <= 1);
+    CHECK(px[1] == 0);
+    CHECK(std::abs(px[2] - 128) <= 1);
+  }
+
+  // A Pass Through group at Fill 40% holding a red layer and an Exposure adjustment: the
+  // adjustment darkens the group's own content and leaves the backdrop alone.
+  const auto adjustment_path = root.parent_path() / "passthrough_fill_adjustment.psd";
+  if (!std::filesystem::exists(adjustment_path)) {
+    return;
+  }
+  const auto flattened =
+      patchy::Compositor{}.flatten_rgb8(patchy::psd::DocumentIo::read_file(adjustment_path));
+  struct Probe {
+    std::int32_t x;
+    std::int32_t y;
+    std::array<int, 3> expected;
+  };
+  for (const auto& probe : {Probe{8, 8, {255, 220, 220}}, Probe{16, 16, {187, 154, 154}},
+                            Probe{24, 24, {247, 243, 243}}, Probe{8, 24, {255, 224, 224}}}) {
+    const auto* px = flattened.pixel(probe.x, probe.y);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+      CHECK(std::abs(int{px[channel]} - probe.expected[channel]) <= 2);
+    }
+  }
+}
+
+// A noise gradient fill layer must stay a noise gradient through a save: writing it as a
+// stop gradient left an empty color list and Photoshop dropped the fill (Testy, October
+// 2026: "GRADIENTFILL became NORMAL" on psd-tools' noise-gradient-*.psd). The descriptor
+// is regenerated for a pathless fill layer, so this compares what it says, plus the
+// form marker and the absence of stop lists in the written bytes.
+void psd_tools_noise_gradient_fill_survives_resave_if_available() {
+  const auto path = patchy::test::source_root_path() / "local-test-fixtures" / "psd-tools" / "tests" / "psd_files" /
+                    "gradients" / "noise-gradient-rgb.psd";
+  if (!std::filesystem::exists(path)) {
+    std::cout << "[SKIP] psd-tools collection missing: " << path.string() << '\n';
+    return;
+  }
+  const auto document = patchy::psd::DocumentIo::read_file(path);
+  CHECK(document.layers().size() == 4);
+  const auto resaved = patchy::psd::DocumentIo::write_layered_rgb8(document);
+  const auto reread = patchy::psd::DocumentIo::read(resaved);
+  CHECK(reread.layers().size() == 4);
+  const auto contains = [](const std::vector<std::uint8_t>& bytes, std::string_view text) {
+    return std::search(bytes.begin(), bytes.end(), text.begin(), text.end()) != bytes.end();
+  };
+  for (std::size_t index = 1; index < 4 && index < reread.layers().size(); ++index) {
+    const auto* before = std::as_const(document).layers()[index].vector_shape();
+    const auto* after = std::as_const(reread).layers()[index].vector_shape();
+    CHECK(before != nullptr && after != nullptr);
+    if (before == nullptr || after == nullptr) {
+      continue;
+    }
+    CHECK(before->fill.gradient.form == patchy::GradientDefinitionForm::Noise);
+    CHECK(after->fill.gradient.form == patchy::GradientDefinitionForm::Noise);
+    CHECK(after->fill.gradient.noise.seed == before->fill.gradient.noise.seed);
+    CHECK(after->fill.gradient.noise.roughness == before->fill.gradient.noise.roughness);
+    CHECK(after->fill.gradient.noise.color_model == before->fill.gradient.noise.color_model);
+    CHECK(after->fill.gradient.noise.minimum == before->fill.gradient.noise.minimum);
+    CHECK(after->fill.gradient.noise.maximum == before->fill.gradient.noise.maximum);
+    CHECK(after->fill.gradient_noise_pre_seed == before->fill.gradient_noise_pre_seed);
+    const auto block = psd_layer_block_payload(psd_layer_extra_data(resaved, static_cast<std::int16_t>(index)), "GdFl");
+    CHECK(block.has_value());
+    if (block.has_value()) {
+      CHECK(contains(*block, "ClNs"));
+      CHECK(!contains(*block, "CstS"));
+      CHECK(!contains(*block, "Clrs"));
+    }
+  }
+  // Photoshop stores the channel ranges as doubles (79.9988 for 80); rgb-noise, the
+  // first layer above the background, is restricted to 80 / 40 / 20.
+  CHECK(std::as_const(document).layers()[1].name() == "rgb-noise");
+  if (const auto* shape = std::as_const(document).layers()[1].vector_shape(); shape != nullptr) {
+    CHECK(shape->fill.gradient.noise.minimum[0] == 80);
+    CHECK(shape->fill.gradient.noise.minimum[1] == 40);
+    CHECK(shape->fill.gradient.noise.minimum[2] == 20);
+  }
+}
+
+// Photoshop names an unnamed layer "Layer N" by its position among the ordinary layers;
+// its own manifest for these two files is the reference.
+void psd_tools_unnamed_layers_take_photoshop_names_if_available() {
+  const auto root = patchy::test::source_root_path() / "local-test-fixtures" / "psd-tools" / "tests" / "psd_files";
+  const auto swatches = root / "descriptors" / "stroke-color-descriptors-hsb-with-rgb-mode.psd";
+  const auto nested = root / "issues" / "issue397.psd";
+  if (!std::filesystem::exists(swatches) || !std::filesystem::exists(nested)) {
+    std::cout << "[SKIP] psd-tools collection missing: " << swatches.string() << '\n';
+    return;
+  }
+  const auto document = patchy::psd::DocumentIo::read_file(swatches);
+  CHECK(document.layers().size() == 8);
+  for (std::size_t index = 0; index < document.layers().size(); ++index) {
+    CHECK(document.layers()[index].name() == "Layer " + std::to_string(index + 1));
+  }
+  const auto nested_document = patchy::psd::DocumentIo::read_file(nested);
+  CHECK(nested_document.layers().size() == 2);
+  if (nested_document.layers().size() == 2) {
+    const auto& group = nested_document.layers()[1];
+    CHECK(group.children().size() == 1);
+    if (group.children().size() == 1) {
+      CHECK(group.children()[0].name() == "Layer 2");
+    }
+  }
+}
+
 // Builds a one-layer RGB PSD whose blue layer channel is RLE-compressed, with the
 // caller's raw PackBits bytes substituted for the middle row. Real legacy files carry
 // blocks of corrupt scanlines (a 2017 Dink map PSD has 58 of them in one channel) and
@@ -2765,6 +2890,11 @@ std::vector<patchy::test::TestCase> psd_core_io_tests() {
       {"psd_zero_length_layer_channels_read_as_empty", psd_zero_length_layer_channels_read_as_empty},
       {"psd_interface_mock2_loads_if_available", psd_interface_mock2_loads_if_available},
       {"psd_tools_corpus_reads_and_round_trips_if_available", psd_tools_corpus_reads_and_round_trips_if_available},
+      {"psd_tools_group_fill_matches_photoshop_if_available", psd_tools_group_fill_matches_photoshop_if_available},
+      {"psd_tools_noise_gradient_fill_survives_resave_if_available",
+       psd_tools_noise_gradient_fill_survives_resave_if_available},
+      {"psd_tools_unnamed_layers_take_photoshop_names_if_available",
+       psd_tools_unnamed_layers_take_photoshop_names_if_available},
       {"psd_empty_real_user_mask_channel_does_not_truncate_layer",
        psd_empty_real_user_mask_channel_does_not_truncate_layer},
       {"psd_real_user_mask_payload_is_skipped_without_losing_channel_alignment",

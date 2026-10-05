@@ -152,6 +152,9 @@ std::array<std::uint16_t, 4> gradient_noise_range(const DescriptorObject& object
     const auto& item = value->list_value[index];
     if (item.type == DescriptorValue::Type::Integer) {
       result[index] = static_cast<std::uint16_t>(std::clamp(item.integer_value, 0, 100));
+    } else if (item.type == DescriptorValue::Type::Double && std::isfinite(item.double_value)) {
+      // Photoshop's own PSDs store the percents as doubles (79.9988 for 80).
+      result[index] = static_cast<std::uint16_t>(std::clamp(std::lround(item.double_value), 0L, 100L));
     }
   }
   return result;

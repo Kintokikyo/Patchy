@@ -36,3 +36,7 @@ Gradient Overlay `GrFl` and gradient Stroke `FrFX` share the definition codec bu
 
 Factory reset writes a copied library entry first. In-memory gradients change only
 after the save succeeds, so a write failure leaves the current library intact.
+
+## Noise gradients in PSD fill layers
+
+A Gradient Fill layer or shape stroke may carry a noise (`ClNs`) gradient. Photoshop's PSDs store the channel ranges `Mnm `/`Mxm ` as doubles (79.9988 for 80), where GRD files use longs; the reader accepts both. `gradient_object` (src/psd/psd_vector.cpp) writes the noise form with Photoshop's keys and order (`Nm`, `GrdF`, `ShTr`, `VctC`, `ClrS`, `RndS`, `Smth`, `Mnm`, `Mxm`) and no stop lists. A noise gradient is never "healed" for missing transparency stops: writing it as a stop gradient left an empty `Clrs` list and Photoshop dropped the fill layer on open (psd-tools' `gradients/noise-gradient-*.psd`, found by Testy in October 2026; Photoshop 2026 opens the regenerated file clean with all three layers still Gradient Fill).
