@@ -55,6 +55,9 @@ DEFAULT_SUFFIX = "~TESTY~"
 # so default runs stay fast and reliable without it. (Aseprite was verified to have no
 # PSD I/O at all and removed from the roster entirely.)
 DEFAULT_EDITORS = ["photoshop", "patchy", "krita", "gimp", "photodemon", "photopea"]
+# psdtools is opt-in too: a Python PSD library, not an editor, measured for its layer
+# compositor only (render leg, no resave; see drivers/psdtools.py).
+OPT_IN_EDITORS = ["affinity", "psdtools"]
 
 # Why an editor's cell has no forced text re-render leg (surfaced in the report's
 # detail panel so a missing "render, text appended" image reads as deliberate).
@@ -66,6 +69,7 @@ TEXT_MUTATION_SKIPPED = {
     "photopea": "deliberately disabled: Photopea's script engine hangs on text-contents assignment for some documents",
     "gimp": "GIMP imports PSD text layers as baked rasters, so there is no text object to mutate",
     "photodemon": "the patched /testy-export CLI cannot script text edits",
+    "psdtools": "psd-tools is measured for its render only",
 }
 
 # The Patchy release-build refresh command comes from config.local.json
@@ -317,7 +321,7 @@ def _resumable() -> dict | None:
 RUN_ROOT_FILES = ("report.html", "status.json", "status.json.tmp", "results.json",
                   "flagged.txt", PAUSE_FLAG)
 # Every editor subdirectory a run can create under files/<stem>/.
-KNOWN_CELL_DIRS = (*DEFAULT_EDITORS, "affinity")
+KNOWN_CELL_DIRS = (*DEFAULT_EDITORS, *OPT_IN_EDITORS)
 
 
 def _delete_run_dir(run_dir: Path) -> list[str]:
@@ -479,7 +483,7 @@ class TestyRequestHandler(http.server.SimpleHTTPRequestHandler):
             {
                 "files": [str(f) for f in defaults if f.exists()],
                 "editors": DEFAULT_EDITORS,
-                "allEditors": [*DEFAULT_EDITORS, "affinity"],
+                "allEditors": [*DEFAULT_EDITORS, *OPT_IN_EDITORS],
             }
         )
 
@@ -605,7 +609,7 @@ class TestyRequestHandler(http.server.SimpleHTTPRequestHandler):
         skipped = []
         if not raw_files:
             errors.append("no PSD files given")
-        known_editors = {*DEFAULT_EDITORS, "affinity"}
+        known_editors = {*DEFAULT_EDITORS, *OPT_IN_EDITORS}
         for editor in editors:
             if editor not in known_editors:
                 errors.append(f"unknown editor: {editor}")
@@ -1191,7 +1195,10 @@ class Runner:
         cell_dir.mkdir(parents=True, exist_ok=True)
 
         if not info.available:
-            cell.update({"state": "failed", "error": "editor not found on this machine"})
+            error = "editor not found on this machine"
+            if editor_key == "psdtools" and info.notes:
+                error = info.notes[0]  # names the missing Python packages
+            cell.update({"state": "failed", "error": error})
             self.push()
             return
 
@@ -1570,6 +1577,19 @@ class Runner:
                 cell["driverNotes"] = result["notes"]
             if result.get("cacheable") is False:
                 cell["uncacheable"] = True
+            return
+
+        if editor_key == "psdtools":
+            from drivers import psdtools as psdtools_driver
+
+            exported = psdtools_driver.export(staged.original, render_png)
+            if not exported["ok"]:
+                detail = exported["stderr"] or f"exit {exported['exitCode']}, no output"
+                cell.update({"state": "failed", "opens": "fail",
+                             "error": f"psd-tools could not render the PSD ({detail})"})
+                self._note_file_rejection(cell, exported)
+                return
+            cell["opens"] = "ok"
             return
 
         cell.update({"state": "failed", "error": f"no driver for editor '{editor_key}'"})

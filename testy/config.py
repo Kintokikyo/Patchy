@@ -205,6 +205,22 @@ def discover_editors(patchy_git_hash: str) -> dict[str, EditorInfo]:
             pass
     editors["affinity"] = affinity
 
+    # psd-tools is a Python library run by this interpreter; its compositor needs
+    # the package's optional "composite" dependencies.
+    from drivers import psdtools as psdtools_driver
+
+    psdtools = EditorInfo("psdtools", "psd-tools", None)
+    psdtools_version = psdtools_driver.version()
+    missing = psdtools_driver.missing_composite_modules() if psdtools_version else []
+    if psdtools_version and not missing:
+        psdtools.available = True
+        psdtools.version = psdtools_version
+        psdtools.notes.append("Python library; render leg only")
+    else:
+        psdtools.notes.append('psd-tools compositor unavailable: pip install "psd-tools[composite]"'
+                              + (f" (missing {', '.join(missing)})" if missing else ""))
+    editors["psdtools"] = psdtools
+
     photoshop = EditorInfo("photoshop", "Photoshop", None)
     photoshop.available = True  # verified when the COM driver connects
     editors["photoshop"] = photoshop

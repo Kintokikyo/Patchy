@@ -122,8 +122,9 @@ Useful flags:
 - `--corpus <file>` - corpus list (one path per line, relative to the repo root).
 - `--editors photoshop,patchy,krita,gimp,photodemon,photopea,affinity` - which columns
   to run. Affinity is opt-in: enable the app's connector once in Affinity's settings
-  (it serves the local MCP endpoint the scripting rides on); with it off, Affinity
-  cells fail with an actionable message and the rest runs.
+  (it serves the local MCP endpoint); with it off, Affinity
+  cells fail with an actionable message and the rest runs. `psdtools` (opt-in) is
+  psd-tools' own compositor, render leg only (`pip install "psd-tools[composite]"`).
 - `--no-build` - skip the release build refresh (measures the current patchy.exe).
 - `--fresh` - ignore cached ground truth / cells (cache in `testy/cache/`, keyed by
   file hash + editor version, plus Patchy git hash for the Patchy column).
@@ -171,8 +172,7 @@ the reasons as `#` comments. It is a valid corpus list, so a follow-up deep run 
 
 Photoshop ground-truth results (including renders) are cached in `testy/cache/` for
 every file, flagged or not, keyed by file hash + Photoshop version, so a re-scan
-after a Patchy fix skips the slow Photoshop leg. Clear `testy/cache/` if the space
-matters more than re-scan speed.
+after a Patchy fix skips the slow Photoshop leg.
 
 A paused scan resumes normally: files already given their verdict are not
 re-scrubbed or re-flagged, and `flagged.txt` is written once at true completion.
@@ -342,7 +342,7 @@ preservation validate the pipeline itself.
   regardless of file, until a restart. On any probe failure the driver fully
   restarts Photoshop (Quit, wait, taskkill what remains, relaunch) and retries
   once. A hang watchdog force-kills Photoshop when
-  a script blocks past 120s (a stuck modal). Failed cells and cells scored without
+  a script blocks past 120s. Failed cells and cells scored without
   ground truth are never cached, so re-runs retry them.
 - Never force-kill Photoshop while it is quitting: it saves preferences on the way
   out, and a kill inside that write truncates them, after which every launch dies

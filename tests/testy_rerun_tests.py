@@ -209,6 +209,28 @@ class RerunTests(unittest.TestCase):
         self.assertEqual(resolved, ['x', 'x~psb', 'X~psd', 'x~2', 'y'])
         self.assertEqual(len({r.lower() for r in resolved}), len(resolved))
 
+    def test_psdtools_column_is_opt_in_and_names_missing_packages(self):
+        from drivers import psdtools
+        self.assertNotIn('psdtools', testy.DEFAULT_EDITORS)
+        self.assertIn('psdtools', testy.OPT_IN_EDITORS)
+        self.assertIn('psdtools', testy.KNOWN_CELL_DIRS)
+        with mock.patch.object(psdtools, 'version', return_value='1.17.0'), \
+                mock.patch.object(psdtools, 'missing_composite_modules', return_value=['scipy']):
+            info = testy.config.discover_editors('hash')['psdtools']
+        self.assertFalse(info.available)
+        self.assertIn('psd-tools[composite]', info.notes[0])
+        self.assertIn('scipy', info.notes[0])
+        with mock.patch.object(psdtools, 'version', return_value='1.17.0'), \
+                mock.patch.object(psdtools, 'missing_composite_modules', return_value=[]):
+            info = testy.config.discover_editors('hash')['psdtools']
+        self.assertTrue(info.available)
+        self.assertEqual(info.version, '1.17.0')
+        failed = mock.Mock(returncode=1, stderr='Traceback\nValueError: bad file\n')
+        with mock.patch.object(psdtools.subprocess, 'run', return_value=failed):
+            result = psdtools.export(self.runs / 'in.psd', self.runs / 'missing.png')
+        self.assertEqual((result['ok'], result['fileRejected'], result['stderr']),
+                         (False, True, 'ValueError: bad file'))
+
     def test_failed_build_is_not_success_even_with_compile_output(self):
         with mock.patch.object(testy.config, 'REPO_ROOT', self.runs), \
              mock.patch.object(testy.config, 'BUILD_COMMAND', 'cmake --build --preset release'), \
