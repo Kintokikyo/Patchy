@@ -8877,6 +8877,10 @@ RGB: %2, %3, %4</translation>
         <source>Exposure: %1, offset %2, gamma %3</source>
         <translation>Exposición: %1, desplazamiento %2, gamma %3</translation>
     </message>
+    <message>
+        <source>Lab PSD file must contain at least 3 channels</source>
+        <translation>Un archivo PSD Lab debe contener al menos 3 canales</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

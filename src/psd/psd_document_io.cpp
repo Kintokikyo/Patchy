@@ -195,20 +195,33 @@ Document read_flat_composite(BigEndianReader& reader, const Header& header,
 
   Document document(static_cast<std::int32_t>(header.width), static_cast<std::int32_t>(header.height), format);
   PixelBuffer pixels(static_cast<std::int32_t>(header.width), static_cast<std::int32_t>(header.height), format);
-  const auto channel_data = read_flat_image_channels(reader, header, compression, damaged_rows);
+  // A Bitmap document is one 1-bit plane with rows packed to bytes: nothing else in the
+  // file can follow it (no alpha, no saved channels), so it is read on its own.
+  const auto channel_data =
+      header.color_mode == kColorModeBitmap
+          ? std::vector<std::vector<std::uint8_t>>{read_bitmap_composite_plane(reader, header, compression,
+                                                                                damaged_rows)}
+          : read_flat_image_channels(reader, header, compression, damaged_rows);
   const auto channel_pixels = static_cast<std::size_t>(header.width) * static_cast<std::size_t>(header.height);
 
   if (source_is_cmyk) {
     convert_cmyk_planes_to_rgb(pixels, channel_data[0].data(), channel_data[1].data(),
                                channel_data[2].data(), channel_data[3].data(), channel_pixels,
                                source_colors.icc);
+  } else if (header.color_mode == kColorModeIndexed && source_colors.indexed_palette != nullptr) {
+    convert_indexed_plane_to_rgb(pixels, channel_data[0].data(), channel_pixels, source_colors.indexed_palette);
   } else if (source_is_gray) {
     convert_gray_plane_to_rgb(pixels, channel_data[0].data(), channel_pixels, source_colors.gray_icc);
+  } else if (header.color_mode == kColorModeMultichannel) {
+    convert_multichannel_planes_to_rgb(pixels, channel_data, channel_pixels);
   } else {
     for (std::uint16_t channel = 0; channel < 3; ++channel) {
       for (std::size_t i = 0; i < channel_pixels; ++i) {
         pixels.data()[i * 3 + channel] = channel_data[channel][i];
       }
+    }
+    if (is_lab_color_mode(header.color_mode)) {
+      convert_lab_pixels_to_rgb(pixels);
     }
   }
 
@@ -668,6 +681,8 @@ std::vector<Layer> read_layer_info_records(BigEndianReader& layer_reader, std::i
                                  source_colors.icc);
     } else if (source_is_gray && gray_plane.size() == pixel_count) {
       convert_gray_plane_to_rgb(pixels, gray_plane.data(), pixel_count, source_colors.gray_icc);
+    } else if (is_lab_color_mode(source_color_mode) && has_color) {
+      convert_lab_pixels_to_rgb(pixels);
     }
 
     bool text_placeholder_rendered = false;
@@ -1228,14 +1243,16 @@ Document DocumentIo::read(std::span<const std::uint8_t> bytes, ReadOptions optio
         "This file is 32-bit per channel (HDR). Patchy converted it to 8-bit for editing: precision and "
         "dynamic range beyond 8-bit were lost, and saving writes an 8-bit file. Keep the original if you "
         "need the 32-bit data."));
-  } else if (header.depth != 8 && options.notices != nullptr) {
+  } else if (header.depth == 16 && options.notices != nullptr) {
     options.notices->push_back(PATCHY_TRANSLATE_NOOP(
         "QObject",
         "This file is 16-bit per channel. Patchy converted it to 8-bit for editing: some precision was "
         "lost, and saving writes an 8-bit file. Keep the original if you need the 16-bit data."));
   }
 
-  skip_length_block(reader, "color mode data");
+  // Indexed documents keep their 256-color table here (768 bytes); Duotone keeps its ink
+  // curves, which are not read (the gray plane stands in for the image).
+  const auto color_mode_data = read_length_block(reader, "color mode data");
   auto image_resources = read_length_block(reader, "image resources");
   const auto channel_resources = parse_composite_channel_resources(image_resources);
 
@@ -1276,7 +1293,7 @@ Document DocumentIo::read(std::span<const std::uint8_t> bytes, ReadOptions optio
   // usable profile the gray values copy to RGB unchanged. As with CMYK, the profile is not
   // promoted into color_state(): it does not describe the converted RGB pixels.
   std::optional<GrayToRgbTransform> gray_icc_transform;
-  if (is_grayscale_color_mode(header.color_mode)) {
+  if (header.color_mode == kColorModeGrayscale || header.color_mode == kColorModeDuotone) {
     if (auto icc_profile = find_image_resource_payload(image_resources, kImageResourceIccProfile);
         icc_profile.has_value()) {
       gray_icc_transform = GrayToRgbTransform::from_icc_profile(*icc_profile);
@@ -1294,8 +1311,10 @@ Document DocumentIo::read(std::span<const std::uint8_t> bytes, ReadOptions optio
       }
     }
   }
-  const CmykColorConverter source_colors{cmyk_icc_transform.has_value() ? &*cmyk_icc_transform : nullptr,
-                                         gray_icc_transform.has_value() ? &*gray_icc_transform : nullptr};
+  const CmykColorConverter source_colors{
+      cmyk_icc_transform.has_value() ? &*cmyk_icc_transform : nullptr,
+      gray_icc_transform.has_value() ? &*gray_icc_transform : nullptr,
+      header.color_mode == kColorModeIndexed && color_mode_data.size() >= 768U ? color_mode_data.data() : nullptr};
   const auto* cmyk_icc = source_colors.icc;
   if (auto resolution = find_image_resource_payload(image_resources, kImageResourceResolutionInfo);
       resolution.has_value()) {

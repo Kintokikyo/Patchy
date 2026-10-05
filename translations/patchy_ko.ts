@@ -8847,6 +8847,10 @@ RGB: %2, %3, %4</translation>
         <source>Exposure: %1, offset %2, gamma %3</source>
         <translation>노출: %1, 오프셋 %2, 감마 %3</translation>
     </message>
+    <message>
+        <source>Lab PSD file must contain at least 3 channels</source>
+        <translation>Lab PSD 파일에는 채널이 3개 이상 포함되어야 합니다.</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

@@ -1500,10 +1500,164 @@ void psd_interface_mock2_loads_if_available() {
   CHECK(flattened.height() == 600);
 }
 
+// A flattened PSD in any color mode, built by hand: header, color mode data, no image
+// resources, no layers, then raw composite planes.
+std::vector<std::uint8_t> flat_psd_bytes(std::uint16_t channels, std::uint32_t width, std::uint32_t height,
+                                         std::uint16_t depth, std::uint16_t color_mode,
+                                         const std::vector<std::uint8_t>& color_mode_data,
+                                         const std::vector<std::uint8_t>& planes) {
+  std::vector<std::uint8_t> bytes{'8', 'B', 'P', 'S', 0, 1, 0, 0, 0, 0, 0, 0};
+  const auto u16 = [&bytes](std::uint32_t value) {
+    bytes.push_back(static_cast<std::uint8_t>(value >> 8U));
+    bytes.push_back(static_cast<std::uint8_t>(value));
+  };
+  const auto u32 = [&bytes](std::uint32_t value) {
+    for (int shift = 24; shift >= 0; shift -= 8) {
+      bytes.push_back(static_cast<std::uint8_t>(value >> static_cast<unsigned>(shift)));
+    }
+  };
+  u16(channels);
+  u32(height);
+  u32(width);
+  u16(depth);
+  u16(color_mode);
+  u32(static_cast<std::uint32_t>(color_mode_data.size()));
+  bytes.insert(bytes.end(), color_mode_data.begin(), color_mode_data.end());
+  u32(0);  // image resources
+  u32(0);  // layer and mask information
+  u16(0);  // raw composite
+  bytes.insert(bytes.end(), planes.begin(), planes.end());
+  return bytes;
+}
+
+// Bitmap, Indexed, Duotone, Lab and Multichannel documents open by converting to RGB at
+// read time, like CMYK and Grayscale do.
+void psd_other_color_modes_convert_to_rgb_on_read() {
+  const auto background_pixel = [](const patchy::Document& document, std::int32_t x, std::int32_t y) {
+    const auto& pixels = document.layers().front().pixels();
+    const auto* pixel = pixels.pixel(x, y);
+    return std::array<int, 3>{pixel[0], pixel[1], pixel[2]};
+  };
+  const auto close_to = [](const std::array<int, 3>& actual, int red, int green, int blue, int tolerance) {
+    return std::abs(actual[0] - red) <= tolerance && std::abs(actual[1] - green) <= tolerance &&
+           std::abs(actual[2] - blue) <= tolerance;
+  };
+
+  // Bitmap: 1 bit per pixel, rows packed to bytes, a set bit is black. 10 x 2 pixels.
+  {
+    const auto document = patchy::psd::DocumentIo::read(
+        flat_psd_bytes(1, 10, 2, 1, 0, {}, {0b10100000, 0b01000000, 0b00000000, 0b11000000}));
+    CHECK(document.width() == 10 && document.height() == 2);
+    CHECK(document.layers().size() == 1);
+    CHECK(close_to(background_pixel(document, 0, 0), 0, 0, 0, 0));
+    CHECK(close_to(background_pixel(document, 1, 0), 255, 255, 255, 0));
+    CHECK(close_to(background_pixel(document, 2, 0), 0, 0, 0, 0));
+    CHECK(close_to(background_pixel(document, 9, 0), 0, 0, 0, 0));    // second byte, second bit
+    CHECK(close_to(background_pixel(document, 8, 0), 255, 255, 255, 0));
+    CHECK(close_to(background_pixel(document, 0, 1), 255, 255, 255, 0));
+    CHECK(close_to(background_pixel(document, 8, 1), 0, 0, 0, 0));
+    CHECK(document.metadata().values.at("psd.color_mode") == "Bitmap");
+  }
+  // Indexed: one plane of indices into the 768-byte table (reds, greens, blues).
+  {
+    std::vector<std::uint8_t> palette(768, 0);
+    palette[1] = 200;          // entry 1 red
+    palette[256 + 1] = 100;    // entry 1 green
+    palette[512 + 1] = 50;     // entry 1 blue
+    palette[255] = 10;
+    palette[256 + 255] = 20;
+    palette[512 + 255] = 30;
+    const auto document = patchy::psd::DocumentIo::read(flat_psd_bytes(1, 3, 1, 8, 2, palette, {1, 0, 255}));
+    CHECK(close_to(background_pixel(document, 0, 0), 200, 100, 50, 0));
+    CHECK(close_to(background_pixel(document, 1, 0), 0, 0, 0, 0));
+    CHECK(close_to(background_pixel(document, 2, 0), 10, 20, 30, 0));
+  }
+  // Duotone: read as its gray plane.
+  {
+    const auto document = patchy::psd::DocumentIo::read(flat_psd_bytes(1, 2, 1, 8, 8, {}, {0, 200}));
+    CHECK(close_to(background_pixel(document, 0, 0), 0, 0, 0, 0));
+    CHECK(close_to(background_pixel(document, 1, 0), 200, 200, 200, 0));
+  }
+  // Lab: L 0..255 = 0..100, a and b offset by 128. White, black, mid gray, and a
+  // saturated red (L 54, a +81, b +70 is close to sRGB 255, 0, 0).
+  {
+    const auto document = patchy::psd::DocumentIo::read(flat_psd_bytes(
+        3, 4, 1, 8, 9, {}, {255, 0, 136, 138, 128, 128, 128, 209, 128, 128, 128, 198}));
+    CHECK(close_to(background_pixel(document, 0, 0), 255, 255, 255, 1));
+    CHECK(close_to(background_pixel(document, 1, 0), 0, 0, 0, 1));
+    const auto gray = background_pixel(document, 2, 0);
+    CHECK(std::abs(gray[0] - gray[1]) <= 1 && std::abs(gray[1] - gray[2]) <= 1);
+    CHECK(gray[0] > 118 && gray[0] < 136);  // L 53.3 is sRGB gray 127
+    CHECK(close_to(background_pixel(document, 3, 0), 255, 0, 0, 12));
+  }
+  // Multichannel: ink planes, 255 = none; the first three read as cyan, magenta, yellow.
+  {
+    const auto document =
+        patchy::psd::DocumentIo::read(flat_psd_bytes(3, 2, 1, 8, 7, {}, {0, 255, 255, 255, 255, 0}));
+    CHECK(close_to(background_pixel(document, 0, 0), 0, 255, 255, 0));   // full cyan ink
+    CHECK(close_to(background_pixel(document, 1, 0), 255, 255, 0, 0));   // full yellow ink
+  }
+  // A 1-bit file that does not claim Bitmap mode is still refused.
+  bool refused = false;
+  try {
+    (void)patchy::psd::DocumentIo::read(flat_psd_bytes(3, 2, 1, 1, 3, {}, {0, 0, 0}));
+  } catch (const std::exception&) {
+    refused = true;
+  }
+  CHECK(refused);
+}
+
+// The psd-tools files in those modes all open (testy/fetch_psd_tools_corpus.py).
+void psd_tools_other_color_modes_open_if_available() {
+  const auto root = patchy::test::source_root_path() / "local-test-fixtures" / "psd-tools" / "tests" / "psd_files";
+  if (!std::filesystem::exists(root / "colormodes" / "4x4_8bit_lab.psd")) {
+    std::cout << "[SKIP] psd-tools collection missing: " << root.string() << '\n';
+    return;
+  }
+  const std::array<std::pair<const char*, const char*>, 11> files{{
+      {"colormodes/100x20_1bit_bitmap_rle.psd", "Bitmap"},
+      {"colormodes/20x5_1bit_bitmap.psd", "Bitmap"},
+      {"colormodes/4x4_1bit_bitmap.psd", "Bitmap"},
+      {"colormodes/4x4_8bit_index_color.psd", "Indexed"},
+      {"colormodes/4x4_8bit_duotone.psd", "Duotone"},
+      {"colormodes/4x4_8bit_lab.psd", "Lab"},
+      {"colormodes/4x4_16bit_lab.psd", "Lab"},
+      {"colormodes/4x4_16bit_multichannel.psd", "Multichannel"},
+      {"descriptors/lab-color-swatches.psd", "Lab"},
+      {"descriptors/stroke-color-descriptors-lab.psd", "Lab"},
+      {"gradients/noise-gradient-lab.psd", "Lab"},
+  }};
+  for (const auto& [relative, mode] : files) {
+    try {
+      const auto document = patchy::psd::DocumentIo::read_file(root / relative);
+      CHECK(document.width() > 0 && document.height() > 0);
+      CHECK(!document.layers().empty());
+      CHECK(document.metadata().values.at("psd.color_mode") == mode);
+      const auto flattened = patchy::flatten_document_rgba8(document);
+      CHECK(flattened.width() == document.width());
+    } catch (const std::exception& error) {
+      std::cout << "[INFO] " << relative << " refused: " << error.what() << '\n';
+      CHECK(false);
+    }
+  }
+  // The RLE bitmap is a 100 x 20 picture with both colors in it.
+  const auto bitmap = patchy::psd::DocumentIo::read_file(root / "colormodes" / "100x20_1bit_bitmap_rle.psd");
+  const auto& pixels = bitmap.layers().front().pixels();
+  bool has_black = false;
+  bool has_white = false;
+  for (std::int32_t y = 0; y < pixels.height(); ++y) {
+    for (std::int32_t x = 0; x < pixels.width(); ++x) {
+      has_black = has_black || pixels.pixel(x, y)[0] == 0;
+      has_white = has_white || pixels.pixel(x, y)[0] == 255;
+    }
+  }
+  CHECK(has_black && has_white);
+}
+
 // Reads every file of the psd-tools test collection (testy/fetch_psd_tools_corpus.py puts
 // it under local-test-fixtures/psd-tools), then writes each document that loaded and reads
 // the result back. A reader exception is a clean refusal and only counted (the collection
-// holds color modes Patchy does not import); the test is for crashes, hangs, and documents
+// holds deliberately damaged files); the test is for crashes, hangs, and documents
 // Patchy accepts but cannot round-trip through its own writer.
 void psd_tools_corpus_reads_and_round_trips_if_available() {
   const auto root =
@@ -2950,6 +3104,8 @@ std::vector<patchy::test::TestCase> psd_core_io_tests() {
       {"psd_layered_rgb8_round_trips_pixel_layers", psd_layered_rgb8_round_trips_pixel_layers},
       {"psd_zero_length_layer_channels_read_as_empty", psd_zero_length_layer_channels_read_as_empty},
       {"psd_interface_mock2_loads_if_available", psd_interface_mock2_loads_if_available},
+      {"psd_other_color_modes_convert_to_rgb_on_read", psd_other_color_modes_convert_to_rgb_on_read},
+      {"psd_tools_other_color_modes_open_if_available", psd_tools_other_color_modes_open_if_available},
       {"psd_tools_corpus_reads_and_round_trips_if_available", psd_tools_corpus_reads_and_round_trips_if_available},
       {"psd_tools_group_fill_matches_photoshop_if_available", psd_tools_group_fill_matches_photoshop_if_available},
       {"psd_tools_noise_gradient_fill_survives_resave_if_available",

@@ -110,12 +110,23 @@ std::vector<std::uint8_t> read_length_block(BigEndianReader& reader, const char*
 PixelFormat format_from_header(const Header& header) {
   // 16- and 32-bit files decode by converting every channel to 8-bit at read time
   // (Patchy's pixel pipeline is 8-bit only), so the returned format is always 8-bit.
-  if (header.depth != 8 && header.depth != 16 && header.depth != 32) {
+  // Other color modes convert to RGB at read time too: Bitmap (the only 1-bit mode),
+  // Indexed, Duotone, Lab and Multichannel.
+  const auto bitmap = header.color_mode == kColorModeBitmap;
+  if (bitmap ? header.depth != 1 : (header.depth != 8 && header.depth != 16 && header.depth != 32)) {
     throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "The starter PSD reader currently supports 8, 16, and 32-bit files only"));
   }
   if (header.color_mode != kColorModeRgb && header.color_mode != kColorModeCmyk &&
-      header.color_mode != kColorModeGrayscale) {
+      header.color_mode != kColorModeGrayscale && header.color_mode != kColorModeBitmap &&
+      header.color_mode != kColorModeIndexed && header.color_mode != kColorModeDuotone &&
+      header.color_mode != kColorModeLab && header.color_mode != kColorModeMultichannel) {
     throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "The starter PSD reader currently supports RGB, CMYK, and Grayscale files only"));
+  }
+  if (header.color_mode == kColorModeLab && header.channels < 3) {
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Lab PSD file must contain at least 3 channels"));
+  }
+  if (header.channels < 1) {
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Grayscale PSD file must contain at least 1 channel"));
   }
   if (header.channels > kMaximumPhotoshopChannelCount) {
     throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD files cannot contain more than 56 channels"));

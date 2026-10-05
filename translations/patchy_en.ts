@@ -8866,6 +8866,10 @@ RGB: %2, %3, %4</source>
         <source>Exposure: %1, offset %2, gamma %3</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Lab PSD file must contain at least 3 channels</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

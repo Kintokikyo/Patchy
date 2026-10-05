@@ -8847,6 +8847,10 @@ Mixed selection</source>
         <source>Exposure: %1, offset %2, gamma %3</source>
         <translation>露出: %1、オフセット %2、ガンマ %3</translation>
     </message>
+    <message>
+        <source>Lab PSD file must contain at least 3 channels</source>
+        <translation>Lab の PSD ファイルには少なくとも 3 つのチャンネルが必要です</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

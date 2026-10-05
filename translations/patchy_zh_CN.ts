@@ -8847,6 +8847,10 @@ RGB：%2, %3, %4</translation>
         <source>Exposure: %1, offset %2, gamma %3</source>
         <translation>曝光：%1，位移 %2，灰度系数 %3</translation>
     </message>
+    <message>
+        <source>Lab PSD file must contain at least 3 channels</source>
+        <translation>Lab PSD 文件必须至少包含 3 个通道</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

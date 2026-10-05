@@ -8877,6 +8877,10 @@ RVB : %2, %3, %4</translation>
         <source>Exposure: %1, offset %2, gamma %3</source>
         <translation>Exposition : %1, décalage %2, gamma %3</translation>
     </message>
+    <message>
+        <source>Lab PSD file must contain at least 3 channels</source>
+        <translation>Un fichier PSD Lab doit contenir au moins 3 couches</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

@@ -36,9 +36,14 @@
 
 namespace patchy::psd {
 
+constexpr std::uint16_t kColorModeBitmap = 0;
 constexpr std::uint16_t kColorModeGrayscale = 1;
+constexpr std::uint16_t kColorModeIndexed = 2;
 constexpr std::uint16_t kColorModeRgb = 3;
 constexpr std::uint16_t kColorModeCmyk = 4;
+constexpr std::uint16_t kColorModeMultichannel = 7;
+constexpr std::uint16_t kColorModeDuotone = 8;
+constexpr std::uint16_t kColorModeLab = 9;
 constexpr std::uint16_t kCompressionRaw = 0;
 constexpr std::uint16_t kCompressionRle = 1;
 constexpr std::uint16_t kCompressionZip = 2;
@@ -349,6 +354,9 @@ RgbColor rgb_from_cmyk_ink_fractions(double cyan, double magenta, double yellow,
 struct CmykColorConverter {
   const CmykToRgbTransform* icc{nullptr};
   const GrayToRgbTransform* gray_icc{nullptr};
+  // Indexed documents: the 768-byte color table from the color mode data section (all
+  // reds, then all greens, then all blues). Null for every other mode.
+  const std::uint8_t* indexed_palette{nullptr};
 
   [[nodiscard]] RgbColor rgb_from_ink(double cyan, double magenta, double yellow,
                                       double black) const {
@@ -486,7 +494,25 @@ std::vector<std::vector<std::uint8_t>> read_flat_image_channels_from(
 // Appends the "some scanlines were damaged" import notice when the count is nonzero.
 void append_damaged_row_notice(std::size_t damaged_rows, std::vector<std::string>* notices);
 bool is_cmyk_color_mode(std::uint16_t color_mode) noexcept;
+// True for every mode whose pixels are one plane: Grayscale, Duotone (read as its gray
+// plane, the way the format tells readers without duotone support to), Bitmap (1-bit,
+// expanded on read) and Indexed (palette indices; see convert_indexed_plane_to_rgb).
 bool is_grayscale_color_mode(std::uint16_t color_mode) noexcept;
+bool is_lab_color_mode(std::uint16_t color_mode) noexcept;
+// Indexed: each sample is an index into the document's 256-entry color table.
+void convert_indexed_plane_to_rgb(PixelBuffer& pixels, const std::uint8_t* indices, std::size_t pixel_count,
+                                  const std::uint8_t* palette);
+// Lab: the buffer's first three components hold L, a, b as stored (L 0..255 = 0..100,
+// a and b offset by 128) and are replaced in place by sRGB. Alpha is left untouched.
+void convert_lab_pixels_to_rgb(PixelBuffer& pixels);
+// Multichannel: the planes are inks, stored like CMYK's (255 = none). The first three
+// are read as cyan, magenta and yellow; a missing plane counts as no ink.
+void convert_multichannel_planes_to_rgb(PixelBuffer& pixels, std::span<const std::vector<std::uint8_t>> planes,
+                                        std::size_t pixel_count);
+// The one plane of a 1-bit Bitmap document's composite, expanded to 8-bit gray (a set
+// bit is black). Rows are packed to whole bytes.
+std::vector<std::uint8_t> read_bitmap_composite_plane(BigEndianReader& reader, const Header& header,
+                                                      std::uint16_t compression, std::size_t* damaged_rows);
 void convert_cmyk_planes_to_rgb(PixelBuffer& pixels, const std::uint8_t* cyan,
                                 const std::uint8_t* magenta, const std::uint8_t* yellow,
                                 const std::uint8_t* black, std::size_t pixel_count,
