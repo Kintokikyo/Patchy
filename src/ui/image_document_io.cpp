@@ -1027,7 +1027,7 @@ void composite_document_layer(QImageCompositeTarget& target, const Layer& layer,
     }
     if (render_detail::layer_has_rendered_blend_if(layer) ||
         render_detail::layer_rendered_channel_restriction(layer) != 0U ||
-        layer.blend_mode() != BlendMode::PassThrough || layer.opacity() < 1.0F ||
+        layer.blend_mode() != BlendMode::PassThrough || layer.opacity() < 1.0F || layer.fill_opacity() < 1.0F ||
         (layer.mask().has_value() && !layer.mask()->disabled) || layer_has_enabled_vector_mask(layer) ||
         group_style_renders(layer)) {
       // A Blend-If group must be rendered as one isolated source so This Layer

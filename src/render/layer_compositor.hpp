@@ -294,11 +294,20 @@ inline const LayerBoundsOverride* layer_override_for_render(const Layer& layer,
   return found == overrides->end() ? nullptr : &*found;
 }
 
-// Folder Fill is ignored, content and effects both (COM-calibrated July 2026,
-// docs/ps-compat.md group-effects bullet): a styled GROUP routed through the
-// effect pipeline keeps Fill at 1; pixel layers keep theirs.
+// Fill applies to a GROUP's content exactly as it does to a pixel layer's: the
+// content fades, the group's own effects do not (Photoshop 2026 flattens of
+// psd-tools' knockout-none-*.psd and passthrough_fill_*.psd, October 2026;
+// docs/ps-compat.md). The July 2026 reading "folder Fill is ignored" came from a
+// probe whose full-strength overlay hid the faded content.
 [[nodiscard]] inline float layer_fill_opacity_for_render(const Layer& layer) noexcept {
-  return layer.kind() == LayerKind::Group ? 1.0F : layer.fill_opacity();
+  return layer.fill_opacity();
+}
+
+// The Fill factor of a group. A style-less group's isolated merge has no effect
+// pipeline to carry it, so there Fill is one more opacity multiplier; any Fill
+// below 100% also makes a pass-through group isolate (composite_layer).
+[[nodiscard]] inline float group_fill_factor_for_render(const Layer& layer) noexcept {
+  return layer.kind() == LayerKind::Group ? std::clamp(layer.fill_opacity(), 0.0F, 1.0F) : 1.0F;
 }
 
 inline bool layer_visible_for_render(const Layer& layer,
@@ -2332,9 +2341,7 @@ void composite_pixel_layer(Target& destination, const Layer& layer, Rect clip,
     });
     return;
   }
-  // Folder Fill is ignored, content and effects both (COM probe arm C of
-  // photoshop-group-fx-blend-fill; docs/ps-compat.md).
-  const float fill_opacity = layer.kind() == LayerKind::Group ? 1.0F : layer_fill_opacity_for_render(layer);
+  const float fill_opacity = layer_fill_opacity_for_render(layer);
 
   const auto& source = layer_pixels_for_render(layer, overrides);
   if (source.empty()) {
@@ -3237,7 +3244,7 @@ public:
       for (std::int32_t x = 0; x < rect_.width; ++x) {
         const auto index =
             static_cast<std::size_t>(y) * static_cast<std::size_t>(rect_.width) + static_cast<std::size_t>(x);
-        auto alpha = alpha_[index] * layer.opacity() *
+        auto alpha = alpha_[index] * layer.opacity() * group_fill_factor_for_render(layer) *
                      layer_mask_alpha_for_render(layer, rect_.x + x, rect_.y + y, layer_mask_bounds);
         if (alpha <= 0.0F) {
           continue;
@@ -3648,13 +3655,17 @@ void composite_layer(Target& destination, const Layer& layer, Rect clip,
     // A group whose own style renders (July 2026; COM-calibrated rules in
     // docs/ps-compat.md): the flattened children become the pipeline's source
     // buffer and the group plays the layer's role (blend mode, opacity, mask,
-    // blend-if; folder Fill stays ignored via layer_fill_opacity_for_render).
+    // blend-if, and Fill on the content only).
     const bool styled = group_style_renders(layer);
     // Blend-if groups and every non-pass-through group isolate: children
     // composite against transparency and the merged result meets the backdrop
     // with the group's blend mode, opacity, and mask (Photoshop's isolated
-    // transparency group).
-    if (layer_has_rendered_blend_if(layer) || layer.blend_mode() != BlendMode::PassThrough) {
+    // transparency group). So does a pass-through group whose Fill is below
+    // 100%: Photoshop's flatten of psd-tools' passthrough_fill_adjustment.psd
+    // keeps the group's Exposure off the backdrop and matches the isolated
+    // merge within 1/255 (a plain fade is off by up to 69).
+    if (layer_has_rendered_blend_if(layer) || layer.blend_mode() != BlendMode::PassThrough ||
+        group_fill_factor_for_render(layer) < 1.0F) {
       // Blend-if groups keep the calibrated full-clip buffer; the plain
       // isolated path bounds it by the children's render bounds instead,
       // override-aware since August 2026 (move/transform previews used to

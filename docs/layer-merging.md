@@ -141,7 +141,7 @@ readable and serve as runtime annotations. They are **never emitted**: Photoshop
 warns about unknown per-layer keys. Saving a legacy merged file migrates its markers
 to resource 4211. A foreign editor's unrepresentable child changes preserve native
 groups rather than losing artwork. A changed Fill opacity uses an inner Normal
-group because native folders ignore Fill. Object-level styles follow native group
+group (chosen when folders were believed to ignore Fill; see ps-compat.md). Object-level styles follow native group
 semantics in other PSD readers.
 
 Native live-shape annotations follow remapped group ids. Unmodeled Custom live

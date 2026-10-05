@@ -74,7 +74,7 @@ every blend-if, masked, non-pass-through, or faded group through it
   rules live in docs/ps-compat.md "Layer effects on GROUPS"). A non-pass-through
   styled group routes its flattened `IsolatedClipGroupTarget` content through
   `composite_pixel_layer` via a pixel override (the group plays the layer's
-  role; folder Fill neutralized by `layer_fill_opacity_for_render`). A
+  role; folder Fill fades the content only). A
   PASS-THROUGH styled group does NOT isolate: children composite against the
   true backdrop as always, while a silhouette flatten feeds exterior effects
   (painted before the children) and interior effects (painted above them,
