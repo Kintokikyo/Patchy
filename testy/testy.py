@@ -1807,6 +1807,18 @@ class Runner:
                 cell["renderMetrics"] = analyze.compare_renders(
                     truth_render, render_png, document_size, truth["layers"], None
                 )
+        # Cells compared under older layer-pairing rules: compare again from the stored
+        # manifest of the resave (no editor or Photoshop run needed).
+        native = cell.get("native")
+        stored = cell_dir / "roundtrip_manifest.json"
+        if (truth is not None and isinstance(native, dict) and "nativeScore" in native
+                and native.get("matching") != manifest_mod.MATCHING_VERSION and stored.exists()):
+            try:
+                resaved_layers = json.loads(stored.read_text(encoding="utf-8"))
+                cell["native"] = manifest_mod.compare_manifests(truth["layers"], resaved_layers)
+                changed = True
+            except (OSError, ValueError):
+                pass
         # Cells cached before the two text rules (no text saved as text, no text
         # rendered: 0% for that score) are brought up to date in place.
         if manifest_mod.apply_text_save_rule(cell.get("native")):

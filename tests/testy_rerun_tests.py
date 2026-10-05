@@ -481,6 +481,20 @@ class RerunTests(unittest.TestCase):
         self.assertEqual(lost["textNotSaved"], {"lost": 1, "total": 1})
         self.assertEqual((lost["nativeKept"], lost["nativeTotal"]), (1, 2))
         self.assertFalse(manifest.apply_text_save_rule(lost))  # applied once
+        # A renamed layer is not a lost layer: what the name pass leaves over is paired
+        # in stack order, and the kind still has to hold.
+        renamed = manifest.compare_manifests(
+            [dict(name="Background", kind="NORMAL"), dict(name="Title", kind="TEXT")],
+            [dict(name="Фон", kind="NORMAL"), dict(name="Title", kind="TEXT")])
+        self.assertEqual((renamed["nativeKept"], renamed["nativeTotal"], renamed["renamedLayers"]), (2, 2, 1))
+        self.assertEqual(renamed["lostLayers"], [])
+        self.assertEqual(renamed["matching"], manifest.MATCHING_VERSION)
+        flattened_text = manifest.compare_manifests([dict(name="Title", kind="TEXT")],
+                                                    [dict(name="Layer 0", kind="NORMAL")])
+        self.assertEqual(flattened_text["nativeKept"], 0)       # renamed AND rasterized: lost
+        dropped = manifest.compare_manifests([dict(name="A", kind="NORMAL"), dict(name="B", kind="NORMAL")],
+                                             [dict(name="A", kind="NORMAL")])
+        self.assertEqual((dropped["nativeKept"], len(dropped["lostLayers"])), (1, 1))
         # A file with no text is untouched by the rule.
         no_text = manifest.compare_manifests([pixels], [dict(name="Photo", kind="SMARTOBJECT")])
         self.assertNotIn("textNotSaved", no_text)

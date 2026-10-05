@@ -32,6 +32,10 @@ ADJUSTMENT_KINDS = {
 
 FILL_KINDS = {"SOLIDFILL", "GRADIENTFILL", "PATTERNFILL"}
 
+# Bumped when the pairing rules change, so cells cached under older rules are compared
+# again from their stored manifests (2: renamed layers are paired by stack order).
+MATCHING_VERSION = 2
+
 
 def _category(layer: dict) -> str:
     if layer.get("group"):
@@ -70,6 +74,18 @@ def compare_manifests(original_layers: list[dict], resaved_layers: list[dict]) -
     for block in matcher.get_matching_blocks():
         for offset in range(block.size):
             pairs.append((original_layers[block.a + offset], resaved_layers[block.b + offset]))
+
+    # A layer that only changed its name is still that layer. Editors rename on save
+    # (PhotoDemon writes its own name for the background), and Photoshop itself names
+    # the single layer of a file saved without layer records in its interface
+    # language. Whatever the name pass left over on both sides is paired in stack
+    # order; the kind check below still decides whether the object survived.
+    paired_originals = {id(a) for a, _ in pairs}
+    paired_resaved = {id(b) for _, b in pairs}
+    left_originals = [layer for layer in original_layers if id(layer) not in paired_originals]
+    left_resaved = [layer for layer in resaved_layers if id(layer) not in paired_resaved]
+    renamed = list(zip(left_originals, left_resaved))
+    pairs.extend(renamed)
 
     matched_names = {id(a) for a, _ in pairs}
     lost = [
@@ -130,6 +146,8 @@ def compare_manifests(original_layers: list[dict], resaved_layers: list[dict]) -
         "lostLayers": lost[:40],
         "changedLayers": changed[:40],
         "resavedLayerCount": len(resaved_layers),
+        "renamedLayers": len(renamed),
+        "matching": MATCHING_VERSION,
     }
     apply_text_save_rule(native)
     return native

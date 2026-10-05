@@ -48,7 +48,11 @@ touched; a SHA check at the end of every run proves it), and Testy records:
   against the original's: text still `TEXT`, each adjustment still its exact kind,
   smart objects still smart, groups/masks/vector masks/live effects/clipping/blend
   modes intact. This is the "23/40 objects survived" number; a resave Photoshop
-  refuses to open scores as rejected.
+  refuses to open scores as rejected. Layers are paired by name first; what
+  that leaves over on both sides is paired in stack order, because a rename is not a
+  loss (PhotoDemon renames the background, and Photoshop names the one layer of a
+  file saved without layer records in its interface language). The kind still has
+  to hold. `MATCHING_VERSION` re-compares cached cells from their stored manifests.
 - **Round-trip render** - Photoshop's render of the editor's resave vs the
   original's render.
 - **Missing fonts** - Photoshop checks every text layer's style ranges against its
