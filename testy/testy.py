@@ -124,6 +124,29 @@ def refresh_patchy_build() -> bool:
     return built and completed.returncode == 0
 
 
+_patchy_build_keys: dict[tuple[str, int, int], str] = {}
+
+
+def patchy_build_key(exe: Path | None, git_fallback: str) -> str:
+    """What a cached Patchy cell is keyed on: the contents of patchy.exe itself.
+
+    The git commit used to stand in for it, which threw every Patchy cell away on
+    any commit, Testy-only ones included, while the binary had not changed (and
+    kept stale cells when the binary was rebuilt from an uncommitted tree). The
+    hash is remembered per (path, size, mtime), so a rebuild mid-run is noticed
+    without rehashing 40 MB for every cell."""
+    if exe is None:
+        return git_fallback
+    try:
+        stat = exe.stat()
+        memo = (str(exe), stat.st_size, stat.st_mtime_ns)
+        if memo not in _patchy_build_keys:
+            _patchy_build_keys[memo] = "exe-" + staging.sha1_of_file(exe)[:20]
+        return _patchy_build_keys[memo]
+    except OSError:
+        return git_fallback
+
+
 def artifact_dir_name(entry: dict) -> str:
     """The files/<dir> name holding one corpus file's artifacts: its stem, unless
     init_status had to disambiguate it (entry["dir"])."""
@@ -668,7 +691,7 @@ class TestyRequestHandler(http.server.SimpleHTTPRequestHandler):
         The typical use is checking whether a Patchy fix landed: the child run
         refreshes the Patchy build by default, the Photoshop ground truth and the
         other editors' cells come straight from the caches (fast), and the Patchy
-        cell re-measures because its cache key includes the git hash.
+        cell re-measures whenever the rebuilt patchy.exe differs (patchy_build_key).
         """
         if _run_in_progress():
             self._send_json({"errors": ["a run is already in progress"]}, status=409)
@@ -1235,7 +1258,8 @@ class Runner:
             self.push()
             return
 
-        version_key = self.patchy_hash if editor_key == "patchy" else info.version
+        version_key = (patchy_build_key(info.exe, self.patchy_hash) if editor_key == "patchy"
+                       else info.version)
         if editor_key == "patchy":
             # Its forced-text pixels change when Photoshop's font environment
             # changes too; older cells must not retain an unqualified text score.

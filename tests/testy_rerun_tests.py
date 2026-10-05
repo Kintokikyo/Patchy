@@ -165,6 +165,17 @@ class RerunTests(unittest.TestCase):
         second._app.DoJavaScript.return_value = 'Installed\nNewFace'
         self.assertNotEqual(second.font_cache_key(), before)
 
+    def test_patchy_cache_key_follows_the_exe_not_the_commit(self):
+        exe = self.runs / 'patchy.exe'
+        exe.write_bytes(b'build one')
+        first = testy.patchy_build_key(exe, 'abc123')
+        self.assertTrue(first.startswith('exe-'))
+        self.assertEqual(testy.patchy_build_key(exe, 'a-different-commit'), first)
+        exe.write_bytes(b'build two!')
+        self.assertNotEqual(testy.patchy_build_key(exe, 'abc123'), first)
+        self.assertEqual(testy.patchy_build_key(None, 'abc123'), 'abc123')
+        self.assertEqual(testy.patchy_build_key(self.runs / 'missing.exe', 'abc123'), 'abc123')
+
     def test_endpoint_spawns_fresh_row_rerun_and_serves_new_controls_for_old_report(self):
         (self.parent/'report.html').write_text('old report')
         handler = lambda *args, **kwargs: testy.TestyRequestHandler(*args, directory=str(self.runs.parent), **kwargs)

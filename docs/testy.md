@@ -127,7 +127,7 @@ Useful flags:
   the psd-tools library: its compositor and a load-and-save (`pip install "psd-tools[composite]"`).
 - `--no-build` - skip the release build refresh (measures the current patchy.exe).
 - `--fresh` - ignore cached ground truth / cells (cache in `testy/cache/`, keyed by
-  file hash + editor version, plus Patchy git hash for the Patchy column).
+  file hash + editor version; Patchy's key is a hash of patchy.exe itself).
 - `--resume runs\<ts>` - continue a paused/canceled/interrupted run directory, skipping
   completed work (implies `--no-build`, ignores `--files/--corpus/--editors`).
 - `--scan [PCT]` - scan mode; see below.
