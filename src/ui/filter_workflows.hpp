@@ -73,6 +73,7 @@ struct ColorBalanceSettings {
 
 using PosterizeSettings = PosterizeAdjustment;
 using ThresholdSettings = ThresholdAdjustment;
+using ExposureSettings = ExposureAdjustment;
 using BrightnessContrastSettings = BrightnessContrastAdjustment;
 
 struct FilterControlSpec {
@@ -162,6 +163,9 @@ using FilterCancelled = ::patchy::FilterCancelled;
 [[nodiscard]] std::optional<ThresholdSettings> request_threshold_settings(
     QWidget* parent, std::function<void(bool, const ThresholdSettings&)> preview_changed = {},
     ThresholdSettings initial = {});
+[[nodiscard]] std::optional<ExposureSettings> request_exposure_settings(
+    QWidget* parent, std::function<void(bool, const ExposureSettings&)> preview_changed = {},
+    ExposureSettings initial = {});
 [[nodiscard]] std::optional<BrightnessContrastSettings> request_brightness_contrast_settings(
     QWidget* parent, std::function<void(bool, const BrightnessContrastSettings&)> preview_changed = {},
     BrightnessContrastSettings initial = {});

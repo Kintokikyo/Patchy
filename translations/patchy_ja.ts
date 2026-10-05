@@ -8831,6 +8831,22 @@ Mixed selection</source>
         <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</source>
         <translation>この HEIC 画像をデコードできません。HEIC のデコードには Flatpak のコーデック拡張が必要です。次のコマンドでインストールしてください: flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</translation>
     </message>
+    <message>
+        <source>Exposure</source>
+        <translation>露出</translation>
+    </message>
+    <message>
+        <source>Offset:</source>
+        <translation>オフセット:</translation>
+    </message>
+    <message>
+        <source>Gamma Correction:</source>
+        <translation>ガンマ補正:</translation>
+    </message>
+    <message>
+        <source>Exposure: %1, offset %2, gamma %3</source>
+        <translation>露出: %1、オフセット %2、ガンマ %3</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -18502,6 +18518,18 @@ Baked into images: %1.</source>
     <message>
         <source>Open from &amp;Clipboard</source>
         <translation>クリップボードから開く(&amp;C)</translation>
+    </message>
+    <message>
+        <source>&amp;Exposure...</source>
+        <translation>露出(&amp;E)...</translation>
+    </message>
+    <message>
+        <source>Exposure</source>
+        <translation>露出</translation>
+    </message>
+    <message>
+        <source>Cancelled Exposure</source>
+        <translation>露出をキャンセルしました</translation>
     </message>
 </context>
 <context>

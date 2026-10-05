@@ -322,6 +322,8 @@ void MainWindow::populate_new_adjustment_layer_menu(QMenu* menu, const QString& 
                  [this] { new_posterize_adjustment_layer(); });
   add_adjustment(QT_TR_NOOP("&Threshold..."), QStringLiteral("ThresholdAdjustment"), QStringLiteral("THR"),
                  [this] { new_threshold_adjustment_layer(); });
+  add_adjustment(QT_TR_NOOP("&Exposure..."), QStringLiteral("ExposureAdjustment"), QStringLiteral("EXP"),
+                 [this] { new_exposure_adjustment_layer(); });
 }
 
 void MainWindow::new_levels_adjustment_layer() {
@@ -540,6 +542,38 @@ void MainWindow::apply_threshold_adjustment(const ThresholdSettings& threshold, 
     return;
   }
   create_adjustment_layer(tr("Threshold"), settings);
+}
+
+void MainWindow::new_exposure_adjustment_layer() {
+  std::optional<LayerId> preview_id;
+  const auto restore_active_layer = document().active_layer_id();
+  const auto preview_changed = [this, &preview_id, restore_active_layer](bool enabled,
+                                                                         const ExposureSettings& exposure) {
+    AdjustmentSettings settings;
+    settings.kind = AdjustmentKind::Exposure;
+    settings.exposure = clamp_exposure(exposure);
+    update_adjustment_layer_preview(tr("Exposure"), settings, enabled, preview_id, restore_active_layer);
+  };
+
+  auto preview_edit_lock = lock_preview_dialog_edits();
+  const auto settings = request_exposure_settings(this, preview_changed);
+  remove_adjustment_layer_preview(preview_id, restore_active_layer);
+  preview_edit_lock.release();
+  if (!settings.has_value()) {
+    statusBar()->showMessage(tr("Cancelled Exposure"));
+    return;
+  }
+  apply_exposure_adjustment(*settings, true);
+}
+
+void MainWindow::apply_exposure_adjustment(const ExposureSettings& exposure, bool allow_identity) {
+  AdjustmentSettings settings;
+  settings.kind = AdjustmentKind::Exposure;
+  settings.exposure = clamp_exposure(exposure);
+  if (!allow_identity && !adjustment_has_effect(settings)) {
+    return;
+  }
+  create_adjustment_layer(tr("Exposure"), settings);
 }
 
 void MainWindow::new_brightness_contrast_adjustment_layer() {
@@ -867,6 +901,24 @@ void MainWindow::edit_active_adjustment_layer() {
       if (result.has_value()) {
         accepted_settings = *original_settings;
         accepted_settings->threshold.level = std::clamp(result->level, 1, 255);
+      }
+      break;
+    }
+    case AdjustmentKind::Exposure: {
+      const auto preview_changed = [apply_settings, restore_original_layer, original_settings](
+                                       bool enabled, const ExposureSettings& exposure) {
+        if (!enabled) {
+          restore_original_layer();
+          return;
+        }
+        auto settings = *original_settings;
+        settings.exposure = clamp_exposure(exposure);
+        apply_settings(settings);
+      };
+      const auto result = request_exposure_settings(this, preview_changed, original_settings->exposure);
+      if (result.has_value()) {
+        accepted_settings = *original_settings;
+        accepted_settings->exposure = clamp_exposure(*result);
       }
       break;
     }

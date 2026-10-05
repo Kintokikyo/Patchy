@@ -113,6 +113,10 @@ constexpr std::array<char, 4> kPhotoshopInvertBlockKey{'n', 'v', 'r', 't'};
 // photoshop-threshold.psd level 96 = 00 60 00 00).
 constexpr std::array<char, 4> kPhotoshopPosterizeBlockKey{'p', 'o', 's', 't'};
 constexpr std::array<char, 4> kPhotoshopThresholdBlockKey{'t', 'h', 'r', 's'};
+// Exposure is 16 bytes: u16 version (1), then exposure, offset and gamma as
+// big-endian float32, then 2 zero pad bytes (psd-tools' exposure_rgb.psd, saved
+// by Photoshop: 00 01 | 40 01 EB 85 | 3D 9E B8 52 | 3F C2 8F 5C | 00 00).
+constexpr std::array<char, 4> kPhotoshopExposureBlockKey{'e', 'x', 'p', 'A'};
 // Brightness/Contrast: legacy-mode PS 2026 writes ONLY the 8-byte 'brit'
 // (brightness i16, contrast i16, mean u16 = 127, lab u8 = 0, pad u8 = 0);
 // modern mode writes an all-zero 'brit' plus a 'CgEd' descriptor (u32 version
@@ -513,6 +517,9 @@ std::vector<std::uint8_t> photoshop_posterize_payload(const PosterizeAdjustment&
 std::optional<AdjustmentSettings> parse_photoshop_threshold_adjustment(std::span<const std::uint8_t> payload);
 std::vector<std::uint8_t> photoshop_threshold_payload(const ThresholdAdjustment& settings,
                                                       const UnknownPsdBlock* original);
+std::optional<AdjustmentSettings> parse_photoshop_exposure_adjustment(std::span<const std::uint8_t> payload);
+std::vector<std::uint8_t> photoshop_exposure_payload(const ExposureAdjustment& settings,
+                                                     const UnknownPsdBlock* original);
 std::optional<AdjustmentSettings> parse_photoshop_brightness_contrast_adjustment(
     std::span<const std::uint8_t> payload);
 struct BrightnessContrastDescriptorParse {

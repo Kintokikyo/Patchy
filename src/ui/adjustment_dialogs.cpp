@@ -1412,6 +1412,56 @@ std::optional<ThresholdSettings> request_threshold_settings(
       std::move(preview_changed));
 }
 
+std::optional<ExposureSettings> request_exposure_settings(
+    QWidget* parent, std::function<void(bool, const ExposureSettings&)> preview_changed, ExposureSettings initial) {
+  initial = clamp_exposure(initial);
+  // Photoshop's three fields are decimals, so the shared integer slider rows do not
+  // fit; the rows are added as extras and read back through this holder.
+  struct Fields {
+    QDoubleSpinBox* exposure{nullptr};
+    QDoubleSpinBox* offset{nullptr};
+    QDoubleSpinBox* gamma{nullptr};
+  };
+  auto fields = std::make_shared<Fields>();
+  const auto build_settings = [fields, initial](const std::vector<QSpinBox*>&) {
+    if (fields->exposure == nullptr || fields->offset == nullptr || fields->gamma == nullptr) {
+      return initial;
+    }
+    return clamp_exposure(ExposureSettings{static_cast<int>(std::lround(fields->exposure->value() * 100.0)),
+                                           static_cast<int>(std::lround(fields->offset->value() * 10000.0)),
+                                           static_cast<int>(std::lround(fields->gamma->value() * 100.0))});
+  };
+  return request_adjustment_settings_dialog<ExposureSettings>(
+      parent, QStringLiteral("patchyExposureDialog"), QObject::tr("Exposure"),
+      QStringLiteral("exposurePreviewCheck"), {}, build_settings, std::move(preview_changed), {},
+      [fields, initial](QDialog& dialog, QFormLayout* form, const std::vector<QSpinBox*>&,
+                        const std::function<void()>& flush_preview) {
+        const auto add_row = [&dialog, form, flush_preview](const QString& label, const QString& object_name,
+                                                             double minimum, double maximum, int decimals,
+                                                             double step, double value) {
+          auto* spin = new QDoubleSpinBox(&dialog);
+          spin->setObjectName(object_name);
+          spin->setDecimals(decimals);
+          spin->setRange(minimum, maximum);
+          spin->setSingleStep(step);
+          spin->setValue(value);
+          form->addRow(label, spin);
+          QObject::connect(spin, qOverload<double>(&QDoubleSpinBox::valueChanged), &dialog,
+                           [flush_preview](double) { flush_preview(); });
+          return spin;
+        };
+        fields->exposure = add_row(QObject::tr("Exposure:"), QStringLiteral("exposureValueSpin"),
+                                   -kExposureValueRange / 100.0, kExposureValueRange / 100.0, 2, 0.1,
+                                   initial.exposure_hundredths / 100.0);
+        fields->offset = add_row(QObject::tr("Offset:"), QStringLiteral("exposureOffsetSpin"),
+                                 -kExposureOffsetRange / 10000.0, kExposureOffsetRange / 10000.0, 4, 0.01,
+                                 initial.offset_ten_thousandths / 10000.0);
+        fields->gamma = add_row(QObject::tr("Gamma Correction:"), QStringLiteral("exposureGammaSpin"),
+                                kExposureGammaMin / 100.0, kExposureGammaMax / 100.0, 2, 0.05,
+                                initial.gamma_hundredths / 100.0);
+      });
+}
+
 std::optional<BrightnessContrastSettings> request_brightness_contrast_settings(
     QWidget* parent, std::function<void(bool, const BrightnessContrastSettings&)> preview_changed,
     BrightnessContrastSettings initial) {

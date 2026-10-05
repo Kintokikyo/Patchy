@@ -8831,6 +8831,22 @@ RGB：%2, %3, %4</translation>
         <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</source>
         <translation>无法解码此 HEIC 图像。HEIC 解码需要 Flatpak 编解码器扩展，请使用以下命令安装：flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</translation>
     </message>
+    <message>
+        <source>Exposure</source>
+        <translation>曝光</translation>
+    </message>
+    <message>
+        <source>Offset:</source>
+        <translation>位移:</translation>
+    </message>
+    <message>
+        <source>Gamma Correction:</source>
+        <translation>灰度系数校正:</translation>
+    </message>
+    <message>
+        <source>Exposure: %1, offset %2, gamma %3</source>
+        <translation>曝光：%1，位移 %2，灰度系数 %3</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -18502,6 +18518,18 @@ Baked into images: %1.</source>
     <message>
         <source>Open from &amp;Clipboard</source>
         <translation>从剪贴板打开(&amp;C)</translation>
+    </message>
+    <message>
+        <source>&amp;Exposure...</source>
+        <translation>曝光(&amp;E)...</translation>
+    </message>
+    <message>
+        <source>Exposure</source>
+        <translation>曝光</translation>
+    </message>
+    <message>
+        <source>Cancelled Exposure</source>
+        <translation>已取消曝光</translation>
     </message>
 </context>
 <context>

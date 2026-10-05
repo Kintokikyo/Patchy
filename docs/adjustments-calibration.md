@@ -40,6 +40,14 @@ Fitted against Photoshop's renders of psd-tools' `adjustments/levels_rgb.psd` an
 - **Levels:** the component channel record runs FIRST, then Composite RGB (the Curves order), and the channel result reaches the composite stage unrounded. Within 2/255 everywhere on the render; composite-first is off by up to 52, and a byte-rounded intermediate has ten times the 2/255 misses. `apply_levels` (core) and `build_levels_luts` (ui/filter_workflows.cpp, the destructive command) both follow it. A master-only adjustment is unchanged.
 - **Posterize:** `floor(floor(value * levels / 256) * 255 / (levels - 1))`, byte-exact at 3, 7, 13 and 21 levels (3 levels give 0, 127, 255). Refuted: nearest-step rounding (the pre-October formula), and rounding the output step instead of truncating it. `posterize_channel_value` serves the adjustment layer and `patchy.filters.posterize` alike.
 
+## Exposure (October 2026)
+
+`AdjustmentKind::Exposure`, Photoshop's `expA` block (16 bytes: u16 version 1, float32 exposure, offset, gamma, 2 pad bytes). Settings are integers at Photoshop's field precision: hundredths of a stop (-20.00..20.00), ten-thousandths of offset (-0.5000..0.5000), hundredths of gamma (0.01..9.99). An unedited imported block is written back byte for byte, which keeps Photoshop's exact floats.
+
+- Math (`exposure_channel_value`), per channel on 8-bit values: `linear = (v/255)^2.2`, `exposed = linear * 2^exposure + offset`, `corrected = max(0, exposed)^(1/gamma)`, `out = 255 * clamp(corrected)^(1/2.2)`. Within 1/255 on every pixel of Photoshop's render of psd-tools' `adjustments/exposure_rgb.psd` for all four of its setting triples.
+- Refuted: the piecewise sRGB curve in place of the plain 2.2 power (up to 7/255 off at +2 stops).
+- Unprobed: Grayscale and CMYK documents (Photoshop adjusts in the document's space; Patchy converts to sRGB on open first) and 16/32-bit sources.
+
 ## Auto adjustments calibration (August 2026)
 
 Six self-authored ramp/outlier fixtures through PS COM (`autoLevels()`, `autoContrast()`, the `Lvls` event) vs Patchy's `auto_levels_math`:

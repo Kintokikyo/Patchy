@@ -81,6 +81,9 @@ inline constexpr const char* kLayerMetadataAdjustmentColorBalanceYellowBlue =
     "patchy.adjustment.color_balance.yellow_blue";
 inline constexpr const char* kLayerMetadataAdjustmentPosterizeLevels = "patchy.adjustment.posterize.levels";
 inline constexpr const char* kLayerMetadataAdjustmentThresholdLevel = "patchy.adjustment.threshold.level";
+inline constexpr const char* kLayerMetadataAdjustmentExposureValue = "patchy.adjustment.exposure.value";
+inline constexpr const char* kLayerMetadataAdjustmentExposureOffset = "patchy.adjustment.exposure.offset";
+inline constexpr const char* kLayerMetadataAdjustmentExposureGamma = "patchy.adjustment.exposure.gamma";
 inline constexpr const char* kLayerMetadataAdjustmentBrightnessContrastBrightness =
     "patchy.adjustment.brightness_contrast.brightness";
 inline constexpr const char* kLayerMetadataAdjustmentBrightnessContrastContrast =
@@ -98,7 +101,8 @@ enum class AdjustmentKind {
   Invert,
   Posterize,
   Threshold,
-  BrightnessContrast
+  BrightnessContrast,
+  Exposure
 };
 
 enum class LevelsChannel {
@@ -226,6 +230,24 @@ struct ThresholdAdjustment {
   int level{128};
 };
 
+// Photoshop's Exposure adjustment ('expA'), stored at the precision of Photoshop's own
+// fields: exposure in hundredths of a stop (-20.00..20.00), offset in ten-thousandths
+// (-0.5000..0.5000), gamma correction in hundredths (0.01..9.99).
+inline constexpr int kExposureValueRange = 2000;
+inline constexpr int kExposureOffsetRange = 5000;
+inline constexpr int kExposureGammaMin = 1;
+inline constexpr int kExposureGammaMax = 999;
+struct ExposureAdjustment {
+  int exposure_hundredths{0};
+  int offset_ten_thousandths{0};
+  int gamma_hundredths{100};
+};
+[[nodiscard]] ExposureAdjustment clamp_exposure(ExposureAdjustment settings);
+// One channel through Photoshop's Exposure: linearize with gamma 2.2, scale by
+// 2^exposure, add the offset, apply 1/gamma, encode again. Within 1/255 of Photoshop's
+// render of psd-tools' exposure_rgb.psd on all four of its setting triples.
+[[nodiscard]] std::uint8_t exposure_channel_value(std::uint8_t value, ExposureAdjustment settings);
+
 // Both Photoshop algorithms are modeled. Modern mode (Photoshop's default,
 // use_legacy false) takes brightness -150..150 and contrast -50..100; legacy
 // mode takes -100..100 for both. Old Patchy documents and 'brit'-only PSDs
@@ -251,6 +273,7 @@ struct AdjustmentSettings {
   PosterizeAdjustment posterize{};
   ThresholdAdjustment threshold{};
   BrightnessContrastAdjustment brightness_contrast{};
+  ExposureAdjustment exposure{};
 };
 
 // Levels record math shared by the UI dialogs and the PSD lvls codec: the

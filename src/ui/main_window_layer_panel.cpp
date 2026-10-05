@@ -147,6 +147,7 @@
 #include <QMenu>
 #include <QMenuBar>
 #include <QMimeData>
+#include <QLocale>
 #include <QMessageBox>
 #include <QMetaObject>
 #include <QMouseEvent>
@@ -627,6 +628,8 @@ QColor adjustment_thumbnail_accent(const Layer& layer) {
       return QColor(235, 128, 118);
     case AdjustmentKind::BrightnessContrast:
       return QColor(250, 225, 120);
+    case AdjustmentKind::Exposure:
+      return QColor(255, 170, 110);
   }
   return QColor(145, 175, 215);
 }
@@ -765,6 +768,11 @@ QString adjustment_settings_summary(const Layer& layer) {
       return QObject::tr("Posterize: %1 levels").arg(settings->posterize.levels);
     case AdjustmentKind::Threshold:
       return QObject::tr("Threshold: level %1").arg(settings->threshold.level);
+    case AdjustmentKind::Exposure:
+      return QObject::tr("Exposure: %1, offset %2, gamma %3")
+          .arg(QLocale().toString(settings->exposure.exposure_hundredths / 100.0, 'f', 2))
+          .arg(QLocale().toString(settings->exposure.offset_ten_thousandths / 10000.0, 'f', 4))
+          .arg(QLocale().toString(settings->exposure.gamma_hundredths / 100.0, 'f', 2));
     case AdjustmentKind::BrightnessContrast:
       return QObject::tr("Brightness/Contrast: brightness %1, contrast %2")
           .arg(settings->brightness_contrast.brightness)
@@ -1025,6 +1033,23 @@ void draw_posterize_adjustment_thumbnail_symbol(QPainter& painter, const QColor&
   painter.drawRect(graph);
 }
 
+void draw_exposure_adjustment_thumbnail_symbol(QPainter& painter, const QColor& accent) {
+  // A square split on the diagonal into a dark and a light half: the classic
+  // exposure-compensation glyph.
+  const QRectF square(7.0, 7.0, 14.0, 14.0);
+  painter.setPen(Qt::NoPen);
+  painter.fillRect(square, QColor(31, 37, 46));
+  QPainterPath light;
+  light.moveTo(square.topRight());
+  light.lineTo(square.bottomRight());
+  light.lineTo(square.bottomLeft());
+  light.closeSubpath();
+  painter.fillPath(light, QColor(238, 243, 248));
+  painter.setPen(QPen(accent.lighter(120), 1.5));
+  painter.setBrush(Qt::NoBrush);
+  painter.drawRect(square);
+}
+
 void draw_threshold_adjustment_thumbnail_symbol(QPainter& painter, const QColor& accent) {
   // A hard vertical black/white split: everything below the level goes black,
   // everything above goes white.
@@ -1252,6 +1277,9 @@ QPixmap layer_content_thumbnail(const Layer& layer, int document_width, int docu
           break;
         case AdjustmentKind::Threshold:
           draw_threshold_adjustment_thumbnail_symbol(painter, accent);
+          break;
+        case AdjustmentKind::Exposure:
+          draw_exposure_adjustment_thumbnail_symbol(painter, accent);
           break;
         case AdjustmentKind::BrightnessContrast:
           draw_brightness_contrast_adjustment_thumbnail_symbol(painter, accent);

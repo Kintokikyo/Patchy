@@ -918,6 +918,26 @@ std::uint8_t posterize_channel_value(std::uint8_t value, int levels) {
   return static_cast<std::uint8_t>(bucket * 255 / (levels - 1));
 }
 
+ExposureAdjustment clamp_exposure(ExposureAdjustment settings) {
+  settings.exposure_hundredths = std::clamp(settings.exposure_hundredths, -kExposureValueRange, kExposureValueRange);
+  settings.offset_ten_thousandths =
+      std::clamp(settings.offset_ten_thousandths, -kExposureOffsetRange, kExposureOffsetRange);
+  settings.gamma_hundredths = std::clamp(settings.gamma_hundredths, kExposureGammaMin, kExposureGammaMax);
+  return settings;
+}
+
+std::uint8_t exposure_channel_value(std::uint8_t value, ExposureAdjustment settings) {
+  settings = clamp_exposure(settings);
+  constexpr double kDisplayGamma = 2.2;
+  const auto linear = std::pow(static_cast<double>(value) / 255.0, kDisplayGamma);
+  const auto exposed = linear * std::pow(2.0, static_cast<double>(settings.exposure_hundredths) / 100.0) +
+                       static_cast<double>(settings.offset_ten_thousandths) / 10000.0;
+  const auto corrected =
+      std::pow(std::max(0.0, exposed), 100.0 / static_cast<double>(settings.gamma_hundredths));
+  const auto encoded = std::pow(std::clamp(corrected, 0.0, 1.0), 1.0 / kDisplayGamma);
+  return static_cast<std::uint8_t>(std::clamp(std::lround(encoded * 255.0), 0L, 255L));
+}
+
 int threshold_luminance(std::uint8_t red, std::uint8_t green, std::uint8_t blue) {
   return (static_cast<int>(red) * 30 + static_cast<int>(green) * 59 + static_cast<int>(blue) * 11) / 100;
 }
@@ -1083,6 +1103,8 @@ std::string adjustment_kind_key(AdjustmentKind kind) {
       return "threshold";
     case AdjustmentKind::BrightnessContrast:
       return "brightness_contrast";
+    case AdjustmentKind::Exposure:
+      return "exposure";
   }
   return "levels";
 }
@@ -1105,6 +1127,8 @@ std::string adjustment_display_name(AdjustmentKind kind) {
       return "Threshold";
     case AdjustmentKind::BrightnessContrast:
       return "Brightness/Contrast";
+    case AdjustmentKind::Exposure:
+      return "Exposure";
   }
   return "Adjustment";
 }
@@ -1133,6 +1157,9 @@ std::optional<AdjustmentKind> adjustment_kind_from_key(std::string_view key) {
   }
   if (key == "brightness_contrast") {
     return AdjustmentKind::BrightnessContrast;
+  }
+  if (key == "exposure") {
+    return AdjustmentKind::Exposure;
   }
   return std::nullopt;
 }
@@ -1208,6 +1235,10 @@ std::optional<AdjustmentSettings> adjustment_settings_from_layer(const Layer& la
       std::clamp(metadata_int_or(layer, kLayerMetadataAdjustmentPosterizeLevels, 4), 2, 255);
   settings.threshold.level =
       std::clamp(metadata_int_or(layer, kLayerMetadataAdjustmentThresholdLevel, 128), 1, 255);
+  settings.exposure = clamp_exposure(ExposureAdjustment{
+      metadata_int_or(layer, kLayerMetadataAdjustmentExposureValue, 0),
+      metadata_int_or(layer, kLayerMetadataAdjustmentExposureOffset, 0),
+      metadata_int_or(layer, kLayerMetadataAdjustmentExposureGamma, 100)});
   // Default legacy when the key is absent: pre-July-2026 documents were always
   // legacy-mode and must keep their render.
   settings.brightness_contrast.use_legacy =
@@ -1300,6 +1331,10 @@ void configure_adjustment_layer(Layer& layer, const AdjustmentSettings& settings
                    std::clamp(settings.posterize.levels, 2, 255));
   set_metadata_int(layer, kLayerMetadataAdjustmentThresholdLevel,
                    std::clamp(settings.threshold.level, 1, 255));
+  const auto exposure = clamp_exposure(settings.exposure);
+  set_metadata_int(layer, kLayerMetadataAdjustmentExposureValue, exposure.exposure_hundredths);
+  set_metadata_int(layer, kLayerMetadataAdjustmentExposureOffset, exposure.offset_ten_thousandths);
+  set_metadata_int(layer, kLayerMetadataAdjustmentExposureGamma, exposure.gamma_hundredths);
   const auto bc_brightness_range =
       settings.brightness_contrast.use_legacy ? kBrightnessContrastLegacyRange : kModernBrightnessRange;
   const auto bc_contrast_low =
@@ -1348,6 +1383,10 @@ RgbColor apply_adjustment_to_color(RgbColor color, const AdjustmentSettings& set
                       brightness_contrast_channel_value(color.green, brightness, contrast, use_legacy),
                       brightness_contrast_channel_value(color.blue, brightness, contrast, use_legacy)};
     }
+    case AdjustmentKind::Exposure:
+      return RgbColor{exposure_channel_value(color.red, settings.exposure),
+                      exposure_channel_value(color.green, settings.exposure),
+                      exposure_channel_value(color.blue, settings.exposure)};
   }
   return color;
 }
@@ -1430,6 +1469,11 @@ bool adjustment_has_effect(const AdjustmentSettings& settings) {
       return true;
     case AdjustmentKind::BrightnessContrast:
       return settings.brightness_contrast.brightness != 0 || settings.brightness_contrast.contrast != 0;
+    case AdjustmentKind::Exposure: {
+      const auto exposure = clamp_exposure(settings.exposure);
+      return exposure.exposure_hundredths != 0 || exposure.offset_ten_thousandths != 0 ||
+             exposure.gamma_hundredths != 100;
+    }
   }
   return false;
 }

@@ -106,6 +106,7 @@ struct HueSaturationSettings;
 using LevelsSettings = LevelsAdjustment;
 using PosterizeSettings = PosterizeAdjustment;
 using ThresholdSettings = ThresholdAdjustment;
+using ExposureSettings = ExposureAdjustment;
 using BrightnessContrastSettings = BrightnessContrastAdjustment;
 struct ScannerAcquireResult;
 struct UpdateInfo;
@@ -1040,6 +1041,8 @@ private:
   void apply_posterize_adjustment(const PosterizeSettings& settings, bool allow_identity = false);
   void new_threshold_adjustment_layer();
   void apply_threshold_adjustment(const ThresholdSettings& settings, bool allow_identity = false);
+  void new_exposure_adjustment_layer();
+  void apply_exposure_adjustment(const ExposureSettings& settings, bool allow_identity = false);
   void new_brightness_contrast_adjustment_layer();
   void apply_brightness_contrast_adjustment(const BrightnessContrastSettings& settings,
                                             bool allow_identity = false);

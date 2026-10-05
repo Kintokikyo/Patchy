@@ -716,6 +716,55 @@ std::optional<std::vector<std::uint8_t>> photoshop_brightness_contrast_descripto
   return writer.bytes();
 }
 
+std::optional<AdjustmentSettings> parse_photoshop_exposure_adjustment(std::span<const std::uint8_t> payload) {
+  if (payload.size() < 14) {
+    return std::nullopt;
+  }
+  BigEndianReader reader(payload);
+  if (reader.read_u16() != 1) {
+    return std::nullopt;
+  }
+  const auto exposure = std::bit_cast<float>(reader.read_u32());
+  const auto offset = std::bit_cast<float>(reader.read_u32());
+  const auto gamma = std::bit_cast<float>(reader.read_u32());
+  if (!std::isfinite(exposure) || !std::isfinite(offset) || !std::isfinite(gamma)) {
+    return std::nullopt;
+  }
+  // Clamp as doubles first: a wild float must not overflow the integer conversion.
+  const auto scaled = [](float value, double scale, int low, int high) {
+    return static_cast<int>(
+        std::lround(std::clamp(static_cast<double>(value) * scale, static_cast<double>(low), static_cast<double>(high))));
+  };
+  AdjustmentSettings settings;
+  settings.kind = AdjustmentKind::Exposure;
+  settings.exposure = ExposureAdjustment{scaled(exposure, 100.0, -kExposureValueRange, kExposureValueRange),
+                                         scaled(offset, 10000.0, -kExposureOffsetRange, kExposureOffsetRange),
+                                         scaled(gamma, 100.0, kExposureGammaMin, kExposureGammaMax)};
+  return settings;
+}
+
+std::vector<std::uint8_t> photoshop_exposure_payload(const ExposureAdjustment& settings,
+                                                     const UnknownPsdBlock* original) {
+  const auto clamped = clamp_exposure(settings);
+  if (original != nullptr) {
+    // Unedited imported payloads re-emit byte-for-byte, which also keeps Photoshop's
+    // exact float32 values instead of the rounded fields.
+    const auto parsed = parse_photoshop_exposure_adjustment(original->payload);
+    if (parsed.has_value() && parsed->exposure.exposure_hundredths == clamped.exposure_hundredths &&
+        parsed->exposure.offset_ten_thousandths == clamped.offset_ten_thousandths &&
+        parsed->exposure.gamma_hundredths == clamped.gamma_hundredths) {
+      return original->payload;
+    }
+  }
+  BigEndianWriter writer;
+  writer.write_u16(1);
+  writer.write_u32(std::bit_cast<std::uint32_t>(static_cast<float>(clamped.exposure_hundredths / 100.0)));
+  writer.write_u32(std::bit_cast<std::uint32_t>(static_cast<float>(clamped.offset_ten_thousandths / 10000.0)));
+  writer.write_u32(std::bit_cast<std::uint32_t>(static_cast<float>(clamped.gamma_hundredths / 100.0)));
+  writer.write_u16(0);
+  return writer.bytes();
+}
+
 std::optional<AdjustmentSettings> parse_photoshop_threshold_adjustment(std::span<const std::uint8_t> payload) {
   if (payload.size() < 2) {
     return std::nullopt;

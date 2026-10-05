@@ -169,7 +169,8 @@ bool should_skip_layer_block(const EncodedLayer& encoded, const UnknownPsdBlock&
   }
   if (encoded.kind == EncodedLayerKind::Adjustment &&
       (block.key == "levl" || block.key == "curv" || block.key == "hue2" || block.key == "nvrt" ||
-       block.key == "post" || block.key == "thrs" || block.key == "brit" || block.key == "blnc")) {
+       block.key == "post" || block.key == "thrs" || block.key == "brit" || block.key == "blnc" ||
+       block.key == "expA")) {
     return true;
   }
   // The Brightness/Contrast emitter owns 'CgEd' (preserved, regenerated, or
@@ -936,6 +937,12 @@ void write_layer_record(BigEndianWriter& writer, const EncodedLayer& encoded, bo
       write_additional_layer_block(
           extra, kPhotoshopThresholdBlockKey,
           photoshop_threshold_payload(settings->threshold, find_layer_block(*encoded.layer, "thrs")),
+          large_document);
+    }
+    if (settings.has_value() && settings->kind == AdjustmentKind::Exposure) {
+      write_additional_layer_block(
+          extra, kPhotoshopExposureBlockKey,
+          photoshop_exposure_payload(settings->exposure, find_layer_block(*encoded.layer, "expA")),
           large_document);
     }
     if (settings.has_value() && settings->kind == AdjustmentKind::BrightnessContrast) {

@@ -8861,6 +8861,22 @@ RGB: %2, %3, %4</translation>
         <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</source>
         <translation>Impossibile decodificare questa immagine HEIC. La decodifica HEIC richiede l&apos;estensione codec Flatpak; installala con: flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</translation>
     </message>
+    <message>
+        <source>Exposure</source>
+        <translation>Esposizione</translation>
+    </message>
+    <message>
+        <source>Offset:</source>
+        <translation>Spostamento:</translation>
+    </message>
+    <message>
+        <source>Gamma Correction:</source>
+        <translation>Correzione gamma:</translation>
+    </message>
+    <message>
+        <source>Exposure: %1, offset %2, gamma %3</source>
+        <translation>Esposizione: %1, spostamento %2, gamma %3</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -18558,6 +18574,18 @@ Convertiti in immagini: %1.</translation>
     <message>
         <source>Open from &amp;Clipboard</source>
         <translation>Apri dagli &amp;appunti</translation>
+    </message>
+    <message>
+        <source>&amp;Exposure...</source>
+        <translation>&amp;Esposizione...</translation>
+    </message>
+    <message>
+        <source>Exposure</source>
+        <translation>Esposizione</translation>
+    </message>
+    <message>
+        <source>Cancelled Exposure</source>
+        <translation>Annullato: Esposizione</translation>
     </message>
 </context>
 <context>

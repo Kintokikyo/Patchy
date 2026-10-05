@@ -8831,6 +8831,22 @@ RGB: %2, %3, %4</translation>
         <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</source>
         <translation>이 HEIC 이미지를 디코딩할 수 없습니다. HEIC 디코딩에는 Flatpak 코덱 확장이 필요합니다. 다음을 사용하여 설치하세요: flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</translation>
     </message>
+    <message>
+        <source>Exposure</source>
+        <translation>노출</translation>
+    </message>
+    <message>
+        <source>Offset:</source>
+        <translation>오프셋:</translation>
+    </message>
+    <message>
+        <source>Gamma Correction:</source>
+        <translation>감마 교정:</translation>
+    </message>
+    <message>
+        <source>Exposure: %1, offset %2, gamma %3</source>
+        <translation>노출: %1, 오프셋 %2, 감마 %3</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -18502,6 +18518,18 @@ Y: %2
     <message>
         <source>Open from &amp;Clipboard</source>
         <translation>클립보드에서 열기(&amp;C)</translation>
+    </message>
+    <message>
+        <source>&amp;Exposure...</source>
+        <translation>노출(&amp;E)...</translation>
+    </message>
+    <message>
+        <source>Exposure</source>
+        <translation>노출</translation>
+    </message>
+    <message>
+        <source>Cancelled Exposure</source>
+        <translation>취소된 노출</translation>
     </message>
 </context>
 <context>

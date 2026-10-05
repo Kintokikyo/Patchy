@@ -1743,6 +1743,73 @@ void ui_invert_adjustment_layer_creates_without_dialog_and_reports_no_edit_setti
   CHECK(color_close(canvas_pixel(*canvas, QPoint(70, 70)), QColor(255, 0, 0), 8));
 }
 
+void ui_exposure_adjustment_layer_creates_and_edits() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto* layer_list = window.findChild<QListWidget*>(QStringLiteral("layerList"));
+  CHECK(layer_list != nullptr);
+
+  canvas->set_primary_color(QColor(100, 100, 100));
+  use_solid_fill_settings(canvas);
+  require_action(window, "layerFillForegroundAction")->trigger();
+  QApplication::processEvents();
+
+  // Create: one stop up takes gray 100 to 137 (Photoshop's gamma 2.2 working curve),
+  // with a live preview.
+  bool saw_preview = false;
+  QTimer::singleShot(0, [&] {
+    for (auto* widget : QApplication::topLevelWidgets()) {
+      if (widget->objectName() != QStringLiteral("patchyExposureDialog")) {
+        continue;
+      }
+      auto* dialog = qobject_cast<QDialog*>(widget);
+      CHECK(dialog != nullptr);
+      auto* exposure = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("exposureValueSpin"));
+      auto* offset = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("exposureOffsetSpin"));
+      auto* gamma = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("exposureGammaSpin"));
+      CHECK(exposure != nullptr && offset != nullptr && gamma != nullptr);
+      CHECK(exposure->value() == 0.0);
+      CHECK(offset->value() == 0.0);
+      CHECK(gamma->value() == 1.0);
+      exposure->setValue(1.0);
+      process_events_for(120);
+      saw_preview = color_close(canvas_pixel(*canvas, QPoint(70, 70)), QColor(137, 137, 137), 6);
+      dialog->accept();
+      return;
+    }
+    CHECK(false);
+  });
+  require_action(window, "layerNewExposureAdjustmentAction")->trigger();
+  QApplication::processEvents();
+  CHECK(saw_preview);
+  CHECK(layer_list->item(0) != nullptr);
+  CHECK(layer_list->item(0)->text() == QStringLiteral("Exposure"));
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(70, 70)), QColor(137, 137, 137), 6));
+
+  // Edit: the dialog reopens with the stored value; zero restores the gray.
+  QTimer::singleShot(0, [&] {
+    for (auto* widget : QApplication::topLevelWidgets()) {
+      if (widget->objectName() != QStringLiteral("patchyExposureDialog")) {
+        continue;
+      }
+      auto* dialog = qobject_cast<QDialog*>(widget);
+      CHECK(dialog != nullptr);
+      auto* exposure = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("exposureValueSpin"));
+      CHECK(exposure != nullptr);
+      CHECK(exposure->value() == 1.0);
+      exposure->setValue(0.0);
+      process_events_for(120);
+      dialog->accept();
+      return;
+    }
+    CHECK(false);
+  });
+  require_action(window, "layerEditAdjustmentAction")->trigger();
+  QApplication::processEvents();
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(70, 70)), QColor(100, 100, 100), 6));
+}
+
 void ui_posterize_and_threshold_adjustment_layers_create_and_edit() {
   patchy::ui::MainWindow window;
   show_window(window);
@@ -3520,6 +3587,7 @@ std::vector<patchy::test::TestCase> image_adjustments_curves_tests() {
        ui_invert_adjustment_layer_creates_without_dialog_and_reports_no_edit_settings},
       {"ui_posterize_and_threshold_adjustment_layers_create_and_edit",
        ui_posterize_and_threshold_adjustment_layers_create_and_edit},
+      {"ui_exposure_adjustment_layer_creates_and_edits", ui_exposure_adjustment_layer_creates_and_edits},
       {"ui_brightness_contrast_adjustment_layer_creates_and_edits",
        ui_brightness_contrast_adjustment_layer_creates_and_edits},
       {"ui_levels_dialog_remaps_selected_tonal_range", ui_levels_dialog_remaps_selected_tonal_range},
