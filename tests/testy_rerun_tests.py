@@ -424,6 +424,52 @@ class RerunTests(unittest.TestCase):
         host = (ROOT / "testy" / "photopea_host.html").read_text(encoding="utf-8")
         self.assertIn('params.get("fonts")', host)
 
+    def test_krita_render_is_the_most_common_of_its_takes(self):
+        from PIL import Image
+        from drivers import krita
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            output = root / "render.png"
+
+            def run(colors):
+                """Each scripted export writes the next color; returns (result, launches)."""
+                queue = list(colors)
+                launches = []
+
+                def fake_script(_runner, _source, take):
+                    launches.append(take.name)
+                    if not queue:
+                        return ""
+                    color = queue.pop(0)
+                    if color is None:
+                        return "failed: export"
+                    Image.new("RGBA", (4, 4), color).save(take)
+                    return "ok"
+
+                with mock.patch.object(krita, "_export_script", side_effect=fake_script):
+                    result = krita._export_png_by_majority(root / "kritarunner.com", root / "in.psd", output)
+                return result, launches
+
+            red, blue = (255, 0, 0, 255), (0, 0, 255, 255)
+            # Two matching takes settle it: no third launch, nothing varied.
+            result, launches = run([red, red, blue])
+            self.assertEqual(result, (True, False))
+            self.assertEqual(len(launches), 2)
+            self.assertEqual(Image.open(output).getpixel((0, 0)), red)
+            # Two different takes need a third, and the majority wins.
+            result, launches = run([red, blue, blue])
+            self.assertEqual(result, (True, True))
+            self.assertEqual(len(launches), 3)
+            self.assertEqual(Image.open(output).getpixel((0, 0)), blue)
+            result, _ = run([blue, red, blue])
+            self.assertEqual(Image.open(output).getpixel((0, 0)), blue)
+            # The script route failing outright reports failure (the caller falls back).
+            output.unlink()
+            self.assertEqual(run([None])[0], (False, False))
+            self.assertFalse(output.exists())
+            self.assertEqual([p.name for p in root.iterdir()], [])
+
     def test_reference_cache_key_follows_what_the_reference_re_renders(self):
         import psd_sections
 

@@ -1380,6 +1380,8 @@ class Runner:
         if editor_key != "photoshop" and entry.get("cachedLayers"):
             # Cells for files with cached layers are scored with those caches removed.
             version_key += "-nocache9"
+        if editor_key == "krita":
+            version_key += "-settled1"  # exported through the script that waits for rendering
         if editor_key == "photopea" and (entry.get("traits") or {}).get("text"):
             version_key += "-fonts1"  # Photopea is now handed the fonts the text uses
         cache_dir = config.CACHE_DIR / (
@@ -1874,6 +1876,10 @@ class Runner:
             if not resaved["ok"]:
                 detail = resaved["stderr"] or f"exit {resaved['exitCode']}, no output"
                 cell["resaveError"] = f"opened, but Krita's PSD export failed ({detail})"
+            krita_notes = list(exported.get("notes") or []) + [
+                f"resave: {note}" for note in resaved.get("notes") or []]
+            if krita_notes:
+                cell["driverNotes"] = krita_notes
             if staged.trap is not None:
                 krita_driver.export(info.exe, staged.trap, trap_png)
             return

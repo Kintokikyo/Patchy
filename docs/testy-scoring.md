@@ -189,12 +189,6 @@ vector-masked solid fills; Photopea redraws shapes, fills and smart objects, and
 text after the scripted edit; psd-tools redraws shapes and fills only; GIMP and
 PhotoDemon draw nothing. Cell cache keys carry `-nocache9`.
 
-Known harness gap (open, October 2026): `krita --export` is not deterministic on fill
-and vector layers. The same PSD comes out drawn on one run and blank on the next,
-apparently because the export does not wait for Krita's asynchronous layer
-rendering, so Krita's scores on such files are unreliable. `kritarunner` (a script
-that waits with `waitForDone`) silently runs nothing on this install.
-
 ## The two text rules that score 0%
 
 Text is the thing people assume survives, so two failures zero a file's score

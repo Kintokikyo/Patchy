@@ -192,10 +192,17 @@ rules and the "never mark an editor down for the harness's mistake" safeguards.
   The driver opens each file once per probe: manifest walk (DOM + ActionManager by
   layer id), duplicate-flatten-save render (copy-merged fallback for damaged files),
   optional save-as-copy resave.
-- Krita 5.3.2 headless CLI: `krita.com <in> --export --export-filename <out>` (format
-  by extension; PSD export works). Its console shim prints nothing through pipes;
-  success is exit code + output existence (Fontconfig warnings are filtered out of
-  reported errors).
+- Krita 5.3.2 runs its own Python: `kritarunner.com -s testy_krita_export -f main <in>
+  <out> <report>`, started in `drivers/krita_scripts/` (kritarunner replaces PYTHONPATH,
+  so the module is found through the working directory). The script opens the file,
+  polls the projection until two reads match, then exports (format by extension) and
+  writes its verdict to the report file. The plain CLI (`krita.com <in> --export
+  --export-filename <out>`) exports before fill and vector layers are drawn: the same
+  PSD came out drawn on one run and blank on the next, which scored Krita far below
+  what it does. It remains only as the fallback when the script leaves no verdict.
+  Krita's font matching still varies between launches (Arial Black on one, a fallback
+  face on the next), so a PNG render is made twice, a third time if those differ, and
+  the most common picture is kept with a driver note on the cell.
 - PhotoDemon runs as a locally patched build; the stock app has no automation
   surface (its command line only loads files into the GUI). The patch lives in a
   PhotoDemon checkout next to this repository (`../PhotoDemon`, BSD-licensed): a
