@@ -1297,6 +1297,12 @@ private:
   // *error set. No refresh or status message: callers own those.
   int update_linked_smart_object(DocumentSession& target, LayerId layer_id,
                                  const std::function<bool()>& before_mutation, QString* error);
+  // layer.rerenderSmartObject(): renders the embedded smart object behind `layer_id`
+  // again from the file bytes it stores, for every layer sharing that source (a PSD
+  // also carries pixels for the layer, which are what is shown until then). Same
+  // contract as update_linked_smart_object.
+  int rerender_embedded_smart_object(DocumentSession& target, LayerId layer_id,
+                                     const std::function<bool()>& before_mutation, QString* error);
   void relink_smart_object_contents();
   void relink_smart_object_contents_with_path(const QString& path);
   void embed_linked_smart_object();

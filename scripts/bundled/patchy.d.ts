@@ -273,6 +273,15 @@ interface PatchyLayer {
    * layer, or a linked file that is missing or cannot be decoded.
    */
   updateSmartObject(): number;
+  /**
+   * Renders this embedded smart object again from the file it stores, for every layer
+   * that shares its source, as one undo step. A smart object opened from a PSD shows
+   * the pixels saved in the file until it is transformed or its contents change; this
+   * replaces them with Patchy's own render. Returns the number of layers re-rendered.
+   * Throws for a linked smart object (see updateSmartObject), a plain layer, one
+   * Patchy keeps locked, or contents that cannot be decoded.
+   */
+  rerenderSmartObject(): number;
   getShape(): PatchyShapeState | null;
   /** Partial update. geometry and path are mutually exclusive; group targets one existing shape group. */
   updateShape(changes: {geometry?: PatchyVectorGeometry; group?: number; path?: PatchyVectorPath;

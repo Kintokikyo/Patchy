@@ -352,6 +352,66 @@ void ui_script_move_group_carries_children() {
   CHECK(pixels->mask().has_value() && rect_equals(pixels->mask()->bounds, 115, 125, 30, 30));
 }
 
+// rerenderSmartObject draws an embedded smart object again from the file it stores. The
+// layer's pixels are wiped first, standing in for a raster a PSD carried: the call brings the
+// contents back where the layer was, and refuses a linked smart object and a plain layer.
+void ui_script_rerender_smart_object_from_embedded_file() {
+  MainWindow window;
+  show_window(window);
+  window.set_cli_automation_mode(true);
+  const auto png = artifact_path(QStringLiteral("rerender-art.png"));
+  {
+    QImage image(40, 20, QImage::Format_RGBA8888);
+    image.fill(QColor(20, 200, 40, 255));
+    image.setDotsPerMeterX(2835);
+    image.setDotsPerMeterY(2835);
+    CHECK(image.save(png));
+  }
+  const auto ids = run(window, QStringLiteral(R"JS(
+    var png = %1;
+    var d = app.newDocument(200, 120);
+    var embedded = d.addSmartObject(png, {x: 30, y: 40, name: 'Embedded'});
+    var linked = d.addSmartObject(png, {linked: true, x: 100, y: 10, name: 'Linked'});
+    patchy.setResult({embedded: embedded.id, linked: linked.id});
+  )JS")
+                                   .arg(literal(png)))
+                       .toObject();
+  auto* embedded = const_cast<patchy::Layer*>(layer_with_id(window, ids["embedded"]));
+  CHECK(embedded != nullptr);
+  if (embedded == nullptr) {
+    return;
+  }
+  const auto bounds_before = std::as_const(*embedded).bounds();
+  {
+    auto& pixels = embedded->pixels();
+    for (std::int32_t y = 0; y < pixels.height(); ++y) {
+      auto row = pixels.row(y);
+      std::fill(row.begin(), row.end(), std::uint8_t{0});
+    }
+  }
+  run(window, QStringLiteral(R"JS(
+    var ids = %1;
+    var d = app.activeDocument;
+    check(d.getLayer(ids.embedded).rerenderSmartObject() === 1, 'one layer re-rendered');
+    var threw = false;
+    try { d.getLayer(ids.linked).rerenderSmartObject(); } catch (e) { threw = true; }
+    check(threw, 'a linked smart object is refused');
+    threw = false;
+    try { d.addLayer('plain').rerenderSmartObject(); } catch (e) { threw = true; }
+    check(threw, 'a plain layer is refused');
+  )JS")
+                  .arg(QString::fromUtf8(QJsonDocument(ids).toJson(QJsonDocument::Compact))));
+  const auto* after = layer_with_id(window, ids["embedded"]);
+  CHECK(after != nullptr);
+  if (after == nullptr) {
+    return;
+  }
+  CHECK(rect_equals(after->bounds(), bounds_before.x, bounds_before.y, bounds_before.width, bounds_before.height));
+  const auto& pixels = after->pixels();
+  const auto* px = pixels.pixel(pixels.width() / 2, pixels.height() / 2);
+  CHECK(px != nullptr && px[1] > 180 && px[0] < 60 && px[3] == 255);
+}
+
 // The placement quad follows an embedded and a linked smart object, Update Smart Object
 // Content re-renders the linked one where the script put it, and the PSD reopens there.
 void ui_script_move_carries_smart_object_quad() {
@@ -432,5 +492,6 @@ std::vector<patchy::test::TestCase> script_move_tests() {
       {"ui_script_move_follows_the_mask_link_rule", ui_script_move_follows_the_mask_link_rule},
       {"ui_script_move_group_carries_children", ui_script_move_group_carries_children},
       {"ui_script_move_carries_smart_object_quad", ui_script_move_carries_smart_object_quad},
+      {"ui_script_rerender_smart_object_from_embedded_file", ui_script_rerender_smart_object_from_embedded_file},
   };
 }

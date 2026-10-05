@@ -18531,6 +18531,14 @@ Y: %2
         <source>Cancelled Exposure</source>
         <translation>취소된 노출</translation>
     </message>
+    <message>
+        <source>This layer is not an embedded smart object</source>
+        <translation>이 레이어는 포함된 스마트 개체가 아닙니다.</translation>
+    </message>
+    <message>
+        <source>This smart object cannot be re-rendered</source>
+        <translation>이 스마트 개체는 다시 렌더링할 수 없습니다.</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

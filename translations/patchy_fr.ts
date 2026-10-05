@@ -18587,6 +18587,14 @@ Convertis en images : %1.</translation>
         <source>Cancelled Exposure</source>
         <translation>Exposition annulée</translation>
     </message>
+    <message>
+        <source>This layer is not an embedded smart object</source>
+        <translation>Ce calque n&apos;est pas un objet dynamique incorporé</translation>
+    </message>
+    <message>
+        <source>This smart object cannot be re-rendered</source>
+        <translation>Cet objet dynamique ne peut pas être rendu à nouveau</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

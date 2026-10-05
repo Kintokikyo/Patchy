@@ -18587,6 +18587,14 @@ In Bilder umgewandelt: %1.</translation>
         <source>Cancelled Exposure</source>
         <translation>Belichtung abgebrochen</translation>
     </message>
+    <message>
+        <source>This layer is not an embedded smart object</source>
+        <translation>Diese Ebene ist kein eingebettetes Smartobjekt</translation>
+    </message>
+    <message>
+        <source>This smart object cannot be re-rendered</source>
+        <translation>Dieses Smartobjekt kann nicht neu gerendert werden</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

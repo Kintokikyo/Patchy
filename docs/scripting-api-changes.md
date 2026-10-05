@@ -1,5 +1,12 @@
 # Scripting API compatibility
 
+2026-10-05 additive (API 1): `layer.rerenderSmartObject()` renders an embedded smart
+object again from the file it stores, for every layer sharing that source, and returns
+the number of layers re-rendered. A smart object opened from a PSD shows the pixels
+saved in the file until it is transformed or its contents change. Throws for a linked
+smart object (`updateSmartObject()` is the call for those), a plain layer, a locked one,
+or contents that cannot be decoded. Pinned by `ui_script_rerender_smart_object_from_embedded_file`.
+
 2026-10-05 additive (API 1): `layer.rerenderText()` renders a text layer again from its
 stored text, fonts and formatting, changing none of them. A type layer opened from a PSD
 shows the pixels saved in the file until it is edited; this replaces them with Patchy's

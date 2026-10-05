@@ -18531,6 +18531,14 @@ Baked into images: %1.</source>
         <source>Cancelled Exposure</source>
         <translation>露出をキャンセルしました</translation>
     </message>
+    <message>
+        <source>This layer is not an embedded smart object</source>
+        <translation>このレイヤーは埋め込みスマートオブジェクトではありません</translation>
+    </message>
+    <message>
+        <source>This smart object cannot be re-rendered</source>
+        <translation>このスマートオブジェクトは再レンダリングできません</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

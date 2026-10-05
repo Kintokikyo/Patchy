@@ -18587,6 +18587,14 @@ Convertido en imágenes: %1.</translation>
         <source>Cancelled Exposure</source>
         <translation>Se ha cancelado Exposición</translation>
     </message>
+    <message>
+        <source>This layer is not an embedded smart object</source>
+        <translation>Esta capa no es un objeto inteligente incrustado</translation>
+    </message>
+    <message>
+        <source>This smart object cannot be re-rendered</source>
+        <translation>Este objeto inteligente no se puede volver a renderizar</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

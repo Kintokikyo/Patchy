@@ -1268,6 +1268,23 @@ int ScriptEngineHost::update_smart_object(std::int64_t session_id, LayerId layer
   return updated;
 }
 
+int ScriptEngineHost::rerender_smart_object(std::int64_t session_id, LayerId layer_id, QString* error) {
+  pump_progress_indicator();
+  auto* session = window_.session_with_id(session_id);
+  if (session == nullptr) {
+    if (error != nullptr) {
+      *error = tr("The document is no longer open.");
+    }
+    return 0;
+  }
+  const auto rendered = window_.rerender_embedded_smart_object(
+      *session, layer_id, [this, session_id] { return prepare_mutation(session_id); }, error);
+  if (rendered > 0) {
+    note_structure_changed(session_id);
+  }
+  return rendered;
+}
+
 std::optional<ScriptEngineHost::SmartObjectInfo> ScriptEngineHost::smart_object_info(std::int64_t session_id,
                                                                                     LayerId layer_id) const {
   const auto* session = window_.session_with_id(session_id);

@@ -18643,6 +18643,14 @@ Y: %2
         <source>Cancelled Exposure</source>
         <translation>Отмененная экспозиция</translation>
     </message>
+    <message>
+        <source>This layer is not an embedded smart object</source>
+        <translation>Этот слой не является встроенным смарт-объектом.</translation>
+    </message>
+    <message>
+        <source>This smart object cannot be re-rendered</source>
+        <translation>Этот смарт-объект нельзя отрисовать заново.</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

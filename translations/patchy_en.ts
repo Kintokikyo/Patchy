@@ -18537,6 +18537,14 @@ Baked into images: %1.</source>
         <source>Cancelled Exposure</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>This layer is not an embedded smart object</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This smart object cannot be re-rendered</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>

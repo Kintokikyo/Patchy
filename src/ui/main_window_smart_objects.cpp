@@ -1028,6 +1028,64 @@ int MainWindow::update_linked_smart_object(DocumentSession& target, LayerId laye
   return refreshed;
 }
 
+int MainWindow::rerender_embedded_smart_object(DocumentSession& target, LayerId layer_id,
+                                               const std::function<bool()>& before_mutation, QString* error) {
+  const auto fail = [error](const QString& message) {
+    if (error != nullptr) {
+      *error = message;
+    }
+    return 0;
+  };
+  const auto& doc = std::as_const(target.document);
+  const auto* layer = doc.find_layer(layer_id);
+  if (layer == nullptr || !layer_is_smart_object(*layer)) {
+    return fail(tr("This layer is not an embedded smart object"));
+  }
+  const auto uuid = smart_object_source_uuid(*layer);
+  const auto* source = doc.metadata().smart_objects.find(uuid);
+  if (source == nullptr || source->kind != SmartObjectSourceKind::Embedded || source->file_bytes == nullptr ||
+      source->file_bytes->empty()) {
+    return fail(tr("This layer is not an embedded smart object"));
+  }
+  if (!smart_object_lock_reason(*layer).empty()) {
+    return fail(tr("This smart object cannot be re-rendered"));
+  }
+  const auto rendered_image = decode_smart_object_source_image(*source);
+  if (!rendered_image.has_value()) {
+    return fail(tr("Could not decode %1").arg(QString::fromStdString(source->filename)));
+  }
+  const auto content_dpi =
+      psd::DocumentIo::can_read({source->file_bytes->data(), source->file_bytes->size()})
+          ? smart_object_source_dpi(*source)
+          : 0.0;
+
+  auto updated_document = target.document;
+  const auto* updated_source = std::as_const(updated_document).metadata().smart_objects.find(uuid);
+  if (updated_source == nullptr) {
+    return fail(tr("This layer is not an embedded smart object"));
+  }
+  if (!refresh_smart_object_layers_for_source(updated_document, uuid, *rendered_image, content_dpi, false, false, {},
+                                              updated_source)) {
+    return fail(tr("Could not rebuild the Smart Filter preview and cache"));
+  }
+  int refreshed = 0;
+  const std::function<void(const std::vector<Layer>&)> count_layers = [&](const std::vector<Layer>& layers) {
+    for (const auto& candidate : layers) {
+      if (layer_is_smart_object(candidate) && smart_object_source_uuid(candidate) == uuid &&
+          smart_object_lock_reason(candidate).empty()) {
+        ++refreshed;
+      }
+      count_layers(candidate.children());
+    }
+  };
+  count_layers(std::as_const(updated_document).layers());
+  if (before_mutation && !before_mutation()) {
+    return fail(QString());
+  }
+  target.document = std::move(updated_document);
+  return refreshed;
+}
+
 void MainWindow::relink_smart_object_contents() {
   if (!has_active_document()) {
     return;

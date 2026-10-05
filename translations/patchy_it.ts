@@ -18587,6 +18587,14 @@ Convertiti in immagini: %1.</translation>
         <source>Cancelled Exposure</source>
         <translation>Annullato: Esposizione</translation>
     </message>
+    <message>
+        <source>This layer is not an embedded smart object</source>
+        <translation>Questo livello non è un oggetto avanzato incorporato</translation>
+    </message>
+    <message>
+        <source>This smart object cannot be re-rendered</source>
+        <translation>Questo oggetto avanzato non può essere renderizzato di nuovo</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
