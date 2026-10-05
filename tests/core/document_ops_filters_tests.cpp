@@ -2069,7 +2069,9 @@ void filter_named_engine_recipes_bounds_colors_and_legacy_stay_distinct() {
   CHECK(legacy_posterize.pixel(0, 0)[0] == 0);
   auto named_posterize = posterize_source;
   registry.apply(registry.default_invocation("patchy.filters.posterize"), named_posterize);
-  CHECK(named_posterize.pixel(0, 0)[0] == 85);
+  // Photoshop's floor buckets: at the default 4 levels the named recipe now agrees with
+  // the legacy (value / 64) * 85 form.
+  CHECK(named_posterize.pixel(0, 0)[0] == 0);
 
   patchy::PixelBuffer blur_source(5, 5, patchy::PixelFormat::rgb8());
   blur_source.pixel(2, 2)[0] = 255;

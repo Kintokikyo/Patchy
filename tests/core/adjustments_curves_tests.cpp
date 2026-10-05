@@ -2159,9 +2159,33 @@ void adjustment_posterize_threshold_math_lut_and_metadata_round_trip() {
   CHECK(patchy::posterize_channel_value(127, 2) == 0);
   CHECK(patchy::posterize_channel_value(128, 2) == 255);
   CHECK(patchy::posterize_channel_value(0, 4) == 0);
-  CHECK(patchy::posterize_channel_value(60, 4) == 85);
+  CHECK(patchy::posterize_channel_value(63, 4) == 0);
+  CHECK(patchy::posterize_channel_value(64, 4) == 85);
   CHECK(patchy::posterize_channel_value(128, 4) == 170);
   CHECK(patchy::posterize_channel_value(255, 4) == 255);
+  // Photoshop's steps drop the fraction: 3 levels are 0, 127, 255 and 7 levels are
+  // 0, 42, 85, 127, 170, 212, 255 (its render of psd-tools' posterize_rgb.psd).
+  CHECK(patchy::posterize_channel_value(85, 3) == 0);
+  CHECK(patchy::posterize_channel_value(86, 3) == 127);
+  CHECK(patchy::posterize_channel_value(171, 3) == 255);
+  CHECK(patchy::posterize_channel_value(40, 7) == 42);
+  CHECK(patchy::posterize_channel_value(200, 7) == 212);
+
+  // Levels applies the component channel before Composite RGB. Both pixels are
+  // Photoshop's render of psd-tools' levels_rgb.psd; the reverse order gives 64 and 194.
+  patchy::AdjustmentSettings ordered_levels;
+  ordered_levels.kind = patchy::AdjustmentKind::Levels;
+  ordered_levels.levels.black_input = 34;
+  ordered_levels.levels.gamma_percent = 116;
+  ordered_levels.levels.white_output = 203;
+  ordered_levels.levels.green = patchy::LevelsRecord{0, 222, 63, 55, 255};
+  CHECK(patchy::apply_adjustment_to_color(patchy::RgbColor{87, 59, 54}, ordered_levels).green == 52);
+  ordered_levels.levels = patchy::LevelsAdjustment{};
+  ordered_levels.levels.white_input = 213;
+  ordered_levels.levels.gamma_percent = 122;
+  ordered_levels.levels.black_output = 48;
+  ordered_levels.levels.red = patchy::LevelsRecord{0, 255, 47, 0, 194};
+  CHECK(patchy::apply_adjustment_to_color(patchy::RgbColor{222, 199, 210}, ordered_levels).red == 199);
 
   // Threshold decisions use the mixed luminance, pinned by a colored pixel
   // where a per-channel map would answer differently.

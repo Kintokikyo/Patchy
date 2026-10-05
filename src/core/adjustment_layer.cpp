@@ -212,27 +212,34 @@ bool levels_record_has_effect(LevelsRecord record) {
          record.black_output != 0 || record.white_output != 255;
 }
 
-std::uint8_t levels_channel(std::uint8_t value, LevelsRecord record) {
+// One Levels record as a real-valued transfer; an identity record returns its input
+// untouched so a master-only adjustment stays bit-identical to a single stage.
+double levels_value(double value, LevelsRecord record) {
   record = clamp_levels_record(record);
+  if (!levels_record_has_effect(record)) {
+    return value;
+  }
   const auto input_range = static_cast<double>(record.white_input - record.black_input);
   const auto gamma = static_cast<double>(record.gamma_percent) / 100.0;
   const auto inverse_gamma = gamma <= 0.0 ? 1.0 : 1.0 / gamma;
-  const auto normalized =
-      std::clamp((static_cast<double>(value) - static_cast<double>(record.black_input)) / input_range, 0.0, 1.0);
+  const auto normalized = std::clamp((value - static_cast<double>(record.black_input)) / input_range, 0.0, 1.0);
   const auto leveled = std::pow(normalized, inverse_gamma);
-  const auto output =
-      static_cast<double>(record.black_output) + leveled * static_cast<double>(record.white_output - record.black_output);
-  return clamp_byte(static_cast<float>(output));
+  return static_cast<double>(record.black_output) +
+         leveled * static_cast<double>(record.white_output - record.black_output);
 }
 
+// Photoshop applies the component channel first, then Composite RGB, as it does for
+// Curves. Pinned against Photoshop's render of psd-tools' levels_rgb.psd (October 2026):
+// this order is within 2/255 everywhere, the reverse is off by up to 52. The channel
+// result feeds the composite stage unrounded; rounding it to a byte in between measures
+// ten times as many 2/255 misses on the same render.
 RgbColor apply_levels(RgbColor color, LevelsAdjustment settings) {
   const auto master = levels_master_record(settings);
-  RgbColor adjusted{levels_channel(color.red, master), levels_channel(color.green, master),
-                    levels_channel(color.blue, master)};
-  adjusted.red = levels_channel(adjusted.red, settings.red);
-  adjusted.green = levels_channel(adjusted.green, settings.green);
-  adjusted.blue = levels_channel(adjusted.blue, settings.blue);
-  return adjusted;
+  const auto channel = [&master](std::uint8_t value, LevelsRecord record) {
+    return clamp_byte(static_cast<float>(levels_value(levels_value(static_cast<double>(value), record), master)));
+  };
+  return RgbColor{channel(color.red, settings.red), channel(color.green, settings.green),
+                  channel(color.blue, settings.blue)};
 }
 
 RgbColor apply_curves(RgbColor color, const CurvesAdjustment& settings) {
@@ -901,12 +908,14 @@ AdjustmentLut build_curves_lut(const CurvesAdjustment& curves) {
   return lut;
 }
 
+// Photoshop's Posterize: `levels` equal-width input buckets (floor(value * levels / 256)),
+// each mapped to its step on the 0..255 output ramp with the fraction dropped (levels 3
+// gives 0, 127, 255). Byte-exact against Photoshop's render of psd-tools' posterize_rgb.psd
+// at 3, 7, 13 and 21 levels (October 2026); rounding to the nearest step is not.
 std::uint8_t posterize_channel_value(std::uint8_t value, int levels) {
-  const auto denominator = std::max(1, levels - 1);
-  const auto bucket =
-      static_cast<int>(std::round(static_cast<double>(value) * denominator / 255.0));
-  return static_cast<std::uint8_t>(
-      std::clamp(std::lround(static_cast<double>(bucket) * 255.0 / denominator), 0L, 255L));
+  levels = std::clamp(levels, 2, 255);
+  const int bucket = static_cast<int>(value) * levels / 256;
+  return static_cast<std::uint8_t>(bucket * 255 / (levels - 1));
 }
 
 int threshold_luminance(std::uint8_t red, std::uint8_t green, std::uint8_t blue) {

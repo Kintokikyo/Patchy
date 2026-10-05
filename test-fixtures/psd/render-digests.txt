@@ -54,7 +54,7 @@ d1abcfd0649a38a5 849ec64ba0dc8195 photoshop-overlay-zorder.psd
 da64301c77f04f07 010d39bf542aecf1 photoshop-pillow-emboss.psd
 ba2397d422fe731c 75eb76c4bd30efb0 photoshop-pillow-emboss2.psd
 a249d71db1be5e65 f2bf42dce8c3d975 photoshop-place-embedded-png.psd
-8d7542b92d5cfc25 6172dacee58c68f5 photoshop-posterize.psd
+ec1f2e9f6c50d965 42c85c4798ac2b3d photoshop-posterize.psd
 a3e5865ff16598cd ac8d6e5efff37547 photoshop-satin-default.psd
 02b99a68d9993a25 6d766669eb7987e5 photoshop-saved-channels.psd
 0d65b7532d396325 fe4ec469d4f39325 photoshop-saved-paths.psd

@@ -54,7 +54,7 @@ ee0cbe9a8f18bac5 photoshop-pattern-transparent.psd
 010d39bf542aecf1 photoshop-pillow-emboss.psd
 75eb76c4bd30efb0 photoshop-pillow-emboss2.psd
 f2bf42dce8c3d975 photoshop-place-embedded-png.psd
-6172dacee58c68f5 photoshop-posterize.psd
+42c85c4798ac2b3d photoshop-posterize.psd
 42d2427096581787 photoshop-satin-default.psd
 6d766669eb7987e5 photoshop-saved-channels.psd
 fe4ec469d4f39325 photoshop-saved-paths.psd
