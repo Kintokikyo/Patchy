@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import datetime as _dt
 import functools
+import hashlib
 import http.server
 import json
 import os
@@ -1054,7 +1055,14 @@ def _thumb(source: Path, out: Path) -> str | None:
 
 
 def _version_slug(text: str) -> str:
-    return re.sub(r"[^A-Za-z0-9.@+-]+", "_", text)[:60]
+    """A cache directory name component for a version key. A key too long to keep
+    whole ends in a hash of all of it: plain truncation dropped the qualifiers at the
+    end of Patchy's key (exe hash, font inventory, then every "-nocacheN" style
+    bump), so its cells were reused across changes that should have retired them."""
+    slug = re.sub(r"[^A-Za-z0-9.@+-]+", "_", text)
+    if len(slug) <= 60:
+        return slug
+    return slug[:47] + "-" + hashlib.sha1(text.encode("utf-8")).hexdigest()[:12]
 
 
 def _file_size(path: Path) -> int | None:
@@ -1124,7 +1132,7 @@ def reference_space_key(traits: dict | None) -> str:
     if traits.get("depth", 8) != 8 or traits.get("mode", 3) != 3 or traits.get("profile"):
         key += "-srgb1"
     if traits.get("text"):
-        key += "-freshtext1"  # the reference now re-renders text instead of showing its cache
+        key += "-freshtext2"  # the reference re-renders text; its manifest lists every face used
     if traits.get("smart"):
         key += "-freshsmart1"  # and embedded smart objects from their contents
     return key
@@ -1309,7 +1317,11 @@ class Runner:
         entry["docSize"] = [int(result["width"]), int(result["height"])]
         entry["layerCount"] = len(result["layers"])
         entry["textLayers"] = sum(1 for layer in result["layers"] if layer.get("kind") == "TEXT")
-        entry["cachedLayers"] = sum(1 for layer in result["layers"] if layer.get("kind") in CACHED_LAYER_LABELS)
+        # Layers whose stored pixels the cache-free leg removes: text, shapes, fills,
+        # smart objects, and the combined raster of a pixel mask plus a vector mask.
+        entry["cachedLayers"] = sum(1 for layer in result["layers"]
+                                    if layer.get("kind") in CACHED_LAYER_LABELS
+                                    or (layer.get("userMask") and layer.get("vectorMask")))
         artifacts = {}
         if (gt_dir / "render.png").exists():
             artifacts["render"] = self._rel(gt_dir / "render.png")
@@ -1379,7 +1391,7 @@ class Runner:
         version_key += reference_space_key(entry.get("traits"))
         if editor_key != "photoshop" and entry.get("cachedLayers"):
             # Cells for files with cached layers are scored with those caches removed.
-            version_key += "-nocache9"
+            version_key += "-nocache11"
         if editor_key == "krita":
             version_key += "-settled1"  # exported through the script that waits for rendering
         if editor_key == "photopea" and (entry.get("traits") or {}).get("text"):
@@ -1413,8 +1425,9 @@ class Runner:
         try:
             # The fonts this file's text uses (PostScript names from Photoshop's
             # manifest), for the one editor that has to be handed them: Photopea.
-            self._text_fonts = sorted({str(layer.get("font")) for layer in (truth or {}).get("layers", [])
-                                       if layer.get("kind") == "TEXT" and layer.get("font")})
+            self._text_fonts = sorted({str(face) for layer in (truth or {}).get("layers", [])
+                                       if layer.get("kind") == "TEXT"
+                                       for face in (layer.get("fonts") or [layer.get("font")]) if face})
             self._drive_editor(editor_key, info, staged, cell, render_png, resave_psd, trap_png)
         except Exception as error:
             cell.update({"state": "failed", "error": f"driver error: {error}"})
@@ -1505,13 +1518,14 @@ class Runner:
                 self._deferred_cell_caches.setdefault(index, []).append((cell_dir, cache_dir, cell))
 
     def _render_only(self, editor_key: str, info: config.EditorInfo, source: Path, output: Path,
-                     scratch_dir: Path, text_afresh: bool = False) -> tuple[bool, dict]:
+                     scratch_dir: Path, text_afresh: bool = False,
+                     rerender_text: bool = True) -> tuple[bool, dict]:
         """One extra render of `source` by this editor, for the no-cache leg. Returns
         (rendered, details); Photopea's and Patchy's details name the text layers
         their scripted re-render did and did not reach. `text_afresh` asks for that
         re-render where the copy still carries the text's cached pixels (Patchy)."""
         if editor_key == "patchy" and text_afresh:
-            result = patchy_driver.render_text_afresh(info.exe, source, output)
+            result = patchy_driver.render_text_afresh(info.exe, source, output, rerender_text=rerender_text)
             return bool(result["ok"]), result
         if editor_key == "patchy":
             return bool(patchy_driver.export(info.exe, source, output)["ok"]), {}
@@ -1529,7 +1543,8 @@ class Runner:
             from drivers import photopea as photopea_driver
 
             result = photopea_driver.render_text_afresh(self.server_base, config.TESTY_ROOT, source, output,
-                                                        text_fonts=self._text_fonts)
+                                                        text_fonts=self._text_fonts,
+                                                        rerender_text=rerender_text)
             return bool(result.get("ok")) and output.exists(), result
         if editor_key == "affinity":
             from drivers import affinity as affinity_driver
@@ -1561,15 +1576,27 @@ class Runner:
         a render comes back at another size, or it differs from the as-opened render
         outside the cached layers, which only a different document would.
 
-        Skipped when Photoshop itself lacks a font the text needs (nobody can render
-        that text faithfully, the cache is the reference)."""
+        When Photoshop itself lacks a font the text needs, nobody can render that text
+        faithfully and its baked pixels stay the reference: the type layers keep their
+        cache (the *_fontkept copies), are not re-rendered, and are reported as not
+        measured, while shapes, fills, smart objects and masks are still scored."""
         if (editor_key == "photoshop" or truth is None or staged.cache_stripped is None
-                or staged.cache_plain is None or text_fonts_missing(truth) or not render_png.exists()):
+                or staged.cache_plain is None or not render_png.exists()):
             return
+        fonts_missing = text_fonts_missing(truth)
         cached = [layer for layer in truth["layers"]
                   if layer.get("kind") in CACHED_LAYER_LABELS and layer.get("visible", True)
                   and layer.get("bounds")]
-        if not cached:
+        font_kept_text: list[str] = []
+        if fonts_missing:
+            font_kept_text = [layer.get("name", "") for layer in cached if layer["kind"] == "TEXT"]
+            cached = [layer for layer in cached if layer["kind"] != "TEXT"]
+        # A layer with a pixel mask and a vector mask lost the stored combination of the
+        # two in these copies: the editor has to rasterize the vector mask itself, so
+        # its render may differ there too. Nothing is labeled; it is simply scored.
+        combined_masks = [layer["bounds"] for layer in truth["layers"]
+                          if layer.get("userMask") and layer.get("vectorMask") and layer.get("bounds")]
+        if not cached and not combined_masks:
             return
         stripped_copy, plain_copy = staged.cache_stripped, staged.cache_plain
         text_kept = editor_key in TEXT_CACHE_KEPT
@@ -1578,6 +1605,10 @@ class Runner:
             # original already is one.)
             stripped_copy = staged.cache_stripped_text_kept or staged.original
             plain_copy = staged.cache_plain_text_kept or staged.original
+        elif fonts_missing:
+            stripped_copy, plain_copy = staged.cache_stripped_font_kept, staged.cache_plain_font_kept
+            if stripped_copy is None or plain_copy is None:
+                return  # nothing but text was cached
         cell["stage"] = "rendering without Photoshop's cached pixels"
         self.push()
         boxes = [layer["bounds"] for layer in cached]
@@ -1594,7 +1625,8 @@ class Runner:
             for _attempt in range(2):
                 try:
                     output.unlink(missing_ok=True)
-                    ok, details = self._render_only(editor_key, info, source, output, cell_dir, text_afresh)
+                    ok, details = self._render_only(editor_key, info, source, output, cell_dir, text_afresh,
+                                                    rerender_text=not fonts_missing)
                 except Exception as error:
                     ok = False
                     details = {"error": str(error)}
@@ -1606,7 +1638,7 @@ class Runner:
                 if not ok or not output.exists():
                     problem = "the editor could not open the copy of this file with its caches removed"
                     continue
-                outside = analyze.changed_outside_boxes(render_png, output, boxes)
+                outside = analyze.changed_outside_boxes(render_png, output, boxes + combined_masks)
                 if outside is None:
                     problem = "its render of the cache-free copy came back at a different size"
                 elif outside > NO_CACHE_OUTSIDE_LIMIT and analyze.sentinel_fraction(output) < 0.5:
@@ -1679,17 +1711,19 @@ class Runner:
                 opened_copy, [cached[index]["bounds"] for index in unmeasured],
                 clear_placeholders=showed_composite)
             cell["noCache"] = {
-                "state": "done", "cachedLayers": len(cached),
+                "state": "done", "cachedLayers": len(cached) + len(font_kept_text),
                 "notRendered": [cached[index].get("name", "") for index in failed],
-                "notMeasured": [cached[index].get("name", "") for index in unmeasured],
+                "notMeasured": [cached[index].get("name", "") for index in unmeasured] + font_kept_text,
             }
+            if font_kept_text:
+                reasons.append(f"Photoshop lacks a font this text needs, so its baked pixels stay ({fonts_missing})")
             text_failed = [cached[index].get("name", "") for index in failed
                            if cached[index]["kind"] == "TEXT"]
             if text_failed:
                 cell["noCache"]["textNotRendered"] = text_failed
             if showed_composite:
                 cell["noCache"]["showedComposite"] = True
-            if unmeasured:
+            if unmeasured or font_kept_text:
                 cell["noCache"]["notMeasuredReason"] = reasons[0]
             if failed:
                 log(f"    no-cache leg: draws nothing for {len(failed)} of {len(cached)} cached layer(s)")
@@ -2016,6 +2050,8 @@ class Runner:
     SCRUB_STAGED = ("original.psd", "original.psb", "trap.psd", "trap.psb",
                     "nocache.psd", "nocache.psb", "nocache_plain.psd", "nocache_plain.psb",
                     "nocache_textkept.psd", "nocache_textkept.psb",
+                    "nocache_fontkept.psd", "nocache_fontkept.psb",
+                    "nocache_plain_fontkept.psd", "nocache_plain_fontkept.psb",
                     "nocache_plain_textkept.psd", "nocache_plain_textkept.psb")
     SCRUB_TRUTH = ("render.png", "render_thumb.png", "mutated.png", "mutated_thumb.png",
                    "manifest.json")

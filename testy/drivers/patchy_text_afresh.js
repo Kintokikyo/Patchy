@@ -18,6 +18,9 @@ function testyWalk(layers) {
       continue;
     }
     if (layer.isText) {
+      // text=0: a font this text needs is missing on this machine, so nobody's own
+      // text render is scored and the pixels saved in the file stay.
+      if (patchy.args.text === "0") continue;
       try {
         layer.rerenderText();
         testyDone.push(layer.name);

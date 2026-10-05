@@ -162,7 +162,7 @@ def export_all(
 
 
 def render_text_afresh(base_url: str, testy_root: Path, source: Path, render_png: Path,
-                        text_fonts: list[str] | None = None) -> dict:
+                        text_fonts: list[str] | None = None, rerender_text: bool = True) -> dict:
     """Render `source` after making Photopea lay out every text layer itself (it shows
     the raster cached in the file until a text layer is edited; the host page assigns
     each one a property's own value, which changes nothing else). Returns
@@ -174,7 +174,9 @@ def render_text_afresh(base_url: str, testy_root: Path, source: Path, render_png
                 "file": _file_url(base_url, testy_root, source),
                 "upload": f"{base_url}/testy-upload?name=",
                 "render": _rel_url(testy_root, render_png),
-                "nudge": "1",
+                # (No re-layout when a font the text needs is missing on this machine:
+                # nobody's own text render is scored then.)
+                **({"nudge": "1"} if rerender_text else {}),
                 **_fonts_query(base_url, testy_root, text_fonts),
             },
             [render_png],

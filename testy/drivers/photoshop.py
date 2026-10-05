@@ -146,6 +146,22 @@ _PROBE_JSX = r"""
         try { textSize = L.textItem.size.as ? L.textItem.size.as('px') : Number(L.textItem.size); } catch (e) {}
         entry += ',"text":' + q(contents) + ',"font":' + q(fontName) +
                  ',"textSize":' + (Math.round(textSize * 100) / 100);
+        // Every face the layer uses, not just the first range's (textItem.font): the
+        // Photopea driver hands these fonts over, and a mixed-font layer needs all.
+        var faces = [];
+        try {
+          var styleRanges = layerDescriptor(L.id).getObjectValue(stringIDToTypeID('textKey'))
+                                                 .getList(stringIDToTypeID('textStyleRange'));
+          for (var r = 0; r < styleRanges.count; r++) {
+            var rangeStyle = styleRanges.getObjectValue(r).getObjectValue(stringIDToTypeID('textStyle'));
+            if (!rangeStyle.hasKey(stringIDToTypeID('fontPostScriptName'))) { continue; }
+            var face = q(rangeStyle.getString(stringIDToTypeID('fontPostScriptName')));
+            var known = false;
+            for (var f = 0; f < faces.length; f++) { if (faces[f] == face) { known = true; } }
+            if (!known) { faces.push(face); }
+          }
+        } catch (e) {}
+        entry += ',"fonts":[' + faces.join(',') + ']';
       }
       entry += '}';
       out.push(entry);

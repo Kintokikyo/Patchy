@@ -44,19 +44,21 @@ def export(exe: Path, input_path: Path, output_path: Path, append_text: str | No
     return result
 
 
-def render_text_afresh(exe: Path, input_path: Path, output_path: Path) -> dict:
+def render_text_afresh(exe: Path, input_path: Path, output_path: Path, rerender_text: bool = True) -> dict:
     """Export `input_path` after Patchy has laid out every type layer itself.
 
     Patchy shows the pixels saved in the file for a type layer or a smart object until
     the layer is edited; drivers/patchy_text_afresh.js calls layer.rerenderText() and
     layer.rerenderSmartObject() on each one, which change nothing else. Returns {"ok",
     "done"/"failed": [type layer names], "smartDone"/"smartFailed": [embedded smart
-    object names], "error"}."""
+    object names], "error"}. `rerender_text=False` leaves type layers alone (their
+    font is missing here, so the baked pixels stay)."""
     script = Path(__file__).with_name("patchy_text_afresh.js")
     report = output_path.with_name(output_path.stem + ".script.txt")
     report.unlink(missing_ok=True)
     result = _run(exe, ["--headless", "--run-script", str(script), "--script-output", str(report),
-                        "--script-arg", f"out={output_path}", str(input_path)])
+                        "--script-arg", f"out={output_path}",
+                        "--script-arg", f"text={1 if rerender_text else 0}", str(input_path)])
     lines = report.read_text(encoding="utf-8", errors="replace").splitlines() if report.exists() else []
     report.unlink(missing_ok=True)
     answer: dict = {}

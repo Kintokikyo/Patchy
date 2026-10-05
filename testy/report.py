@@ -767,7 +767,10 @@ function render() {
     if (c.renderMetrics) a.acc.push(c.renderMetrics.accuracy);
     if (c.renderMetrics && c.renderMetrics.perceptual) a.vis.push(c.renderMetrics.perceptual.accuracy);
     if (!c.renderMetrics && refusedWithReference(f, c)) { a.acc.push(0); a.vis.push(0); }
-    if (f.textLayers) {
+    // (A file whose text needs a font Photoshop lacks says nothing about anyone's
+    // text handling: the baked pixels are the reference for everybody.)
+    const gtFonts = f.groundTruth || {};
+    if (f.textLayers && !(gtFonts.textFontsMissing || gtFonts.mutateSkipped)) {
       // The text score is the scored render of a file with type layers, for an
       // editor whose own text engine drew that text (on open, or after Testy's
       // scripted re-render). Anything else is not a text score.
@@ -850,7 +853,8 @@ function render() {
     // psd text handling, ranked on its own and strict (see psdTextStanding): an editor
     // that cannot render Photoshop text objects, or cannot save them back as text,
     // scores 0 on that file, and the reason is spelled out under the list.
-    const textFiles = scoredFiles().filter(f => f.textLayers).length;
+    const textFiles = scoredFiles().filter(f => f.textLayers &&
+      !((f.groundTruth || {}).textFontsMissing || (f.groundTruth || {}).mutateSkipped)).length;
     const tally = {}, names = {};
     editors.forEach(k => { tally[k] = agg[k].textTally; names[k] = (S.editors[k] || {}).displayName || k; });
     const helpNotes = {};

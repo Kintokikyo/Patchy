@@ -185,6 +185,15 @@ class RerunTests(unittest.TestCase):
         self.assertAlmostEqual(summary['visual'], 0.45)
         self.assertEqual((summary['opened'], summary['total']), (1, 3))
 
+    def test_long_cache_keys_keep_their_trailing_qualifiers(self):
+        short = "5.3.2-settled1-freshtext2-nocache11"
+        self.assertEqual(testy._version_slug(short), short)
+        base = "exe-0123456789abcdef0123-fontcheck1-0123456789abcdef-srgb1-freshtext2-freshsmart1"
+        first, second = testy._version_slug(base + "-nocache10"), testy._version_slug(base + "-nocache11")
+        self.assertNotEqual(first, second)
+        self.assertLessEqual(len(first), 60)
+        self.assertTrue(first.startswith("exe-0123456789abcdef0123-fontcheck1"))
+
     def test_patchy_cache_key_follows_the_exe_not_the_commit(self):
         exe = self.runs / 'patchy.exe'
         exe.write_bytes(b'build one')
@@ -310,6 +319,99 @@ class RerunTests(unittest.TestCase):
         # Nothing left to strip the second time round.
         with self.assertRaises(psd_sections.PsdParseError):
             psd_sections.strip_cached_pixels(stripped)
+
+    def test_cache_stripper_handles_layer_records_in_an_lr16_block(self):
+        # 16/32-bit files keep their layer records in an Lr16/Lr32 block behind an empty
+        # standard layer info. Rebuild a tracked 8-bit fixture that way and strip it.
+        import struct
+
+        import psd_sections
+
+        source = Path(__file__).resolve().parents[1] / "test-fixtures" / "psd" / "photoshop-text-tracking.psd"
+        data = source.read_bytes()
+        offset = 26
+        offset += 4 + struct.unpack_from(">I", data, offset)[0]
+        offset += 4 + struct.unpack_from(">I", data, offset)[0]
+        section_length = struct.unpack_from(">I", data, offset)[0]
+        info_length = struct.unpack_from(">I", data, offset + 4)[0]
+        records = data[offset + 8:offset + 8 + info_length]
+        records += b"\0" * (-len(records) % 4)
+        trailer = b"8BIMLMsk" + struct.pack(">I", 2) + b"\0\0" + b"\0\0"  # a block after it, padded
+        section = (struct.pack(">I", 0) + struct.pack(">I", 0)
+                   + b"8BIMLr16" + struct.pack(">I", len(records)) + records + trailer)
+        deep = data[:offset] + struct.pack(">I", len(section)) + section + data[offset + 4 + section_length:]
+
+        self.assertEqual(psd_sections.read_layout(deep).layer_count, psd_sections.read_layout(data).layer_count)
+        stripped, changed = psd_sections.strip_cached_pixels(deep)
+        self.assertEqual([layer["kind"] for layer in changed],
+                         [layer["kind"] for layer in psd_sections.strip_cached_pixels(data)[1]])
+        self.assertLess(len(stripped), len(deep))
+        # The rewritten file still walks: same layer count, the block after Lr16 intact,
+        # the image data where the section length says it is.
+        layout = psd_sections.read_layout(stripped)
+        self.assertEqual(layout.layer_count, psd_sections.read_layout(deep).layer_count)
+        self.assertEqual(stripped[layout.image_data_offset:], deep[psd_sections.read_layout(deep).image_data_offset:])
+        self.assertEqual(stripped[layout.image_data_offset - len(trailer):layout.image_data_offset], trailer)
+        self.assertIn(b"8BIMTySh", stripped)
+        plain, _ = psd_sections.strip_cached_pixels(deep, plain=True)
+        self.assertNotIn(b"8BIMTySh", plain)
+        with self.assertRaises(psd_sections.PsdParseError):
+            psd_sections.strip_cached_pixels(stripped)
+
+    def test_cache_stripper_undoes_the_combined_pixel_and_vector_mask_if_available(self):
+        # A layer with both masks stores their combination (channel -2) beside the pixel
+        # mask (channel -3). Needs the psd-tools collection (testy/fetch_psd_tools_corpus.py).
+        import struct
+
+        import psd_sections
+
+        source = ROOT / "local-test-fixtures" / "psd-tools" / "tests" / "psd_files" / "mask_parameters.psd"
+        if not source.exists():
+            self.skipTest("psd-tools collection not fetched")
+        data = source.read_bytes()
+        keep = ("text", "smart", "vector")
+        stripped, changed = psd_sections.strip_cached_pixels(data, keep_kinds=keep)
+        self.assertEqual([layer["kind"] for layer in changed], ["mask"])
+        # Left alone on request, and nothing more to undo the second time round.
+        with self.assertRaises(psd_sections.PsdParseError):
+            psd_sections.strip_cached_pixels(data, keep_kinds=keep + ("mask",))
+        with self.assertRaises(psd_sections.PsdParseError):
+            psd_sections.strip_cached_pixels(stripped, keep_kinds=keep)
+
+        def masks(blob):
+            """(mask rectangle, real rectangle, combined bytes, pixel-mask bytes) of the masked layer."""
+            offset = 26
+            offset += 4 + struct.unpack_from(">I", blob, offset)[0]
+            offset += 4 + struct.unpack_from(">I", blob, offset)[0]
+            cursor = offset + 8
+            count = abs(struct.unpack_from(">h", blob, cursor)[0])
+            cursor += 2
+            layers = []
+            for _ in range(count):
+                channel_count = struct.unpack_from(">H", blob, cursor + 16)[0]
+                channels = [struct.unpack_from(">hI", blob, cursor + 18 + 6 * i) for i in range(channel_count)]
+                cursor += 18 + 6 * channel_count + 12
+                extra = struct.unpack_from(">I", blob, cursor)[0]
+                mask_length = struct.unpack_from(">I", blob, cursor + 4)[0]
+                mask = blob[cursor + 8:cursor + 8 + mask_length]
+                cursor += 4 + extra
+                layers.append((channels, mask))
+            found = None
+            for channels, mask in layers:
+                chunks = {}
+                for channel_id, length in channels:
+                    chunks[channel_id] = blob[cursor:cursor + length]
+                    cursor += length
+                if -3 in chunks:
+                    found = (mask[0:16], mask[20:36], chunks[-2], chunks[-3])
+            return found
+
+        before, after = masks(data), masks(stripped)
+        self.assertNotEqual(before[2], before[3])   # the file really stored a combination
+        self.assertEqual(after[3], before[3])       # the pixel mask is untouched
+        self.assertEqual(after[2], before[3])       # and now stands where the combination was
+        self.assertEqual(after[0], before[1])       # with the pixel mask's own rectangle
+        self.assertEqual(psd_sections.read_layout(stripped).layer_count, psd_sections.read_layout(data).layer_count)
 
     def test_no_cache_render_checks_tell_a_blank_layer_from_another_document(self):
         import analyze
@@ -474,10 +576,10 @@ class RerunTests(unittest.TestCase):
         import psd_sections
 
         self.assertEqual(testy.reference_space_key({"depth": 8, "mode": 3}), "")
-        self.assertEqual(testy.reference_space_key({"depth": 8, "mode": 3, "text": True}), "-freshtext1")
+        self.assertEqual(testy.reference_space_key({"depth": 8, "mode": 3, "text": True}), "-freshtext2")
         self.assertEqual(testy.reference_space_key({"depth": 8, "mode": 3, "smart": True}), "-freshsmart1")
         self.assertEqual(testy.reference_space_key({"depth": 16, "mode": 3, "text": True, "smart": True}),
-                         "-srgb1-freshtext1-freshsmart1")
+                         "-srgb1-freshtext2-freshsmart1")
         # A linked smart object has nothing in the file to render from: never stripped.
         self.assertNotIn(b"SoLE", psd_sections.CACHED_LAYER_KEYS["smart"])
         self.assertIn(b"SoLd", psd_sections.CACHED_LAYER_KEYS["smart"])

@@ -54,8 +54,11 @@ touched; a SHA check at the end of every run proves it), and Testy records:
 - **Missing fonts** - Photoshop checks every text layer's style ranges against its
   installed fonts (`textFontProblems`). If a font the text needs is missing or cannot
   be inspected, Photoshop cannot draw that text faithfully either: the reference keeps
-  the baked pixels, no editor's own text render is scored for that file (the
-  cache-free leg is skipped), and the detail panel names the fonts. No font is
+  the baked pixels, and no editor's own text render is scored for that file: in the
+  cache-free leg its type layers keep their cache (the `*_fontkept` staged copies),
+  are not re-rendered by any script and are listed as not measured, while its shapes,
+  fills, smart objects and masks are still scored. The file is left out of the
+  Standing card's psd text handling, and the detail panel names the fonts. No font is
   silently replaced. The font inventory is part of the ground-truth and Patchy cache
   keys, so installing fonts invalidates old text results on the next run.
 
@@ -93,12 +96,9 @@ preservation validate the pipeline itself.
   contents and lossy formats (a save would recompress a JPEG) keep their cache.
 - Shape and fill layers need nothing: Photoshop's render is identical with and
   without their cached pixels on all 133 corpus files that have them.
-- `reference_space_key` adds `-srgb1`, `-freshtext1` and `-freshsmart1` to the
+- `reference_space_key` adds `-srgb1`, `-freshtext2` and `-freshsmart1` to the
   ground-truth and cell cache keys for the files these rules change, so older cache
   entries are not reused.
-- Not yet forced (open): the rasterized combination a file stores when a layer has
-  both a pixel mask and a vector mask, and anything in 16/32-bit files, whose layer
-  records the stripper does not handle.
 
 ## Files an editor refuses
 
@@ -118,9 +118,18 @@ with such layers the scored render comes from a copy with the caches removed.
   blocks, masks and layer order stay byte-identical, and the flat composite becomes
   the sentinel. This is the state Photoshop itself writes for fill layers in 16-bit
   files. Linked smart objects (`SoLE`) are left alone: nothing in the file can
-  redraw them. Testy writes it natively, with no third-party PSD library. Files whose layer
-  records sit in an `Lr16`/`Lr32` block (16/32-bit) are not stripped and are scored as
-  opened.
+  redraw them. Testy writes it natively, with no third-party PSD library. 16/32-bit files keep
+  their records in an `Lr16`/`Lr32` block behind an empty standard block, and that
+  block is rewritten the same way (Photoshop opens the result; in this corpus those
+  files' fill layers already carry no cached pixels, which is why only their text
+  layers change).
+- A layer with both a pixel mask and a vector mask stores the two already combined
+  into one raster (channel -2) beside the pixel mask itself (channel -3), so a reader
+  can show the right picture without rasterizing the vector mask. The copies
+  overwrite the combination with the pixel mask alone and give the mask its "real"
+  rectangle and background (kind "mask" in the stripper's list). Photoshop renders
+  all 11 such corpus files identically afterwards. Nothing is labeled for these
+  layers; an editor that leaned on the combination simply scores what it draws.
 - The "plain" copy also renames the defining blocks to an unknown key (`tsTY`),
   leaving ordinary empty pixel layers. The two copies differ in nothing else, so a
   difference between an editor's two renders inside a layer's box is what the editor
@@ -167,8 +176,8 @@ The leg must never mark an editor down for the harness's own mistake:
   out as its own .ttf), and the host page posts the files to Photopea before the
   document opens (`fonts` URL parameter). Nothing is uploaded: Photopea reads the
   bytes inside the local browser. Measured on `layer_effects.psd` (Arial Black): 17.1%
-  of pixels off without the font, 5.5% with it. Only the first font of a mixed-font
-  layer is known to the manifest. Photopea text cells carry `-fonts1` in their key.
+  of pixels off without the font, 5.5% with it. The manifest lists every face a
+  layer's style ranges use (`fonts`), so a mixed-font layer gets all of them. Photopea text cells carry `-fonts1` in their key.
 - **The extra renders must be of the same document.** A stripped or plain render that
   comes back at another size, or differs from the as-opened render outside the
   cached layers' boxes (grown by a quarter plus 8 px) on more than 5% of those
@@ -182,12 +191,15 @@ The leg must never mark an editor down for the harness's own mistake:
   layers" (`showedComposite`), and the scored image is the as-opened render with
   those boxes emptied and labeled, not a magenta canvas.
 - A layer invisible in the as-opened render too (covered, zero fill) is no finding.
+- The "plain" copy is artificial, and a reader can trip on it: psd-tools fails to
+  composite the plain copy of `masks.psd` (a broadcast error inside its own code).
+  That voids the leg for that cell, as above; it is never read as "cannot render".
 
 Measured on open, caches removed (October 2026): Affinity redraws text, shapes and
 fills; Patchy redraws shapes and fills (text and smart objects through its script); Krita redraws text and gradient fills but nothing for
 vector-masked solid fills; Photopea redraws shapes, fills and smart objects, and
 text after the scripted edit; psd-tools redraws shapes and fills only; GIMP and
-PhotoDemon draw nothing. Cell cache keys carry `-nocache9`.
+PhotoDemon draw nothing. Cell cache keys carry `-nocache11`.
 
 ## The two text rules that score 0%
 

@@ -41,6 +41,10 @@ class StagedPsd:
     # else is cached).
     cache_stripped_text_kept: Path | None = None
     cache_plain_text_kept: Path | None = None
+    # And with only the type layers left as they were, for a file whose text needs a
+    # font Photoshop lacks: nobody's own text render is scored then, the rest still is.
+    cache_stripped_font_kept: Path | None = None
+    cache_plain_font_kept: Path | None = None
 
 
 def stage_psd(source: Path, staging_dir: Path) -> StagedPsd:
@@ -84,6 +88,15 @@ def stage_psd(source: Path, staging_dir: Path) -> StagedPsd:
         write_stripped_caches(str(original), str(plain_text_kept), plain=True, keep_kinds=("text", "smart"))
     except (PsdParseError, OSError, ValueError, IndexError, struct_error):
         stripped_text_kept = plain_text_kept = None
+    stripped_font_kept: Path | None = staging_dir / f"nocache_fontkept{suffix}"
+    plain_font_kept: Path | None = staging_dir / f"nocache_plain_fontkept{suffix}"
+    try:
+        if cache_stripped is None:
+            raise PsdParseError("nothing to strip")
+        write_stripped_caches(str(original), str(stripped_font_kept), keep_kinds=("text",))
+        write_stripped_caches(str(original), str(plain_font_kept), plain=True, keep_kinds=("text",))
+    except (PsdParseError, OSError, ValueError, IndexError, struct_error):
+        stripped_font_kept = plain_font_kept = None
 
     return StagedPsd(
         source=source,
@@ -96,4 +109,6 @@ def stage_psd(source: Path, staging_dir: Path) -> StagedPsd:
         cache_plain=cache_plain,
         cache_stripped_text_kept=stripped_text_kept,
         cache_plain_text_kept=plain_text_kept,
+        cache_stripped_font_kept=stripped_font_kept,
+        cache_plain_font_kept=plain_font_kept,
     )
