@@ -1,5 +1,10 @@
 # Scripting API compatibility
 
+2026-10-06 behavior (API 1): `ui.zoom` reads and writes the view zoom in percent, where
+100 is one document pixel per device pixel (the status-box number). On a HiDPI or scaled
+display the value therefore differs from the logical widget scale by the device pixel
+ratio; at ratio 1 nothing changes. Matches Photoshop's 100% (GitHub issue 75).
+
 2026-10-05 additive (API 1): `layer.rerenderSmartObject()` renders an embedded smart
 object again from the file it stores, for every layer sharing that source, and returns
 the number of layers re-rendered. A smart object opened from a PSD shows the pixels

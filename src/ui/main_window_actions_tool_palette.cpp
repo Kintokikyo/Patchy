@@ -1081,7 +1081,7 @@ void MainWindow::build_tool_palette(ActionBuildContext& ctx) {
     zoom_button->installEventFilter(new MouseDoubleClickFilter(
         [this] {
           if (canvas_ != nullptr) {
-            canvas_->set_zoom_centered(1.0);
+            canvas_->set_view_zoom_centered(1.0);
             refresh_document_info();
             statusBar()->showMessage(tr("Actual Pixels"));
           }

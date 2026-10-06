@@ -3900,7 +3900,7 @@ void MainWindow::refresh_document_info() {
       zoom_status_edit_->setEnabled(false);
     } else {
       zoom_status_edit_->setEnabled(true);
-      zoom_status_edit_->set_display_zoom(canvas_->zoom());
+      zoom_status_edit_->set_display_zoom(canvas_->view_zoom());
     }
   }
   if (document_info_label_ == nullptr) {
@@ -3922,7 +3922,7 @@ void MainWindow::refresh_document_info() {
 
   const auto& doc = document();
   const auto& active_session = session();
-  const auto zoom_percent = canvas_ == nullptr ? 100 : static_cast<int>(std::round(canvas_->zoom() * 100.0));
+  const auto zoom_percent = canvas_ == nullptr ? 100 : static_cast<int>(std::round(canvas_->view_zoom() * 100.0));
   // Physical size in the ruler unit (inches while the rulers are pixel/percent),
   // per-axis PPI so anisotropic documents report their true print size.
   const auto info_unit = measurement_unit_is_physical(ruler_unit_) ? ruler_unit_ : MeasurementUnit::Inches;

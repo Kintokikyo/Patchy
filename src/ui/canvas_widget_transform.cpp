@@ -1575,7 +1575,7 @@ void CanvasWidget::rebuild_transform_base_cache() {
   const QRect canvas_rect(0, 0, document_->width(), document_->height());
   // Display-resolution compositing: when zoomed out, build the base from the
   // preview-scaled document (4^level less work than a full-res canvas).
-  if (const auto composite_level = preview_composite_level_for_zoom(zoom_); composite_level >= 1) {
+  if (const auto composite_level = preview_composite_level_for_zoom(view_zoom()); composite_level >= 1) {
     if (auto* scaled_document = preview_scaled_document_for_level(composite_level)) {
       const QRect scaled_canvas(0, 0, scaled_document->width(), scaled_document->height());
       auto base = qimage_from_document_rect_with_hidden_layers_banded(*scaled_document, scaled_canvas, true, hidden)
@@ -1639,7 +1639,7 @@ bool CanvasWidget::ensure_transform_multi_snapshot() {
   if (snapshot_rect.isEmpty()) {
     return false;
   }
-  const auto composite_level = preview_composite_level_for_zoom(zoom_);
+  const auto composite_level = preview_composite_level_for_zoom(view_zoom());
   Document* scaled_document = composite_level >= 1 ? preview_scaled_document_for_level(composite_level) : nullptr;
   if (scaled_document != nullptr) {
     snapshot_rect = rect_aligned_to_mip_grid(snapshot_rect, composite_level).intersected(canvas_rect);
@@ -3609,7 +3609,7 @@ bool CanvasWidget::prepare_warp_source() {
     // zoom <= 50% composited from the preview-scaled document.
     warp_base_cache_scale_level_ = 0;
     const std::vector<LayerId> hidden{*warp_layer_id_};
-    if (const auto composite_level = preview_composite_level_for_zoom(zoom_); composite_level >= 1) {
+    if (const auto composite_level = preview_composite_level_for_zoom(view_zoom()); composite_level >= 1) {
       if (auto* scaled_document = preview_scaled_document_for_level(composite_level)) {
         const QRect scaled_canvas(0, 0, scaled_document->width(), scaled_document->height());
         auto base = qimage_from_document_rect_with_hidden_layers_banded(*scaled_document, scaled_canvas, true, hidden)

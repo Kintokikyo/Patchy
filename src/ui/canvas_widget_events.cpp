@@ -230,6 +230,16 @@ bool CanvasWidget::eventFilter(QObject* watched, QEvent* event) {
 }
 
 bool CanvasWidget::event(QEvent* event) {
+  if (event->type() == QEvent::DevicePixelRatioChange) {
+    // The logical scale stays put when the window lands on a differently
+    // scaled screen, so the view zoom (per device pixel) changes: refresh the
+    // readout and the mip/renderer choices that follow it (GitHub issue 75).
+    const auto handled = QWidget::event(event);
+    update_tool_cursor();
+    update();
+    notify_view_changed();
+    return handled;
+  }
   if (event->type() == QEvent::ShortcutOverride) {
     if (processing_render_wait_active_) {
       // A blocking processing wait is live and the canvas has focus (every
@@ -1752,7 +1762,7 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
     ensure_move_base_cache();
     // Display-resolution compositing: at zoom <= 50% the live patches render
     // from the preview-scaled document at the display mip level.
-    const auto composite_level = preview_composite_level_for_zoom(zoom_);
+    const auto composite_level = preview_composite_level_for_zoom(view_zoom());
     Document* scaled_preview_document =
         composite_level >= 1 ? preview_scaled_document_for_level(composite_level) : nullptr;
     const QRegion canvas_region(QRect(0, 0, document_->width(), document_->height()));
@@ -1778,7 +1788,7 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
     // scaled patch rects map exactly between the two documents); see
     // draw_document_patch in paintEvent.
     if (const auto align_level =
-            scaled_preview_document != nullptr ? composite_level : display_mip_level_for_zoom(zoom_);
+            scaled_preview_document != nullptr ? composite_level : display_mip_level_for_zoom(view_zoom());
         align_level > 0 && !patch_region.isEmpty()) {
       QRegion aligned_region;
       for (const auto& rect : patch_region) {

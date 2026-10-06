@@ -114,8 +114,25 @@ double CanvasWidget::zoom() const noexcept {
   return zoom_;
 }
 
+double CanvasWidget::view_zoom() const noexcept {
+  return zoom_ * devicePixelRatioF();
+}
+
+void CanvasWidget::set_view_zoom(double view_zoom) {
+  set_zoom(view_zoom / std::max(0.01, devicePixelRatioF()));
+}
+
+void CanvasWidget::set_view_zoom_centered(double view_zoom) {
+  set_zoom_centered(view_zoom / std::max(0.01, devicePixelRatioF()));
+}
+
+double CanvasWidget::clamp_logical_zoom(double logical_zoom) const noexcept {
+  const auto ratio = std::max(0.01, devicePixelRatioF());
+  return std::clamp(logical_zoom * ratio, kMinZoom, kMaxZoom) / ratio;
+}
+
 void CanvasWidget::set_zoom(double zoom) {
-  const auto clamped = std::clamp(zoom, kMinZoom, kMaxZoom);
+  const auto clamped = clamp_logical_zoom(zoom);
   if (std::abs(clamped - zoom_) < 0.0001) {
     return;
   }
@@ -127,7 +144,7 @@ void CanvasWidget::set_zoom(double zoom) {
 }
 
 void CanvasWidget::set_zoom_centered(double zoom) {
-  const auto clamped = std::clamp(zoom, kMinZoom, kMaxZoom);
+  const auto clamped = clamp_logical_zoom(zoom);
   if (document_ == nullptr || document_->width() <= 0 || document_->height() <= 0) {
     set_zoom(clamped);
     return;
@@ -178,7 +195,7 @@ void CanvasWidget::zoom_at_widget_point(QPointF widget_position, double factor) 
   const QPointF document_anchor((widget_position.x() - pan_.x()) / zoom_,
                                 (widget_position.y() - pan_.y()) / zoom_);
   const auto old_zoom = zoom_;
-  zoom_ = std::clamp(zoom_ * factor, kMinZoom, kMaxZoom);
+  zoom_ = clamp_logical_zoom(zoom_ * factor);
   if (std::abs(old_zoom - zoom_) < 0.0001) {
     return;
   }
@@ -197,9 +214,8 @@ void CanvasWidget::fit_to_view() {
 
   const auto available_width = std::max(1.0, static_cast<double>(width() - 80));
   const auto available_height = std::max(1.0, static_cast<double>(height() - 80));
-  zoom_ = std::clamp(std::min(available_width / static_cast<double>(document_->width()),
-                              available_height / static_cast<double>(document_->height())),
-                     kMinZoom, kMaxZoom);
+  zoom_ = clamp_logical_zoom(std::min(available_width / static_cast<double>(document_->width()),
+                                      available_height / static_cast<double>(document_->height())));
   pan_ = QPointF((static_cast<double>(width()) - static_cast<double>(document_->width()) * zoom_) / 2.0,
                  (static_cast<double>(height()) - static_cast<double>(document_->height()) * zoom_) / 2.0);
   constrain_pan();
@@ -212,9 +228,8 @@ void CanvasWidget::fill_to_view() {
     return;
   }
 
-  zoom_ = std::clamp(std::max(static_cast<double>(width()) / static_cast<double>(document_->width()),
-                              static_cast<double>(height()) / static_cast<double>(document_->height())),
-                     kMinZoom, kMaxZoom);
+  zoom_ = clamp_logical_zoom(std::max(static_cast<double>(width()) / static_cast<double>(document_->width()),
+                                      static_cast<double>(height()) / static_cast<double>(document_->height())));
   pan_ = QPointF((static_cast<double>(width()) - static_cast<double>(document_->width()) * zoom_) / 2.0,
                  (static_cast<double>(height()) - static_cast<double>(document_->height()) * zoom_) / 2.0);
   constrain_pan();
@@ -248,9 +263,8 @@ void CanvasWidget::zoom_to_document_rect(QRect document_rect) {
 
   const auto available_width = std::max(1.0, static_cast<double>(width() - 80));
   const auto available_height = std::max(1.0, static_cast<double>(height() - 80));
-  zoom_ = std::clamp(std::min(available_width / std::max(1.0, static_cast<double>(document_rect.width())),
-                              available_height / std::max(1.0, static_cast<double>(document_rect.height()))),
-                     kMinZoom, kMaxZoom);
+  zoom_ = clamp_logical_zoom(std::min(available_width / std::max(1.0, static_cast<double>(document_rect.width())),
+                                      available_height / std::max(1.0, static_cast<double>(document_rect.height()))));
   pan_ = QPointF((static_cast<double>(width()) - static_cast<double>(document_rect.width()) * zoom_) / 2.0 -
                      static_cast<double>(document_rect.x()) * zoom_,
                  (static_cast<double>(height()) - static_cast<double>(document_rect.height()) * zoom_) / 2.0 -
@@ -485,7 +499,7 @@ void CanvasWidget::draw_zoom_preview(QPainter& painter) const {
 QPoint CanvasWidget::document_position(const QPoint& widget_position) const {
   const auto coordinate_from_widget = [this](int widget_coordinate, double pan, int limit) {
     auto coordinate = static_cast<int>(std::floor((static_cast<double>(widget_coordinate) - pan) / zoom_));
-    if (document_ == nullptr || !uses_deep_zoom_pixel_renderer(zoom_)) {
+    if (document_ == nullptr || !uses_deep_zoom_pixel_renderer(view_zoom())) {
       return coordinate;
     }
     const auto edge = [pan, this](int document_coordinate) {

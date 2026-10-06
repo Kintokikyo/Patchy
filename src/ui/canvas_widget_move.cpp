@@ -616,7 +616,7 @@ void CanvasWidget::begin_move_drag(const std::vector<LayerId>& layer_ids, QPoint
   auto sorted_press_ids = layer_ids;
   std::sort(sorted_press_ids.begin(), sorted_press_ids.end());
   if (!retained_move_ids_.empty() && sorted_press_ids == retained_move_ids_ &&
-      preview_composite_level_for_zoom(zoom_) == retained_move_composite_level_ && !move_base_cache_.isNull()) {
+      preview_composite_level_for_zoom(view_zoom()) == retained_move_composite_level_ && !move_base_cache_.isNull()) {
     // Counted only when the press becomes a real drag (the caches build
     // lazily at the first move, so a plain click skips nothing).
     move_press_reused_retained_caches_ = true;
@@ -1063,7 +1063,7 @@ bool CanvasWidget::request_move_preview() {
   if (move_preview_in_flight_) return true;
 
   const auto generation = ++move_preview_generation_;
-  const auto level = preview_composite_level_for_zoom(zoom_);
+  const auto level = preview_composite_level_for_zoom(view_zoom());
   const auto key = move_live_latch_key();
   auto snapshot = std::make_shared<const Document>(*document_);
   auto scaled = std::make_shared<std::optional<Document>>();
@@ -1149,7 +1149,7 @@ bool CanvasWidget::request_move_preview() {
       if (!widget) return;
       widget->move_preview_in_flight_ = false;
       if (!cancelled->load() && generation == widget->move_preview_generation_ && widget->moving_layer_ &&
-          key == widget->move_live_latch_key() && level == preview_composite_level_for_zoom(widget->zoom_)) {
+          key == widget->move_live_latch_key() && level == preview_composite_level_for_zoom(widget->view_zoom())) {
         widget->set_move_preview_requested(false);
         if (*scaled) {
           widget->preview_scaled_document_ = std::move(*scaled);
@@ -1200,7 +1200,7 @@ bool CanvasWidget::ensure_move_proxy_image() {
   // Display-resolution compositing: build the snapshot from the preview-scaled
   // document when zoomed out. The scaled render is cheap enough that the
   // last-resort area cap only applies to full-res snapshots.
-  const auto composite_level = preview_composite_level_for_zoom(zoom_);
+  const auto composite_level = preview_composite_level_for_zoom(view_zoom());
   Document* scaled_document = composite_level >= 1 ? preview_scaled_document_for_level(composite_level) : nullptr;
   // A set hanging off the canvas snapshots shifted onto it (see
   // move_proxy_snapshot_shift); only what still does not fit stays clipped.
@@ -1378,7 +1378,7 @@ std::uint64_t CanvasWidget::move_live_latch_key() const {
   for (const auto id : ids) {
     mix(static_cast<std::uint64_t>(id));
   }
-  mix(static_cast<std::uint64_t>(preview_composite_level_for_zoom(zoom_)) + 1);
+  mix(static_cast<std::uint64_t>(preview_composite_level_for_zoom(view_zoom())) + 1);
   return hash;
 }
 

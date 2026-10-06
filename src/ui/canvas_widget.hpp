@@ -414,13 +414,22 @@ public:
   [[nodiscard]] bool pointer_gesture_active() const noexcept;
   [[nodiscard]] double zoom() const noexcept;
   void set_zoom(double zoom);
+  // The zoom the user sees: document pixels per DEVICE pixel, so 100% is one
+  // document pixel per screen pixel on every display (Photoshop's rule; GitHub
+  // issue 75). zoom() stays the logical, widget-unit scale that every geometry
+  // caller uses; the two differ by devicePixelRatioF() on a scaled display.
+  // Readouts, presets, the status box and scripting speak view zoom.
+  [[nodiscard]] double view_zoom() const noexcept;
+  void set_view_zoom(double view_zoom);
+  void set_view_zoom_centered(double view_zoom);
   // Absolute zoom anchored at the viewport center, Photoshop-style: the anchor
   // is clamped to the document bounds (so a view left off-center never pins
   // grey margin), then per axis the document is centered when it fits the
   // viewport and clamped to show no grey past its edges when it overflows. UI
   // zoom presets (menu Zoom In/Out, Actual Pixels, the zoom-tool double-click,
-  // the status-bar zoom box) must use this instead of set_zoom, which
-  // preserves pan and can leave the canvas mostly off screen.
+  // the status-bar zoom box) must use this (through set_view_zoom_centered)
+  // instead of set_zoom, which preserves pan and can leave the canvas mostly
+  // off screen.
   void set_zoom_centered(double zoom);
   // In-canvas seamless tiling mode (View > Seamless Tiling in Window): paints wrap
   // copies of the committed composite around the document so tile seams are visible
@@ -1618,6 +1627,8 @@ private:
   // then drags the copies.
   void begin_move_drag(const std::vector<LayerId>& layer_ids, QPoint document_point, QPoint widget_point,
                        std::vector<LayerId> duplicate_roots = {});
+  // kMinZoom/kMaxZoom bound the VIEW zoom; this clamps a logical scale to them.
+  [[nodiscard]] double clamp_logical_zoom(double logical_zoom) const noexcept;
   void begin_move_layer_selection(QMouseEvent* event, const Layer* clicked_layer, bool rectangle_allowed);
   bool update_move_layer_selection(QMouseEvent* event);
   void finish_move_layer_selection(QMouseEvent* event);

@@ -2986,7 +2986,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   zoom_actual_pixels_button_ =
       add_zoom_view_button(QT_TR_NOOP("100%"), QStringLiteral("zoomActualPixelsButton"),
                            QT_TR_NOOP("Show the image at actual pixels (View > Actual Pixels)"),
-                           [](CanvasWidget& canvas) { canvas.set_zoom_centered(1.0); });
+                           [](CanvasWidget& canvas) { canvas.set_view_zoom_centered(1.0); });
   zoom_fit_screen_button_ =
       add_zoom_view_button(QT_TR_NOOP("Fit Screen"), QStringLiteral("zoomFitScreenButton"),
                            QT_TR_NOOP("Fit the whole image in the window (View > Fit on Screen)"),

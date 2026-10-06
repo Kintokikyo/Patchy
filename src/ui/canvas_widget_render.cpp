@@ -844,7 +844,7 @@ void CanvasWidget::paintEvent(QPaintEvent* event) {
     draw_tiling_preview(painter, target_rect, pixel_aligned_view, exposed_rect);
   }
 
-  const bool deep_pixel_renderer = uses_deep_zoom_pixel_renderer(zoom_);
+  const bool deep_pixel_renderer = uses_deep_zoom_pixel_renderer(view_zoom());
   const auto draw_scaled_image = [&painter, &target_rect, pixel_aligned_view,
                                   &pixel_aligned_target_rect, this, exposed_rect](const QImage& image) {
     if (!image.isNull()) {
@@ -860,7 +860,7 @@ void CanvasWidget::paintEvent(QPaintEvent* event) {
                                 : (&image == &warp_base_cache_ && zoom_ < 1.0)
                                       ? warp_base_display_image_for_zoom()
                                       : image;
-      if (uses_deep_zoom_pixel_renderer(zoom_)) {
+      if (uses_deep_zoom_pixel_renderer(view_zoom())) {
         draw_deep_zoom_image(painter, display_image, exposed_rect);
       } else if (pixel_aligned_view) {
         painter.drawImage(pixel_aligned_target_rect, display_image, display_image.rect());
@@ -898,7 +898,7 @@ void CanvasWidget::paintEvent(QPaintEvent* event) {
     if (clear_under_patch) {
       draw_checkerboard(painter, target_rect, patch_exposed);
     }
-    if (uses_deep_zoom_pixel_renderer(zoom_)) {
+    if (uses_deep_zoom_pixel_renderer(view_zoom())) {
       painter.save();
       painter.setClipRect(patch_exposed);
       painter.setRenderHint(QPainter::Antialiasing, false);
@@ -935,7 +935,7 @@ void CanvasWidget::paintEvent(QPaintEvent* event) {
     // next full repaint. Downscale mip-grid-aligned patches with the same
     // successive halvings and map them through the same mip-space transform so
     // the patch pixels match the surrounding mip render exactly.
-    const auto patch_mip_level = display_mip_level_for_zoom(zoom_);
+    const auto patch_mip_level = display_mip_level_for_zoom(view_zoom());
     if (!pixel_aligned_view && patch_mip_level > 0 && document_ != nullptr) {
       const int block = 1 << patch_mip_level;
       const auto& rect = patch.document_rect;
@@ -972,7 +972,7 @@ void CanvasWidget::paintEvent(QPaintEvent* event) {
 
   painter.save();
   painter.setClipRect(target_rect);
-  painter.setRenderHint(QPainter::SmoothPixmapTransform, uses_smooth_display_scaling(zoom_, deep_pixel_renderer));
+  painter.setRenderHint(QPainter::SmoothPixmapTransform, uses_smooth_display_scaling(view_zoom(), deep_pixel_renderer));
   if (draw_transform_overlay) {
     // Base excludes the transformed layer; the composited-preview patches
     // (when the layer needs one) draw the transformed result over it, so no
@@ -1568,7 +1568,7 @@ void CanvasWidget::ensure_move_base_cache() {
   // Display-resolution compositing: when zoomed out, build the base from the
   // preview-scaled document at the display mip level - the whole scaled base
   // costs 4^level less than the full-res canvas.
-  if (const auto composite_level = preview_composite_level_for_zoom(zoom_); composite_level >= 1) {
+  if (const auto composite_level = preview_composite_level_for_zoom(view_zoom()); composite_level >= 1) {
     if (auto* scaled_document = preview_scaled_document_for_level(composite_level)) {
       const QRect scaled_canvas(0, 0, scaled_document->width(), scaled_document->height());
       auto base = qimage_from_document_rect_with_hidden_layers_banded(*scaled_document, scaled_canvas, true, hidden)
@@ -1826,7 +1826,7 @@ const QImage& CanvasWidget::display_image_for_zoom() {
     display_mip_source_size_ = render_cache_.size();
   }
 
-  const auto target_level = display_mip_level_for_zoom(zoom_);
+  const auto target_level = display_mip_level_for_zoom(view_zoom());
   if (target_level <= 0) {
     return render_cache_;
   }
@@ -1857,7 +1857,7 @@ const QImage& CanvasWidget::curves_clipping_display_image_for_zoom() {
     curves_clipping_display_mip_source_key_ = curves_clipping_preview_image_.cacheKey();
   }
 
-  const auto target_level = display_mip_level_for_zoom(zoom_);
+  const auto target_level = display_mip_level_for_zoom(view_zoom());
   if (target_level <= 0) {
     return curves_clipping_preview_image_;
   }
@@ -1898,7 +1898,7 @@ const QImage& CanvasWidget::move_base_display_image_for_zoom() {
     move_base_display_mip_source_key_ = move_base_cache_.cacheKey();
   }
 
-  const auto target_level = display_mip_level_for_zoom(zoom_);
+  const auto target_level = display_mip_level_for_zoom(view_zoom());
   if (target_level <= 0) {
     return move_base_cache_;
   }
@@ -1935,7 +1935,7 @@ const QImage& CanvasWidget::transform_base_display_image_for_zoom() {
     transform_base_display_mip_source_key_ = transform_base_cache_.cacheKey();
   }
 
-  const auto target_level = display_mip_level_for_zoom(zoom_);
+  const auto target_level = display_mip_level_for_zoom(view_zoom());
   if (target_level <= 0) {
     return transform_base_cache_;
   }
@@ -1969,7 +1969,7 @@ const QImage& CanvasWidget::warp_base_display_image_for_zoom() {
     warp_base_display_mip_source_key_ = warp_base_cache_.cacheKey();
   }
 
-  const auto target_level = display_mip_level_for_zoom(zoom_);
+  const auto target_level = display_mip_level_for_zoom(view_zoom());
   if (target_level <= 0) {
     return warp_base_cache_;
   }
@@ -2093,7 +2093,7 @@ void CanvasWidget::draw_tiling_preview(QPainter& painter, const QRectF& target_r
   const auto aligned_center = target_rect.toAlignedRect();
   painter.save();
   painter.setRenderHint(QPainter::SmoothPixmapTransform,
-                        uses_smooth_display_scaling(zoom_, uses_deep_zoom_pixel_renderer(zoom_)));
+                        uses_smooth_display_scaling(view_zoom(), uses_deep_zoom_pixel_renderer(view_zoom())));
   // Keep ghosts strictly outside the center tile (the document draw stays untouched), but
   // let them overlap its outermost pixel: the center draws after us and covers it, and at
   // fractional zooms that overlap fills what would otherwise be a background hairline
@@ -2153,7 +2153,7 @@ void CanvasWidget::draw_tiling_preview(QPainter& painter, const QRectF& target_r
 }
 
 void CanvasWidget::draw_deep_zoom_image(QPainter& painter, const QImage& image, QRect exposed_rect) const {
-  if (document_ == nullptr || image.isNull() || !uses_deep_zoom_pixel_renderer(zoom_)) {
+  if (document_ == nullptr || image.isNull() || !uses_deep_zoom_pixel_renderer(view_zoom())) {
     return;
   }
 
@@ -2224,7 +2224,7 @@ void CanvasWidget::draw_grid_overlay(QPainter& painter, const QRectF& target_rec
   const auto subdivisions = std::max(1, grid_subdivisions_);
   const auto minor_x = major_x / static_cast<double>(subdivisions);
   const auto minor_y = major_y / static_cast<double>(subdivisions);
-  const bool deep_pixel_grid = uses_deep_zoom_pixel_renderer(zoom_);
+  const bool deep_pixel_grid = uses_deep_zoom_pixel_renderer(view_zoom());
   const auto displayed_major_x = deep_pixel_grid ? std::max(1.0, std::round(major_x)) : major_x;
   const auto displayed_major_y = deep_pixel_grid ? std::max(1.0, std::round(major_y)) : major_y;
 

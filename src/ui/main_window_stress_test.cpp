@@ -2150,7 +2150,7 @@ void StressTestRunner::phase_interact() {
   fps_step("35_zoom_pan", "Zoom ladder + pan sweep", "interact", [&] {
     canvas()->fit_to_view();
     pump();
-    canvas()->set_zoom_centered(1.0);
+    canvas()->set_view_zoom_centered(1.0);
     pump();
     const auto center = QPointF(canvas()->rect().center());
     for (int i = 0; i < 8; ++i) {

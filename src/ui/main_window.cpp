@@ -7337,7 +7337,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     if (canvas_ == nullptr || !has_active_document()) {
       return;
     }
-    canvas_->set_zoom_centered(percent / 100.0);
+    canvas_->set_view_zoom_centered(percent / 100.0);
   });
   zoom_status_bar_->set_left_widget(zoom_status_edit_);
   refresh_document_info();

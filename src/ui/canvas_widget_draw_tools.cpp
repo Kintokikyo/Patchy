@@ -423,7 +423,7 @@ void CanvasWidget::draw_shape_preview(QPainter& painter, QRect exposed_rect) {
             const auto& display_image = zoom_ < 1.0 ? display_image_for_zoom() : render_cache_;
             base_painter.setRenderHint(
                 QPainter::SmoothPixmapTransform,
-                uses_smooth_display_scaling(zoom_, uses_deep_zoom_pixel_renderer(zoom_)));
+                uses_smooth_display_scaling(view_zoom(), uses_deep_zoom_pixel_renderer(view_zoom())));
             if (pixel_aligned_view) {
               base_painter.drawImage(pixel_aligned_target_rect, display_image, display_image.rect());
             } else {
