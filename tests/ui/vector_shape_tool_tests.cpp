@@ -252,6 +252,85 @@ void ui_palette_swatch_click_recolors_selected_shape() {
   CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == gradient_depth);
 }
 
+// GitHub issue 67: an Eyedropper pick recolors the selected shape layer and the options-bar
+// solid Fill the way a swatch click does, as one undo step. An Alt-pick from a painting tool
+// only sets the foreground.
+void ui_eyedropper_pick_recolors_selected_shape() {
+  VectorSettingsGuard settings_guard;
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+
+  // Two sample patches on the bottom pixel layer.
+  patchy::Layer* background = nullptr;
+  for (auto& layer : document.layers()) {
+    if (layer.kind() == patchy::LayerKind::Pixel && !layer.pixels().empty()) {
+      background = &layer;
+      break;
+    }
+  }
+  CHECK(background != nullptr);
+  if (background == nullptr) {
+    return;
+  }
+  fill_pixel_rect(background->pixels(), QRect(0, 0, 60, 60), QColor(200, 100, 50));
+  fill_pixel_rect(background->pixels(), QRect(0, 70, 60, 60), QColor(20, 160, 90));
+  canvas->document_changed();
+  QApplication::processEvents();
+
+  require_action_by_text(window, QStringLiteral("Ellipse"))->trigger();
+  auto* mode_combo = window.findChild<QComboBox*>(QStringLiteral("vectorModeCombo"));
+  CHECK(mode_combo != nullptr);
+  mode_combo->setCurrentIndex(0);  // Shape
+  auto& fill = patchy::ui::MainWindowTestAccess::current_vector_fill(window);
+  fill = {};
+  fill.kind = patchy::VectorFillKind::Solid;
+  fill.color = {10, 20, 30};
+  shape_drag(*canvas, QPoint(150, 150), QPoint(350, 280));
+  const auto shape_id = std::as_const(document).active_layer_id();
+  CHECK(shape_id.has_value());
+  const auto shape = [&]() -> const patchy::VectorShapeContent* {
+    const auto* layer = std::as_const(document).find_layer(shape_id.value_or(0));
+    return layer != nullptr ? layer->vector_shape() : nullptr;
+  };
+  CHECK(shape() != nullptr);
+  if (shape() == nullptr) {
+    return;
+  }
+
+  const auto pick = [&](QPoint document_point, Qt::KeyboardModifiers modifiers) {
+    const auto widget_point = canvas->widget_position_for_document_point(document_point);
+    send_mouse(*canvas, QEvent::MouseButtonPress, widget_point, Qt::LeftButton, Qt::LeftButton, modifiers);
+    send_mouse(*canvas, QEvent::MouseButtonRelease, widget_point, Qt::LeftButton, Qt::NoButton, modifiers);
+    QApplication::processEvents();
+  };
+
+  // Eyedropper tool: the shape and the Fill box take the picked color.
+  const auto depth = patchy::ui::MainWindowTestAccess::active_session_undo_depth(window);
+  require_action_by_text(window, QStringLiteral("Pick"))->trigger();
+  QApplication::processEvents();
+  CHECK(canvas->tool() == patchy::ui::CanvasTool::Eyedropper);
+  pick(QPoint(30, 30), Qt::NoModifier);
+  CHECK(canvas->primary_color() == QColor(200, 100, 50));
+  CHECK(fill.color == (patchy::RgbColor{200, 100, 50}));
+  CHECK(shape()->fill.color == (patchy::RgbColor{200, 100, 50}));
+  CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == depth + 1);
+
+  // Alt-pick from the Brush: foreground only.
+  require_action_by_text(window, QStringLiteral("Brush"))->trigger();
+  QApplication::processEvents();
+  pick(QPoint(30, 100), Qt::AltModifier);
+  CHECK(canvas->primary_color() == QColor(20, 160, 90));
+  CHECK(shape()->fill.color == (patchy::RgbColor{200, 100, 50}));
+  CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == depth + 1);
+
+  // Undo takes the shape back to its drawn color.
+  require_action_by_text(window, QStringLiteral("Undo"))->trigger();
+  QApplication::processEvents();
+  CHECK(shape() != nullptr && shape()->fill.color == (patchy::RgbColor{10, 20, 30}));
+}
+
 void ui_shape_tool_pixels_mode_keeps_raster_commit() {
   VectorSettingsGuard settings_guard;
   patchy::ui::MainWindow window;
@@ -4517,6 +4596,7 @@ std::vector<patchy::test::TestCase> vector_shape_tool_tests() {
        ui_shape_tool_combine_extends_active_shape_layer},
       {"ui_shape_tool_path_mode_populates_work_path", ui_shape_tool_path_mode_populates_work_path},
       {"ui_palette_swatch_click_recolors_selected_shape", ui_palette_swatch_click_recolors_selected_shape},
+      {"ui_eyedropper_pick_recolors_selected_shape", ui_eyedropper_pick_recolors_selected_shape},
       {"ui_shape_tool_pixels_mode_keeps_raster_commit", ui_shape_tool_pixels_mode_keeps_raster_commit},
       {"ui_line_shape_layer_uses_weight_and_stroke_settings",
        ui_line_shape_layer_uses_weight_and_stroke_settings},

@@ -1177,6 +1177,18 @@ private:
   // A Palette swatch click: recolors the options-bar solid Fill (or, with No Fill, an
   // enabled solid Stroke) and the selected shape layers. Gradient/pattern paint is left alone.
   void apply_swatch_color_to_shape_paint(QColor color);
+  // An eyedropper pick recolors the selected shape layers like a swatch click
+  // (GitHub issue 67): with the Eyedropper tool, or an Alt-pick while the shape
+  // appearance controls are live. Alt-picks from painting tools only set the
+  // foreground.
+  void apply_picked_color_to_selected_shapes(QColor color);
+  // Shared body: writes `color` into the options-bar solid Fill (or an enabled
+  // solid Stroke when the fill is No Fill) and commits that field to the
+  // selected shape layers as one undo step. Callers gate it.
+  void apply_solid_color_to_shape_paint(QColor color);
+  // apply_options_bar_appearance_to_active_shape without its live-controls
+  // gate: builds the settings from the options bar and commits `fields`.
+  bool commit_options_bar_appearance_fields(const std::vector<std::string>& fields);
   void pick_vector_gradient(bool for_stroke);
   void pick_vector_pattern(bool for_stroke);
   [[nodiscard]] patchy::Layer* editable_active_vector_shape_layer();

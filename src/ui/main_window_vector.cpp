@@ -1629,6 +1629,10 @@ bool MainWindow::commit_shape_appearance_edit(const std::vector<LayerId>& ids,
 bool MainWindow::apply_options_bar_appearance_to_active_shape(const std::vector<std::string>& fields) {
   finish_pending_shape_appearance_edit();
   if (!vector_appearance_controls_live()) return false;
+  return commit_options_bar_appearance_fields(fields);
+}
+
+bool MainWindow::commit_options_bar_appearance_fields(const std::vector<std::string>& fields) {
   ShapeAppearanceSettings settings;
   settings.fill = current_vector_fill_;
   settings.stroke.enabled = current_vector_stroke_enabled_;
@@ -1993,6 +1997,20 @@ void MainWindow::pick_vector_solid_color(bool for_stroke) {
 
 void MainWindow::apply_swatch_color_to_shape_paint(QColor color) {
   if (!vector_appearance_controls_live() || preview_dialog_edit_locked()) return;
+  apply_solid_color_to_shape_paint(color);
+}
+
+void MainWindow::apply_picked_color_to_selected_shapes(QColor color) {
+  // GitHub issue 67: a pick is a deliberate color choice for whatever is
+  // selected, so it reaches the selected shapes from the Eyedropper tool even
+  // though no shape controls are live. Alt-picks keep the swatch gate: a brush
+  // painter sampling a color with a shape layer selected must not recolor it.
+  if (preview_dialog_edit_locked() || editable_selected_shape_layer_ids().empty()) return;
+  if (current_tool_ != CanvasTool::Eyedropper && !vector_appearance_controls_live()) return;
+  apply_solid_color_to_shape_paint(color);
+}
+
+void MainWindow::apply_solid_color_to_shape_paint(QColor color) {
   finish_pending_shape_appearance_edit();
   const bool to_fill = current_vector_fill_.kind == VectorFillKind::Solid;
   const bool to_stroke = !to_fill && current_vector_fill_.kind == VectorFillKind::None &&
@@ -2004,7 +2022,7 @@ void MainWindow::apply_swatch_color_to_shape_paint(QColor color) {
                   static_cast<std::uint8_t>(color.blue())};
   update_vector_swatch_icons();
   schedule_save_tool_settings();
-  apply_options_bar_appearance_to_active_shape({to_fill ? "fill.color" : "stroke.content.color"});
+  commit_options_bar_appearance_fields({to_fill ? "fill.color" : "stroke.content.color"});
 }
 
 void MainWindow::pick_vector_gradient(bool for_stroke) {

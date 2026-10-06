@@ -8353,6 +8353,7 @@ void MainWindow::configure_canvas(CanvasWidget* canvas) {
         picker->setCurrentColor(color);
       }
     }
+    apply_picked_color_to_selected_shapes(color);
     refresh_color_buttons();
     auto message = tr("Picked color %1, %2, %3 (%4)")
                                  .arg(color.red())
