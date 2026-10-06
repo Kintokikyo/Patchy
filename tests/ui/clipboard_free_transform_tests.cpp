@@ -2265,8 +2265,13 @@ void ui_move_off_canvas_keeps_rectangle_handles_pan_and_locks() {
     CHECK(!canvas->free_transform_active());
     CHECK(canvas->active_layer_document_rect() == original);
   }
+  // Without transform controls the layer is still grabbed where it lies, on the
+  // pasteboard like on the canvas (October 2026): the drag moves it, and the
+  // reverse drag brings it back.
   canvas->set_show_transform_controls(false);
   drag(*canvas, center, center + QPoint(30, 20));
+  CHECK(canvas->active_layer_document_rect() == original.translated(30, 20));
+  drag(*canvas, center + QPoint(30, 20), center);
   CHECK(canvas->active_layer_document_rect() == original);
   canvas->set_show_transform_controls(true);
   canvas->set_spacebar_panning(true);

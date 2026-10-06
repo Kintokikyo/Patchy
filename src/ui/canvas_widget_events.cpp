@@ -932,7 +932,9 @@ void CanvasWidget::mousePressEvent(QMouseEvent* event) {
     {
       const ZoomTraceScope hit_trace("move_press.hit_test", zoom_);
       top_clicked_layer = topmost_move_layer_at(document_point, false);
-      clicked_layer = document_contains(document_point) ? topmost_move_layer_at(document_point, true) : nullptr;
+      // The pasteboard picks like the canvas: a layer lying outside the document
+      // is grabbed by its (unpainted) pixels there.
+      clicked_layer = topmost_move_layer_at(document_point, true);
     }
     if (event->modifiers().testFlag(Qt::ControlModifier)) {
       begin_move_layer_selection(event, clicked_layer, true);
@@ -971,10 +973,10 @@ void CanvasWidget::mousePressEvent(QMouseEvent* event) {
       begin_move_layer_selection(event, clicked_layer, false);
       return;
     }
-    // The selected box remains a Move target on the pasteboard even though
-    // auto-select only picks artwork inside the document. With auto-select
-    // off, any workspace press can move the selection, including a press
-    // outside its box; passive controls must not consume that first drag.
+    // The selected box remains a Move target on the pasteboard where no
+    // artwork is under the pointer. With auto-select off, any workspace press
+    // can move the selection, including a press outside its box; passive
+    // controls must not consume that first drag.
     const bool move_selected_layers = !auto_select_layer_ ||
         (!document_contains(document_point) && passive_handle == TransformHandle::Move);
     if (!move_selected_layers && clicked_layer == nullptr) {

@@ -331,10 +331,9 @@ bool CanvasWidget::add_move_layer_menu_entries(QMenu& menu, QPoint widget_point)
       transforming_layer_ || warping_layer_ || path_transform_active_) {
     return false;
   }
+  // Off-canvas artwork lists too; the pasteboard is no different from the canvas
+  // for picking.
   const auto point = document_position(widget_point);
-  if (!document_contains(point)) {
-    return false;
-  }
 
   // Walk the whole stack once, including occluded leaves and collapsed folders.
   // Locks prevent moving a layer, but must not prevent explicitly selecting it.
@@ -883,11 +882,10 @@ std::optional<QRect> CanvasWidget::move_hover_outline_rect_at(QPoint widget_posi
     return std::nullopt;
   }
 
+  // Artwork on the pasteboard (outside the canvas) is picked and outlined like
+  // artwork on it: the canvas clips what is painted, not what can be grabbed
+  // (Seth, October 2026).
   const auto document_point = document_position(widget_position);
-  if (!document_contains(document_point)) {
-    return std::nullopt;
-  }
-
   auto* hit_layer = topmost_move_layer_at(document_point, true);
   if (hit_layer == nullptr) {
     return std::nullopt;

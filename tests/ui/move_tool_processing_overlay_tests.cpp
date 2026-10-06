@@ -1851,6 +1851,57 @@ void ui_move_preview_keeps_underlying_layers_steady_when_zoomed_out() {
 // With Auto-Select off, a held Ctrl previews the layer a Ctrl+click would select
 // (GitHub issue 73): the hover outline appears with Ctrl, also when Ctrl is pressed
 // over a stationary pointer, and goes away when Ctrl is released.
+void ui_move_tool_outlines_and_moves_off_canvas_layer() {
+  // A layer lying entirely outside the canvas (on the pasteboard) is still
+  // outlined on hover and grabbed by a press there, exactly like one on the
+  // canvas: the canvas clips the painting, not the picking (Seth, October 2026).
+  patchy::Document document(180, 120, patchy::PixelFormat::rgba8());
+  document.add_pixel_layer("Background", solid_pixels(180, 120, patchy::PixelFormat::rgba8(), QColor(Qt::white)));
+  patchy::Layer outside(document.allocate_layer_id(), "Outside",
+                        solid_pixels(30, 20, patchy::PixelFormat::rgba8(), QColor(25, 25, 25, 255)));
+  outside.set_bounds(patchy::Rect{-60, 40, 30, 20});
+  const auto outside_id = outside.id();
+  document.add_layer(std::move(outside));
+
+  patchy::ui::CanvasWidget canvas;
+  canvas.resize(620, 360);
+  canvas.set_document(&document);
+  canvas.set_zoom(2.0);
+  canvas.set_tool(patchy::ui::CanvasTool::Move);
+  canvas.set_auto_select_layer(true);
+  canvas.set_show_transform_controls(false);
+  canvas.show();
+  QApplication::processEvents();
+  // Pan (middle button) so the pasteboard left of the canvas is in view.
+  const auto pan_start = canvas.widget_position_for_document_point(QPoint(20, 60));
+  send_mouse(canvas, QEvent::MouseButtonPress, pan_start, Qt::MiddleButton, Qt::MiddleButton);
+  send_mouse(canvas, QEvent::MouseMove, pan_start + QPoint(200, 0), Qt::NoButton, Qt::MiddleButton);
+  send_mouse(canvas, QEvent::MouseButtonRelease, pan_start + QPoint(200, 0), Qt::MiddleButton, Qt::NoButton);
+  QApplication::processEvents();
+
+  const auto hover = canvas.widget_position_for_document_point(QPoint(-45, 50));
+  CHECK(canvas.rect().contains(hover));
+  send_mouse(canvas, QEvent::MouseMove, hover, Qt::NoButton, Qt::NoButton);
+  const auto image = canvas.grab().toImage();
+  const QColor outline_color(95, 170, 255);
+  const QRect expected_outline(canvas.widget_position_for_document_point(QPoint(-60, 40)),
+                               canvas.widget_position_for_document_point(QPoint(-30, 60)));
+  CHECK(count_pixels_close(image, expected_outline.normalized().adjusted(-2, -2, 2, 2), outline_color, 18) > 20);
+  save_widget_artifact("ui_move_hover_off_canvas", canvas);
+
+  send_mouse(canvas, QEvent::MouseButtonPress, hover, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(canvas, QEvent::MouseMove, hover + QPoint(80, 0), Qt::NoButton, Qt::LeftButton);
+  send_mouse(canvas, QEvent::MouseButtonRelease, hover + QPoint(80, 0), Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  const auto* moved = std::as_const(document).find_layer(outside_id);
+  CHECK(moved != nullptr);
+  if (moved != nullptr) {
+    CHECK(moved->bounds().x == -20);
+    CHECK(moved->bounds().y == 40);
+  }
+  CHECK(document.active_layer_id().has_value() && moved != nullptr && *document.active_layer_id() == moved->id());
+}
+
 void ui_move_ctrl_hover_outlines_layer_with_auto_select_off() {
   patchy::Document document(140, 100, patchy::PixelFormat::rgba8());
   document.add_pixel_layer("Background",
@@ -4941,6 +4992,7 @@ std::vector<patchy::test::TestCase> move_tool_processing_overlay_tests() {
        ui_move_preview_keeps_underlying_layers_steady_when_zoomed_out},
       {"ui_move_tool_hover_outlines_opaque_bounds", ui_move_tool_hover_outlines_opaque_bounds},
       {"ui_move_ctrl_hover_outlines_layer_with_auto_select_off", ui_move_ctrl_hover_outlines_layer_with_auto_select_off},
+      {"ui_move_tool_outlines_and_moves_off_canvas_layer", ui_move_tool_outlines_and_moves_off_canvas_layer},
       {"ui_move_tool_uses_text_rect_for_hit_and_hover",
        ui_move_tool_uses_text_rect_for_hit_and_hover},
       {"ui_move_transform_controls_do_not_block_auto_select_hover",
