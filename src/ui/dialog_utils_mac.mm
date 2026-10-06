@@ -10,6 +10,7 @@
 
 #include "ui/dialog_utils.hpp"
 
+#include <QCursor>
 #include <QDialog>
 #include <QEvent>
 #include <QGuiApplication>
@@ -107,6 +108,19 @@ void keep_dialog_above_parent_window(QDialog& dialog) {
   }
   dialog.installEventFilter(new MacDialogChildWindowAnchor(dialog));
   dialog.setProperty(kDialogAnchorInstalledProperty, true);
+}
+
+void move_pointer_to_global_position(QPoint global_position) {
+  if (!platform_is_cocoa()) {
+    QCursor::setPos(global_position);
+    return;
+  }
+  // Qt's cocoa QCursor::setPos posts a CGEvent, which raises the Accessibility
+  // ("control this computer") prompt. A warp needs no permission. Qt global
+  // coordinates and Quartz display coordinates share the top-left origin.
+  CGWarpMouseCursorPosition(CGPointMake(global_position.x(), global_position.y()));
+  // A warp suppresses pointer movement for a moment unless re-associated.
+  CGAssociateMouseAndMouseCursorPosition(true);
 }
 
 }  // namespace patchy::ui

@@ -667,6 +667,47 @@ void ui_complex_selection_stroke_uses_region_outline() {
   save_widget_artifact("ui_complex_stroke_selection", *canvas);
 }
 
+void ui_stroke_selection_with_many_spans_preserves_gaps() {
+  constexpr int kWidth = 512;
+  constexpr int kHeight = 384;
+  patchy::Document document(kWidth, kHeight, patchy::PixelFormat::rgba8());
+  const auto layer_id = document.add_pixel_layer(
+      "Stroke islands", solid_pixels(kWidth, kHeight, patchy::PixelFormat::rgba8(), Qt::white)).id();
+  patchy::ui::MainWindow window;
+  window.add_document_session(std::move(document), QStringLiteral("Fragmented stroke"));
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  patchy::PixelBuffer selection(kWidth, kHeight, patchy::PixelFormat::gray8());
+  selection.clear(0);
+  for (int y = 0; y < kHeight; y += 2) {
+    for (int x = 0; x < kWidth; x += 2) {
+      *selection.pixel(x, y) = 255U;
+    }
+  }
+  canvas->replace_selection_from_grayscale(selection, QStringLiteral("Islands"));
+  CHECK(canvas->selected_document_region().rectCount() == kWidth * kHeight / 4);
+  const auto undo_before = patchy::ui::MainWindowTestAccess::active_session_undo_depth(window);
+  accept_stroke_selection_dialog(1, QStringLiteral("inside"), QColor(255, 0, 0));
+  QElapsedTimer timer;
+  timer.start();
+  require_action(window, "editStrokeSelectionAction")->trigger();
+  std::cout << "  fragmented selection stroke " << timer.elapsed() << " ms\n";
+  CHECK(timer.elapsed() < 120000);
+  const auto& edited = std::as_const(patchy::ui::MainWindowTestAccess::document(window));
+  const auto* layer = edited.find_layer(layer_id);
+  CHECK(layer != nullptr);
+  for (int y = 0; y < kHeight; ++y) {
+    for (int x = 0; x < kWidth; ++x) {
+      const auto* pixel = layer->pixels().pixel(x, y);
+      const auto expected = x % 2 == 0 && y % 2 == 0 ? 0U : 255U;
+      CHECK(pixel[0] == 255U && pixel[1] == expected && pixel[2] == expected && pixel[3] == 255U);
+    }
+  }
+  CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == undo_before + 1);
+  patchy::ui::MainWindowTestAccess::undo(window);
+  CHECK(edited.find_layer(layer_id)->pixels().pixel(0, 0)[1] == 255U);
+}
+
 void ui_selection_stroke_region_bands_have_exact_widths() {
   using patchy::ui::SelectionStrokeLocation;
   using patchy::ui::selection_stroke_region;
@@ -730,6 +771,30 @@ void ui_selection_stroke_region_bands_have_exact_widths() {
 
   // The separable dilation matches the square structuring element exactly.
   CHECK(patchy::ui::expanded_region(QRegion(QRect(10, 10, 1, 1)), 2, bounds) == QRegion(QRect(8, 8, 5, 5)));
+  // Radii past 16 px dilate a mask instead of uniting translated regions; the
+  // pixels must equal the union reference, clipped to the bounds, including a
+  // ragged ellipse and a shape that runs off the bounds.
+  {
+    const auto shape = QRegion(QRect(30, 40, 50, 20), QRegion::Ellipse)
+                           .united(QRect(120, 10, 7, 90))
+                           .united(QRect(-20, 150, 40, 12))
+                           .united(QRect(200, 5, 1, 1));
+    for (const int radius : {17, 40}) {
+      QRegion horizontal;
+      for (int dx = -radius; dx <= radius; ++dx) {
+        horizontal = horizontal.united(shape.translated(dx, 0));
+      }
+      QRegion reference;
+      for (int dy = -radius; dy <= radius; ++dy) {
+        reference = reference.united(horizontal.translated(0, dy));
+      }
+      CHECK(patchy::ui::expanded_region(shape, radius, bounds) == reference.intersected(bounds));
+    }
+    // Photoshop's 500 px Expand maximum.
+    const QRect wide(-2000, -2000, 5000, 5000);
+    CHECK(patchy::ui::expanded_region(QRegion(QRect(0, 0, 1, 1)), 800, wide) ==
+          QRegion(QRect(-500, -500, 1001, 1001)));
+  }
   CHECK(selection_stroke_region(QRegion(), 5, SelectionStrokeLocation::Center, bounds).isEmpty());
   CHECK(selection_stroke_region(selection, 0, SelectionStrokeLocation::Center, bounds).isEmpty());
 }
@@ -1044,6 +1109,140 @@ void ui_lasso_selection_draws_freeform_region() {
   save_widget_artifact("ui_lasso_selection", *canvas);
 }
 
+void draw_test_lasso(patchy::ui::CanvasWidget& canvas, const std::array<QPoint, 4>& points) {
+  send_mouse(canvas, QEvent::MouseButtonPress, canvas.widget_position_for_document_point(points[0]),
+             Qt::LeftButton, Qt::LeftButton);
+  for (std::size_t i = 1; i < points.size() - 1; ++i) {
+    send_mouse(canvas, QEvent::MouseMove, canvas.widget_position_for_document_point(points[i]),
+               Qt::NoButton, Qt::LeftButton);
+  }
+  send_mouse(canvas, QEvent::MouseButtonRelease, canvas.widget_position_for_document_point(points.back()),
+             Qt::LeftButton, Qt::NoButton);
+}
+
+void ui_lasso_combines_fragmented_selection_alpha_and_history() {
+  using Mode = patchy::ui::CanvasWidget::SelectionMode;
+  constexpr int kWidth = 96;
+  constexpr int kHeight = 80;
+  patchy::Document document(kWidth, kHeight, patchy::PixelFormat::rgba8());
+  document.add_pixel_layer("Pixels", solid_pixels(kWidth, kHeight, patchy::PixelFormat::rgba8(), Qt::white));
+  patchy::ui::MainWindow window;
+  window.add_document_session(std::move(document), QStringLiteral("Lasso coverage"));
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_zoom(1.0);
+  canvas->set_tool(patchy::ui::CanvasTool::Lasso);
+  canvas->set_selection_antialias(true);
+  const std::array<QPoint, 4> points{QPoint(1, 12), QPoint(63, 19), QPoint(75, 64), QPoint(8, 59)};
+
+  for (const int feather : {0, 4}) {
+    canvas->set_selection_feather_radius(feather);
+    canvas->clear_selection();
+    canvas->set_selection_mode(Mode::Replace);
+    draw_test_lasso(*canvas, points);
+    CHECK(canvas->selection_has_partial_alpha());
+    const auto candidate = canvas->selection_as_grayscale();
+
+    for (const bool soft_base : {false, true}) {
+      patchy::PixelBuffer base(kWidth, kHeight, patchy::PixelFormat::gray8());
+      base.clear(0);
+      // Offset bounds, holes and islands exercise coverage outside both operands.
+      for (int y = 7; y < 74; ++y) {
+        for (int x = 13; x < 89; ++x) {
+          if ((x % 6) < 3 && (y % 5) < 3) {
+            *base.pixel(x, y) = soft_base ? static_cast<std::uint8_t>(1 + (x * 7 + y * 11) % 255) : 255U;
+          }
+        }
+      }
+      for (const auto mode : {Mode::Subtract, Mode::Add, Mode::Intersect, Mode::Replace}) {
+        canvas->replace_selection_from_grayscale(base, QStringLiteral("Fragmented selection"));
+        CHECK(canvas->selection_has_partial_alpha() == soft_base);
+        const auto before = canvas->capture_selection_snapshot();
+        const auto undo_depth = patchy::ui::MainWindowTestAccess::active_session_undo_depth(window);
+        canvas->set_selection_mode(mode);
+        draw_test_lasso(*canvas, points);
+        const auto actual = canvas->selection_as_grayscale();
+        for (int y = 0; y < kHeight; ++y) {
+          for (int x = 0; x < kWidth; ++x) {
+            const auto a = *std::as_const(base).pixel(x, y);
+            const auto b = *candidate.pixel(x, y);
+            const auto expected = mode == Mode::Subtract ? a * (255 - b) / 255
+                                : mode == Mode::Add ? std::max(a, b)
+                                : mode == Mode::Intersect ? std::min(a, b) : b;
+            CHECK(*actual.pixel(x, y) == expected);
+          }
+        }
+        CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == undo_depth + 1);
+        const auto after = canvas->capture_selection_snapshot();
+        patchy::ui::MainWindowTestAccess::undo(window);
+        const auto undone = canvas->capture_selection_snapshot();
+        CHECK(undone.selection == before.selection);
+        CHECK(undone.mask_bounds == before.mask_bounds);
+        CHECK(undone.mask_alpha == before.mask_alpha);
+        patchy::ui::MainWindowTestAccess::redo(window);
+        const auto redone = canvas->capture_selection_snapshot();
+        CHECK(redone.selection == after.selection);
+        CHECK(redone.mask_bounds == after.mask_bounds);
+        CHECK(redone.mask_alpha == after.mask_alpha);
+      }
+    }
+  }
+  CHECK(!patchy::ui::MainWindowTestAccess::active_session_is_modified(window));
+}
+
+void ui_lasso_subtract_from_noncontiguous_wand_many_spans() {
+  constexpr int kWidth = 1024;
+  constexpr int kHeight = 768;
+  patchy::Document document(kWidth, kHeight, patchy::PixelFormat::rgba8());
+  auto pixels = solid_pixels(kWidth, kHeight, patchy::PixelFormat::rgba8(), Qt::white);
+  // Issue 49: a noncontiguous wand selects 196,608 disconnected single-pixel islands.
+  for (int y = 0; y < kHeight; y += 2) {
+    for (int x = 0; x < kWidth; x += 2) {
+      auto* pixel = pixels.pixel(x, y);
+      pixel[0] = pixel[1] = pixel[2] = 0;
+    }
+  }
+  document.add_pixel_layer("Islands", std::move(pixels));
+  patchy::ui::MainWindow window;
+  window.add_document_session(std::move(document), QStringLiteral("Issue 49"));
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_zoom(1.0);
+  canvas->set_tool(patchy::ui::CanvasTool::MagicWand);
+  canvas->set_selection_mode(patchy::ui::CanvasWidget::SelectionMode::Replace);
+  canvas->set_wand_contiguous(false);
+  canvas->set_wand_sample_all_layers(false);
+  canvas->set_wand_tolerance(0);
+  canvas->set_selection_feather_radius(0);
+  const auto click = canvas->widget_position_for_document_point(QPoint(4, 4));
+  send_mouse(*canvas, QEvent::MouseButtonPress, click, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, click, Qt::LeftButton, Qt::NoButton);
+  const auto before = canvas->capture_selection_snapshot();
+  CHECK(before.selection.rectCount() == (kWidth / 2) * (kHeight / 2));
+  CHECK(before.mask_alpha.isNull());
+
+  canvas->set_tool(patchy::ui::CanvasTool::Lasso);
+  canvas->set_selection_mode(patchy::ui::CanvasWidget::SelectionMode::Subtract);
+  canvas->set_selection_antialias(true);
+  std::cout << "  subtracting lasso from " << before.selection.rectCount() << " wand spans" << std::endl;
+  QElapsedTimer timer;
+  timer.start();
+  draw_test_lasso(*canvas, {QPoint(100, 80), QPoint(650, 99), QPoint(620, 590), QPoint(110, 610)});
+  const auto elapsed = timer.elapsed();
+  std::cout << "  wand/lasso subtract " << elapsed << " ms\n";
+  CHECK(elapsed < 120000);  // Generous hang guard, not a machine-speed benchmark.
+  CHECK(canvas->selection_alpha_at(QPoint(200, 200)) == 0U);
+  CHECK(canvas->selection_alpha_at(QPoint(800, 700)) == 255U);
+  CHECK(canvas->selection_alpha_at(QPoint(801, 700)) == 0U);
+  CHECK(canvas->selection_has_partial_alpha());
+  patchy::ui::MainWindowTestAccess::undo(window);
+  CHECK(canvas->capture_selection_snapshot().selection == before.selection);
+  CHECK(!canvas->selection_has_partial_alpha());
+  patchy::ui::MainWindowTestAccess::redo(window);
+  CHECK(canvas->selection_alpha_at(QPoint(200, 200)) == 0U);
+  CHECK(canvas->selection_alpha_at(QPoint(800, 700)) == 255U);
+}
+
 void ui_lasso_click_deselects() {
   patchy::ui::MainWindow window;
   show_window(window);
@@ -1263,6 +1462,62 @@ void ui_marquee_corner_handle_drag_and_shift_aspect() {
   CHECK(resized->height() == before_flip.height());
 }
 
+// GitHub issue 66: Alt held while dragging a marquee handle resizes the
+// selection about its center. Alt at the press means Subtract (and misses the
+// handle), so it is pressed after the grab, like Shift.
+void ui_marquee_alt_handle_drag_resizes_about_center() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_tool(patchy::ui::CanvasTool::Marquee);
+  canvas->set_snap_enabled(false);
+
+  // Start away from the canvas edges: the mirrored side grows too, and a
+  // selection past the canvas rasterizes clipped.
+  drag(*canvas, canvas->widget_position_for_document_point(QPoint(200, 120)),
+       canvas->widget_position_for_document_point(QPoint(260, 160)));
+  const auto original = canvas->selected_document_rect();
+  CHECK(original.has_value());
+  if (!original.has_value()) {
+    return;
+  }
+  const auto alt_drag = [&](QPoint handle, QPoint to) {
+    send_mouse(*canvas, QEvent::MouseButtonPress, handle, Qt::LeftButton, Qt::LeftButton);
+    send_mouse(*canvas, QEvent::MouseMove, (handle + to) / 2, Qt::NoButton, Qt::LeftButton, Qt::AltModifier);
+    send_mouse(*canvas, QEvent::MouseMove, to, Qt::NoButton, Qt::LeftButton, Qt::AltModifier);
+    send_mouse(*canvas, QEvent::MouseButtonRelease, to, Qt::LeftButton, Qt::NoButton, Qt::AltModifier);
+    QApplication::processEvents();
+  };
+
+  // Bottom-right corner out by 30 on each axis: 60 wider and taller, same center.
+  alt_drag(marquee_handle_position(*canvas, *original, 2, 2),
+           canvas->widget_position_for_document_point(
+               QPoint(original->x() + original->width() + 30, original->y() + original->height() + 30)));
+  auto resized = canvas->selected_document_rect();
+  CHECK(resized.has_value());
+  if (!resized.has_value()) {
+    return;
+  }
+  CHECK(within_one(resized->width(), original->width() + 60));
+  CHECK(within_one(resized->height(), original->height() + 60));
+  CHECK(within_one(resized->center().x(), original->center().x()));
+  CHECK(within_one(resized->center().y(), original->center().y()));
+
+  // Right edge out by 20: 40 wider, the height and the center stay.
+  const auto before_edge = *resized;
+  alt_drag(marquee_handle_position(*canvas, before_edge, 2, 1),
+           canvas->widget_position_for_document_point(
+               QPoint(before_edge.x() + before_edge.width() + 20, before_edge.y() + before_edge.height() / 2)));
+  resized = canvas->selected_document_rect();
+  CHECK(resized.has_value());
+  if (!resized.has_value()) {
+    return;
+  }
+  CHECK(within_one(resized->width(), before_edge.width() + 40));
+  CHECK(resized->height() == before_edge.height());
+  CHECK(within_one(resized->center().x(), before_edge.center().x()));
+}
+
 void ui_elliptical_marquee_handle_drag_keeps_ellipse() {
   patchy::ui::MainWindow window;
   show_window(window);
@@ -1287,6 +1542,65 @@ void ui_elliptical_marquee_handle_drag_keeps_ellipse() {
   CHECK(canvas->selected_document_region() == QRegion(*resized, QRegion::Ellipse));
   CHECK(!canvas->selected_document_region().contains(resized->topLeft()));
   CHECK(canvas->selected_document_region().contains(resized->center()));
+}
+
+// GitHub issue 66: Alt over a marquee handle is the symmetric resize, so the
+// hover shows the resize cursor (not the Subtract badge) and Alt held from the
+// press mirrors the opposite side. Inside the selection Alt still subtracts.
+void ui_marquee_alt_on_handle_shows_resize_cursor_and_mirrors() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_tool(patchy::ui::CanvasTool::Marquee);
+  canvas->set_snap_enabled(false);
+
+  drag(*canvas, canvas->widget_position_for_document_point(QPoint(200, 120)),
+       canvas->widget_position_for_document_point(QPoint(260, 160)));
+  const auto original = canvas->selected_document_rect();
+  CHECK(original.has_value());
+  if (!original.has_value()) {
+    return;
+  }
+
+  const auto corner = marquee_handle_position(*canvas, *original, 2, 2);
+  send_mouse(*canvas, QEvent::MouseMove, corner, Qt::NoButton, Qt::NoButton, Qt::AltModifier);
+  CHECK(canvas->cursor().shape() == Qt::SizeFDiagCursor);
+  send_mouse(*canvas, QEvent::MouseMove, marquee_handle_position(*canvas, *original, 2, 1), Qt::NoButton,
+             Qt::NoButton, Qt::AltModifier);
+  CHECK(canvas->cursor().shape() == Qt::SizeHorCursor);
+  // The interior keeps the combine semantics: Alt there is the Subtract badge.
+  send_mouse(*canvas, QEvent::MouseMove, canvas->widget_position_for_document_point(original->center()),
+             Qt::NoButton, Qt::NoButton, Qt::AltModifier);
+  CHECK(canvas->cursor().shape() == Qt::BitmapCursor);
+
+  // A stationary pointer on a handle keeps the resize cursor through an Alt
+  // press (the key path refreshes the badge without a mouse move).
+  send_mouse(*canvas, QEvent::MouseMove, corner, Qt::NoButton, Qt::NoButton);
+  CHECK(canvas->cursor().shape() == Qt::SizeFDiagCursor);
+  send_key_press(*canvas, Qt::Key_Alt, Qt::NoModifier);
+  CHECK(canvas->cursor().shape() == Qt::SizeFDiagCursor);
+  send_key_release(*canvas, Qt::Key_Alt, Qt::AltModifier);
+  CHECK(canvas->cursor().shape() == Qt::SizeFDiagCursor);
+
+  // Alt from the press on: the handle drives a centered resize, nothing is
+  // subtracted.
+  const auto to = canvas->widget_position_for_document_point(
+      QPoint(original->x() + original->width() + 30, original->y() + original->height() + 30));
+  send_mouse(*canvas, QEvent::MouseButtonPress, corner, Qt::LeftButton, Qt::LeftButton, Qt::AltModifier);
+  send_mouse(*canvas, QEvent::MouseMove, (corner + to) / 2, Qt::NoButton, Qt::LeftButton, Qt::AltModifier);
+  send_mouse(*canvas, QEvent::MouseMove, to, Qt::NoButton, Qt::LeftButton, Qt::AltModifier);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, to, Qt::LeftButton, Qt::NoButton, Qt::AltModifier);
+  QApplication::processEvents();
+  const auto resized = canvas->selected_document_rect();
+  CHECK(resized.has_value());
+  if (!resized.has_value()) {
+    return;
+  }
+  CHECK(within_one(resized->width(), original->width() + 60));
+  CHECK(within_one(resized->height(), original->height() + 60));
+  CHECK(within_one(resized->x() + resized->width() / 2, original->x() + original->width() / 2));
+  CHECK(within_one(resized->y() + resized->height() / 2, original->y() + original->height() / 2));
+  CHECK(window.statusBar()->currentMessage() == QStringLiteral("Resize Selection"));
 }
 
 void ui_marquee_handle_drag_space_repositions_then_resumes() {
@@ -1776,6 +2090,7 @@ std::vector<patchy::test::TestCase> selection_marquee_lasso_tests_part2() {
       {"ui_select_grow_and_similar_use_magic_wand_tolerance",
        ui_select_grow_and_similar_use_magic_wand_tolerance},
       {"ui_complex_selection_stroke_uses_region_outline", ui_complex_selection_stroke_uses_region_outline},
+      {"ui_stroke_selection_with_many_spans_preserves_gaps", ui_stroke_selection_with_many_spans_preserves_gaps},
       {"ui_selection_stroke_region_bands_have_exact_widths", ui_selection_stroke_region_bands_have_exact_widths},
       {"ui_stroke_selection_dialog_paints_inside_center_and_outside_bands",
        ui_stroke_selection_dialog_paints_inside_center_and_outside_bands},
@@ -1785,6 +2100,10 @@ std::vector<patchy::test::TestCase> selection_marquee_lasso_tests_part2() {
       {"ui_folder_lock_inherits_to_child_layers", ui_folder_lock_inherits_to_child_layers},
       {"ui_move_auto_select_ignores_locked_layers", ui_move_auto_select_ignores_locked_layers},
       {"ui_lasso_selection_draws_freeform_region", ui_lasso_selection_draws_freeform_region},
+      {"ui_lasso_combines_fragmented_selection_alpha_and_history",
+       ui_lasso_combines_fragmented_selection_alpha_and_history},
+      {"ui_lasso_subtract_from_noncontiguous_wand_many_spans",
+       ui_lasso_subtract_from_noncontiguous_wand_many_spans},
       {"ui_lasso_click_deselects", ui_lasso_click_deselects},
       {"ui_marquee_drag_moves_selection", ui_marquee_drag_moves_selection},
       {"ui_marquee_edge_handle_drag_resizes_selection", ui_marquee_edge_handle_drag_resizes_selection},
@@ -1793,6 +2112,9 @@ std::vector<patchy::test::TestCase> selection_marquee_lasso_tests_part2() {
       {"ui_marquee_gestures_never_snap_to_their_own_selection",
        ui_marquee_gestures_never_snap_to_their_own_selection},
       {"ui_marquee_corner_handle_drag_and_shift_aspect", ui_marquee_corner_handle_drag_and_shift_aspect},
+      {"ui_marquee_alt_handle_drag_resizes_about_center", ui_marquee_alt_handle_drag_resizes_about_center},
+      {"ui_marquee_alt_on_handle_shows_resize_cursor_and_mirrors",
+       ui_marquee_alt_on_handle_shows_resize_cursor_and_mirrors},
       {"ui_elliptical_marquee_handle_drag_keeps_ellipse", ui_elliptical_marquee_handle_drag_keeps_ellipse},
       {"ui_marquee_feathered_resize_rerasterizes_soft_edge", ui_marquee_feathered_resize_rerasterizes_soft_edge},
       {"ui_marquee_handles_follow_move_and_vanish_after_other_edits",

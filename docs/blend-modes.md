@@ -21,7 +21,7 @@ Most of the exhaustive `switch (mode)` maps are caught by `-Wswitch` because the
 ## Calibrated math rules
 
 - Non-separable modes (Hue/Saturation/Color/Luminosity) use the PDF-spec set_lum/set_sat algorithm.
-- Exclusion rounds the s*d/255 product BEFORE doubling; Divide rounds to nearest. Both verified against Photoshop and Aseprite.
+- Exclusion rounds the s*d/255 product BEFORE doubling; Divide rounds to nearest, and its 0/0 corner follows the destination (d=0 gives 0 even at s=0; psd-tools' `divide.psd`, October 2026). Both verified against Photoshop and Aseprite.
 - Color Burn and Color Dodge round their quotient to NEAREST half-up (the
   `(2a+b)/(2b)` form, same as Aseprite's DIV_UN8), and the 0/0 division corner
   follows the destination: Burn returns 255 at d=255 even when s=0, Dodge
@@ -74,7 +74,7 @@ every blend-if, masked, non-pass-through, or faded group through it
   rules live in docs/ps-compat.md "Layer effects on GROUPS"). A non-pass-through
   styled group routes its flattened `IsolatedClipGroupTarget` content through
   `composite_pixel_layer` via a pixel override (the group plays the layer's
-  role; folder Fill neutralized by `layer_fill_opacity_for_render`). A
+  role; folder Fill fades the content only). A
   PASS-THROUGH styled group does NOT isolate: children composite against the
   true backdrop as always, while a silhouette flatten feeds exterior effects
   (painted before the children) and interior effects (painted above them,

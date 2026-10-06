@@ -219,13 +219,30 @@ void ui_translation_compiled_catalogs_match_sources() {
     CHECK(qt_catalog.load(runtime.filePath(QStringLiteral("qtbase_%1.qm").arg(language))));
     const auto catalog = read_catalog(source.filePath(QStringLiteral("patchy_%1.ts").arg(language)));
     for (const auto& message : catalog.messages) {
-      for (const int count : {0, 1, 2, 5}) {
+      for (const int count : {0, 1, 2, 5, 11, 12, 21, 22, 25, 101}) {
         const auto translated = app_catalog.translate(message.context.toUtf8().constData(),
             message.source.toUtf8().constData(), message.comment.toUtf8().constData(), message.numerus ? count : -1);
         if (translated.isEmpty() || !message.translations.contains(translated)) {
           failures << QStringLiteral("%1: [%2] %3: compiled translation missing or stale")
                           .arg(language, message.context, message.source);
           break;
+        }
+        if (message.numerus && (language == QStringLiteral("ru") || language == QStringLiteral("pl"))) {
+          CHECK(message.translations.size() == 3);
+          // Pin Qt's compiled choice at the singular/few/many boundaries. Polish
+          // uses many for 21 and 101, where Russian returns to singular.
+          const bool singular = count == 1 ||
+              (language == QStringLiteral("ru") && (count == 21 || count == 101));
+          const int form = singular ? 0 : (count == 2 || count == 22) ? 1 : 2;
+          CHECK(translated == message.translations[form]);
+        }
+        if (message.numerus && language == QStringLiteral("pt_BR")) {
+          CHECK(message.translations.size() == 2);
+          CHECK(translated == message.translations[count <= 1 ? 0 : 1]);
+        }
+        if (message.numerus && language == QStringLiteral("ko")) {
+          CHECK(message.translations.size() == 1);
+          CHECK(translated == message.translations.front());
         }
         if (!message.numerus) break;
       }

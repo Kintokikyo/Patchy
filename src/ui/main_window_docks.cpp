@@ -243,10 +243,6 @@
 #include <tpcshrd.h>
 #endif
 
-#ifndef PATCHY_VERSION
-#define PATCHY_VERSION "0.0.0"
-#endif
-
 // Icon resources live in the static patchy_ui library; force registration before first use.
 int qInitResources_icons();
 
@@ -1004,6 +1000,8 @@ void MainWindow::create_docks() {
 
   auto* layer_list = new LayerListWidget(layers_panel);
   layer_list->set_drop_finished_callback([this] { handle_layer_drop(); });
+  layer_list->set_file_drop_paths_callback(
+      [this](const QMimeData* mime_data) { return supported_layer_drop_paths(mime_data); });
   layer_list->set_drag_blocked_callback([this] {
     show_status_error(tr("Clear the layer name filter to reorder layers"));
   });
@@ -1230,17 +1228,15 @@ void MainWindow::create_docks() {
       edit_active_adjustment_layer();
       return;
     }
-    if (layer != nullptr && layer_is_vector_shape(*layer) && vector_lock_reason(*layer).empty()) {
-      // Shape and fill layers open their appearance editor (the adjustment-
-      // layer precedent); layer styles stay reachable from the context menu.
-      edit_active_shape_appearance();
-      return;
-    }
-    // Smart objects deliberately fall through to the layer styles dialog too:
-    // their contents open via the row's smart-object badge button (or the
-    // Smart Objects menus), so double-click stays consistent for every layer.
+    // Smart objects and shape layers deliberately fall through to the layer
+    // styles dialog too: their contents / appearance open via the row's
+    // smart-object or vector badge button (or the menus), and layer styles
+    // apply to shapes as well, so double-click stays consistent for every
+    // layer (Seth, September 2026).
     edit_active_layer_style();
   });
+  layer_list->set_inline_rename_callback(
+      [this](LayerId id, const QString& name) { apply_layer_rename(id, name); });
   layer_list->set_content_thumbnail_double_click_callback([this](QListWidgetItem* item) {
     const auto layer_id = static_cast<LayerId>(item->data(kLayerIdRole).toULongLong());
     if (layer_id == 0) {
@@ -1317,6 +1313,7 @@ void MainWindow::create_docks() {
   opacity_spin_->setPrefix(tr("Opacity: "));
   opacity_spin_->setSuffix(percent_suffix());
   configure_toolbar_spinbox(opacity_spin_, 52);
+  install_prefix_scrub(opacity_spin_);  // drag "Opacity:" to scrub (GitHub issue 46)
   blend_opacity_row->addWidget(opacity_spin_);
   connect(opacity_spin_, &QSpinBox::valueChanged, this, [this](int value) { set_active_layer_opacity(value); });
   connect(opacity_spin_, &QSpinBox::editingFinished, this, [this] { finish_pending_layer_opacity_edit(); });
@@ -1329,6 +1326,7 @@ void MainWindow::create_docks() {
   fill_opacity_spin_->setPrefix(tr("Fill: "));
   fill_opacity_spin_->setSuffix(percent_suffix());
   configure_toolbar_spinbox(fill_opacity_spin_, 52);
+  install_prefix_scrub(fill_opacity_spin_);
   blend_opacity_row->addWidget(fill_opacity_spin_);
   connect(fill_opacity_spin_, &QSpinBox::valueChanged, this,
           [this](int value) { set_active_layer_fill_opacity(value); });
@@ -1769,6 +1767,12 @@ void MainWindow::create_docks() {
       make_properties_shape_size_spin("propertiesShapeHeightSpin", QT_TR_NOOP("Height of the active shape"));
   properties_shape_size_row->addStretch(1);
   properties_layout->addWidget(properties_shape_size_panel_);
+  install_scrub_labels_in(properties_shape_size_panel_);  // drag "W:" / "H:" to scrub (issue 46)
+  // Photoshop's Properties panel shows shape W/H in the ruler unit.
+  properties_shape_width_spin_->set_context_provider(document_unit_context_provider(true));
+  properties_shape_height_spin_->set_context_provider(document_unit_context_provider(false));
+  register_ruler_unit_field(properties_shape_width_spin_);
+  register_ruler_unit_field(properties_shape_height_spin_);
   connect(properties_shape_width_spin_, &QDoubleSpinBox::valueChanged, this,
           [this](double value) { handle_vector_shape_size_value_changed(true, value); });
   connect(properties_shape_height_spin_, &QDoubleSpinBox::valueChanged, this,
@@ -1855,16 +1859,30 @@ void MainWindow::create_palette_dock() {
     // picker (layer-style colors, gradient stops, ...) takes it live through its
     // callback, and the persistent Foreground/Text color panel mirrors the new
     // state (blocked: set_primary_color above already applied it).
-    apply_color_to_open_color_picker(color);
+    const bool request_picker_took_color = apply_color_to_open_color_picker(color);
+    bool text_color_panel_open = false;
     if (color_dialog_ != nullptr) {
       const auto target = color_dialog_->property("patchy.colorTarget").toString();
-      if (target == QStringLiteral("foreground") || target == QStringLiteral("text")) {
+      text_color_panel_open = target == QStringLiteral("text");
+      if (target == QStringLiteral("foreground") || text_color_panel_open) {
         if (auto* picker = color_dialog_->findChild<PatchyColorPicker*>(
                 QStringLiteral("patchyAdvancedColorPicker"))) {
           const QSignalBlocker blocker(picker);
           picker->setCurrentColor(color);
         }
       }
+    }
+    // A swatch click also recolors what the active tool's options-bar color box edits
+    // (issue 61), unless a request picker took the color for its own target: the selected
+    // text layers with no session open (the Type tool, or the Text Color panel whose
+    // blocked mirror above skips its own callback), and the solid shape paint plus the
+    // selected shape layers while the shape appearance controls are live.
+    if (!request_picker_took_color) {
+      if ((current_tool_ == CanvasTool::Text || text_color_panel_open) &&
+          canvas_->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor")) == nullptr) {
+        apply_text_color_to_selected_layers_debounced(color);
+      }
+      apply_swatch_color_to_shape_paint(color);
     }
     refresh_color_buttons();
     refresh_palette_panel();

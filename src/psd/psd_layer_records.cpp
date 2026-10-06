@@ -145,7 +145,8 @@ bool should_skip_layer_block(const EncodedLayer& encoded, const UnknownPsdBlock&
   // per-layer keys make Photoshop warn that editable data will be discarded.
   if (block.key == "pvcl" || block.key == "pvfi" ||
       block.key == "luni" || block.key == "plFX" || block.key == "lspf" || block.key == "lmgm" ||
-      block.key == "infx" || (block.key == "plAD" && encoded.kind == EncodedLayerKind::Adjustment)) {
+      block.key == "infx" || block.key == "clbl" ||
+      (block.key == "plAD" && encoded.kind == EncodedLayerKind::Adjustment)) {
     return true;
   }
   // A modeled channel restriction regenerates 'brst' (or drops it when nothing
@@ -168,7 +169,8 @@ bool should_skip_layer_block(const EncodedLayer& encoded, const UnknownPsdBlock&
   }
   if (encoded.kind == EncodedLayerKind::Adjustment &&
       (block.key == "levl" || block.key == "curv" || block.key == "hue2" || block.key == "nvrt" ||
-       block.key == "post" || block.key == "thrs" || block.key == "brit" || block.key == "blnc")) {
+       block.key == "post" || block.key == "thrs" || block.key == "brit" || block.key == "blnc" ||
+       block.key == "expA")) {
     return true;
   }
   // The Brightness/Contrast emitter owns 'CgEd' (preserved, regenerated, or
@@ -236,7 +238,7 @@ std::uint8_t vector_parameter_flags(const LayerVectorMask& mask) {
   return flags;
 }
 
-EncodedLayer encode_layer(const Layer& layer, bool large_document) {
+EncodedLayer encode_layer(const Layer& layer, bool large_document, bool bottom_record, Rect canvas) {
   if (layer.kind() != LayerKind::Pixel) {
     throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Layered PSD export currently supports pixel and group layers only"));
   }
@@ -253,8 +255,7 @@ EncodedLayer encode_layer(const Layer& layer, bool large_document) {
          {kChannelTransparency, kChannelRed, kChannelGreen, kChannelBlue}) {
       encoded.channels.push_back(EncodedChannel{channel_id, 0, 0, kCompressionRaw, {}});
     }
-    if (layer.mask().has_value() && !layer.mask()->pixels.empty() &&
-        layer.mask()->pixels.format() == PixelFormat::gray8()) {
+    if (layer.mask().has_value() && layer.mask()->pixels.format() == PixelFormat::gray8()) {
       const auto& mask_pixels = layer.mask()->pixels;
       encoded.channels.push_back(encode_channel(kChannelUserMask, mask_pixels.width(),
                                                 mask_pixels.height(), mask_pixels.data(),
@@ -273,10 +274,17 @@ EncodedLayer encode_layer(const Layer& layer, bool large_document) {
   encoded.bounds = layer.bounds().empty() ? Rect::from_size(pixels.width(), pixels.height()) : layer.bounds();
   encoded.blending_ranges = &layer.raw_psd_blending_ranges();
   std::vector<std::uint16_t> channel_ids{kChannelRed, kChannelGreen, kChannelBlue};
-  if (pixels.format().channels >= 4) {
+  // Photoshop reads a pixel record with no transparency channel as its Background layer: opaque
+  // over the WHOLE canvas, whatever the record bounds say. It writes one only as the bottom
+  // record covering exactly the canvas, so an opaque (RGB) layer anywhere else gets an all-255
+  // transparency channel; without it an imported photo painted over every layer beneath it
+  // (September 2026: a poster that rendered blank in Photoshop).
+  const bool photoshop_background = bottom_record && encoded.bounds.x == canvas.x && encoded.bounds.y == canvas.y &&
+                                    encoded.bounds.width == canvas.width && encoded.bounds.height == canvas.height;
+  if (pixels.format().channels >= 4 || !photoshop_background) {
     channel_ids.push_back(kChannelTransparency);
   }
-  if (layer.mask().has_value() && !layer.mask()->pixels.empty()) {
+  if (layer.mask().has_value()) {
     const auto& mask = *layer.mask();
     if (mask.pixels.format() != PixelFormat::gray8()) {
       throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Layered PSD export requires 8-bit grayscale layer masks"));
@@ -309,10 +317,12 @@ EncodedLayer encode_layer(const Layer& layer, bool large_document) {
                                                 mask_pixels.data(), large_document));
     } else {
       std::vector<std::uint8_t> channel;
-      channel.resize(pixel_count);
+      channel.resize(pixel_count, 255U);
       const auto source_channel = channel_id == kChannelTransparency ? 3 : channel_index;
-      for (std::size_t i = 0; i < pixel_count; ++i) {
-        channel[i] = pixels.data()[i * pixels.format().channels + source_channel];
+      if (source_channel < static_cast<std::size_t>(pixels.format().channels)) {
+        for (std::size_t i = 0; i < pixel_count; ++i) {
+          channel[i] = pixels.data()[i * pixels.format().channels + source_channel];
+        }
       }
       encoded.channels.push_back(encode_channel(channel_id, pixels.width(), pixels.height(), channel, large_document));
     }
@@ -330,7 +340,7 @@ EncodedLayer encode_adjustment_layer(const Layer& layer, bool large_document) {
   encoded.kind = EncodedLayerKind::Adjustment;
   encoded.bounds = layer.bounds();
   encoded.blending_ranges = &layer.raw_psd_blending_ranges();
-  if (layer.mask().has_value() && !layer.mask()->pixels.empty()) {
+  if (layer.mask().has_value()) {
     const auto& mask = *layer.mask();
     if (mask.pixels.format() != PixelFormat::gray8()) {
       throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Layered PSD export requires 8-bit grayscale layer masks"));
@@ -366,7 +376,7 @@ EncodedLayer encode_group(const Layer& layer, bool large_document) {
   // Photoshop carries a group's raster mask on the folder record: the -2
   // channel plus the mask-data block (write_layer_record adds the block).
   // Mask-less groups keep their historical zero-channel record byte for byte.
-  if (layer.mask().has_value() && !layer.mask()->pixels.empty()) {
+  if (layer.mask().has_value()) {
     const auto& mask = *layer.mask();
     if (mask.pixels.format() != PixelFormat::gray8()) {
       throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Layered PSD export requires 8-bit grayscale layer masks"));
@@ -526,7 +536,7 @@ LayerRecord read_layer_record(BigEndianReader& reader, bool large_document,
           record.name = *unicode_name;
         }
       }
-      if (key == "TySh" || key == "tySh") {
+      if (key == "TySh") {
         record.text_source_block = key;
         const auto& text_payload = record.additional_blocks.back().payload;
         record.text_patchy_generated_type_block =
@@ -607,6 +617,32 @@ LayerRecord read_layer_record(BigEndianReader& reader, bool large_document,
             }
           }
         }
+      } else if (key == "tySh") {
+        // Photoshop 5.0/5.5 "Type tool info": a fixed-layout record with no descriptor and no
+        // EngineData, so none of the TySh extractors above apply (extract_type_tool_geometry
+        // would misread its font section as a descriptor). psd_text_legacy.cpp decodes it into
+        // the same run model; the geometry keeps only the transform (tx/ty = the first
+        // baseline at the alignment point) with degenerate bounds, which the UI's CS-era
+        // fallback pins to the imported raster. Vertical PS 5 type stays a pixel layer.
+        record.text_source_block = key;
+        if (const auto legacy = extract_legacy_type_tool(record.additional_blocks.back().payload, cmyk);
+            legacy.has_value() && !legacy->unsupported_orientation && !legacy->runs.empty()) {
+          record.text = legacy->text;
+          const auto& first_run = legacy->runs.front();
+          record.text_font = first_run.family;
+          record.text_size = std::clamp(static_cast<int>(std::lround(first_run.size)), 1, kMaxTextSizePixels);
+          record.text_color = legacy->color;
+          record.text_bold = first_run.bold;
+          record.text_italic = first_run.italic;
+          record.text_anti_alias = legacy_type_tool_anti_alias(legacy->anti_alias_raw);
+          record.text_runs = serialize_patchy_text_runs(legacy->runs);
+          record.text_paragraph_runs = serialize_patchy_paragraph_runs(legacy->paragraph_runs);
+          record.text_html = html_from_text_runs(*record.text, legacy->runs, legacy->paragraph_runs);
+          PsdTextGeometry geometry;
+          geometry.transform = legacy->transform;
+          geometry.box_bounds = PsdTextBoundsD{0.0, 0.0, 1.0, 1.0};  // what a degenerate TySh 'bounds' yields
+          record.text_geometry = geometry;
+        }
       }
       if (key == "lmfx") {
         // Photoshop's multi-instance effects block (PS 2015.5+, written when a
@@ -649,6 +685,11 @@ LayerRecord read_layer_record(BigEndianReader& reader, bool large_document,
       if (key == "infx" && !record.additional_blocks.back().payload.empty()) {
         // "Blend Interior Effects as Group" blending option (first byte is the bool).
         record.blend_interior_elements = record.additional_blocks.back().payload[0] != 0;
+      }
+      if (key == "clbl" && !record.additional_blocks.back().payload.empty()) {
+        // "Blend Clipped Layers as Group" blending option (first byte is the bool;
+        // Photoshop's default is on and absence means on).
+        record.blend_clipped_elements = record.additional_blocks.back().payload[0] != 0;
       }
       if (key == "brst") {
         // Advanced Blending "Channels": a bare list of big-endian u32 channel
@@ -711,9 +752,6 @@ LayerRecord read_layer_record(BigEndianReader& reader, bool large_document,
     merge_missing_layer_style_effects(
         record.layer_style, parse_lrfx_layer_style(record.additional_blocks[*lrfx_block_index].payload, cmyk));
   }
-  if (record.name.empty()) {
-    record.name = "Layer";
-  }
   return record;
 }
 
@@ -758,8 +796,7 @@ void write_layer_record(BigEndianWriter& writer, const EncodedLayer& encoded, bo
   BigEndianWriter extra;
   if (encoded.layer != nullptr &&
       (encoded.kind == EncodedLayerKind::Pixel || encoded.kind == EncodedLayerKind::Adjustment ||
-       (encoded.kind == EncodedLayerKind::Group && encoded.layer->mask().has_value() &&
-        !encoded.layer->mask()->pixels.empty())) &&
+       encoded.kind == EncodedLayerKind::Group) &&
       encoded.layer->mask().has_value()) {
     const auto& mask = *encoded.layer->mask();
     BigEndianWriter mask_data;
@@ -899,6 +936,12 @@ void write_layer_record(BigEndianWriter& writer, const EncodedLayer& encoded, bo
           photoshop_threshold_payload(settings->threshold, find_layer_block(*encoded.layer, "thrs")),
           large_document);
     }
+    if (settings.has_value() && settings->kind == AdjustmentKind::Exposure) {
+      write_additional_layer_block(
+          extra, kPhotoshopExposureBlockKey,
+          photoshop_exposure_payload(settings->exposure, find_layer_block(*encoded.layer, "expA")),
+          large_document);
+    }
     if (settings.has_value() && settings->kind == AdjustmentKind::BrightnessContrast) {
       write_additional_layer_block(
           extra, kPhotoshopBrightnessContrastBlockKey,
@@ -925,7 +968,8 @@ void write_layer_record(BigEndianWriter& writer, const EncodedLayer& encoded, bo
   }
 
   const auto generated_text_payload = should_write_generated_text_block(encoded)
-                                          ? photoshop_type_tool_payload_for_layer(*encoded.layer, encoded.bounds)
+                                          ? photoshop_type_tool_payload_for_layer(*encoded.layer, encoded.bounds,
+                                                                                  encoded.text_index_override)
                                           : std::optional<std::vector<std::uint8_t>>{};
   if (generated_text_payload.has_value()) {
     write_additional_layer_block(extra, {'T', 'y', 'S', 'h'}, *generated_text_payload, large_document);
@@ -939,14 +983,22 @@ void write_layer_record(BigEndianWriter& writer, const EncodedLayer& encoded, bo
       (encoded.layer->vector_shape() != nullptr || encoded.layer->vector_mask() != nullptr) &&
       vector_lock_reason(*encoded.layer).empty() &&
       (layer_vector_block_dirty(*encoded.layer) ||
-       find_layer_block(*encoded.layer, "vmsk") == nullptr);
+       (find_layer_block(*encoded.layer, "vmsk") == nullptr &&
+        find_layer_block(*encoded.layer, "vsms") == nullptr));
   if (generated_vector_blocks) {
     if (const auto* content = encoded.layer->vector_shape(); content != nullptr) {
+      const auto* fill_key = vector_fill_block_key(content->fill.kind);
+      const auto* original_fill = find_layer_block(*encoded.layer, fill_key);
+      if (original_fill == nullptr) {
+        const auto* legacy = find_layer_block(*encoded.layer, "vscg");
+        if (legacy != nullptr && legacy->payload.size() > 8U &&
+            std::equal(legacy->payload.begin(), legacy->payload.begin() + 4, fill_key)) {
+          original_fill = legacy;
+        }
+      }
       write_additional_layer_block(
-          extra, *block_key_from_string(vector_fill_block_key(content->fill.kind)),
-          vector_fill_block_payload(content->fill,
-                                    find_layer_block(*encoded.layer,
-                                                     vector_fill_block_key(content->fill.kind))),
+          extra, *block_key_from_string(fill_key),
+          vector_fill_block_payload(content->fill, original_fill),
           large_document);
       if (!content->path.empty()) {
         write_additional_layer_block(
@@ -1022,6 +1074,16 @@ void write_layer_record(BigEndianWriter& writer, const EncodedLayer& encoded, bo
       blend_interior.write_u8(0);
       blend_interior.write_u16(0);
       write_additional_layer_block(extra, {'i', 'n', 'f', 'x'}, blend_interior.bytes(), large_document);
+    }
+
+    if (!encoded.layer->layer_style().blend_clipped_elements) {
+      // "Blend Clipped Layers as Group" blending option; Photoshop's default is
+      // on and it reads absence as on, so only the off state needs a block.
+      BigEndianWriter blend_clipped;
+      blend_clipped.write_u8(0);
+      blend_clipped.write_u8(0);
+      blend_clipped.write_u16(0);
+      write_additional_layer_block(extra, {'c', 'l', 'b', 'l'}, blend_clipped.bytes(), large_document);
     }
 
     if (encoded.layer->channel_restriction_supported() &&
@@ -1110,9 +1172,10 @@ void write_layer_record(BigEndianWriter& writer, const EncodedLayer& encoded, bo
   write_length_prefixed_block(writer, extra.bytes());
 }
 
-void append_encoded_layers(const Layer& layer, std::vector<EncodedLayer>& encoded_layers, bool large_document) {
+void append_encoded_layers(const Layer& layer, std::vector<EncodedLayer>& encoded_layers, bool large_document,
+                           Rect canvas) {
   if (layer.kind() == LayerKind::Pixel) {
-    encoded_layers.push_back(encode_layer(layer, large_document));
+    encoded_layers.push_back(encode_layer(layer, large_document, encoded_layers.empty(), canvas));
     return;
   }
 
@@ -1124,7 +1187,7 @@ void append_encoded_layers(const Layer& layer, std::vector<EncodedLayer>& encode
   if (layer.kind() == LayerKind::Group) {
     encoded_layers.push_back(encode_group_boundary(layer));
     for (const auto& child : layer.children()) {
-      append_encoded_layers(child, encoded_layers, large_document);
+      append_encoded_layers(child, encoded_layers, large_document, canvas);
     }
     encoded_layers.push_back(encode_group(layer, large_document));
     return;

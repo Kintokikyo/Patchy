@@ -319,6 +319,7 @@ Field types: `number`, `slider`, `checkbox`, `choice`, `text`, `color`, `folder`
 | `app.prompt(text, defaultValue)` | Text input; `null` when cancelled, the default in command-line runs. |
 | `app.chooseFolder(title)` | Folder picker; `""` when cancelled or unattended. |
 | `app.chooseOpenFile(title, filter)` / `app.chooseSaveFile(title, filter)` | File pickers; the filter uses Qt syntax like `"Images (*.png *.jpg)"`. |
+| `app.listFonts()` | Every font family available to the text engine, as `{family, styles, writingSystems}` sorted by family. Check it before `addTextLayer` when the exact face matters: `app.listFonts().filter(function (f) { return f.writingSystems.indexOf("Japanese") >= 0; })`. |
 | `app.runCommand(id)` | Triggers a menu command by its stable id, e.g. `app.runCommand("file.scripts.editor")`. `app.commandIds()` lists them all. Returns false for unknown or disabled commands and for `edit.undo`, `edit.redo`, and `file.quit`. |
 | `app.exportPdf(documents, path, options)` | Writes one PDF with a page per document (an array, or one document), each page sized from that document's pixels and resolution. Options: `lossless` (default true; false writes JPEG), `imageQuality` (`"lossless"`, `"high"`, `"medium"`, or `"low"`; wins over `lossless`), `keepOriginalImageData` (default true: an unchanged page imported from a PDF keeps its original image bytes), `editableLayers` (keep shapes and text as PDF objects, default false), `missingFontsAsImages`. Throws on bad arguments or a write failure. A folder of files becomes a PDF by opening each with `app.open` and passing the documents here. |
 | `app.undoEnabled` | Set `false` before the first edit to skip the undo snapshot for speed (games, huge batches). Those edits cannot be undone. Resets to `true` each run. |
@@ -333,18 +334,43 @@ Field types: `number`, `slider`, `checkbox`, `choice`, `text`, `color`, `folder`
 | `doc.layers` | Top-level layers, bottom to top. Groups expose `.children`. |
 | `doc.activeLayer` | Get or set the targeted layer. |
 | `doc.addLayer(name)` | New empty pixel layer on top, made active. |
-| `doc.addTextLayer(text, options)` | Text layer through the real text engine. Options: `font`, `size`, `x`, `y`, `color`, `bold`, `italic`, `orientation` (`"horizontal"` or `"vertical"`), `direction` (`"auto"`, `"ltr"`, `"rtl"`). `size` is the text height in document pixels; for vertical text `x`/`y` is the first column's top centre. |
+| `doc.addTextLayer(text, options)` | Text layer through the real text engine. `text` is a string or an array of runs `{text, font?, size?, bold?, italic?, color?}`, each typed in its own format on top of the options, so one layer mixes faces, sizes and colors: `doc.addTextLayer([{text: "Hold the "}, {text: "LEFT TRIGGER", bold: true}], {font: "Bahnschrift", size: 40, x: 100, y: 200})`. Options: `font`, `size`, `x`, `y`, `color`, `bold`, `italic`, `orientation` (`"horizontal"` or `"vertical"`), `direction` (`"auto"`, `"ltr"`, `"rtl"`), `box` (`{width, height}`, at least 16 px each: a paragraph text box with `x`/`y` as its top-left corner, wrapping lines at the width like a Type-tool drag), `align` (`"left"`, `"center"`, `"right"`, `"justify"`). `size` is the text height in document pixels; for vertical text `x`/`y` is the first column's top centre. `font` is a family name, or family plus face such as `"Arial Black"` (on Windows a face's full or PostScript name works too); compact family spellings such as `LiberationSans` resolve to `Liberation Sans` without a substitution warning; a font that is not installed, or that has no glyph for any character of the text (the bundled Noto Naskh Arabic has no Latin letters), renders in a fallback and logs a warning. Any text may contain `\n`: every line lands in the same layer as a new paragraph, so a heading and its subline need no second layer. Photoshop's paragraph list styles (bullets, numbering) are not modeled: type a bullet character such as `"\u2022 "` at the start of the line; an empty spacer line keeps the run's own size (a bigger spacer run only makes that gap taller). Prefer real text layers over drawing letters as shapes: they stay editable in Patchy and Photoshop. |
+| `layer.text`, `layer.textRuns`, `layer.setTextRuns(runs)`, `layer.textBox`, `layer.textAlign` | Editing existing text layers. Every setter here logs a console warning, like `addTextLayer`, when a font is not installed or has no glyphs for the text; setting `text` on a layer whose font is missing replaces that font with the substitute it was drawn in. `text` reads the plain text and setting it retypes the layer with the first character's formatting. `textRuns` reads the formatted runs (`{text, font, style, size, bold, italic, color}`) and `setTextRuns(runs)` replaces the content with runs, each starting from the first character's formatting plus its own `font`, `size`, `bold`, `italic`, `color` (a bare string is a run with no overrides): `layer.setTextRuns([{text: "Ask "}, {text: "Seth", bold: true}, {text: " for a game"}])`. `textBox` is `{width, height}` for paragraph text, `null` for point text; `textAlign` reads or sets the paragraph alignment. Every edit re-renders through the same session the Type tool uses, one undo step. |
+| `layer.textParagraph`, `addTextLayer(text, {paragraph})` | Photoshop's Paragraph panel metrics in document pixels: `{firstLineIndent, startIndent, endIndent, spaceBefore, spaceAfter}`. Reading gives the first paragraph's values; setting merges the fields you pass into every paragraph and re-renders (`layer.textParagraph = {startIndent: 24, firstLineIndent: -24}` is a hanging indent; `spaceAfter: 12` opens the paragraphs up). The `paragraph` option of `addTextLayer` takes the same object. |
+| `doc.importFilesAsLayers(paths)` | Files as Layers: each path (a string or an array of strings) becomes a layer directly above the active layer, bottom to top in argument order, the last file ending on top and active. A multi-layer file (a PSD, an animated GIF) becomes a folder named after it. Pixels keep their size: a file the document's size lands exactly, others center on the canvas. Throws and adds nothing when a file cannot be read. Returns the new layers in argument order. |
+| `doc.addSmartObject(path, options)` | Place Embedded / Place Linked: the file (PSD, PSB, PNG, JPEG, TIFF, BMP, SVG, ...) becomes a smart-object layer on top, made active. The default embeds a copy of the file; `linked: true` references the file on disk instead, so editing the file and calling `layer.updateSmartObject()` refreshes the layer, and placing the same file linked again shares that reference (one update refreshes every layer placed from it). With no position or size the file lands at its physical size, centered, scaled down to fit a smaller canvas, like the menu commands. `x`/`y` place the top-left corner (an omitted axis centers); `width`/`height` set the placed size in document pixels, one alone keeping the aspect ratio; `scale` multiplies the physical size (1 = 100%) and is ignored when a size is given; `name` overrides the layer name. SVG contents render sharp at any size. Throws, adding nothing, for a file that cannot be read, a size outside 1..30000 pixels, or an unknown option. A linked path is stored relative to the document's folder when the document is saved as PSD or PSB, so a folder holding the PSD and its files moves as a unit: `doc.addSmartObject("logo.svg", {linked: true, x: 40, y: 40, width: 300})`. |
+| `layer.isSmartObject`, `layer.getSmartObject()`, `layer.updateSmartObject()` | Smart-object state and Update Smart Object Content. `getSmartObject()` returns `{linked, fileName, path, relativePath, missing, changed, sourceId, width, height, resolution, quad}` (`null` for other layers): `path` is the linked file as it resolves now (the stored absolute path when `missing`), `changed` says the file on disk differs from what the layer shows, `sourceId` is shared by every layer placed from one linked file, and `quad` holds the placement corners in document pixels. `updateSmartObject()` re-reads the linked file and re-renders every layer sharing its source, returning how many; it throws for embedded contents or a missing file. Relink and Embed Linked remain menu commands (`app.runCommand`). |
 | `doc.findLayer(name)` | First layer with that exact name, or `undefined`. |
 | `doc.combineShapes(layers, op)` | Combine Shapes: merges sibling shape layers into the bottom-most one and returns it. `op` is `"unite"`, `"subtract"` (front shapes cut from the base), `"intersect"`, or `"exclude"`. |
-| `doc.mergeLayers(layers, options?)` | Merges the supplied layers and selected groups' contents without a dialog. Options `keepVectors`, `withinGroups`, `separateVectorTypes` default to `true`, `false`, `true`. Vector parts retain their colors, strokes, opacity and paint alignment. Enable `withinGroups` to retain folders. `separateVectorTypes` separates solid, gradient, pattern and mixed-paint categories; turn it off to combine these appearances in one vector layer. Returns surviving selected leaf layers in bottom-to-top order. A single leaf is unchanged. Set `keepVectors:false` to rasterize merges. Masks, effects, clipping, locks and stacking order can require additional layers. |
+| `doc.mergeLayers(layers, options?)` | Merges the supplied layers and selected groups' contents without a dialog. Options `keepVectors`, `withinGroups`, `separateVectorTypes` default to `true`, `false`, `true`. Vector parts retain their colors, strokes, opacity and paint alignment. Enable `withinGroups` to retain folders. `separateVectorTypes` separates solid, gradient, pattern and mixed-paint categories; turn it off to combine these appearances in one vector layer. Returns surviving selected leaf layers in bottom-to-top order. A single leaf is unchanged. Set `keepVectors:false` to rasterize merges. Masks, effects, clipping, locks and stacking order can require additional layers. `singleVector:true` overrides the three options: at least two vectors become one at the bottommost source's stack position, even across unselected layers. Individual effects are removed unless `effectsFrom` names a vector included in the merge, whose stack applies once to the combined silhouette. Incompatible masks, clipping, blending, locks and group boundaries throw before mutation. |
 | `doc.alignLayers(edge, options?)` | Layer > Arrange > Align. `edge` is `"left"`, `"hcenter"`, `"right"`, `"top"`, `"vcenter"`, or `"bottom"`. Options: `layers` (this document's layers; default the layer selection) and `alignTo` (`"selection"`, the default, or `"canvas"`). With a selection the layers align to it; a single layer, or `alignTo: "canvas"`, aligns to the canvas; otherwise the layers align among themselves. A group moves as one unit. Returns the number of layers moved. |
 | `doc.distributeLayers(mode, options?)` | Layer > Arrange > Distribute over three or more layers or groups. `mode` adds `"hspacing"` and `"vspacing"` to the Align edges: feature modes keep the outermost units and space the rest evenly; spacing modes share one equal gap. Option `layers` as above. Throws with fewer than three movable units. |
 | `doc.selection` | The selection object (below). |
 | `doc.flatten()` | Flattens the document. |
 | `doc.resizeImage(w, h)` / `doc.resizeCanvas(w, h)` / `doc.crop(x, y, w, h)` | Geometry operations. `crop` clips to the canvas and throws for a disjoint rectangle. |
-| `doc.saveAs(path)` / `doc.exportAs(path)` | Saves to the path; the format follows the extension (`.psd`, `.png`, `.jpg`, ...). |
+| `doc.saveAs(path)` / `doc.exportAs(path)` | Saves to the path; the format follows the extension (`.psd`, `.png`, `.jpg`, ...). WebP stays a single flattened image. |
+| `doc.exportAnimatedWebp(path, options?)` | Exports visible top-level layers top first, with each group rendered as one frame. Leaves the document path and modified state unchanged. |
 | `doc.close()` | Closes without prompting. |
 | `doc.activate()` | Makes this the active tab. |
+
+### Animated WebP
+
+Animated WebP example (also available through MCP `execute_script`):
+
+```js
+app.activeDocument.exportAnimatedWebp("animation.webp", {
+  frameDelayMs: 100, loopCount: 0, quality: 75, lossless: false
+});
+```
+
+Those are the defaults, except `loopCount` uses the document's imported or last exported
+count when available. Zero means forever; a positive count includes the first play.
+Layer names ending in seconds, such as `blink 0.033s`, override the default delay.
+Delays are integer milliseconds (0 through 16777215), play counts are integers
+0 through 65535, and quality is an integer 0 through 100. Quality 100 also selects
+lossless. Invalid options, an output extension other than `.webp`, or an export failure
+throw an error. Hidden layers are skipped. Identical consecutive frames can be combined
+by the encoder. Loop counts are retained for the open document, not in PSD or recovery files.
 
 ### Palettes and indexed PNG
 
@@ -418,16 +444,19 @@ preview. PNG export may reserve one extra palette entry for transparency.
 | --- | --- |
 | `layer.name` / `layer.opacity` / `layer.visible` / `layer.locked` | The layer-panel basics. Opacity is 0..100. |
 | `layer.blendMode` | Blend mode id string, e.g. `"multiply"` (full list in `patchy.d.ts`). |
-| `layer.x` / `layer.y` / `layer.moveTo(x, y)` | Content offset in document pixels. Moving via `x`/`y` is cheap, so animate sprites this way. Fractions round like Photoshop (halves up); layers always sit on whole pixels. |
+| `layer.x` / `layer.y` / `layer.moveTo(x, y)` | Content offset in document pixels. Moving via `x`/`y` is cheap, so animate sprites this way. Fractions round like Photoshop (halves up); layers always sit on whole pixels. A move works like the Move tool: a text layer's anchor, a shape's path, a smart object's placement and a linked mask travel with the pixels (an unlinked mask stays put), so later edits and saved PSDs keep the new position. Moving a group moves every layer inside it; a group has no position of its own, so `group.moveTo(dx, dy)` offsets its contents. |
 | `layer.bounds` | The content bounding box. |
-| `layer.isGroup` / `layer.children` / `layer.isText` / `layer.text` | Group and text access. Setting `text` re-renders the layer. |
+| `layer.isGroup` / `layer.children` / `layer.isText` / `layer.text` | Group and text access. Setting `text` re-renders the layer; the new text keeps the first character's formatting. |
 | `layer.textOrientation` / `layer.textDirection` | Text layers: `"horizontal"` or `"vertical"`, and the paragraph direction `"auto"`, `"ltr"` or `"rtl"`. Setting either re-renders the layer. |
+| `layer.rerenderSmartObject()` | Embedded smart objects: renders the layer again from the file it stores, for every layer sharing that source, and returns how many were re-rendered. A smart object opened from a PSD shows the pixels saved in the file until then. Linked ones use `updateSmartObject()`. |
+| `layer.rerenderText()` | Text layers: renders the layer again from its stored text and formatting without changing them. A type layer opened from a PSD shows the pixels saved in the file until it is edited; this replaces them with Patchy's own render. |
+| `layer.textFont` | Text layers: the font family name the layer uses (read-only; `""` for other layers). |
 | `layer.duplicate(targetDocument?)` / `layer.remove()` | Copy above itself, or into another open document above its active layer; or delete. |
 | `layer.ungroup()` | Releases a folder's layers into its parent (top to bottom) and removes the folder. |
 | `layer.fill(color)` | Fills the selection (or everything on an empty layer). |
 | `layer.fillRect(x, y, w, h, color)` | Overwrites one rectangle (sides up to 30000). RGB8 photos and RGBA8 layers are supported. A transparent color like `"#00000000"` clears. |
 | `layer.applyFilter(id, params)` | Runs a filter, e.g. `layer.applyFilter("patchy.filters.gaussian_blur", { radius: 8 })`. |
-| `layer.removeObject(options?)` | Edit > Remove Object: fills the document selection from its surroundings. `method` is `"contentAware"` (default: the deterministic exemplar fill, an exhaustive best-patch search nearby, no AI; falls back to nearest edge when nothing clean is in reach) or `"nearestEdge"` (the selection form of Spot Healing; calling it again on the same selection tries the next source, `{ attempt: n }` picks one, 0-based, wrapping). The layer must be the active layer and a selection must exist. Returns `{method, patches, source, sourceCount}`. |
+| `layer.removeObject(options?)` | Edit > Remove Object without its dialog: fills the document selection from its surroundings. `method` is `"contentAware"` (default: the deterministic exemplar fill, an exhaustive best-patch search nearby, no AI; falls back to nearest edge when nothing clean is in reach) or `"nearestEdge"` (the selection form of Spot Healing; calling it again on the same selection tries the next source, `{ attempt: n }` picks one, 0-based, wrapping). For content-aware, `attempt` is the variation (0 = best match, each n > 0 a different reproducible fill, the dialog's Reroll), `toneMatch` (0..100, default 0) scales the tone match after the fill (0 = raw fill), and `feather` (px, default 0) softens the fill's edge outward. The layer must be the active layer and a selection must exist. Returns `{method, patches, source, sourceCount, attempt}`. |
 | `layer.getPixels()` / `layer.setPixels(imageData)` | Raw RGBA8 pixel access. `getPixels` returns `{x, y, width, height, data}` with an `ArrayBuffer` of `width * height * 4` bytes; `setPixels` replaces the layer's pixels with such a block. |
 | `layer.traceToShapes(options)` | Trace Image to Shapes: turns the pixel layer into a group of solid shape layers, one per color, and returns the group (the source layer is hidden). Options: `mode` (`"color"`, `"grayscale"`, `"blackAndWhite"`), `colors` (2..256), `threshold`, `paths`, `corners`, `noise`, `smoothing` (denoise blur px), `mergeColors` (merge traced colors within this per-channel difference, 0 = off), `maxAnchors` (anchor budget, 0 = unlimited), `method` (`"abutting"` or `"overlapping"`), `snapCurvesToLines`, `ignoreWhite`, `paletteFromLayer` (with a selection: colors from the whole layer when true, the default; `false` picks colors only from the selected pixels). With a selection active only the selected area is traced. Example: `layer.traceToShapes({ mode: "blackAndWhite", ignoreWhite: true })`. |
 | `layer.simplifyPath(options)` | Simplify Path: refits a shape layer's path (or its vector mask) with fewer points. Options: `tolerance` (px, default 1), `cornerAngle` (degrees, default 60), `snapCurvesToLines`. Returns `{anchorsBefore, anchorsAfter}`. |
@@ -470,9 +499,36 @@ Sound is best-effort per platform: Windows and macOS play through the OS directl
 | `patchy.io.fileExists(path)` / `patchy.io.fileSize(path)` | Whether a file exists, and its size in bytes (-1 when missing). Never throw. |
 | `patchy.io.makeDir(path)` / `patchy.io.deleteFile(path)` | Create a folder (with parents) or remove one file; both return true on success. |
 
+### Recovery (patchy.recovery)
+
+Patchy writes a PSB copy of every modified document to a recovery folder on a timer (Preferences > Application, on by default every 10 minutes) and reopens the copies after a crash. These members let a script force a write, inspect the store, and drive the reopen. The web build has no store: `enabled` is false and every list is empty.
+
+| Member | Meaning |
+| --- | --- |
+| `patchy.recovery.enabled` / `patchy.recovery.intervalMinutes` | The Preferences values (persisted). The interval must be 5, 10, 15, 30, or 60. |
+| `patchy.recovery.directory` | This instance's recovery folder. |
+| `patchy.recovery.writeNow()` | Writes a copy of every modified document whose state changed since its last copy and waits for the files. Returns the PSB paths written (empty when nothing changed or a dialog or gesture was active). |
+| `patchy.recovery.listFiles()` | `{file, title, originalPath, savedAt}` for each copy this instance holds. |
+| `patchy.recovery.listOrphaned()` | The same, plus `directory`, for copies left by instances that no longer run. |
+| `patchy.recovery.recoverAll()` | Reopens every orphaned copy as a modified "(Recovered)" document and returns the documents. |
+| `patchy.recovery.discardOrphaned()` | Deletes every orphaned folder; returns how many documents were dropped. |
+
+### Legacy Photoshop plug-ins (patchy.plugins)
+
+Windows builds run classic Photoshop filter plug-ins (`.8bf`, 32-bit and 64-bit) found in the `plugins` folder next to `patchy.exe`, in `%APPDATA%\RTsoft\Patchy\plugins`, and in the folders added under Preferences > Plug-ins. Scanning never runs a plug-in; running one executes it with your permissions in a separate helper process.
+
+| Member | Meaning |
+| --- | --- |
+| `patchy.plugins.folder` | The plug-ins folder next to the application (created with its README when read); `""` on macOS and Linux. |
+| `patchy.plugins.folders` | The added folders (persisted). Setting it rescans. |
+| `patchy.plugins.list()` | `{id, name, category, path, supported, reason, architecture}` for every plug-in file the last scan saw. |
+| `patchy.plugins.rescan()` | Rescans every folder and returns `list()`. |
+| `layer.applyPlugin(id, {dialog, captureDialog})` | Runs the plug-in on a pixel layer inside the selection, one undo step. `{dialog: false}` skips its settings dialog (last or default settings; a plug-in that opens one anyway gets its OK pressed); unattended runs never show it. `{captureDialog: "shot.png"}` saves an image of the plug-in's dialog while it is up (an unattended run shows the dialog for the capture and answers it itself). |
+
 ### Command-line arguments (patchy.args)
 
 Each `--script-arg key=value` on the command line becomes `patchy.args.key` (always a string). `patchy.isMainScript()` is `true` in the script the user ran and `false` inside an `include()`d file, so one file can be both a library and a runnable script.
+
 
 ## Command line
 

@@ -11,6 +11,7 @@
 #include <string>
 
 class QDialog;
+class QShowEvent;
 class QWidget;
 
 namespace patchy::ui {
@@ -37,12 +38,21 @@ public:
   QColor copy_color_to_clipboard();
   std::optional<QColor> paste_color_from_clipboard();
   QColor cut_color_to_clipboard(bool& cleared_custom_slot);
+  // Puts keyboard focus in the HTML (hex) field with its value selected, so
+  // Ctrl+C copies the hex and Ctrl+V or typing replaces it. Every picker does
+  // this on show (GitHub issue 68); the field also selects all on any focus-in.
+  void focus_hex_field();
 
 public slots:
   void setCurrentColor(QColor color);
 
 signals:
   void currentColorChanged(QColor color);
+  // A deliberate choice, including picking the already displayed color.
+  void colorSelected(QColor color);
+
+protected:
+  void showEvent(QShowEvent* event) override;
 
 private:
   std::unique_ptr<PatchyColorPickerPrivate> impl_;
@@ -83,6 +93,7 @@ bool apply_color_to_open_color_picker(QColor color);
 [[nodiscard]] QDialog* create_patchy_color_panel(QWidget* parent, QColor initial, const QString& title,
                                                     std::function<void(QColor)> color_changed);
 [[nodiscard]] std::optional<QColor> request_patchy_color(QWidget* parent, QColor initial, const QString& title,
-                                                         std::function<void(QColor)> color_changed = {});
+                                                         std::function<void(QColor)> color_changed = {},
+                                                         bool* user_selected = nullptr);
 
 }  // namespace patchy::ui

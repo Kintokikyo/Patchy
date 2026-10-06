@@ -88,6 +88,12 @@ struct ImageSaveOptions {
   // WebP: lossless, sent as quality 100 (Qt's WebP plugin encodes losslessly at 100).
   // Persists as saveOptions/webpLossless.
   bool webp_lossless{false};
+  bool webp_animate{false};
+  int animation_frame_delay_ms{100};
+  int webp_loop_count{0};  // 0 forever; otherwise total plays, up to 65535
+  // Dialog-only context. Non-interactive saves remain still images.
+  bool webp_offer_animation{false};
+  bool webp_has_visible_frames{true};
   // GIF: write the visible top-level layers as a looping animation (top layer = frame 1)
   // instead of one flattened image. Per save, like pdf_editable_layers: only the GIF
   // options dialog and the Export Layers as Animated GIF action set it, so CLI/scripted
@@ -222,5 +228,8 @@ void install_ico_png_codec();
 // Installs the Qt-backed JPEG encoder the Proton texture writer embeds for its JPEG
 // encoding (the formats library is Qt-free). Idempotent; installed beside the ICO codec.
 void install_rttex_jpeg_codec();
+
+void write_animated_webp_file(const Document& document, const QString& path, const ImageSaveOptions& options,
+                              std::vector<std::string>* notices = nullptr);
 
 }  // namespace patchy::ui

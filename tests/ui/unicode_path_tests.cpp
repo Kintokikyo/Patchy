@@ -13,11 +13,14 @@
 #include "ui/image_sequence_dialog.hpp"
 #include "ui/main_window.hpp"
 #include "ui/qt_paths.hpp"
+#include "ui/script_engine.hpp"
 
 #include "core/document.hpp"
+#include "core/smart_object.hpp"
 #include "formats/bmp_document_io.hpp"
 #include "psd/psd_document_io.hpp"
 #include "ui/app_settings.hpp"
+#include "ui/smart_object_render.hpp"
 
 #include "local_psd_fixtures.hpp"
 #include "test_harness.hpp"
@@ -31,11 +34,15 @@
 #include <QColor>
 #include <QComboBox>
 #include <QDir>
+#include <QElapsedTimer>
+#include <QEventLoop>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QImage>
 #include <QImageReader>
+#include <QJsonArray>
+#include <QJsonDocument>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMenu>
@@ -488,6 +495,8 @@ void ui_unicode_legacy_plugin_probe_from_unicode_dir() {
 
   patchy::ui::MainWindow window;
   show_window(window);
+  // The startup scan would replace the list when it lands; let it finish first.
+  patchy::test::ui::wait_for_legacy_plugin_scan(window);
   QStringList report;
   const bool registered = patchy::ui::MainWindowTestAccess::register_legacy_plugin_path(window, path, &report);
   CHECK(report.size() == 1);
@@ -495,11 +504,14 @@ void ui_unicode_legacy_plugin_probe_from_unicode_dir() {
   // The probe must have read the PE header through the Unicode path: the report
   // names the plug-in kind and architecture, not a "could not open" reason.
   CHECK(report.front().contains(QStringLiteral("x64")));
-#if defined(_WIN32) && defined(_M_X64)
+#if defined(_WIN32)
   CHECK(registered);
+  // The action shows the plug-in's PiPL name; its identifier carries the file
+  // stem, which is the part that crossed the Unicode path.
   bool found_action = false;
   for (auto* action : window.findChildren<QAction*>(QStringLiteral("legacyPluginAction"))) {
-    if (action->text().contains(q(kUnicodePathStems[0]))) {
+    if (action->data().toString().contains(q(kUnicodePathStems[0])) &&
+        action->text() == QStringLiteral("Greyscale")) {
       found_action = true;
     }
   }
@@ -574,6 +586,164 @@ void ui_unicode_open_folder_reads_unicode_names() {
   CHECK(nfc(patchy::ui::MainWindowTestAccess::active_session_path(window)).contains(nfc(q(kUnicodeDirName))));
 }
 
+// Files as Layers reads files by path (the Import command and doc.importFilesAsLayers
+// share the core), so Unicode names must come back as layer names, not mojibake.
+void ui_unicode_files_as_layers_reads_unicode_names() {
+  const auto dir = unicode_dir(QStringLiteral("files-as-layers"));
+  QStringList paths;
+  QStringList stems;
+  for (int i = 0; i < 2; ++i) {
+    const auto stem = q(kUnicodePathStems[static_cast<std::size_t>(i)]);
+    const auto path = dir + QLatin1Char('/') + stem + QStringLiteral(".png");
+    QImage image(8 + i * 4, 6, QImage::Format_RGBA8888);
+    image.fill(QColor(10, 20, 30, 255));
+    CHECK(image.save(path));
+    paths.push_back(path);
+    stems.push_back(stem);
+  }
+
+  patchy::ui::MainWindow window;
+  show_window(window);
+  const auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  const auto layers_before = std::as_const(document).layers().size();
+  patchy::ui::MainWindowTestAccess::import_files_as_layers_with_paths(window, paths);
+  QApplication::processEvents();
+  {
+    const auto& layers = std::as_const(document).layers();
+    CHECK(layers.size() == layers_before + 2);
+    CHECK(nfc(QString::fromStdString(layers[layers_before].name())) == nfc(stems[0]));
+    CHECK(nfc(QString::fromStdString(layers[layers_before + 1].name())) == nfc(stems[1]));
+  }
+
+  // The same paths through the script API (JSON-quoted, so the escapes round-trip).
+  const auto json = [](const QString& path) {
+    return QString::fromUtf8(QJsonDocument(QJsonArray{path}).toJson(QJsonDocument::Compact)).chopped(1).mid(1);
+  };
+  auto& host = window.script_engine_host();
+  patchy::ui::ScriptEngineHost::RunOptions options;
+  options.name = QStringLiteral("files-as-layers");
+  (void)host.run_source(QStringLiteral("app.activeDocument.importFilesAsLayers([%1, %2]);").arg(json(paths[0]), json(paths[1])),
+                        std::move(options));
+  QElapsedTimer timer;
+  timer.start();
+  while (host.run_active() && timer.elapsed() < 15000) {
+    QApplication::processEvents(QEventLoop::ExcludeUserInputEvents, 20);
+  }
+  QApplication::processEvents(QEventLoop::ExcludeUserInputEvents, 20);
+  CHECK(!host.run_active());
+  CHECK(!host.last_run_had_error());
+  const auto& layers = std::as_const(document).layers();
+  CHECK(layers.size() == layers_before + 4);
+  // Second copies collide with the first import's names, so they carry the copy suffix.
+  CHECK(nfc(QString::fromStdString(layers[layers_before + 2].name())) == nfc(stems[0] + QStringLiteral(" copy")));
+  CHECK(nfc(QString::fromStdString(layers[layers_before + 3].name())) == nfc(stems[1] + QStringLiteral(" copy")));
+}
+
+// Place Linked stores the linked file's path in the PSD three ways (relative, native
+// absolute, file URI) and reads the file back through Qt, so every character class
+// must survive the save, the reopen, and each stored form resolving on its own.
+void ui_unicode_place_linked_smart_object_resolves() {
+  const auto dir = unicode_dir(QStringLiteral("place-linked"));
+  patchy::ui::MainWindow window;
+  show_window(window);
+  {
+    QImage canvas(64, 48, QImage::Format_RGBA8888);
+    canvas.fill(QColor(240, 240, 240, 255));
+    window.add_document_session(patchy::ui::document_from_qimage(canvas, "Board"), QStringLiteral("Board"));
+  }
+  QStringList names;
+  for (std::size_t i = 0; i < kUnicodePathStems.size(); ++i) {
+    const auto name = q(kUnicodePathStems[i]) + QStringLiteral(".png");
+    QImage image(8 + static_cast<int>(i) * 2, 6, QImage::Format_RGBA8888);
+    image.fill(QColor(10, 20, 30, 255));
+    CHECK(image.save(dir + QLatin1Char('/') + name));
+    patchy::ui::MainWindowTestAccess::place_linked_file_with_path(window, dir + QLatin1Char('/') + name);
+    QApplication::processEvents();
+    names.push_back(name);
+  }
+  const auto psd_name = combined_name("psd");
+  const auto psd_path = dir + QLatin1Char('/') + psd_name;
+  CHECK(patchy::ui::MainWindowTestAccess::save_document_to_path(window, psd_path));
+  QStringList expected = names;
+  expected.push_back(psd_name);
+  check_dir_holds_only(dir, expected);
+
+  const auto reread = patchy::psd::DocumentIo::read_file(patchy::ui::to_filesystem_path(psd_path));
+  std::size_t resolved_count = 0;
+  for (const auto& block : reread.metadata().smart_objects.blocks) {
+    for (const auto& source : block.sources) {
+      if (source.kind != patchy::SmartObjectSourceKind::ExternalFile) {
+        continue;
+      }
+      const auto file_name = nfc(QString::fromStdString(source.filename));
+      qsizetype index = -1;
+      for (qsizetype candidate = 0; candidate < names.size(); ++candidate) {
+        if (nfc(names.at(candidate)) == file_name) {
+          index = candidate;
+        }
+      }
+      CHECK(index >= 0);
+      const QFileInfo file(dir + QLatin1Char('/') + names.at(index < 0 ? 0 : index));
+      CHECK(nfc(QString::fromStdString(source.external_rel_path)) == file_name);
+      // Every stored form finds the file by itself: the relative path against the
+      // document's folder, the native absolute path, and the file URI (which keeps
+      // '#', '%' and '%20' literal, the way Photoshop stores it).
+      auto relative_only = source;
+      relative_only.external_original_path.clear();
+      relative_only.external_full_path.clear();
+      const auto by_relative = patchy::ui::resolve_smart_object_external_path(relative_only, dir);
+      CHECK(by_relative.has_value() && QFileInfo(*by_relative) == file);
+      auto native_only = source;
+      native_only.external_rel_path.clear();
+      native_only.filename.clear();
+      native_only.external_full_path.clear();
+      const auto by_native = patchy::ui::resolve_smart_object_external_path(native_only, QString());
+      CHECK(by_native.has_value() && QFileInfo(*by_native) == file);
+      auto uri_only = source;
+      uri_only.external_rel_path.clear();
+      uri_only.filename.clear();
+      uri_only.external_original_path.clear();
+      const auto by_uri = patchy::ui::resolve_smart_object_external_path(uri_only, QString());
+      CHECK(by_uri.has_value() && QFileInfo(*by_uri) == file);
+      CHECK(!patchy::ui::smart_object_link_changed_on_disk(source, file));
+      ++resolved_count;
+    }
+  }
+  CHECK(resolved_count == kUnicodePathStems.size());
+
+  // The reopened document through the script API: every link resolves to an existing file.
+  patchy::ui::MainWindowTestAccess::open_document_path(window, psd_path);
+  QApplication::processEvents();
+  CHECK(!window.statusBar()->currentMessage().contains(QStringLiteral("not found")));
+  auto& host = window.script_engine_host();
+  patchy::ui::ScriptEngineHost::RunOptions options;
+  options.name = QStringLiteral("place-linked");
+  (void)host.run_source(QStringLiteral(R"JS(
+    var doc = app.activeDocument;
+    var linked = 0;
+    for (var i = 0; i < doc.layers.length; i++) {
+      var layer = doc.layers[i];
+      if (!layer.isSmartObject) continue;
+      var so = layer.getSmartObject();
+      if (!so.linked || so.missing || so.changed) throw new Error(layer.name + ' flagged');
+      if (!patchy.io.fileExists(so.path)) throw new Error('path does not exist: ' + so.path);
+      if (so.relativePath !== so.fileName) throw new Error('relativePath ' + so.relativePath);
+      linked++;
+    }
+    if (linked !== %1) throw new Error('linked layers: ' + linked);
+  )JS")
+                            .arg(kUnicodePathStems.size()),
+                        std::move(options));
+  QElapsedTimer timer;
+  timer.start();
+  while (host.run_active() && timer.elapsed() < 15000) {
+    QApplication::processEvents(QEventLoop::ExcludeUserInputEvents, 20);
+  }
+  QApplication::processEvents(QEventLoop::ExcludeUserInputEvents, 20);
+  CHECK(!host.run_active());
+  CHECK(!host.last_run_had_error());
+}
+
 // File > Export Documents to Folder writes files, so it gets the standard coverage:
 // a Unicode folder AND a Unicode filename prefix, then one output reopened.
 void ui_unicode_export_documents_to_folder() {
@@ -644,6 +814,8 @@ std::vector<patchy::test::TestCase> unicode_path_tests() {
       {"ui_unicode_legacy_plugin_probe_from_unicode_dir", ui_unicode_legacy_plugin_probe_from_unicode_dir},
       {"ui_unicode_divide_photos_folder_save", ui_unicode_divide_photos_folder_save},
       {"ui_unicode_open_folder_reads_unicode_names", ui_unicode_open_folder_reads_unicode_names},
+      {"ui_unicode_files_as_layers_reads_unicode_names", ui_unicode_files_as_layers_reads_unicode_names},
+      {"ui_unicode_place_linked_smart_object_resolves", ui_unicode_place_linked_smart_object_resolves},
       {"ui_unicode_export_documents_to_folder", ui_unicode_export_documents_to_folder},
       {"ui_save_as_aborts_when_the_owning_document_changes", ui_save_as_aborts_when_the_owning_document_changes},
   };

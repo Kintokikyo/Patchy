@@ -54,6 +54,7 @@
 #include "ui/gradient_stops_editor.hpp"
 #include "ui/gradient_library.hpp"
 #include "ui/gradient_manager_dialog.hpp"
+#include "ui/curved_slider.hpp"
 #include "ui/dialog_utils.hpp"
 #include "ui/document_float_window.hpp"
 #include "ui/font_picker.hpp"
@@ -248,10 +249,6 @@
 #include <tpcshrd.h>
 #endif
 
-#ifndef PATCHY_VERSION
-#define PATCHY_VERSION "0.0.0"
-#endif
-
 // Icon resources live in the static patchy_ui library; force registration before first use.
 int qInitResources_icons();
 
@@ -334,7 +331,7 @@ void MainWindow::bind_action_translations(ActionBuildContext& ctx) {
       {ctx.border_selection_action, QT_TR_NOOP("&Border...")},
       {ctx.layer_transparency_action, QT_TR_NOOP("Load Layer &Transparency")},
       {ctx.stroke_selection_action, QT_TR_NOOP("&Stroke Selection...")},
-      {ctx.remove_object_action, QT_TR_NOOP("Remove &Object")},
+      {ctx.remove_object_action, QT_TR_NOOP("Remove &Object...")},
       {ctx.define_brush_tip_action, QT_TR_NOOP("Define Brush Tip from Selection")},
       {ctx.layer_new_menu->menuAction(), QT_TR_NOOP("&New")},
       {ctx.add_layer_action, QT_TR_NOOP("&New Layer")},
@@ -386,15 +383,16 @@ void MainWindow::bind_action_translations(ActionBuildContext& ctx) {
       {ctx.image_size_action, QT_TR_NOOP("&Image Size...")},
       {ctx.canvas_size_action, QT_TR_NOOP("&Canvas Size...")},
       {ctx.crop_action, QT_TR_NOOP("&Crop to Selection")},
+      {ctx.crop_advanced_action, QT_TR_NOOP("Crop to Selection (Advance&d)...")},
       {ctx.rotate_cw_action, QT_TR_NOOP("Rotate &Right")},
       {ctx.rotate_ccw_action, QT_TR_NOOP("Rotate &Left")},
       {ctx.rotate_arbitrary_action, QT_TR_NOOP("Rotate &Arbitrary...")},
       {ctx.shift_seams_action, QT_TR_NOOP("Shift &Seams to Center")},
-      {ctx.scan_legacy_plugins_action, QT_TR_NOOP("&Scan Legacy Photoshop Plug-ins...")},
       {legacy_plugins_menu_->menuAction(), QT_TR_NOOP("Legacy Photoshop Plug-ins")},
       {ctx.zoom_in, QT_TR_NOOP("Zoom &In")},
       {ctx.zoom_out, QT_TR_NOOP("Zoom &Out")},
       {ctx.fit_on_screen, QT_TR_NOOP("&Fit on Screen")},
+      {ctx.fill_screen, QT_TR_NOOP("Fi&ll Screen")},
       {ctx.zoom_reset, QT_TR_NOOP("&Actual Pixels")},
       {ctx.selection_edges_action, QT_TR_NOOP("Show Selection &Edges")},
       {ctx.target_path_action, QT_TR_NOOP("Show Target &Path")},
@@ -446,6 +444,11 @@ void MainWindow::bind_action_translations(ActionBuildContext& ctx) {
       {gradient_reverse_check_, QT_TR_NOOP("Reverse")},
       {gradient_edit_stops_button_, QT_TR_NOOP("Edit Stops...")},
       {wand_contiguous_check_, QT_TR_NOOP("Contiguous")},
+      {fill_contiguous_check_, QT_TR_NOOP("Contiguous")},
+      {zoom_scrubby_check_, QT_TR_NOOP("Scrubby Zoom")},
+      {zoom_actual_pixels_button_, QT_TR_NOOP("100%")},
+      {zoom_fit_screen_button_, QT_TR_NOOP("Fit Screen")},
+      {zoom_fill_screen_button_, QT_TR_NOOP("Fill Screen")},
       {wand_sample_all_layers_check_, QT_TR_NOOP("Sample All Layers")},
       {quick_select_sample_all_layers_check_, QT_TR_NOOP("Sample All Layers")},
       {quick_select_enhance_edge_check_, QT_TR_NOOP("Enhance Edge")},
@@ -476,7 +479,7 @@ void MainWindow::sync_tool_option_controls_from_canvas() {
   const auto set_slider_value = [this](const QString& name, int value) {
     if (auto* slider = findChild<QSlider*>(name); slider != nullptr) {
       const QSignalBlocker blocker(slider);
-      slider->setValue(value);
+      set_slider_to_value(*slider, value);
     }
   };
   const auto set_checked = [](QCheckBox* check, bool value) {
@@ -503,10 +506,17 @@ void MainWindow::sync_tool_option_controls_from_canvas() {
     crop_ratio_h_spin_->setValue(canvas_->crop_ratio_height());
   }
   set_checked(wand_contiguous_check_, canvas_->wand_contiguous());
+  set_checked(fill_contiguous_check_, canvas_->fill_contiguous());
+  set_checked(zoom_scrubby_check_, canvas_->zoom_scrubby());
+  if (zoom_in_mode_action_ != nullptr && zoom_out_mode_action_ != nullptr) {
+    zoom_in_mode_action_->setChecked(!canvas_->zoom_tool_zooms_out());
+    zoom_out_mode_action_->setChecked(canvas_->zoom_tool_zooms_out());
+  }
   set_checked(wand_sample_all_layers_check_, canvas_->wand_sample_all_layers());
   set_checked(quick_select_sample_all_layers_check_, canvas_->quick_select_sample_all_layers());
   set_checked(quick_select_enhance_edge_check_, canvas_->quick_select_enhance_edge());
   set_spin_value(QStringLiteral("wandToleranceSpin"), canvas_->wand_tolerance());
+  set_spin_value(QStringLiteral("fillToleranceSpin"), canvas_->fill_tolerance());
   set_spin_value(QStringLiteral("quickSelectSizeSpin"), canvas_->quick_select_size());
   set_slider_value(QStringLiteral("quickSelectSizeSlider"), canvas_->quick_select_size());
   set_spin_value(QStringLiteral("magneticLassoWidthSpin"), canvas_->magnetic_lasso_width());
@@ -585,6 +595,7 @@ void MainWindow::retranslate_ui() {
   rebuild_recent_files_menu();
   refresh_vector_preview_action();
   rebuild_recent_folders_menu();
+  rebuild_legacy_plugins_menu();  // translated status tips and the empty-menu note
   refresh_layer_list();
   refresh_layer_controls();
   refresh_channel_panel();

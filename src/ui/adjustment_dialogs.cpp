@@ -102,11 +102,14 @@ std::array<int, 256> default_levels_histogram() {
   std::array<int, 256> histogram{};
   for (int index = 0; index < static_cast<int>(histogram.size()); ++index) {
     const auto x = static_cast<double>(index) / 255.0;
-    const auto shadow = std::exp(-std::pow((x - 0.18) / 0.17, 2.0)) * 1100.0;
-    const auto midtone = std::exp(-std::pow((x - 0.52) / 0.28, 2.0)) * 1450.0;
-    const auto highlight = std::exp(-std::pow((x - 0.82) / 0.08, 2.0)) * 2300.0;
+    // Shaped for the clipped-linear display (ceiling = 4x the mean bin): the
+    // humps peak at roughly 35%, 50% and 60% of the graph and the spikes at
+    // 50% to 75%, so the placeholder still reads as a photo histogram.
+    const auto shadow = std::exp(-std::pow((x - 0.18) / 0.09, 2.0)) * 1900.0;
+    const auto midtone = std::exp(-std::pow((x - 0.50) / 0.14, 2.0)) * 3000.0;
+    const auto highlight = std::exp(-std::pow((x - 0.82) / 0.05, 2.0)) * 3400.0;
     histogram[static_cast<std::size_t>(index)] =
-        static_cast<int>(std::round(80.0 + shadow + midtone + highlight));
+        static_cast<int>(std::round(50.0 + shadow + midtone + highlight));
   }
   histogram[188] += 2400;
   histogram[239] += 3800;
@@ -212,7 +215,13 @@ protected:
     painter.setPen(QPen(QColor(46, 46, 46), 1));
     painter.drawRect(graph.adjusted(0, 0, -1, -1));
 
-    const auto maximum = std::max(1, *std::max_element(histogram_.begin(), histogram_.end()));
+    std::uint64_t total = 0;
+    std::uint64_t non_empty = 0;
+    for (const auto count : histogram_) {
+      total += static_cast<std::uint64_t>(std::max(0, count));
+      non_empty += count > 0 ? 1 : 0;
+    }
+    const auto ceiling = histogram_display_ceiling(total, non_empty);
     painter.setPen(Qt::NoPen);
     painter.setBrush(QColor(218, 218, 218));
     for (int x = 0; x < graph.width(); ++x) {
@@ -222,8 +231,9 @@ protected:
       for (int bin = first_bin; bin < last_bin; ++bin) {
         count = std::max(count, histogram_[static_cast<std::size_t>(bin)]);
       }
-      // Square-root height like the Curves graph: matches Photoshop's dialogs.
-      const auto scaled = std::sqrt(static_cast<double>(count) / static_cast<double>(maximum));
+      // Linear with a ceiling of four times the mean non-empty bin, like the
+      // Curves graph: matches Photoshop's Levels dialog (issue 32).
+      const auto scaled = histogram_display_fraction(static_cast<std::uint64_t>(std::max(0, count)), ceiling);
       const auto bar_height = std::clamp(static_cast<int>(std::round(scaled * (graph.height() - 8))), 1,
                                          std::max(1, graph.height() - 4));
       painter.fillRect(QRect(graph.left() + x, graph.bottom() - bar_height, 1, bar_height), QColor(218, 218, 218));
@@ -1400,6 +1410,56 @@ std::optional<ThresholdSettings> request_threshold_settings(
       {{QObject::tr("Threshold Level"), QStringLiteral("thresholdLevel"), 1, 255, initial.level, {}}},
       [](const std::vector<QSpinBox*>& spins) { return ThresholdSettings{spins[0]->value()}; },
       std::move(preview_changed));
+}
+
+std::optional<ExposureSettings> request_exposure_settings(
+    QWidget* parent, std::function<void(bool, const ExposureSettings&)> preview_changed, ExposureSettings initial) {
+  initial = clamp_exposure(initial);
+  // Photoshop's three fields are decimals, so the shared integer slider rows do not
+  // fit; the rows are added as extras and read back through this holder.
+  struct Fields {
+    QDoubleSpinBox* exposure{nullptr};
+    QDoubleSpinBox* offset{nullptr};
+    QDoubleSpinBox* gamma{nullptr};
+  };
+  auto fields = std::make_shared<Fields>();
+  const auto build_settings = [fields, initial](const std::vector<QSpinBox*>&) {
+    if (fields->exposure == nullptr || fields->offset == nullptr || fields->gamma == nullptr) {
+      return initial;
+    }
+    return clamp_exposure(ExposureSettings{static_cast<int>(std::lround(fields->exposure->value() * 100.0)),
+                                           static_cast<int>(std::lround(fields->offset->value() * 10000.0)),
+                                           static_cast<int>(std::lround(fields->gamma->value() * 100.0))});
+  };
+  return request_adjustment_settings_dialog<ExposureSettings>(
+      parent, QStringLiteral("patchyExposureDialog"), QObject::tr("Exposure"),
+      QStringLiteral("exposurePreviewCheck"), {}, build_settings, std::move(preview_changed), {},
+      [fields, initial](QDialog& dialog, QFormLayout* form, const std::vector<QSpinBox*>&,
+                        const std::function<void()>& flush_preview) {
+        const auto add_row = [&dialog, form, flush_preview](const QString& label, const QString& object_name,
+                                                             double minimum, double maximum, int decimals,
+                                                             double step, double value) {
+          auto* spin = new QDoubleSpinBox(&dialog);
+          spin->setObjectName(object_name);
+          spin->setDecimals(decimals);
+          spin->setRange(minimum, maximum);
+          spin->setSingleStep(step);
+          spin->setValue(value);
+          form->addRow(label, spin);
+          QObject::connect(spin, qOverload<double>(&QDoubleSpinBox::valueChanged), &dialog,
+                           [flush_preview](double) { flush_preview(); });
+          return spin;
+        };
+        fields->exposure = add_row(QObject::tr("Exposure:"), QStringLiteral("exposureValueSpin"),
+                                   -kExposureValueRange / 100.0, kExposureValueRange / 100.0, 2, 0.1,
+                                   initial.exposure_hundredths / 100.0);
+        fields->offset = add_row(QObject::tr("Offset:"), QStringLiteral("exposureOffsetSpin"),
+                                 -kExposureOffsetRange / 10000.0, kExposureOffsetRange / 10000.0, 4, 0.01,
+                                 initial.offset_ten_thousandths / 10000.0);
+        fields->gamma = add_row(QObject::tr("Gamma Correction:"), QStringLiteral("exposureGammaSpin"),
+                                kExposureGammaMin / 100.0, kExposureGammaMax / 100.0, 2, 0.05,
+                                initial.gamma_hundredths / 100.0);
+      });
 }
 
 std::optional<BrightnessContrastSettings> request_brightness_contrast_settings(

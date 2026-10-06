@@ -1,3 +1,6 @@
+#include "ui/image_document_io.hpp"
+#include "ui/animation_preview_window.hpp"
+#include "formats/webp_animation_io.hpp"
 // The JS scripting engine host (docs/scripting.md): per-run QJSEngine lifecycle,
 // the bootstrap prelude (console/timers/include/patchy namespace), the watchdog,
 // undo/refresh integration, and the MainWindow-facing services the API wrappers
@@ -11,18 +14,23 @@
 #include "core/layer_render_utils.hpp"
 #include "core/layer_tree.hpp"
 #include "core/palette.hpp"
+#include "core/smart_object.hpp"
 #include "ui/canvas_widget.hpp"
 #include "ui/color_panel.hpp"
 #include "ui/dialog_utils.hpp"
+#include "ui/font_face_name_index.hpp"
 #include "ui/main_window.hpp"
 #include "ui/mcp_activity.hpp"
 #include "ui/pdf_export.hpp"
 #include <QScopedValueRollback>
+#include "ui/localization.hpp"
 #include "ui/qt_geometry.hpp"
 #include "ui/script_api.hpp"
 #include "ui/script_canvas_window.hpp"
 #include "ui/script_folders.hpp"
+#include "ui/smart_object_render.hpp"
 #include "ui/sound_effects.hpp"
+#include "ui/text_layout.hpp"
 #include "ui/theme_qss.hpp"
 #include "ui/theme_palette.hpp"
 
@@ -111,6 +119,8 @@ constexpr const char* kBootstrapSource = R"JS(
     app: g.app,
     io: g.__patchy_io,
     ui: g.__patchy_ui,
+    recovery: g.__patchy_recovery,
+    plugins: g.__patchy_plugins,
     apiVersion: g.app.apiVersion,
     version: g.app.version,
     args: g.__patchy_args,
@@ -369,6 +379,14 @@ void ScriptEngineHost::install_bindings(const RunOptions& options) {
   auto* ui_object = new ScriptUiObject(*this);
   ui_object->setParent(&engine);
   global.setProperty(QStringLiteral("__patchy_ui"), engine.newQObject(ui_object));
+
+  auto* recovery_object = new ScriptRecoveryObject(*this);
+  recovery_object->setParent(&engine);
+  global.setProperty(QStringLiteral("__patchy_recovery"), engine.newQObject(recovery_object));
+
+  auto* plugins_object = new ScriptPluginsObject(*this);
+  plugins_object->setParent(&engine);
+  global.setProperty(QStringLiteral("__patchy_plugins"), engine.newQObject(plugins_object));
 
   const QJSValue bootstrap = engine.evaluate(QString::fromLatin1(kBootstrapSource),
                                              QStringLiteral("<patchy-bootstrap>"), 1);
@@ -1029,6 +1047,31 @@ bool ScriptEngineHost::save_session_to_path(std::int64_t session_id, const QStri
   return window_.save_document_to_path(path, std::nullopt, /*flatten_confirmed=*/true);
 }
 
+bool ScriptEngineHost::export_session_animated_webp(std::int64_t session_id, const QString& path,
+                                                   const ImageSaveOptions& options, QString* error) {
+  pump_progress_indicator();
+  auto* session = window_.session_with_id(session_id);
+  if (session == nullptr) {
+    *error = tr("One of the documents is no longer open.");
+    return false;
+  }
+  window_.activate_document_session(*session);
+  window_.finish_active_text_editor();
+  if (window_.animation_preview_window_ != nullptr) {
+    window_.animation_preview_window_->stop_playback_for(&session->document);
+  }
+  try {
+    write_animated_webp_file(std::as_const(session->document), path, options);
+  } catch (const std::exception& exception) {
+    *error = translate_data_text(exception.what());
+    return false;
+  }
+  session->document.metadata().values[webp::kLoopCountMetadata] = std::to_string(options.webp_loop_count);
+  window_.add_recent_file(path);
+  offer_browser_download_for_saved_file(path);
+  return true;
+}
+
 bool ScriptEngineHost::export_sessions_to_pdf(const std::vector<std::int64_t>& session_ids, const QString& path,
                                               const PdfExportOptions& options, QString* error) {
   pump_progress_indicator();
@@ -1152,6 +1195,143 @@ bool ScriptEngineHost::resize_session_image(std::int64_t session_id, int width, 
     note_structure_changed(session_id);
   }
   return resized;
+}
+
+std::vector<LayerId> ScriptEngineHost::import_files_as_layers(std::int64_t session_id, const QStringList& paths,
+                                                              QString* error) {
+  pump_progress_indicator();
+  auto* session = window_.session_with_id(session_id);
+  if (session == nullptr) {
+    if (error != nullptr) {
+      *error = tr("The document is no longer open.");
+    }
+    return {};
+  }
+  QString failure;
+  auto result = window_.add_files_as_layers(
+      *session, paths, std::nullopt, MainWindow::FailedFilesPolicy::AbortOnAnyFailure,
+      [this](int, int) {
+        pump_progress_indicator();
+        return !engine_ || !engine_->isInterrupted();
+      },
+      [this, session_id](MainWindow::DocumentSession&) { return prepare_mutation(session_id); }, &failure);
+  if (result.added_root_ids_top_to_bottom.empty()) {
+    if (error != nullptr) {
+      *error = failure.isEmpty() ? tr("No layers were added.") : failure;
+    }
+    return {};
+  }
+  note_structure_changed(session_id);
+  return result.added_root_ids_top_to_bottom;
+}
+
+std::optional<LayerId> ScriptEngineHost::add_smart_object(std::int64_t session_id, const QString& path,
+                                                          const SmartObjectParams& params, QString* error) {
+  pump_progress_indicator();
+  auto* session = window_.session_with_id(session_id);
+  if (session == nullptr) {
+    if (error != nullptr) {
+      *error = tr("The document is no longer open.");
+    }
+    return std::nullopt;
+  }
+  MainWindow::SmartObjectPlaceOptions options;
+  options.linked = params.linked;
+  options.x = params.x;
+  options.y = params.y;
+  options.width = params.width;
+  options.height = params.height;
+  options.scale = params.scale;
+  options.name = params.name;
+  const auto placed = window_.place_file_as_smart_object(
+      *session, path, options, [this, session_id] { return prepare_mutation(session_id); }, error);
+  if (placed.has_value()) {
+    note_structure_changed(session_id);
+  }
+  return placed;
+}
+
+int ScriptEngineHost::update_smart_object(std::int64_t session_id, LayerId layer_id, QString* error) {
+  pump_progress_indicator();
+  auto* session = window_.session_with_id(session_id);
+  if (session == nullptr) {
+    if (error != nullptr) {
+      *error = tr("The document is no longer open.");
+    }
+    return 0;
+  }
+  const auto updated = window_.update_linked_smart_object(
+      *session, layer_id, [this, session_id] { return prepare_mutation(session_id); }, error);
+  if (updated > 0) {
+    note_structure_changed(session_id);
+  }
+  return updated;
+}
+
+int ScriptEngineHost::rerender_smart_object(std::int64_t session_id, LayerId layer_id, QString* error) {
+  pump_progress_indicator();
+  auto* session = window_.session_with_id(session_id);
+  if (session == nullptr) {
+    if (error != nullptr) {
+      *error = tr("The document is no longer open.");
+    }
+    return 0;
+  }
+  const auto rendered = window_.rerender_embedded_smart_object(
+      *session, layer_id, [this, session_id] { return prepare_mutation(session_id); }, error);
+  if (rendered > 0) {
+    note_structure_changed(session_id);
+  }
+  return rendered;
+}
+
+std::optional<ScriptEngineHost::SmartObjectInfo> ScriptEngineHost::smart_object_info(std::int64_t session_id,
+                                                                                    LayerId layer_id) const {
+  const auto* session = window_.session_with_id(session_id);
+  const auto* layer = session != nullptr ? std::as_const(session->document).find_layer(layer_id) : nullptr;
+  if (layer == nullptr || !layer_is_smart_object(*layer)) {
+    return std::nullopt;
+  }
+  SmartObjectInfo info;
+  info.source_id = QString::fromStdString(smart_object_source_uuid(*layer));
+  if (const auto placement = smart_object_placement_from_layer(*layer); placement.has_value()) {
+    info.width = placement->width;
+    info.height = placement->height;
+    info.resolution = placement->resolution;
+    info.quad = placement->transform;
+  }
+  const auto* source =
+      std::as_const(session->document).metadata().smart_objects.find(smart_object_source_uuid(*layer));
+  if (source == nullptr) {
+    return info;  // an unparsed placement: the source is unknown
+  }
+  info.file_name = QString::fromStdString(source->filename);
+  if (source->kind != SmartObjectSourceKind::ExternalFile) {
+    return info;
+  }
+  info.linked = true;
+  info.relative_path = QString::fromStdString(source->external_rel_path);
+  const auto document_dir = session->path.isEmpty() ? QString() : QFileInfo(session->path).absolutePath();
+  if (const auto resolved = resolve_smart_object_external_path(*source, document_dir); resolved.has_value()) {
+    info.path = *resolved;
+    info.changed = smart_object_link_changed_on_disk(*source, QFileInfo(*resolved));
+  } else {
+    info.path = QDir::fromNativeSeparators(QString::fromStdString(source->external_original_path));
+    info.missing = true;
+  }
+  return info;
+}
+
+bool ScriptEngineHost::rerender_moved_smart_filters(std::int64_t session_id, LayerId layer_id) {
+  // No pump_progress_indicator here: the caller holds the document across this call.
+  auto* session = window_.session_with_id(session_id);
+  auto* layer = session != nullptr ? session->document.find_layer(layer_id) : nullptr;
+  if (layer == nullptr || session->canvas == nullptr) {
+    return false;
+  }
+  const auto document_dir = session->path.isEmpty() ? QString() : QFileInfo(session->path).absolutePath();
+  return refresh_smart_object_layer_preview(session->document, *layer, session->canvas->transform_interpolation(),
+                                            true, document_dir);
 }
 
 bool ScriptEngineHost::undo_enabled() const noexcept {
@@ -1516,8 +1696,9 @@ PixelBuffer ScriptEngineHost::pixels_limited_to_selection(std::int64_t session_i
 }
 
 bool ScriptEngineHost::remove_object_in_selection(std::int64_t session_id, LayerId layer_id, bool content_aware,
-                                                  int attempt, bool* used_content_aware, int* source,
-                                                  int* source_count, std::int64_t* patches) {
+                                                  int attempt, int tone_match, int feather, bool* used_content_aware,
+                                                  int* source, int* source_count, std::int64_t* patches,
+                                                  int* attempt_used) {
   pump_progress_indicator();
   auto* session = window_.session_with_id(session_id);
   if (session == nullptr || session->canvas == nullptr) {
@@ -1548,9 +1729,14 @@ bool ScriptEngineHost::remove_object_in_selection(std::int64_t session_id, Layer
     throw_js_error(tr("The document is no longer open."));
     return false;
   }
-  const auto result = canvas->remove_object_in_selection(content_aware ? CanvasWidget::RemoveObjectMethod::ContentAware
-                                                                       : CanvasWidget::RemoveObjectMethod::NearestEdge,
-                                                         attempt, /*record_history=*/false);
+  CanvasWidget::RemoveObjectOptions options;
+  options.method =
+      content_aware ? CanvasWidget::RemoveObjectMethod::ContentAware : CanvasWidget::RemoveObjectMethod::NearestEdge;
+  options.attempt = attempt;
+  options.tone_match = tone_match;
+  options.feather = feather;
+  options.record_history = false;
+  const auto result = canvas->remove_object_in_selection(options);
   if (!result.applied) {
     throw_js_error(result.error);
     return false;
@@ -1566,6 +1752,9 @@ bool ScriptEngineHost::remove_object_in_selection(std::int64_t session_id, Layer
   }
   if (patches != nullptr) {
     *patches = result.patches;
+  }
+  if (attempt_used != nullptr) {
+    *attempt_used = result.attempt;
   }
   note_pixels_changed(session_id, canvas->selected_document_rect().value_or(QRect()));
   return true;
@@ -1712,6 +1901,16 @@ QString ScriptEngineHost::text_layer_orientation(std::int64_t session_id, LayerI
              : QStringLiteral("horizontal");
 }
 
+QString ScriptEngineHost::text_layer_font(std::int64_t session_id, LayerId layer_id) const {
+  const auto* document = session_document_const(session_id);
+  const auto* layer = document != nullptr ? document->find_layer(layer_id) : nullptr;
+  if (layer == nullptr || !layer_is_text(*layer)) {
+    return QString();
+  }
+  const auto found = layer->metadata().find(kLayerMetadataTextFont);
+  return found != layer->metadata().end() ? QString::fromStdString(found->second) : QString();
+}
+
 QString ScriptEngineHost::text_layer_direction(std::int64_t session_id, LayerId layer_id) const {
   const auto* document = session_document_const(session_id);
   const auto* layer = document != nullptr ? document->find_layer(layer_id) : nullptr;
@@ -1734,9 +1933,115 @@ QString ScriptEngineHost::text_layer_direction(std::int64_t session_id, LayerId 
   return QStringLiteral("auto");
 }
 
+namespace {
+
+// Whether `family` (installed) lacks a glyph for some character of `text` in every face it has.
+// Spaces, marks and controls are drawn by nobody and prove nothing.
+bool text_family_lacks_some_character(const QString& family, const QString& text) {
+  std::vector<QRawFont> faces;
+  for (const auto& style : QFontDatabase::styles(family)) {
+    auto face = QRawFont::fromFont(QFontDatabase::font(family, style, 12));
+    if (face.isValid()) {
+      faces.push_back(std::move(face));
+    }
+  }
+  if (faces.empty()) {
+    return false;  // nothing to interrogate; stay quiet rather than guess
+  }
+  for (int index = 0; index < text.size(); ++index) {
+    char32_t code = text.at(index).unicode();
+    if (text.at(index).isHighSurrogate() && index + 1 < text.size() && text.at(index + 1).isLowSurrogate()) {
+      code = QChar::surrogateToUcs4(text.at(index), text.at(index + 1));
+      ++index;
+    }
+    if (code < 0x20 || QChar::isSpace(code) || QChar::isMark(code) ||
+        QChar::category(code) == QChar::Other_Format) {
+      continue;
+    }
+    const bool drawn = std::any_of(faces.begin(), faces.end(),
+                                   [code](const QRawFont& face) { return face.supportsCharacter(code); });
+    if (!drawn) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool family_listed(const QStringList& families, const QString& family) {
+  if (families.contains(family.trimmed(), Qt::CaseInsensitive)) {
+    return true;
+  }
+  // The text engine canonicalizes compact spellings such as LiberationSans to
+  // Liberation Sans. That is the requested family, not a fallback substitution.
+  const auto key = compact_text_family_key(family);
+  return !key.isEmpty() && std::any_of(families.begin(), families.end(), [&key](const QString& candidate) {
+    return compact_text_family_key(candidate) == key;
+  });
+}
+
+}  // namespace
+
+// Console warnings (never a dialog) for every font a scripted text edit asked for and did not
+// get. `asked` is what the script requested: the families the layer named before the edit plus
+// any the edit names itself. Three things hide a substitution from a plain "is this layer's
+// font missing" check, and all of them have to be reported:
+//   - the layer still names a family that is not installed, or that has no glyph for its text;
+//   - an edit session moved a missing family onto the face Qt draws it with, so the committed
+//     layer names the substitute and nothing looks missing;
+//   - characters the face cannot draw were moved to the face that draws them, as their own run
+//     (substitute_uncovered_characters_in_editor). Which of the last two a platform does for one
+//     input differs (Linux moves Latin typed into Noto Naskh Arabic to a Latin face, Windows
+//     leaves the run alone), so the check compares what was asked with what the layer ends up
+//     naming instead of trusting either route.
+void ScriptEngineHost::report_text_fonts(const QString& api, std::int64_t session_id, LayerId layer_id,
+                                         const QStringList& asked) {
+  const auto* document = session_document_const(session_id);
+  const auto* layer = document == nullptr ? nullptr : document->find_layer(layer_id);
+  if (layer == nullptr || !layer_is_text(*layer)) {
+    return;
+  }
+  auto problems = text_font_problems_for_layer(*layer);
+  QStringList named;
+  for (const auto& run : text_layer_runs(session_id, layer_id)) {
+    named.push_back(run.family.trimmed());
+  }
+  const bool substitute_present = std::any_of(named.begin(), named.end(), [&asked](const QString& family) {
+    return !family.isEmpty() && !family_listed(asked, family);
+  });
+  if (substitute_present) {
+    const auto text = text_layer_text(session_id, layer_id);
+    const auto installed = QFontDatabase::families();
+    for (const auto& raw_family : asked) {
+      const auto family = raw_family.trimmed();
+      if (family.isEmpty() || family_listed(problems.not_installed, family) ||
+          family_listed(problems.no_glyphs, family)) {
+        continue;
+      }
+      if (!family_listed(installed, family)) {
+        // A name the database lists under another spelling (family plus face, a full name) is
+        // still in the runs when it resolved; gone from them, it was substituted.
+        if (!family_listed(named, family)) {
+          problems.not_installed.push_back(family);
+        }
+      } else if (!family_listed(named, family) || text_family_lacks_some_character(family, text)) {
+        problems.no_glyphs.push_back(family);
+      }
+    }
+  }
+  if (!problems.not_installed.isEmpty()) {
+    emit_message(MessageKind::Warn, tr("%1: font not available, rendered with a fallback: %2")
+                                        .arg(api, problems.not_installed.join(QStringLiteral(", "))));
+  }
+  if (!problems.no_glyphs.isEmpty()) {
+    emit_message(MessageKind::Warn, tr("%1: font has no glyphs for this text, rendered with a fallback: %2")
+                                        .arg(api, problems.no_glyphs.join(QStringLiteral(", "))));
+  }
+}
+
 // Opens the hidden edit session `text` uses and runs `edit` on it before the commit.
-bool ScriptEngineHost::edit_text_layer_session(std::int64_t session_id, LayerId layer_id,
-                                               const std::function<void(QTextEdit&)>& edit) {
+bool ScriptEngineHost::edit_text_layer_session(std::int64_t session_id, LayerId layer_id, const char* api,
+                                               const std::function<void(QTextEdit&)>& edit,
+                                               const QStringList& requested_fonts) {
   pump_progress_indicator();
   auto* session = window_.session_with_id(session_id);
   if (session == nullptr || session->canvas == nullptr) {
@@ -1749,6 +2054,12 @@ bool ScriptEngineHost::edit_text_layer_session(std::int64_t session_id, LayerId 
   window_.activate_document_session(*session);
   if (!prepare_mutation(session_id)) {
     return false;
+  }
+  // Read before the session opens: it substitutes a font the layer cannot be drawn in, and the
+  // committed layer then names the substitute.
+  auto asked = requested_fonts;
+  for (const auto& run : text_layer_runs(session_id, layer_id)) {
+    asked.push_back(run.family);
   }
   const auto bounds = layer->bounds();
   const QPoint anchor(bounds.x + std::max(1, bounds.width) / 2, bounds.y + std::max(1, bounds.height) / 2);
@@ -1767,6 +2078,8 @@ bool ScriptEngineHost::edit_text_layer_session(std::int64_t session_id, LayerId 
   window_.finish_active_text_editor();
   QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
   note_structure_changed(session_id);
+
+  report_text_fonts(QString::fromLatin1(api), session_id, layer_id, asked);
   return true;
 }
 
@@ -1778,9 +2091,16 @@ bool ScriptEngineHost::set_text_layer_orientation(std::int64_t session_id, Layer
   if (text_layer_orientation(session_id, layer_id) == orientation) {
     return layer_is_text_layer(session_id, layer_id);
   }
-  return edit_text_layer_session(session_id, layer_id, [this, orientation](QTextEdit&) {
+  return edit_text_layer_session(session_id, layer_id, "layer.textOrientation", [this, orientation](QTextEdit&) {
     window_.apply_text_orientation(orientation == QLatin1String("vertical"), /*remember_default*/ false);
   });
+}
+
+bool ScriptEngineHost::rerender_text_layer(std::int64_t session_id, LayerId layer_id) {
+  // An untouched session of a box or PSD-frame layer keeps the source raster on commit
+  // (finish_active_text_editor); marking it changed is what makes the commit render.
+  return edit_text_layer_session(session_id, layer_id, "layer.rerenderText",
+                                 [this](QTextEdit& editor) { window_.mark_text_editor_changed(&editor); });
 }
 
 bool ScriptEngineHost::set_text_layer_direction(std::int64_t session_id, LayerId layer_id,
@@ -1789,13 +2109,73 @@ bool ScriptEngineHost::set_text_layer_direction(std::int64_t session_id, LayerId
   if (!resolved.has_value()) {
     return false;
   }
-  return edit_text_layer_session(session_id, layer_id, [this, resolved](QTextEdit& editor) {
+  return edit_text_layer_session(session_id, layer_id, "layer.textDirection", [this, resolved](QTextEdit& editor) {
     auto all = editor.textCursor();
     all.select(QTextCursor::Document);
     editor.setTextCursor(all);
     window_.apply_text_direction_to_active_editor(*resolved);
   });
 }
+
+namespace {
+
+Qt::Alignment text_alignment_for_name(const QString& name) {
+  if (name.compare(QLatin1String("center"), Qt::CaseInsensitive) == 0) {
+    return Qt::AlignHCenter;
+  }
+  if (name.compare(QLatin1String("right"), Qt::CaseInsensitive) == 0) {
+    return Qt::AlignRight;
+  }
+  if (name.compare(QLatin1String("justify"), Qt::CaseInsensitive) == 0) {
+    return Qt::AlignJustify;
+  }
+  return Qt::AlignLeft;
+}
+
+// The format a run is typed with: `base` (the session's typing format, or the first character's
+// on a re-edit) with the run's own family, size, face and color on top. The size lands in editor
+// units beside its exact value, exactly as the options bar's size spin does. A run that names a
+// family or a face drops any recorded style, which would otherwise override the request.
+void apply_text_run_to_format(MainWindow& window, QTextCharFormat& format,
+                              const ScriptEngineHost::TextRunParams& run, double zoom) {
+  if (!run.family.isEmpty()) {
+    window.apply_text_family_to_format(format, run.family);
+  }
+  if (run.size_px > 0.0) {
+    format.setProperty(QTextFormat::FontPixelSize,
+                       std::max(1, static_cast<int>(std::lround(run.size_px * zoom))));
+    format.setProperty(kTextExactSizeFormatProperty, run.size_px * zoom);
+  }
+  if (run.bold.has_value()) {
+    format.setFontWeight(*run.bold ? QFont::Bold : QFont::Normal);
+  }
+  if (run.italic.has_value()) {
+    format.setFontItalic(*run.italic);
+  }
+  if (run.color.isValid()) {
+    format.setForeground(QBrush(run.color));
+  }
+  if (!run.family.isEmpty() || run.bold.has_value() || run.italic.has_value()) {
+    format.clearProperty(kTextStyleNameFormatProperty);
+  }
+}
+
+// Replaces the editor's selection with the runs, each typed in its own format, and leaves the
+// cursor after the last one.
+void insert_text_runs(MainWindow& window, QTextEdit& editor, const QTextCharFormat& base,
+                      const std::vector<ScriptEngineHost::TextRunParams>& runs, double zoom) {
+  auto cursor = editor.textCursor();
+  cursor.beginEditBlock();
+  for (const auto& run : runs) {
+    QTextCharFormat format = base;
+    apply_text_run_to_format(window, format, run, zoom);
+    cursor.insertText(run.text, format);
+  }
+  cursor.endEditBlock();
+  editor.setTextCursor(cursor);
+}
+
+}  // namespace
 
 std::optional<LayerId> ScriptEngineHost::add_text_layer(std::int64_t session_id,
                                                         const TextLayerParams& params) {
@@ -1813,22 +2193,38 @@ std::optional<LayerId> ScriptEngineHost::add_text_layer(std::int64_t session_id,
   // add_text_at edits the ACTIVE layer when the point lands inside its bounds;
   // clearing the active layer guarantees a fresh text layer instead.
   session->document.clear_active_layer();
-  window_.add_text_at(params.position);
+  // A valid box opens the session as paragraph text (the Type tool's drag), wrapping at the
+  // box width; point text otherwise.
+  const QRect box = params.box.isValid() ? QRect(params.position, params.box) : QRect();
+  window_.add_text_at(params.position, box);
   QTextEdit* editor = wait_for_inline_text_editor(session->canvas);
   if (editor == nullptr) {
     return std::nullopt;
   }
-  QTextCharFormat format = editor->currentCharFormat();
-  QFont font = format.font();
-  if (!params.family.isEmpty()) {
-    font.setFamily(params.family);
+  const double zoom = std::max(0.01, session->canvas->zoom());
+  const auto layer_family =
+      !params.family.isEmpty() ? params.family : (params.runs.empty() ? QString() : params.runs.front().family);
+  if (!layer_family.isEmpty()) {
+    // The options bar's font picker path: besides the char format, the commit reads the family
+    // from the session property and the per-run display family, so a bare QFont family was
+    // dropped and every script-made layer rendered in the bar's current font.
+    window_.apply_text_family_to_editor(*editor, layer_family);
   }
+  QTextCharFormat format = editor->currentCharFormat();
+  // A new session seeds its face from the options bar's style picker, as Photoshop seeds new
+  // type from its toolbar. A script names the face itself (font, bold, italic), so the picker's
+  // face must not ride along: with the bar parked on a Semibold layer, every scripted layer in
+  // any family offering that face rendered Semibold, whatever the script asked for.
+  format.clearProperty(kTextStyleNameFormatProperty);
+  QFont font = format.font();
   if (params.size_px > 0.0) {
     // The inline editor's font lives in editor pixels (document px * zoom, see
     // the interactive path in main_window.cpp). A point-sized font here would
     // commit at a size that depends on the current canvas zoom.
-    const double zoom = std::max(0.01, session->canvas->zoom());
     font.setPixelSize(std::max(1, static_cast<int>(std::lround(params.size_px * zoom))));
+    // The exact size travels alongside the whole-pixel editor font, so the committed size is
+    // the requested one at every zoom rather than round(px / zoom).
+    format.setProperty(kTextExactSizeFormatProperty, params.size_px * zoom);
   }
   font.setBold(params.bold);
   font.setItalic(params.italic);
@@ -1842,12 +2238,30 @@ std::optional<LayerId> ScriptEngineHost::add_text_layer(std::int64_t session_id,
   } else if (params.orientation == QLatin1String("horizontal")) {
     window_.apply_text_orientation(false, /*remember_default*/ false);
   }
-  editor->insertPlainText(params.text);
+  if (params.runs.empty()) {
+    editor->insertPlainText(params.text);
+  } else {
+    insert_text_runs(window_, *editor, format, params.runs, zoom);
+  }
+  if (!params.align.isEmpty()) {
+    // Paragraph-level, like the options bar's alignment buttons on a whole object.
+    auto all = editor->textCursor();
+    all.select(QTextCursor::Document);
+    editor->setTextCursor(all);
+    window_.apply_text_alignment_to_editor(*editor, text_alignment_for_name(params.align));
+  }
   if (const auto direction = layout_direction_for_name(params.direction); direction.has_value()) {
     auto all = editor->textCursor();
     all.select(QTextCursor::Document);
     editor->setTextCursor(all);
     window_.apply_text_direction_to_active_editor(*direction);
+  }
+  if (!params.paragraph.empty()) {
+    // Paragraph panel metrics on the whole object, like `align`.
+    auto all = editor->textCursor();
+    all.select(QTextCursor::Document);
+    editor->setTextCursor(all);
+    window_.apply_text_paragraph_metrics_to_editor(*editor, params.paragraph);
   }
   QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
   window_.finish_active_text_editor();
@@ -1868,47 +2282,218 @@ std::optional<LayerId> ScriptEngineHost::add_text_layer(std::int64_t session_id,
   };
   find_new(std::as_const(session->document).layers());
   note_structure_changed(session_id);
+  if (created.has_value()) {
+    // A family that is not installed, or that holds no glyph for the text, renders in a fallback
+    // face; say so, and say which, instead of letting the caller discover it from the pixels.
+    QStringList asked;
+    if (!params.family.trimmed().isEmpty()) {
+      asked.push_back(params.family.trimmed());
+    }
+    for (const auto& run : params.runs) {
+      if (!run.family.trimmed().isEmpty()) {
+        asked.push_back(run.family.trimmed());
+      }
+    }
+    report_text_fonts(QStringLiteral("addTextLayer"), session_id, *created, asked);
+  }
   return created;
 }
 
 bool ScriptEngineHost::set_text_layer_text(std::int64_t session_id, LayerId layer_id,
                                            const QString& text) {
-  pump_progress_indicator();
-  auto* session = window_.session_with_id(session_id);
-  if (session == nullptr || session->canvas == nullptr) {
-    return false;
+  TextRunParams run;
+  run.text = text;
+  return set_text_layer_runs(session_id, layer_id, {run}, "layer.text");
+}
+
+bool ScriptEngineHost::set_text_layer_runs(std::int64_t session_id, LayerId layer_id,
+                                           const std::vector<TextRunParams>& runs, const char* api) {
+  QStringList requested_fonts;
+  for (const auto& run : runs) {
+    if (!run.family.trimmed().isEmpty()) {
+      requested_fonts.push_back(run.family.trimmed());
+    }
   }
-  const auto* layer = std::as_const(session->document).find_layer(layer_id);
-  if (layer == nullptr || !layer_is_text(*layer) || window_.layer_id_locks_image_pixels(layer_id)) {
-    return false;
+  const auto edit = [this, session_id, &runs](QTextEdit& editor) {
+    const auto* session = window_.session_with_id(session_id);
+    const double zoom =
+        session != nullptr && session->canvas != nullptr ? std::max(0.01, session->canvas->zoom()) : 1.0;
+    auto cursor = editor.textCursor();
+    cursor.select(QTextCursor::Document);
+    // Replace the selection in one step, as retyping it in the editor does. Deleting everything
+    // first left an empty block whose char format is only the session's fallback font, so the
+    // inserted text lost the run properties the commit renders from (the exact fractional size,
+    // the Character-panel glyph scales, leading, tracking, faux styles): an imported Photoshop
+    // layer with VerticalScale 0.93 re-rendered 7.5% taller than the same layer applied
+    // interactively. Photoshop gives retyped text the first selected character's attributes;
+    // a run's own font, size, face and color go on top of them.
+    QTextCharFormat base;
+    {
+      auto first = cursor;
+      first.setPosition(0);
+      first.setPosition(std::min(1, first.document()->characterCount() - 1), QTextCursor::KeepAnchor);
+      base = first.charFormat();
+    }
+    editor.setTextCursor(cursor);
+    insert_text_runs(window_, editor, base, runs, zoom);
+  };
+  return edit_text_layer_session(session_id, layer_id, api, edit, requested_fonts);
+}
+
+std::vector<ScriptEngineHost::TextRunInfo> ScriptEngineHost::text_layer_runs(std::int64_t session_id,
+                                                                            LayerId layer_id) const {
+  std::vector<TextRunInfo> runs;
+  const auto* document = session_document_const(session_id);
+  const auto* layer = document != nullptr ? document->find_layer(layer_id) : nullptr;
+  if (layer == nullptr || !layer_is_text(*layer)) {
+    return runs;
   }
-  window_.activate_document_session(*session);
-  if (!prepare_mutation(session_id)) {
-    return false;
+  const auto& metadata = layer->metadata();
+  const auto value = [&metadata](const char* key) {
+    const auto found = metadata.find(key);
+    return found == metadata.end() ? QString() : QString::fromStdString(found->second);
+  };
+  const auto decode = [](const QString& field) {
+    return QString::fromUtf8(QByteArray::fromPercentEncoding(field.toLatin1()));
+  };
+  const auto text = value(kLayerMetadataText);
+  // The run columns: start, length, size, bold, italic, color, family, then the optional
+  // Photoshop-layout columns, with the recorded face at column 12 (docs/text-tool.md).
+  for (const auto& raw_line : value(kLayerMetadataTextRuns).split(QLatin1Char('\n'))) {
+    const auto fields = raw_line.trimmed().split(QLatin1Char('\t'));
+    if (fields.size() < 7) {
+      continue;  // the version line
+    }
+    bool start_ok = false;
+    bool length_ok = false;
+    const auto start = fields[0].toInt(&start_ok);
+    const auto length = fields[1].toInt(&length_ok);
+    if (!start_ok || !length_ok || start < 0 || length <= 0 || start >= text.size()) {
+      continue;
+    }
+    TextRunInfo run;
+    run.text = text.mid(start, length);
+    run.size = fields[2].toDouble();
+    run.bold = fields[3].toInt() != 0;
+    run.italic = fields[4].toInt() != 0;
+    run.color = fields[5];
+    run.family = decode(fields[6]);
+    if (fields.size() >= 13) {
+      run.style = decode(fields[12]);
+    }
+    runs.push_back(std::move(run));
   }
-  const auto bounds = layer->bounds();
-  const QPoint anchor(bounds.x + std::max(1, bounds.width) / 2,
-                      bounds.y + std::max(1, bounds.height) / 2);
-  session->document.set_active_layer(layer_id);
-  window_.add_text_at(anchor);
-  QTextEdit* editor = wait_for_inline_text_editor(session->canvas);
-  if (editor == nullptr) {
-    return false;
+  if (runs.empty()) {
+    TextRunInfo run;
+    run.text = text;
+    run.family = value(kLayerMetadataTextFont);
+    run.size = value(kLayerMetadataTextSize).toDouble();
+    run.bold = value(kLayerMetadataTextBold) == QLatin1String("true");
+    run.italic = value(kLayerMetadataTextItalic) == QLatin1String("true");
+    run.color = value(kLayerMetadataTextColor);
+    runs.push_back(std::move(run));
   }
-  if (editor->property("patchy.editingLayerId").toULongLong() != static_cast<qulonglong>(layer_id)) {
-    window_.cancel_active_text_editor();
-    return false;
+  return runs;
+}
+
+QSize ScriptEngineHost::text_layer_box(std::int64_t session_id, LayerId layer_id) const {
+  const auto* document = session_document_const(session_id);
+  const auto* layer = document != nullptr ? document->find_layer(layer_id) : nullptr;
+  if (layer == nullptr || !layer_is_text(*layer)) {
+    return QSize();
   }
-  auto cursor = editor->textCursor();
-  cursor.select(QTextCursor::Document);
-  cursor.removeSelectedText();
-  editor->setTextCursor(cursor);
-  editor->insertPlainText(text);
-  QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
-  window_.finish_active_text_editor();
-  QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
-  note_structure_changed(session_id);
-  return true;
+  const auto& metadata = layer->metadata();
+  const auto value = [&metadata](const char* key) {
+    const auto found = metadata.find(key);
+    return found == metadata.end() ? QString() : QString::fromStdString(found->second);
+  };
+  // Point text stores its editor box too; only the flow flag says the box is a paragraph box.
+  if (value(kLayerMetadataTextFlow).compare(QLatin1String("box"), Qt::CaseInsensitive) != 0) {
+    return QSize();
+  }
+  const QSize box(value(kLayerMetadataTextBoxWidth).toInt(), value(kLayerMetadataTextBoxHeight).toInt());
+  return box.width() > 0 && box.height() > 0 ? box : QSize();
+}
+
+QString ScriptEngineHost::text_layer_align(std::int64_t session_id, LayerId layer_id) const {
+  const auto* document = session_document_const(session_id);
+  const auto* layer = document != nullptr ? document->find_layer(layer_id) : nullptr;
+  if (layer == nullptr || !layer_is_text(*layer)) {
+    return QString();
+  }
+  const auto found = layer->metadata().find(kLayerMetadataTextParagraphRuns);
+  if (found != layer->metadata().end()) {
+    for (const auto& raw_line : QString::fromStdString(found->second).split(QLatin1Char('\n'))) {
+      const auto fields = raw_line.trimmed().split(QLatin1Char('\t'));
+      if (fields.size() < 3) {
+        continue;
+      }
+      return fields[2].trimmed().toLower();
+    }
+  }
+  return QStringLiteral("left");
+}
+
+TextParagraphMetrics ScriptEngineHost::text_layer_paragraph(std::int64_t session_id, LayerId layer_id) const {
+  TextParagraphMetrics metrics;
+  metrics.first_line_indent = 0.0;
+  metrics.start_indent = 0.0;
+  metrics.end_indent = 0.0;
+  metrics.space_before = 0.0;
+  metrics.space_after = 0.0;
+  const auto* document = session_document_const(session_id);
+  const auto* layer = document != nullptr ? document->find_layer(layer_id) : nullptr;
+  if (layer == nullptr || !layer_is_text(*layer)) {
+    return metrics;
+  }
+  const auto found = layer->metadata().find(kLayerMetadataTextParagraphRuns);
+  if (found == layer->metadata().end()) {
+    return metrics;
+  }
+  // The first paragraph's v2+ columns (first line indent, left, right, space before, space after).
+  for (const auto& raw_line : QString::fromStdString(found->second).split(QLatin1Char('\n'))) {
+    const auto fields = raw_line.trimmed().split(QLatin1Char('\t'));
+    if (fields.size() < 3) {
+      continue;
+    }
+    if (fields.size() >= 8) {
+      const auto metric = [&fields](int index) {
+        bool ok = false;
+        const auto value = fields[index].toDouble(&ok);
+        return ok && std::isfinite(value) ? value : 0.0;
+      };
+      metrics.first_line_indent = metric(3);
+      metrics.start_indent = metric(4);
+      metrics.end_indent = metric(5);
+      metrics.space_before = metric(6);
+      metrics.space_after = metric(7);
+    }
+    break;
+  }
+  return metrics;
+}
+
+bool ScriptEngineHost::set_text_layer_paragraph(std::int64_t session_id, LayerId layer_id,
+                                                const TextParagraphMetrics& metrics) {
+  if (metrics.empty()) {
+    return layer_is_text_layer(session_id, layer_id);
+  }
+  return edit_text_layer_session(session_id, layer_id, "layer.textParagraph", [this, metrics](QTextEdit& editor) {
+    auto all = editor.textCursor();
+    all.select(QTextCursor::Document);
+    editor.setTextCursor(all);
+    window_.apply_text_paragraph_metrics_to_editor(editor, metrics);
+  });
+}
+
+bool ScriptEngineHost::set_text_layer_align(std::int64_t session_id, LayerId layer_id, const QString& align) {
+  const auto alignment = text_alignment_for_name(align);
+  return edit_text_layer_session(session_id, layer_id, "layer.textAlign", [this, alignment](QTextEdit& editor) {
+    auto all = editor.textCursor();
+    all.select(QTextCursor::Document);
+    editor.setTextCursor(all);
+    window_.apply_text_alignment_to_editor(editor, alignment);
+  });
 }
 
 QString ScriptEngineHost::text_layer_text(std::int64_t session_id, LayerId layer_id) const {
@@ -2010,6 +2595,80 @@ bool ScriptEngineHost::apply_filter_to_layer(std::int64_t session_id, LayerId la
   registry.apply(*normalized, layer->pixels());
   note_pixels_changed(session_id, before_bounds);
   return true;
+}
+
+bool ScriptEngineHost::apply_legacy_plugin_to_layer(std::int64_t session_id, LayerId layer_id,
+                                                    const QString& plugin_id, bool show_dialog,
+                                                    const QString& capture_dialog_path) {
+  pump_progress_indicator();
+  auto* session = window_.session_with_id(session_id);
+  if (session == nullptr) {
+    throw_js_error(tr("The document is no longer open."));
+    return false;
+  }
+  const auto* entry = window_.find_legacy_plugin(plugin_id.toStdString());
+  if (entry == nullptr) {
+    throw_js_error(tr("Unknown plug-in id: %1").arg(plugin_id));
+    return false;
+  }
+  if (!entry->probe.supported) {
+    throw_js_error(tr("Plug-in %1 cannot run: %2").arg(plugin_id, translate_data_text(entry->probe.reason)));
+    return false;
+  }
+  auto* layer = session->document.find_layer(layer_id);
+  if (layer == nullptr) {
+    throw_js_error(tr("The layer no longer exists."));
+    return false;
+  }
+  if (layer->kind() != LayerKind::Pixel) {
+    throw_js_error(tr("applyPlugin needs a pixel layer."));
+    return false;
+  }
+  if (std::as_const(*layer).pixels().empty()) {
+    return true;  // nothing to filter
+  }
+  const auto before_bounds = to_qrect(layer_render_bounds(std::as_const(*layer)));
+  QString error;
+  const auto status = window_.apply_legacy_plugin(
+      *session, layer_id, *entry, show_dialog && (!unattended_run() || !capture_dialog_path.isEmpty()),
+      [this, session_id] { (void)prepare_mutation(session_id); }, &error,
+      capture_dialog_path.isEmpty() ? QString() : QDir::toNativeSeparators(capture_dialog_path),
+      // A script that asked for no dialog gets a dialog the plug-in opens
+      // anyway (first run, nothing stored) answered, so it never blocks.
+      /*auto_accept_dialogs=*/unattended_run() || !show_dialog);
+  switch (status) {
+    case MainWindow::LegacyPluginApplyStatus::Applied:
+      note_pixels_changed(session_id, before_bounds);
+      return true;
+    case MainWindow::LegacyPluginApplyStatus::NoChange:
+      return true;
+    case MainWindow::LegacyPluginApplyStatus::Cancelled:
+      throw_js_error(tr("Plug-in %1 was cancelled.").arg(plugin_id));
+      return false;
+    case MainWindow::LegacyPluginApplyStatus::Error:
+      throw_js_error(tr("Plug-in %1 failed: %2").arg(plugin_id, error));
+      return false;
+  }
+  return false;
+}
+
+void ScriptEngineHost::rescan_legacy_plugins() { window_.rescan_legacy_plugin_folders(); }
+
+QJSValue ScriptEngineHost::legacy_plugin_list() {
+  auto array = engine()->newArray();
+  quint32 index = 0;
+  for (const auto& entry : window_.legacy_plugins_) {
+    auto value = engine()->newObject();
+    value.setProperty(QStringLiteral("id"), QString::fromStdString(entry.identifier));
+    value.setProperty(QStringLiteral("name"), QString::fromStdString(entry.probe.display_name));
+    value.setProperty(QStringLiteral("category"), QString::fromStdString(entry.probe.category));
+    value.setProperty(QStringLiteral("path"), QDir::fromNativeSeparators(entry.path));
+    value.setProperty(QStringLiteral("supported"), entry.probe.supported);
+    value.setProperty(QStringLiteral("reason"), translate_data_text(entry.probe.reason));
+    value.setProperty(QStringLiteral("architecture"), QString::fromStdString(entry.probe.architecture));
+    array.setProperty(index++, value);
+  }
+  return array;
 }
 
 // ---------------------------------------------------------------------------
@@ -2418,7 +3077,7 @@ void ScriptEngineHost::set_status_message(const QString& message) {
 
 double ScriptEngineHost::view_zoom_percent() const {
   const auto* canvas = session_canvas(active_session_id());
-  return canvas != nullptr ? canvas->zoom() * 100.0 : 0.0;
+  return canvas != nullptr ? canvas->view_zoom() * 100.0 : 0.0;
 }
 
 void ScriptEngineHost::set_view_zoom_percent(double percent) {
@@ -2428,9 +3087,10 @@ void ScriptEngineHost::set_view_zoom_percent(double percent) {
     throw_js_error(tr("No document is open to zoom."));
     return;
   }
-  // set_zoom_centered clamps to the canvas zoom range and refreshes the
-  // status bar percent through the view-changed notification.
-  canvas->set_zoom_centered(percent / 100.0);
+  // set_view_zoom_centered clamps to the canvas zoom range and refreshes the
+  // status bar percent through the view-changed notification. Percent is the
+  // view zoom (document pixels per device pixel), what the status box shows.
+  canvas->set_view_zoom_centered(percent / 100.0);
 }
 
 void ScriptEngineHost::fit_view_on_screen() {

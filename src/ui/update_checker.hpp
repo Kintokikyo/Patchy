@@ -39,6 +39,11 @@ struct UpdateCheckResult {
 
 using UpdateCheckResultCallback = std::function<void(UpdateCheckResult)>;
 
+// False when something else delivers updates, so Patchy must neither check nor offer
+// the setting: the web build (the deployed site is always current), a store build
+// (CMake PATCHY_STORE_BUILD, for a repository such as Flathub that forbids apps from
+// updating themselves), or PATCHY_NO_UPDATE_CHECK=1 in the environment.
+[[nodiscard]] bool update_checks_available();
 [[nodiscard]] QString current_update_platform();
 [[nodiscard]] QUrl update_manifest_url();
 [[nodiscard]] bool update_version_is_newer(const QString& latest_version, const QString& current_version);

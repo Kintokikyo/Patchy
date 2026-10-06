@@ -28,6 +28,7 @@
 #include "ui/brush_tip_picker.hpp"
 #include "ui/blend_if_range_editor.hpp"
 #include "ui/color_panel.hpp"
+#include "ui/new_document_dialog.hpp"
 #include "ui/default_brush_tips.hpp"
 #include "ui/dialog_utils.hpp"
 #include "ui/document_float_window.hpp"
@@ -370,7 +371,15 @@ void ui_move_layer_menu_respects_pixels_masks_and_visibility() {
   CHECK(document.active_layer_id() == bottom_id);
   CHECK(move_layer_menu(canvas) == nullptr);
   CHECK(right_click_move_canvas(canvas, QPoint(90, 80)) == nullptr);
-  CHECK(right_click_move_canvas(canvas, QPoint(-10, 40)) == nullptr);
+  // Outside the document the menu offers only the pasteboard color (issue 47),
+  // never a layer entry.
+  auto* pasteboard_menu = right_click_move_canvas(canvas, QPoint(-10, 40));
+  CHECK(pasteboard_menu != nullptr);
+  CHECK(std::none_of(pasteboard_menu->actions().cbegin(), pasteboard_menu->actions().cend(),
+                     [](const QAction* action) { return action->data().toULongLong() != 0; }));
+  CHECK(pasteboard_menu->findChild<QAction*>(QStringLiteral("canvasBackdropDefaultAction")) != nullptr);
+  send_key(*pasteboard_menu, Qt::Key_Escape);
+  QApplication::processEvents();
   std::size_t index = 0;
   for (const auto& layer : std::as_const(document).layers()) {
     CHECK(layer.content_revision() == revisions[index++]);
@@ -460,9 +469,36 @@ void ui_selection_context_menu_offers_remove_object() {
     QApplication::processEvents();
   }
 
-  // Picking Remove Object from the menu runs the command: one history entry.
+  // Picking Remove Object from the menu opens its dialog while the first fill
+  // runs on a worker; accepting it once the result is in commits one history
+  // entry. The driver re-arms until then and gives up after five seconds.
   canvas->set_tool(patchy::ui::CanvasTool::Marquee);
   const auto depth = patchy::ui::MainWindowTestAccess::active_session_undo_depth(window);
+  bool accepted_dialog = false;
+  int driver_tries = 0;
+  auto poll = std::make_shared<std::function<void()>>();
+  *poll = [&, poll] {
+    for (auto* widget : QApplication::topLevelWidgets()) {
+      auto* dialog = qobject_cast<QDialog*>(widget);
+      if (dialog == nullptr || dialog->objectName() != QStringLiteral("patchyRemoveObjectDialog") ||
+          !dialog->isVisible()) {
+        continue;
+      }
+      // The fill runs on a worker; OK enables once its result is in.
+      auto* buttons = dialog->findChild<QDialogButtonBox*>();
+      auto* ok = buttons != nullptr ? buttons->button(QDialogButtonBox::Ok) : nullptr;
+      if (ok == nullptr || !ok->isEnabled()) {
+        break;
+      }
+      accepted_dialog = true;
+      dialog->accept();
+      return;
+    }
+    if (++driver_tries < 500) {
+      QTimer::singleShot(10, *poll);
+    }
+  };
+  QTimer::singleShot(10, *poll);
   menu = right_click_move_canvas(*canvas, QPoint(50, 50));
   CHECK(menu != nullptr);
   if (menu != nullptr) {
@@ -474,6 +510,7 @@ void ui_selection_context_menu_offers_remove_object() {
     menu->close();
     QApplication::processEvents();
   }
+  CHECK(accepted_dialog);
   CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == depth + 1);
 }
 
@@ -1089,7 +1126,7 @@ void ui_layer_row_double_click_opens_blending_options_dialog() {
   CHECK(item != nullptr);
   auto* row_widget = layer_list->itemWidget(item);
   CHECK(row_widget != nullptr);
-  auto* row_name = row_widget->findChild<QLabel*>(QStringLiteral("layerRowName"));
+  auto* row_name = row_widget->findChild<QLabel*>(QStringLiteral("layerRowDetails"));
   CHECK(row_name != nullptr);
 
   bool saw_blending_options = false;
@@ -1285,7 +1322,7 @@ void ui_layer_row_double_click_opens_folder_styles_and_edits_adjustments() {
     auto* item = require_layer_item(*layer_list, layer_name);
     auto* row_widget = layer_list->itemWidget(item);
     CHECK(row_widget != nullptr);
-    auto* row_name = row_widget->findChild<QLabel*>(QStringLiteral("layerRowName"));
+    auto* row_name = row_widget->findChild<QLabel*>(QStringLiteral("layerRowDetails"));
     CHECK(row_name != nullptr);
     return row_name;
   };
@@ -1870,7 +1907,7 @@ void ui_close_last_tab_with_active_text_edit_commits_editor_first() {
     prompt_seen = true;
     editor_gone_at_prompt = canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor")) == nullptr;
     dismiss_timer->stop();
-    dialog->button(QMessageBox::No)->click();
+    dialog->button(QMessageBox::Discard)->click();
   });
   dismiss_timer->start();
 
@@ -1883,11 +1920,13 @@ void ui_close_last_tab_with_active_text_edit_commits_editor_first() {
   CHECK(tabs->count() == 0);
 }
 
-// The close-document save prompt asks Yes/No/Cancel, and bare Y/N key presses
-// (no Alt) activate Yes/No like native Windows message boxes. Qt itself only
-// wires the Alt+mnemonic; show_warning_message adds the plain letters, so both
-// the button set and the accelerators are pinned here.
-void ui_save_prompt_uses_yes_no_cancel_with_letter_hotkeys() {
+// The close-document save prompt offers Save / Don't Save / Cancel with Save as
+// the default (GitHub issue 70), and bare key presses (no Alt) answer it like
+// native Windows message boxes: S and D for the two buttons, plus Y and N as
+// aliases from the Yes/No days. Qt itself only wires the Alt+mnemonic;
+// show_warning_message adds the plain letters, so both the button set and the
+// accelerators are pinned here.
+void ui_save_prompt_uses_save_dont_save_cancel_with_letter_hotkeys() {
   std::filesystem::create_directories("test-artifacts");
   const auto path = QFileInfo(QDir(QStringLiteral("test-artifacts"))
                                   .filePath(QStringLiteral("ui_save_prompt_yes_no.tga")))
@@ -1924,10 +1963,10 @@ void ui_save_prompt_uses_yes_no_cancel_with_letter_hotkeys() {
   // Dismisses the save prompt with a bare letter key once it appears, recording
   // the button layout. The prompt runs a nested event loop, hence the timer.
   bool prompt_seen = false;
-  bool buttons_are_yes_no_cancel = false;
+  bool buttons_are_save_dont_save_cancel = false;
   const auto dismiss_prompt_with_key = [&](int key) {
     prompt_seen = false;
-    buttons_are_yes_no_cancel = false;
+    buttons_are_save_dont_save_cancel = false;
     auto* dismiss_timer = new QTimer(&window);
     dismiss_timer->setInterval(10);
     QObject::connect(dismiss_timer, &QTimer::timeout, &window, [&, key, dismiss_timer] {
@@ -1936,12 +1975,17 @@ void ui_save_prompt_uses_yes_no_cancel_with_letter_hotkeys() {
         return;
       }
       prompt_seen = true;
-      buttons_are_yes_no_cancel =
-          dialog->button(QMessageBox::Yes) != nullptr && dialog->button(QMessageBox::No) != nullptr &&
-          dialog->button(QMessageBox::Cancel) != nullptr && dialog->button(QMessageBox::Save) == nullptr &&
-          dialog->button(QMessageBox::Discard) == nullptr;
+      auto* save = dialog->button(QMessageBox::Save);
+      auto* discard = dialog->button(QMessageBox::Discard);
+      buttons_are_save_dont_save_cancel =
+          save != nullptr && discard != nullptr && dialog->button(QMessageBox::Cancel) != nullptr &&
+          dialog->button(QMessageBox::Yes) == nullptr && dialog->button(QMessageBox::No) == nullptr &&
+          dialog->defaultButton() == save && discard->text() == QStringLiteral("Don't Save");
       dismiss_timer->stop();
       dismiss_timer->deleteLater();
+      if (key == Qt::Key_D) {
+        save_widget_artifact("ui_save_prompt", *dialog);  // Save carries the default outline
+      }
       // Send to the focused button when there is one: the bare letter must reach
       // the box by propagating up from the child, the interactive path.
       auto* target = dialog->focusWidget() != nullptr ? dialog->focusWidget() : dialog;
@@ -1950,40 +1994,45 @@ void ui_save_prompt_uses_yes_no_cancel_with_letter_hotkeys() {
     dismiss_timer->start();
   };
 
-  // N answers No: the document closes without saving.
-  patchy::ui::MainWindowTestAccess::open_document_path(window, path);
-  QApplication::processEvents();
-  require_action_by_text(window, QStringLiteral("Flip Layer Horizontal"))->trigger();
-  QApplication::processEvents();
-  CHECK(corner_color() == right_color);
-  int tabs_before_close = tabs->count();
-  dismiss_prompt_with_key(Qt::Key_N);
-  CHECK(patchy::ui::MainWindowTestAccess::close_document_tab(window, tabs->currentIndex()));
-  QApplication::processEvents();
-  CHECK(prompt_seen);
-  CHECK(buttons_are_yes_no_cancel);
-  CHECK(tabs->count() == tabs_before_close - 1);
+  // Flips the open document, closes its tab answering the prompt with `key`,
+  // and reports whether the prompt appeared with the expected buttons.
+  const auto flip_and_close_with_key = [&](int key) {
+    require_action_by_text(window, QStringLiteral("Flip Layer Horizontal"))->trigger();
+    QApplication::processEvents();
+    const int tabs_before_close = tabs->count();
+    dismiss_prompt_with_key(key);
+    CHECK(patchy::ui::MainWindowTestAccess::close_document_tab(window, tabs->currentIndex()));
+    QApplication::processEvents();
+    CHECK(prompt_seen);
+    CHECK(buttons_are_save_dont_save_cancel);
+    CHECK(tabs->count() == tabs_before_close - 1);
+  };
+  const auto reopen = [&] {
+    patchy::ui::MainWindowTestAccess::open_document_path(window, path);
+    QApplication::processEvents();
+  };
 
-  // The file kept its original pixels.
-  patchy::ui::MainWindowTestAccess::open_document_path(window, path);
-  QApplication::processEvents();
+  // D answers Don't Save: the document closes and the file keeps its pixels.
+  reopen();
+  CHECK(corner_color() == left_color);
+  flip_and_close_with_key(Qt::Key_D);
+  reopen();
   CHECK(corner_color() == left_color);
 
-  // Y answers Yes: the document saves to its path, then closes.
-  require_action_by_text(window, QStringLiteral("Flip Layer Horizontal"))->trigger();
-  QApplication::processEvents();
-  tabs_before_close = tabs->count();
-  dismiss_prompt_with_key(Qt::Key_Y);
-  CHECK(patchy::ui::MainWindowTestAccess::close_document_tab(window, tabs->currentIndex()));
-  QApplication::processEvents();
-  CHECK(prompt_seen);
-  CHECK(buttons_are_yes_no_cancel);
-  CHECK(tabs->count() == tabs_before_close - 1);
+  // N still means Don't Save.
+  flip_and_close_with_key(Qt::Key_N);
+  reopen();
+  CHECK(corner_color() == left_color);
 
-  // The flipped pixels reached disk.
-  patchy::ui::MainWindowTestAccess::open_document_path(window, path);
-  QApplication::processEvents();
+  // S answers Save: the flipped pixels reach disk before the tab closes.
+  flip_and_close_with_key(Qt::Key_S);
+  reopen();
   CHECK(corner_color() == right_color);
+
+  // Y still means Save.
+  flip_and_close_with_key(Qt::Key_Y);
+  reopen();
+  CHECK(corner_color() == left_color);
 }
 
 void ui_document_tab_context_menu_closes_tabs_and_file_menu_closes_all() {
@@ -2077,8 +2126,8 @@ void ui_canvas_size_preserves_layers_and_crop_option_resets() {
         CHECK(!checkbox->isChecked());
         CHECK(checkbox->text() == QStringLiteral("Also crop each actual layer to the canvas area"));
         checkbox->setChecked(crop);
-        auto* width = dialog->findChild<QSpinBox*>(QStringLiteral("canvasSizeWidthSpin"));
-        auto* height = dialog->findChild<QSpinBox*>(QStringLiteral("canvasSizeHeightSpin"));
+        auto* width = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("canvasSizeWidthSpin"));
+        auto* height = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("canvasSizeHeightSpin"));
         CHECK(width != nullptr && height != nullptr);
         width->setValue(size);
         height->setValue(size);
@@ -2242,6 +2291,57 @@ void ui_new_document_presets_and_clipboard_work() {
   QApplication::clipboard()->clear();
 }
 
+// Double-clicking a preset card creates the document without a trip to Create.
+void ui_new_document_preset_double_click_creates_document() {
+  QApplication::clipboard()->clear();
+  {
+    auto settings = patchy::ui::app_settings();
+    settings.remove(QStringLiteral("newDocument"));
+  }
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* tabs = qobject_cast<QTabWidget*>(window.centralWidget());
+  auto* info = window.findChild<QLabel*>(QStringLiteral("documentInfoLabel"));
+  CHECK(tabs != nullptr && info != nullptr);
+  if (tabs == nullptr || info == nullptr) {
+    return;
+  }
+  CHECK(tabs->count() == 1);
+
+  bool card_seen = false;
+  QTimer::singleShot(0, [&card_seen] {
+    for (auto* widget : QApplication::topLevelWidgets()) {
+      if (widget->objectName() != QStringLiteral("patchyNewDocumentDialog")) {
+        continue;
+      }
+      auto* presets = widget->findChild<QListWidget*>(QStringLiteral("newDocumentPresetList"));
+      CHECK(presets != nullptr);
+      if (presets == nullptr) {
+        return;
+      }
+      for (int row = 0; row < presets->count(); ++row) {
+        auto* item = presets->item(row);
+        if (item->data(patchy::ui::kNewDocumentPresetIdRole).toString() != QStringLiteral("screen-720p")) {
+          continue;
+        }
+        card_seen = true;
+        const auto center = presets->visualItemRect(item).center();
+        auto* viewport = presets->viewport();
+        send_mouse(*viewport, QEvent::MouseButtonPress, center, Qt::LeftButton, Qt::LeftButton);
+        send_mouse(*viewport, QEvent::MouseButtonRelease, center, Qt::LeftButton, Qt::NoButton);
+        send_mouse(*viewport, QEvent::MouseButtonDblClick, center, Qt::LeftButton, Qt::LeftButton);
+        send_mouse(*viewport, QEvent::MouseButtonRelease, center, Qt::LeftButton, Qt::NoButton);
+        return;
+      }
+    }
+  });
+  require_action_by_text(window, QStringLiteral("New"))->trigger();
+  QApplication::processEvents();
+  CHECK(card_seen);
+  CHECK(tabs->count() == 2);
+  CHECK(info->text().contains(QStringLiteral("1280 x 720 px")));
+}
+
 void ui_new_document_dialog_remembers_last_settings() {
   QApplication::clipboard()->clear();
   {
@@ -2324,6 +2424,114 @@ void ui_new_document_dialog_remembers_last_settings() {
   require_action(window, "fileNewAction")->trigger();
   QApplication::processEvents();
   CHECK(tabs->count() == 2);
+}
+
+// Issue 53: the W/H unit and the resolution unit persist with the other New
+// Document settings; a first run (no stored unit) seeds the W/H unit from the
+// ruler unit, and a stored token the combo cannot show falls back to Pixels.
+void ui_new_document_dialog_remembers_unit() {
+  QApplication::clipboard()->clear();
+  SettingsValueRestorer restore_units(QStringLiteral("view/rulerUnits"));
+  {
+    auto settings = patchy::ui::app_settings();
+    settings.remove(QStringLiteral("newDocument"));
+    settings.setValue(QStringLiteral("view/rulerUnits"), QStringLiteral("cm"));
+  }
+
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* tabs = qobject_cast<QTabWidget*>(window.centralWidget());
+  CHECK(tabs != nullptr);
+
+  struct DialogFields {
+    QDialog* dialog{nullptr};
+    QComboBox* unit{nullptr};
+    QComboBox* resolution_unit{nullptr};
+    QDoubleSpinBox* width{nullptr};
+    QDoubleSpinBox* resolution{nullptr};
+  };
+  const auto with_dialog = [](std::function<void(const DialogFields&)> body) {
+    QTimer::singleShot(0, [body = std::move(body)] {
+      for (auto* widget : QApplication::topLevelWidgets()) {
+        if (widget->objectName() != QStringLiteral("patchyNewDocumentDialog")) {
+          continue;
+        }
+        DialogFields fields;
+        fields.dialog = qobject_cast<QDialog*>(widget);
+        fields.unit = fields.dialog->findChild<QComboBox*>(QStringLiteral("newDocumentUnitCombo"));
+        fields.resolution_unit =
+            fields.dialog->findChild<QComboBox*>(QStringLiteral("newDocumentResolutionUnitCombo"));
+        fields.width = fields.dialog->findChild<QDoubleSpinBox*>(QStringLiteral("newDocumentWidthSpin"));
+        fields.resolution =
+            fields.dialog->findChild<QDoubleSpinBox*>(QStringLiteral("newDocumentResolutionSpin"));
+        CHECK(fields.unit != nullptr);
+        CHECK(fields.resolution_unit != nullptr);
+        CHECK(fields.width != nullptr);
+        CHECK(fields.resolution != nullptr);
+        body(fields);
+        return;
+      }
+      CHECK(false);
+    });
+  };
+
+  // First run: the ruler unit (cm) seeds the combo and the width already reads
+  // in it. Pick mm and Pixels/Centimeter, then accept.
+  with_dialog([](const DialogFields& fields) {
+    CHECK(fields.unit->currentText() == QStringLiteral("Centimeters"));
+    CHECK(fields.resolution_unit->currentIndex() == 0);
+    const auto ppi = fields.resolution->value();
+    CHECK(ppi > 0.0);
+    CHECK(std::abs(fields.width->value() - 1024.0 / ppi * 2.54) < 0.01);
+    fields.unit->setCurrentIndex(fields.unit->findText(QStringLiteral("Millimeters")));
+    fields.resolution_unit->setCurrentIndex(1);
+    QApplication::processEvents();
+    CHECK(std::abs(fields.width->value() - 1024.0 / ppi * 25.4) < 0.1);  // mm shows one decimal
+    fields.dialog->accept();
+  });
+  require_action(window, "fileNewAction")->trigger();
+  QApplication::processEvents();
+  CHECK(tabs->count() == 2);
+  CHECK(patchy::ui::MainWindowTestAccess::document(window).width() == 1024);
+  {
+    auto settings = patchy::ui::app_settings();
+    CHECK(settings.value(QStringLiteral("newDocument/lastUnit")).toString() == QStringLiteral("mm"));
+    CHECK(settings.value(QStringLiteral("newDocument/lastResolutionUnit")).toString() == QStringLiteral("cm"));
+  }
+
+  // Reopening restores both units, whatever the ruler unit says now.
+  {
+    auto settings = patchy::ui::app_settings();
+    settings.setValue(QStringLiteral("view/rulerUnits"), QStringLiteral("in"));
+  }
+  with_dialog([](const DialogFields& fields) {
+    CHECK(fields.unit->currentText() == QStringLiteral("Millimeters"));
+    CHECK(fields.resolution_unit->currentIndex() == 1);
+    const auto ppi = fields.resolution->value() * 2.54;  // shown as pixels/cm
+    CHECK(std::abs(fields.width->value() - 1024.0 / ppi * 25.4) < 0.1);
+    fields.dialog->reject();
+  });
+  require_action(window, "fileNewAction")->trigger();
+  QApplication::processEvents();
+  CHECK(tabs->count() == 2);
+
+  // Points is a ruler unit but not a New Document unit: Pixels instead.
+  {
+    auto settings = patchy::ui::app_settings();
+    settings.setValue(QStringLiteral("newDocument/lastUnit"), QStringLiteral("pt"));
+  }
+  with_dialog([](const DialogFields& fields) {
+    CHECK(fields.unit->currentText() == QStringLiteral("Pixels"));
+    CHECK(fields.width->value() == 1024);
+    fields.dialog->reject();
+  });
+  require_action(window, "fileNewAction")->trigger();
+  QApplication::processEvents();
+  CHECK(tabs->count() == 2);
+  {
+    auto settings = patchy::ui::app_settings();
+    settings.remove(QStringLiteral("newDocument"));
+  }
 }
 
 void ui_new_document_opens_fit_to_view() {
@@ -2609,15 +2817,17 @@ std::vector<patchy::test::TestCase> layer_context_lifecycle_tests() {
       {"ui_closing_last_document_leaves_empty_workspace", ui_closing_last_document_leaves_empty_workspace},
       {"ui_close_last_tab_with_active_text_edit_commits_editor_first",
        ui_close_last_tab_with_active_text_edit_commits_editor_first},
-      {"ui_save_prompt_uses_yes_no_cancel_with_letter_hotkeys",
-       ui_save_prompt_uses_yes_no_cancel_with_letter_hotkeys},
+      {"ui_save_prompt_uses_save_dont_save_cancel_with_letter_hotkeys",
+       ui_save_prompt_uses_save_dont_save_cancel_with_letter_hotkeys},
       {"ui_document_tab_context_menu_closes_tabs_and_file_menu_closes_all",
        ui_document_tab_context_menu_closes_tabs_and_file_menu_closes_all},
       {"ui_new_document_and_canvas_size_dialogs_work", ui_new_document_and_canvas_size_dialogs_work},
       {"ui_canvas_size_preserves_layers_and_crop_option_resets",
        ui_canvas_size_preserves_layers_and_crop_option_resets},
       {"ui_new_document_presets_and_clipboard_work", ui_new_document_presets_and_clipboard_work},
+      {"ui_new_document_preset_double_click_creates_document", ui_new_document_preset_double_click_creates_document},
       {"ui_new_document_dialog_remembers_last_settings", ui_new_document_dialog_remembers_last_settings},
+      {"ui_new_document_dialog_remembers_unit", ui_new_document_dialog_remembers_unit},
       {"ui_new_document_opens_fit_to_view", ui_new_document_opens_fit_to_view},
       {"ui_new_document_background_starts_locked", ui_new_document_background_starts_locked},
       {"ui_merge_down_into_position_locked_background_works",

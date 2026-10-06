@@ -37,6 +37,7 @@
 #include "psd/psd_layer_effects.hpp"
 #include "psd/psd_patterns.hpp"
 #include "psd/psd_smart_objects.hpp"
+#include "psd/psd_text_runs.hpp"
 #include "core/text_warp.hpp"
 #include "core/warp_mesh.hpp"
 #include "psd/psd_document_io.hpp"
@@ -95,6 +96,7 @@ using patchy::test::find_layer_named;
 using patchy::test::psd_layer_block_payload;
 using patchy::test::psd_layer_extra_data;
 using patchy::test::read_u32_be_at;
+using patchy::test::single_text_layer_psd;
 using patchy::test::solid_rgb;
 using patchy::test::solid_rgba;
 using patchy::test::write_ascii4;
@@ -162,52 +164,6 @@ std::string engine_utf16be_literal(std::string_view text) {
   }
   literal.push_back(')');
   return literal;
-}
-
-std::vector<std::uint8_t> single_text_layer_psd(std::span<const std::uint8_t> text_payload) {
-  patchy::psd::BigEndianWriter layer_extra;
-  layer_extra.write_u32(0);
-  layer_extra.write_u32(0);
-  write_pascal_padded(layer_extra, "Text Layer", 4);
-  write_test_layer_block(layer_extra, "TySh", text_payload);
-
-  patchy::psd::BigEndianWriter layer_info;
-  layer_info.write_u16(1);
-  layer_info.write_u32(12);
-  layer_info.write_u32(10);
-  layer_info.write_u32(82);
-  layer_info.write_u32(210);
-  layer_info.write_u16(0);
-  write_ascii4(layer_info, "8BIM");
-  write_ascii4(layer_info, "norm");
-  layer_info.write_u8(255);
-  layer_info.write_u8(0);
-  layer_info.write_u8(0);
-  layer_info.write_u8(0);
-  layer_info.write_u32(static_cast<std::uint32_t>(layer_extra.bytes().size()));
-  layer_info.write_bytes(layer_extra.bytes());
-  if ((layer_info.bytes().size() % 2U) != 0) {
-    layer_info.write_u8(0);
-  }
-
-  patchy::psd::BigEndianWriter layer_mask;
-  layer_mask.write_u32(static_cast<std::uint32_t>(layer_info.bytes().size()));
-  layer_mask.write_bytes(layer_info.bytes());
-  layer_mask.write_u32(0);
-
-  constexpr std::uint32_t width = 240;
-  constexpr std::uint32_t height = 120;
-  patchy::psd::BigEndianWriter writer;
-  patchy::psd::write_header(writer, patchy::psd::Header{false, 3, height, width, 8, 3});
-  writer.write_u32(0);
-  writer.write_u32(0);
-  writer.write_u32(static_cast<std::uint32_t>(layer_mask.bytes().size()));
-  writer.write_bytes(layer_mask.bytes());
-  writer.write_u16(0);
-  for (std::size_t i = 0; i < static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 3U; ++i) {
-    writer.write_u8(255);
-  }
-  return writer.bytes();
 }
 
 void psd_import_regenerates_large_styled_text_preview_alpha() {
@@ -890,6 +846,65 @@ void psd_writer_point_text_first_baseline_beats_ink_bottom() {
   }
 }
 
+// A raster grown ABOVE the text-local origin (kLayerMetadataTextRasterTop negative: glyph ink
+// overshooting the line top, which CoreText's smaller ascent does to the issue 20 "M") still
+// gets its transform anchored on the baseline: the ink starting above ty no longer reads as
+// "already anchored". A layer whose ty already IS the baseline (raster an extra first_baseline
+// higher, the reopened-layer migration) is left alone, so nothing shifts twice.
+void psd_writer_point_text_grown_raster_still_anchors_baseline() {
+  const auto make_document = [](double ty) {
+    patchy::Document document(260, 160, patchy::PixelFormat::rgb8());
+    document.add_pixel_layer("Background", solid_rgb(260, 160, 255, 255, 255));
+    auto pixels = solid_rgba(140, 80, 0, 0, 0, 0);
+    for (std::int32_t y = 0; y < 54; ++y) {  // ink from the raster's top row down
+      for (std::int32_t x = 0; x < 120; ++x) {
+        auto* pixel = pixels.pixel(x, y);
+        pixel[0] = 32;
+        pixel[1] = 32;
+        pixel[2] = 32;
+        pixel[3] = 255;
+      }
+    }
+    patchy::Layer text_layer(document.allocate_layer_id(), "Text: Swash", std::move(pixels));
+    auto& layer = document.add_layer(std::move(text_layer));
+    layer.set_bounds(patchy::Rect{40, 50, 140, 80});  // raster top 50, 20 px above the origin at 70
+    layer.metadata()[patchy::kLayerMetadataText] = "Swash";
+    layer.metadata()[patchy::kLayerMetadataTextRuns] = "v1\n0\t5\t48\t0\t0\t#202020\tArial";
+    layer.metadata()[patchy::kLayerMetadataTextParagraphRuns] = "v1\n0\t5\tleft";
+    layer.metadata()[patchy::kLayerMetadataTextFlow] = "point";
+    layer.metadata()[patchy::kLayerMetadataTextBoxWidth] = "140";
+    layer.metadata()[patchy::kLayerMetadataTextBoxHeight] = "80";
+    layer.metadata()[patchy::kLayerMetadataTextFont] = "Arial";
+    layer.metadata()[patchy::kLayerMetadataTextSize] = "48";
+    layer.metadata()[patchy::kLayerMetadataTextColor] = "#202020";
+    layer.metadata()[patchy::kLayerMetadataTextRasterStatus] = "patchy_raster";
+    layer.metadata()[patchy::kLayerMetadataTextFirstBaseline] = "43.5";
+    layer.metadata()[patchy::kLayerMetadataTextRasterTop] = "-20";
+    layer.metadata()[patchy::kLayerMetadataTextTransform] = "1 0 0 1 40 " + std::to_string(ty);
+    return document;
+  };
+  const auto tysh_ty = [](const patchy::Document& document) -> std::optional<double> {
+    const auto bytes = patchy::psd::DocumentIo::write_layered_rgb8(document);
+    const auto payload = psd_layer_block_payload(psd_layer_extra_data(bytes, 1), "TySh");
+    if (!payload.has_value()) {
+      return std::nullopt;
+    }
+    return read_f64_be_at(*payload, 42U);
+  };
+  // ty at the origin: the baseline anchor applies even though the ink starts 20 px above ty.
+  const auto anchored = tysh_ty(make_document(70.0));
+  CHECK(anchored.has_value());
+  if (anchored.has_value()) {
+    CHECK(std::abs(*anchored - 113.5) < 0.000001);
+  }
+  // ty already on the baseline (raster 63.5 above it, not 20): written as is.
+  const auto kept = tysh_ty(make_document(113.5));
+  CHECK(kept.has_value());
+  if (kept.has_value()) {
+    CHECK(std::abs(*kept - 113.5) < 0.000001);
+  }
+}
+
 // A Qt-natural layer's recorded line pitch (kLayerMetadataTextAutoLeading, a fraction of the
 // dominant size) becomes the paragraph /AutoLeading so Photoshop's auto leading advances like
 // Qt; it round-trips through the v3 paragraph column without flipping the layer into the
@@ -1508,6 +1523,130 @@ void psd_text_gdi_family_wins_when_directwrite_renames_the_face() {
 #endif
 }
 
+void psd_text_heavy_legacy_face_keeps_the_gdi_family_if_available() {
+  // A heavy face (weight >= 800) used to return DirectWrite's FULL_NAME string early, skipping
+  // the GDI-name normalization every other face gets. Futura Extra Black BT (FUTURAXK.TTF, a
+  // legacy face DirectWrite names by its full name; GDI lists "Futura XBlk BT" + "Extra Black")
+  // therefore came back as the family "Futura Extra Black BT", which no font database lists,
+  // so an unchanged edit of a scripted poster headline re-rendered in Tahoma. With the font
+  // installed the reader stores the GDI family and face (bold set: Black counts as bold for the
+  // uninstalled fallback), the writer resolves that pair back to the PostScript name, and a
+  // document that stored the full name as its family exports the real face as well.
+#ifdef _WIN32
+  if (!patchy::psd::installed_font_for_name("FuturaBT-ExtraBlack").has_value()) {
+    std::cout << "[SKIP] Futura Extra Black BT is not installed (heavy legacy face round trip)\n";
+    return;
+  }
+  const auto read = patchy::psd::DocumentIo::read(single_run_text_psd("Diorama\r", "FuturaBT-ExtraBlack"));
+  CHECK(read.layers().size() == 1);
+  if (read.layers().empty()) {
+    return;
+  }
+  const auto& metadata = read.layers().front().metadata();
+  CHECK(metadata.at(patchy::kLayerMetadataTextFont) == "Futura XBlk BT");
+  CHECK(metadata.at(patchy::kLayerMetadataTextBold) == "true");
+  const auto fields = first_run_fields(metadata.at(patchy::kLayerMetadataTextRuns));
+  CHECK(fields.family == "Futura%20XBlk%20BT");
+  CHECK(fields.style == "Extra%20Black");
+
+  const auto postscript = utf16be_test_bytes("FuturaBT-ExtraBlack");
+  {
+    const auto bytes = patchy::psd::DocumentIo::write_layered_rgb8(read);
+    const auto written = psd_layer_block_payload(psd_layer_extra_data(bytes, 0), "TySh");
+    CHECK(written.has_value());
+    if (written.has_value()) {
+      CHECK(std::search(written->begin(), written->end(), postscript.begin(), postscript.end()) != written->end());
+    }
+  }
+
+  // The full name stored by the older reader: the writer's full-name lookup exports the face
+  // instead of the name verbatim, and the engine-side lookup (main_window.cpp) renders it.
+  patchy::Document document(240, 120, patchy::PixelFormat::rgb8());
+  document.add_pixel_layer("Background", solid_rgb(240, 120, 255, 255, 255));
+  patchy::Layer legacy(document.allocate_layer_id(), "Text: Diorama", solid_rgba(180, 64, 0, 0, 0, 0));
+  auto& layer = document.add_layer(std::move(legacy));
+  layer.set_bounds(patchy::Rect{18, 22, 180, 64});
+  layer.metadata()[patchy::kLayerMetadataText] = "Diorama";
+  layer.metadata()[patchy::kLayerMetadataTextRuns] =
+      "v1\n0\t7\t32\t1\t0\t#202020\tFutura%20Extra%20Black%20BT";
+  layer.metadata()[patchy::kLayerMetadataTextFont] = "Futura Extra Black BT";
+  layer.metadata()[patchy::kLayerMetadataTextSize] = "32";
+  layer.metadata()[patchy::kLayerMetadataTextColor] = "#202020";
+  layer.metadata()[patchy::kLayerMetadataTextBold] = "true";
+  layer.metadata()[patchy::kLayerMetadataTextItalic] = "false";
+  layer.metadata()[patchy::kLayerMetadataTextRasterStatus] = "patchy_raster";
+  const auto bytes = patchy::psd::DocumentIo::write_layered_rgb8(document);
+  const auto written = psd_layer_block_payload(psd_layer_extra_data(bytes, 1), "TySh");
+  CHECK(written.has_value());
+  if (written.has_value()) {
+    CHECK(std::search(written->begin(), written->end(), postscript.begin(), postscript.end()) != written->end());
+    const auto verbatim = utf16be_test_bytes("Futura Extra Black BT");
+    CHECK(std::search(written->begin(), written->end(), verbatim.begin(), verbatim.end()) == written->end());
+  }
+#else
+  std::cout << "[SKIP] DirectWrite-only (heavy legacy face round trip)\n";
+#endif
+}
+
+// Photoshop's document-level text engine block ('Txt2') is trusted over the layers' own TySh:
+// a preserved one made Photoshop read a layer Patchy had retyped in Bahnschrift Light as
+// Bahnschrift Bold, silently, through the stale object the layer's TextIndex pointed at
+// (September 2026 COM capture). The block is now rebuilt on save (docs/txt2.md): a regenerated
+// type layer keeps its index and gets a fresh object there, untouched layers keep theirs, and an
+// untouched round trip keeps every index. text_engine_block_tests pins the object contents.
+void psd_text_regenerated_layer_gets_an_index_outside_the_text_engine_block() {
+  const auto path = patchy::test::committed_psd_fixture_path("photoshop-text-tracking.psd");
+  auto document = patchy::psd::DocumentIo::read_file(path);
+  const auto has_text_engine_block = [](const std::vector<std::uint8_t>& bytes) {
+    static constexpr std::string_view kMarker = "8BIMTxt2";
+    return std::search(bytes.begin(), bytes.end(), kMarker.begin(), kMarker.end()) != bytes.end();
+  };
+  const auto text_index_of = [](const std::vector<std::uint8_t>& bytes, int layer_index) -> std::optional<std::int32_t> {
+    const auto payload =
+        psd_layer_block_payload(psd_layer_extra_data(bytes, static_cast<std::int16_t>(layer_index)), "TySh");
+    if (!payload.has_value()) {
+      return std::nullopt;
+    }
+    static constexpr std::string_view kKey = "TextIndexlong";
+    const auto it = std::search(payload->begin(), payload->end(), kKey.begin(), kKey.end());
+    if (it == payload->end() || std::distance(it, payload->end()) < static_cast<std::ptrdiff_t>(kKey.size() + 4)) {
+      return std::nullopt;
+    }
+    const auto* p = &*(it + static_cast<std::ptrdiff_t>(kKey.size()));
+    return static_cast<std::int32_t>((static_cast<std::uint32_t>(p[0]) << 24) | (static_cast<std::uint32_t>(p[1]) << 16) |
+                                     (static_cast<std::uint32_t>(p[2]) << 8) | static_cast<std::uint32_t>(p[3]));
+  };
+  std::vector<int> text_layer_indices;
+  for (std::size_t i = 0; i < document.layers().size(); ++i) {
+    if (patchy::layer_is_text(document.layers()[i])) {
+      text_layer_indices.push_back(static_cast<int>(i));
+    }
+  }
+  CHECK(text_layer_indices.size() == 2);
+  if (text_layer_indices.size() != 2) {
+    return;
+  }
+  const auto untouched = patchy::psd::DocumentIo::write_layered_rgb8(document);
+  CHECK(has_text_engine_block(untouched));
+  const auto first_index = text_index_of(untouched, text_layer_indices[0]);
+  const auto second_index = text_index_of(untouched, text_layer_indices[1]);
+  CHECK(first_index.has_value() && second_index.has_value());
+  if (!first_index.has_value() || !second_index.has_value()) {
+    return;
+  }
+  CHECK(*first_index < 100000 && *second_index < 100000);
+
+  // What a commit leaves behind on the first text layer: Patchy's own raster and runs.
+  document.layers()[static_cast<std::size_t>(text_layer_indices[0])].metadata()[patchy::kLayerMetadataTextRasterStatus] =
+      "patchy_raster";
+  const auto retyped = patchy::psd::DocumentIo::write_layered_rgb8(document);
+  CHECK(has_text_engine_block(retyped));
+  const auto regenerated_index = text_index_of(retyped, text_layer_indices[0]);
+  const auto kept_index = text_index_of(retyped, text_layer_indices[1]);
+  CHECK(regenerated_index.has_value() && regenerated_index == first_index);
+  CHECK(kept_index.has_value() && kept_index == second_index);
+}
+
 void psd_text_balmoral_let_plain_never_bakes_a_synthesized_weight_if_available() {
   // The reporter's font (issue 16): Balmoral LET is an old TrueType font whose only face is
   // "Plain" at OS/2 weight class 5, which DirectWrite reads as Medium (500) and files as family
@@ -2028,9 +2167,11 @@ void psd_writer_emits_v2_paragraph_layout() {
   const auto text_payload = psd_layer_block_payload(psd_layer_extra_data(bytes, 1), "TySh");
   CHECK(text_payload.has_value());
   const std::string payload_text(text_payload->begin(), text_payload->end());
-  CHECK(payload_text.find("/FirstLineIndent -24") != std::string::npos);
-  CHECK(payload_text.find("/StartIndent 24") != std::string::npos);
-  CHECK(payload_text.find("/SpaceAfter 24") != std::string::npos);
+  // Photoshop's spelling with a decimal point: its parser reads a bare "24" as 16.16 fixed
+  // point (0.000366 px), which is how every Patchy-written indent used to vanish.
+  CHECK(payload_text.find("/FirstLineIndent -24.0 /StartIndent 24.0 /EndIndent 0.0 /SpaceBefore 0.0 /SpaceAfter 24.0") !=
+        std::string::npos);
+  CHECK(payload_text.find("/FirstLineIndent -24 ") == std::string::npos);
   CHECK(payload_text.find("/Hanging true") != std::string::npos);
   CHECK(payload_text.find("/AutoLeading true /Leading 33.600000") != std::string::npos);
   CHECK(payload_text.find("/RunLengthArray [ " + std::to_string(first_length) + ' ' +
@@ -2094,7 +2235,7 @@ void psd_reader_regenerates_patchy_generated_type_blocks_after_reopen() {
   CHECK(regenerated_payload.has_value());
   const std::string regenerated_payload_text(regenerated_payload->begin(), regenerated_payload->end());
   CHECK(regenerated_payload_text.find(leading_marker) != std::string::npos);
-  CHECK(regenerated_payload_text.find("/SpaceAfter 24") != std::string::npos);
+  CHECK(regenerated_payload_text.find("/SpaceAfter 24.0") != std::string::npos);
 
   const auto read_again = patchy::psd::DocumentIo::read(regenerated_bytes);
   CHECK(read_again.layers().size() == 2);
@@ -2687,6 +2828,8 @@ std::vector<patchy::test::TestCase> psd_text_tests() {
       {"psd_text_anchor_captures_keep_fractional_transform", psd_text_anchor_captures_keep_fractional_transform},
       {"psd_writer_box_text_baseline_inset_moves_box_bounds", psd_writer_box_text_baseline_inset_moves_box_bounds},
       {"psd_writer_point_text_first_baseline_beats_ink_bottom", psd_writer_point_text_first_baseline_beats_ink_bottom},
+      {"psd_writer_point_text_grown_raster_still_anchors_baseline",
+       psd_writer_point_text_grown_raster_still_anchors_baseline},
       {"psd_writer_qt_natural_auto_leading_fraction", psd_writer_qt_natural_auto_leading_fraction},
       {"psd_writer_writes_baseline_direction_for_vertical_type", psd_writer_writes_baseline_direction_for_vertical_type},
       {"psd_writer_writes_tracking_as_an_integer", psd_writer_writes_tracking_as_an_integer},
@@ -2728,6 +2871,10 @@ std::vector<patchy::test::TestCase> psd_text_tests() {
       {"psd_text_recorded_style_resolves_the_exact_face", psd_text_recorded_style_resolves_the_exact_face},
       {"psd_text_gdi_family_wins_when_directwrite_renames_the_face",
        psd_text_gdi_family_wins_when_directwrite_renames_the_face},
+      {"psd_text_heavy_legacy_face_keeps_the_gdi_family_if_available",
+       psd_text_heavy_legacy_face_keeps_the_gdi_family_if_available},
+      {"psd_text_regenerated_layer_gets_an_index_outside_the_text_engine_block",
+       psd_text_regenerated_layer_gets_an_index_outside_the_text_engine_block},
       {"psd_text_balmoral_let_plain_never_bakes_a_synthesized_weight_if_available",
        psd_text_balmoral_let_plain_never_bakes_a_synthesized_weight_if_available},
       {"psd_text_engine_data_preserves_paragraph_layout_runs",

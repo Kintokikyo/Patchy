@@ -205,7 +205,6 @@
 #include <QWindow>
 
 #include <algorithm>
-#include <array>
 #include <atomic>
 #include <chrono>
 #include <cctype>
@@ -238,10 +237,6 @@
 #include <dwmapi.h>
 #include <tchar.h>
 #include <tpcshrd.h>
-#endif
-
-#ifndef PATCHY_VERSION
-#define PATCHY_VERSION "0.0.0"
 #endif
 
 // Icon resources live in the static patchy_ui library; force registration before first use.
@@ -479,14 +474,14 @@ QString photoshop_style_template() {
       padding-right: 2px;
     }
     QToolBar#Options QLabel[optionLabel="true"] {
-      background: @option_chip_bg;
-      border: 1px solid @field_inset_border;
-      border-right: 0;
-      border-top-color: @field_bevel_top;
+      /* Plain text, no chip: a filled, bevelled label read as a button beside
+         the field it names (GitHub issue 76). The scrub cursor still marks it. */
+      background: transparent;
+      border: 0;
       color: @text_bright;
       min-height: 24px;
       max-height: 24px;
-      padding: 0 7px;
+      padding: 0 6px 0 8px;
     }
     QToolBar#Options QSpinBox, QToolBar#Options QDoubleSpinBox, QToolBar#Options QComboBox, QToolBar#Options QFontComboBox {
       min-height: 24px;
@@ -497,27 +492,26 @@ QString photoshop_style_template() {
       border-top-color: @field_bevel_top;
     }
     QWidget#selectionFeatherGroup {
+      background: transparent;
+      border: 0;
+      min-height: 24px;
+      max-height: 24px;
+    }
+    QWidget#selectionFeatherGroup QLabel {
+      background: transparent;
+      border: 0;
+      color: @text_bright;
+      min-height: 24px;
+      max-height: 24px;
+      padding: 0 6px 0 8px;
+    }
+    QWidget#selectionFeatherGroup QSpinBox {
       background: @field_bg;
       border: 1px solid @field_inset_border;
       border-top-color: @field_bevel_top;
       min-height: 24px;
       max-height: 24px;
-    }
-    QWidget#selectionFeatherGroup QLabel {
-      background: @option_chip_bg;
-      border: 0;
-      border-right: 1px solid @field_inset_border;
-      color: @text_bright;
-      min-height: 24px;
-      max-height: 24px;
-      padding: 0 8px;
-    }
-    QWidget#selectionFeatherGroup QSpinBox {
-      background: @field_bg;
-      border: 0;
-      min-height: 24px;
-      max-height: 24px;
-      padding-left: 6px;
+      padding-left: 4px;
     }
     QToolBar#Options QCheckBox {
       color: @text_bright;
@@ -547,6 +541,13 @@ QString photoshop_style_template() {
       background: @accent;
       border-color: @checkbox_accent_border;
       image: url(@icon(checkmark));
+    }
+    QToolBar#Options QCheckBox:disabled {
+      color: @text_disabled;
+    }
+    QToolBar#Options QCheckBox::indicator:disabled {
+      background: @field_bg_disabled;
+      border-color: @field_border_disabled;
     }
     QToolBar#Options QSlider::groove:horizontal {
       height: 4px;
@@ -719,6 +720,18 @@ QString photoshop_style_template() {
     }
     QLabel#layerRowName {
       color: @layer_row_name_text;
+      font-size: 12px;
+    }
+    /* The inline rename editor takes the name label's slot, so it keeps the
+       label's height and font instead of the generic 20 px field. */
+    QLineEdit#layerRowNameEdit {
+      background: @field_bg;
+      color: @layer_row_name_text;
+      border: 1px solid @accent_bright;
+      border-radius: 0;
+      padding: 0 1px;
+      margin: 0;
+      min-height: 0px;
       font-size: 12px;
     }
     QLabel#layerRowDetails {
@@ -894,6 +907,13 @@ QString photoshop_style_template() {
       background: @button_hover_bg;
       border-color: @button_hover_border_strong;
     }
+    /* The button Enter presses carries the accent outline, like Photoshop's save
+       prompt (Seth, October 2026). Qt hands "default" to whichever auto-default
+       button has focus, so the outline follows Tab between a dialog's buttons.
+       After :hover so a hovered default keeps it. */
+    QPushButton:default {
+      border: 1px solid @accent_border_bright;
+    }
     QPushButton:checked {
       background: @accent_checked_bg;
       border-color: @accent_checked_border;
@@ -965,6 +985,18 @@ QString photoshop_style_template() {
       background: @accent;
       border-color: @checkbox_accent_border;
       image: url(@icon(checkmark));
+    }
+    /* A disabled checkbox must read as disabled: without these rules the label
+       and box paint exactly like an enabled one, so a greyed-out option looks
+       like a checkbox that refuses to toggle (the Merge Layers "vector types"
+       report, September 2026). The checked glyph stays so the stored value is
+       still visible; only the colors drop to the disabled field tokens. */
+    QCheckBox:disabled {
+      color: @text_disabled;
+    }
+    QCheckBox::indicator:disabled {
+      background: @field_bg_disabled;
+      border-color: @field_border_disabled;
     }
     QTabWidget::pane {
       border-top: 1px solid @tab_pane_border;
@@ -1135,12 +1167,19 @@ QString photoshop_style_template() {
 }  // namespace
 
 QString photoshop_style() {
-  // Both palettes are compile-time constants, so a scheme's resolved sheet never
-  // changes once built and can be cached for the process lifetime.
-  static std::array<QString, 2> resolved;
-  auto& cached = resolved[active_color_scheme() == ColorScheme::Light ? 1 : 0];
-  if (cached.isEmpty()) {
+  // Keyed on theme_generation(), not on active_color_scheme(): a user-imported
+  // custom palette (theme_file.hpp) is not a compile-time constant like the
+  // two built-in palettes, so a 2-slot Dark/Light cache would keep serving a
+  // stale sheet (or the wrong custom colors) after a custom-palette apply.
+  // theme_generation() bumps on every actual palette change, built-in or
+  // custom, which is the only signal available -- Qt fires no event for a
+  // palette-struct change.
+  static int cached_generation = -1;
+  static QString cached;
+  const auto generation = theme_generation();
+  if (generation != cached_generation) {
     cached = apply_theme_tokens(photoshop_style_template());
+    cached_generation = generation;
   }
   return cached;
 }

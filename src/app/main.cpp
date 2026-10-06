@@ -1,5 +1,6 @@
 #include "support/cli_flags.hpp"
 #include "ui/action_icons.hpp"
+#include "ui/app_data_migration.hpp"
 #include "ui/app_settings.hpp"
 #include "ui/ui_font.hpp"
 #include "ui/background_workers.hpp"
@@ -8,6 +9,7 @@
 #include "ui/main_window.hpp"
 #include "ui/mcp_attachment.hpp"
 #include "ui/script_engine.hpp"
+#include "ui/single_instance.hpp"
 #include "ui/psd_font_resolver.hpp"
 #include "ui/stress_test.hpp"
 #include "ui/theme_manager.hpp"
@@ -40,6 +42,7 @@
 #include <QTimer>
 
 #include <array>
+#include <chrono>
 #include <clocale>
 #include <cstdio>
 #include <deque>
@@ -47,9 +50,7 @@
 #include <memory>
 #include <optional>
 
-#ifndef PATCHY_VERSION
-#define PATCHY_VERSION "0.0.0"
-#endif
+#include "patchy_version.hpp"
 
 namespace {
 
@@ -184,6 +185,8 @@ bool forward_to_running_instance(const QStringList& files) {
   if (!socket.waitForConnected(300)) {
     return false;
   }
+  // Grant before sending: once the payload lands the receiver may activate at any moment.
+  (void)patchy::ui::allow_local_socket_server_to_take_foreground(socket);
   QByteArray payload;
   QDataStream stream(&payload, QIODevice::WriteOnly);
   stream.setVersion(QDataStream::Qt_5_15);
@@ -361,7 +364,7 @@ int main(int argc, char* argv[]) {
   }
 #endif
 #ifdef Q_OS_LINUX
-  // Qt 6.8 loads Flatpak's portal theme even with the offscreen platform. Its
+  // Qt loads Flatpak's portal theme even with the offscreen platform. Its
   // synchronous appearance query can block startup on an absent desktop portal,
   // before MCP can observe client EOF. Offscreen runs need no desktop session
   // services; an unsupported D-Bus transport fails immediately without autolaunch.
@@ -387,8 +390,14 @@ int main(int argc, char* argv[]) {
   app.setApplicationVersion(QStringLiteral(PATCHY_VERSION));
   // Keep the internal app identity for settings without letting Qt append " - Patchy" to every native window title.
   app.setApplicationDisplayName(QString());
-  app.setOrganizationName(QStringLiteral("Seth A. Robinson"));
+  // Keys the per-user app-data folder (fonts, scripts); see app_data_migration.hpp before
+  // changing it. Preferences name their own organization in app_settings().
+  app.setOrganizationName(QStringLiteral("RTsoft"));
+#ifndef Q_OS_MACOS
+  // On macOS this call would replace the Dock icon with the edge-to-edge logo; the
+  // bundle's patchy.icns already carries the margin Dock icons are drawn with.
   app.setWindowIcon(patchy::ui::patchy_app_icon());
+#endif
   // Qt 6 caps every image decode at 256 MB and fails bigger ones with a bare
   // "Unable to read image data" (a large-bed flatbed scan at 600 DPI is
   // enough to trip it). Patchy opens exactly such files on purpose, so the
@@ -404,6 +413,8 @@ int main(int argc, char* argv[]) {
     QFont::insertSubstitution(QString::fromLatin1(alias.missing), QString::fromLatin1(alias.bundled));
   }
 #endif
+  // Before anything reads AppDataLocation: moves 0.98-era fonts and scripts across.
+  patchy::ui::app_data_migration::migrate_legacy_app_data();
   patchy::ui::user_fonts::restore_user_fonts_at_startup();
   patchy::ui::install_font_database_psd_font_resolver();
   patchy::ui::LocalizationManager::instance().load_saved_language();
@@ -444,7 +455,7 @@ int main(int argc, char* argv[]) {
   QCommandLineOption language_option(
       QStringLiteral("language"),
       QCoreApplication::translate(
-          "QObject", "UI language for this run only, not saved: en, de, es, fr, it, ja, zh_CN, or zh_TW."),
+          "QObject", "UI language for this run only, not saved: en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN, or zh_TW."),
       QStringLiteral("code"));
   parser.addOption(language_option);
   QCommandLineOption stress_option(
@@ -686,6 +697,17 @@ int main(int argc, char* argv[]) {
               deferred.append(entry);
             }
           }
+          // Come forward now, as the dispatch below will for this request (files, or a bare
+          // relaunch): that waits out modal dialogs and a running script, and Windows only
+          // honors the relaunch's foreground grant for a moment.
+          bool has_files = false;
+          bool has_run_script = false;
+          for (const auto& entry : deferred) {
+            (entry.startsWith(kRunScriptCommandPrefix) ? has_run_script : has_files) = true;
+          }
+          if (has_files || (!handled_command && !has_run_script)) {
+            window.bring_to_front_for_second_instance();
+          }
           if (!deferred.isEmpty() || !handled_command) {
             forwarded_requests.push_back(std::move(deferred));
             forwarded_request_timer.start();
@@ -697,6 +719,26 @@ int main(int argc, char* argv[]) {
   }
 
   window.show();
+  // Every exit path ends here once the event loop has returned. Detached
+  // preview/render/recovery workers capture the QCoreApplication pointer, so the
+  // window and application must outlive them; a worker still running after the
+  // bounded wait is blocked inside the OS (a stat on a dead share, a resolver),
+  // which nothing can interrupt, and waiting for it is the issue 48 quit freeze.
+  // The process then ends without destructors: settings were flushed by
+  // closeEvent, and the recovery folder is dropped here by hand.
+  const auto finish_after_event_loop = [&window](int result) {
+    if (patchy::ui::wait_for_tracked_background_workers(std::chrono::seconds(10))) {
+      return result;
+    }
+    qWarning("Patchy: %d background worker(s) still blocked 10 s after quit; ending the process without destructors.",
+             patchy::ui::tracked_background_worker_count());
+#ifdef Q_OS_WASM
+    Q_UNUSED(window);  // no recovery folder on the web; keeps the capture used
+#else
+    window.discard_recovery_folder_for_forced_exit();
+#endif
+    patchy::ui::end_process_without_destructors(result);
+  };
   if (stress_mode) {
     // No update check and no file opens: run the scripted scenario as soon
     // as the event loop starts, then exit with the report's status code.
@@ -704,9 +746,7 @@ int main(int argc, char* argv[]) {
     stress_options.preset = *stress_preset;
     stress_options.report_dir = parser.value(stress_report_dir_option);
     window.start_cli_stress_test(stress_options);
-    const int stress_result = app.exec();
-    patchy::ui::wait_for_tracked_background_workers();
-    return stress_result;
+    return finish_after_event_loop(app.exec());
   }
   if (export_mode) {
     // Unattended convert/export: no update check, prompts suppressed, open the
@@ -714,9 +754,7 @@ int main(int argc, char* argv[]) {
     window.set_cli_automation_mode(true);
     window.open_command_line_files(files);
     window.run_cli_export(export_path, export_append_text);
-    const int export_result = app.exec();
-    patchy::ui::wait_for_tracked_background_workers();
-    return export_result;
+    return finish_after_event_loop(app.exec());
   }
   if (run_script_mode) {
     // No instance was running (a forwarded request already returned above):
@@ -724,9 +762,7 @@ int main(int argc, char* argv[]) {
     window.set_cli_automation_mode(true);
     window.open_command_line_files(files);
     window.run_cli_script(run_script_path, script_output_path, script_args);
-    const int script_result = app.exec();
-    patchy::ui::wait_for_tracked_background_workers();
-    return script_result;
+    return finish_after_event_loop(app.exec());
   }
   // No startup splash: the start panel carries the branding, and the update-check status
   // lands on its footer (an available update still raises the update dialog).
@@ -744,6 +780,14 @@ int main(int argc, char* argv[]) {
   files += app.pending_file_opens;
   app.pending_file_opens.clear();
 
+#ifndef Q_OS_WASM
+  // Documents a crashed instance left recovery copies of come back first, as
+  // modified "(Recovered)" sessions (docs/document-recovery.md). Never for a
+  // screenshot or headless launch: nobody is there to save them.
+  if (!headless_mode && !screenshot_mode) {
+    window.recover_orphaned_documents();
+  }
+#endif
   if (!files.isEmpty()) {
     window.open_command_line_files(files);
   }
@@ -775,8 +819,5 @@ int main(int argc, char* argv[]) {
   // The window (declared after `app`) is destroyed before the application object; drop
   // the handler so a late event cannot reach a dead window.
   app.file_open_handler = nullptr;
-  // Detached preview/render workers capture the QCoreApplication pointer;
-  // wait for them before the window and application objects are destroyed.
-  patchy::ui::wait_for_tracked_background_workers();
-  return exec_result;
+  return finish_after_event_loop(exec_result);
 }

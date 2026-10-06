@@ -28,6 +28,7 @@
 #include <QFormLayout>
 #include <QFrame>
 #include <QGuiApplication>
+#include <QImage>
 #include <QHash>
 #include <QHBoxLayout>
 #include <QIcon>
@@ -44,11 +45,13 @@
 #include <QPointer>
 #include <QTimer>
 #include <QPolygonF>
+#include <QProgressDialog>
 #include <QPushButton>
 #include <QScopeGuard>
 #include <QScreen>
 #include <QScrollArea>
 #include <QSettings>
+#include <QSignalBlocker>
 #include <QSize>
 #include <QSlider>
 #include <QSpinBox>
@@ -66,6 +69,7 @@
 #include <algorithm>
 #include <cmath>
 #include <exception>
+#include <initializer_list>
 #include <limits>
 #include <type_traits>
 #include <utility>
@@ -77,6 +81,7 @@ namespace {
 
 constexpr auto kDialogPositionMemoryInstalledProperty = "patchy.dialogPositionMemoryInstalled";
 constexpr auto kDialogPositionMemoryIdProperty = "patchy.dialogPositionMemoryId";
+constexpr auto kDialogAlwaysCenteredProperty = "patchy.dialogAlwaysCentered";
 
 constexpr int kChevronAreaWidth = 14;
 
@@ -335,16 +340,22 @@ private:
 
     if constexpr (std::is_same_v<SpinBox, QSpinBox>) {
       const int maximum = static_cast<int>(std::lround(slider_maximum));
-      slider->setRange(spin_->minimum(), maximum);
-      slider->setPageStep(std::max(1, (maximum - spin_->minimum()) / 20));
-      slider->setValue(spin_->value());
-      QObject::connect(slider, &QSlider::valueChanged, spin_,
-                       &QSpinBox::setValue);
-      QObject::connect(spin_, &QSpinBox::valueChanged, popup,
-                       [slider](int new_value) {
-                         const QSignalBlocker blocker(slider);
-                         slider->setValue(new_value);
-                       });
+      if (spin_->property(kToolbarSpinboxSliderCurvedProperty).toBool()) {
+        bind_curved_slider(*slider, *spin_, maximum);
+      } else {
+        slider->setRange(spin_->minimum(), maximum);
+        slider->setPageStep(std::max(1, (maximum - spin_->minimum()) / 20));
+        slider->setValue(spin_->value());
+        QObject::connect(slider, &QSlider::valueChanged, spin_,
+                         &QSpinBox::setValue);
+        QObject::connect(spin_, &QSpinBox::valueChanged, popup,
+                         [slider](int new_value) {
+                           const QSignalBlocker blocker(slider);
+                           slider->setValue(new_value);
+                         });
+      }
+    } else if (spin_->property(kToolbarSpinboxSliderCurvedProperty).toBool()) {
+      bind_curved_slider(*slider, *spin_, static_cast<int>(std::lround(slider_maximum)));
     } else {
       const int decimal_places = std::clamp(spin_->decimals(), 0, 3);
       const double scale = std::pow(10.0, decimal_places);
@@ -407,6 +418,255 @@ private:
   QElapsedTimer popup_clock_{};
   qint64 popup_dismissed_ms_{-1};
 };
+
+// One controller for both scrub handle kinds (dialog_utils.hpp): `handle` is either a
+// label beside the field or the field's own line edit, where only the prefix text
+// counts. Presses on the handle are consumed so no text selection starts; moves and
+// the release arrive through Qt's implicit grab on the pressed widget.
+template <typename SpinBox>
+class ScrubDragController final : public QObject {
+public:
+  ScrubDragController(QWidget* handle, SpinBox* spin, bool prefix_only)
+      : QObject(handle), handle_(handle), spin_(spin), prefix_only_(prefix_only) {
+    handle_->installEventFilter(this);
+    if (!prefix_only_) {
+      handle_->setCursor(Qt::SizeHorCursor);
+    }
+    spin_->setProperty(kScrubHandleInstalledProperty, true);
+  }
+
+protected:
+  bool eventFilter(QObject* watched, QEvent* event) override {
+    if (watched != handle_ || spin_.isNull()) {
+      return QObject::eventFilter(watched, event);
+    }
+    switch (event->type()) {
+      case QEvent::MouseButtonPress: {
+        const auto* mouse = static_cast<QMouseEvent*>(event);
+        if (mouse->button() != Qt::LeftButton || !spin_->isEnabled() || spin_->isReadOnly() ||
+            !over_handle(mouse->position().toPoint())) {
+          return false;
+        }
+        pressed_ = true;
+        scrubbing_ = false;
+        press_global_ = mouse->globalPosition().toPoint();
+        start_value_ = spin_->value();
+        return true;
+      }
+      case QEvent::MouseMove: {
+        const auto* mouse = static_cast<QMouseEvent*>(event);
+        if (!pressed_) {
+          if (prefix_only_) {
+            handle_->setCursor(over_handle(mouse->position().toPoint()) ? Qt::SizeHorCursor : Qt::IBeamCursor);
+          }
+          return false;
+        }
+        const int delta = mouse->globalPosition().toPoint().x() - press_global_.x();
+        if (!scrubbing_) {
+          if (std::abs(delta) < QApplication::startDragDistance()) {
+            return true;
+          }
+          scrubbing_ = true;
+          if (prefix_only_) {
+            handle_->setCursor(Qt::SizeHorCursor);
+          }
+        }
+        const double steps = static_cast<double>(delta) * ((mouse->modifiers() & Qt::ShiftModifier) != 0 ? 10.0 : 1.0);
+        spin_->setValue(static_cast<decltype(spin_->value())>(start_value_ + steps * spin_->singleStep()));
+        return true;
+      }
+      case QEvent::MouseButtonRelease: {
+        const auto* mouse = static_cast<QMouseEvent*>(event);
+        if (mouse->button() != Qt::LeftButton || !pressed_) {
+          return false;
+        }
+        pressed_ = false;
+        if (scrubbing_) {
+          scrubbing_ = false;
+          Q_EMIT spin_->editingFinished();
+          if (prefix_only_) {
+            handle_->setCursor(over_handle(mouse->position().toPoint()) ? Qt::SizeHorCursor : Qt::IBeamCursor);
+          }
+        } else if (prefix_only_) {
+          spin_->setFocus(Qt::MouseFocusReason);
+          spin_->selectAll();
+        }
+        return true;
+      }
+      case QEvent::Leave:
+        if (prefix_only_ && !pressed_) {
+          handle_->setCursor(Qt::IBeamCursor);
+        }
+        break;
+      default:
+        break;
+    }
+    return QObject::eventFilter(watched, event);
+  }
+
+private:
+  bool over_handle(QPoint position) const {
+    if (!prefix_only_) {
+      return true;
+    }
+    auto* editor = qobject_cast<QLineEdit*>(handle_.data());
+    const auto prefix = spin_->prefix();
+    if (editor == nullptr || prefix.isEmpty()) {
+      return false;
+    }
+    return editor->cursorPositionAt(position) < static_cast<int>(prefix.length());
+  }
+
+  QPointer<QWidget> handle_;
+  QPointer<SpinBox> spin_;
+  bool prefix_only_{false};
+  bool pressed_{false};
+  bool scrubbing_{false};
+  QPoint press_global_;
+  decltype(std::declval<SpinBox>().value()) start_value_{};
+};
+
+bool label_names_a_field(const QLabel* label) {
+  if (label->property(kScrubLabelExemptProperty).toBool()) {
+    return false;
+  }
+  const auto text = label->text();
+  return std::any_of(text.cbegin(), text.cend(), [](QChar c) { return c.isLetter(); });
+}
+
+void install_scrub_labels_in_layout(QLayout* layout);
+
+// The child layouts of a container widget: its own layout, a QScrollArea's viewport
+// widget, every page of a QTabWidget. Spin boxes and other leaf widgets have none.
+std::vector<QLayout*> scrub_child_layouts(QWidget* widget) {
+  std::vector<QLayout*> layouts;
+  if (widget == nullptr || qobject_cast<QAbstractSpinBox*>(widget) != nullptr) {
+    return layouts;
+  }
+  if (auto* scroll = qobject_cast<QScrollArea*>(widget); scroll != nullptr) {
+    if (scroll->widget() != nullptr && scroll->widget()->layout() != nullptr) {
+      layouts.push_back(scroll->widget()->layout());
+    }
+    return layouts;
+  }
+  if (auto* tabs = qobject_cast<QTabWidget*>(widget); tabs != nullptr) {
+    // A page is often itself a QScrollArea (Preferences), so resolve it recursively.
+    for (int page = 0; page < tabs->count(); ++page) {
+      const auto page_layouts = scrub_child_layouts(tabs->widget(page));
+      layouts.insert(layouts.end(), page_layouts.begin(), page_layouts.end());
+    }
+    return layouts;
+  }
+  if (widget->layout() != nullptr) {
+    layouts.push_back(widget->layout());
+  }
+  return layouts;
+}
+
+// The first control inside a layout, in layout order and descending into sub-layouts
+// and containers: sliders, spacers and labels that name nothing are passed over, so a
+// form row's "[slider] [spin]", "[spin] - +" and "[spin] Digits [spin]" fields all
+// answer with their spin box while "[color button] [spin]" answers with the button.
+// A label that names a field counts as a control too: a caption above a grid of
+// "Width [spin]" rows (Canvas Size's "New Size:") must leave those spins to their
+// own labels.
+QWidget* first_scrub_control(QLayout* layout) {
+  if (layout == nullptr) {
+    return nullptr;
+  }
+  for (int i = 0; i < layout->count(); ++i) {
+    auto* item = layout->itemAt(i);
+    if (item == nullptr) {
+      continue;
+    }
+    if (item->layout() != nullptr) {
+      if (auto* control = first_scrub_control(item->layout()); control != nullptr) {
+        return control;
+      }
+      continue;
+    }
+    auto* widget = item->widget();
+    if (widget == nullptr || qobject_cast<QSlider*>(widget) != nullptr) {
+      continue;
+    }
+    if (auto* label = qobject_cast<QLabel*>(widget); label != nullptr) {
+      if (label_names_a_field(label)) {
+        return label;
+      }
+      continue;
+    }
+    const auto children = scrub_child_layouts(widget);
+    if (children.empty()) {
+      return widget;
+    }
+    for (auto* child : children) {
+      if (auto* control = first_scrub_control(child); control != nullptr) {
+        return control;
+      }
+    }
+  }
+  return nullptr;
+}
+
+// The spin box a label at `index` names, or nullptr: the label's buddy when that is a
+// spin box; else the next item, looking past one QSlider ("label, slider, spin" rows);
+// a spin box pairs directly, and a sub-layout or container pairs when its first
+// control is a spin box (a form row's "[slider] [spin]" or "[spin] - +" field).
+QAbstractSpinBox* scrub_target_for_label(QLayout* layout, int index, QLabel* label) {
+  if (auto* buddy = qobject_cast<QAbstractSpinBox*>(label->buddy()); buddy != nullptr) {
+    return buddy;
+  }
+  int next_index = index + 1;
+  auto* next = layout->itemAt(next_index);
+  if (next != nullptr && qobject_cast<QSlider*>(next->widget()) != nullptr) {
+    ++next_index;
+    next = layout->itemAt(next_index);
+  }
+  if (next == nullptr) {
+    return nullptr;
+  }
+  if (auto* spin = qobject_cast<QAbstractSpinBox*>(next->widget()); spin != nullptr) {
+    return spin;
+  }
+  if (next->layout() != nullptr) {
+    return qobject_cast<QAbstractSpinBox*>(first_scrub_control(next->layout()));
+  }
+  for (auto* child : scrub_child_layouts(next->widget())) {
+    if (auto* control = first_scrub_control(child); control != nullptr) {
+      return qobject_cast<QAbstractSpinBox*>(control);
+    }
+  }
+  return nullptr;
+}
+
+void install_scrub_labels_in_layout(QLayout* layout) {
+  if (layout == nullptr) {
+    return;
+  }
+  for (int i = 0; i < layout->count(); ++i) {
+    auto* item = layout->itemAt(i);
+    if (item == nullptr) {
+      continue;
+    }
+    if (item->layout() != nullptr) {
+      install_scrub_labels_in_layout(item->layout());
+      continue;
+    }
+    auto* widget = item->widget();
+    if (widget == nullptr) {
+      continue;
+    }
+    if (auto* label = qobject_cast<QLabel*>(widget); label != nullptr) {
+      if (label_names_a_field(label)) {
+        install_scrub_label(label, scrub_target_for_label(layout, i, label));
+      }
+      continue;
+    }
+    for (auto* child : scrub_child_layouts(widget)) {
+      install_scrub_labels_in_layout(child);
+    }
+  }
+}
 
 template <typename SpinBox>
 void install_numeric_popup(SpinBox* spin) {
@@ -612,6 +872,17 @@ bool restore_dialog_position(QDialog& dialog) {
   const auto stored_position = settings.value(key);
   if (!stored_position.canConvert<QPoint>()) {
     return false;
+  }
+  // A position remembered on a screen the owner no longer occupies (a monitor
+  // unplugged, the main window moved to another display) would strand the
+  // dialog away from the app: fall back to centering on the owner instead.
+  if (auto* parent = dialog.parentWidget(); parent != nullptr) {
+    if (auto* owner_screen = parent->window()->screen(); owner_screen != nullptr) {
+      const QRect remembered(stored_position.toPoint(), dialog_placement_size(dialog));
+      if (!remembered.intersects(owner_screen->availableGeometry())) {
+        return false;
+      }
+    }
   }
   dialog.move(clamped_dialog_position(dialog, stored_position.toPoint()));
   return true;
@@ -912,16 +1183,88 @@ void install_save_file_recent_dropdown(QFileDialog& dialog, const QStringList& r
 
 namespace {
 
-// Frame, QSS padding, line-edit text margins, and cursor slack around the value
-// text of an options-bar spin box (the stylesheet is not applied yet when the
-// bar is built, so this cannot be read from the widget).
+// Frame, QSS padding, line-edit text margins, and the caret around the value
+// text of an options-bar spin box: the box's 1px borders and 4px left padding,
+// QLineEdit's 2px margin on each side, and the caret with a few pixels to
+// spare. The stylesheet is not applied yet when the bar is built, so this
+// cannot be read from the widget. Do not widen it to fix a clipped value: the
+// tool rows are budgeted for one line (ui_brush_tip_picker_keeps_options_bar_height),
+// and a value that overruns by a whole digit means the box was measured with
+// a different font than the one drawing it, which the refresher below handles.
 constexpr int kToolbarSpinboxChromeWidth = 14;
+constexpr auto kToolbarSpinboxMinWidthProperty = "patchy.toolbarSpinboxMinWidth";
+constexpr auto kToolbarSpinboxRefresherProperty = "patchy.toolbarSpinboxRefresherInstalled";
 
 int toolbar_spinbox_width(int width, const QFontMetrics& metrics, const QString& min_text,
                           const QString& max_text) {
   const int text_width = std::max(metrics.horizontalAdvance(min_text),
                                   metrics.horizontalAdvance(max_text));
   return std::max(width, text_width + kChevronAreaWidth + kToolbarSpinboxChromeWidth);
+}
+
+QString spinbox_value_text(const QSpinBox* spin, int value) {
+  return spin->prefix() + spin->locale().toString(value) + spin->suffix();
+}
+
+QString spinbox_value_text(const QDoubleSpinBox* spin, double value) {
+  return spin->prefix() + spin->locale().toString(value, 'f', spin->decimals()) + spin->suffix();
+}
+
+template <typename SpinBox>
+void refresh_toolbar_spinbox_width(SpinBox* spin) {
+  const int width = spin->property(kToolbarSpinboxMinWidthProperty).toInt();
+  spin->setFixedWidth(toolbar_spinbox_width(width, spin->fontMetrics(),
+                                            spinbox_value_text(spin, spin->minimum()),
+                                            spinbox_value_text(spin, spin->maximum())));
+}
+
+// The width is measured from the box's font, and the theme stylesheet (or a
+// later font change) replaces that font after the options bar is built. A box
+// sized from the construction-time font can be too narrow for its widest value
+// once the real font lands ("255" in the Fill tool's Tol box overran its
+// chevron on screen, September 2026), so re-measure on every event that
+// carries a new font or style.
+template <typename SpinBox>
+class ToolbarSpinboxWidthRefresher final : public QObject {
+public:
+  explicit ToolbarSpinboxWidthRefresher(SpinBox* spin) : QObject(spin), spin_(spin) {
+    spin_->installEventFilter(this);
+  }
+
+protected:
+  bool eventFilter(QObject* watched, QEvent* event) override {
+    if (watched == spin_) {
+      switch (event->type()) {
+        case QEvent::FontChange:
+        case QEvent::StyleChange:
+        case QEvent::Polish:
+          refresh_toolbar_spinbox_width(spin_);
+          break;
+        default:
+          break;
+      }
+    }
+    return QObject::eventFilter(watched, event);
+  }
+
+private:
+  SpinBox* spin_;
+};
+
+template <typename SpinBox>
+void configure_toolbar_spinbox_impl(SpinBox* spin, int width) {
+  spin->setButtonSymbols(QAbstractSpinBox::NoButtons);
+  spin->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+  spin->setProperty(kToolbarSpinboxMinWidthProperty, width);
+  refresh_toolbar_spinbox_width(spin);
+  if (!spin->property(kToolbarSpinboxRefresherProperty).toBool()) {
+    spin->setProperty(kToolbarSpinboxRefresherProperty, true);
+    new ToolbarSpinboxWidthRefresher<SpinBox>(spin);
+  }
+  install_numeric_popup(spin);
+  // A click into a toolbar field selects its value so typing replaces it
+  // (GitHub issue 66; Qt only does this for keyboard focus).
+  select_all_on_focus(*spin);
 }
 
 }  // namespace
@@ -953,26 +1296,94 @@ QFont offset_font(QFont font, int size_delta, bool bold) {
   return font;
 }
 
+void install_scrub_label(QLabel* label, QAbstractSpinBox* spin) {
+  if (label == nullptr || spin == nullptr || spin->property(kScrubHandleInstalledProperty).toBool()) {
+    return;
+  }
+  if (auto* int_spin = qobject_cast<QSpinBox*>(spin); int_spin != nullptr) {
+    new ScrubDragController<QSpinBox>(label, int_spin, false);
+  } else if (auto* double_spin = qobject_cast<QDoubleSpinBox*>(spin); double_spin != nullptr) {
+    new ScrubDragController<QDoubleSpinBox>(label, double_spin, false);
+  }
+}
+
+void install_prefix_scrub(QSpinBox* spin) {
+  if (spin == nullptr || spin->property(kScrubHandleInstalledProperty).toBool()) {
+    return;
+  }
+  auto* editor = spin->findChild<QLineEdit*>();
+  if (editor == nullptr) {
+    return;
+  }
+  editor->setCursor(Qt::IBeamCursor);
+  new ScrubDragController<QSpinBox>(editor, spin, true);
+}
+
+void install_scrub_labels_in(QWidget* container) {
+  if (container != nullptr) {
+    install_scrub_labels_in_layout(container->layout());
+  }
+}
+
+namespace {
+
+constexpr char kSelectAllOnFocusInstalledProperty[] = "patchy.selectAllOnFocus";
+
+// Watches the widget that receives focus (`owner`) and selects `edit`'s text.
+// For a spin box the two differ: QAbstractSpinBox takes the focus itself and
+// hands the event to its line edit by a direct event() call, which no filter on
+// the line edit ever sees.
+class SelectAllOnFocusFilter : public QObject {
+ public:
+  SelectAllOnFocusFilter(QWidget& owner, QLineEdit& edit) : QObject(&owner), owner_(&owner), edit_(&edit) {}
+
+  bool eventFilter(QObject* watched, QEvent* event) override {
+    if (event->type() == QEvent::FocusIn) {
+      // Queued so the click that gave focus does not immediately collapse the
+      // selection (QLineEdit places its caret on the press after focus-in).
+      QMetaObject::invokeMethod(
+          owner_,
+          [owner = owner_, edit = edit_] {
+            if (owner != nullptr && edit != nullptr && owner->hasFocus()) {
+              edit->selectAll();
+            }
+          },
+          Qt::QueuedConnection);
+    }
+    return QObject::eventFilter(watched, event);
+  }
+
+ private:
+  QPointer<QWidget> owner_;
+  QPointer<QLineEdit> edit_;
+};
+
+void install_select_all_on_focus(QWidget& owner, QLineEdit& edit) {
+  if (owner.property(kSelectAllOnFocusInstalledProperty).toBool()) {
+    return;
+  }
+  owner.setProperty(kSelectAllOnFocusInstalledProperty, true);
+  owner.installEventFilter(new SelectAllOnFocusFilter(owner, edit));
+}
+
+}  // namespace
+
+void select_all_on_focus(QLineEdit& edit) {
+  install_select_all_on_focus(edit, edit);
+}
+
+void select_all_on_focus(QAbstractSpinBox& spin) {
+  if (auto* editor = spin.findChild<QLineEdit*>(); editor != nullptr) {
+    install_select_all_on_focus(spin, *editor);
+  }
+}
+
 void configure_toolbar_spinbox(QSpinBox* spin, int width) {
-  spin->setButtonSymbols(QAbstractSpinBox::NoButtons);
-  spin->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-  const auto locale = spin->locale();
-  spin->setFixedWidth(toolbar_spinbox_width(
-      width, spin->fontMetrics(),
-      spin->prefix() + locale.toString(spin->minimum()) + spin->suffix(),
-      spin->prefix() + locale.toString(spin->maximum()) + spin->suffix()));
-  install_numeric_popup(spin);
+  configure_toolbar_spinbox_impl(spin, width);
 }
 
 void configure_toolbar_spinbox(QDoubleSpinBox* spin, int width) {
-  spin->setButtonSymbols(QAbstractSpinBox::NoButtons);
-  spin->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-  const auto locale = spin->locale();
-  spin->setFixedWidth(toolbar_spinbox_width(
-      width, spin->fontMetrics(),
-      spin->prefix() + locale.toString(spin->minimum(), 'f', spin->decimals()) + spin->suffix(),
-      spin->prefix() + locale.toString(spin->maximum(), 'f', spin->decimals()) + spin->suffix()));
-  install_numeric_popup(spin);
+  configure_toolbar_spinbox_impl(spin, width);
 }
 
 void configure_dialog_spinbox(QSpinBox* spin, int width) {
@@ -996,7 +1407,10 @@ namespace {
 QSpinBox* add_dialog_slider_spin_row_with(QFormLayout* form, QWidget* parent, const QString& label,
                                           const QString& slider_object_name, QSpinBox* spin, int minimum,
                                           int maximum, int value, int spin_width, int row_spacing,
-                                          bool step_buttons) {
+                                          bool step_buttons, int slider_maximum, SliderCurve curve) {
+  // The default (and any value at or past `maximum`) means no cap. A negative
+  // sentinel would collide with ranges like an angle's -180..180.
+  const auto slider_top = std::clamp(std::min(slider_maximum, maximum), minimum, maximum);
   auto* row = new QWidget(parent);
   auto* row_layout = new QHBoxLayout(row);
   row_layout->setContentsMargins(0, 0, 0, 0);
@@ -1005,8 +1419,6 @@ QSpinBox* add_dialog_slider_spin_row_with(QFormLayout* form, QWidget* parent, co
   }
   auto* slider = new QSlider(Qt::Horizontal, row);
   slider->setObjectName(slider_object_name);
-  slider->setRange(minimum, maximum);
-  slider->setValue(value);
   spin->setParent(row);
   spin->setRange(minimum, maximum);
   spin->setValue(value);
@@ -1024,8 +1436,24 @@ QSpinBox* add_dialog_slider_spin_row_with(QFormLayout* form, QWidget* parent, co
   } else {
     row_layout->addWidget(spin);
   }
+  if (curve == SliderCurve::FineLowEnd) {
+    bind_curved_slider(*slider, *spin, slider_top);
+    form->addRow(label, row);
+    return spin;
+  }
+  slider->setRange(minimum, slider_top);
+  slider->setValue(std::min(value, slider_top));
   QObject::connect(slider, &QSlider::valueChanged, spin, &QSpinBox::setValue);
-  QObject::connect(spin, qOverload<int>(&QSpinBox::valueChanged), slider, &QSlider::setValue);
+  if (slider_top == maximum) {
+    QObject::connect(spin, qOverload<int>(&QSpinBox::valueChanged), slider, &QSlider::setValue);
+  } else {
+    // A typed value past the slider's end must not echo back through the
+    // clamped slider and overwrite the spin box.
+    QObject::connect(spin, qOverload<int>(&QSpinBox::valueChanged), slider, [slider, slider_top](int value) {
+      const QSignalBlocker blocker(slider);
+      slider->setValue(std::min(value, slider_top));
+    });
+  }
   form->addRow(label, row);
   return spin;
 }
@@ -1035,26 +1463,27 @@ QSpinBox* add_dialog_slider_spin_row_with(QFormLayout* form, QWidget* parent, co
 QSpinBox* add_dialog_slider_spin_row(QFormLayout* form, QWidget* parent, const QString& label,
                                      const QString& slider_object_name, const QString& spin_object_name,
                                      int minimum, int maximum, int value, const QString& suffix,
-                                     int spin_width, int row_spacing, bool step_buttons) {
+                                     int spin_width, int row_spacing, bool step_buttons, int slider_maximum,
+                                     SliderCurve curve) {
   auto* spin = new QSpinBox();
   spin->setObjectName(spin_object_name);
   if (!suffix.isEmpty()) {
     spin->setSuffix(suffix);
   }
   return add_dialog_slider_spin_row_with(form, parent, label, slider_object_name, spin, minimum, maximum, value,
-                                         spin_width, row_spacing, step_buttons);
+                                         spin_width, row_spacing, step_buttons, slider_maximum, curve);
 }
 
 UnitIntSpinBox* add_dialog_slider_spin_row(QFormLayout* form, QWidget* parent, const QString& label,
                                            const QString& slider_object_name, const QString& spin_object_name,
                                            int minimum, int maximum, int value, SpinUnit unit,
                                            UnitIntSpinBox::ContextProvider provider, int spin_width,
-                                           int row_spacing, bool step_buttons) {
+                                           int row_spacing, bool step_buttons, SliderCurve curve) {
   auto* spin = new UnitIntSpinBox(unit);
   spin->setObjectName(spin_object_name);
   spin->set_context_provider(std::move(provider));
   add_dialog_slider_spin_row_with(form, parent, label, slider_object_name, spin, minimum, maximum, value,
-                                  spin_width, row_spacing, step_buttons);
+                                  spin_width, row_spacing, step_buttons, std::numeric_limits<int>::max(), curve);
   return spin;
 }
 
@@ -1344,8 +1773,30 @@ void set_dialog_position_memory_id(QDialog& dialog, const QString& id) {
   dialog.setProperty(kDialogPositionMemoryIdProperty, id);
 }
 
+void mark_dialog_always_centered(QDialog& dialog) {
+  dialog.setProperty(kDialogAlwaysCenteredProperty, true);
+}
+
 void remember_dialog_position(QDialog& dialog) {
   if (dialog.property(kDialogPositionMemoryInstalledProperty).toBool()) {
+    return;
+  }
+
+  // A progress dialog is a transient status window ("Opening x..."): it has to
+  // appear where the user is looking, so it is centered on its owner every
+  // time and never records a position. A spot remembered from an earlier
+  // window layout put it far from the main window (Seth, September 2026).
+  // Message boxes (the save prompt, every question) and dialogs marked with
+  // mark_dialog_always_centered (About) follow the same rule (Seth, October
+  // 2026). Any position an older build saved under their names is dropped here.
+  if (qobject_cast<QProgressDialog*>(&dialog) != nullptr || qobject_cast<QMessageBox*>(&dialog) != nullptr ||
+      dialog.property(kDialogAlwaysCenteredProperty).toBool()) {
+    clear_dialog_position(dialog);
+#ifdef Q_OS_WASM
+    clamp_dialog_to_screen(dialog);
+#endif
+    dialog.move(centered_dialog_position(dialog));
+    dialog.setProperty(kDialogPositionMemoryInstalledProperty, true);
     return;
   }
 
@@ -1375,6 +1826,7 @@ int exec_dialog(QDialog& dialog) {
     return QDialog::Rejected;
   }
   remember_dialog_position(dialog);
+  install_scrub_labels_in(&dialog);
 #ifdef Q_OS_WASM
   // The guards watch app-wide events; make sure they exist before the first
   // modal ever shows (run_non_modal_dialog installs them too, but a modal can
@@ -1577,6 +2029,60 @@ void keep_dialog_above_parent_window(QDialog& dialog) {
 }
 #endif
 
+#ifndef Q_OS_MACOS
+void move_pointer_to_global_position(QPoint global_position) {
+  QCursor::setPos(global_position);
+}
+#endif
+
+std::optional<QColor> own_window_color_at_global_position(QPoint global_position) {
+  QWidget* window = QApplication::topLevelAt(global_position);
+  if (window == nullptr) {
+    return std::nullopt;
+  }
+  const QPoint local = window->mapFromGlobal(global_position);
+  if (!window->rect().contains(local)) {
+    return std::nullopt;
+  }
+  const auto image = window->grab(QRect(local, QSize(1, 1))).toImage();
+  if (image.isNull()) {
+    return std::nullopt;
+  }
+  auto color = image.pixelColor(0, 0);
+  if (color.alpha() == 0) {
+    return std::nullopt;
+  }
+  color.setAlpha(255);
+  return color;
+}
+
+std::optional<QColor> screen_color_at_global_position(QPoint global_position) {
+#ifdef Q_OS_MACOS
+  if (const auto own = own_window_color_at_global_position(global_position); own.has_value()) {
+    return own;
+  }
+#endif
+  QScreen* screen = QGuiApplication::screenAt(global_position);
+  if (screen == nullptr) {
+    screen = QGuiApplication::primaryScreen();
+  }
+  if (screen == nullptr) {
+    return std::nullopt;
+  }
+
+  const QPoint screen_position = global_position - screen->geometry().topLeft();
+  const QPixmap sample = screen->grabWindow(0, screen_position.x(), screen_position.y(), 1, 1);
+  if (sample.isNull()) {
+    return std::nullopt;
+  }
+
+  const auto image = sample.toImage();
+  if (!image.rect().contains(0, 0)) {
+    return std::nullopt;
+  }
+  return image.pixelColor(0, 0);
+}
+
 void suppress_native_tab_bar_base(QTabWidget& tabs) {
   if (auto* tab_bar = tabs.tabBar(); tab_bar != nullptr) {
     tab_bar->setDrawBase(false);
@@ -1606,6 +2112,7 @@ int run_non_modal_dialog(QDialog& dialog) {
     return QDialog::Rejected;
   }
   remember_dialog_position(dialog);
+  install_scrub_labels_in(&dialog);
 #ifdef Q_OS_WASM
   ensure_wasm_dialog_guards();
 #endif
@@ -1665,20 +2172,33 @@ namespace {
 // Qt only wires the Alt+mnemonic. An event filter rather than QShortcut so a
 // key press reaching the box (directly or by propagating up from a focused
 // button) behaves the same for real input and synthetic events in offscreen
-// tests, which never go through the platform shortcut map.
-class MessageBoxYesNoKeyFilter : public QObject {
+// tests, which never go through the platform shortcut map. A Save / Don't Save
+// box answers S and D, and keeps Y and N as aliases so the habit from the
+// Yes/No days (and from native boxes) still works (GitHub issue 70).
+class MessageBoxLetterKeyFilter : public QObject {
  public:
-  explicit MessageBoxYesNoKeyFilter(QMessageBox& dialog) : QObject(&dialog), dialog_(dialog) {}
+  explicit MessageBoxLetterKeyFilter(QMessageBox& dialog) : QObject(&dialog), dialog_(dialog) {}
 
   bool eventFilter(QObject* watched, QEvent* event) override {
     if (event->type() == QEvent::KeyPress) {
       const auto* key_event = static_cast<const QKeyEvent*>(event);
       if (key_event->modifiers() == Qt::NoModifier) {
         QAbstractButton* button = nullptr;
-        if (key_event->key() == Qt::Key_Y) {
-          button = dialog_.button(QMessageBox::Yes);
-        } else if (key_event->key() == Qt::Key_N) {
-          button = dialog_.button(QMessageBox::No);
+        switch (key_event->key()) {
+          case Qt::Key_Y:
+            button = first_button({QMessageBox::Yes, QMessageBox::Save});
+            break;
+          case Qt::Key_N:
+            button = first_button({QMessageBox::No, QMessageBox::Discard});
+            break;
+          case Qt::Key_S:
+            button = dialog_.button(QMessageBox::Save);
+            break;
+          case Qt::Key_D:
+            button = dialog_.button(QMessageBox::Discard);
+            break;
+          default:
+            break;
         }
         if (button != nullptr && button->isEnabled()) {
           button->click();
@@ -1690,6 +2210,15 @@ class MessageBoxYesNoKeyFilter : public QObject {
   }
 
  private:
+  QAbstractButton* first_button(std::initializer_list<QMessageBox::StandardButton> candidates) const {
+    for (const auto candidate : candidates) {
+      if (auto* button = dialog_.button(candidate); button != nullptr) {
+        return button;
+      }
+    }
+    return nullptr;
+  }
+
   QMessageBox& dialog_;
 };
 
@@ -1706,7 +2235,13 @@ QMessageBox::StandardButton show_warning_message(QWidget* parent, const QString&
   if (default_button != QMessageBox::NoButton) {
     dialog.setDefaultButton(default_button);
   }
-  dialog.installEventFilter(new MessageBoxYesNoKeyFilter(dialog));
+  // Qt labels Discard "Discard" except on macOS, where it reads "Don't Save".
+  // Patchy says "Don't Save" everywhere: the button sits next to Save, and the
+  // pair names the two outcomes instead of asking the user to map a verb.
+  if (auto* discard = dialog.button(QMessageBox::Discard); discard != nullptr) {
+    discard->setText(QObject::tr("Don't Save"));
+  }
+  dialog.installEventFilter(new MessageBoxLetterKeyFilter(dialog));
   return static_cast<QMessageBox::StandardButton>(exec_dialog(dialog));
 }
 

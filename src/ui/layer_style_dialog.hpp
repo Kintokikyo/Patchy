@@ -2,6 +2,7 @@
 
 #include "core/layer.hpp"
 #include "core/pattern_resource.hpp"
+#include "ui/appearance_edits.hpp"
 
 #include <QString>
 
@@ -28,6 +29,10 @@ struct LayerStyleSettings {
   // Advanced Blending "Channels" (kRestrict* bits; set = excluded). Ignored on
   // commit when the layer preserves an unsupported native 'brst' payload.
   std::uint8_t restricted_channels{0};
+  std::shared_ptr<const AppearanceEdits<LayerStyleSettings>> edits{};
+  bool preview_enabled{true};
+  bool opacity_edited{false};
+  bool fill_opacity_edited{false};
 };
 
 // document_patterns (optional) lists the document's embedded pattern tiles.
@@ -50,6 +55,7 @@ struct LayerStyleSettings {
     std::function<void(const QString& name, const PixelBuffer& tile)> open_pattern_as_image = {},
     GradientLibrary* gradient_library = nullptr,
     RgbColor foreground = RgbColor{0, 0, 0},
-    RgbColor background = RgbColor{255, 255, 255});
+    RgbColor background = RgbColor{255, 255, 255},
+    const AppearanceDialogContext<LayerStyleSettings>* batch = nullptr);
 
 }  // namespace patchy::ui

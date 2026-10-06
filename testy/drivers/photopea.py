@@ -3,7 +3,7 @@
 Photopea has no CLI, but it has an official embedding API: a page that iframes
 photopea.com can post script strings (Photoshop-style DOM) and receives export
 bytes back as ArrayBuffers. Testy serves photopea_host.html, which loads the
-staged PSD from the local server, runs the export/mutation sequence, and POSTs
+staged PSD from the local server, runs the export sequence, and POSTs
 each artifact to the server's /testy-upload endpoint. This driver just steers a
 headless Chrome at that page and polls window.__testyResult.
 
@@ -104,6 +104,16 @@ def _run_host_page(base_url: str, query: dict[str, str],
     raise PhotopeaError("host page timed out")
 
 
+def _fonts_query(base_url: str, testy_root: Path, text_fonts: list[str] | None) -> dict[str, str]:
+    """The host page's `fonts` parameter for the PostScript names a document's text
+    uses: Photopea only has its own web fonts, so it gets the files Photoshop used
+    (see fonts.py). Empty when none of the names is installed here."""
+    import fonts as font_files
+
+    urls = [_file_url(base_url, testy_root, path) for path in font_files.font_files(list(text_fonts or []))]
+    return {"fonts": "|".join(urls)} if urls else {}
+
+
 def export_all(
     base_url: str,
     testy_root: Path,
@@ -112,17 +122,12 @@ def export_all(
     render_png: Path,
     resave_psd: Path,
     trap_png: Path,
-    mutated_png: Path,
-    suffix: str,
     progress: Callable[[str], None] = lambda stage: None,
+    text_fonts: list[str] | None = None,
 ) -> dict:
     upload_base = f"{base_url}/testy-upload?name="
     notes: list[str] = []
     try:
-        # The forced-text mutation is deliberately NOT requested: Photopea's script
-        # engine hangs on textItem.contents assignment for some documents (no "done"
-        # ever returns), and its DOM never matched text layers reliably. Render +
-        # structural comparisons are the value here.
         progress("Photopea: open + export")
         result = _run_host_page(
             base_url,
@@ -131,6 +136,7 @@ def export_all(
                 "upload": upload_base,
                 "render": _rel_url(testy_root, render_png),
                 "resave": _rel_url(testy_root, resave_psd),
+                **_fonts_query(base_url, testy_root, text_fonts),
             },
             [render_png, resave_psd],
         )
@@ -153,6 +159,34 @@ def export_all(
         return {"ok": False, "opens": "fail", "error": str(error), "notes": notes}
     except Exception as error:
         return {"ok": False, "opens": "fail", "error": f"driver crash: {error}", "notes": notes}
+
+
+def render_text_afresh(base_url: str, testy_root: Path, source: Path, render_png: Path,
+                        text_fonts: list[str] | None = None, rerender_text: bool = True) -> dict:
+    """Render `source` after making Photopea lay out every text layer itself (it shows
+    the raster cached in the file until a text layer is edited; the host page assigns
+    each one a property's own value, which changes nothing else). Returns
+    {"ok", "done": [layer names], "failed": [layer names], "error"}."""
+    try:
+        result = _run_host_page(
+            base_url,
+            {
+                "file": _file_url(base_url, testy_root, source),
+                "upload": f"{base_url}/testy-upload?name=",
+                "render": _rel_url(testy_root, render_png),
+                # (No re-layout when a font the text needs is missing on this machine:
+                # nobody's own text render is scored then.)
+                **({"nudge": "1"} if rerender_text else {}),
+                **_fonts_query(base_url, testy_root, text_fonts),
+            },
+            [render_png],
+        )
+    except PhotopeaError as error:
+        return {"ok": False, "done": [], "failed": [], "error": str(error)}
+    report = result.get("nudge") or {}
+    return {"ok": True, "done": list(report.get("done") or []),
+            "failed": list(report.get("failed") or []), "error": str(report.get("error") or ""),
+            "fonts": result.get("fonts") or {}}
 
 
 def cleanup() -> None:

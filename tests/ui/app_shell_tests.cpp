@@ -23,6 +23,7 @@
 #include "psd/asl_io.hpp"
 #include "psd/psd_binary.hpp"
 #include "psd/psd_layer_effects.hpp"
+
 #include "core/style_presets.hpp"
 #include "ui/brush_tip_library.hpp"
 #include "ui/brush_tip_manager_dialog.hpp"
@@ -59,14 +60,21 @@
 #include "ui/start_panel.hpp"
 #include "ui/main_window_shared.hpp"
 #include "ui/icon_theme.hpp"
+#include "ui/theme_file.hpp"
 #include "ui/theme_palette.hpp"
 #include "ui/theme_qss.hpp"
+#include "ui/app_data_migration.hpp"
 #include "ui/app_settings.hpp"
 #include "ui/build_info.hpp"
+
+#include "ui/background_workers.hpp"
+#include "ui/network_mounts.hpp"
 #include "ui/update_checker.hpp"
 #include "ui/visual_filter_gallery_dialog.hpp"
 #include "ui/zoomable_image_preview.hpp"
 #include "ui/zoom_status_bar.hpp"
+#include "ui/single_instance.hpp"
+
 #include "filters/builtin_filters.hpp"
 #include "psd/psd_document_io.hpp"
 #include "psd/psd_filter_effects.hpp"
@@ -75,6 +83,7 @@
 #include "test_fonts.hpp"
 #include "test_harness.hpp"
 #include "local_psd_fixtures.hpp"
+#include "patchy_version.hpp"
 
 #include <QAbstractItemModel>
 #include <QAbstractSpinBox>
@@ -92,7 +101,9 @@
 #include <QDialogButtonBox>
 #include <QDataStream>
 #include <QDockWidget>
+#include <QCoreApplication>
 #include <QDir>
+#include <QStandardPaths>
 #include <QDoubleSpinBox>
 #include <QDragEnterEvent>
 #include <QDragMoveEvent>
@@ -116,6 +127,8 @@
 #include <QItemSelectionModel>
 #include <QLabel>
 #include <QLineEdit>
+#include <QLocalServer>
+#include <QLocalSocket>
 #include <QList>
 #include <QListView>
 #include <QLayout>
@@ -124,6 +137,8 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTemporaryDir>
+#include <QTcpServer>
+#include <QTcpSocket>
 #include <QLocale>
 #include <QSizeGrip>
 #include <QMetaObject>
@@ -182,6 +197,8 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
+#include <thread>
 #include <array>
 #include <cstdint>
 #include <cmath>
@@ -350,7 +367,16 @@ void ui_main_window_renders_color_controls() {
   CHECK(layer_arrange_menu->actions().contains(require_action_by_text(window, QStringLiteral("Move Layer Up"))));
   CHECK(layer_arrange_menu->actions().contains(
       require_action_by_text(window, QStringLiteral("Flip Layer Horizontal"))));
-  CHECK(window.findChild<QSpinBox*>(QStringLiteral("selectionFeatherSpin")) != nullptr);
+  auto* feather_spin = window.findChild<QSpinBox*>(QStringLiteral("selectionFeatherSpin"));
+  CHECK(feather_spin != nullptr);
+  // Photoshop's 0..1000 px selection Feather.
+  CHECK(feather_spin->maximum() == 1000);
+  auto* feather_canvas = require_canvas(window);
+  feather_canvas->set_selection_feather_radius(1000);
+  CHECK(feather_canvas->selection_feather_radius() == 1000);
+  feather_canvas->set_selection_feather_radius(5000);
+  CHECK(feather_canvas->selection_feather_radius() == 1000);
+  feather_canvas->set_selection_feather_radius(0);
   for (auto* button : window.findChildren<QPushButton*>()) {
     CHECK(button->text() != QStringLiteral("Select and Mask..."));
   }
@@ -363,12 +389,12 @@ void ui_main_window_renders_color_controls() {
   auto* marquee_button = window.findChild<QToolButton*>(QStringLiteral("marqueeToolButton"));
   CHECK(marquee_button != nullptr);
   CHECK(marquee_button->menu() != nullptr);
-  CHECK(marquee_button->menu()->actions().size() == 2);
+  CHECK(marquee_button->menu()->actions().size() == 4);  // Marquee, Elliptical, separator, Cycle
   CHECK(marquee_button->defaultAction() == require_action_by_text(window, QStringLiteral("Marquee")));
   auto* shape_button = window.findChild<QToolButton*>(QStringLiteral("shapeToolButton"));
   CHECK(shape_button != nullptr);
   CHECK(shape_button->menu() != nullptr);
-  CHECK(shape_button->menu()->actions().size() == 5);  // Line/Rect/Ellipse/Polygon/Custom Shape
+  CHECK(shape_button->menu()->actions().size() == 7);  // Line/Rect/Ellipse/Polygon/Custom Shape + separator + Cycle
   CHECK(shape_button->defaultAction() == require_action_by_text(window, QStringLiteral("Rect")));
 
   save_widget_artifact("ui_main_window", window);
@@ -1350,13 +1376,17 @@ void ui_open_remembers_last_directory_and_lists_recent_folders() {
 
   auto* folders_menu = window.findChild<QMenu*>(QStringLiteral("fileOpenRecentFolderMenu"));
   CHECK(folders_menu != nullptr);
-  QStringList listed_folders;
-  for (auto* action : folders_menu->actions()) {
-    if (action != nullptr && !action->isSeparator() && !action->data().toString().isEmpty()) {
-      listed_folders << action->data().toString();
+  const auto listed_folders = [folders_menu] {
+    QStringList listed;
+    for (auto* action : folders_menu->actions()) {
+      if (action != nullptr && !action->isSeparator() && !action->data().toString().isEmpty()) {
+        listed << action->data().toString();
+      }
     }
-  }
-  CHECK(listed_folders == QStringList({folder_a, folder_b}));
+    return listed;
+  };
+  // The stale entry drops once the background existence check reports back.
+  CHECK(process_events_until([&] { return listed_folders() == QStringList({folder_a, folder_b}); }));
   CHECK(folders_menu->actions().contains(require_action(window, "fileClearRecentFoldersAction")));
 
   // The Open dialog starts in the remembered directory.
@@ -1382,7 +1412,6 @@ void ui_open_remembers_last_directory_and_lists_recent_folders() {
     saw_recent_folder_dialog = true;
     dialog->reject();
   });
-  listed_folders.clear();
   for (auto* action : folders_menu->actions()) {
     if (action != nullptr && action->data().toString() == folder_b) {
       action->trigger();
@@ -1402,6 +1431,144 @@ void ui_open_remembers_last_directory_and_lists_recent_folders() {
     auto settings = patchy::ui::app_settings();
     CHECK(settings.value(QStringLiteral("recentFolders")).toStringList().isEmpty());
   }
+}
+
+// Recent-history existence checks run on a worker and skip network paths: an
+// unreachable share used to block startup and every File menu open for the SMB
+// timeout. The unroutable TEST-NET host would hold a stat far past the wait
+// below, so the missing local entry dropping in time proves the share was not
+// stat'ed, and the share entry stays listed.
+// The mount classifier behind is_network_recent_path on macOS and Linux: a
+// synthetic table, so the result does not depend on the machine's mounts.
+void ui_network_mount_classification_uses_deepest_mount_point() {
+  using patchy::ui::MountEntry;
+  const std::vector<MountEntry> mounts{
+      {QStringLiteral("/"), QStringLiteral("apfs"), true},
+      {QStringLiteral("/Volumes/share"), QStringLiteral("smbfs"), false},
+      {QStringLiteral("/Volumes/share2"), QStringLiteral("apfs"), true},
+      {QStringLiteral("/Volumes/share/nested-local"), QStringLiteral("apfs"), true},
+      {QStringLiteral("/mnt/nas/"), QStringLiteral("nfs4"), true},  // Linux: the type decides
+      {QStringLiteral("/run/user/1000/gvfs"), QStringLiteral("fuse.gvfsd-fuse"), true},
+      {QStringLiteral("/net"), QStringLiteral("autofs"), true},
+      {QStringLiteral("/media/usb"), QStringLiteral("fuse.ntfs-3g"), true},
+  };
+  const auto network = [&](const char* path) {
+    return patchy::ui::path_is_on_network_mount(QString::fromUtf8(path), mounts);
+  };
+  CHECK(!network("/Users/seth/Pictures/a.psd"));
+  CHECK(network("/Volumes/share/a.psd"));
+  CHECK(network("/Volumes/share"));
+  CHECK(!network("/Volumes/share2/a.psd"));   // sibling with a common prefix
+  CHECK(!network("/Volumes/sharex/a.psd"));   // no component boundary match
+  CHECK(!network("/Volumes/share/nested-local/a.psd"));  // deeper local mount wins
+  CHECK(network("/mnt/nas/photos/a.psd"));    // trailing slash on the mount point
+  CHECK(network("/run/user/1000/gvfs/smb-share:server=nas/a.psd"));
+  CHECK(network("/net/box/a.psd"));           // automount trigger
+  CHECK(!network("/media/usb/a.psd"));        // local FUSE stays local
+  CHECK(!network(""));
+  CHECK(!patchy::ui::path_is_on_network_mount(QStringLiteral("/anything"), {}));
+
+  const auto* entry = patchy::ui::mount_for_path(QStringLiteral("/Volumes/share/x/y"), mounts);
+  CHECK(entry != nullptr && entry->file_system == QStringLiteral("smbfs"));
+  CHECK(patchy::ui::is_network_file_system_type(QStringLiteral("cifs")));
+  CHECK(patchy::ui::is_network_file_system_type(QStringLiteral("fuse.sshfs")));
+  CHECK(!patchy::ui::is_network_file_system_type(QStringLiteral("ext4")));
+  CHECK(!patchy::ui::is_network_file_system_type(QStringLiteral("fuse.portal")));
+
+  // /proc/self/mounts escapes spaces in mount points as \040.
+  const auto parsed = patchy::ui::parse_proc_mounts(
+      "proc /proc proc rw,nosuid 0 0\n"
+      "/dev/sda1 / ext4 rw,relatime 0 0\n"
+      "nas:/export /mnt/my\\040nas nfs4 rw,vers=4.2 0 0\n"
+      "gvfsd-fuse /run/user/1000/gvfs fuse.gvfsd-fuse rw,nosuid,nodev,user_id=1000 0 0\n"
+      "broken line\n");
+  CHECK(parsed.size() == 4);
+  if (parsed.size() == 4) {
+    CHECK(parsed[1].mount_point == QStringLiteral("/"));
+    CHECK(parsed[1].local);
+    CHECK(parsed[2].mount_point == QStringLiteral("/mnt/my nas"));
+    CHECK(parsed[2].file_system == QStringLiteral("nfs4"));
+    CHECK(!parsed[2].local);
+    CHECK(!parsed[3].local);
+  }
+  CHECK(patchy::ui::path_is_on_network_mount(QStringLiteral("/mnt/my nas/a.psd"), parsed));
+  CHECK(!patchy::ui::path_is_on_network_mount(QStringLiteral("/home/x/a.psd"), parsed));
+
+  // The live table never blocks and, off Windows, always knows the root.
+  const auto live = patchy::ui::read_system_mounts();
+#if defined(Q_OS_MACOS) || defined(Q_OS_LINUX)
+  CHECK(!live.empty());
+  CHECK(patchy::ui::mount_for_path(QStringLiteral("/"), live) != nullptr);
+#else
+  CHECK(live.empty());
+#endif
+}
+
+void ui_recent_history_checks_in_background_and_skips_network_paths() {
+  ensure_artifact_dir();
+  const auto live_file = QFileInfo(QStringLiteral("test-artifacts/recent-bg-live.png")).absoluteFilePath();
+  const auto missing_file = QFileInfo(QStringLiteral("test-artifacts/recent-bg-missing.png")).absoluteFilePath();
+  const auto live_folder = QFileInfo(QStringLiteral("test-artifacts/recent-bg-dir")).absoluteFilePath();
+  const auto missing_folder = QFileInfo(QStringLiteral("test-artifacts/recent-bg-dir-missing")).absoluteFilePath();
+  const auto network_file = QStringLiteral("//192.0.2.1/share/recent-bg.psd");
+  const auto network_folder = QStringLiteral("//192.0.2.1/share");
+  {
+    QImage image(8, 8, QImage::Format_RGB32);
+    image.fill(QColor(60, 120, 180));
+    CHECK(image.save(live_file));
+  }
+  QFile::remove(missing_file);
+  CHECK(QDir().mkpath(live_folder));
+  QDir(missing_folder).removeRecursively();
+
+  SettingsValueRestorer recent_files_restorer(QStringLiteral("recentFiles"));
+  SettingsValueRestorer recent_folders_restorer(QStringLiteral("recentFolders"));
+  const QStringList stored_files{network_file, missing_file, live_file};
+  const QStringList stored_folders{network_folder, missing_folder, live_folder};
+  {
+    auto settings = patchy::ui::app_settings();
+    settings.setValue(QStringLiteral("recentFiles"), stored_files);
+    settings.setValue(QStringLiteral("recentFolders"), stored_folders);
+    settings.sync();
+  }
+
+  patchy::ui::MainWindow window;
+  show_window(window);
+
+  auto* files_menu = window.findChild<QMenu*>(QStringLiteral("fileOpenRecentMenu"));
+  auto* folders_menu = window.findChild<QMenu*>(QStringLiteral("fileOpenRecentFolderMenu"));
+  CHECK(files_menu != nullptr);
+  CHECK(folders_menu != nullptr);
+  auto* file_menu = qobject_cast<QMenu*>(files_menu->parent());
+  CHECK(file_menu != nullptr);
+  const auto listed = [](QMenu* menu) {
+    QStringList paths;
+    for (auto* action : menu->actions()) {
+      if (action != nullptr && !action->isSeparator() && !action->data().toString().isEmpty()) {
+        paths << action->data().toString();
+      }
+    }
+    return paths;
+  };
+
+  CHECK(process_events_until([&] {
+    return listed(files_menu) == QStringList({network_file, live_file}) &&
+           listed(folders_menu) == QStringList({network_folder, live_folder});
+  }));
+
+  // Opening the File menu rereads the lists without touching the disk.
+  QElapsedTimer timer;
+  timer.start();
+  emit file_menu->aboutToShow();
+  CHECK(timer.elapsed() < 1000);
+  CHECK(listed(files_menu) == QStringList({network_file, live_file}));
+  CHECK(listed(folders_menu) == QStringList({network_folder, live_folder}));
+
+  // Hidden entries stay stored, so an unplugged drive's entries come back.
+  auto settings = patchy::ui::app_settings();
+  settings.sync();
+  CHECK(settings.value(QStringLiteral("recentFiles")).toStringList() == stored_files);
+  CHECK(settings.value(QStringLiteral("recentFolders")).toStringList() == stored_folders);
 }
 
 void ui_open_dialog_hides_name_filter_details() {
@@ -1644,6 +1811,148 @@ void update_manifest_parser_handles_supported_cases() {
              .has_value());
 }
 
+namespace {
+
+// Scoped PATCHY_UPDATE_MANIFEST_URL override for the request tests below.
+class UpdateManifestUrlOverride {
+ public:
+  explicit UpdateManifestUrlOverride(const QString& url) : previous_(qgetenv("PATCHY_UPDATE_MANIFEST_URL")) {
+    qputenv("PATCHY_UPDATE_MANIFEST_URL", url.toUtf8());
+  }
+  ~UpdateManifestUrlOverride() {
+    if (previous_.isEmpty()) {
+      qunsetenv("PATCHY_UPDATE_MANIFEST_URL");
+    } else {
+      qputenv("PATCHY_UPDATE_MANIFEST_URL", previous_);
+    }
+  }
+  UpdateManifestUrlOverride(const UpdateManifestUrlOverride&) = delete;
+  UpdateManifestUrlOverride& operator=(const UpdateManifestUrlOverride&) = delete;
+
+ private:
+  QByteArray previous_;
+};
+
+// A one-shot HTTP server on the loopback interface that answers every request
+// with the given manifest body.
+class ManifestServer {
+ public:
+  explicit ManifestServer(QByteArray body) : body_(std::move(body)) {
+    CHECK(server_.listen(QHostAddress::LocalHost));
+    QObject::connect(&server_, &QTcpServer::newConnection, &server_, [this] {
+      while (auto* socket = server_.nextPendingConnection()) {
+        QObject::connect(socket, &QTcpSocket::readyRead, socket, [this, socket] {
+          if (!socket->readAll().contains("\r\n\r\n")) {
+            return;
+          }
+          ++requests_;
+          socket->write("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: close\r\nContent-Length: " +
+                        QByteArray::number(body_.size()) + "\r\n\r\n" + body_);
+          socket->disconnectFromHost();
+        });
+        QObject::connect(socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater);
+      }
+    });
+  }
+  [[nodiscard]] QString manifest_url() const {
+    return QStringLiteral("http://127.0.0.1:%1/latest_version.json").arg(server_.serverPort());
+  }
+  [[nodiscard]] int requests() const { return requests_; }
+
+ private:
+  QTcpServer server_;
+  QByteArray body_;
+  int requests_{0};
+};
+
+}  // namespace
+
+// main() waits a bounded time for tracked workers at quit and force-exits when
+// one is still blocked in the OS: the timed wait must report a running worker,
+// then succeed once it finishes, and the count must balance.
+void ui_background_worker_wait_is_bounded() {
+  std::atomic<bool> release{false};
+  std::atomic<bool> finished{false};
+  const int before = patchy::ui::tracked_background_worker_count();
+  patchy::ui::run_tracked_background_worker([&release, &finished] {
+    while (!release.load()) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    finished = true;
+  });
+  if (patchy::ui::kBackgroundWorkRunsInline) {
+    // Ran inline (single-threaded wasm): the worker could not have blocked.
+    CHECK(patchy::ui::wait_for_tracked_background_workers(std::chrono::milliseconds(0)));
+    return;
+  }
+  CHECK(patchy::ui::tracked_background_worker_count() == before + 1);
+  QElapsedTimer timer;
+  timer.start();
+  CHECK(!patchy::ui::wait_for_tracked_background_workers(std::chrono::milliseconds(150)));
+  CHECK(timer.elapsed() >= 100);
+  CHECK(!finished.load());
+  release = true;
+  CHECK(patchy::ui::wait_for_tracked_background_workers(std::chrono::seconds(10)));
+  CHECK(finished.load());
+  CHECK(patchy::ui::tracked_background_worker_count() == before);
+}
+
+void ui_update_manifest_url_honors_environment_override() {
+  {
+    const UpdateManifestUrlOverride override(QStringLiteral("http://127.0.0.1:1/custom.json"));
+    CHECK(patchy::ui::update_manifest_url() == QUrl(QStringLiteral("http://127.0.0.1:1/custom.json")));
+  }
+  CHECK(patchy::ui::update_manifest_url().host() == QStringLiteral("raw.githubusercontent.com"));
+}
+
+// The request resolves its host on a detached thread and only then talks to the
+// server (GitHub issue 48): the whole path, resolver included, must deliver the
+// manifest to the owner's thread.
+void ui_update_check_fetches_manifest_after_resolving_host() {
+  ManifestServer server(R"({"platforms": {"windows": {"version": "9.9", "download_url": "https://rtsoft.com/w.exe"},
+                                          "macos": {"version": "9.9", "download_url": "https://rtsoft.com/m.dmg"},
+                                          "linux": {"version": "9.9", "download_url": "https://rtsoft.com/l.flatpak"}}})");
+  const UpdateManifestUrlOverride override(server.manifest_url());
+  QObject owner;
+  std::optional<patchy::ui::UpdateCheckResult> result;
+  patchy::ui::request_update_check(&owner, QStringLiteral("0.1.0"),
+                                   [&result](patchy::ui::UpdateCheckResult value) { result = std::move(value); });
+  CHECK(process_events_until([&] { return result.has_value(); }, 15000));
+  CHECK(result.has_value());
+  if (result.has_value()) {
+    CHECK(result->status == patchy::ui::UpdateCheckStatus::UpdateAvailable);
+    CHECK(result->latest_version == QStringLiteral("9.9"));
+  }
+  CHECK(server.requests() == 1);
+}
+
+// An unresolvable host fails the check without a request, and an owner destroyed
+// while the resolver is still out never hears back (no dangling post at quit).
+void ui_update_check_reports_unresolvable_host_and_drops_destroyed_owner() {
+  const UpdateManifestUrlOverride override(QStringLiteral("https://patchy-no-such-host.invalid/latest_version.json"));
+  {
+    QObject owner;
+    std::optional<patchy::ui::UpdateCheckResult> result;
+    patchy::ui::request_update_check(&owner, QStringLiteral("0.1.0"),
+                                     [&result](patchy::ui::UpdateCheckResult value) { result = std::move(value); });
+    CHECK(process_events_until([&] { return result.has_value(); }, 15000));
+    if (result.has_value()) {
+      CHECK(result->status == patchy::ui::UpdateCheckStatus::NetworkError);
+      CHECK(result->http_status == 0);
+    }
+  }
+  {
+    bool called = false;
+    {
+      QObject owner;
+      patchy::ui::request_update_check(&owner, QStringLiteral("0.1.0"),
+                                       [&called](patchy::ui::UpdateCheckResult) { called = true; });
+    }
+    process_events_for(500);
+    CHECK(!called);
+  }
+}
+
 void ui_update_available_dialog_warns_to_close_patchy_before_installing() {
   patchy::ui::MainWindow window;
   show_window(window);
@@ -1652,18 +1961,15 @@ void ui_update_available_dialog_warns_to_close_patchy_before_installing() {
   QTimer::singleShot(0, [&] {
     auto* dialog = qobject_cast<QMessageBox*>(find_top_level_dialog(QStringLiteral("updateAvailableMessageBox")));
     CHECK(dialog != nullptr);
-    // The install advice is per-platform (installer exe / DMG / Flatpak bundle).
+    // The install advice is per-platform (installer exe / DMG / Flatpak update).
 #if defined(Q_OS_MACOS)
     CHECK(dialog->text().contains(QStringLiteral("drag the new Patchy into Applications")));
 #elif defined(Q_OS_LINUX)
-    // The command must work with no root and no preconfigured remote (GitHub issue 14):
-    // it fetches the bundle and installs per user; the bundle's --runtime-repo metadata
-    // makes flatpak add the Flathub remote and pull the runtime itself, so no
-    // remote-add step is shown.
-    CHECK(!dialog->text().contains(QStringLiteral("flatpak remote-add")));
-    CHECK(dialog->text().contains(
-        QStringLiteral("curl -L -o /tmp/PatchyLinux.flatpak https://rtsoft.com/files/PatchyLinux.flatpak && ")));
-    CHECK(dialog->text().contains(QStringLiteral("flatpak install --user -y /tmp/PatchyLinux.flatpak")));
+    // Installs update from the Patchy Flatpak repository (GitHub issue 28), so the
+    // advice is one flatpak command: no bundle download, and --user like every
+    // documented install command (no root, GitHub issue 14).
+    CHECK(dialog->text().contains(QStringLiteral("flatpak update --user -y com.rtsoft.patchy")));
+    CHECK(!dialog->text().contains(QStringLiteral("curl ")));
     CHECK(dialog->findChild<QAbstractButton*>(QStringLiteral("updateCopyCommandButton")) != nullptr);
 #else
     CHECK(dialog->text().contains(
@@ -1673,12 +1979,14 @@ void ui_update_available_dialog_warns_to_close_patchy_before_installing() {
     dialog->reject();
   });
 
-  // The Linux dialog embeds the bundle name from the download URL in its command, so
-  // that platform gets the real Flatpak URL; the others only show generic advice.
+  // Each platform gets its real download URL (the GitHub latest-release permalink that
+  // latest_version.json carries), which is what the Download button opens.
 #if defined(Q_OS_LINUX)
-  const QUrl download_url(QStringLiteral("https://rtsoft.com/files/PatchyLinux.flatpak"));
+  const QUrl download_url(
+      QStringLiteral("https://github.com/SethRobinson/Patchy/releases/latest/download/PatchyLinux.flatpak"));
 #else
-  const QUrl download_url(QStringLiteral("https://rtsoft.com/files/PatchyWindowsInstaller.exe"));
+  const QUrl download_url(
+      QStringLiteral("https://github.com/SethRobinson/Patchy/releases/latest/download/PatchyWindowsInstaller.exe"));
 #endif
   window.show_update_available({QStringLiteral("windows"), QStringLiteral("9.9"), download_url});
   CHECK(saw_dialog);
@@ -1718,6 +2026,49 @@ void ui_update_preference_persists_startup_check_setting() {
 
   auto settings = patchy::ui::app_settings();
   CHECK(!settings.value(QStringLiteral("updates/checkOnStartup"), true).toBool());
+}
+
+// A store build (CMake PATCHY_STORE_BUILD) and PATCHY_NO_UPDATE_CHECK=1 share one switch:
+// no startup request leaves the machine and Preferences offers no setting for it.
+void ui_update_checks_can_be_switched_off() {
+  CHECK(patchy::ui::update_checks_available());
+  const EnvironmentVariableRestorer restore_switch("PATCHY_NO_UPDATE_CHECK");
+  qputenv("PATCHY_NO_UPDATE_CHECK", "1");
+  CHECK(!patchy::ui::update_checks_available());
+
+  SettingsValueRestorer restore_update_check(QStringLiteral("updates/checkOnStartup"));
+  {
+    auto settings = patchy::ui::app_settings();
+    settings.setValue(QStringLiteral("updates/checkOnStartup"), true);
+    settings.sync();
+  }
+  ManifestServer server(R"({"platforms": {"windows": {"version": "9.9", "download_url": "https://rtsoft.com/w.exe"},
+                                          "macos": {"version": "9.9", "download_url": "https://rtsoft.com/m.dmg"},
+                                          "linux": {"version": "9.9", "download_url": "https://rtsoft.com/l.flatpak"}}})");
+  const UpdateManifestUrlOverride override(server.manifest_url());
+
+  patchy::ui::MainWindow window;
+  show_window(window);
+  window.begin_startup_update_check();
+  process_events_for(500);
+  CHECK(server.requests() == 0);
+  CHECK(find_top_level_dialog(QStringLiteral("updateAvailableMessageBox")) == nullptr);
+
+  bool saw_dialog = false;
+  QTimer::singleShot(0, [&] {
+    auto* dialog = find_top_level_dialog(QStringLiteral("patchyPreferencesDialog"));
+    CHECK(dialog != nullptr);
+    CHECK(dialog->findChild<QCheckBox*>(QStringLiteral("preferencesCheckForUpdatesCheck")) == nullptr);
+    saw_dialog = true;
+    dialog->accept();
+  });
+  require_action(window, "filePreferencesAction")->trigger();
+  QApplication::processEvents();
+  CHECK(saw_dialog);
+
+  // Accepting Preferences without the checkbox leaves the stored choice alone.
+  auto settings = patchy::ui::app_settings();
+  CHECK(settings.value(QStringLiteral("updates/checkOnStartup"), false).toBool());
 }
 
 struct GuiScaleDialogRun {
@@ -1947,6 +2298,577 @@ void ui_color_scheme_follow_system_tracks_style_hints() {
   manager.set_system_color_scheme_for_testing(Qt::ColorScheme::Dark);
   CHECK(manager.resolved_scheme() == patchy::ui::ColorScheme::Light);
   CHECK(patchy::ui::active_color_scheme() == patchy::ui::ColorScheme::Light);
+}
+
+// Exports the full palette, tweaks are not needed to prove fidelity: two
+// deliberately-changed roles (one carrying alpha, to prove #RRGGBBAA
+// round-trips) are enough, but every role is compared so a role the writer or
+// the reader table silently skipped would still show up here.
+void ui_theme_file_round_trips_full_palette() {
+  auto palette = patchy::ui::dark_palette();
+  palette.accent = QColor(0x12, 0x34, 0x56);
+  palette.window_bg = QColor(0xAA, 0xBB, 0xCC, 0x80);
+
+  const auto json =
+      patchy::ui::serialize_theme_to_json(palette, patchy::ui::ColorScheme::Dark, QStringLiteral("Round Trip"));
+  const auto result = patchy::ui::load_theme_from_json(json);
+
+  CHECK(result.error.isEmpty());
+  CHECK(result.warnings.isEmpty());
+  CHECK(result.theme.has_value());
+  CHECK(result.theme->name == QStringLiteral("Round Trip"));
+  CHECK(result.theme->base == patchy::ui::ColorScheme::Dark);
+
+  for (const auto& [name, member] : patchy::ui::theme_palette_roles()) {
+    const auto original = palette.*member;
+    const auto loaded = result.theme->palette.*member;
+    if (original.rgba() != loaded.rgba()) {
+      fprintf(stderr, "  role \"%s\" did not round-trip\n", QString(name).toUtf8().constData());
+    }
+    CHECK(original.rgba() == loaded.rgba());
+  }
+}
+
+// A role the file never mentions keeps the declared base scheme's built-in
+// value; only roles actually present in "roles" are overridden.
+void ui_theme_file_missing_role_falls_back_to_base() {
+  QJsonObject roles;
+  roles.insert(QStringLiteral("accent"), QStringLiteral("#123456"));
+  QJsonObject object;
+  object.insert(QStringLiteral("base"), QStringLiteral("dark"));
+  object.insert(QStringLiteral("roles"), roles);
+  const auto json = QJsonDocument(object).toJson();
+
+  const auto result = patchy::ui::load_theme_from_json(json);
+  CHECK(result.error.isEmpty());
+  CHECK(result.theme.has_value());
+  CHECK(result.theme->palette.accent == QColor(0x12, 0x34, 0x56));
+  CHECK(result.theme->palette.window_bg == patchy::ui::dark_palette().window_bg);
+}
+
+// A malformed color is a hard load error naming the offending role, not a
+// warning: nothing downstream should ever see a half-loaded custom theme.
+void ui_theme_file_invalid_hex_is_a_hard_error() {
+  QJsonObject roles;
+  roles.insert(QStringLiteral("accent"), QStringLiteral("not-a-color"));
+  QJsonObject object;
+  object.insert(QStringLiteral("base"), QStringLiteral("dark"));
+  object.insert(QStringLiteral("roles"), roles);
+  const auto json = QJsonDocument(object).toJson();
+
+  const auto result = patchy::ui::load_theme_from_json(json);
+  CHECK(!result.theme.has_value());
+  CHECK(!result.error.isEmpty());
+  CHECK(result.error.contains(QStringLiteral("accent")));
+  CHECK(result.warnings.isEmpty());
+}
+
+// An unknown role name is forward-compatibility tolerance, not a failure: a
+// theme authored against a newer build (with roles this build never heard of)
+// still has to load on this one.
+void ui_theme_file_unknown_role_is_a_warning_not_an_error() {
+  QJsonObject roles;
+  roles.insert(QStringLiteral("accent"), QStringLiteral("#123456"));
+  roles.insert(QStringLiteral("totally_not_a_role"), QStringLiteral("#ffffff"));
+  QJsonObject object;
+  object.insert(QStringLiteral("base"), QStringLiteral("dark"));
+  object.insert(QStringLiteral("roles"), roles);
+  const auto json = QJsonDocument(object).toJson();
+
+  const auto result = patchy::ui::load_theme_from_json(json);
+  CHECK(result.error.isEmpty());
+  CHECK(result.theme.has_value());
+  CHECK(result.theme->palette.accent == QColor(0x12, 0x34, 0x56));
+  CHECK(!result.warnings.isEmpty());
+  CHECK(result.warnings.join(QLatin1Char('\n')).contains(QStringLiteral("totally_not_a_role")));
+}
+
+// "base" is the one field with no fallback: anything other than the two
+// tokens ThemeManager already persists is a hard error, never a guess.
+void ui_theme_file_invalid_base_is_a_hard_error() {
+  QJsonObject object;
+  object.insert(QStringLiteral("base"), QStringLiteral("purple"));
+  const auto json = QJsonDocument(object).toJson();
+
+  const auto result = patchy::ui::load_theme_from_json(json);
+  CHECK(!result.theme.has_value());
+  CHECK(!result.error.isEmpty());
+}
+
+// set_custom_theme never routes through apply_resolved_scheme(), whose
+// equal-scheme guard would otherwise swallow a custom theme that declares the
+// same base as the scheme already active. Assert the generation still bumps,
+// theme() reflects the new colors, and the photoshop_style() cache (keyed on
+// theme_generation(), not on light/dark) picks the change up.
+void ui_custom_theme_applies_over_matching_base_and_bumps_generation() {
+  ColorSchemeRestorer restore_active;
+  ColorSchemeRestorer::apply(patchy::ui::ColorSchemePreference::Dark);
+
+  const auto generation_before = patchy::ui::theme_generation();
+  const auto style_before = patchy::ui::photoshop_style();
+
+  patchy::ui::CustomTheme custom;
+  custom.name = QStringLiteral("Distinctive");
+  custom.base = patchy::ui::ColorScheme::Dark;
+  custom.palette = patchy::ui::dark_palette();
+  custom.palette.window_bg = QColor(1, 2, 3);
+
+  patchy::ui::ThemeManager::instance().set_custom_theme(QStringLiteral("distinctive.patchytheme"), custom,
+                                                         /*persist=*/false);
+
+  CHECK(patchy::ui::theme_generation() > generation_before);
+  CHECK(patchy::ui::active_color_scheme() == patchy::ui::ColorScheme::Dark);
+  CHECK(patchy::ui::theme().window_bg == QColor(1, 2, 3));
+  CHECK(patchy::ui::has_active_custom_palette());
+
+  const auto style_after = patchy::ui::photoshop_style();
+  CHECK(!style_after.isEmpty());
+  CHECK(!style_after.contains(QLatin1Char('@')));
+  CHECK(style_after != style_before);
+}
+
+// A built-in and a custom theme are mutually exclusive: choosing a built-in
+// scheme always wins, even while a custom theme is active.
+void ui_custom_theme_cleared_by_switching_to_a_builtin_scheme() {
+  ColorSchemeRestorer restore_active;
+  ColorSchemeRestorer::apply(patchy::ui::ColorSchemePreference::Dark);
+
+  patchy::ui::CustomTheme custom;
+  custom.base = patchy::ui::ColorScheme::Dark;
+  custom.palette = patchy::ui::dark_palette();
+  patchy::ui::ThemeManager::instance().set_custom_theme(QStringLiteral("temp.patchytheme"), custom,
+                                                         /*persist=*/false);
+  CHECK(patchy::ui::ThemeManager::instance().active_custom_theme_id().has_value());
+
+  patchy::ui::ThemeManager::instance().set_preference(patchy::ui::ColorSchemePreference::Light,
+                                                       /*persist=*/false);
+
+  CHECK(!patchy::ui::ThemeManager::instance().active_custom_theme_id().has_value());
+  CHECK(!patchy::ui::has_active_custom_palette());
+  CHECK(patchy::ui::active_color_scheme() == patchy::ui::ColorScheme::Light);
+}
+
+// Redirects user_themes_directory() to a scratch folder for one test, so
+// import/export/reload tests never touch the real AppData themes folder.
+class ThemesDirEnvGuard {
+public:
+  ThemesDirEnvGuard() : previous_(qgetenv("PATCHY_THEMES_DIR")), had_previous_(qEnvironmentVariableIsSet("PATCHY_THEMES_DIR")) {
+    CHECK(dir_.isValid());
+    qputenv("PATCHY_THEMES_DIR", dir_.path().toUtf8());
+  }
+  ~ThemesDirEnvGuard() {
+    if (had_previous_) {
+      qputenv("PATCHY_THEMES_DIR", previous_);
+    } else {
+      qunsetenv("PATCHY_THEMES_DIR");
+    }
+  }
+  [[nodiscard]] QString path() const { return dir_.path(); }
+
+private:
+  QTemporaryDir dir_;
+  QByteArray previous_;
+  bool had_previous_;
+};
+
+// Mirrors what ThemeManager::load_saved_preference() does at startup: read
+// the persisted preference, then read and apply a persisted custom theme id.
+// Calling it a second time on the live singleton is the established pattern
+// for "simulated restart" in this suite (see the language-preference tests).
+void ui_custom_theme_id_persists_and_reapplies_like_a_restart() {
+  ColorSchemeRestorer restore_active;
+  ColorSchemeRestorer::apply(patchy::ui::ColorSchemePreference::Dark);
+  SettingsValueRestorer restore_scheme(QStringLiteral("preferences/colorScheme"));
+  SettingsValueRestorer restore_custom_id(QStringLiteral("preferences/customThemeId"));
+  ThemesDirEnvGuard themes_dir;
+
+  auto palette = patchy::ui::dark_palette();
+  palette.window_bg = QColor(9, 8, 7);
+  const auto json = patchy::ui::serialize_theme_to_json(palette, patchy::ui::ColorScheme::Dark,
+                                                          QStringLiteral("Restart Test"));
+  QFile file(QDir(themes_dir.path()).filePath(QStringLiteral("restart-test.patchytheme")));
+  CHECK(file.open(QIODevice::WriteOnly));
+  file.write(json);
+  file.close();
+
+  {
+    auto settings = patchy::ui::app_settings();
+    settings.setValue(QStringLiteral("preferences/colorScheme"), QStringLiteral("dark"));
+    settings.setValue(QStringLiteral("preferences/customThemeId"), QStringLiteral("restart-test.patchytheme"));
+    settings.sync();
+  }
+
+  patchy::ui::ThemeManager::instance().load_saved_preference();
+
+  const auto active_id = patchy::ui::ThemeManager::instance().active_custom_theme_id();
+  CHECK(active_id.has_value());
+  CHECK(*active_id == QStringLiteral("restart-test.patchytheme"));
+  CHECK(patchy::ui::theme().window_bg == QColor(9, 8, 7));
+}
+
+// A custom theme id whose backing file has been moved or deleted outside
+// Patchy must not fail startup: fall back cleanly to the built-in preference
+// already applied.
+void ui_custom_theme_missing_file_falls_back_to_builtin_preference() {
+  ColorSchemeRestorer restore_active;
+  ColorSchemeRestorer::apply(patchy::ui::ColorSchemePreference::Dark);
+  SettingsValueRestorer restore_scheme(QStringLiteral("preferences/colorScheme"));
+  SettingsValueRestorer restore_custom_id(QStringLiteral("preferences/customThemeId"));
+  ThemesDirEnvGuard themes_dir;
+
+  {
+    auto settings = patchy::ui::app_settings();
+    settings.setValue(QStringLiteral("preferences/colorScheme"), QStringLiteral("light"));
+    settings.setValue(QStringLiteral("preferences/customThemeId"), QStringLiteral("does-not-exist.patchytheme"));
+    settings.sync();
+  }
+
+  patchy::ui::ThemeManager::instance().load_saved_preference();
+
+  CHECK(!patchy::ui::ThemeManager::instance().active_custom_theme_id().has_value());
+  CHECK(!patchy::ui::has_active_custom_palette());
+  CHECK(patchy::ui::ThemeManager::instance().preference() == patchy::ui::ColorSchemePreference::Light);
+  CHECK(patchy::ui::active_color_scheme() == patchy::ui::ColorScheme::Light);
+}
+
+// A custom palette must resolve exactly like a built-in one: no leftover
+// @token in the resolved stylesheet or in an ad hoc apply_theme_tokens() call.
+void ui_custom_theme_qss_resolves_every_token() {
+  ColorSchemeRestorer restore_active;
+  ColorSchemeRestorer::apply(patchy::ui::ColorSchemePreference::Dark);
+
+  patchy::ui::CustomTheme custom;
+  custom.base = patchy::ui::ColorScheme::Dark;
+  custom.palette = patchy::ui::dark_palette();
+  custom.palette.accent = QColor(0x77, 0x22, 0x99);
+  patchy::ui::ThemeManager::instance().set_custom_theme(QStringLiteral("qss-check.patchytheme"), custom,
+                                                         /*persist=*/false);
+
+  const auto style = patchy::ui::photoshop_style();
+  CHECK(!style.isEmpty());
+  CHECK(!style.contains(QLatin1Char('@')));
+
+  const auto resolved = patchy::ui::apply_theme_tokens(QStringLiteral("a: @accent;"));
+  CHECK(resolved == QStringLiteral("a: %1;").arg(custom.palette.accent.name(QColor::HexRgb)));
+}
+
+// "format" is the one key that can refuse a file outright: a newer number means
+// keys this build cannot interpret, and a silent partial load would be worse
+// than an error. An absent key is format 1, so files written before the key
+// existed still load.
+void ui_theme_file_newer_format_is_a_hard_error() {
+  QJsonObject object;
+  object.insert(QStringLiteral("format"), 2);
+  object.insert(QStringLiteral("base"), QStringLiteral("dark"));
+  const auto newer = patchy::ui::load_theme_from_json(QJsonDocument(object).toJson());
+  CHECK(!newer.theme.has_value());
+  CHECK(newer.error.contains(QStringLiteral("2")));
+
+  object.insert(QStringLiteral("format"), QStringLiteral("1"));
+  const auto text = patchy::ui::load_theme_from_json(QJsonDocument(object).toJson());
+  CHECK(!text.theme.has_value());
+
+  object.remove(QStringLiteral("format"));
+  const auto absent = patchy::ui::load_theme_from_json(QJsonDocument(object).toJson());
+  CHECK(absent.theme.has_value());
+
+  const auto exported = patchy::ui::serialize_theme_to_json(patchy::ui::dark_palette(), patchy::ui::ColorScheme::Dark,
+                                                            QStringLiteral("Format"));
+  CHECK(QJsonDocument::fromJson(exported).object().value(QStringLiteral("format")).toInt() ==
+        patchy::ui::kThemeFileFormat);
+}
+
+void write_theme_file(const QString& path, const QColor& window_bg, const QString& name) {
+  auto palette = patchy::ui::dark_palette();
+  palette.window_bg = window_bg;
+  QFile file(path);
+  CHECK(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+  file.write(patchy::ui::serialize_theme_to_json(palette, patchy::ui::ColorScheme::Dark, name));
+  file.close();
+}
+
+// The authoring loop: edit the file in a text editor, click Reload Themes. The
+// combo keeps the same entry selected and the fresh colors apply even though
+// the selection never moved.
+void ui_preferences_reload_reapplies_an_edited_theme_file() {
+  SettingsValueRestorer restore_scheme(QStringLiteral("preferences/colorScheme"));
+  SettingsValueRestorer restore_custom_id(QStringLiteral("preferences/customThemeId"));
+  ColorSchemeRestorer restore_active;
+  ColorSchemeRestorer::apply(patchy::ui::ColorSchemePreference::Dark);
+  ThemesDirEnvGuard themes_dir;
+  const auto path = QDir(themes_dir.path()).filePath(QStringLiteral("editable.patchytheme"));
+  write_theme_file(path, QColor(10, 20, 30), QStringLiteral("Editable"));
+
+  patchy::ui::MainWindow window;
+  show_window(window);
+
+  bool saw_dialog = false;
+  QTimer::singleShot(0, [&] {
+    auto* dialog = find_top_level_dialog(QStringLiteral("patchyPreferencesDialog"));
+    CHECK(dialog != nullptr);
+    if (dialog == nullptr) {
+      return;
+    }
+    auto* combo = dialog->findChild<QComboBox*>(QStringLiteral("preferencesColorSchemeCombo"));
+    auto* reload = dialog->findChild<QPushButton*>(QStringLiteral("preferencesReloadThemesButton"));
+    auto* remove = dialog->findChild<QPushButton*>(QStringLiteral("preferencesDeleteThemeButton"));
+    CHECK(combo != nullptr && reload != nullptr && remove != nullptr);
+    if (combo == nullptr || reload == nullptr || remove == nullptr) {
+      dialog->reject();
+      return;
+    }
+    CHECK(!remove->isEnabled());
+    const auto index = combo->findData(QStringLiteral("custom:editable.patchytheme"));
+    CHECK(index >= 0);
+    CHECK(combo->itemText(index) == QStringLiteral("Editable"));
+    combo->setCurrentIndex(index);
+    QApplication::processEvents();
+    CHECK(patchy::ui::theme().window_bg == QColor(10, 20, 30));
+    CHECK(remove->isEnabled());
+
+    write_theme_file(path, QColor(40, 50, 60), QStringLiteral("Editable"));
+    reload->click();
+    QApplication::processEvents();
+    CHECK(combo->currentData().toString() == QStringLiteral("custom:editable.patchytheme"));
+    CHECK(patchy::ui::theme().window_bg == QColor(40, 50, 60));
+    CHECK(remove->isEnabled());
+    saw_dialog = true;
+    dialog->reject();
+  });
+  require_action(window, "filePreferencesAction")->trigger();
+  QApplication::processEvents();
+  CHECK(saw_dialog);
+
+  // Rejecting restores the entry scheme, which was the built-in Dark.
+  CHECK(!patchy::ui::has_active_custom_palette());
+  CHECK(patchy::ui::active_color_scheme() == patchy::ui::ColorScheme::Dark);
+}
+
+// Delete removes the file and its entry, and the dialog falls back to the
+// first built-in entry so the live preview and the revert guard stay in step.
+void ui_preferences_delete_removes_theme_file_and_entry() {
+  SettingsValueRestorer restore_scheme(QStringLiteral("preferences/colorScheme"));
+  SettingsValueRestorer restore_custom_id(QStringLiteral("preferences/customThemeId"));
+  ColorSchemeRestorer restore_active;
+  ColorSchemeRestorer::apply(patchy::ui::ColorSchemePreference::Dark);
+  ThemesDirEnvGuard themes_dir;
+  const auto path = QDir(themes_dir.path()).filePath(QStringLiteral("doomed.patchytheme"));
+  write_theme_file(path, QColor(70, 80, 90), QStringLiteral("Doomed"));
+
+  patchy::ui::MainWindow window;
+  show_window(window);
+
+  bool saw_dialog = false;
+  bool saw_confirm = false;
+  QTimer::singleShot(0, [&] {
+    auto* dialog = find_top_level_dialog(QStringLiteral("patchyPreferencesDialog"));
+    CHECK(dialog != nullptr);
+    if (dialog == nullptr) {
+      return;
+    }
+    auto* combo = dialog->findChild<QComboBox*>(QStringLiteral("preferencesColorSchemeCombo"));
+    auto* remove = dialog->findChild<QPushButton*>(QStringLiteral("preferencesDeleteThemeButton"));
+    CHECK(combo != nullptr && remove != nullptr);
+    if (combo == nullptr || remove == nullptr) {
+      dialog->reject();
+      return;
+    }
+    const auto index = combo->findData(QStringLiteral("custom:doomed.patchytheme"));
+    CHECK(index >= 0);
+    combo->setCurrentIndex(index);
+    QApplication::processEvents();
+    CHECK(patchy::ui::theme().window_bg == QColor(70, 80, 90));
+
+    QTimer::singleShot(0, [&] {
+      auto* confirm = qobject_cast<QMessageBox*>(find_top_level_dialog(QStringLiteral("preferencesDeleteThemeConfirm")));
+      CHECK(confirm != nullptr);
+      if (confirm == nullptr) {
+        return;
+      }
+      saw_confirm = true;
+      for (auto* button : confirm->buttons()) {
+        if (confirm->buttonRole(button) == QMessageBox::AcceptRole) {
+          button->click();
+          return;
+        }
+      }
+      CHECK(false);
+    });
+    remove->click();
+    QApplication::processEvents();
+
+    CHECK(!QFileInfo::exists(path));
+    CHECK(combo->findData(QStringLiteral("custom:doomed.patchytheme")) < 0);
+    // No user entry left, so its separator went too: the built-ins, one
+    // separator, and the bundled set remain.
+    CHECK(combo->count() == 4 + patchy::ui::bundled_theme_file_names().size());
+    CHECK(combo->currentIndex() == 0);
+    CHECK(!remove->isEnabled());
+    CHECK(!patchy::ui::has_active_custom_palette());
+    saw_dialog = true;
+    dialog->accept();
+  });
+  require_action(window, "filePreferencesAction")->trigger();
+  QApplication::processEvents();
+  CHECK(saw_dialog);
+  CHECK(saw_confirm);
+  CHECK(!patchy::ui::has_active_custom_palette());
+  CHECK(!patchy::ui::ThemeManager::instance().active_custom_theme_id().has_value());
+}
+
+// Every bundled theme (themes.qrc) parses cleanly with no unknown-role warning
+// (the generator writes every role, so a warning means the palette and the
+// generated files drifted), lists in Preferences under a "bundled:" id right
+// after the built-in entries, and cannot be deleted.
+void ui_bundled_themes_load_and_list_in_preferences() {
+  ColorSchemeRestorer restore_active;
+  ColorSchemeRestorer::apply(patchy::ui::ColorSchemePreference::Dark);
+  ThemesDirEnvGuard themes_dir;  // an empty user folder, so only bundled entries follow the built-ins
+
+  const auto names = patchy::ui::bundled_theme_file_names();
+  CHECK(names.size() >= 5);
+  for (const auto& name : names) {
+    const auto id = patchy::ui::kBundledThemeIdPrefix + name;
+    CHECK(patchy::ui::is_bundled_theme_id(id));
+    const auto result = patchy::ui::load_theme_by_id(id);
+    if (!result.theme) {
+      fprintf(stderr, "  %s: %s\n", name.toUtf8().constData(), result.error.toUtf8().constData());
+    }
+    CHECK(result.theme.has_value());
+    CHECK(result.error.isEmpty());
+    CHECK(result.warnings.isEmpty());
+    CHECK(!result.theme->name.isEmpty());
+  }
+  CHECK(!patchy::ui::load_theme_by_id(QStringLiteral("bundled:missing.patchytheme")).theme.has_value());
+
+  patchy::ui::MainWindow window;
+  show_window(window);
+  bool saw_dialog = false;
+  QTimer::singleShot(0, [&] {
+    auto* dialog = find_top_level_dialog(QStringLiteral("patchyPreferencesDialog"));
+    CHECK(dialog != nullptr);
+    if (dialog == nullptr) {
+      return;
+    }
+    auto* combo = dialog->findChild<QComboBox*>(QStringLiteral("preferencesColorSchemeCombo"));
+    auto* remove = dialog->findChild<QPushButton*>(QStringLiteral("preferencesDeleteThemeButton"));
+    CHECK(combo != nullptr && remove != nullptr);
+    if (combo == nullptr || remove == nullptr) {
+      dialog->reject();
+      return;
+    }
+    // Three built-ins, one separator, then the bundled set in authored order.
+    CHECK(combo->count() == 4 + names.size());
+    for (int i = 0; i < names.size(); ++i) {
+      CHECK(combo->itemData(4 + i).toString() == QStringLiteral("custom:bundled:") + names[i]);
+    }
+    save_widget_artifact("preferences_application_tab", *dialog);
+    const auto index = combo->findData(QStringLiteral("custom:bundled:nord.patchytheme"));
+    CHECK(index >= 0);
+    combo->setCurrentIndex(index);
+    QApplication::processEvents();
+    CHECK(combo->currentText() == QStringLiteral("Nord (built-in)"));
+    save_widget_artifact("preferences_application_tab_nord", *dialog);
+    CHECK(patchy::ui::has_active_custom_palette());
+    CHECK(patchy::ui::theme().window_bg == QColor(0x2e, 0x34, 0x40));
+    CHECK(!remove->isEnabled());
+    saw_dialog = true;
+    dialog->reject();
+  });
+  require_action(window, "filePreferencesAction")->trigger();
+  QApplication::processEvents();
+  CHECK(saw_dialog);
+  CHECK(!patchy::ui::has_active_custom_palette());
+}
+
+// Export opens in the themes folder with the shown theme's name, and a file
+// saved there is listed and selected at once, beside the tagged built-in it
+// was copied from, as a deletable user theme.
+void ui_preferences_export_defaults_to_themes_folder_and_lists_the_copy() {
+  SettingsValueRestorer restore_scheme(QStringLiteral("preferences/colorScheme"));
+  SettingsValueRestorer restore_custom_id(QStringLiteral("preferences/customThemeId"));
+  ColorSchemeRestorer restore_active;
+  ColorSchemeRestorer::apply(patchy::ui::ColorSchemePreference::Dark);
+  ThemesDirEnvGuard themes_dir;
+  const auto names = patchy::ui::bundled_theme_file_names();
+
+  patchy::ui::MainWindow window;
+  show_window(window);
+  bool saw_dialog = false;
+  bool saw_save_dialog = false;
+  QTimer::singleShot(0, [&] {
+    auto* dialog = find_top_level_dialog(QStringLiteral("patchyPreferencesDialog"));
+    CHECK(dialog != nullptr);
+    if (dialog == nullptr) {
+      return;
+    }
+    auto* combo = dialog->findChild<QComboBox*>(QStringLiteral("preferencesColorSchemeCombo"));
+    auto* export_button = dialog->findChild<QPushButton*>(QStringLiteral("preferencesExportThemeButton"));
+    auto* remove = dialog->findChild<QPushButton*>(QStringLiteral("preferencesDeleteThemeButton"));
+    CHECK(combo != nullptr && export_button != nullptr && remove != nullptr);
+    if (combo == nullptr || export_button == nullptr || remove == nullptr) {
+      dialog->reject();
+      return;
+    }
+    combo->setCurrentIndex(combo->findData(QStringLiteral("custom:bundled:nord.patchytheme")));
+    QApplication::processEvents();
+
+    QTimer::singleShot(0, [&] {
+      auto* save = qobject_cast<QFileDialog*>(find_top_level_dialog(QStringLiteral("exportThemeFileDialog")));
+      CHECK(save != nullptr);
+      if (save == nullptr) {
+        return;
+      }
+      saw_save_dialog = true;
+      CHECK(QDir::cleanPath(save->directory().absolutePath()) == QDir::cleanPath(QDir(themes_dir.path()).absolutePath()));
+      const auto selected = save->selectedFiles();
+      CHECK(!selected.isEmpty());
+      CHECK(!selected.isEmpty() && QFileInfo(selected.first()).fileName() == QStringLiteral("Nord.patchytheme"));
+      save->selectFile(QDir(themes_dir.path()).filePath(QStringLiteral("Nord.patchytheme")));
+      static_cast<QDialog*>(save)->accept();  // QFileDialog::accept is protected
+    });
+    export_button->click();
+    QApplication::processEvents();
+
+    const auto copy_path = QDir(themes_dir.path()).filePath(QStringLiteral("Nord.patchytheme"));
+    CHECK(QFileInfo::exists(copy_path));
+    // Three built-ins, a separator, the bundled set, a separator, the one user file.
+    CHECK(combo->count() == 6 + names.size());
+    CHECK(combo->currentData().toString() == QStringLiteral("custom:Nord.patchytheme"));
+    CHECK(combo->currentText() == QStringLiteral("Nord"));
+    CHECK(combo->findData(QStringLiteral("custom:bundled:nord.patchytheme")) >= 0);
+    CHECK(remove->isEnabled());
+    CHECK(patchy::ui::theme().window_bg == QColor(0x2e, 0x34, 0x40));
+    const auto reread = patchy::ui::load_theme_by_id(QStringLiteral("Nord.patchytheme"));
+    CHECK(reread.theme.has_value());
+    CHECK(reread.theme.has_value() && reread.theme->name == QStringLiteral("Nord"));
+    saw_dialog = true;
+    dialog->reject();
+  });
+  require_action(window, "filePreferencesAction")->trigger();
+  QApplication::processEvents();
+  CHECK(saw_dialog);
+  CHECK(saw_save_dialog);
+}
+
+// A persisted bundled id needs no user folder at all (wasm has none), so it
+// reapplies at startup through the resource path.
+void ui_bundled_theme_id_persists_and_reapplies_like_a_restart() {
+  ColorSchemeRestorer restore_active;
+  ColorSchemeRestorer::apply(patchy::ui::ColorSchemePreference::Dark);
+  SettingsValueRestorer restore_scheme(QStringLiteral("preferences/colorScheme"));
+  SettingsValueRestorer restore_custom_id(QStringLiteral("preferences/customThemeId"));
+  {
+    auto settings = patchy::ui::app_settings();
+    settings.setValue(QStringLiteral("preferences/colorScheme"), QStringLiteral("dark"));
+    settings.setValue(QStringLiteral("preferences/customThemeId"), QStringLiteral("bundled:dracula.patchytheme"));
+    settings.sync();
+  }
+  patchy::ui::ThemeManager::instance().load_saved_preference();
+  const auto active_id = patchy::ui::ThemeManager::instance().active_custom_theme_id();
+  CHECK(active_id.has_value());
+  CHECK(*active_id == QStringLiteral("bundled:dracula.patchytheme"));
+  CHECK(patchy::ui::theme().window_bg == QColor(0x28, 0x2a, 0x36));
 }
 
 // The regression guard for "live, no restart": an already-built window has to
@@ -2291,6 +3213,69 @@ void ui_language_switch_updates_existing_window() {
   CHECK(tabs->count() == initial_tab_count);
 }
 
+void ui_language_switch_survives_window_reactivation() {
+  // GitHub issue 29. On macOS Qt merges a menubar item whose title starts with its translated
+  // "Setting", "Setup", "Options", "About", "Quit"... into the application menu. A runtime switch
+  // to Spanish or French renamed Image > Adjustments to "Ajustes"/"Réglages" (Chinese renames
+  // Window > Set Screen Size), Qt swapped that submenu's native item for the merged one and freed
+  // the old one while the submenu still pointed at it, and the next key-window change crashed in
+  // setSubmenu:. Offscreen has no native menubar: reproduce on a mac with
+  // PATCHY_UI_TEST_PLATFORM=cocoa NSZombieEnabled=YES (zombies turn the message to the freed item
+  // into an abort; in a short run the freed memory is often still intact and nothing shows).
+  // ui_menubar_submenus_have_no_native_menu_role is the platform-independent guard.
+  patchy::ui::MainWindow window;
+  show_window(window);
+  window.raise();
+  window.activateWindow();
+  process_events_for(150);
+  for (const char* code : {"es", "fr", "zh_CN", "en"}) {
+    choose_preferences_language(window, QString::fromLatin1(code));
+    CHECK(patchy::ui::LocalizationManager::instance().current_language() == QString::fromLatin1(code));
+    // Another window takes key, then the main window regains it: the menubar re-sync that crashed.
+    QDialog other(&window);
+    other.setObjectName(QStringLiteral("languageSwitchOtherWindow"));
+    other.resize(200, 100);
+    other.show();
+    other.raise();
+    other.activateWindow();
+    process_events_for(150);
+    other.close();
+    window.raise();
+    window.activateWindow();
+    process_events_for(150);
+  }
+  CHECK(patchy::ui::LocalizationManager::instance().current_language() == QStringLiteral("en"));
+  CHECK(top_level_menu_texts(*window.menuBar()).contains(QStringLiteral("Image")));
+}
+
+void ui_menubar_submenus_have_no_native_menu_role() {
+  // Every submenu under the menubar opts out of Qt's macOS menu-role text heuristic; see
+  // ui_language_switch_survives_window_reactivation for the crash a merged submenu causes.
+  patchy::ui::MainWindow window;
+  show_window(window);
+  int submenus = 0;
+  std::function<void(QMenu&)> walk = [&](QMenu& menu) {
+    for (auto* action : menu.actions()) {
+      auto* submenu = action->menu();
+      if (submenu == nullptr) {
+        continue;
+      }
+      ++submenus;
+      if (action->menuRole() != QAction::NoRole) {
+        fprintf(stderr, "submenu keeps a native menu role: %s\n", qPrintable(action->text()));
+      }
+      CHECK(action->menuRole() == QAction::NoRole);
+      walk(*submenu);
+    }
+  };
+  for (auto* action : window.menuBar()->actions()) {
+    if (auto* menu = action->menu()) {
+      walk(*menu);
+    }
+  }
+  CHECK(submenus >= 20);
+}
+
 void ui_language_preference_applies_at_startup() {
   {
     auto settings = patchy::ui::app_settings();
@@ -2342,6 +3327,10 @@ void ui_language_saved_preference_overrides_system_language() {
   CHECK(menus.contains(QStringLiteral("File")));
   auto settings = patchy::ui::app_settings();
   CHECK(settings.value(QStringLiteral("preferences/language")).toString() == QStringLiteral("en"));
+  for (const auto* tag : {"pt_PT", "ru_RU", "pl_PL", "ko_KR"}) {
+    patchy::ui::LocalizationManager::instance().load_saved_language(QLocale(QString::fromLatin1(tag)));
+    CHECK(patchy::ui::LocalizationManager::instance().current_language() == QStringLiteral("en"));
+  }
 }
 
 void ui_language_invalid_preference_falls_back_to_english() {
@@ -2380,8 +3369,13 @@ void ui_language_matching_maps_locales_to_shipped_codes() {
   CHECK(manager.match_language(QStringLiteral("zh_TW")) == QStringLiteral("zh_TW"));
   CHECK(manager.match_language(QStringLiteral("zh_HK")) == QStringLiteral("zh_TW"));
   CHECK(manager.match_language(QStringLiteral("zh-Hant")) == QStringLiteral("zh_TW"));
+  for (const auto* tag : {"pt", "pt_BR", "pt-BR", "pt-PT", "pt-Latn-BR"}) {
+    CHECK(manager.match_language(QString::fromLatin1(tag)) == QStringLiteral("pt_BR"));
+  }
+  CHECK(manager.match_language(QStringLiteral("ru-RU")) == QStringLiteral("ru"));
+  CHECK(manager.match_language(QStringLiteral("pl_PL")) == QStringLiteral("pl"));
+  CHECK(manager.match_language(QStringLiteral("ko-KR")) == QStringLiteral("ko"));
   // Languages Patchy does not ship match nothing; the caller falls back to English.
-  CHECK(manager.match_language(QStringLiteral("pt_BR")).isEmpty());
   CHECK(manager.match_language(QStringLiteral("zz")).isEmpty());
   CHECK(manager.match_language(QString()).isEmpty());
 
@@ -2390,11 +3384,15 @@ void ui_language_matching_maps_locales_to_shipped_codes() {
         QStringLiteral("zh_TW"));
   CHECK(manager.language_for_locale(QLocale(QLocale::Chinese, QLocale::SimplifiedHanScript, QLocale::China)) ==
         QStringLiteral("zh_CN"));
-  CHECK(manager.language_for_locale(QLocale(QLocale::Portuguese, QLocale::Brazil)) == QStringLiteral("en"));
+  CHECK(manager.language_for_locale(QLocale(QLocale::Portuguese, QLocale::Brazil)) == QStringLiteral("pt_BR"));
+  CHECK(manager.language_for_locale(QLocale(QLocale::Portuguese, QLocale::Portugal)) == QStringLiteral("pt_BR"));
+  CHECK(manager.language_for_locale(QLocale(QLocale::Russian, QLocale::Russia)) == QStringLiteral("ru"));
+  CHECK(manager.language_for_locale(QLocale(QLocale::Polish, QLocale::Poland)) == QStringLiteral("pl"));
+  CHECK(manager.language_for_locale(QLocale(QLocale::Korean, QLocale::SouthKorea)) == QStringLiteral("ko"));
   CHECK(manager.language_for_locale(QLocale::c()) == QStringLiteral("en"));
 
   // Selecting an unshipped language reports failure and leaves English active.
-  CHECK(!manager.set_language(QStringLiteral("pt_BR"), false));
+  CHECK(!manager.set_language(QStringLiteral("nl_NL"), false));
   CHECK(manager.current_language() == QStringLiteral("en"));
 }
 
@@ -2484,6 +3482,35 @@ void ui_language_catalog_covers_dialog_status_and_properties() {
   CHECK(open_settings_folder == QStringLiteral("設定フォルダーを開く"));
   const auto settings_folder_failed = QCoreApplication::translate("QObject", "Could not open settings folder.");
   CHECK(settings_folder_failed == QStringLiteral("設定フォルダーを開けませんでした。"));
+  const auto data_folder = QCoreApplication::translate("QObject", "User data folder (fonts, scripts):");
+  CHECK(data_folder == QStringLiteral("ユーザーデータフォルダー (フォント、スクリプト):"));
+  const auto open_data_folder = QCoreApplication::translate("QObject", "Open Data Folder");
+  CHECK(open_data_folder == QStringLiteral("データフォルダーを開く"));
+  const auto data_folder_failed = QCoreApplication::translate("QObject", "Could not open data folder.");
+  CHECK(data_folder_failed == QStringLiteral("データフォルダーを開けませんでした。"));
+
+  // The About dialog's folder rows must translate in every shipped language, not only the
+  // Japanese pins above: a string that comes back as its English source means the entry is
+  // missing from that catalog or carries the wrong context.
+  auto& manager = patchy::ui::LocalizationManager::instance();
+  for (const auto& language : manager.languages()) {
+    if (language.code == QStringLiteral("en")) {
+      continue;
+    }
+    CHECK(manager.set_language(language.code, false));
+    QApplication::processEvents();
+    for (const char* source : {"Settings file:", "Open Settings Folder", "Could not open settings folder.",
+                               "User data folder (fonts, scripts):", "Open Data Folder",
+                               "Could not open data folder."}) {
+      const auto translated = QCoreApplication::translate("QObject", source);
+      if (translated == QString::fromUtf8(source)) {
+        std::cerr << "untranslated in " << language.code.toStdString() << ": " << source << "\n";
+      }
+      CHECK(translated != QString::fromUtf8(source));
+    }
+  }
+  CHECK(manager.set_language(QStringLiteral("ja"), false));
+  QApplication::processEvents();
   const auto checking_updates = QCoreApplication::translate("QObject", "Checking for updates...");
   CHECK(checking_updates == QStringLiteral("更新を確認しています..."));
   const auto up_to_date = QCoreApplication::translate("QObject", "Patchy is up to date (%1).");
@@ -2635,18 +3662,30 @@ void ui_about_dialog_shows_labeled_external_links() {
     CHECK(credit_labels.first()->text().startsWith(QStringLiteral("Version ")));
     CHECK(credit_labels.first()->text().endsWith(
         QStringLiteral("(built %1)").arg(patchy::ui::build_timestamp_text())));
+    // The credit names Seth and links to his GitHub profile in the themed link color.
+    auto* credit = credit_labels.last();
+    CHECK(credit->textFormat() == Qt::RichText);
+    CHECK(credit->openExternalLinks());
+    CHECK(credit->text().startsWith(QStringLiteral("Created by ")));
+    CHECK(credit->text().contains(QStringLiteral("href=\"https://github.com/SethRobinson\"")));
+    CHECK(credit->text().contains(QStringLiteral(">Seth A. Robinson</a>")));
+    CHECK(!credit->text().contains(QStringLiteral("@splash_link_text")));
+    CHECK(credit->text().contains(
+        QStringLiteral("color:%1;").arg(patchy::ui::theme().splash_link_text.name(QColor::HexRgb))));
 
     auto* contributors = dialog->findChild<QLabel*>(QStringLiteral("splashContributors"));
     CHECK(contributors != nullptr);
     CHECK(contributors->textFormat() == Qt::RichText);
     CHECK(contributors->openExternalLinks());
-    CHECK(contributors->text().startsWith(QStringLiteral("Code contributions from ")));
+    CHECK(contributors->text().startsWith(QStringLiteral("Incredible people who donated suggestions, bug reports, and code: ")));
     CHECK(contributors->text().contains(QStringLiteral("href=\"https://github.com/mcapogna\"")));
     CHECK(contributors->text().contains(QStringLiteral(">mcapogna</a>")));
     CHECK(contributors->text().contains(QStringLiteral("href=\"https://github.com/csbun\"")));
     CHECK(contributors->text().contains(QStringLiteral(">csbun</a>")));
     CHECK(contributors->text().contains(QStringLiteral("href=\"https://github.com/ifloppy\"")));
     CHECK(contributors->text().contains(QStringLiteral(">ifloppy</a>")));
+    CHECK(contributors->text().contains(QStringLiteral("href=\"https://github.com/lucastucious\"")));
+    CHECK(contributors->text().contains(QStringLiteral(">lucastucious</a>")));
     CHECK(!contributors->text().contains(QLatin1Char('@')));
 
     auto* settings_caption = dialog->findChild<QLabel*>(QStringLiteral("splashSettingsCaption"));
@@ -2661,6 +3700,28 @@ void ui_about_dialog_shows_labeled_external_links() {
     CHECK(open_settings_folder != nullptr);
     CHECK(open_settings_folder->text() == QStringLiteral("Open Settings Folder"));
 
+    // The per-user data folder (dropped fonts, user scripts) gets the same treatment.
+    auto* data_caption = dialog->findChild<QLabel*>(QStringLiteral("splashDataCaption"));
+    CHECK(data_caption != nullptr);
+    CHECK(data_caption->text() == QStringLiteral("User data folder (fonts, scripts):"));
+    auto* data_path = dialog->findChild<QLabel*>(QStringLiteral("splashDataPath"));
+    CHECK(data_path != nullptr);
+    CHECK(data_path->text() == QDir::toNativeSeparators(
+                                   QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)));
+    CHECK(data_path->textInteractionFlags().testFlag(Qt::TextSelectableByMouse));
+    CHECK(data_path->wordWrap());
+    auto* open_data_folder = dialog->findChild<QPushButton*>(QStringLiteral("splashOpenDataFolderButton"));
+    CHECK(open_data_folder != nullptr);
+    CHECK(open_data_folder->text() == QStringLiteral("Open Data Folder"));
+
+    // The dialog is as tall as its content at its fixed width; a shorter fixed height
+    // squeezed every row on Windows until the first move relaid the column out.
+    CHECK(dialog->layout() != nullptr);
+    CHECK(dialog->height() >= dialog->layout()->totalHeightForWidth(dialog->width()));
+    CHECK(dialog->minimumHeight() == dialog->maximumHeight());
+    CHECK(open_data_folder->height() >= open_data_folder->sizeHint().height());
+    CHECK(data_path->height() >= data_path->heightForWidth(data_path->width()));
+
     save_widget_artifact("ui_about_dialog_links", *dialog);
     inspected = true;
     dialog->accept();
@@ -2668,6 +3729,79 @@ void ui_about_dialog_shows_labeled_external_links() {
 
   patchy::ui::show_about_splash();
   CHECK(inspected);
+}
+
+// The organization name changed from "Seth A. Robinson" to "RTsoft" after 0.98, which
+// moves AppDataLocation (user fonts, user scripts). Startup merges the old folder into the
+// new one without overwriting, drops identical leftovers, keeps differing ones, and removes
+// the emptied legacy tree down to the organization folder.
+void ui_app_data_migration_merges_legacy_folder() {
+  namespace migration = patchy::ui::app_data_migration;
+  QTemporaryDir temp;
+  CHECK(temp.isValid());
+  const auto root = temp.path();
+  const auto legacy = root + QStringLiteral("/Seth A. Robinson/Patchy");
+  const auto current = root + QStringLiteral("/RTsoft/Patchy");
+  const auto write = [](const QString& path, const QByteArray& bytes) {
+    QDir().mkpath(QFileInfo(path).absolutePath());
+    QFile file(path);
+    CHECK(file.open(QIODevice::WriteOnly));
+    file.write(bytes);
+  };
+  const auto read = [](const QString& path) {
+    QFile file(path);
+    return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+  };
+
+  // No legacy folder: nothing happens and the current folder is not created.
+  auto result = migration::migrate_app_data_directory(legacy, current);
+  CHECK(!result.legacy_found);
+  CHECK(!QDir(current).exists());
+
+  write(legacy + QStringLiteral("/user-fonts/Dropped.ttf"), "font-bytes");
+  write(legacy + QStringLiteral("/user-fonts/Same.ttf"), "same");
+  write(legacy + QStringLiteral("/scripts/Demos/mine.js"), "legacy edit");
+  write(legacy + QStringLiteral("/scripts/Empty/.keep"), "");
+  QDir().mkpath(legacy + QStringLiteral("/scripts/Nothing"));
+  write(current + QStringLiteral("/user-fonts/Same.ttf"), "same");
+  write(current + QStringLiteral("/user-fonts/Newer.ttf"), "newer");
+  write(current + QStringLiteral("/scripts/Demos/mine.js"), "current edit");
+
+  result = migration::migrate_app_data_directory(legacy, current);
+  CHECK(result.legacy_found);
+  CHECK(result.files_moved == 2);        // Dropped.ttf and .keep
+  CHECK(result.duplicates_removed == 1); // Same.ttf
+  CHECK(result.conflicts_kept == 1);     // mine.js
+  CHECK(!result.completed);
+  CHECK(read(current + QStringLiteral("/user-fonts/Dropped.ttf")) == "font-bytes");
+  CHECK(read(current + QStringLiteral("/user-fonts/Newer.ttf")) == "newer");
+  CHECK(read(current + QStringLiteral("/scripts/Demos/mine.js")) == "current edit");
+  CHECK(QFileInfo::exists(current + QStringLiteral("/scripts/Empty/.keep")));
+  CHECK(!QFileInfo::exists(legacy + QStringLiteral("/user-fonts/Dropped.ttf")));
+  CHECK(!QFileInfo::exists(legacy + QStringLiteral("/user-fonts/Same.ttf")));
+  CHECK(!QDir(legacy + QStringLiteral("/user-fonts")).exists());
+  CHECK(!QDir(legacy + QStringLiteral("/scripts/Empty")).exists());
+  CHECK(!QDir(legacy + QStringLiteral("/scripts/Nothing")).exists());
+  CHECK(read(legacy + QStringLiteral("/scripts/Demos/mine.js")) == "legacy edit");
+
+  // A second run is a no-op for the conflict, and once the user resolves it the legacy
+  // tree disappears entirely, organization folder included.
+  result = migration::migrate_app_data_directory(legacy, current);
+  CHECK(result.legacy_found && result.conflicts_kept == 1 && result.files_moved == 0);
+  CHECK(QFile::remove(legacy + QStringLiteral("/scripts/Demos/mine.js")));
+  result = migration::migrate_app_data_directory(legacy, current);
+  CHECK(result.legacy_found && result.completed);
+  CHECK(!QDir(root + QStringLiteral("/Seth A. Robinson")).exists());
+  CHECK(read(current + QStringLiteral("/scripts/Demos/mine.js")) == "current edit");
+
+  // The running app resolves the legacy folder from the legacy organization name and
+  // restores the current name afterwards.
+  const auto organization = QCoreApplication::organizationName();
+  QCoreApplication::setOrganizationName(QStringLiteral("RTsoft"));
+  const auto legacy_dir = migration::legacy_app_data_directory();
+  CHECK(legacy_dir.contains(QStringLiteral("Seth A. Robinson")));
+  CHECK(QCoreApplication::organizationName() == QStringLiteral("RTsoft"));
+  QCoreApplication::setOrganizationName(organization);
 }
 
 void ui_about_dialog_shows_memory_row() {
@@ -2868,7 +4002,8 @@ void ui_start_panel_recent_files_open_on_click() {
   CHECK(info != nullptr);
   CHECK(panel->isVisible());
   CHECK(recent_list->isVisible());
-  CHECK(recent_list->count() == 1);
+  // The dead entry drops once the background existence check reports back.
+  CHECK(process_events_until([&] { return recent_list->count() == 1; }));
   CHECK(recent_list->item(0)->text() == QStringLiteral("start_panel_recent.png"));
 
   auto* layers = window.findChild<QListWidget*>(QStringLiteral("layerList"));
@@ -3162,22 +4297,24 @@ void ui_start_panel_shows_about_info_and_update_status() {
   CHECK(tagline->text() == QStringLiteral("Open source photo editing. Free forever, no subscriptions."));
   auto* version = window.findChild<QLabel*>(QStringLiteral("startPanelVersion"));
   CHECK(version != nullptr);
-  CHECK(version->text().startsWith(QStringLiteral("Version ")));
-  CHECK(version->text().endsWith(QStringLiteral("(built %1)").arg(patchy::ui::build_timestamp_text())));
+  // The number comes from the configure-time generated patchy_version.hpp
+  // (cmake/patchy_version.hpp.in), so the label must show the configured
+  // version verbatim: an empty or placeholder value means the header broke.
+  CHECK(version->text() == QStringLiteral("Version %1 (built %2)")
+                               .arg(QStringLiteral(PATCHY_VERSION), patchy::ui::build_timestamp_text()));
+  CHECK(!QStringLiteral(PATCHY_VERSION).isEmpty());
+  CHECK(QStringLiteral(PATCHY_VERSION) != QStringLiteral("0.0.0"));
   auto* credit = window.findChild<QLabel*>(QStringLiteral("startPanelCredit"));
   CHECK(credit != nullptr);
-  CHECK(credit->text() == QStringLiteral("Created by Seth A. Robinson"));
-  auto* contributors = window.findChild<QLabel*>(QStringLiteral("startPanelContributors"));
-  CHECK(contributors != nullptr);
-  CHECK(contributors->textFormat() == Qt::RichText);
-  CHECK(contributors->openExternalLinks());
-  CHECK(contributors->text().startsWith(QStringLiteral("Code contributions from ")));
-  CHECK(contributors->text().contains(QStringLiteral("href=\"https://github.com/mcapogna\"")));
-  CHECK(contributors->text().contains(QStringLiteral(">mcapogna</a>")));
-  CHECK(contributors->text().contains(QStringLiteral("href=\"https://github.com/csbun\"")));
-  CHECK(contributors->text().contains(QStringLiteral(">csbun</a>")));
-  CHECK(contributors->text().contains(QStringLiteral("href=\"https://github.com/ifloppy\"")));
-  CHECK(contributors->text().contains(QStringLiteral(">ifloppy</a>")));
+  CHECK(credit->textFormat() == Qt::RichText);
+  CHECK(credit->openExternalLinks());
+  CHECK(credit->text().startsWith(QStringLiteral("Created by ")));
+  CHECK(credit->text().contains(QStringLiteral("href=\"https://github.com/SethRobinson\"")));
+  CHECK(credit->text().contains(QStringLiteral(">Seth A. Robinson</a>")));
+  CHECK(!credit->text().contains(QStringLiteral("@link_text")));
+  // The contributor credits belong to the About dialog alone; the start panel
+  // keeps its footer short so the recent-files list gets the room.
+  CHECK(window.findChild<QLabel*>(QStringLiteral("startPanelContributors")) == nullptr);
 
   const auto link_labels = panel->findChildren<QLabel*>(QStringLiteral("startPanelHome"));
   CHECK(link_labels.size() == 2);
@@ -3199,10 +4336,10 @@ void ui_start_panel_shows_about_info_and_update_status() {
   auto* status = window.findChild<QLabel*>(QStringLiteral("startPanelUpdateStatus"));
   CHECK(status != nullptr);
   CHECK(!status->isVisible());
-  panel->set_update_status(QStringLiteral("Patchy is up to date (9.99)."));
+  panel->set_update_status(QStringLiteral("Update available: Patchy 9.99."));
   QApplication::processEvents();
   CHECK(status->isVisible());
-  CHECK(status->text() == QStringLiteral("Patchy is up to date (9.99)."));
+  CHECK(status->text() == QStringLiteral("Update available: Patchy 9.99."));
   save_widget_artifact("ui_start_panel_about_info", window);
   panel->set_update_status(QString());
   CHECK(!status->isVisible());
@@ -3262,6 +4399,55 @@ void ui_blocking_refusal_shows_error_status_and_info_clears_it() {
   window.statusBar()->showMessage(QStringLiteral("Ready"));
   QApplication::processEvents();
   CHECK(!bar->error_message_active());
+}
+
+// A relaunch hands its foreground right to the running instance at the far end of the
+// single-instance pipe, so it must be able to name that process.
+void ui_single_instance_socket_names_the_server_process() {
+  QLocalServer server;
+  const auto name = QStringLiteral("Patchy-SingleInstanceTest-%1").arg(QCoreApplication::applicationPid());
+  QLocalServer::removeServer(name);
+  CHECK(server.listen(name));
+  QLocalSocket client;
+  client.connectToServer(name);
+  CHECK(client.waitForConnected(2000));
+  const auto process_id = patchy::ui::local_socket_server_process_id(client);
+#ifdef Q_OS_WIN
+  CHECK(process_id.has_value() && *process_id == QCoreApplication::applicationPid());
+#else
+  CHECK(!process_id.has_value());
+  CHECK(!patchy::ui::allow_local_socket_server_to_take_foreground(client));
+#endif
+  client.disconnectFromServer();
+  QLocalSocket unconnected;
+  CHECK(!patchy::ui::local_socket_server_process_id(unconnected).has_value());
+}
+
+// A relaunch restores a minimized window, and with a modal dialog open it is the dialog that
+// ends up active: file opens wait for the dialog, the foreground must not.
+void ui_second_instance_brings_window_and_modal_dialog_forward() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  window.showMinimized();
+  QApplication::processEvents();
+  CHECK(window.isMinimized());
+  window.bring_to_front_for_second_instance();
+  QApplication::processEvents();
+  CHECK(!window.isMinimized());
+  CHECK(window.isVisible());
+
+  QDialog dialog(&window);
+  dialog.setObjectName(QStringLiteral("secondInstanceTestDialog"));
+  dialog.setModal(true);
+  dialog.show();
+  QApplication::processEvents();
+  CHECK(QApplication::activeModalWidget() == &dialog);
+  // Offscreen lets the blocked window take activation, which is the state a relaunch must undo.
+  window.activateWindow();
+  CHECK(QTest::qWaitFor([&window] { return QApplication::activeWindow() == &window; }, 2000));
+  window.bring_to_front_for_second_instance();
+  CHECK(QTest::qWaitFor([&dialog] { return QApplication::activeWindow() == &dialog; }, 2000));
+  dialog.reject();
 }
 
 void ui_svg_icon_resources_are_registered() {
@@ -3910,14 +5096,24 @@ std::vector<patchy::test::TestCase> app_shell_tests() {
        ui_save_as_remembers_last_save_directory_between_windows},
       {"ui_open_remembers_last_directory_and_lists_recent_folders",
        ui_open_remembers_last_directory_and_lists_recent_folders},
+      {"ui_network_mount_classification_uses_deepest_mount_point",
+       ui_network_mount_classification_uses_deepest_mount_point},
+      {"ui_recent_history_checks_in_background_and_skips_network_paths",
+       ui_recent_history_checks_in_background_and_skips_network_paths},
       {"ui_open_dialog_hides_name_filter_details", ui_open_dialog_hides_name_filter_details},
       {"ui_open_dialog_opens_every_selected_file", ui_open_dialog_opens_every_selected_file},
       {"update_manifest_parser_handles_supported_cases", update_manifest_parser_handles_supported_cases},
+      {"ui_background_worker_wait_is_bounded", ui_background_worker_wait_is_bounded},
+      {"ui_update_manifest_url_honors_environment_override", ui_update_manifest_url_honors_environment_override},
+      {"ui_update_check_fetches_manifest_after_resolving_host", ui_update_check_fetches_manifest_after_resolving_host},
+      {"ui_update_check_reports_unresolvable_host_and_drops_destroyed_owner",
+       ui_update_check_reports_unresolvable_host_and_drops_destroyed_owner},
       {"ui_update_available_dialog_warns_to_close_patchy_before_installing",
        ui_update_available_dialog_warns_to_close_patchy_before_installing},
       {"ui_update_preference_defaults_startup_check_setting_to_enabled",
        ui_update_preference_defaults_startup_check_setting_to_enabled},
       {"ui_update_preference_persists_startup_check_setting", ui_update_preference_persists_startup_check_setting},
+      {"ui_update_checks_can_be_switched_off", ui_update_checks_can_be_switched_off},
       {"ui_gui_scale_preference_persists_setting", ui_gui_scale_preference_persists_setting},
       {"ui_gui_scale_preference_persists_step_below_full_size",
        ui_gui_scale_preference_persists_step_below_full_size},
@@ -3928,6 +5124,29 @@ std::vector<patchy::test::TestCase> app_shell_tests() {
       {"ui_color_scheme_cancel_restores_entry_scheme", ui_color_scheme_cancel_restores_entry_scheme},
       {"ui_color_scheme_follow_system_tracks_style_hints",
        ui_color_scheme_follow_system_tracks_style_hints},
+      {"ui_theme_file_round_trips_full_palette", ui_theme_file_round_trips_full_palette},
+      {"ui_theme_file_missing_role_falls_back_to_base", ui_theme_file_missing_role_falls_back_to_base},
+      {"ui_theme_file_invalid_hex_is_a_hard_error", ui_theme_file_invalid_hex_is_a_hard_error},
+      {"ui_theme_file_unknown_role_is_a_warning_not_an_error",
+       ui_theme_file_unknown_role_is_a_warning_not_an_error},
+      {"ui_theme_file_invalid_base_is_a_hard_error", ui_theme_file_invalid_base_is_a_hard_error},
+      {"ui_custom_theme_applies_over_matching_base_and_bumps_generation",
+       ui_custom_theme_applies_over_matching_base_and_bumps_generation},
+      {"ui_custom_theme_cleared_by_switching_to_a_builtin_scheme",
+       ui_custom_theme_cleared_by_switching_to_a_builtin_scheme},
+      {"ui_custom_theme_id_persists_and_reapplies_like_a_restart",
+       ui_custom_theme_id_persists_and_reapplies_like_a_restart},
+      {"ui_custom_theme_missing_file_falls_back_to_builtin_preference",
+       ui_custom_theme_missing_file_falls_back_to_builtin_preference},
+      {"ui_custom_theme_qss_resolves_every_token", ui_custom_theme_qss_resolves_every_token},
+      {"ui_theme_file_newer_format_is_a_hard_error", ui_theme_file_newer_format_is_a_hard_error},
+      {"ui_preferences_reload_reapplies_an_edited_theme_file", ui_preferences_reload_reapplies_an_edited_theme_file},
+      {"ui_preferences_delete_removes_theme_file_and_entry", ui_preferences_delete_removes_theme_file_and_entry},
+      {"ui_bundled_themes_load_and_list_in_preferences", ui_bundled_themes_load_and_list_in_preferences},
+      {"ui_preferences_export_defaults_to_themes_folder_and_lists_the_copy",
+       ui_preferences_export_defaults_to_themes_folder_and_lists_the_copy},
+      {"ui_bundled_theme_id_persists_and_reapplies_like_a_restart",
+       ui_bundled_theme_id_persists_and_reapplies_like_a_restart},
       {"ui_color_scheme_switch_updates_existing_window", ui_color_scheme_switch_updates_existing_window},
       {"ui_themed_icons_recolor_between_schemes", ui_themed_icons_recolor_between_schemes},
       {"ui_main_window_persists_window_geometry", ui_main_window_persists_window_geometry},
@@ -3942,6 +5161,8 @@ std::vector<patchy::test::TestCase> app_shell_tests() {
       {"ui_transform_snap_preference_persists_and_reaches_canvas",
        ui_transform_snap_preference_persists_and_reaches_canvas},
       {"ui_language_switch_updates_existing_window", ui_language_switch_updates_existing_window},
+      {"ui_language_switch_survives_window_reactivation", ui_language_switch_survives_window_reactivation},
+      {"ui_menubar_submenus_have_no_native_menu_role", ui_menubar_submenus_have_no_native_menu_role},
       {"ui_language_preference_applies_at_startup", ui_language_preference_applies_at_startup},
       {"ui_language_missing_preference_uses_system_language", ui_language_missing_preference_uses_system_language},
       {"ui_language_saved_preference_overrides_system_language",
@@ -3955,8 +5176,12 @@ std::vector<patchy::test::TestCase> app_shell_tests() {
       {"ui_filter_gallery_action_retranslates", ui_filter_gallery_action_retranslates},
       {"ui_about_dialog_shows_labeled_external_links", ui_about_dialog_shows_labeled_external_links},
       {"ui_about_dialog_shows_memory_row", ui_about_dialog_shows_memory_row},
+      {"ui_app_data_migration_merges_legacy_folder", ui_app_data_migration_merges_legacy_folder},
       {"ui_frameless_window_edges_resize", ui_frameless_window_edges_resize},
       {"ui_right_edge_scrollbars_remain_draggable", ui_right_edge_scrollbars_remain_draggable},
+      {"ui_single_instance_socket_names_the_server_process", ui_single_instance_socket_names_the_server_process},
+      {"ui_second_instance_brings_window_and_modal_dialog_forward",
+       ui_second_instance_brings_window_and_modal_dialog_forward},
       {"ui_svg_icon_resources_are_registered", ui_svg_icon_resources_are_registered},
       {"ui_icon_color_map_covers_every_authored_color", ui_icon_color_map_covers_every_authored_color},
       {"ui_no_widget_ships_unresolved_theme_tokens", ui_no_widget_ships_unresolved_theme_tokens},

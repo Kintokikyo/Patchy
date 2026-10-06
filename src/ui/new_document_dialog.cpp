@@ -485,6 +485,7 @@ std::optional<NewDocumentSettings> request_new_document_settings(QWidget* parent
     for (auto* spin : {width, height}) {
       const QSignalBlocker blocker(spin);
       spin->setDecimals(measurement_unit_decimals(dimension_unit));
+      spin->setSingleStep(measurement_unit_single_step(dimension_unit));
       spin->setRange(dimension_unit == MeasurementUnit::Pixels ? 1.0 : 0.001, 999999.0);
     }
     {
@@ -714,6 +715,11 @@ std::optional<NewDocumentSettings> request_new_document_settings(QWidget* parent
 
   QObject::connect(create, &QPushButton::clicked, &dialog, &QDialog::accept);
   QObject::connect(cancel, &QPushButton::clicked, &dialog, &QDialog::reject);
+  // Double-clicking a preset card creates the document straight away: the first
+  // click already made it current (and applied its values), so the second is
+  // the same as pressing Create.
+  QObject::connect(preset_list, &QListWidget::itemDoubleClicked, &dialog,
+                   [create](QListWidgetItem*) { create->click(); });
 
   // Restore the last accepted settings; a clipboard image preselects its card instead.
   {
@@ -725,6 +731,19 @@ std::optional<NewDocumentSettings> request_new_document_settings(QWidget* parent
     const auto last_ppi = settings.value(QStringLiteral("lastPpi")).toDouble();
     const auto last_background = settings.value(QStringLiteral("lastBackground")).value<QColor>();
     settings.endGroup();
+    // The W/H unit and the resolution unit (issue 53): the last accepted ones, else
+    // the ruler unit on a first run; the combo has no Points or Percent, so those
+    // fall back to Pixels (remembered_dialog_unit).
+    {
+      const auto seed_unit = remembered_dialog_unit(
+          QStringLiteral("newDocument/lastUnit"), {MeasurementUnit::Pixels, MeasurementUnit::Inches,
+                                                   MeasurementUnit::Centimeters, MeasurementUnit::Millimeters});
+      const QSignalBlocker unit_blocker(unit);  // the first refresh below picks it up once
+      unit->setCurrentIndex(std::max(0, unit->findData(static_cast<int>(seed_unit))));
+      const QSignalBlocker resolution_unit_blocker(resolution_unit);
+      resolution_unit->setCurrentIndex(
+          remembered_resolution_unit_index(QStringLiteral("newDocument/lastResolutionUnit")));
+    }
 
     if (last_background.isValid()) {
       background_color = last_background;
@@ -782,6 +801,8 @@ std::optional<NewDocumentSettings> request_new_document_settings(QWidget* parent
     settings.setValue(QStringLiteral("lastPpi"), state.ppi);
     settings.setValue(QStringLiteral("lastBackground"), background_color);
     settings.endGroup();
+    remember_dialog_unit(QStringLiteral("newDocument/lastUnit"), current_unit());
+    remember_resolution_unit(QStringLiteral("newDocument/lastResolutionUnit"), resolution_unit->currentIndex());
   }
   return NewDocumentSettings{state.pixel_width,   state.pixel_height,
                              state.ppi,           background_color,

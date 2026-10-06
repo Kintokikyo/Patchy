@@ -1,6 +1,5 @@
 #include "ui/start_panel.hpp"
 
-#include "ui/app_credits.hpp"
 #include "ui/build_info.hpp"
 #include "ui/dialog_utils.hpp"
 #include "ui/theme_palette.hpp"
@@ -11,6 +10,7 @@
 #include <QEvent>
 
 #include <QDir>
+#include <QDesktopServices>
 #include <QFileInfo>
 #include <QFont>
 #include <QFontMetrics>
@@ -20,17 +20,17 @@
 #include <QListWidget>
 #include <QPainter>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QShowEvent>
 #include <QStyledItemDelegate>
 #include <QStyleOptionViewItem>
 #include <QVBoxLayout>
+#include <QUrl>
 
 #include <algorithm>
 #include <initializer_list>
 
-#ifndef PATCHY_VERSION
-#define PATCHY_VERSION "0.0.0"
-#endif
+#include "patchy_version.hpp"
 
 namespace patchy::ui {
 
@@ -129,6 +129,22 @@ StartPanel::StartPanel(QWidget* parent) : QWidget(parent) {
 
   auto* outer = new QVBoxLayout(this);
   outer->setContentsMargins(24, 24, 24, 24);
+  auto* content_layout = outer;
+#ifdef Q_OS_WASM
+  // Keep the card and browser actions reachable at 100% scale in short windows.
+  // The footer stays outside the scrolling content, as on the desktop panel.
+  auto* scroll = new QScrollArea(this);
+  scroll->setObjectName(QStringLiteral("startPanelWebScroll"));
+  scroll->setWidgetResizable(true);
+  scroll->setFrameShape(QFrame::NoFrame);
+  scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  auto* scroll_content = new QWidget(scroll);
+  scroll_content->setObjectName(QStringLiteral("startPanelWebContent"));
+  content_layout = new QVBoxLayout(scroll_content);
+  content_layout->setContentsMargins(0, 0, 0, 0);
+  scroll->setWidget(scroll_content);
+  outer->addWidget(scroll, 1);
+#endif
 
   auto* column = new QWidget(this);
   column->setObjectName(QStringLiteral("startPanelColumn"));
@@ -137,19 +153,20 @@ StartPanel::StartPanel(QWidget* parent) : QWidget(parent) {
   column_layout->setContentsMargins(0, 0, 0, 0);
   column_layout->setSpacing(14);
 
-  outer->addStretch(3);
+  content_layout->addStretch(3);
   auto* center_row = new QHBoxLayout();
   center_row->addStretch(1);
   center_row->addWidget(column);
   center_row->addStretch(1);
-  outer->addLayout(center_row);
-  outer->addStretch(4);
+  content_layout->addLayout(center_row);
+  content_layout->addStretch(4);
 
   // About-style header: the logo card beside the title and tagline.
   auto* header_row = new QHBoxLayout();
   header_row->setSpacing(18);
   auto* artwork = new SplashArtwork(column);
-  artwork->setFixedSize(110, 141);
+  artwork->setObjectName(QStringLiteral("startPanelArtwork"));
+  artwork->setFixedSize(136, 136);
   header_row->addStretch(1);
   header_row->addWidget(artwork);
   auto* header_text = new QVBoxLayout();
@@ -157,6 +174,7 @@ StartPanel::StartPanel(QWidget* parent) : QWidget(parent) {
   auto* title = new QLabel(tr("Patchy Image Editor"), column);
   bind_translated_text(title, QT_TR_NOOP("Patchy Image Editor"), "patchy::ui::StartPanel");
   title->setObjectName(QStringLiteral("startPanelTitle"));
+  title->setWordWrap(true);
   auto* tagline = new QLabel(tr("Open source photo editing. Free forever, no subscriptions."), column);
   bind_translated_text(tagline, QT_TR_NOOP("Open source photo editing. Free forever, no subscriptions."), "patchy::ui::StartPanel");
   tagline->setObjectName(QStringLiteral("startPanelTagline"));
@@ -187,6 +205,54 @@ StartPanel::StartPanel(QWidget* parent) : QWidget(parent) {
   buttons_row->addStretch(1);
   column_layout->addLayout(buttons_row);
   column_layout->addSpacing(6);
+
+#ifdef Q_OS_WASM
+  auto* desktop_card = new QWidget(column);
+  desktop_card->setObjectName(QStringLiteral("startPanelDesktopCard"));
+  desktop_card->setAttribute(Qt::WA_StyledBackground);
+  auto* desktop_layout = new QVBoxLayout(desktop_card);
+  desktop_layout->setContentsMargins(20, 20, 20, 20);
+  desktop_layout->setSpacing(12);
+  const auto add_desktop_label = [desktop_card, desktop_layout](const char* source, const char* name) {
+    auto* label = new QLabel(tr(source), desktop_card);
+    label->setObjectName(QString::fromLatin1(name));
+    label->setTextFormat(Qt::PlainText);
+    label->setWordWrap(true);
+    label->setAlignment(Qt::AlignCenter);
+    bind_translated_text(label, source, "patchy::ui::StartPanel");
+    desktop_layout->addWidget(label);
+    return label;
+  };
+  add_desktop_label(QT_TR_NOOP("More power on your desktop"), "startPanelDesktopTitle");
+  add_desktop_label(QT_TR_NOOP("More features, faster editing, and full access to your system fonts."),
+                    "startPanelDesktopDescription");
+
+  auto* download_button = new QPushButton(desktop_card);
+  download_button->setObjectName(QStringLiteral("startPanelDesktopDownloadButton"));
+  download_button->setCursor(Qt::PointingHandCursor);
+  download_button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
+  // A wrapping label keeps long translations inside the button at narrow widths.
+  // The button retains normal keyboard activation and owns the accessible name.
+  auto* download_layout = new QVBoxLayout(download_button);
+  download_layout->setContentsMargins(16, 10, 16, 10);
+  auto* download_label = new QLabel(tr("Download Patchy for Desktop"), download_button);
+  download_label->setObjectName(QStringLiteral("startPanelDesktopDownloadLabel"));
+  download_label->setTextFormat(Qt::PlainText);
+  download_label->setWordWrap(true);
+  download_label->setAlignment(Qt::AlignCenter);
+  download_label->setAttribute(Qt::WA_TransparentForMouseEvents);
+  bind_translated_text(download_label, QT_TR_NOOP("Download Patchy for Desktop"), "patchy::ui::StartPanel");
+  download_layout->addWidget(download_label);
+  retranslation_callbacks_.push_back([download_button, download_label] {
+    download_button->setAccessibleName(download_label->text());
+  });
+  connect(download_button, &QPushButton::clicked, this, [] {
+    QDesktopServices::openUrl(QUrl(QStringLiteral("https://github.com/SethRobinson/Patchy#download")));
+  });
+  desktop_layout->addWidget(download_button);
+  add_desktop_label(QT_TR_NOOP("Free · Windows, macOS & Linux"), "startPanelDesktopPlatforms");
+  column_layout->addWidget(desktop_card);
+#endif
 
   // Section header: the label on the left, the name filter riding the empty space
   // on the right so it lines up with the list's edge.
@@ -229,11 +295,14 @@ StartPanel::StartPanel(QWidget* parent) : QWidget(parent) {
   bind_translated_text(hint, QT_TR_NOOP("You can also drop image files anywhere in the window"), "patchy::ui::StartPanel");
   hint->setObjectName(QStringLiteral("startPanelHint"));
   hint->setAlignment(Qt::AlignHCenter);
+#ifdef Q_OS_WASM
+  hint->setWordWrap(true);
+#endif
   column_layout->addSpacing(2);
   column_layout->addWidget(hint);
 
 #ifdef Q_OS_WASM
-  // Web-only pitch for the native build. The privacy sentence is deliberate:
+  // Browser guidance. The privacy sentence is deliberate:
   // browser apps get assumed to upload, and this one never does.
   auto* wasm_note = new QLabel(column);
   wasm_note->setObjectName(QStringLiteral("startPanelWasmNote"));
@@ -243,15 +312,10 @@ StartPanel::StartPanel(QWidget* parent) : QWidget(parent) {
   wasm_note->setTextInteractionFlags(Qt::TextBrowserInteraction);
   wasm_note->setOpenExternalLinks(true);
   retranslation_callbacks_.push_back([wasm_note] {
-    const auto desktop_link = QStringLiteral("<a style=\"color:@link_text; text-decoration:none;\" "
-                                             "href=\"https://github.com/SethRobinson/Patchy#download\">%1</a>")
-                                  .arg(tr("desktop version"));
     set_themed_label_text(*wasm_note,
                           tr("Everything runs locally in your browser. Nothing you make is ever sent online.") +
                               QStringLiteral("<br/>") +
-                              tr("Drop a font file or a zip of fonts here to use your own fonts.") +
-                              QStringLiteral("<br/>") +
-                              tr("For all your system fonts and better speed, get the %1.").arg(desktop_link));
+                              tr("Drop a font file or a zip of fonts here to use your own fonts."));
   });
   column_layout->addSpacing(2);
   column_layout->addWidget(wasm_note);
@@ -278,23 +342,23 @@ StartPanel::StartPanel(QWidget* parent) : QWidget(parent) {
   });
   version->setObjectName(QStringLiteral("startPanelVersion"));
   version->setTextFormat(Qt::PlainText);
-  auto* credit = new QLabel(tr("Created by Seth A. Robinson"), this);
-  bind_translated_text(credit, QT_TR_NOOP("Created by Seth A. Robinson"), "patchy::ui::StartPanel");
+  // The credit links to Seth's GitHub profile, in the themed link color like the rows below.
+  auto* credit = new QLabel(this);
   credit->setObjectName(QStringLiteral("startPanelCredit"));
-  credit->setTextFormat(Qt::PlainText);
-  add_footer_row({version, credit});
-
-  auto* contributors = new QLabel(this);
-  contributors->setObjectName(QStringLiteral("startPanelContributors"));
-  contributors->setTextFormat(Qt::RichText);
-  retranslation_callbacks_.push_back([contributors] {
+  credit->setTextFormat(Qt::RichText);
+  credit->setTextInteractionFlags(Qt::TextBrowserInteraction);
+  credit->setOpenExternalLinks(true);
+  retranslation_callbacks_.push_back([credit] {
     set_themed_label_text(
-        *contributors,
-        tr("Code contributions from %1").arg(code_contributors_link_html(QStringLiteral("@link_text"))));
+        *credit, tr("Created by %1")
+                     .arg(QStringLiteral("<a style=\"color:@link_text; text-decoration:none;\" "
+                                         "href=\"https://github.com/SethRobinson\">Seth A. Robinson</a>")));
   });
-  contributors->setTextInteractionFlags(Qt::TextBrowserInteraction);
-  contributors->setOpenExternalLinks(true);
-  add_footer_row({contributors});
+  // The contributor credits live in the About dialog only: every name added
+  // here would take a row from the recent-files list (Seth, October 2026). The
+  // version gets its own row so the number stands alone; the author follows.
+  add_footer_row({version});
+  add_footer_row({credit});
 
   const auto make_home_label = [this](const char* source, const QString& link) {
     auto* label = new QLabel(this);
@@ -349,8 +413,12 @@ StartPanel::StartPanel(QWidget* parent) : QWidget(parent) {
     QWidget#startPanel {
       background: @window_bg;
     }
-    QWidget#startPanelColumn {
+    QWidget#startPanelColumn, QWidget#startPanelArtwork {
       background: transparent;
+    }
+    QScrollArea#startPanelWebScroll, QWidget#startPanelWebContent {
+      background: @window_bg;
+      border: none;
     }
     QLabel#startPanelTitle {
       background: transparent;
@@ -363,10 +431,18 @@ StartPanel::StartPanel(QWidget* parent) : QWidget(parent) {
       color: @start_panel_tagline_text;
       font-size: 12px;
     }
-    QLabel#startPanelVersion, QLabel#startPanelCredit, QLabel#startPanelContributors, QLabel#startPanelHome {
+    QLabel#startPanelCredit, QLabel#startPanelHome {
       background: transparent;
       color: @start_panel_muted_text;
       font-size: 11px;
+    }
+    QLabel#startPanelVersion {
+      /* The version is what a bug report needs first: larger and brighter than
+         the rest of the footer (Seth, October 2026). */
+      background: transparent;
+      color: @start_panel_tagline_text;
+      font-size: 14px;
+      font-weight: 600;
     }
     QLabel#startPanelUpdateStatus {
       background: transparent;
@@ -406,6 +482,46 @@ StartPanel::StartPanel(QWidget* parent) : QWidget(parent) {
     QWidget#startPanel QPushButton#startPanelNewButton:hover {
       background: @primary_hover_bg;
     }
+    QWidget#startPanelDesktopCard {
+      background: @list_surface_bg;
+      border: 1px solid @list_surface_border;
+      border-radius: 12px;
+    }
+    QWidget#startPanelDesktopCard QLabel {
+      background: transparent;
+      color: @text_primary;
+      font-size: 14px;
+    }
+    QWidget#startPanelDesktopCard QLabel#startPanelDesktopTitle {
+      color: @start_panel_title_text;
+      font-size: 20px;
+      font-weight: 700;
+    }
+    QWidget#startPanelDesktopCard QLabel#startPanelDesktopPlatforms {
+      color: @start_panel_tagline_text;
+      font-size: 12px;
+    }
+    QWidget#startPanel QPushButton#startPanelDesktopDownloadButton {
+      background: @primary_bg;
+      border: 2px solid @primary_border;
+      border-radius: 10px;
+      min-width: 0;
+      min-height: 52px;
+      padding: 0;
+    }
+    QWidget#startPanelDesktopCard QLabel#startPanelDesktopDownloadLabel {
+      color: @text_bright;
+      font-size: 16px;
+      font-weight: 700;
+    }
+    QWidget#startPanel QPushButton#startPanelDesktopDownloadButton:hover,
+    QWidget#startPanel QPushButton#startPanelDesktopDownloadButton:pressed {
+      background: @primary_hover_bg;
+    }
+    QWidget#startPanel QPushButton#startPanelDesktopDownloadButton:focus {
+      border-color: @accent_bright;
+      border-style: dashed;
+    }
     QListWidget#startPanelRecentList {
       background: @list_surface_bg;
       border: 1px solid @list_surface_border;
@@ -433,11 +549,9 @@ void StartPanel::set_recent_files(const QStringList& paths) {
     if (recent_paths_.size() >= kMaxRecentEntries) {
       break;
     }
-    const QFileInfo info(path);
-    if (!info.isFile()) {
-      continue;  // Recent entries can outlive their files; dead rows would just error on click.
-    }
-    recent_paths_ << info.absoluteFilePath();
+    // No stat here: MainWindow drops missing entries after its background
+    // existence check, and a click on one that vanished since reports it.
+    recent_paths_ << QFileInfo(path).absoluteFilePath();
   }
   rebuild_recent_rows();
 }

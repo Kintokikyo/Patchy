@@ -229,11 +229,22 @@ struct VectorShapeContent {
   // Style-compositing caches (never serialized; rebuilt with the pixel bake):
   // straight-alpha planes over the layer's baked bounds. Interior overlay
   // effects apply over fill_cache and the vector stroke re-composites above
-  // from stroke_cache (PS 2026 probes fx-sofi-*). Empty when the layer has no
+  // from stroke_cache (PS 2026 probes fx-sofi-*). fill_cache's alpha is the
+  // fill's COVERAGE: a gradient or pattern fill that is transparent inside the
+  // shape does not thin the overlays (see effect_matte_cache). Empty when the layer has no
   // stroke, a non-Normal stroke blend, or an un-rebaked import - the
   // compositor then keeps the legacy combined-plane behavior.
   PixelBuffer fill_cache{};
   PixelBuffer stroke_cache{};
+  // The layer's effect silhouette, when it is not simply the alpha of its pixels: the
+  // layer's own RGBA with alpha replaced by the shape's COVERAGE (fill and stroke).
+  // A gradient or pattern fill can be transparent inside the shape; Photoshop still
+  // treats the whole shape as the layer for every layer effect (stroke, shadows, glows,
+  // bevel, satin, overlays all follow the outline at full strength; PS 2026 probes on
+  // psd-tools' stroke-effects.psd, October 2026, docs/layer-effects-render.md). Empty
+  // when coverage and alpha agree (every solid fill), which keeps those layers on
+  // exactly the path they always took. Same lifetime rules as the two caches above.
+  PixelBuffer effect_matte_cache{};
 };
 
 // A vector mask on any layer. Coexists with (multiplies against) the raster

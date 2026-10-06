@@ -17,6 +17,7 @@
 #include <QApplication>
 #include <QByteArray>
 #include <QDir>
+#include <QLockFile>
 #include <QSettings>
 #include <QString>
 
@@ -109,6 +110,29 @@ LONG WINAPI report_access_violation(EXCEPTION_POINTERS* info) {
               static_cast<unsigned long long>(symbol_displacement));
     }
   }
+  // The walk above stops at the first frame it cannot unwind (a fault inside
+  // the heap manager prints nothing), so also leave a minidump beside the
+  // artifacts: `dump_stack.exe <dmp> build\release` symbolizes it offline
+  // against the matching PDB (docs/testing.md).
+  char dump_path[MAX_PATH] = {};
+  snprintf(dump_path, sizeof(dump_path), "test-artifacts\\crash-%lu.dmp",
+           static_cast<unsigned long>(GetCurrentProcessId()));
+  CreateDirectoryA("test-artifacts", nullptr);
+  const auto dump_file =
+      CreateFileA(dump_path, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (dump_file != INVALID_HANDLE_VALUE) {
+    MINIDUMP_EXCEPTION_INFORMATION exception_info = {};
+    exception_info.ThreadId = GetCurrentThreadId();
+    exception_info.ExceptionPointers = info;
+    exception_info.ClientPointers = FALSE;
+    const auto dump_type = static_cast<MINIDUMP_TYPE>(MiniDumpWithIndirectlyReferencedMemory | MiniDumpWithDataSegs |
+                                                      MiniDumpWithHandleData | MiniDumpWithThreadInfo);
+    const auto written = MiniDumpWriteDump(process, GetCurrentProcessId(), dump_file, dump_type, &exception_info,
+                                           nullptr, nullptr);
+    CloseHandle(dump_file);
+    fprintf(stderr, written != FALSE ? "[CRASH] minidump written to %s\n" : "[CRASH] minidump failed: %s\n",
+            dump_path);
+  }
   fflush(stderr);
   return EXCEPTION_CONTINUE_SEARCH;
 }
@@ -163,7 +187,11 @@ int main(int argc, char* argv[]) {
     abort();
   });
 #endif
-  qputenv("QT_QPA_PLATFORM", QByteArray("offscreen"));
+  // PATCHY_UI_TEST_PLATFORM=<qpa plugin> runs the suite on a real platform (cocoa, windows,
+  // xcb) instead of offscreen: the way to reach native menubar and window-activation code
+  // (GitHub issue 29). Screens and fonts then differ, so run a filter, not the whole suite.
+  const QByteArray native_platform = qgetenv("PATCHY_UI_TEST_PLATFORM");
+  qputenv("QT_QPA_PLATFORM", native_platform.isEmpty() ? QByteArray("offscreen") : native_platform);
   QApplication app(argc, argv);
   // Child mode for ui_bundled_web_fonts_register_and_create_engines: register and
   // validate the bundled web-font inventory without polluting the parent suite's
@@ -181,6 +209,37 @@ int main(int argc, char* argv[]) {
   const auto test_settings_path = QDir::current().filePath(QStringLiteral("test-artifacts/settings"));
   CHECK(QDir().mkpath(test_settings_path));
   QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, test_settings_path);
+  // Every test window owns a recovery instance folder; keep them out of the real
+  // per-user AutoRecover store (a test window is never a crashed user session).
+  if (qEnvironmentVariableIsEmpty("PATCHY_RECOVERY_DIR")) {
+    qputenv("PATCHY_RECOVERY_DIR", QDir::current().filePath(QStringLiteral("test-artifacts/recovery")).toUtf8());
+  }
+  // The dropped-font store is private to this PROCESS. It used to be QStandardPaths'
+  // test-mode app-data folder, one directory shared by every checkout and worktree on the
+  // machine. A process keeps the store files it registered open until it exits, so a second
+  // suite process could not delete them in its start-of-test cleanup on Windows (the full UI
+  // suite failed that way during the October 2026 1.05 release, with another session's tests
+  // running), and on Linux and macOS the same cleanup deletes fonts the first process is
+  // still drawing with. Stores left by processes that have exited are removed here; a lock
+  // file marks the ones still in use.
+  if (qEnvironmentVariableIsEmpty("PATCHY_USER_FONTS_DIR")) {
+    const QDir stores(QDir::current().filePath(QStringLiteral("test-artifacts/user-fonts")));
+    for (const auto& stale : stores.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+      QLockFile stale_lock(stale.absoluteFilePath() + QStringLiteral("/store.lock"));
+      stale_lock.setStaleLockTime(0);
+      if (stale_lock.tryLock(0)) {
+        stale_lock.unlock();
+        QDir(stale.absoluteFilePath()).removeRecursively();
+      }
+    }
+    const auto store = stores.filePath(QString::number(QCoreApplication::applicationPid()));
+    CHECK(QDir().mkpath(store));
+    // Deliberately leaked: held until the process exits, which is what frees the fonts.
+    auto* store_lock = new QLockFile(store + QStringLiteral("/store.lock"));
+    store_lock->setStaleLockTime(0);
+    CHECK(store_lock->tryLock(0));
+    qputenv("PATCHY_USER_FONTS_DIR", store.toUtf8());
+  }
   {
     auto settings = patchy::ui::app_settings();
     settings.remove(QStringLiteral("tools"));
@@ -189,6 +248,12 @@ int main(int argc, char* argv[]) {
     settings.remove(QStringLiteral("imports"));
     settings.remove(QStringLiteral("window"));
     settings.remove(QStringLiteral("filters/gallery"));
+    // The dialogs that remember their unit combos (docs/resolution-units.md); the
+    // auto-accept helpers type pixel values, so a developer's real choice must not
+    // seed a run.
+    settings.remove(QStringLiteral("newDocument"));
+    settings.remove(QStringLiteral("imageSize"));
+    settings.remove(QStringLiteral("canvasSize"));
     // Hotkey tests customize-then-restore this group; a run killed in between
     // would otherwise leave the overrides in the shared store permanently and
     // fail every later default-shortcut assertion.
@@ -247,6 +312,7 @@ int main(int argc, char* argv[]) {
            misc_visuals_outline_stress_tests,
            float_window_tests,
            vector_shape_tool_tests,
+           batch_appearance_tests,
            vector_preview_tests,
            vector_point_editing_tests,
            vector_commands_tests,
@@ -255,8 +321,11 @@ int main(int argc, char* argv[]) {
            svg_ui_tests,
            image_trace_ui_tests,
            scripting_tests,
+           script_move_tests,
+           document_recovery_tests,
            mcp_tests,
            unicode_path_tests,
+           legacy_plugin_tests,
            history_panel_tests,
            composite_render_tests,
            readme_screenshot_tests,

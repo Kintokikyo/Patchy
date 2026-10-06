@@ -68,6 +68,8 @@
 #include <functional>
 #include <iostream>
 #include <limits>
+#include <mutex>
+#include <new>
 #include <queue>
 #include <thread>
 #include <utility>
@@ -285,7 +287,7 @@ int CanvasWidget::marquee_corner_radius() const noexcept {
 }
 
 void CanvasWidget::set_selection_feather_radius(int pixels) noexcept {
-  selection_feather_radius_ = std::clamp(pixels, 0, 250);
+  selection_feather_radius_ = std::clamp(pixels, 0, kMaxSelectionFeatherRadius);
 }
 
 int CanvasWidget::selection_feather_radius() const noexcept {
@@ -462,7 +464,7 @@ void CanvasWidget::contract_selection(int pixels) {
   if (document_ == nullptr || selection_.isEmpty() || pixels <= 0) {
     return;
   }
-  pixels = std::clamp(pixels, 0, 250);
+  pixels = std::clamp(pixels, 0, kMaxSelectionModifyRadius);
   const QRect canvas_rect(0, 0, document_->width(), document_->height());
   const QRegion canvas_region(canvas_rect);
   const auto padded_canvas_rect = canvas_rect.adjusted(-pixels, -pixels, pixels, pixels);
@@ -931,7 +933,95 @@ std::uint8_t CanvasWidget::selection_alpha_at(QPoint point) const noexcept {
   if (!selection_mask_alpha_.isNull()) {
     return alpha_at(selection_mask_alpha_, selection_mask_bounds_, point);
   }
-  return selection_.contains(point) ? 255 : 0;
+  // QRegion::contains checks every rectangle of the region in turn (a single
+  // rectangle and the region's inner rectangle are its only shortcuts), so a
+  // region with more than a handful of spans answers through the rasterized
+  // lookup instead: a wand selection of a background around a subject holds
+  // thousands of row spans, and filling it pixel by pixel through contains()
+  // took about 45 s for 1.5 Mpx (GitHub issue 34).
+  constexpr int kMaxRectsForDirectContains = 4;
+  if (selection_.rectCount() <= kMaxRectsForDirectContains) {
+    return selection_.contains(point) ? 255 : 0;
+  }
+  return selection_lookup_contains(point) ? 255 : 0;
+}
+
+void CanvasWidget::invalidate_selection_lookup() noexcept {
+  selection_lookup_valid_.store(false, std::memory_order_release);
+  std::vector<std::uint8_t>().swap(selection_lookup_bits_);
+  selection_lookup_bounds_ = QRect();
+}
+
+void CanvasWidget::build_selection_lookup() const {
+  const std::lock_guard<std::mutex> lock(selection_lookup_mutex_);
+  if (selection_lookup_valid_.load(std::memory_order_acquire)) {
+    return;
+  }
+  const auto bounds = selection_.boundingRect();
+  const auto width = bounds.width();
+  const auto height = bounds.height();
+  const auto stride = static_cast<std::size_t>((width + 7) / 8);
+  std::vector<std::uint8_t> bits;
+  try {
+    bits.assign(stride * static_cast<std::size_t>(height), 0U);
+  } catch (const std::bad_alloc&) {
+    // An empty lookup makes selection_lookup_contains fall back to QRegion::contains.
+    bits.clear();
+  }
+  if (!bits.empty()) {
+    for (const auto& rect : selection_) {
+      const auto first_x = rect.left() - bounds.left();
+      const auto last_x = rect.right() - bounds.left();
+      if (first_x < 0 || last_x < first_x || last_x >= width) {
+        continue;
+      }
+      const auto first_byte = static_cast<std::size_t>(first_x >> 3);
+      const auto last_byte = static_cast<std::size_t>(last_x >> 3);
+      const auto first_mask = static_cast<std::uint8_t>(0xFFU << (first_x & 7));
+      const auto last_mask = static_cast<std::uint8_t>(0xFFU >> (7 - (last_x & 7)));
+      for (int y = rect.top(); y <= rect.bottom(); ++y) {
+        const auto local_y = y - bounds.top();
+        if (local_y < 0 || local_y >= height) {
+          continue;
+        }
+        auto* row = bits.data() + static_cast<std::size_t>(local_y) * stride;
+        if (first_byte == last_byte) {
+          row[first_byte] |= static_cast<std::uint8_t>(first_mask & last_mask);
+          continue;
+        }
+        row[first_byte] |= first_mask;
+        if (last_byte > first_byte + 1) {
+          std::memset(row + first_byte + 1, 0xFF, last_byte - first_byte - 1);
+        }
+        row[last_byte] |= last_mask;
+      }
+    }
+  }
+  selection_lookup_bounds_ = bounds;
+  selection_lookup_bits_ = std::move(bits);
+  selection_lookup_valid_.store(true, std::memory_order_release);
+}
+
+bool CanvasWidget::selection_lookup_contains(QPoint point) const noexcept {
+  if (!selection_lookup_valid_.load(std::memory_order_acquire)) {
+    try {
+      build_selection_lookup();
+    } catch (...) {
+      return selection_.contains(point);
+    }
+  }
+  if (selection_lookup_bits_.empty()) {
+    return selection_.contains(point);
+  }
+  if (!selection_lookup_bounds_.contains(point)) {
+    return false;
+  }
+  const auto local_x = point.x() - selection_lookup_bounds_.left();
+  const auto local_y = point.y() - selection_lookup_bounds_.top();
+  const auto stride = static_cast<std::size_t>((selection_lookup_bounds_.width() + 7) / 8);
+  const auto byte = selection_lookup_bits_[static_cast<std::size_t>(local_y) * stride +
+                                           static_cast<std::size_t>(local_x >> 3)];
+  return ((byte >> (local_x & 7)) & 1U) != 0U;
 }
 
 bool CanvasWidget::selection_has_partial_alpha() const noexcept {
@@ -981,6 +1071,7 @@ void stroke_marching_ants(QPainter& painter, const QPolygon& polyline, int dash_
 void CanvasWidget::invalidate_selection_outline() noexcept {
   selection_outline_dirty_ = true;
   selection_outline_screen_valid_ = false;
+  invalidate_selection_lookup();
 }
 
 void CanvasWidget::ensure_selection_outline_screen_path() const {
@@ -1013,8 +1104,11 @@ void CanvasWidget::ensure_selection_outline_screen_path() const {
 }
 
 void CanvasWidget::draw_selection_overlay(QPainter& painter) const {
+  // A crop session adopted the selection as its box; the ants would only
+  // shadow it (and go stale as the box moves).
+  const bool hidden_by_crop = tool_ == CanvasTool::Crop && crop_session_active_ && crop_box_from_selection_;
   if (!quick_mask_active_ && !selection_.isEmpty() &&
-      selection_edges_visible_) {
+      selection_edges_visible_ && !hidden_by_crop) {
     ensure_selection_outline_screen_path();
     if (!selection_outline_screen_paths_.marching.isEmpty()) {
       stroke_marching_ants(painter, selection_outline_screen_paths_.marching, selection_dash_offset_);
@@ -1265,11 +1359,12 @@ std::optional<QRect> CanvasWidget::resizable_marquee_rect() const {
   return marquee_shape_->rect;
 }
 
-CanvasWidget::TransformHandle CanvasWidget::marquee_resize_handle_at(QPoint widget_point,
-                                                                     Qt::KeyboardModifiers modifiers) const {
+CanvasWidget::TransformHandle CanvasWidget::marquee_resize_handle_at(QPoint widget_point) const {
   const auto rect = resizable_marquee_rect();
-  // Shift/Alt at the press mean Add/Subtract, exactly as for the interior move.
-  if (!rect.has_value() || selection_operation(modifiers) != SelectionMode::Replace) {
+  // Unlike the interior move, the handles ignore the combine modifiers: Alt on
+  // a handle is the symmetric resize (so the cursor must not promise Subtract)
+  // and Shift holds the aspect (GitHub issue 66).
+  if (!rect.has_value()) {
     return TransformHandle::None;
   }
   const auto handle = transform_handle_at(widget_point, QRectF(*rect), 0.0);
@@ -1308,7 +1403,13 @@ void CanvasWidget::update_marquee_resize_drag(QPoint document_point, Qt::Keyboar
   const auto corner = (moves_left || moves_right) && (moves_top || moves_bottom);
 
   QRect rect;
-  if (corner && (modifiers & Qt::ShiftModifier) != 0 && start.height() > 0) {
+  const bool holds_aspect = corner && (modifiers & Qt::ShiftModifier) != 0 && start.height() > 0;
+  if ((modifiers & Qt::AltModifier) != 0) {
+    // Alt resizes about the center, the opposite side mirroring the dragged one
+    // (GitHub issue 66), whether held at the grab or pressed mid-drag.
+    rect = center_anchored_handle_rect(start, moves_left || moves_right, moves_top || moves_bottom, point,
+                                       holds_aspect ? static_cast<double>(start.width()) / start.height() : 0.0);
+  } else if (holds_aspect) {
     // Shift on a corner holds the drag-start aspect (the crop handle rule). The
     // options-bar Style only shapes drag-outs, so it does not bind here.
     const auto target_ratio = static_cast<double>(start.width()) / start.height();
@@ -1742,16 +1843,24 @@ void CanvasWidget::combine_selection_from_mask(QRegion candidate, QRect candidat
     return;
   }
 
-  QImage combined(bounds.size(), QImage::Format_Grayscale8);
-  combined.fill(0);
+  // A noncontiguous wand can have hundreds of thousands of region spans.
+  // QRegion::contains scans those spans, so calling it for every output pixel
+  // stalls the UI. Rasterize the hard snapshot once into the destination and
+  // combine it in place; soft snapshots already provide constant-time coverage.
+  const bool hard_base = selection_mask_before_edit_alpha_.isNull();
+  QImage combined = hard_base ? hard_mask_from_region(selection_before_edit_, bounds)
+                              : QImage(bounds.size(), QImage::Format_Grayscale8);
+  if (!hard_base) {
+    combined.fill(0);
+  }
   for (int y = 0; y < bounds.height(); ++y) {
     auto* dst = combined.scanLine(y);
     const auto document_y = bounds.y() + y;
     for (int x = 0; x < bounds.width(); ++x) {
       const QPoint point(bounds.x() + x, document_y);
       const auto base_alpha =
-          selection_mask_before_edit_alpha_.isNull()
-              ? static_cast<std::uint8_t>(selection_before_edit_.contains(point) ? 255 : 0)
+          hard_base
+              ? dst[x]
               : alpha_at(selection_mask_before_edit_alpha_, selection_mask_before_edit_bounds_, point);
       const auto candidate_value = alpha_at(candidate_alpha, candidate_bounds, point);
 

@@ -53,6 +53,7 @@
 #include "ui/gradient_library.hpp"
 #include "ui/gradient_manager_dialog.hpp"
 #include "ui/gradient_preset_popup.hpp"
+#include "ui/curved_slider.hpp"
 #include "ui/dialog_utils.hpp"
 #include "ui/document_float_window.hpp"
 #include "ui/font_picker.hpp"
@@ -249,10 +250,6 @@
 #include <dwmapi.h>
 #include <tchar.h>
 #include <tpcshrd.h>
-#endif
-
-#ifndef PATCHY_VERSION
-#define PATCHY_VERSION "0.0.0"
 #endif
 
 // Icon resources live in the static patchy_ui library; force registration before first use.
@@ -1039,6 +1036,7 @@ bool MainWindow::show_pixel_lock_message_if_all_locked(const std::vector<LayerId
 }
 
 void MainWindow::set_active_layer_from_selection() {
+  if (!updating_layer_controls_) finish_pending_shape_appearance_edit();
   if (updating_layer_controls_) {
     return;
   }
@@ -1082,6 +1080,16 @@ void MainWindow::set_active_layer_from_selection() {
   };
   selection_progress();
   const auto selected_ids = selected_layer_ids();
+  // A click on the panel's blank area empties the selection while Qt keeps the
+  // current row; that is the user deselecting every layer, so the active layer
+  // goes too (the Move tool's transform box otherwise stayed on the old active
+  // layer, Seth, October 2026). Rebuilds run under a signal blocker and never
+  // get here; an empty list has nothing to deselect.
+  if (selected_ids.empty() && layer_list_->count() > 0 && has_active_document() &&
+      document().active_layer_id().has_value()) {
+    deselect_all_layers();
+    return;
+  }
   if (canvas_ != nullptr) {
     canvas_->set_selected_layer_ids(selected_ids);
   }
@@ -1092,7 +1100,21 @@ void MainWindow::set_active_layer_from_selection() {
   refresh_layer_alignment_action_states();
   selection_progress();
   if (layer_list_->currentItem() == nullptr) {
-    return;
+    // Deselecting every layer drops the current row as well. Rows selected
+    // afterwards without one (setSelected from a script or a test) would leave
+    // a selection with no active layer, so the topmost selected row becomes it.
+    QListWidgetItem* topmost = nullptr;
+    const auto selected_items = layer_list_->selectedItems();
+    for (auto* item : selected_items) {
+      if (topmost == nullptr || layer_list_->row(item) < layer_list_->row(topmost)) {
+        topmost = item;
+      }
+    }
+    if (topmost == nullptr) {
+      return;
+    }
+    const QSignalBlocker blocker(layer_list_);
+    layer_list_->setCurrentItem(topmost, QItemSelectionModel::NoUpdate);
   }
 
   const auto id = static_cast<LayerId>(layer_list_->currentItem()->data(kLayerIdRole).toULongLong());
@@ -1260,14 +1282,27 @@ void MainWindow::set_active_layer_blend(int index) {
     refresh_layer_controls();
     return;
   }
-  const auto ids = selected_or_active_layer_ids();
-  if (ids.empty()) {
-    return;
+  // Stepping through modes with the arrow keys or the wheel is one run and one
+  // undo entry, like an Opacity drag; the run ends after a pause or at the next
+  // history change or layer-control refresh.
+  if (!pending_layer_blend_edit_active_) {
+    if (!has_active_document()) {
+      return;
+    }
+    auto ids = selected_or_active_layer_ids();
+    if (ids.empty()) {
+      return;
+    }
+    push_undo_snapshot(tr("Blend mode"));
+    pending_layer_blend_ids_ = std::move(ids);
+    pending_layer_blend_edit_active_ = true;
+  }
+  if (layer_blend_idle_timer_ != nullptr) {
+    layer_blend_idle_timer_->start();
   }
   auto& doc = document();
-  push_undo_snapshot(tr("Blend mode"));
   Rect affected;
-  for (const auto id : ids) {
+  for (const auto id : pending_layer_blend_ids_) {
     auto* layer = doc.find_layer(id);
     if (layer == nullptr) {
       continue;
@@ -1276,6 +1311,14 @@ void MainWindow::set_active_layer_blend(int index) {
     affected = unite_rect(affected, layer_render_bounds(*layer));
   }
   canvas_->document_changed(to_qrect(affected));
+}
+
+void MainWindow::finish_pending_layer_blend_edit() {
+  if (layer_blend_idle_timer_ != nullptr) {
+    layer_blend_idle_timer_->stop();
+  }
+  pending_layer_blend_ids_.clear();
+  pending_layer_blend_edit_active_ = false;
 }
 
 void MainWindow::set_active_layer_visible(bool visible) {
@@ -1500,6 +1543,9 @@ void MainWindow::choose_text_color() {
     if (editor != nullptr) {
       editor->setProperty("patchy.documentTextColor", color);
       apply_text_color_to_active_editor();
+    } else {
+      // No session when the panel opened: the selected text layers take the color (issue 31).
+      apply_text_color_to_selected_layers_debounced(color);
     }
     refresh_color_buttons();
     statusBar()->showMessage(tr("Text color changed"));
@@ -1543,6 +1589,7 @@ void MainWindow::show_color_panel(bool foreground) {
         if (foreground) {
           canvas_->set_primary_color(color);
           apply_primary_color_to_active_text_editor(color);
+          apply_foreground_color_to_shape_paint(color);
           statusBar()->showMessage(tr("Foreground color changed"));
         } else {
           canvas_->set_secondary_color(color);
@@ -1686,6 +1733,27 @@ void MainWindow::refresh_gradient_controls_from_canvas() {
   }
 }
 
+namespace {
+
+// Settings keys for each selection tool's Feather and Anti-alias. Permanent identifiers.
+// Quick Select has no Anti-alias control; the Patch tool has neither and keeps the defaults.
+struct SelectionEdgeSettingKeys {
+  CanvasTool tool;
+  const char* feather;
+  const char* anti_alias;
+};
+
+constexpr std::array<SelectionEdgeSettingKeys, 6> kSelectionEdgeSettingKeys{{
+    {CanvasTool::Marquee, "tools/marqueeFeather", "tools/marqueeAntiAlias"},
+    {CanvasTool::EllipticalMarquee, "tools/ellipticalMarqueeFeather", "tools/ellipticalMarqueeAntiAlias"},
+    {CanvasTool::Lasso, "tools/lassoFeather", "tools/lassoAntiAlias"},
+    {CanvasTool::MagneticLasso, "tools/magneticLassoFeather", "tools/magneticLassoAntiAlias"},
+    {CanvasTool::MagicWand, "tools/wandFeather", "tools/wandAntiAlias"},
+    {CanvasTool::QuickSelect, "tools/quickSelectFeather", nullptr},
+}};
+
+}  // namespace
+
 void MainWindow::activate_tool(CanvasTool tool) {
   if (tool_action_group_ == nullptr) {
     return;
@@ -1757,6 +1825,17 @@ void MainWindow::load_tool_settings() {
   canvas_->set_wand_contiguous(settings.value(QStringLiteral("tools/wandContiguous"), canvas_->wand_contiguous()).toBool());
   canvas_->set_wand_sample_all_layers(
       settings.value(QStringLiteral("tools/wandSampleAllLayers"), canvas_->wand_sample_all_layers()).toBool());
+  for (const auto& keys : kSelectionEdgeSettingKeys) {
+    const auto index = static_cast<std::size_t>(CanvasWidget::selection_tool_index(keys.tool));
+    selection_feather_by_tool_[index] =
+        std::clamp(settings.value(QLatin1StringView(keys.feather), selection_feather_by_tool_[index]).toInt(), 0,
+                   kMaxSelectionFeatherRadius);
+    if (keys.anti_alias != nullptr) {
+      selection_antialias_by_tool_[index] =
+          settings.value(QLatin1StringView(keys.anti_alias), selection_antialias_by_tool_[index]).toBool();
+    }
+  }
+  apply_selection_edge_settings_for_tool(current_tool_);
   canvas_->set_quick_select_size(
       settings.value(QStringLiteral("tools/quickSelectSize"), canvas_->quick_select_size()).toInt());
   canvas_->set_quick_select_sample_all_layers(
@@ -1773,6 +1852,8 @@ void MainWindow::load_tool_settings() {
       settings.value(QStringLiteral("tools/magneticLassoFrequency"), canvas_->magnetic_lasso_frequency()).toInt());
   canvas_->set_show_transform_controls(
       settings.value(QStringLiteral("tools/showTransformControls"), true).toBool());
+  // Auto-Select is remembered across runs (GitHub issue 73).
+  canvas_->set_auto_select_layer(settings.value(QStringLiteral("tools/moveAutoSelect"), true).toBool());
   const auto transform_interpolation =
       settings.value(QStringLiteral("tools/transformInterpolation"),
                      static_cast<int>(CanvasWidget::TransformInterpolation::Bicubic))
@@ -1796,7 +1877,12 @@ void MainWindow::load_tool_settings() {
       std::clamp(settings.value(QStringLiteral("tools/cropRatioWidth"), 0.0).toDouble(), 0.0, 10000.0);
   current_crop_ratio_h_ =
       std::clamp(settings.value(QStringLiteral("tools/cropRatioHeight"), 0.0).toDouble(), 0.0, 10000.0);
-  canvas_->set_crop_ratio(current_crop_ratio_w_, current_crop_ratio_h_);
+  current_crop_style_ = std::clamp(settings.value(QStringLiteral("tools/cropStyle"), 0).toInt(), 0, 1);
+  if (crop_style_combo_ != nullptr) {
+    const QSignalBlocker blocker(crop_style_combo_);
+    crop_style_combo_->setCurrentIndex(current_crop_style_);
+  }
+  canvas_->set_crop_ratio(effective_crop_ratio_width(), effective_crop_ratio_height());
   // Patch mode and Transparent are deliberately session-only: every startup
   // begins at Source with Transparent off, because a persisted Destination or
   // Transparent reads as "the tool is broken" a session later. The retired
@@ -1940,8 +2026,8 @@ void MainWindow::load_tool_settings() {
       settings.value(QStringLiteral("tools/vectorStrokeWidth"), current_vector_stroke_width_).toDouble(),
       0.1, 1000.0);
   current_vector_line_weight_ = std::clamp(
-      settings.value(QStringLiteral("tools/vectorLineWeight"), current_vector_line_weight_).toInt(), 1,
-      1000);
+      settings.value(QStringLiteral("tools/vectorLineWeight"), current_vector_line_weight_).toDouble(), 1.0,
+      1000.0);
   if (auto* stroke_check = findChild<QCheckBox*>(QStringLiteral("vectorStrokeCheck"));
       stroke_check != nullptr) {
     QSignalBlocker blocker(stroke_check);
@@ -1952,7 +2038,7 @@ void MainWindow::load_tool_settings() {
     QSignalBlocker blocker(stroke_width);
     stroke_width->setValue(current_vector_stroke_width_);
   }
-  if (auto* line_weight = findChild<QSpinBox*>(QStringLiteral("vectorLineWeightSpin"));
+  if (auto* line_weight = findChild<QDoubleSpinBox*>(QStringLiteral("vectorLineWeightSpin"));
       line_weight != nullptr) {
     QSignalBlocker blocker(line_weight);
     line_weight->setValue(current_vector_line_weight_);
@@ -1996,6 +2082,13 @@ void MainWindow::load_tool_settings() {
   update_vector_swatch_icons();
   canvas_->set_fill_opacity(settings.value(QStringLiteral("tools/fillOpacity"), canvas_->fill_opacity()).toInt());
   canvas_->set_fill_softness(settings.value(QStringLiteral("tools/fillSoftness"), canvas_->fill_softness()).toInt());
+  canvas_->set_fill_tolerance(
+      settings.value(QStringLiteral("tools/fillTolerance"), canvas_->fill_tolerance()).toInt());
+  canvas_->set_fill_contiguous(
+      settings.value(QStringLiteral("tools/fillContiguous"), canvas_->fill_contiguous()).toBool());
+  canvas_->set_zoom_scrubby(settings.value(QStringLiteral("tools/zoomScrubby"), canvas_->zoom_scrubby()).toBool());
+  canvas_->set_zoom_tool_zooms_out(
+      settings.value(QStringLiteral("tools/zoomToolZoomsOut"), canvas_->zoom_tool_zooms_out()).toBool());
   const auto sync_fill_widget = [this](const QString& spin_name, const QString& slider_name, int value) {
     if (auto* spin = findChild<QSpinBox*>(spin_name); spin != nullptr) {
       QSignalBlocker blocker(spin);
@@ -2008,6 +2101,10 @@ void MainWindow::load_tool_settings() {
   };
   sync_fill_widget(QStringLiteral("fillOpacitySpin"), QStringLiteral("fillOpacitySlider"), canvas_->fill_opacity());
   sync_fill_widget(QStringLiteral("fillSoftnessSpin"), QStringLiteral("fillSoftnessSlider"), canvas_->fill_softness());
+  if (auto* spin = findChild<QSpinBox*>(QStringLiteral("fillToleranceSpin")); spin != nullptr) {
+    QSignalBlocker blocker(spin);
+    spin->setValue(canvas_->fill_tolerance());
+  }
   const auto gradient_method = settings.value(QStringLiteral("tools/gradientMethod"),
                                               static_cast<int>(canvas_->gradient_method()))
                                    .toInt();
@@ -2065,6 +2162,13 @@ void MainWindow::save_tool_settings() const {
   settings.setValue(QStringLiteral("tools/wandTolerance"), canvas_->wand_tolerance());
   settings.setValue(QStringLiteral("tools/wandContiguous"), canvas_->wand_contiguous());
   settings.setValue(QStringLiteral("tools/wandSampleAllLayers"), canvas_->wand_sample_all_layers());
+  for (const auto& keys : kSelectionEdgeSettingKeys) {
+    const auto index = static_cast<std::size_t>(CanvasWidget::selection_tool_index(keys.tool));
+    settings.setValue(QLatin1StringView(keys.feather), selection_feather_by_tool_[index]);
+    if (keys.anti_alias != nullptr) {
+      settings.setValue(QLatin1StringView(keys.anti_alias), selection_antialias_by_tool_[index]);
+    }
+  }
   settings.setValue(QStringLiteral("tools/quickSelectSize"), canvas_->quick_select_size());
   settings.setValue(QStringLiteral("tools/quickSelectSampleAllLayers"), canvas_->quick_select_sample_all_layers());
   settings.setValue(QStringLiteral("tools/quickSelectEnhanceEdge"), canvas_->quick_select_enhance_edge());
@@ -2072,11 +2176,15 @@ void MainWindow::save_tool_settings() const {
   settings.setValue(QStringLiteral("tools/magneticLassoEdgeContrast"), canvas_->magnetic_lasso_edge_contrast());
   settings.setValue(QStringLiteral("tools/magneticLassoFrequency"), canvas_->magnetic_lasso_frequency());
   settings.setValue(QStringLiteral("tools/showTransformControls"), canvas_->show_transform_controls());
+  // tools/moveAutoSelect is written by the options-bar checkbox itself, not here:
+  // tests flip the canvas flag directly and must not leak it into later windows.
   settings.setValue(QStringLiteral("tools/transformInterpolation"), static_cast<int>(canvas_->transform_interpolation()));
   settings.setValue(QStringLiteral("tools/cloneAligned"), canvas_->clone_aligned());
   settings.setValue(QStringLiteral("tools/retouchSampleAllLayers"), canvas_->retouch_sample_all_layers());
-  settings.setValue(QStringLiteral("tools/cropRatioWidth"), canvas_->crop_ratio_width());
-  settings.setValue(QStringLiteral("tools/cropRatioHeight"), canvas_->crop_ratio_height());
+  // The remembered ratio, not the canvas's: Size mode runs the canvas unconstrained.
+  settings.setValue(QStringLiteral("tools/cropRatioWidth"), current_crop_ratio_w_);
+  settings.setValue(QStringLiteral("tools/cropRatioHeight"), current_crop_ratio_h_);
+  settings.setValue(QStringLiteral("tools/cropStyle"), current_crop_style_);
   settings.setValue(QStringLiteral("tools/patternStampPatternId"), current_pattern_stamp_pattern_id_);
   settings.setValue(QStringLiteral("tools/patternStampAligned"), current_pattern_stamp_aligned_);
   settings.setValue(QStringLiteral("tools/healingDiffusion"), current_healing_diffusion_);
@@ -2143,6 +2251,10 @@ void MainWindow::save_tool_settings() const {
   }
   settings.setValue(QStringLiteral("tools/fillOpacity"), canvas_->fill_opacity());
   settings.setValue(QStringLiteral("tools/fillSoftness"), canvas_->fill_softness());
+  settings.setValue(QStringLiteral("tools/fillTolerance"), canvas_->fill_tolerance());
+  settings.setValue(QStringLiteral("tools/fillContiguous"), canvas_->fill_contiguous());
+  settings.setValue(QStringLiteral("tools/zoomScrubby"), canvas_->zoom_scrubby());
+  settings.setValue(QStringLiteral("tools/zoomToolZoomsOut"), canvas_->zoom_tool_zooms_out());
   settings.setValue(QStringLiteral("tools/gradientMethod"), static_cast<int>(canvas_->gradient_method()));
   settings.setValue(QStringLiteral("tools/gradientReverse"), canvas_->gradient_reverse());
   settings.setValue(QStringLiteral("tools/gradientOpacity"), canvas_->gradient_opacity());
@@ -2171,6 +2283,10 @@ void MainWindow::stash_active_brush_settings() {
   }
   current_fill_opacity_ = canvas_->fill_opacity();
   current_fill_softness_ = canvas_->fill_softness();
+  current_fill_tolerance_ = canvas_->fill_tolerance();
+  current_fill_contiguous_ = canvas_->fill_contiguous();
+  current_zoom_scrubby_ = canvas_->zoom_scrubby();
+  current_zoom_tool_zooms_out_ = canvas_->zoom_tool_zooms_out();
   current_quick_select_size_ = canvas_->quick_select_size();
   current_quick_select_sample_all_layers_ = canvas_->quick_select_sample_all_layers();
   current_quick_select_enhance_edge_ = canvas_->quick_select_enhance_edge();
@@ -2333,6 +2449,65 @@ void MainWindow::sync_transform_controls_from_canvas() {
   }
 }
 
+double MainWindow::effective_crop_ratio_width() const noexcept {
+  return current_crop_style_ == 0 ? current_crop_ratio_w_ : 0.0;
+}
+
+double MainWindow::effective_crop_ratio_height() const noexcept {
+  return current_crop_style_ == 0 ? current_crop_ratio_h_ : 0.0;
+}
+
+void MainWindow::apply_crop_style(int style) {
+  current_crop_style_ = std::clamp(style, 0, 1);
+  if (canvas_ != nullptr) {
+    // Size mode lifts the constraint (a custom box keeps its shape, the
+    // automatic frame grows back to the canvas); Ratio mode restores the
+    // remembered ratio, which re-fits the box like a fresh entry.
+    canvas_->set_crop_ratio(effective_crop_ratio_width(), effective_crop_ratio_height());
+  }
+  schedule_save_tool_settings();
+  refresh_options_bar();
+}
+
+void MainWindow::handle_crop_size_value_changed(bool horizontal, int value) {
+  if (canvas_ == nullptr || value < 1) {
+    return;
+  }
+  const auto rect = canvas_->crop_session_rect();
+  if (!rect.has_value() || rect->isEmpty()) {
+    return;
+  }
+  auto size = rect->size();
+  const bool linked = crop_link_size_button_ != nullptr && crop_link_size_button_->isChecked();
+  if (horizontal) {
+    size.setWidth(value);
+    if (linked) {
+      size.setHeight(std::max(1, static_cast<int>(std::lround(static_cast<double>(value) * rect->height() /
+                                                              rect->width()))));
+    }
+  } else {
+    size.setHeight(value);
+    if (linked) {
+      size.setWidth(std::max(1, static_cast<int>(std::lround(static_cast<double>(value) * rect->width() /
+                                                             rect->height()))));
+    }
+  }
+  canvas_->set_crop_session_size(size);  // notifies, which re-syncs both fields
+}
+
+bool MainWindow::crop_option_widget_visible(QWidget* widget) const {
+  const auto in = [widget](const std::vector<QWidget*>& widgets) {
+    return std::find(widgets.begin(), widgets.end(), widget) != widgets.end();
+  };
+  if (in(crop_ratio_option_widgets_)) {
+    return current_crop_style_ == 0;
+  }
+  if (in(crop_size_option_widgets_)) {
+    return current_crop_style_ == 1;
+  }
+  return true;
+}
+
 void MainWindow::sync_crop_ratio_preset_combo() {
   if (crop_ratio_preset_combo_ == nullptr || canvas_ == nullptr ||
       crop_ratio_preset_combo_->count() < 3) {
@@ -2394,7 +2569,8 @@ void MainWindow::refresh_options_bar() {
     // click), so they hide instead of stacking next to the session controls and
     // wrapping the bar onto a second row (which shifted the canvas down).
     const auto tool_matches = tools.empty() || std::find(tools.begin(), tools.end(), current_tool_) != tools.end();
-    return tool_matches && !transform_session_active && vector_option_widget_visible(mode_rules, widget);
+    return tool_matches && !transform_session_active && vector_option_widget_visible(mode_rules, widget) &&
+           crop_option_widget_visible(widget);
   };
   for (const auto& [widget, tools] : option_actions_) {
     if (widget != nullptr && !final_visibility(widget, tools) && !widget->isHidden()) {
@@ -2426,6 +2602,12 @@ void MainWindow::refresh_options_bar() {
         widget->objectName() == QStringLiteral("selectionFixedHeightSpin")) {
       enabled = enabled && current_marquee_style_ != CanvasWidget::MarqueeStyle::Normal;
     }
+    // The Zoom tool stays usable while a preview dialog locks editing, so its
+    // options row does too (build_options_bar tags those widgets).
+    const bool allowed_while_locked = widget->property("optionsBarAllowedWhileLocked").toBool();
+    if (allowed_while_locked) {
+      enabled = has_document;
+    }
     if (widget == brush_dynamics_button_ && brush_dynamics_button_ != nullptr) {
       // Enabled once a model is loaded (bitmap tip or the Round session); only the brief
       // pre-initialization state has neither.
@@ -2441,7 +2623,7 @@ void MainWindow::refresh_options_bar() {
     if (auto* button = qobject_cast<QToolButton*>(widget);
         button != nullptr && button->defaultAction() != nullptr) {
       button->defaultAction()->setVisible(visible);
-      button->defaultAction()->setEnabled(edit_allowed);
+      button->defaultAction()->setEnabled(allowed_while_locked ? has_document : edit_allowed);
     }
   }
 
@@ -2495,6 +2677,8 @@ void MainWindow::refresh_options_bar() {
   // The non-modal Character dialog grays out (and shows its click-in-text hint) whenever
   // no live editor session exists; every session boundary funnels through this refresh.
   sync_text_character_dialog_from_editor();
+  // With no session the font, size, face and smoothing controls mirror the active text layer.
+  sync_text_options_from_active_layer();
   if (show_warp_options && warp_style_combo_ != nullptr && warp_bend_spin_ != nullptr) {
     // Mirror the canvas state (a handle drag flips the style back to Custom).
     QSignalBlocker combo_blocker(warp_style_combo_);
@@ -2508,6 +2692,7 @@ void MainWindow::refresh_options_bar() {
     }
   }
   refresh_vector_tool_options_visibility();
+  refresh_vector_stroke_controls();
   if (options_flow_container_ != nullptr) {
     // Visibility changes alter how many controls there are, so recompute the
     // wrapped height and let the toolbar grow or shrink accordingly.
@@ -2539,14 +2724,31 @@ void MainWindow::refresh_options_bar() {
   if (crop_ratio_w_spin_ != nullptr && crop_ratio_h_spin_ != nullptr && canvas_ != nullptr) {
     const QSignalBlocker w_blocker(crop_ratio_w_spin_);
     const QSignalBlocker h_blocker(crop_ratio_h_spin_);
-    crop_ratio_w_spin_->setValue(canvas_->crop_ratio_width());
-    crop_ratio_h_spin_->setValue(canvas_->crop_ratio_height());
+    crop_ratio_w_spin_->setValue(current_crop_ratio_w_);
+    crop_ratio_h_spin_->setValue(current_crop_ratio_h_);
   }
   sync_crop_ratio_preset_combo();
-  const auto crop_session_active = canvas_ != nullptr && canvas_->crop_session_active();
+  if (crop_width_spin_ != nullptr && crop_height_spin_ != nullptr) {
+    // Size mode mirrors the pending box; without a session the fields rest.
+    const auto crop_rect = canvas_ != nullptr ? canvas_->crop_session_rect() : std::optional<QRect>{};
+    const QSignalBlocker w_blocker(crop_width_spin_);
+    const QSignalBlocker h_blocker(crop_height_spin_);
+    if (crop_rect.has_value()) {
+      crop_width_spin_->setValue(crop_rect->width());
+      crop_height_spin_->setValue(crop_rect->height());
+    }
+    for (QWidget* widget : {static_cast<QWidget*>(crop_width_spin_), static_cast<QWidget*>(crop_height_spin_),
+                            static_cast<QWidget*>(crop_link_size_button_)}) {
+      if (widget != nullptr) {
+        widget->setEnabled(edit_allowed && crop_rect.has_value());
+      }
+    }
+  }
+  // The canvas frame the tool starts with has nothing to apply or reset.
+  const auto crop_has_changes = canvas_ != nullptr && canvas_->crop_session_has_changes();
   for (auto* button : {crop_apply_button_, crop_cancel_button_}) {
     if (button != nullptr) {
-      button->setEnabled(edit_allowed && crop_session_active);
+      button->setEnabled(edit_allowed && crop_has_changes);
     }
   }
   if (patch_mode_combo_ != nullptr && canvas_ != nullptr) {
@@ -2598,6 +2800,18 @@ void MainWindow::refresh_options_bar() {
     QSignalBlocker blocker(wand_contiguous_check_);
     wand_contiguous_check_->setChecked(canvas_->wand_contiguous());
   }
+  if (fill_contiguous_check_ != nullptr && canvas_ != nullptr) {
+    QSignalBlocker blocker(fill_contiguous_check_);
+    fill_contiguous_check_->setChecked(canvas_->fill_contiguous());
+  }
+  if (zoom_scrubby_check_ != nullptr && canvas_ != nullptr) {
+    QSignalBlocker blocker(zoom_scrubby_check_);
+    zoom_scrubby_check_->setChecked(canvas_->zoom_scrubby());
+  }
+  if (zoom_in_mode_action_ != nullptr && zoom_out_mode_action_ != nullptr && canvas_ != nullptr) {
+    zoom_in_mode_action_->setChecked(!canvas_->zoom_tool_zooms_out());
+    zoom_out_mode_action_->setChecked(canvas_->zoom_tool_zooms_out());
+  }
   if (wand_sample_all_layers_check_ != nullptr && canvas_ != nullptr) {
     QSignalBlocker blocker(wand_sample_all_layers_check_);
     wand_sample_all_layers_check_->setChecked(canvas_->wand_sample_all_layers());
@@ -2617,7 +2831,7 @@ void MainWindow::refresh_options_bar() {
     }
     if (auto* slider = findChild<QSlider*>(QStringLiteral("quickSelectSizeSlider")); slider != nullptr) {
       QSignalBlocker blocker(slider);
-      slider->setValue(canvas_->quick_select_size());
+      set_slider_to_value(*slider, canvas_->quick_select_size());
     }
     if (auto* spin = findChild<QSpinBox*>(QStringLiteral("magneticLassoWidthSpin")); spin != nullptr) {
       QSignalBlocker blocker(spin);
@@ -2690,6 +2904,27 @@ void MainWindow::apply_selection_modes_to_canvas(CanvasWidget* canvas) {
   }
 }
 
+void MainWindow::apply_selection_edge_settings_for_tool(CanvasTool tool) {
+  const auto index = CanvasWidget::selection_tool_index(tool);
+  if (index < 0) {
+    return;
+  }
+  current_selection_feather_radius_ = selection_feather_by_tool_[static_cast<std::size_t>(index)];
+  current_selection_antialias_ = selection_antialias_by_tool_[static_cast<std::size_t>(index)];
+  if (canvas_ != nullptr) {
+    canvas_->set_selection_feather_radius(current_selection_feather_radius_);
+    canvas_->set_selection_antialias(current_selection_antialias_);
+  }
+  if (auto* feather = findChild<QSpinBox*>(QStringLiteral("selectionFeatherSpin")); feather != nullptr) {
+    const QSignalBlocker blocker(feather);
+    feather->setValue(current_selection_feather_radius_);
+  }
+  if (auto* anti_alias = findChild<QCheckBox*>(QStringLiteral("selectionAntiAliasCheck")); anti_alias != nullptr) {
+    const QSignalBlocker blocker(anti_alias);
+    anti_alias->setChecked(current_selection_antialias_);
+  }
+}
+
 MainWindow::PreviewDialogEditLock::PreviewDialogEditLock(MainWindow& window) noexcept : window_(&window) {
   window_->begin_preview_dialog_edit_lock();
 }
@@ -2720,7 +2955,7 @@ void MainWindow::sync_brush_controls_from_canvas() {
   if (auto* brush_size_slider = findChild<QSlider*>(QStringLiteral("brushSizeSlider"));
       brush_size_slider != nullptr) {
     QSignalBlocker blocker(brush_size_slider);
-    brush_size_slider->setValue(canvas_->brush_size());
+    set_slider_to_value(*brush_size_slider, canvas_->brush_size());
   }
   if (auto* brush_opacity = findChild<QSpinBox*>(QStringLiteral("brushOpacitySpin")); brush_opacity != nullptr) {
     QSignalBlocker blocker(brush_opacity);

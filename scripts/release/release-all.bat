@@ -6,7 +6,10 @@ rem   - macOS:   scripts\remote\release-mac.bat (build on the mac build host, si
 rem   - Linux:   scripts\remote\release-linux.bat (build on the linux build host, flatpak bundle)
 rem   - Web:     build-wasm.bat (local Qt-for-WebAssembly build, staged for rtsoft.com/patchy)
 rem Every builder deletes its previous artifacts up front, so a failed window leaves
-rem nothing stale behind. When all three windows are done, run upload-to-rtsoft.bat.
+rem nothing stale behind. After all four builders and the required tests pass, commit
+rem the build tree with latest_version.json still announcing the old release.
+rem Upload the mirror, push the build commit, then publish the GitHub release.
+rem Verify its public downloads before committing/pushing the new update manifest.
 rem Launch the builders by full path: cmd won't search the current directory for a
 rem bare command name when NoDefaultCurrentDirectoryInExePath is set (non-interactive
 rem shells set it), and the console closes too fast to read the error. See

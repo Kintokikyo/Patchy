@@ -42,7 +42,7 @@ std::uint32_t read_u32_at(std::span<const std::uint8_t> bytes, std::size_t offse
 
 // Walks the 26-byte path records: selector 6 (fill rule) and 8 (initial fill)
 // header records, then per subpath a length record (selector 0 closed /
-// 3 open: knot count, combine op, constant 1, subpath/shape-group index)
+// 3 open: knot count, combine op, fill-rule field, subpath/shape-group index)
 // followed by its knot records (1/2 closed linked/corner, 4/5 open). Knot
 // records hold (in, anchor, out) pairs, each (y, x) as i32 8.24 fixed-point
 // fractions of the canvas extent. Selector 7 (clipboard) is skipped; any
@@ -70,13 +70,24 @@ std::optional<VectorPath> parse_records(std::span<const std::uint8_t> payload, s
         }
         const auto knot_count = read_u16_at(record, 2);
         auto operation = read_u16_at(record, 4);
+        const auto shape_group = static_cast<std::int32_t>(read_u32_at(record, 12));
         if (operation == 0xFFFFU) {
-          // CS4-era length records leave the combine op unset (0xFFFF, with the
-          // modern constant-1 field 0): legacy shapes fill by subpath parity.
-          // Xor over the accumulated coverage reproduces that in the sequential
-          // renderer, matching Photoshop's own composite of such files (the
-          // Flat-filter-list.psd icons render nested cutouts as holes).
-          operation = 0U;
+          if (current != nullptr && current->shape_group == shape_group) {
+            // Continuation contour of a compound group (Photoshop's own
+            // encoding for Convert to Shape outlines and custom shapes, and
+            // Patchy's since September 2026): op 0xFFFF, +6 field 0, the
+            // group's index. The group's lead record carries the op; the
+            // renderer fills the group's contours together (even-odd).
+            operation = static_cast<std::uint16_t>(current->op);
+          } else {
+            // CS4-era length records leave the combine op unset (0xFFFF, with
+            // the modern constant-1 field 0) on contours with distinct group
+            // indices: legacy shapes fill by subpath parity. Xor over the
+            // accumulated coverage reproduces that in the sequential renderer,
+            // matching Photoshop's own composite of such files (the
+            // Flat-filter-list.psd icons render nested cutouts as holes).
+            operation = 0U;
+          }
         }
         if (operation > 3U) {
           return std::nullopt;
@@ -84,7 +95,7 @@ std::optional<VectorPath> parse_records(std::span<const std::uint8_t> payload, s
         PathSubpath subpath;
         subpath.closed = selector == 0;
         subpath.op = static_cast<PathCombineOp>(operation);
-        subpath.shape_group = static_cast<std::int32_t>(read_u32_at(record, 12));
+        subpath.shape_group = shape_group;
         subpath.anchors.reserve(knot_count);
         path.subpaths.push_back(std::move(subpath));
         current = &path.subpaths.back();
@@ -157,6 +168,12 @@ std::optional<VectorFill> parse_fill_content(VectorFillKind kind, const Descript
     }
     case VectorFillKind::Gradient: {
       fill.gradient = parse_layer_style_gradient(object, cmyk);
+      // A gradient FILL layer without an 'Angl' key runs at 0 degrees (left to right),
+      // not at the 90 a gradient effect defaults to: Photoshop draws psd-tools'
+      // gradient-styles.psd noise fills, which omit the key, as vertical bands.
+      if (descriptor_value(object, "Angl") == nullptr) {
+        fill.gradient.angle_degrees = 0.0F;
+      }
       if (fill.gradient.form == GradientDefinitionForm::Solid && fill.gradient.color_stops.empty()) {
         return std::nullopt;
       }
@@ -462,13 +479,23 @@ void append_path_records(std::vector<std::uint8_t>& out, const VectorPath& path,
   auto initial_fill = append_record();
   write_u16_at(out, initial_fill, 8);
   write_u16_at(out, initial_fill + 2, path.initial_fill_value);
+  const PathSubpath* previous = nullptr;
   for (const auto& subpath : path.subpaths) {
+    // A subpath sharing the previous record's group is a continuation contour
+    // of one compound shape: op 0xFFFF and +6 field 0, so Photoshop fills it
+    // with the group's lead contour under one fill rule instead of uniting it
+    // as a separate shape (which fills a donut solid). The lead keeps its op
+    // and +6 field 1 (even-odd group; 2 would select nonzero winding), the
+    // rule Patchy's renderer applies within a group. Single-subpath groups are
+    // unchanged (docs/vector-tools.md, docs/ps-compat.md).
+    const bool continuation = previous != nullptr && previous->shape_group == subpath.shape_group;
     const auto length_record = append_record();
     write_u16_at(out, length_record, subpath.closed ? 0 : 3);
     write_u16_at(out, length_record + 2, static_cast<std::uint16_t>(subpath.anchors.size()));
-    write_u16_at(out, length_record + 4, static_cast<std::uint16_t>(subpath.op));
-    write_u16_at(out, length_record + 6, 1);
+    write_u16_at(out, length_record + 4, continuation ? 0xFFFFU : static_cast<std::uint16_t>(subpath.op));
+    write_u16_at(out, length_record + 6, continuation ? 0U : 1U);
     write_i32_at(out, length_record + 12, subpath.shape_group);
+    previous = &subpath;
     for (const auto& anchor : subpath.anchors) {
       const auto knot = append_record();
       const std::uint16_t selector =
@@ -588,6 +615,30 @@ DescriptorObject gradient_object(const LayerStyleGradient& gradient) {
   object.name = "Gradient";
   object.class_id = "Grdn";
   put_value(object, "Nm  ", make_text_value(gradient.name));
+  if (gradient.form == GradientDefinitionForm::Noise) {
+    // Photoshop's noise form, keys and order from its own fill layers (psd-tools'
+    // noise-gradient-rgb.psd): no stop lists, and the channel ranges as doubles.
+    put_value(object, "GrdF", make_enum_value("GrdF", "ClNs"));
+    put_value(object, "ShTr", make_bool_value(gradient.noise.add_transparency));
+    put_value(object, "VctC", make_bool_value(gradient.noise.restrict_colors));
+    put_value(object, "ClrS",
+              make_enum_value("ClrS", gradient.noise.color_model == GradientNoiseColorModel::HSB   ? "HSBC"
+                                      : gradient.noise.color_model == GradientNoiseColorModel::Lab ? "LABC"
+                                                                                                   : "RGBC"));
+    put_value(object, "RndS", make_long_value(static_cast<std::int32_t>(gradient.noise.seed)));
+    put_value(object, "Smth", make_long_value(gradient.noise.roughness));
+    const auto range = [](const std::array<std::uint16_t, 4>& values) {
+      DescriptorValue list;
+      list.type = DescriptorValue::Type::List;
+      for (const auto value : values) {
+        list.list_value.push_back(make_double_value(static_cast<double>(std::min<std::uint16_t>(value, 100))));
+      }
+      return list;
+    };
+    put_value(object, "Mnm ", range(gradient.noise.minimum));
+    put_value(object, "Mxm ", range(gradient.noise.maximum));
+    return object;
+  }
   put_value(object, "GrdF", make_enum_value("GrdF", "CstS"));
   put_value(object, "Intr", make_double_value(gradient.smoothness));
   DescriptorValue colors;
@@ -609,7 +660,22 @@ DescriptorObject gradient_object(const LayerStyleGradient& gradient) {
   put_value(object, "Clrs", std::move(colors));
   DescriptorValue transparency;
   transparency.type = DescriptorValue::Type::List;
-  for (const auto& stop : gradient.alpha_stops) {
+  // Photoshop's own gradients always carry at least two transparency stops. A gradient authored
+  // without any (the scripting API's gradient fills) used to write an empty Trns list, which
+  // Photoshop 2026 treats as unknown data: the "discard unknown data to keep layers editable"
+  // prompt on open, and the gradient layer comes back empty. Fully opaque end stops say what
+  // an absent list meant.
+  auto alpha_stops = gradient.alpha_stops;
+  if (alpha_stops.empty()) {
+    GradientAlphaStop opaque;
+    opaque.opacity = 1.0F;
+    opaque.location = 0.0F;
+    opaque.midpoint = 0.5F;
+    alpha_stops.push_back(opaque);
+    opaque.location = 1.0F;
+    alpha_stops.push_back(opaque);
+  }
+  for (const auto& stop : alpha_stops) {
     DescriptorObject alpha_stop;
     alpha_stop.class_id = "TrnS";
     put_value(alpha_stop, "Opct", make_unit_value("#Prc", stop.opacity * 100.0F));
@@ -791,12 +857,16 @@ std::vector<std::uint8_t> vector_fill_block_payload(const VectorFill& fill,
                                                     const UnknownPsdBlock* original) {
   // Patch-in-place: parse the original descriptor and overwrite only the
   // modeled keys so unmodeled data and id forms survive byte-exactly.
+  // A gradient without transparency stops is a Patchy-authored defect (an empty Trns list
+  // Photoshop rejects), never an original worth keeping byte-exact: patch it so the
+  // gradient_object default stops land in the block.
+  const bool heals_gradient_stops = fill.kind == VectorFillKind::Gradient && fill.gradient.alpha_stops.empty();
   if (original != nullptr) {
     // Photoshop stores color doubles the 8-bit model quantizes (213.9995...);
     // when the model still equals the original's parse, keep its exact bytes.
     if (const auto reparsed =
             parse_vector_fill_block(original->key, original->payload, CmykColorConverter{});
-        reparsed.has_value() && *reparsed == fill) {
+        !heals_gradient_stops && reparsed.has_value() && *reparsed == fill) {
       return original->payload;
     }
     if (auto descriptor = read_block_descriptor(original->payload); descriptor.has_value()) {
@@ -816,9 +886,11 @@ std::vector<std::uint8_t> vector_fill_block_payload(const VectorFill& fill,
 std::vector<std::uint8_t> vector_stroke_block_payload(const VectorStroke& stroke,
                                                       const UnknownPsdBlock* original) {
   DescriptorObject descriptor;
+  const bool heals_gradient_stops =
+      stroke.content.kind == VectorFillKind::Gradient && stroke.content.gradient.alpha_stops.empty();
   if (original != nullptr) {
     if (const auto reparsed = parse_vector_stroke_block(original->payload, CmykColorConverter{});
-        reparsed.has_value() && *reparsed == stroke) {
+        !heals_gradient_stops && reparsed.has_value() && *reparsed == stroke) {
       return original->payload;
     }
     if (auto parsed = read_block_descriptor(original->payload);
@@ -1201,6 +1273,9 @@ void finalize_vector_layers(Document& document) {
           update_vector_shape_raster(layer, canvas, &document.metadata().patterns);
         } else {
           layer.metadata()[kLayerMetadataVectorRasterStatus] = kVectorRasterStatusPhotoshop;
+          // Photoshop's pixels stay, but its effects follow the shape, not those
+          // pixels' alpha: record the silhouette beside them.
+          refresh_vector_shape_effect_matte(layer, canvas, &document.metadata().patterns);
         }
       }
       if (layer.vector_mask() != nullptr && layer.vector_mask()->cache.empty()) {

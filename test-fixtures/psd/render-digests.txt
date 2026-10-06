@@ -1,4 +1,6 @@
-4c6e0fcdb5d7cbaa 0cc0c4c365647c1c arrows.psd
+4fb87fbb0fb9f33e baf856074f265c85 arrows.psd
+f0e4b6fa1a4a423f 7b0b17b25ffc630d patchy-compound-group.psd
+284d06ae2c65ce6d 82b3b2f76a478139 patchy-gradient-empty-transparency.psd
 d9abf014b16ca2f3 d416c48ba5c4bc3d patchy-open-path-strokes.psd
 2b395ed4c9c29125 db597474773a16b5 photoshop-bevel-default.psd
 d7827ce82dff1295 4f9d639a6c4e7af3 photoshop-bevel-gloss.psd
@@ -12,10 +14,12 @@ dff91f04e9037b1d f85231cf2f579c75 photoshop-both-masks-params.psd
 0407e7f5209e8df5 01f79d9a7acab8f5 photoshop-brightness-contrast-legacy.psd
 b0b3f988dd6a07cd b7070b9de475b945 photoshop-brightness-contrast-modern.psd
 dbe44fcc955c8025 241f758e61704165 photoshop-channel-restrictions.psd
+9750c045d9803085 3ea89ceacb80d1b5 photoshop-clip-base-effects.psd
 1d70dd256c3b0325 745dac33488e4c25 photoshop-clipping-mask.psd
 f980a29156bff7cf 5eb6a1308b31a4eb photoshop-cmyk-style-colors.psd
 cf8b789d734b2b2d 3a35db9013be5915 photoshop-color-balance-full.psd
 cf8b789d734b2b2d 3a35db9013be5915 photoshop-color-balance.psd
+432be6fb3533c8d8 c6dfa66168a0e490 photoshop-compound-text.psd
 9566d90f9991a025 48484118f51d9c65 photoshop-curves-clipped.psd
 eed6fe7f2ba81d25 60373566b39eefe5 photoshop-curves-masked.psd
 66abb1ecd47ae989 2621b901bd1dc22d photoshop-emboss-styles.psd
@@ -50,7 +54,7 @@ d1abcfd0649a38a5 849ec64ba0dc8195 photoshop-overlay-zorder.psd
 da64301c77f04f07 010d39bf542aecf1 photoshop-pillow-emboss.psd
 ba2397d422fe731c 75eb76c4bd30efb0 photoshop-pillow-emboss2.psd
 a249d71db1be5e65 f2bf42dce8c3d975 photoshop-place-embedded-png.psd
-8d7542b92d5cfc25 6172dacee58c68f5 photoshop-posterize.psd
+ec1f2e9f6c50d965 42c85c4798ac2b3d photoshop-posterize.psd
 a3e5865ff16598cd ac8d6e5efff37547 photoshop-satin-default.psd
 02b99a68d9993a25 6d766669eb7987e5 photoshop-saved-channels.psd
 0d65b7532d396325 fe4ec469d4f39325 photoshop-saved-paths.psd
@@ -63,6 +67,7 @@ df9ef81f9987b96d bb2d8e2794a03819 photoshop-shape-gradient.psd
 55aebce64a43ded0 ac08986158b2bf56 photoshop-shape-pattern.psd
 f6d5a6e903ff35df 8c1dd51eb6355d53 photoshop-shape-solid.psd
 cd31e6edc8e597c9 3c72c11a14a9a94f photoshop-shape-strokes.psd
+d884b4a413fd4884 14911349c5e35d82 photoshop-size-zero-effects.psd
 d1ed7990ee556233 89f51fd5a4313af5 photoshop-smart-filter-add-noise-gaussian.psd
 77d30efc9669a292 b24cbcd2a9f6f68a photoshop-smart-filter-add-noise.psd
 c34cf6d3a2b44849 ec07eaf898b0a29d photoshop-smart-filter-box-blur.psd
@@ -82,10 +87,10 @@ ded4f5c909bc30a9 c0a39197fc4785c3 photoshop-smart-filter-radial-blur.psd
 a249d71db1be5e65 f2bf42dce8c3d975 photoshop-smart-filter-surface-blur.psd
 9902247d97007efc 9a1663806ac7eb76 photoshop-smart-filter-tilt-shift.psd
 397e22fa60481e89 dbfae9e1a8960a76 photoshop-smart-filter-unsharp-motion.psd
-4af22a3accc3efbe bbfcf290ea868b00 photoshop-stroke-aa-matte.psd
+0584e4cdd7f5013c fae153247444d536 photoshop-stroke-aa-matte.psd
 389082952c00905d 1aef2000219e220d photoshop-stroke-masked.psd
-17661ca453d120cd 3c2ca6fa0702f141 photoshop-stroke-overprint.psd
-3dab549b59a8e909 31fdbc9e993cd751 photoshop-stroke-partial-alpha.psd
+3088ab19ceb8e24d 4c0bca53d2ee9e75 photoshop-stroke-overprint.psd
+f0fa2f6b93c20755 342ed7cddef82515 photoshop-stroke-partial-alpha.psd
 bd09d2e4364e4f7d 86ca8a884788408d photoshop-stroke-positions.psd
 617a8e6ef090d264 17f41a2d949ef82e photoshop-stroke-shapeburst.psd
 0aca6eb068b2c319 9d6ce1e6cb3c5e8b photoshop-text-anchor-center-third.psd

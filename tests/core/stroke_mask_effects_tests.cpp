@@ -187,6 +187,29 @@ void psd_blend_interior_elements_round_trip() {
   }
 }
 
+void psd_blend_clipped_elements_round_trip() {
+  // "Blend Clipped Layers as Group" ('clbl'). Photoshop's default is on and it
+  // reads absence as on, so only the off state writes a block; an imported
+  // explicit block is regenerated from the model rather than re-emitted raw.
+  for (const auto grouped : {true, false}) {
+    patchy::Document document(4, 2, patchy::PixelFormat::rgb8());
+    auto& layer = document.add_pixel_layer("Styled", solid_rgba(4, 2, 10, 20, 30, 255));
+    layer.layer_style().blend_clipped_elements = grouped;
+
+    const auto bytes = patchy::psd::DocumentIo::write_layered_rgb8(document);
+    const auto payload = psd_layer_block_payload(psd_first_layer_extra_data(bytes), "clbl");
+    CHECK(payload.has_value() == !grouped);
+    if (payload.has_value()) {
+      CHECK(payload->size() == 4U);
+      CHECK((*payload)[0] == 0U);
+    }
+
+    const auto read = patchy::psd::DocumentIo::read(bytes);
+    CHECK(read.layers().size() == 1);
+    CHECK(read.layers().front().layer_style().blend_clipped_elements == grouped);
+  }
+}
+
 void psd_channel_restrictions_round_trip() {
   // Advanced Blending "Channels" ('brst'): ascending big-endian u32 indices of
   // the EXCLUDED channels, written only when at least one channel is
@@ -411,15 +434,12 @@ void psd_photoshop_mask_hides_effects_fixture_clips_shadow() {
 }
 
 void layer_stroke_outlines_semi_transparent_regions_without_fill() {
-  // Content under a UNIFORM 50% gray layer mask keeps its raw-pixel stroke
-  // contour: only fully-black mask regions reshape the shape (see
-  // layer_stroke_follows_mask_contour). The band paints at full strength — the
-  // July 2026 PS re-probe killed the old "mask attenuates the stroke where it
-  // lands" model. Fractional mask values also must not fold into the coverage
-  // math: the pre-June-2026 formula derived the stroke from alpha x mask and
-  // painted a constant wash across the region's whole interior. (Photoshop
-  // actually composites gray masks with its content-knockout model — the same
-  // documented divergence as semi-transparent fills, docs/ps-compat.md.)
+  // Content under a UNIFORM 50% gray layer mask: the mask value is part of the
+  // content's alpha, so the semi-transparent rules apply (Photoshop 2026 COM
+  // probe, October 2026, local-test-fixtures/stroke-alpha-probes/mask50_out100):
+  // the interior reads half content, half stroke, (137, 45, 100) for this blue
+  // under a red Outside stroke, and the band outside paints at full strength
+  // along the raw-pixel contour (the gray mask neither moves nor attenuates it).
   patchy::Document document(64, 64, patchy::PixelFormat::rgb8());
   document.add_pixel_layer("Background", solid_rgb(64, 64, 255, 255, 255));
   patchy::Layer stroked(document.allocate_layer_id(), "Stroked", solid_rgba(32, 32, 20, 90, 200, 255));
@@ -437,12 +457,8 @@ void layer_stroke_outlines_semi_transparent_regions_without_fill() {
   document.add_layer(std::move(stroked));
 
   const auto flattened = patchy::Compositor{}.flatten_rgb8(document);
-  // Interior of the square: half-visible blue content, no red stroke wash.
   const auto* interior = flattened.pixel(32, 32);
-  CHECK(interior[2] > 200);
-  CHECK(interior[0] < 150);
-  // Just outside the square: the full-strength stroke band along the pixel
-  // contour (the gray mask neither moves nor attenuates it).
+  CHECK(std::abs(interior[0] - 137) <= 3 && std::abs(interior[1] - 45) <= 3 && std::abs(interior[2] - 100) <= 3);
   const auto* edge = flattened.pixel(14, 32);
   CHECK(edge[0] > 240);
   CHECK(edge[1] < 40);
@@ -828,21 +844,23 @@ void psd_photoshop_stroke_positions_fixture_matches() {
 void psd_photoshop_stroke_partial_alpha_fixture_matches() {
   // Photoshop-authored reference: regions painted at 100% (x8..28), 50% (x28..56),
   // and 25% alpha (y40..52) with a green 3px outside stroke. Photoshop treats any
-  // painted pixel as inside the stroked shape — the stroke fills the binary shape
-  // and the content covers it per its alpha — so semi-transparent regions show a
-  // green wash, while the opaque region stays clean. Expectations measured from
-  // Photoshop 2026's render.
+  // painted pixel as inside the stroked shape: the stroke fills the shape beneath
+  // the content, which covers it by its own alpha (the Photoshop 2026 render,
+  // re-sampled via COM in October 2026: the 50% region is exactly half content
+  // (200, 30, 30) and half green, (100, 142, 15); the 25% region (50, 199, 8); no
+  // backdrop shows through either). The opaque region stays clean.
   const auto document = patchy::psd::DocumentIo::read_file(
       patchy::test::committed_psd_fixture_path("photoshop-stroke-partial-alpha.psd"));
   const auto rendered = patchy::Compositor{}.flatten_rgb8(document);
-  const auto* opaque = rendered.pixel(16, 24);
-  CHECK(opaque[0] > 150 && opaque[1] < 110);  // 100% region: pure content, no stroke
-  const auto* half = rendered.pixel(44, 24);
-  CHECK(half[1] > 150 && half[1] > half[0] + 30);  // 50% region: stroke shows through
-  const auto* quarter = rendered.pixel(32, 46);
-  CHECK(quarter[1] > 200 && quarter[0] < 110);  // 25% region: stroke dominates
-  const auto* band = rendered.pixel(6, 24);
-  CHECK(band[1] > 200 && band[0] < 80);  // outer band at full strength
+  const auto expect = [&](int x, int y, int r, int g, int b, int tolerance) {
+    const auto* px = rendered.pixel(x, y);
+    CHECK(std::abs(px[0] - r) <= tolerance && std::abs(px[1] - g) <= tolerance && std::abs(px[2] - b) <= tolerance);
+  };
+  expect(16, 24, 200, 30, 30, 2);   // 100% region: pure content, no stroke
+  expect(44, 24, 100, 142, 15, 3);  // 50% region: half content, half stroke
+  expect(32, 46, 50, 199, 8, 3);    // 25% region: a quarter content, the rest stroke
+  expect(6, 24, 0, 255, 0, 2);      // outer band at full strength
+  expect(32, 53, 0, 255, 0, 2);     // the band below the 25% strip is full too
 }
 
 // Shared canvas for the Overprint knockout cases: orange backdrop, opaque
@@ -1230,6 +1248,7 @@ std::vector<patchy::test::TestCase> stroke_mask_effects_tests() {
       {"layer_mask_shapes_effects_regardless_of_link", layer_mask_shapes_effects_regardless_of_link},
       {"psd_layer_mask_hides_effects_round_trip", psd_layer_mask_hides_effects_round_trip},
       {"psd_blend_interior_elements_round_trip", psd_blend_interior_elements_round_trip},
+      {"psd_blend_clipped_elements_round_trip", psd_blend_clipped_elements_round_trip},
       {"psd_channel_restrictions_round_trip", psd_channel_restrictions_round_trip},
       {"psd_channel_restrictions_unsupported_payload_preserved",
        psd_channel_restrictions_unsupported_payload_preserved},

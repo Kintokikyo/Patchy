@@ -244,10 +244,6 @@
 #include <tpcshrd.h>
 #endif
 
-#ifndef PATCHY_VERSION
-#define PATCHY_VERSION "0.0.0"
-#endif
-
 // Icon resources live in the static patchy_ui library; force registration before first use.
 int qInitResources_icons();
 
@@ -536,8 +532,10 @@ void MainWindow::undo() {
   if (canvas_ == nullptr || canvas_->pointer_gesture_active()) {
     return;
   }
+  finish_pending_shape_appearance_edit();
   finish_pending_layer_opacity_edit();
   finish_pending_layer_fill_opacity_edit();
+  finish_pending_layer_blend_edit();
   auto& active_session = session();
   if (active_session.undo_stack.empty()) {
     return;
@@ -554,8 +552,10 @@ void MainWindow::redo() {
   if (canvas_ == nullptr || canvas_->pointer_gesture_active()) {
     return;
   }
+  finish_pending_shape_appearance_edit();
   finish_pending_layer_opacity_edit();
   finish_pending_layer_fill_opacity_edit();
+  finish_pending_layer_blend_edit();
   auto& active_session = session();
   if (active_session.redo_stack.empty()) {
     return;
@@ -575,8 +575,10 @@ void MainWindow::push_undo_snapshot(DocumentSession& target_session, QString lab
   if (target_is_active) {
     // The pending layer-opacity edit belongs to the ACTIVE document; a snapshot
     // fired by a background canvas must not flush (and split) its coalesced run.
+    finish_pending_shape_appearance_edit();
     finish_pending_layer_opacity_edit();
     finish_pending_layer_fill_opacity_edit();
+    finish_pending_layer_blend_edit();
   }
   const auto started = std::chrono::steady_clock::now();
   auto& active_session = target_session;
@@ -634,8 +636,10 @@ void MainWindow::push_selection_history(DocumentSession& target_session, QString
                                         CanvasWidget::SelectionSnapshot before, bool coalesce) {
   const bool target_is_active = &target_session == active_session();
   if (target_is_active) {
+    finish_pending_shape_appearance_edit();
     finish_pending_layer_opacity_edit();
     finish_pending_layer_fill_opacity_edit();
+    finish_pending_layer_blend_edit();
   }
   auto& active_session = target_session;
   // A run of moves/nudges collapses into one undo step: once the first move has
@@ -717,8 +721,10 @@ void MainWindow::jump_to_history_state(std::int64_t state_id) {
   }
   // Flushing a pending opacity edit can push a history entry (which clears the
   // redo stack), so it must happen before the clicked id is resolved.
+  finish_pending_shape_appearance_edit();
   finish_pending_layer_opacity_edit();
   finish_pending_layer_fill_opacity_edit();
+  finish_pending_layer_blend_edit();
   if (state_id == active->current_state_id) {
     refresh_history_panel();
     return;

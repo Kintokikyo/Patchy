@@ -4,6 +4,7 @@
 #include "core/gradient_presets.hpp"
 #include "core/layer_metadata.hpp"
 #include "core/pattern_presets.hpp"
+#include "core/pattern_resource.hpp"
 #include "core/vector_live_shapes.hpp"
 #include "core/vector_raster.hpp"
 #include "core/vector_shape.hpp"
@@ -2166,6 +2167,121 @@ void ui_pdf_export_editable_gradients_clips_and_opacity_render_like_canvas() {
   CHECK(color_close(over_white(rendered).pixelColor(120, 130), QColor(125, 125, 122), 3));
 }
 
+// A pattern fill's angle is counterclockwise-positive (the Photoshop dial, PatternTileSampler)
+// while QTransform::rotate() is clockwise on the y-down page, so the exported tiling pattern
+// must turn the same way as the layer's own raster: bands that start horizontal climb to the
+// right at +30 degrees.
+void ui_pdf_export_editable_pattern_fill_rotates_like_canvas() {
+  ensure_artifact_dir();
+  patchy::Document document(200, 200, patchy::PixelFormat::rgba8());
+  document.print_settings().horizontal_ppi = 72.0;
+  document.print_settings().vertical_ppi = 72.0;
+  document.add_pixel_layer("Paper", solid_pixels(200, 200, patchy::PixelFormat::rgba8(), QColor(250, 250, 245)));
+
+  // Horizontal bands: the top half of the tile dark, the bottom half light.
+  const QColor dark(20, 40, 160);
+  const QColor light(240, 220, 60);
+  patchy::PatternResource bands;
+  bands.id = "3f0e9d52-6c1b-4a77-9e21-5b8c4d1a7e90";
+  bands.name = "Bands";
+  bands.tile = solid_pixels(16, 32, patchy::PixelFormat::rgba8(), light);
+  fill_pixel_rect(bands.tile, QRect(0, 0, 16, 16), dark);
+  document.metadata().patterns.adopt(bands);
+
+  constexpr double kAngleDegrees = 30.0;
+  constexpr double kPhaseX = 5.0;
+  constexpr double kPhaseY = 3.0;
+  {
+    patchy::LiveShapeParams params;
+    params.kind = patchy::LiveShapeKind::Rectangle;
+    params.left = 20;
+    params.top = 20;
+    params.right = 180;
+    params.bottom = 180;
+    params.index = 0;
+    patchy::populate_live_shape_box_corners(params);
+    patchy::VectorShapeContent content;
+    content.path.subpaths = patchy::generate_live_shape_subpaths(params);
+    content.origination = {params};
+    content.fill.kind = patchy::VectorFillKind::Pattern;
+    content.fill.pattern_id = bands.id;
+    content.fill.pattern_name = bands.name;
+    content.fill.pattern_angle_degrees = kAngleDegrees;
+    content.fill.pattern_linked = false;
+    content.fill.pattern_phase_x = kPhaseX;
+    content.fill.pattern_phase_y = kPhaseY;
+    patchy::Layer layer(document.allocate_layer_id(), "Banded", patchy::LayerKind::Pixel);
+    layer.metadata()[patchy::kLayerMetadataVectorShape] = "1";
+    patchy::mark_layer_vector_block_dirty(layer);
+    layer.set_vector_shape(std::move(content));
+    patchy::update_vector_shape_raster(layer, patchy::Rect::from_size(document.width(), document.height()),
+                                       &document.metadata().patterns);
+    document.add_layer(std::move(layer));
+  }
+
+  const auto path = QStringLiteral("test-artifacts/ui_pdf_export_editable_pattern.pdf");
+  QFile::remove(path);
+  std::vector<std::string> notices;
+  patchy::ui::write_pdf_document_file(document, path, patchy::ui::PdfExportOptions{true, true}, &notices);
+  for (const auto& notice : notices) {
+    std::printf("[pdf] unexpected notice: %s\n", notice.c_str());
+  }
+  CHECK(notices.empty());
+  CHECK(read_file_bytes(path).contains("/PatternType"));  // a real tiling pattern, not a picture
+
+  QPdfDocument reader;
+  CHECK(reader.load(path) == QPdfDocument::Error::None);
+  const QImage page = reader.render(0, QSize(200, 200));
+  CHECK(!page.isNull());
+  const QImage rendered = over_white(page);
+  const QImage composite = over_white(patchy::ui::qimage_from_document(document, true));
+
+  // The middle of a dark band, from the sampler's document-to-tile mapping
+  // (tile = R(angle) @ (p - phase)): tile row 7.5 of the fourth repeat.
+  constexpr double kPi = 3.14159265358979323846;
+  const double cosine = std::cos(kAngleDegrees * kPi / 180.0);
+  const double sine = std::sin(kAngleDegrees * kPi / 180.0);
+  const double tile_row = 7.5 + 32.0 * 3.0;
+  const QPointF start(kPhaseX + tile_row * sine, kPhaseY + tile_row * cosine);
+  // The share of dark samples 40 px either way from `start` along `direction`.
+  const auto dark_share = [&](const QImage& image, QPointF direction) {
+    int dark_samples = 0;
+    int samples = 0;
+    for (int step = -40; step <= 40; ++step) {
+      const QPoint pixel(static_cast<int>(std::floor(start.x() + direction.x() * step)),
+                         static_cast<int>(std::floor(start.y() + direction.y() * step)));
+      dark_samples += image.pixelColor(pixel).red() < 130 ? 1 : 0;
+      ++samples;
+    }
+    return static_cast<double>(dark_samples) / samples;
+  };
+  const QPointF climbing(cosine, -sine);  // counterclockwise on screen: up to the right
+  const QPointF falling(cosine, sine);
+  const double composite_climbing = dark_share(composite, climbing);
+  const double composite_falling = dark_share(composite, falling);
+  const double rendered_climbing = dark_share(rendered, climbing);
+  const double rendered_falling = dark_share(rendered, falling);
+  const double delta = mean_rgb_delta_over_white(rendered, composite);
+  // Band edges antialias differently and PDFium draws faint tile seams: the delta is
+  // about 4 when the bands line up and about 54 when they are mirrored.
+  constexpr double kMaxDelta = 12.0;
+  const bool matches = rendered_climbing > 0.95 && rendered_falling < 0.75 && delta < kMaxDelta;
+  if (!matches) {
+    std::fprintf(stderr,
+                 "[pdf] pattern export: dark share along the climbing band %f (canvas %f), across it %f (canvas %f), "
+                 "mean delta %f\n",
+                 rendered_climbing, composite_climbing, rendered_falling, composite_falling, delta);
+    rendered.save(QStringLiteral("test-artifacts/ui_pdf_export_editable_pattern_pdfium.png"));
+    composite.save(QStringLiteral("test-artifacts/ui_pdf_export_editable_pattern_composite.png"));
+  }
+  // The layer's own raster is the reference: its bands climb to the right.
+  CHECK(composite_climbing > 0.95);
+  CHECK(composite_falling < 0.75);
+  CHECK(rendered_climbing > 0.95);
+  CHECK(rendered_falling < 0.75);
+  CHECK(delta < kMaxDelta);
+}
+
 // Qt's PDF engine writes no blend modes, so a Multiply layer is a barrier: everything
 // below it merges into one image (reported), hidden layers vanish, and the page still
 // composites exactly like the canvas.
@@ -3936,6 +4052,10 @@ void ui_print_dialog_exposes_printer_and_visible_checkboxes() {
 }
 
 void ui_image_size_dialog_unit_and_resolution_links_work() {
+  // The dialog remembers its units on accept; this test ends in Inches.
+  SettingsValueRestorer restore_unit(QStringLiteral("imageSize/lastUnit"));
+  SettingsValueRestorer restore_resolution_unit(QStringLiteral("imageSize/lastResolutionUnit"));
+  patchy::ui::app_settings().remove(QStringLiteral("imageSize"));
   patchy::ui::MainWindow window;  // default document: 1024x768 at 72 ppi
   show_window(window);
 
@@ -3967,6 +4087,12 @@ void ui_image_size_dialog_unit_and_resolution_links_work() {
       CHECK(width_unit->currentText() == QStringLiteral("Pixels"));
       CHECK(width->value() == 1024.0);
       CHECK(std::abs(resolution->value() - 72.0) < 0.01);
+      // Every "Label:" in the dialog scrubs its field (GitHub issue 46), including
+      // Width, whose link button shares the grid row.
+      CHECK(width->property(patchy::ui::kScrubHandleInstalledProperty).toBool());
+      CHECK(height->property(patchy::ui::kScrubHandleInstalledProperty).toBool());
+      CHECK(resolution->property(patchy::ui::kScrubHandleInstalledProperty).toBool());
+      CHECK(width->singleStep() == 1.0);
 
       // Physical units display through the resolution; the two unit combos stay in step.
       width_unit->setCurrentIndex(width_unit->findText(QStringLiteral("Inches")));
@@ -3974,6 +4100,8 @@ void ui_image_size_dialog_unit_and_resolution_links_work() {
       CHECK(height_unit->currentText() == QStringLiteral("Inches"));
       CHECK(std::abs(width->value() - 1024.0 / 72.0) < 0.005);
       CHECK(std::abs(height->value() - 768.0 / 72.0) < 0.005);
+      // A scrub or arrow step in inches moves a hundredth, never a whole inch.
+      CHECK(std::abs(width->singleStep() - 0.01) < 1e-9);
 
       // Resample ON + physical units: a resolution change keeps the print size and
       // re-derives the pixel dimensions (72 -> 36 halves them).
@@ -4016,6 +4144,582 @@ void ui_image_size_dialog_unit_and_resolution_links_work() {
   CHECK(document.height() == 768);
   CHECK(std::abs(document.print_settings().horizontal_ppi - 200.0) < 0.05);
   CHECK(std::abs(document.print_settings().vertical_ppi - 200.0) < 0.05);
+}
+
+// Canvas Size converts its fields like Image Size: pixels stay the truth, the two
+// unit combos stay in step, Percent is relative to the current size, Relative mode
+// shows the change in the chosen unit, and the Current Size lines follow the unit.
+void ui_canvas_size_dialog_units_convert_through_resolution() {
+  SettingsValueRestorer restore_unit(QStringLiteral("canvasSize/lastUnit"));
+  patchy::ui::app_settings().remove(QStringLiteral("canvasSize"));
+  patchy::ui::MainWindow window;  // default document: 1024x768 at 72 ppi
+  show_window(window);
+
+  bool drove_dialog = false;
+  QTimer::singleShot(0, [&] {
+    for (auto* widget : QApplication::topLevelWidgets()) {
+      if (widget->objectName() != QStringLiteral("patchyCanvasSizeDialog")) {
+        continue;
+      }
+      auto* dialog = qobject_cast<QDialog*>(widget);
+      auto* width = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("canvasSizeWidthSpin"));
+      auto* height = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("canvasSizeHeightSpin"));
+      auto* width_unit = dialog->findChild<QComboBox*>(QStringLiteral("canvasSizeWidthUnitCombo"));
+      auto* height_unit = dialog->findChild<QComboBox*>(QStringLiteral("canvasSizeHeightUnitCombo"));
+      auto* relative = dialog->findChild<QCheckBox*>(QStringLiteral("canvasSizeRelativeCheck"));
+      auto* current_width = dialog->findChild<QLabel*>(QStringLiteral("canvasSizeCurrentWidthLabel"));
+      auto* new_size = dialog->findChild<QLabel*>(QStringLiteral("canvasSizeNewSizeLabel"));
+      CHECK(width != nullptr && height != nullptr && width_unit != nullptr && height_unit != nullptr &&
+            relative != nullptr && current_width != nullptr && new_size != nullptr);
+
+      CHECK(width_unit->count() == 6);
+      CHECK(width_unit->currentText() == QStringLiteral("Pixels"));
+      CHECK(width->value() == 1024.0 && height->value() == 768.0);
+      CHECK(width->decimals() == 0);
+      CHECK(current_width->text() == QStringLiteral("1024 px"));
+      // The Width / Height labels scrub the fields (GitHub issue 46); the "New Size:"
+      // caption above them must not have taken the width spin instead.
+      CHECK(width->property(patchy::ui::kScrubHandleInstalledProperty).toBool());
+      CHECK(height->property(patchy::ui::kScrubHandleInstalledProperty).toBool());
+      CHECK(new_size->cursor().shape() != Qt::SizeHorCursor);
+      QLabel* width_label = nullptr;
+      for (auto* label : dialog->findChildren<QLabel*>()) {
+        if (label->text() == QStringLiteral("Width") && label->cursor().shape() == Qt::SizeHorCursor) {
+          width_label = label;
+        }
+      }
+      CHECK(width_label != nullptr);
+
+      // Inches through the 72 ppi document; the height combo follows the width combo.
+      width_unit->setCurrentIndex(width_unit->findText(QStringLiteral("Inches")));
+      QApplication::processEvents();
+      CHECK(height_unit->currentText() == QStringLiteral("Inches"));
+      CHECK(std::abs(width->value() - 1024.0 / 72.0) < 0.005);
+      CHECK(std::abs(height->value() - 768.0 / 72.0) < 0.005);
+      CHECK(std::abs(width->singleStep() - 0.01) < 1e-9);
+      CHECK(current_width->text().startsWith(QStringLiteral("14.222")));
+      // The summary is the dialog's "New Size: <megabytes>" line for the target pixels.
+      const auto bytes_per_pixel =
+          static_cast<double>(patchy::bytes_per_pixel(patchy::ui::MainWindowTestAccess::document(window).format()));
+      const auto summary_for = [bytes_per_pixel](int w, int h) {
+        return QStringLiteral("New Size: %1M")
+            .arg(static_cast<double>(w) * h * bytes_per_pixel / (1024.0 * 1024.0), 0, 'f', 1);
+      };
+      width->setValue(10.0);
+      QApplication::processEvents();
+      CHECK(new_size->text() == summary_for(720, 768));
+
+      // Relative mode shows the change in the unit: the width is now 10 in (720 px), so
+      // the field reads -4.222 in; a typed +1 in makes the canvas 1096 px wide.
+      relative->setChecked(true);
+      QApplication::processEvents();
+      CHECK(std::abs(width->value() - (720.0 - 1024.0) / 72.0) < 0.005);
+      CHECK(std::abs(height->value()) < 0.0005);
+      width->setValue(1.0);
+      QApplication::processEvents();
+      CHECK(new_size->text() == summary_for(1096, 768));
+
+      // Percent is relative to the current size on each axis: +50% of the height.
+      height_unit->setCurrentIndex(height_unit->findText(QStringLiteral("Percent")));
+      QApplication::processEvents();
+      CHECK(width_unit->currentText() == QStringLiteral("Percent"));
+      CHECK(std::abs(width->value() - 7.03125) < 0.005);
+      height->setValue(50.0);
+      QApplication::processEvents();
+      CHECK(new_size->text() == summary_for(1096, 1152));
+
+      // Back to absolute pixels: the state is unchanged, only the display flips.
+      relative->setChecked(false);
+      width_unit->setCurrentIndex(width_unit->findText(QStringLiteral("Pixels")));
+      QApplication::processEvents();
+      CHECK(width->value() == 1096.0 && height->value() == 1152.0);
+      widget->grab().save(QStringLiteral("test-artifacts/ui_canvas_size_dialog_units.png"));
+      drove_dialog = true;
+      dialog->accept();
+      return;
+    }
+    CHECK(false);
+  });
+  require_action(window, "imageCanvasSizeAction")->trigger();
+  QApplication::processEvents();
+  CHECK(drove_dialog);
+
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  CHECK(document.width() == 1096);
+  CHECK(document.height() == 1152);
+}
+
+// Canvas Size's link button (off by default) keeps the document's aspect ratio: the
+// other axis follows an edit in absolute pixels, in Relative mode and Percent too,
+// and turning the link on makes the pair proportional from the width right away.
+void ui_canvas_size_dialog_link_keeps_aspect_ratio() {
+  SettingsValueRestorer restore_unit(QStringLiteral("canvasSize/lastUnit"));
+  patchy::ui::app_settings().remove(QStringLiteral("canvasSize"));
+  patchy::ui::MainWindow window;  // default document: 1024x768 at 72 ppi
+  show_window(window);
+
+  bool drove_dialog = false;
+  QTimer::singleShot(0, [&] {
+    for (auto* widget : QApplication::topLevelWidgets()) {
+      if (widget->objectName() != QStringLiteral("patchyCanvasSizeDialog")) {
+        continue;
+      }
+      auto* dialog = qobject_cast<QDialog*>(widget);
+      auto* width = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("canvasSizeWidthSpin"));
+      auto* height = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("canvasSizeHeightSpin"));
+      auto* width_unit = dialog->findChild<QComboBox*>(QStringLiteral("canvasSizeWidthUnitCombo"));
+      auto* relative = dialog->findChild<QCheckBox*>(QStringLiteral("canvasSizeRelativeCheck"));
+      auto* link = dialog->findChild<QToolButton*>(QStringLiteral("canvasSizeLinkButton"));
+      auto* new_size = dialog->findChild<QLabel*>(QStringLiteral("canvasSizeNewSizeLabel"));
+      CHECK(width != nullptr && height != nullptr && width_unit != nullptr && relative != nullptr &&
+            link != nullptr && new_size != nullptr);
+      CHECK(link->isCheckable() && !link->isChecked());
+      CHECK(width_unit->currentText() == QStringLiteral("Pixels"));
+      const auto bytes_per_pixel =
+          static_cast<double>(patchy::bytes_per_pixel(patchy::ui::MainWindowTestAccess::document(window).format()));
+      // The dialog prints megabytes at or above 1 MB and kilobytes below it.
+      const auto summary_for = [bytes_per_pixel](int w, int h) {
+        const auto bytes = static_cast<double>(w) * h * bytes_per_pixel;
+        return bytes >= 1024.0 * 1024.0
+                   ? QStringLiteral("New Size: %1M").arg(bytes / (1024.0 * 1024.0), 0, 'f', 1)
+                   : QStringLiteral("New Size: %1K").arg(bytes / 1024.0, 0, 'f', 1);
+      };
+
+      // Unlinked (the default): the axes are independent, as before.
+      width->setValue(512.0);
+      QApplication::processEvents();
+      CHECK(height->value() == 768.0);
+      CHECK(new_size->text() == summary_for(512, 768));
+
+      // Linking derives the height from the width at once; edits then follow both ways.
+      link->setChecked(true);
+      QApplication::processEvents();
+      CHECK(height->value() == 384.0);
+      CHECK(new_size->text() == summary_for(512, 384));
+      height->setValue(600.0);
+      QApplication::processEvents();
+      CHECK(width->value() == 800.0);
+      CHECK(new_size->text() == summary_for(800, 600));
+
+      // Relative mode links the resulting sizes, not the deltas: +256 px of width on a
+      // 1024 px document makes 1280 x 960, shown as +192 px of height.
+      relative->setChecked(true);
+      QApplication::processEvents();
+      CHECK(width->value() == -224.0 && height->value() == -168.0);
+      width->setValue(256.0);
+      QApplication::processEvents();
+      CHECK(height->value() == 192.0);
+      CHECK(new_size->text() == summary_for(1280, 960));
+
+      // Percent through the link: 50% width is 50% height.
+      relative->setChecked(false);
+      width_unit->setCurrentIndex(width_unit->findText(QStringLiteral("Percent")));
+      QApplication::processEvents();
+      width->setValue(50.0);
+      QApplication::processEvents();
+      CHECK(std::abs(height->value() - 50.0) < 0.005);
+      CHECK(new_size->text() == summary_for(512, 384));
+
+      // Unlinking leaves the pair alone and frees the axes again.
+      link->setChecked(false);
+      height->setValue(100.0);
+      QApplication::processEvents();
+      CHECK(std::abs(width->value() - 50.0) < 0.005);
+      CHECK(new_size->text() == summary_for(512, 768));
+      link->setChecked(true);
+      QApplication::processEvents();
+      CHECK(new_size->text() == summary_for(512, 384));
+      widget->grab().save(QStringLiteral("test-artifacts/ui_canvas_size_dialog_link.png"));
+      drove_dialog = true;
+      dialog->accept();
+      return;
+    }
+    CHECK(false);
+  });
+  require_action(window, "imageCanvasSizeAction")->trigger();
+  QApplication::processEvents();
+  CHECK(drove_dialog);
+
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  CHECK(document.width() == 512);
+  CHECK(document.height() == 384);
+}
+
+namespace {
+
+// A 4 x 4 layer whose bounds sit at `origin`, added straight to the window's document.
+patchy::LayerId add_far_layer(patchy::ui::MainWindow& window, const char* name, QPoint origin) {
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  patchy::Layer layer(document.allocate_layer_id(), name, patchy::PixelBuffer(4, 4, patchy::PixelFormat::rgba8()));
+  layer.set_bounds(patchy::Rect{origin.x(), origin.y(), 4, 4});
+  const auto id = layer.id();
+  document.add_layer(std::move(layer));
+  return id;
+}
+
+}  // namespace
+
+// The Canvas Size "delete layers fully off the canvas" checkbox: off by default, it
+// removes the layers the resize leaves entirely outside the canvas, applies even when
+// the size is unchanged (like the crop checkbox), and the status bar reports the count.
+void ui_canvas_size_dialog_deletes_off_canvas_layers() {
+  SettingsValueRestorer restore_unit(QStringLiteral("canvasSize/lastUnit"));
+  patchy::ui::app_settings().remove(QStringLiteral("canvasSize"));
+  patchy::ui::MainWindow window;  // default document: 1024x768 at 72 ppi
+  show_window(window);
+  const auto far_id = add_far_layer(window, "Far away", QPoint(2000, 2000));
+  const auto near_id = add_far_layer(window, "Near", QPoint(1022, 766));
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  const auto layer_count = document.layers().size();
+
+  bool drove_dialog = false;
+  QTimer::singleShot(0, [&] {
+    for (auto* widget : QApplication::topLevelWidgets()) {
+      if (widget->objectName() != QStringLiteral("patchyCanvasSizeDialog")) {
+        continue;
+      }
+      auto* dialog = qobject_cast<QDialog*>(widget);
+      auto* remove = dialog->findChild<QCheckBox*>(QStringLiteral("canvasSizeDeleteOffCanvasCheck"));
+      CHECK(remove != nullptr && !remove->isChecked());
+      CHECK(dialog->windowTitle() == QStringLiteral("Canvas Size"));
+      remove->setChecked(true);
+      drove_dialog = true;
+      dialog->accept();
+      return;
+    }
+    CHECK(false);
+  });
+  require_action(window, "imageCanvasSizeAction")->trigger();
+  QApplication::processEvents();
+  CHECK(drove_dialog);
+  CHECK(document.width() == 1024 && document.height() == 768);
+  CHECK(document.find_layer(far_id) == nullptr);
+  CHECK(document.find_layer(near_id) != nullptr);
+  CHECK(document.layers().size() == layer_count - 1);
+  CHECK(window.statusBar()->currentMessage() == QStringLiteral("Canvas 1024 x 768, off-canvas layers deleted: 1"));
+}
+
+// Crop to Selection (Advanced) opens the Canvas Size dialog with the selection as its
+// frame: the fields prefill to the selection size, Current Size still shows the
+// document, an unchanged accept crops exactly to the selection (content translates by
+// its origin), and the delete option drops what the crop left outside.
+void ui_crop_to_selection_advanced_prefills_canvas_size_dialog() {
+  SettingsValueRestorer restore_unit(QStringLiteral("canvasSize/lastUnit"));
+  patchy::ui::app_settings().remove(QStringLiteral("canvasSize"));
+  patchy::ui::MainWindow window;  // default document: 1024x768 at 72 ppi
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_snap_enabled(false);
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+
+  // No selection: the command refuses like the plain crop, without a dialog.
+  require_action(window, "imageCropToSelectionAdvancedAction")->trigger();
+  QApplication::processEvents();
+  CHECK(document.width() == 1024);
+  CHECK(window.statusBar()->currentMessage() == QStringLiteral("Make a rectangular selection before cropping"));
+
+  const auto far_id = add_far_layer(window, "Far away", QPoint(900, 700));
+  const auto paint_layer_bounds = [&document] {
+    for (const auto& layer : std::as_const(document).layers()) {
+      if (layer.name() == "Paint Layer") {
+        return layer.bounds();
+      }
+    }
+    CHECK(false);
+    return patchy::Rect{};
+  };
+  const auto paint_bounds_before = paint_layer_bounds();
+  canvas->set_tool(patchy::ui::CanvasTool::Marquee);
+  drag(*canvas, QPoint(60, 60), QPoint(200, 160));
+  const auto selection = canvas->selected_document_rect();
+  CHECK(selection.has_value() && !selection->isEmpty());
+  CHECK(selection->width() < 1024 && selection->height() < 768);
+
+  bool drove_dialog = false;
+  QTimer::singleShot(0, [&] {
+    for (auto* widget : QApplication::topLevelWidgets()) {
+      if (widget->objectName() != QStringLiteral("patchyCanvasSizeDialog")) {
+        continue;
+      }
+      auto* dialog = qobject_cast<QDialog*>(widget);
+      auto* width = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("canvasSizeWidthSpin"));
+      auto* height = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("canvasSizeHeightSpin"));
+      auto* width_unit = dialog->findChild<QComboBox*>(QStringLiteral("canvasSizeWidthUnitCombo"));
+      auto* current_width = dialog->findChild<QLabel*>(QStringLiteral("canvasSizeCurrentWidthLabel"));
+      auto* remove = dialog->findChild<QCheckBox*>(QStringLiteral("canvasSizeDeleteOffCanvasCheck"));
+      CHECK(width != nullptr && height != nullptr && width_unit != nullptr && current_width != nullptr &&
+            remove != nullptr);
+      CHECK(dialog->windowTitle() == QStringLiteral("Crop to Selection (Advanced)"));
+      CHECK(width_unit->currentText() == QStringLiteral("Pixels"));
+      CHECK(width->value() == static_cast<double>(selection->width()));
+      CHECK(height->value() == static_cast<double>(selection->height()));
+      CHECK(current_width->text() == QStringLiteral("1024 px"));
+      remove->setChecked(true);
+      widget->grab().save(QStringLiteral("test-artifacts/ui_crop_to_selection_advanced.png"));
+      drove_dialog = true;
+      dialog->accept();
+      return;
+    }
+    CHECK(false);
+  });
+  require_action(window, "imageCropToSelectionAdvancedAction")->trigger();
+  QApplication::processEvents();
+  CHECK(drove_dialog);
+  CHECK(document.width() == selection->width());
+  CHECK(document.height() == selection->height());
+  CHECK(document.find_layer(far_id) == nullptr);
+  const auto paint_bounds_after = paint_layer_bounds();
+  CHECK(paint_bounds_after.x == paint_bounds_before.x - selection->x());
+  CHECK(paint_bounds_after.y == paint_bounds_before.y - selection->y());
+  CHECK(!canvas->selected_document_rect().has_value());
+}
+
+// Both checkboxes together: the layer crop rewrites every pixel layer to canvas-sized
+// bounds, so the delete has to be decided against the frame before the crop runs. A
+// layer (and a group of layers) outside the selection goes, one inside stays, cropped.
+void ui_crop_to_selection_advanced_crops_and_deletes_off_canvas_layers() {
+  SettingsValueRestorer restore_unit(QStringLiteral("canvasSize/lastUnit"));
+  patchy::ui::app_settings().remove(QStringLiteral("canvasSize"));
+  patchy::ui::MainWindow window;  // default document: 1024x768 at 72 ppi
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_snap_enabled(false);
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+
+  canvas->set_tool(patchy::ui::CanvasTool::Marquee);
+  drag(*canvas, QPoint(60, 60), QPoint(200, 160));
+  const auto selection = canvas->selected_document_rect();
+  CHECK(selection.has_value() && selection->width() > 8 && selection->height() > 8);
+
+  const auto far_id = add_far_layer(window, "Far away", QPoint(selection->right() + 50, selection->bottom() + 50));
+  const auto above_id = add_far_layer(window, "Above", QPoint(selection->x(), selection->y() - 4));
+  // Straddles the selection's top-left corner: stays and is cropped.
+  const auto inside_id = add_far_layer(window, "Inside", QPoint(selection->x() - 2, selection->y() - 2));
+  patchy::Layer group(document.allocate_layer_id(), "Far folder", patchy::LayerKind::Group);
+  const auto group_id = group.id();
+  patchy::Layer child(document.allocate_layer_id(), "Far child",
+                      patchy::PixelBuffer(4, 4, patchy::PixelFormat::rgba8()));
+  child.set_bounds(patchy::Rect{selection->right() + 20, selection->y(), 4, 4});
+  group.add_child(std::move(child));
+  document.add_layer(std::move(group));
+
+  bool drove_dialog = false;
+  QTimer::singleShot(0, [&] {
+    for (auto* widget : QApplication::topLevelWidgets()) {
+      if (widget->objectName() != QStringLiteral("patchyCanvasSizeDialog")) {
+        continue;
+      }
+      auto* dialog = qobject_cast<QDialog*>(widget);
+      auto* crop = dialog->findChild<QCheckBox*>(QStringLiteral("canvasSizeCropLayersCheck"));
+      auto* remove = dialog->findChild<QCheckBox*>(QStringLiteral("canvasSizeDeleteOffCanvasCheck"));
+      CHECK(crop != nullptr && remove != nullptr);
+      crop->setChecked(true);
+      remove->setChecked(true);
+      drove_dialog = true;
+      dialog->accept();
+      return;
+    }
+    CHECK(false);
+  });
+  require_action(window, "imageCropToSelectionAdvancedAction")->trigger();
+  QApplication::processEvents();
+  CHECK(drove_dialog);
+  CHECK(document.width() == selection->width());
+  CHECK(document.height() == selection->height());
+  CHECK(document.find_layer(far_id) == nullptr);
+  CHECK(document.find_layer(above_id) == nullptr);
+  CHECK(document.find_layer(group_id) == nullptr);
+  const auto* inside = std::as_const(document).find_layer(inside_id);
+  CHECK(inside != nullptr);
+  if (inside != nullptr) {
+    const auto bounds = inside->bounds();
+    CHECK(bounds.x >= 0 && bounds.y >= 0);
+    CHECK(bounds.x + bounds.width <= document.width() && bounds.y + bounds.height <= document.height());
+  }
+  CHECK(window.statusBar()->currentMessage() == QStringLiteral("Canvas %1 x %2, off-canvas layers deleted: 3")
+                                                    .arg(selection->width())
+                                                    .arg(selection->height()));
+}
+
+// Photoshop's dialog memory: Image Size keeps its W/H unit and its resolution unit
+// across openings (`imageSize/lastUnit`, `imageSize/lastResolutionUnit`, written on
+// accept only); a first run seeds the W/H unit from the ruler unit, and a token the
+// combo cannot show falls back to Pixels.
+void ui_image_size_dialog_remembers_units() {
+  SettingsValueRestorer restore_ruler(QStringLiteral("view/rulerUnits"));
+  SettingsValueRestorer restore_unit(QStringLiteral("imageSize/lastUnit"));
+  SettingsValueRestorer restore_resolution_unit(QStringLiteral("imageSize/lastResolutionUnit"));
+  {
+    auto settings = patchy::ui::app_settings();
+    settings.remove(QStringLiteral("imageSize"));
+    settings.setValue(QStringLiteral("view/rulerUnits"), QStringLiteral("cm"));
+  }
+  patchy::ui::MainWindow window;  // default document: 1024x768 at 72 ppi
+  show_window(window);
+
+  struct Fields {
+    QDialog* dialog{nullptr};
+    QComboBox* width_unit{nullptr};
+    QComboBox* height_unit{nullptr};
+    QComboBox* resolution_unit{nullptr};
+    QDoubleSpinBox* width{nullptr};
+    QDoubleSpinBox* resolution{nullptr};
+  };
+  bool drove_dialog = false;
+  const auto open_dialog = [&](std::function<void(const Fields&)> body) {
+    drove_dialog = false;
+    QTimer::singleShot(0, [&drove_dialog, body = std::move(body)] {
+      auto* dialog = find_top_level_dialog(QStringLiteral("patchyImageSizeDialog"));
+      CHECK(dialog != nullptr);
+      if (dialog == nullptr) {
+        return;
+      }
+      Fields fields;
+      fields.dialog = dialog;
+      fields.width_unit = dialog->findChild<QComboBox*>(QStringLiteral("imageSizeWidthUnitCombo"));
+      fields.height_unit = dialog->findChild<QComboBox*>(QStringLiteral("imageSizeHeightUnitCombo"));
+      fields.resolution_unit = dialog->findChild<QComboBox*>(QStringLiteral("imageSizeResolutionUnitCombo"));
+      fields.width = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("imageSizeWidthSpin"));
+      fields.resolution = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("imageSizeResolutionSpin"));
+      CHECK(fields.width_unit != nullptr && fields.height_unit != nullptr && fields.resolution_unit != nullptr &&
+            fields.width != nullptr && fields.resolution != nullptr);
+      body(fields);
+      drove_dialog = true;
+    });
+    require_action(window, "imageSizeAction")->trigger();
+    QApplication::processEvents();
+    CHECK(drove_dialog);
+  };
+  const auto stored = [](const char* key) {
+    return patchy::ui::app_settings().value(QLatin1String(key)).toString();
+  };
+
+  // First run: the ruler unit (cm) seeds both combos and the width already reads
+  // in it. Pick Millimeters and Pixels/Centimeter, then accept without an edit.
+  open_dialog([](const Fields& fields) {
+    CHECK(fields.width_unit->currentText() == QStringLiteral("Centimeters"));
+    CHECK(fields.height_unit->currentText() == QStringLiteral("Centimeters"));
+    CHECK(fields.resolution_unit->currentIndex() == 0);
+    CHECK(std::abs(fields.width->value() - 1024.0 / 72.0 * 2.54) < 0.01);
+    fields.width_unit->setCurrentIndex(fields.width_unit->findText(QStringLiteral("Millimeters")));
+    fields.resolution_unit->setCurrentIndex(1);
+    QApplication::processEvents();
+    CHECK(fields.height_unit->currentText() == QStringLiteral("Millimeters"));
+    fields.dialog->accept();
+  });
+  CHECK(stored("imageSize/lastUnit") == QStringLiteral("mm"));
+  CHECK(stored("imageSize/lastResolutionUnit") == QStringLiteral("cm"));
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  CHECK(document.width() == 1024 && document.height() == 768);  // an unedited accept changes nothing
+
+  // Reopening restores both units whatever the ruler unit says now; a cancel
+  // writes nothing, so a unit picked before Cancel is forgotten.
+  patchy::ui::app_settings().setValue(QStringLiteral("view/rulerUnits"), QStringLiteral("in"));
+  open_dialog([](const Fields& fields) {
+    CHECK(fields.width_unit->currentText() == QStringLiteral("Millimeters"));
+    CHECK(fields.resolution_unit->currentIndex() == 1);
+    CHECK(std::abs(fields.resolution->value() - 72.0 / 2.54) < 0.01);  // shown as pixels/cm
+    CHECK(std::abs(fields.width->value() - 1024.0 / 72.0 * 25.4) < 0.1);
+    fields.width_unit->setCurrentIndex(fields.width_unit->findText(QStringLiteral("Inches")));
+    fields.resolution_unit->setCurrentIndex(0);
+    QApplication::processEvents();
+    fields.dialog->reject();
+  });
+  CHECK(stored("imageSize/lastUnit") == QStringLiteral("mm"));
+  CHECK(stored("imageSize/lastResolutionUnit") == QStringLiteral("cm"));
+
+  // A token the combo cannot show falls back to Pixels.
+  patchy::ui::app_settings().setValue(QStringLiteral("imageSize/lastUnit"), QStringLiteral("furlongs"));
+  open_dialog([](const Fields& fields) {
+    CHECK(fields.width_unit->currentText() == QStringLiteral("Pixels"));
+    CHECK(fields.width->value() == 1024.0);
+    fields.dialog->reject();
+  });
+}
+
+// Canvas Size keeps its unit the same way (`canvasSize/lastUnit`); Relative and the
+// layer crop stay unremembered.
+void ui_canvas_size_dialog_remembers_unit() {
+  SettingsValueRestorer restore_ruler(QStringLiteral("view/rulerUnits"));
+  SettingsValueRestorer restore_unit(QStringLiteral("canvasSize/lastUnit"));
+  {
+    auto settings = patchy::ui::app_settings();
+    settings.remove(QStringLiteral("canvasSize"));
+    settings.setValue(QStringLiteral("view/rulerUnits"), QStringLiteral("pt"));
+  }
+  patchy::ui::MainWindow window;  // default document: 1024x768 at 72 ppi
+  show_window(window);
+
+  struct Fields {
+    QDialog* dialog{nullptr};
+    QComboBox* width_unit{nullptr};
+    QComboBox* height_unit{nullptr};
+    QCheckBox* relative{nullptr};
+    QDoubleSpinBox* width{nullptr};
+  };
+  bool drove_dialog = false;
+  const auto open_dialog = [&](std::function<void(const Fields&)> body) {
+    drove_dialog = false;
+    QTimer::singleShot(0, [&drove_dialog, body = std::move(body)] {
+      auto* dialog = find_top_level_dialog(QStringLiteral("patchyCanvasSizeDialog"));
+      CHECK(dialog != nullptr);
+      if (dialog == nullptr) {
+        return;
+      }
+      Fields fields;
+      fields.dialog = dialog;
+      fields.width_unit = dialog->findChild<QComboBox*>(QStringLiteral("canvasSizeWidthUnitCombo"));
+      fields.height_unit = dialog->findChild<QComboBox*>(QStringLiteral("canvasSizeHeightUnitCombo"));
+      fields.relative = dialog->findChild<QCheckBox*>(QStringLiteral("canvasSizeRelativeCheck"));
+      fields.width = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("canvasSizeWidthSpin"));
+      CHECK(fields.width_unit != nullptr && fields.height_unit != nullptr && fields.relative != nullptr &&
+            fields.width != nullptr);
+      body(fields);
+      drove_dialog = true;
+    });
+    require_action(window, "imageCanvasSizeAction")->trigger();
+    QApplication::processEvents();
+    CHECK(drove_dialog);
+  };
+  const auto stored_unit = [] {
+    return patchy::ui::app_settings().value(QStringLiteral("canvasSize/lastUnit")).toString();
+  };
+
+  // First run: the ruler unit (points, a unit this dialog offers) seeds the combos.
+  open_dialog([](const Fields& fields) {
+    CHECK(fields.width_unit->currentText() == QStringLiteral("Points"));
+    CHECK(fields.height_unit->currentText() == QStringLiteral("Points"));
+    CHECK(std::abs(fields.width->value() - 1024.0) < 0.01);  // 72 ppi: one point per pixel
+    fields.width_unit->setCurrentIndex(fields.width_unit->findText(QStringLiteral("Percent")));
+    fields.relative->setChecked(true);
+    QApplication::processEvents();
+    fields.dialog->accept();
+  });
+  CHECK(stored_unit() == QStringLiteral("percent"));
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  CHECK(document.width() == 1024 && document.height() == 768);
+
+  // Reopening restores Percent under another ruler unit; Relative starts unchecked
+  // again; a cancel forgets the pick made before it.
+  patchy::ui::app_settings().setValue(QStringLiteral("view/rulerUnits"), QStringLiteral("in"));
+  open_dialog([](const Fields& fields) {
+    CHECK(fields.width_unit->currentText() == QStringLiteral("Percent"));
+    CHECK(fields.height_unit->currentText() == QStringLiteral("Percent"));
+    CHECK(std::abs(fields.width->value() - 100.0) < 0.01);
+    CHECK(!fields.relative->isChecked());
+    fields.width_unit->setCurrentIndex(fields.width_unit->findText(QStringLiteral("Millimeters")));
+    QApplication::processEvents();
+    fields.dialog->reject();
+  });
+  CHECK(stored_unit() == QStringLiteral("percent"));
+
+  // An unknown token falls back to Pixels.
+  patchy::ui::app_settings().setValue(QStringLiteral("canvasSize/lastUnit"), QStringLiteral("cubits"));
+  open_dialog([](const Fields& fields) {
+    CHECK(fields.width_unit->currentText() == QStringLiteral("Pixels"));
+    CHECK(fields.width->value() == 1024.0);
+    fields.dialog->reject();
+  });
 }
 
 void ui_imported_image_density_follows_photoshop_conventions() {
@@ -4835,6 +5539,8 @@ std::vector<patchy::test::TestCase> import_print_resolution_tests() {
        ui_pdf_export_editable_keeps_psd_preview_text_and_substitutes_missing_fonts},
       {"ui_pdf_export_editable_gradients_clips_and_opacity_render_like_canvas",
        ui_pdf_export_editable_gradients_clips_and_opacity_render_like_canvas},
+      {"ui_pdf_export_editable_pattern_fill_rotates_like_canvas",
+       ui_pdf_export_editable_pattern_fill_rotates_like_canvas},
       {"ui_pdf_export_editable_flattens_blend_modes_with_notice",
        ui_pdf_export_editable_flattens_blend_modes_with_notice},
       {"ui_font_bootstrap_never_registers_installed_families",
@@ -4865,6 +5571,16 @@ std::vector<patchy::test::TestCase> import_print_resolution_tests() {
        ui_print_dialog_exposes_printer_and_visible_checkboxes},
       {"ui_image_size_dialog_unit_and_resolution_links_work",
        ui_image_size_dialog_unit_and_resolution_links_work},
+      {"ui_canvas_size_dialog_units_convert_through_resolution",
+       ui_canvas_size_dialog_units_convert_through_resolution},
+      {"ui_canvas_size_dialog_link_keeps_aspect_ratio", ui_canvas_size_dialog_link_keeps_aspect_ratio},
+      {"ui_canvas_size_dialog_deletes_off_canvas_layers", ui_canvas_size_dialog_deletes_off_canvas_layers},
+      {"ui_crop_to_selection_advanced_crops_and_deletes_off_canvas_layers",
+       ui_crop_to_selection_advanced_crops_and_deletes_off_canvas_layers},
+      {"ui_crop_to_selection_advanced_prefills_canvas_size_dialog",
+       ui_crop_to_selection_advanced_prefills_canvas_size_dialog},
+      {"ui_image_size_dialog_remembers_units", ui_image_size_dialog_remembers_units},
+      {"ui_canvas_size_dialog_remembers_unit", ui_canvas_size_dialog_remembers_unit},
       {"ui_imported_image_density_follows_photoshop_conventions",
        ui_imported_image_density_follows_photoshop_conventions},
       {"ui_ruler_unit_preference_changes_ruler_ticks", ui_ruler_unit_preference_changes_ruler_ticks},

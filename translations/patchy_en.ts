@@ -43,10 +43,6 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Keep vectors and bitmaps separate</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Keep editable shapes. Turn off to merge the artwork into bitmap layers.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -104,6 +100,176 @@
     </message>
     <message>
         <source>These layers need to stay separate with the selected options.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Keep vector layers editable</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>These layers keep their own effects and stay separate in a vector merge. Turning off &quot;Keep vector layers editable&quot; rasterizes merged artwork.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select at least two editable vector layers.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This layer is not an editable vector layer.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unlock this layer and its parent groups first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show this layer and its parent groups first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A clipping relationship requires this layer to stay separate.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A separate mask prevents this vector merge.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Smart Filters require this layer to stay separate.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The blend mode, Blend If, or channel settings require a separate layer.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preserved vector data cannot be edited.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This compound vector&apos;s opacity requires it to stay separate.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This group&apos;s appearance prevents moving shapes across its boundary.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose effects from a vector layer included in the merge.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Vector feather or density requires this shape to stay separate.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Merge into one vector layer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove layer effects</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Use effects from a layer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Layer effects:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Use effects from:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preview</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preview unavailable.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Merged artwork</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Original artwork</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Effects from %1 apply once to the combined silhouette. Each shape keeps its own fill and vector stroke.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Individual layer effects will be removed. Each shape keeps its own fill and vector stroke.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Result: 1 editable vector layer, replacing %1 in the layer stack.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stacking relative to unselected layers will change. Review the preview before merging.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Updating preview...</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>LegacyPluginFolder</name>
+    <message>
+        <source>Legacy Photoshop plug-ins run on Windows only.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The plug-ins folder could not be created: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>LegacyPluginRunner</name>
+    <message>
+        <source>The plug-in host was given an invalid image.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The plug-in host program is missing: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not enough memory to hand the layer to the plug-in.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The plug-in host could not be contacted: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The plug-in host program could not be started: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The plug-in host did not respond.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The plug-in host program does not match this Patchy build.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The plug-in crashed (host exit code %1).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The plug-in reported an error.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -2114,26 +2280,6 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>32-bit Photoshop plug-ins require a 32-bit compatibility host.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Plug-in architecture does not match this Patchy build.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Automation plug-ins are recognized but not supported by the first compatibility adapter.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Classic Photoshop filter plug-in candidate. Runtime execution will be isolated out-of-process.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Classic Photoshop file-format plug-in candidate. Runtime execution will be isolated out-of-process.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Plugin identifier cannot be empty</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2435,10 +2581,6 @@
     </message>
     <message>
         <source>The starter PSD reader currently supports 8, 16, and 32-bit files only</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>The starter PSD reader currently supports RGB and CMYK files only</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4431,10 +4573,6 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Frame delay:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source> s</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5574,10 +5712,6 @@ Open in Generative Upscale...</source>
     </message>
     <message>
         <source>Width</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>%1 px</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -7636,14 +7770,6 @@ RGB: %2, %3, %4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Created by Seth A. Robinson</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Code contributions from %1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>GitHub: %1</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8138,15 +8264,7 @@ RGB: %2, %3, %4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>UI language for this run only, not saved: en, de, es, fr, it, ja, zh_CN, or zh_TW.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Also crop each actual layer to the canvas area</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -8481,6 +8599,305 @@ RGB: %2, %3, %4</source>
         <source>Stroke Color</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>User data folder (fonts, scripts):</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open Data Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not open data folder.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Created by %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not write PSD file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The starter PSD reader currently supports RGB, CMYK, and Grayscale files only</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Grayscale PSD file must contain at least 1 channel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The source color mode is Grayscale; Patchy converted the gray values to RGB/RGBA for editing and will export RGB PSD data from this document.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not a Windows plug-in binary.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unsupported plug-in architecture; only 32-bit and 64-bit x86 plug-ins run.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>File-format and automation plug-ins are not supported; only filter (.8bf) plug-ins run.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This plug-in is not a filter; only filter (.8bf) plug-ins run.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Photoshop filter plug-in (32-bit).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Photoshop filter plug-in (64-bit).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Plug-ins folder (.8bf filters):</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open Plug-ins Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not open the plug-ins folder.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Blend Clipped Layers as Group</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Keep the layers clipped to this one under its interior effects; turn this off together with Blend Interior Effects as Group to draw them over the overlays instead</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This file is 32-bit per channel (HDR). Patchy converted it to 8-bit for editing: precision and dynamic range beyond 8-bit were lost, and saving writes an 8-bit file. Keep the original if you need the 32-bit data.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This file is 16-bit per channel. Patchy converted it to 8-bit for editing: some precision was lost, and saving writes an 8-bit file. Keep the original if you need the 16-bit data.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The source is %1 bits per channel; Patchy converted it to 8-bit for editing and saves an 8-bit file. Keep the original if you need the deeper data.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 opened with notes:
+
+%2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import Notes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Crop to Selection (Advanced)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Also delete layers that end up fully off the canvas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Patchy can&apos;t locate these fonts: %1. These fonts have no glyphs for their text: %2. Editing this PSD raster preview will substitute other fonts. Continue?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The font &quot;%1&quot; has no glyphs for this text. Editing this PSD raster preview will substitute another font. Continue?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>These fonts have no glyphs for their text: %1. Editing this PSD raster preview will substitute other fonts. Continue?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Text layer. Missing font: %1. No glyphs for this text in: %2. Other fonts are being substituted, so the text does not look as it was authored.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Text layer. No glyphs for this text in: %1. Another font is being substituted, so the text does not look as it was authored.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>UI language for this run only, not saved: en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN, or zh_TW.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Invalid or damaged animated WebP.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Animated WebP exceeds the image allocation limit.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Invalid animated WebP dimensions or quality.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not create animated WebP encoder.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Invalid animated WebP frame or duration.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not encode animated WebP frame.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Animated WebP needs at least one frame.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not finish animated WebP.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Forever</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Play count:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Each visible top-level layer becomes one frame, with the top layer first. A name ending in a time, like &quot;blink 0.033s&quot;, sets that frame&apos;s delay. Play count includes the first play.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Animated WebP: imported %1 frames as layers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The document has no visible top-level layers to export as an animated WebP.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not open WebP file for writing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not write WebP file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Default frame delay:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mixed: selected layers have different values</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> (Mixed)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Values from: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Apply All Settings to Selected Layers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Present on %1 of %2 layers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n layers selected</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Editable layers: %n</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Editable rectangles for corner radii: %n</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Gradient settings apply to %1 of %2 editable layers.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pattern settings apply to %1 of %2 editable layers.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Exposure</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Offset:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Gamma Correction:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Exposure: %1, offset %2, gamma %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lab PSD file must contain at least 3 channels</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This file uses a color mode Patchy does not edit in (Bitmap, Indexed, Duotone, Lab or Multichannel). Patchy converted it to RGB for editing, and saving writes an RGB file. Keep the original if you need its color mode.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This CMYK file has adjustment layers that act on its CMYK inks. Patchy shows them that way, but it saves RGB files: in a saved file those layers are applied to RGB and the colors will look different. Keep the original, or merge those layers before saving.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 came from a CMYK document and adjusts its CMYK inks here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its colors will look different.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This grayscale file has adjustment layers that act on its gray channel. Patchy shows them that way, but it saves RGB files: in a saved file those layers are applied to RGB and the tones will look different. Keep the original, or merge those layers before saving.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 came from a grayscale document and adjusts its gray channel here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its tones will look different.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Don&apos;t Save</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -8537,6 +8954,41 @@ RGB: %2, %3, %4</source>
     </message>
     <message>
         <source>Utilities</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>ThemeFile</name>
+    <message>
+        <source>Not a valid theme file: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>the top level is not an object</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Theme file format %1 is not supported by this build (expected %2).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Theme file is missing a valid &quot;base&quot; (must be &quot;dark&quot; or &quot;light&quot;).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Theme file&apos;s &quot;roles&quot; is not an object.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unknown color role &quot;%1&quot; (ignored).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Invalid color &quot;%1&quot; for role &quot;%2&quot; (expected #RRGGBB or #RRGGBBAA).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Theme file &quot;%1&quot; could not be read.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -8693,10 +9145,6 @@ RGB: %2, %3, %4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Frame delay:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source> s</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8721,10 +9169,6 @@ RGB: %2, %3, %4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Plays the visible top-level layers as frames, top layer first, exactly like the animated GIF export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>No visible layers</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8734,6 +9178,14 @@ RGB: %2, %3, %4</source>
     </message>
     <message>
         <source>Stop</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Plays the visible top-level layers as frames, top layer first, like animated GIF and WebP export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Default frame delay:</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -9228,10 +9680,6 @@ RGB: %2, %3, %4</source>
     </message>
     <message>
         <source>Crop cancelled</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Drag the handles or edges to adjust. Enter crops, Esc cancels.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -9946,6 +10394,66 @@ RGB: %2, %3, %4</source>
         <source>Resize Selection</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Removed object with content-aware fill, variation %1 (%2 patches)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove Object was cancelled</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Guide X: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Guide Y: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>X: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Y: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Default</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Black</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Dark Gray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Medium Gray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Light Gray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>White</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select Custom Color...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nothing to crop: the box matches the canvas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Crop box reset to the canvas</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::ChannelPanel</name>
@@ -10137,6 +10645,55 @@ RGB: %2, %3, %4</source>
     </message>
     <message>
         <source>Other</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>patchy::ui::LegacyPluginRunDialog</name>
+    <message>
+        <source>Legacy Photoshop Plug-in</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Classic plug-ins show their preview inside their own window. The layer changes after you click OK.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show Plug-in Window</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Brings the plug-in&apos;s window back in front of Patchy.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Starting %1...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Force Stop Plug-in</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ends the plug-in without applying it. Use it only if the plug-in&apos;s window has stopped responding.</source>
+        <extracomment>Tooltip of the stop button while a plug-in is loading or waits for the user in its own window.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 is open in its own window. Adjust its settings there and click its OK button to apply it to this layer.</source>
+        <extracomment>%1 is the plug-in&apos;s name; shown while its own settings window is open.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Applying %1...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stops the plug-in. The layer stays unchanged.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -10688,10 +11245,6 @@ RGB: %2, %3, %4</source>
     </message>
     <message>
         <source>Shift &amp;Seams to Center</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>&amp;Scan Legacy Photoshop Plug-ins...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -11619,10 +12172,6 @@ RGB: %2, %3, %4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Cancel crop (Esc)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Preset:</source>
         <translation type="unfinished"></translation>
     </message>
@@ -12231,10 +12780,6 @@ RGB: %2, %3, %4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. Shift constrains layer movement.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Click to place points, drag for curves. On a path: click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL% moves points.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -12256,10 +12801,6 @@ RGB: %2, %3, %4</source>
     </message>
     <message>
         <source>Click a point to switch it between corner and smooth.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Move: Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -13054,16 +13595,6 @@ Rect: -</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Import Notes</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>%1 opened with notes:
-
-%2</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>File is missing</source>
         <translation type="unfinished"></translation>
     </message>
@@ -13300,10 +13831,6 @@ Rect: -</source>
     </message>
     <message>
         <source>Save As</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>SVG keeps shape layers as vectors, but masks, layer styles, text, and adjustments are baked into images, so Patchy will save a copy. The open document will keep its layers and unsaved changes. To keep everything editable, save as a Photoshop document (.psd) instead.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -15499,20 +16026,6 @@ Y: %2
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Scan Legacy Photoshop Plug-ins</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Photoshop Plug-ins (*.8bf *.8bi *.8li);;All Files (*.*)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>%1 plug-in action(s) available under Plug-ins &gt; Legacy Photoshop Plug-ins.
-
-%2</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>%1: %2 (%3, %4)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -15526,14 +16039,6 @@ Y: %2
     </message>
     <message>
         <source>Legacy Photoshop Plug-in</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>%1 was scanned and is available, but this build only has compatibility shims for the bundled Greyscale and White to Transparent test filters. A full 8BF host still needs the out-of-process Photoshop SDK adapter.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Legacy plug-in</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -15725,14 +16230,6 @@ Y: %2
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Scroll wheel zooms the canvas</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Pan canvas</source>
         <translation type="unfinished"></translation>
     </message>
@@ -15841,10 +16338,6 @@ Y: %2
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Ruler units:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Default visibility:</source>
         <translation type="unfinished"></translation>
     </message>
@@ -15870,10 +16363,6 @@ Y: %2
     </message>
     <message>
         <source>Overlay preview:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Grid and Guides</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -16524,27 +17013,11 @@ Y: %2
         </translation>
     </message>
     <message>
-        <source>Select a shape layer to edit its appearance</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>This shape layer&apos;s vector data is preserved but can&apos;t be edited.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Updating shape...</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Cancelled shape appearance</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Shape appearance</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Updated the shape appearance</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -17177,10 +17650,6 @@ Y: %2
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Remove &amp;Object</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Remove Object</source>
         <translation type="unfinished"></translation>
     </message>
@@ -17340,6 +17809,804 @@ Y: %2
     </message>
     <message>
         <source>Brush tip: Square</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove &amp;Object...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove Object needs a selection: select the area to remove first</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tone match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How strongly the fill&apos;s brightness is smoothed to its own edges (0 keeps the raw fill)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edge feather</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> px</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reroll</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fill again with the next variation</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Variation %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Content-aware fill (%1 patches)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No clean source patches nearby; used the nearest edge (source %1 of %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cancelled Remove Object</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Removed object with content-aware fill, variation %1 (%2 patches)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Removed object with the nearest edge (source %1 of %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Softens the fill&apos;s edge outward from the selection, on top of its own feather. The filled area grows by the feather, so keep it small when the selection hugs an edge</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Duplicate to New Layer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Copies this variation&apos;s filled area onto a new hidden layer above this one, so several variations can be kept and compared</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Filling...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Filling... %1%</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Duplicate Remove Object variation to layer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove Object variation %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Copied variation %1 to the hidden layer &quot;%2&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Files as Layers...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>the file holds no layers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>None of the files could be added as layers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The drop target is no longer in the document</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add files as layers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>These files could not be added as layers:
+
+%1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Added %n layer(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Files as Layers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The document is no longer open.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Adding file %1 of %2...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cancelled adding files as layers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Recover</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Automatically save recovery information every</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Writes a copy of each changed document to a recovery folder so it can be reopened after a crash. The file you saved is never touched, and the copies are removed when Patchy quits normally.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n minute(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Could not save recovery information: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 (Recovered)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Recovered %n unsaved document(s) from the last session</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n recovery file(s) could not be opened; see %1</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>How far a pixel&apos;s color may differ from the clicked color and still be filled</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Limit the fill to pixels connected to the click</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Paragraph</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Justify (last line left)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Paragraph alignment; Justify spreads every line but the last across the box</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Alignment:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>First line indent:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Indent of each paragraph&apos;s first line; negative with a left indent makes a hanging indent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Left indent:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Space between the box edge and every line&apos;s start</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Right indent:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Space between every line&apos;s end and the box edge</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Space before:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Extra space above each paragraph</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Space after:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Extra space below each paragraph</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Paragraph...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Paragraph panel (alignment, indents, spacing)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Convert to Layers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Replace the smart object with a folder holding the layers of its contents</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Embed the linked Smart Object before converting it to layers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete the Smart Filters before converting this Smart Object to layers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A warped or perspective Smart Object can&apos;t be converted to layers; rasterize it instead</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The smart object&apos;s contents have no layers to convert</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The contents contain Smart Filters, which can&apos;t be moved out of the Smart Object yet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not convert the smart object to layers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Converted the smart object to %n layer(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Add Plug-in Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No plug-ins found (put .8bf files in the plugins folder)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Run the %1 plug-in on the active layer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Plug-in: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 could not run.
+
+%2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Legacy Photoshop plug-ins run on Windows only.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The selection does not touch the active layer.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The layer no longer exists.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Photoshop filter plug-ins (.8bf, 32-bit or 64-bit) are found in these folders and their subfolders and listed under Plugins &gt; Legacy Photoshop Plug-ins. Only run plug-ins you trust: they execute with your permissions.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Always scanned:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add Folder...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Added folders:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Plug-ins</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open Plug-ins &amp;Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Rescan Plug-in Folders</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not open the plug-ins folder.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Plug-in scan finished: %1 available</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Plug-in scan finished: %1 available, %2 not usable</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Scanning plug-in folders...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Whole monitor</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Plug-in windows open on the monitor showing Patchy. Plug-ins with full-screen interfaces size themselves to this screen size, so a smaller size keeps them usable on large monitors.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Screen size for plug-in windows:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 via Patchy</source>
+        <extracomment>Title of the movable window a full-screen plug-in interface is shown in; %1 is the plug-in&apos;s name.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1: same plug-in as %2, listed once</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Plug-ins work on one layer at a time. Select a single layer and run it again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import Theme...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export Theme...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reload Themes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Re-read the theme files in the themes folder and apply the selected one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete Theme...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open Themes Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not open the themes folder.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete Theme</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete the theme &quot;%1&quot;? Its file is removed from the themes folder.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not delete &quot;%1&quot;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import Theme</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Patchy theme (*.patchytheme)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not open &quot;%1&quot;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not create the themes folder.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Theme</source>
+        <comment>Default file name offered when exporting a theme; the save dialog appends the extension.</comment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export Theme</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 (built-in)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cycle Marquee Tools</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cycle Lasso Tools</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cycle Wand Tools</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cycle Fill Tools</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cycle Stamp Tools</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cycle Healing Tools</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cycle Detail Tools</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cycle Toning Tools</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cycle Pen Tools</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cycle Path Tools</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cycle Shape Tools</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Canvas Background Color</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Scrubby Zoom</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Drag right to zoom in and left to zoom out around the point you pressed. Off: drag a rectangle to zoom to it</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>100%</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fit Screen</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fill Screen</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fi&amp;ll Screen</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Zoom In</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Zoom Out</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show the image at actual pixels (View &gt; Actual Pixels)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fit the whole image in the window (View &gt; Fit on Screen)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Zoom until the image fills the window (View &gt; Fill Screen)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stroke width:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Default units:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Units &amp;&amp; Grids</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Repeat Last Plug-in</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Last Plug-in Settings...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The last plug-in is no longer available</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Repeat %1</source>
+        <extracomment>Plugins menu; %1 is the plug-in that ran last. Runs it again with its last settings, no dialog.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 Settings...</source>
+        <extracomment>Plugins menu; %1 is the plug-in that ran last. Opens its settings dialog again, starting from the last settings.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Applied %1 (%2 undoes it)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Place &amp;Linked...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This layer is not a linked smart object</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Place Linked</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Placed %1 as a linked smart object</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The placed position or size is out of range</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>text layer &quot;%1&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>pixel layer &quot;%1&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>smart object &quot;%1&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>adjustment layer &quot;%1&quot; and the layers below it</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>the blend mode of &quot;%1&quot; and the layers below it</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>shape layer &quot;%1&quot; (its styles or fill options)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>group &quot;%1&quot; (its styles or masks)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>clipping mask group &quot;%1&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>the layer mask on &quot;%1&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&quot;%1&quot; (merged under an adjustment layer or blend mode)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%1 and %n more</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>SVG keeps shape layers as vectors, but this document has content SVG cannot hold as vectors. Continue saving and bake it into images in the linked file?
+
+Baked into images: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>SVG keeps shape layers as vectors, but this document has content SVG cannot hold as vectors, so Patchy will save a copy with that content baked into images. The open document will keep its layers and unsaved changes. To keep everything editable, save as a Photoshop document (.psd) instead.
+
+Baked into images: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Crop to Selection (Advance&amp;d)...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open Canvas Size prefilled with the selection so the crop can be adjusted before it is applied</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Canvas %1 x %2, off-canvas layers deleted: %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mouse wheel zooms the canvas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan. Two-finger scrolling on a trackpad always pans; pinch to zoom.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tools</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Layers as Animated &amp;WebP...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export Animated WebP</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Saved animated WebP copy %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Locked layers are skipped. Groups receive their own style; their children are unchanged.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select an unlocked, editable shape layer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Locked layers and layers without editable shapes are skipped.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Updating shapes...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1: preserved blending data remains protected.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1: editing effects normalizes unsupported Satin contours.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open from &amp;Clipboard</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Exposure...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Exposure</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cancelled Exposure</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This layer is not an embedded smart object</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This smart object cannot be re-rendered</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. %ALT%+drag duplicates. Shift constrains layer movement.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reset the crop box to the canvas (Esc)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ratio constrains the crop box; Size shows its exact width and height and sets them</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Width of the crop box</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Keep the crop box&apos;s width and height in proportion</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Height of the crop box</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -18206,10 +19473,6 @@ Y: %2
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>mergeLayers: options must be an object of booleans.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>mergeLayers: unknown option %1</source>
         <translation type="unfinished"></translation>
     </message>
@@ -18661,6 +19924,130 @@ Y: %2
         <source>distributeLayers needs at least three movable layers.</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>importFilesAsLayers needs a file path or a non-empty array of paths.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No layers were added.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>intervalMinutes must be 5, 10, 15, 30, or 60</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>textAlign must be &apos;left&apos;, &apos;center&apos;, &apos;right&apos; or &apos;justify&apos;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1: runs must be an array of {text, font, size, bold, italic, color} objects.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1: run %2 needs a text string.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1: run %2 has a non-positive size.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1: run %2 must be a string or an object.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1: runs must not be empty.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>addTextLayer: text must be a string or an array of runs.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>box must be {width, height} of at least 16 document pixels each.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>align must be &apos;left&apos;, &apos;center&apos;, &apos;right&apos; or &apos;justify&apos;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1: paragraph must be an object with firstLineIndent, startIndent, endIndent, spaceBefore and spaceAfter numbers (document pixels).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1: paragraph.%2 must be a number (document pixels).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>applyPlugin: unknown option %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unknown plug-in id: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Plug-in %1 cannot run: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>applyPlugin needs a pixel layer.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Plug-in %1 was cancelled.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Plug-in %1 failed: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>addSmartObject needs a file path.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>addSmartObject: %1 must be a finite number.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1: font not available, rendered with a fallback: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1: font has no glyphs for this text, rendered with a fallback: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp needs a .webp output path.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp options must be an object.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp: invalid option %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>mergeLayers: options must be an object.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>mergeLayers: effectsFrom must be a layer of this document.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>mergeLayers: %1 must be a boolean.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>mergeLayers: effectsFrom requires singleVector.</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::StartPanel</name>
@@ -18693,10 +20080,6 @@ Y: %2
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>desktop version</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Everything runs locally in your browser. Nothing you make is ever sent online.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -18705,19 +20088,7 @@ Y: %2
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>For all your system fonts and better speed, get the %1.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Version %1 (built %2)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Created by Seth A. Robinson</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Code contributions from %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -18730,6 +20101,26 @@ Y: %2
     </message>
     <message>
         <source>No matching recent files</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Created by %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>More power on your desktop</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>More features, faster editing, and full access to your system fonts.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Download Patchy for Desktop</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Free · Windows, macOS &amp; Linux</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

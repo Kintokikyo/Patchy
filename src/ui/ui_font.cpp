@@ -29,15 +29,19 @@ QStringList wasm_cjk_fallback_families(const QString& language_code) {
   static const QString jp = QStringLiteral("Noto Sans JP");
   static const QString sc = QStringLiteral("Noto Sans SC");
   static const QString tc = QStringLiteral("Noto Sans TC");
+  static const QString ko = QStringLiteral("NanumGothic");
+  if (language_code.startsWith(QStringLiteral("ko"))) {
+    return {ko, jp, sc, tc};
+  }
   if (language_code.startsWith(QStringLiteral("zh_TW")) || language_code.startsWith(QStringLiteral("zh_Hant"))) {
-    return {tc, sc, jp};
+    return {tc, sc, jp, ko};
   }
   if (language_code.startsWith(QStringLiteral("zh"))) {
-    return {sc, tc, jp};
+    return {sc, tc, jp, ko};
   }
-  // Japanese and every Latin-script language: Japanese shapes first, then the Chinese
-  // families so a pasted or imported Chinese string still resolves instead of tofu.
-  return {jp, sc, tc};
+  // Japanese and all other languages: Japanese shapes first, then the Chinese
+  // families, then Korean, so pasted or imported text resolves instead of tofu.
+  return {jp, sc, tc, ko};
 }
 
 QStringList ui_font_files_to_register(const QStringList& installed_families) {

@@ -611,6 +611,121 @@ void stroke_dashes_and_offset() {
   CHECK(coverage_pixel(shifted, 16, 10) == 255);
 }
 
+void stroke_aligned_dashes_keep_cap_size_and_gaps() {
+  // Photoshop 27.10: a 12 px {0,2} square dot remains 12 px wide with
+  // inside/outside alignment. The old doubled cap filled its 12 px gap.
+  VectorPath path;
+  path.subpaths = {rect_subpath(32, 32, 224, 224, PathCombineOp::Add, 0)};
+  for (const auto alignment : {patchy::VectorStrokeAlignment::Center,
+                               patchy::VectorStrokeAlignment::Inside,
+                               patchy::VectorStrokeAlignment::Outside}) {
+    patchy::VectorStroke stroke;
+    stroke.width = 12;
+    stroke.alignment = alignment;
+    const int y = alignment == patchy::VectorStrokeAlignment::Inside ? 38
+                  : alignment == patchy::VectorStrokeAlignment::Outside ? 26 : 32;
+    for (const auto cap : {patchy::VectorStrokeCap::Square, patchy::VectorStrokeCap::Round}) {
+      stroke.cap = cap;
+      stroke.dashes = {0, 2};
+      const auto dotted = stroke_coverage(path, stroke, Rect{0, 0, 256, 256});
+      CHECK(coverage_pixel(dotted, 80, y) == 255);
+      CHECK(coverage_pixel(dotted, 84, y) == 255);
+      CHECK(coverage_pixel(dotted, 86, y) == 0);
+      CHECK(coverage_pixel(dotted, 92, y) == 0);
+      CHECK(coverage_pixel(dotted, 104, y) == 255);
+      // Round caps are whole circles on the chosen side, not clipped circles
+      // of twice the radius. Square dots still cover the same corner pixel.
+      CHECK(coverage_pixel(dotted, 85, y + 5) ==
+            (cap == patchy::VectorStrokeCap::Square ? 255 : 0));
+      stroke.dashes = {2, 2};
+      const auto dashed = stroke_coverage(path, stroke, Rect{0, 0, 256, 256});
+      CHECK(coverage_pixel(dashed, 59, y) == 255);
+      CHECK(coverage_pixel(dashed, 65, y) == 0);
+      CHECK(coverage_pixel(dashed, 68, y) == 0);
+      CHECK(coverage_pixel(dashed, 83, y) == 255);
+    }
+  }
+}
+
+void stroke_aligned_dots_follow_compound_fill_side() {
+  VectorPath path;
+  path.subpaths = {rect_subpath(32, 32, 224, 224, PathCombineOp::Add, 0),
+                   rect_subpath(80, 80, 176, 176, PathCombineOp::Add, 0)};
+  patchy::VectorStroke stroke;
+  stroke.width = 12;
+  stroke.dashes = {0, 2};
+  stroke.cap = patchy::VectorStrokeCap::Round;
+  for (int reverse = 0; reverse < 2; ++reverse) {
+    for (const auto alignment : {patchy::VectorStrokeAlignment::Inside,
+                                 patchy::VectorStrokeAlignment::Outside}) {
+      stroke.alignment = alignment;
+      const bool inside = alignment == patchy::VectorStrokeAlignment::Inside;
+      const auto dotted = stroke_coverage(path, stroke, Rect{0, 0, 256, 256});
+      // The hole's filled side is opposite the outer contour's filled side,
+      // even when both have the same winding. Reversing winding changes neither.
+      CHECK(coverage_pixel(dotted, 104, inside ? 74 : 86) == 255);
+      CHECK(coverage_pixel(dotted, 104, inside ? 86 : 74) == 0);
+      CHECK(coverage_pixel(dotted, 116, inside ? 74 : 86) == 0);
+      CHECK(coverage_pixel(dotted, 104, inside ? 38 : 26) == 255);
+    }
+    for (auto& subpath : path.subpaths) {
+      std::reverse(subpath.anchors.begin() + 1, subpath.anchors.end());
+    }
+  }
+}
+
+void stroke_zero_length_dots_keep_first_dot_and_tangent() {
+  VectorPath path;
+  path.subpaths = {open_line(40, 40, 40, 160)};
+  patchy::VectorStroke stroke;
+  stroke.width = 12;
+  stroke.dashes = {0, 2};
+  stroke.cap = patchy::VectorStrokeCap::Round;
+  auto dotted = stroke_coverage(path, stroke, Rect{0, 0, 192, 192});
+  CHECK(coverage_pixel(dotted, 40, 40) == 255);
+  CHECK(coverage_pixel(dotted, 40, 52) == 0);
+  CHECK(coverage_pixel(dotted, 40, 64) == 255);
+  // Dot direction must not depend on an artificial epsilon surviving addition
+  // to a large absolute coordinate. A translated crop is exactly the same ink.
+  auto translated = path;
+  for (auto& anchor : translated.subpaths[0].anchors) {
+    anchor.anchor_x += 90000; anchor.in_x += 90000; anchor.out_x += 90000;
+    anchor.anchor_y += 90000; anchor.in_y += 90000; anchor.out_y += 90000;
+  }
+  const auto moved = stroke_coverage(translated, stroke, Rect{90000, 90000, 192, 192});
+  for (int y = 30; y < 170; ++y) {
+    for (int x = 30; x < 50; ++x) {
+      CHECK(coverage_pixel(dotted, x, y) == coverage_pixel(moved, x + 90000, y + 90000));
+    }
+  }
+  stroke.cap = patchy::VectorStrokeCap::Butt;
+  CHECK(stroke_coverage(path, stroke, Rect{0, 0, 192, 192}).bounds.empty());
+}
+
+void stroke_aligned_round_dots_keep_circles_on_curves() {
+  VectorPath path;
+  path.subpaths = {circle_subpath(96, 96, 64)};
+  patchy::VectorStroke stroke;
+  stroke.width = 12;
+  stroke.dashes = {0, 2};
+  stroke.cap = patchy::VectorStrokeCap::Round;
+  for (const auto op : {PathCombineOp::Add, PathCombineOp::Subtract}) {
+    path.subpaths.front().op = op;
+    for (const auto alignment : {patchy::VectorStrokeAlignment::Inside,
+                                 patchy::VectorStrokeAlignment::Outside}) {
+      stroke.alignment = alignment;
+      const bool inward = (alignment == patchy::VectorStrokeAlignment::Inside) ==
+                          (op == PathCombineOp::Add);
+      const int cx = inward ? 154 : 166;
+      const auto dotted = stroke_coverage(path, stroke, Rect{0, 0, 192, 192});
+      CHECK(coverage_pixel(dotted, cx, 96) == 255);
+      CHECK(coverage_pixel(dotted, cx, 99) == 255);
+      CHECK(coverage_pixel(dotted, cx, 103) == 0);
+      CHECK(coverage_pixel(dotted, cx + 5, 101) == 0);
+    }
+  }
+}
+
 void stroke_golden_digests_are_stable() {
   struct Golden {
     const char* name;
@@ -1221,6 +1336,10 @@ std::vector<patchy::test::TestCase> vector_raster_tests() {
       {"stroke_caps_butt_square_round", stroke_caps_butt_square_round},
       {"stroke_joins_miter_bevel_round", stroke_joins_miter_bevel_round},
       {"stroke_dashes_and_offset", stroke_dashes_and_offset},
+      {"stroke_aligned_dashes_keep_cap_size_and_gaps", stroke_aligned_dashes_keep_cap_size_and_gaps},
+      {"stroke_aligned_dots_follow_compound_fill_side", stroke_aligned_dots_follow_compound_fill_side},
+      {"stroke_zero_length_dots_keep_first_dot_and_tangent", stroke_zero_length_dots_keep_first_dot_and_tangent},
+      {"stroke_aligned_round_dots_keep_circles_on_curves", stroke_aligned_round_dots_keep_circles_on_curves},
       {"stroke_golden_digests_are_stable", stroke_golden_digests_are_stable},
       {"stroke_bezier_circle_is_translation_stable", stroke_bezier_circle_is_translation_stable},
       {"stroke_miter_spike_stays_in_bounds", stroke_miter_spike_stays_in_bounds},

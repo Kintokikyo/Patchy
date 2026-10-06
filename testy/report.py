@@ -23,12 +23,21 @@ _PAGE = r"""<!DOCTYPE html>
     --good: #4fc26b; --warn: #d9a13c; --bad: #d95c4a; --accent: #5aa2e0; --line: #2e323a;
   }
   * { box-sizing: border-box; }
+  /* The page is a fixed-height row: everything (header, summary, matrix) in a scroll
+     container on the left and the detail panel beside it on the right. An open panel
+     narrows the left side instead of covering its right-hand columns, so the matrix's
+     horizontal scrollbar stays reachable. */
   body { margin: 0; background: var(--bg); color: var(--text);
-         font: 13px/1.5 "Segoe UI", system-ui, sans-serif; }
+         font: 13px/1.5 "Segoe UI", system-ui, sans-serif;
+         display: flex; height: 100vh; overflow: hidden; }
+  #page { flex: 1 1 auto; min-width: 0; overflow: auto; }
   header { padding: 14px 22px; border-bottom: 1px solid var(--line); display: flex;
            align-items: baseline; gap: 18px; flex-wrap: wrap; }
   header h1 { font-size: 17px; margin: 0; letter-spacing: .4px; }
   header .meta { color: var(--dim); font-size: 12px; }
+  header .version { color: var(--dim); font-size: 12px; font-weight: 400; }
+  #about { color: var(--dim); font-size: 12px; padding: 8px 22px 0; max-width: 1100px; }
+  #about a { color: var(--accent); }
   #state-pill { padding: 2px 10px; border-radius: 10px; font-size: 11px; background: var(--panel2); }
   #state-pill.running { color: var(--warn); }
   #state-pill.done { color: var(--good); }
@@ -50,6 +59,9 @@ _PAGE = r"""<!DOCTYPE html>
   .card .ver { color: var(--dim); font-size: 11px; margin-bottom: 6px; }
   .card .row { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; }
   .card .row b { font-variant-numeric: tabular-nums; }
+  .card.standing { min-width: 210px; }
+  .card.standing .row { font-size: 13px; padding: 2px 0; }
+  .card.standing .row.me span, .card.standing .row.me b { color: var(--accent); }
   main { padding: 0 22px 40px; }
   /* Every cell draws its own grid lines rather than collapsing them into the table's:
      a collapsed border belongs to the table, so Chromium leaves it behind when the
@@ -80,11 +92,10 @@ _PAGE = r"""<!DOCTYPE html>
                  padding: 8px 12px; margin: 6px 0 12px; }
   .keep-banner b { color: var(--good); }
   /* The panel itself never scrolls (so the resize handle and close button stay put);
-     #detail-body inside it is the scroll container. */
-  #detail { position: fixed; right: 0; top: 0; bottom: 0; width: min(880px, 92vw);
-            background: var(--panel); border-left: 1px solid var(--line);
-            transform: translateX(102%); transition: transform .18s ease; z-index: 5; }
-  #detail.open { transform: none; }
+     #detail-body inside it is the scroll container. Closed, it takes no room. */
+  #detail { position: relative; flex: none; width: min(880px, 92vw); max-width: 96vw;
+            background: var(--panel); border-left: 1px solid var(--line); display: none; }
+  #detail.open { display: block; }
   #detail-body { height: 100%; overflow: auto; padding: 18px 22px; }
   #detail-resizer { position: absolute; left: 0; top: 0; bottom: 0; width: 7px;
                     cursor: ew-resize; }
@@ -97,6 +108,10 @@ _PAGE = r"""<!DOCTYPE html>
   #detail figcaption { color: var(--dim); font-size: 11px; margin-top: 3px; }
   #detail img { max-width: 260px; border: 1px solid var(--line); border-radius: 4px;
                 background: #fff; image-rendering: auto; display: block; cursor: zoom-in; }
+  /* A tiny render (a 4x4 blend-mode probe, a 1x1 file) is blown up by a whole number so
+     there is something to see, with hard pixels and the factor in its caption. */
+  #detail img.tiny { image-rendering: pixelated; }
+  #detail figcaption .zoom { color: var(--accent); margin-left: 4px; }
   #detail table { border-collapse: collapse; margin: 6px 0 14px; width: 100%; font-size: 12px; }
   #detail th, #detail td { border: 1px solid var(--line); padding: 4px 8px; text-align: left; }
   #detail th { background: var(--panel2); }
@@ -107,10 +122,26 @@ _PAGE = r"""<!DOCTYPE html>
   #detail .retest-btn:hover:enabled { border-color: var(--accent); }
   #detail .retest-btn:disabled { color: var(--dim); cursor: default; }
   #detail .retest-note { color: var(--dim); font-size: 11.5px; margin-left: 8px; }
+  .rerun-btn, .rerun-scope { background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+    border-radius: 4px; padding: 3px 7px; margin-top: 6px; font: inherit; }
+  .rerun-btn { cursor: pointer; margin-left: 5px; }
+  .rerun-btn:disabled, .rerun-scope:disabled { color: var(--dim); cursor: default; }
+  .nums a { color: var(--accent); }
   .ok-text { color: var(--good); } .bad-text { color: var(--bad); } .warn-text { color: var(--warn); }
   .copyable { cursor: pointer; border-bottom: 1px dotted var(--dim); }
   .copyable:hover { color: var(--accent); }
   .copied-flash { color: var(--good); font-size: 11px; margin-left: 6px; }
+  #known-toggle { padding: 0 22px 10px; font-size: 12px; color: var(--dim); }
+  #known-toggle label { cursor: pointer; color: var(--text); }
+  tr.known-limit td.file b { color: var(--dim); }
+  #groups { margin: 0 0 18px; }
+  #groups h2 { font-size: 14px; margin: 0 0 6px; }
+  #groups table { border-collapse: collapse; font-size: 12px; }
+  #groups th, #groups td { border: 1px solid var(--line); padding: 4px 10px; text-align: left; }
+  #groups th { background: var(--panel); }
+  #groups tr.pick { cursor: pointer; }
+  #groups tr.pick:hover td, #groups tr.on td { background: var(--panel2); }
+  #groups tr.on td:first-child { color: var(--accent); }
   #history { margin-top: 28px; }
   #history h2 { font-size: 14px; }
   #history table { border-collapse: collapse; font-size: 12px; }
@@ -119,18 +150,27 @@ _PAGE = r"""<!DOCTYPE html>
 </style>
 </head>
 <body>
+<div id="page">
 <header>
   <a id="back-link" href="/" title="back to the Testy control panel" style="display:none">&larr; Back</a>
-  <h1>Testy <span style="color:var(--dim)">PSD compatibility</span></h1>
+  <h1>Testy <span style="color:var(--dim)">PSD compatibility</span> <span class="version">v2</span></h1>
   <span id="state-pill">loading</span>
   <span class="meta" id="run-meta"></span>
   <span id="run-controls"></span>
 </header>
+<div id="about">This measures one thing: how faithfully each program loads, renders and saves Photoshop
+PSD and PSB files, against Photoshop's own output. It is not a rating of the programs themselves. A low
+score means keeping documents as PSDs and moving them to and from Photoshop will lose things with that
+program, nothing more. <a href="https://github.com/SethRobinson/Patchy/blob/main/docs/testy.md">How the test works</a> &middot;
+<a href="https://github.com/SethRobinson/Patchy">Testy and Patchy on GitHub</a><span id="corpus-credit"></span></div>
 <div id="summary"></div>
+<div id="known-toggle"></div>
 <main>
+  <section id="groups"></section>
   <table class="matrix"><thead id="matrix-head"></thead><tbody id="matrix-body"></tbody></table>
   <section id="history"></section>
 </main>
+</div>
 <aside id="detail"><div id="detail-resizer"
   title="drag to resize; double-click to reset"></div><button class="close"
   onclick="closeDetail()">&times;</button><div id="detail-body"></div></aside>
@@ -143,10 +183,19 @@ let selected = null;
 // served by something other than testy.py), which hides every control.
 const RUN_ID = (location.pathname.match(/\/runs\/([^/]+)\//) || [])[1] || null;
 let runState = null;
+let rowRerunState = null;
+let rowRerunPending = null;
+let rowRerunError = "";
+const rowRerunScopes = {};
 // The Back link only makes sense while the Testy server is serving this page; a
 // frozen report.html opened from disk has no control panel at "/" to go back to.
-if (location.protocol === "http:" || location.protocol === "https:")
-  document.getElementById("back-link").style.display = "";
+if (location.protocol === "http:" || location.protocol === "https:") {
+  const back = document.getElementById("back-link");
+  back.style.display = "";
+  // A copy published by export_static.py sits beside its own index.html, on a host
+  // whose "/" is somebody's home page, not the Testy control panel.
+  if (!RUN_ID) { back.href = "index.html"; back.title = "back to the overview"; }
+}
 
 function pct(x, digits) { return (100 * x).toFixed(digits === undefined ? 1 : digits) + "%"; }
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g,
@@ -194,6 +243,237 @@ function compareBadFraction(cell) {
   if (!m) return null;
   if (S.run.compare === "perceptual" && m.perceptual) return m.perceptual.badFraction;
   return m.badFraction;
+}
+
+// A corpus spread over several folders (psd-tools sorts its files by feature:
+// adjustments, blend-modes, effects, ...) is grouped by the first folder below the
+// one all its files share. Derived from the source paths, so every run has it.
+const TOP_GROUP = "(top level)";
+function fileGroups(files) {
+  const dirs = files.map(f => String(f.source || "").split(/[\\/]/).slice(0, -1));
+  let common = dirs.length ? dirs[0].length : 0;
+  dirs.forEach(d => {
+    let i = 0;
+    while (i < common && i < d.length && d[i] === dirs[0][i]) i++;
+    common = i;
+  });
+  return dirs.map(d => d.length > common ? d[common] : TOP_GROUP);
+}
+
+// Per group and editor: cells measured, opened, renders within the poor-match limit,
+// mean share of data kept in the resave, and resaves Photoshop rejected.
+function groupRollup(files, groups, editors, badFraction, limit) {
+  const out = {};
+  files.forEach((f, i) => {
+    const row = out[groups[i]] = out[groups[i]] || { files: 0, editors: {} };
+    row.files++;
+    editors.forEach(k => {
+      const a = row.editors[k] = row.editors[k] ||
+        { total: 0, opened: 0, matched: 0, compared: 0, badSaves: 0, native: [] };
+      const c = (f.cells || {})[k];
+      if (!c || c.state === "pending" || c.state === "running" || c.state === "skipped") return;
+      a.total++;
+      if (c.state === "done" && c.opens !== "fail") a.opened++;
+      if (c.resaveRejected) a.badSaves++;
+      const bad = badFraction(c);
+      if (bad != null) { a.compared++; if (bad <= limit) a.matched++; }
+      if (c.native && typeof c.native.nativeScore === "number") a.native.push(c.native.nativeScore);
+    });
+  });
+  return out;
+}
+
+// Files exercising things Patchy deliberately does not do: 16/32-bit documents (it
+// converts to 8-bit on open) and artboards. The header switch leaves them out of
+// every editor's totals, so the scores read as "of the files in scope".
+function knownLimit(f) {
+  const t = f.traits;
+  if (!t) return "";
+  const why = [];
+  if (t.depth > 8) why.push(t.depth + "-bit");
+  if (t.artboards) why.push("artboards");
+  return why.join(", ");
+}
+let skipKnown = false;
+try { skipKnown = localStorage.getItem("testy.skipKnown") === "1"; } catch (e) {}
+function setSkipKnown(on) {
+  skipKnown = !!on;
+  try { localStorage.setItem("testy.skipKnown", skipKnown ? "1" : "0"); } catch (e) {}
+  render();
+}
+function scoredFiles() { return skipKnown ? S.files.filter(f => !knownLimit(f)) : S.files; }
+function renderKnownToggle() {
+  const box = document.getElementById("known-toggle");
+  const known = S.files.filter(f => knownLimit(f)).length;
+  if (!S.files.some(f => f.traits)) { box.innerHTML = ""; return; }
+  box.innerHTML = '<label><input type="checkbox"' + (skipKnown ? " checked" : "") +
+    ' onchange="setSkipKnown(this.checked)"> Score without known limitations</label> (16/32-bit and artboard files: ' +
+    known + " of " + S.files.length + (skipKnown ? ", left out of the totals above and the folder table" : "") + ")";
+}
+
+// The one-glance ranking: every editor but the ground truth, best render match first,
+// by the run's comparison mode. scores is {editorKey: mean accuracy or null}.
+function standingRows(scores, editors) {
+  return editors.filter(k => k !== "photoshop" && scores[k] != null)
+    .map(k => ({ key: k, score: scores[k] }))
+    .sort((a, b) => b.score - a.score || a.key.localeCompare(b.key));
+}
+
+// The Standing card's "psd text handling" block. Strict on purpose: a file with type
+// layers scores 0 for an editor that cannot render its Photoshop text objects (it
+// only shows the pixels baked into the file) or cannot save them back into the .psd as
+// text; otherwise the file scores what the editor's own text render scored. `tally`
+// maps editor -> {scores: [per-file score], files, noRender, noSave} (files counted
+// where the editor produced a result). Returns the ranked rows, each with its label
+// ("0% (FAIL *)" when every file failed) and the footnotes those marks point at
+// (editors with the same failure share a mark).
+function psdTextStanding(tally, editors, names, helpNotes) {
+  const notes = [];
+  const helps = [];
+  const markFor = text => {
+    let note = notes.find(n => n.text === text);
+    if (!note) { note = { mark: "*".repeat(notes.length + 1), text: text }; notes.push(note); }
+    return note.mark;
+  };
+  const rows = [];
+  editors.forEach(k => {
+    const t = tally[k];
+    if (k === "photoshop" || !t || !t.scores.length) return;
+    const name = names[k] || k;
+    const score = t.scores.reduce((a, b) => a + b, 0) / t.scores.length;
+    const marks = [];
+    const reasons = [];
+    const mark = text => { reasons.push(text); marks.push(markFor(text)); };
+    if (t.noRender)
+      mark((t.noRender >= t.files
+        ? "Cannot render psd text objects, only uses the baked pixels saved in the file"
+        : name + " could not render the psd text objects in " + t.noRender + " of " + t.files +
+          " files (baked pixels only); those files count as 0"));
+    if (t.noSave)
+      mark((t.noSave >= t.files
+        ? "Cannot save text objects back out into the .psd as text"
+        : name + " did not save the text objects back into the .psd as text in " + t.noSave + " of " +
+          t.files + " files; those files count as 0"));
+    const failed = score === 0 && marks.length > 0;
+    // Help Testy gives this editor (Photopea: the fonts), marked with a dagger.
+    const help = (helpNotes || {})[k] || "";
+    let helpMark = "";
+    if (help && !failed) {
+      helpMark = " " + "†".repeat(helps.length + 1);
+      helps.push({ mark: helpMark.trim(), text: help });
+      reasons.push(help);
+    }
+    rows.push({ key: k, score: score, failed: failed, reasons: reasons,
+                label: (failed ? "0% (FAIL " + marks.join(" ") + ")"
+                               : Math.round(100 * score) + "%" + (marks.length ? " " + marks.join(" ") : "") +
+                                 helpMark) });
+  });
+  rows.sort((a, b) => b.score - a.score || a.key.localeCompare(b.key));
+  return { rows: rows, notes: notes.concat(helps) };
+}
+
+// The editor refused a file Photoshop rendered: counted as a zero in the averages.
+// A harness failure (timeout, dead app, skipped cell) is not the editor's verdict on
+// the file and stays out, as does a file with no reference render at all.
+function refusedWithReference(f, c) {
+  const gt = f.groundTruth || {};
+  return !!c && c.opens === "fail" && gt.state === "done" && !!(gt.artifacts || {}).render;
+}
+
+// The two text rules that zero a score outright, each with the sentence that says why:
+// an editor that cannot render a Photoshop text object (it can only show the pixels
+// Photoshop cached in the file) gets 0% for that file's render, and one that cannot
+// save a text object back out as text gets 0% for the file's "data kept in .psd save".
+function textZeroReasons(cell) {
+  const reasons = [];
+  if (!cell) return reasons;
+  const m = cell.renderMetrics;
+  if (m && m.textNotRendered && m.textNotRendered.length) {
+    const measured = m.measured || {};
+    const was = S.run.compare === "perceptual" && measured.perceptualAccuracy != null
+      ? measured.perceptualAccuracy : measured.accuracy;
+    reasons.push({
+      kind: "render",
+      short: "render 0%: cannot render Photoshop text objects",
+      long: "Render scored 0%: this editor cannot render " + m.textNotRendered.length +
+            " Photoshop text object(s) in this file (" + m.textNotRendered.join(", ") +
+            "). It can only show the pixels Photoshop cached in the .psd, so with that cache " +
+            "removed it draws nothing for them." +
+            (was != null ? " The rest of the picture measured " + pct(was) + "." : ""),
+    });
+  }
+  const n = cell.native;
+  if (n && n.textNotSaved) {
+    reasons.push({
+      kind: "save",
+      short: "data kept 0%: text not saved as text",
+      long: "Data kept scored 0%: " + n.textNotSaved.lost + " of " + n.textNotSaved.total +
+            " Photoshop text object(s) did not come back as text in this editor's .psd save " +
+            "(rasterized, converted or dropped), so the text is no longer editable." +
+            (n.nativeScoreMeasured != null
+              ? " Counting every object, " + n.nativeKept + "/" + n.nativeTotal + " (" +
+                pct(n.nativeScoreMeasured) + ") survived."
+              : ""),
+    });
+  }
+  return reasons;
+}
+
+// Files with cached layers are scored on the editor's render with those caches
+// removed (no-cache leg). Say on the cell which layers it drew nothing for, and which
+// could not be measured, with the layers' names on hover.
+function replayNote(f, k) {
+  const leg = ((f.cells || {})[k] || {}).noCache;
+  if (!leg) return "";
+  if (leg.state !== "done")
+    return '<div class="nums" title="' + esc(leg.reason || "") + '">own rendering not measured (scored as opened, with any cached pixels)</div>';
+  let html = "";
+  if (leg.notRendered && leg.notRendered.length)
+    html += '<div class="flag" title="' + esc(leg.notRendered.join(", ")) + '">cannot render ' +
+            leg.notRendered.length + " of " + leg.cachedLayers + " Photoshop text/shape/smart layer(s)</div>";
+  if (leg.notMeasured && leg.notMeasured.length)
+    html += '<div class="nums" title="' + esc((leg.notMeasuredReason || "") + ": " + leg.notMeasured.join(", ")) +
+            '">' + leg.notMeasured.length + " layer(s) not measured (cache shown)</div>";
+  return html;
+}
+
+let groupFilter = null;
+function pickGroup(index) {
+  const names = [...new Set(fileGroups(S.files))].sort();
+  groupFilter = index < 0 || groupFilter === names[index] ? null : names[index];
+  render();
+}
+
+function renderGroups(groups, editors) {
+  const box = document.getElementById("groups");
+  const names = [...new Set(groups)].sort();
+  if (names.length < 2) { box.innerHTML = ""; groupFilter = null; return; }
+  const scored = S.files.map((f, i) => i).filter(i => !(skipKnown && knownLimit(S.files[i])));
+  const roll = groupRollup(scored.map(i => S.files[i]), scored.map(i => groups[i]), editors,
+                           compareBadFraction, poorMatchLimit());
+  names.forEach(name => { roll[name] = roll[name] || { files: 0, editors: {} }; });
+  const cell = a => {
+    if (!a || !a.total) return "<td>-</td>";
+    const failed = a.total - a.opened;
+    const parts = [];
+    if (a.compared) parts.push('<span class="' + (a.matched < a.total ? "" : "ok-text") + '">' +
+                               a.matched + "/" + a.total + " match</span>");
+    if (failed) parts.push('<span class="bad-text">' + failed + " not opened</span>");
+    if (a.native.length) parts.push("kept " + pct(a.native.reduce((p, c) => p + c, 0) / a.native.length, 0));
+    if (a.badSaves) parts.push('<span class="bad-text">' + a.badSaves + " bad save" + (a.badSaves > 1 ? "s" : "") + "</span>");
+    return "<td>" + (parts.join(" · ") || "-") + "</td>";
+  };
+  box.innerHTML = "<h2>By folder" + (groupFilter == null ? "" :
+      ' <span class="nums">showing ' + esc(groupFilter) + ' only · <a href="#" onclick="pickGroup(-1);return false">show all</a></span>') +
+    "</h2><table><tr><th>Folder</th><th>Files</th>" +
+    editors.map(k => "<th>" + esc((S.editors[k] || {}).displayName || k) + "</th>").join("") + "</tr>" +
+    names.map((name, i) => "<tr class='pick" + (groupFilter === name ? " on" : "") +
+      "' title='click to show only these files' onclick='pickGroup(" + i + ")'><td>" + esc(name) +
+      "</td><td>" + roll[name].files + "</td>" +
+      editors.map(k => cell(roll[name].editors[k])).join("") + "</tr>").join("") +
+    '</table><div class="nums">match: render within ' + pct(poorMatchLimit(), 0) +
+    " of Photoshop's pixels (" + (S.run.compare === "perceptual" ? "perceptual" : "byte") +
+    "); kept: mean share of layer data surviving a .psd resave.</div>";
 }
 
 const LOSS_LABELS = [
@@ -244,7 +524,8 @@ function cellSummary(cell, psCell) {
   if (cell.renderMetrics && cell.renderMetrics.perceptual)
     bits.push("perceptual " + pct(cell.renderMetrics.perceptual.accuracy));
   if (cell.native && cell.native.perCategory)
-    bits.push("kept in .psd save " + cell.native.nativeKept + "/" + cell.native.nativeTotal);
+    bits.push("kept in .psd save " + cell.native.nativeKept + "/" + cell.native.nativeTotal +
+              (cell.native.textNotSaved ? " = 0% (text lost)" : ""));
   if (cell.renderMetrics && cell.renderMetrics.objectsScored) {
     const m = cell.renderMetrics;
     const objectsOk = S.run.compare === "perceptual" && m.objectsRenderedOkPerceptual != null
@@ -268,6 +549,7 @@ function cellSummary(cell, psCell) {
         : "renders from the baked composite (so does Photoshop)";
   }
   if (cell.renderMetrics && cell.renderMetrics.sizeMismatch) flags.push("size mismatch");
+  textZeroReasons(cell).forEach(reason => flags.push(reason.short));
   if (cell.opens === "fallback-render") flags.push("PS needed fallback render");
   // The two verdicts worth reading from across the matrix ride on the status line
   // itself, next to the dot, instead of down in the flag list.
@@ -387,6 +669,79 @@ function waitForRetestRun(deadline) {
   }).catch(() => setTimeout(() => waitForRetestRun(deadline), 1500));
 }
 
+function rerunRow(fi) {
+  if (rowRerunPending !== null || (runState && runState.running)) return;
+  const source = S.files[fi].source;
+  rowRerunPending = source;
+  rowRerunError = "";
+  rowRerunState = { source, state: "starting" };
+  render();
+  fetch("/testy-rerun-file", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ run: RUN_ID, source, scope: rowRerunScopes[fi] || "patchy" }),
+  }).then(async response => {
+    const result = await response.json();
+    rowRerunPending = null;
+    if (!response.ok) {
+      rowRerunError = (result.errors || ["Rerun failed"]).join("; ");
+      rowRerunState = { source, state: "failed", error: rowRerunError };
+      render();
+    } else { pollSoon(); }
+  }).catch(() => {
+    rowRerunPending = null;
+    rowRerunError = "The server is unreachable. Check the row before trying again.";
+    render();
+  });
+}
+
+function rerunRowControls(f, fi) {
+  if (!RUN_ID || !runState || S.state !== "done") return "";
+  const thisRow = rowRerunState && rowRerunState.source === f.source;
+  const running = thisRow && ["starting", "running"].includes(rowRerunState.state);
+  const busy = runState.running || rowRerunPending !== null ||
+    (rowRerunState && rowRerunState.state === "running");
+  const hasPatchy = S.run.editorOrder.includes("patchy");
+  const scope = rowRerunScopes[fi] || (hasPatchy ? "patchy" : "all");
+  rowRerunScopes[fi] = scope;
+  const disabled = busy ? " disabled" : "";
+  let controls = '<div><select class="rerun-scope" aria-label="Editors to rerun for ' + esc(f.name) +
+    '" onchange="rowRerunScopes[' + fi + ']=this.value"' + disabled + '>' +
+    (hasPatchy ? '<option value="patchy"' + (scope === "patchy" ? " selected" : "") + '>Patchy</option>' : "") +
+    '<option value="all"' + (scope === "all" ? " selected" : "") + '>All editors</option></select>' +
+    '<button class="rerun-btn" onclick="rerunRow(' + fi + ')"' + disabled +
+    ' title="Rerun this image and update this batch">' + (running ? "Rerunning..." : "Rerun") + '</button></div>';
+  if (thisRow) {
+    const note = rowRerunError || rowRerunState.error || (running ? "Previous results shown until completion." :
+      rowRerunState.state === "applied" ? "Results and totals updated." : "");
+    controls += '<div class="nums" role="status">' + esc(note) + '</div>';
+  }
+  return controls;
+}
+
+function editorVersionLabel(key) {
+  const versions = new Set([(S.editors[key] || {}).version || '?']);
+  (S.run.reruns || []).forEach(r => {
+    if (r.editors[key]) versions.add(r.editors[key].version || '?');
+  });
+  return versions.size > 1 ? 'mixed versions; see updated rows' : [...versions][0];
+}
+
+// The test files are somebody else's work: name them, with a link, next to the
+// explanation of the test.
+function renderCorpusCredit() {
+  const credit = S.run.corpus;
+  const span = document.getElementById("corpus-credit");
+  if (!credit || !span) return;
+  const link = (url, text) => { const a = document.createElement("a"); a.href = url; a.textContent = text; return a; };
+  span.textContent = "";
+  span.append(document.createElement("br"), "Test files: the ");
+  span.append(link(credit.url, credit.name));
+  span.append(" of the ", link(credit.projectUrl, credit.project + " project"),
+              " (" + credit.license + " license)" +
+              (credit.commit ? ", commit " + credit.commit.slice(0, 12) : "") +
+              ". Only the renders are shown here, never the files.");
+}
+
 function render() {
   if (!S) return;
   const pill = document.getElementById("state-pill");
@@ -398,38 +753,52 @@ function render() {
   renderControls();
   const compareWord = S.run.compare === "perceptual" ? "perceptual" : "byte";
   const corpusBytes = totalSize(S.files);
+  renderCorpusCredit();
   document.getElementById("run-meta").textContent =
     S.run.startedAt + "  -  " + S.files.length + " file(s)" +
     (corpusBytes ? ", " + fmtSize(corpusBytes) : "") + "  -  Patchy " + (S.run.patchyVersion || "?") +
     (S.run.compare === "perceptual" ? "  -  compare: perceptual" : "") +
-    (S.run.scan ? "  -  scan mode: flag over " + S.run.scan.thresholdPct + "% " + compareWord + " difference" : "");
+    (S.run.scan ? "  -  scan mode: flag over " + S.run.scan.thresholdPct + "% " + compareWord + " difference" : "") +
+    (S.run.reruns && S.run.reruns.length ? "  -  partial refresh: " + S.run.reruns.length + " image rerun(s); build details on each row" : "");
 
   const editors = S.run.editorOrder;
   document.getElementById("matrix-head").innerHTML =
     "<tr><th>PSD</th>" + editors.map(k => {
       const e = S.editors[k] || {};
       return "<th>" + esc(e.displayName || k) +
-             '<div class="nums">' + esc(e.version || "") + "</div></th>";
+             '<div class="nums">' + esc(editorVersionLabel(k)) + "</div></th>";
     }).join("") + "</tr>";
 
+  const groups = fileGroups(S.files);
+  renderGroups(groups, editors);
   document.getElementById("matrix-body").innerHTML = S.files.map((f, fi) => {
+    if (groupFilter != null && groups[fi] !== groupFilter) return "";
     const gt = f.groundTruth || {};
     const gtNote = gt.state === "failed" ? '<div class="flag">ground truth failed</div>'
       : (gt.state === "running" ? '<div class="nums">ground truth: ' + esc(gt.stage || "...") + "</div>" : "");
     const scanNote = !f.scan ? "" : (f.scan.flagged
       ? '<div class="flag">FLAGGED: ' + esc(f.scan.reasons[0] || "") +
         (f.scan.reasons.length > 1 ? " (+" + (f.scan.reasons.length - 1) + " more)" : "") + "</div>"
-      : '<div class="nums ok-text">scan: passed (images discarded)</div>');
-    return "<tr><td class='file'><b class='copyable' title='" + esc(f.source) +
+      : '<div class="nums ok-text">scan: passed' + (f.scan.artifactsKept ? "" : " (images discarded)") + '</div>');
+    const latest = f.reruns && f.reruns.length ? f.reruns[f.reruns.length - 1] : null;
+    const revision = latest ? '<div class="nums">Updated ' + esc(latest.at) + ' (' +
+      Object.entries(latest.editors).map(([k, v]) => esc(v.displayName || k) + ' ' + esc(v.version || '?')).join(', ') +
+      ') · <a href="' + esc(artUrl(latest.previous)) + '" target="_blank">Previous results</a></div>' : "";
+    const limit = knownLimit(f);
+    const limitNote = limit ? '<div class="nums">known limitation: ' + esc(limit) + "</div>" : "";
+    return "<tr" + (limit ? " class='known-limit'" : "") + "><td class='file'><b class='copyable' title='" + esc(f.source) +
       " (click to copy path)' onclick='copyPath(" + fi + ", this)'>" + esc(f.name) + "</b>" +
-      '<div class="nums">' + fileFacts(f) + "</div>" + gtNote + scanNote + "</td>" +
+      '<div class="nums">' + fileFacts(f) + "</div>" + limitNote + gtNote + scanNote + revision + rerunRowControls(f, fi) + "</td>" +
       editors.map(k => "<td class='cell' onclick='openDetail(" + fi + ",\"" + k + "\")'>" +
-                       cellSummary((f.cells || {})[k], (f.cells || {}).photoshop) + "</td>").join("") + "</tr>";
+                       cellSummary((f.cells || {})[k], (f.cells || {}).photoshop) + replayNote(f, k) +
+                       "</td>").join("") + "</tr>";
   }).join("");
 
   const agg = {};
-  editors.forEach(k => agg[k] = { opened: 0, total: 0, badSaves: 0, acc: [], vis: [], native: [], text: [0, 0], adj: [0, 0], smart: [0, 0], fx: [0, 0] });
-  S.files.forEach(f => editors.forEach(k => {
+  editors.forEach(k => agg[k] = { opened: 0, total: 0, badSaves: 0, acc: [], vis: [], native: [], text: [0, 0], adj: [0, 0], smart: [0, 0], fx: [0, 0], textFiles: [],
+                                   textTally: { scores: [], files: 0, noRender: 0, noSave: 0 } });
+  renderKnownToggle();
+  scoredFiles().forEach(f => editors.forEach(k => {
     const c = (f.cells || {})[k];
     if (!c || c.state === "pending" || c.state === "running" || c.state === "skipped") return;
     const a = agg[k];
@@ -438,6 +807,34 @@ function render() {
     if (c.resaveRejected) a.badSaves++;
     if (c.renderMetrics) a.acc.push(c.renderMetrics.accuracy);
     if (c.renderMetrics && c.renderMetrics.perceptual) a.vis.push(c.renderMetrics.perceptual.accuracy);
+    if (!c.renderMetrics && refusedWithReference(f, c)) { a.acc.push(0); a.vis.push(0); }
+    // (A file whose text needs a font Photoshop lacks says nothing about anyone's
+    // text handling: the baked pixels are the reference for everybody.)
+    const gtFonts = f.groundTruth || {};
+    if (f.textLayers && !(gtFonts.textFontsMissing || gtFonts.mutateSkipped)) {
+      // The text score is the scored render of a file with type layers, for an
+      // editor whose own text engine drew that text (on open, or after Testy's
+      // scripted re-render). Anything else is not a text score.
+      const basis = (S.editors[k] || {}).textBasis;
+      const metrics = basis === "open" ? c.renderMetrics : null;
+      const score = metrics
+        ? (S.run.compare === "perceptual" && metrics.perceptual ? metrics.perceptual.accuracy : metrics.accuracy)
+        : (basis === "open" && refusedWithReference(f, c) ? 0 : null);
+      if (score != null) a.textFiles.push(score);
+      // psd text handling (Standing card): the same score, but a file whose Photoshop
+      // text the editor cannot render, or cannot save back as text, counts as 0.
+      const m = c.renderMetrics;
+      const noRender = basis === "replay" || !!(m && m.textNotRendered && m.textNotRendered.length);
+      const noSave = !!(c.native && c.native.textNotSaved);
+      const judged = score != null || ((noRender || noSave) && c.state === "done");
+      if (judged) {
+        const t = a.textTally;
+        t.files++;
+        if (noRender) t.noRender++;
+        if (noSave) t.noSave++;
+        t.scores.push(noRender || noSave ? 0 : score);
+      }
+    }
     if (c.native && typeof c.native.nativeScore === "number") {
       a.native.push(c.native.nativeScore);
       const pc = c.native.perCategory || {};
@@ -485,10 +882,41 @@ function render() {
                                               : v[0] + "/" + v[1]]);
     });
     return '<div class="card"><h3>' + esc(e.displayName || k) + '</h3><div class="ver">' +
-      esc(e.version || "") + "</div>" +
+      esc(editorVersionLabel(k)) + "</div>" +
       rows.map(r => '<div class="row"><span>' + r[0] + "</span><b>" + r[1] + "</b></div>").join("") +
       "</div>";
-  }).join("");
+  }).join("") + (() => {
+    const perceptual = S.run.compare === "perceptual";
+    const scores = {};
+    editors.forEach(k => { scores[k] = mean(perceptual && agg[k].vis.length ? agg[k].vis : agg[k].acc); });
+    const ranked = standingRows(scores, editors);
+    if (ranked.length < 2) return "";
+    // psd text handling, ranked on its own and strict (see psdTextStanding): an editor
+    // that cannot render Photoshop text objects, or cannot save them back as text,
+    // scores 0 on that file, and the reason is spelled out under the list.
+    const textFiles = scoredFiles().filter(f => f.textLayers &&
+      !((f.groundTruth || {}).textFontsMissing || (f.groundTruth || {}).mutateSkipped)).length;
+    const tally = {}, names = {};
+    editors.forEach(k => { tally[k] = agg[k].textTally; names[k] = (S.editors[k] || {}).displayName || k; });
+    const helpNotes = {};
+    editors.forEach(k => { helpNotes[k] = (S.editors[k] || {}).textHelpNote || ""; });
+    const text = psdTextStanding(tally, editors, names, helpNotes);
+    const textBlock = !textFiles || !text.rows.length ? "" :
+      '<div class="ver" style="margin-top:8px">psd text handling (' + textFiles + " files with type layers)</div>" +
+      text.rows.map((r, i) => '<div class="row' + (r.key === "patchy" ? " me" : "") + '" title="' +
+        esc([(S.editors[r.key] || {}).textBasisNote || ""].concat(r.reasons).filter(x => x).join(". ")) +
+        '"><span>' + (i + 1) + ". " +
+        esc(names[r.key]) + "</span><b" + (r.failed ? ' class="bad-text"' : "") + ">" + esc(r.label) +
+        "</b></div>").join("") +
+      text.notes.map(n => '<div class="nums" style="margin-top:4px">' + esc(n.mark) + " - " + esc(n.text) +
+        "</div>").join("");
+    return '<div class="card standing"><h3>Standing</h3><div class="ver">' +
+      (perceptual ? "perceptual" : "byte") + " match to Photoshop" +
+      (skipKnown ? ", known limitations left out" : "") + "; unopened files count as 0</div>" +
+      ranked.map((r, i) => '<div class="row' + (r.key === "patchy" ? " me" : "") + '"><span>' + (i + 1) + ". " +
+        esc((S.editors[r.key] || {}).displayName || r.key) + "</span><b>" + pct(r.score, 0) + "</b></div>").join("") +
+      textBlock + "</div>";
+  })();
   renderHistory();
   if (selected) openDetail(selected[0], selected[1], true);
 }
@@ -503,13 +931,32 @@ function img(fig, cap, full) {
   if (!fig) return "";
   const version = "?v=" + (S.run.updateCounter || 0);
   return "<figure><a href='" + artUrl(full || fig) + version + "' target='_blank' title='open full size'>" +
-         "<img src='" + artUrl(fig) + version + "'></a>" +
+         "<img src='" + artUrl(fig) + version + "' onload='zoomTiny(this)'></a>" +
          "<figcaption>" + cap + "</figcaption></figure>";
+}
+
+// Images whose longer side is under 64 px are scaled up by a whole number (at most
+// 40x) until that side is at least 120 px, with nearest-neighbour sampling, and the
+// caption says so; everything larger keeps its natural size.
+function zoomTiny(image) {
+  const w = image.naturalWidth, h = image.naturalHeight;
+  if (!w || !h || Math.max(w, h) >= 64) return;
+  const factor = Math.max(2, Math.min(40, Math.ceil(120 / Math.max(w, h))));
+  image.classList.add("tiny");
+  image.style.width = (w * factor) + "px";
+  image.style.height = (h * factor) + "px";
+  const caption = image.closest("figure") && image.closest("figure").querySelector("figcaption");
+  if (caption && !caption.querySelector(".zoom")) {
+    const note = document.createElement("span");
+    note.className = "zoom";
+    note.textContent = "(" + w + "\u00d7" + h + " shown at " + factor + "\u00d7)";
+    caption.append(" ", note);
+  }
 }
 
 function openDetail(fi, ek, keep) {
   selected = [fi, ek];
-  const f = S.files[fi], cell = (f.cells || {})[ek] || {}, gt = f.groundTruth || {};
+  const f = S.files[fi], cell = (f.cells || {})[ek] || {}, gt = cell.groundTruth || f.groundTruth || {};
   const art = cell.artifacts || {}, gart = gt.artifacts || {};
   const editorName = esc((S.editors[ek] || {}).displayName || ek);
   let html = "<h2><span class='copyable' title='" + esc(f.source) +
@@ -532,9 +979,9 @@ function openDetail(fi, ek, keep) {
     html += f.scan.flagged
       ? '<div class="loss-banner"><b>Flagged by the scan</b><div class="nums">' +
         f.scan.reasons.map(esc).join("<br>") + "</div></div>"
-      : '<div class="keep-banner"><b>Passed the scan</b><div class="nums">every editor stayed ' +
-        "within the threshold, so this file's images and resaves were discarded; the numbers " +
-        "below are kept</div></div>";
+      : '<div class="keep-banner"><b>Passed the scan</b><div class="nums">Every editor stayed ' +
+        'within the threshold. ' + (f.scan.artifactsKept ? 'Rerun artifacts are retained.' :
+        'Images and resaves were discarded; measurements are retained.') + '</div></div>';
   }
   if (f.trapSkipped)
     html += '<div class="nums">honest-rendering trap not run: ' + esc(f.trapSkipped) + "</div>";
@@ -560,25 +1007,38 @@ function openDetail(fi, ek, keep) {
       " of pixels come from the baked composite, but Photoshop's own trap render shows " +
       pct(psTrap) + " - the file has layers even the ground truth cannot re-render " +
       "(e.g. missing fonts), so this is not counted as a cheat</div>";
-  // The mutated pair only makes sense for editors that HAVE a forced text
-  // re-render leg (Patchy; Photoshop's lives with the ground truth). Showing
-  // the lone Photoshop image for other editors reads as a missing test, so
-  // those panels get the skip reason instead.
-  const mutationSkipped = (S.editors[ek] || {}).mutationSkipped;
-  if (!art.mutatedThumb && ek !== "photoshop" && mutationSkipped)
-    html += '<div class="nums">forced text re-render not run for ' + editorName + ": " +
-      esc(mutationSkipped) + "</div>";
+  const fontsMissing = gt.textFontsMissing || gt.mutateSkipped || cell.textRenderSkipped;
+  if (fontsMissing)
+    html += '<div class="nums">Text is scored from the baked pixels for this file: ' + esc(fontsMissing) +
+            " (Photoshop cannot draw this text faithfully either).</div>";
   html += '<div class="imgs">' +
     img(gart.renderThumb, "Photoshop ground truth", gart.render) +
-    img(art.renderThumb, editorName + " render", art.render) +
+    img(art.renderThumb, editorName + (cell.noCache && cell.noCache.state === "done"
+        ? " render, baked pixels removed (scored)" : " render"), art.render) +
+    (art.renderAsOpened ? img(art.renderAsOpened, editorName + " render as opened (includes Photoshop's baked pixels)",
+                              art.renderAsOpened) : "") +
     img(art.heatmap, "Difference heatmap") +
     img(art.trapThumb, editorName + " trap render (sentinel = used baked composite)", art.trap) +
     img(art.roundtripThumb, editorName + " resave reopened in Photoshop", art.roundtripRender) +
-    (art.mutatedThumb || ek === "photoshop"
-      ? img(gart.mutatedThumb, "Photoshop render, text appended", gart.mutated) +
-        img(art.mutatedThumb, editorName + " render, text appended", art.mutated)
-      : "") +
     "</div>";
+  textZeroReasons(cell).filter(r => r.kind === "render").forEach(r => {
+    html += '<div class="loss-banner"><b>' + esc(r.long) + "</b></div>";
+  });
+  // The placeholder boxes in the scored render, in words (a small layer has no room
+  // for the label inside its box).
+  const leg = cell.noCache;
+  if (leg && leg.state === "done" && leg.notRendered && leg.notRendered.length)
+    html += '<div class="loss-banner"><b>The red outline(s) in this render mark ' + leg.notRendered.length +
+            " Photoshop text, shape or smart-object layer(s) this editor drew nothing for: " +
+            esc(leg.notRendered.join(", ")) + "</b>" +
+            '<div class="nums">Photoshop keeps a baked copy of such a layer in the .psd. This render is of ' +
+            "the file with those baked pixels removed, so it shows only what the editor draws itself." +
+            "</div></div>";
+  if (leg && leg.state === "done" && leg.notMeasured && leg.notMeasured.length)
+    html += '<div class="nums">Not measured (baked pixels shown): ' + esc(leg.notMeasured.join(", ")) +
+            ". " + esc(leg.notMeasuredReason || "") + "</div>";
+  if (leg && leg.state !== "done")
+    html += '<div class="nums">Own rendering not measured, scored as opened: ' + esc(leg.reason || "") + "</div>";
   if (cell.renderMetrics) {
     const m = cell.renderMetrics;
     const p = m.perceptual;
@@ -609,6 +1069,9 @@ function openDetail(fi, ek, keep) {
   if (cell.native && cell.native.perCategory) {
     const n = cell.native, pc = n.perCategory, at = n.attributes;
     html += "<h3>Data kept in .psd save (via Photoshop reopen): " + n.nativeKept + "/" + n.nativeTotal + "</h3>";
+    textZeroReasons(cell).filter(r => r.kind === "save").forEach(r => {
+      html += '<div class="loss-banner"><b>' + esc(r.long) + "</b></div>";
+    });
     const losses = lossSummary(n);
     if (losses.length) {
       const changed = n.changedLayers || [];
@@ -651,12 +1114,6 @@ function openDetail(fi, ek, keep) {
     html += "<h3>Round trip back into Photoshop</h3><table><tr><th>Byte match vs original</th><th>Perceptual match</th><th>Pixels off</th></tr>" +
       "<tr><td>" + pct(cell.roundtripRender.accuracy) + "</td><td>" + (rp ? pct(rp.accuracy) : "-") +
       "</td><td>" + pct(cell.roundtripRender.badFraction) + "</td></tr></table>";
-  }
-  if (cell.textRender) {
-    const tp = cell.textRender.perceptual;
-    html += "<h3>Forced text re-render vs Photoshop</h3><table><tr><th>Byte match</th><th>Perceptual match</th><th>Pixels off</th></tr>" +
-      "<tr><td>" + pct(cell.textRender.accuracy) + "</td><td>" + (tp ? pct(tp.accuracy) : "-") +
-      "</td><td>" + pct(cell.textRender.badFraction) + "</td></tr></table>";
   }
   document.getElementById("detail-body").innerHTML = html;
   document.getElementById("detail").classList.add("open");
@@ -735,7 +1192,7 @@ async function renderHistory() {
       lines.slice(-14).reverse().map(r => "<tr><td>" + esc(r.run) + "</td><td>" + r.files + "</td>" +
         editors.map(k => {
           const e = (r.editors || {})[k];
-          return "<td>" + (e ? pct(e.render, 0) + " / " + pct(e.native, 0) : "-") + "</td>";
+          return "<td>" + (e ? pct(e.render, 0) + " / " + (e.nativeMeasured === false ? "-" : pct(e.native, 0)) : "-") + "</td>";
         }).join("") + "</tr>").join("") + "</table>";
   } catch (e) { /* history is optional */ }
 }
@@ -752,9 +1209,17 @@ async function tick() {
       const response = await fetch("/testy-run-state", { cache: "no-store" });
       runState = response.ok ? await response.json() : null;
     } catch (e) { runState = null; /* frozen page opened from disk */ }
+    if (runState && rowRerunPending === null) {
+      try {
+        const response = await fetch("/testy-rerun-state?run=" + encodeURIComponent(RUN_ID), { cache: "no-store" });
+        if (response.ok) { rowRerunState = await response.json(); rowRerunError = ""; }
+      } catch (e) { /* retain the last known state until the server returns */ }
+    }
   }
   if (S) render();
-  tickTimer = setTimeout(tick, S && S.state !== "running" ? 5000 : 1200);
+  // A finished run on a plain web host never changes: stop asking for it.
+  if (!RUN_ID && S && S.state !== "running") return;
+  tickTimer = setTimeout(tick, (rowRerunState && rowRerunState.state === "running") || (S && S.state === "running") ? 1200 : 5000);
 }
 
 function pollSoon() { clearTimeout(tickTimer); tick(); }

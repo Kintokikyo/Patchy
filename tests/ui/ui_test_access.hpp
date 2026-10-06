@@ -68,6 +68,17 @@ public:
     window.refresh_document_info();
   }
 
+  // The ruler unit preference (view/rulerUnits) as the Preferences dialog or the
+  // ruler right-click would set it; it persists, so pair it with a
+  // SettingsValueRestorer.
+  static void set_ruler_unit(MainWindow& window, MeasurementUnit unit) {
+    window.set_ruler_unit_preference(unit);
+  }
+
+  static MeasurementUnit ruler_unit(const MainWindow& window) {
+    return window.ruler_unit_;
+  }
+
   static void levels_dialog(MainWindow& window) {
     window.levels_dialog();
   }
@@ -172,6 +183,16 @@ public:
     window.place_embedded_file_with_path(path);
   }
 
+  // File > Place Linked without the file dialog (docs/smart-object-editing.md).
+  static void place_linked_file_with_path(MainWindow& window, const QString& path) {
+    window.place_linked_file_with_path(path);
+  }
+
+  // File > Import > Files as Layers without the file dialog (docs/import.md).
+  static void import_files_as_layers_with_paths(MainWindow& window, const QStringList& paths) {
+    window.import_files_as_layers_with_paths(paths);
+  }
+
   static void paste_clipboard(MainWindow& window) {
     window.paste_clipboard();
   }
@@ -230,6 +251,10 @@ public:
 
   static QString active_session_path(MainWindow& window) {
     return window.session().path;
+  }
+
+  static QString active_session_title(MainWindow& window) {
+    return window.session().title;
   }
 
   static bool register_legacy_plugin_path(MainWindow& window, const QString& path, QStringList* report) {
@@ -316,6 +341,11 @@ public:
 
   static void undo(MainWindow& window) {
     window.undo();
+  }
+
+  // True while Layers-panel blend mode changes are still merging into one undo entry.
+  static bool layer_blend_edit_pending(const MainWindow& window) {
+    return window.pending_layer_blend_edit_active_;
   }
 
   // Layer > Arrange > Align / Distribute entry points and their persisted

@@ -2,6 +2,8 @@
 
 #include <QString>
 
+#include <initializer_list>
+
 namespace patchy::ui {
 
 // Display/entry units for lengths tied to the document resolution (PPI). Pixels are
@@ -39,12 +41,27 @@ enum class MeasurementUnit {
 [[nodiscard]] QString format_pixels(double pixels, int decimals = 0, bool show_sign = false);
 [[nodiscard]] QString format_percent(double percent, int decimals = 1, bool show_sign = false);
 [[nodiscard]] QString format_degrees(double degrees, int decimals = 1, bool show_sign = false);
+// A value already converted into `unit`, with that unit's suffix ("12.5 mm", "40%").
+[[nodiscard]] QString format_measurement(double value, MeasurementUnit unit, int decimals,
+                                         bool show_sign = false);
 
 // Stable settings tokens ("px", "in", "cm", "mm", "pt", "percent"); tokens are
 // persisted in user settings, never rename them.
 [[nodiscard]] QString measurement_unit_settings_token(MeasurementUnit unit);
 [[nodiscard]] MeasurementUnit measurement_unit_from_settings_token(const QString& token,
                                                                    MeasurementUnit fallback);
+
+// A dialog's remembered W/H unit combo (Image Size, Canvas Size, New Document; the
+// keys are compatibility contracts, docs/resolution-units.md): the token stored under
+// `settings_key`, else the ruler unit (`view/rulerUnits`) on a first run. A unit the
+// combo cannot show (not in `offered`, or an unknown token) falls back to Pixels.
+[[nodiscard]] MeasurementUnit remembered_dialog_unit(const QString& settings_key,
+                                                     std::initializer_list<MeasurementUnit> offered);
+void remember_dialog_unit(const QString& settings_key, MeasurementUnit unit);
+// The resolution unit combos (index 0 Pixels/Inch, 1 Pixels/Centimeter), stored as
+// "in" / "cm" under `settings_key`; anything else reads as Pixels/Inch.
+[[nodiscard]] int remembered_resolution_unit_index(const QString& settings_key);
+void remember_resolution_unit(const QString& settings_key, int index);
 
 // True for units that convert through physical length (Inches/Centimeters/Millimeters/Points).
 [[nodiscard]] bool measurement_unit_is_physical(MeasurementUnit unit) noexcept;
@@ -60,6 +77,10 @@ enum class MeasurementUnit {
 
 // Spin-box decimal places appropriate for entering values in the unit.
 [[nodiscard]] int measurement_unit_decimals(MeasurementUnit unit) noexcept;
+// Spin-box single step for a dimension shown in the unit: one arrow-key press or
+// one pixel of a scrubby-label drag (dialog_utils.hpp). Whole units for px, mm, pt
+// and percent; 0.1 cm; 0.01 in, so a drag never jumps by an inch per pixel.
+[[nodiscard]] double measurement_unit_single_step(MeasurementUnit unit) noexcept;
 
 // Ruler tick spacing for a unit-space ruler. pixels_per_unit_on_screen is how many
 // screen pixels one unit currently spans (document px/unit x zoom). The major step is

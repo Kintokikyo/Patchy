@@ -26,6 +26,7 @@ bool is_zip_path(const QString& path);
 AddFontsResult add_user_fonts(const QStringList& paths);
 
 // Desktop persistence directory; empty on wasm (the store is IndexedDB).
+// PATCHY_USER_FONTS_DIR in the environment replaces it.
 QString user_fonts_directory();
 
 // Desktop: synchronously registers every persisted font. Wasm: arms a QTimer
@@ -34,8 +35,16 @@ QString user_fonts_directory();
 void restore_user_fonts_at_startup();
 
 // Empties the persistence store. Fonts already registered stay usable until
-// the app restarts (desktop) or the page reloads (wasm).
+// the app restarts (desktop) or the page reloads (wasm). Desktop only marks the
+// store's files: they back the live fonts, so the next launch deletes them
+// (restore_user_fonts_at_startup) before it registers anything. Adding one of
+// those fonts again before the restart keeps it.
 void clear_user_font_store();
+
+// Desktop: deletes the files `clear_user_font_store` marked in `directory` and
+// drops the list; a file that cannot be deleted stays listed for the next
+// launch. Call it only before the directory's fonts are registered.
+void apply_pending_user_font_removals(const QString& directory);
 
 // Bundled stand-ins for system families a browser cannot provide. Used on wasm
 // twice: QFont::insertSubstitution at startup (rendering-level fallback) and

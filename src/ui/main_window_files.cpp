@@ -6,6 +6,7 @@
 
 #include "ui/main_window.hpp"
 #include "ui/main_window_shared.hpp"
+#include "ui/network_mounts.hpp"
 #include "ui/qt_paths.hpp"
 
 #include "core/blend_math.hpp"
@@ -84,6 +85,8 @@
 #include "formats/gif_document_io.hpp"
 #include "ui/sprite_sheet_dialog.hpp"
 #include "ui/animation_preview_window.hpp"
+#include "formats/animation_timing.hpp"
+#include "formats/webp_animation_io.hpp"
 #include "ui/tile_preview_window.hpp"
 #include "ui/user_fonts.hpp"
 #include "ui/warp_text_dialog.hpp"
@@ -263,9 +266,7 @@
 #include <tpcshrd.h>
 #endif
 
-#ifndef PATCHY_VERSION
-#define PATCHY_VERSION "0.0.0"
-#endif
+#include "patchy_version.hpp"
 
 // Icon resources live in the static patchy_ui library; force registration before first use.
 int qInitResources_icons();
@@ -280,6 +281,28 @@ constexpr int kOpenProgressTitleMinimumFileNameWidth = 180;
 constexpr int kMaxRecentFiles = 200;
 constexpr int kMaxRecentFolders = 200;
 constexpr int kRecentFilesMenuPageSize = 50;
+// Minimum spacing of the background recent-history existence checks that
+// File menu opens and the start panel's refresh timer start.
+constexpr qint64 kRecentHistoryCheckIntervalMs = 30000;
+
+// Network entries are never stat'ed: an asleep or unreachable host blocks a
+// stat for the SMB timeout, and main() waits for the check worker at quit.
+// They stay listed; clicking one that is gone reports it missing and drops it,
+// like any other missing entry. `mounts` is the live mount table (macOS and
+// Linux mount network shares under ordinary directories, so only the table
+// tells them apart); Windows answers from the drive type instead.
+bool is_network_recent_path(const QString& path, const std::vector<MountEntry>& mounts) {
+  if (path.startsWith(QStringLiteral("\\\\")) || path.startsWith(QStringLiteral("//"))) {
+    return true;
+  }
+#ifdef Q_OS_WIN
+  if (path.size() >= 2 && path[1] == QLatin1Char(':') && path[0].isLetter()) {
+    const wchar_t root[] = {static_cast<wchar_t>(path[0].unicode()), L':', L'\\', L'\0'};
+    return GetDriveTypeW(root) == DRIVE_REMOTE;
+  }
+#endif
+  return path_is_on_network_mount(path, mounts);
+}
 
 QString elided_open_progress_title_file_name(const QWidget& widget, const QString& file_name) {
   const int available_width =
@@ -409,6 +432,72 @@ bool flat_save_discards_layers(const Document& document) {
                                 ? !layer.raw_psd_blending_ranges().empty()
                                 : !blend_if_is_identity(layer.blend_if());
   return !layer.layer_style().empty() || has_blend_if;
+}
+
+// Whether saving `document` into `extension` loses layer content. Flat formats
+// lose everything past one plain pixel layer. SVG keeps shape layers, folders,
+// vector masks and paint servers as real vectors, so it asks the writer for a
+// dry run and warns only when something bakes (text, pixels, smart objects,
+// adjustments, styles, raster masks, inexpressible blend modes): a shape-only
+// document saves in place with no warning.
+bool save_discards_layers(const Document& document, const QString& extension) {
+  if (save_extension_preserves_layers(extension) || !flat_save_discards_layers(document)) {
+    return false;
+  }
+  if (extension == QStringLiteral("svg")) {
+    return !svg::DocumentIo::baked_content(document).empty();
+  }
+  return true;
+}
+
+// The SVG flatten warning names what bakes: one translated phrase per item, the
+// first few joined, the rest counted.
+QString svg_baked_content_summary(const std::vector<svg::BakedContent>& baked) {
+  constexpr std::size_t kNamedItems = 6;
+  QStringList phrases;
+  for (const auto& item : baked) {
+    if (phrases.size() >= static_cast<qsizetype>(kNamedItems)) {
+      break;
+    }
+    const auto name = QString::fromStdString(item.layer_name);
+    switch (item.kind) {
+      case svg::BakedContentKind::TextLayer:
+        phrases << MainWindow::tr("text layer \"%1\"").arg(name);
+        break;
+      case svg::BakedContentKind::PixelLayer:
+        phrases << MainWindow::tr("pixel layer \"%1\"").arg(name);
+        break;
+      case svg::BakedContentKind::SmartObjectLayer:
+        phrases << MainWindow::tr("smart object \"%1\"").arg(name);
+        break;
+      case svg::BakedContentKind::AdjustmentLayer:
+        phrases << MainWindow::tr("adjustment layer \"%1\" and the layers below it").arg(name);
+        break;
+      case svg::BakedContentKind::BlendMode:
+        phrases << MainWindow::tr("the blend mode of \"%1\" and the layers below it").arg(name);
+        break;
+      case svg::BakedContentKind::ShapeLayer:
+        phrases << MainWindow::tr("shape layer \"%1\" (its styles or fill options)").arg(name);
+        break;
+      case svg::BakedContentKind::Group:
+        phrases << MainWindow::tr("group \"%1\" (its styles or masks)").arg(name);
+        break;
+      case svg::BakedContentKind::ClippingGroup:
+        phrases << MainWindow::tr("clipping mask group \"%1\"").arg(name);
+        break;
+      case svg::BakedContentKind::RasterMask:
+        phrases << MainWindow::tr("the layer mask on \"%1\"").arg(name);
+        break;
+      case svg::BakedContentKind::MergedBelow:
+        phrases << MainWindow::tr("\"%1\" (merged under an adjustment layer or blend mode)").arg(name);
+        break;
+    }
+  }
+  auto summary = phrases.join(QStringLiteral(", "));
+  if (baked.size() > kNamedItems) {
+    summary = MainWindow::tr("%1 and %n more", nullptr, static_cast<int>(baked.size() - kNamedItems)).arg(summary);
+  }
+  return summary;
 }
 
 bool layers_have_nondefault_fill_opacity(const std::vector<Layer>& layers) {
@@ -870,6 +959,10 @@ struct OpenDocumentResult {
   // User-facing notes about features the reader dropped or approximated (for example
   // "imported the first frame only"); shown in the Import Notes dialog after the open.
   QStringList import_notices;
+  // The notes describe permanent data loss (a 16/32-bit source converted to 8-bit, which
+  // every save then writes), so the Import Notes popup shows even when the popup
+  // preference is off. Only the status bar would otherwise carry them (GitHub issue 52).
+  bool force_import_notices_popup{false};
   // A multi-page PDF opened as separate documents: the first page's label ("Page 1")
   // and every further page as its own document. Empty for every other open.
   QString document_title;
@@ -902,7 +995,28 @@ OpenDocumentResult load_document_from_path(QString path) {
   const auto extension = info.suffix().toLower();
   Document opened;
   QStringList import_notices;
+  bool force_import_notices_popup = false;
   const auto load_via_qt = [&] {
+    if (extension == QStringLiteral("webp")) {
+      const auto bytes = read_all_file_bytes(path);
+      int index = 0;
+      if (webp::decode_animation(bytes, static_cast<std::uint64_t>(std::max(0, QImageReader::allocationLimit())) * 1024 * 1024,
+          [&](const webp::AnimationInfo& info) {
+            opened = Document(info.width, info.height, PixelFormat::rgba8());
+            opened.metadata().values[webp::kLoopCountMetadata] = std::to_string(info.loop_count);
+          }, [&](PixelBuffer pixels, std::uint32_t delay) {
+            const auto name = QObject::tr("Frame %1").arg(++index) + QLatin1Char(' ') +
+                              QString::fromStdString(animation::format_delay_seconds_token(delay));
+            opened.add_pixel_layer(name.toStdString(), std::move(pixels));
+          })) {
+        std::reverse(opened.layers().begin(), opened.layers().end());
+        if (!opened.layers().empty()) opened.set_active_layer(opened.layers().back().id());
+        opened.print_settings().horizontal_ppi = kUntaggedImportPpi;
+        opened.print_settings().vertical_ppi = kUntaggedImportPpi;
+        import_notices.push_back(QObject::tr("Animated WebP: imported %1 frames as layers").arg(index));
+        return;
+      }
+    }
     QImageReader reader(path);
     reader.setAutoTransform(true);
     const auto image = reader.read();
@@ -981,6 +1095,20 @@ OpenDocumentResult load_document_from_path(QString path) {
     for (const auto& notice : psd_notices) {
       import_notices.push_back(translated_file_message(notice));
     }
+    if (const auto depth = opened.metadata().values.find("psd.depth");
+        depth != opened.metadata().values.end() && depth->second != "8") {
+      force_import_notices_popup = true;
+    }
+    // The other conversions a save makes permanent: a color mode with no RGB, CMYK or
+    // Grayscale equivalent, and adjustment layers that acted on CMYK inks.
+    if (const auto mode = opened.metadata().values.find("psd.color_mode");
+        mode != opened.metadata().values.end() && mode->second != "RGB" && mode->second != "CMYK" &&
+        mode->second != "Grayscale") {
+      force_import_notices_popup = true;
+    }
+    if (opened.metadata().values.contains("psd.ink_adjustments")) {
+      force_import_notices_popup = true;
+    }
     if (const auto notice = unsupported_blend_if_import_notice(opened); !notice.isEmpty()) {
       import_notices.push_back(notice);
     }
@@ -1000,18 +1128,7 @@ OpenDocumentResult load_document_from_path(QString path) {
           link_notices.push_back(QObject::tr("Linked file %1 was not found").arg(file_name));
           continue;
         }
-        const QFileInfo linked_info(*resolved);
-        const auto modified = linked_info.lastModified();
-        const bool size_changed = source.external_file_size != 0U &&
-                                  static_cast<std::uint64_t>(linked_info.size()) != source.external_file_size;
-        const bool date_changed =
-            source.external_mod_year != 0 &&
-            (modified.date().year() != source.external_mod_year ||
-             modified.date().month() != source.external_mod_month ||
-             modified.date().day() != source.external_mod_day ||
-             modified.time().hour() != source.external_mod_hour ||
-             modified.time().minute() != source.external_mod_minute);
-        if (size_changed || date_changed) {
+        if (smart_object_link_changed_on_disk(source, QFileInfo(*resolved))) {
           link_notices.push_back(
               QObject::tr("Linked file %1 has changed on disk; use Update Smart Object Content")
                   .arg(file_name));
@@ -1100,7 +1217,35 @@ OpenDocumentResult load_document_from_path(QString path) {
   } else {
     opened.clear_active_layer();
   }
-  return OpenDocumentResult{std::move(opened), info.fileName(), extension, std::move(import_notices), {}, {}};
+  return OpenDocumentResult{std::move(opened),         info.fileName(), extension, std::move(import_notices),
+                            force_import_notices_popup, {},              {}};
+}
+
+// The consolidated Import Notes box, one bullet per note. Import notes ride the status
+// bar by default; this popup is opt-in through the preference that also gates the PSD
+// compatibility report (Seth: do not annoy people with info popups). A data-loss note
+// (`forced`: a 16/32-bit source converted to 8-bit, GitHub issue 52) shows regardless,
+// as a warning. The object name is shared so tests find either form.
+void show_import_notices_popup(QWidget* parent, const QString& file_name, const QStringList& notices,
+                               bool forced) {
+  const bool popup_preference =
+      app_settings().value(QStringLiteral("imports/showPsdWarningsAndInfo"), false).toBool();
+  if (notices.isEmpty() || (!popup_preference && !forced)) {
+    return;
+  }
+  QStringList bullets;
+  bullets.reserve(notices.size());
+  for (const auto& notice : notices) {
+    bullets.push_back(QStringLiteral("• ") + notice);
+  }
+  const auto text = QObject::tr("%1 opened with notes:\n\n%2").arg(file_name, bullets.join(QLatin1Char('\n')));
+  const auto object_name = QStringLiteral("importNoticesMessageBox");
+  if (forced) {
+    (void)show_warning_message(parent, QObject::tr("Import Notes"), text, QMessageBox::Ok, QMessageBox::Ok,
+                               object_name);
+  } else {
+    show_information_message(parent, QObject::tr("Import Notes"), text, object_name);
+  }
 }
 
 // Shows the open-failure box. Browser HEIC errors get a capability-focused message.
@@ -1210,7 +1355,7 @@ std::optional<OpenDocumentResult> load_document_interactive(QWidget* parent, con
     if (!outcome.has_value()) {
       return std::nullopt;
     }
-    OpenDocumentResult loaded{std::move(outcome->document), info.fileName(), extension, {}, {}, {}};
+    OpenDocumentResult loaded{std::move(outcome->document), info.fileName(), extension, {}, {}, {}, {}};
     if (const auto default_layer_id = default_non_group_layer_id(loaded.document.layers());
         default_layer_id.has_value()) {
       loaded.document.set_active_layer(*default_layer_id);
@@ -1231,8 +1376,13 @@ std::optional<OpenDocumentResult> load_document_interactive(QWidget* parent, con
     for (const auto& notice : outcome->notices) {
       notices.push_back(QString::fromStdString(notice));
     }
-    OpenDocumentResult loaded{std::move(outcome->document), info.fileName(), extension, std::move(notices),
-                              std::move(outcome->document_title), std::move(outcome->extra_documents)};
+    OpenDocumentResult loaded{std::move(outcome->document),
+                              info.fileName(),
+                              extension,
+                              std::move(notices),
+                              false,
+                              std::move(outcome->document_title),
+                              std::move(outcome->extra_documents)};
     if (const auto default_layer_id = default_non_group_layer_id(loaded.document.layers());
         default_layer_id.has_value()) {
       loaded.document.set_active_layer(*default_layer_id);
@@ -1470,6 +1620,11 @@ int MainWindow::open_folder_path(const QString& directory) {
       add_document_session(std::move(loaded->document), loaded->file_name, path, tr("Open"),
                            SessionActivation::Background);
       ++opened;
+      // Background files drop their ordinary notes (no status bar of their own), but a
+      // data-loss note must not go unseen just because the file was not first.
+      if (loaded->force_import_notices_popup && !unattended_automation()) {
+        show_import_notices_popup(this, loaded->file_name, loaded->import_notices, true);
+      }
     } catch (const std::exception& error) {
       failed.push_back(QFileInfo(path).fileName());
       if (unattended_automation()) {
@@ -1506,6 +1661,266 @@ int MainWindow::open_folder_path(const QString& directory) {
   statusBar()->showMessage(status);
   update_undo_redo_actions();
   return opened;
+}
+
+QStringList MainWindow::supported_layer_drop_paths(const QMimeData* mime_data) const {
+  if (preview_dialog_edit_locked()) {
+    return {};
+  }
+  return supported_local_open_paths(mime_data);
+}
+
+MainWindow::AddFilesAsLayersResult MainWindow::add_files_as_layers(
+    DocumentSession& target, const QStringList& paths, std::optional<LayerInsertionTarget> drop_target,
+    FailedFilesPolicy policy, const std::function<bool(int, int)>& progress,
+    const std::function<bool(DocumentSession&)>& before_mutation, QString* error) {
+  AddFilesAsLayersResult result;
+  const auto target_session_id = target.session_id;
+  const auto fail = [&](const QString& message) {
+    if (error != nullptr) {
+      *error = message;
+    }
+    result.added_root_ids_top_to_bottom.clear();
+    return result;
+  };
+  const auto note_failure = [&](const QString& path, const QString& reason) {
+    result.failed_paths.push_back(path);
+    result.failure_messages.push_back(QStringLiteral("%1: %2").arg(QFileInfo(path).fileName(), reason));
+    if (unattended_automation()) {
+      fprintf(stderr, "Add as layer failed: %s (%s)\n", reason.toUtf8().constData(), path.toUtf8().constData());
+    }
+  };
+
+  // Phase 1: decode every file before the document is touched.
+  QStringList unique_paths;
+  for (const auto& raw_path : paths) {
+    const auto path = QDir::toNativeSeparators(raw_path);
+    if (!path.isEmpty() && !unique_paths.contains(path)) {
+      unique_paths.push_back(path);
+    }
+  }
+  std::vector<Document> loaded_documents;
+  loaded_documents.reserve(static_cast<std::size_t>(unique_paths.size()));
+  const int total = static_cast<int>(unique_paths.size());
+  for (int index = 0; index < total; ++index) {
+    const auto& path = unique_paths[index];
+    if (progress && !progress(index + 1, total)) {
+      result.cancelled = true;
+      return result;
+    }
+    try {
+      auto loaded = load_document_from_path(path);
+      auto& document = loaded.document;
+      render_pending_svg_text_layers(document);
+      render_pending_af_text_layers(document);
+      render_pending_pdf_text_layers(document);
+      render_pending_pdf_image_layers(document);
+      record_text_layout_metrics_for_reopened_text(document);
+      if (document.layers().empty()) {
+        note_failure(path, tr("the file holds no layers"));
+        continue;
+      }
+      const auto layer_name = QFileInfo(path).completeBaseName().toStdString();
+      if (document.layers().size() == 1U) {
+        if (!layer_name.empty()) {
+          document.layers().front().set_name(layer_name);
+        }
+      } else {
+        // A multi-layer file (a PSD, GIF frames, a layered SVG) stays one unit: a
+        // pass-through folder named after the file with its layers inside, in
+        // their own order.
+        Layer folder(document.allocate_layer_id(), layer_name.empty() ? tr("Folder").toStdString() : layer_name,
+                     LayerKind::Group);
+        folder.set_blend_mode(BlendMode::PassThrough);
+        for (auto& layer : document.layers()) {
+          folder.add_child(std::move(layer));
+        }
+        document.layers().clear();
+        const auto folder_id = folder.id();
+        document.layers().push_back(std::move(folder));
+        document.set_active_layer(folder_id);
+      }
+      loaded_documents.push_back(std::move(document));
+    } catch (const std::exception& load_error) {
+      note_failure(path, translated_file_message(load_error.what()));
+    }
+  }
+  if (loaded_documents.empty()) {
+    return fail(result.failure_messages.isEmpty() ? tr("None of the files could be added as layers")
+                                                  : result.failure_messages.join(QLatin1Char('\n')));
+  }
+  if (policy == FailedFilesPolicy::AbortOnAnyFailure && !result.failed_paths.isEmpty()) {
+    return fail(result.failure_messages.join(QLatin1Char('\n')));
+  }
+  // The progress pump may have closed the document (or the window) meanwhile.
+  auto* live_target = shutting_down_ ? nullptr : session_with_id(target_session_id);
+  if (live_target == nullptr) {
+    return fail(tr("The document is no longer open."));
+  }
+
+  // Phase 2: build the new stack in a staged copy, so a refusal part-way leaves
+  // the live document untouched (there is no partial undo to fall back on).
+  // Each copy lands above the active layer and becomes active, so the files
+  // stack upward in path order: the last file ends on top.
+  Document staged = live_target->document;
+  std::vector<LayerId> added_top_to_bottom;
+  CrossDocumentLayerPlacement placement;
+  placement.keep_source_position = true;
+  for (const auto& loaded : loaded_documents) {
+    const std::vector<LayerId> root_ids{loaded.layers().front().id()};
+    QString copy_error;
+    const auto ids = copy_layers_between_documents(loaded, root_ids, staged, placement,
+                                                   [] { return true; }, &copy_error);
+    if (ids.empty()) {
+      return fail(copy_error);
+    }
+    added_top_to_bottom.insert(added_top_to_bottom.begin(), ids.begin(), ids.end());
+  }
+  if (drop_target.has_value()) {
+    LayerDropRequest request;
+    request.layer_ids_top_to_bottom = added_top_to_bottom;
+    request.target_layer_id = drop_target->layer_id;
+    request.position = drop_target->position;
+    if (!move_layers_for_drop(staged.layers(), request)) {
+      return fail(tr("The drop target is no longer in the document"));
+    }
+  }
+  if (!before_mutation(*live_target)) {
+    result.added_root_ids_top_to_bottom.clear();
+    return result;
+  }
+  live_target->document = std::move(staged);
+  result.added_root_ids_top_to_bottom = std::move(added_top_to_bottom);
+  return result;
+}
+
+bool MainWindow::add_files_as_layers_interactive(const QStringList& paths,
+                                                 std::optional<LayerInsertionTarget> drop_target,
+                                                 const QString& failure_title) {
+  if (!has_active_document()) {
+    return false;
+  }
+  if (preview_dialog_edit_locked()) {
+    show_preview_dialog_edit_lock_message();
+    return false;
+  }
+  canvas_->finish_free_transform();
+  finish_active_text_editor();
+  if (!drop_target.has_value()) {
+    // Paste's rule: directly above the topmost selected row.
+    const auto selected = selected_layer_ids();
+    if (!selected.empty()) {
+      drop_target = LayerInsertionTarget{selected.front(), LayerDropPosition::AboveItem};
+    }
+  }
+  const auto target_session_id = session().session_id;
+  // Decoding many files takes a while: the same cancellable progress dialog and
+  // per-file event pump as Open Folder, so the window keeps painting and nobody
+  // takes the pause for a hang. The dialog is window-modal, so the document
+  // cannot change under the loop, and the core re-resolves the session anyway.
+  QProgressDialog progress(tr("Adding file %1 of %2...").arg(1).arg(paths.size()), tr("Cancel"), 0,
+                           static_cast<int>(paths.size()), this);
+  progress.setObjectName(QStringLiteral("filesAsLayersProgressDialog"));
+  progress.setWindowTitle(failure_title);
+  progress.setWindowModality(Qt::WindowModal);
+  progress.setMinimumDuration(0);
+  progress.setAutoClose(false);
+  progress.setAutoReset(false);
+  remember_dialog_position(progress);
+  progress.setValue(0);
+  progress.show();  // at once, not after QProgressDialog's force timer
+  QString error;
+  auto result = add_files_as_layers(
+      session(), paths, drop_target, FailedFilesPolicy::SkipFailed,
+      [&progress](int index, int total) {
+        progress.setMaximum(total);
+        progress.setLabelText(tr("Adding file %1 of %2...").arg(index).arg(total));
+        progress.setValue(index - 1);
+        QApplication::processEvents(QEventLoop::AllEvents);
+        return !progress.wasCanceled();
+      },
+      [this](DocumentSession& live_target) {
+        push_undo_snapshot(live_target, tr("Add files as layers"));
+        return true;
+      },
+      &error);
+  progress.setValue(progress.maximum());
+  progress.close();
+  if (shutting_down_ || !isVisible()) {
+    return false;
+  }
+  auto* live_target = session_with_id(target_session_id);
+  if (live_target == nullptr) {
+    return false;
+  }
+  if (live_target != active_session()) {
+    activate_document_session(*live_target);
+  }
+  auto& target = *live_target;
+  if (result.cancelled) {
+    statusBar()->showMessage(tr("Cancelled adding files as layers"));
+    return false;
+  }
+  const auto failure_text = result.failure_messages.join(QLatin1Char('\n'));
+  const auto& added = result.added_root_ids_top_to_bottom;
+  if (added.empty()) {
+    show_status_error(error.section(QLatin1Char('\n'), 0, 0));
+    if (!result.failed_paths.isEmpty() && !unattended_automation()) {
+      show_information_message(this, failure_title,
+                               tr("These files could not be added as layers:\n\n%1").arg(failure_text),
+                               QStringLiteral("filesAsLayersFailedMessageBox"));
+    }
+    return false;
+  }
+  if (drop_target.has_value() && drop_target->position == LayerDropPosition::OnItem &&
+      drop_target->layer_id.has_value()) {
+    // A drop into a folder shows what it added (handle_layer_drop's rule).
+    if (const auto* folder = std::as_const(target.document).find_layer(*drop_target->layer_id);
+        folder != nullptr && folder->kind() == LayerKind::Group) {
+      target.collapsed_layer_groups.erase(*drop_target->layer_id);
+    }
+  }
+  refresh_layer_list();
+  refresh_layer_controls();
+  canvas_->document_changed();
+  // After the refreshes: a rebuild collapses the selection to the active row.
+  select_layers_in_layer_list(added, added.front());
+  auto status = tr("Added %n layer(s)", nullptr, static_cast<int>(added.size()));
+  if (!result.failed_paths.isEmpty()) {
+    status += tr(" (%n could not be opened)", nullptr, static_cast<int>(result.failed_paths.size()));
+    if (!unattended_automation()) {
+      show_information_message(this, failure_title,
+                               tr("These files could not be added as layers:\n\n%1").arg(failure_text),
+                               QStringLiteral("filesAsLayersFailedMessageBox"));
+    }
+  }
+  statusBar()->showMessage(status);
+  update_undo_redo_actions();
+  return true;
+}
+
+void MainWindow::import_files_as_layers() {
+  if (!has_active_document()) {
+    return;
+  }
+  if (preview_dialog_edit_locked()) {
+    show_preview_dialog_edit_lock_message();
+    return;
+  }
+  const auto paths = get_open_file_names(this, tr("Files as Layers"), last_open_directory(), open_file_filter(),
+                                         nullptr, QStringLiteral("importFilesAsLayersFileDialog"),
+                                         FilterNameDetails::Hidden);
+  if (paths.isEmpty()) {
+    return;
+  }
+  if (!unattended_automation()) {
+    remember_open_directory_for_path(paths.front());
+  }
+  import_files_as_layers_with_paths(paths);
+}
+
+void MainWindow::import_files_as_layers_with_paths(const QStringList& paths) {
+  add_files_as_layers_interactive(paths, std::nullopt, tr("Files as Layers"));
 }
 
 bool MainWindow::accept_open_file_drag(QDropEvent* event) {
@@ -1669,8 +2084,13 @@ void MainWindow::run_cli_export(const QString& output_path, const QString& appen
 }
 
 void MainWindow::activate_for_second_instance(const QStringList& paths) {
-  // Restore from a minimized/hidden state and pull the existing window in front so the user sees the
-  // file they just double-clicked open in this instance rather than a new process.
+  // Pull the existing window in front so the user sees the file they just double-clicked open in
+  // this instance rather than a new process.
+  bring_to_front_for_second_instance();
+  open_command_line_files(paths);
+}
+
+void MainWindow::bring_to_front_for_second_instance() {
   if (isMinimized()) {
     setWindowState(windowState() & ~Qt::WindowMinimized);
   }
@@ -1678,8 +2098,15 @@ void MainWindow::activate_for_second_instance(const QStringList& paths) {
     show();
   }
   raise();
-  activateWindow();
-  open_command_line_files(paths);
+  // A modal dialog owns the input (it disables this window), so it alone is activated: a second
+  // activation request for this window can land after the dialog's and leave it behind.
+  auto* modal = QApplication::activeModalWidget();
+  if (modal == nullptr || modal == this) {
+    activateWindow();
+    return;
+  }
+  modal->raise();
+  modal->activateWindow();
 }
 
 bool MainWindow::save_debug_screenshot(const QString& file_path, const QString& widget_name,
@@ -1849,26 +2276,17 @@ void MainWindow::open_document_path(QString path) {
     if (loaded->import_notices.isEmpty()) {
       statusBar()->showMessage(tr("Opened %1").arg(browser_transfer ? loaded_file_name : path));
     } else {
-      // Import notes ride the status bar by default; the consolidated popup is
-      // opt-in via the same preference that gates the PSD compatibility report
-      // (Seth: do not annoy people with info popups).
+      // Import notes ride the status bar by default; the consolidated popup is opt-in
+      // (see show_import_notices_popup) unless the notes describe data loss.
       auto status_notes = loaded->import_notices.front();
       if (loaded->import_notices.size() > 1) {
         status_notes +=
             tr(" (+%n more import note(s))", nullptr, static_cast<int>(loaded->import_notices.size()) - 1);
       }
       statusBar()->showMessage(tr("Opened %1. %2").arg(loaded_file_name, status_notes));
-      if (!unattended_automation() &&
-          app_settings().value(QStringLiteral("imports/showPsdWarningsAndInfo"), false).toBool()) {
-        QStringList bullets;
-        bullets.reserve(loaded->import_notices.size());
-        for (const auto& notice : loaded->import_notices) {
-          bullets.push_back(QStringLiteral("• ") + notice);
-        }
-        show_information_message(this, tr("Import Notes"),
-                                 tr("%1 opened with notes:\n\n%2")
-                                      .arg(loaded_file_name, bullets.join(QLatin1Char('\n'))),
-                                 QStringLiteral("importNoticesMessageBox"));
+      if (!unattended_automation()) {
+        show_import_notices_popup(this, loaded_file_name, loaded->import_notices,
+                                  loaded->force_import_notices_popup);
       }
     }
 #ifdef Q_OS_WASM
@@ -2859,6 +3277,7 @@ void MainWindow::export_animated_gif() {
     return;
   }
   finish_active_text_editor();
+  if (animation_preview_window_ != nullptr) animation_preview_window_->stop_playback_for(&document());
   // One frame per visible top-level layer, top to bottom; the options dialog restates
   // the rules (hidden layers skipped, "0.25s" name tokens override the default delay).
   if (!has_visible_top_level_layer(std::as_const(document()))) {
@@ -2886,6 +3305,53 @@ void MainWindow::export_animated_gif() {
   try {
     std::vector<std::string> writer_notices;
     write_flat_image_file(document(), path, QStringLiteral("gif"), *options, &writer_notices);
+    offer_browser_download_for_saved_file(path);
+    remember_save_directory_for_path(path);
+    statusBar()->showMessage(tr("Exported %1").arg(path) + export_notes_suffix_for(writer_notices));
+    if (options->export_reveal_in_file_explorer) {
+      reveal_path_in_file_explorer(path, /*is_file*/ true);
+    }
+  } catch (const std::exception& error) {
+    show_critical_message(this, tr("Export failed"), translated_file_message(error.what()),
+                          QStringLiteral("exportFailedMessageBox"));
+  }
+}
+
+void MainWindow::export_animated_webp() {
+  if (!has_active_document()) {
+    show_status_error(tr("No document"));
+    return;
+  }
+  finish_active_text_editor();
+  if (animation_preview_window_ != nullptr) animation_preview_window_->stop_playback_for(&document());
+  // One frame per visible top-level layer, top to bottom; the options dialog restates
+  // the rules (hidden layers skipped, "0.25s" name tokens override the default delay).
+  if (!has_visible_top_level_layer(std::as_const(document()))) {
+    show_information_message(this, tr("Export Animated WebP"), tr("There are no visible layers to export."),
+                             QStringLiteral("animatedWebpNoLayersMessageBox"));
+    return;
+  }
+  QString selected_filter;
+  const auto base_name = QFileInfo(session().title.isEmpty() ? tr("Untitled") : session().title).completeBaseName();
+  const auto initial_path = file_dialog_initial_path(QString(), base_name + QStringLiteral(".webp"));
+  auto path = get_save_file_name(this, tr("Export Animated WebP"), initial_path,
+                                 save_file_filter_for_path(initial_path), &selected_filter,
+                                 QStringLiteral("animatedWebpExportFileDialog"));
+  if (path.isEmpty()) {
+    return;
+  }
+  path = path_with_default_extension(path, selected_filter);
+  auto defaults = image_save_defaults_for_document();
+  defaults.webp_animate = true;
+  auto options = prompt_image_save_options(this, QStringLiteral("webp"), defaults, true,
+      QSize(std::as_const(document()).width(), std::as_const(document()).height()));
+  if (!options.has_value()) {
+    return;
+  }
+  try {
+    std::vector<std::string> writer_notices;
+    write_flat_image_file(document(), path, QStringLiteral("webp"), *options, &writer_notices);
+    persist_image_save_defaults(*options);
     offer_browser_download_for_saved_file(path);
     remember_save_directory_for_path(path);
     statusBar()->showMessage(tr("Exported %1").arg(path) + export_notes_suffix_for(writer_notices));
@@ -2943,7 +3409,7 @@ void MainWindow::toggle_animation_preview_window() {
             sync_layer_row_visibility_indicators();
           }
         },
-        [this](std::optional<std::uint16_t> delay_cs) { set_selected_layers_frame_time(delay_cs); },
+        [this](std::optional<std::uint32_t> delay_ms) { set_selected_layers_frame_time(delay_ms); },
         this);
     window->setAttribute(Qt::WA_DeleteOnClose);
     animation_preview_window_ = window;
@@ -2952,6 +3418,32 @@ void MainWindow::toggle_animation_preview_window() {
   animation_preview_window_->raise();
   animation_preview_window_->activateWindow();
 }
+
+#ifndef Q_OS_WASM
+bool MainWindow::open_recovered_document(const QString& psb_path, const QString& title, const QString& original_path,
+                                         std::int64_t* session_id) {
+  try {
+    // The copy is Patchy's own PSB: no prompts, no raw dialog, and the same
+    // post-open text fix-up the regular open path applies.
+    auto loaded = load_document_interactive(this, psb_path, /*interactive=*/false, /*allow_raw_dialog=*/false);
+    if (!loaded.has_value()) {
+      return false;
+    }
+    record_text_layout_metrics_for_reopened_text(loaded->document);
+    add_document_session(std::move(loaded->document), title, original_path, tr("Recover"));
+    auto& recovered = session();
+    // Recovered content is by definition unsaved: Save goes to the original path.
+    mark_session_modified(recovered);
+    if (session_id != nullptr) {
+      *session_id = recovered.session_id;
+    }
+    return true;
+  } catch (const std::exception& error) {
+    fprintf(stderr, "Recovery failed: %s (%s)\n", error.what(), psb_path.toUtf8().constData());
+    return false;
+  }
+}
+#endif
 
 bool MainWindow::save_document() {
   if (!has_active_document()) {
@@ -2983,11 +3475,11 @@ bool MainWindow::save_document() {
     // back is impossible, so Save is really Save As (defaulting to <basename>.psd).
     return save_document_as();
   }
-  if (!save_extension_preserves_layers(extension_for_path(session().path)) &&
-      flat_save_discards_layers(std::as_const(document()))) {
+  if (save_discards_layers(std::as_const(document()), extension_for_path(session().path))) {
     // Photoshop behavior: Save on a document whose file format cannot hold its layers
     // (a JPEG that grew layers) turns into Save As, defaulting to PSD, instead of
-    // silently flattening back over the original file.
+    // silently flattening back over the original file. A shape-only SVG holds its
+    // layers as vectors, so it saves in place.
     return save_document_as();
   }
   return save_document_to_path(session().path);
@@ -3005,8 +3497,7 @@ bool MainWindow::save_document_as() {
   };
   const auto fallback_name = session().title.isEmpty() ? tr("Untitled.psd") : session().title;
   auto initial_path = file_dialog_initial_path(session().path, fallback_name);
-  const bool layered_document = flat_save_discards_layers(std::as_const(document()));
-  if ((layered_document && !save_extension_preserves_layers(extension_for_path(initial_path))) ||
+  if (save_discards_layers(std::as_const(document()), extension_for_path(initial_path)) ||
       is_read_only_source_extension(extension_for_path(initial_path))) {
     // Photoshop behavior: Save As for a layered document defaults to PSD, not the flat
     // format the document was opened from. Read-only sources (camera raw) also default
@@ -3026,7 +3517,7 @@ bool MainWindow::save_document_as() {
   }
   path = path_with_default_extension(path, selected_filter);
   const auto extension = extension_for_path(path);
-  const bool discards_layers = layered_document && !save_extension_preserves_layers(extension);
+  const bool discards_layers = save_discards_layers(std::as_const(document()), extension);
   const bool linked_external_child =
       session().smart_object_link.has_value() && session().smart_object_link->external;
   std::optional<ImageSaveOptions> image_options;
@@ -3037,16 +3528,21 @@ bool MainWindow::save_document_as() {
       if (!pdf_editable_layers.has_value()) {
         return false;
       }
-    } else if (extension == QStringLiteral("gif") && std::as_const(document()).layers().size() >= 2) {
+    } else if ((extension == QStringLiteral("gif") || extension == QStringLiteral("webp")) &&
+               std::as_const(document()).layers().size() >= 2) {
       // GIF asks animation-or-flatten instead of the plain flatten warning; an explicit
       // animation choice needs no warning (the frames round-trip through reopening).
-      auto gif_options =
-          prompt_gif_save_options(this, image_save_defaults_for_document(), /*offer_flatten_choice*/ true,
-                                  /*for_export*/ false, has_visible_top_level_layer(std::as_const(document())));
+      auto defaults = image_save_defaults_for_document();
+      defaults.webp_offer_animation = true;
+      defaults.webp_has_visible_frames = has_visible_top_level_layer(std::as_const(document()));
+      auto gif_options = extension == QStringLiteral("webp")
+          ? prompt_image_save_options(this, extension, defaults)
+          : prompt_gif_save_options(this, defaults, /*offer_flatten_choice*/ true,
+                                    /*for_export*/ false, defaults.webp_has_visible_frames);
       if (!gif_options.has_value()) {
         return false;
       }
-      if (!gif_options->gif_animate && !confirm_flatten_layers_for_save(extension)) {
+      if (!gif_options->gif_animate && !gif_options->webp_animate && !confirm_flatten_layers_for_save(extension)) {
         return false;
       }
       image_options = std::move(gif_options);
@@ -3077,19 +3573,30 @@ bool MainWindow::confirm_flatten_layers_for_save(const QString& extension) {
   // document), so its flat save is a real save; everything else saves a flattened copy
   // and keeps the layered document open with its unsaved changes (Photoshop's
   // save-a-copy semantics). SVG gets its own wording: shape layers stay real
-  // vectors there and only the rest bakes. PDF (not linked) never comes here: it
-  // asks flatten-or-editable through resolve_pdf_layer_choice instead.
-  const auto message =
-      extension == QStringLiteral("svg")
-          ? tr("SVG keeps shape layers as vectors, but masks, layer styles, text, and adjustments are "
-               "baked into images, so Patchy will save a copy. The open document will keep its layers "
-               "and unsaved changes. To keep everything editable, save as a Photoshop document (.psd) "
-               "instead.")
-      : linked_external_child
-          ? tr("This file format cannot store layers. Continue saving and flatten the linked file?")
-          : tr("This file format cannot store layers, so Patchy will save a flattened copy. The open "
-               "document will keep its layers and unsaved changes. To keep layers in the file, save as a "
-               "Photoshop document (.psd) instead.");
+  // vectors there, only what the writer's dry run reports bakes, and the message
+  // names it (save_discards_layers never brings a shape-only document here). PDF
+  // (not linked) never comes here: it asks flatten-or-editable through
+  // resolve_pdf_layer_choice instead.
+  QString message;
+  if (extension == QStringLiteral("svg")) {
+    const auto baked = svg_baked_content_summary(svg::DocumentIo::baked_content(std::as_const(document())));
+    message = linked_external_child
+                  ? tr("SVG keeps shape layers as vectors, but this document has content SVG cannot hold as "
+                       "vectors. Continue saving and bake it into images in the linked file?\n\n"
+                       "Baked into images: %1.")
+                        .arg(baked)
+                  : tr("SVG keeps shape layers as vectors, but this document has content SVG cannot hold as "
+                       "vectors, so Patchy will save a copy with that content baked into images. The open "
+                       "document will keep its layers and unsaved changes. To keep everything editable, save "
+                       "as a Photoshop document (.psd) instead.\n\nBaked into images: %1.")
+                        .arg(baked);
+  } else if (linked_external_child) {
+    message = tr("This file format cannot store layers. Continue saving and flatten the linked file?");
+  } else {
+    message = tr("This file format cannot store layers, so Patchy will save a flattened copy. The open "
+                 "document will keep its layers and unsaved changes. To keep layers in the file, save as a "
+                 "Photoshop document (.psd) instead.");
+  }
   const auto answer =
       show_warning_message(this, tr("Layers Will Be Flattened"), message,
                            QMessageBox::Save | QMessageBox::Cancel, QMessageBox::Cancel,
@@ -3165,8 +3672,7 @@ bool MainWindow::save_document_to_path(QString path, std::optional<ImageSaveOpti
     animation_preview_window_->stop_playback_for(&document());
   }
   const auto extension = extension_for_path(path);
-  const bool discards_layers = !save_extension_preserves_layers(extension) &&
-                               flat_save_discards_layers(std::as_const(document()));
+  const bool discards_layers = save_discards_layers(std::as_const(document()), extension);
   // CLI automation saves are explicit about their target format, so flattening needs no
   // confirmation there (and an unattended run must never block on the prompt).
   const bool linked_external_child =
@@ -3231,6 +3737,13 @@ bool MainWindow::save_document_to_path(QString path, std::optional<ImageSaveOpti
 
     QString export_notes_suffix;
     if (is_photoshop_document_extension(extension)) {
+      // Linked smart objects store their path relative to the document's folder, which
+      // is only known here (a never-saved document has none, and Save As can move it).
+      // Writer bookkeeping like Photoshop's own: no undo step.
+      refresh_smart_object_link_relative_paths(
+          document().metadata().smart_objects,
+          session().path.isEmpty() ? QString() : QFileInfo(session().path).absolutePath(),
+          QFileInfo(path).absolutePath());
       psd::DocumentIo::write_layered_rgb8_file(document(), to_filesystem_path(path),
                                                psd::WriteOptions{extension == QStringLiteral("psb")});
     } else if (extension == QStringLiteral("aseprite") || extension == QStringLiteral("ase")) {
@@ -3268,6 +3781,8 @@ bool MainWindow::save_document_to_path(QString path, std::optional<ImageSaveOpti
                                     ? tr("Saved PDF copy with editable layers %1.")
                                 : extension == QStringLiteral("gif") && effective_image_options.gif_animate
                                     ? tr("Saved animated GIF copy %1")
+                                : extension == QStringLiteral("webp") && effective_image_options.webp_animate
+                                    ? tr("Saved animated WebP copy %1")
                                     : tr("Saved flattened copy %1"))
                                    .arg(path) +
                                export_notes_suffix);
@@ -3315,6 +3830,7 @@ void MainWindow::export_flat_image() {
     return;
   }
   finish_active_text_editor();
+  if (animation_preview_window_ != nullptr) animation_preview_window_->stop_playback_for(&document());
   QString selected_filter;
   const auto base_name = QFileInfo(session().title.isEmpty() ? tr("Untitled") : session().title).completeBaseName();
   auto path =
@@ -3332,6 +3848,8 @@ void MainWindow::export_flat_image() {
     std::optional<ImageSaveOptions> image_options;
     if (!is_photoshop_document_extension(extension) && !svg_export) {
       auto defaults = image_save_defaults_for_document();
+      defaults.webp_offer_animation = std::as_const(document()).layers().size() >= 2;
+      defaults.webp_has_visible_frames = has_visible_top_level_layer(std::as_const(document()));
       if (is_pdf_extension(extension) && flat_save_discards_layers(std::as_const(document()))) {
         // Flatten or keep layers editable: the remembered policy or the question.
         const auto pdf_editable_layers = resolve_pdf_layer_choice(/*for_export*/ true, /*allow_prompt*/ true);
@@ -3662,23 +4180,19 @@ void MainWindow::print_document() {
 
 void MainWindow::show_update_available(const UpdateInfo& update) {
   // The install advice is artifact-specific: Windows ships an installer exe, macOS a
-  // drag-to-Applications DMG, Linux a Flatpak bundle.
+  // drag-to-Applications DMG, Linux a Flatpak that updates from its repository.
 #if defined(Q_OS_MACOS)
   const auto update_text = tr("Patchy %1 is available. You are using version %2.\n\n"
                               "Download the DMG, quit Patchy, and drag the new Patchy into Applications.")
                                .arg(update.version, QStringLiteral(PATCHY_VERSION));
 #elif defined(Q_OS_LINUX)
-  // A flatpak bundle installs from a local path only (URLs work only for repo-backed
-  // flatpakrefs), so the one-liner fetches the stable URL first. curl ships by default
-  // on Ubuntu/Fedora/Arch/openSUSE. The bundle needs org.kde.Platform from Flathub, and
-  // distros such as CachyOS ship no remote at all; bundles from 0.97 on carry
-  // --runtime-repo metadata, so flatpak adds the Flathub remote and pulls the runtime by
-  // itself, and the command only needs --user (no polkit/root prompt). Keep it identical
-  // to the README download section (GitHub issue 14).
-  const auto bundle_name = QFileInfo(update.download_url.path()).fileName();
-  const auto install_command =
-      QStringLiteral("curl -L -o /tmp/%1 %2 && flatpak install --user -y /tmp/%1")
-          .arg(bundle_name, update.download_url.toString());
+  // Every install from 1.05 on has the Patchy repository as its origin: the flatpakref
+  // names it, and the bundle carries it as --repo-url, which also rewrites the origin of
+  // an older bundle install it is installed over (packaging/linux/README.md). So one
+  // command updates them all. --user matches every documented install command (no
+  // polkit/root prompt, GitHub issue 14); without it flatpak 1.14 also fails outright on
+  // a machine that has no system-wide installation ("While opening repository").
+  const auto install_command = QStringLiteral("flatpak update --user -y com.rtsoft.patchy");
   const auto update_text = tr("Patchy %1 is available. You are using version %2.\n\n"
                               "To update, paste this into a terminal:\n\n%3")
                                .arg(update.version, QStringLiteral(PATCHY_VERSION), install_command);
@@ -3726,6 +4240,9 @@ void MainWindow::begin_startup_update_check() {
   // would only fail CORS and surface a network error on the start panel.
   return;
 #endif
+  if (!update_checks_available()) {
+    return;
+  }
   {
     auto settings = app_settings();
     if (!settings.value(QStringLiteral("updates/checkOnStartup"), true).toBool()) {
@@ -3740,7 +4257,12 @@ void MainWindow::begin_startup_update_check() {
   // was opened at startup): it shows if the panel reappears after the last document closes.
   request_update_check(this, QStringLiteral(PATCHY_VERSION), [this](UpdateCheckResult result) {
     if (start_panel_ != nullptr) {
-      start_panel_->set_update_status(update_check_status_text(result));
+      // "Up to date" says nothing the version line above does not; clear the
+      // "Checking..." line instead of restating the version (Seth, October 2026).
+      // Updates, errors and unsupported platforms still show.
+      start_panel_->set_update_status(result.status == UpdateCheckStatus::NoUpdateAvailable
+                                          ? QString()
+                                          : update_check_status_text(result));
     }
     if (result.update.has_value()) {
       show_update_available(*result.update);
@@ -3751,21 +4273,102 @@ void MainWindow::begin_startup_update_check() {
 void MainWindow::load_recent_files() {
   auto settings = recent_history_settings();
   settings.sync();
-  recent_files_ = settings.value(QStringLiteral("recentFiles")).toStringList();
-  recent_files_.erase(std::remove_if(recent_files_.begin(), recent_files_.end(), [](const QString& path) {
-                        return path.trimmed().isEmpty() || !QFileInfo::exists(path);
-                      }),
-                      recent_files_.end());
-  trim_recent_files(recent_files_);
+  set_recent_files_from_stored(settings.value(QStringLiteral("recentFiles")).toStringList());
 }
 
-void MainWindow::refresh_recent_history() {
+void MainWindow::set_recent_files_from_stored(QStringList stored) {
+  trim_recent_files(stored);
+  recent_files_stored_ = stored;
+  stored.erase(std::remove_if(stored.begin(), stored.end(),
+                              [this](const QString& path) {
+                                return path.trimmed().isEmpty() || recent_missing_files_.contains(path);
+                              }),
+               stored.end());
+  recent_files_ = std::move(stored);
+}
+
+// Rereads the stored lists (no disk access beyond the settings file) and
+// rebuilds whichever menu's displayed list changed. Returns whether a stored
+// list changed, which is when a new existence check is worth running.
+bool MainWindow::reload_recent_history() {
   const auto files = recent_files_;
   const auto folders = recent_folders_;
+  const auto stored_files = recent_files_stored_;
+  const auto stored_folders = recent_folders_stored_;
   load_recent_files();
   load_recent_folders();
   if (files != recent_files_) rebuild_recent_files_menu();
   if (folders != recent_folders_) rebuild_recent_folders_menu();
+  return stored_files != recent_files_stored_ || stored_folders != recent_folders_stored_;
+}
+
+void MainWindow::refresh_recent_history() {
+  schedule_recent_history_check(reload_recent_history());
+}
+
+// Existence checks run on a worker: a stat of a cold, spun-down or absent
+// volume can take seconds, and the File menu and start panel used to pay that
+// on the UI thread for every entry. Entries show until a check finds them
+// missing; the stored lists keep them, so an unplugged drive's entries return
+// with the drive.
+void MainWindow::schedule_recent_history_check(bool force) {
+  if (recent_check_in_flight_) {
+    recent_check_pending_ = recent_check_pending_ || force;
+    return;
+  }
+  if (!force && recent_check_clock_.isValid() && recent_check_clock_.elapsed() < kRecentHistoryCheckIntervalMs) {
+    return;
+  }
+  recent_check_clock_.start();
+  recent_check_in_flight_ = true;
+  recent_check_pending_ = false;
+  recent_confirmed_paths_.clear();
+  auto* app = QApplication::instance();
+  QPointer<MainWindow> window(this);
+  run_tracked_background_worker([app, window, files = recent_files_stored_, folders = recent_folders_stored_] {
+    // Cached kernel data only; nothing here contacts a server.
+    const auto mounts = read_system_mounts();
+    QSet<QString> missing_files;
+    QSet<QString> missing_folders;
+    for (const auto& path : files) {
+      if (!path.trimmed().isEmpty() && !is_network_recent_path(path, mounts) && !QFileInfo::exists(path)) {
+        missing_files.insert(path);
+      }
+    }
+    for (const auto& dir : folders) {
+      if (!dir.trimmed().isEmpty() && !is_network_recent_path(dir, mounts) && !QFileInfo(dir).isDir()) {
+        missing_folders.insert(dir);
+      }
+    }
+    if (app == nullptr) {
+      return;
+    }
+    QMetaObject::invokeMethod(
+        app,
+        [window, missing_files = std::move(missing_files), missing_folders = std::move(missing_folders)]() mutable {
+          if (window == nullptr) {
+            return;
+          }
+          // A path opened or saved while the check ran exists now, whatever
+          // the worker saw.
+          for (const auto& path : std::as_const(window->recent_confirmed_paths_)) {
+            missing_files.remove(path);
+            missing_folders.remove(path);
+          }
+          window->recent_missing_files_ = std::move(missing_files);
+          window->recent_missing_folders_ = std::move(missing_folders);
+          window->recent_check_in_flight_ = false;
+          // Rebuilding under an open menu would delete its live filter row; the
+          // next File menu open or start-panel tick applies the result instead.
+          if (QApplication::activePopupWidget() == nullptr) {
+            window->reload_recent_history();
+          }
+          if (window->recent_check_pending_) {
+            window->schedule_recent_history_check(true);
+          }
+        },
+        Qt::QueuedConnection);
+  });
 }
 
 void MainWindow::add_recent_file(QString path) {
@@ -3773,8 +4376,10 @@ void MainWindow::add_recent_file(QString path) {
   if (path.isEmpty()) {
     return;
   }
-  recent_files_ = update_recent_history(QStringLiteral("recentFiles"), kMaxRecentFiles,
-      [&path](QStringList& paths) { paths.removeAll(path); paths.prepend(path); });
+  recent_missing_files_.remove(path);
+  recent_confirmed_paths_.insert(path);
+  set_recent_files_from_stored(update_recent_history(QStringLiteral("recentFiles"), kMaxRecentFiles,
+      [&path](QStringList& paths) { paths.removeAll(path); paths.prepend(path); }));
   rebuild_recent_files_menu();
   add_recent_folder(QFileInfo(path).absolutePath());
 }
@@ -3851,6 +4456,7 @@ void MainWindow::rebuild_recent_files_menu() {
       const auto page_end = std::min(page_start + kRecentFilesMenuPageSize, recent_count);
       auto* page_menu = recent_files_menu_->addMenu(tr("Recent Files %1-%2").arg(page_start + 1).arg(page_end));
       page_menu->setObjectName(QStringLiteral("fileOpenRecentRangeMenu%1").arg(page_start + 1));
+      page_menu->menuAction()->setMenuRole(QAction::NoRole);  // submenus never merge on macOS (docs/platform.md)
       configure_recent_files_context_menu(page_menu);
       for (int index = page_start; index < page_end; ++index) {
         add_recent_action(page_menu, recent_files_[index], index + 1);
@@ -3863,8 +4469,8 @@ void MainWindow::rebuild_recent_files_menu() {
     auto* clear_action = recent_files_menu_->addAction(tr("Clear Recent Files"));
     clear_action->setObjectName(QStringLiteral("fileClearRecentAction"));
     connect(clear_action, &QAction::triggered, this, [this] {
-      recent_files_ = update_recent_history(QStringLiteral("recentFiles"), kMaxRecentFiles,
-          [](QStringList& paths) { paths.clear(); });
+      set_recent_files_from_stored(update_recent_history(QStringLiteral("recentFiles"), kMaxRecentFiles,
+          [](QStringList& paths) { paths.clear(); }));
       rebuild_recent_files_menu();
     });
   }
@@ -3975,15 +4581,20 @@ bool MainWindow::handle_recent_files_filter_key(QKeyEvent& event) {
 void MainWindow::load_recent_folders() {
   auto settings = recent_history_settings();
   settings.sync();
-  recent_folders_ = settings.value(QStringLiteral("recentFolders")).toStringList();
-  recent_folders_.erase(std::remove_if(recent_folders_.begin(), recent_folders_.end(),
-                                       [](const QString& dir) {
-                                         return dir.trimmed().isEmpty() || !QFileInfo(dir).isDir();
-                                       }),
-                        recent_folders_.end());
-  while (recent_folders_.size() > kMaxRecentFolders) {
-    recent_folders_.removeLast();
+  set_recent_folders_from_stored(settings.value(QStringLiteral("recentFolders")).toStringList());
+}
+
+void MainWindow::set_recent_folders_from_stored(QStringList stored) {
+  while (stored.size() > kMaxRecentFolders) {
+    stored.removeLast();
   }
+  recent_folders_stored_ = stored;
+  stored.erase(std::remove_if(stored.begin(), stored.end(),
+                              [this](const QString& dir) {
+                                return dir.trimmed().isEmpty() || recent_missing_folders_.contains(dir);
+                              }),
+               stored.end());
+  recent_folders_ = std::move(stored);
 }
 
 void MainWindow::add_recent_folder(QString dir) {
@@ -3991,8 +4602,10 @@ void MainWindow::add_recent_folder(QString dir) {
   if (dir.isEmpty()) {
     return;
   }
-  recent_folders_ = update_recent_history(QStringLiteral("recentFolders"), kMaxRecentFolders,
-      [&dir](QStringList& paths) { paths.removeAll(dir); paths.prepend(dir); });
+  recent_missing_folders_.remove(dir);
+  recent_confirmed_paths_.insert(dir);
+  set_recent_folders_from_stored(update_recent_history(QStringLiteral("recentFolders"), kMaxRecentFolders,
+      [&dir](QStringList& paths) { paths.removeAll(dir); paths.prepend(dir); }));
   rebuild_recent_folders_menu();
 }
 
@@ -4034,6 +4647,7 @@ void MainWindow::rebuild_recent_folders_menu() {
       const auto page_end = std::min(page_start + kRecentFilesMenuPageSize, recent_count);
       auto* page_menu = recent_folders_menu_->addMenu(tr("Recent Folders %1-%2").arg(page_start + 1).arg(page_end));
       page_menu->setObjectName(QStringLiteral("fileOpenRecentFolderRangeMenu%1").arg(page_start + 1));
+      page_menu->menuAction()->setMenuRole(QAction::NoRole);  // submenus never merge on macOS (docs/platform.md)
       configure_recent_files_context_menu(page_menu);
       page_menu->setProperty(kRecentFoldersMenuProperty, true);
       for (int index = page_start; index < page_end; ++index) {
@@ -4047,8 +4661,8 @@ void MainWindow::rebuild_recent_folders_menu() {
     auto* clear_action = recent_folders_menu_->addAction(tr("Clear Recent Folders"));
     clear_action->setObjectName(QStringLiteral("fileClearRecentFoldersAction"));
     connect(clear_action, &QAction::triggered, this, [this] {
-      recent_folders_ = update_recent_history(QStringLiteral("recentFolders"), kMaxRecentFolders,
-          [](QStringList& paths) { paths.clear(); });
+      set_recent_folders_from_stored(update_recent_history(QStringLiteral("recentFolders"), kMaxRecentFolders,
+          [](QStringList& paths) { paths.clear(); }));
       rebuild_recent_folders_menu();
     });
   }
@@ -4165,8 +4779,8 @@ void MainWindow::reveal_path_in_file_explorer(const QString& path, bool is_file)
 
 void MainWindow::open_recent_document(QString path) {
   if (!QFileInfo::exists(path)) {
-    recent_files_ = update_recent_history(QStringLiteral("recentFiles"), kMaxRecentFiles,
-        [&path](QStringList& paths) { paths.removeAll(path); });
+    set_recent_files_from_stored(update_recent_history(QStringLiteral("recentFiles"), kMaxRecentFiles,
+        [&path](QStringList& paths) { paths.removeAll(path); }));
     rebuild_recent_files_menu();
     show_status_error(tr("Recent file is missing"));
     return;

@@ -21,6 +21,7 @@
 #include <QBuffer>
 #include <QClipboard>
 #include <QColor>
+#include <QFile>
 #include <QFileInfo>
 #include <QImage>
 #include <QMessageBox>
@@ -216,49 +217,140 @@ void ui_svg_data_uri_image_round_trip() {
   CHECK(sample[0] == 30 && sample[1] == 200 && sample[2] == 90 && sample[3] == 255);
 }
 
-void ui_svg_save_is_copy_and_reopens_editable() {
+QString read_text_file(const QString& path) {
+  QFile file(path);
+  CHECK(file.open(QIODevice::ReadOnly));
+  return QString::fromUtf8(file.readAll());
+}
+
+// Arms a one-shot watcher for the two dialogs an SVG save must NOT show for a
+// shape-only document: the flatten warning and the Save As redirect. Either one
+// is dismissed (Cancel / close) so a regression fails instead of hanging.
+struct UnexpectedSaveDialogs {
+  bool flatten_prompt{false};
+  bool save_as_dialog{false};
+  void arm() {
+    QTimer::singleShot(0, [this] {
+      if (auto* box = qobject_cast<QMessageBox*>(find_top_level_dialog(QStringLiteral("flattenLayersMessageBox")))) {
+        flatten_prompt = true;
+        box->button(QMessageBox::Cancel)->click();
+      }
+      if (auto* dialog = find_top_level_dialog(QStringLiteral("saveAsFileDialog"))) {
+        save_as_dialog = true;
+        dialog->reject();
+      }
+    });
+  }
+};
+
+// A shape-only SVG (three folders' worth of shapes, gradients, strokes, a
+// pass-through group) holds every layer as vectors, so Save is a real save: no
+// flatten warning, no Save As redirect, no save-a-copy, no <image> in the file,
+// and the file reopens editable.
+void ui_svg_shape_only_save_writes_vectors_without_warning() {
+  QTemporaryDir temp;
+  CHECK(temp.isValid());
+  const auto path = temp.filePath(QStringLiteral("shapes.svg"));
+  CHECK(QFile::copy(committed_svg_fixture("basic-shapes.svg"), path));
+  patchy::ui::MainWindow window;
+  show_window(window);
+  patchy::ui::MainWindowTestAccess::open_document_path(window, path);
+  QApplication::processEvents();
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  CHECK(document.layers().size() == 6U);
+  CHECK(patchy::svg::DocumentIo::baked_content(std::as_const(document)).empty());
+
+  // Recolor a shape so the rewritten file is distinguishable from the fixture.
+  const auto* dot_view = find_layer_named(document.layers(), QStringLiteral("Dot"));
+  CHECK(dot_view != nullptr && patchy::layer_is_vector_shape(*dot_view));
+  auto* dot = document.find_layer(dot_view->id());
+  CHECK(dot != nullptr);
+  {
+    auto content = *dot->vector_shape();
+    content.fill.kind = patchy::VectorFillKind::Solid;
+    content.fill.color = patchy::RgbColor{0x12, 0x34, 0x56};
+    dot->set_vector_shape(std::move(content));
+  }
+  patchy::ui::MainWindowTestAccess::canvas(window)->document_changed();
+
+  UnexpectedSaveDialogs dialogs;
+  dialogs.arm();
+  CHECK(patchy::ui::MainWindowTestAccess::save_document(window));  // plain Save, in place
+  QApplication::processEvents();
+  CHECK(!dialogs.flatten_prompt);
+  CHECK(!dialogs.save_as_dialog);
+  CHECK(QFileInfo(patchy::ui::MainWindowTestAccess::active_session_path(window)) == QFileInfo(path));
+  CHECK(!patchy::ui::MainWindowTestAccess::active_session_is_modified(window));
+  const auto text = read_text_file(path);
+  CHECK(text.contains(QStringLiteral("#123456")));
+  CHECK(!text.contains(QStringLiteral("<image")));
+
+  // The rewritten file reopens with its vector structure intact.
+  patchy::ui::MainWindow reopened_window;
+  show_window(reopened_window);
+  patchy::ui::MainWindowTestAccess::open_document_path(reopened_window, path);
+  QApplication::processEvents();
+  auto& reopened = patchy::ui::MainWindowTestAccess::document(reopened_window);
+  const auto* reopened_dot = find_layer_named(reopened.layers(), QStringLiteral("Dot"));
+  CHECK(reopened_dot != nullptr && patchy::layer_is_vector_shape(*reopened_dot));
+  CHECK(!reopened_dot->vector_shape()->origination.empty());
+  CHECK(reopened_dot->vector_shape()->fill.color.red == 0x12 && reopened_dot->vector_shape()->fill.color.blue == 0x56);
+
+  // And the composited pictures agree closely (same renderer both sides).
+  const auto delta = mean_rgb_delta(flatten_to_qimage(document), flatten_to_qimage(reopened));
+  if (delta >= 3.0) {
+    fprintf(stderr, "[svg] save/reopen mean delta %f\n", delta);
+  }
+  CHECK(delta < 3.0);
+}
+
+// A text layer bakes into an <image>, so that save still warns, names the text
+// layer, and keeps Photoshop's save-a-copy semantics (the session stays on the
+// original file).
+void ui_svg_save_with_text_layer_warns_and_names_it() {
   const auto fixture = committed_svg_fixture("basic-shapes.svg");
   patchy::ui::MainWindow window;
   show_window(window);
   patchy::ui::MainWindowTestAccess::open_document_path(window, fixture);
   QApplication::processEvents();
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  {
+    patchy::PixelBuffer pixels(20, 10, patchy::PixelFormat::rgba8());
+    pixels.clear(255);
+    patchy::Layer text(document.allocate_layer_id(), "Headline", std::move(pixels));
+    text.set_bounds(patchy::Rect{4, 4, 20, 10});
+    text.metadata()[patchy::kLayerMetadataText] = "Headline";
+    document.add_layer(std::move(text));
+  }
+  patchy::ui::MainWindowTestAccess::canvas(window)->document_changed();
+  {
+    const auto baked = patchy::svg::DocumentIo::baked_content(std::as_const(document));
+    CHECK(baked.size() == 1U && baked.front().kind == patchy::svg::BakedContentKind::TextLayer);
+  }
 
   QTemporaryDir temp;
   CHECK(temp.isValid());
-  const auto out_path = temp.filePath(QStringLiteral("roundtrip.svg"));
-  patchy::ui::ImageSaveOptions options;
+  const auto out_path = temp.filePath(QStringLiteral("with-text.svg"));
   bool prompt_seen = false;
   QTimer::singleShot(0, [&prompt_seen] {
     auto* box = qobject_cast<QMessageBox*>(find_top_level_dialog(QStringLiteral("flattenLayersMessageBox")));
     CHECK(box != nullptr);
-    // The SVG wording promises vectors stay vectors, not a flatten.
+    if (box == nullptr) {
+      return;
+    }
+    // The SVG wording promises vectors stay vectors and names what bakes.
     CHECK(box->text().contains(QStringLiteral("SVG keeps shape layers as vectors")));
+    CHECK(box->text().contains(QStringLiteral("text layer \"Headline\"")));
     prompt_seen = true;
     box->button(QMessageBox::Save)->click();
   });
-  CHECK(patchy::ui::MainWindowTestAccess::save_document_to_path(window, out_path, options));
+  CHECK(patchy::ui::MainWindowTestAccess::save_document_to_path(window, out_path, patchy::ui::ImageSaveOptions{}));
   CHECK(prompt_seen);
-  CHECK(QFileInfo::exists(out_path));
+  const auto text = read_text_file(out_path);
+  CHECK(text.contains(QStringLiteral("<image")));
+  CHECK(text.contains(QStringLiteral("<rect")));  // the shapes are still vectors
   // Save-a-copy: the session keeps pointing at the original file.
   CHECK(patchy::ui::MainWindowTestAccess::active_session_path(window) == fixture);
-
-  // The copy reopens with its vector structure intact.
-  patchy::ui::MainWindow reopened_window;
-  show_window(reopened_window);
-  patchy::ui::MainWindowTestAccess::open_document_path(reopened_window, out_path);
-  QApplication::processEvents();
-  auto& reopened = patchy::ui::MainWindowTestAccess::document(reopened_window);
-  const auto* dot = find_layer_named(reopened.layers(), QStringLiteral("Dot"));
-  CHECK(dot != nullptr && patchy::layer_is_vector_shape(*dot));
-  CHECK(!dot->vector_shape()->origination.empty());
-
-  // And the composited pictures agree closely (same renderer both sides).
-  auto& original = patchy::ui::MainWindowTestAccess::document(window);
-  const auto delta = mean_rgb_delta(flatten_to_qimage(original), flatten_to_qimage(reopened));
-  if (delta >= 3.0) {
-    fprintf(stderr, "[svg] save/reopen mean delta %f\n", delta);
-  }
-  CHECK(delta < 3.0);
 }
 
 void ui_svg_paste_creates_shape_layers() {
@@ -571,7 +663,8 @@ std::vector<patchy::test::TestCase> svg_ui_tests() {
       {"ui_svg_import_render_matches_qsvg", ui_svg_import_render_matches_qsvg},
       {"ui_svg_text_import_positions_baseline", ui_svg_text_import_positions_baseline},
       {"ui_svg_data_uri_image_round_trip", ui_svg_data_uri_image_round_trip},
-      {"ui_svg_save_is_copy_and_reopens_editable", ui_svg_save_is_copy_and_reopens_editable},
+      {"ui_svg_shape_only_save_writes_vectors_without_warning", ui_svg_shape_only_save_writes_vectors_without_warning},
+      {"ui_svg_save_with_text_layer_warns_and_names_it", ui_svg_save_with_text_layer_warns_and_names_it},
       {"ui_svg_paste_creates_shape_layers", ui_svg_paste_creates_shape_layers},
       {"ui_svg_copy_as_svg_round_trips_shape_layer", ui_svg_copy_as_svg_round_trips_shape_layer},
       {"ui_svg_define_custom_shape_from_file", ui_svg_define_custom_shape_from_file},

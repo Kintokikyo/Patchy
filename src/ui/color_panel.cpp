@@ -36,6 +36,7 @@
 #include <QPainterPath>
 #include <QPixmap>
 #include <QPointer>
+#include <QShowEvent>
 #include <QPushButton>
 #include <QScreen>
 #include <QScrollArea>
@@ -348,6 +349,7 @@ public:
   QColor copy_color_to_clipboard();
   std::optional<QColor> paste_color_from_clipboard();
   QColor cut_color_to_clipboard(bool& cleared_custom_slot);
+  void focus_html_edit();
 
   [[nodiscard]] QColor current_color() const { return color_; }
   [[nodiscard]] int hue() const { return hue_; }
@@ -1355,6 +1357,9 @@ void PatchyColorPickerPrivate::build_ui() {
   html_edit_ = new QLineEdit(picker_column);
   html_edit_->setObjectName(QStringLiteral("patchyColorHtmlEdit"));
   html_edit_->setMinimumWidth(90);
+  // A click or Tab into the field selects the whole value, so Ctrl+C copies the
+  // hex and typing or Ctrl+V replaces it (GitHub issue 68).
+  select_all_on_focus(*html_edit_);
 
   auto* fields_grid = new QGridLayout();
   fields_grid->setContentsMargins(0, 0, 0, 0);
@@ -1500,6 +1505,7 @@ void PatchyColorPickerPrivate::set_color(QColor color, ColorChangeNotification n
   if (notification == ColorChangeNotification::Yes && color_ != previous) {
     emit owner_.currentColorChanged(color_);
   }
+  if (notification == ColorChangeNotification::Yes) emit owner_.colorSelected(color_);
 }
 
 void PatchyColorPickerPrivate::apply_hsv_color(ColorChangeNotification notification) {
@@ -1511,6 +1517,7 @@ void PatchyColorPickerPrivate::apply_hsv_color(ColorChangeNotification notificat
   if (notification == ColorChangeNotification::Yes && color_ != previous) {
     emit owner_.currentColorChanged(color_);
   }
+  if (notification == ColorChangeNotification::Yes) emit owner_.colorSelected(color_);
 }
 
 void PatchyColorPickerPrivate::set_saturation_value_from_point(QPoint point, QSize size) {
@@ -1615,6 +1622,11 @@ void PatchyColorPickerPrivate::set_html_color() {
   } else {
     sync_controls();
   }
+}
+
+void PatchyColorPickerPrivate::focus_html_edit() {
+  html_edit_->setFocus(Qt::OtherFocusReason);
+  html_edit_->selectAll();
 }
 
 void PatchyColorPickerPrivate::populate_palette_combo() {
@@ -2034,25 +2046,9 @@ void PatchyColorPickerPrivate::finish_screen_pick(QPoint global_position, bool s
 }
 
 void PatchyColorPickerPrivate::sample_screen_color(QPoint global_position) {
-  QScreen* screen = QGuiApplication::screenAt(global_position);
-  if (screen == nullptr) {
-    screen = QGuiApplication::primaryScreen();
+  if (const auto picked = screen_color_at_global_position(global_position); picked.has_value()) {
+    set_color(*picked, ColorChangeNotification::Yes);
   }
-  if (screen == nullptr) {
-    return;
-  }
-
-  const QPoint screen_position = global_position - screen->geometry().topLeft();
-  const QPixmap sample = screen->grabWindow(0, screen_position.x(), screen_position.y(), 1, 1);
-  if (sample.isNull()) {
-    return;
-  }
-
-  const auto image = sample.toImage();
-  if (!image.rect().contains(0, 0)) {
-    return;
-  }
-  set_color(image.pixelColor(0, 0), ColorChangeNotification::Yes);
 }
 
 PatchyColorPicker::PatchyColorPicker(QColor initial, QWidget* parent)
@@ -2062,7 +2058,15 @@ PatchyColorPicker::PatchyColorPicker(QColor initial, QWidget* parent)
   impl_->set_color(normalized_rgb_color(initial), ColorChangeNotification::No);
 }
 
-PatchyColorPicker::~PatchyColorPicker() = default;
+PatchyColorPicker::~PatchyColorPicker() {
+  // impl_ dies before ~QWidget closes a still-visible picker. That close moves
+  // focus off the hex field, which emits editingFinished, and the child
+  // connections capture impl_: drop them while it is still alive.
+  const auto children = findChildren<QObject*>();
+  for (auto* child : children) {
+    QObject::disconnect(child, nullptr, this, nullptr);
+  }
+}
 
 QColor PatchyColorPicker::currentColor() const {
   return impl_->current_color();
@@ -2070,6 +2074,17 @@ QColor PatchyColorPicker::currentColor() const {
 
 void PatchyColorPicker::setCurrentColor(QColor color) {
   impl_->set_color(normalized_rgb_color(color), ColorChangeNotification::Yes);
+}
+
+void PatchyColorPicker::focus_hex_field() {
+  impl_->focus_html_edit();
+}
+
+void PatchyColorPicker::showEvent(QShowEvent* event) {
+  QWidget::showEvent(event);
+  // Queued: a dialog hands focus to its first focusable child as part of
+  // showing, and this must land after that so the hex field wins (issue 68).
+  QMetaObject::invokeMethod(this, [this] { focus_hex_field(); }, Qt::QueuedConnection);
 }
 
 QColor PatchyColorPicker::copy_color_to_clipboard() {
@@ -2150,7 +2165,8 @@ QDialog* create_patchy_color_panel(QWidget* parent, QColor initial, const QStrin
 }
 
 std::optional<QColor> request_patchy_color(QWidget* parent, QColor initial, const QString& title,
-                                           std::function<void(QColor)> color_changed) {
+                                           std::function<void(QColor)> color_changed, bool* user_selected) {
+  if (user_selected != nullptr) *user_selected = false;
   // The picker runs a nested non-modal event loop, which keeps the widget that
   // launched it clickable. Only one picker can be open at a time: a request while
   // one is already open brings that picker back to the front instead of silently
@@ -2175,8 +2191,9 @@ std::optional<QColor> request_patchy_color(QWidget* parent, QColor initial, cons
   auto* layout = install_dark_dialog_chrome(dialog, new QVBoxLayout(&dialog), title);
   auto* picker = new PatchyColorPicker(normalized_rgb_color(initial), &dialog);
   layout->addWidget(picker, 1);
-  QObject::connect(picker, &PatchyColorPicker::currentColorChanged, &dialog, [color_changed = std::move(color_changed)](
+  QObject::connect(picker, &PatchyColorPicker::colorSelected, &dialog, [color_changed = std::move(color_changed), user_selected](
                                                                                QColor color) {
+    if (user_selected != nullptr) *user_selected = true;
     if (color_changed) {
       color_changed(normalized_rgb_color(color));
     }

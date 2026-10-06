@@ -10,6 +10,28 @@
 
 namespace patchy::svg {
 
+// One thing DocumentIo::write would bake into an embedded image instead of
+// keeping as vectors. Append-only: the UI maps each kind to translated text.
+enum class BakedContentKind : std::uint8_t {
+  TextLayer,        // rasterized on its own
+  PixelLayer,       // rasterized on its own
+  SmartObjectLayer, // rasterized on its own
+  AdjustmentLayer,  // a barrier: merged with everything below it
+  BlendMode,        // a blend mode CSS cannot express: a barrier too
+  ShapeLayer,       // a shape layer with features SVG cannot express (styles,
+                    // fill opacity, intersect/xor combines, angle gradients, ...)
+  Group,            // a folder with a style, fill opacity, or a mask the writer
+                    // cannot carry, rasterized as a whole
+  ClippingGroup,    // a clipping base plus its clipped layers, rasterized as one
+  RasterMask,       // a layer mask written as a luminance <mask> image
+  MergedBelow       // an otherwise exportable layer merged into a barrier's chunk
+};
+
+struct BakedContent {
+  BakedContentKind kind{BakedContentKind::PixelLayer};
+  std::string layer_name;
+};
+
 class DocumentIo {
 public:
   // Imports .svg/.svgz as editable shape layers (groups -> folders,
@@ -27,6 +49,12 @@ public:
                                                        std::vector<std::string>* notices = nullptr);
   static void write_file(const Document& document, const std::filesystem::path& path,
                          std::vector<std::string>* notices = nullptr);
+  // Dry run of write(): the same walk and representability rules, but nothing
+  // is composited or encoded. Returns what write() would bake into embedded
+  // images, in emission order; empty means the file holds nothing but vectors
+  // (shape layers, folders, clipPath vector masks, gradient and pattern paint
+  // servers), so a save loses nothing and needs no flatten warning.
+  [[nodiscard]] static std::vector<BakedContent> baked_content(const Document& document);
 };
 
 // Includes the leading dot, matching the format-registry convention. SVGZ is

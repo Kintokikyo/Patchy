@@ -68,6 +68,11 @@
 #include "test_fonts.hpp"
 #include "test_harness.hpp"
 #include "local_psd_fixtures.hpp"
+#include "ui/qt_paths.hpp"
+#include "ui/script_engine.hpp"
+
+#include <QCoreApplication>
+#include <QEvent>
 
 #include <QAbstractItemModel>
 #include <QAbstractSpinBox>
@@ -1153,6 +1158,101 @@ void ui_magnetic_lasso_options_apply_to_new_documents() {
   CHECK(frequency_spin->value() == 80);
 }
 
+void ui_selection_feather_and_antialias_are_per_tool() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto* feather = window.findChild<QSpinBox*>(QStringLiteral("selectionFeatherSpin"));
+  auto* anti_alias = window.findChild<QCheckBox*>(QStringLiteral("selectionAntiAliasCheck"));
+  CHECK(feather != nullptr);
+  CHECK(anti_alias != nullptr);
+
+  require_action_by_text(window, QStringLiteral("Magic Wand"))->trigger();
+  QApplication::processEvents();
+  CHECK(canvas->tool() == patchy::ui::CanvasTool::MagicWand);
+  CHECK(feather->value() == 0);
+  CHECK(anti_alias->isChecked());
+  feather->setValue(7);
+  anti_alias->setChecked(false);
+  CHECK(canvas->selection_feather_radius() == 7);
+  CHECK(!canvas->selection_antialias());
+
+  require_action_by_text(window, QStringLiteral("Lasso"))->trigger();
+  QApplication::processEvents();
+  CHECK(canvas->tool() == patchy::ui::CanvasTool::Lasso);
+  CHECK(feather->value() == 0);
+  CHECK(anti_alias->isChecked());
+  CHECK(canvas->selection_feather_radius() == 0);
+  CHECK(canvas->selection_antialias());
+  feather->setValue(3);
+  CHECK(canvas->selection_feather_radius() == 3);
+
+  require_action_by_text(window, QStringLiteral("Magic Wand"))->trigger();
+  QApplication::processEvents();
+  CHECK(feather->value() == 7);
+  CHECK(!anti_alias->isChecked());
+  CHECK(canvas->selection_feather_radius() == 7);
+  CHECK(!canvas->selection_antialias());
+
+  // A new document's canvas takes the active tool's values.
+  accept_new_document_dialog(320, 240);
+  require_action_by_text(window, QStringLiteral("New"))->trigger();
+  QApplication::processEvents();
+  auto* new_canvas = require_canvas(window);
+  CHECK(new_canvas != canvas);
+  CHECK(new_canvas->selection_feather_radius() == 7);
+  CHECK(!new_canvas->selection_antialias());
+}
+
+void ui_selection_edge_settings_persist_across_windows() {
+  {
+    patchy::ui::MainWindow window;
+    show_window(window);
+    require_canvas(window);
+    auto* feather = window.findChild<QSpinBox*>(QStringLiteral("selectionFeatherSpin"));
+    auto* anti_alias = window.findChild<QCheckBox*>(QStringLiteral("selectionAntiAliasCheck"));
+    CHECK(feather != nullptr);
+    CHECK(anti_alias != nullptr);
+    require_action_by_text(window, QStringLiteral("Magic Wand"))->trigger();
+    QApplication::processEvents();
+    feather->setValue(9);
+    anti_alias->setChecked(false);
+    require_action_by_text(window, QStringLiteral("Lasso"))->trigger();
+    QApplication::processEvents();
+    feather->setValue(4);
+    patchy::ui::MainWindowTestAccess::save_tool_settings(window);
+  }
+  QApplication::processEvents();
+  auto settings = patchy::ui::app_settings();
+  CHECK(settings.value(QStringLiteral("tools/wandFeather")).toInt() == 9);
+  CHECK(!settings.value(QStringLiteral("tools/wandAntiAlias")).toBool());
+  CHECK(settings.value(QStringLiteral("tools/lassoFeather")).toInt() == 4);
+  CHECK(settings.value(QStringLiteral("tools/lassoAntiAlias")).toBool());
+
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto* feather = window.findChild<QSpinBox*>(QStringLiteral("selectionFeatherSpin"));
+  auto* anti_alias = window.findChild<QCheckBox*>(QStringLiteral("selectionAntiAliasCheck"));
+  CHECK(feather != nullptr);
+  CHECK(anti_alias != nullptr);
+  require_action_by_text(window, QStringLiteral("Magic Wand"))->trigger();
+  QApplication::processEvents();
+  CHECK(feather->value() == 9);
+  CHECK(!anti_alias->isChecked());
+  CHECK(canvas->selection_feather_radius() == 9);
+  CHECK(!canvas->selection_antialias());
+  require_action_by_text(window, QStringLiteral("Lasso"))->trigger();
+  QApplication::processEvents();
+  CHECK(feather->value() == 4);
+  CHECK(anti_alias->isChecked());
+  CHECK(canvas->selection_feather_radius() == 4);
+  require_action_by_text(window, QStringLiteral("Elliptical Marquee"))->trigger();
+  QApplication::processEvents();
+  CHECK(feather->value() == 0);
+  CHECK(anti_alias->isChecked());
+}
+
 void ui_quick_select_add_and_subtract_strokes() {
   patchy::Document document(360, 200, patchy::PixelFormat::rgba8());
   auto pixels = solid_pixels(360, 200, patchy::PixelFormat::rgba8(), QColor(Qt::white));
@@ -1403,14 +1503,43 @@ void ui_bundled_legacy_plugin_action_applies_filter() {
   CHECK(before.green() < 100);
   CHECK(before.blue() < 100);
 
+  wait_for_legacy_plugin_scan(window);
+  // The menu path runs the Parameters selector with the real window as the
+  // plug-in's owner. The bundled 64-bit Greyscale (the one the menu shows,
+  // standing for both bitnesses) cannot take that: Filter Foundry's 64-bit
+  // standalone build tries a dialog it does not carry and shows a
+  // "DialogBoxParam failed" box that waits for a click. A folder holding only
+  // a 32-bit copy gives the menu path a fixture whose Parameters is silent.
+  const auto menu_dir = QDir::current().filePath(QStringLiteral("test-artifacts/legacy-plugins/menu32-bundled"));
+  QDir(menu_dir).removeRecursively();
+  CHECK(QDir().mkpath(menu_dir));
+  CHECK(QFile::copy(patchy::ui::to_qstring(patchy::test::source_root_path() / "test-fixtures" / "photoshop-plugins" /
+                                            "Greyscale.8bf"),
+                    menu_dir + QStringLiteral("/Bundled Grey32.8bf")));
+  {
+    auto& host = window.script_engine_host();
+    patchy::ui::ScriptEngineHost::RunOptions options;
+    options.name = QStringLiteral("bundled-plugin-test");
+    (void)host.run_source(QStringLiteral("patchy.plugins.folders = ['%1'];").arg(menu_dir), std::move(options));
+    QElapsedTimer timer;
+    timer.start();
+    while (host.run_active() && timer.elapsed() < 60000) {
+      QApplication::processEvents(QEventLoop::ExcludeUserInputEvents, 20);
+    }
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    CHECK(!host.last_run_had_error());
+  }
   QAction* greyscale = nullptr;
   for (auto* action : window.findChildren<QAction*>(QStringLiteral("legacyPluginAction"))) {
-    if (action->text().contains(QStringLiteral("Greyscale"), Qt::CaseInsensitive)) {
+    if (action->data().toString() == QStringLiteral("legacy.photoshop.Bundled Grey32")) {
       greyscale = action;
       break;
     }
   }
   CHECK(greyscale != nullptr);
+  if (greyscale == nullptr) {
+    return;
+  }
   greyscale->trigger();
   QApplication::processEvents();
 
@@ -1455,6 +1584,8 @@ std::vector<patchy::test::TestCase> selection_engines_tests() {
        ui_magnetic_lasso_antialias_clear_leaves_partial_edge_pixels},
       {"ui_magnetic_lasso_click_near_start_closes", ui_magnetic_lasso_click_near_start_closes},
       {"ui_magnetic_lasso_options_apply_to_new_documents", ui_magnetic_lasso_options_apply_to_new_documents},
+      {"ui_selection_feather_and_antialias_are_per_tool", ui_selection_feather_and_antialias_are_per_tool},
+      {"ui_selection_edge_settings_persist_across_windows", ui_selection_edge_settings_persist_across_windows},
       {"ui_quick_select_photo_texture_selects_eye_not_face", ui_quick_select_photo_texture_selects_eye_not_face},
       {"ui_quick_select_options_persist_across_windows", ui_quick_select_options_persist_across_windows},
       {"ui_magic_wand_sample_all_layers_clear_transparent_active_layer_is_noop",

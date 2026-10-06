@@ -1,13 +1,15 @@
 #include "ui/user_fonts.hpp"
 
 #include "formats/font_zip.hpp"
+#include "ui/font_face_name_index.hpp"
 
 #include <QCryptographicHash>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QFontDatabase>
-#include <QSet>
+#include <QHash>
+#include <QSaveFile>
 #include <QStandardPaths>
 
 #include <cstdint>
@@ -33,11 +35,59 @@ bool has_any_suffix(const QString& path, std::initializer_list<const char*> suff
 
 // Content hashes of every font registered this session (drops plus the
 // startup restore), so a re-dropped font counts as a duplicate instead of
-// registering twice. Never pruned: application fonts are never removed.
-QSet<QByteArray>& session_hashes() {
-  static QSet<QByteArray> hashes;
+// registering twice. Never pruned: application fonts are never removed. The
+// value is the font's file name in the store (empty on wasm).
+QHash<QByteArray, QString>& session_hashes() {
+  static QHash<QByteArray, QString> hashes;
   return hashes;
 }
+
+#ifndef Q_OS_WASM
+// Store files to delete at the next launch, one name per line. "Remove Added
+// Fonts" cannot delete them on the spot: a FreeType font database (Linux, and
+// the offscreen platform everywhere) opens the file again whenever it builds a
+// new engine, so a font whose store copy is gone silently turns into another
+// family the next time it is asked for at a new size.
+constexpr auto kPendingRemovalFileName = ".remove-at-next-launch";
+
+QString pending_removal_path(const QString& directory) {
+  return directory + QLatin1Char('/') + QLatin1String(kPendingRemovalFileName);
+}
+
+QStringList read_pending_removals(const QString& directory) {
+  QFile file(pending_removal_path(directory));
+  if (!file.open(QIODevice::ReadOnly)) {
+    return {};
+  }
+  QStringList names;
+  for (const auto& line : QString::fromUtf8(file.readAll()).split(QLatin1Char('\n'))) {
+    const auto name = line.trimmed();
+    if (!name.isEmpty() && !names.contains(name)) {
+      names.push_back(name);
+    }
+  }
+  return names;
+}
+
+void write_pending_removals(const QString& directory, const QStringList& names) {
+  const auto path = pending_removal_path(directory);
+  if (names.isEmpty()) {
+    QFile::remove(path);
+    return;
+  }
+  QSaveFile file(path);
+  if (!file.open(QIODevice::WriteOnly)) {
+    return;
+  }
+  file.write(names.join(QLatin1Char('\n')).toUtf8());
+  file.commit();
+}
+
+const QStringList& font_file_filters() {
+  static const QStringList filters = {QStringLiteral("*.ttf"), QStringLiteral("*.otf"), QStringLiteral("*.ttc")};
+  return filters;
+}
+#endif
 
 // "f.ttf" -> "f (2).ttf" while the target exists: an already-registered file
 // must never be overwritten in place (the running font may be backed by it).
@@ -78,7 +128,17 @@ RegisterOutcome register_font_bytes(const QString& name, const QByteArray& bytes
     return outcome;
   }
   const auto hash = QCryptographicHash::hash(bytes, QCryptographicHash::Sha256);
-  if (session_hashes().contains(hash)) {
+  if (const auto known = session_hashes().constFind(hash); known != session_hashes().constEnd()) {
+#ifndef Q_OS_WASM
+    // Adding a font again after "Remove Added Fonts" keeps it: its store copy
+    // is still there, so it only has to come off the removal list.
+    if (const auto directory = user_fonts_directory(); !directory.isEmpty() && !known->isEmpty()) {
+      auto pending = read_pending_removals(directory);
+      if (pending.removeAll(*known) > 0) {
+        write_pending_removals(directory, pending);
+      }
+    }
+#endif
     outcome.duplicate = true;
     outcome.ok = true;
     return outcome;
@@ -100,19 +160,22 @@ RegisterOutcome register_font_bytes(const QString& name, const QByteArray& bytes
       return outcome;
     }
   }
-  const auto font_id = QFontDatabase::addApplicationFont(path);
+  // Registered under the Windows names on macOS (ui/font_face_name_index.hpp): CoreText would
+  // otherwise file a Bitstream "Futura BdCn BT" under Apple's "Futura", sharing one Qt style slot.
+  const auto font_id = add_application_font_by_windows_names(path);
   if (font_id < 0) {
     QFile::remove(path);
     return outcome;
   }
   outcome.families = QFontDatabase::applicationFontFamilies(font_id);
   outcome.ok = true;
-  session_hashes().insert(hash);
 #ifdef Q_OS_WASM
+  session_hashes().insert(hash, QString());
   if (persist_to_wasm_store) {
     wasm_store::put(QFileInfo(path).fileName(), bytes);
   }
 #else
+  session_hashes().insert(hash, QFileInfo(path).fileName());
   Q_UNUSED(persist_to_wasm_store);
 #endif
   return outcome;
@@ -183,6 +246,12 @@ QString user_fonts_directory() {
 #ifdef Q_OS_WASM
   return {};
 #else
+  // Isolation knob, like PATCHY_SETTINGS_DIR: the UI suite gives every test process
+  // its own store, because a process keeps its registered store files open and two
+  // processes sharing one break each other (docs/fonts.md).
+  if (const auto override_dir = qEnvironmentVariable("PATCHY_USER_FONTS_DIR"); !override_dir.isEmpty()) {
+    return QDir::cleanPath(override_dir);
+  }
   const auto base = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
   if (base.isEmpty()) {
     return {};
@@ -199,10 +268,11 @@ void restore_user_fonts_at_startup() {
   if (directory.isEmpty()) {
     return;
   }
+  // Nothing from the store is registered yet, so the files the last session
+  // marked can go now.
+  apply_pending_user_font_removals(directory);
   const QDir dir(directory);
-  const QStringList filters = {QStringLiteral("*.ttf"), QStringLiteral("*.otf"),
-                               QStringLiteral("*.ttc")};
-  for (const auto& entry : dir.entryInfoList(filters, QDir::Files, QDir::Name)) {
+  for (const auto& entry : dir.entryInfoList(font_file_filters(), QDir::Files, QDir::Name)) {
     QFile file(entry.absoluteFilePath());
     if (!file.open(QIODevice::ReadOnly)) {
       continue;
@@ -211,10 +281,32 @@ void restore_user_fonts_at_startup() {
     if (session_hashes().contains(hash)) {
       continue;
     }
-    if (QFontDatabase::addApplicationFont(entry.absoluteFilePath()) >= 0) {
-      session_hashes().insert(hash);
+    if (add_application_font_by_windows_names(entry.absoluteFilePath()) >= 0) {
+      session_hashes().insert(hash, entry.fileName());
     }
   }
+#endif
+}
+
+void apply_pending_user_font_removals(const QString& directory) {
+#ifdef Q_OS_WASM
+  Q_UNUSED(directory);
+#else
+  if (directory.isEmpty()) {
+    return;
+  }
+  QStringList still_pending;
+  for (const auto& name : read_pending_removals(directory)) {
+    // Names only: a list that somehow held a path must never reach outside the store.
+    if (name.contains(QLatin1Char('/')) || name.contains(QLatin1Char('\\')) || name == QLatin1String("..")) {
+      continue;
+    }
+    const auto path = directory + QLatin1Char('/') + name;
+    if (QFileInfo::exists(path) && !QFile::remove(path)) {
+      still_pending.push_back(name);  // locked or read-only: try again next launch
+    }
+  }
+  write_pending_removals(directory, still_pending);
 #endif
 }
 
@@ -226,14 +318,16 @@ void clear_user_font_store() {
   if (directory.isEmpty()) {
     return;
   }
-  const QDir dir(directory);
-  const QStringList filters = {QStringLiteral("*.ttf"), QStringLiteral("*.otf"),
-                               QStringLiteral("*.ttc")};
-  for (const auto& entry : dir.entryInfoList(filters, QDir::Files)) {
-    // The registered fonts stay usable (their files may be memory-mapped);
-    // deletion only empties the persistence store for the next launch.
-    QFile::remove(entry.absoluteFilePath());
+  // The registered fonts must stay usable until the app restarts, and some
+  // font databases read the file again later (see kPendingRemovalFileName), so
+  // the files are only marked here and deleted by the next launch.
+  auto pending = read_pending_removals(directory);
+  for (const auto& entry : QDir(directory).entryInfoList(font_file_filters(), QDir::Files, QDir::Name)) {
+    if (!pending.contains(entry.fileName())) {
+      pending.push_back(entry.fileName());
+    }
   }
+  write_pending_removals(directory, pending);
 #endif
 }
 

@@ -7,7 +7,6 @@
 #include <QFile>
 #include <QGuiApplication>
 #include <QIconEngine>
-#include <QLinearGradient>
 #include <QPaintDevice>
 #include <QPainter>
 #include <QPainterPath>
@@ -150,46 +149,10 @@ QString resource_icon_key(const QString& value) {
 }  // namespace
 
 QIcon patchy_app_icon() {
-  QPixmap pixmap(64, 64);
-  pixmap.fill(Qt::transparent);
-
-  QPainter painter(&pixmap);
-  painter.setRenderHint(QPainter::Antialiasing);
-
-  QRectF tile(7.0, 7.0, 50.0, 50.0);
-  QLinearGradient glow(tile.topLeft(), tile.bottomRight());
-  glow.setColorAt(0.0, QColor(88, 170, 235));
-  glow.setColorAt(0.55, QColor(132, 214, 169));
-  glow.setColorAt(1.0, QColor(242, 177, 92));
-  painter.setPen(Qt::NoPen);
-  painter.setBrush(glow);
-  painter.drawRoundedRect(tile, 13.0, 13.0);
-
-  tile = tile.adjusted(4.0, 4.0, -4.0, -4.0);
-  painter.setBrush(QColor(23, 30, 40));
-  painter.drawRoundedRect(tile, 10.0, 10.0);
-
-  const QRectF canvas(tile.left() + 8.0, tile.top() + 8.0, tile.width() - 16.0, tile.height() - 18.0);
-  painter.setPen(QPen(QColor(238, 243, 248), 2.0));
-  painter.setBrush(QColor(247, 249, 252));
-  painter.drawRoundedRect(canvas, 6.0, 6.0);
-
-  painter.setPen(Qt::NoPen);
-  painter.setBrush(QColor(88, 170, 235));
-  painter.drawRoundedRect(QRectF(canvas.left() + 5.0, canvas.top() + 5.0, 13.0, 12.0), 3.0, 3.0);
-  painter.setBrush(QColor(132, 214, 169));
-  painter.drawRoundedRect(QRectF(canvas.right() - 18.0, canvas.center().y() - 4.0, 13.0, 12.0), 3.0, 3.0);
-
-  QPainterPath patch;
-  patch.moveTo(canvas.left() + 8.0, canvas.bottom() - 8.0);
-  patch.lineTo(canvas.left() + 17.0, canvas.bottom() - 15.0);
-  patch.lineTo(canvas.left() + 30.0, canvas.bottom() - 7.0);
-  patch.lineTo(canvas.left() + 20.0, canvas.bottom() - 2.0);
-  patch.closeSubpath();
-  painter.setBrush(QColor(242, 177, 92));
-  painter.drawPath(patch);
-
-  return QIcon(pixmap);
+  ensure_icon_resources();
+  // Brand artwork is shared with the packaged OS icons, not recolored as a
+  // toolbar glyph. The SVG icon engine keeps large and high-DPI icons sharp.
+  return QIcon(QStringLiteral(":/patchy/branding/logo.svg"));
 }
 
 namespace {
@@ -283,6 +246,11 @@ void paint_simple_icon_glyph(QPainter& painter, const QString& text, const QColo
     if (text == QStringLiteral("zoomIn")) {
       painter.drawLine(14, 11, 14, 17);
     }
+  } else if (text == QStringLiteral("fill")) {
+    // Fill Screen: the frame with the image pushed out past its edges.
+    painter.drawRect(QRect(7, 9, 18, 14));
+    painter.drawLine(11, 5, 11, 27);
+    painter.drawLine(21, 5, 21, 27);
   } else if (text == QStringLiteral("fit")) {
     painter.drawRect(QRect(7, 9, 18, 14));
     painter.drawLine(7, 9, 12, 9);

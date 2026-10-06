@@ -139,6 +139,9 @@ void clear_layer_psd_style_source(Layer& layer);
 [[nodiscard]] double text_pixels_to_points(int pixels, const Document& document) noexcept;
 [[nodiscard]] int text_points_to_pixels(double points, const Document& document) noexcept;
 
+// Doubles ampersands so a display name shows literally as QAction text.
+[[nodiscard]] QString escape_qaction_ampersands(QString text);
+
 // Replace a layer's pixels, keeping the old bounds origin.
 void set_layer_pixels_preserving_origin(Layer& layer, PixelBuffer pixels, Rect original_bounds);
 
@@ -213,6 +216,21 @@ constexpr auto kTextEditorFinishedProperty = "patchy.textEditorFinished";
 // panel uses it for the missing-font badge and the Type tool for its substitution warning.
 [[nodiscard]] QStringList missing_text_families_for_layer(const Layer& layer);
 
+// The same families split by cause, for messages that have to say which it is: "not installed"
+// sends the user looking for a font file, which is the wrong errand when the font is right there
+// and simply has no glyphs for the text.
+struct TextFontProblems {
+  QStringList not_installed;  // absent from the font database
+  QStringList no_glyphs;      // installed, with no glyph for any character asked of it
+  [[nodiscard]] bool empty() const { return not_installed.isEmpty() && no_glyphs.isEmpty(); }
+};
+[[nodiscard]] TextFontProblems text_font_problems_for_layer(const Layer& layer);
+
+// Windows --headless runs see no system fonts until this loads them from the registry (once per
+// process; false when nothing new was loaded, including on every other platform). The text
+// engine calls it on the first unresolved family; app.listFonts() calls it up front.
+bool ensure_headless_system_fonts_loaded();
+
 
 // Layer-list row styling and edit-target highlighting, shared by the
 // layer-panel TU and the document/session code that stayed in main_window.cpp.
@@ -262,6 +280,22 @@ std::optional<Layer> clone_layer_tree_with_document_ids(
 // main_window_layer_ops.cpp and the text-editor preview plumbing in
 // main_window.cpp.
 void insert_layer_after_anchor(Document& document, Layer layer, std::optional<LayerId> anchor_id);
+
+// Moves a copied subtree by (dx, dy) in its new document: bounds, the
+// text/vector/smart-object metadata the Move tool shifts too (linked masks ride
+// along inside translate_moved_layer_metadata, so callers never shift one by
+// hand), and unlinked raster and vector masks, which a Move leaves behind but a
+// copy carries as one unit. Shared by the cross-document copy in
+// main_window_layer_ops.cpp and Convert to Smart Object in
+// main_window_smart_objects.cpp.
+void offset_copied_layer_tree(Layer& layer, std::int32_t dx, std::int32_t dy, std::int32_t document_width,
+                              std::int32_t document_height);
+
+// Re-rasterizes a text layer through its stored (already composed) transform; false
+// keeps the caller's raster (missing font, imported warped text). Defined in
+// main_window.cpp; shared by the free-transform commit callback, Image Size, and
+// Convert to Layers.
+bool rerender_text_layer_through_stored_transform(Layer& layer);
 
 // Photoshop-style "<name> copy" / "<name> copy N" naming (an existing
 // " copy"/" copy N" stem is stripped first so "X copy" duplicates to

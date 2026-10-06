@@ -4,6 +4,7 @@
 
 #include <QAction>
 #include <QChar>
+#include <QEvent>
 #include <QMenu>
 #include <QStringList>
 
@@ -52,26 +53,6 @@ const std::vector<std::pair<QString, SpinUnit>>& english_tokens() {
       {QStringLiteral("\u00b0"), SpinUnit::Degrees},
   };
   return tokens;
-}
-
-std::optional<MeasurementUnit> measurement_unit_for(SpinUnit unit) noexcept {
-  switch (unit) {
-    case SpinUnit::Pixels:
-      return MeasurementUnit::Pixels;
-    case SpinUnit::Inches:
-      return MeasurementUnit::Inches;
-    case SpinUnit::Centimeters:
-      return MeasurementUnit::Centimeters;
-    case SpinUnit::Millimeters:
-      return MeasurementUnit::Millimeters;
-    case SpinUnit::Points:
-      return MeasurementUnit::Points;
-    case SpinUnit::Percent:
-      return MeasurementUnit::Percent;
-    case SpinUnit::Degrees:
-      return std::nullopt;
-  }
-  return std::nullopt;
 }
 
 // Localized suffixes (trimmed, lowercased) so a translated display suffix round-trips.
@@ -132,6 +113,44 @@ std::optional<double> parse_number(QString number, const QLocale& locale) {
 }
 
 }  // namespace
+
+std::optional<MeasurementUnit> measurement_unit_for(SpinUnit unit) noexcept {
+  switch (unit) {
+    case SpinUnit::Pixels:
+      return MeasurementUnit::Pixels;
+    case SpinUnit::Inches:
+      return MeasurementUnit::Inches;
+    case SpinUnit::Centimeters:
+      return MeasurementUnit::Centimeters;
+    case SpinUnit::Millimeters:
+      return MeasurementUnit::Millimeters;
+    case SpinUnit::Points:
+      return MeasurementUnit::Points;
+    case SpinUnit::Percent:
+      return MeasurementUnit::Percent;
+    case SpinUnit::Degrees:
+      return std::nullopt;
+  }
+  return std::nullopt;
+}
+
+SpinUnit spin_unit_for(MeasurementUnit unit) noexcept {
+  switch (unit) {
+    case MeasurementUnit::Pixels:
+      return SpinUnit::Pixels;
+    case MeasurementUnit::Inches:
+      return SpinUnit::Inches;
+    case MeasurementUnit::Centimeters:
+      return SpinUnit::Centimeters;
+    case MeasurementUnit::Millimeters:
+      return SpinUnit::Millimeters;
+    case MeasurementUnit::Points:
+      return SpinUnit::Points;
+    case MeasurementUnit::Percent:
+      return SpinUnit::Percent;
+  }
+  return SpinUnit::Pixels;
+}
 
 QString spin_unit_suffix(SpinUnit unit) {
   switch (unit) {
@@ -282,6 +301,13 @@ void UnitSpinBox::refresh_suffix() {
   setSuffix(spin_unit_suffix(display_));
 }
 
+void UnitSpinBox::changeEvent(QEvent* event) {
+  QDoubleSpinBox::changeEvent(event);
+  if (event->type() == QEvent::LanguageChange) {
+    refresh_suffix();
+  }
+}
+
 void UnitSpinBox::set_display_unit(SpinUnit unit) {
   if (unit == display_) {
     return;
@@ -289,13 +315,63 @@ void UnitSpinBox::set_display_unit(SpinUnit unit) {
   if (unit == SpinUnit::Degrees || native_ == SpinUnit::Degrees) {
     return;  // angles have one unit
   }
+  if (display_ == native_) {
+    // Leaving the native presentation: remember it for the way back.
+    native_decimals_ = decimals();
+    native_single_step_ = singleStep();
+  }
   display_ = unit;
+  refresh_display_metrics();
   refresh_suffix();  // setSuffix re-renders the edit through textFromValue
   Q_EMIT display_unit_changed(display_);
 }
 
+void UnitSpinBox::refresh_display_metrics() {
+  // setDecimals re-rounds the value and would fire valueChanged into the field's
+  // handler (a shape resize, a transform nudge) for a presentation change, so it
+  // runs only when the count really changes and never as a value edit.
+  const auto set_decimals_quietly = [this](int count) {
+    if (decimals() == count) {
+      return;
+    }
+    const QSignalBlocker blocker(this);
+    setDecimals(count);
+  };
+  if (display_ == native_) {
+    if (native_decimals_.has_value()) {
+      set_decimals_quietly(*native_decimals_);
+      native_decimals_.reset();
+    }
+    if (native_single_step_.has_value()) {
+      setSingleStep(*native_single_step_);
+      native_single_step_.reset();
+    }
+    return;
+  }
+  const auto shown = measurement_unit_for(display_);
+  if (!shown.has_value() || !native_decimals_.has_value()) {
+    return;
+  }
+  set_decimals_quietly(std::max(*native_decimals_, measurement_unit_decimals(*shown)));
+  // One display unit, expressed in the native unit; a percent display without a
+  // basis keeps the native step.
+  const auto step = convert_unit_entry(UnitEntry{measurement_unit_single_step(*shown), display_}, native_,
+                                       conversion_context());
+  if (step.has_value() && *step > 0.0) {
+    setSingleStep(*step);
+  }
+}
+
 void UnitSpinBox::set_display_unit_switchable(bool enabled) {
   switchable_ = enabled;
+}
+
+void UnitSpinBox::pick_display_unit(SpinUnit unit) {
+  if (!switchable_ || unit == SpinUnit::Degrees || native_ == SpinUnit::Degrees) {
+    return;
+  }
+  set_display_unit(unit);
+  Q_EMIT display_unit_picked(unit);
 }
 
 UnitEntry UnitSpinBox::effective_entry(UnitEntry entry) const {
@@ -389,7 +465,7 @@ void UnitSpinBox::contextMenuEvent(QContextMenuEvent* event) {
     action->setCheckable(true);
     action->setChecked(unit == display_);
     const auto chosen = unit;
-    connect(action, &QAction::triggered, this, [this, chosen] { set_display_unit(chosen); });
+    connect(action, &QAction::triggered, this, [this, chosen] { pick_display_unit(chosen); });
   }
   menu.exec(event->globalPos());
   event->accept();
@@ -411,6 +487,13 @@ UnitConversionContext UnitIntSpinBox::conversion_context() const {
 
 void UnitIntSpinBox::refresh_suffix() {
   setSuffix(spin_unit_suffix(native_));
+}
+
+void UnitIntSpinBox::changeEvent(QEvent* event) {
+  QSpinBox::changeEvent(event);
+  if (event->type() == QEvent::LanguageChange) {
+    refresh_suffix();
+  }
 }
 
 QValidator::State UnitIntSpinBox::validate(QString& input, int& pos) const {
@@ -448,6 +531,61 @@ void UnitIntSpinBox::fixup(QString& input) const {
     return;
   }
   input = input.simplified();
+}
+
+// ---------------------------------------------------------------------------
+
+UnitConversionContext document_field_context(const DocumentFieldUnits& units, bool horizontal) {
+  UnitConversionContext context;
+  context.ppi = sanitized_document_ppi(units.ppi);
+  const auto basis = horizontal ? units.document_width : units.document_height;
+  context.percent_reference_pixels = std::isfinite(basis) && basis > 0.0 ? basis : 0.0;
+  return context;
+}
+
+void set_field_display_unit(UnitSpinBox* spin, MeasurementUnit unit) {
+  if (spin == nullptr) {
+    return;
+  }
+  spin->set_display_unit_switchable(true);
+  const auto display = spin_unit_for(unit);
+  if (spin->display_unit() == display) {
+    spin->refresh_display_metrics();
+  } else {
+    spin->set_display_unit(display);
+  }
+}
+
+void apply_document_field_units(UnitSpinBox* spin, const DocumentFieldUnits& units, bool horizontal) {
+  if (spin == nullptr) {
+    return;
+  }
+  const auto context = document_field_context(units, horizontal);
+  spin->set_context_provider([context] { return context; });
+  set_field_display_unit(spin, units.display_unit);
+  if (units.on_unit_picked) {
+    QObject::connect(spin, &UnitSpinBox::display_unit_picked, spin,
+                     [callback = units.on_unit_picked](SpinUnit unit) {
+                       if (const auto measurement = measurement_unit_for(unit); measurement.has_value()) {
+                         callback(*measurement);
+                       }
+                     });
+  }
+}
+
+void link_field_unit_picks(const std::vector<UnitSpinBox*>& fields) {
+  for (auto* field : fields) {
+    if (field == nullptr) {
+      continue;
+    }
+    QObject::connect(field, &UnitSpinBox::display_unit_picked, field, [fields, field](SpinUnit unit) {
+      for (auto* other : fields) {
+        if (other != nullptr && other != field) {
+          other->set_display_unit(unit);
+        }
+      }
+    });
+  }
 }
 
 }  // namespace patchy::ui

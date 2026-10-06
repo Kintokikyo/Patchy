@@ -147,6 +147,11 @@ std::uint8_t blend_channel(std::uint8_t src, std::uint8_t dst, BlendMode mode) {
     case BlendMode::Subtract:
       return static_cast<std::uint8_t>(std::max(0, static_cast<int>(dst) - static_cast<int>(src)));
     case BlendMode::Divide:
+      // The 0/0 corner follows the destination, as Color Dodge does: Photoshop
+      // returns 0 at d=0 even when s=0 (its render of psd-tools' divide.psd).
+      if (dst == 0) {
+        return 0;
+      }
       return src == 0 ? 255
                       : static_cast<std::uint8_t>(std::min(
                             255, (static_cast<int>(dst) * 255 + static_cast<int>(src) / 2) / static_cast<int>(src)));

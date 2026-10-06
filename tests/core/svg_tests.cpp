@@ -6,11 +6,13 @@
 #include "formats/miniz/miniz.h"
 #include "formats/svg_document_io.hpp"
 #include "formats/svg_xml.hpp"
+#include "formats/vector_export_plan.hpp"
 
 #include "local_psd_fixtures.hpp"
 #include "test_harness.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -21,6 +23,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -276,6 +279,429 @@ void svg_import_gradients() {
   CHECK(radial.gradient.type == patchy::LayerStyleGradientType::Radial);
   const auto& mirrored = document.layers()[2].vector_shape()->fill;
   CHECK(mirrored.gradient.type == patchy::LayerStyleGradientType::Reflected);
+}
+
+// Where an imported gradient actually lands, in document pixels: the model (angle,
+// scale, offsets against the canvas or the path bounds) read back through the
+// export geometry, which is the import mapping inverted.
+const Layer* find_layer_named(const std::vector<Layer>& layers, std::string_view name) {
+  for (const auto& layer : layers) {
+    if (layer.name() == name) {
+      return &layer;
+    }
+    if (const auto* child = find_layer_named(layer.children(), name); child != nullptr) {
+      return child;
+    }
+  }
+  return nullptr;
+}
+
+patchy::vector_export::GradientExportGeometry gradient_geometry(const Document& document, std::string_view name) {
+  const auto* layer = find_layer_named(document.layers(), name);
+  CHECK(layer != nullptr && layer->vector_shape() != nullptr);
+  if (layer == nullptr || layer->vector_shape() == nullptr) {
+    return {};
+  }
+  const auto& shape = *layer->vector_shape();
+  CHECK(shape.fill.kind == VectorFillKind::Gradient);
+  return patchy::vector_export::gradient_export_geometry(shape.fill.gradient, shape.path, document.width(),
+                                                         document.height());
+}
+
+bool ramp_runs(const patchy::vector_export::GradientExportGeometry& geometry, double x1, double y1, double x2,
+               double y2) {
+  constexpr double tolerance = 0.5;  // the model stores float angles and percentages
+  return std::abs(geometry.x1 - x1) < tolerance && std::abs(geometry.y1 - y1) < tolerance &&
+         std::abs(geometry.x2 - x2) < tolerance && std::abs(geometry.y2 - y2) < tolerance;
+}
+
+// userSpaceOnUse coordinates live in the painted element's user space, so they take
+// the same viewBox mapping and ancestor transforms as its path. They used to stay in
+// raw user units: a 2x viewBox halved the ramp and a translated group lost it.
+constexpr std::string_view kUserSpaceGradientSvg =
+    "<svg width=\"800\" height=\"400\" viewBox=\"0 0 400 200\">"
+    "<defs>"
+    "<linearGradient id=\"across\" gradientUnits=\"userSpaceOnUse\" x1=\"20\" y1=\"0\" x2=\"80\" y2=\"0\">"
+    "<stop offset=\"0\" stop-color=\"#000000\"/><stop offset=\"1\" stop-color=\"#ffffff\"/></linearGradient>"
+    "<linearGradient id=\"diagonal\" gradientUnits=\"userSpaceOnUse\" x1=\"320\" y1=\"120\" x2=\"360\" y2=\"160\">"
+    "<stop offset=\"0\" stop-color=\"#000000\"/><stop offset=\"1\" stop-color=\"#ffffff\"/></linearGradient>"
+    "<linearGradient id=\"percent\" gradientUnits=\"userSpaceOnUse\" x1=\"0%\" y1=\"50%\" x2=\"50%\" y2=\"50%\">"
+    "<stop offset=\"0\" stop-color=\"#000000\"/><stop offset=\"1\" stop-color=\"#ffffff\"/></linearGradient>"
+    "<radialGradient id=\"spot\" gradientUnits=\"userSpaceOnUse\" cx=\"50\" cy=\"150\" r=\"20\">"
+    "<stop offset=\"0\" stop-color=\"#ffffff\"/><stop offset=\"1\" stop-color=\"#000000\"/></radialGradient>"
+    "</defs>"
+    "<rect id=\"Scaled\" x=\"20\" y=\"20\" width=\"60\" height=\"60\" fill=\"url(#across)\"/>"
+    "<g transform=\"translate(200 0)\"><rect id=\"Moved\" x=\"20\" y=\"20\" width=\"60\" height=\"60\" fill=\"url(#across)\"/></g>"
+    "<rect id=\"Diagonal\" x=\"320\" y=\"120\" width=\"60\" height=\"60\" fill=\"url(#diagonal)\"/>"
+    "<rect id=\"Percent\" x=\"0\" y=\"90\" width=\"400\" height=\"20\" fill=\"url(#percent)\"/>"
+    "<g transform=\"translate(10 0)\"><circle id=\"Spot\" cx=\"50\" cy=\"150\" r=\"30\" fill=\"url(#spot)\"/></g>"
+    "</svg>";
+
+void check_user_space_gradient_geometry(const Document& document) {
+  CHECK(document.width() == 800 && document.height() == 400);
+  CHECK(!find_layer_named(document.layers(), "Scaled")->vector_shape()->fill.gradient.align_with_layer);
+  CHECK(ramp_runs(gradient_geometry(document, "Scaled"), 40.0, 0.0, 160.0, 0.0));     // the viewBox scale
+  CHECK(ramp_runs(gradient_geometry(document, "Moved"), 440.0, 0.0, 560.0, 0.0));     // plus the group translate
+  CHECK(ramp_runs(gradient_geometry(document, "Diagonal"), 640.0, 240.0, 720.0, 320.0));
+  CHECK(ramp_runs(gradient_geometry(document, "Percent"), 0.0, 200.0, 400.0, 200.0));  // shares of the viewport
+  const auto spot = gradient_geometry(document, "Spot");
+  CHECK(std::abs(spot.center_x - 120.0) < 0.5 && std::abs(spot.center_y - 300.0) < 0.5);
+  CHECK(std::abs(spot.radius - 40.0) < 0.5);
+}
+
+void svg_import_user_space_gradients_follow_the_element_transform() {
+  check_user_space_gradient_geometry(read_svg(kUserSpaceGradientSvg));
+}
+
+// objectBoundingBox coordinates resolve in the unit square of the element's own box:
+// gradientTransform applies there, a diagonal ramp's stripes tilt with a non-square
+// box, and a rotated element carries its ramp around with it.
+void svg_import_bounding_box_gradients_resolve_in_the_element_box() {
+  const auto document = read_svg(
+      "<svg width=\"300\" height=\"260\">"
+      "<defs>"
+      "<linearGradient id=\"corner\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\">"
+      "<stop offset=\"0\" stop-color=\"#000000\"/><stop offset=\"1\" stop-color=\"#ffffff\"/></linearGradient>"
+      "<linearGradient id=\"turned\" gradientTransform=\"rotate(90 0.5 0.5)\">"
+      "<stop offset=\"0\" stop-color=\"#000000\"/><stop offset=\"1\" stop-color=\"#ffffff\"/></linearGradient>"
+      "<linearGradient id=\"plain\">"
+      "<stop offset=\"0\" stop-color=\"#000000\"/><stop offset=\"1\" stop-color=\"#ffffff\"/></linearGradient>"
+      "</defs>"
+      "<rect id=\"Corner\" x=\"50\" y=\"50\" width=\"200\" height=\"100\" fill=\"url(#corner)\"/>"
+      "<rect id=\"Turned\" x=\"50\" y=\"50\" width=\"200\" height=\"100\" fill=\"url(#turned)\"/>"
+      "<rect id=\"Rotated\" x=\"50\" y=\"180\" width=\"100\" height=\"40\" transform=\"rotate(90 100 200)\" "
+      "fill=\"url(#plain)\"/>"
+      "</svg>");
+  CHECK(find_layer_named(document.layers(), "Corner")->vector_shape()->fill.gradient.align_with_layer);
+  // The stripes stay parallel to the box's other diagonal; the ramp across them is
+  // what a browser draws for (0,0) -> (1,1) on a 2:1 box.
+  CHECK(ramp_runs(gradient_geometry(document, "Corner"), 50.0, 50.0, 130.0, 210.0));
+  // rotate(90) about the box center turns the top edge into the right edge: top-to-bottom.
+  CHECK(ramp_runs(gradient_geometry(document, "Turned"), 250.0, 50.0, 250.0, 150.0));
+  // The element's own rotation: its left-to-right ramp runs down the document.
+  CHECK(ramp_runs(gradient_geometry(document, "Rotated"), 120.0, 150.0, 120.0, 250.0));
+}
+
+// A canvas-anchored gradient (align_with_layer off) exports against the canvas, the
+// box the renderer uses, so the file re-imports to the same ramps.
+void svg_export_reimport_keeps_user_space_gradients() {
+  const auto document = read_svg(kUserSpaceGradientSvg);
+  const auto text = write_svg(document);
+  CHECK(text.find("<image") == std::string::npos);  // still vector
+  check_user_space_gradient_geometry(read_svg(text));
+}
+
+// --- patterns ----------------------------------------------------------------
+
+// An imported pattern fill with the tile it paints from and the layer it was baked into.
+struct ImportedPattern {
+  const Layer* layer{nullptr};
+  patchy::VectorFill fill{};
+  PixelBuffer tile{};
+};
+
+ImportedPattern imported_pattern(const Document& document, std::string_view name) {
+  ImportedPattern result;
+  result.layer = find_layer_named(document.layers(), name);
+  CHECK(result.layer != nullptr && result.layer->vector_shape() != nullptr);
+  result.fill = result.layer->vector_shape()->fill;
+  CHECK(result.fill.kind == VectorFillKind::Pattern);
+  const auto* resource = document.metadata().patterns.find(result.fill.pattern_id);
+  CHECK(resource != nullptr && !resource->tile.empty());
+  result.tile = resource->tile;
+  return result;
+}
+
+// A layer's baked pixel at a document position; transparent outside its bounds.
+std::array<std::uint8_t, 4> baked_pixel(const Layer& layer, std::int32_t x, std::int32_t y) {
+  const auto bounds = layer.bounds();
+  if (x < bounds.x || y < bounds.y || x >= bounds.x + bounds.width || y >= bounds.y + bounds.height) {
+    return {};
+  }
+  const auto* pixel = layer.pixels().pixel(x - bounds.x, y - bounds.y);
+  return {pixel[0], pixel[1], pixel[2], pixel[3]};
+}
+
+bool painted(const Layer& layer, std::int32_t x, std::int32_t y, std::uint8_t red, std::uint8_t green,
+             std::uint8_t blue) {
+  return baked_pixel(layer, x, y) == std::array<std::uint8_t, 4>{red, green, blue, 255};
+}
+
+bool clear_at(const Layer& layer, std::int32_t x, std::int32_t y) {
+  return baked_pixel(layer, x, y)[3] == 0;
+}
+
+// The opaque runs a baked row has between two document columns: one per tile of a checker.
+int opaque_runs(const Layer& layer, std::int32_t y, std::int32_t from_x, std::int32_t to_x) {
+  int runs = 0;
+  bool inside = false;
+  for (std::int32_t x = from_x; x < to_x; ++x) {
+    const bool opaque = baked_pixel(layer, x, y)[3] == 255;
+    runs += opaque && !inside ? 1 : 0;
+    inside = opaque;
+  }
+  return runs;
+}
+
+bool placed_at(const patchy::VectorFill& fill, double x, double y) {
+  return std::abs(fill.pattern_phase_x - x) < 1e-6 && std::abs(fill.pattern_phase_y - y) < 1e-6;
+}
+
+// A pattern's tile lives in the painted element's user space, so its size, phase and
+// content take the same viewBox mapping and ancestor transforms as the element's path.
+// They used to stay in raw user units: under this 2x viewBox the 20-unit checker came
+// out with 20 px tiles, eight across each 160 px square instead of four.
+constexpr std::string_view kUserSpacePatternSvg =
+    "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"400\" height=\"200\" viewBox=\"0 0 200 100\">"
+    "<defs>"
+    "<pattern id=\"checks\" patternUnits=\"userSpaceOnUse\" width=\"20\" height=\"20\">"
+    "<rect width=\"10\" height=\"10\" fill=\"#000000\"/>"
+    "<rect x=\"10\" y=\"10\" width=\"10\" height=\"10\" fill=\"#000000\"/>"
+    "</pattern>"
+    "</defs>"
+    "<rect width=\"200\" height=\"100\" fill=\"#ffffff\"/>"
+    "<rect id=\"Scaled\" x=\"10\" y=\"10\" width=\"80\" height=\"80\" fill=\"url(#checks)\"/>"
+    "<g transform=\"translate(100 0)\">"
+    "<rect id=\"Moved\" x=\"10\" y=\"10\" width=\"80\" height=\"80\" fill=\"url(#checks)\"/></g>"
+    "</svg>";
+
+void check_user_space_pattern_placement(const Document& document) {
+  CHECK(document.width() == 400 && document.height() == 200);
+  const auto scaled = imported_pattern(document, "Scaled");
+  // Drawn at document resolution: a 40 px tile placed unscaled, so the checks stay sharp.
+  CHECK(scaled.tile.width() == 40 && scaled.tile.height() == 40);
+  CHECK(scaled.fill.pattern_scale == 1.0);
+  CHECK(scaled.fill.pattern_angle_degrees == 0.0);
+  CHECK(!scaled.fill.pattern_linked);
+  CHECK(placed_at(scaled.fill, 0.0, 0.0));
+  CHECK(opaque_runs(*scaled.layer, 30, 20, 180) == 4);  // four tiles across the 160 px square
+  CHECK(painted(*scaled.layer, 30, 30, 0, 0, 0));
+  CHECK(painted(*scaled.layer, 39, 30, 0, 0, 0) && clear_at(*scaled.layer, 40, 30));  // a hard edge
+  CHECK(clear_at(*scaled.layer, 50, 30) && clear_at(*scaled.layer, 30, 50));
+  CHECK(painted(*scaled.layer, 50, 50, 0, 0, 0));
+  // The group translate carries the grid along with the square.
+  const auto moved = imported_pattern(document, "Moved");
+  CHECK(moved.tile.width() == 40 && moved.tile.height() == 40);
+  CHECK(moved.fill.pattern_scale == 1.0);
+  CHECK(placed_at(moved.fill, 200.0, 0.0));
+  CHECK(opaque_runs(*moved.layer, 30, 220, 380) == 4);
+  CHECK(painted(*moved.layer, 230, 30, 0, 0, 0) && clear_at(*moved.layer, 250, 30));
+}
+
+void svg_import_user_space_patterns_follow_the_element_transform() {
+  const auto repro = read_svg(kUserSpacePatternSvg);
+  check_user_space_pattern_placement(repro);
+  // Both squares draw the same tile: one PatternStore entry, not a copy each.
+  CHECK(repro.metadata().patterns.patterns.size() == 1);
+
+  // The tile's x/y and patternTransform ride the same chain, and a translate that is
+  // not a whole tile shows up as the grid's anchor.
+  std::vector<std::string> notices;
+  const auto document = read_svg(
+      "<svg width=\"400\" height=\"200\" viewBox=\"0 0 200 100\">"
+      "<defs>"
+      "<pattern id=\"checks\" patternUnits=\"userSpaceOnUse\" width=\"20\" height=\"20\">"
+      "<rect width=\"10\" height=\"10\" fill=\"#000000\"/>"
+      "<rect x=\"10\" y=\"10\" width=\"10\" height=\"10\" fill=\"#000000\"/>"
+      "</pattern>"
+      "<pattern id=\"big\" href=\"#checks\" x=\"5\" y=\"5\" patternTransform=\"scale(2)\"/>"
+      "</defs>"
+      "<g transform=\"translate(105 5)\">"
+      "<rect id=\"Offset\" x=\"10\" y=\"10\" width=\"80\" height=\"80\" fill=\"url(#checks)\"/></g>"
+      "<rect id=\"Doubled\" x=\"10\" y=\"10\" width=\"80\" height=\"80\" fill=\"url(#big)\"/>"
+      "</svg>",
+      &notices);
+  CHECK(notices.empty());
+  const auto offset = imported_pattern(document, "Offset");
+  CHECK(offset.tile.width() == 40 && offset.fill.pattern_scale == 1.0);
+  CHECK(placed_at(offset.fill, 210.0, 10.0));
+  CHECK(painted(*offset.layer, 240, 40, 0, 0, 0) && clear_at(*offset.layer, 260, 40));
+  const auto doubled = imported_pattern(document, "Doubled");
+  CHECK(doubled.tile.width() == 80 && doubled.tile.height() == 80);  // 20 units x scale(2) x the 2x viewBox
+  CHECK(doubled.fill.pattern_scale == 1.0);
+  CHECK(placed_at(doubled.fill, 20.0, 20.0));
+  CHECK(painted(*doubled.layer, 30, 30, 0, 0, 0) && clear_at(*doubled.layer, 70, 30));
+  CHECK(painted(*doubled.layer, 70, 70, 0, 0, 0));
+
+  // A tile that is not a whole number of document pixels keeps its exact period: the
+  // nearest whole tile, scaled by the remainder.
+  const auto fractional = read_svg(
+      "<svg width=\"150\" height=\"150\" viewBox=\"0 0 100 100\">"
+      "<defs><pattern id=\"bars\" patternUnits=\"userSpaceOnUse\" width=\"7\" height=\"7\">"
+      "<rect width=\"3\" height=\"7\" fill=\"#ff0000\"/></pattern></defs>"
+      "<rect id=\"Odd\" width=\"100\" height=\"100\" fill=\"url(#bars)\"/>"
+      "</svg>");
+  const auto odd = imported_pattern(fractional, "Odd");
+  CHECK(odd.tile.width() == 11 && odd.tile.height() == 11);  // 10.5 px
+  CHECK(std::abs(odd.fill.pattern_scale - 10.5 / 11.0) < 1e-9);
+
+  // A pattern painted with a pattern (here with itself, which would never end) is
+  // refused where it nests: that child paints gray.
+  const auto looped = read_svg(
+      "<svg width=\"40\" height=\"40\">"
+      "<defs><pattern id=\"loop\" patternUnits=\"userSpaceOnUse\" width=\"10\" height=\"10\">"
+      "<rect width=\"5\" height=\"5\" fill=\"url(#loop)\"/></pattern></defs>"
+      "<rect id=\"Loop\" width=\"40\" height=\"40\" fill=\"url(#loop)\"/>"
+      "</svg>",
+      &notices);
+  const auto loop = imported_pattern(looped, "Loop");
+  CHECK(loop.tile.width() == 10 && loop.tile.height() == 10);
+  CHECK(painted(*loop.layer, 2, 2, 128, 128, 128) && clear_at(*loop.layer, 7, 7));
+  CHECK(std::ranges::any_of(notices, [](const std::string& text) { return text.find("Nested") != std::string::npos; }));
+}
+
+// objectBoundingBox units (the default) are fractions of the element's own box, measured
+// from its corner; patternContentUnits scales the content the same way.
+void svg_import_bounding_box_patterns_resolve_in_the_element_box() {
+  std::vector<std::string> notices;
+  const auto document = read_svg(
+      "<svg width=\"400\" height=\"200\" viewBox=\"0 0 200 100\">"
+      "<defs>"
+      "<pattern id=\"halves\" width=\"0.5\" height=\"0.5\"><rect width=\"20\" height=\"10\" fill=\"#ff0000\"/></pattern>"
+      "<pattern id=\"percent\" href=\"#halves\" width=\"50%\" height=\"50%\"/>"
+      "<pattern id=\"fractions\" width=\"0.5\" height=\"0.5\" patternContentUnits=\"objectBoundingBox\">"
+      "<rect width=\"0.25\" height=\"0.25\" fill=\"#ff0000\"/></pattern>"
+      "</defs>"
+      "<rect id=\"Box\" x=\"10\" y=\"10\" width=\"80\" height=\"40\" fill=\"url(#halves)\"/>"
+      "<rect id=\"Percent\" x=\"110\" y=\"10\" width=\"80\" height=\"40\" fill=\"url(#percent)\"/>"
+      "<g transform=\"translate(100 0)\">"
+      "<rect id=\"Fractions\" x=\"10\" y=\"50\" width=\"80\" height=\"40\" fill=\"url(#fractions)\"/></g>"
+      "</svg>",
+      &notices);
+  CHECK(notices.empty());
+  // Half of the 80 x 40 unit box is a 40 x 20 unit tile: 80 x 40 px, anchored at the
+  // box corner.
+  const auto box = imported_pattern(document, "Box");
+  CHECK(box.tile.width() == 80 && box.tile.height() == 40);
+  CHECK(box.fill.pattern_scale == 1.0);
+  CHECK(placed_at(box.fill, 20.0, 20.0));
+  CHECK(painted(*box.layer, 30, 30, 255, 0, 0));    // the 40 x 20 px red corner of the first tile
+  CHECK(clear_at(*box.layer, 70, 30) && clear_at(*box.layer, 30, 45));
+  CHECK(painted(*box.layer, 110, 30, 255, 0, 0));   // the second tile across
+  CHECK(painted(*box.layer, 30, 65, 255, 0, 0));    // and down
+  // A percentage is the same fraction, so the second box reuses the first one's tile.
+  const auto percent = imported_pattern(document, "Percent");
+  CHECK(percent.fill.pattern_id == box.fill.pattern_id);
+  CHECK(placed_at(percent.fill, 220.0, 20.0));
+  CHECK(painted(*percent.layer, 230, 30, 255, 0, 0) && clear_at(*percent.layer, 270, 30));
+  // Content in box fractions draws the same tile, and the group translate moves the box.
+  const auto fractions = imported_pattern(document, "Fractions");
+  CHECK(fractions.tile.width() == 80 && fractions.tile.height() == 40);
+  CHECK(std::ranges::equal(std::as_const(fractions.tile).data(), std::as_const(box.tile).data()));
+  CHECK(placed_at(fractions.fill, 220.0, 100.0));
+  CHECK(painted(*fractions.layer, 230, 110, 255, 0, 0) && clear_at(*fractions.layer, 270, 110));
+}
+
+// What a tile's pixels cannot carry rides the placement model: a rotation becomes the
+// pattern angle (counterclockwise-positive, so an SVG rotate() flips sign). Unequal
+// axis scales and mirrors are baked into the tile; only skew is approximated.
+void svg_import_rotated_and_mirrored_patterns() {
+  constexpr std::string_view kBands =
+      "<pattern id=\"bands\" patternUnits=\"userSpaceOnUse\" width=\"20\" height=\"20\">"
+      "<rect width=\"20\" height=\"10\" fill=\"#0000ff\"/></pattern>";  // blue over clear
+  std::vector<std::string> notices;
+  const auto document = read_svg(
+      "<svg width=\"400\" height=\"100\">"
+      "<defs>" + std::string(kBands) +
+      "<pattern id=\"turned\" href=\"#bands\" patternTransform=\"rotate(90)\"/>"
+      "</defs>"
+      "<rect id=\"Turned\" width=\"100\" height=\"100\" fill=\"url(#turned)\"/>"
+      "<g transform=\"translate(100 0)\">"
+      "<rect id=\"Spun\" width=\"40\" height=\"40\" transform=\"rotate(90 50 50)\" fill=\"url(#bands)\"/></g>"
+      "<g transform=\"translate(200 100) scale(1 -1)\">"
+      "<rect id=\"Flipped\" width=\"100\" height=\"100\" fill=\"url(#bands)\"/></g>"
+      "<g transform=\"translate(300 0)\">"
+      "<rect id=\"Stretched\" width=\"10\" height=\"10\" transform=\"scale(2 3)\" fill=\"url(#bands)\"/></g>"
+      "</svg>",
+      &notices);
+  CHECK(notices.empty());
+  // rotate(90) stands the bands up: pattern y runs along -x, so the blue half of
+  // each period is its right half.
+  const auto turned = imported_pattern(document, "Turned");
+  CHECK(turned.tile.width() == 20 && turned.tile.height() == 20);
+  CHECK(turned.fill.pattern_scale == 1.0);
+  CHECK(std::abs(turned.fill.pattern_angle_degrees + 90.0) < 1e-9);
+  CHECK(painted(*turned.layer, 15, 50, 0, 0, 255) && clear_at(*turned.layer, 5, 50));
+  CHECK(painted(*turned.layer, 35, 50, 0, 0, 255) && clear_at(*turned.layer, 25, 50));
+  // The element's own rotation does the same and carries the anchor around with it:
+  // user (0, 0) lands on (100, 0) of the group, (200, 0) of the document.
+  const auto spun = imported_pattern(document, "Spun");
+  CHECK(std::abs(spun.fill.pattern_angle_degrees + 90.0) < 1e-9);
+  CHECK(placed_at(spun.fill, 200.0, 0.0));
+  CHECK(painted(*spun.layer, 195, 20, 0, 0, 255) && clear_at(*spun.layer, 185, 20));
+  // A mirror is baked into the tile (its rows reversed), not approximated.
+  const auto flipped = imported_pattern(document, "Flipped");
+  CHECK(flipped.fill.pattern_angle_degrees == 0.0 && flipped.fill.pattern_scale == 1.0);
+  CHECK(placed_at(flipped.fill, 200.0, 100.0));
+  CHECK(std::as_const(flipped.tile).pixel(0, 5)[3] == 0 && std::as_const(flipped.tile).pixel(0, 15)[3] == 255);
+  CHECK(painted(*flipped.layer, 250, 95, 0, 0, 255) && clear_at(*flipped.layer, 250, 85));
+  // Unequal axis scales are baked in too.
+  const auto stretched = imported_pattern(document, "Stretched");
+  CHECK(stretched.tile.width() == 40 && stretched.tile.height() == 60);
+  CHECK(stretched.fill.pattern_scale == 1.0);
+  CHECK(std::as_const(stretched.tile).pixel(0, 29)[3] == 255 && std::as_const(stretched.tile).pixel(0, 30)[3] == 0);
+
+  const auto skewed = read_svg(
+      "<svg width=\"100\" height=\"100\"><defs>" + std::string(kBands) +
+          "</defs><rect id=\"Skewed\" width=\"50\" height=\"50\" transform=\"skewX(30)\" fill=\"url(#bands)\"/></svg>",
+      &notices);
+  (void)imported_pattern(skewed, "Skewed");  // still a pattern fill
+  CHECK(notices.size() == 1 && notices.front().find("skew") != std::string::npos);
+}
+
+// Patchy writes a pattern fill as a <pattern> holding the tile as one embedded image
+// that fills the cell, and reads that form back as the same tile and placement.
+void svg_export_reimport_keeps_pattern_fills() {
+  const auto document = read_svg(kUserSpacePatternSvg);
+  std::vector<std::string> notices;
+  const auto text = write_svg(document, &notices);
+  CHECK(notices.empty());
+  CHECK(text.find("<pattern id=\"pat1\" patternUnits=\"userSpaceOnUse\" width=\"40\" height=\"40\">") !=
+        std::string::npos);
+  const auto reimported = read_svg(text, &notices);
+  CHECK(notices.empty());
+  check_user_space_pattern_placement(reimported);
+  const auto before = imported_pattern(document, "Moved");
+  const auto after = imported_pattern(reimported, "Moved");
+  CHECK(std::ranges::equal(std::as_const(after.tile).data(), std::as_const(before.tile).data()));
+  CHECK(std::ranges::equal(after.layer->pixels().data(), before.layer->pixels().data()));
+
+  // Scale, angle and phase make the trip as the cell size and patternTransform. The
+  // pattern angle is counterclockwise-positive, an SVG rotate() clockwise.
+  auto turned = read_svg(kUserSpacePatternSvg);
+  auto& layer = turned.layers()[1];
+  CHECK(layer.name() == "Scaled");
+  auto content = *layer.vector_shape();
+  content.fill.pattern_scale = 1.5;
+  content.fill.pattern_angle_degrees = 30.0;
+  content.fill.pattern_phase_x = 7.0;
+  content.fill.pattern_phase_y = 3.0;
+  layer.set_vector_shape(std::move(content));
+  patchy::update_vector_shape_raster(layer, Rect::from_size(turned.width(), turned.height()),
+                                     &turned.metadata().patterns);
+  const auto turned_text = write_svg(turned);
+  CHECK(turned_text.find("width=\"60\" height=\"60\" patternTransform=\"translate(7 3) rotate(-30)\"") !=
+        std::string::npos);
+  const auto returned = read_svg(turned_text, &notices);
+  CHECK(notices.empty());
+  const auto kept = imported_pattern(returned, "Scaled");
+  CHECK(kept.tile.width() == 40 && kept.tile.height() == 40);
+  CHECK(std::abs(kept.fill.pattern_scale - 1.5) < 1e-9);
+  CHECK(std::abs(kept.fill.pattern_angle_degrees - 30.0) < 1e-9);
+  CHECK(placed_at(kept.fill, 7.0, 3.0));
+  const auto& sent = std::as_const(turned).layers()[1];
+  CHECK(kept.layer->bounds().width == sent.bounds().width);
+  CHECK(std::ranges::equal(kept.layer->pixels().data(), sent.pixels().data()));
+
+  // An image that does not fill its tile would need resampling: gray, with a notice.
+  const auto partial = read_svg(
+      "<svg width=\"50\" height=\"50\"><defs>"
+      "<pattern id=\"corner\" patternUnits=\"userSpaceOnUse\" width=\"20\" height=\"20\">"
+      "<image width=\"10\" height=\"10\" href=\"data:image/png;base64,AAAA\"/></pattern></defs>"
+      "<rect id=\"Partial\" width=\"50\" height=\"50\" fill=\"url(#corner)\"/></svg>",
+      &notices);
+  CHECK(find_layer_named(partial.layers(), "Partial")->vector_shape()->fill.kind == VectorFillKind::Solid);
+  CHECK(!notices.empty());
 }
 
 // --- fill rules --------------------------------------------------------------
@@ -589,6 +1015,67 @@ void svg_export_masks_and_hidden_layers() {
   CHECK(text.find("display:none") != std::string::npos);
 }
 
+// The dry run reports exactly what write() bakes: nothing for a shape-only
+// document, then each text layer, raster mask, and barrier (with the layers
+// merged under it) by kind and name, with no <image> until it says so.
+void svg_baked_content_dry_run_matches_writer() {
+  using patchy::svg::BakedContentKind;
+  const auto kinds = [](const patchy::Document& document) {
+    return patchy::svg::DocumentIo::baked_content(document);
+  };
+  auto document = document_with_live_rect();
+  CHECK(kinds(document).empty());
+  CHECK(write_svg(document).find("<image") == std::string::npos);
+
+  // A raster mask leaves the vector world as a luminance <mask> image.
+  {
+    auto masked = document;
+    patchy::LayerMask mask;
+    mask.bounds = Rect{0, 0, masked.width(), masked.height()};
+    mask.pixels = PixelBuffer(masked.width(), masked.height(), PixelFormat::gray8());
+    mask.pixels.clear(255);
+    masked.layers()[0].set_mask(std::move(mask));
+    const auto baked = kinds(masked);
+    CHECK(baked.size() == 1U);
+    CHECK(baked[0].kind == BakedContentKind::RasterMask && baked[0].layer_name == "Hero Rect");
+    CHECK(write_svg(masked).find("<mask ") != std::string::npos);
+  }
+
+  // A text layer (a pixel layer carrying the text marker) bakes on its own.
+  {
+    PixelBuffer pixels(20, 10, PixelFormat::rgba8());
+    pixels.clear(255);
+    Layer text(document.allocate_layer_id(), "Title", std::move(pixels));
+    text.set_bounds(Rect{4, 4, 20, 10});
+    text.metadata()[patchy::kLayerMetadataText] = "Title";
+    document.add_layer(std::move(text));
+  }
+  {
+    const auto baked = kinds(document);
+    CHECK(baked.size() == 1U);
+    CHECK(baked[0].kind == BakedContentKind::TextLayer && baked[0].layer_name == "Title");
+    std::vector<std::string> notices;
+    CHECK(write_svg(document, &notices).find("<image") != std::string::npos);
+    CHECK(std::any_of(notices.begin(), notices.end(),
+                      [](const std::string& notice) { return notice.find("Text layer 'Title'") != std::string::npos; }));
+  }
+
+  // A blend mode CSS cannot express is a barrier: it and everything below merge.
+  {
+    PixelBuffer pixels(10, 10, PixelFormat::rgba8());
+    pixels.clear(200);
+    Layer top(document.allocate_layer_id(), "Weird Blend", std::move(pixels));
+    top.set_bounds(Rect{5, 5, 10, 10});
+    top.set_blend_mode(BlendMode::Subtract);
+    document.add_layer(std::move(top));
+    const auto baked = kinds(document);
+    CHECK(baked.size() == 3U);
+    CHECK(baked[0].kind == BakedContentKind::MergedBelow && baked[0].layer_name == "Hero Rect");
+    CHECK(baked[1].kind == BakedContentKind::TextLayer && baked[1].layer_name == "Title");
+    CHECK(baked[2].kind == BakedContentKind::BlendMode && baked[2].layer_name == "Weird Blend");
+  }
+}
+
 }  // namespace
 
 std::vector<patchy::test::TestCase> svg_tests() {
@@ -602,6 +1089,17 @@ std::vector<patchy::test::TestCase> svg_tests() {
       {"svg_import_opacity_and_blend", svg_import_opacity_and_blend},
       {"svg_import_live_shapes_and_transform_gating", svg_import_live_shapes_and_transform_gating},
       {"svg_import_gradients", svg_import_gradients},
+      {"svg_import_user_space_gradients_follow_the_element_transform",
+       svg_import_user_space_gradients_follow_the_element_transform},
+      {"svg_import_bounding_box_gradients_resolve_in_the_element_box",
+       svg_import_bounding_box_gradients_resolve_in_the_element_box},
+      {"svg_export_reimport_keeps_user_space_gradients", svg_export_reimport_keeps_user_space_gradients},
+      {"svg_import_user_space_patterns_follow_the_element_transform",
+       svg_import_user_space_patterns_follow_the_element_transform},
+      {"svg_import_bounding_box_patterns_resolve_in_the_element_box",
+       svg_import_bounding_box_patterns_resolve_in_the_element_box},
+      {"svg_import_rotated_and_mirrored_patterns", svg_import_rotated_and_mirrored_patterns},
+      {"svg_export_reimport_keeps_pattern_fills", svg_export_reimport_keeps_pattern_fills},
       {"svg_import_fill_rules", svg_import_fill_rules},
       {"svg_import_clip_and_mask", svg_import_clip_and_mask},
       {"svg_import_units_and_ppi", svg_import_units_and_ppi},
@@ -615,5 +1113,6 @@ std::vector<patchy::test::TestCase> svg_tests() {
       {"svg_export_rasterizes_unsupported_and_reports", svg_export_rasterizes_unsupported_and_reports},
       {"svg_fixture_reexport_writes_artifact", svg_fixture_reexport_writes_artifact},
       {"svg_export_masks_and_hidden_layers", svg_export_masks_and_hidden_layers},
+      {"svg_baked_content_dry_run_matches_writer", svg_baked_content_dry_run_matches_writer},
   };
 }

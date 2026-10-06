@@ -1,3 +1,4 @@
+#include "formats/animation_timing.hpp"
 #include "ui/image_save_options_dialog.hpp"
 
 #include "formats/jxr_document_io.hpp"
@@ -676,6 +677,9 @@ ImageSaveOptions load_image_save_option_defaults() {
       settings.value(QStringLiteral("saveOptions/pdfKeepOriginalImages"), options.pdf_keep_original_images).toBool();
   options.gif_frame_delay_cs = std::clamp(
       settings.value(QStringLiteral("saveOptions/gifFrameDelayCs"), options.gif_frame_delay_cs).toInt(), 0, 0xffff);
+  options.animation_frame_delay_ms = std::clamp(
+      settings.value(QStringLiteral("saveOptions/animationFrameDelayMs"), options.gif_frame_delay_cs * 10).toInt(),
+      0, static_cast<int>(animation::kMaxFrameDelayMs));
   options.jxr_quality =
       std::clamp(settings.value(QStringLiteral("saveOptions/jxrQuality"), options.jxr_quality).toInt(), 1, 100);
   options.jxr_lossless = settings.value(QStringLiteral("saveOptions/jxrLossless"), options.jxr_lossless).toBool();
@@ -720,6 +724,7 @@ void save_image_save_option_defaults(const ImageSaveOptions& options) {
   settings.setValue(QStringLiteral("saveOptions/pdfMissingFontsAsImages"), options.pdf_missing_fonts_as_images);
   settings.setValue(QStringLiteral("saveOptions/pdfKeepOriginalImages"), options.pdf_keep_original_images);
   settings.setValue(QStringLiteral("saveOptions/gifFrameDelayCs"), std::clamp(options.gif_frame_delay_cs, 0, 0xffff));
+  settings.setValue(QStringLiteral("saveOptions/animationFrameDelayMs"), options.animation_frame_delay_ms);
   settings.setValue(QStringLiteral("saveOptions/jxrQuality"), std::clamp(options.jxr_quality, 1, 100));
   settings.setValue(QStringLiteral("saveOptions/jxrLossless"), options.jxr_lossless);
   settings.setValue(QStringLiteral("saveOptions/rttexEncoding"), rttex_encoding_key(options.rttex_encoding));
@@ -781,6 +786,63 @@ std::optional<ImageSaveOptions> prompt_image_save_options(QWidget* parent, const
     dialog.setObjectName(QStringLiteral("webpSaveOptionsDialog"));
     auto* content = create_options_dialog_chrome(dialog, QObject::tr("WebP Options"));
     dialog.resize(380, 170);
+    QRadioButton* animation_radio = nullptr;
+    if (options.webp_offer_animation) {
+      animation_radio = new QRadioButton(QObject::tr("Animation from visible layers"), &dialog);
+      animation_radio->setObjectName(QStringLiteral("webpAnimationRadio"));
+      auto* flatten = new QRadioButton(QObject::tr("Single flattened image"), &dialog);
+      flatten->setObjectName(QStringLiteral("webpFlattenRadio"));
+      auto* modes = new QButtonGroup(&dialog);
+      modes->addButton(animation_radio);
+      modes->addButton(flatten);
+      const bool animate = options.webp_has_visible_frames &&
+          app_settings().value(QStringLiteral("saveOptions/webpSaveMode"), QStringLiteral("animation")) != QStringLiteral("flatten");
+      animation_radio->setChecked(animate);
+      flatten->setChecked(!animate);
+      animation_radio->setEnabled(options.webp_has_visible_frames);
+      content->addWidget(animation_radio);
+      content->addWidget(flatten);
+    }
+    QDoubleSpinBox* frame_delay = nullptr;
+    QCheckBox* forever_check = nullptr;
+    QSpinBox* plays = nullptr;
+    if (options.webp_offer_animation || options.webp_animate) {
+      auto* animation_controls = new QWidget(&dialog);
+      auto* animation_form = new QFormLayout(animation_controls);
+      animation_form->setContentsMargins(0, 0, 0, 0);
+      frame_delay = new QDoubleSpinBox(animation_controls);
+      frame_delay->setObjectName(QStringLiteral("webpFrameDelaySpin"));
+      frame_delay->setDecimals(3);
+      frame_delay->setRange(0, animation::kMaxFrameDelayMs / 1000.0);
+      frame_delay->setSuffix(QObject::tr(" s"));
+      frame_delay->setValue(options.animation_frame_delay_ms / 1000.0);
+      configure_dialog_spinbox(frame_delay, 110);
+      animation_form->addRow(QObject::tr("Default frame delay:"), frame_delay);
+      forever_check = new QCheckBox(QObject::tr("Forever"), animation_controls);
+      forever_check->setObjectName(QStringLiteral("webpForeverCheck"));
+      forever_check->setChecked(options.webp_loop_count == 0);
+      animation_form->addRow(forever_check);
+      plays = new QSpinBox(animation_controls);
+      plays->setObjectName(QStringLiteral("webpPlayCountSpin"));
+      plays->setRange(1, 65535);
+      plays->setValue(std::max(1, options.webp_loop_count));
+      plays->setEnabled(!forever_check->isChecked());
+      configure_dialog_spinbox(plays, 96);
+      animation_form->addRow(QObject::tr("Play count:"), plays);
+      QObject::connect(forever_check, &QCheckBox::toggled, plays, [plays](bool checked) { plays->setEnabled(!checked); });
+      auto* hint = new QLabel(QObject::tr("Each visible top-level layer becomes one frame, with the top layer first. "
+          "A name ending in a time, like \"blink 0.033s\", sets that frame's delay. Play count includes the first play."), animation_controls);
+      hint->setWordWrap(true);
+      hint->setObjectName(QStringLiteral("webpAnimationExplanationLabel"));
+      content->addWidget(animation_controls);
+      content->addWidget(hint);
+      if (animation_radio != nullptr) {
+        animation_controls->setEnabled(animation_radio->isChecked());
+        hint->setEnabled(animation_radio->isChecked());
+        QObject::connect(animation_radio, &QRadioButton::toggled, animation_controls, &QWidget::setEnabled);
+        QObject::connect(animation_radio, &QRadioButton::toggled, hint, &QWidget::setEnabled);
+      }
+    }
 
     auto* form = new QFormLayout();
     form->setContentsMargins(0, 0, 0, 0);
@@ -799,6 +861,8 @@ std::optional<ImageSaveOptions> prompt_image_save_options(QWidget* parent, const
 
     const auto section = finish_options_dialog(content, dialog, for_export, extension, document_size);
 
+    if (frame_delay != nullptr && !for_export) finish_export_dialog_size(dialog);
+
     // Lossless ignores the quality value, so the row goes dead rather than showing a
     // number the file will not use.
     auto* quality_row = quality->parentWidget();
@@ -808,6 +872,16 @@ std::optional<ImageSaveOptions> prompt_image_save_options(QWidget* parent, const
 
     if (exec_dialog(dialog) != QDialog::Accepted) {
       return std::nullopt;
+    }
+    if (frame_delay != nullptr) {
+      options.webp_animate = animation_radio == nullptr || animation_radio->isChecked();
+      options.animation_frame_delay_ms = static_cast<int>(std::llround(frame_delay->value() * 1000));
+      options.gif_frame_delay_cs = std::min(65535, (options.animation_frame_delay_ms + 5) / 10);
+      options.webp_loop_count = forever_check->isChecked() ? 0 : plays->value();
+      if (animation_radio != nullptr && options.webp_has_visible_frames) {
+        app_settings().setValue(QStringLiteral("saveOptions/webpSaveMode"),
+            options.webp_animate ? QStringLiteral("animation") : QStringLiteral("flatten"));
+      }
     }
     options.webp_quality = quality->value();
     options.webp_lossless = lossless->isChecked();
@@ -1376,7 +1450,7 @@ std::optional<ImageSaveOptions> prompt_gif_save_options(QWidget* parent, ImageSa
   auto* delay_layout = new QHBoxLayout(delay_row);
   delay_layout->setContentsMargins(0, 0, 0, 0);
   delay_layout->setSpacing(10);
-  auto* delay_label = new QLabel(QObject::tr("Frame delay:"), delay_row);
+  auto* delay_label = new QLabel(QObject::tr("Default frame delay:"), delay_row);
   auto* delay_spin = new QDoubleSpinBox(delay_row);
   delay_spin->setObjectName(QStringLiteral("gifFrameDelaySpin"));
   delay_spin->setSuffix(QObject::tr(" s"));
@@ -1419,6 +1493,8 @@ std::optional<ImageSaveOptions> prompt_gif_save_options(QWidget* parent, ImageSa
       static_cast<int>(std::clamp<long long>(std::llround(delay_spin->value() * 100.0), 0, 0xffff));
   auto settings = app_settings();
   settings.setValue(QStringLiteral("saveOptions/gifFrameDelayCs"), options.gif_frame_delay_cs);
+  options.animation_frame_delay_ms = options.gif_frame_delay_cs * 10;
+  settings.setValue(QStringLiteral("saveOptions/animationFrameDelayMs"), options.animation_frame_delay_ms);
   if (offer_flatten_choice && has_visible_frames) {
     // Only the Save As / Export form remembers the mode, and only when the choice was
     // real: the Export Layers as Animated GIF action is always an animation, and a

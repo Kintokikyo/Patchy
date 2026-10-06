@@ -147,6 +147,7 @@
 #include <QMenu>
 #include <QMenuBar>
 #include <QMimeData>
+#include <QLocale>
 #include <QMessageBox>
 #include <QMetaObject>
 #include <QMouseEvent>
@@ -241,10 +242,6 @@
 #include <dwmapi.h>
 #include <tchar.h>
 #include <tpcshrd.h>
-#endif
-
-#ifndef PATCHY_VERSION
-#define PATCHY_VERSION "0.0.0"
 #endif
 
 // Icon resources live in the static patchy_ui library; force registration before first use.
@@ -631,6 +628,8 @@ QColor adjustment_thumbnail_accent(const Layer& layer) {
       return QColor(235, 128, 118);
     case AdjustmentKind::BrightnessContrast:
       return QColor(250, 225, 120);
+    case AdjustmentKind::Exposure:
+      return QColor(255, 170, 110);
   }
   return QColor(145, 175, 215);
 }
@@ -769,6 +768,11 @@ QString adjustment_settings_summary(const Layer& layer) {
       return QObject::tr("Posterize: %1 levels").arg(settings->posterize.levels);
     case AdjustmentKind::Threshold:
       return QObject::tr("Threshold: level %1").arg(settings->threshold.level);
+    case AdjustmentKind::Exposure:
+      return QObject::tr("Exposure: %1, offset %2, gamma %3")
+          .arg(QLocale().toString(settings->exposure.exposure_hundredths / 100.0, 'f', 2))
+          .arg(QLocale().toString(settings->exposure.offset_ten_thousandths / 10000.0, 'f', 4))
+          .arg(QLocale().toString(settings->exposure.gamma_hundredths / 100.0, 'f', 2));
     case AdjustmentKind::BrightnessContrast:
       return QObject::tr("Brightness/Contrast: brightness %1, contrast %2")
           .arg(settings->brightness_contrast.brightness)
@@ -1029,6 +1033,23 @@ void draw_posterize_adjustment_thumbnail_symbol(QPainter& painter, const QColor&
   painter.drawRect(graph);
 }
 
+void draw_exposure_adjustment_thumbnail_symbol(QPainter& painter, const QColor& accent) {
+  // A square split on the diagonal into a dark and a light half: the classic
+  // exposure-compensation glyph.
+  const QRectF square(7.0, 7.0, 14.0, 14.0);
+  painter.setPen(Qt::NoPen);
+  painter.fillRect(square, QColor(31, 37, 46));
+  QPainterPath light;
+  light.moveTo(square.topRight());
+  light.lineTo(square.bottomRight());
+  light.lineTo(square.bottomLeft());
+  light.closeSubpath();
+  painter.fillPath(light, QColor(238, 243, 248));
+  painter.setPen(QPen(accent.lighter(120), 1.5));
+  painter.setBrush(Qt::NoBrush);
+  painter.drawRect(square);
+}
+
 void draw_threshold_adjustment_thumbnail_symbol(QPainter& painter, const QColor& accent) {
   // A hard vertical black/white split: everything below the level goes black,
   // everything above goes white.
@@ -1257,6 +1278,9 @@ QPixmap layer_content_thumbnail(const Layer& layer, int document_width, int docu
         case AdjustmentKind::Threshold:
           draw_threshold_adjustment_thumbnail_symbol(painter, accent);
           break;
+        case AdjustmentKind::Exposure:
+          draw_exposure_adjustment_thumbnail_symbol(painter, accent);
+          break;
         case AdjustmentKind::BrightnessContrast:
           draw_brightness_contrast_adjustment_thumbnail_symbol(painter, accent);
           break;
@@ -1455,19 +1479,34 @@ QWidget* make_layer_row_widget(const Layer& layer, QListWidgetItem* item, QWidge
                                                      thumbnail_crop));
   thumbnail->setProperty(kLayerContentThumbnailRevisionProperty,
                          QVariant::fromValue<qulonglong>(static_cast<qulonglong>(layer.render_revision())));
-  const auto missing_text_families =
-      layer_is_text(layer) ? missing_text_families_for_layer(layer) : QStringList{};
+  const auto font_problems = layer_is_text(layer) ? text_font_problems_for_layer(layer) : TextFontProblems{};
+  // The badge says "something is wrong"; the tooltip has to say what, because the substituted
+  // face often looks like a plausible design choice. It also has to say WHICH thing is wrong:
+  // "missing" sends the user hunting for a font that may be installed and merely lack the glyphs.
+  const auto font_problem_tooltip = [&font_problems] {
+    const auto missing = font_problems.not_installed.join(QStringLiteral(", "));
+    const auto glyphless = font_problems.no_glyphs.join(QStringLiteral(", "));
+    if (!missing.isEmpty() && !glyphless.isEmpty()) {
+      return QObject::tr("Text layer. Missing font: %1. No glyphs for this text in: %2. Other fonts are being "
+                         "substituted, so the text does not look as it was authored.")
+          .arg(missing, glyphless);
+    }
+    if (!glyphless.isEmpty()) {
+      return QObject::tr("Text layer. No glyphs for this text in: %1. Another font is being "
+                         "substituted, so the text does not look as it was authored.")
+          .arg(glyphless);
+    }
+    return QObject::tr("Text layer. Missing font: %1. Another font is being "
+                       "substituted, so the text does not look as it was authored.")
+        .arg(missing);
+  };
   thumbnail->setToolTip(
       layer.kind() == LayerKind::Group
           ? QObject::tr("Folder layer")
           : layer.kind() == LayerKind::Adjustment
               ? QObject::tr("Adjustment Layer")
-              : !missing_text_families.isEmpty()
-                    // The badge says "something is wrong"; the tooltip has to say what, because
-                    // the substituted face often looks like a plausible design choice.
-                    ? QObject::tr("Text layer. Missing font: %1. Another font is being "
-                                  "substituted, so the text does not look as it was authored.")
-                          .arg(missing_text_families.join(QStringLiteral(", ")))
+              : !font_problems.empty()
+                    ? font_problem_tooltip()
                     : layer_is_text(layer) ? QObject::tr("Text layer") : QObject::tr("Layer thumbnail"));
   thumbnail->setProperty("layerTargetActive", content_target_active);
   // Thumbnails stay enabled even when the layer is hidden: a disabled QLabel
@@ -2244,11 +2283,22 @@ bool MainWindow::handle_layer_action_button_drag_event(QObject* watched, QEvent*
                                 event->type() == QEvent::Drop || event->type() == QEvent::DragLeave);
   }
 
+  // Never repolish the button from inside this filter. A style whose polish()
+  // installs event filters (KDE's Breeze) moves them ahead of this one, so Qt's
+  // filter loop reaches this filter again for the same event; repolishing on
+  // every pass never ends (GitHub issue 62: on Wayland a dock drag is a real
+  // QDrag, so dragging a panel across these buttons froze Patchy on KDE).
+  // Repolish only on a change, one event-loop hop later.
   const auto set_drop_active = [button](bool active) {
+    if (button->property("layerDropActive").toBool() == active) {
+      return;
+    }
     button->setProperty("layerDropActive", active);
-    button->style()->unpolish(button);
-    button->style()->polish(button);
-    button->update();
+    QTimer::singleShot(0, button, [button] {
+      button->style()->unpolish(button);
+      button->style()->polish(button);
+      button->update();
+    });
   };
   const auto hide_tooltip = [] {
     QToolTip::hideText();
@@ -2392,18 +2442,43 @@ bool MainWindow::handle_cross_document_layer_drag_event(QObject* watched, QEvent
 }
 
 void MainWindow::handle_layer_drop() {
+  auto* list = dynamic_cast<LayerListWidget*>(layer_list_);
+  // Both requests leave the list up front, so the lock branch cannot leave a
+  // stale one behind for the next drop.
+  std::optional<LayerListWidget::LayerFileDropRequest> file_request;
+  std::optional<LayerDropRequest> request;
+  if (list != nullptr) {
+    file_request = list->take_file_drop_request();
+    request = list->take_drop_request();
+  }
   if (preview_dialog_edit_locked()) {
     show_preview_dialog_edit_lock_message();
     refresh_layer_list();
     return;
   }
-  auto* list = dynamic_cast<LayerListWidget*>(layer_list_);
+  if (file_request.has_value()) {
+    // OS files dropped on the panel: Files as Layers at the drop position, or
+    // plain opens when no document is there to receive them. The list already
+    // deferred this past the native drop call.
+    if (shutting_down_ || !isVisible()) {
+      return;
+    }
+    if (!has_active_document()) {
+      for (const auto& path : file_request->paths) {
+        open_document_path(path);
+      }
+      return;
+    }
+    add_files_as_layers_interactive(file_request->paths,
+                                    LayerInsertionTarget{file_request->target_layer_id, file_request->position},
+                                    tr("Files as Layers"));
+    return;
+  }
   if (list == nullptr) {
     reorder_layers_from_list();
     return;
   }
 
-  auto request = list->take_drop_request();
   if (!request.has_value()) {
     reorder_layers_from_list();
     return;
@@ -2750,6 +2825,20 @@ void MainWindow::deselect_all_layers() {
   refresh_paths_panel();
 }
 
+void MainWindow::select_only_layer_if_none_active() {
+  if (!has_active_document() || layer_list_ == nullptr || preview_dialog_edit_locked()) {
+    return;
+  }
+  const auto& doc = std::as_const(document());
+  if (doc.active_layer_id().has_value()) {
+    return;
+  }
+  if (const auto id = only_layer_id(doc.layers()); id.has_value()) {
+    select_layers_in_layer_list({*id}, *id);
+    refresh_options_bar();
+  }
+}
+
 void MainWindow::select_layers_in_layer_list(const std::vector<LayerId>& ids, LayerId active_id) {
   if (layer_list_ == nullptr) {
     return;
@@ -3044,6 +3133,12 @@ void MainWindow::refresh_layer_list(bool retire_automation_rows, const std::func
   const auto horizontal_scroll_value =
       layer_list_->horizontalScrollBar() != nullptr ? layer_list_->horizontalScrollBar()->value() : 0;
   updating_layer_list_ = true;
+  // A rebuild destroys the row holding an open inline rename editor; drop it
+  // without committing rather than letting the destruction's focus-out commit
+  // a half-typed name.
+  if (auto* list = dynamic_cast<LayerListWidget*>(layer_list_); list != nullptr) {
+    list->cancel_inline_rename();
+  }
   QSignalBlocker blocker(layer_list_);
   layer_list_->setUpdatesEnabled(false);
   const auto clear_started = std::chrono::steady_clock::now();
@@ -3266,10 +3361,11 @@ void MainWindow::refresh_layer_list(bool retire_automation_rows, const std::func
         if (document().find_layer(layer_id) == nullptr) {
           return;
         }
-        reveal_layer_in_layer_list(layer_id);
-        if (document().active_layer_id() != layer_id) {
-          document().set_active_layer(layer_id);
-        }
+        const auto selected = selected_layer_ids();
+        if (std::find(selected.begin(), selected.end(), layer_id) != selected.end())
+          select_layers_in_layer_list(selected, layer_id);
+        else reveal_layer_in_layer_list(layer_id);
+        if (document().active_layer_id() != layer_id) document().set_active_layer(layer_id);
         edit_active_layer_style();
       },
                                       [this](LayerId layer_id) {
@@ -3286,10 +3382,11 @@ void MainWindow::refresh_layer_list(bool retire_automation_rows, const std::func
         if (!has_active_document() || document().find_layer(layer_id) == nullptr) {
           return;
         }
-        reveal_layer_in_layer_list(layer_id);
-        if (document().active_layer_id() != layer_id) {
-          document().set_active_layer(layer_id);
-        }
+        const auto selected = selected_layer_ids();
+        if (std::find(selected.begin(), selected.end(), layer_id) != selected.end())
+          select_layers_in_layer_list(selected, layer_id);
+        else reveal_layer_in_layer_list(layer_id);
+        if (document().active_layer_id() != layer_id) document().set_active_layer(layer_id);
         edit_active_shape_appearance();
       },
                                       row_clipped,
@@ -3493,6 +3590,8 @@ void MainWindow::refresh_layer_thumbnails() {
 void MainWindow::refresh_layer_controls() {
   const UiProfileScope profile_scope("refresh_layer_controls");
   sync_text_character_dialog_from_editor();
+  sync_text_options_from_active_layer();
+  sync_text_alignment_buttons_from_editor();
   refresh_convert_for_smart_filters_action_state();
   refresh_add_layer_mask_button_state();
   if (canvas_ != nullptr) {
@@ -3502,8 +3601,10 @@ void MainWindow::refresh_layer_controls() {
   }
   sync_vector_shape_size_spins();  // the W / H readouts follow the active shape
   if (!updating_layer_controls_) {
+    finish_pending_shape_appearance_edit();
     finish_pending_layer_opacity_edit();
     finish_pending_layer_fill_opacity_edit();
+    finish_pending_layer_blend_edit();
   }
   updating_layer_controls_ = true;
   const auto reset = [this] {
@@ -3789,6 +3890,7 @@ void MainWindow::refresh_layer_controls() {
 
 void MainWindow::refresh_document_info() {
   const UiProfileScope profile_scope("refresh_document_info");
+  refresh_ruler_unit_field_metrics();  // the PPI is per document
   sync_vector_shape_size_spins();
   refresh_palette_panel();
   schedule_palette_compliance_check();
@@ -3798,7 +3900,7 @@ void MainWindow::refresh_document_info() {
       zoom_status_edit_->setEnabled(false);
     } else {
       zoom_status_edit_->setEnabled(true);
-      zoom_status_edit_->set_display_zoom(canvas_->zoom());
+      zoom_status_edit_->set_display_zoom(canvas_->view_zoom());
     }
   }
   if (document_info_label_ == nullptr) {
@@ -3820,7 +3922,7 @@ void MainWindow::refresh_document_info() {
 
   const auto& doc = document();
   const auto& active_session = session();
-  const auto zoom_percent = canvas_ == nullptr ? 100 : static_cast<int>(std::round(canvas_->zoom() * 100.0));
+  const auto zoom_percent = canvas_ == nullptr ? 100 : static_cast<int>(std::round(canvas_->view_zoom() * 100.0));
   // Physical size in the ruler unit (inches while the rulers are pixel/percent),
   // per-axis PPI so anisotropic documents report their true print size.
   const auto info_unit = measurement_unit_is_physical(ruler_unit_) ? ruler_unit_ : MeasurementUnit::Inches;

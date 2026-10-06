@@ -566,6 +566,132 @@ void ui_dialog_position_memory_centers_unmoved_dialogs_on_parent() {
   settings.sync();
 }
 
+// Progress dialogs are transient status windows: a remembered position (here a
+// seeded one from an earlier layout) is ignored, the dialog is centered on its
+// owner, and moving it records nothing.
+void ui_progress_dialogs_ignore_position_memory_and_center_on_parent() {
+  const auto settings_group = QStringLiteral("dialogPositions/patchyProgressPositionTest");
+  const auto screen_rect = QApplication::primaryScreen() != nullptr
+                               ? QApplication::primaryScreen()->availableGeometry()
+                               : QRect(0, 0, 640, 480);
+  const auto far_position = screen_rect.topLeft() + QPoint(4, 5);
+  {
+    auto settings = patchy::ui::app_settings();
+    settings.remove(settings_group);
+    settings.setValue(settings_group + QStringLiteral("/pos"), far_position);
+    settings.setValue(settings_group + QStringLiteral("/moved"), true);
+    settings.sync();
+  }
+
+  QWidget parent;
+  parent.resize(420, 260);
+  parent.move(screen_rect.topLeft() + QPoint(160, 120));
+  parent.show();
+  QApplication::processEvents();
+
+  {
+    QProgressDialog dialog(QStringLiteral("Opening..."), QString(), 0, 0, &parent);
+    dialog.setObjectName(QStringLiteral("patchyProgressPositionTest"));
+    dialog.setMinimumDuration(0);
+    dialog.resize(220, 90);
+    patchy::ui::remember_dialog_position(dialog);
+    dialog.show();
+    QApplication::processEvents();
+
+    const auto expected_position =
+        parent.frameGeometry().center() - QPoint(dialog.size().width() / 2, dialog.size().height() / 2);
+    CHECK((dialog.pos() - expected_position).manhattanLength() <= 10);
+    CHECK((dialog.pos() - far_position).manhattanLength() > 10);
+
+    dialog.move(far_position);
+    QApplication::processEvents();
+    dialog.close();
+    QApplication::processEvents();
+  }
+
+  auto settings = patchy::ui::app_settings();
+  CHECK(!settings.value(settings_group + QStringLiteral("/pos")).isValid());
+  CHECK(!settings.value(settings_group + QStringLiteral("/moved"), false).toBool());
+  settings.remove(settings_group);
+  settings.sync();
+}
+
+// Message boxes (the save prompt, every question) and dialogs marked with
+// mark_dialog_always_centered (About) ignore a remembered position: they center
+// on their owner every time and drop any saved spot (Seth, October 2026).
+void ui_message_boxes_and_marked_dialogs_ignore_position_memory() {
+  const auto screen_rect = QApplication::primaryScreen() != nullptr
+                               ? QApplication::primaryScreen()->availableGeometry()
+                               : QRect(0, 0, 640, 480);
+  const auto far_position = screen_rect.topLeft() + QPoint(4, 5);
+  QWidget parent;
+  parent.resize(420, 260);
+  parent.move(screen_rect.topLeft() + QPoint(160, 120));
+  parent.show();
+  QApplication::processEvents();
+
+  const auto seed = [far_position](const QString& group) {
+    auto settings = patchy::ui::app_settings();
+    settings.remove(group);
+    settings.setValue(group + QStringLiteral("/pos"), far_position);
+    settings.setValue(group + QStringLiteral("/moved"), true);
+    settings.sync();
+  };
+  const auto expect_centered_and_forgotten = [&](QDialog& dialog, const QString& group) {
+    patchy::ui::remember_dialog_position(dialog);
+    dialog.show();
+    QApplication::processEvents();
+    const auto expected =
+        parent.frameGeometry().center() - QPoint(dialog.size().width() / 2, dialog.size().height() / 2);
+    CHECK((dialog.pos() - expected).manhattanLength() <= 10);
+    CHECK((dialog.pos() - far_position).manhattanLength() > 10);
+    dialog.move(far_position);
+    QApplication::processEvents();
+    dialog.close();
+    QApplication::processEvents();
+    auto settings = patchy::ui::app_settings();
+    CHECK(!settings.value(group + QStringLiteral("/pos")).isValid());
+    CHECK(!settings.value(group + QStringLiteral("/moved"), false).toBool());
+    settings.remove(group);
+    settings.sync();
+  };
+
+  {
+    const auto group = QStringLiteral("dialogPositions/patchyMessageBoxPositionTest");
+    seed(group);
+    QMessageBox box(QMessageBox::Warning, QStringLiteral("Save changes?"), QStringLiteral("Save?"),
+                    QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, &parent);
+    box.setObjectName(QStringLiteral("patchyMessageBoxPositionTest"));
+    expect_centered_and_forgotten(box, group);
+  }
+  {
+    const auto group = QStringLiteral("dialogPositions/patchyMarkedPositionTest");
+    seed(group);
+    QDialog dialog(&parent);
+    dialog.setObjectName(QStringLiteral("patchyMarkedPositionTest"));
+    dialog.resize(240, 120);
+    patchy::ui::mark_dialog_always_centered(dialog);
+    expect_centered_and_forgotten(dialog, group);
+  }
+  // An unmarked dialog still honors its remembered position.
+  {
+    const auto group = QStringLiteral("dialogPositions/patchyPlainPositionTest");
+    seed(group);
+    QDialog dialog(&parent);
+    dialog.setObjectName(QStringLiteral("patchyPlainPositionTest"));
+    dialog.resize(240, 120);
+    patchy::ui::remember_dialog_position(dialog);
+    dialog.show();
+    QApplication::processEvents();
+    CHECK((dialog.pos() - far_position).manhattanLength() <= 10);
+    dialog.close();
+    QApplication::processEvents();
+    auto settings = patchy::ui::app_settings();
+    settings.remove(group);
+    settings.sync();
+  }
+}
+
 void ui_dirty_state_marks_tabs_and_undo_restores_saved_revision() {
   patchy::ui::MainWindow window;
   show_window(window);
@@ -629,6 +755,54 @@ void ui_compatibility_report_treats_levels_as_native_psd_adjustment() {
   CHECK(warnings.isEmpty());
 }
 
+// An adjustment layer read from a CMYK document runs on the inks; saving writes RGB, where
+// the same numbers mean something else, and the report says so.
+void ui_compatibility_report_warns_about_cmyk_ink_adjustments() {
+  std::shared_ptr<patchy::InkSpace> space = std::make_shared<patchy::InkSpace>();
+  space->id = "test-ink-space";
+  space->rgb_grid = 2;
+  space->ink_grid = 2;
+  space->rgb_to_ink.assign(2U * 2U * 2U * 4U, std::uint16_t{32768});
+  space->ink_to_rgb.assign(2U * 2U * 2U * 2U * 3U, std::uint16_t{32768});
+  patchy::register_ink_space(space);
+
+  const auto warnings_for = [&](patchy::AdjustmentKind kind, bool in_ink_space) {
+    patchy::Document document(60, 40, patchy::PixelFormat::rgb8());
+    document.add_pixel_layer("Background", solid_pixels(60, 40, patchy::PixelFormat::rgb8(), QColor(Qt::white)));
+    patchy::AdjustmentSettings settings;
+    settings.kind = kind;
+    settings.levels.gamma_percent = 150;
+    if (in_ink_space) {
+      settings.ink_space = space;
+    }
+    patchy::Layer adjustment(document.allocate_layer_id(), "Ink Levels", patchy::LayerKind::Adjustment);
+    adjustment.set_bounds(patchy::Rect::from_size(document.width(), document.height()));
+    patchy::configure_adjustment_layer(adjustment, settings);
+    document.add_layer(std::move(adjustment));
+    return patchy::ui::compatibility_warnings_for_document(document);
+  };
+
+  const auto ink = warnings_for(patchy::AdjustmentKind::Levels, true);
+  CHECK(ink.size() == 1);
+  CHECK(!ink.isEmpty() && ink.front().contains(QStringLiteral("Ink Levels")));
+  CHECK(!ink.isEmpty() && ink.front().contains(QStringLiteral("CMYK")));
+  // The same layer in an RGB document, and a kind that stays on RGB math, say nothing.
+  CHECK(warnings_for(patchy::AdjustmentKind::Levels, false).isEmpty());
+  CHECK(warnings_for(patchy::AdjustmentKind::HueSaturation, true).isEmpty());
+
+  // A grayscale document's space is the one-channel form, and the wording follows it.
+  auto gray = std::make_shared<patchy::InkSpace>();
+  gray->id = "test-gray-space";
+  gray->gray_to_rgb.assign(768U, std::uint8_t{128});
+  gray->rgb_to_gray.assign(256U, std::uint8_t{128});
+  patchy::register_ink_space(gray);
+  space = gray;
+  const auto gray_warning = warnings_for(patchy::AdjustmentKind::Threshold, true);
+  CHECK(gray_warning.size() == 1);
+  CHECK(!gray_warning.isEmpty() && gray_warning.front().contains(QStringLiteral("grayscale")));
+  CHECK(!gray_warning.isEmpty() && !gray_warning.front().contains(QStringLiteral("CMYK")));
+}
+
 void ui_compatibility_report_pins_native_vs_private_adjustment_kinds() {
   const auto adjustment_warnings = [](patchy::AdjustmentKind kind) {
     patchy::Document document(120, 90, patchy::PixelFormat::rgb8());
@@ -672,6 +846,19 @@ void ui_compatibility_report_flags_cmyk_rgb_conversion() {
   CHECK(!warnings.isEmpty());
   const auto text = warnings.join(QLatin1Char('\n'));
   CHECK(text.contains(QStringLiteral("CMYK")));
+  CHECK(text.contains(QStringLiteral("converted")));
+  CHECK(text.contains(QStringLiteral("RGB/RGBA")));
+}
+
+void ui_compatibility_report_flags_grayscale_rgb_conversion() {
+  patchy::Document document(120, 90, patchy::PixelFormat::rgb8());
+  document.metadata().values["psd.color_mode"] = "Grayscale";
+  document.add_pixel_layer("Background", solid_pixels(120, 90, patchy::PixelFormat::rgb8(), QColor(Qt::white)));
+
+  const auto warnings = patchy::ui::compatibility_warnings_for_document(document);
+  CHECK(!warnings.isEmpty());
+  const auto text = warnings.join(QLatin1Char('\n'));
+  CHECK(text.contains(QStringLiteral("Grayscale")));
   CHECK(text.contains(QStringLiteral("converted")));
   CHECK(text.contains(QStringLiteral("RGB/RGBA")));
 }
@@ -1101,32 +1288,41 @@ void ui_photoshop_shortcuts_are_registered() {
   CHECK(require_action_by_text(window, QStringLiteral("Swap Colors"))->shortcut() == QKeySequence(Qt::Key_X));
   CHECK(require_action_by_text(window, QStringLiteral("Move"))->shortcut() == QKeySequence(Qt::Key_V));
   CHECK(require_action_by_text(window, QStringLiteral("Marquee"))->shortcut() == QKeySequence(Qt::Key_M));
-  CHECK(require_action_by_text(window, QStringLiteral("Elliptical Marquee"))->shortcut() ==
-        QKeySequence(Qt::SHIFT | Qt::Key_M));
+  // Shift+<letter> walks a flyout (GitHub issue 45); the members past the first ship unbound.
+  CHECK(require_action_by_text(window, QStringLiteral("Elliptical Marquee"))->shortcut().isEmpty());
+  CHECK(require_action(window, "toolCycleMarqueeAction")->shortcut() == QKeySequence(Qt::SHIFT | Qt::Key_M));
+  CHECK(require_action(window, "toolCycleLassoAction")->shortcut() == QKeySequence(Qt::SHIFT | Qt::Key_L));
+  CHECK(require_action(window, "toolCycleWandAction")->shortcut() == QKeySequence(Qt::SHIFT | Qt::Key_W));
+  CHECK(require_action(window, "toolCyclePenAction")->shortcut() == QKeySequence(Qt::SHIFT | Qt::Key_P));
+  CHECK(require_action(window, "toolCyclePathAction")->shortcut() == QKeySequence(Qt::SHIFT | Qt::Key_A));
   CHECK(require_action_by_text(window, QStringLiteral("Lasso"))->shortcut() == QKeySequence(Qt::Key_L));
   CHECK(require_action_by_text(window, QStringLiteral("Magic Wand"))->shortcut() == QKeySequence(Qt::Key_W));
   CHECK(require_action_by_text(window, QStringLiteral("Brush"))->shortcut() == QKeySequence(Qt::Key_B));
   CHECK(require_action_by_text(window, QStringLiteral("Clone"))->shortcut() == QKeySequence(Qt::Key_S));
-  CHECK(require_action_by_text(window, QStringLiteral("Pattern Stamp"))->shortcut() ==
-        QKeySequence(Qt::SHIFT | Qt::Key_S));
+  CHECK(require_action_by_text(window, QStringLiteral("Pattern Stamp"))->shortcut().isEmpty());
+  CHECK(require_action(window, "toolCycleStampAction")->shortcut() == QKeySequence(Qt::SHIFT | Qt::Key_S));
   CHECK(require_action_by_text(window, QStringLiteral("Healing Brush"))->shortcut() ==
         QKeySequence(Qt::Key_J));
-  CHECK(require_action(window, "toolSpotHealingAction")->shortcut() == QKeySequence(Qt::SHIFT | Qt::Key_J));
+  CHECK(require_action(window, "toolSpotHealingAction")->shortcut().isEmpty());
+  CHECK(require_action(window, "toolCycleHealingAction")->shortcut() == QKeySequence(Qt::SHIFT | Qt::Key_J));
   CHECK(require_action(window, "toolPatchAction")->shortcut().isEmpty());
   CHECK(require_action_by_text(window, QStringLiteral("Smudge"))->shortcut() == QKeySequence(Qt::Key_R));
-  CHECK(require_action(window, "toolBlurAction")->shortcut() == QKeySequence(Qt::SHIFT | Qt::Key_R));
+  CHECK(require_action(window, "toolBlurAction")->shortcut().isEmpty());
+  CHECK(require_action(window, "toolCycleDetailAction")->shortcut() == QKeySequence(Qt::SHIFT | Qt::Key_R));
   CHECK(require_action(window, "toolSharpenAction")->shortcut().isEmpty());
   CHECK(require_action(window, "toolDodgeAction")->shortcut() == QKeySequence(Qt::Key_O));
-  CHECK(require_action(window, "toolBurnAction")->shortcut() == QKeySequence(Qt::SHIFT | Qt::Key_O));
+  CHECK(require_action(window, "toolBurnAction")->shortcut().isEmpty());
+  CHECK(require_action(window, "toolCycleToningAction")->shortcut() == QKeySequence(Qt::SHIFT | Qt::Key_O));
   CHECK(require_action(window, "toolSpongeAction")->shortcut().isEmpty());
   CHECK(require_action_by_text(window, QStringLiteral("Eraser"))->shortcut() == QKeySequence(Qt::Key_E));
   CHECK(require_action_by_text(window, QStringLiteral("Gradient"))->shortcut() == QKeySequence(Qt::Key_G));
-  CHECK(require_action_by_text(window, QStringLiteral("Fill"))->shortcut() == QKeySequence(Qt::SHIFT | Qt::Key_G));
+  CHECK(require_action_by_text(window, QStringLiteral("Fill"))->shortcut().isEmpty());
+  CHECK(require_action(window, "toolCycleFillAction")->shortcut() == QKeySequence(Qt::SHIFT | Qt::Key_G));
   CHECK(require_action_by_text(window, QStringLiteral("Rect"))->shortcut() == QKeySequence(Qt::Key_U));
   // Line ships unbound: its old Ctrl+Shift+U default collided with Desaturate, so neither fired.
   CHECK(require_action_by_text(window, QStringLiteral("Line"))->shortcut().isEmpty());
-  CHECK(require_action_by_text(window, QStringLiteral("Ellipse"))->shortcut() ==
-        QKeySequence(Qt::SHIFT | Qt::Key_U));
+  CHECK(require_action_by_text(window, QStringLiteral("Ellipse"))->shortcut().isEmpty());
+  CHECK(require_action(window, "toolCycleShapeAction")->shortcut() == QKeySequence(Qt::SHIFT | Qt::Key_U));
   CHECK(require_action_by_text(window, QStringLiteral("Pick"))->shortcut() == QKeySequence(Qt::Key_I));
   CHECK(require_action_by_text(window, QStringLiteral("Type"))->shortcut() == QKeySequence(Qt::Key_T));
   CHECK(require_action_by_text(window, QStringLiteral("Hand"))->shortcut() == QKeySequence(Qt::Key_H));
@@ -1146,13 +1342,13 @@ void ui_photoshop_shortcuts_are_registered() {
   tooltip_matches_shortcut(require_action_by_text(window, QStringLiteral("Move")));
   tooltip_matches_shortcut(require_action_by_text(window, QStringLiteral("Brush")));
   tooltip_matches_shortcut(require_action_by_text(window, QStringLiteral("Smudge")));
-  tooltip_matches_shortcut(require_action(window, "toolBlurAction"));
+  tooltip_matches_shortcut(require_action(window, "toolCycleDetailAction"));
   tooltip_matches_shortcut(require_action(window, "toolDodgeAction"));
-  tooltip_matches_shortcut(require_action(window, "toolBurnAction"));
+  tooltip_matches_shortcut(require_action(window, "toolCycleToningAction"));
   tooltip_matches_shortcut(require_action_by_text(window, QStringLiteral("Clone")));
-  tooltip_matches_shortcut(require_action_by_text(window, QStringLiteral("Pattern Stamp")));
+  tooltip_matches_shortcut(require_action(window, "toolCycleStampAction"));
   tooltip_matches_shortcut(require_action_by_text(window, QStringLiteral("Healing Brush")));
-  tooltip_matches_shortcut(require_action(window, "toolSpotHealingAction"));
+  tooltip_matches_shortcut(require_action(window, "toolCycleHealingAction"));
   tooltip_matches_shortcut(require_action_by_text(window, QStringLiteral("Type")));
   tooltip_matches_shortcut(require_action_by_text(window, QStringLiteral("Cut")));
   tooltip_matches_shortcut(require_action_by_text(window, QStringLiteral("Default Colors")));
@@ -1193,7 +1389,7 @@ void ui_photoshop_shortcuts_are_registered() {
   CHECK(brush_softness_slider != nullptr);
   CHECK(brush_preset != nullptr);
   CHECK(brush_size->maximum() == patchy::ui::kMaxBrushSize);
-  CHECK(brush_size_slider->maximum() == patchy::ui::kMaxBrushSize);
+  CHECK(brush_size_slider->maximum() == patchy::ui::kCurvedSliderPositions);
   CHECK(brush_size->buttonSymbols() == QAbstractSpinBox::NoButtons);
   CHECK(brush_opacity->buttonSymbols() == QAbstractSpinBox::NoButtons);
   CHECK(brush_flow->buttonSymbols() == QAbstractSpinBox::NoButtons);
@@ -1228,10 +1424,10 @@ void ui_photoshop_shortcuts_are_registered() {
   // the current size, so at 20 px the plain step is +2 (10%) and Shift is +6
   // (30%), and grow-then-shrink returns to the same size.
   brush_size->setValue(20);
-  CHECK(brush_size_slider->value() == 20);
+  CHECK(patchy::ui::slider_value(*brush_size_slider) == 20);
   require_action(window, "brushLargerAction")->trigger();
   CHECK(brush_size->value() == 22);
-  CHECK(brush_size_slider->value() == 22);
+  CHECK(patchy::ui::slider_value(*brush_size_slider) == 22);
   CHECK(canvas->brush_size() == 22);
   require_action(window, "brushSmallerAction")->trigger();
   CHECK(brush_size->value() == 20);
@@ -1254,7 +1450,7 @@ void ui_photoshop_shortcuts_are_registered() {
   require_action(window, "brushMuchSmallerAction")->trigger();
   CHECK(brush_size->value() == 100);
   brush_size->setValue(patchy::ui::kMaxBrushSize);
-  CHECK(brush_size_slider->value() == patchy::ui::kMaxBrushSize);
+  CHECK(patchy::ui::slider_value(*brush_size_slider) == patchy::ui::kMaxBrushSize);
   CHECK(canvas->brush_size() == patchy::ui::kMaxBrushSize);
   require_action(window, "brushLargerAction")->trigger();
   CHECK(brush_size->value() == patchy::ui::kMaxBrushSize);
@@ -1319,6 +1515,118 @@ void ui_brush_flow_popup_slider_updates_canvas() {
   save_widget_artifact("ui_brush_flow_popup", *popup);
   popup->close();
   QApplication::processEvents();
+}
+
+// Size-like sliders use SliderCurve::FineLowEnd: the value grows with the
+// square of the handle position, so small sizes get most of the track.
+void ui_size_sliders_give_the_low_end_most_of_the_track() {
+  using patchy::ui::kCurvedSliderPositions;
+  CHECK(patchy::ui::curved_slider_value(0, 1.0, 1024.0) == 1.0);
+  CHECK(patchy::ui::curved_slider_value(kCurvedSliderPositions, 1.0, 1024.0) == 1024.0);
+  CHECK(patchy::ui::curved_slider_value(kCurvedSliderPositions / 2, 0.0, 1000.0) == 250.0);
+  CHECK(patchy::ui::curved_slider_position(250.0, 0.0, 1000.0) == kCurvedSliderPositions / 2);
+  CHECK(patchy::ui::curved_slider_position(-5.0, 0.0, 1000.0) == 0);
+  CHECK(patchy::ui::curved_slider_position(5000.0, 0.0, 1000.0) == kCurvedSliderPositions);
+
+  patchy::ui::MainWindow window;
+  show_window(window);
+  require_action_by_text(window, QStringLiteral("Brush"))->trigger();
+  auto* canvas = require_canvas(window);
+  auto* brush_size = window.findChild<QSpinBox*>(QStringLiteral("brushSizeSpin"));
+  auto* slider = window.findChild<QSlider*>(QStringLiteral("brushSizeSlider"));
+  CHECK(brush_size != nullptr && slider != nullptr);
+  CHECK(slider->minimum() == 0 && slider->maximum() == kCurvedSliderPositions);
+
+  // Half the track is a quarter of 1..1024, and the first quarter of the track
+  // covers 1..65.
+  slider->setValue(kCurvedSliderPositions / 2);
+  CHECK(brush_size->value() == 257);
+  CHECK(canvas->brush_size() == 257);
+  slider->setValue(kCurvedSliderPositions / 4);
+  CHECK(brush_size->value() == 65);
+  // Typed values move the handle to the matching position.
+  brush_size->setValue(20);
+  CHECK(patchy::ui::slider_value(*slider) == 20);
+  brush_size->setValue(patchy::ui::kMaxBrushSize);
+  CHECK(slider->value() == kCurvedSliderPositions);
+
+  // A drag keeps the handle under the mouse instead of snapping it to the
+  // value's canonical position (301 and 302 both show 94).
+  slider->setSliderDown(true);
+  slider->setSliderPosition(301);
+  CHECK(brush_size->value() == 94);
+  CHECK(slider->value() == 301);
+  slider->setSliderDown(false);
+
+  // Keyboard and wheel steps change the value by one unit even where one
+  // position is far less than one pixel of brush.
+  brush_size->setValue(1);
+  CHECK(slider->value() == 0);
+  slider->triggerAction(QAbstractSlider::SliderSingleStepAdd);
+  CHECK(brush_size->value() == 2);
+  slider->triggerAction(QAbstractSlider::SliderSingleStepAdd);
+  CHECK(brush_size->value() == 3);
+  slider->triggerAction(QAbstractSlider::SliderSingleStepSub);
+  CHECK(brush_size->value() == 2);
+  const QPointF center(slider->width() / 2.0, slider->height() / 2.0);
+  QWheelEvent wheel(center, slider->mapToGlobal(center), QPoint(), QPoint(0, 120), Qt::NoButton,
+                    Qt::NoModifier, Qt::NoScrollPhase, false);
+  QApplication::sendEvent(slider, &wheel);
+  CHECK(std::abs(brush_size->value() - 2) == 1);
+
+  const auto open_popup_slider = [&window](const QString& base_name) -> QSlider* {
+    auto* action = window.findChild<QAction*>(base_name + QStringLiteral("PopupAction"));
+    CHECK(action != nullptr);
+    action->trigger();
+    QApplication::processEvents();
+    auto* popup_slider = window.findChild<QSlider*>(base_name + QStringLiteral("PopupSlider"));
+    CHECK(popup_slider != nullptr);
+    return popup_slider;
+  };
+  const auto close_popup = [&window](const QString& base_name) {
+    auto* popup = window.findChild<QFrame*>(base_name + QStringLiteral("Popup"));
+    CHECK(popup != nullptr);
+    popup->close();
+    QApplication::processEvents();
+  };
+
+  // The brush size popup shares the curve and keeps the options-bar slider in step.
+  auto* size_popup_slider = open_popup_slider(QStringLiteral("brushSize"));
+  CHECK(size_popup_slider->maximum() == kCurvedSliderPositions);
+  size_popup_slider->setValue(kCurvedSliderPositions / 2);
+  CHECK(brush_size->value() == 257);
+  CHECK(slider->value() == kCurvedSliderPositions / 2);
+  close_popup(QStringLiteral("brushSize"));
+
+  auto* feather = window.findChild<QSpinBox*>(QStringLiteral("selectionFeatherSpin"));
+  CHECK(feather != nullptr);
+  auto* feather_slider = open_popup_slider(QStringLiteral("selectionFeather"));
+  CHECK(feather_slider->maximum() == kCurvedSliderPositions);
+  feather_slider->setValue(kCurvedSliderPositions / 2);
+  CHECK(feather->value() == 250);
+  patchy::ui::set_slider_to_value(*feather_slider, 12);
+  CHECK(feather->value() == 12);
+  close_popup(QStringLiteral("selectionFeather"));
+
+  auto* line_weight = window.findChild<QDoubleSpinBox*>(QStringLiteral("vectorLineWeightSpin"));
+  CHECK(line_weight != nullptr);
+  auto* line_weight_slider = open_popup_slider(QStringLiteral("vectorLineWeight"));
+  CHECK(line_weight_slider->maximum() == kCurvedSliderPositions);
+  line_weight_slider->setValue(kCurvedSliderPositions / 2);
+  CHECK(line_weight->value() == 251);
+  close_popup(QStringLiteral("vectorLineWeight"));
+
+  // Percent popups stay linear.
+  auto* opacity_slider = open_popup_slider(QStringLiteral("brushOpacity"));
+  CHECK(opacity_slider->maximum() == 100);
+  close_popup(QStringLiteral("brushOpacity"));
+
+  auto* quick_select_size = window.findChild<QSpinBox*>(QStringLiteral("quickSelectSizeSpin"));
+  auto* quick_select_slider = window.findChild<QSlider*>(QStringLiteral("quickSelectSizeSlider"));
+  CHECK(quick_select_size != nullptr && quick_select_slider != nullptr);
+  CHECK(quick_select_slider->maximum() == kCurvedSliderPositions);
+  quick_select_slider->setValue(kCurvedSliderPositions / 2);
+  CHECK(quick_select_size->value() == 129);
 }
 
 // Snapshots and restores the whole "hotkeys" settings group so hotkey tests
@@ -1439,6 +1747,29 @@ void ui_hotkey_defaults_have_no_conflicts() {
   CHECK(resolved.suppressions.empty());
 }
 
+// A saved override that puts Shift+<letter> back on a flyout member keeps the
+// old direct binding: overrides win the sequence and the cycle default is
+// suppressed rather than left ambiguous.
+void ui_tool_cycle_yields_to_member_override() {
+  HotkeySettingsGroupRestorer restore_hotkeys;
+  clear_hotkey_overrides();
+  {
+    auto settings = patchy::ui::app_settings();
+    settings.setValue(QStringLiteral("hotkeys/tools.fill"), QStringLiteral("Shift+G"));
+    settings.sync();
+  }
+  patchy::ui::MainWindow window;
+  CHECK(require_action(window, "toolFillAction")->shortcut() == QKeySequence(Qt::SHIFT | Qt::Key_G));
+  CHECK(require_action(window, "toolCycleFillAction")->shortcut().isEmpty());
+  const auto resolved = window.hotkey_registry().resolution();
+  bool suppressed = false;
+  for (const auto& suppression : resolved.suppressions) {
+    suppressed = suppressed || (suppression.id == QStringLiteral("tools.cycle.gradient") &&
+                                suppression.winner_id == QStringLiteral("tools.fill"));
+  }
+  CHECK(suppressed);
+}
+
 void ui_hotkey_override_applies_at_startup() {
   HotkeySettingsGroupRestorer restore_hotkeys;
   clear_hotkey_overrides();
@@ -1466,6 +1797,73 @@ void ui_hotkey_override_applies_at_startup() {
   }
 }
 
+// The Hotkeys page is not the last Preferences tab everywhere (Windows appends
+// Plug-ins after it), and its editor panel is built on the first visit, so
+// select the tab by its title and let the panel appear.
+void select_hotkeys_tab(QTabWidget& tabs, QDialog& dialog) {
+  for (int index = 0; index < tabs.count(); ++index) {
+    if (tabs.tabText(index) == QStringLiteral("Hotkeys")) {
+      tabs.setCurrentIndex(index);
+      QApplication::processEvents();
+      CHECK(dialog.findChild<QWidget*>(QStringLiteral("hotkeyEditorPanel")) != nullptr);
+      return;
+    }
+  }
+  CHECK(false);
+}
+
+// Opening Preferences must not build the hotkey rows (the most expensive part
+// of the dialog, and most opens never visit that tab); the first visit builds
+// them once, and accepting the dialog without a visit still succeeds.
+void ui_preferences_builds_hotkey_editor_on_first_visit() {
+  HotkeySettingsGroupRestorer restore_hotkeys;
+  clear_hotkey_overrides();
+  patchy::ui::MainWindow window;
+  show_window(window);
+
+  bool saw_dialog = false;
+  QTimer::singleShot(0, [&] {
+    auto* dialog = find_top_level_dialog(QStringLiteral("patchyPreferencesDialog"));
+    CHECK(dialog != nullptr);
+    if (dialog == nullptr) {
+      return;
+    }
+    auto* tabs = dialog->findChild<QTabWidget*>(QStringLiteral("preferencesTabWidget"));
+    CHECK(tabs != nullptr);
+    CHECK(dialog->findChild<QWidget*>(QStringLiteral("hotkeyEditorPanel")) == nullptr);
+    select_hotkeys_tab(*tabs, *dialog);
+    auto* panel = dialog->findChild<QWidget*>(QStringLiteral("hotkeyEditorPanel"));
+    CHECK(panel != nullptr);
+    CHECK(dialog->findChild<QPushButton*>(QStringLiteral("hotkeyChip.file.new.0")) != nullptr);
+    // Leaving and returning reuses the same panel.
+    tabs->setCurrentIndex(0);
+    QApplication::processEvents();
+    select_hotkeys_tab(*tabs, *dialog);
+    CHECK(dialog->findChild<QWidget*>(QStringLiteral("hotkeyEditorPanel")) == panel);
+    saw_dialog = true;
+    dialog->accept();
+  });
+  require_action(window, "filePreferencesAction")->trigger();
+  QApplication::processEvents();
+  CHECK(saw_dialog);
+
+  // A second open that never visits the tab accepts cleanly with no panel.
+  saw_dialog = false;
+  QTimer::singleShot(0, [&] {
+    auto* dialog = find_top_level_dialog(QStringLiteral("patchyPreferencesDialog"));
+    CHECK(dialog != nullptr);
+    if (dialog == nullptr) {
+      return;
+    }
+    CHECK(dialog->findChild<QWidget*>(QStringLiteral("hotkeyEditorPanel")) == nullptr);
+    saw_dialog = true;
+    dialog->accept();
+  });
+  require_action(window, "filePreferencesAction")->trigger();
+  QApplication::processEvents();
+  CHECK(saw_dialog);
+}
+
 void ui_hotkey_editor_assigns_and_persists_custom_shortcut() {
   HotkeySettingsGroupRestorer restore_hotkeys;
   clear_hotkey_overrides();
@@ -1478,7 +1876,7 @@ void ui_hotkey_editor_assigns_and_persists_custom_shortcut() {
     CHECK(dialog != nullptr);
     auto* tabs = dialog->findChild<QTabWidget*>(QStringLiteral("preferencesTabWidget"));
     CHECK(tabs != nullptr);
-    tabs->setCurrentIndex(tabs->count() - 1);
+    select_hotkeys_tab(*tabs, *dialog);
     QApplication::processEvents();
     CHECK(dialog->findChild<QWidget*>(QStringLiteral("hotkeyEditorPanel")) != nullptr);
     save_widget_artifact("hotkey_editor_tab", *dialog);
@@ -1547,7 +1945,7 @@ void ui_hotkey_editor_steals_conflicting_shortcut() {
     CHECK(dialog != nullptr);
     auto* tabs = dialog->findChild<QTabWidget*>(QStringLiteral("preferencesTabWidget"));
     CHECK(tabs != nullptr);
-    tabs->setCurrentIndex(tabs->count() - 1);
+    select_hotkeys_tab(*tabs, *dialog);
     QApplication::processEvents();
 
     // The Line tool ships unbound, so it renders an assign chip.
@@ -1621,7 +2019,7 @@ void ui_hotkey_editor_reset_all_clears_overrides() {
     CHECK(dialog != nullptr);
     auto* tabs = dialog->findChild<QTabWidget*>(QStringLiteral("preferencesTabWidget"));
     CHECK(tabs != nullptr);
-    tabs->setCurrentIndex(tabs->count() - 1);
+    select_hotkeys_tab(*tabs, *dialog);
     QApplication::processEvents();
     auto* reset_all = dialog->findChild<QPushButton*>(QStringLiteral("hotkeyResetAllButton"));
     CHECK(reset_all != nullptr);
@@ -1661,6 +2059,65 @@ void ui_color_picker_accepts_css_rgba_and_names() {
   CHECK(picker.currentColor() == QColor(0, 0, 128));
 }
 
+// GitHub issue 68: the picker opens with keyboard focus in the HTML (hex) field
+// and its value selected, so Ctrl+V then Return applies a copied hex and closes
+// the dialog, and Ctrl+C copies the current hex. The field also selects all
+// whenever it regains focus.
+void ui_color_picker_opens_with_hex_field_selected_for_paste() {
+  QGuiApplication::clipboard()->setText(QStringLiteral("#336699"));
+  bool dialog_seen = false;
+  bool hex_had_focus_with_all_selected = false;
+  bool paste_replaced_hex = false;
+  int ticks = 0;
+  QTimer poll;
+  QObject::connect(&poll, &QTimer::timeout, [&] {
+    auto* dialog = find_top_level_dialog(QStringLiteral("patchyColorDialog"));
+    if (dialog == nullptr || !dialog->isVisible()) {
+      return;
+    }
+    dialog_seen = true;
+    auto* edit = dialog->findChild<QLineEdit*>(QStringLiteral("patchyColorHtmlEdit"));
+    CHECK(edit != nullptr);
+    // The focus lands queued after show; give it a few ticks before judging.
+    if (!(edit->hasFocus() && edit->hasSelectedText()) && ++ticks < 50) {
+      return;
+    }
+    poll.stop();
+    hex_had_focus_with_all_selected =
+        edit->hasFocus() && edit->selectedText() == edit->text() && edit->text() == QStringLiteral("#0A141E");
+    send_key(*edit, Qt::Key_V, Qt::ControlModifier);
+    paste_replaced_hex = edit->text() == QStringLiteral("#336699");
+    // Return commits the field and reaches the dialog's default (OK) button.
+    send_key(*edit, Qt::Key_Return);
+  });
+  poll.start(10);
+  const auto result = patchy::ui::request_patchy_color(nullptr, QColor(10, 20, 30), QStringLiteral("Hex paste"));
+  poll.stop();
+  CHECK(dialog_seen);
+  CHECK(hex_had_focus_with_all_selected);
+  CHECK(paste_replaced_hex);
+  CHECK(result.has_value());
+  CHECK(result.has_value() && *result == QColor(0x33, 0x66, 0x99));
+  QApplication::processEvents();
+
+  // Re-focusing the field selects its value again (a click, Tab, or setFocus).
+  patchy::ui::PatchyColorPicker picker(QColor(1, 2, 3));
+  picker.show();
+  picker.activateWindow();
+  QApplication::processEvents();
+  auto* edit = picker.findChild<QLineEdit*>(QStringLiteral("patchyColorHtmlEdit"));
+  CHECK(edit != nullptr);
+  auto* red_spin = picker.findChild<QSpinBox*>(QStringLiteral("patchyColorRedSpin"));
+  CHECK(red_spin != nullptr);
+  red_spin->setFocus(Qt::MouseFocusReason);
+  QApplication::processEvents();
+  CHECK(!edit->hasFocus());
+  edit->setFocus(Qt::MouseFocusReason);
+  QApplication::processEvents();
+  CHECK(edit->hasFocus());
+  CHECK(edit->selectedText() == QStringLiteral("#010203"));
+}
+
 void ui_hotkey_duplicate_ids_fail_without_replacing_the_command() {
   patchy::ui::HotkeyRegistry registry;
   QAction first(nullptr), second(nullptr);
@@ -1682,6 +2139,10 @@ std::vector<patchy::test::TestCase> pickers_notices_hotkeys_tests() {
       {"ui_dialog_position_memory_restores_last_position", ui_dialog_position_memory_restores_last_position},
       {"ui_dialog_position_memory_centers_unmoved_dialogs_on_parent",
        ui_dialog_position_memory_centers_unmoved_dialogs_on_parent},
+      {"ui_progress_dialogs_ignore_position_memory_and_center_on_parent",
+       ui_progress_dialogs_ignore_position_memory_and_center_on_parent},
+      {"ui_message_boxes_and_marked_dialogs_ignore_position_memory",
+       ui_message_boxes_and_marked_dialogs_ignore_position_memory},
       {"ui_dirty_state_marks_tabs_and_undo_restores_saved_revision",
        ui_dirty_state_marks_tabs_and_undo_restores_saved_revision},
       {"ui_compatibility_report_flags_psd_text_placeholders",
@@ -1694,12 +2155,16 @@ std::vector<patchy::test::TestCase> pickers_notices_hotkeys_tests() {
        ui_compatibility_report_pins_native_vs_private_adjustment_kinds},
       {"ui_compatibility_report_flags_cmyk_rgb_conversion",
        ui_compatibility_report_flags_cmyk_rgb_conversion},
+      {"ui_compatibility_report_flags_grayscale_rgb_conversion",
+       ui_compatibility_report_flags_grayscale_rgb_conversion},
       {"ui_compatibility_report_flags_unrendered_styles_on_groups",
        ui_compatibility_report_flags_unrendered_styles_on_groups},
       {"ui_compatibility_report_handles_supported_unsupported_and_boundary_blend_if",
        ui_compatibility_report_handles_supported_unsupported_and_boundary_blend_if},
       {"ui_compatibility_report_describes_linked_smart_object_updates",
        ui_compatibility_report_describes_linked_smart_object_updates},
+      {"ui_compatibility_report_warns_about_cmyk_ink_adjustments",
+       ui_compatibility_report_warns_about_cmyk_ink_adjustments},
       {"ui_psd_import_notice_reports_unrendered_layer_effects",
        ui_psd_import_notice_reports_unrendered_layer_effects},
       {"ui_psd_import_notice_reports_only_unsupported_blend_if",
@@ -1716,14 +2181,19 @@ std::vector<patchy::test::TestCase> pickers_notices_hotkeys_tests() {
       {"ui_photoshop_shortcuts_are_registered", ui_photoshop_shortcuts_are_registered},
       {"ui_brush_flow_popup_slider_updates_canvas",
        ui_brush_flow_popup_slider_updates_canvas},
+      {"ui_size_sliders_give_the_low_end_most_of_the_track",
+       ui_size_sliders_give_the_low_end_most_of_the_track},
       {"ui_hotkey_resolution_rules", ui_hotkey_resolution_rules},
       {"ui_hotkey_defaults_have_no_conflicts", ui_hotkey_defaults_have_no_conflicts},
+      {"ui_tool_cycle_yields_to_member_override", ui_tool_cycle_yields_to_member_override},
       {"ui_hotkey_override_applies_at_startup", ui_hotkey_override_applies_at_startup},
+      {"ui_preferences_builds_hotkey_editor_on_first_visit", ui_preferences_builds_hotkey_editor_on_first_visit},
       {"ui_hotkey_editor_assigns_and_persists_custom_shortcut",
        ui_hotkey_editor_assigns_and_persists_custom_shortcut},
       {"ui_hotkey_editor_steals_conflicting_shortcut", ui_hotkey_editor_steals_conflicting_shortcut},
       {"ui_hotkey_editor_reset_all_clears_overrides", ui_hotkey_editor_reset_all_clears_overrides},
       {"ui_color_picker_accepts_css_rgba_and_names", ui_color_picker_accepts_css_rgba_and_names},
+      {"ui_color_picker_opens_with_hex_field_selected_for_paste", ui_color_picker_opens_with_hex_field_selected_for_paste},
       {"ui_hotkey_duplicate_ids_fail_without_replacing_the_command", ui_hotkey_duplicate_ids_fail_without_replacing_the_command},
   };
 }

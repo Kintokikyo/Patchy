@@ -52,7 +52,7 @@ void CanvasWidget::invalidate_vector_preview() noexcept {
 
 bool CanvasWidget::vector_preview_available_for_view() const noexcept {
   return vector_preview_enabled_ && document_ != nullptr && isVisible() &&
-      zoom_ * devicePixelRatioF() > 1.0 && !pointer_gesture_active() &&
+      view_zoom() > 1.0 && !pointer_gesture_active() &&
       !transforming_layer_ && !warping_layer_ && !tiling_preview_enabled_ &&
       layer_edit_target_ == LayerEditTarget::Content && !quick_mask_active_ &&
       mask_display_mode_ == MaskDisplayMode::None && !curves_clipping_mode_ &&
@@ -81,7 +81,7 @@ void CanvasWidget::prepare_vector_preview() {
       vector_preview_cancel_->store(true, std::memory_order_relaxed);
     }
     if (vector_preview_enabled_) {
-      report_vector_preview_status(zoom_ * devicePixelRatioF() <= 1.0
+      report_vector_preview_status(view_zoom() <= 1.0
           ? tr("Dynamic Vector Preview: pixel view at this zoom.")
           : tr("Dynamic Vector Preview: pixel view during editing or alternate canvas views."));
     }

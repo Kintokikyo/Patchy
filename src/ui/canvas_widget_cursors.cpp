@@ -297,7 +297,8 @@ void CanvasWidget::apply_zoom_cursor(bool zoom_out) {
   painter.setRenderHint(QPainter::Antialiasing);
   // Two passes: a dark stroke first to lay a halo, then the light ink on top so
   // the magnifier (and its +/- badge) stays legible over any canvas colour. The
-  // badge is a + for zoom in and a - for zoom out (Alt held).
+  // badge is a + for zoom in and a - for zoom out (Alt held, or the Zoom Out
+  // mode without Alt).
   const auto draw = [&](const QPen& pen) {
     painter.setPen(pen);
     painter.drawEllipse(QRect(4, 4, 11, 11));
@@ -338,6 +339,16 @@ void CanvasWidget::update_tool_cursor() {
     return;
   }
   if (tool_ == CanvasTool::Crop) {
+    if (crop_drag_handle_ != TransformHandle::None) {
+      // Mid-drag the grabbed handle owns the cursor (Space released during the
+      // drag lands here through set_tool), whatever is under the pointer now.
+      if (spacebar_repositioning_drag_rect_) {
+        setCursor(Qt::SizeAllCursor);
+      } else {
+        set_transform_cursor_for_handle(crop_drag_handle_);
+      }
+      return;
+    }
     if (crop_session_active_) {
       // Session hover feedback: resize cursors over the handles, move inside,
       // and the rotate hint everywhere off the box (the straighten gesture).
@@ -384,6 +395,15 @@ void CanvasWidget::update_tool_cursor() {
     setCursor(quick_select_cursor(mode));
     return;
   }
+  // Over a marquee resize handle the resize cursor wins whatever modifier is
+  // held (Alt there mirrors, it does not subtract), so a Shift/Alt press while
+  // hovering a handle agrees with the mouse-move path (GitHub issue 66).
+  if (tool_ == CanvasTool::Marquee || tool_ == CanvasTool::EllipticalMarquee) {
+    if (const auto handle = marquee_resize_handle_at(last_mouse_position_); handle != TransformHandle::None) {
+      set_transform_cursor_for_handle(handle);
+      return;
+    }
+  }
   // Marquee/elliptical/lasso/wand show a crosshair (or wand) badged with the
   // active combine mode (+ add, - subtract, x intersect) from the toolbar mode
   // and live Shift/Alt.
@@ -395,7 +415,7 @@ void CanvasWidget::update_tool_cursor() {
     return;
   }
   if (tool_ == CanvasTool::Zoom) {
-    apply_zoom_cursor((QApplication::keyboardModifiers() & Qt::AltModifier) != 0);
+    apply_zoom_cursor(zoom_tool_zoom_out_active(QApplication::keyboardModifiers()));
     return;
   }
   if (brush_outline_uses_overlay()) {

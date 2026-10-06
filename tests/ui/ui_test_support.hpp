@@ -538,6 +538,11 @@ void send_wheel(QWidget& widget, QPoint position, int delta, Qt::KeyboardModifie
 void send_pixel_wheel(QWidget& widget, QPoint position, int pixel_delta,
                       Qt::KeyboardModifiers modifiers = Qt::NoModifier);
 
+// One event of a continuous two-finger scroll (a trackpad): a 2D pixelDelta with a
+// scroll phase and an angleDelta of twice the pixels, as Qt's cocoa plugin reports it.
+void send_scroll(QWidget& widget, QPoint position, QPoint pixel_delta, Qt::ScrollPhase phase = Qt::ScrollUpdate,
+                 Qt::KeyboardModifiers modifiers = Qt::NoModifier);
+
 void send_layer_drag_enter(QListWidget& list, QPoint position, const std::vector<patchy::LayerId>& ids);
 
 void send_layer_drag_move(QListWidget& list, QPoint position, const std::vector<patchy::LayerId>& ids);
@@ -691,6 +696,13 @@ int alpha_row_band_span(const std::vector<AlphaRowBand>& bands);
 
 std::optional<QRect> alpha_pixel_bounds_in_rows(const patchy::PixelBuffer& pixels, int top, int bottom);
 
+// True when no pixel on the buffer's outer rows or columns has alpha above `threshold`: a text
+// raster that kept its bleed, so no glyph ink was cut off at the buffer edge.
+bool pixel_buffer_border_is_clear(const patchy::PixelBuffer& pixels, int threshold = 0);
+
+// Every TySh transform (xx xy yx yy tx ty) in a PSD, in layer order (bottom layer first).
+std::vector<std::array<double, 6>> tysh_transforms_in_psd(const std::vector<std::uint8_t>& bytes);
+
 patchy::Layer* preview_layer_for_editor(patchy::Document& document, const QTextEdit& editor);
 
 int count_internal_text_preview_layers(const std::vector<patchy::Layer>& layers);
@@ -709,6 +721,9 @@ bool skip_without_font_face(const QString& family, const char* fixture_role);
 bool skip_without_psd_text_face(const patchy::Layer& layer, const QString& expected_family);
 
 QAction* require_legacy_plugin_action(QWidget& root, const QString& text);
+// Blocks (pumping events) until the window's startup plug-in scan has applied
+// its result; the scan runs on a worker and the menu fills in afterwards.
+void wait_for_legacy_plugin_scan(patchy::ui::MainWindow& window);
 
 QListWidgetItem* find_layer_item(QListWidget& list, const QString& text);
 

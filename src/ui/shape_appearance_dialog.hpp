@@ -1,6 +1,8 @@
 #pragma once
 
 #include "core/vector_shape.hpp"
+#include "ui/unit_spin_box.hpp"
+#include "ui/appearance_edits.hpp"
 
 #include <functional>
 #include <optional>
@@ -32,6 +34,8 @@ struct ShapeAppearanceSettings {
   float fill_opacity{1.0F};
   double feather{0.0};
   std::uint8_t density{255};
+  std::shared_ptr<const AppearanceEdits<ShapeAppearanceSettings>> edits{};
+  bool preview_enabled{true};
 };
 
 // GRD presets may defer stops to the tool colors; shape fills store concrete
@@ -47,12 +51,15 @@ struct ShapeAppearanceSettings {
 // into the document PatternStore when applying. foreground/background resolve
 // gradient presets that defer stops to the current tool colors.
 // `reset_defaults` is what the Reset button restores (fill, stroke, opacity,
-// edge; the geometry in `initial` is kept).
+// edge; the geometry in `initial` is kept). `units` presents the geometry,
+// line weight and stroke width fields in the ruler unit through the document
+// PPI (docs/resolution-units.md); every value stays document pixels.
 [[nodiscard]] std::optional<ShapeAppearanceSettings> request_shape_appearance_settings(
     QWidget* parent, std::function<void(const ShapeAppearanceSettings&)> preview_changed,
     ShapeAppearanceSettings initial, ShapeAppearanceSettings reset_defaults,
     GradientLibrary* gradient_library,
     PatternLibrary* pattern_library, const PatternStore* document_patterns, RgbColor foreground,
-    RgbColor background);
+    RgbColor background, const DocumentFieldUnits& units = {},
+    const AppearanceDialogContext<ShapeAppearanceSettings>* batch = nullptr);
 
 }  // namespace patchy::ui

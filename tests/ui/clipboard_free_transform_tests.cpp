@@ -202,6 +202,99 @@ namespace {
 
 using namespace patchy::test::ui;
 
+void ui_open_clipboard_creates_unsaved_document_with_exact_pixels() {
+  patchy::ui::MainWindow window;
+  show_window_empty(window);
+  auto* action = require_hotkey_action(window, QStringLiteral("file.open_clipboard"));
+  CHECK(action == require_action(window, "fileOpenClipboardAction"));
+  CHECK(action->isVisible());
+  CHECK(action->isEnabled());
+  CHECK(action->shortcut() == QKeySequence(Qt::CTRL | Qt::ALT | Qt::SHIFT | Qt::Key_N));
+  auto* file_menu = window.menuBar()->actions().front()->menu();
+  CHECK(file_menu != nullptr);
+  CHECK(file_menu->actions().indexOf(action) ==
+        file_menu->actions().indexOf(require_action(window, "fileOpenAction")) + 1);
+
+  QImage image(19, 13, QImage::Format_RGBA8888);
+  image.fill(QColor(25, 90, 170, 128));
+  image.setPixelColor(0, 0, QColor(1, 2, 3, 0));
+  image.setPixelColor(18, 12, QColor(240, 110, 15, 255));
+  image.setDevicePixelRatio(2.0);  // Canvas dimensions are pixels, not logical display points.
+  QApplication::clipboard()->setImage(image);
+  action->trigger();
+
+  using Access = patchy::ui::MainWindowTestAccess;
+  CHECK(Access::session_count(window) == 1U);
+  CHECK(Access::active_session_path(window).isEmpty());
+  CHECK(Access::active_session_is_modified(window));
+  const auto& document = std::as_const(Access::document(window));
+  CHECK(document.width() == image.width());
+  CHECK(document.height() == image.height());
+  CHECK(document.layers().size() == 1U);
+  CHECK(document.print_settings().horizontal_ppi == 72.0);
+  CHECK(document.print_settings().vertical_ppi == 72.0);
+  const auto& pixels = document.layers().front().pixels();
+  for (int y = 0; y < image.height(); ++y) {
+    for (int x = 0; x < image.width(); ++x) {
+      const auto* pixel = pixels.pixel(x, y);
+      CHECK(QColor(pixel[0], pixel[1], pixel[2], pixel[3]) == image.pixelColor(x, y));
+    }
+  }
+  CHECK(require_canvas(window)->active_layer_document_rect() == QRect(0, 0, 19, 13));
+  QApplication::clipboard()->clear();
+}
+
+void ui_open_clipboard_shortcut_keeps_existing_document_and_uses_current_image() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  require_action(window, "editCopyMergedAction")->trigger();
+  using Access = patchy::ui::MainWindowTestAccess;
+  const auto original_id = Access::session_id(window, 0);
+  const auto original_layers = std::as_const(Access::document(window)).layers().size();
+  const auto original_undo = Access::active_session_undo_depth(window);
+
+  QImage image(7, 5, QImage::Format_RGB32);
+  image.fill(QColor(80, 140, 210));
+  QApplication::clipboard()->setImage(image);
+  window.activateWindow();
+  canvas->setFocus();
+  QApplication::processEvents();
+  send_key(*canvas, Qt::Key_N, Qt::ControlModifier | Qt::AltModifier | Qt::ShiftModifier);
+  QApplication::processEvents();
+  CHECK(Access::session_count(window) == 2U);
+  CHECK(Access::session_id(window, 0) == original_id);
+  CHECK(require_canvas(window)->active_layer_document_rect() == QRect(0, 0, 7, 5));
+  const auto& pixels = std::as_const(Access::document(window)).layers().front().pixels();
+  CHECK(pixels.pixel(0, 0)[0] == 80);
+  CHECK(pixels.pixel(0, 0)[3] == 255);
+  Access::activate_session(window, 0);
+  CHECK(std::as_const(Access::document(window)).layers().size() == original_layers);
+  CHECK(Access::active_session_undo_depth(window) == original_undo);
+  QApplication::clipboard()->clear();
+}
+
+void ui_open_clipboard_rejects_empty_and_non_image_data_without_creating_tabs() {
+  patchy::ui::MainWindow window;
+  show_window_empty(window);
+  using Access = patchy::ui::MainWindowTestAccess;
+  auto* action = require_action(window, "fileOpenClipboardAction");
+  for (const bool with_document : {false, true}) {
+    if (with_document) {
+      Access::create_default_document(window);
+      require_action(window, "editCopyMergedAction")->trigger();
+    }
+    const auto count = Access::session_count(window);
+    for (const auto& text : {QString(), QStringLiteral("Plain text is not an image")}) {
+      QApplication::clipboard()->setText(text);
+      action->trigger();
+      CHECK(Access::session_count(window) == count);
+      CHECK(window.statusBar()->currentMessage() == QStringLiteral("Clipboard does not contain an image"));
+    }
+  }
+  QApplication::clipboard()->clear();
+}
+
 void ui_copy_paste_and_transform_pasted_layer_work() {
   patchy::ui::MainWindow window;
   show_window(window);
@@ -327,6 +420,67 @@ void ui_external_clipboard_image_paste_creates_centered_layer() {
   CHECK(pasted_rect->topLeft() == QPoint((1024 - image.width()) / 2, (768 - image.height()) / 2));
   CHECK(pasted_rect->size() == image.size());
   CHECK(color_close(canvas_pixel(*canvas, pasted_rect->center()), QColor(20, 180, 80), 35));
+  QApplication::clipboard()->clear();
+}
+
+// A file copied in a file manager puts URLs and no bitmap on the clipboard: Paste
+// adds the supported image files as layers (Files as Layers, docs/import.md), one
+// undo step, and a non-image file keeps the usual "no image" refusal.
+void ui_paste_file_urls_adds_layers() {
+  QApplication::clipboard()->clear();
+  ensure_artifact_dir();
+  const auto dir = QFileInfo(QStringLiteral("test-artifacts/paste-files")).absoluteFilePath();
+  CHECK(QDir().mkpath(dir));
+  const auto write_png = [&](const QString& name, QColor color) {
+    QImage image(6, 4, QImage::Format_RGBA8888);
+    image.fill(color);
+    const auto path = QDir::toNativeSeparators(dir + QLatin1Char('/') + name);
+    QFile::remove(path);
+    CHECK(image.save(path));
+    return path;
+  };
+  const auto first = write_png(QStringLiteral("first.png"), QColor(200, 20, 20, 255));
+  const auto second = write_png(QStringLiteral("second.png"), QColor(20, 200, 20, 255));
+  const auto note = QDir::toNativeSeparators(dir + QStringLiteral("/note.txt"));
+  {
+    QFile file(note);
+    CHECK(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    file.write("not an image");
+  }
+
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto* layer_list = window.findChild<QListWidget*>(QStringLiteral("layerList"));
+  CHECK(layer_list != nullptr);
+  const auto layers_before = layer_list->count();
+  const auto undo_before = patchy::ui::MainWindowTestAccess::undo_depth_for_canvas(window, canvas);
+
+  auto* files = new QMimeData();
+  files->setUrls({QUrl::fromLocalFile(first), QUrl::fromLocalFile(second)});
+  QApplication::clipboard()->setMimeData(files);
+  QApplication::processEvents();
+  require_action(window, "editPasteAction")->trigger();
+  QApplication::processEvents();
+  CHECK(layer_list->count() == layers_before + 2);
+  CHECK(patchy::ui::MainWindowTestAccess::undo_depth_for_canvas(window, canvas) == undo_before + 1);
+  CHECK(window.statusBar()->currentMessage().contains(QStringLiteral("Added 2 layer")));
+  const auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  const auto& layers = std::as_const(document).layers();
+  CHECK(layers.size() >= 2);
+  CHECK(layers[layers.size() - 2].name() == "first");
+  CHECK(layers.back().name() == "second");
+  CHECK(document.active_layer_id() == layers.back().id());
+  CHECK(layer_list->selectedItems().size() == 2);
+
+  auto* text_file = new QMimeData();
+  text_file->setUrls({QUrl::fromLocalFile(note)});
+  QApplication::clipboard()->setMimeData(text_file);
+  QApplication::processEvents();
+  require_action(window, "editPasteAction")->trigger();
+  QApplication::processEvents();
+  CHECK(layer_list->count() == layers_before + 2);
+  CHECK(patchy::ui::MainWindowTestAccess::undo_depth_for_canvas(window, canvas) == undo_before + 1);
   QApplication::clipboard()->clear();
 }
 
@@ -1045,7 +1199,8 @@ void ui_transform_fields_accept_unit_tokens() {
   CHECK(scale_x->text() == QStringLiteral("100.00%"));
   CHECK(scale_y->suffix() == patchy::ui::percent_suffix());
   commit_text(*x, QStringLiteral("1 in"));
-  CHECK(x->text() == QStringLiteral("1.00") + patchy::ui::inch_suffix());
+  // An inch display widens to three decimals (docs/resolution-units.md).
+  CHECK(x->text() == QString::number(snapped_reference(300.0, true) / 300.0, 'f', 3) + patchy::ui::inch_suffix());
   CHECK(std::abs(state().reference_position.x() - snapped_reference(300.0, true)) < 0.01);
   commit_text(*x, QStringLiteral("600 px"));
   CHECK(x->text() == QString::number(snapped_reference(600.0, true), 'f', 2) + patchy::ui::pixel_suffix());
@@ -2110,8 +2265,13 @@ void ui_move_off_canvas_keeps_rectangle_handles_pan_and_locks() {
     CHECK(!canvas->free_transform_active());
     CHECK(canvas->active_layer_document_rect() == original);
   }
+  // Without transform controls the layer is still grabbed where it lies, on the
+  // pasteboard like on the canvas (October 2026): the drag moves it, and the
+  // reverse drag brings it back.
   canvas->set_show_transform_controls(false);
   drag(*canvas, center, center + QPoint(30, 20));
+  CHECK(canvas->active_layer_document_rect() == original.translated(30, 20));
+  drag(*canvas, center + QPoint(30, 20), center);
   CHECK(canvas->active_layer_document_rect() == original);
   canvas->set_show_transform_controls(true);
   canvas->set_spacebar_panning(true);
@@ -2384,6 +2544,61 @@ void ui_free_transform_drag_small_doc_stays_live() {
 // live composited-preview frame must latch the proxy on the next move. The
 // zero env threshold makes any live frame count as slow, so the test is
 // deterministic on every machine.
+// GitHub issue 72: a plain layer with visible content above it must preview through the
+// stacked patches, not the source blit, or the layers above sit under the preview for the
+// whole drag (a shape under other layers appeared to jump to the top until Enter).
+void ui_free_transform_keeps_layers_above_visible_mid_drag() {
+  patchy::Document document(300, 200, patchy::PixelFormat::rgba8());
+  document.add_pixel_layer("Background", solid_pixels(300, 200, patchy::PixelFormat::rgba8(), QColor(Qt::white)));
+  patchy::Layer shape(document.allocate_layer_id(), "Shape",
+                      solid_pixels(80, 80, patchy::PixelFormat::rgba8(), QColor(220, 30, 30, 255)));
+  shape.set_bounds(patchy::Rect{60, 60, 80, 80});
+  const auto shape_id = shape.id();
+  document.add_layer(std::move(shape));
+  patchy::Layer over(document.allocate_layer_id(), "Over",
+                     solid_pixels(40, 40, patchy::PixelFormat::rgba8(), QColor(30, 60, 220, 255)));
+  over.set_bounds(patchy::Rect{100, 100, 40, 40});
+  document.add_layer(std::move(over));
+  document.set_active_layer(shape_id);
+
+  patchy::ui::MainWindow window;
+  window.add_document_session(std::move(document), QStringLiteral("Layers Above"));
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_zoom(1.0);
+  require_action_by_text(window, QStringLiteral("Move"))->trigger();
+  canvas->set_show_transform_controls(true);
+  QApplication::processEvents();
+  CHECK(patchy::ui::MainWindowTestAccess::document(window).active_layer_id() == shape_id);
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(110, 110)), QColor(30, 60, 220), 20));
+
+  // Scale the shape outward from its bottom-right handle so it still runs under "Over".
+  const auto corner = canvas->widget_position_for_document_point(QPoint(140, 140));
+  send_mouse(*canvas, QEvent::MouseButtonPress, corner, Qt::LeftButton, Qt::LeftButton);
+  QApplication::processEvents();
+  CHECK(canvas->free_transform_active());
+  send_mouse(*canvas, QEvent::MouseMove, corner + QPoint(20, 20), Qt::NoButton, Qt::LeftButton);
+  QApplication::processEvents();
+  send_mouse(*canvas, QEvent::MouseMove, corner + QPoint(30, 30), Qt::NoButton, Qt::LeftButton);
+  QApplication::processEvents();
+
+  // Mid-drag: "Over" still covers the shape where they overlap, and the scaled shape shows
+  // past its old edge.
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(110, 110)), QColor(30, 60, 220), 20));
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(155, 155)), QColor(220, 30, 30), 20));
+
+  send_mouse(*canvas, QEvent::MouseButtonRelease, corner + QPoint(30, 30), Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(110, 110)), QColor(30, 60, 220), 20));
+  auto* cancel = window.findChild<QPushButton*>(QStringLiteral("freeTransformCancelButton"));
+  CHECK(cancel != nullptr);
+  if (cancel != nullptr) {
+    cancel->click();
+  }
+  QApplication::processEvents();
+  CHECK(!canvas->free_transform_active());
+}
+
 void ui_free_transform_slow_frame_latches_proxy() {
   EnvironmentVariableRestorer restore_latch("PATCHY_MOVE_LIVE_LATCH_MS");
   qputenv("PATCHY_MOVE_LIVE_LATCH_MS", QByteArray("0"));
@@ -2532,8 +2747,15 @@ void ui_edit_conversion_scanline_rewrites_are_byte_identical() {
 
 std::vector<patchy::test::TestCase> clipboard_free_transform_tests() {
   return {
+      {"ui_open_clipboard_creates_unsaved_document_with_exact_pixels",
+       ui_open_clipboard_creates_unsaved_document_with_exact_pixels},
+      {"ui_open_clipboard_shortcut_keeps_existing_document_and_uses_current_image",
+       ui_open_clipboard_shortcut_keeps_existing_document_and_uses_current_image},
+      {"ui_open_clipboard_rejects_empty_and_non_image_data_without_creating_tabs",
+       ui_open_clipboard_rejects_empty_and_non_image_data_without_creating_tabs},
       {"ui_copy_paste_and_transform_pasted_layer_work", ui_copy_paste_and_transform_pasted_layer_work},
       {"ui_paste_clears_selection_and_undo_restores_it", ui_paste_clears_selection_and_undo_restores_it},
+      {"ui_paste_file_urls_adds_layers", ui_paste_file_urls_adds_layers},
       {"ui_external_clipboard_image_paste_creates_centered_layer",
        ui_external_clipboard_image_paste_creates_centered_layer},
       {"ui_external_clipboard_image_paste_overrides_internal_payload",
@@ -2598,6 +2820,7 @@ std::vector<patchy::test::TestCase> clipboard_free_transform_tests() {
       {"ui_free_transform_drag_proxy_engages_above_threshold",
        ui_free_transform_drag_proxy_engages_above_threshold},
       {"ui_free_transform_drag_small_doc_stays_live", ui_free_transform_drag_small_doc_stays_live},
+      {"ui_free_transform_keeps_layers_above_visible_mid_drag", ui_free_transform_keeps_layers_above_visible_mid_drag},
       {"ui_free_transform_slow_frame_latches_proxy", ui_free_transform_slow_frame_latches_proxy},
       {"ui_free_transform_scaled_base_zoomed_out", ui_free_transform_scaled_base_zoomed_out},
       {"ui_edit_conversion_scanline_rewrites_are_byte_identical",

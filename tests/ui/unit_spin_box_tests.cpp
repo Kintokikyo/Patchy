@@ -3,16 +3,22 @@
 // converter are exercised directly; the widget tests drive the line edit + Enter.
 
 #include "ui/measurement_units.hpp"
+#include "ui/localization.hpp"
 #include "ui/unit_spin_box.hpp"
 
 #include "test_harness.hpp"
 #include "ui_test_groups.hpp"
 #include "ui_test_support.hpp"
 
+#include <QAction>
 #include <QApplication>
+#include <QContextMenuEvent>
 #include <QLineEdit>
 #include <QLocale>
+#include <QMenu>
+#include <QScopeGuard>
 #include <QString>
+#include <QTimer>
 
 #include <cmath>
 #include <optional>
@@ -273,7 +279,7 @@ void unit_spin_box_display_unit_follows_typed_unit() {
   commit_text(spin, QStringLiteral("2 in"));
   CHECK(close_to(spin.value(), 300.0));
   CHECK(spin.display_unit() == SpinUnit::Inches);
-  CHECK(spin.text() == QStringLiteral("2.00") + patchy::ui::inch_suffix());
+  CHECK(spin.text() == QStringLiteral("2.000") + patchy::ui::inch_suffix());  // inches widen to 3 decimals
   commit_text(spin, QStringLiteral("25%"));
   CHECK(close_to(spin.value(), 25.0));
   CHECK(spin.display_unit() == SpinUnit::Percent);
@@ -312,6 +318,41 @@ void unit_spin_box_keeps_translated_suffix() {
   CHECK(whole.suffix() == patchy::ui::pixel_suffix());
 }
 
+void unit_spin_box_language_switch_refreshes_suffix_without_changing_values() {
+  auto& manager = patchy::ui::LocalizationManager::instance();
+  const auto original = manager.current_language();
+  const auto restore = qScopeGuard([&] {
+    manager.set_language(original, false);
+    QApplication::processEvents();
+  });
+  CHECK(manager.set_language(QStringLiteral("en"), false));
+  QWidget parent;
+  UnitSpinBox fractional(SpinUnit::Pixels, &parent);
+  UnitSpinBox physical(SpinUnit::Pixels, &parent);
+  UnitIntSpinBox whole(SpinUnit::Pixels, &parent);
+  fractional.setValue(12.5);
+  physical.setValue(72.0);
+  physical.set_display_unit(SpinUnit::Millimeters);
+  whole.setValue(12);
+  int value_changes = 0;
+  QObject::connect(&fractional, &QDoubleSpinBox::valueChanged, [&] { ++value_changes; });
+  QObject::connect(&physical, &QDoubleSpinBox::valueChanged, [&] { ++value_changes; });
+  QObject::connect(&whole, &QSpinBox::valueChanged, [&] { ++value_changes; });
+  parent.show();
+  QApplication::processEvents();
+  for (const auto* language : {"ru", "pl", "pt_BR", "ko", "en"}) {
+    CHECK(manager.set_language(QString::fromLatin1(language), false));
+    QApplication::processEvents();
+    CHECK(fractional.suffix() == patchy::ui::pixel_suffix());
+    CHECK(whole.suffix() == fractional.suffix());
+    CHECK(physical.suffix() == patchy::ui::spin_unit_suffix(SpinUnit::Millimeters));
+    CHECK(fractional.value() == 12.5);
+    CHECK(physical.value() == 72.0);
+    CHECK(whole.value() == 12);
+    CHECK(value_changes == 0);
+  }
+}
+
 void unit_spin_box_int_rounds_converted_values() {
   UnitIntSpinBox spin(SpinUnit::Pixels);
   spin.setRange(0, 5000);
@@ -329,7 +370,196 @@ void unit_spin_box_int_rounds_converted_values() {
   CHECK(spin.value() == 12);
 }
 
+// Leaving the native unit widens the decimals to the shown unit's and makes one
+// arrow press (or one scrubby-drag pixel) move one display unit; returning
+// restores the field's own presentation. The decimals change is silent: a shape
+// W/H handler must not resize the shape because its readout switched to mm.
+void unit_spin_box_display_unit_adjusts_decimals_and_step() {
+  UnitSpinBox spin(SpinUnit::Pixels);
+  spin.setRange(0.0, 60000.0);
+  spin.setDecimals(1);
+  spin.setSingleStep(1.0);
+  spin.set_context_provider([] { return UnitConversionContext{300.0, 600.0}; });
+  spin.set_display_unit_switchable(true);
+  spin.setValue(300.0);
+  spin.show();
+  QApplication::processEvents();
+  int value_changes = 0;
+  QObject::connect(&spin, &QDoubleSpinBox::valueChanged, &spin, [&value_changes](double) { ++value_changes; });
+
+  const auto suffix_for = [](patchy::ui::MeasurementUnit unit) {
+    return QStringLiteral(" ") + patchy::ui::measurement_unit_suffix(unit);
+  };
+  spin.set_display_unit(SpinUnit::Millimeters);
+  CHECK(value_changes == 0);
+  CHECK(spin.decimals() == 1);  // max(native 1, mm 1)
+  CHECK(close_to(spin.singleStep(), 300.0 / 25.4));
+  CHECK(spin.text() == QStringLiteral("25.4") + suffix_for(patchy::ui::MeasurementUnit::Millimeters));
+  spin.stepBy(1);
+  CHECK(close_to(spin.value(), 300.0 + 300.0 / 25.4, 0.05));
+  CHECK(spin.text() == QStringLiteral("26.4") + suffix_for(patchy::ui::MeasurementUnit::Millimeters));
+  spin.setValue(300.0);
+  value_changes = 0;
+
+  // Inches: three decimals, 0.01 in (3 px) per step.
+  spin.set_display_unit(SpinUnit::Inches);
+  CHECK(value_changes == 0);
+  CHECK(spin.decimals() == 3);
+  CHECK(close_to(spin.singleStep(), 3.0));
+  CHECK(spin.text() == QStringLiteral("1.000") + patchy::ui::inch_suffix());
+  spin.stepBy(-1);
+  CHECK(close_to(spin.value(), 297.0, 0.01));
+  spin.setValue(300.0);
+  value_changes = 0;
+
+  // Percent of the 600 px basis: 1% is 6 px.
+  spin.set_display_unit(SpinUnit::Percent);
+  CHECK(spin.decimals() == 2);  // max(native 1, percent 2): each unit gets its own count
+  CHECK(close_to(spin.singleStep(), 6.0));
+  CHECK(spin.text() == QStringLiteral("50.00%"));
+
+  // Back to pixels: the construction decimals and step return, still silently.
+  spin.set_display_unit(SpinUnit::Pixels);
+  CHECK(value_changes == 0);
+  CHECK(spin.decimals() == 1);
+  CHECK(close_to(spin.singleStep(), 1.0));
+  CHECK(spin.text() == QStringLiteral("300.0") + patchy::ui::pixel_suffix());
+
+  // A PPI change re-derives the step for the shown unit.
+  double ppi = 300.0;
+  spin.set_context_provider([&ppi] { return UnitConversionContext{ppi, 600.0}; });
+  spin.set_display_unit(SpinUnit::Millimeters);
+  CHECK(close_to(spin.singleStep(), 300.0 / 25.4));
+  ppi = 72.0;
+  spin.refresh_display_metrics();
+  CHECK(close_to(spin.singleStep(), 72.0 / 25.4));
+  CHECK(spin.text() == QStringLiteral("105.8") + suffix_for(patchy::ui::MeasurementUnit::Millimeters));
+}
+
+// The MeasurementUnit/SpinUnit bridge and the helpers the dimension fields use
+// to present themselves in the ruler unit (docs/resolution-units.md).
+void unit_spin_box_document_field_units_helpers() {
+  using patchy::ui::MeasurementUnit;
+  for (const auto unit : {MeasurementUnit::Pixels, MeasurementUnit::Inches, MeasurementUnit::Centimeters,
+                          MeasurementUnit::Millimeters, MeasurementUnit::Points, MeasurementUnit::Percent}) {
+    const auto spin_unit = patchy::ui::spin_unit_for(unit);
+    CHECK(patchy::ui::measurement_unit_for(spin_unit) == unit);
+  }
+  CHECK(!patchy::ui::measurement_unit_for(SpinUnit::Degrees).has_value());
+
+  patchy::ui::DocumentFieldUnits units;
+  units.display_unit = MeasurementUnit::Millimeters;
+  units.ppi = 72.0;
+  units.document_width = 800.0;
+  units.document_height = 600.0;
+  const auto horizontal = patchy::ui::document_field_context(units, true);
+  CHECK(close_to(horizontal.ppi, 72.0));
+  CHECK(close_to(horizontal.percent_reference_pixels, 800.0));
+  const auto vertical = patchy::ui::document_field_context(units, false);
+  CHECK(close_to(vertical.percent_reference_pixels, 600.0));
+  units.ppi = 0.0;  // sanitized
+  CHECK(close_to(patchy::ui::document_field_context(units, true).ppi, 300.0));
+  units.ppi = 72.0;
+
+  UnitSpinBox spin(SpinUnit::Pixels);
+  spin.setRange(0.0, 60000.0);
+  spin.setDecimals(1);
+  spin.setValue(72.0);
+  patchy::ui::apply_document_field_units(&spin, units, false);
+  CHECK(spin.display_unit_switchable());
+  CHECK(spin.display_unit() == SpinUnit::Millimeters);
+  CHECK(close_to(spin.conversion_context().ppi, 72.0));
+  CHECK(close_to(spin.conversion_context().percent_reference_pixels, 600.0));
+  CHECK(close_to(spin.value(), 72.0));  // native pixels untouched
+  CHECK(spin.text() == QStringLiteral("25.4 ") + patchy::ui::measurement_unit_suffix(MeasurementUnit::Millimeters));
+
+  // A plain number typed now means millimeters.
+  spin.show();
+  QApplication::processEvents();
+  commit_text(spin, QStringLiteral("50.8"));
+  CHECK(close_to(spin.value(), 144.0, 0.05));
+
+  // The same unit again only refreshes; a different one switches.
+  patchy::ui::set_field_display_unit(&spin, MeasurementUnit::Millimeters);
+  CHECK(spin.display_unit() == SpinUnit::Millimeters);
+  patchy::ui::set_field_display_unit(&spin, MeasurementUnit::Pixels);
+  CHECK(spin.display_unit() == SpinUnit::Pixels);
+  CHECK(spin.text() == QStringLiteral("144.0") + patchy::ui::pixel_suffix());
+  patchy::ui::set_field_display_unit(nullptr, MeasurementUnit::Inches);  // tolerated
+}
+
 }  // namespace
+
+// The right-click menu lists the units and its pick goes through pick_display_unit:
+// the field shows the unit and emits display_unit_picked (MainWindow's cue to change
+// the ruler preference). A typed token emits display_unit_changed only, and an
+// unswitchable field ignores picks.
+void unit_spin_box_context_menu_pick_emits_picked() {
+  using patchy::ui::MeasurementUnit;
+  UnitSpinBox spin(SpinUnit::Pixels);
+  spin.setRange(0.0, 10000.0);
+  spin.setDecimals(1);
+  spin.setValue(300.0);
+  spin.set_context_provider([] { return UnitConversionContext{300.0, 600.0}; });
+  spin.set_display_unit_switchable(true);
+  spin.show();
+  QApplication::processEvents();
+  std::vector<SpinUnit> picked;
+  std::vector<SpinUnit> changed;
+  QObject::connect(&spin, &UnitSpinBox::display_unit_picked, &spin, [&picked](SpinUnit unit) { picked.push_back(unit); });
+  QObject::connect(&spin, &UnitSpinBox::display_unit_changed, &spin,
+                   [&changed](SpinUnit unit) { changed.push_back(unit); });
+
+  bool saw_menu = false;
+  QTimer::singleShot(0, [&] {
+    for (auto* widget : QApplication::topLevelWidgets()) {
+      auto* menu = qobject_cast<QMenu*>(widget);
+      if (menu == nullptr || !menu->isVisible()) {
+        continue;
+      }
+      QStringList names;
+      for (auto* action : menu->actions()) {
+        names << action->text();
+      }
+      CHECK(names.contains(patchy::ui::measurement_unit_name(MeasurementUnit::Inches)));
+      CHECK(names.contains(patchy::ui::measurement_unit_name(MeasurementUnit::Percent)));  // has a basis
+      for (auto* action : menu->actions()) {
+        if (action->text() == patchy::ui::measurement_unit_name(MeasurementUnit::Inches)) {
+          saw_menu = true;
+          action->trigger();
+          menu->close();
+          return;
+        }
+      }
+    }
+    CHECK(false);
+  });
+  const auto point = spin.rect().center();
+  QContextMenuEvent event(QContextMenuEvent::Mouse, point, spin.mapToGlobal(point));
+  QApplication::sendEvent(&spin, &event);
+  QApplication::processEvents();
+  CHECK(saw_menu);
+  CHECK(spin.display_unit() == SpinUnit::Inches);
+  CHECK(spin.text() == QStringLiteral("1.000") + patchy::ui::inch_suffix());
+  CHECK(picked == std::vector<SpinUnit>{SpinUnit::Inches});
+  CHECK(changed == std::vector<SpinUnit>{SpinUnit::Inches});
+
+  // A typed token switches the display without a pick.
+  commit_text(spin, QStringLiteral("25.4 mm"));
+  CHECK(spin.display_unit() == SpinUnit::Millimeters);
+  CHECK(close_to(spin.value(), 300.0));
+  CHECK(picked.size() == 1);
+  CHECK(changed.size() == 2);
+
+  // Direct picks: a no-op once the field stops being switchable.
+  spin.pick_display_unit(SpinUnit::Centimeters);
+  CHECK(spin.display_unit() == SpinUnit::Centimeters);
+  CHECK(picked.size() == 2);
+  spin.set_display_unit_switchable(false);
+  spin.pick_display_unit(SpinUnit::Pixels);
+  CHECK(spin.display_unit() == SpinUnit::Centimeters);
+  CHECK(picked.size() == 2);
+}
 
 std::vector<patchy::test::TestCase> unit_spin_box_tests() {
   return {
@@ -340,7 +570,12 @@ std::vector<patchy::test::TestCase> unit_spin_box_tests() {
       {"unit_spin_box_rejects_incompatible_units", unit_spin_box_rejects_incompatible_units},
       {"unit_spin_box_plain_number_uses_native_unit", unit_spin_box_plain_number_uses_native_unit},
       {"unit_spin_box_keeps_translated_suffix", unit_spin_box_keeps_translated_suffix},
+      {"unit_spin_box_language_switch_refreshes_suffix_without_changing_values",
+       unit_spin_box_language_switch_refreshes_suffix_without_changing_values},
       {"unit_spin_box_display_unit_follows_typed_unit", unit_spin_box_display_unit_follows_typed_unit},
       {"unit_spin_box_int_rounds_converted_values", unit_spin_box_int_rounds_converted_values},
+      {"unit_spin_box_display_unit_adjusts_decimals_and_step", unit_spin_box_display_unit_adjusts_decimals_and_step},
+      {"unit_spin_box_document_field_units_helpers", unit_spin_box_document_field_units_helpers},
+      {"unit_spin_box_context_menu_pick_emits_picked", unit_spin_box_context_menu_pick_emits_picked},
   };
 }

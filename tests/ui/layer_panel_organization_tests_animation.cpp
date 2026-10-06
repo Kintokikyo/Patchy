@@ -54,7 +54,9 @@ std::vector<bool> top_level_visibility(patchy::ui::MainWindow& window) {
 
 void ui_animation_preview_plays_visible_layers_and_restores() {
   SettingsValueRestorer delay_setting(QStringLiteral("saveOptions/gifFrameDelayCs"));
+  SettingsValueRestorer ms_setting(QStringLiteral("saveOptions/animationFrameDelayMs"));
   patchy::ui::app_settings().remove(QStringLiteral("saveOptions/gifFrameDelayCs"));
+  patchy::ui::app_settings().remove(QStringLiteral("saveOptions/animationFrameDelayMs"));
 
   patchy::ui::MainWindow window;
   window.add_document_session(animation_test_document(), QStringLiteral("Animation"));
@@ -76,6 +78,9 @@ void ui_animation_preview_plays_visible_layers_and_restores() {
   CHECK(play_button != nullptr);
   CHECK(status_label != nullptr);
   CHECK(delay_spin->value() == 0.10);
+  delay_spin->setValue(0.033);
+  CHECK(patchy::ui::app_settings().value(QStringLiteral("saveOptions/animationFrameDelayMs")).toInt() == 33);
+  CHECK(patchy::ui::app_settings().value(QStringLiteral("saveOptions/gifFrameDelayCs")).toInt() == 3);
   delay_spin->setValue(0.30);
   CHECK(patchy::ui::app_settings().value(QStringLiteral("saveOptions/gifFrameDelayCs")).toInt() == 30);
 

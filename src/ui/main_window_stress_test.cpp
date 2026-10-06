@@ -20,6 +20,8 @@
 #include "ui/main_window_shared.hpp"
 #include "ui/stress_test.hpp"
 
+#include "patchy_version.hpp"
+
 #include "core/adjustment_layer.hpp"
 #include "core/document_path.hpp"
 #include "core/layer_metadata.hpp"
@@ -1243,6 +1245,7 @@ private:
     const auto index = w.blend_combo_ != nullptr ? w.blend_combo_->findData(static_cast<int>(mode)) : -1;
     if (index >= 0) {
       w.set_active_layer_blend(index);
+      w.finish_pending_layer_blend_edit();
     }
   }
 
@@ -1488,7 +1491,7 @@ private:
   VectorToolMode saved_vector_tool_mode_{VectorToolMode::Shape};
   int saved_vector_combine_index_{0};
   int saved_shape_corner_radius_{0};
-  int saved_vector_line_weight_{4};
+  double saved_vector_line_weight_{4.0};
   bool saved_line_arrow_start_{false};
   bool saved_line_arrow_end_{false};
 };
@@ -2147,7 +2150,7 @@ void StressTestRunner::phase_interact() {
   fps_step("35_zoom_pan", "Zoom ladder + pan sweep", "interact", [&] {
     canvas()->fit_to_view();
     pump();
-    canvas()->set_zoom_centered(1.0);
+    canvas()->set_view_zoom_centered(1.0);
     pump();
     const auto center = QPointF(canvas()->rect().center());
     for (int i = 0; i < 8; ++i) {
@@ -2420,7 +2423,7 @@ void StressTestRunner::phase_arcade_vector() {
     w.activate_tool(CanvasTool::Line);
     canvas()->set_vector_tool_mode(VectorToolMode::Shape);
     set_vector_appearance(solid_vector_fill(QColor(226, 208, 130)));
-    w.current_vector_line_weight_ = std::max(2, at(0.003));
+    w.current_vector_line_weight_ = static_cast<double>(std::max(2, at(0.003)));
     w.current_line_arrow_end_ = true;
     drag(pt(1.035, 0.205), pt(1.10, 0.26), 4);
     w.current_line_arrow_end_ = false;

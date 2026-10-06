@@ -301,6 +301,16 @@ QImage active_layer_sample_image(const Layer& layer, QSize document_size) {
   return image;
 }
 
+void apply_fill_settings(EditOptions& options, const CanvasWidget& canvas) {
+  constexpr double kFillMaxFeatherPixels = 50.0;
+  options.primary.a = static_cast<std::uint8_t>(std::clamp(
+      std::lround(static_cast<double>(options.primary.a) * std::clamp(canvas.fill_opacity(), 1, 100) / 100.0), 1L,
+      255L));
+  options.fill_softness_feather = std::clamp(canvas.fill_softness(), 0, 100) / 100.0 * kFillMaxFeatherPixels;
+  options.flood_tolerance = std::clamp(canvas.fill_tolerance(), 0, 255);
+  options.flood_contiguous = canvas.fill_contiguous();
+}
+
 EditOptions edit_options(QColor primary, QColor secondary, int brush_size, int brush_opacity, int brush_softness,
                          bool fill_shapes, bool lock_transparent_pixels, const CanvasWidget& canvas,
                          int brush_roundness, double brush_angle_degrees) {
@@ -327,8 +337,10 @@ EditOptions edit_options(QColor primary, QColor secondary, int brush_size, int b
         options.selection_scan_rects.push_back(to_core_rect(rect));
       }
     }
-    options.selection_mask = [region](std::int32_t x, std::int32_t y) {
-      return region.contains(QPoint(x, y));
+    // Both per-pixel lookups go through selection_alpha_at, which rasterizes a
+    // many-span region once; QRegion::contains would scan every span per pixel.
+    options.selection_mask = [&canvas](std::int32_t x, std::int32_t y) {
+      return canvas.selection_alpha_at(QPoint(x, y)) != 0U;
     };
     options.selection_coverage = [&canvas](std::int32_t x, std::int32_t y) {
       return static_cast<float>(canvas.selection_alpha_at(QPoint(x, y))) / 255.0F;
@@ -355,7 +367,7 @@ QImage box_blur_mask(const QImage& source, int radius) {
     return source;
   }
 
-  radius = std::clamp(radius, 0, 250);
+  radius = std::clamp(radius, 0, kMaxSelectionFeatherRadius);
   const auto window = radius * 2 + 1;
   QImage horizontal(source.size(), QImage::Format_Grayscale8);
   QImage blurred(source.size(), QImage::Format_Grayscale8);
@@ -406,7 +418,7 @@ QImage box_blur_mask(const QImage& source, int radius) {
 }
 
 int feather_blur_pass_radius(int feather_radius) {
-  return std::max(1, (std::clamp(feather_radius, 0, 250) + 1) / 2);
+  return std::max(1, (std::clamp(feather_radius, 0, kMaxSelectionFeatherRadius) + 1) / 2);
 }
 
 }  // namespace
@@ -543,6 +555,63 @@ QRect rect_aligned_to_mip_grid(QRect rect, int level) noexcept {
   const int right = ((rect.right() / block) + 1) * block - 1;
   const int bottom = ((rect.bottom() / block) + 1) * block - 1;
   return QRect(QPoint(left, top), QPoint(right, bottom));
+}
+
+double next_zoom_ladder_step(double view_zoom, bool zoom_in) noexcept {
+  // Photoshop's ladder, as fractions: 0.56%, 1%, 1.5%, 2%, 3%, 4%, 5%, 6.25%,
+  // 8.33%, 12.5%, 16.67%, 25%, 33.33%, 50%, 66.67%, 100%, 200% ... 800%, 1200%,
+  // 1600%, 3200%, 6400%, 12800%.
+  static constexpr double kLadder[] = {0.0056, 0.01,      0.015,     0.02,      0.03,      0.04,      0.05,
+                                       0.0625, 1.0 / 12.0, 0.125,    1.0 / 6.0, 0.25,      1.0 / 3.0, 0.5,
+                                       2.0 / 3.0, 1.0,    2.0,       3.0,       4.0,       5.0,       6.0,
+                                       7.0,    8.0,       12.0,      16.0,      32.0,      64.0,      128.0};
+  constexpr double kOnRungTolerance = 0.005;  // relative
+  if (!(view_zoom > 0.0) || !std::isfinite(view_zoom)) {
+    return 1.0;
+  }
+  if (zoom_in) {
+    const auto floor = view_zoom * (1.0 + kOnRungTolerance);
+    for (const auto rung : kLadder) {
+      if (rung > floor) {
+        return rung;
+      }
+    }
+    return kLadder[std::size(kLadder) - 1];
+  }
+  const auto ceiling = view_zoom * (1.0 - kOnRungTolerance);
+  for (auto index = std::size(kLadder); index-- > 0;) {
+    if (kLadder[index] < ceiling) {
+      return kLadder[index];
+    }
+  }
+  return kLadder[0];
+}
+
+QRect center_anchored_handle_rect(QRect start, bool moves_x, bool moves_y, QPoint point,
+                                  double target_ratio) noexcept {
+  const double center_x = start.x() + start.width() / 2.0;
+  const double center_y = start.y() + start.height() / 2.0;
+  double half_width = moves_x ? std::abs(point.x() - center_x) : start.width() / 2.0;
+  double half_height = moves_y ? std::abs(point.y() - center_y) : start.height() / 2.0;
+  half_width = std::max(0.5, half_width);
+  half_height = std::max(0.5, half_height);
+  if (target_ratio > 0.0) {
+    if (moves_x && moves_y) {
+      if (half_width / half_height > target_ratio) {
+        half_width = half_height * target_ratio;
+      } else {
+        half_height = half_width / target_ratio;
+      }
+    } else if (moves_x) {
+      half_height = half_width / target_ratio;
+    } else {
+      half_width = half_height * target_ratio;
+    }
+  }
+  const auto width = std::max(1, static_cast<int>(std::lround(half_width * 2.0)));
+  const auto height = std::max(1, static_cast<int>(std::lround(half_height * 2.0)));
+  return QRect(static_cast<int>(std::lround(center_x - width / 2.0)),
+               static_cast<int>(std::lround(center_y - height / 2.0)), width, height);
 }
 
 QRect preview_scaled_document_rect(QRect rect, int level) noexcept {

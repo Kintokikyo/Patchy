@@ -29,3 +29,6 @@ CMakeLists.txt text
 # Preserve vendored libheif source byte-for-byte apart from Patchy's documented
 # WebCodecs adapter changes; upstream files contain intentional whitespace quirks.
 src/formats/libheif/** -whitespace
+
+# Keep the upstream font license byte-for-byte, including its trailing spaces.
+third_party/fonts-web/nanum_gothic/OFL.txt -whitespace

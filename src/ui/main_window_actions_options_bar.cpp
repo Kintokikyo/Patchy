@@ -6,6 +6,7 @@
 // order is load-bearing (see create_actions() for the phase order).
 
 #include "ui/main_window.hpp"
+#include "ui/appearance_edits.hpp"
 #include "ui/main_window_shared.hpp"
 #include "ui/main_window_actions_internal.hpp"
 
@@ -50,6 +51,7 @@
 #include "ui/gradient_stops_editor.hpp"
 #include "ui/gradient_library.hpp"
 #include "ui/gradient_manager_dialog.hpp"
+#include "ui/curved_slider.hpp"
 #include "ui/dialog_utils.hpp"
 #include "ui/document_float_window.hpp"
 #include "ui/font_picker.hpp"
@@ -242,10 +244,6 @@
 #include <dwmapi.h>
 #include <tchar.h>
 #include <tpcshrd.h>
-#endif
-
-#ifndef PATCHY_VERSION
-#define PATCHY_VERSION "0.0.0"
 #endif
 
 // Icon resources live in the static patchy_ui library; force registration before first use.
@@ -584,6 +582,10 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     if (canvas_ != nullptr) {
       canvas_->set_auto_select_layer(checked);
     }
+    // Remembered across runs (GitHub issue 73). Written here, by the user's
+    // click, rather than by save_tool_settings: tests set the canvas flag
+    // directly and must not leak it into later windows.
+    app_settings().setValue(QStringLiteral("tools/moveAutoSelect"), checked);
   });
   move_show_transform_controls_check_ = new CheckGlyphBox(tr("Show Transform Controls"), toolbar);
   move_show_transform_controls_check_->setObjectName(QStringLiteral("moveShowTransformControlsCheck"));
@@ -786,13 +788,13 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   transform_x_spin_ = make_transform_spin(QStringLiteral("freeTransformXSpin"), -30000.0, 30000.0, 2,
                                           SpinUnit::Pixels);
   transform_x_spin_->set_context_provider(document_axis_context(true));
-  transform_x_spin_->set_display_unit_switchable(true);
+  register_ruler_unit_field(transform_x_spin_);  // starts in the ruler unit (Photoshop)
   bind_tooltip(transform_x_spin_, QT_TR_NOOP("Reference X position"));
   make_transform_label(QT_TR_NOOP("Y:"));
   transform_y_spin_ = make_transform_spin(QStringLiteral("freeTransformYSpin"), -30000.0, 30000.0, 2,
                                           SpinUnit::Pixels);
   transform_y_spin_->set_context_provider(document_axis_context(false));
-  transform_y_spin_->set_display_unit_switchable(true);
+  register_ruler_unit_field(transform_y_spin_);
   bind_tooltip(transform_y_spin_, QT_TR_NOOP("Reference Y position"));
   make_transform_label(QT_TR_NOOP("W:"));
   transform_scale_x_spin_ = make_transform_spin(QStringLiteral("freeTransformScaleXSpin"), -10000.0, 10000.0, 2,
@@ -1102,8 +1104,10 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   feather_layout->addWidget(feather_label);
   auto* feather = new UnitIntSpinBox(SpinUnit::Pixels, feather_group);
   feather->setObjectName(QStringLiteral("selectionFeatherSpin"));
-  feather->setRange(0, 250);
+  feather->set_context_provider(document_unit_context_provider(true));  // "2 mm" converts at the document PPI
+  feather->setRange(0, kMaxSelectionFeatherRadius);
   feather->setValue(current_selection_feather_radius_);
+  feather->setProperty(kToolbarSpinboxSliderCurvedProperty, true);
   configure_toolbar_spinbox(feather, 64);
   feather_layout->addWidget(feather);
   add_option_widget(feather_group, {CanvasTool::Marquee, CanvasTool::EllipticalMarquee, CanvasTool::Lasso,
@@ -1118,21 +1122,29 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   const auto apply_selection_edge_settings = [this, feather, anti_alias] {
     current_selection_feather_radius_ = feather->value();
     current_selection_antialias_ = anti_alias->isChecked();
+    // Each selection tool keeps its own Feather and Anti-alias.
+    if (const auto index = CanvasWidget::selection_tool_index(current_tool_); index >= 0) {
+      selection_feather_by_tool_[static_cast<std::size_t>(index)] = current_selection_feather_radius_;
+      selection_antialias_by_tool_[static_cast<std::size_t>(index)] = current_selection_antialias_;
+    }
     if (canvas_ != nullptr) {
       canvas_->set_selection_feather_radius(current_selection_feather_radius_);
       canvas_->set_selection_antialias(current_selection_antialias_);
     }
     refresh_document_info();
   };
-  connect(feather, &QSpinBox::valueChanged, this, [apply_selection_edge_settings](int) {
+  connect(feather, &QSpinBox::valueChanged, this, [this, apply_selection_edge_settings](int) {
     apply_selection_edge_settings();
+    schedule_save_tool_settings();
   });
-  connect(anti_alias, &QCheckBox::toggled, this, [apply_selection_edge_settings](bool) {
+  connect(anti_alias, &QCheckBox::toggled, this, [this, apply_selection_edge_settings](bool) {
     apply_selection_edge_settings();
+    save_tool_settings();
   });
   add_option_label(QT_TR_NOOP("Radius:"), {CanvasTool::Marquee});
   auto* marquee_corner_radius = new UnitIntSpinBox(SpinUnit::Pixels, toolbar);
   marquee_corner_radius->setObjectName(QStringLiteral("selectionCornerRadiusSpin"));
+  marquee_corner_radius->set_context_provider(document_unit_context_provider(true));
   marquee_corner_radius->setRange(0, 512);
   marquee_corner_radius->setValue(current_marquee_corner_radius_);
   bind_tooltip(marquee_corner_radius, QT_TR_NOOP("Rounded-corner radius for the rectangular marquee (0 = sharp corners)"));
@@ -1213,7 +1225,26 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   add_option_separator({CanvasTool::Marquee, CanvasTool::EllipticalMarquee, CanvasTool::Lasso,
                         CanvasTool::MagneticLasso, CanvasTool::MagicWand});
 
-  add_option_label(QT_TR_NOOP("Ratio:"), {CanvasTool::Crop});
+  // Crop: Style picks what the fields mean, like the marquee's Style combo.
+  // Ratio shows the preset combo and the unitless W : H pair; Size shows unit
+  // Width / Height fields that mirror the box and resize it about its center.
+  add_option_label(QT_TR_NOOP("Style:"), {CanvasTool::Crop});
+  crop_style_combo_ = new QComboBox(toolbar);
+  crop_style_combo_->setObjectName(QStringLiteral("cropStyleCombo"));
+  crop_style_combo_->addItems({tr("Ratio"), tr("Size")});
+  crop_style_combo_->setFixedWidth(72);
+  QPointer<QComboBox> crop_style_combo(crop_style_combo_);
+  register_retranslation([crop_style_combo] {
+    if (crop_style_combo == nullptr || crop_style_combo->count() < 2) {
+      return;
+    }
+    QSignalBlocker blocker(crop_style_combo);
+    crop_style_combo->setItemText(0, QObject::tr("Ratio"));
+    crop_style_combo->setItemText(1, QObject::tr("Size"));
+  });
+  bind_tooltip(crop_style_combo_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Ratio constrains the crop box; Size shows its exact width and height and sets them"));
+  add_option_widget(crop_style_combo_, {CanvasTool::Crop});
+  crop_ratio_option_widgets_.push_back(add_option_label(QT_TR_NOOP("Ratio:"), {CanvasTool::Crop}));
   crop_ratio_preset_combo_ = new QComboBox(toolbar);
   crop_ratio_preset_combo_->setObjectName(QStringLiteral("cropRatioPresetCombo"));
   crop_ratio_preset_combo_->setMinimumWidth(118);
@@ -1240,7 +1271,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     crop_preset_combo->setItemText(crop_preset_combo->count() - 1, QObject::tr("Custom"));
   });
   bind_tooltip(crop_ratio_preset_combo_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Aspect ratio preset for the crop box"));
-  add_option_widget(crop_ratio_preset_combo_, {CanvasTool::Crop});
+  crop_ratio_option_widgets_.push_back(add_option_widget(crop_ratio_preset_combo_, {CanvasTool::Crop}));
   crop_ratio_w_spin_ = new QDoubleSpinBox(toolbar);
   crop_ratio_w_spin_->setObjectName(QStringLiteral("cropRatioWidthSpin"));
   crop_ratio_w_spin_->setRange(0.0, 10000.0);
@@ -1248,11 +1279,11 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   crop_ratio_w_spin_->setValue(0.0);
   bind_tooltip(crop_ratio_w_spin_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Aspect ratio width (0 = unconstrained)"));
   configure_toolbar_spinbox(crop_ratio_w_spin_, 64);
-  add_option_widget(crop_ratio_w_spin_, {CanvasTool::Crop});
+  crop_ratio_option_widgets_.push_back(add_option_widget(crop_ratio_w_spin_, {CanvasTool::Crop}));
   auto* crop_ratio_separator = new QLabel(QStringLiteral(":"), options_content);
   crop_ratio_separator->setProperty("optionLabel", true);
   crop_ratio_separator->setAlignment(Qt::AlignVCenter);
-  add_option_widget(crop_ratio_separator, {CanvasTool::Crop});
+  crop_ratio_option_widgets_.push_back(add_option_widget(crop_ratio_separator, {CanvasTool::Crop}));
   crop_ratio_h_spin_ = new QDoubleSpinBox(toolbar);
   crop_ratio_h_spin_->setObjectName(QStringLiteral("cropRatioHeightSpin"));
   crop_ratio_h_spin_->setRange(0.0, 10000.0);
@@ -1260,12 +1291,42 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   crop_ratio_h_spin_->setValue(0.0);
   bind_tooltip(crop_ratio_h_spin_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Aspect ratio height (0 = unconstrained)"));
   configure_toolbar_spinbox(crop_ratio_h_spin_, 64);
-  add_option_widget(crop_ratio_h_spin_, {CanvasTool::Crop});
+  crop_ratio_option_widgets_.push_back(add_option_widget(crop_ratio_h_spin_, {CanvasTool::Crop}));
   crop_ratio_clear_button_ = new QPushButton(tr("Clear"), toolbar);
   crop_ratio_clear_button_->setObjectName(QStringLiteral("cropRatioClearButton"));
   bind_widget_text(crop_ratio_clear_button_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Clear"));
   bind_tooltip(crop_ratio_clear_button_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Clear the aspect ratio constraint"));
-  add_option_widget(crop_ratio_clear_button_, {CanvasTool::Crop});
+  crop_ratio_option_widgets_.push_back(add_option_widget(crop_ratio_clear_button_, {CanvasTool::Crop}));
+  // Size mode: the same unit fields as the marquee's Fixed Size pair (pixel
+  // native, a typed unit token converts at the document PPI, the same quick
+  // values in the popup). Values commit on Enter or focus-out, never per
+  // keystroke, so a half-typed width never reshapes the box.
+  crop_size_option_widgets_.push_back(add_option_label(QT_TR_NOOP("Width:"), {CanvasTool::Crop}));
+  crop_width_spin_ = new UnitIntSpinBox(SpinUnit::Pixels, toolbar);
+  crop_width_spin_->set_context_provider(document_axis_context(true));
+  crop_width_spin_->setObjectName(QStringLiteral("cropWidthSpin"));
+  crop_width_spin_->setRange(1, 30000);
+  crop_width_spin_->setKeyboardTracking(false);
+  bind_tooltip(crop_width_spin_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Width of the crop box"));
+  configure_toolbar_spinbox(crop_width_spin_, 78);
+  crop_size_option_widgets_.push_back(add_option_widget(crop_width_spin_, {CanvasTool::Crop}));
+  crop_link_size_button_ = new QPushButton(toolbar);
+  crop_link_size_button_->setObjectName(QStringLiteral("cropLinkSizeButton"));
+  crop_link_size_button_->setCheckable(true);
+  crop_link_size_button_->setChecked(false);
+  crop_link_size_button_->setIcon(simple_icon(QStringLiteral("link"), QColor(220, 226, 235)));
+  bind_tooltip(crop_link_size_button_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Keep the crop box's width and height in proportion"));
+  crop_link_size_button_->setFixedWidth(28);
+  crop_size_option_widgets_.push_back(add_option_widget(crop_link_size_button_, {CanvasTool::Crop}));
+  crop_size_option_widgets_.push_back(add_option_label(QT_TR_NOOP("Height:"), {CanvasTool::Crop}));
+  crop_height_spin_ = new UnitIntSpinBox(SpinUnit::Pixels, toolbar);
+  crop_height_spin_->set_context_provider(document_axis_context(false));
+  crop_height_spin_->setObjectName(QStringLiteral("cropHeightSpin"));
+  crop_height_spin_->setRange(1, 30000);
+  crop_height_spin_->setKeyboardTracking(false);
+  bind_tooltip(crop_height_spin_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Height of the crop box"));
+  configure_toolbar_spinbox(crop_height_spin_, 78);
+  crop_size_option_widgets_.push_back(add_option_widget(crop_height_spin_, {CanvasTool::Crop}));
   crop_apply_button_ = new QPushButton(toolbar);
   crop_apply_button_->setObjectName(QStringLiteral("cropApplyButton"));
   crop_apply_button_->setIcon(simple_icon(QStringLiteral("ok"), QColor(160, 220, 165)));
@@ -1277,7 +1338,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   crop_cancel_button_ = new QPushButton(toolbar);
   crop_cancel_button_->setObjectName(QStringLiteral("cropCancelButton"));
   crop_cancel_button_->setIcon(simple_icon(QStringLiteral("clear"), QColor(255, 150, 150)));
-  bind_tooltip(crop_cancel_button_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Cancel crop (Esc)"));
+  bind_tooltip(crop_cancel_button_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Reset the crop box to the canvas (Esc)"));
   crop_cancel_button_->setFixedWidth(30);
   crop_cancel_button_->setIconSize(QSize(20, 20));
   crop_cancel_button_->setProperty("optionsSessionButton", true);
@@ -1289,11 +1350,18 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     current_crop_ratio_w_ = crop_ratio_w_spin_->value();
     current_crop_ratio_h_ = crop_ratio_h_spin_->value();
     if (canvas_ != nullptr) {
-      canvas_->set_crop_ratio(current_crop_ratio_w_, current_crop_ratio_h_);
+      canvas_->set_crop_ratio(effective_crop_ratio_width(), effective_crop_ratio_height());
     }
     sync_crop_ratio_preset_combo();
     schedule_save_tool_settings();
   };
+  connect(crop_style_combo_, &QComboBox::currentIndexChanged, this, [this](int index) {
+    apply_crop_style(index);
+  });
+  connect(crop_width_spin_, &QSpinBox::valueChanged, this,
+          [this](int value) { handle_crop_size_value_changed(true, value); });
+  connect(crop_height_spin_, &QSpinBox::valueChanged, this,
+          [this](int value) { handle_crop_size_value_changed(false, value); });
   connect(crop_ratio_w_spin_, &QDoubleSpinBox::valueChanged, this,
           [apply_crop_ratio](double) { apply_crop_ratio(); });
   connect(crop_ratio_h_spin_, &QDoubleSpinBox::valueChanged, this,
@@ -1335,7 +1403,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   });
   connect(crop_cancel_button_, &QPushButton::clicked, this, [this] {
     if (canvas_ != nullptr) {
-      canvas_->cancel_crop_session();
+      canvas_->reset_crop_session_to_canvas();
     }
   });
 
@@ -1415,6 +1483,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   brush_size->setObjectName(QStringLiteral("brushSizeSpin"));
   brush_size->setRange(1, kMaxBrushSize);
   brush_size->setValue(canvas_defaults->brush_size());
+  brush_size->setProperty(kToolbarSpinboxSliderCurvedProperty, true);
   configure_toolbar_spinbox(brush_size, 58);
   add_option_widget(brush_size,
                     {CanvasTool::Brush, CanvasTool::MixerBrush, CanvasTool::PatternStamp, CanvasTool::Clone, CanvasTool::Healing, CanvasTool::SpotHealing, CanvasTool::Smudge,
@@ -1423,8 +1492,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
                      CanvasTool::Eraser, CanvasTool::Line, CanvasTool::Rectangle, CanvasTool::Ellipse});
   auto* brush_size_slider = new QSlider(Qt::Horizontal, toolbar);
   brush_size_slider->setObjectName(QStringLiteral("brushSizeSlider"));
-  brush_size_slider->setRange(1, kMaxBrushSize);
-  brush_size_slider->setValue(canvas_defaults->brush_size());
+  bind_curved_slider(*brush_size_slider, *brush_size);
   // 130 (was 150): the Brush row must keep one Options-bar line at ordinary
   // window widths now that it also carries the Smoothing spin and gear
   // (ui_brush_tip_picker_keeps_options_bar_height).
@@ -1495,8 +1563,6 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
                                        brush_opacity_slider, brush_softness, brush_softness_slider}) {
     vector_pixel_only_option_widgets_.push_back(raster_only);
   }
-  connect(brush_size, &QSpinBox::valueChanged, brush_size_slider, &QSlider::setValue);
-  connect(brush_size_slider, &QSlider::valueChanged, brush_size, &QSpinBox::setValue);
   connect(brush_size, &QSpinBox::valueChanged, this, [this](int value) {
     if (canvas_ != nullptr) {
       canvas_->set_brush_size(value);
@@ -2246,13 +2312,10 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   add_option_widget(quick_select_size, {CanvasTool::QuickSelect});
   auto* quick_select_size_slider = new QSlider(Qt::Horizontal, toolbar);
   quick_select_size_slider->setObjectName(QStringLiteral("quickSelectSizeSlider"));
-  quick_select_size_slider->setRange(1, 512);
-  quick_select_size_slider->setValue(canvas_defaults->quick_select_size());
+  bind_curved_slider(*quick_select_size_slider, *quick_select_size);
   quick_select_size_slider->setFixedWidth(150);
   bind_tooltip(quick_select_size_slider, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Quick Select brush size: press [ or ]"));
   add_option_widget(quick_select_size_slider, {CanvasTool::QuickSelect});
-  connect(quick_select_size, &QSpinBox::valueChanged, quick_select_size_slider, &QSlider::setValue);
-  connect(quick_select_size_slider, &QSlider::valueChanged, quick_select_size, &QSpinBox::setValue);
   connect(quick_select_size, &QSpinBox::valueChanged, this, [this](int value) {
     if (canvas_ != nullptr) {
       canvas_->set_quick_select_size(value);
@@ -2291,6 +2354,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   add_option_label(QT_TR_NOOP("Width:"), {CanvasTool::MagneticLasso});
   auto* magnetic_width = new UnitIntSpinBox(SpinUnit::Pixels, toolbar);
   magnetic_width->setObjectName(QStringLiteral("magneticLassoWidthSpin"));
+  magnetic_width->set_context_provider(document_unit_context_provider(true));
   magnetic_width->setRange(1, 256);
   magnetic_width->setValue(canvas_defaults->magnetic_lasso_width());
   bind_tooltip(magnetic_width, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Edge search width in document pixels: press [ or ]"));
@@ -2439,19 +2503,6 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   vector_shape_mode_option_widgets_.push_back(vector_fill_swatch_button_);
   connect(vector_fill_swatch_button_, &QToolButton::clicked, this,
           [this] { show_vector_paint_menu(false); });
-  // The full appearance editor for the active shape layer; the badge and the
-  // row double-click reach it too, this button makes it discoverable.
-  vector_appearance_button_ = new QPushButton(tr("Appearance..."), toolbar);
-  vector_appearance_button_->setObjectName(QStringLiteral("vectorAppearanceButton"));
-  bind_widget_text(vector_appearance_button_, QT_TR_NOOP("Appearance..."));
-  bind_tooltip(vector_appearance_button_, QT_TR_NOOP("Edit the active shape layer's fill, stroke, opacity, and edge"));
-  vector_appearance_button_->setProperty("optionsBarButton", true);
-  vector_appearance_button_->setMinimumHeight(24);
-  vector_appearance_button_->setMaximumHeight(26);
-  add_option_widget(vector_appearance_button_, vector_appearance_tools);
-  vector_shape_mode_option_widgets_.push_back(vector_appearance_button_);
-  connect(vector_appearance_button_, &QPushButton::clicked, this, [this] { edit_active_shape_appearance(); });
-
   auto* vector_stroke_check = new CheckGlyphBox(tr("Stroke"), toolbar);
 
   bind_widget_text(vector_stroke_check, QT_TR_NOOP("Stroke"));
@@ -2462,8 +2513,9 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   vector_shape_mode_option_widgets_.push_back(vector_stroke_check);
   connect(vector_stroke_check, &QCheckBox::toggled, this, [this](bool checked) {
     current_vector_stroke_enabled_ = checked;
+    refresh_vector_stroke_controls();
     schedule_save_tool_settings();
-    apply_options_bar_appearance_to_active_shape();
+    apply_options_bar_appearance_to_active_shape({"stroke.enabled"});
   });
 
   vector_stroke_swatch_button_ = new QToolButton(toolbar);
@@ -2476,20 +2528,39 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   connect(vector_stroke_swatch_button_, &QToolButton::clicked, this,
           [this] { show_vector_paint_menu(true); });
 
+  // A thickness has no percent basis: the document extent means nothing to it.
+  const auto thickness_context = [this]() -> UnitConversionContext {
+    auto context = document_unit_context(true);
+    context.percent_reference_pixels = 0.0;
+    return context;
+  };
+  auto* vector_stroke_width_label = add_option_label(QT_TR_NOOP("Stroke width:"), vector_appearance_tools);
+  vector_stroke_width_label->setObjectName(QStringLiteral("vectorStrokeWidthLabel"));
+  vector_shape_mode_option_widgets_.push_back(vector_stroke_width_label);
   auto* vector_stroke_width = new UnitSpinBox(SpinUnit::Pixels, toolbar);
   vector_stroke_width->setObjectName(QStringLiteral("vectorStrokeWidthSpin"));
   vector_stroke_width->setRange(0.1, 1000.0);
   vector_stroke_width->setDecimals(1);
   vector_stroke_width->setValue(current_vector_stroke_width_);
+  vector_stroke_width->set_context_provider(thickness_context);
   bind_tooltip(vector_stroke_width, QT_TR_NOOP("Stroke width"));
   configure_toolbar_spinbox(vector_stroke_width, 64);
   add_option_widget(vector_stroke_width, vector_appearance_tools);
   vector_shape_mode_option_widgets_.push_back(vector_stroke_width);
+  register_ruler_unit_field(vector_stroke_width);  // print users think in mm strokes
   connect(vector_stroke_width, &QDoubleSpinBox::valueChanged, this, [this](double value) {
     current_vector_stroke_width_ = value;
     schedule_save_tool_settings();
     schedule_vector_appearance_apply();
   });
+
+  install_appearance_edit_intent(vector_stroke_width, [this, vector_stroke_width] {
+    current_vector_stroke_width_ = vector_stroke_width->value();
+    schedule_save_tool_settings();
+    schedule_vector_appearance_apply();
+  });
+  connect(vector_stroke_width, &QDoubleSpinBox::editingFinished, this,
+          [this] { finish_pending_shape_appearance_edit(); });
 
   // W / H of the ACTIVE shape layer (Photoshop's options-bar readouts): they
   // mirror the selected shape's bounds and resize it live (top-left anchored,
@@ -2533,6 +2604,11 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
       add_option_label(QT_TR_NOOP("H:"), vector_shape_size_tools));
   vector_shape_height_spin_ =
       make_shape_size_spin("vectorShapeHeightSpin", QT_TR_NOOP("Height of the active shape"));
+  // The readouts follow the ruler unit; value() stays document pixels.
+  vector_shape_width_spin_->set_context_provider(document_unit_context_provider(true));
+  vector_shape_height_spin_->set_context_provider(document_unit_context_provider(false));
+  register_ruler_unit_field(vector_shape_width_spin_);
+  register_ruler_unit_field(vector_shape_height_spin_);
   connect(vector_shape_width_spin_, &QDoubleSpinBox::valueChanged, this, [this](double value) {
     handle_vector_shape_size_value_changed(true, value);
   });
@@ -2542,15 +2618,21 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
 
   vector_vector_mode_option_widgets_.push_back(
       add_option_label(QT_TR_NOOP("Weight:"), {CanvasTool::Line}));
-  auto* vector_line_weight = new UnitIntSpinBox(SpinUnit::Pixels, toolbar);
+  // Fractional so a 0.5 mm hairline survives a ruler unit of mm; the shape
+  // model's line_weight is a double already.
+  auto* vector_line_weight = new UnitSpinBox(SpinUnit::Pixels, toolbar);
   vector_line_weight->setObjectName(QStringLiteral("vectorLineWeightSpin"));
-  vector_line_weight->setRange(1, 1000);
+  vector_line_weight->setRange(1.0, 1000.0);
+  vector_line_weight->setDecimals(1);
   vector_line_weight->setValue(current_vector_line_weight_);
+  vector_line_weight->set_context_provider(thickness_context);
   bind_tooltip(vector_line_weight, QT_TR_NOOP("Line thickness"));
+  vector_line_weight->setProperty(kToolbarSpinboxSliderCurvedProperty, true);
   configure_toolbar_spinbox(vector_line_weight, 58);
   add_option_widget(vector_line_weight, {CanvasTool::Line});
   vector_vector_mode_option_widgets_.push_back(vector_line_weight);
-  connect(vector_line_weight, &QSpinBox::valueChanged, this, [this](int value) {
+  register_ruler_unit_field(vector_line_weight);
+  connect(vector_line_weight, &QDoubleSpinBox::valueChanged, this, [this](double value) {
     current_vector_line_weight_ = value;
     schedule_save_tool_settings();
   });
@@ -2699,6 +2781,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   add_option_label(QT_TR_NOOP("Radius:"), {CanvasTool::Rectangle});
   auto* shape_corner_radius = new UnitIntSpinBox(SpinUnit::Pixels, toolbar);
   shape_corner_radius->setObjectName(QStringLiteral("shapeCornerRadiusSpin"));
+  shape_corner_radius->set_context_provider(document_unit_context_provider(true));
   shape_corner_radius->setRange(0, 512);
   shape_corner_radius->setValue(canvas_defaults->shape_corner_radius());
   bind_tooltip(shape_corner_radius, QT_TR_NOOP("Rounded-corner radius for the rectangle tool (0 = sharp corners)"));
@@ -2706,11 +2789,21 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   add_option_widget(shape_corner_radius, {CanvasTool::Rectangle});
   connect(shape_corner_radius, &QSpinBox::valueChanged, this, [this](int value) {
     current_shape_corner_radius_ = value;
+    apply_selected_shape_corner_radius(value);
     if (canvas_ != nullptr) {
       canvas_->set_shape_corner_radius(value);
       schedule_save_tool_settings();
     }
   });
+
+  install_appearance_edit_intent(shape_corner_radius, [this, shape_corner_radius] {
+    current_shape_corner_radius_ = shape_corner_radius->value();
+    apply_selected_shape_corner_radius(current_shape_corner_radius_);
+    if (canvas_ != nullptr) canvas_->set_shape_corner_radius(current_shape_corner_radius_);
+    schedule_save_tool_settings();
+  });
+  connect(shape_corner_radius, &QSpinBox::editingFinished, this,
+          [this] { finish_pending_shape_appearance_edit(); });
 
   // Style / Width / Height for the shape draw tools, mirroring the marquee's
   // Normal / Fixed Ratio / Fixed Size options (session-only, like the marquee's).
@@ -2789,6 +2882,18 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   });
   apply_shape_style_settings();
 
+  // Extra settings follow every shape-specific control at the end of the row.
+  vector_appearance_button_ = new QPushButton(tr("Appearance..."), toolbar);
+  vector_appearance_button_->setObjectName(QStringLiteral("vectorAppearanceButton"));
+  bind_widget_text(vector_appearance_button_, QT_TR_NOOP("Appearance..."));
+  bind_tooltip(vector_appearance_button_, QT_TR_NOOP("Edit the active shape layer's fill, stroke, opacity, and edge"));
+  vector_appearance_button_->setProperty("optionsBarButton", true);
+  vector_appearance_button_->setMinimumHeight(24);
+  vector_appearance_button_->setMaximumHeight(26);
+  add_option_widget(vector_appearance_button_, vector_appearance_tools);
+  vector_shape_mode_option_widgets_.push_back(vector_appearance_button_);
+  connect(vector_appearance_button_, &QPushButton::clicked, this, [this] { edit_active_shape_appearance(); });
+
   // Fill tool / Fill hotkey settings (independent of the brush; default 100% opacity, 0 softness).
   add_option_label(QT_TR_NOOP("Opacity:"), {CanvasTool::Fill});
   auto* fill_opacity = new QSpinBox(toolbar);
@@ -2836,6 +2941,116 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
       schedule_save_tool_settings();
     }
   });
+  // Tolerance and Contiguous belong to the Fill tool's flood only (the Fill command fills the
+  // whole selection). Same metric and range as the Magic Wand's Tol.
+  add_option_label(QT_TR_NOOP("Tol:"), {CanvasTool::Fill});
+  auto* fill_tolerance = new QSpinBox(toolbar);
+  fill_tolerance->setObjectName(QStringLiteral("fillToleranceSpin"));
+  fill_tolerance->setRange(0, 255);
+  fill_tolerance->setValue(canvas_defaults->fill_tolerance());
+  configure_toolbar_spinbox(fill_tolerance, 46);
+  bind_tooltip(fill_tolerance,
+               QT_TR_NOOP("How far a pixel's color may differ from the clicked color and still be filled"));
+  add_option_widget(fill_tolerance, {CanvasTool::Fill});
+  connect(fill_tolerance, &QSpinBox::valueChanged, this, [this](int value) {
+    if (canvas_ != nullptr) {
+      canvas_->set_fill_tolerance(value);
+      schedule_save_tool_settings();
+    }
+  });
+  fill_contiguous_check_ = new CheckGlyphBox(tr("Contiguous"), toolbar);
+  fill_contiguous_check_->setObjectName(QStringLiteral("fillContiguousCheck"));
+  fill_contiguous_check_->setChecked(canvas_defaults->fill_contiguous());
+  bind_tooltip(fill_contiguous_check_, QT_TR_NOOP("Limit the fill to pixels connected to the click"));
+  add_option_widget(fill_contiguous_check_, {CanvasTool::Fill});
+  connect(fill_contiguous_check_, &QCheckBox::toggled, this, [this](bool checked) {
+    if (canvas_ != nullptr) {
+      canvas_->set_fill_contiguous(checked);
+      save_tool_settings();
+    }
+  });
+
+  // Zoom tool options (docs/view-navigation.md), Photoshop's row: the Zoom In /
+  // Zoom Out click direction (tools/zoomToolZoomsOut; Alt inverts it), Scrubby
+  // Zoom, then the 100% / Fit Screen / Fill Screen view presets. Every widget
+  // carries optionsBarAllowedWhileLocked: the Zoom tool works while a preview
+  // dialog locks editing, so its row stays enabled then (refresh_options_bar).
+  const auto allow_while_locked = [](QWidget* widget) {
+    widget->setProperty("optionsBarAllowedWhileLocked", true);
+  };
+  zoom_in_mode_action_ =
+      add_option_action(simple_icon(QStringLiteral("zoomIn")), QT_TR_NOOP("Zoom In"), {CanvasTool::Zoom});
+  zoom_in_mode_action_->setObjectName(QStringLiteral("zoomInModeAction"));
+  allow_while_locked(option_actions_.back().first);
+  zoom_out_mode_action_ =
+      add_option_action(simple_icon(QStringLiteral("zoomOut")), QT_TR_NOOP("Zoom Out"), {CanvasTool::Zoom});
+  zoom_out_mode_action_->setObjectName(QStringLiteral("zoomOutModeAction"));
+  allow_while_locked(option_actions_.back().first);
+  auto* zoom_mode_group = new QActionGroup(this);
+  zoom_mode_group->setExclusive(true);
+  for (auto* action : {zoom_in_mode_action_, zoom_out_mode_action_}) {
+    action->setCheckable(true);
+    zoom_mode_group->addAction(action);
+  }
+  zoom_in_mode_action_->setChecked(!canvas_defaults->zoom_tool_zooms_out());
+  zoom_out_mode_action_->setChecked(canvas_defaults->zoom_tool_zooms_out());
+  connect(zoom_mode_group, &QActionGroup::triggered, this, [this](QAction* action) {
+    const bool zooms_out = action == zoom_out_mode_action_;
+    current_zoom_tool_zooms_out_ = zooms_out;
+    if (canvas_ != nullptr) {
+      canvas_->set_zoom_tool_zooms_out(zooms_out);
+      save_tool_settings();
+    }
+  });
+  add_option_separator({CanvasTool::Zoom});
+  // Scrubby Zoom (GitHub issue 51, Photoshop's gesture): a persisted view
+  // preference (tools/zoomScrubby, default off) mirrored into every session
+  // canvas.
+  zoom_scrubby_check_ = new CheckGlyphBox(tr("Scrubby Zoom"), toolbar);
+  allow_while_locked(zoom_scrubby_check_);
+  zoom_scrubby_check_->setObjectName(QStringLiteral("zoomScrubbyCheck"));
+  zoom_scrubby_check_->setChecked(canvas_defaults->zoom_scrubby());
+  bind_tooltip(zoom_scrubby_check_,
+               QT_TR_NOOP("Drag right to zoom in and left to zoom out around the point you pressed. "
+                          "Off: drag a rectangle to zoom to it"));
+  add_option_widget(zoom_scrubby_check_, {CanvasTool::Zoom});
+  connect(zoom_scrubby_check_, &QCheckBox::toggled, this, [this](bool checked) {
+    current_zoom_scrubby_ = checked;
+    if (canvas_ != nullptr) {
+      canvas_->set_zoom_scrubby(checked);
+      save_tool_settings();
+    }
+  });
+  add_option_separator({CanvasTool::Zoom});
+  // The view presets call the canvas directly (the View menu actions do the
+  // same), so the row does not depend on the menu build order.
+  const auto add_zoom_view_button = [this, toolbar, add_option_widget, allow_while_locked](
+                                        const char* source, const QString& object_name, const char* tooltip,
+                                        std::function<void(CanvasWidget&)> apply) {
+    auto* button = new QPushButton(tr(source), toolbar);
+    button->setObjectName(object_name);
+    bind_tooltip(button, tooltip);
+    allow_while_locked(button);
+    add_option_widget(button, {CanvasTool::Zoom});
+    connect(button, &QPushButton::clicked, this, [this, apply] {
+      if (canvas_ != nullptr) {
+        apply(*canvas_);
+      }
+    });
+    return button;
+  };
+  zoom_actual_pixels_button_ =
+      add_zoom_view_button(QT_TR_NOOP("100%"), QStringLiteral("zoomActualPixelsButton"),
+                           QT_TR_NOOP("Show the image at actual pixels (View > Actual Pixels)"),
+                           [](CanvasWidget& canvas) { canvas.set_view_zoom_centered(1.0); });
+  zoom_fit_screen_button_ =
+      add_zoom_view_button(QT_TR_NOOP("Fit Screen"), QStringLiteral("zoomFitScreenButton"),
+                           QT_TR_NOOP("Fit the whole image in the window (View > Fit on Screen)"),
+                           [](CanvasWidget& canvas) { canvas.fit_to_view(); });
+  zoom_fill_screen_button_ =
+      add_zoom_view_button(QT_TR_NOOP("Fill Screen"), QStringLiteral("zoomFillScreenButton"),
+                           QT_TR_NOOP("Zoom until the image fills the window (View > Fill Screen)"),
+                           [](CanvasWidget& canvas) { canvas.fill_to_view(); });
 
   add_option_label(QT_TR_NOOP("Font:"), {CanvasTool::Text});
   text_font_combo_ = new FontPickerCombo(toolbar);
@@ -2861,6 +3076,10 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   });
   text_size_spin_->setDecimals(3);
   text_size_spin_->setRange(0.01, 10000.0);
+  // Applies on Enter, focus loss or a step, like the Character panel fields: with no session
+  // every value change commits a re-render of each selected text layer as an undo step, so
+  // typing "120" must not land three of them.
+  text_size_spin_->setKeyboardTracking(false);
   // Typing accepts up to 10000 pt, but the popup slider stays usable at 0..200.
   text_size_spin_->setProperty(kToolbarSpinboxSliderMaxProperty, 200.0);
   text_size_spin_->setSingleStep(0.25);
@@ -2962,6 +3181,14 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   text_character_button_->setFocusPolicy(Qt::NoFocus);
   add_option_widget(text_character_button_, {CanvasTool::Text});
   connect(text_character_button_, &QPushButton::clicked, this, [this] { open_text_character_dialog(); });
+  // Paragraph panel: same live-session rules as the Character panel (Qt::NoFocus).
+  text_paragraph_button_ = new QPushButton(tr("Paragraph..."), toolbar);
+  bind_widget_text(text_paragraph_button_, QT_TR_NOOP("Paragraph..."));
+  text_paragraph_button_->setObjectName(QStringLiteral("textParagraphButton"));
+  bind_tooltip(text_paragraph_button_, QT_TR_NOOP("Paragraph panel (alignment, indents, spacing)"));
+  text_paragraph_button_->setFocusPolicy(Qt::NoFocus);
+  add_option_widget(text_paragraph_button_, {CanvasTool::Text});
+  connect(text_paragraph_button_, &QPushButton::clicked, this, [this] { open_text_paragraph_dialog(); });
   connect(text_font_combo_, &QFontComboBox::currentFontChanged, this, [this](const QFont& chosen) {
     // Repopulate before applying: apply_text_family_to_active_editor renders with the style the
     // combo is showing, and the outgoing family's style list may not contain it.
@@ -3023,6 +3250,11 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   options_flow->addWidget(text_cancel_button_);
   connect(text_apply_button_, &QPushButton::clicked, this, [this] { commit_active_text_editor(); });
   connect(text_cancel_button_, &QPushButton::clicked, this, [this] { cancel_active_text_editor(); });
+
+  // Every "Label:" before a numeric field is that field's scrub handle
+  // (GitHub issue 46; install_scrub_labels_in pairs them by layout order, nested
+  // groups such as Feather included, so a new label+field pair opts in by itself).
+  install_scrub_labels_in(options_content);
 
   // Export the cross-phase locals bind_action_translations() still needs.
   ctx.options_toolbar = toolbar;

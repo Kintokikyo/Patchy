@@ -1,4 +1,6 @@
-1060fc12b49b796d arrows.psd
+6f50c979881371c1 arrows.psd
+7b0b17b25ffc630d patchy-compound-group.psd
+82b3b2f76a478139 patchy-gradient-empty-transparency.psd
 d416c48ba5c4bc3d patchy-open-path-strokes.psd
 db597474773a16b5 photoshop-bevel-default.psd
 4f9d639a6c4e7af3 photoshop-bevel-gloss.psd
@@ -12,10 +14,12 @@ f85231cf2f579c75 photoshop-both-masks-params.psd
 01f79d9a7acab8f5 photoshop-brightness-contrast-legacy.psd
 b7070b9de475b945 photoshop-brightness-contrast-modern.psd
 241f758e61704165 photoshop-channel-restrictions.psd
+3ea89ceacb80d1b5 photoshop-clip-base-effects.psd
 745dac33488e4c25 photoshop-clipping-mask.psd
 5eb6a1308b31a4eb photoshop-cmyk-style-colors.psd
 3a35db9013be5915 photoshop-color-balance-full.psd
 3a35db9013be5915 photoshop-color-balance.psd
+c6dfa66168a0e490 photoshop-compound-text.psd
 48484118f51d9c65 photoshop-curves-clipped.psd
 60373566b39eefe5 photoshop-curves-masked.psd
 2621b901bd1dc22d photoshop-emboss-styles.psd
@@ -50,7 +54,7 @@ ee0cbe9a8f18bac5 photoshop-pattern-transparent.psd
 010d39bf542aecf1 photoshop-pillow-emboss.psd
 75eb76c4bd30efb0 photoshop-pillow-emboss2.psd
 f2bf42dce8c3d975 photoshop-place-embedded-png.psd
-6172dacee58c68f5 photoshop-posterize.psd
+42c85c4798ac2b3d photoshop-posterize.psd
 42d2427096581787 photoshop-satin-default.psd
 6d766669eb7987e5 photoshop-saved-channels.psd
 fe4ec469d4f39325 photoshop-saved-paths.psd
@@ -63,6 +67,7 @@ d92d8e4b3e001513 photoshop-shape-live-rect.psd
 ac08986158b2bf56 photoshop-shape-pattern.psd
 8c1dd51eb6355d53 photoshop-shape-solid.psd
 3c72c11a14a9a94f photoshop-shape-strokes.psd
+14911349c5e35d82 photoshop-size-zero-effects.psd
 89f51fd5a4313af5 photoshop-smart-filter-add-noise-gaussian.psd
 b24cbcd2a9f6f68a photoshop-smart-filter-add-noise.psd
 ec07eaf898b0a29d photoshop-smart-filter-box-blur.psd
@@ -82,10 +87,10 @@ c0a39197fc4785c3 photoshop-smart-filter-radial-blur.psd
 f2bf42dce8c3d975 photoshop-smart-filter-surface-blur.psd
 9a1663806ac7eb76 photoshop-smart-filter-tilt-shift.psd
 774b771808c21f09 photoshop-smart-filter-unsharp-motion.psd
-ad771860686f8ee9 photoshop-stroke-aa-matte.psd
+fae153247444d536 photoshop-stroke-aa-matte.psd
 1aef2000219e220d photoshop-stroke-masked.psd
-1a3f7cf93ff56ff9 photoshop-stroke-overprint.psd
-fa21f1110746d111 photoshop-stroke-partial-alpha.psd
+700fc0a254417579 photoshop-stroke-overprint.psd
+342ed7cddef82515 photoshop-stroke-partial-alpha.psd
 16835e195f6491ed photoshop-stroke-positions.psd
 17f41a2d949ef82e photoshop-stroke-shapeburst.psd
 9d6ce1e6cb3c5e8b photoshop-text-anchor-center-third.psd

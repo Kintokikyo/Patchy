@@ -4,6 +4,7 @@
 // identical to the pre-split code. See docs/palette-mode.md before changing anything here.
 
 #include "ui/main_window.hpp"
+#include "formats/webp_animation_io.hpp"
 
 #include "core/layer_metadata.hpp"
 #include "core/layer_render_utils.hpp"
@@ -206,10 +207,6 @@
 #include <dwmapi.h>
 #include <tchar.h>
 #include <tpcshrd.h>
-#endif
-
-#ifndef PATCHY_VERSION
-#define PATCHY_VERSION "0.0.0"
 #endif
 
 // Icon resources live in the static patchy_ui library; force registration before first use.
@@ -617,6 +614,14 @@ void MainWindow::save_palette_to_file() {
 
 ImageSaveOptions MainWindow::image_save_defaults_for_document() {
   auto options = load_image_save_option_defaults();
+  if (has_active_document()) {
+    const auto& values = std::as_const(document()).metadata().values;
+    if (const auto found = values.find(webp::kLoopCountMetadata); found != values.end()) {
+      bool valid = false;
+      const auto count = QString::fromStdString(found->second).toInt(&valid);
+      if (valid && count >= 0 && count <= 65535) options.webp_loop_count = count;
+    }
+  }
   if (has_active_document() && document().palette_editing().has_value() &&
       !document().palette_editing()->palette.colors.empty()) {
     const auto count = document().palette_editing()->palette.colors.size();
@@ -688,6 +693,9 @@ ImageSaveOptions MainWindow::image_save_defaults_for_document() {
 
 void MainWindow::persist_image_save_defaults(const ImageSaveOptions& options) {
   auto to_save = options;
+  if (has_active_document() && options.webp_animate) {
+    document().metadata().values[webp::kLoopCountMetadata] = std::to_string(options.webp_loop_count);
+  }
   if (has_active_document() && document().palette_editing().has_value()) {
     // The indexed BMP choices were driven by this document's palette; keep the
     // user's own BMP defaults for everything else.
@@ -858,6 +866,7 @@ void MainWindow::snap_layers_to_palette(bool active_layer_only) {
   if (snap == nullptr || snap->lut == nullptr) {
     return;
   }
+  select_only_layer_if_none_active();
   const auto& current_doc = std::as_const(document());
   const bool would_rewrite_smart_object = [&] {
     if (!active_layer_only) {

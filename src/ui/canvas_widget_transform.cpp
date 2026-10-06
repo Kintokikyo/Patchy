@@ -161,6 +161,45 @@ bool layer_needs_composited_transform_preview(const Layer& layer) {
          (layer.layer_style().effects_visible && !layer.layer_style().empty());
 }
 
+// Composite order is storage order bottom-up, depth-first through groups; `found`
+// flips when the walk passes the target, and any visible non-group layer visited
+// after that draws over it.
+bool visible_content_composites_above(const std::vector<Layer>& layers, LayerId id, bool& found) {
+  for (const auto& layer : layers) {
+    if (layer.id() == id) {
+      found = true;
+      continue;
+    }
+    if (!layer.visible()) {
+      continue;
+    }
+    if (layer.kind() == LayerKind::Group) {
+      if (visible_content_composites_above(layer.children(), id, found)) {
+        return true;
+      }
+      continue;
+    }
+    if (found) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// GitHub issue 72: the plain source blit paints the transformed layer over a base
+// that only hid the layer, so everything composited above it sat underneath the
+// preview for the whole drag (a shape under other layers looked as if it had
+// jumped to the top until commit). Any visible content above the target sends
+// the session down the stacked-patch path, which renders the real order.
+bool layer_has_visible_content_above(const Document& document, LayerId id) {
+  bool found = false;
+  return visible_content_composites_above(document.layers(), id, found);
+}
+
+bool transform_preview_needs_compositing(const Document& document, const Layer& layer) {
+  return layer_needs_composited_transform_preview(layer) || layer_has_visible_content_above(document, layer.id());
+}
+
 // Smallest sub-rect of a gray8 mask buffer holding every pixel that differs
 // from `default_color`; empty when the whole buffer reads as the default.
 QRect non_default_mask_local_rect(const PixelBuffer& pixels, std::uint8_t default_color) {
@@ -939,7 +978,7 @@ bool CanvasWidget::begin_free_transform() {
   transform_proxy_image_ = QImage();
   transform_mask_sources_.clear();
   transform_proxy_layer_opacity_ = 1.0;
-  transform_requires_composited_preview_ = layer_needs_composited_transform_preview(*layer);
+  transform_requires_composited_preview_ = transform_preview_needs_compositing(*document_, *layer);
   setCursor(Qt::ArrowCursor);
   update();
   notify_transform_controls_changed();
@@ -1037,8 +1076,9 @@ CanvasWidget::TransformTargetCollection CanvasWidget::collect_free_transform_tar
     }
     if (layer_is_smart_object(layer) && !smart_object_placement_from_layer(layer).has_value()) {
       // Preview-locked-but-parsed smart objects (non-affine quads, unsupported
-      // warps, external, legacy) ARE transformable: their quads map per corner
-      // and the resampled pixels stand in for the re-render, like Photoshop.
+      // warps, external, legacy) ARE transformable: their quads map per corner;
+      // a linked one re-renders from its file, the others keep the resampled
+      // pixels in place of a re-render, like Photoshop.
       // Without a parsed quad nothing can ride the transform, so refuse.
       collection.refusal =
           tr("This smart object is preview-only and can't be transformed. Rasterize the layer first.");
@@ -1535,7 +1575,7 @@ void CanvasWidget::rebuild_transform_base_cache() {
   const QRect canvas_rect(0, 0, document_->width(), document_->height());
   // Display-resolution compositing: when zoomed out, build the base from the
   // preview-scaled document (4^level less work than a full-res canvas).
-  if (const auto composite_level = preview_composite_level_for_zoom(zoom_); composite_level >= 1) {
+  if (const auto composite_level = preview_composite_level_for_zoom(view_zoom()); composite_level >= 1) {
     if (auto* scaled_document = preview_scaled_document_for_level(composite_level)) {
       const QRect scaled_canvas(0, 0, scaled_document->width(), scaled_document->height());
       auto base = qimage_from_document_rect_with_hidden_layers_banded(*scaled_document, scaled_canvas, true, hidden)
@@ -1599,7 +1639,7 @@ bool CanvasWidget::ensure_transform_multi_snapshot() {
   if (snapshot_rect.isEmpty()) {
     return false;
   }
-  const auto composite_level = preview_composite_level_for_zoom(zoom_);
+  const auto composite_level = preview_composite_level_for_zoom(view_zoom());
   Document* scaled_document = composite_level >= 1 ? preview_scaled_document_for_level(composite_level) : nullptr;
   if (scaled_document != nullptr) {
     snapshot_rect = rect_aligned_to_mip_grid(snapshot_rect, composite_level).intersected(canvas_rect);
@@ -2118,7 +2158,7 @@ void CanvasWidget::refresh_free_transform_preview_caches() {
   // needs compositing at all) must be rebuilt from the current document state.
   // The base cache rebuilds in BOTH regimes: the composited preview now draws
   // patches over it instead of a full-canvas recomposite.
-  transform_requires_composited_preview_ = layer_needs_composited_transform_preview(*layer);
+  transform_requires_composited_preview_ = transform_preview_needs_compositing(*document_, *layer);
   rebuild_transform_base_cache();
   refresh_transform_composited_preview_cache();
   if (isVisible()) {
@@ -2199,6 +2239,24 @@ std::optional<CanvasWidget::DragReadout> CanvasWidget::transform_drag_readout() 
     return std::nullopt;
   }
   DragReadout readout;
+  if (dragging_guide_) {
+    // Guide drag: the guide's position in the ruler unit, measured the way the
+    // ruler along its axis measures it. Nothing while the drop would remove it.
+    if (document_ == nullptr || guide_drag_remove_) {
+      return std::nullopt;
+    }
+    const bool vertical = guide_drag_orientation_ == GuideOrientation::Vertical;
+    const auto pixels = static_cast<double>(guide_drag_position_32_) / 32.0;
+    const auto value = pixels / std::max(ruler_pixels_per_unit(vertical), 1e-9);
+    // Guides sit on 1/32 px steps: whole pixels print plainly, fractions with two places.
+    const auto decimals = ruler_unit_ == MeasurementUnit::Pixels
+                              ? (guide_drag_position_32_ % 32 == 0 ? 0 : 2)
+                              : measurement_unit_decimals(ruler_unit_);
+    const auto position = format_measurement(value, ruler_unit_, decimals);
+    readout.lines << (vertical ? tr("Guide X: %1") : tr("Guide Y: %1")).arg(position);
+    readout.canvas_lines << (vertical ? tr("X: %1") : tr("Y: %1")).arg(position);
+    return readout;
+  }
   if (moving_layer_ && move_readout_base_rect_.has_value()) {
     // Move drag: the reference point of the moving set's box, plus the delta.
     const auto rect = move_readout_base_rect_->translated(QPointF(move_preview_delta_));
@@ -3068,6 +3126,7 @@ void CanvasWidget::commit_free_transform_multi() {
   }
 
   bool smart_filter_rerender_failed = false;
+  bool rerender_kept_resampled = false;  // a linked file could not be re-read; its resampled pixels stay
   if (changed) {
     for (const auto& target : transform_targets_) {
       auto* layer = document_->find_layer(target.id);
@@ -3126,15 +3185,21 @@ void CanvasWidget::commit_free_transform_multi() {
           store_smart_object_placement(*layer, updated);
           mark_layer_smart_object_block_dirty(*layer);
           layer->metadata()[kLayerMetadataSmartObjectRasterStatus] = kSmartObjectRasterStatusPatchy;
-          if (smart_object_lock_reason(*layer).empty()) {
+          // Editable and LINKED ("external") placements re-render from their source
+          // (the host resolves the linked file; a vector file rasterizes at the new
+          // scale). A missing or unreadable linked file leaves the resampled pixels
+          // committed above in place, and the host reports the file.
+          if (const auto lock = smart_object_lock_reason(*layer); lock.empty() || lock == "external") {
             if (smart_object_transform_render_callback_ && smart_object_transform_render_callback_(target.id)) {
               // Bounds refreshed by the re-render.
             } else if (transactional_smart_filter) {
               smart_filter_rerender_failed = true;
+            } else {
+              rerender_kept_resampled = true;
             }
           }
-          // Preview-locked layers keep the resampled pixels (no re-render
-          // exists); the mapped quads keep the SoLd geometry consistent.
+          // Warp-, filter- and legacy-locked layers keep the resampled pixels (no
+          // re-render exists); the mapped quads keep the SoLd geometry consistent.
         } else if (transactional_smart_filter) {
           smart_filter_rerender_failed = true;
         }
@@ -3186,7 +3251,9 @@ void CanvasWidget::commit_free_transform_multi() {
   disarm_transform_commit_hold_if_settled();
   if (smart_filter_rerender_failed) {
     report_status_error(tr("Could not rebuild the Smart Filter preview and cache"));
-  } else if (status_callback_) {
+  } else if (status_callback_ && !rerender_kept_resampled) {
+    // A kept resampled preview leaves the host's report (the missing linked file) on
+    // the status bar instead of announcing plain success.
     status_callback_(changed ? tr("Transformed layers") : tr("Free Transform cancelled"));
   }
   notify_transform_controls_changed();
@@ -3307,7 +3374,10 @@ bool CanvasWidget::begin_warp_transform() {
                            "convert to a smart object or rasterize first."));
     return false;
   }
-  if (layer_is_smart_object(*layer) && !smart_object_lock_reason(*layer).empty()) {
+  // A linked ("external") placement warps like an embedded one: its file is the
+  // source. Warp, filter and legacy locks have no source to bake from.
+  if (const auto lock = layer_is_smart_object(*layer) ? smart_object_lock_reason(*layer) : std::string();
+      !lock.empty() && lock != "external") {
     report_status_error(tr("This smart object is preview-only and can't be warped. Rasterize the layer first."));
     return false;
   }
@@ -3324,9 +3394,18 @@ bool CanvasWidget::begin_warp_transform() {
     const auto uuid = smart_object_source_uuid(*layer);
     const auto* source =
         placement.has_value() ? document_->metadata().smart_objects.find(uuid) : nullptr;
-    auto decoded = source != nullptr ? decode_smart_object_source_image(*source) : std::nullopt;
+    // The host resolves a linked file against the document's folder; without a host
+    // only embedded bytes decode.
+    QString decode_error;
+    std::optional<QImage> decoded;
+    if (source != nullptr) {
+      decoded = smart_object_source_image_callback_
+                    ? smart_object_source_image_callback_(layer->id(), &decode_error)
+                    : decode_smart_object_source_image(*source);
+    }
     if (!placement.has_value() || !decoded.has_value() || decoded->isNull()) {
-      report_status_error(tr("This smart object's contents can't be decoded for warping"));
+      report_status_error(decode_error.isEmpty() ? tr("This smart object's contents can't be decoded for warping")
+                                                 : decode_error);
       return false;
     }
     warp_content_width_ = placement->width > 0.0 ? placement->width : decoded->width();
@@ -3530,7 +3609,7 @@ bool CanvasWidget::prepare_warp_source() {
     // zoom <= 50% composited from the preview-scaled document.
     warp_base_cache_scale_level_ = 0;
     const std::vector<LayerId> hidden{*warp_layer_id_};
-    if (const auto composite_level = preview_composite_level_for_zoom(zoom_); composite_level >= 1) {
+    if (const auto composite_level = preview_composite_level_for_zoom(view_zoom()); composite_level >= 1) {
       if (auto* scaled_document = preview_scaled_document_for_level(composite_level)) {
         const QRect scaled_canvas(0, 0, scaled_document->width(), scaled_document->height());
         auto base = qimage_from_document_rect_with_hidden_layers_banded(*scaled_document, scaled_canvas, true, hidden)
@@ -3888,7 +3967,7 @@ bool CanvasWidget::switch_warp_to_free_transform() {
   transform_proxy_image_ = QImage();
   transform_mask_sources_.clear();
   transform_proxy_layer_opacity_ = 1.0;
-  transform_requires_composited_preview_ = layer_needs_composited_transform_preview(*layer);
+  transform_requires_composited_preview_ = transform_preview_needs_compositing(*document_, *layer);
   rebuild_transform_base_cache();
   if (transform_requires_composited_preview_) {
     refresh_transform_composited_preview_cache();
