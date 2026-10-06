@@ -190,7 +190,7 @@ Note:  All included textures/materials are real images taken by humans, not AI g
 
 AI has reached the point where you can use your favorite AI agent to add the missing feature you want.
 
-Just give it the link to this repo and say "Add .tiff support" and after a bit, it will be done and working on your computer.  Amazing, right?
+Just give it the link to this repo and tell it "read AGENTS.md and add feature X to this project".  It will read the code, read the tests, and add the feature.
 
 I mean, that's kind the power of open source, amplified.
 
