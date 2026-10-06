@@ -1038,6 +1038,30 @@ jobs:
             -DQT_ANDROID_SIGN_APK=ON
 
       # ================================================================
+      # UPDATE PATCHY TRANSLATIONS
+      # ================================================================
+      - name: Update Patchy translations
+        run: |
+          echo "===== UPDATE PATCHY TRANSLATIONS ====="
+
+          cmake --build build/android-release \
+            --target patchy_update_translations \
+            --parallel 2
+
+          echo ""
+          echo "===== TRANSLATION FILES ====="
+
+          git status --short translations
+
+          echo ""
+          echo "===== TRANSLATION DIFF ====="
+
+          git diff --stat -- translations
+
+          echo ""
+          echo "Patchy translations updated."
+
+      # ================================================================
       # BUILD APK
       # ================================================================
       - name: Build APK
