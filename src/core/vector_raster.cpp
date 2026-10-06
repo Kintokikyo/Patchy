@@ -1106,8 +1106,57 @@ void update_vector_shape_raster(Layer& layer, Rect canvas, const PatternStore* p
   auto updated = *shape;
   updated.fill_cache = std::move(raster.fill_pixels);
   updated.stroke_cache = std::move(raster.stroke_pixels);
+  updated.effect_matte_cache = std::move(raster.matte_pixels);
   layer.set_vector_shape(std::move(updated));
   layer.metadata()[kLayerMetadataVectorRasterStatus] = kVectorRasterStatusPatchy;
+}
+
+void refresh_vector_shape_effect_matte(Layer& layer, Rect canvas, const PatternStore* patterns) {
+  const auto* shape = std::as_const(layer).vector_shape();
+  if (shape == nullptr) {
+    return;
+  }
+  const auto& pixels = std::as_const(layer).pixels();
+  const auto bounds = layer.bounds();
+  PixelBuffer matte;
+  // Only a gradient or pattern fill can be transparent inside its own coverage.
+  const auto paints_unevenly = [](const VectorFill& fill) {
+    return fill.kind == VectorFillKind::Gradient || fill.kind == VectorFillKind::Pattern;
+  };
+  const bool candidate_shape = shape->parts.empty() && paints_unevenly(shape->fill);
+  if (candidate_shape && !pixels.empty() && pixels.format() == PixelFormat::rgba8()) {
+    const auto domain = shape_bake_domain(*shape, canvas);
+    const VectorPaintBounds paint_bounds{canvas, std::nullopt, std::nullopt};
+    const bool extended = domain.x != canvas.x || domain.y != canvas.y || domain.width != canvas.width ||
+                          domain.height != canvas.height;
+    const auto raster = rasterize_vector_shape(*shape, domain, patterns, &layer, extended ? &paint_bounds : nullptr);
+    const auto overlap = intersect_rects(raster.bounds, bounds);
+    if (!raster.matte_pixels.empty() && !overlap.empty()) {
+      // The kept pixels supply the colors and their own alpha; the bake supplies the
+      // coverage wherever the two rasters overlap.
+      PixelBuffer candidate = pixels;
+      bool differs = false;
+      for (std::int32_t y = overlap.y; y < overlap.y + overlap.height; ++y) {
+        const auto* source = std::as_const(raster.matte_pixels).pixel(overlap.x - raster.bounds.x, y - raster.bounds.y);
+        auto* target = candidate.pixel(overlap.x - bounds.x, y - bounds.y);
+        for (std::int32_t x = 0; x < overlap.width; ++x, source += 4, target += 4) {
+          if (source[3] > target[3]) {
+            target[3] = source[3];
+            differs = true;
+          }
+        }
+      }
+      if (differs) {
+        matte = std::move(candidate);
+      }
+    }
+  }
+  if (matte.empty() && shape->effect_matte_cache.empty()) {
+    return;
+  }
+  auto updated = *shape;
+  updated.effect_matte_cache = std::move(matte);
+  layer.set_vector_shape(std::move(updated));
 }
 
 namespace {
@@ -1267,6 +1316,7 @@ void feather_shape_raster(ShapeRasterResult& result, const std::array<std::int32
     result.pixels = PixelBuffer();
     result.fill_pixels = PixelBuffer();
     result.stroke_pixels = PixelBuffer();
+    result.matte_pixels = PixelBuffer();
     return;
   }
   const auto process = [&](PixelBuffer& pixels) {
@@ -1278,6 +1328,7 @@ void feather_shape_raster(ShapeRasterResult& result, const std::array<std::int32
   process(result.pixels);
   process(result.fill_pixels);
   process(result.stroke_pixels);
+  process(result.matte_pixels);
   result.bounds = clip;
 }
 
@@ -1473,6 +1524,9 @@ ShapeRasterResult rasterize_vector_shape(const VectorShapeContent& content, Rect
         }
       }
     }
+    // A compound (merged, Patchy-only) shape keeps its painted alpha as the effect
+    // silhouette: its parts carry their own opacities, Photoshop has no such layer
+    // to calibrate against, and the vector preview composes it from those parts.
     return result;
   }
   VectorRasterOptions options;
@@ -1616,6 +1670,54 @@ ShapeRasterResult rasterize_vector_shape(const VectorShapeContent& content, Rect
           dest[channel] = static_cast<std::uint8_t>(std::clamp<long>(std::lround(blended), 0L, 255L));
         }
         dest[3] = static_cast<std::uint8_t>(std::clamp<long>(std::lround(out_alpha * 255.0), 0L, 255L));
+      }
+    }
+  }
+  // The effect silhouette: coverage in place of painted alpha, kept only where a
+  // gradient or pattern fill made the two differ (ShapeRasterResult::matte_pixels).
+  if (fill_on && (content.fill.kind == VectorFillKind::Gradient || content.fill.kind == VectorFillKind::Pattern)) {
+    PixelBuffer matte = result.pixels;
+    auto* matte_bytes = matte.data().data();
+    const auto matte_stride = matte.stride_bytes();
+    bool differs = false;
+    const auto raise_to = [&](const CoverageBuffer& coverage) {
+      if (coverage.bounds.empty()) {
+        return;
+      }
+      const auto* cover_bytes = std::as_const(coverage.pixels).data().data();
+      const auto cover_stride = coverage.pixels.stride_bytes();
+      for (std::int32_t y = 0; y < coverage.bounds.height; ++y) {
+        const auto* cover_row = cover_bytes + static_cast<std::size_t>(y) * cover_stride;
+        auto* row = matte_bytes + static_cast<std::size_t>(coverage.bounds.y - bounds.y + y) * matte_stride +
+                    static_cast<std::size_t>(coverage.bounds.x - bounds.x) * 4;
+        for (std::int32_t x = 0; x < coverage.bounds.width; ++x) {
+          if (cover_row[x] > row[static_cast<std::size_t>(x) * 4 + 3]) {
+            row[static_cast<std::size_t>(x) * 4 + 3] = cover_row[x];
+            differs = true;
+          }
+        }
+      }
+    };
+    raise_to(fill_coverage);
+    const bool fill_differs = differs;
+    raise_to(stroke_coverage);
+    if (differs) {
+      result.matte_pixels = std::move(matte);
+    }
+    // The split fill plane is what interior overlays cover; they cover the fill's
+    // whole coverage too, so its alpha becomes that coverage.
+    if (fill_differs && !result.fill_pixels.empty() && !fill_coverage.bounds.empty()) {
+      auto* fill_bytes = result.fill_pixels.data().data();
+      const auto fill_stride = result.fill_pixels.stride_bytes();
+      const auto* cover_bytes = std::as_const(fill_coverage.pixels).data().data();
+      const auto cover_stride = fill_coverage.pixels.stride_bytes();
+      for (std::int32_t y = 0; y < fill_coverage.bounds.height; ++y) {
+        const auto* cover_row = cover_bytes + static_cast<std::size_t>(y) * cover_stride;
+        auto* row = fill_bytes + static_cast<std::size_t>(fill_coverage.bounds.y - bounds.y + y) * fill_stride +
+                    static_cast<std::size_t>(fill_coverage.bounds.x - bounds.x) * 4;
+        for (std::int32_t x = 0; x < fill_coverage.bounds.width; ++x) {
+          row[static_cast<std::size_t>(x) * 4 + 3] = std::max(row[static_cast<std::size_t>(x) * 4 + 3], cover_row[x]);
+        }
       }
     }
   }

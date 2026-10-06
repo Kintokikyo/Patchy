@@ -1186,6 +1186,9 @@ void compositor_interior_overlay_knocks_out_semi_transparent_fill() {
   CHECK(std::abs(static_cast<int>(px[2]) - 255) <= 1);
 }
 
+// Share of a probe's painted pixels allowed to differ from Photoshop by more than 24.
+constexpr double kShapeEffectProbeTolerance = 0.02;
+
 patchy::Layer make_stroked_shape_layer(patchy::Document& document, bool fill_enabled) {
   patchy::Layer shape(document.allocate_layer_id(), "Shape", patchy::PixelBuffer());
   patchy::VectorShapeContent content;
@@ -1256,6 +1259,218 @@ void compositor_interior_overlay_stays_under_vector_stroke() {
   }
 }
 
+// A 48 px square (24..72) whose gradient fill runs left to right and is fully transparent
+// over its right half: the shape covers pixels the fill does not paint.
+patchy::Layer make_half_transparent_gradient_shape(patchy::Document& document, bool solid_instead = false) {
+  patchy::Layer shape(document.allocate_layer_id(), "Shape", patchy::PixelBuffer());
+  patchy::VectorShapeContent content;
+  patchy::PathSubpath rect;
+  for (const auto& [x, y] : {std::pair{24.0, 24.0}, {72.0, 24.0}, {72.0, 72.0}, {24.0, 72.0}}) {
+    patchy::PathAnchor anchor;
+    anchor.anchor_x = anchor.in_x = anchor.out_x = x;
+    anchor.anchor_y = anchor.in_y = anchor.out_y = y;
+    rect.anchors.push_back(anchor);
+  }
+  content.path.subpaths.push_back(rect);
+  if (solid_instead) {
+    content.fill.kind = patchy::VectorFillKind::Solid;
+    content.fill.color = patchy::RgbColor{255, 0, 0};
+  } else {
+    content.fill.kind = patchy::VectorFillKind::Gradient;
+    content.fill.gradient.angle_degrees = 0.0F;
+    content.fill.gradient.color_stops = {{0.0F, patchy::RgbColor{255, 0, 0}}, {1.0F, patchy::RgbColor{255, 0, 0}}};
+    content.fill.gradient.alpha_stops = {{0.0F, 1.0F}, {0.5F, 0.0F}, {1.0F, 0.0F}};
+  }
+  shape.set_vector_shape(content);
+  shape.metadata()[patchy::kLayerMetadataVectorShape] = "1";
+  patchy::update_vector_shape_raster(shape, patchy::Rect::from_size(96, 96), &document.metadata().patterns);
+  return shape;
+}
+
+void compositor_effects_follow_shape_coverage_under_transparent_fill() {
+  // Photoshop 2026 probes on psd-tools' stroke-effects.psd (October 2026,
+  // docs/layer-effects-render.md "Effect silhouette of shape layers"): on a shape layer
+  // every effect follows the SHAPE, at full strength, where its gradient fill is
+  // transparent. Patchy keyed them off the painted alpha, so the squares of that file
+  // came out with triangular strokes.
+  const patchy::RgbColor blue{0, 0, 255};
+  const auto is_blue = [](const std::uint8_t* px) { return px[0] == 0 && px[1] == 0 && px[2] == 255; };
+  const auto is_white = [](const std::uint8_t* px) { return px[0] == 255 && px[1] == 255 && px[2] == 255; };
+  const auto render = [&](auto&& style_layer, bool solid = false) {
+    patchy::Document document(96, 96, patchy::PixelFormat::rgb8());
+    document.add_pixel_layer("Base", solid_rgb(96, 96, 255, 255, 255));
+    auto& layer = document.add_layer(make_half_transparent_gradient_shape(document, solid));
+    style_layer(layer);
+    return patchy::Compositor{}.flatten_rgb8(document);
+  };
+  {
+    // The bake: a silhouette plane exists only when coverage and painted alpha differ.
+    patchy::Document document(96, 96, patchy::PixelFormat::rgb8());
+    const auto gradient = make_half_transparent_gradient_shape(document);
+    const auto* shape = std::as_const(gradient).vector_shape();
+    CHECK(shape != nullptr && !shape->effect_matte_cache.empty());
+    if (shape != nullptr && !shape->effect_matte_cache.empty()) {
+      const auto bounds = gradient.bounds();
+      CHECK(shape->effect_matte_cache.width() == std::as_const(gradient).pixels().width());
+      CHECK(std::as_const(gradient).pixels().pixel(66 - bounds.x, 48 - bounds.y)[3] == 0);
+      CHECK(std::as_const(shape->effect_matte_cache).pixel(66 - bounds.x, 48 - bounds.y)[3] == 255);
+      CHECK(std::as_const(shape->effect_matte_cache).pixel(30 - bounds.x, 48 - bounds.y)[3] == 255);
+    }
+    const auto solid = make_half_transparent_gradient_shape(document, true);
+    CHECK(std::as_const(solid).vector_shape()->effect_matte_cache.empty());
+  }
+  {
+    // No effects: the transparent half shows the backdrop, as before.
+    const auto flattened = render([](patchy::Layer&) {});
+    CHECK(is_white(flattened.pixel(66, 48)));
+    CHECK(flattened.pixel(26, 48)[0] == 255 && flattened.pixel(26, 48)[1] < 24);
+  }
+  for (const auto position : {patchy::LayerStrokePosition::Outside, patchy::LayerStrokePosition::Inside}) {
+    const auto flattened = render([&](patchy::Layer& layer) {
+      patchy::LayerStroke stroke;
+      stroke.enabled = true;
+      stroke.color = blue;
+      stroke.size = 4.0F;
+      stroke.position = position;
+      layer.layer_style().strokes.push_back(stroke);
+    });
+    // The band runs along the whole square, including the edge the fill never reaches.
+    const int x = position == patchy::LayerStrokePosition::Outside ? 74 : 70;
+    CHECK(is_blue(flattened.pixel(x, 48)));
+    CHECK(is_blue(flattened.pixel(x, 30)));
+    CHECK(is_blue(flattened.pixel(60, position == patchy::LayerStrokePosition::Outside ? 74 : 70)));
+    // And nothing else lands inside the transparent half.
+    CHECK(is_white(flattened.pixel(60, 48)));
+  }
+  {
+    // A 100% Normal Color Overlay makes the whole square opaque.
+    const auto flattened = render([&](patchy::Layer& layer) {
+      patchy::LayerColorOverlay overlay;
+      overlay.enabled = true;
+      overlay.blend_mode = patchy::BlendMode::Normal;
+      overlay.color = blue;
+      overlay.opacity = 1.0F;
+      layer.layer_style().color_overlays.push_back(overlay);
+    });
+    CHECK(is_blue(flattened.pixel(66, 48)));
+    CHECK(is_blue(flattened.pixel(30, 48)));
+    CHECK(is_white(flattened.pixel(76, 48)));
+  }
+  for (const bool conceals : {true, false}) {
+    // A hard drop shadow thrown to the right is the square's shadow; "Layer Knocks Out
+    // Drop Shadow" hides it under the whole square, transparent half included.
+    const auto flattened = render([&](patchy::Layer& layer) {
+      patchy::LayerDropShadow shadow;
+      shadow.enabled = true;
+      shadow.blend_mode = patchy::BlendMode::Normal;
+      shadow.color = blue;
+      shadow.opacity = 1.0F;
+      shadow.angle_degrees = 180.0F;
+      shadow.distance = 5.0F;
+      shadow.size = 0.0F;
+      shadow.layer_conceals = conceals;
+      layer.layer_style().drop_shadows.push_back(shadow);
+    });
+    CHECK(is_blue(flattened.pixel(74, 48)));
+    CHECK(is_blue(flattened.pixel(74, 70)));
+    CHECK(conceals ? is_white(flattened.pixel(66, 48)) : is_blue(flattened.pixel(66, 48)));
+  }
+  {
+    // A solid fill is untouched by all of this: the stroke is where it always was.
+    const auto flattened = render(
+        [&](patchy::Layer& layer) {
+          patchy::LayerStroke stroke;
+          stroke.enabled = true;
+          stroke.color = blue;
+          stroke.size = 4.0F;
+          layer.layer_style().strokes.push_back(stroke);
+        },
+        true);
+    CHECK(is_blue(flattened.pixel(74, 48)));
+    CHECK(flattened.pixel(66, 48)[0] == 255 && flattened.pixel(66, 48)[1] == 0);
+  }
+}
+
+// The Photoshop probes behind the rule above, when present: one shape layer of psd-tools'
+// stroke-effects.psd saved by Photoshop 2026 with one effect each (scratch script
+// fxprobe/probe.jsx, kept in local-test-fixtures/shape-fx-probes). Each file's own
+// composite is Photoshop's render; Patchy's render of the layers has to agree with it.
+void shape_effect_silhouette_matches_photoshop_probes_if_available() {
+  const auto root = patchy::test::source_root_path() / "local-test-fixtures" / "shape-fx-probes";
+  if (!std::filesystem::exists(root)) {
+    std::cout << "[SKIP] shape_effect_silhouette_matches_photoshop_probes_if_available: no " << root.string() << '\n';
+    return;
+  }
+  int compared = 0;
+  for (const auto& entry : std::filesystem::directory_iterator(root)) {
+    if (entry.path().extension() != ".psd") {
+      continue;
+    }
+    patchy::psd::ReadOptions flat_options;
+    flat_options.prefer_flat_composite = true;
+    // Patchy's render matted on white paper: the probes have no background layer.
+    const auto over_white = [](const patchy::Document& document) {
+      std::vector<std::uint8_t> alpha;
+      auto flattened = patchy::Compositor{}.flatten_rgb8(document, &alpha);
+      for (std::int32_t y = 0; y < flattened.height(); ++y) {
+        for (std::int32_t x = 0; x < flattened.width(); ++x) {
+          auto* px = flattened.pixel(x, y);
+          const int a = alpha[static_cast<std::size_t>(y) * static_cast<std::size_t>(flattened.width()) +
+                              static_cast<std::size_t>(x)];
+          for (int channel = 0; channel < 3; ++channel) {
+            px[channel] = static_cast<std::uint8_t>((px[channel] * a + 255 * (255 - a) + 127) / 255);
+          }
+        }
+      }
+      return flattened;
+    };
+    // (Photoshop stores the composite of a document without a background already
+    // blended with white, so that side is taken as it is.)
+    std::vector<std::uint8_t> expected_alpha;
+    auto expected = patchy::Compositor{}.flatten_rgb8(patchy::psd::DocumentIo::read_file(entry.path(), flat_options),
+                                                      &expected_alpha);
+    for (std::int32_t y = 0; y < expected.height(); ++y) {
+      for (std::int32_t x = 0; x < expected.width(); ++x) {
+        if (expected_alpha[static_cast<std::size_t>(y) * static_cast<std::size_t>(expected.width()) +
+                           static_cast<std::size_t>(x)] == 0) {
+          auto* px = expected.pixel(x, y);
+          px[0] = px[1] = px[2] = 255;
+        }
+      }
+    }
+    const auto actual = over_white(patchy::psd::DocumentIo::read_file(entry.path()));
+    CHECK(expected.width() == actual.width() && expected.height() == actual.height());
+    if (expected.width() != actual.width() || expected.height() != actual.height()) {
+      continue;
+    }
+    // The area either render paints, and how much of it is visibly different.
+    std::int64_t painted = 0;
+    std::int64_t wrong = 0;
+    for (std::int32_t y = 0; y < expected.height(); ++y) {
+      for (std::int32_t x = 0; x < expected.width(); ++x) {
+        const auto* a = expected.pixel(x, y);
+        const auto* b = actual.pixel(x, y);
+        const auto is_paper = [](const std::uint8_t* px) { return px[0] > 250 && px[1] > 250 && px[2] > 250; };
+        if (is_paper(a) && is_paper(b)) {
+          continue;
+        }
+        ++painted;
+        const int delta = std::max({std::abs(a[0] - b[0]), std::abs(a[1] - b[1]), std::abs(a[2] - b[2])});
+        if (delta > 24) {
+          ++wrong;
+        }
+      }
+    }
+    const double share = painted == 0 ? 1.0 : static_cast<double>(wrong) / static_cast<double>(painted);
+    std::cout << "  " << entry.path().filename().string() << ": " << wrong << " of " << painted << " painted pixels off ("
+              << share * 100.0 << "%)\n";
+    CHECK(painted > 0);
+    CHECK(share <= kShapeEffectProbeTolerance);
+    ++compared;
+  }
+  CHECK(compared > 0);
+}
+
 }  // namespace
 
 
@@ -1323,6 +1538,10 @@ std::vector<patchy::test::TestCase> compositor_layer_styles_tests() {
        compositor_interior_overlay_knocks_out_semi_transparent_fill},
       {"compositor_interior_overlay_stays_under_vector_stroke",
        compositor_interior_overlay_stays_under_vector_stroke},
+      {"compositor_effects_follow_shape_coverage_under_transparent_fill",
+       compositor_effects_follow_shape_coverage_under_transparent_fill},
+      {"shape_effect_silhouette_matches_photoshop_probes_if_available",
+       shape_effect_silhouette_matches_photoshop_probes_if_available},
       {"compositor_burn_dodge_effects_preserve_transparent_coverage", compositor_burn_dodge_effects_preserve_transparent_coverage},
   };
 }

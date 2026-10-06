@@ -98,6 +98,7 @@ void copy_nodes(const std::vector<Layer>& layers, std::vector<VectorPreviewNode>
         // bounds. They never become the enlarged shape's raster cache.
         node.shape->fill_cache = shape->fill_cache;
         node.shape->stroke_cache = shape->stroke_cache;
+        node.shape->effect_matte_cache = shape->effect_matte_cache;
         const auto bounds = shape->path.bounds();
         const bool complement = shape->path_disabled || shape->path_inverted ||
             (!shape->path.subpaths.empty() && shape->path.subpaths.front().op == PathCombineOp::Subtract);
@@ -284,7 +285,12 @@ int transform_nodes(std::vector<VectorPreviewNode>& nodes, const VectorPreviewVi
       budget.check_area(node.source_bounds, workspace);
       native_visible = group_visible_alpha_bounds(native_group, node.source_bounds, patterns);
     } else if (aligned_paint && source.kind() == LayerKind::Pixel) {
-      native_visible = layer_visible_alpha_bounds(source, node.source_bounds).value_or(node.source_bounds);
+      // A shape with its own effect silhouette is "visible" over its whole bake, as in
+      // the document render (layer_visible_alpha_bounds on the silhouette plane).
+      const auto* source_shape = source.vector_shape();
+      native_visible = source_shape != nullptr && !source_shape->effect_matte_cache.empty()
+                           ? node.source_bounds
+                           : layer_visible_alpha_bounds(source, node.source_bounds).value_or(node.source_bounds);
     }
     const auto reference = layer_effects_reference_point(source);
     const double reference_x = reference[0] * view.scale + view.offset.x();
@@ -331,8 +337,7 @@ int transform_nodes(std::vector<VectorPreviewNode>& nodes, const VectorPreviewVi
         node.stroke_bounds = layer_visible_alpha_bounds(shape.stroke_cache, node.source_bounds).value_or(node.source_bounds);
       }
       context.appearance.at(source.id()).fill_visible_bounds = checked_rect(mapped_rect(node.fill_bounds, view));
-      // Paint transparency must not shrink a gradient's geometry. Interior
-      // overlays still use painted alpha, while the native fill/stroke ramp
+      // Paint transparency must not shrink a gradient's geometry. The native fill/stroke ramp
       // uses the unpainted coverage bounds of the document-resolution bake.
       if (shape.fill.kind == VectorFillKind::Gradient && shape.fill.gradient.align_with_layer) {
         node.fill_bounds = native_gradient_bounds(shape, native_canvas, false, budget);
@@ -343,7 +348,7 @@ int transform_nodes(std::vector<VectorPreviewNode>& nodes, const VectorPreviewVi
       }
       node.fill_bounds = checked_rect(mapped_rect(node.fill_bounds, view));
       node.stroke_bounds = checked_rect(mapped_rect(node.stroke_bounds, view));
-      shape.fill_cache = {}; shape.stroke_cache = {};
+      shape.fill_cache = {}; shape.stroke_cache = {}; shape.effect_matte_cache = {};
       transform_vector_path(shape.path, {view.scale, 0, 0, view.scale, view.offset.x(), view.offset.y()});
       scale_value(shape.stroke.width, view.scale);
       if (!safe_number(shape.stroke.dash_offset * shape.stroke.width) ||
@@ -434,12 +439,13 @@ void raster_nodes(const std::vector<VectorPreviewNode>& nodes, std::vector<Layer
       layer.set_bounds(raster.bounds);
       // Interior effects tint the fill, then the native vector stroke is
       // stamped above them. Keep the compositor's split-plane contract.
-      if (styled && (!raster.fill_pixels.empty() || !raster.stroke_pixels.empty())) {
-        budget.keep(raster.fill_pixels); budget.keep(raster.stroke_pixels);
+      if (styled && (!raster.fill_pixels.empty() || !raster.stroke_pixels.empty() || !raster.matte_pixels.empty())) {
+        budget.keep(raster.fill_pixels); budget.keep(raster.stroke_pixels); budget.keep(raster.matte_pixels);
         VectorShapeContent shape;
         shape.stroke = node.shape->stroke;
         shape.fill_cache = std::move(raster.fill_pixels);
         shape.stroke_cache = std::move(raster.stroke_pixels);
+        shape.effect_matte_cache = std::move(raster.matte_pixels);
         layer.set_vector_shape(std::move(shape));
       }
     } else if (source.kind() == LayerKind::Pixel) {

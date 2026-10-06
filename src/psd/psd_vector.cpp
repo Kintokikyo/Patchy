@@ -1273,6 +1273,9 @@ void finalize_vector_layers(Document& document) {
           update_vector_shape_raster(layer, canvas, &document.metadata().patterns);
         } else {
           layer.metadata()[kLayerMetadataVectorRasterStatus] = kVectorRasterStatusPhotoshop;
+          // Photoshop's pixels stay, but its effects follow the shape, not those
+          // pixels' alpha: record the silhouette beside them.
+          refresh_vector_shape_effect_matte(layer, canvas, &document.metadata().patterns);
         }
       }
       if (layer.vector_mask() != nullptr && layer.vector_mask()->cache.empty()) {

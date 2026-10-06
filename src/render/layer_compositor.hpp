@@ -326,6 +326,26 @@ inline Rect layer_bounds_for_render(const Layer& layer, const std::vector<LayerB
   return layer_pixel_bounds(layer);
 }
 
+// The buffer whose alpha is the layer's silhouette for layer effects. For almost every
+// layer that is its own pixels. A shape or fill layer whose gradient or pattern fill is
+// transparent inside the shape carries a separate plane (coverage in place of painted
+// alpha, VectorShapeContent::effect_matte_cache): Photoshop draws every effect around the
+// shape and at full strength inside it, wherever the fill itself is transparent.
+// Overrides (transform previews, group silhouettes) keep their own pixels.
+inline const PixelBuffer& effect_matte_source_for_render(const Layer& layer, const PixelBuffer& source) {
+  if (&source != &layer.pixels()) {
+    return source;
+  }
+  const auto* shape = layer.vector_shape();
+  if (shape == nullptr || shape->effect_matte_cache.empty() ||
+      shape->effect_matte_cache.width() != source.width() ||
+      shape->effect_matte_cache.height() != source.height() ||
+      shape->effect_matte_cache.format() != source.format()) {
+    return source;
+  }
+  return shape->effect_matte_cache;
+}
+
 inline const PixelBuffer& layer_pixels_for_render(const Layer& layer,
                                                   const std::vector<LayerBoundsOverride>* overrides) {
   if (const auto* override = layer_override_for_render(layer, overrides);
@@ -2358,6 +2378,9 @@ void composite_pixel_layer(Target& destination, const Layer& layer, Rect clip,
   const auto layer_mask_bounds = layer_mask_bounds_for_render(layer, overrides);
   const auto& style = layer.layer_style();
   const auto draw_rect = intersect_rect(clip, bounds);
+  // Every effect below takes its silhouette from here; the base pass keeps `source`.
+  const PixelBuffer& effect_source = effect_matte_source_for_render(layer, source);
+  const bool has_effect_matte = &effect_source != &source;
   // A clipping run hands the base pass its merged content (base plus clipped
   // members) in place of the source's colors; every effect below keeps
   // reading the source, whose alpha the members cannot widen.
@@ -2395,13 +2418,14 @@ void composite_pixel_layer(Target& destination, const Layer& layer, Rect clip,
     for (std::uint32_t index = 0; index < style.drop_shadows.size(); ++index) {
       const auto& shadow = style.drop_shadows[index];
       profile_compositor_step(destination, layer, "drop_shadow", clip, [&] {
-        render_drop_shadow(destination, layer, source, clip, bounds, shadow, layer_mask_bounds, masks, index);
+        render_drop_shadow(destination, layer, effect_source, clip, bounds, shadow, layer_mask_bounds, masks,
+                           index);
       });
     }
     for (std::uint32_t index = 0; index < style.outer_glows.size(); ++index) {
       const auto& glow = style.outer_glows[index];
       profile_compositor_step(destination, layer, "outer_glow", clip, [&] {
-        render_outer_glow(destination, layer, source, clip, bounds, glow, layer_mask_bounds, masks, index);
+        render_outer_glow(destination, layer, effect_source, clip, bounds, glow, layer_mask_bounds, masks, index);
       });
     }
   }
@@ -2416,7 +2440,7 @@ void composite_pixel_layer(Target& destination, const Layer& layer, Rect clip,
       }
       profile_compositor_step(destination, layer, "satin", clip, [&] {
         prepared_satins.push_back(
-            prepare_satin(layer, source, draw_rect, bounds, satin, layer_mask_bounds, masks, index));
+            prepare_satin(layer, effect_source, draw_rect, bounds, satin, layer_mask_bounds, masks, index));
       });
     }
   }
@@ -2437,7 +2461,8 @@ void composite_pixel_layer(Target& destination, const Layer& layer, Rect clip,
         continue;
       }
       if (auto prepared =
-              prepare_stroke_render(layer, source, clip, bounds, stroke, layer_mask_bounds, masks, index)) {
+              prepare_stroke_render(layer, effect_source, clip, bounds, stroke, layer_mask_bounds, masks,
+                                    index)) {
         knockout_strokes.push_back(std::move(*prepared));
       }
     }
@@ -2467,7 +2492,9 @@ void composite_pixel_layer(Target& destination, const Layer& layer, Rect clip,
   // stroke blend, transform-preview override, preserved import raster) the
   // legacy behavior stands. Blend-If layers keep the legacy path too - the
   // re-stamp cannot reproduce the per-pixel gate.
-  const PixelBuffer* interior_source = &source;
+  // (The fill plane's alpha is the fill's coverage, so on a layer with its own
+  // effect silhouette the overlays still cover the whole fill.)
+  const PixelBuffer* interior_source = &effect_source;
   const PixelBuffer* stroke_restamp = nullptr;
   if (style.effects_visible && !has_blend_if && clip_content == nullptr) {
     if (const auto* shape = layer.vector_shape();
@@ -2501,8 +2528,13 @@ void composite_pixel_layer(Target& destination, const Layer& layer, Rect clip,
   // Fill Opacity (which scales the layer's pixels but not its effects, so the
   // overlay cannot ride the base alpha) and the vector fill/stroke split
   // (folding would tint the stroke) keep the legacy passes.
+  // A fourth escape: a layer whose effect silhouette is wider than its pixels' alpha.
+  // The fold rides the base alpha, and there the overlays and Satin have to paint at
+  // full strength where the fill is transparent, so they run as destination passes
+  // over the effect silhouette.
   const bool fold_interior_overlays_into_base = style.effects_visible && !has_blend_if && fill_opacity == 1.0F &&
-                                                stroke_restamp == nullptr && !interiors_prefolded;
+                                                stroke_restamp == nullptr && !interiors_prefolded &&
+                                                !has_effect_matte;
   std::vector<PreparedInteriorOverlay> folded_overlays;
   if (fold_interior_overlays_into_base && !draw_rect.empty()) {
     profile_compositor_step(destination, layer, "interior_overlays", draw_rect, [&] {
@@ -2639,7 +2671,7 @@ void composite_pixel_layer(Target& destination, const Layer& layer, Rect clip,
               if (has_folded_overlays) {
                 color = fold_interior_overlays(color, folded_overlays, x, y);
               }
-              if (!has_blend_if && fill_opacity == 1.0F) {
+              if (!has_blend_if && fill_opacity == 1.0F && !has_effect_matte) {
                 color = fold_prepared_satins(color, prepared_satins, x, y);
               }
               return color;
@@ -2693,12 +2725,13 @@ void composite_pixel_layer(Target& destination, const Layer& layer, Rect clip,
   // established identity-path bytes. Photoshop does not gate layer effects
   // with Blend If, however, so a Blend-If layer renders Satin as its own
   // interior effect using the original (ungated) layer matte.
-  if ((has_blend_if || fill_opacity != 1.0F) && !draw_rect.empty() && !prepared_satins.empty()) {
+  if ((has_blend_if || fill_opacity != 1.0F || has_effect_matte) && !draw_rect.empty() &&
+      !prepared_satins.empty()) {
     profile_compositor_step(destination, layer, "satin_effect", draw_rect, [&] {
-      const auto format = source.format();
+      const auto format = effect_source.format();
       const auto channels = format.channels;
-      const auto* source_bytes = source.data().data();
-      const auto source_stride = source.stride_bytes();
+      const auto* source_bytes = effect_source.data().data();
+      const auto source_stride = effect_source.stride_bytes();
       for (std::int32_t y = draw_rect.y; y < draw_rect.y + draw_rect.height; ++y) {
         const auto sy = y - bounds.y;
         const auto* source_row = source_bytes + static_cast<std::size_t>(sy) * source_stride;
@@ -2817,14 +2850,15 @@ void composite_pixel_layer(Target& destination, const Layer& layer, Rect clip,
     for (std::uint32_t index = 0; index < style.inner_glows.size(); ++index) {
       const auto& glow = style.inner_glows[index];
       profile_compositor_step(destination, layer, "inner_glow", clip, [&] {
-        render_inner_glow(destination, layer, source, clip, bounds, glow, layer_mask_bounds, masks, index,
+        render_inner_glow(destination, layer, effect_source, clip, bounds, glow, layer_mask_bounds, masks, index,
                           knockout);
       });
     }
     for (std::uint32_t index = 0; index < style.inner_shadows.size(); ++index) {
       const auto& shadow = style.inner_shadows[index];
       profile_compositor_step(destination, layer, "inner_shadow", clip, [&] {
-        render_inner_shadow(destination, layer, source, clip, bounds, shadow, layer_mask_bounds, masks, index,
+        render_inner_shadow(destination, layer, effect_source, clip, bounds, shadow, layer_mask_bounds, masks,
+                            index,
                             knockout);
       });
     }
@@ -2838,7 +2872,7 @@ void composite_pixel_layer(Target& destination, const Layer& layer, Rect clip,
           // Reuse the band mask the knockout pass already resolved.
           render_prepared_stroke(destination, layer, *prepared, layer_mask_bounds);
         } else {
-          render_stroke(destination, layer, source, clip, bounds, stroke, layer_mask_bounds, masks, index);
+          render_stroke(destination, layer, effect_source, clip, bounds, stroke, layer_mask_bounds, masks, index);
         }
       });
     }
@@ -2852,7 +2886,7 @@ void composite_pixel_layer(Target& destination, const Layer& layer, Rect clip,
         continue;
       }
       profile_compositor_step(destination, layer, "bevel_emboss", clip, [&] {
-        render_bevel_emboss(destination, layer, source, clip, bounds, bevel, layer_mask_bounds, masks, index,
+        render_bevel_emboss(destination, layer, effect_source, clip, bounds, bevel, layer_mask_bounds, masks, index,
                             patterns, &style.strokes);
       });
     }
@@ -2864,7 +2898,7 @@ void composite_pixel_layer(Target& destination, const Layer& layer, Rect clip,
         continue;
       }
       profile_compositor_step(destination, layer, "stroke_emboss", clip, [&] {
-        render_bevel_emboss(destination, layer, source, clip, bounds, bevel, layer_mask_bounds, masks, index,
+        render_bevel_emboss(destination, layer, effect_source, clip, bounds, bevel, layer_mask_bounds, masks, index,
                             patterns, &style.strokes);
       });
     }
