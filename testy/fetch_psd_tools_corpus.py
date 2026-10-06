@@ -79,6 +79,29 @@ def write_corpus_list() -> int:
     return len(files)
 
 
+def corpus_credit(files) -> dict | None:
+    """The attribution a run records when every file comes from this checkout, for the
+    report and the public export: name, URL, license and the pinned commit. None for
+    any other corpus."""
+    paths = [Path(f) for f in files]
+    if not paths:
+        return None
+    root = (CHECKOUT / SUBDIRECTORY).resolve()
+    for path in paths:
+        try:
+            path.resolve().relative_to(root)
+        except ValueError:
+            return None
+    return {
+        "name": "psd-tools test collection",
+        "url": "https://github.com/psd-tools/psd-tools/tree/main/tests/psd_files",
+        "project": "psd-tools",
+        "projectUrl": "https://github.com/psd-tools/psd-tools",
+        "license": "MIT",
+        "commit": PINNED_COMMIT,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--list-only", action="store_true",

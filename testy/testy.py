@@ -40,6 +40,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import analyze
 import config
+import fetch_psd_tools_corpus
 import manifest as manifest_mod
 import report
 import rerun
@@ -1212,6 +1213,9 @@ class Runner:
                 "editorOrder": self.editor_order,
                 "name": self.run_name,
                 "compare": self.compare_mode,
+                # Who the test files belong to (None for a local corpus): the report
+                # and the public export credit them.
+                "corpus": fetch_psd_tools_corpus.corpus_credit(corpus),
             },
             "editors": {
                 key: {

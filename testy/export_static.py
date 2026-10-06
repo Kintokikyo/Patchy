@@ -138,6 +138,18 @@ def _index_page(title: str, status: dict) -> str:
     files = len(status.get("files") or [])
     started = html.escape(str(run.get("startedAt") or ""))
     finished = html.escape(str(run.get("finishedAt") or ""))
+    credit = run.get("corpus") or {}
+    if credit:
+        corpus_note = (
+            f'<p><b>The test files.</b> They are the <a href="{html.escape(str(credit.get("url") or ""))}">'
+            f'{html.escape(str(credit.get("name") or "test collection"))}</a> of the '
+            f'<a href="{html.escape(str(credit.get("projectUrl") or ""))}">{html.escape(str(credit.get("project") or ""))} '
+            f'project</a> ({html.escape(str(credit.get("license") or ""))} license), commit '
+            f'<code>{html.escape(str(credit.get("commit") or "")[:12])}</code>: several hundred small single-feature '
+            f'PSD and PSB files, which is what makes a failing cell name a feature. Thanks to its authors. '
+            f'The files themselves are not included here; only the renders are.</p>')
+    else:
+        corpus_note = ('<p class="dim">The test files are not included here; only the renders are.</p>')
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -177,8 +189,7 @@ shows what each editor keeps when it saves the file back to PSD.</p>
 <tr><td><b>Editor</b></td><td><b>Version tested</b></td></tr>
 {rows}
 </table>
-<p class="dim">The test files are the psd-tools project's PSD collection. They are not included here;
-only the renders are.</p>
+{corpus_note}
 </main>
 </body>
 </html>

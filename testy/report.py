@@ -158,7 +158,7 @@ _PAGE = r"""<!DOCTYPE html>
 PSD and PSB files, against Photoshop's own output. It is not a rating of the programs themselves. A low
 score means keeping documents as PSDs and moving them to and from Photoshop will lose things with that
 program, nothing more. <a href="https://github.com/SethRobinson/Patchy/blob/main/docs/testy.md">How the test works</a> &middot;
-<a href="https://github.com/SethRobinson/Patchy">Testy and Patchy on GitHub</a></div>
+<a href="https://github.com/SethRobinson/Patchy">Testy and Patchy on GitHub</a><span id="corpus-credit"></span></div>
 <div id="summary"></div>
 <div id="known-toggle"></div>
 <main>
@@ -722,6 +722,22 @@ function editorVersionLabel(key) {
   return versions.size > 1 ? 'mixed versions; see updated rows' : [...versions][0];
 }
 
+// The test files are somebody else's work: name them, with a link, next to the
+// explanation of the test.
+function renderCorpusCredit() {
+  const credit = S.run.corpus;
+  const span = document.getElementById("corpus-credit");
+  if (!credit || !span) return;
+  const link = (url, text) => { const a = document.createElement("a"); a.href = url; a.textContent = text; return a; };
+  span.textContent = "";
+  span.append(document.createElement("br"), "Test files: the ");
+  span.append(link(credit.url, credit.name));
+  span.append(" of the ", link(credit.projectUrl, credit.project + " project"),
+              " (" + credit.license + " license)" +
+              (credit.commit ? ", commit " + credit.commit.slice(0, 12) : "") +
+              ". Only the renders are shown here, never the files.");
+}
+
 function render() {
   if (!S) return;
   const pill = document.getElementById("state-pill");
@@ -733,6 +749,7 @@ function render() {
   renderControls();
   const compareWord = S.run.compare === "perceptual" ? "perceptual" : "byte";
   const corpusBytes = totalSize(S.files);
+  renderCorpusCredit();
   document.getElementById("run-meta").textContent =
     S.run.startedAt + "  -  " + S.files.length + " file(s)" +
     (corpusBytes ? ", " + fmtSize(corpusBytes) : "") + "  -  Patchy " + (S.run.patchyVersion || "?") +
