@@ -108,6 +108,10 @@ _PAGE = r"""<!DOCTYPE html>
   #detail figcaption { color: var(--dim); font-size: 11px; margin-top: 3px; }
   #detail img { max-width: 260px; border: 1px solid var(--line); border-radius: 4px;
                 background: #fff; image-rendering: auto; display: block; cursor: zoom-in; }
+  /* A tiny render (a 4x4 blend-mode probe, a 1x1 file) is blown up by a whole number so
+     there is something to see, with hard pixels and the factor in its caption. */
+  #detail img.tiny { image-rendering: pixelated; }
+  #detail figcaption .zoom { color: var(--accent); margin-left: 4px; }
   #detail table { border-collapse: collapse; margin: 6px 0 14px; width: 100%; font-size: 12px; }
   #detail th, #detail td { border: 1px solid var(--line); padding: 4px 8px; text-align: left; }
   #detail th { background: var(--panel2); }
@@ -927,8 +931,27 @@ function img(fig, cap, full) {
   if (!fig) return "";
   const version = "?v=" + (S.run.updateCounter || 0);
   return "<figure><a href='" + artUrl(full || fig) + version + "' target='_blank' title='open full size'>" +
-         "<img src='" + artUrl(fig) + version + "'></a>" +
+         "<img src='" + artUrl(fig) + version + "' onload='zoomTiny(this)'></a>" +
          "<figcaption>" + cap + "</figcaption></figure>";
+}
+
+// Images whose longer side is under 64 px are scaled up by a whole number (at most
+// 40x) until that side is at least 120 px, with nearest-neighbour sampling, and the
+// caption says so; everything larger keeps its natural size.
+function zoomTiny(image) {
+  const w = image.naturalWidth, h = image.naturalHeight;
+  if (!w || !h || Math.max(w, h) >= 64) return;
+  const factor = Math.max(2, Math.min(40, Math.ceil(120 / Math.max(w, h))));
+  image.classList.add("tiny");
+  image.style.width = (w * factor) + "px";
+  image.style.height = (h * factor) + "px";
+  const caption = image.closest("figure") && image.closest("figure").querySelector("figcaption");
+  if (caption && !caption.querySelector(".zoom")) {
+    const note = document.createElement("span");
+    note.className = "zoom";
+    note.textContent = "(" + w + "\u00d7" + h + " shown at " + factor + "\u00d7)";
+    caption.append(" ", note);
+  }
 }
 
 function openDetail(fi, ek, keep) {
