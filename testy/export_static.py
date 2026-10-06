@@ -160,7 +160,13 @@ def _index_page(title: str, status: dict) -> str:
 <body>
 <main>
 <h1>{html.escape(title)}</h1>
-<p class="dim">{files} PSD and PSB files. Run started {started}, finished {finished}.</p>
+<p class="dim">Testy v2. {files} PSD and PSB files. Run started {started}, finished {finished}.</p>
+<p><b>What this measures, and what it does not.</b> This is a test of one thing: how faithfully each
+program loads, renders and saves Photoshop PSD and PSB files. It says nothing about how good a program
+is at anything else. A low score here means that keeping your documents as PSDs and moving them between
+that program and Photoshop will lose things; it is not a verdict on the program itself. Testy is open
+source and part of the Patchy project: <a href="https://github.com/SethRobinson/Patchy/blob/main/docs/testy.md">how the test works</a> and
+<a href="https://github.com/SethRobinson/Patchy">the code on GitHub</a>.</p>
 <p>Each file was opened in every editor below. Photoshop's own render is the reference. An editor is
 scored on what it draws itself: the baked pixels Photoshop stores in a PSD for text, shapes, fills
 and smart objects are removed first, so showing those is not counted as rendering. The report also

@@ -35,6 +35,9 @@ _PAGE = r"""<!DOCTYPE html>
            align-items: baseline; gap: 18px; flex-wrap: wrap; }
   header h1 { font-size: 17px; margin: 0; letter-spacing: .4px; }
   header .meta { color: var(--dim); font-size: 12px; }
+  header .version { color: var(--dim); font-size: 12px; font-weight: 400; }
+  #about { color: var(--dim); font-size: 12px; padding: 8px 22px 0; max-width: 1100px; }
+  #about a { color: var(--accent); }
   #state-pill { padding: 2px 10px; border-radius: 10px; font-size: 11px; background: var(--panel2); }
   #state-pill.running { color: var(--warn); }
   #state-pill.done { color: var(--good); }
@@ -146,11 +149,16 @@ _PAGE = r"""<!DOCTYPE html>
 <div id="page">
 <header>
   <a id="back-link" href="/" title="back to the Testy control panel" style="display:none">&larr; Back</a>
-  <h1>Testy <span style="color:var(--dim)">PSD compatibility</span></h1>
+  <h1>Testy <span style="color:var(--dim)">PSD compatibility</span> <span class="version">v2</span></h1>
   <span id="state-pill">loading</span>
   <span class="meta" id="run-meta"></span>
   <span id="run-controls"></span>
 </header>
+<div id="about">This measures one thing: how faithfully each program loads, renders and saves Photoshop
+PSD and PSB files, against Photoshop's own output. It is not a rating of the programs themselves. A low
+score means keeping documents as PSDs and moving them to and from Photoshop will lose things with that
+program, nothing more. <a href="https://github.com/SethRobinson/Patchy/blob/main/docs/testy.md">How the test works</a> &middot;
+<a href="https://github.com/SethRobinson/Patchy">Testy and Patchy on GitHub</a></div>
 <div id="summary"></div>
 <div id="known-toggle"></div>
 <main>
