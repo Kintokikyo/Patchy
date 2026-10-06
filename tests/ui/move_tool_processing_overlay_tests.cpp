@@ -1426,6 +1426,68 @@ void ui_move_empty_click_and_rectangle_deselect_layers() {
   CHECK(scene.selection_edits == 0);
 }
 
+void ui_layer_panel_blank_click_deselects_and_hides_transform_box() {
+  // Clicking the Layers panel below the last row deselects every layer; the Move
+  // tool's transform box must go with the selection instead of staying on the
+  // layer that used to be active (Seth, October 2026).
+  patchy::Document document(120, 90, patchy::PixelFormat::rgba8());
+  document.add_pixel_layer("Background", solid_pixels(120, 90, patchy::PixelFormat::rgba8(), QColor(Qt::white)));
+  patchy::Layer red(document.allocate_layer_id(), "Red",
+                    solid_pixels(12, 12, patchy::PixelFormat::rgba8(), QColor(220, 40, 40, 255)));
+  red.set_bounds(patchy::Rect{18, 18, 12, 12});
+  const auto red_id = red.id();
+  document.add_layer(std::move(red));
+  document.set_active_layer(red_id);
+
+  patchy::ui::MainWindow window;
+  show_window(window);
+  window.add_document_session(std::move(document), QStringLiteral("Blank click"));
+  QApplication::processEvents();
+  auto* canvas = require_canvas(window);
+  auto* layer_list = window.findChild<QListWidget*>(QStringLiteral("layerList"));
+  CHECK(layer_list != nullptr);
+  auto& doc = patchy::ui::MainWindowTestAccess::document(window);
+  require_action_by_text(window, QStringLiteral("Move"))->trigger();
+  canvas->set_show_transform_controls(true);
+  QApplication::processEvents();
+  CHECK(doc.active_layer_id() == red_id);
+  // The box is observed through its handles: hovering its bottom-right corner
+  // shows a resize cursor only while the box is up (on a 12 px box at 100% the
+  // edge and corner handles overlap, so any resize shape counts).
+  const auto corner = canvas->widget_position_for_document_point(QPoint(30, 30));
+  const auto box_shown = [&] {
+    send_mouse(*canvas, QEvent::MouseMove, corner, Qt::NoButton, Qt::NoButton);
+    QApplication::processEvents();
+    // (Not SizeAll: that is the Move tool's cursor over pickable artwork,
+    // box or no box.)
+    const auto shape = canvas->cursor().shape();
+    return shape == Qt::SizeFDiagCursor || shape == Qt::SizeBDiagCursor || shape == Qt::SizeVerCursor ||
+           shape == Qt::SizeHorCursor;
+  };
+  CHECK(box_shown());
+
+  // A press on the viewport below the rows: Qt empties the selection and keeps
+  // the current row.
+  auto* viewport = layer_list->viewport();
+  const auto last_row = layer_list->visualItemRect(layer_list->item(layer_list->count() - 1));
+  const QPoint blank(viewport->width() / 2, std::min(viewport->height() - 4, last_row.bottom() + 30));
+  CHECK(layer_list->itemAt(blank) == nullptr);
+  send_mouse(*viewport, QEvent::MouseButtonPress, blank, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*viewport, QEvent::MouseButtonRelease, blank, Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  CHECK(layer_list->selectedItems().isEmpty());
+  CHECK(!doc.active_layer_id().has_value());
+  CHECK(!box_shown());
+
+  // Selecting a row again brings the box back.
+  auto* red_item = require_layer_item(*layer_list, QStringLiteral("Red"));
+  layer_list->setCurrentItem(red_item);
+  red_item->setSelected(true);
+  QApplication::processEvents();
+  CHECK(doc.active_layer_id() == red_id);
+  CHECK(box_shown());
+}
+
 void ui_move_deselect_layers_clears_panel_rows_and_active_layer() {
   patchy::Document document(120, 90, patchy::PixelFormat::rgba8());
   auto& background = document.add_pixel_layer("Background",
@@ -4981,6 +5043,8 @@ std::vector<patchy::test::TestCase> move_tool_processing_overlay_tests() {
       {"ui_move_pending_click_cancel_and_empty_document_are_safe", ui_move_pending_click_cancel_and_empty_document_are_safe},
       {"ui_move_escape_deselects_layers_without_gesture", ui_move_escape_deselects_layers_without_gesture},
       {"ui_move_empty_click_and_rectangle_deselect_layers", ui_move_empty_click_and_rectangle_deselect_layers},
+      {"ui_layer_panel_blank_click_deselects_and_hides_transform_box",
+       ui_layer_panel_blank_click_deselects_and_hides_transform_box},
       {"ui_move_deselect_layers_clears_panel_rows_and_active_layer",
        ui_move_deselect_layers_clears_panel_rows_and_active_layer},
       {"ui_move_deselected_only_layer_is_selected_on_demand",

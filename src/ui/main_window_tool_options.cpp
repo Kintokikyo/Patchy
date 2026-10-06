@@ -1080,6 +1080,16 @@ void MainWindow::set_active_layer_from_selection() {
   };
   selection_progress();
   const auto selected_ids = selected_layer_ids();
+  // A click on the panel's blank area empties the selection while Qt keeps the
+  // current row; that is the user deselecting every layer, so the active layer
+  // goes too (the Move tool's transform box otherwise stayed on the old active
+  // layer, Seth, October 2026). Rebuilds run under a signal blocker and never
+  // get here; an empty list has nothing to deselect.
+  if (selected_ids.empty() && layer_list_->count() > 0 && has_active_document() &&
+      document().active_layer_id().has_value()) {
+    deselect_all_layers();
+    return;
+  }
   if (canvas_ != nullptr) {
     canvas_->set_selected_layer_ids(selected_ids);
   }
