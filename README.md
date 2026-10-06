@@ -90,7 +90,7 @@ See it in action.  Click an image for the full-size capture.
 | **Text and vectors** | Rich and vertical text, paragraph controls, Warp Text, Pen paths, shape layers, vector masks, SVG, and image tracing. |
 | **PDF documents** | Import pages as editable text, vectors, and images on desktop; export single or multi-page PDFs with editable or flattened content. |
 | **Photos and other formats** | Camera Raw development, HEIC/HEIF photos, layered Affinity import, and common image formats. |
-| **Pixel art and game assets** | Named palettes, indexed export, seamless tiling, sprite sheets, image sequences, and animated GIFs. |
+| **Pixel art and game assets** | Named palettes, indexed export, seamless tiling, sprite sheets, image sequences, and animated GIF and WebP. |
 | **Extend your workflow** | Legacy Photoshop filters on Windows, JavaScript scripts, batch processing, command-line tools, and local MCP control. |
 
 [Full feature list and format support](docs/features.md) · [Scripting guide](scripts/bundled/scripting-guide.md) · [AI control setup](docs/ai-control.md)
@@ -115,9 +115,9 @@ stores for text, shapes, fills, and Smart Objects are removed first. That is
 stricter than the August run, so the two sets of numbers are not comparable.
 
 These are dated, corpus-specific results. The linked report has every file's
-renders and difference maps for all eight columns. The
-[August 2026 comparison and methodology](docs/psd-compatibility-benchmark.md)
-covers the earlier 64-file run, its preservation checks, and limitations.
+renders and difference maps for all eight columns. Read the
+[full comparison and methodology](docs/psd-compatibility-benchmark.md) for the
+tables, per-folder results, scoring rules, and limitations.
 
 **Know the limits:** editing is RGB/RGBA 8-bit; there is no GPU acceleration or
 CMYK/Lab/16-bit/32-bit editing. Unsupported Smart Filters can remain preview-locked,

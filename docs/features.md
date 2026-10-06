@@ -5,7 +5,7 @@
 ## Photoshop documents and non-destructive editing
 
 - Open and save layered PSD and PSB files with groups, masks, clipping masks, saved alpha and spot channels, text objects, Fill Opacity, the full Photoshop blend mode set, layer styles and more
-- Import 16-bit and 32-bit PSD/PSB files with their layers, converting to 8-bit for editing (a warning explains that saves are 8-bit); CMYK and grayscale Photoshop documents convert to RGB
+- Import 16-bit and 32-bit PSD/PSB files with their layers, converting to 8-bit for editing (a warning explains that saves are 8-bit); CMYK, Grayscale, Lab, Bitmap, Indexed, Duotone, and Multichannel Photoshop documents convert to RGB on open
 - Non-destructive adjustment layers (Levels, Curves, Hue/Saturation, Color Balance, Brightness/Contrast, Invert, Posterize, Threshold, Exposure) with live preview, editable settings, native Photoshop PSD data, and .acv Curves preset import and export
 - Smart Objects: place or convert layers to embedded or linked smart objects, edit or replace their contents, transform them non-destructively, and build editable native Smart Filter stacks (13 filter types) with paintable shared masks and per-filter blending
 - Photoshop-compatible layer style, pattern, and gradient preset libraries, including .asl, .pat, and .grd import/export, 39 built-in styles, and 20 bundled CC0 photo textures
@@ -36,7 +36,7 @@
 
 - Palettized (indexed color) editing mode for pixel art: paint constrained to a palette, quantize with optional dithering, built-in retro palettes (NES, C64, Game Boy, PICO-8, and more), palette files (.pal/.gpl/.hex/.act/.aco/.ase), and exact indexed PNG-8 and 2/4/8-bit BMP export. Layers, layer styles, and effects all keep working (Photoshop's indexed mode flattens and disables them)
 - Named palette colors appear in the Palette panel, color picker, Info panel, and eyedropper readout. Rename swatches, preserve names through GPL, PSD, and indexed PNG round trips, and manage palettes through scripts
-- Pixel-art and game-dev extras: seamless texture authoring (live tile preview window, in-canvas tiling mode, seam shifting), sprite sheet export/import, image sequence export/import (numbered files become layers and back), animated GIF import/export (frames become layers with their timings in the layer names, visible layers save back as a looping animation, and the layers panel's film button previews the animation in-app), and an Export Flat Image dialog with nearest-neighbor scaling (2x-8x), smooth resize, transparent-edge trimming, and background fill
+- Pixel-art and game-dev extras: seamless texture authoring (live tile preview window, in-canvas tiling mode, seam shifting), sprite sheet export/import, image sequence export/import (numbered files become layers and back), animated GIF and animated WebP import/export (frames become layers with their timings in the layer names, visible layers save back as a looping animation, and the layers panel's film button previews the animation in-app), and an Export Flat Image dialog with nearest-neighbor scaling (2x-8x), smooth resize, transparent-edge trimming, and background fill
 
 ## Files, photographs, and multiple documents
 
@@ -67,7 +67,7 @@
 - Cross-platform: Windows is the lead platform, with native macOS (Apple Silicon) and Linux (Flatpak) builds
 - Built with C++ and Qt for a native desktop experience. No GPU used, should run on a potato
 - Privacy: YES! Absolutely no telemetry, no tracking, no data collection (if update checks are enabled, it contacts GitHub only to check for a newer version). Settings live in a plain local file, and the installer doesn't screw with your file extension preferences
-- Localized in English, German, Spanish, French, Italian, Japanese, and Chinese (Simplified and Traditional); the language follows your system or can be changed in File->Preferences
+- Localized in twelve languages: English, German, Spanish, French, Italian, Brazilian Portuguese, Russian, Polish, Japanese, Korean, and Chinese (Simplified and Traditional); the language follows your system or can be changed in File->Preferences
 - UI themes: Dark, Light, seven bundled themes (Darkest, Medium Gray, Solarized Dark, Nord, Dracula, Gruvbox Dark, High Contrast), or your own. A theme is a small JSON file (`.patchytheme`) that names a base scheme and overrides any of the interface colors, icon tints included; File->Preferences imports it and keeps it in your app-data themes folder (Open Themes Folder shows where). Start from [themes/example-high-contrast.patchytheme](../themes/example-high-contrast.patchytheme) or export the current look, which writes every color so you can see the role names; colors you leave out keep the base scheme's value, and Reload Themes applies an edit without restarting
 
 ## Current Status
@@ -78,8 +78,8 @@ Important Photoshop features that are not supported yet, or are only partially s
 
 - Editable Smart Filters cover 13 filter types with paintable shared masks and per-filter opacity and blend modes; unsupported imported filter types (including the Blur Gallery and Liquify smart filters) remain preview-locked and byte-preserved
 - Full Photoshop adjustment-layer compatibility beyond Patchy's current adjustment support
-- CMYK/Lab editing and export, editable spot separations and RGB component channels, multi-channel overlays, 16/32-bit editing, HDR/EXR, and full color-management parity (Patchy converts CMYK/Lab to RGB on open, but does not edit or save in those color modes)
-- Layer comps, timeline/video editing, generative tools (animated GIF import, preview, and export are supported)
+- CMYK/Lab editing and export, editable spot separations and RGB component channels, multi-channel overlays, 16/32-bit editing, HDR/EXR, and full color-management parity (Patchy converts CMYK, Lab, Grayscale, and the other non-RGB modes to RGB on open, but does not edit or save in those color modes)
+- Layer comps, timeline/video editing, generative tools (animated GIF and WebP import, preview, and export are supported)
 - Photoshop's own automation surfaces: Actions (.atn), UXP/JSX panels, and scripts written for Photoshop (Patchy has its own JavaScript scripting and batch processing instead, see above)
 - High-fidelity PSD/PSB edge cases and byte-perfect preservation of every Photoshop-only metadata block
 - Patchy is slower than Photoshop, especially on large documents and it doesn't support any GPU acceleration. (Like, layer styles being done in pixel shaders, etc)  However, being CPU only helps with porting, consistent output, and stability so kind of a trade-off that makes sense, for now.  That said, certain operations have been optimized for multicore - canvas compositing and image flattening are multithreaded, splitting large images (4 Mpx+) into strips rendered on all CPU cores.
@@ -92,7 +92,7 @@ Affinity features that are not supported yet, or are only partially supported:
 
 - Saving to Affinity formats (import only; save your edits as PSD)
 - A few parametric shape kinds (callouts, spirals, QR codes, circle-rounded stars, and exotic arrow ends) import as named placeholders
-- Adjustment layers beyond the eight kinds Patchy models, and live filters, import as named empty placeholders; Brightness/Contrast and Color Balance import approximately
+- Adjustment layers beyond the eight kinds the importer maps (Levels, Curves, Hue/Saturation, Color Balance, Brightness/Contrast, Invert, Posterize, Threshold), and live filters, import as named empty placeholders; Brightness/Contrast and Color Balance import approximately
 - Affinity-only blend modes render through their closest Photoshop-compatible equivalent with a notice (Average matches exactly at half opacity; Negation, Reflect, Glow, and Pigment approximate; Contrast Negate falls back to Normal)
 - Bevel/Emboss and glow effects are approximated; Gaussian blur layer effects bake into the layer pixels (they render correctly but are no longer live)
 - Rotated or sheared frame text renders without its rotation (artistic text rotates correctly)
