@@ -13,8 +13,9 @@ QString contributors_link_html(const QString& link_color) {
   // Everyone whose code, bug report or suggestion made it into Patchy, by GitHub
   // handle, never real name: code contributors first in the order their first
   // pull request was merged, then issue reporters in the order their first issue
-  // was resolved. The About dialog and the start panel both render this list;
-  // the release checklist in docs/release-process.md keeps it current.
+  // was resolved. The About dialog renders this list (the start panel keeps its
+  // footer short so the recent files get the room); the release checklist in
+  // docs/release-process.md keeps it current.
   static constexpr Contributor kContributors[] = {
       {"mcapogna", "https://github.com/mcapogna"},
       {"csbun", "https://github.com/csbun"},

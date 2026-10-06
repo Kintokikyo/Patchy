@@ -20137,10 +20137,6 @@ Convertido en imágenes: %1.</translation>
         <source>Free · Windows, macOS &amp; Linux</source>
         <translation>Gratis · Windows, macOS y Linux</translation>
     </message>
-    <message>
-        <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
-        <translation>Personas increíbles que aportaron sugerencias, informes de errores y código: %1</translation>
-    </message>
 </context>
 <context>
     <name>patchy::ui::StyleBrowserWidget</name>

@@ -1,6 +1,5 @@
 #include "ui/start_panel.hpp"
 
-#include "ui/app_credits.hpp"
 #include "ui/build_info.hpp"
 #include "ui/dialog_utils.hpp"
 #include "ui/theme_palette.hpp"
@@ -355,20 +354,9 @@ StartPanel::StartPanel(QWidget* parent) : QWidget(parent) {
                      .arg(QStringLiteral("<a style=\"color:@link_text; text-decoration:none;\" "
                                          "href=\"https://github.com/SethRobinson\">Seth A. Robinson</a>")));
   });
+  // The contributor credits live in the About dialog only: every name added
+  // here would take a row from the recent-files list (Seth, October 2026).
   add_footer_row({version, credit});
-
-  auto* contributors = new QLabel(this);
-  contributors->setObjectName(QStringLiteral("startPanelContributors"));
-  contributors->setTextFormat(Qt::RichText);
-  retranslation_callbacks_.push_back([contributors] {
-    set_themed_label_text(
-        *contributors,
-        tr("Incredible people who donated suggestions, bug reports, and code: %1")
-            .arg(contributors_link_html(QStringLiteral("@link_text"))));
-  });
-  contributors->setTextInteractionFlags(Qt::TextBrowserInteraction);
-  contributors->setOpenExternalLinks(true);
-  add_footer_row({contributors});
 
   const auto make_home_label = [this](const char* source, const QString& link) {
     auto* label = new QLabel(this);
@@ -441,10 +429,18 @@ StartPanel::StartPanel(QWidget* parent) : QWidget(parent) {
       color: @start_panel_tagline_text;
       font-size: 12px;
     }
-    QLabel#startPanelVersion, QLabel#startPanelCredit, QLabel#startPanelContributors, QLabel#startPanelHome {
+    QLabel#startPanelCredit, QLabel#startPanelHome {
       background: transparent;
       color: @start_panel_muted_text;
       font-size: 11px;
+    }
+    QLabel#startPanelVersion {
+      /* The version is what a bug report needs first: larger and brighter than
+         the rest of the footer (Seth, October 2026). */
+      background: transparent;
+      color: @start_panel_tagline_text;
+      font-size: 14px;
+      font-weight: 600;
     }
     QLabel#startPanelUpdateStatus {
       background: transparent;

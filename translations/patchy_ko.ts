@@ -20080,10 +20080,6 @@ Y: %2
         <source>No matching recent files</source>
         <translation>일치하는 최근 파일이 없습니다.</translation>
     </message>
-    <message>
-        <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
-        <translation>제안, 버그 보고, 코드를 보내 주신 멋진 분들: %1</translation>
-    </message>
 </context>
 <context>
     <name>patchy::ui::StyleBrowserWidget</name>

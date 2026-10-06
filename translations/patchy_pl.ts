@@ -20194,10 +20194,6 @@ Y: %2
         <source>No matching recent files</source>
         <translation>Brak pasujących ostatnich plików</translation>
     </message>
-    <message>
-        <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
-        <translation>Wspaniali ludzie, którzy podarowali sugestie, zgłoszenia błędów i kod: %1</translation>
-    </message>
 </context>
 <context>
     <name>patchy::ui::StyleBrowserWidget</name>

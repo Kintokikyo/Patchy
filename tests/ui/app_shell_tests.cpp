@@ -4312,19 +4312,9 @@ void ui_start_panel_shows_about_info_and_update_status() {
   CHECK(credit->text().contains(QStringLiteral("href=\"https://github.com/SethRobinson\"")));
   CHECK(credit->text().contains(QStringLiteral(">Seth A. Robinson</a>")));
   CHECK(!credit->text().contains(QStringLiteral("@link_text")));
-  auto* contributors = window.findChild<QLabel*>(QStringLiteral("startPanelContributors"));
-  CHECK(contributors != nullptr);
-  CHECK(contributors->textFormat() == Qt::RichText);
-  CHECK(contributors->openExternalLinks());
-  CHECK(contributors->text().startsWith(QStringLiteral("Incredible people who donated suggestions, bug reports, and code: ")));
-  CHECK(contributors->text().contains(QStringLiteral("href=\"https://github.com/mcapogna\"")));
-  CHECK(contributors->text().contains(QStringLiteral(">mcapogna</a>")));
-  CHECK(contributors->text().contains(QStringLiteral("href=\"https://github.com/csbun\"")));
-  CHECK(contributors->text().contains(QStringLiteral(">csbun</a>")));
-  CHECK(contributors->text().contains(QStringLiteral("href=\"https://github.com/ifloppy\"")));
-  CHECK(contributors->text().contains(QStringLiteral(">ifloppy</a>")));
-  CHECK(contributors->text().contains(QStringLiteral("href=\"https://github.com/lucastucious\"")));
-  CHECK(contributors->text().contains(QStringLiteral(">lucastucious</a>")));
+  // The contributor credits belong to the About dialog alone; the start panel
+  // keeps its footer short so the recent-files list gets the room.
+  CHECK(window.findChild<QLabel*>(QStringLiteral("startPanelContributors")) == nullptr);
 
   const auto link_labels = panel->findChildren<QLabel*>(QStringLiteral("startPanelHome"));
   CHECK(link_labels.size() == 2);

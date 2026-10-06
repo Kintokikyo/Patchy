@@ -20087,10 +20087,6 @@ Baked into images: %1.</source>
         <source>Free · Windows, macOS &amp; Linux</source>
         <translation type="unfinished"></translation>
     </message>
-    <message>
-        <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
-        <translation type="unfinished"></translation>
-    </message>
 </context>
 <context>
     <name>patchy::ui::StyleBrowserWidget</name>

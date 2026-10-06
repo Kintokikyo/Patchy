@@ -20137,10 +20137,6 @@ Y: %2
         <source>No matching recent files</source>
         <translation>Nenhum arquivo recente correspondente</translation>
     </message>
-    <message>
-        <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
-        <translation>Pessoas incríveis que doaram sugestões, relatórios de bugs e código: %1</translation>
-    </message>
 </context>
 <context>
     <name>patchy::ui::StyleBrowserWidget</name>

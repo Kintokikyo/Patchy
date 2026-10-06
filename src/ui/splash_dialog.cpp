@@ -215,6 +215,8 @@ public:
             .arg(contributors_link_html(QStringLiteral("@splash_link_text"))));
     contributors->setTextInteractionFlags(Qt::TextBrowserInteraction);
     contributors->setOpenExternalLinks(true);
+    // The list outgrows one line; wrap inside the fixed dialog width.
+    contributors->setWordWrap(true);
     copy->addWidget(contributors);
 
     auto add_home_link = [this, copy](const QString& text) {

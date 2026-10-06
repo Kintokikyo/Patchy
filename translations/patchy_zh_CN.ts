@@ -20080,10 +20080,6 @@ Baked into images: %1.</source>
         <source>Free · Windows, macOS &amp; Linux</source>
         <translation>免费 · Windows、macOS和Linux</translation>
     </message>
-    <message>
-        <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
-        <translation>慷慨贡献建议、错误报告和代码的了不起的人们：%1</translation>
-    </message>
 </context>
 <context>
     <name>patchy::ui::StyleBrowserWidget</name>
