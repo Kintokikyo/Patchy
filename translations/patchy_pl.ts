@@ -9720,10 +9720,6 @@ RGB: %2, %3, %4</translation>
         <translation>Anulowano kadrowanie</translation>
     </message>
     <message>
-        <source>Drag the handles or edges to adjust. Enter crops, Esc cancels.</source>
-        <translation>Przeciągnij uchwyty lub krawędzie, aby dostosować kadr. Enter zatwierdza, Esc anuluje.</translation>
-    </message>
-    <message>
         <source>%1 x %2 px</source>
         <translation>%1 x %2 piks</translation>
     </message>
@@ -10486,6 +10482,14 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Cancelled the path transform</source>
         <translation>Anulowano transformację ścieżki</translation>
+    </message>
+    <message>
+        <source>Nothing to crop: the box matches the canvas</source>
+        <translation>Nie ma czego kadrować: ramka pokrywa się z obszarem roboczym</translation>
+    </message>
+    <message>
+        <source>Crop box reset to the canvas</source>
+        <translation>Ramka kadrowania przywrócona do obszaru roboczego</translation>
     </message>
 </context>
 <context>
@@ -12531,10 +12535,6 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Apply crop (Enter)</source>
         <translation>Zastosuj przycięcie (Enter)</translation>
-    </message>
-    <message>
-        <source>Cancel crop (Esc)</source>
-        <translation>Anuluj przycinanie (Esc)</translation>
     </message>
     <message>
         <source>Preset:</source>
@@ -18678,6 +18678,14 @@ Y: %2
     <message>
         <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
         <translation>Przesuwanie: %CTRL%+kliknięcie zaznacza warstwę, Shift+kliknięcie ją przełącza. %CTRL%+przeciąganie zaznacza prostokąt; Shift dodaje. Przeciągnij zaznaczoną grafikę, aby ją przesunąć, %ALT%+przeciąganie, aby ją powielić.</translation>
+    </message>
+    <message>
+        <source>Reset the crop box to the canvas (Esc)</source>
+        <translation>Przywróć ramkę kadrowania do obszaru roboczego (Esc)</translation>
+    </message>
+    <message>
+        <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
+        <translation>Kadrowanie: przeciągaj uchwyty, aby przyciąć lub powiększyć obszar roboczy (%ALT% skaluje względem środka), przeciągnij wewnątrz, aby narysować nową ramkę, przeciągnij na zewnątrz, aby obrócić. Enter kadruje, Esc przywraca ramkę.</translation>
     </message>
 </context>
 <context>

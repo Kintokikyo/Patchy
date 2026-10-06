@@ -9690,10 +9690,6 @@ RGB: %2, %3, %4</translation>
         <translation>Freistellen abgebrochen</translation>
     </message>
     <message>
-        <source>Drag the handles or edges to adjust. Enter crops, Esc cancels.</source>
-        <translation>Ziehen Sie die Griffe oder Kanten zum Anpassen. Enter stellt frei, Esc bricht ab.</translation>
-    </message>
-    <message>
         <source>%1 x %2 px</source>
         <translation>%1 x %2 px</translation>
     </message>
@@ -10456,6 +10452,14 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Select Custom Color...</source>
         <translation>Eigene Farbe wählen...</translation>
+    </message>
+    <message>
+        <source>Nothing to crop: the box matches the canvas</source>
+        <translation>Nichts zuzuschneiden: Der Rahmen entspricht der Arbeitsfläche</translation>
+    </message>
+    <message>
+        <source>Crop box reset to the canvas</source>
+        <translation>Zuschneiderahmen auf die Arbeitsfläche zurückgesetzt</translation>
     </message>
 </context>
 <context>
@@ -12173,10 +12177,6 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Apply crop (Enter)</source>
         <translation>Freistellen anwenden (Enter)</translation>
-    </message>
-    <message>
-        <source>Cancel crop (Esc)</source>
-        <translation>Freistellen abbrechen (Esc)</translation>
     </message>
     <message>
         <source>Preset:</source>
@@ -18622,6 +18622,14 @@ In Bilder umgewandelt: %1.</translation>
     <message>
         <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
         <translation>Verschieben: %CTRL%+Klick wählt eine Ebene aus, Umschalt+Klick schaltet sie um. %CTRL%+Ziehen wählt ein Rechteck aus; Umschalt fügt hinzu. Ausgewählte Grafik ziehen, um sie zu verschieben, %ALT%+Ziehen, um sie zu duplizieren.</translation>
+    </message>
+    <message>
+        <source>Reset the crop box to the canvas (Esc)</source>
+        <translation>Zuschneiderahmen auf die Arbeitsfläche zurücksetzen (Esc)</translation>
+    </message>
+    <message>
+        <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
+        <translation>Freistellen: Griffe ziehen, um zuzuschneiden oder die Arbeitsfläche zu erweitern (%ALT% skaliert um die Mitte), innen ziehen für einen neuen Rahmen, außerhalb ziehen zum Drehen. Eingabe schneidet zu, Esc setzt den Rahmen zurück.</translation>
     </message>
 </context>
 <context>

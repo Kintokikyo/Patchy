@@ -9690,10 +9690,6 @@ RVB : %2, %3, %4</translation>
         <translation>Recadrage annulé</translation>
     </message>
     <message>
-        <source>Drag the handles or edges to adjust. Enter crops, Esc cancels.</source>
-        <translation>Faites glisser les poignées ou les bords pour ajuster. Enter recadre, Esc annule.</translation>
-    </message>
-    <message>
         <source>%1 x %2 px</source>
         <translation>%1 x %2 px</translation>
     </message>
@@ -10456,6 +10452,14 @@ RVB : %2, %3, %4</translation>
     <message>
         <source>Select Custom Color...</source>
         <translation>Choisir une couleur personnalisée...</translation>
+    </message>
+    <message>
+        <source>Nothing to crop: the box matches the canvas</source>
+        <translation>Rien à recadrer : le cadre correspond à la zone de travail</translation>
+    </message>
+    <message>
+        <source>Crop box reset to the canvas</source>
+        <translation>Cadre de recadrage réinitialisé sur la zone de travail</translation>
     </message>
 </context>
 <context>
@@ -12173,10 +12177,6 @@ RVB : %2, %3, %4</translation>
     <message>
         <source>Apply crop (Enter)</source>
         <translation>Appliquer le recadrage (Enter)</translation>
-    </message>
-    <message>
-        <source>Cancel crop (Esc)</source>
-        <translation>Annuler le recadrage (Esc)</translation>
     </message>
     <message>
         <source>Preset:</source>
@@ -18622,6 +18622,14 @@ Convertis en images : %1.</translation>
     <message>
         <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
         <translation>Déplacement : %CTRL%+clic sélectionne un calque, Maj+clic le bascule. %CTRL%+glisser sélectionne un rectangle ; Maj ajoute. Faites glisser l&apos;illustration sélectionnée pour la déplacer, %ALT%+glisser pour la dupliquer.</translation>
+    </message>
+    <message>
+        <source>Reset the crop box to the canvas (Esc)</source>
+        <translation>Réinitialiser le cadre de recadrage sur la zone de travail (Échap)</translation>
+    </message>
+    <message>
+        <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
+        <translation>Recadrage : faites glisser les poignées pour recadrer ou agrandir la zone de travail (%ALT% redimensionne autour du centre), glissez à l'intérieur pour tracer un nouveau cadre, glissez à l'extérieur pour pivoter. Entrée recadre, Échap réinitialise le cadre.</translation>
     </message>
 </context>
 <context>

@@ -9679,10 +9679,6 @@ RGB: %2, %3, %4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Drag the handles or edges to adjust. Enter crops, Esc cancels.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>%1 x %2 px</source>
         <translation type="unfinished"></translation>
     </message>
@@ -10444,6 +10440,14 @@ RGB: %2, %3, %4</source>
     </message>
     <message>
         <source>Select Custom Color...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nothing to crop: the box matches the canvas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Crop box reset to the canvas</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -12161,10 +12165,6 @@ RGB: %2, %3, %4</source>
     </message>
     <message>
         <source>Apply crop (Enter)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Cancel crop (Esc)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -18571,6 +18571,14 @@ Baked into images: %1.</source>
     </message>
     <message>
         <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reset the crop box to the canvas (Esc)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

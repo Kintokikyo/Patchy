@@ -10184,10 +10184,6 @@ Mixed selection</source>
         <translation>切り抜きをキャンセルしました</translation>
     </message>
     <message>
-        <source>Drag the handles or edges to adjust. Enter crops, Esc cancels.</source>
-        <translation>ハンドルや辺をドラッグして調整します。Enter で切り抜き、Esc でキャンセルします。</translation>
-    </message>
-    <message>
         <source>Click to add a point here. %CTRL%-drag moves the segment.</source>
         <translation>クリックでここにポイントを追加。%CTRL%+ドラッグでセグメントを移動。</translation>
     </message>
@@ -10426,6 +10422,14 @@ Mixed selection</source>
     <message>
         <source>Select Custom Color...</source>
         <translation>カスタムカラーを選択...</translation>
+    </message>
+    <message>
+        <source>Nothing to crop: the box matches the canvas</source>
+        <translation>切り抜くものがありません: 枠がカンバスと一致しています</translation>
+    </message>
+    <message>
+        <source>Crop box reset to the canvas</source>
+        <translation>切り抜き枠をカンバスに戻しました</translation>
     </message>
 </context>
 <context>
@@ -15884,10 +15888,6 @@ Clipped to the layer below</source>
         <translation>切り抜きを適用 (Enter)</translation>
     </message>
     <message>
-        <source>Cancel crop (Esc)</source>
-        <translation>切り抜きをキャンセル (Esc)</translation>
-    </message>
-    <message>
         <source>Cropped</source>
         <translation>切り抜きました</translation>
     </message>
@@ -18566,6 +18566,14 @@ Baked into images: %1.</source>
     <message>
         <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
         <translation>移動: %CTRL%+クリックでレイヤーを選択、Shift+クリックで切り替えます。%CTRL%+ドラッグで矩形選択、Shiftで追加します。選択したアートワークをドラッグして移動、%ALT%+ドラッグで複製します。</translation>
+    </message>
+    <message>
+        <source>Reset the crop box to the canvas (Esc)</source>
+        <translation>切り抜き枠をカンバスに戻す (Esc)</translation>
+    </message>
+    <message>
+        <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
+        <translation>切り抜き: ハンドルをドラッグして切り抜くかカンバスを広げます (%ALT% で中心基準)。内側をドラッグすると新しい枠、外側をドラッグすると回転します。Enter で切り抜き、Esc で枠をリセットします。</translation>
     </message>
 </context>
 <context>

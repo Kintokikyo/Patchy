@@ -1,8 +1,11 @@
-// CanvasWidget's Crop tool session. A drag lays out a document-space rect
-// (which may extend past the canvas onto the pasteboard), handles adjust it,
-// and Enter/Apply hands the rect to MainWindow through the crop-commit
-// callback; the document itself is only mutated there. Escape, a tool switch,
-// an edit lock, or a document swap cancel the session without committing.
+// CanvasWidget's Crop tool session. Picking the tool frames the canvas (or the
+// active selection) with handles; a drag inside that default box lays out a
+// new document-space rect (which may extend past the canvas onto the
+// pasteboard), handles adjust it, and Enter/Apply hands the rect to MainWindow
+// through the crop-commit callback; the document itself is only mutated there.
+// Escape resets the box to the canvas; a tool switch, an edit lock, or a
+// document swap cancel the session without committing (the swap then frames
+// the new document).
 
 #include "ui/canvas_widget.hpp"
 #include "ui/canvas_widget_shared.hpp"
@@ -56,9 +59,61 @@ std::optional<QRect> CanvasWidget::crop_session_rect() const noexcept {
   return crop_rect_;
 }
 
+bool CanvasWidget::crop_session_has_changes() const noexcept {
+  return crop_session_active_ && (crop_angle_ != 0.0 || crop_rect_ != canvas_document_rect());
+}
+
+QRect CanvasWidget::canvas_document_rect() const noexcept {
+  return document_ != nullptr ? QRect(0, 0, document_->width(), document_->height()) : QRect();
+}
+
+QRect CanvasWidget::ratio_fitted_crop_rect(QRect within) const {
+  if (crop_ratio_w_ <= 0.0 || crop_ratio_h_ <= 0.0 || within.isEmpty()) {
+    return within;
+  }
+  const auto ratio = crop_ratio_w_ / crop_ratio_h_;
+  auto width = within.width();
+  auto height = within.height();
+  if (static_cast<double>(width) / static_cast<double>(height) > ratio) {
+    width = std::max(1, static_cast<int>(std::lround(height * ratio)));
+  } else {
+    height = std::max(1, static_cast<int>(std::lround(width / ratio)));
+  }
+  return QRect(within.x() + (within.width() - width) / 2, within.y() + (within.height() - height) / 2, width,
+               height);
+}
+
 void CanvasWidget::set_crop_ratio(double width, double height) noexcept {
-  crop_ratio_w_ = std::max(0.0, width);
-  crop_ratio_h_ = std::max(0.0, height);
+  const auto new_w = std::max(0.0, width);
+  const auto new_h = std::max(0.0, height);
+  const auto changed = new_w != crop_ratio_w_ || new_h != crop_ratio_h_;
+  crop_ratio_w_ = new_w;
+  crop_ratio_h_ = new_h;
+  // A new ratio reshapes the pending box at once, so typing a ratio or picking
+  // a preset shows the result (GitHub issue 66). The automatic canvas frame
+  // re-fits from the whole canvas (so Clear grows it back); a custom box keeps
+  // its width and center and derives the height, which makes the result
+  // independent of the intermediate ratios a field passes through while it is
+  // typed digit by digit (fitting inside itself would shrink cumulatively).
+  // Clear leaves a custom box alone.
+  if (!changed || !crop_session_active_) {
+    return;
+  }
+  const auto constrained = crop_ratio_w_ > 0.0 && crop_ratio_h_ > 0.0;
+  QRect fitted = crop_rect_;
+  if (crop_box_is_default_) {
+    fitted = ratio_fitted_crop_rect(canvas_document_rect());
+  } else if (constrained) {
+    const auto derived_height =
+        std::max(1, static_cast<int>(std::lround(crop_rect_.width() * crop_ratio_h_ / crop_ratio_w_)));
+    fitted = QRect(crop_rect_.x(), crop_rect_.y() + (crop_rect_.height() - derived_height) / 2,
+                   crop_rect_.width(), derived_height);
+  }
+  if (fitted != crop_rect_) {
+    crop_rect_ = fitted;
+    update();
+    notify_crop_session_changed();
+  }
 }
 
 double CanvasWidget::crop_ratio_width() const noexcept {
@@ -85,6 +140,8 @@ void CanvasWidget::notify_crop_session_changed() {
 
 void CanvasWidget::reset_crop_session_state() {
   crop_session_active_ = false;
+  crop_box_is_default_ = false;
+  crop_box_from_selection_ = false;
   crop_dragging_out_ = false;
   crop_rotating_ = false;
   crop_drag_handle_ = TransformHandle::None;
@@ -104,9 +161,17 @@ void CanvasWidget::commit_crop_session() {
   if (!crop_session_active_ || crop_rect_.isEmpty()) {
     return;
   }
+  // The default canvas frame would re-create the same document and leave a
+  // pointless undo step behind.
+  if (!crop_session_has_changes()) {
+    if (status_callback_) {
+      status_callback_(tr("Nothing to crop: the box matches the canvas"));
+    }
+    return;
+  }
   // State is left intact: a refused commit (smart filters, unparsed smart
   // objects) keeps the session adjustable; a successful one cancels it from
-  // MainWindow before the document reset.
+  // MainWindow before the document reset (which frames the new canvas).
   if (crop_commit_requested_callback_) {
     crop_commit_requested_callback_(crop_rect_, crop_angle_);
   }
@@ -118,11 +183,54 @@ void CanvasWidget::cancel_crop_session() {
       crop_drag_handle_ == TransformHandle::None) {
     return;
   }
+  // Leaving the tool with the untouched canvas frame is not worth a message.
+  const auto had_changes = crop_session_has_changes();
   reset_crop_session_state();
   update_tool_cursor();
   update();
-  if (had_session && status_callback_) {
+  if (had_changes && status_callback_) {
     status_callback_(tr("Crop cancelled"));
+  }
+  notify_crop_session_changed();
+}
+
+void CanvasWidget::begin_default_crop_session() {
+  if (tool_ != CanvasTool::Crop || document_ == nullptr || edit_locked_) {
+    return;
+  }
+  reset_crop_session_state();
+  crop_session_active_ = true;
+  if (!selection_.isEmpty() && !quick_mask_active_) {
+    // The active selection becomes the crop box, overriding the ratio for this
+    // box (GitHub issue 66 item 5); the marching ants hide while the session
+    // runs so the box is the only outline. A commit clears the selection, a
+    // tool switch brings it back.
+    crop_rect_ = selection_.boundingRect();
+    crop_box_is_default_ = false;
+    crop_box_from_selection_ = true;
+  } else {
+    crop_rect_ = ratio_fitted_crop_rect(canvas_document_rect());
+    crop_box_is_default_ = true;
+  }
+  update_tool_cursor();
+  update();
+  notify_crop_session_changed();
+}
+
+void CanvasWidget::reset_crop_session_to_canvas() {
+  if (tool_ != CanvasTool::Crop || document_ == nullptr || edit_locked_) {
+    cancel_crop_session();
+    return;
+  }
+  const auto had_changes = crop_session_has_changes();
+  reset_crop_session_state();
+  crop_session_active_ = true;
+  crop_box_is_default_ = true;
+  crop_rect_ = ratio_fitted_crop_rect(canvas_document_rect());
+  update_tool_cursor();
+  update();
+  if (had_changes && status_callback_) {
+    status_callback_(tr("Crop box reset to the canvas"));
   }
   notify_crop_session_changed();
 }
@@ -190,10 +298,20 @@ void CanvasWidget::begin_crop_drag_out(QMouseEvent* event, QPoint document_point
 
 void CanvasWidget::handle_crop_session_press(QMouseEvent* event) {
   const auto handle = crop_handle_at(event->pos());
+  const auto on_handle = handle != TransformHandle::None && handle != TransformHandle::Move;
+  if (crop_box_is_default_ && !on_handle &&
+      canvas_document_rect().contains(document_position(event->pos()))) {
+    // The automatic canvas frame has no interior to move: a press on the
+    // canvas (inside the frame or beside a ratio-fitted one) lays out a new
+    // box; a mere click keeps the frame. The handles work as on any box.
+    begin_crop_drag_out(event, document_position(event->pos()));
+    return;
+  }
   if (handle == TransformHandle::None) {
     // A press off the box starts the rotate gesture (Photoshop's straighten):
     // the box pivots about its center to follow the drag. A plain click (no
-    // travel) leaves the angle untouched. Esc first to lay out a new rect.
+    // travel) leaves the angle untouched. Esc resets to the canvas frame, where
+    // a drag lays out a new rect.
     crop_rotating_ = true;
     crop_press_widget_point_ = event->pos();
     crop_rotate_start_angle_ = crop_angle_;
@@ -375,12 +493,10 @@ void CanvasWidget::finish_crop_mouse_release(QMouseEvent* event) {
         crop_current_document_ =
             snapped_marquee_current_point(crop_anchor_document_, document_position(event->pos()));
       }
-      const auto had_session = crop_session_active_;
       crop_rect_ = crop_drag_rect(crop_anchor_document_, crop_current_document_);
       crop_session_active_ = true;
-      if (!had_session && status_callback_) {
-        status_callback_(tr("Drag the handles or edges to adjust. Enter crops, Esc cancels."));
-      }
+      crop_box_is_default_ = false;
+      crop_box_from_selection_ = false;
       notify_crop_session_changed();
     }
     // A plain click leaves any pending rect (and the session) untouched.
@@ -393,6 +509,9 @@ void CanvasWidget::finish_crop_mouse_release(QMouseEvent* event) {
   if (crop_rotating_) {
     update_crop_rotate_drag(document_position_f(event->position()), event->modifiers());
     crop_rotating_ = false;
+    if (crop_angle_ != 0.0) {
+      crop_box_is_default_ = false;
+    }
     update_tool_cursor();
     update();
     notify_crop_session_changed();
@@ -402,6 +521,7 @@ void CanvasWidget::finish_crop_mouse_release(QMouseEvent* event) {
   if (crop_drag_handle_ != TransformHandle::None) {
     update_crop_adjust_drag(document_position_f(event->position()), event->modifiers());
     crop_drag_handle_ = TransformHandle::None;
+    crop_box_is_default_ = false;
     update_tool_cursor();
     update();
     notify_crop_session_changed();
@@ -413,6 +533,7 @@ void CanvasWidget::nudge_crop_rect(QPoint delta) {
     return;
   }
   crop_rect_.translate(delta);
+  crop_box_is_default_ = false;
   update();
   notify_crop_session_changed();
 }

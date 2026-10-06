@@ -9660,10 +9660,6 @@ RGB: %2, %3, %4</translation>
         <translation>자르기 취소됨</translation>
     </message>
     <message>
-        <source>Drag the handles or edges to adjust. Enter crops, Esc cancels.</source>
-        <translation>핸들이나 가장자리를 드래그하여 조정합니다. Enter로 자르기를 적용하고 Esc로 취소합니다.</translation>
-    </message>
-    <message>
         <source>%1 x %2 px</source>
         <translation>%1x%2픽셀</translation>
     </message>
@@ -10426,6 +10422,14 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Cancelled the path transform</source>
         <translation>패스 변형을 취소했습니다</translation>
+    </message>
+    <message>
+        <source>Nothing to crop: the box matches the canvas</source>
+        <translation>자를 것이 없습니다: 상자가 캔버스와 일치합니다</translation>
+    </message>
+    <message>
+        <source>Crop box reset to the canvas</source>
+        <translation>자르기 상자를 캔버스로 재설정했습니다</translation>
     </message>
 </context>
 <context>
@@ -12471,10 +12475,6 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Apply crop (Enter)</source>
         <translation>자르기 적용(Enter)</translation>
-    </message>
-    <message>
-        <source>Cancel crop (Esc)</source>
-        <translation>자르기 취소(Esc)</translation>
     </message>
     <message>
         <source>Preset:</source>
@@ -18566,6 +18566,14 @@ Y: %2
     <message>
         <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
         <translation>이동: %CTRL%+클릭으로 레이어를 선택하고 Shift+클릭으로 전환합니다. %CTRL%+드래그로 사각형을 선택하고 Shift로 추가합니다. 선택한 아트워크를 드래그하여 이동하고 %ALT%+드래그로 복제합니다.</translation>
+    </message>
+    <message>
+        <source>Reset the crop box to the canvas (Esc)</source>
+        <translation>자르기 상자를 캔버스로 재설정 (Esc)</translation>
+    </message>
+    <message>
+        <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
+        <translation>자르기: 핸들을 드래그하여 자르거나 캔버스를 확장합니다 (%ALT%는 중심 기준으로 크기 조절). 안쪽을 드래그하면 새 상자를 그리고, 바깥쪽을 드래그하면 회전합니다. Enter는 자르기, Esc는 상자를 재설정합니다.</translation>
     </message>
 </context>
 <context>

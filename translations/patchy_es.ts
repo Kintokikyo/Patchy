@@ -9690,10 +9690,6 @@ RGB: %2, %3, %4</translation>
         <translation>Recorte cancelado</translation>
     </message>
     <message>
-        <source>Drag the handles or edges to adjust. Enter crops, Esc cancels.</source>
-        <translation>Arrastre los tiradores o los bordes para ajustar. Enter recorta, Esc cancela.</translation>
-    </message>
-    <message>
         <source>%1 x %2 px</source>
         <translation>%1 x %2 px</translation>
     </message>
@@ -10456,6 +10452,14 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Select Custom Color...</source>
         <translation>Seleccionar color personalizado...</translation>
+    </message>
+    <message>
+        <source>Nothing to crop: the box matches the canvas</source>
+        <translation>Nada que recortar: el cuadro coincide con el lienzo</translation>
+    </message>
+    <message>
+        <source>Crop box reset to the canvas</source>
+        <translation>Cuadro de recorte restablecido al lienzo</translation>
     </message>
 </context>
 <context>
@@ -12173,10 +12177,6 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Apply crop (Enter)</source>
         <translation>Aplicar recorte (Enter)</translation>
-    </message>
-    <message>
-        <source>Cancel crop (Esc)</source>
-        <translation>Cancelar recorte (Esc)</translation>
     </message>
     <message>
         <source>Preset:</source>
@@ -18622,6 +18622,14 @@ Convertido en imágenes: %1.</translation>
     <message>
         <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
         <translation>Mover: %CTRL%+clic selecciona una capa, Mayús+clic la alterna. %CTRL%+arrastrar selecciona un rectángulo; Mayús añade. Arrastra el arte seleccionado para moverlo, %ALT%+arrastrar para duplicarlo.</translation>
+    </message>
+    <message>
+        <source>Reset the crop box to the canvas (Esc)</source>
+        <translation>Restablecer el cuadro de recorte al lienzo (Esc)</translation>
+    </message>
+    <message>
+        <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
+        <translation>Recortar: arrastre los tiradores para recortar o ampliar el lienzo (%ALT% redimensiona desde el centro), arrastre dentro para trazar un cuadro nuevo, arrastre fuera para rotar. Intro recorta, Esc restablece el cuadro.</translation>
     </message>
 </context>
 <context>

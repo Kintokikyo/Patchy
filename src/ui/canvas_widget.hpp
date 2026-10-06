@@ -997,18 +997,28 @@ public:
   [[nodiscard]] std::optional<TransformControlsState> transform_controls_state() const;
   bool set_transform_controls_state(QPointF reference_position, double scale_x_percent,
                                     double scale_y_percent, double rotation_degrees);
-  // Crop tool session (canvas_widget_crop.cpp): drag out a rect, adjust it via
-  // handles, drag outside it to rotate the box, Enter/Apply commits through the
-  // crop-commit callback, Esc cancels. The rect lives in document space and may
-  // extend past the canvas; the commit handler expands the document.
+  // Crop tool session (canvas_widget_crop.cpp). Picking the tool frames the
+  // canvas (or the active selection) with handles; a drag inside that default
+  // box lays out a new rect, handles adjust, the interior of a custom box moves
+  // it, a drag off the box rotates it, Enter/Apply commits through the
+  // crop-commit callback, Esc resets the box to the canvas. The rect lives in
+  // document space and may extend past the canvas; the commit handler expands
+  // the document. Switching tools cancels (never commits).
   [[nodiscard]] bool crop_session_active() const noexcept;
   [[nodiscard]] std::optional<QRect> crop_session_rect() const noexcept;
+  // True once the box differs from the unrotated whole canvas: the Apply and
+  // reset buttons, the no-op commit guard, and the recovery busy check key on it.
+  [[nodiscard]] bool crop_session_has_changes() const noexcept;
   // Box rotation in degrees about the rect center (0 until rotated).
   [[nodiscard]] double crop_session_angle() const noexcept;
   void commit_crop_session();
   void cancel_crop_session();
+  // Puts the box back around the whole canvas (ratio-fitted), angle 0; Esc and
+  // the options-bar X. Starts the session when the Crop tool has none.
+  void reset_crop_session_to_canvas();
   // Aspect constraint for new drag-outs and corner-handle drags. Both values
-  // must be > 0 to constrain; changing it never retro-resizes a pending rect.
+  // must be > 0 to constrain; a change re-fits the pending box inside itself
+  // about its center (GitHub issue 66).
   void set_crop_ratio(double width, double height) noexcept;
   [[nodiscard]] double crop_ratio_width() const noexcept;
   [[nodiscard]] double crop_ratio_height() const noexcept;
@@ -1898,6 +1908,14 @@ private:
   void nudge_crop_rect(QPoint delta);
   void notify_crop_session_changed();
   void reset_crop_session_state();
+  // Frames the canvas, or the active selection's bounds (which override the
+  // ratio), when the Crop tool is current and a document is set; a no-op
+  // otherwise. Called on tool pick, document swap, and unlock.
+  void begin_default_crop_session();
+  // The largest rect of the set ratio inside `within`, centered; `within`
+  // itself when no ratio is set.
+  [[nodiscard]] QRect ratio_fitted_crop_rect(QRect within) const;
+  [[nodiscard]] QRect canvas_document_rect() const noexcept;
   void draw_crop_overlay(QPainter& painter) const;
   // Patch tool drag lifecycle (canvas_widget_patch_tool.cpp). The drag shows
   // only a raw translated copy of the frozen snapshot; the heal is computed
@@ -1934,8 +1952,7 @@ private:
   // The remembered marquee rect while a marquee tool can resize it (not in
   // Quick Mask, no gesture in flight); nullopt hides the handles.
   [[nodiscard]] std::optional<QRect> resizable_marquee_rect() const;
-  [[nodiscard]] TransformHandle marquee_resize_handle_at(QPoint widget_point,
-                                                          Qt::KeyboardModifiers modifiers) const;
+  [[nodiscard]] TransformHandle marquee_resize_handle_at(QPoint widget_point) const;
   void update_marquee_resize_drag(QPoint document_point, Qt::KeyboardModifiers modifiers);
   void apply_marquee_resize_rect(QRect rect);
   // True while a gesture rewrites selection_ on every pointer move (a Replace
@@ -2469,6 +2486,12 @@ private:
   // Crop tool session state (canvas_widget_crop.cpp). All rects/points are in
   // document space; crop_rect_ may extend past the canvas (commit expands).
   bool crop_session_active_{false};
+  // True while the box is the automatic canvas frame (ratio-fitted or not): a
+  // press inside the canvas then lays out a new rect instead of moving the box.
+  bool crop_box_is_default_{false};
+  // True while the box descends from the selection it adopted on activation
+  // (handles and moves keep it): the marching ants hide meanwhile.
+  bool crop_box_from_selection_{false};
   bool crop_dragging_out_{false};
   bool crop_rotating_{false};
   TransformHandle crop_drag_handle_{TransformHandle::None};

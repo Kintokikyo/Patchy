@@ -1104,8 +1104,11 @@ void CanvasWidget::ensure_selection_outline_screen_path() const {
 }
 
 void CanvasWidget::draw_selection_overlay(QPainter& painter) const {
+  // A crop session adopted the selection as its box; the ants would only
+  // shadow it (and go stale as the box moves).
+  const bool hidden_by_crop = tool_ == CanvasTool::Crop && crop_session_active_ && crop_box_from_selection_;
   if (!quick_mask_active_ && !selection_.isEmpty() &&
-      selection_edges_visible_) {
+      selection_edges_visible_ && !hidden_by_crop) {
     ensure_selection_outline_screen_path();
     if (!selection_outline_screen_paths_.marching.isEmpty()) {
       stroke_marching_ants(painter, selection_outline_screen_paths_.marching, selection_dash_offset_);
@@ -1356,11 +1359,12 @@ std::optional<QRect> CanvasWidget::resizable_marquee_rect() const {
   return marquee_shape_->rect;
 }
 
-CanvasWidget::TransformHandle CanvasWidget::marquee_resize_handle_at(QPoint widget_point,
-                                                                     Qt::KeyboardModifiers modifiers) const {
+CanvasWidget::TransformHandle CanvasWidget::marquee_resize_handle_at(QPoint widget_point) const {
   const auto rect = resizable_marquee_rect();
-  // Shift/Alt at the press mean Add/Subtract, exactly as for the interior move.
-  if (!rect.has_value() || selection_operation(modifiers) != SelectionMode::Replace) {
+  // Unlike the interior move, the handles ignore the combine modifiers: Alt on
+  // a handle is the symmetric resize (so the cursor must not promise Subtract)
+  // and Shift holds the aspect (GitHub issue 66).
+  if (!rect.has_value()) {
     return TransformHandle::None;
   }
   const auto handle = transform_handle_at(widget_point, QRectF(*rect), 0.0);
@@ -1402,8 +1406,7 @@ void CanvasWidget::update_marquee_resize_drag(QPoint document_point, Qt::Keyboar
   const bool holds_aspect = corner && (modifiers & Qt::ShiftModifier) != 0 && start.height() > 0;
   if ((modifiers & Qt::AltModifier) != 0) {
     // Alt resizes about the center, the opposite side mirroring the dragged one
-    // (GitHub issue 66). Alt at the press means Subtract and never reaches a
-    // handle, so this is the mid-drag Alt, like Shift below.
+    // (GitHub issue 66), whether held at the grab or pressed mid-drag.
     rect = center_anchored_handle_rect(start, moves_left || moves_right, moves_top || moves_bottom, point,
                                        holds_aspect ? static_cast<double>(start.width()) / start.height() : 0.0);
   } else if (holds_aspect) {

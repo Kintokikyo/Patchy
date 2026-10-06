@@ -654,8 +654,9 @@ void CanvasWidget::mousePressEvent(QMouseEvent* event) {
   }
 
   if (tool_ == CanvasTool::Crop && crop_session_active_ && event->button() == Qt::LeftButton) {
-    // Handles adjust, the interior moves, and a press off the rect starts a
-    // replacement drag-out (a mere click keeps the pending rect alive).
+    // Handles adjust, the interior of a custom box moves it, a press on the
+    // canvas inside the default frame lays out a new box, and a press off the
+    // box rotates it (a mere click keeps the pending rect alive).
     handle_crop_session_press(event);
     event->accept();
     return;
@@ -1054,10 +1055,12 @@ void CanvasWidget::mousePressEvent(QMouseEvent* event) {
     return;
   }
 
-  if (const auto handle = marquee_resize_handle_at(event->pos(), event->modifiers());
+  if (const auto handle = marquee_resize_handle_at(event->pos());
       event->button() == Qt::LeftButton && handle != TransformHandle::None && marquee_shape_.has_value()) {
     // Grab an edge or corner handle of a committed marquee to resize it. Tested
     // before the interior move because the handles overlap the interior edge.
+    // Modifiers do not demote the grab: Alt here is the symmetric resize and
+    // Shift the held aspect, never Subtract/Add (GitHub issue 66).
     marquee_resize_handle_ = handle;
     marquee_resize_start_rect_ = marquee_shape_->rect;
     marquee_resize_current_rect_ = marquee_shape_->rect;
@@ -1980,9 +1983,10 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
           }
         }
       }
-      if (const auto handle = marquee_resize_handle_at(event->pos(), event->modifiers());
+      if (const auto handle = marquee_resize_handle_at(event->pos());
           handle != TransformHandle::None) {
-        // Signal that grabbing here resizes the committed marquee.
+        // Signal that grabbing here resizes the committed marquee (with any
+        // modifier: Alt mirrors, it does not subtract).
         set_transform_cursor_for_handle(handle);
       } else if (can_move_selection_at(document_point, event->modifiers())) {
         // Signal that grabbing here drags the selection outline.
@@ -1993,6 +1997,9 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
         // Signal that grabbing here drags the patch region to its source.
         setCursor(Qt::SizeAllCursor);
       } else {
+        // The idle tool cursor reads last_mouse_position_ (the marquee and
+        // crop handle checks), so it must already be this event's position.
+        last_mouse_position_ = event->pos();
         update_tool_cursor();
       }
       update_move_hover_outline(event->pos(), event->modifiers());
@@ -3289,7 +3296,9 @@ void CanvasWidget::keyPressEvent(QKeyEvent* event) {
 
   if (tool_ == CanvasTool::Crop && (crop_session_active_ || crop_dragging_out_)) {
     if (event->key() == Qt::Key_Escape) {
-      cancel_crop_session();
+      // Esc puts the box back around the canvas (Photoshop); only a tool
+      // switch ends the session.
+      reset_crop_session_to_canvas();
       event->accept();
       return;
     }

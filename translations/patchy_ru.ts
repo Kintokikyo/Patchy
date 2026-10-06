@@ -9720,10 +9720,6 @@ RGB: %2, %3, %4</translation>
         <translation>Кадрирование отменено</translation>
     </message>
     <message>
-        <source>Drag the handles or edges to adjust. Enter crops, Esc cancels.</source>
-        <translation>Перетаскивайте маркеры или края для изменения рамки. Enter применяет кадрирование, Esc отменяет.</translation>
-    </message>
-    <message>
         <source>%1 x %2 px</source>
         <translation>%1 x %2 пикселей</translation>
     </message>
@@ -10486,6 +10482,14 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Cancelled the path transform</source>
         <translation>Трансформирование контура отменено</translation>
+    </message>
+    <message>
+        <source>Nothing to crop: the box matches the canvas</source>
+        <translation>Нечего кадрировать: рамка совпадает с холстом</translation>
+    </message>
+    <message>
+        <source>Crop box reset to the canvas</source>
+        <translation>Рамка кадрирования сброшена к холсту</translation>
     </message>
 </context>
 <context>
@@ -12531,10 +12535,6 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Apply crop (Enter)</source>
         <translation>Применить обрезку (Ввод)</translation>
-    </message>
-    <message>
-        <source>Cancel crop (Esc)</source>
-        <translation>Отменить обрезку (Esc)</translation>
     </message>
     <message>
         <source>Preset:</source>
@@ -18678,6 +18678,14 @@ Y: %2
     <message>
         <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
         <translation>Перемещение: %CTRL%+щелчок выбирает слой, Shift+щелчок переключает его. %CTRL%+перетаскивание выбирает прямоугольник; Shift добавляет. Перетащите выбранный объект, чтобы переместить его, %ALT%+перетаскивание дублирует его.</translation>
+    </message>
+    <message>
+        <source>Reset the crop box to the canvas (Esc)</source>
+        <translation>Сбросить рамку кадрирования к холсту (Esc)</translation>
+    </message>
+    <message>
+        <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
+        <translation>Кадрирование: тяните маркеры, чтобы обрезать или расширить холст (%ALT% масштабирует от центра), тяните внутри, чтобы задать новую рамку, тяните снаружи, чтобы повернуть. Enter кадрирует, Esc сбрасывает рамку.</translation>
     </message>
 </context>
 <context>

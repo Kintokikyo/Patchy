@@ -9690,10 +9690,6 @@ RGB: %2, %3, %4</translation>
         <translation>Ritaglio annullato</translation>
     </message>
     <message>
-        <source>Drag the handles or edges to adjust. Enter crops, Esc cancels.</source>
-        <translation>Trascinate le maniglie o i bordi per regolare. Enter ritaglia, Esc annulla.</translation>
-    </message>
-    <message>
         <source>%1 x %2 px</source>
         <translation>%1 x %2 px</translation>
     </message>
@@ -10456,6 +10452,14 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Select Custom Color...</source>
         <translation>Scegli colore personalizzato...</translation>
+    </message>
+    <message>
+        <source>Nothing to crop: the box matches the canvas</source>
+        <translation>Niente da ritagliare: il riquadro coincide con la tela</translation>
+    </message>
+    <message>
+        <source>Crop box reset to the canvas</source>
+        <translation>Riquadro di ritaglio riportato alla tela</translation>
     </message>
 </context>
 <context>
@@ -12173,10 +12177,6 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Apply crop (Enter)</source>
         <translation>Applica ritaglio (Enter)</translation>
-    </message>
-    <message>
-        <source>Cancel crop (Esc)</source>
-        <translation>Annulla ritaglio (Esc)</translation>
     </message>
     <message>
         <source>Preset:</source>
@@ -18622,6 +18622,14 @@ Convertiti in immagini: %1.</translation>
     <message>
         <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
         <translation>Sposta: %CTRL%+clic seleziona un livello, Maiusc+clic lo attiva o disattiva. %CTRL%+trascina seleziona un rettangolo; Maiusc aggiunge. Trascina la grafica selezionata per spostarla, %ALT%+trascina per duplicarla.</translation>
+    </message>
+    <message>
+        <source>Reset the crop box to the canvas (Esc)</source>
+        <translation>Riporta il riquadro di ritaglio alla tela (Esc)</translation>
+    </message>
+    <message>
+        <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
+        <translation>Ritaglia: trascina le maniglie per ritagliare o estendere la tela (%ALT% ridimensiona attorno al centro), trascina all'interno per tracciare un nuovo riquadro, trascina all'esterno per ruotare. Invio ritaglia, Esc ripristina il riquadro.</translation>
     </message>
 </context>
 <context>

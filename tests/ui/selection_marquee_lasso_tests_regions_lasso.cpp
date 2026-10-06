@@ -1544,6 +1544,56 @@ void ui_elliptical_marquee_handle_drag_keeps_ellipse() {
   CHECK(canvas->selected_document_region().contains(resized->center()));
 }
 
+// GitHub issue 66: Alt over a marquee handle is the symmetric resize, so the
+// hover shows the resize cursor (not the Subtract badge) and Alt held from the
+// press mirrors the opposite side. Inside the selection Alt still subtracts.
+void ui_marquee_alt_on_handle_shows_resize_cursor_and_mirrors() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_tool(patchy::ui::CanvasTool::Marquee);
+  canvas->set_snap_enabled(false);
+
+  drag(*canvas, canvas->widget_position_for_document_point(QPoint(200, 120)),
+       canvas->widget_position_for_document_point(QPoint(260, 160)));
+  const auto original = canvas->selected_document_rect();
+  CHECK(original.has_value());
+  if (!original.has_value()) {
+    return;
+  }
+
+  const auto corner = marquee_handle_position(*canvas, *original, 2, 2);
+  send_mouse(*canvas, QEvent::MouseMove, corner, Qt::NoButton, Qt::NoButton, Qt::AltModifier);
+  CHECK(canvas->cursor().shape() == Qt::SizeFDiagCursor);
+  send_mouse(*canvas, QEvent::MouseMove, marquee_handle_position(*canvas, *original, 2, 1), Qt::NoButton,
+             Qt::NoButton, Qt::AltModifier);
+  CHECK(canvas->cursor().shape() == Qt::SizeHorCursor);
+  // The interior keeps the combine semantics: Alt there is the Subtract badge.
+  send_mouse(*canvas, QEvent::MouseMove, canvas->widget_position_for_document_point(original->center()),
+             Qt::NoButton, Qt::NoButton, Qt::AltModifier);
+  CHECK(canvas->cursor().shape() == Qt::BitmapCursor);
+
+  // Alt from the press on: the handle drives a centered resize, nothing is
+  // subtracted.
+  const auto to = canvas->widget_position_for_document_point(
+      QPoint(original->x() + original->width() + 30, original->y() + original->height() + 30));
+  send_mouse(*canvas, QEvent::MouseButtonPress, corner, Qt::LeftButton, Qt::LeftButton, Qt::AltModifier);
+  send_mouse(*canvas, QEvent::MouseMove, (corner + to) / 2, Qt::NoButton, Qt::LeftButton, Qt::AltModifier);
+  send_mouse(*canvas, QEvent::MouseMove, to, Qt::NoButton, Qt::LeftButton, Qt::AltModifier);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, to, Qt::LeftButton, Qt::NoButton, Qt::AltModifier);
+  QApplication::processEvents();
+  const auto resized = canvas->selected_document_rect();
+  CHECK(resized.has_value());
+  if (!resized.has_value()) {
+    return;
+  }
+  CHECK(within_one(resized->width(), original->width() + 60));
+  CHECK(within_one(resized->height(), original->height() + 60));
+  CHECK(within_one(resized->x() + resized->width() / 2, original->x() + original->width() / 2));
+  CHECK(within_one(resized->y() + resized->height() / 2, original->y() + original->height() / 2));
+  CHECK(window.statusBar()->currentMessage() == QStringLiteral("Resize Selection"));
+}
+
 void ui_marquee_handle_drag_space_repositions_then_resumes() {
   patchy::ui::MainWindow window;
   show_window(window);
@@ -2054,6 +2104,8 @@ std::vector<patchy::test::TestCase> selection_marquee_lasso_tests_part2() {
        ui_marquee_gestures_never_snap_to_their_own_selection},
       {"ui_marquee_corner_handle_drag_and_shift_aspect", ui_marquee_corner_handle_drag_and_shift_aspect},
       {"ui_marquee_alt_handle_drag_resizes_about_center", ui_marquee_alt_handle_drag_resizes_about_center},
+      {"ui_marquee_alt_on_handle_shows_resize_cursor_and_mirrors",
+       ui_marquee_alt_on_handle_shows_resize_cursor_and_mirrors},
       {"ui_elliptical_marquee_handle_drag_keeps_ellipse", ui_elliptical_marquee_handle_drag_keeps_ellipse},
       {"ui_marquee_feathered_resize_rerasterizes_soft_edge", ui_marquee_feathered_resize_rerasterizes_soft_edge},
       {"ui_marquee_handles_follow_move_and_vanish_after_other_edits",

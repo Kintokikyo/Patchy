@@ -385,6 +385,15 @@ void CanvasWidget::update_tool_cursor() {
     setCursor(quick_select_cursor(mode));
     return;
   }
+  // Over a marquee resize handle the resize cursor wins whatever modifier is
+  // held (Alt there mirrors, it does not subtract), so a Shift/Alt press while
+  // hovering a handle agrees with the mouse-move path (GitHub issue 66).
+  if (tool_ == CanvasTool::Marquee || tool_ == CanvasTool::EllipticalMarquee) {
+    if (const auto handle = marquee_resize_handle_at(last_mouse_position_); handle != TransformHandle::None) {
+      set_transform_cursor_for_handle(handle);
+      return;
+    }
+  }
   // Marquee/elliptical/lasso/wand show a crosshair (or wand) badged with the
   // active combine mode (+ add, - subtract, x intersect) from the toolbar mode
   // and live Shift/Alt.

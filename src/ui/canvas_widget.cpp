@@ -406,6 +406,7 @@ void CanvasWidget::set_document_internal(Document* document, bool preserve_frame
   cancel_spot_heal_stroke();
   cancel_patch_tool_drag();
   cancel_crop_session();
+  begin_default_crop_session();  // the Crop tool frames the incoming document
   reset_axis_constrained_stroke();
   last_stroke_end_document_.reset();
   if (brush_adjust_dragging_) {
@@ -467,6 +468,10 @@ void CanvasWidget::set_tool(CanvasTool tool) {
   if (const auto index = selection_tool_index(tool_); index >= 0) {
     selection_mode_ = selection_modes_per_tool_[static_cast<std::size_t>(index)];
   }
+  if (tool_changed) {
+    // Picking Crop frames the canvas (or the selection) at once, handles ready.
+    begin_default_crop_session();
+  }
   update_tool_cursor();
   if (tool_changed) {
     update_move_transform_controls_dirty(old_transform_controls_rect);
@@ -516,6 +521,8 @@ void CanvasWidget::set_edit_locked(bool locked) noexcept {
     creating_guide_ = false;
     guide_drag_remove_ = false;
     reset_axis_constrained_stroke();
+  } else {
+    begin_default_crop_session();
   }
   update_tool_cursor();
   update();

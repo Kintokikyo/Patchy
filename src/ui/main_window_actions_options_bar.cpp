@@ -1289,7 +1289,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   crop_cancel_button_ = new QPushButton(toolbar);
   crop_cancel_button_->setObjectName(QStringLiteral("cropCancelButton"));
   crop_cancel_button_->setIcon(simple_icon(QStringLiteral("clear"), QColor(255, 150, 150)));
-  bind_tooltip(crop_cancel_button_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Cancel crop (Esc)"));
+  bind_tooltip(crop_cancel_button_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Reset the crop box to the canvas (Esc)"));
   crop_cancel_button_->setFixedWidth(30);
   crop_cancel_button_->setIconSize(QSize(20, 20));
   crop_cancel_button_->setProperty("optionsSessionButton", true);
@@ -1347,7 +1347,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   });
   connect(crop_cancel_button_, &QPushButton::clicked, this, [this] {
     if (canvas_ != nullptr) {
-      canvas_->cancel_crop_session();
+      canvas_->reset_crop_session_to_canvas();
     }
   });
 

@@ -463,6 +463,10 @@ const char* tool_activation_hint_source(CanvasTool tool) {
     case CanvasTool::DirectSelect:
       return QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Direct Select: click or marquee points, drag points or handles. Shift adds, "
              "arrows nudge, Delete removes, %CTRL%+T transforms the selected points.");
+    case CanvasTool::Crop:
+      return QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the "
+             "center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc "
+             "resets the box.");
     case CanvasTool::AddAnchor:
       return QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Add Anchor Point: click a path segment to insert a point.");
     case CanvasTool::DeleteAnchor:

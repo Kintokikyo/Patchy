@@ -9690,10 +9690,6 @@ RGB: %2, %3, %4</translation>
         <translation>Corte cancelado</translation>
     </message>
     <message>
-        <source>Drag the handles or edges to adjust. Enter crops, Esc cancels.</source>
-        <translation>Arraste as alças ou bordas para ajustar. Enter aplica o corte; Esc cancela.</translation>
-    </message>
-    <message>
         <source>%1 x %2 px</source>
         <translation>%1 x %2 pixels</translation>
     </message>
@@ -10456,6 +10452,14 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Cancelled the path transform</source>
         <translation>Transformação do demarcador cancelada</translation>
+    </message>
+    <message>
+        <source>Nothing to crop: the box matches the canvas</source>
+        <translation>Nada para cortar: a caixa coincide com a tela</translation>
+    </message>
+    <message>
+        <source>Crop box reset to the canvas</source>
+        <translation>Caixa de corte redefinida para a tela</translation>
     </message>
 </context>
 <context>
@@ -12501,10 +12505,6 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Apply crop (Enter)</source>
         <translation>Aplicar corte (Enter)</translation>
-    </message>
-    <message>
-        <source>Cancel crop (Esc)</source>
-        <translation>Cancelar corte (Esc)</translation>
     </message>
     <message>
         <source>Preset:</source>
@@ -18622,6 +18622,14 @@ Y: %2
     <message>
         <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
         <translation>Mover: %CTRL%+clique seleciona uma camada, Shift+clique a alterna. %CTRL%+arrastar seleciona um retângulo; Shift adiciona. Arraste a arte selecionada para movê-la, %ALT%+arrastar para duplicá-la.</translation>
+    </message>
+    <message>
+        <source>Reset the crop box to the canvas (Esc)</source>
+        <translation>Redefinir a caixa de corte para a tela (Esc)</translation>
+    </message>
+    <message>
+        <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
+        <translation>Corte: arraste as alças para cortar ou ampliar a tela (%ALT% redimensiona a partir do centro), arraste dentro para traçar uma nova caixa, arraste fora para girar. Enter corta, Esc redefine a caixa.</translation>
     </message>
 </context>
 <context>

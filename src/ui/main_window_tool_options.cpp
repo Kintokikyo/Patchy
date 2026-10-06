@@ -2637,10 +2637,11 @@ void MainWindow::refresh_options_bar() {
     crop_ratio_h_spin_->setValue(canvas_->crop_ratio_height());
   }
   sync_crop_ratio_preset_combo();
-  const auto crop_session_active = canvas_ != nullptr && canvas_->crop_session_active();
+  // The canvas frame the tool starts with has nothing to apply or reset.
+  const auto crop_has_changes = canvas_ != nullptr && canvas_->crop_session_has_changes();
   for (auto* button : {crop_apply_button_, crop_cancel_button_}) {
     if (button != nullptr) {
-      button->setEnabled(edit_allowed && crop_session_active);
+      button->setEnabled(edit_allowed && crop_has_changes);
     }
   }
   if (patch_mode_combo_ != nullptr && canvas_ != nullptr) {

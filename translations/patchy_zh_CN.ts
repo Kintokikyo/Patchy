@@ -9660,10 +9660,6 @@ RGB：%2, %3, %4</translation>
         <translation>已取消裁剪</translation>
     </message>
     <message>
-        <source>Drag the handles or edges to adjust. Enter crops, Esc cancels.</source>
-        <translation>拖动控制点或边缘进行调整。按 Enter 裁剪，按 Esc 取消。</translation>
-    </message>
-    <message>
         <source>%1 x %2 px</source>
         <translation>%1 x %2 px</translation>
     </message>
@@ -10426,6 +10422,14 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Select Custom Color...</source>
         <translation>选择自定义颜色...</translation>
+    </message>
+    <message>
+        <source>Nothing to crop: the box matches the canvas</source>
+        <translation>无需裁剪：裁剪框与画布一致</translation>
+    </message>
+    <message>
+        <source>Crop box reset to the canvas</source>
+        <translation>裁剪框已重置为画布</translation>
     </message>
 </context>
 <context>
@@ -12143,10 +12147,6 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Apply crop (Enter)</source>
         <translation>应用裁剪 (Enter)</translation>
-    </message>
-    <message>
-        <source>Cancel crop (Esc)</source>
-        <translation>取消裁剪 (Esc)</translation>
     </message>
     <message>
         <source>Preset:</source>
@@ -18566,6 +18566,14 @@ Baked into images: %1.</source>
     <message>
         <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
         <translation>移动：%CTRL%+单击选择图层，Shift+单击切换选择。%CTRL%+拖动框选；Shift 追加。拖动所选内容以移动，%ALT%+拖动以复制。</translation>
+    </message>
+    <message>
+        <source>Reset the crop box to the canvas (Esc)</source>
+        <translation>将裁剪框重置为画布 (Esc)</translation>
+    </message>
+    <message>
+        <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
+        <translation>裁剪：拖动控制点以裁剪或扩展画布（%ALT% 以中心缩放），在内部拖动可绘制新裁剪框，在外部拖动可旋转。Enter 裁剪，Esc 重置裁剪框。</translation>
     </message>
 </context>
 <context>
