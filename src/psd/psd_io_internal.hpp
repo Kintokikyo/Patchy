@@ -19,6 +19,7 @@
 #include "psd/psd_smart_objects.hpp"
 #include "psd/psd_text_engine_block.hpp"
 #include "psd/psd_text_runs.hpp"
+#include "support/srgb_transfer.hpp"
 
 #include <algorithm>
 #include <array>
@@ -360,6 +361,21 @@ struct CmykColorConverter {
   // CMYK documents with a usable profile: the space their adjustment layers run in
   // (core/ink_space.hpp). Null otherwise, which leaves adjustments on RGB math.
   std::shared_ptr<const InkSpace> ink_space{};
+  // 32-bit documents: descriptor RGB values (fill layers, gradient stops, effect colors)
+  // are linear light on the 0..255 scale, like the file's float channels. Photoshop
+  // renders psd-tools' 300dpi.psb fill of (172, 11, 11) as (215, 60, 60), its sRGB
+  // encoding; 8- and 16-bit documents store encoded values and keep them as they are.
+  bool linear_rgb{false};
+
+  [[nodiscard]] RgbColor rgb_from_descriptor_rgb(double red, double green, double blue) const {
+    const auto byte = [&](double value) {
+      if (linear_rgb) {
+        return linear_to_srgb8(static_cast<float>(value / 255.0));
+      }
+      return static_cast<std::uint8_t>(std::clamp(std::lround(value), 0L, 255L));
+    };
+    return RgbColor{byte(red), byte(green), byte(blue)};
+  }
 
   [[nodiscard]] RgbColor rgb_from_ink(double cyan, double magenta, double yellow,
                                       double black) const {
@@ -599,6 +615,7 @@ LayerStyleGradient parse_layer_style_gradient(const DescriptorObject& effect, co
 void write_f32(BigEndianWriter& writer, float value);
 LayerStyle parse_lfx2_layer_style(std::span<const std::uint8_t> payload,
                                   const CmykColorConverter& cmyk);
+LayerStyle layer_style_from_lefx_descriptor(const DescriptorObject& root, const CmykColorConverter& cmyk);
 LayerStyle parse_lrfx_layer_style(std::span<const std::uint8_t> payload, const CmykColorConverter& cmyk);
 void resolve_global_light(LayerStyle& style, float angle_degrees, float altitude_degrees);
 void merge_missing_layer_style_effects(LayerStyle& target, LayerStyle source);

@@ -121,11 +121,8 @@ RgbColor descriptor_rgb_color(const DescriptorObject& object, std::string_view k
     const auto& rgb = sectors[static_cast<std::size_t>(sector)];
     return RgbColor{byte(rgb[0]), byte(rgb[1]), byte(rgb[2])};
   }
-  return RgbColor{static_cast<std::uint8_t>(std::clamp(std::lround(descriptor_number(*color_object, "Rd  ")), 0L, 255L)),
-                  static_cast<std::uint8_t>(
-                      std::clamp(std::lround(descriptor_number(*color_object, "Grn ")), 0L, 255L)),
-                  static_cast<std::uint8_t>(
-                      std::clamp(std::lround(descriptor_number(*color_object, "Bl  ")), 0L, 255L))};
+  return cmyk.rgb_from_descriptor_rgb(descriptor_number(*color_object, "Rd  "), descriptor_number(*color_object, "Grn "),
+                                      descriptor_number(*color_object, "Bl  "));
 }
 
 
@@ -600,7 +597,10 @@ std::optional<LayerStroke> parse_stroke(const DescriptorObject& effect,
 // lfx2 parse: any descriptor surprise yields an empty style.
 LayerStyle layer_style_from_lefx_descriptor(const DescriptorObject& root,
                                             const CmykToRgbTransform* cmyk_icc) {
-  const CmykColorConverter cmyk{cmyk_icc};
+  return layer_style_from_lefx_descriptor(root, CmykColorConverter{cmyk_icc});
+}
+
+LayerStyle layer_style_from_lefx_descriptor(const DescriptorObject& root, const CmykColorConverter& cmyk) {
   LayerStyle style;
   try {
     style.effects_visible = descriptor_bool(root, "masterFXSwitch", true);
@@ -799,7 +799,7 @@ LayerStyle parse_lfx2_layer_style(std::span<const std::uint8_t> payload,
     if (descriptor_version != 16) {
       return {};
     }
-    return layer_style_from_lefx_descriptor(read_descriptor(reader), cmyk.icc);
+    return layer_style_from_lefx_descriptor(read_descriptor(reader), cmyk);
   } catch (const std::exception&) {
     return {};
   }

@@ -1374,7 +1374,8 @@ Document DocumentIo::read(std::span<const std::uint8_t> bytes, ReadOptions optio
       cmyk_icc_transform.has_value() ? &*cmyk_icc_transform : nullptr,
       gray_icc_transform.has_value() ? &*gray_icc_transform : nullptr,
       header.color_mode == kColorModeIndexed && color_mode_data.size() >= 768U ? color_mode_data.data() : nullptr,
-      ink_space};
+      ink_space,
+      header.depth == 32};
   const auto* cmyk_icc = source_colors.icc;
   if (auto resolution = find_image_resource_payload(image_resources, kImageResourceResolutionInfo);
       resolution.has_value()) {

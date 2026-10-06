@@ -2002,6 +2002,30 @@ void psd_tools_group_fill_matches_photoshop_if_available() {
   }
 }
 
+// A 32-bit document stores its descriptor colors in linear light, like its float
+// channels: Photoshop renders 300dpi.psb's solid fill of (172, 11, 11) as (215, 60, 60),
+// the sRGB encoding Patchy applies to the pixel channels. Read as encoded bytes the fill
+// came out a dark (172, 11, 11) (Testy, October 2026).
+void psd_tools_32_bit_fill_color_is_linear_if_available() {
+  const auto path = patchy::test::source_root_path() / "local-test-fixtures" / "psd-tools" / "tests" / "psd_files" /
+                    "300dpi.psb";
+  if (!std::filesystem::exists(path)) {
+    std::cout << "[SKIP] psd-tools collection missing: " << path.string() << '\n';
+    return;
+  }
+  const auto document = patchy::psd::DocumentIo::read_file(path);
+  CHECK(document.metadata().values.at("psd.depth") == "32");
+  const auto* shape = patchy::test::find_layer_named(std::as_const(document).layers(), "Shape 2");
+  CHECK(shape != nullptr && shape->vector_shape() != nullptr);
+  if (shape != nullptr && shape->vector_shape() != nullptr) {
+    const auto color = shape->vector_shape()->fill.color;
+    CHECK(std::abs(color.red - 214) <= 1 && std::abs(color.green - 59) <= 1 && std::abs(color.blue - 59) <= 1);
+  }
+  const auto flattened = patchy::Compositor{}.flatten_rgb8(document);
+  const auto* px = flattened.pixel(30, 90);
+  CHECK(std::abs(px[0] - 215) <= 2 && std::abs(px[1] - 60) <= 2 && std::abs(px[2] - 60) <= 2);
+}
+
 // A noise gradient fill layer must stay a noise gradient through a save: writing it as a
 // stop gradient left an empty color list and Photoshop dropped the fill (Testy, October
 // 2026: "GRADIENTFILL became NORMAL" on psd-tools' noise-gradient-*.psd). The descriptor
@@ -3360,6 +3384,7 @@ std::vector<patchy::test::TestCase> psd_core_io_tests() {
       {"psd_tools_group_fill_matches_photoshop_if_available", psd_tools_group_fill_matches_photoshop_if_available},
       {"psd_tools_noise_gradient_fill_survives_resave_if_available",
        psd_tools_noise_gradient_fill_survives_resave_if_available},
+      {"psd_tools_32_bit_fill_color_is_linear_if_available", psd_tools_32_bit_fill_color_is_linear_if_available},
       {"psd_tools_linear_gradient_fill_redraw_matches_photoshop_if_available",
        psd_tools_linear_gradient_fill_redraw_matches_photoshop_if_available},
       {"psd_tools_unnamed_layers_take_photoshop_names_if_available",
