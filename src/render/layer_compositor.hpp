@@ -1729,9 +1729,12 @@ inline std::vector<float> stroke_alpha_mask(const PixelBuffer& source, const Lay
       for (std::int32_t x = draw_left; x < draw_right; ++x) {
         const auto* pixel = source_row + static_cast<std::size_t>(x - bounds.x) * format.channels;
         auto alpha = static_cast<float>(pixel[3]) / 255.0F;
-        if (mask_shapes_source && alpha > 0.0F &&
-            layer_mask_alpha_for_render(layer, x, y, layer_mask_bounds) <= 0.0F) {
-          alpha = 0.0F;
+        // The mask's value is part of the content's alpha (a feathered mask makes
+        // the content semi-transparent, and the semi-transparent rules apply:
+        // psd-tools' feathered-stroke.psd, whose pixels are opaque under a soft
+        // mask). Binary masks keep the pinned {alpha > 0 AND mask > 0} contour.
+        if (mask_shapes_source && alpha > 0.0F) {
+          alpha *= clamp_unit(layer_mask_alpha_for_render(layer, x, y, layer_mask_bounds));
         }
         *output++ = alpha;
       }
@@ -1745,9 +1748,8 @@ inline std::vector<float> stroke_alpha_mask(const PixelBuffer& source, const Lay
     for (std::int32_t y = draw_top; y < draw_bottom; ++y) {
       auto* output = base.data() + static_cast<std::size_t>(y - mask_bounds.y) * width + (draw_left - mask_bounds.x);
       for (std::int32_t x = draw_left; x < draw_right; ++x) {
-        *output++ = mask_shapes_source && layer_mask_alpha_for_render(layer, x, y, layer_mask_bounds) <= 0.0F
-                        ? 0.0F
-                        : 1.0F;
+        *output++ = mask_shapes_source ? clamp_unit(layer_mask_alpha_for_render(layer, x, y, layer_mask_bounds))
+                                       : 1.0F;
       }
     }
   }
@@ -2850,8 +2852,9 @@ void composite_pixel_layer(Target& destination, const Layer& layer, Rect clip,
                   rgb = {static_cast<float>(blended[0]), static_cast<float>(blended[1]),
                          static_cast<float>(blended[2])};
                 }
-                // Mask-scaled alpha, like the content: plane carries (1 - pixel alpha).
-                const auto take = plane * (mask_row != nullptr ? mask_row[x - draw_rect.x] : 1.0F) * strength * remaining;
+                // The plane already carries the mask (it is built from the masked
+                // alpha); the mask does not hide the stroke's share.
+                const auto take = plane * strength * remaining;
                 remaining *= 1.0F - strength;
                 underlay_alpha += take;
                 for (int channel = 0; channel < 3; ++channel) {

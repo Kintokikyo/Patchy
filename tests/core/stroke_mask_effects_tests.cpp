@@ -434,15 +434,12 @@ void psd_photoshop_mask_hides_effects_fixture_clips_shadow() {
 }
 
 void layer_stroke_outlines_semi_transparent_regions_without_fill() {
-  // Content under a UNIFORM 50% gray layer mask keeps its raw-pixel stroke
-  // contour: only fully-black mask regions reshape the shape (see
-  // layer_stroke_follows_mask_contour). The band paints at full strength — the
-  // July 2026 PS re-probe killed the old "mask attenuates the stroke where it
-  // lands" model. Fractional mask values also must not fold into the coverage
-  // math: the pre-June-2026 formula derived the stroke from alpha x mask and
-  // painted a constant wash across the region's whole interior. (Photoshop
-  // actually composites gray masks with its content-knockout model — the same
-  // documented divergence as semi-transparent fills, docs/ps-compat.md.)
+  // Content under a UNIFORM 50% gray layer mask: the mask value is part of the
+  // content's alpha, so the semi-transparent rules apply (Photoshop 2026 COM
+  // probe, October 2026, local-test-fixtures/stroke-alpha-probes/mask50_out100):
+  // the interior reads half content, half stroke, (137, 45, 100) for this blue
+  // under a red Outside stroke, and the band outside paints at full strength
+  // along the raw-pixel contour (the gray mask neither moves nor attenuates it).
   patchy::Document document(64, 64, patchy::PixelFormat::rgb8());
   document.add_pixel_layer("Background", solid_rgb(64, 64, 255, 255, 255));
   patchy::Layer stroked(document.allocate_layer_id(), "Stroked", solid_rgba(32, 32, 20, 90, 200, 255));
@@ -460,12 +457,8 @@ void layer_stroke_outlines_semi_transparent_regions_without_fill() {
   document.add_layer(std::move(stroked));
 
   const auto flattened = patchy::Compositor{}.flatten_rgb8(document);
-  // Interior of the square: half-visible blue content, no red stroke wash.
   const auto* interior = flattened.pixel(32, 32);
-  CHECK(interior[2] > 200);
-  CHECK(interior[0] < 150);
-  // Just outside the square: the full-strength stroke band along the pixel
-  // contour (the gray mask neither moves nor attenuates it).
+  CHECK(std::abs(interior[0] - 137) <= 3 && std::abs(interior[1] - 45) <= 3 && std::abs(interior[2] - 100) <= 3);
   const auto* edge = flattened.pixel(14, 32);
   CHECK(edge[0] > 240);
   CHECK(edge[1] < 40);
