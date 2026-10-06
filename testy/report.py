@@ -23,8 +23,14 @@ _PAGE = r"""<!DOCTYPE html>
     --good: #4fc26b; --warn: #d9a13c; --bad: #d95c4a; --accent: #5aa2e0; --line: #2e323a;
   }
   * { box-sizing: border-box; }
+  /* The page is a fixed-height row: everything (header, summary, matrix) in a scroll
+     container on the left and the detail panel beside it on the right. An open panel
+     narrows the left side instead of covering its right-hand columns, so the matrix's
+     horizontal scrollbar stays reachable. */
   body { margin: 0; background: var(--bg); color: var(--text);
-         font: 13px/1.5 "Segoe UI", system-ui, sans-serif; }
+         font: 13px/1.5 "Segoe UI", system-ui, sans-serif;
+         display: flex; height: 100vh; overflow: hidden; }
+  #page { flex: 1 1 auto; min-width: 0; overflow: auto; }
   header { padding: 14px 22px; border-bottom: 1px solid var(--line); display: flex;
            align-items: baseline; gap: 18px; flex-wrap: wrap; }
   header h1 { font-size: 17px; margin: 0; letter-spacing: .4px; }
@@ -83,11 +89,10 @@ _PAGE = r"""<!DOCTYPE html>
                  padding: 8px 12px; margin: 6px 0 12px; }
   .keep-banner b { color: var(--good); }
   /* The panel itself never scrolls (so the resize handle and close button stay put);
-     #detail-body inside it is the scroll container. */
-  #detail { position: fixed; right: 0; top: 0; bottom: 0; width: min(880px, 92vw);
-            background: var(--panel); border-left: 1px solid var(--line);
-            transform: translateX(102%); transition: transform .18s ease; z-index: 5; }
-  #detail.open { transform: none; }
+     #detail-body inside it is the scroll container. Closed, it takes no room. */
+  #detail { position: relative; flex: none; width: min(880px, 92vw); max-width: 96vw;
+            background: var(--panel); border-left: 1px solid var(--line); display: none; }
+  #detail.open { display: block; }
   #detail-body { height: 100%; overflow: auto; padding: 18px 22px; }
   #detail-resizer { position: absolute; left: 0; top: 0; bottom: 0; width: 7px;
                     cursor: ew-resize; }
@@ -138,6 +143,7 @@ _PAGE = r"""<!DOCTYPE html>
 </style>
 </head>
 <body>
+<div id="page">
 <header>
   <a id="back-link" href="/" title="back to the Testy control panel" style="display:none">&larr; Back</a>
   <h1>Testy <span style="color:var(--dim)">PSD compatibility</span></h1>
@@ -152,6 +158,7 @@ _PAGE = r"""<!DOCTYPE html>
   <table class="matrix"><thead id="matrix-head"></thead><tbody id="matrix-body"></tbody></table>
   <section id="history"></section>
 </main>
+</div>
 <aside id="detail"><div id="detail-resizer"
   title="drag to resize; double-click to reset"></div><button class="close"
   onclick="closeDetail()">&times;</button><div id="detail-body"></div></aside>
