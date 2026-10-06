@@ -7779,10 +7779,6 @@ RVB : %2, %3, %4</translation>
         <translation>Version %1 (compilée le %2)</translation>
     </message>
     <message>
-        <source>Code contributions from %1</source>
-        <translation>Contributions au code de %1</translation>
-    </message>
-    <message>
         <source>GitHub: %1</source>
         <translation>GitHub : %1</translation>
     </message>
@@ -8904,6 +8900,10 @@ RVB : %2, %3, %4</translation>
     <message>
         <source>Don&apos;t Save</source>
         <translation>Ne pas enregistrer</translation>
+    </message>
+    <message>
+        <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
+        <translation>Des personnes formidables qui ont offert suggestions, rapports de bogues et code : %1</translation>
     </message>
 </context>
 <context>
@@ -20106,10 +20106,6 @@ Convertis en images : %1.</translation>
         <translation>Version %1 (compilée le %2)</translation>
     </message>
     <message>
-        <source>Code contributions from %1</source>
-        <translation>Contributions au code de %1</translation>
-    </message>
-    <message>
         <source>GitHub: %1</source>
         <translation>GitHub : %1</translation>
     </message>
@@ -20140,6 +20136,10 @@ Convertis en images : %1.</translation>
     <message>
         <source>Free · Windows, macOS &amp; Linux</source>
         <translation>Gratuit · Windows, macOS et Linux</translation>
+    </message>
+    <message>
+        <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
+        <translation>Des personnes formidables qui ont offert suggestions, rapports de bogues et code : %1</translation>
     </message>
 </context>
 <context>

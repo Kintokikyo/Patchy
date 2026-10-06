@@ -211,8 +211,8 @@ public:
     contributors->setTextFormat(Qt::RichText);
     set_themed_label_text(
         *contributors,
-        QObject::tr("Code contributions from %1")
-            .arg(code_contributors_link_html(QStringLiteral("@splash_link_text"))));
+        QObject::tr("Incredible people who donated suggestions, bug reports, and code: %1")
+            .arg(contributors_link_html(QStringLiteral("@splash_link_text"))));
     contributors->setTextInteractionFlags(Qt::TextBrowserInteraction);
     contributors->setOpenExternalLinks(true);
     copy->addWidget(contributors);

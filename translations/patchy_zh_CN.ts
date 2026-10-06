@@ -7762,10 +7762,6 @@ RGB：%2, %3, %4</translation>
         <translation>版本 %1（构建于 %2）</translation>
     </message>
     <message>
-        <source>Code contributions from %1</source>
-        <translation>代码贡献者: %1</translation>
-    </message>
-    <message>
         <source>GitHub: %1</source>
         <translation>GitHub: %1</translation>
     </message>
@@ -8874,6 +8870,10 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Don&apos;t Save</source>
         <translation>不保存</translation>
+    </message>
+    <message>
+        <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
+        <translation>慷慨贡献建议、错误报告和代码的了不起的人们：%1</translation>
     </message>
 </context>
 <context>
@@ -20049,10 +20049,6 @@ Baked into images: %1.</source>
         <translation>版本 %1（构建于 %2）</translation>
     </message>
     <message>
-        <source>Code contributions from %1</source>
-        <translation>代码贡献者：%1</translation>
-    </message>
-    <message>
         <source>GitHub: %1</source>
         <translation>GitHub：%1</translation>
     </message>
@@ -20083,6 +20079,10 @@ Baked into images: %1.</source>
     <message>
         <source>Free · Windows, macOS &amp; Linux</source>
         <translation>免费 · Windows、macOS和Linux</translation>
+    </message>
+    <message>
+        <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
+        <translation>慷慨贡献建议、错误报告和代码的了不起的人们：%1</translation>
     </message>
 </context>
 <context>

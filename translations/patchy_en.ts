@@ -7770,10 +7770,6 @@ RGB: %2, %3, %4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Code contributions from %1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>GitHub: %1</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8892,6 +8888,10 @@ RGB: %2, %3, %4</source>
     </message>
     <message>
         <source>Don&apos;t Save</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -20056,10 +20056,6 @@ Baked into images: %1.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Code contributions from %1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>GitHub: %1</source>
         <translation type="unfinished"></translation>
     </message>
@@ -20089,6 +20085,10 @@ Baked into images: %1.</source>
     </message>
     <message>
         <source>Free · Windows, macOS &amp; Linux</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

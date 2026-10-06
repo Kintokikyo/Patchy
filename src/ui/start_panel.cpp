@@ -363,7 +363,8 @@ StartPanel::StartPanel(QWidget* parent) : QWidget(parent) {
   retranslation_callbacks_.push_back([contributors] {
     set_themed_label_text(
         *contributors,
-        tr("Code contributions from %1").arg(code_contributors_link_html(QStringLiteral("@link_text"))));
+        tr("Incredible people who donated suggestions, bug reports, and code: %1")
+            .arg(contributors_link_html(QStringLiteral("@link_text"))));
   });
   contributors->setTextInteractionFlags(Qt::TextBrowserInteraction);
   contributors->setOpenExternalLinks(true);

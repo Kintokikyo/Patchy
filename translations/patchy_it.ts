@@ -7779,10 +7779,6 @@ RGB: %2, %3, %4</translation>
         <translation>Versione %1 (compilata il %2)</translation>
     </message>
     <message>
-        <source>Code contributions from %1</source>
-        <translation>Contributi al codice di %1</translation>
-    </message>
-    <message>
         <source>GitHub: %1</source>
         <translation>GitHub: %1</translation>
     </message>
@@ -8904,6 +8900,10 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Don&apos;t Save</source>
         <translation>Non salvare</translation>
+    </message>
+    <message>
+        <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
+        <translation>Persone fantastiche che hanno donato suggerimenti, segnalazioni di bug e codice: %1</translation>
     </message>
 </context>
 <context>
@@ -20106,10 +20106,6 @@ Convertiti in immagini: %1.</translation>
         <translation>Versione %1 (compilata il %2)</translation>
     </message>
     <message>
-        <source>Code contributions from %1</source>
-        <translation>Contributi al codice di %1</translation>
-    </message>
-    <message>
         <source>GitHub: %1</source>
         <translation>GitHub: %1</translation>
     </message>
@@ -20140,6 +20136,10 @@ Convertiti in immagini: %1.</translation>
     <message>
         <source>Free · Windows, macOS &amp; Linux</source>
         <translation>Gratis · Windows, macOS e Linux</translation>
+    </message>
+    <message>
+        <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
+        <translation>Persone fantastiche che hanno donato suggerimenti, segnalazioni di bug e codice: %1</translation>
     </message>
 </context>
 <context>

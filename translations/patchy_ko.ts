@@ -8198,10 +8198,6 @@ RGB: %2, %3, %4</translation>
         <translation>%1이(가) 작성함</translation>
     </message>
     <message>
-        <source>Code contributions from %1</source>
-        <translation>%1의 코드 기여</translation>
-    </message>
-    <message>
         <source>GitHub: %1</source>
         <translation>GitHub: %1</translation>
     </message>
@@ -8874,6 +8870,10 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Don&apos;t Save</source>
         <translation>저장 안 함</translation>
+    </message>
+    <message>
+        <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
+        <translation>제안, 버그 보고, 코드를 보내 주신 멋진 분들: %1</translation>
     </message>
 </context>
 <context>
@@ -20069,10 +20069,6 @@ Y: %2
         <translation>%1이(가) 작성함</translation>
     </message>
     <message>
-        <source>Code contributions from %1</source>
-        <translation>%1의 코드 기여</translation>
-    </message>
-    <message>
         <source>GitHub: %1</source>
         <translation>GitHub: %1</translation>
     </message>
@@ -20083,6 +20079,10 @@ Y: %2
     <message>
         <source>No matching recent files</source>
         <translation>일치하는 최근 파일이 없습니다.</translation>
+    </message>
+    <message>
+        <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
+        <translation>제안, 버그 보고, 코드를 보내 주신 멋진 분들: %1</translation>
     </message>
 </context>
 <context>

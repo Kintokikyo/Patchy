@@ -3677,7 +3677,7 @@ void ui_about_dialog_shows_labeled_external_links() {
     CHECK(contributors != nullptr);
     CHECK(contributors->textFormat() == Qt::RichText);
     CHECK(contributors->openExternalLinks());
-    CHECK(contributors->text().startsWith(QStringLiteral("Code contributions from ")));
+    CHECK(contributors->text().startsWith(QStringLiteral("Incredible people who donated suggestions, bug reports, and code: ")));
     CHECK(contributors->text().contains(QStringLiteral("href=\"https://github.com/mcapogna\"")));
     CHECK(contributors->text().contains(QStringLiteral(">mcapogna</a>")));
     CHECK(contributors->text().contains(QStringLiteral("href=\"https://github.com/csbun\"")));
@@ -4316,7 +4316,7 @@ void ui_start_panel_shows_about_info_and_update_status() {
   CHECK(contributors != nullptr);
   CHECK(contributors->textFormat() == Qt::RichText);
   CHECK(contributors->openExternalLinks());
-  CHECK(contributors->text().startsWith(QStringLiteral("Code contributions from ")));
+  CHECK(contributors->text().startsWith(QStringLiteral("Incredible people who donated suggestions, bug reports, and code: ")));
   CHECK(contributors->text().contains(QStringLiteral("href=\"https://github.com/mcapogna\"")));
   CHECK(contributors->text().contains(QStringLiteral(">mcapogna</a>")));
   CHECK(contributors->text().contains(QStringLiteral("href=\"https://github.com/csbun\"")));

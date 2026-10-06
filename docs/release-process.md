@@ -27,8 +27,10 @@ When bumping the release version, update the version fields:
   Keep the `[Older releases](RELEASE-HISTORY.md)` link immediately after the two
   README entries. `RELEASE-HISTORY.md` stays newest-first and must not duplicate
   either release still shown in the README.
-- The code contributor credits, for any pull request accepted since the last
-  release (see "What's New author credits" below).
+- The contributor credits (`src/ui/app_credits.cpp`, mirrored in the README's
+  "Incredible people" line): add anyone whose pull request was accepted or whose
+  issue was resolved since the last release, by GitHub handle (see "What's New
+  author credits" below).
 
 ## What's New author credits
 

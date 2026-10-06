@@ -8219,10 +8219,6 @@ RGB: %2, %3, %4</translation>
         <translation>Criado por %1</translation>
     </message>
     <message>
-        <source>Code contributions from %1</source>
-        <translation>Contribuições de código de %1</translation>
-    </message>
-    <message>
         <source>GitHub: %1</source>
         <translation>GitHub: %1</translation>
     </message>
@@ -8904,6 +8900,10 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Don&apos;t Save</source>
         <translation>Não salvar</translation>
+    </message>
+    <message>
+        <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
+        <translation>Pessoas incríveis que doaram sugestões, relatórios de bugs e código: %1</translation>
     </message>
 </context>
 <context>
@@ -20126,10 +20126,6 @@ Y: %2
         <translation>Criado por %1</translation>
     </message>
     <message>
-        <source>Code contributions from %1</source>
-        <translation>Contribuições de código de %1</translation>
-    </message>
-    <message>
         <source>GitHub: %1</source>
         <translation>GitHub: %1</translation>
     </message>
@@ -20140,6 +20136,10 @@ Y: %2
     <message>
         <source>No matching recent files</source>
         <translation>Nenhum arquivo recente correspondente</translation>
+    </message>
+    <message>
+        <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
+        <translation>Pessoas incríveis que doaram sugestões, relatórios de bugs e código: %1</translation>
     </message>
 </context>
 <context>
