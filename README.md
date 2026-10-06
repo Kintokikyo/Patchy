@@ -103,12 +103,21 @@ schemes, and importable themes are included.
 
 ## PSD compatibility, measured
 
-In the August 7, 2026 Testy run, Photoshop reopened **all 64 Patchy saves**, and
-**all 312 text objects stayed editable**. Patchy's perceptual render match was
-**98.83% across 63 measured files**, using commit `879a3a8`.
+In the [October 6, 2026 Testy v2 run](https://www.rtsoft.com/testy/2026-10-06/),
+Patchy opened **all 309 files** of the psd-tools test collection, and Photoshop
+reopened **every Patchy save** with **all 43 text objects, 183 adjustment layers,
+172 Smart Objects, and 181 live effects** kept. Patchy's perceptual render match
+was **89.8%**, the highest of the seven programs tested against Photoshop's
+reference, using commit `57ba855c`.
 
-These are dated, corpus-specific results. Read the [full comparison and methodology](docs/psd-compatibility-benchmark.md)
-for tested versions, per-file results, preservation checks, and limitations.
+Testy v2 scores each program on what it draws itself: the baked pixels Photoshop
+stores for text, shapes, fills, and Smart Objects are removed first. That is
+stricter than the August run, so the two sets of numbers are not comparable.
+
+These are dated, corpus-specific results. The linked report has every file's
+renders and difference maps for all eight columns. The
+[August 2026 comparison and methodology](docs/psd-compatibility-benchmark.md)
+covers the earlier 64-file run, its preservation checks, and limitations.
 
 **Know the limits:** editing is RGB/RGBA 8-bit; there is no GPU acceleration or
 CMYK/Lab/16-bit/32-bit editing. Unsupported Smart Filters can remain preview-locked,
