@@ -1310,6 +1310,59 @@ void install_scrub_labels_in(QWidget* container) {
   }
 }
 
+namespace {
+
+constexpr char kSelectAllOnFocusInstalledProperty[] = "patchy.selectAllOnFocus";
+
+// Watches the widget that receives focus (`owner`) and selects `edit`'s text.
+// For a spin box the two differ: QAbstractSpinBox takes the focus itself and
+// hands the event to its line edit by a direct event() call, which no filter on
+// the line edit ever sees.
+class SelectAllOnFocusFilter : public QObject {
+ public:
+  SelectAllOnFocusFilter(QWidget& owner, QLineEdit& edit) : QObject(&owner), owner_(&owner), edit_(&edit) {}
+
+  bool eventFilter(QObject* watched, QEvent* event) override {
+    if (event->type() == QEvent::FocusIn) {
+      // Queued so the click that gave focus does not immediately collapse the
+      // selection (QLineEdit places its caret on the press after focus-in).
+      QMetaObject::invokeMethod(
+          owner_,
+          [owner = owner_, edit = edit_] {
+            if (owner != nullptr && edit != nullptr && owner->hasFocus()) {
+              edit->selectAll();
+            }
+          },
+          Qt::QueuedConnection);
+    }
+    return QObject::eventFilter(watched, event);
+  }
+
+ private:
+  QPointer<QWidget> owner_;
+  QPointer<QLineEdit> edit_;
+};
+
+void install_select_all_on_focus(QWidget& owner, QLineEdit& edit) {
+  if (owner.property(kSelectAllOnFocusInstalledProperty).toBool()) {
+    return;
+  }
+  owner.setProperty(kSelectAllOnFocusInstalledProperty, true);
+  owner.installEventFilter(new SelectAllOnFocusFilter(owner, edit));
+}
+
+}  // namespace
+
+void select_all_on_focus(QLineEdit& edit) {
+  install_select_all_on_focus(edit, edit);
+}
+
+void select_all_on_focus(QAbstractSpinBox& spin) {
+  if (auto* editor = spin.findChild<QLineEdit*>(); editor != nullptr) {
+    install_select_all_on_focus(spin, *editor);
+  }
+}
+
 void configure_toolbar_spinbox(QSpinBox* spin, int width) {
   configure_toolbar_spinbox_impl(spin, width);
 }

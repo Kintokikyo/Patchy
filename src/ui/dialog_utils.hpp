@@ -23,6 +23,7 @@ class QAbstractSpinBox;
 class QDoubleSpinBox;
 class QFormLayout;
 class QLabel;
+class QLineEdit;
 class QMenu;
 class QPushButton;
 class QSpinBox;
@@ -46,6 +47,15 @@ void scale_font_size(QFont& font, double scale);
 [[nodiscard]] QFont scaled_font(QFont font, double scale);
 // Additive sibling: shifts the size by `size_delta` points or pixels, and sets bold.
 [[nodiscard]] QFont offset_font(QFont font, int size_delta, bool bold);
+
+// Selects the whole text whenever the edit gains focus, so typing replaces the
+// old value instead of appending to it (GitHub issues 66 and 68). The select
+// runs queued, after the click that gave focus has placed its caret; a drag
+// that follows the click still selects its own range.
+void select_all_on_focus(QLineEdit& edit);
+// Same for a spin box, which takes the focus itself and forwards the event to
+// its line edit directly (a filter on the line edit never sees it).
+void select_all_on_focus(QAbstractSpinBox& spin);
 
 // `width` is a minimum: the box grows to keep its widest possible value text
 // (prefix + min/max + suffix) clear of the trailing popup chevron. Set the

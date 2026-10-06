@@ -36,6 +36,7 @@
 #include <QPainterPath>
 #include <QPixmap>
 #include <QPointer>
+#include <QShowEvent>
 #include <QPushButton>
 #include <QScreen>
 #include <QScrollArea>
@@ -348,6 +349,7 @@ public:
   QColor copy_color_to_clipboard();
   std::optional<QColor> paste_color_from_clipboard();
   QColor cut_color_to_clipboard(bool& cleared_custom_slot);
+  void focus_html_edit();
 
   [[nodiscard]] QColor current_color() const { return color_; }
   [[nodiscard]] int hue() const { return hue_; }
@@ -1355,6 +1357,9 @@ void PatchyColorPickerPrivate::build_ui() {
   html_edit_ = new QLineEdit(picker_column);
   html_edit_->setObjectName(QStringLiteral("patchyColorHtmlEdit"));
   html_edit_->setMinimumWidth(90);
+  // A click or Tab into the field selects the whole value, so Ctrl+C copies the
+  // hex and typing or Ctrl+V replaces it (GitHub issue 68).
+  select_all_on_focus(*html_edit_);
 
   auto* fields_grid = new QGridLayout();
   fields_grid->setContentsMargins(0, 0, 0, 0);
@@ -1617,6 +1622,11 @@ void PatchyColorPickerPrivate::set_html_color() {
   } else {
     sync_controls();
   }
+}
+
+void PatchyColorPickerPrivate::focus_html_edit() {
+  html_edit_->setFocus(Qt::OtherFocusReason);
+  html_edit_->selectAll();
 }
 
 void PatchyColorPickerPrivate::populate_palette_combo() {
@@ -2056,6 +2066,17 @@ QColor PatchyColorPicker::currentColor() const {
 
 void PatchyColorPicker::setCurrentColor(QColor color) {
   impl_->set_color(normalized_rgb_color(color), ColorChangeNotification::Yes);
+}
+
+void PatchyColorPicker::focus_hex_field() {
+  impl_->focus_html_edit();
+}
+
+void PatchyColorPicker::showEvent(QShowEvent* event) {
+  QWidget::showEvent(event);
+  // Queued: a dialog hands focus to its first focusable child as part of
+  // showing, and this must land after that so the hex field wins (issue 68).
+  QMetaObject::invokeMethod(this, [this] { focus_hex_field(); }, Qt::QueuedConnection);
 }
 
 QColor PatchyColorPicker::copy_color_to_clipboard() {

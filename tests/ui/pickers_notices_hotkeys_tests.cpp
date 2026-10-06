@@ -1983,6 +1983,65 @@ void ui_color_picker_accepts_css_rgba_and_names() {
   CHECK(picker.currentColor() == QColor(0, 0, 128));
 }
 
+// GitHub issue 68: the picker opens with keyboard focus in the HTML (hex) field
+// and its value selected, so Ctrl+V then Return applies a copied hex and closes
+// the dialog, and Ctrl+C copies the current hex. The field also selects all
+// whenever it regains focus.
+void ui_color_picker_opens_with_hex_field_selected_for_paste() {
+  QGuiApplication::clipboard()->setText(QStringLiteral("#336699"));
+  bool dialog_seen = false;
+  bool hex_had_focus_with_all_selected = false;
+  bool paste_replaced_hex = false;
+  int ticks = 0;
+  QTimer poll;
+  QObject::connect(&poll, &QTimer::timeout, [&] {
+    auto* dialog = find_top_level_dialog(QStringLiteral("patchyColorDialog"));
+    if (dialog == nullptr || !dialog->isVisible()) {
+      return;
+    }
+    dialog_seen = true;
+    auto* edit = dialog->findChild<QLineEdit*>(QStringLiteral("patchyColorHtmlEdit"));
+    CHECK(edit != nullptr);
+    // The focus lands queued after show; give it a few ticks before judging.
+    if (!(edit->hasFocus() && edit->hasSelectedText()) && ++ticks < 50) {
+      return;
+    }
+    poll.stop();
+    hex_had_focus_with_all_selected =
+        edit->hasFocus() && edit->selectedText() == edit->text() && edit->text() == QStringLiteral("#0A141E");
+    send_key(*edit, Qt::Key_V, Qt::ControlModifier);
+    paste_replaced_hex = edit->text() == QStringLiteral("#336699");
+    // Return commits the field and reaches the dialog's default (OK) button.
+    send_key(*edit, Qt::Key_Return);
+  });
+  poll.start(10);
+  const auto result = patchy::ui::request_patchy_color(nullptr, QColor(10, 20, 30), QStringLiteral("Hex paste"));
+  poll.stop();
+  CHECK(dialog_seen);
+  CHECK(hex_had_focus_with_all_selected);
+  CHECK(paste_replaced_hex);
+  CHECK(result.has_value());
+  CHECK(result.has_value() && *result == QColor(0x33, 0x66, 0x99));
+  QApplication::processEvents();
+
+  // Re-focusing the field selects its value again (a click, Tab, or setFocus).
+  patchy::ui::PatchyColorPicker picker(QColor(1, 2, 3));
+  picker.show();
+  picker.activateWindow();
+  QApplication::processEvents();
+  auto* edit = picker.findChild<QLineEdit*>(QStringLiteral("patchyColorHtmlEdit"));
+  CHECK(edit != nullptr);
+  auto* red_spin = picker.findChild<QSpinBox*>(QStringLiteral("patchyColorRedSpin"));
+  CHECK(red_spin != nullptr);
+  red_spin->setFocus(Qt::MouseFocusReason);
+  QApplication::processEvents();
+  CHECK(!edit->hasFocus());
+  edit->setFocus(Qt::MouseFocusReason);
+  QApplication::processEvents();
+  CHECK(edit->hasFocus());
+  CHECK(edit->selectedText() == QStringLiteral("#010203"));
+}
+
 void ui_hotkey_duplicate_ids_fail_without_replacing_the_command() {
   patchy::ui::HotkeyRegistry registry;
   QAction first(nullptr), second(nullptr);
@@ -2056,6 +2115,7 @@ std::vector<patchy::test::TestCase> pickers_notices_hotkeys_tests() {
       {"ui_hotkey_editor_steals_conflicting_shortcut", ui_hotkey_editor_steals_conflicting_shortcut},
       {"ui_hotkey_editor_reset_all_clears_overrides", ui_hotkey_editor_reset_all_clears_overrides},
       {"ui_color_picker_accepts_css_rgba_and_names", ui_color_picker_accepts_css_rgba_and_names},
+      {"ui_color_picker_opens_with_hex_field_selected_for_paste", ui_color_picker_opens_with_hex_field_selected_for_paste},
       {"ui_hotkey_duplicate_ids_fail_without_replacing_the_command", ui_hotkey_duplicate_ids_fail_without_replacing_the_command},
   };
 }
