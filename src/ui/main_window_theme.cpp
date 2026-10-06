@@ -474,14 +474,14 @@ QString photoshop_style_template() {
       padding-right: 2px;
     }
     QToolBar#Options QLabel[optionLabel="true"] {
-      background: @option_chip_bg;
-      border: 1px solid @field_inset_border;
-      border-right: 0;
-      border-top-color: @field_bevel_top;
+      /* Plain text, no chip: a filled, bevelled label read as a button beside
+         the field it names (GitHub issue 76). The scrub cursor still marks it. */
+      background: transparent;
+      border: 0;
       color: @text_bright;
       min-height: 24px;
       max-height: 24px;
-      padding: 0 7px;
+      padding: 0 6px 0 8px;
     }
     QToolBar#Options QSpinBox, QToolBar#Options QDoubleSpinBox, QToolBar#Options QComboBox, QToolBar#Options QFontComboBox {
       min-height: 24px;
@@ -492,27 +492,26 @@ QString photoshop_style_template() {
       border-top-color: @field_bevel_top;
     }
     QWidget#selectionFeatherGroup {
+      background: transparent;
+      border: 0;
+      min-height: 24px;
+      max-height: 24px;
+    }
+    QWidget#selectionFeatherGroup QLabel {
+      background: transparent;
+      border: 0;
+      color: @text_bright;
+      min-height: 24px;
+      max-height: 24px;
+      padding: 0 6px 0 8px;
+    }
+    QWidget#selectionFeatherGroup QSpinBox {
       background: @field_bg;
       border: 1px solid @field_inset_border;
       border-top-color: @field_bevel_top;
       min-height: 24px;
       max-height: 24px;
-    }
-    QWidget#selectionFeatherGroup QLabel {
-      background: @option_chip_bg;
-      border: 0;
-      border-right: 1px solid @field_inset_border;
-      color: @text_bright;
-      min-height: 24px;
-      max-height: 24px;
-      padding: 0 8px;
-    }
-    QWidget#selectionFeatherGroup QSpinBox {
-      background: @field_bg;
-      border: 0;
-      min-height: 24px;
-      max-height: 24px;
-      padding-left: 6px;
+      padding-left: 4px;
     }
     QToolBar#Options QCheckBox {
       color: @text_bright;
@@ -907,6 +906,13 @@ QString photoshop_style_template() {
     QPushButton:hover {
       background: @button_hover_bg;
       border-color: @button_hover_border_strong;
+    }
+    /* The button Enter presses carries the accent outline, like Photoshop's save
+       prompt (Seth, October 2026). Qt hands "default" to whichever auto-default
+       button has focus, so the outline follows Tab between a dialog's buttons.
+       After :hover so a hovered default keeps it. */
+    QPushButton:default {
+      border: 1px solid @accent_border_bright;
     }
     QPushButton:checked {
       background: @accent_checked_bg;

@@ -7762,10 +7762,6 @@ RGB：%2, %3, %4</translation>
         <translation>版本 %1 (建置於 %2)</translation>
     </message>
     <message>
-        <source>Code contributions from %1</source>
-        <translation>程式碼貢獻者：%1</translation>
-    </message>
-    <message>
         <source>GitHub: %1</source>
         <translation>GitHub：%1</translation>
     </message>
@@ -8871,6 +8867,18 @@ RGB：%2, %3, %4</translation>
         <source>%1 came from a grayscale document and adjusts its gray channel here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its tones will look different.</source>
         <translation>%1 來自灰階文件，在這裡調整的是它的灰色色版。Patchy 儲存的是 RGB 檔案，因此在儲存後的檔案中，Photoshop 和 Patchy 都會將它套用於 RGB，色調會有所不同。</translation>
     </message>
+    <message>
+        <source>Don&apos;t Save</source>
+        <translation>不儲存</translation>
+    </message>
+    <message>
+        <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
+        <translation>慷慨貢獻建議、錯誤回報與程式碼的了不起的人們：%1</translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation>比例</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -9656,10 +9664,6 @@ RGB：%2, %3, %4</translation>
         <translation>已取消裁切</translation>
     </message>
     <message>
-        <source>Drag the handles or edges to adjust. Enter crops, Esc cancels.</source>
-        <translation>拖曳控制項或邊緣即可調整。按 Enter 裁切,按 Esc 取消。</translation>
-    </message>
-    <message>
         <source>%1 x %2 px</source>
         <translation>%1 x %2 px</translation>
     </message>
@@ -10422,6 +10426,14 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Select Custom Color...</source>
         <translation>選擇自訂顏色...</translation>
+    </message>
+    <message>
+        <source>Nothing to crop: the box matches the canvas</source>
+        <translation>無需裁切：裁切框與畫布一致</translation>
+    </message>
+    <message>
+        <source>Crop box reset to the canvas</source>
+        <translation>裁切框已重設為畫布</translation>
     </message>
 </context>
 <context>
@@ -12169,10 +12181,6 @@ RGB：%2, %3, %4</translation>
         <translation>套用裁切 (Enter)</translation>
     </message>
     <message>
-        <source>Cancel crop (Esc)</source>
-        <translation>取消裁切 (Esc)</translation>
-    </message>
-    <message>
         <source>Preset:</source>
         <translation>預設集:</translation>
     </message>
@@ -12781,10 +12789,6 @@ RGB：%2, %3, %4</translation>
         <translation>工具</translation>
     </message>
     <message>
-        <source>Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. Shift constrains layer movement.</source>
-        <translation>Shift+按一下或 %CTRL%+按一下可切換圖層的選取狀態。%CTRL%+拖曳可用矩形選取圖層,拖曳前按住 Shift 可加選。Shift 會限制圖層的移動方向。</translation>
-    </message>
-    <message>
         <source>Click to place points, drag for curves. On a path: click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL% moves points.</source>
         <translation>按一下可放置錨點,拖曳可建立曲線。在路徑上:按一下線段可增加錨點,按一下錨點可刪除它,%ALT%+按一下可轉換錨點,%CTRL% 可移動錨點。</translation>
     </message>
@@ -12807,10 +12811,6 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Click a point to switch it between corner and smooth.</source>
         <translation>按一下錨點可在轉角與平滑之間切換。</translation>
-    </message>
-    <message>
-        <source>Move: Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it.</source>
-        <translation>移動:Shift+按一下或 %CTRL%+按一下可切換圖層的選取狀態。%CTRL%+拖曳可框選矩形範圍,Shift 可加選。拖曳選取的圖稿即可移動。</translation>
     </message>
     <message>
         <source>Pen: click to add points, drag for curves. On a path, click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL%+drag selects or moves points.</source>
@@ -18595,6 +18595,46 @@ Baked into images: %1.</source>
         <source>This smart object cannot be re-rendered</source>
         <translation>無法重新算繪此智慧型物件</translation>
     </message>
+    <message>
+        <source>%CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. %ALT%+drag duplicates. Shift constrains layer movement.</source>
+        <translation>%CTRL%+點按選取圖層，Shift+點按切換選取。%CTRL%+拖曳框選圖層；拖曳前按住 Shift 可加入。%ALT%+拖曳可複製。Shift 限制圖層移動方向。</translation>
+    </message>
+    <message>
+        <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
+        <translation>移動：%CTRL%+點按選取圖層，Shift+點按切換選取。%CTRL%+拖曳框選；Shift 加入。拖曳所選內容以移動，%ALT%+拖曳以複製。</translation>
+    </message>
+    <message>
+        <source>Reset the crop box to the canvas (Esc)</source>
+        <translation>將裁切框重設為畫布 (Esc)</translation>
+    </message>
+    <message>
+        <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
+        <translation>裁切：拖曳控制點以裁切或擴展畫布（%ALT% 以中心縮放），在內部拖曳可繪製新裁切框，在外部拖曳可旋轉。Enter 裁切，Esc 重設裁切框。</translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation>比例</translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation>尺寸</translation>
+    </message>
+    <message>
+        <source>Ratio constrains the crop box; Size shows its exact width and height and sets them</source>
+        <translation>比例用於限制裁切框；尺寸顯示並設定裁切框的精確寬度和高度</translation>
+    </message>
+    <message>
+        <source>Width of the crop box</source>
+        <translation>裁切框寬度</translation>
+    </message>
+    <message>
+        <source>Keep the crop box&apos;s width and height in proportion</source>
+        <translation>保持裁切框寬高比例</translation>
+    </message>
+    <message>
+        <source>Height of the crop box</source>
+        <translation>裁切框高度</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -20075,10 +20115,6 @@ Baked into images: %1.</source>
     <message>
         <source>Version %1 (built %2)</source>
         <translation>版本 %1 (建置於 %2)</translation>
-    </message>
-    <message>
-        <source>Code contributions from %1</source>
-        <translation>程式碼貢獻者：%1</translation>
     </message>
     <message>
         <source>GitHub: %1</source>

@@ -7779,10 +7779,6 @@ RVB : %2, %3, %4</translation>
         <translation>Version %1 (compilée le %2)</translation>
     </message>
     <message>
-        <source>Code contributions from %1</source>
-        <translation>Contributions au code de %1</translation>
-    </message>
-    <message>
         <source>GitHub: %1</source>
         <translation>GitHub : %1</translation>
     </message>
@@ -8901,6 +8897,18 @@ RVB : %2, %3, %4</translation>
         <source>%1 came from a grayscale document and adjusts its gray channel here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its tones will look different.</source>
         <translation>%1 provient d&apos;un document en niveaux de gris et règle ici sa couche de gris. Patchy enregistre des fichiers RVB : dans le fichier enregistré, Photoshop et Patchy l&apos;appliquent au RVB et ses tons seront différents.</translation>
     </message>
+    <message>
+        <source>Don&apos;t Save</source>
+        <translation>Ne pas enregistrer</translation>
+    </message>
+    <message>
+        <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
+        <translation>Des personnes formidables qui ont offert suggestions, rapports de bogues et code : %1</translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation>Rapport</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -9686,10 +9694,6 @@ RVB : %2, %3, %4</translation>
         <translation>Recadrage annulé</translation>
     </message>
     <message>
-        <source>Drag the handles or edges to adjust. Enter crops, Esc cancels.</source>
-        <translation>Faites glisser les poignées ou les bords pour ajuster. Enter recadre, Esc annule.</translation>
-    </message>
-    <message>
         <source>%1 x %2 px</source>
         <translation>%1 x %2 px</translation>
     </message>
@@ -10452,6 +10456,14 @@ RVB : %2, %3, %4</translation>
     <message>
         <source>Select Custom Color...</source>
         <translation>Choisir une couleur personnalisée...</translation>
+    </message>
+    <message>
+        <source>Nothing to crop: the box matches the canvas</source>
+        <translation>Rien à recadrer : le cadre correspond à la zone de travail</translation>
+    </message>
+    <message>
+        <source>Crop box reset to the canvas</source>
+        <translation>Cadre de recadrage réinitialisé sur la zone de travail</translation>
     </message>
 </context>
 <context>
@@ -12199,10 +12211,6 @@ RVB : %2, %3, %4</translation>
         <translation>Appliquer le recadrage (Enter)</translation>
     </message>
     <message>
-        <source>Cancel crop (Esc)</source>
-        <translation>Annuler le recadrage (Esc)</translation>
-    </message>
-    <message>
         <source>Preset:</source>
         <translation>Paramètre prédéfini :</translation>
     </message>
@@ -12811,10 +12819,6 @@ RVB : %2, %3, %4</translation>
         <translation>Outil</translation>
     </message>
     <message>
-        <source>Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. Shift constrains layer movement.</source>
-        <translation>Shift+clic ou %CTRL%+clic sélectionne ou désélectionne les calques. %CTRL%+glisser sélectionne les calques dans un rectangle ; maintenez Shift avant de glisser pour ajouter à la sélection. Shift contraint le déplacement des calques.</translation>
-    </message>
-    <message>
         <source>Click to place points, drag for curves. On a path: click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL% moves points.</source>
         <translation>Cliquez pour placer des points, faites glisser pour des courbes. Sur un tracé : cliquez sur un segment pour ajouter un point, cliquez sur un point pour le supprimer, %ALT%+clic le convertit, %CTRL% déplace les points.</translation>
     </message>
@@ -12837,10 +12841,6 @@ RVB : %2, %3, %4</translation>
     <message>
         <source>Click a point to switch it between corner and smooth.</source>
         <translation>Cliquez sur un point pour le convertir entre point d&apos;angle et point d&apos;inflexion.</translation>
-    </message>
-    <message>
-        <source>Move: Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it.</source>
-        <translation>Déplacement : Shift+clic ou %CTRL%+clic sélectionne ou désélectionne les calques. %CTRL%+glisser sélectionne les calques dans un rectangle ; Shift ajoute à la sélection. Faites glisser le contenu sélectionné pour le déplacer.</translation>
     </message>
     <message>
         <source>Pen: click to add points, drag for curves. On a path, click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL%+drag selects or moves points.</source>
@@ -18651,6 +18651,46 @@ Convertis en images : %1.</translation>
         <source>This smart object cannot be re-rendered</source>
         <translation>Cet objet dynamique ne peut pas être rendu à nouveau</translation>
     </message>
+    <message>
+        <source>%CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. %ALT%+drag duplicates. Shift constrains layer movement.</source>
+        <translation>%CTRL%+clic sélectionne un calque, Maj+clic le bascule. %CTRL%+glisser sélectionne les calques dans un rectangle ; maintenez Maj avant de glisser pour ajouter. %ALT%+glisser duplique. Maj contraint le déplacement du calque.</translation>
+    </message>
+    <message>
+        <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
+        <translation>Déplacement : %CTRL%+clic sélectionne un calque, Maj+clic le bascule. %CTRL%+glisser sélectionne un rectangle ; Maj ajoute. Faites glisser l&apos;illustration sélectionnée pour la déplacer, %ALT%+glisser pour la dupliquer.</translation>
+    </message>
+    <message>
+        <source>Reset the crop box to the canvas (Esc)</source>
+        <translation>Réinitialiser le cadre de recadrage sur la zone de travail (Échap)</translation>
+    </message>
+    <message>
+        <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
+        <translation>Recadrage : faites glisser les poignées pour recadrer ou agrandir la zone de travail (%ALT% redimensionne autour du centre), glissez à l&apos;intérieur pour tracer un nouveau cadre, glissez à l&apos;extérieur pour pivoter. Entrée recadre, Échap réinitialise le cadre.</translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation>Rapport</translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation>Taille</translation>
+    </message>
+    <message>
+        <source>Ratio constrains the crop box; Size shows its exact width and height and sets them</source>
+        <translation>Rapport contraint le cadre de recadrage ; Taille affiche sa largeur et sa hauteur exactes et les définit</translation>
+    </message>
+    <message>
+        <source>Width of the crop box</source>
+        <translation>Largeur du cadre de recadrage</translation>
+    </message>
+    <message>
+        <source>Keep the crop box&apos;s width and height in proportion</source>
+        <translation>Conserver les proportions du cadre de recadrage</translation>
+    </message>
+    <message>
+        <source>Height of the crop box</source>
+        <translation>Hauteur du cadre de recadrage</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -20132,10 +20172,6 @@ Convertis en images : %1.</translation>
     <message>
         <source>Version %1 (built %2)</source>
         <translation>Version %1 (compilée le %2)</translation>
-    </message>
-    <message>
-        <source>Code contributions from %1</source>
-        <translation>Contributions au code de %1</translation>
     </message>
     <message>
         <source>GitHub: %1</source>

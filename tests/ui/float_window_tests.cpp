@@ -458,9 +458,9 @@ void ui_float_window_close_prompts_and_closes_document() {
   CHECK(find_document_float_window(window) == float_window);
   CHECK(float_window->isVisible());
 
-  // No (discard) closes the floated document; activation falls back to the tab.
+  // Don't Save closes the floated document; activation falls back to the tab.
   bool discard_prompt_seen = false;
-  dismiss_save_prompt(QMessageBox::No, discard_prompt_seen);
+  dismiss_save_prompt(QMessageBox::Discard, discard_prompt_seen);
   CHECK(float_window->close());
   QApplication::processEvents();
   flush_deferred_deletes();
@@ -772,7 +772,7 @@ void ui_float_window_smart_object_child_commits_to_parent() {
       }
       if (box->objectName() == QStringLiteral("saveChangesMessageBox")) {
         saw_save_prompt = true;
-        box->button(QMessageBox::No)->click();
+        box->button(QMessageBox::Discard)->click();
         return;
       }
     }

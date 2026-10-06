@@ -23,6 +23,7 @@ class QAbstractSpinBox;
 class QDoubleSpinBox;
 class QFormLayout;
 class QLabel;
+class QLineEdit;
 class QMenu;
 class QPushButton;
 class QSpinBox;
@@ -46,6 +47,15 @@ void scale_font_size(QFont& font, double scale);
 [[nodiscard]] QFont scaled_font(QFont font, double scale);
 // Additive sibling: shifts the size by `size_delta` points or pixels, and sets bold.
 [[nodiscard]] QFont offset_font(QFont font, int size_delta, bool bold);
+
+// Selects the whole text whenever the edit gains focus, so typing replaces the
+// old value instead of appending to it (GitHub issues 66 and 68). The select
+// runs queued, after the click that gave focus has placed its caret; a drag
+// that follows the click still selects its own range.
+void select_all_on_focus(QLineEdit& edit);
+// Same for a spin box, which takes the focus itself and forwards the event to
+// its line edit directly (a filter on the line edit never sees it).
+void select_all_on_focus(QAbstractSpinBox& spin);
 
 // `width` is a minimum: the box grows to keep its widest possible value text
 // (prefix + min/max + suffix) clear of the trailing popup chevron. Set the
@@ -170,6 +180,9 @@ QVBoxLayout* install_dark_dialog_chrome(QDialog& dialog, QVBoxLayout* root, cons
 // dialog's objectName). Lets dialogs that share an objectName (for tests/styling)
 // keep separate remembered positions. Set before remember_dialog_position runs.
 void set_dialog_position_memory_id(QDialog& dialog, const QString& id);
+// Opts a dialog out of position memory: it centers on its owner every time
+// and drops any saved position (what About and every message box want).
+void mark_dialog_always_centered(QDialog& dialog);
 void remember_dialog_position(QDialog& dialog);
 int exec_dialog(QDialog& dialog);
 int run_non_modal_dialog(QDialog& dialog);
@@ -219,8 +232,9 @@ void move_pointer_to_global_position(QPoint global_position);
 // stays covered until the tabs overflow, when a 1px white base line shows through
 // the transparent scroll buttons at the bar's right edge.
 void suppress_native_tab_bar_base(QTabWidget& tabs);
-// When the box has Yes/No buttons, plain Y/N key presses activate them
-// (native-message-box style; Qt itself only wires Alt+mnemonic).
+// Plain letter keys answer the box (native-message-box style; Qt itself only
+// wires Alt+mnemonic): Y/N for Yes/No, S/D for Save/Discard, and Y/N also
+// stand in for Save/Discard. A Discard button always reads "Don't Save".
 [[nodiscard]] QMessageBox::StandardButton show_warning_message(
     QWidget* parent, const QString& title, const QString& text, QMessageBox::StandardButtons buttons,
     QMessageBox::StandardButton default_button = QMessageBox::NoButton, const QString& object_name = QString());

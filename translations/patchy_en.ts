@@ -7770,10 +7770,6 @@ RGB: %2, %3, %4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Code contributions from %1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>GitHub: %1</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8890,6 +8886,18 @@ RGB: %2, %3, %4</source>
         <source>%1 came from a grayscale document and adjusts its gray channel here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its tones will look different.</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Don&apos;t Save</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -9675,10 +9683,6 @@ RGB: %2, %3, %4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Drag the handles or edges to adjust. Enter crops, Esc cancels.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>%1 x %2 px</source>
         <translation type="unfinished"></translation>
     </message>
@@ -10440,6 +10444,14 @@ RGB: %2, %3, %4</source>
     </message>
     <message>
         <source>Select Custom Color...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nothing to crop: the box matches the canvas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Crop box reset to the canvas</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -12188,10 +12200,6 @@ RGB: %2, %3, %4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Cancel crop (Esc)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Preset:</source>
         <translation type="unfinished"></translation>
     </message>
@@ -12800,10 +12808,6 @@ RGB: %2, %3, %4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. Shift constrains layer movement.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Click to place points, drag for curves. On a path: click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL% moves points.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -12825,10 +12829,6 @@ RGB: %2, %3, %4</source>
     </message>
     <message>
         <source>Click a point to switch it between corner and smooth.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Move: Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -18601,6 +18601,46 @@ Baked into images: %1.</source>
         <source>This smart object cannot be re-rendered</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>%CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. %ALT%+drag duplicates. Shift constrains layer movement.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reset the crop box to the canvas (Esc)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ratio constrains the crop box; Size shows its exact width and height and sets them</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Width of the crop box</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Keep the crop box&apos;s width and height in proportion</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Height of the crop box</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -20081,10 +20121,6 @@ Baked into images: %1.</source>
     </message>
     <message>
         <source>Version %1 (built %2)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Code contributions from %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

@@ -1645,6 +1645,59 @@ void ui_zoom_tool_direction_buttons_set_click_direction() {
   CHECK(!second->zoom_tool_zooms_out());
 }
 
+// GitHub issue 77: Zoom In/Out and the Zoom tool click walk Photoshop's zoom
+// ladder, so an off-ladder view lands on the next rung instead of a multiple.
+void ui_zoom_steps_follow_photoshop_ladder() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto* zoom_in = require_action(window, "viewZoomInAction");
+  auto* zoom_out = require_action(window, "viewZoomOutAction");
+  CHECK(zoom_in != nullptr && zoom_out != nullptr);
+  if (zoom_in == nullptr || zoom_out == nullptr) {
+    return;
+  }
+  const auto close_to = [](double actual, double expected) { return std::abs(actual - expected) < 0.001; };
+
+  canvas->set_view_zoom(0.4639);
+  zoom_in->trigger();
+  QApplication::processEvents();
+  CHECK(close_to(canvas->view_zoom(), 0.5));
+  zoom_in->trigger();
+  QApplication::processEvents();
+  CHECK(close_to(canvas->view_zoom(), 2.0 / 3.0));
+  zoom_out->trigger();
+  QApplication::processEvents();
+  CHECK(close_to(canvas->view_zoom(), 0.5));
+  canvas->set_view_zoom(0.4639);
+  zoom_out->trigger();
+  QApplication::processEvents();
+  CHECK(close_to(canvas->view_zoom(), 1.0 / 3.0));
+
+  // Rungs above 100% are the whole-hundred steps, and the ladder ends clamp.
+  canvas->set_view_zoom(1.0);
+  zoom_in->trigger();
+  zoom_in->trigger();
+  QApplication::processEvents();
+  CHECK(close_to(canvas->view_zoom(), 3.0));
+  canvas->set_view_zoom(128.0);
+  zoom_in->trigger();
+  QApplication::processEvents();
+  CHECK(close_to(canvas->view_zoom(), 128.0));
+
+  // The Zoom tool click takes the same ladder; Alt inverts it.
+  require_action_by_text(window, QStringLiteral("Zoom"))->trigger();
+  QApplication::processEvents();
+  canvas->set_view_zoom(0.4639);
+  const auto at = canvas->widget_position_for_document_point(QPoint(10, 10));
+  send_mouse(*canvas, QEvent::MouseButtonPress, at, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, at, Qt::LeftButton, Qt::NoButton);
+  CHECK(close_to(canvas->view_zoom(), 0.5));
+  send_mouse(*canvas, QEvent::MouseButtonPress, at, Qt::LeftButton, Qt::LeftButton, Qt::AltModifier);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, at, Qt::LeftButton, Qt::NoButton, Qt::AltModifier);
+  CHECK(close_to(canvas->view_zoom(), 1.0 / 3.0));
+}
+
 // The Zoom tool's 100% / Fit Screen / Fill Screen buttons show only for the
 // Zoom tool and set the view like the View menu commands; Fill Screen (a new
 // View command) uses the larger axis ratio where Fit uses the smaller.
@@ -2107,6 +2160,49 @@ void ui_fill_of_wand_selection_with_many_spans_is_fast() {
             << selection.rectCount() << " selection spans\n";
 }
 
+// GitHub issue 66: clicking into an options-bar numeric field selects its whole
+// value, so typing replaces it (Qt only selects on keyboard focus).
+void ui_toolbar_spin_boxes_select_all_on_focus() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  window.activateWindow();
+  QApplication::processEvents();
+
+  require_action(window, "toolCropAction")->trigger();
+  QApplication::processEvents();
+  auto* ratio_width = window.findChild<QDoubleSpinBox*>(QStringLiteral("cropRatioWidthSpin"));
+  CHECK(ratio_width != nullptr);
+  if (ratio_width != nullptr) {
+    CHECK(ratio_width->isVisible());
+    auto* editor = ratio_width->findChild<QLineEdit*>();
+    CHECK(editor != nullptr);
+    if (editor != nullptr) {
+      editor->deselect();
+      ratio_width->setFocus(Qt::MouseFocusReason);
+      QApplication::processEvents();
+      CHECK(editor->hasFocus());
+      CHECK(editor->hasSelectedText());
+      CHECK(editor->selectedText() == editor->text());
+    }
+  }
+
+  require_action_by_text(window, QStringLiteral("Brush"))->trigger();
+  QApplication::processEvents();
+  auto* brush_size = window.findChild<QSpinBox*>(QStringLiteral("brushSizeSpin"));
+  CHECK(brush_size != nullptr);
+  if (brush_size != nullptr) {
+    auto* editor = brush_size->findChild<QLineEdit*>();
+    CHECK(editor != nullptr);
+    if (editor != nullptr) {
+      editor->deselect();
+      brush_size->setFocus(Qt::MouseFocusReason);
+      QApplication::processEvents();
+      CHECK(editor->hasFocus());
+      CHECK(editor->selectedText() == editor->text());
+    }
+  }
+}
+
 void ui_options_bar_tracks_active_tool() {
   SettingsValueRestorer saved_gradient_method(QStringLiteral("tools/gradientMethod"));
   SettingsValueRestorer saved_gradient_reverse(QStringLiteral("tools/gradientReverse"));
@@ -2115,6 +2211,7 @@ void ui_options_bar_tracks_active_tool() {
   SettingsValueRestorer saved_gradient_stops(QStringLiteral("tools/gradientStops"));
   SettingsValueRestorer saved_text_smoothing(QStringLiteral("tools/textSmoothing"));
   SettingsValueRestorer saved_show_transform_controls(QStringLiteral("tools/showTransformControls"));
+  SettingsValueRestorer saved_move_auto_select(QStringLiteral("tools/moveAutoSelect"));
   auto settings = patchy::ui::app_settings();
   settings.remove(QStringLiteral("tools/showTransformControls"));
   settings.sync();
@@ -3950,6 +4047,7 @@ std::vector<patchy::test::TestCase> canvas_view_tools_tests() {
       {"ui_zoom_tool_scrubby_drag_zooms_live_around_press_point",
        ui_zoom_tool_scrubby_drag_zooms_live_around_press_point},
       {"ui_zoom_tool_direction_buttons_set_click_direction", ui_zoom_tool_direction_buttons_set_click_direction},
+      {"ui_zoom_steps_follow_photoshop_ladder", ui_zoom_steps_follow_photoshop_ladder},
       {"ui_zoom_options_bar_view_buttons_set_view", ui_zoom_options_bar_view_buttons_set_view},
       {"ui_stamp_and_gradient_flyouts_swap_tools", ui_stamp_and_gradient_flyouts_swap_tools},
       {"ui_tool_cycle_hotkeys_walk_each_flyout", ui_tool_cycle_hotkeys_walk_each_flyout},
@@ -3957,6 +4055,7 @@ std::vector<patchy::test::TestCase> canvas_view_tools_tests() {
       {"ui_tool_flyout_right_click_opens_menu", ui_tool_flyout_right_click_opens_menu},
       {"ui_tool_palette_icons_render_sheet", ui_tool_palette_icons_render_sheet},
       {"ui_filled_shape_preview_clears_after_commit", ui_filled_shape_preview_clears_after_commit},
+      {"ui_toolbar_spin_boxes_select_all_on_focus", ui_toolbar_spin_boxes_select_all_on_focus},
       {"ui_options_bar_tracks_active_tool", ui_options_bar_tracks_active_tool},
       {"ui_fill_tool_tolerance_and_contiguous_persist_across_documents",
        ui_fill_tool_tolerance_and_contiguous_persist_across_documents},

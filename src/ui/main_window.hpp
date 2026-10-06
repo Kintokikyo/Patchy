@@ -1076,7 +1076,9 @@ private:
   void invert_active_layer_mask();
   void apply_active_layer_mask();
   void duplicate_active_layer();
-  void duplicate_layers(std::vector<LayerId> ids);
+  // Returns the copies' ids top to bottom (empty when nothing was duplicated);
+  // the copies are selected with the topmost active.
+  std::vector<LayerId> duplicate_layers(std::vector<LayerId> ids);
   // Cross-document layer copy: a Layers-panel drag dropped on another
   // document's canvas or tab, Duplicate Layer to Document, and
   // layer.duplicate(target) all end here.
@@ -1175,6 +1177,24 @@ private:
   // A Palette swatch click: recolors the options-bar solid Fill (or, with No Fill, an
   // enabled solid Stroke) and the selected shape layers. Gradient/pattern paint is left alone.
   void apply_swatch_color_to_shape_paint(QColor color);
+  // An eyedropper pick recolors the selected shape layers like a swatch click
+  // (GitHub issue 67): with the Eyedropper tool, or an Alt-pick while the shape
+  // appearance controls are live. Alt-picks from painting tools only set the
+  // foreground.
+  void apply_picked_color_to_selected_shapes(QColor color);
+  // The Foreground color panel while the shape controls are live: the swatch
+  // rule, debounced through queue_shape_appearance_edit (GitHub issue 67).
+  void apply_foreground_color_to_shape_paint(QColor color);
+  // Shared body: writes `color` into the options-bar solid Fill (or an enabled
+  // solid Stroke when the fill is No Fill) and applies that field to the
+  // selected shape layers, as one undo step now or debounced. Callers gate it.
+  void apply_solid_color_to_shape_paint(QColor color, bool debounce);
+  // The options-bar appearance as ShapeAppearanceSettings with `fields` (or
+  // the kind/stroke basics when empty) captured as its edits.
+  [[nodiscard]] ShapeAppearanceSettings options_bar_appearance_settings(const std::vector<std::string>& fields) const;
+  // apply_options_bar_appearance_to_active_shape without its live-controls
+  // gate: builds the settings from the options bar and commits `fields`.
+  bool commit_options_bar_appearance_fields(const std::vector<std::string>& fields);
   void pick_vector_gradient(bool for_stroke);
   void pick_vector_pattern(bool for_stroke);
   [[nodiscard]] patchy::Layer* editable_active_vector_shape_layer();
@@ -1789,6 +1809,14 @@ private:
   // Derives the crop ratio preset combo's row from the canvas ratio values
   // (None / a preset / Original Ratio / Custom) without firing its handler.
   void sync_crop_ratio_preset_combo();
+  // The ratio the canvas should constrain with under the current crop style.
+  [[nodiscard]] double effective_crop_ratio_width() const noexcept;
+  [[nodiscard]] double effective_crop_ratio_height() const noexcept;
+  void apply_crop_style(int style);
+  // A Size-mode field committed `value` px for one axis; the linked axis follows
+  // the box's current proportion when the link button is down.
+  void handle_crop_size_value_changed(bool horizontal, int value);
+  [[nodiscard]] bool crop_option_widget_visible(QWidget* widget) const;
   std::vector<std::unique_ptr<DocumentSession>> sessions_;
   std::int64_t next_session_id_{1};
   // The ACTIVE document's canvas, the single source of truth for "current document"
@@ -1935,12 +1963,21 @@ private:
   QPushButton* transform_cancel_button_{nullptr};
   QComboBox* warp_style_combo_{nullptr};
   QDoubleSpinBox* warp_bend_spin_{nullptr};
-  // Crop tool options: ratio preset combo + ratio pair + clear, and the
-  // session apply/cancel pair (enabled only while a crop rect is pending).
+  // Crop tool options: a Style combo (Ratio: preset combo + ratio pair +
+  // Clear; Size: unit Width/Height fields that mirror and resize the box,
+  // plus a link button), and the session apply/reset pair (enabled only
+  // while the box differs from the canvas frame). The two field sets swap
+  // visibility through crop_option_widget_visible.
+  QComboBox* crop_style_combo_{nullptr};
   QComboBox* crop_ratio_preset_combo_{nullptr};
   QDoubleSpinBox* crop_ratio_w_spin_{nullptr};
   QDoubleSpinBox* crop_ratio_h_spin_{nullptr};
   QPushButton* crop_ratio_clear_button_{nullptr};
+  UnitIntSpinBox* crop_width_spin_{nullptr};
+  UnitIntSpinBox* crop_height_spin_{nullptr};
+  QPushButton* crop_link_size_button_{nullptr};
+  std::vector<QWidget*> crop_ratio_option_widgets_;
+  std::vector<QWidget*> crop_size_option_widgets_;
   QPushButton* crop_apply_button_{nullptr};
   QPushButton* patch_remove_object_button_{nullptr};
   QPushButton* crop_cancel_button_{nullptr};
@@ -2278,6 +2315,10 @@ private:
   bool current_selection_antialias_{true};
   double current_crop_ratio_w_{0.0};
   double current_crop_ratio_h_{0.0};
+  // tools/cropStyle: 0 = Ratio (the fields constrain), 1 = Size (the fields
+  // show and set the box). Size mode runs the canvas with no ratio; the
+  // remembered ratio comes back with Ratio mode (effective_crop_ratio_*).
+  int current_crop_style_{0};
   bool current_fill_shapes_{false};
   int current_shape_corner_radius_{0};
   CanvasWidget::MarqueeStyle current_shape_style_{CanvasWidget::MarqueeStyle::Normal};

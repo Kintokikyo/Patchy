@@ -7779,10 +7779,6 @@ RGB: %2, %3, %4</translation>
         <translation>Version %1 (erstellt am %2)</translation>
     </message>
     <message>
-        <source>Code contributions from %1</source>
-        <translation>Code-Beiträge von %1</translation>
-    </message>
-    <message>
         <source>GitHub: %1</source>
         <translation>GitHub: %1</translation>
     </message>
@@ -8901,6 +8897,18 @@ RGB: %2, %3, %4</translation>
         <source>%1 came from a grayscale document and adjusts its gray channel here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its tones will look different.</source>
         <translation>%1 stammt aus einem Graustufendokument und wirkt hier auf dessen Graukanal. Patchy speichert RGB-Dateien; in der gespeicherten Datei wenden Photoshop und Patchy die Ebene auf RGB an, und ihre Tonwerte sehen anders aus.</translation>
     </message>
+    <message>
+        <source>Don&apos;t Save</source>
+        <translation>Nicht speichern</translation>
+    </message>
+    <message>
+        <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
+        <translation>Großartige Menschen, die Vorschläge, Fehlerberichte und Code beigesteuert haben: %1</translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation>Verhältnis</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -9686,10 +9694,6 @@ RGB: %2, %3, %4</translation>
         <translation>Freistellen abgebrochen</translation>
     </message>
     <message>
-        <source>Drag the handles or edges to adjust. Enter crops, Esc cancels.</source>
-        <translation>Ziehen Sie die Griffe oder Kanten zum Anpassen. Enter stellt frei, Esc bricht ab.</translation>
-    </message>
-    <message>
         <source>%1 x %2 px</source>
         <translation>%1 x %2 px</translation>
     </message>
@@ -10452,6 +10456,14 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Select Custom Color...</source>
         <translation>Eigene Farbe wählen...</translation>
+    </message>
+    <message>
+        <source>Nothing to crop: the box matches the canvas</source>
+        <translation>Nichts zuzuschneiden: Der Rahmen entspricht der Arbeitsfläche</translation>
+    </message>
+    <message>
+        <source>Crop box reset to the canvas</source>
+        <translation>Zuschneiderahmen auf die Arbeitsfläche zurückgesetzt</translation>
     </message>
 </context>
 <context>
@@ -12199,10 +12211,6 @@ RGB: %2, %3, %4</translation>
         <translation>Freistellen anwenden (Enter)</translation>
     </message>
     <message>
-        <source>Cancel crop (Esc)</source>
-        <translation>Freistellen abbrechen (Esc)</translation>
-    </message>
-    <message>
         <source>Preset:</source>
         <translation>Vorgabe:</translation>
     </message>
@@ -12811,10 +12819,6 @@ RGB: %2, %3, %4</translation>
         <translation>Werkzeug</translation>
     </message>
     <message>
-        <source>Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. Shift constrains layer movement.</source>
-        <translation>Shift+Klick oder %CTRL%+Klick wählt Ebenen aus oder hebt ihre Auswahl auf. %CTRL%+Ziehen wählt Ebenen in einem Rechteck aus; halten Sie vor dem Ziehen Shift gedrückt, um zur Auswahl hinzuzufügen. Shift beschränkt die Ebenenbewegung.</translation>
-    </message>
-    <message>
         <source>Click to place points, drag for curves. On a path: click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL% moves points.</source>
         <translation>Klicken Sie, um Punkte zu setzen, ziehen Sie für Kurven. Auf einem Pfad: Ein Klick auf ein Segment fügt einen Punkt hinzu, ein Klick auf einen Punkt löscht ihn, %ALT%+Klick wandelt ihn um, %CTRL% verschiebt Punkte.</translation>
     </message>
@@ -12837,10 +12841,6 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Click a point to switch it between corner and smooth.</source>
         <translation>Klicken Sie auf einen Punkt, um zwischen Eck- und Übergangspunkt zu wechseln.</translation>
-    </message>
-    <message>
-        <source>Move: Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it.</source>
-        <translation>Verschieben: Shift+Klick oder %CTRL%+Klick wählt Ebenen aus oder hebt ihre Auswahl auf. %CTRL%+Ziehen wählt Ebenen in einem Rechteck aus; Shift fügt zur Auswahl hinzu. Ziehen Sie ausgewählte Inhalte, um sie zu verschieben.</translation>
     </message>
     <message>
         <source>Pen: click to add points, drag for curves. On a path, click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL%+drag selects or moves points.</source>
@@ -18651,6 +18651,46 @@ In Bilder umgewandelt: %1.</translation>
         <source>This smart object cannot be re-rendered</source>
         <translation>Dieses Smartobjekt kann nicht neu gerendert werden</translation>
     </message>
+    <message>
+        <source>%CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. %ALT%+drag duplicates. Shift constrains layer movement.</source>
+        <translation>%CTRL%+Klick wählt eine Ebene aus, Umschalt+Klick schaltet sie um. %CTRL%+Ziehen wählt Ebenen in einem Rechteck aus; Umschalt vor dem Ziehen halten, um hinzuzufügen. %ALT%+Ziehen dupliziert. Umschalt beschränkt die Ebenenbewegung.</translation>
+    </message>
+    <message>
+        <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
+        <translation>Verschieben: %CTRL%+Klick wählt eine Ebene aus, Umschalt+Klick schaltet sie um. %CTRL%+Ziehen wählt ein Rechteck aus; Umschalt fügt hinzu. Ausgewählte Grafik ziehen, um sie zu verschieben, %ALT%+Ziehen, um sie zu duplizieren.</translation>
+    </message>
+    <message>
+        <source>Reset the crop box to the canvas (Esc)</source>
+        <translation>Zuschneiderahmen auf die Arbeitsfläche zurücksetzen (Esc)</translation>
+    </message>
+    <message>
+        <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
+        <translation>Freistellen: Griffe ziehen, um zuzuschneiden oder die Arbeitsfläche zu erweitern (%ALT% skaliert um die Mitte), innen ziehen für einen neuen Rahmen, außerhalb ziehen zum Drehen. Eingabe schneidet zu, Esc setzt den Rahmen zurück.</translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation>Verhältnis</translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation>Größe</translation>
+    </message>
+    <message>
+        <source>Ratio constrains the crop box; Size shows its exact width and height and sets them</source>
+        <translation>Verhältnis beschränkt den Zuschneiderahmen; Größe zeigt seine genaue Breite und Höhe und setzt sie</translation>
+    </message>
+    <message>
+        <source>Width of the crop box</source>
+        <translation>Breite des Zuschneiderahmens</translation>
+    </message>
+    <message>
+        <source>Keep the crop box&apos;s width and height in proportion</source>
+        <translation>Breite und Höhe des Zuschneiderahmens proportional halten</translation>
+    </message>
+    <message>
+        <source>Height of the crop box</source>
+        <translation>Höhe des Zuschneiderahmens</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -20132,10 +20172,6 @@ In Bilder umgewandelt: %1.</translation>
     <message>
         <source>Version %1 (built %2)</source>
         <translation>Version %1 (erstellt am %2)</translation>
-    </message>
-    <message>
-        <source>Code contributions from %1</source>
-        <translation>Code-Beiträge von %1</translation>
     </message>
     <message>
         <source>GitHub: %1</source>

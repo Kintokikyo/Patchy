@@ -71,6 +71,7 @@
 #include <algorithm>
 #include <cmath>
 #include <exception>
+#include <initializer_list>
 #include <limits>
 #include <type_traits>
 #include <utility>
@@ -82,6 +83,7 @@ namespace {
 
 constexpr auto kDialogPositionMemoryInstalledProperty = "patchy.dialogPositionMemoryInstalled";
 constexpr auto kDialogPositionMemoryIdProperty = "patchy.dialogPositionMemoryId";
+constexpr auto kDialogAlwaysCenteredProperty = "patchy.dialogAlwaysCentered";
 
 constexpr int kChevronAreaWidth = 14;
 
@@ -873,6 +875,17 @@ bool restore_dialog_position(QDialog& dialog) {
   if (!stored_position.canConvert<QPoint>()) {
     return false;
   }
+  // A position remembered on a screen the owner no longer occupies (a monitor
+  // unplugged, the main window moved to another display) would strand the
+  // dialog away from the app: fall back to centering on the owner instead.
+  if (auto* parent = dialog.parentWidget(); parent != nullptr) {
+    if (auto* owner_screen = parent->window()->screen(); owner_screen != nullptr) {
+      const QRect remembered(stored_position.toPoint(), dialog_placement_size(dialog));
+      if (!remembered.intersects(owner_screen->availableGeometry())) {
+        return false;
+      }
+    }
+  }
   dialog.move(clamped_dialog_position(dialog, stored_position.toPoint()));
   return true;
 }
@@ -1251,6 +1264,9 @@ void configure_toolbar_spinbox_impl(SpinBox* spin, int width) {
     new ToolbarSpinboxWidthRefresher<SpinBox>(spin);
   }
   install_numeric_popup(spin);
+  // A click into a toolbar field selects its value so typing replaces it
+  // (GitHub issue 66; Qt only does this for keyboard focus).
+  select_all_on_focus(*spin);
 }
 
 }  // namespace
@@ -1308,6 +1324,59 @@ void install_prefix_scrub(QSpinBox* spin) {
 void install_scrub_labels_in(QWidget* container) {
   if (container != nullptr) {
     install_scrub_labels_in_layout(container->layout());
+  }
+}
+
+namespace {
+
+constexpr char kSelectAllOnFocusInstalledProperty[] = "patchy.selectAllOnFocus";
+
+// Watches the widget that receives focus (`owner`) and selects `edit`'s text.
+// For a spin box the two differ: QAbstractSpinBox takes the focus itself and
+// hands the event to its line edit by a direct event() call, which no filter on
+// the line edit ever sees.
+class SelectAllOnFocusFilter : public QObject {
+ public:
+  SelectAllOnFocusFilter(QWidget& owner, QLineEdit& edit) : QObject(&owner), owner_(&owner), edit_(&edit) {}
+
+  bool eventFilter(QObject* watched, QEvent* event) override {
+    if (event->type() == QEvent::FocusIn) {
+      // Queued so the click that gave focus does not immediately collapse the
+      // selection (QLineEdit places its caret on the press after focus-in).
+      QMetaObject::invokeMethod(
+          owner_,
+          [owner = owner_, edit = edit_] {
+            if (owner != nullptr && edit != nullptr && owner->hasFocus()) {
+              edit->selectAll();
+            }
+          },
+          Qt::QueuedConnection);
+    }
+    return QObject::eventFilter(watched, event);
+  }
+
+ private:
+  QPointer<QWidget> owner_;
+  QPointer<QLineEdit> edit_;
+};
+
+void install_select_all_on_focus(QWidget& owner, QLineEdit& edit) {
+  if (owner.property(kSelectAllOnFocusInstalledProperty).toBool()) {
+    return;
+  }
+  owner.setProperty(kSelectAllOnFocusInstalledProperty, true);
+  owner.installEventFilter(new SelectAllOnFocusFilter(owner, edit));
+}
+
+}  // namespace
+
+void select_all_on_focus(QLineEdit& edit) {
+  install_select_all_on_focus(edit, edit);
+}
+
+void select_all_on_focus(QAbstractSpinBox& spin) {
+  if (auto* editor = spin.findChild<QLineEdit*>(); editor != nullptr) {
+    install_select_all_on_focus(spin, *editor);
   }
 }
 
@@ -1706,6 +1775,10 @@ void set_dialog_position_memory_id(QDialog& dialog, const QString& id) {
   dialog.setProperty(kDialogPositionMemoryIdProperty, id);
 }
 
+void mark_dialog_always_centered(QDialog& dialog) {
+  dialog.setProperty(kDialogAlwaysCenteredProperty, true);
+}
+
 void remember_dialog_position(QDialog& dialog) {
   if (dialog.property(kDialogPositionMemoryInstalledProperty).toBool()) {
     return;
@@ -1715,8 +1788,11 @@ void remember_dialog_position(QDialog& dialog) {
   // appear where the user is looking, so it is centered on its owner every
   // time and never records a position. A spot remembered from an earlier
   // window layout put it far from the main window (Seth, September 2026).
-  // Any position an older build saved under its name is dropped here.
-  if (qobject_cast<QProgressDialog*>(&dialog) != nullptr) {
+  // Message boxes (the save prompt, every question) and dialogs marked with
+  // mark_dialog_always_centered (About) follow the same rule (Seth, October
+  // 2026). Any position an older build saved under their names is dropped here.
+  if (qobject_cast<QProgressDialog*>(&dialog) != nullptr || qobject_cast<QMessageBox*>(&dialog) != nullptr ||
+      dialog.property(kDialogAlwaysCenteredProperty).toBool()) {
     clear_dialog_position(dialog);
 #ifdef Q_OS_WASM
     clamp_dialog_to_screen(dialog);
@@ -2098,20 +2174,33 @@ namespace {
 // Qt only wires the Alt+mnemonic. An event filter rather than QShortcut so a
 // key press reaching the box (directly or by propagating up from a focused
 // button) behaves the same for real input and synthetic events in offscreen
-// tests, which never go through the platform shortcut map.
-class MessageBoxYesNoKeyFilter : public QObject {
+// tests, which never go through the platform shortcut map. A Save / Don't Save
+// box answers S and D, and keeps Y and N as aliases so the habit from the
+// Yes/No days (and from native boxes) still works (GitHub issue 70).
+class MessageBoxLetterKeyFilter : public QObject {
  public:
-  explicit MessageBoxYesNoKeyFilter(QMessageBox& dialog) : QObject(&dialog), dialog_(dialog) {}
+  explicit MessageBoxLetterKeyFilter(QMessageBox& dialog) : QObject(&dialog), dialog_(dialog) {}
 
   bool eventFilter(QObject* watched, QEvent* event) override {
     if (event->type() == QEvent::KeyPress) {
       const auto* key_event = static_cast<const QKeyEvent*>(event);
       if (key_event->modifiers() == Qt::NoModifier) {
         QAbstractButton* button = nullptr;
-        if (key_event->key() == Qt::Key_Y) {
-          button = dialog_.button(QMessageBox::Yes);
-        } else if (key_event->key() == Qt::Key_N) {
-          button = dialog_.button(QMessageBox::No);
+        switch (key_event->key()) {
+          case Qt::Key_Y:
+            button = first_button({QMessageBox::Yes, QMessageBox::Save});
+            break;
+          case Qt::Key_N:
+            button = first_button({QMessageBox::No, QMessageBox::Discard});
+            break;
+          case Qt::Key_S:
+            button = dialog_.button(QMessageBox::Save);
+            break;
+          case Qt::Key_D:
+            button = dialog_.button(QMessageBox::Discard);
+            break;
+          default:
+            break;
         }
         if (button != nullptr && button->isEnabled()) {
           button->click();
@@ -2123,6 +2212,15 @@ class MessageBoxYesNoKeyFilter : public QObject {
   }
 
  private:
+  QAbstractButton* first_button(std::initializer_list<QMessageBox::StandardButton> candidates) const {
+    for (const auto candidate : candidates) {
+      if (auto* button = dialog_.button(candidate); button != nullptr) {
+        return button;
+      }
+    }
+    return nullptr;
+  }
+
   QMessageBox& dialog_;
 };
 
@@ -2139,7 +2237,13 @@ QMessageBox::StandardButton show_warning_message(QWidget* parent, const QString&
   if (default_button != QMessageBox::NoButton) {
     dialog.setDefaultButton(default_button);
   }
-  dialog.installEventFilter(new MessageBoxYesNoKeyFilter(dialog));
+  // Qt labels Discard "Discard" except on macOS, where it reads "Don't Save".
+  // Patchy says "Don't Save" everywhere: the button sits next to Save, and the
+  // pair names the two outcomes instead of asking the user to map a verb.
+  if (auto* discard = dialog.button(QMessageBox::Discard); discard != nullptr) {
+    discard->setText(QObject::tr("Don't Save"));
+  }
+  dialog.installEventFilter(new MessageBoxLetterKeyFilter(dialog));
   return static_cast<QMessageBox::StandardButton>(exec_dialog(dialog));
 }
 

@@ -1717,6 +1717,159 @@ void ui_text_press_drag_from_outside_session_selects_range() {
   cancel_session();
 }
 
+namespace {
+
+// Opens a point-text session at `document_point` with the Type tool and returns its editor.
+QTextEdit* open_point_text_session(patchy::ui::MainWindow& window, patchy::ui::CanvasWidget& canvas,
+                                   QPoint document_point) {
+  require_action_by_text(window, QStringLiteral("Type"))->trigger();
+  const auto widget_point = canvas.widget_position_for_document_point(document_point);
+  send_mouse(canvas, QEvent::MouseButtonPress, widget_point, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(canvas, QEvent::MouseButtonRelease, widget_point, Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  return canvas.findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
+}
+
+}  // namespace
+
+// GitHub issue 71: the keypad Enter key commits the session on its own (Photoshop's commit
+// key), Ctrl+Return still commits, and plain Return stays a line break.
+void ui_text_keypad_enter_commits_and_return_breaks_line() {
+  patchy::test::register_test_fonts(patchy::test::TestFontRole::UiDefault);
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_zoom(1.0);
+  canvas->set_primary_color(QColor(20, 20, 20));
+  const auto live_editor = [&] { return canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor")); };
+
+  auto* editor = open_point_text_session(window, *canvas, QPoint(40, 60));
+  CHECK(editor != nullptr);
+  if (editor == nullptr) {
+    return;
+  }
+  editor->setPlainText(QStringLiteral("First"));
+  editor->moveCursor(QTextCursor::End);
+  send_key(*editor, Qt::Key_Return);
+  editor->insertPlainText(QStringLiteral("Second"));
+  QApplication::processEvents();
+  CHECK(live_editor() == editor);
+  CHECK(editor->document()->blockCount() == 2);
+  CHECK(editor->toPlainText() == QStringLiteral("First\nSecond"));
+
+  send_key(*editor, Qt::Key_Enter, Qt::KeypadModifier);
+  QApplication::processEvents();
+  process_events_for(150);
+  CHECK(live_editor() == nullptr);
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  const auto* committed = std::as_const(document).find_layer(document.active_layer_id().value_or(patchy::LayerId{}));
+  CHECK(committed != nullptr);
+  if (committed == nullptr) {
+    return;
+  }
+  CHECK(patchy::layer_is_text(*committed));
+  const auto bounds = committed->bounds();
+  const auto layer_centre =
+      canvas->widget_position_for_document_point(QPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2));
+  send_mouse(*canvas, QEvent::MouseButtonPress, layer_centre, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, layer_centre, Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  process_events_for(150);
+  auto* reopened = live_editor();
+  CHECK(reopened != nullptr);
+  if (reopened != nullptr) {
+    CHECK(reopened->toPlainText() == QStringLiteral("First\nSecond"));
+    send_key(*reopened, Qt::Key_Escape);
+    QApplication::processEvents();
+    process_events_for(100);
+  }
+  CHECK(live_editor() == nullptr);
+
+  // Ctrl+Return still commits a fresh session.
+  auto* second = open_point_text_session(window, *canvas, QPoint(40, 160));
+  CHECK(second != nullptr);
+  if (second == nullptr) {
+    return;
+  }
+  second->setPlainText(QStringLiteral("Ctrl"));
+  send_key(*second, Qt::Key_Return, Qt::ControlModifier);
+  QApplication::processEvents();
+  process_events_for(150);
+  CHECK(live_editor() == nullptr);
+}
+
+// GitHub issue 74: inside a session the first click places the caret, the second selects the
+// word, and a third click in quick succession selects that row; a fourth click is a plain
+// click again. The row comes from Patchy's own line plan, so it works per visual line.
+void ui_text_triple_click_selects_the_line() {
+  patchy::test::register_test_fonts(patchy::test::TestFontRole::UiDefault);
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_zoom(1.0);
+  canvas->set_primary_color(QColor(20, 20, 20));
+
+  auto* editor = open_point_text_session(window, *canvas, QPoint(40, 60));
+  CHECK(editor != nullptr);
+  if (editor == nullptr) {
+    return;
+  }
+  editor->setPlainText(QStringLiteral("Handgloves and more\nSecond row here"));
+  QApplication::processEvents();
+  process_events_for(150);
+
+  const auto viewport_point_for_position = [&](int position) {
+    auto cursor = editor->textCursor();
+    cursor.setPosition(position);
+    editor->setTextCursor(cursor);
+    QApplication::processEvents();
+    auto caret = editor->property("patchy.previewCaretRect").toRect();
+    if (caret.isEmpty()) {
+      caret = editor->cursorRect();
+    }
+    return QPoint(caret.left() + 1, (caret.top() + caret.bottom()) / 2);
+  };
+  auto* viewport = editor->viewport();
+  CHECK(viewport != nullptr);
+  const auto click = [&](QEvent::Type type, QPoint point) {
+    send_mouse(*viewport, type, point, Qt::LeftButton,
+               type == QEvent::MouseButtonRelease ? Qt::MouseButtons(Qt::NoButton) : Qt::MouseButtons(Qt::LeftButton));
+  };
+
+  // "and" on the first row: position 12 sits inside it.
+  const auto first_row_point = viewport_point_for_position(12);
+  click(QEvent::MouseButtonPress, first_row_point);
+  click(QEvent::MouseButtonRelease, first_row_point);
+  CHECK(!editor->textCursor().hasSelection());
+  click(QEvent::MouseButtonDblClick, first_row_point);
+  click(QEvent::MouseButtonRelease, first_row_point);
+  CHECK(editor->textCursor().selectedText() == QStringLiteral("and"));
+  click(QEvent::MouseButtonPress, first_row_point);
+  click(QEvent::MouseButtonRelease, first_row_point);
+  CHECK(editor->textCursor().selectedText() == QStringLiteral("Handgloves and more"));
+
+  // A fourth click is an ordinary click: bare caret again.
+  click(QEvent::MouseButtonPress, first_row_point);
+  click(QEvent::MouseButtonRelease, first_row_point);
+  CHECK(!editor->textCursor().hasSelection());
+
+  // The second row selects on its own, without the first.
+  const auto second_row_point = viewport_point_for_position(28);
+  click(QEvent::MouseButtonPress, second_row_point);
+  click(QEvent::MouseButtonRelease, second_row_point);
+  click(QEvent::MouseButtonDblClick, second_row_point);
+  click(QEvent::MouseButtonRelease, second_row_point);
+  CHECK(editor->textCursor().selectedText() == QStringLiteral("row"));
+  click(QEvent::MouseButtonPress, second_row_point);
+  click(QEvent::MouseButtonRelease, second_row_point);
+  CHECK(editor->textCursor().selectedText() == QStringLiteral("Second row here"));
+
+  send_key(*editor, Qt::Key_Escape);
+  QApplication::processEvents();
+  process_events_for(100);
+  CHECK(canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor")) == nullptr);
+}
+
 void ui_text_commit_is_zoom_independent() {
   // The same text typed at the same place must commit the same pixels whatever the canvas zoom
   // happened to be. The inline editor's font used to be set to an integer pixel size of
@@ -2442,6 +2595,8 @@ std::vector<patchy::test::TestCase> text_editor_font_picker_tests() {
        ui_text_mouse_and_keyboard_selection_match_glyphs},
       {"ui_text_press_drag_from_outside_session_selects_range",
        ui_text_press_drag_from_outside_session_selects_range},
+      {"ui_text_keypad_enter_commits_and_return_breaks_line", ui_text_keypad_enter_commits_and_return_breaks_line},
+      {"ui_text_triple_click_selects_the_line", ui_text_triple_click_selects_the_line},
       {"ui_expensive_text_style_preview_never_blanks_while_typing",
        ui_expensive_text_style_preview_never_blanks_while_typing},
       {"ui_text_editor_paste_uses_current_format_for_rich_emoji_clipboard",

@@ -3077,7 +3077,7 @@ void ScriptEngineHost::set_status_message(const QString& message) {
 
 double ScriptEngineHost::view_zoom_percent() const {
   const auto* canvas = session_canvas(active_session_id());
-  return canvas != nullptr ? canvas->zoom() * 100.0 : 0.0;
+  return canvas != nullptr ? canvas->view_zoom() * 100.0 : 0.0;
 }
 
 void ScriptEngineHost::set_view_zoom_percent(double percent) {
@@ -3087,9 +3087,10 @@ void ScriptEngineHost::set_view_zoom_percent(double percent) {
     throw_js_error(tr("No document is open to zoom."));
     return;
   }
-  // set_zoom_centered clamps to the canvas zoom range and refreshes the
-  // status bar percent through the view-changed notification.
-  canvas->set_zoom_centered(percent / 100.0);
+  // set_view_zoom_centered clamps to the canvas zoom range and refreshes the
+  // status bar percent through the view-changed notification. Percent is the
+  // view zoom (document pixels per device pixel), what the status box shows.
+  canvas->set_view_zoom_centered(percent / 100.0);
 }
 
 void ScriptEngineHost::fit_view_on_screen() {

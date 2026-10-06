@@ -1825,13 +1825,13 @@ void MainWindow::duplicate_active_layer() {
   duplicate_layers(selected_or_active_layer_ids());
 }
 
-void MainWindow::duplicate_layers(std::vector<LayerId> ids) {
+std::vector<LayerId> MainWindow::duplicate_layers(std::vector<LayerId> ids) {
   if (canvas_ != nullptr) {
     canvas_->finish_free_transform();
   }
   ids = root_drop_layer_ids(document().layers(), ids);
   if (ids.empty()) {
-    return;
+    return {};
   }
 
   auto& doc = document();
@@ -1843,7 +1843,7 @@ void MainWindow::duplicate_layers(std::vector<LayerId> ids) {
   if (!caches_available) {
     show_status_error(
         tr("Smart Filter cache data could not be duplicated safely"));
-    return;
+    return {};
   }
 
   // Photoshop's Duplicate Layer: the copies land as one block directly above
@@ -1864,7 +1864,7 @@ void MainWindow::duplicate_layers(std::vector<LayerId> ids) {
   };
   collect_sources(collect_sources, std::as_const(doc).layers());
   if (sources_top_to_bottom.empty()) {
-    return;
+    return {};
   }
 
   // The snapshot precedes cloning: a clone adopts Smart Filter records into the
@@ -1881,7 +1881,7 @@ void MainWindow::duplicate_layers(std::vector<LayerId> ids) {
       undo();
       show_status_error(
           tr("Smart Filter cache data could not be duplicated safely"));
-      return;
+      return {};
     }
     duplicate->set_name(next_duplicate_name((*it)->name(), existing_names));
     existing_names.insert(duplicate->name());
@@ -1902,6 +1902,7 @@ void MainWindow::duplicate_layers(std::vector<LayerId> ids) {
   refresh_layer_controls();
   canvas_->document_changed();
   select_layers_in_layer_list(copy_ids_top_to_bottom, copy_ids_top_to_bottom.front());
+  return copy_ids_top_to_bottom;
 }
 
 namespace {

@@ -1188,6 +1188,8 @@ void compositor_interior_overlay_knocks_out_semi_transparent_fill() {
 
 // Share of a probe's painted pixels allowed to differ from Photoshop by more than 24.
 constexpr double kShapeEffectProbeTolerance = 0.02;
+// Share of a stroke-alpha probe's square allowed to differ from Photoshop by more than 8.
+constexpr double kStrokeAlphaProbeTolerance = 0.06;
 
 patchy::Layer make_stroked_shape_layer(patchy::Document& document, bool fill_enabled) {
   patchy::Layer shape(document.allocate_layer_id(), "Shape", patchy::PixelBuffer());
@@ -1471,6 +1473,58 @@ void shape_effect_silhouette_matches_photoshop_probes_if_available() {
   CHECK(compared > 0);
 }
 
+// Photoshop 2026 probes of the Stroke effect on semi-transparent content (scratch script
+// fxprobe/stroke_alpha_probe.jsx, kept in local-test-fixtures/stroke-alpha-probes): a red
+// square whose alpha ramps 1 -> 0, or sits flat at 50%, over a light blue background,
+// one stroke variant per file (position, stroke opacity, layer opacity, Fill Opacity,
+// Overprint, Multiply). The composite in each file is Photoshop's render.
+void stroke_on_semi_transparent_content_matches_photoshop_probes_if_available() {
+  const auto root = patchy::test::source_root_path() / "local-test-fixtures" / "stroke-alpha-probes";
+  if (!std::filesystem::exists(root)) {
+    std::cout << "[SKIP] stroke_on_semi_transparent_content_matches_photoshop_probes_if_available: no "
+              << root.string() << '\n';
+    return;
+  }
+  int compared = 0;
+  for (const auto& entry : std::filesystem::directory_iterator(root)) {
+    if (entry.path().extension() != ".psd") {
+      continue;
+    }
+    patchy::psd::ReadOptions flat_options;
+    flat_options.prefer_flat_composite = true;
+    const auto expected =
+        patchy::Compositor{}.flatten_rgb8(patchy::psd::DocumentIo::read_file(entry.path(), flat_options));
+    const auto actual = patchy::Compositor{}.flatten_rgb8(patchy::psd::DocumentIo::read_file(entry.path()));
+    CHECK(expected.width() == actual.width() && expected.height() == actual.height());
+    if (expected.width() != actual.width() || expected.height() != actual.height()) {
+      continue;
+    }
+    // The square and its band: x 10..54, y 10..54. Count pixels off by more than 8.
+    std::int64_t wrong = 0;
+    int worst = 0;
+    for (std::int32_t y = 10; y < 54; ++y) {
+      for (std::int32_t x = 10; x < 54; ++x) {
+        const auto* a = expected.pixel(x, y);
+        const auto* b = actual.pixel(x, y);
+        const int delta = std::max({std::abs(a[0] - b[0]), std::abs(a[1] - b[1]), std::abs(a[2] - b[2])});
+        worst = std::max(worst, delta);
+        if (delta > 8) {
+          ++wrong;
+        }
+      }
+    }
+    const double share = static_cast<double>(wrong) / (44.0 * 44.0);
+    std::cout << "  " << entry.path().filename().string() << ": " << wrong << " pixels off by more than 8 ("
+              << share * 100.0 << "%), worst " << worst << "\n";
+    // The AA circle keeps a wider margin: its Center stroke's ring was 10% off
+    // before this model and still is (the subpixel band placement, not the fold).
+    const bool aa_probe = entry.path().filename().string().rfind("aa_", 0) == 0;
+    CHECK(share <= (aa_probe ? 0.12 : kStrokeAlphaProbeTolerance));
+    ++compared;
+  }
+  CHECK(compared > 0);
+}
+
 }  // namespace
 
 
@@ -1542,6 +1596,8 @@ std::vector<patchy::test::TestCase> compositor_layer_styles_tests() {
        compositor_effects_follow_shape_coverage_under_transparent_fill},
       {"shape_effect_silhouette_matches_photoshop_probes_if_available",
        shape_effect_silhouette_matches_photoshop_probes_if_available},
+      {"stroke_on_semi_transparent_content_matches_photoshop_probes_if_available",
+       stroke_on_semi_transparent_content_matches_photoshop_probes_if_available},
       {"compositor_burn_dodge_effects_preserve_transparent_coverage", compositor_burn_dodge_effects_preserve_transparent_coverage},
   };
 }

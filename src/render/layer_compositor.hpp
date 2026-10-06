@@ -237,6 +237,23 @@ struct StyleMaskEntry {
   // BevelHeight keeps the alpha mask alongside the height mask.
   std::vector<float> secondary;
   std::shared_ptr<const PixelBuffer> group_pixels{};
+  // Stroke only, and only when the content has semi-transparent pixels inside its
+  // contour (StrokeMaskPlanes): the part of the band that sits UNDER the content and
+  // the band membership that knocks the content out. Empty otherwise.
+  std::vector<float> underlay;
+  std::vector<float> inside;
+  std::vector<float> knockout;
+  bool partial_content{false};
+};
+
+// The extra planes stroke_alpha_mask produces beside its over-draw mask when asked.
+struct StrokeMaskPlanes {
+  std::vector<float>* shape_burst_positions{nullptr};
+  std::vector<float>* underlay{nullptr};
+  std::vector<float>* inside{nullptr};
+  std::vector<float>* knockout{nullptr};
+  bool overprint{false};
+  bool partial_content{false};
 };
 
 class StyleMaskProvider {
@@ -597,7 +614,8 @@ inline void profile_compositor_step(Target& destination, const Layer& layer, con
 inline std::vector<float> stroke_alpha_mask(const PixelBuffer& source, const Layer& layer, Rect bounds,
                                             Rect mask_bounds, float size, LayerStrokePosition position,
                                             std::optional<Rect> layer_mask_bounds, bool mask_shapes_source,
-                                            std::vector<float>* shape_burst_positions = nullptr);
+                                            std::vector<float>* shape_burst_positions = nullptr,
+                                            StrokeMaskPlanes* planes = nullptr);
 
 // A Shape Burst stroke gradient's per-pixel band position (from
 // stroke_alpha_mask) with the gradient's Reverse applied. Photoshop ignores
@@ -1674,7 +1692,7 @@ void render_bevel_emboss(Target& destination, const Layer& layer, const PixelBuf
 inline std::vector<float> stroke_alpha_mask(const PixelBuffer& source, const Layer& layer, Rect bounds,
                                             Rect mask_bounds, float size, LayerStrokePosition position,
                                             std::optional<Rect> layer_mask_bounds, bool mask_shapes_source,
-                                            std::vector<float>* shape_burst_positions) {
+                                            std::vector<float>* shape_burst_positions, StrokeMaskPlanes* planes) {
   // Photoshop derives the stroke from the layer's pixel coverage, treating any painted
   // pixel as inside the shape: the stroke fills the (dilated) binary shape and the
   // layer's own pixels cover it according to their alpha, so semi-transparent fills let
@@ -1711,9 +1729,12 @@ inline std::vector<float> stroke_alpha_mask(const PixelBuffer& source, const Lay
       for (std::int32_t x = draw_left; x < draw_right; ++x) {
         const auto* pixel = source_row + static_cast<std::size_t>(x - bounds.x) * format.channels;
         auto alpha = static_cast<float>(pixel[3]) / 255.0F;
-        if (mask_shapes_source && alpha > 0.0F &&
-            layer_mask_alpha_for_render(layer, x, y, layer_mask_bounds) <= 0.0F) {
-          alpha = 0.0F;
+        // The mask's value is part of the content's alpha (a feathered mask makes
+        // the content semi-transparent, and the semi-transparent rules apply:
+        // psd-tools' feathered-stroke.psd, whose pixels are opaque under a soft
+        // mask). Binary masks keep the pinned {alpha > 0 AND mask > 0} contour.
+        if (mask_shapes_source && alpha > 0.0F) {
+          alpha *= clamp_unit(layer_mask_alpha_for_render(layer, x, y, layer_mask_bounds));
         }
         *output++ = alpha;
       }
@@ -1727,9 +1748,8 @@ inline std::vector<float> stroke_alpha_mask(const PixelBuffer& source, const Lay
     for (std::int32_t y = draw_top; y < draw_bottom; ++y) {
       auto* output = base.data() + static_cast<std::size_t>(y - mask_bounds.y) * width + (draw_left - mask_bounds.x);
       for (std::int32_t x = draw_left; x < draw_right; ++x) {
-        *output++ = mask_shapes_source && layer_mask_alpha_for_render(layer, x, y, layer_mask_bounds) <= 0.0F
-                        ? 0.0F
-                        : 1.0F;
+        *output++ = mask_shapes_source ? clamp_unit(layer_mask_alpha_for_render(layer, x, y, layer_mask_bounds))
+                                       : 1.0F;
       }
     }
   }
@@ -1808,15 +1828,41 @@ inline std::vector<float> stroke_alpha_mask(const PixelBuffer& source, const Lay
   // matte's real half-coverage crossing instead of a whole-pixel staircase.
   // A fully binary matte skips the supersampled path entirely and stays
   // bit-identical to the pinned pixel-center calibration.
+  // A semi-transparent contour pixel that is part of semi-transparent CONTENT
+  // rather than the AA edge of opaque content (every neighbour at least as
+  // opaque as itself is semi-transparent too: a 50% wash, a feathered fill, a
+  // gradient fading inside the shape) anchors at 1: Photoshop's band then runs
+  // from the pixel centers and the ring rule below (edge alpha) carries the fade.
+  // An AA edge pixel has an opaque neighbour inward and keeps the subpixel
+  // crossing. Decided per pixel so a cropped render agrees with the full one.
+  const auto content_partial = [&](std::size_t index, std::int32_t x, std::int32_t y) {
+    const auto alpha = base[index];
+    if (planes == nullptr || alpha <= 0.0F || alpha >= 1.0F) {
+      return false;
+    }
+    const auto opaque_neighbour = [&](std::int32_t nx, std::int32_t ny) {
+      if (nx < 0 || ny < 0 || nx >= width || ny >= height) {
+        return false;
+      }
+      const auto neighbour = base[static_cast<std::size_t>(ny) * static_cast<std::size_t>(width) +
+                                  static_cast<std::size_t>(nx)];
+      return neighbour >= alpha && neighbour >= 1.0F;
+    };
+    return !opaque_neighbour(x - 1, y) && !opaque_neighbour(x + 1, y) && !opaque_neighbour(x, y - 1) &&
+           !opaque_neighbour(x, y + 1);
+  };
   auto has_subpixel_fringe = false;
   std::vector<float> anchor_matte(base.size(), 0.0F);
-  for (std::size_t index = 0; index < base.size(); ++index) {
-    const auto anchored = contour[index] > 0.0F
-                              ? (base[index] >= 0.5F ? base[index] : 1.0F)
-                              : base[index];
-    anchor_matte[index] = anchored;
-    if (anchored > 0.0F && anchored < 1.0F) {
-      has_subpixel_fringe = true;
+  for (std::int32_t y = 0; y < height; ++y) {
+    for (std::int32_t x = 0; x < width; ++x) {
+      const auto index = static_cast<std::size_t>(y) * static_cast<std::size_t>(width) + static_cast<std::size_t>(x);
+      const auto anchored = contour[index] > 0.0F
+                                ? (base[index] >= 0.5F && !content_partial(index, x, y) ? base[index] : 1.0F)
+                                : base[index];
+      anchor_matte[index] = anchored;
+      if (anchored > 0.0F && anchored < 1.0F) {
+        has_subpixel_fringe = true;
+      }
     }
   }
   std::vector<float> outside_distance;
@@ -1834,13 +1880,70 @@ inline std::vector<float> stroke_alpha_mask(const PixelBuffer& source, const Lay
   }
 
   std::vector<float> mask(base.size(), 0.0F);
+  // Semi-transparent content INSIDE the contour (a feathered edge, a 50% fill, a
+  // gradient fading to nothing; Photoshop 2026 probes on a square whose alpha ramps
+  // 1 -> 0 and on a flat 50% square, October 2026, docs/layer-effects-render.md
+  // "Strokes on semi-transparent content"): the outer band takes the pixel's missing
+  // alpha (1 - a) UNDER the content, as a second paint beside it, and the inner band
+  // treats every such pixel as band at coverage a, replacing the content. When the
+  // caller asks for the planes, the under-content part moves out of the over-draw
+  // mask into `underlay` and the band membership into `knockout`; without them the
+  // mask keeps the legacy sum (the band over the content), which every opaque matte
+  // renders identically.
+  const bool split_planes = planes != nullptr && planes->underlay != nullptr && planes->inside != nullptr &&
+                            planes->knockout != nullptr;
+  // The outer band's last ring follows the edge it comes from: Photoshop's ring
+  // pixel at distance `band` reads the edge pixel's alpha, not 1 (a 50% square
+  // has a 50% ring; the ramp's ring fades with it), so the band reaches
+  // `band + edge alpha - distance`, the edge alpha taken as the largest alpha
+  // within the band's reach plus one pixel (exact on these probes to within 0.12
+  // on that one ring). An opaque matte's AA edge reaches its opaque interior
+  // within that disc, so the pinned 1 stays.
+  std::vector<float> edge_alpha;
+  if (split_planes) {
+    planes->underlay->assign(base.size(), 0.0F);
+    planes->inside->assign(base.size(), 0.0F);
+    planes->knockout->assign(base.size(), 0.0F);
+    planes->partial_content = false;
+    const bool any_partial = std::any_of(base.begin(), base.end(), [](float a) { return a > 0.0F && a < 1.0F; });
+    if (any_partial && band_out > 0.0F) {
+      edge_alpha = dilate_mask(base, width, height, static_cast<int>(std::ceil(band_out)) + 1);
+    }
+  }
   for (std::size_t index = 0; index < base.size(); ++index) {
     const auto center_alpha = base[index];
-    const auto outside_coverage =
+    auto outside_coverage =
         outside_distance.empty() ? 0.0F : stroke_band_coverage(outside_distance[index], band_out);
-    const auto inside_coverage =
-        inside_distance.empty() ? 0.0F : stroke_band_coverage(inside_distance[index], band_in);
+    if (!edge_alpha.empty() && !outside_distance.empty() && outside_coverage > 0.0F) {
+      outside_coverage = clamp_unit(band_out + edge_alpha[index] - outside_distance[index]);
+    }
+    auto inside_coverage = inside_distance.empty() ? 0.0F : stroke_band_coverage(inside_distance[index], band_in);
+    const bool partial = center_alpha > 0.0F && center_alpha < 1.0F;
+    if (split_planes && partial && !inside_distance.empty()) {
+      inside_coverage = 1.0F;
+    }
+    if (split_planes && partial) {
+      // Both paints of such a pixel fold into the base pass as disjoint shares
+      // (the Center probe: (1 - a) under the content plus a replacing it make the
+      // whole square the stroke color); the over-draw mask leaves it alone.
+      planes->partial_content = true;
+      (*planes->underlay)[index] = clamp_unit((1.0F - center_alpha) * outside_coverage);
+      (*planes->inside)[index] = clamp_unit(center_alpha * inside_coverage);
+      // With Overprint on, opaque content keeps its band (no knockout); the
+      // semi-transparent part is replaced all the same.
+      (*planes->knockout)[index] = inside_coverage;
+      mask[index] = 0.0F;
+      continue;
+    }
+    if (split_planes) {
+      (*planes->knockout)[index] = planes->overprint ? 0.0F : inside_coverage;
+    }
     mask[index] = clamp_unit(center_alpha * inside_coverage + (1.0F - center_alpha) * outside_coverage);
+  }
+  if (split_planes && !planes->partial_content) {
+    planes->underlay->clear();
+    planes->inside->clear();
+    planes->knockout->clear();
   }
 
   if (shape_burst_positions != nullptr) {
@@ -1882,6 +1985,9 @@ struct PreparedStroke {
   Rect gradient_bounds{};
   bool clip_to_mask{false};
   bool shape_burst{false};
+  // The stroke draw adds the under-content plane to its mask when the base pass
+  // could not fold it (see composite_pixel_layer); the knockout mirrors the draw.
+  bool draw_includes_underlay{false};
 };
 
 inline std::optional<PreparedStroke> prepare_stroke_render(const Layer& layer, const PixelBuffer& source, Rect clip,
@@ -1910,9 +2016,15 @@ inline std::optional<PreparedStroke> prepare_stroke_render(const Layer& layer, c
       masks, layer, StyleMaskKind::Stroke, effect_index, full_mask_bounds, full_mask_bounds, legacy_mask_bounds,
       bounds, layer_mask_bounds, [&](Rect domain) {
         StyleMaskEntry computed;
+        StrokeMaskPlanes planes;
+        planes.underlay = &computed.underlay;
+        planes.inside = &computed.inside;
+        planes.knockout = &computed.knockout;
+        planes.overprint = stroke.overprint;
         computed.primary = stroke_alpha_mask(source, layer, bounds, domain, stroke.size, stroke.position,
                                              layer_mask_bounds, mask_shapes_source,
-                                             shape_burst ? &computed.secondary : nullptr);
+                                             shape_burst ? &computed.secondary : nullptr, &planes);
+        computed.partial_content = planes.partial_content;
         return computed;
       });
   PreparedStroke prepared;
@@ -1938,11 +2050,53 @@ inline float prepared_stroke_coverage(const PreparedStroke& prepared, const Laye
   if (x < bounds.x || y < bounds.y || x >= bounds.x + bounds.width || y >= bounds.y + bounds.height) {
     return 0.0F;
   }
-  auto coverage = prepared.entry->primary[static_cast<std::size_t>((y - bounds.y) * bounds.width + (x - bounds.x))];
+  const auto index = static_cast<std::size_t>((y - bounds.y) * bounds.width + (x - bounds.x));
+  auto coverage = prepared.entry->primary[index];
+  if (prepared.draw_includes_underlay && !prepared.entry->underlay.empty()) {
+    coverage = clamp_unit(coverage + prepared.entry->underlay[index] + prepared.entry->inside[index]);
+  }
   if (prepared.clip_to_mask && coverage > 0.0F) {
     coverage *= layer_mask_alpha_for_render(layer, x, y, layer_mask_bounds);
   }
   return coverage;
+}
+
+// The folded part of a stroke at (x, y): the share beneath the layer's own pixels
+// plus the share replacing them (zero outside the planes or for opaque content).
+inline float prepared_stroke_underlay(const PreparedStroke& prepared, const Layer& layer, std::int32_t x,
+                                      std::int32_t y, std::optional<Rect> layer_mask_bounds) {
+  if (prepared.entry->underlay.empty()) {
+    return 0.0F;
+  }
+  const auto& bounds = prepared.mask_bounds;
+  if (x < bounds.x || y < bounds.y || x >= bounds.x + bounds.width || y >= bounds.y + bounds.height) {
+    return 0.0F;
+  }
+  const auto index = static_cast<std::size_t>((y - bounds.y) * bounds.width + (x - bounds.x));
+  auto coverage = clamp_unit(prepared.entry->underlay[index] + prepared.entry->inside[index]);
+  if (prepared.clip_to_mask && coverage > 0.0F) {
+    coverage *= layer_mask_alpha_for_render(layer, x, y, layer_mask_bounds);
+  }
+  return coverage;
+}
+
+// The band membership that knocks the content out at (x, y): the over-draw coverage,
+// except where the content is semi-transparent and the band replaces it outright.
+inline float prepared_stroke_knockout_coverage(const PreparedStroke& prepared, const Layer& layer, std::int32_t x,
+                                               std::int32_t y, std::optional<Rect> layer_mask_bounds,
+                                               float coverage) {
+  if (prepared.entry->knockout.empty()) {
+    return coverage;
+  }
+  const auto& bounds = prepared.mask_bounds;
+  if (x < bounds.x || y < bounds.y || x >= bounds.x + bounds.width || y >= bounds.y + bounds.height) {
+    return 0.0F;
+  }
+  auto region = prepared.entry->knockout[static_cast<std::size_t>((y - bounds.y) * bounds.width + (x - bounds.x))];
+  if (prepared.clip_to_mask && region > 0.0F) {
+    region *= layer_mask_alpha_for_render(layer, x, y, layer_mask_bounds);
+  }
+  return region;
 }
 
 // Mirrors render_prepared_stroke's per-pixel alpha (same expressions in the
@@ -1979,19 +2133,20 @@ inline float prepared_stroke_draw_alpha(const PreparedStroke& prepared, const La
 inline float stroke_knockout_factor(const PreparedStroke& prepared, const Layer& layer, std::int32_t x,
                                     std::int32_t y, std::optional<Rect> layer_mask_bounds) {
   const auto coverage = prepared_stroke_coverage(prepared, layer, x, y, layer_mask_bounds);
-  if (coverage <= 0.0F) {
+  const auto region = prepared_stroke_knockout_coverage(prepared, layer, x, y, layer_mask_bounds, coverage);
+  if (region <= 0.0F) {
     return 1.0F;
   }
   if (prepared.stroke->blend_mode != BlendMode::Normal) {
-    return clamp_unit(1.0F - coverage);
+    return clamp_unit(1.0F - region);
   }
-  const auto draw_alpha = prepared_stroke_draw_alpha(prepared, layer, x, y, coverage);
+  const auto draw_alpha = coverage <= 0.0F ? 0.0F : prepared_stroke_draw_alpha(prepared, layer, x, y, coverage);
   const auto remaining = 1.0F - draw_alpha;
   if (remaining <= 1e-6F) {
     // Only reachable as coverage -> 1 (draw_alpha <= coverage): full knockout.
     return 0.0F;
   }
-  return clamp_unit((1.0F - coverage) / remaining);
+  return clamp_unit((1.0F - region) / remaining);
 }
 
 // Overprint-off knockout is invisible for an opaque Normal stroke at full
@@ -2030,10 +2185,14 @@ void render_prepared_stroke(Target& destination, const Layer& layer, const Prepa
   const auto clip_to_mask = prepared.clip_to_mask;
   const auto shape_burst = prepared.shape_burst;
   const auto gradient_bounds = prepared.gradient_bounds;
+  const auto* underlay = prepared.draw_includes_underlay && !entry->underlay.empty() ? &entry->underlay : nullptr;
   for (std::int32_t y = draw_rect.y; y < draw_rect.y + draw_rect.height; ++y) {
     for (std::int32_t x = draw_rect.x; x < draw_rect.x + draw_rect.width; ++x) {
       const auto mask_index = static_cast<std::size_t>((y - mask_bounds.y) * mask_width + (x - mask_bounds.x));
       auto mask_alpha = mask[mask_index];
+      if (underlay != nullptr) {
+        mask_alpha = clamp_unit(mask_alpha + (*underlay)[mask_index] + entry->inside[mask_index]);
+      }
       if (clip_to_mask && mask_alpha > 0.0F) {
         // "Layer Mask Hides Effects": the mask hides the stroke where it lands
         // instead of reshaping its contour.
@@ -2452,17 +2611,32 @@ void composite_pixel_layer(Target& destination, const Layer& layer, Rect clip,
   // entries — and fold the combined per-pixel factor into one plane the base
   // pass and every interior effect multiply in. Opaque solid Normal strokes
   // skip all of this: their knockout is a structural no-op.
+  // Semi-transparent content inside the contour changes the picture (the probes
+  // above stroke_alpha_mask): there the outer band is a second paint UNDER the
+  // content, folded into the base pass (`underlay_strokes`), and the inner band
+  // replaces the content at its own alpha, so the knockout runs even for an
+  // opaque solid stroke and even with Overprint on. The fold rides the layer's own
+  // blend (Normal, or any mode when nothing else gates the pixel); otherwise the
+  // draw adds the plane back on top, as before.
   std::vector<PreparedStroke> knockout_strokes;
+  std::vector<PreparedStroke> underlay_strokes;
   StrokeKnockoutPlane knockout_plane;
+  const bool fold_underlay = layer.blend_mode() == BlendMode::Normal || (fill_opacity == 1.0F && !has_blend_if);
   if (!draw_rect.empty() && style.effects_visible) {
     for (std::uint32_t index = 0; index < style.strokes.size(); ++index) {
       const auto& stroke = style.strokes[index];
-      if (stroke.overprint || stroke_knockout_is_identity(stroke, layer)) {
+      const bool opaque_identity = stroke.overprint || stroke_knockout_is_identity(stroke, layer);
+      auto prepared =
+          prepare_stroke_render(layer, effect_source, clip, bounds, stroke, layer_mask_bounds, masks, index);
+      if (!prepared.has_value()) {
         continue;
       }
-      if (auto prepared =
-              prepare_stroke_render(layer, effect_source, clip, bounds, stroke, layer_mask_bounds, masks,
-                                    index)) {
+      const bool partial = prepared->entry->partial_content;
+      prepared->draw_includes_underlay = partial && !fold_underlay;
+      if (partial && fold_underlay && stroke.opacity > 0.0F) {
+        underlay_strokes.push_back(*prepared);
+      }
+      if (!opaque_identity || partial) {
         knockout_strokes.push_back(std::move(*prepared));
       }
     }
@@ -2483,6 +2657,7 @@ void composite_pixel_layer(Target& destination, const Layer& layer, Rect clip,
     }
   }
   const auto* knockout = knockout_strokes.empty() ? nullptr : &knockout_plane;
+  const bool has_underlay = !underlay_strokes.empty();
 
   // Interior overlays on a stroked shape layer apply to the FILL plane and the
   // vector stroke re-composites above them (PS 2026 probes fx-sofi-center /
@@ -2555,7 +2730,7 @@ void composite_pixel_layer(Target& destination, const Layer& layer, Rect clip,
   const bool has_interior_folds = !folded_overlays.empty() || !prepared_satins.empty();
   const bool blend_against_backdrop =
       layer.blend_mode() != BlendMode::Normal && !has_blend_if && fill_opacity == 1.0F &&
-      ((has_interior_folds && fold_after_layer_blend) || has_exterior_effects);
+      ((has_interior_folds && fold_after_layer_blend) || has_exterior_effects || has_underlay);
 
   if (!draw_rect.empty()) {
     profile_compositor_step(destination, layer, "base_pixels", draw_rect, [&] {
@@ -2572,7 +2747,7 @@ void composite_pixel_layer(Target& destination, const Layer& layer, Rect clip,
           has_enabled_mask ? build_mask_coverage_plane(layer, draw_rect, layer_mask_bounds) : std::vector<float>{};
       bool composited_by_target = false;
       if (!has_blend_if && !has_enabled_mask && prepared_satins.empty() && folded_overlays.empty() &&
-          knockout == nullptr && fill_opacity == 1.0F && layer.blend_mode() == BlendMode::Normal) {
+          knockout == nullptr && !has_underlay && fill_opacity == 1.0F && layer.blend_mode() == BlendMode::Normal) {
         if constexpr (requires(Target& target, std::int32_t x, std::int32_t y, const std::uint8_t* row,
                                 std::int32_t width, std::uint16_t channel_count, float opacity) {
                         target.composite_source_row(x, y, row, width, channel_count, opacity);
@@ -2596,7 +2771,7 @@ void composite_pixel_layer(Target& destination, const Layer& layer, Rect clip,
       // match the general loop bit for bit. Dissolve stays per-pixel: its
       // coverage is a stochastic paint decision, not a colour function.
       if (!composited_by_target && !has_blend_if && prepared_satins.empty() && !has_folded_overlays &&
-          knockout == nullptr && fill_opacity == 1.0F && !blend_against_backdrop &&
+          knockout == nullptr && !has_underlay && fill_opacity == 1.0F && !blend_against_backdrop &&
           layer.blend_mode() != BlendMode::Dissolve) {
         if constexpr (requires(Target& target, std::int32_t x, std::int32_t y, const std::uint8_t* row,
                                 const float* mask_row, std::int32_t width, std::uint16_t channel_count,
@@ -2635,6 +2810,58 @@ void composite_pixel_layer(Target& destination, const Layer& layer, Rect clip,
             // exact, so skipping the multiply keeps the same bytes.
             auto source_coverage =
                 mask_row != nullptr ? source_alpha * mask_row[x - draw_rect.x] : source_alpha;
+            // The stroke paint beneath semi-transparent content: each stroke, top
+            // first, takes its share of the pixel's missing alpha (the probes:
+            // (1 - a) at full stroke opacity, Fill Opacity scaling the content only,
+            // a Multiply stroke blended against the backdrop). Zero for opaque pixels.
+            float underlay_alpha = 0.0F;
+            std::array<float, 3> underlay_sum{0.0F, 0.0F, 0.0F};
+            if (has_underlay && source_coverage > 0.0F && source_coverage < 1.0F) {
+              auto remaining = 1.0F;
+              for (auto it = underlay_strokes.rbegin(); it != underlay_strokes.rend(); ++it) {
+                const auto& prepared = *it;
+                const auto plane = prepared_stroke_underlay(prepared, layer, x, y, layer_mask_bounds);
+                if (plane <= 0.0F) {
+                  continue;
+                }
+                const auto& stroke = *prepared.stroke;
+                auto color = stroke.color;
+                auto strength = stroke.opacity;
+                if (stroke.uses_gradient) {
+                  const auto mask_index = static_cast<std::size_t>((y - prepared.mask_bounds.y) * prepared.mask_bounds.width +
+                                                                   (x - prepared.mask_bounds.x));
+                  if (prepared.shape_burst) {
+                    const auto band = prepared.entry->secondary[mask_index];
+                    const auto span = shape_burst_ramp_span(stroke.size, stroke.position);
+                    color = shape_burst_stroke_color(stroke.gradient, band, span, x, y);
+                    strength *= shape_burst_stroke_opacity(stroke.gradient, band, span);
+                  } else {
+                    const auto position = gradient_position(stroke.gradient, prepared.gradient_bounds, x, y);
+                    color = gradient_color_dithered(stroke.gradient, position, x, y);
+                    strength *= gradient_stop_opacity(stroke.gradient, position);
+                  }
+                }
+                std::array<float, 3> rgb{static_cast<float>(color.red), static_cast<float>(color.green),
+                                         static_cast<float>(color.blue)};
+                if (stroke.blend_mode != BlendMode::Normal) {
+                  const auto backdrop = destination.sample_color(x, y);
+                  const auto blended = composite_blended_rgb(
+                      {color.red, color.green, color.blue},
+                      {backdrop.color.red, backdrop.color.green, backdrop.color.blue}, stroke.blend_mode, 1.0F,
+                      backdrop.alpha);
+                  rgb = {static_cast<float>(blended[0]), static_cast<float>(blended[1]),
+                         static_cast<float>(blended[2])};
+                }
+                // The plane already carries the mask (it is built from the masked
+                // alpha); the mask does not hide the stroke's share.
+                const auto take = plane * strength * remaining;
+                remaining *= 1.0F - strength;
+                underlay_alpha += take;
+                for (int channel = 0; channel < 3; ++channel) {
+                  underlay_sum[static_cast<std::size_t>(channel)] += take * rgb[static_cast<std::size_t>(channel)];
+                }
+              }
+            }
             if (knockout != nullptr) {
               source_coverage *= knockout->at(x, y);
             }
@@ -2642,7 +2869,7 @@ void composite_pixel_layer(Target& destination, const Layer& layer, Rect clip,
             if (fill_opacity != 1.0F) {
               alpha *= fill_opacity;
             }
-            if (alpha <= 0.0F) {
+            if (alpha <= 0.0F && underlay_alpha <= 0.0F) {
               continue;
             }
 
@@ -2688,6 +2915,17 @@ void composite_pixel_layer(Target& destination, const Layer& layer, Rect clip,
             }
             if (fold_after_layer_blend) {
               styled_color = fold_interiors(styled_color);
+            }
+            if (underlay_alpha > 0.0F) {
+              // Two disjoint paints in one pixel: the content at its coverage and the
+              // stroke beneath at its take; layer opacity then scales the pair.
+              const auto content_alpha = layer.opacity() > 0.0F ? alpha / layer.opacity() : 0.0F;
+              const auto total = content_alpha + underlay_alpha;
+              for (std::size_t channel = 0; channel < 3; ++channel) {
+                const auto mixed = (content_alpha * static_cast<float>(styled_color[channel]) + underlay_sum[channel]) / total;
+                styled_color[channel] = static_cast<std::uint8_t>(std::clamp(std::lround(mixed), 0L, 255L));
+              }
+              alpha = std::min(1.0F, total) * layer.opacity();
             }
             if (special_fill) {
               destination.composite_special_fill_color(
@@ -2871,8 +3109,12 @@ void composite_pixel_layer(Target& destination, const Layer& layer, Rect clip,
         if (prepared != knockout_strokes.end()) {
           // Reuse the band mask the knockout pass already resolved.
           render_prepared_stroke(destination, layer, *prepared, layer_mask_bounds);
-        } else {
-          render_stroke(destination, layer, effect_source, clip, bounds, stroke, layer_mask_bounds, masks, index);
+        } else if (stroke.opacity > 0.0F) {
+          if (auto fresh = prepare_stroke_render(layer, effect_source, clip, bounds, stroke, layer_mask_bounds, masks,
+                                                 index)) {
+            fresh->draw_includes_underlay = fresh->entry->partial_content && !fold_underlay;
+            render_prepared_stroke(destination, layer, *fresh, layer_mask_bounds);
+          }
         }
       });
     }

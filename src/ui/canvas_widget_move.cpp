@@ -331,10 +331,9 @@ bool CanvasWidget::add_move_layer_menu_entries(QMenu& menu, QPoint widget_point)
       transforming_layer_ || warping_layer_ || path_transform_active_) {
     return false;
   }
+  // Off-canvas artwork lists too; the pasteboard is no different from the canvas
+  // for picking.
   const auto point = document_position(widget_point);
-  if (!document_contains(point)) {
-    return false;
-  }
 
   // Walk the whole stack once, including occluded leaves and collapsed folders.
   // Locks prevent moving a layer, but must not prevent explicitly selecting it.
@@ -420,6 +419,14 @@ void CanvasWidget::begin_move_layer_selection(QMouseEvent* event, const Layer* c
   }
   gesture.rectangle_allowed = rectangle_allowed;
   gesture.additive = event->modifiers().testFlag(Qt::ShiftModifier);
+  if (event->modifiers().testFlag(Qt::AltModifier) && move_duplicate_requested_callback_) {
+    // Shift+Alt-drag duplicates the enlarged selection (GitHub issue 69).
+    gesture.duplicate_roots = gesture.selected_ids;
+    if (gesture.clicked_id.has_value() && std::find(gesture.duplicate_roots.begin(), gesture.duplicate_roots.end(),
+                                                    *gesture.clicked_id) == gesture.duplicate_roots.end()) {
+      gesture.duplicate_roots.push_back(*gesture.clicked_id);
+    }
+  }
   move_layer_selection_gesture_ = std::move(gesture);
   clear_move_hover_outline();
 }
@@ -466,7 +473,8 @@ bool CanvasWidget::update_move_layer_selection(QMouseEvent* event) {
   if (ids.empty()) {
     return true;
   }
-  begin_move_drag(ids, document_position(pending.press_widget), pending.press_widget);
+  begin_move_drag(ids, document_position(pending.press_widget), pending.press_widget,
+                  std::move(pending.duplicate_roots));
   return false;
 }
 
@@ -530,8 +538,10 @@ void CanvasWidget::finish_move_layer_selection(QMouseEvent* event) {
     if (!active.has_value() || std::find(ids.begin(), ids.end(), *active) == ids.end()) {
       active = matches.front();
     }
-  } else if (gesture.clicked_id.has_value() && !gesture.rectangle_allowed && !gesture.additive) {
-    // This was a plain click on a selected member, not a modifier toggle.
+  } else if (gesture.clicked_id.has_value() && !gesture.additive) {
+    // A plain click on a selected member, or a Ctrl/Cmd+click on any layer
+    // (GitHub issue 73, Photoshop's rule): select just that layer. Shift (and
+    // Ctrl+Shift) is the additive toggle below.
     ids = {*gesture.clicked_id};
     active = gesture.clicked_id;
   } else if (gesture.clicked_id.has_value()) {
@@ -586,9 +596,10 @@ void CanvasWidget::draw_move_layer_selection(QPainter& painter) const {
 }
 
 void CanvasWidget::begin_move_drag(const std::vector<LayerId>& layer_ids, QPoint document_point,
-                                   QPoint widget_point) {
+                                   QPoint widget_point, std::vector<LayerId> duplicate_roots) {
   cancel_move_preview();
   move_drag_pending_ = true;
+  move_drag_duplicate_roots_ = std::move(duplicate_roots);
   moving_layer_ = false;
   move_start_ = document_point;
   begin_axis_constrained_stroke(QPointF(move_start_));
@@ -604,7 +615,7 @@ void CanvasWidget::begin_move_drag(const std::vector<LayerId>& layer_ids, QPoint
   auto sorted_press_ids = layer_ids;
   std::sort(sorted_press_ids.begin(), sorted_press_ids.end());
   if (!retained_move_ids_.empty() && sorted_press_ids == retained_move_ids_ &&
-      preview_composite_level_for_zoom(zoom_) == retained_move_composite_level_ && !move_base_cache_.isNull()) {
+      preview_composite_level_for_zoom(view_zoom()) == retained_move_composite_level_ && !move_base_cache_.isNull()) {
     // Counted only when the press becomes a real drag (the caches build
     // lazily at the first move, so a plain click skips nothing).
     move_press_reused_retained_caches_ = true;
@@ -871,24 +882,26 @@ std::optional<QRect> CanvasWidget::move_hover_outline_rect_at(QPoint widget_posi
     return std::nullopt;
   }
 
+  // Artwork on the pasteboard (outside the canvas) is picked and outlined like
+  // artwork on it: the canvas clips what is painted, not what can be grabbed
+  // (Seth, October 2026).
   const auto document_point = document_position(widget_position);
-  if (!document_contains(document_point)) {
-    return std::nullopt;
-  }
-
   auto* hit_layer = topmost_move_layer_at(document_point, true);
   if (hit_layer == nullptr) {
     return std::nullopt;
   }
 
   const auto selected_move_layer_ids = movable_layer_ids();
-  if (!auto_select_layer_) {
+  // Ctrl/Cmd+click selects the layer under the pointer with Auto-Select off too
+  // (GitHub issue 73), so a held Ctrl previews the pick the way Auto-Select does.
+  const bool click_selects = auto_select_layer_ || modifiers.testFlag(Qt::ControlModifier);
+  if (!click_selects) {
     if (std::find(selected_move_layer_ids.begin(), selected_move_layer_ids.end(), hit_layer->id()) ==
         selected_move_layer_ids.end()) {
       return std::nullopt;
     }
   }
-  if (show_transform_controls_ && auto_select_layer_) {
+  if (show_transform_controls_ && click_selects) {
     if (!selected_layer_ids_.empty()) {
       if (selected_layer_ids_.size() == 1U && selected_layer_ids_.front() == hit_layer->id()) {
         return std::nullopt;
@@ -1051,7 +1064,7 @@ bool CanvasWidget::request_move_preview() {
   if (move_preview_in_flight_) return true;
 
   const auto generation = ++move_preview_generation_;
-  const auto level = preview_composite_level_for_zoom(zoom_);
+  const auto level = preview_composite_level_for_zoom(view_zoom());
   const auto key = move_live_latch_key();
   auto snapshot = std::make_shared<const Document>(*document_);
   auto scaled = std::make_shared<std::optional<Document>>();
@@ -1137,7 +1150,7 @@ bool CanvasWidget::request_move_preview() {
       if (!widget) return;
       widget->move_preview_in_flight_ = false;
       if (!cancelled->load() && generation == widget->move_preview_generation_ && widget->moving_layer_ &&
-          key == widget->move_live_latch_key() && level == preview_composite_level_for_zoom(widget->zoom_)) {
+          key == widget->move_live_latch_key() && level == preview_composite_level_for_zoom(widget->view_zoom())) {
         widget->set_move_preview_requested(false);
         if (*scaled) {
           widget->preview_scaled_document_ = std::move(*scaled);
@@ -1188,7 +1201,7 @@ bool CanvasWidget::ensure_move_proxy_image() {
   // Display-resolution compositing: build the snapshot from the preview-scaled
   // document when zoomed out. The scaled render is cheap enough that the
   // last-resort area cap only applies to full-res snapshots.
-  const auto composite_level = preview_composite_level_for_zoom(zoom_);
+  const auto composite_level = preview_composite_level_for_zoom(view_zoom());
   Document* scaled_document = composite_level >= 1 ? preview_scaled_document_for_level(composite_level) : nullptr;
   // A set hanging off the canvas snapshots shifted onto it (see
   // move_proxy_snapshot_shift); only what still does not fit stays clipped.
@@ -1366,7 +1379,7 @@ std::uint64_t CanvasWidget::move_live_latch_key() const {
   for (const auto id : ids) {
     mix(static_cast<std::uint64_t>(id));
   }
-  mix(static_cast<std::uint64_t>(preview_composite_level_for_zoom(zoom_)) + 1);
+  mix(static_cast<std::uint64_t>(preview_composite_level_for_zoom(view_zoom())) + 1);
   return hash;
 }
 

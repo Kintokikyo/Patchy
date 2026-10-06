@@ -2066,10 +2066,6 @@ RGB: %2, %3, %4</translation>
         <translation>バージョン %1（ビルド日: %2）</translation>
     </message>
     <message>
-        <source>Code contributions from %1</source>
-        <translation>コード貢献者: %1</translation>
-    </message>
-    <message>
         <source>GitHub: %1</source>
         <translation>GitHub: %1</translation>
     </message>
@@ -8871,6 +8867,18 @@ Mixed selection</source>
         <source>%1 came from a grayscale document and adjusts its gray channel here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its tones will look different.</source>
         <translation>%1 はグレースケールドキュメントのもので、ここではグレーチャンネルに対して調整されます。Patchy は RGB ファイルを保存するため、保存したファイルでは Photoshop でも Patchy でも RGB に適用され、階調が変わります。</translation>
     </message>
+    <message>
+        <source>Don&apos;t Save</source>
+        <translation>保存しない</translation>
+    </message>
+    <message>
+        <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
+        <translation>提案、バグ報告、コードを寄せてくれた素晴らしい方々: %1</translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation>比率</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -10180,10 +10188,6 @@ Mixed selection</source>
         <translation>切り抜きをキャンセルしました</translation>
     </message>
     <message>
-        <source>Drag the handles or edges to adjust. Enter crops, Esc cancels.</source>
-        <translation>ハンドルや辺をドラッグして調整します。Enter で切り抜き、Esc でキャンセルします。</translation>
-    </message>
-    <message>
         <source>Click to add a point here. %CTRL%-drag moves the segment.</source>
         <translation>クリックでここにポイントを追加。%CTRL%+ドラッグでセグメントを移動。</translation>
     </message>
@@ -10422,6 +10426,14 @@ Mixed selection</source>
     <message>
         <source>Select Custom Color...</source>
         <translation>カスタムカラーを選択...</translation>
+    </message>
+    <message>
+        <source>Nothing to crop: the box matches the canvas</source>
+        <translation>切り抜くものがありません: 枠がカンバスと一致しています</translation>
+    </message>
+    <message>
+        <source>Crop box reset to the canvas</source>
+        <translation>切り抜き枠をカンバスに戻しました</translation>
     </message>
 </context>
 <context>
@@ -12349,14 +12361,6 @@ Either way Patchy writes a copy; the open document keeps its layers and unsaved 
     <message>
         <source>%1 layers selected</source>
         <translation>%1 枚のレイヤーを選択中</translation>
-    </message>
-    <message>
-        <source>Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. Shift constrains layer movement.</source>
-        <translation>Shift+クリックまたは%CTRL%+クリックでレイヤーの選択を切り替えます。%CTRL%+ドラッグで四角形内のレイヤーを選択し、ドラッグ前からShiftを押すと追加します。レイヤーの移動中はShiftで方向を固定します。</translation>
-    </message>
-    <message>
-        <source>Move: Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it.</source>
-        <translation>移動: Shift+クリックまたは%CTRL%+クリックでレイヤーの選択を切り替えます。%CTRL%+ドラッグで四角形選択し、Shiftで追加します。選択した画像をドラッグすると移動します。</translation>
     </message>
     <message>
         <source>Show Transform Controls</source>
@@ -15920,10 +15924,6 @@ Clipped to the layer below</source>
         <translation>切り抜きを適用 (Enter)</translation>
     </message>
     <message>
-        <source>Cancel crop (Esc)</source>
-        <translation>切り抜きをキャンセル (Esc)</translation>
-    </message>
-    <message>
         <source>Cropped</source>
         <translation>切り抜きました</translation>
     </message>
@@ -18595,6 +18595,46 @@ Baked into images: %1.</source>
         <source>This smart object cannot be re-rendered</source>
         <translation>このスマートオブジェクトは再レンダリングできません</translation>
     </message>
+    <message>
+        <source>%CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. %ALT%+drag duplicates. Shift constrains layer movement.</source>
+        <translation>%CTRL%+クリックでレイヤーを選択、Shift+クリックで選択を切り替えます。%CTRL%+ドラッグで矩形内のレイヤーを選択、ドラッグ前にShiftを押すと追加します。%ALT%+ドラッグで複製します。Shiftでレイヤーの移動方向を固定します。</translation>
+    </message>
+    <message>
+        <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
+        <translation>移動: %CTRL%+クリックでレイヤーを選択、Shift+クリックで切り替えます。%CTRL%+ドラッグで矩形選択、Shiftで追加します。選択したアートワークをドラッグして移動、%ALT%+ドラッグで複製します。</translation>
+    </message>
+    <message>
+        <source>Reset the crop box to the canvas (Esc)</source>
+        <translation>切り抜き枠をカンバスに戻す (Esc)</translation>
+    </message>
+    <message>
+        <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
+        <translation>切り抜き: ハンドルをドラッグして切り抜くかカンバスを広げます (%ALT% で中心基準)。内側をドラッグすると新しい枠、外側をドラッグすると回転します。Enter で切り抜き、Esc で枠をリセットします。</translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation>比率</translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation>サイズ</translation>
+    </message>
+    <message>
+        <source>Ratio constrains the crop box; Size shows its exact width and height and sets them</source>
+        <translation>比率は切り抜き枠を制約し、サイズは枠の正確な幅と高さを表示して設定します</translation>
+    </message>
+    <message>
+        <source>Width of the crop box</source>
+        <translation>切り抜き枠の幅</translation>
+    </message>
+    <message>
+        <source>Keep the crop box&apos;s width and height in proportion</source>
+        <translation>切り抜き枠の幅と高さの比率を保つ</translation>
+    </message>
+    <message>
+        <source>Height of the crop box</source>
+        <translation>切り抜き枠の高さ</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -20047,10 +20087,6 @@ Baked into images: %1.</source>
     <message>
         <source>Version %1 (built %2)</source>
         <translation>バージョン %1（ビルド日: %2）</translation>
-    </message>
-    <message>
-        <source>Code contributions from %1</source>
-        <translation>コード貢献者: %1</translation>
     </message>
     <message>
         <source>GitHub: %1</source>

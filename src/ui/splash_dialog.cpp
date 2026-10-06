@@ -78,6 +78,8 @@ public:
 
   explicit PatchySplashDialog(QWidget* parent = nullptr) : QDialog(parent) {
     setObjectName(QStringLiteral("patchySplashScreen"));
+    // About always opens centered on the app; a remembered spot is never wanted.
+    mark_dialog_always_centered(*this);
     setWindowFlags(Qt::Dialog | Qt::FramelessWindowHint);
     apply_frameless_window_effects_on_show(*this, WindowCornerRadius::Standard);
     setModal(true);
@@ -211,10 +213,12 @@ public:
     contributors->setTextFormat(Qt::RichText);
     set_themed_label_text(
         *contributors,
-        QObject::tr("Code contributions from %1")
-            .arg(code_contributors_link_html(QStringLiteral("@splash_link_text"))));
+        QObject::tr("Incredible people who donated suggestions, bug reports, and code: %1")
+            .arg(contributors_link_html(QStringLiteral("@splash_link_text"))));
     contributors->setTextInteractionFlags(Qt::TextBrowserInteraction);
     contributors->setOpenExternalLinks(true);
+    // The list outgrows one line; wrap inside the fixed dialog width.
+    contributors->setWordWrap(true);
     copy->addWidget(contributors);
 
     auto add_home_link = [this, copy](const QString& text) {

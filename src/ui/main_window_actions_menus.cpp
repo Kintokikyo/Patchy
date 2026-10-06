@@ -32,6 +32,7 @@
 #include "psd/psd_smart_objects.hpp"
 #include "ui/action_icons.hpp"
 #include "ui/app_settings.hpp"
+#include "ui/canvas_widget_shared.hpp"
 #include "render/compositor.hpp"
 #include "ui/blend_mode_ui.hpp"
 #include "ui/brush_dynamics_popup.hpp"
@@ -1771,11 +1772,17 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   register_hotkey(new_guide_layout_action, "view.new_guide_layout");
   register_hotkey(clear_selected_guides_action, "view.clear_selected_guides");
   register_hotkey(clear_guides_action, "view.clear_guides");
-  connect(zoom_in, &QAction::triggered, this, [this] { canvas_->set_zoom_centered(canvas_->zoom() * 1.25); });
-  connect(zoom_out, &QAction::triggered, this, [this] { canvas_->set_zoom_centered(canvas_->zoom() * 0.8); });
+  // Zoom In/Out walk Photoshop's zoom ladder in view (device-pixel) percent
+  // (GitHub issue 77), so an off-ladder view lands on the next rung.
+  connect(zoom_in, &QAction::triggered, this, [this] {
+    canvas_->set_view_zoom_centered(next_zoom_ladder_step(canvas_->view_zoom(), true));
+  });
+  connect(zoom_out, &QAction::triggered, this, [this] {
+    canvas_->set_view_zoom_centered(next_zoom_ladder_step(canvas_->view_zoom(), false));
+  });
   connect(fit_on_screen, &QAction::triggered, this, [this] { canvas_->fit_to_view(); });
   connect(fill_screen, &QAction::triggered, this, [this] { canvas_->fill_to_view(); });
-  connect(zoom_reset, &QAction::triggered, this, [this] { canvas_->set_zoom_centered(1.0); });
+  connect(zoom_reset, &QAction::triggered, this, [this] { canvas_->set_view_zoom_centered(1.0); });
   connect(selection_edges_action, &QAction::triggered, this, [this] {
     if (canvas_ != nullptr) {
       canvas_->toggle_selection_edges_visible();

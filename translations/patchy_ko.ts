@@ -8198,10 +8198,6 @@ RGB: %2, %3, %4</translation>
         <translation>%1이(가) 작성함</translation>
     </message>
     <message>
-        <source>Code contributions from %1</source>
-        <translation>%1의 코드 기여</translation>
-    </message>
-    <message>
         <source>GitHub: %1</source>
         <translation>GitHub: %1</translation>
     </message>
@@ -8870,6 +8866,18 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>%1 came from a grayscale document and adjusts its gray channel here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its tones will look different.</source>
         <translation>%1은(는) 회색 음영 문서에서 가져온 것으로, 여기서는 회색 채널에 적용됩니다. Patchy는 RGB 파일로 저장하므로 저장된 파일에서는 Photoshop과 Patchy 모두 RGB에 적용하여 색조가 달라집니다.</translation>
+    </message>
+    <message>
+        <source>Don&apos;t Save</source>
+        <translation>저장 안 함</translation>
+    </message>
+    <message>
+        <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
+        <translation>제안, 버그 보고, 코드를 보내 주신 멋진 분들: %1</translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation>비율</translation>
     </message>
 </context>
 <context>
@@ -9656,10 +9664,6 @@ RGB: %2, %3, %4</translation>
         <translation>자르기 취소됨</translation>
     </message>
     <message>
-        <source>Drag the handles or edges to adjust. Enter crops, Esc cancels.</source>
-        <translation>핸들이나 가장자리를 드래그하여 조정합니다. Enter로 자르기를 적용하고 Esc로 취소합니다.</translation>
-    </message>
-    <message>
         <source>%1 x %2 px</source>
         <translation>%1x%2픽셀</translation>
     </message>
@@ -10422,6 +10426,14 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Cancelled the path transform</source>
         <translation>패스 변형을 취소했습니다</translation>
+    </message>
+    <message>
+        <source>Nothing to crop: the box matches the canvas</source>
+        <translation>자를 것이 없습니다: 상자가 캔버스와 일치합니다</translation>
+    </message>
+    <message>
+        <source>Crop box reset to the canvas</source>
+        <translation>자르기 상자를 캔버스로 재설정했습니다</translation>
     </message>
 </context>
 <context>
@@ -12504,10 +12516,6 @@ RGB: %2, %3, %4</translation>
         <translation>자르기 적용(Enter)</translation>
     </message>
     <message>
-        <source>Cancel crop (Esc)</source>
-        <translation>자르기 취소(Esc)</translation>
-    </message>
-    <message>
         <source>Preset:</source>
         <translation>사전 설정:</translation>
     </message>
@@ -13224,10 +13232,6 @@ RGB: %2, %3, %4</translation>
         <translation>도구</translation>
     </message>
     <message>
-        <source>Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. Shift constrains layer movement.</source>
-        <translation>Shift+클릭 또는 %CTRL%+클릭으로 레이어 선택을 전환합니다. %CTRL%+드래그로 사각형 안의 레이어를 선택하며, Shift를 누른 상태에서 드래그하면 선택에 추가합니다. Shift는 레이어 이동 방향을 제한합니다.</translation>
-    </message>
-    <message>
         <source>Click to place points, drag for curves. On a path: click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL% moves points.</source>
         <translation>클릭하여 점을 놓고 드래그하여 곡선을 만듭니다. 패스에서 선분을 클릭하면 점이 추가되고, 점을 클릭하면 삭제됩니다. %ALT%+클릭으로 점을 변환하고, %CTRL%로 점을 이동합니다.</translation>
     </message>
@@ -13250,10 +13254,6 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Click a point to switch it between corner and smooth.</source>
         <translation>점을 클릭하여 모퉁이점과 곡선점 사이를 전환합니다.</translation>
-    </message>
-    <message>
-        <source>Move: Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it.</source>
-        <translation>이동: Shift+클릭 또는 %CTRL%+클릭으로 레이어 선택을 전환합니다. %CTRL%+드래그로 사각형 영역을 선택하고, Shift를 누르면 선택에 추가합니다. 선택한 그림을 드래그하여 이동합니다.</translation>
     </message>
     <message>
         <source>Pen: click to add points, drag for curves. On a path, click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL%+drag selects or moves points.</source>
@@ -18598,6 +18598,45 @@ Y: %2
         <source>This smart object cannot be re-rendered</source>
         <translation>이 스마트 개체는 다시 렌더링할 수 없습니다.</translation>
     </message>
+    <message>
+        <source>%CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. %ALT%+drag duplicates. Shift constrains layer movement.</source>
+        <translation>%CTRL%+클릭으로 레이어를 선택하고 Shift+클릭으로 선택을 전환합니다. %CTRL%+드래그로 사각형 안의 레이어를 선택하며, 드래그 전에 Shift를 누르면 추가됩니다. %ALT%+드래그로 복제합니다. Shift는 레이어 이동 방향을 고정합니다.</translation>
+    </message>
+    <message>
+        <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
+        <translation>이동: %CTRL%+클릭으로 레이어를 선택하고 Shift+클릭으로 전환합니다. %CTRL%+드래그로 사각형을 선택하고 Shift로 추가합니다. 선택한 아트워크를 드래그하여 이동하고 %ALT%+드래그로 복제합니다.</translation>
+    </message>
+    <message>
+        <source>Reset the crop box to the canvas (Esc)</source>
+        <translation>자르기 상자를 캔버스로 재설정 (Esc)</translation>
+    </message>
+    <message>
+        <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
+        <translation>자르기: 핸들을 드래그하여 자르거나 캔버스를 확장합니다 (%ALT%는 중심 기준으로 크기 조절). 안쪽을 드래그하면 새 상자를 그리고, 바깥쪽을 드래그하면 회전합니다. Enter는 자르기, Esc는 상자를 재설정합니다.</translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation>비율</translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation>크기</translation>
+    </message>
+    <message>
+        <source>Ratio constrains the crop box; Size shows its exact width and height and sets them</source>
+        <translation>비율은 자르기 상자를 제한하고, 크기는 상자의 정확한 너비와 높이를 표시하고 설정합니다</translation>
+    </message>
+    <message>
+        <source>Width of the crop box</source>
+        <translation>자르기 상자 너비</translation>
+    </message>
+    <message>
+        <source>Keep the crop box&apos;s width and height in proportion</source>
+        <translation>자르기 상자의 너비와 높이 비율 유지</translation>
+    </message>
+    <message>
+        <source>Height of the crop box</source>
+        <translation>자르기 상자 높이</translation>
 
     <message>
         <source>Exported %1 images</source>
@@ -20103,10 +20142,6 @@ Y: %2
     <message>
         <source>Created by %1</source>
         <translation>%1이(가) 작성함</translation>
-    </message>
-    <message>
-        <source>Code contributions from %1</source>
-        <translation>%1의 코드 기여</translation>
     </message>
     <message>
         <source>GitHub: %1</source>

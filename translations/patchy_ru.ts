@@ -8240,10 +8240,6 @@ RGB: %2, %3, %4</translation>
         <translation>Создано %1</translation>
     </message>
     <message>
-        <source>Code contributions from %1</source>
-        <translation>Вклад кода от %1</translation>
-    </message>
-    <message>
         <source>GitHub: %1</source>
         <translation>GitHub: %1</translation>
     </message>
@@ -8930,6 +8926,18 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>%1 came from a grayscale document and adjusts its gray channel here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its tones will look different.</source>
         <translation>Слой «%1» взят из документа в градациях серого и здесь корректирует его серый канал. Patchy сохраняет файлы RGB, поэтому в сохранённом файле Photoshop и Patchy применят его к RGB, и тона будут выглядеть иначе.</translation>
+    </message>
+    <message>
+        <source>Don&apos;t Save</source>
+        <translation>Не сохранять</translation>
+    </message>
+    <message>
+        <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
+        <translation>Замечательные люди, подарившие предложения, отчёты об ошибках и код: %1</translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation>Пропорции</translation>
     </message>
 </context>
 <context>
@@ -9716,10 +9724,6 @@ RGB: %2, %3, %4</translation>
         <translation>Кадрирование отменено</translation>
     </message>
     <message>
-        <source>Drag the handles or edges to adjust. Enter crops, Esc cancels.</source>
-        <translation>Перетаскивайте маркеры или края для изменения рамки. Enter применяет кадрирование, Esc отменяет.</translation>
-    </message>
-    <message>
         <source>%1 x %2 px</source>
         <translation>%1 x %2 пикселей</translation>
     </message>
@@ -10482,6 +10486,14 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Cancelled the path transform</source>
         <translation>Трансформирование контура отменено</translation>
+    </message>
+    <message>
+        <source>Nothing to crop: the box matches the canvas</source>
+        <translation>Нечего кадрировать: рамка совпадает с холстом</translation>
+    </message>
+    <message>
+        <source>Crop box reset to the canvas</source>
+        <translation>Рамка кадрирования сброшена к холсту</translation>
     </message>
 </context>
 <context>
@@ -12564,10 +12576,6 @@ RGB: %2, %3, %4</translation>
         <translation>Применить обрезку (Ввод)</translation>
     </message>
     <message>
-        <source>Cancel crop (Esc)</source>
-        <translation>Отменить обрезку (Esc)</translation>
-    </message>
-    <message>
         <source>Preset:</source>
         <translation>Набор:</translation>
     </message>
@@ -13284,10 +13292,6 @@ RGB: %2, %3, %4</translation>
         <translation>Инструмент</translation>
     </message>
     <message>
-        <source>Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. Shift constrains layer movement.</source>
-        <translation>Shift+щелчок или %CTRL%+щелчок переключает слои. %CTRL%+перетаскивание выделяет слои в прямоугольнике; удерживайте Shift, прежде чем перетаскивать, чтобы добавить. Shift ограничивает перемещение слоя.</translation>
-    </message>
-    <message>
         <source>Click to place points, drag for curves. On a path: click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL% moves points.</source>
         <translation>Щёлкайте для добавления точек, перетаскивайте для создания кривых. На контуре: щелчок по сегменту добавляет точку, по точке удаляет её; %ALT%+щелчок преобразует точку, %CTRL% перемещает точки.</translation>
     </message>
@@ -13310,10 +13314,6 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Click a point to switch it between corner and smooth.</source>
         <translation>Щелкните точку, чтобы переключить ее между угловым и гладким режимом.</translation>
-    </message>
-    <message>
-        <source>Move: Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it.</source>
-        <translation>Перемещение: Shift+щелчок или %CTRL%+щелчок меняет выделение слоёв. %CTRL%+перетаскивание выделяет слои прямоугольником; Shift добавляет. Перетаскивайте выделенные объекты для перемещения.</translation>
     </message>
     <message>
         <source>Pen: click to add points, drag for curves. On a path, click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL%+drag selects or moves points.</source>
@@ -18710,6 +18710,45 @@ Y: %2
         <source>This smart object cannot be re-rendered</source>
         <translation>Этот смарт-объект нельзя отрисовать заново.</translation>
     </message>
+    <message>
+        <source>%CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. %ALT%+drag duplicates. Shift constrains layer movement.</source>
+        <translation>%CTRL%+щелчок выбирает слой, Shift+щелчок переключает его. %CTRL%+перетаскивание выбирает слои в прямоугольнике; удерживайте Shift перед перетаскиванием, чтобы добавить. %ALT%+перетаскивание дублирует. Shift ограничивает перемещение слоя.</translation>
+    </message>
+    <message>
+        <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
+        <translation>Перемещение: %CTRL%+щелчок выбирает слой, Shift+щелчок переключает его. %CTRL%+перетаскивание выбирает прямоугольник; Shift добавляет. Перетащите выбранный объект, чтобы переместить его, %ALT%+перетаскивание дублирует его.</translation>
+    </message>
+    <message>
+        <source>Reset the crop box to the canvas (Esc)</source>
+        <translation>Сбросить рамку кадрирования к холсту (Esc)</translation>
+    </message>
+    <message>
+        <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
+        <translation>Кадрирование: тяните маркеры, чтобы обрезать или расширить холст (%ALT% масштабирует от центра), тяните внутри, чтобы задать новую рамку, тяните снаружи, чтобы повернуть. Enter кадрирует, Esc сбрасывает рамку.</translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation>Пропорции</translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation>Размер</translation>
+    </message>
+    <message>
+        <source>Ratio constrains the crop box; Size shows its exact width and height and sets them</source>
+        <translation>Пропорции ограничивают рамку кадрирования; Размер показывает её точную ширину и высоту и задаёт их</translation>
+    </message>
+    <message>
+        <source>Width of the crop box</source>
+        <translation>Ширина рамки кадрирования</translation>
+    </message>
+    <message>
+        <source>Keep the crop box&apos;s width and height in proportion</source>
+        <translation>Сохранять пропорции ширины и высоты рамки кадрирования</translation>
+    </message>
+    <message>
+        <source>Height of the crop box</source>
+        <translation>Высота рамки кадрирования</translation>
 
     <message>
         <source>Exported %1 images</source>
@@ -20217,10 +20256,6 @@ Y: %2
     <message>
         <source>Created by %1</source>
         <translation>Создано %1</translation>
-    </message>
-    <message>
-        <source>Code contributions from %1</source>
-        <translation>Вклад кода от %1</translation>
     </message>
     <message>
         <source>GitHub: %1</source>

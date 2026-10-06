@@ -258,8 +258,8 @@ void fit_new_document_view(CanvasWidget* canvas) {
     return;
   }
   canvas->fit_to_view();
-  if (canvas->zoom() > 1.0) {
-    canvas->set_zoom(1.0);
+  if (canvas->view_zoom() > 1.0) {
+    canvas->set_view_zoom(1.0);
     canvas->center_document_in_view();
   }
 }

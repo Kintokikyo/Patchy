@@ -557,6 +557,63 @@ QRect rect_aligned_to_mip_grid(QRect rect, int level) noexcept {
   return QRect(QPoint(left, top), QPoint(right, bottom));
 }
 
+double next_zoom_ladder_step(double view_zoom, bool zoom_in) noexcept {
+  // Photoshop's ladder, as fractions: 0.56%, 1%, 1.5%, 2%, 3%, 4%, 5%, 6.25%,
+  // 8.33%, 12.5%, 16.67%, 25%, 33.33%, 50%, 66.67%, 100%, 200% ... 800%, 1200%,
+  // 1600%, 3200%, 6400%, 12800%.
+  static constexpr double kLadder[] = {0.0056, 0.01,      0.015,     0.02,      0.03,      0.04,      0.05,
+                                       0.0625, 1.0 / 12.0, 0.125,    1.0 / 6.0, 0.25,      1.0 / 3.0, 0.5,
+                                       2.0 / 3.0, 1.0,    2.0,       3.0,       4.0,       5.0,       6.0,
+                                       7.0,    8.0,       12.0,      16.0,      32.0,      64.0,      128.0};
+  constexpr double kOnRungTolerance = 0.005;  // relative
+  if (!(view_zoom > 0.0) || !std::isfinite(view_zoom)) {
+    return 1.0;
+  }
+  if (zoom_in) {
+    const auto floor = view_zoom * (1.0 + kOnRungTolerance);
+    for (const auto rung : kLadder) {
+      if (rung > floor) {
+        return rung;
+      }
+    }
+    return kLadder[std::size(kLadder) - 1];
+  }
+  const auto ceiling = view_zoom * (1.0 - kOnRungTolerance);
+  for (auto index = std::size(kLadder); index-- > 0;) {
+    if (kLadder[index] < ceiling) {
+      return kLadder[index];
+    }
+  }
+  return kLadder[0];
+}
+
+QRect center_anchored_handle_rect(QRect start, bool moves_x, bool moves_y, QPoint point,
+                                  double target_ratio) noexcept {
+  const double center_x = start.x() + start.width() / 2.0;
+  const double center_y = start.y() + start.height() / 2.0;
+  double half_width = moves_x ? std::abs(point.x() - center_x) : start.width() / 2.0;
+  double half_height = moves_y ? std::abs(point.y() - center_y) : start.height() / 2.0;
+  half_width = std::max(0.5, half_width);
+  half_height = std::max(0.5, half_height);
+  if (target_ratio > 0.0) {
+    if (moves_x && moves_y) {
+      if (half_width / half_height > target_ratio) {
+        half_width = half_height * target_ratio;
+      } else {
+        half_height = half_width / target_ratio;
+      }
+    } else if (moves_x) {
+      half_height = half_width / target_ratio;
+    } else {
+      half_width = half_height * target_ratio;
+    }
+  }
+  const auto width = std::max(1, static_cast<int>(std::lround(half_width * 2.0)));
+  const auto height = std::max(1, static_cast<int>(std::lround(half_height * 2.0)));
+  return QRect(static_cast<int>(std::lround(center_x - width / 2.0)),
+               static_cast<int>(std::lround(center_y - height / 2.0)), width, height);
+}
+
 QRect preview_scaled_document_rect(QRect rect, int level) noexcept {
   if (rect.isEmpty() || level <= 0) {
     return rect;

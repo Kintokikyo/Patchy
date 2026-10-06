@@ -160,6 +160,45 @@ bool layer_needs_composited_transform_preview(const Layer& layer) {
          (layer.layer_style().effects_visible && !layer.layer_style().empty());
 }
 
+// Composite order is storage order bottom-up, depth-first through groups; `found`
+// flips when the walk passes the target, and any visible non-group layer visited
+// after that draws over it.
+bool visible_content_composites_above(const std::vector<Layer>& layers, LayerId id, bool& found) {
+  for (const auto& layer : layers) {
+    if (layer.id() == id) {
+      found = true;
+      continue;
+    }
+    if (!layer.visible()) {
+      continue;
+    }
+    if (layer.kind() == LayerKind::Group) {
+      if (visible_content_composites_above(layer.children(), id, found)) {
+        return true;
+      }
+      continue;
+    }
+    if (found) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// GitHub issue 72: the plain source blit paints the transformed layer over a base
+// that only hid the layer, so everything composited above it sat underneath the
+// preview for the whole drag (a shape under other layers looked as if it had
+// jumped to the top until commit). Any visible content above the target sends
+// the session down the stacked-patch path, which renders the real order.
+bool layer_has_visible_content_above(const Document& document, LayerId id) {
+  bool found = false;
+  return visible_content_composites_above(document.layers(), id, found);
+}
+
+bool transform_preview_needs_compositing(const Document& document, const Layer& layer) {
+  return layer_needs_composited_transform_preview(layer) || layer_has_visible_content_above(document, layer.id());
+}
+
 // Smallest sub-rect of a gray8 mask buffer holding every pixel that differs
 // from `default_color`; empty when the whole buffer reads as the default.
 QRect non_default_mask_local_rect(const PixelBuffer& pixels, std::uint8_t default_color) {
@@ -1011,7 +1050,7 @@ bool CanvasWidget::begin_free_transform() {
   transform_proxy_image_ = QImage();
   transform_mask_sources_.clear();
   transform_proxy_layer_opacity_ = 1.0;
-  transform_requires_composited_preview_ = layer_needs_composited_transform_preview(*layer);
+  transform_requires_composited_preview_ = transform_preview_needs_compositing(*document_, *layer);
   setCursor(Qt::ArrowCursor);
   update();
   notify_transform_controls_changed();
@@ -1613,7 +1652,7 @@ void CanvasWidget::rebuild_transform_base_cache() {
   const QRect canvas_rect(0, 0, document_->width(), document_->height());
   // Display-resolution compositing: when zoomed out, build the base from the
   // preview-scaled document (4^level less work than a full-res canvas).
-  if (const auto composite_level = preview_composite_level_for_zoom(zoom_); composite_level >= 1) {
+  if (const auto composite_level = preview_composite_level_for_zoom(view_zoom()); composite_level >= 1) {
     if (auto* scaled_document = preview_scaled_document_for_level(composite_level)) {
       const QRect scaled_canvas(0, 0, scaled_document->width(), scaled_document->height());
       auto base = qimage_from_document_rect_with_hidden_layers_banded(*scaled_document, scaled_canvas, true, hidden)
@@ -1677,7 +1716,7 @@ bool CanvasWidget::ensure_transform_multi_snapshot() {
   if (snapshot_rect.isEmpty()) {
     return false;
   }
-  const auto composite_level = preview_composite_level_for_zoom(zoom_);
+  const auto composite_level = preview_composite_level_for_zoom(view_zoom());
   Document* scaled_document = composite_level >= 1 ? preview_scaled_document_for_level(composite_level) : nullptr;
   if (scaled_document != nullptr) {
     snapshot_rect = rect_aligned_to_mip_grid(snapshot_rect, composite_level).intersected(canvas_rect);
@@ -2196,7 +2235,7 @@ void CanvasWidget::refresh_free_transform_preview_caches() {
   // needs compositing at all) must be rebuilt from the current document state.
   // The base cache rebuilds in BOTH regimes: the composited preview now draws
   // patches over it instead of a full-canvas recomposite.
-  transform_requires_composited_preview_ = layer_needs_composited_transform_preview(*layer);
+  transform_requires_composited_preview_ = transform_preview_needs_compositing(*document_, *layer);
   rebuild_transform_base_cache();
   refresh_transform_composited_preview_cache();
   if (isVisible()) {
@@ -3735,7 +3774,7 @@ bool CanvasWidget::prepare_warp_source() {
     // zoom <= 50% composited from the preview-scaled document.
     warp_base_cache_scale_level_ = 0;
     const std::vector<LayerId> hidden{*warp_layer_id_};
-    if (const auto composite_level = preview_composite_level_for_zoom(zoom_); composite_level >= 1) {
+    if (const auto composite_level = preview_composite_level_for_zoom(view_zoom()); composite_level >= 1) {
       if (auto* scaled_document = preview_scaled_document_for_level(composite_level)) {
         const QRect scaled_canvas(0, 0, scaled_document->width(), scaled_document->height());
         auto base = qimage_from_document_rect_with_hidden_layers_banded(*scaled_document, scaled_canvas, true, hidden)
@@ -4093,7 +4132,7 @@ bool CanvasWidget::switch_warp_to_free_transform() {
   transform_proxy_image_ = QImage();
   transform_mask_sources_.clear();
   transform_proxy_layer_opacity_ = 1.0;
-  transform_requires_composited_preview_ = layer_needs_composited_transform_preview(*layer);
+  transform_requires_composited_preview_ = transform_preview_needs_compositing(*document_, *layer);
   rebuild_transform_base_cache();
   if (transform_requires_composited_preview_) {
     refresh_transform_composited_preview_cache();

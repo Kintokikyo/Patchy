@@ -616,6 +616,82 @@ void ui_progress_dialogs_ignore_position_memory_and_center_on_parent() {
   settings.sync();
 }
 
+// Message boxes (the save prompt, every question) and dialogs marked with
+// mark_dialog_always_centered (About) ignore a remembered position: they center
+// on their owner every time and drop any saved spot (Seth, October 2026).
+void ui_message_boxes_and_marked_dialogs_ignore_position_memory() {
+  const auto screen_rect = QApplication::primaryScreen() != nullptr
+                               ? QApplication::primaryScreen()->availableGeometry()
+                               : QRect(0, 0, 640, 480);
+  const auto far_position = screen_rect.topLeft() + QPoint(4, 5);
+  QWidget parent;
+  parent.resize(420, 260);
+  parent.move(screen_rect.topLeft() + QPoint(160, 120));
+  parent.show();
+  QApplication::processEvents();
+
+  const auto seed = [far_position](const QString& group) {
+    auto settings = patchy::ui::app_settings();
+    settings.remove(group);
+    settings.setValue(group + QStringLiteral("/pos"), far_position);
+    settings.setValue(group + QStringLiteral("/moved"), true);
+    settings.sync();
+  };
+  const auto expect_centered_and_forgotten = [&](QDialog& dialog, const QString& group) {
+    patchy::ui::remember_dialog_position(dialog);
+    dialog.show();
+    QApplication::processEvents();
+    const auto expected =
+        parent.frameGeometry().center() - QPoint(dialog.size().width() / 2, dialog.size().height() / 2);
+    CHECK((dialog.pos() - expected).manhattanLength() <= 10);
+    CHECK((dialog.pos() - far_position).manhattanLength() > 10);
+    dialog.move(far_position);
+    QApplication::processEvents();
+    dialog.close();
+    QApplication::processEvents();
+    auto settings = patchy::ui::app_settings();
+    CHECK(!settings.value(group + QStringLiteral("/pos")).isValid());
+    CHECK(!settings.value(group + QStringLiteral("/moved"), false).toBool());
+    settings.remove(group);
+    settings.sync();
+  };
+
+  {
+    const auto group = QStringLiteral("dialogPositions/patchyMessageBoxPositionTest");
+    seed(group);
+    QMessageBox box(QMessageBox::Warning, QStringLiteral("Save changes?"), QStringLiteral("Save?"),
+                    QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, &parent);
+    box.setObjectName(QStringLiteral("patchyMessageBoxPositionTest"));
+    expect_centered_and_forgotten(box, group);
+  }
+  {
+    const auto group = QStringLiteral("dialogPositions/patchyMarkedPositionTest");
+    seed(group);
+    QDialog dialog(&parent);
+    dialog.setObjectName(QStringLiteral("patchyMarkedPositionTest"));
+    dialog.resize(240, 120);
+    patchy::ui::mark_dialog_always_centered(dialog);
+    expect_centered_and_forgotten(dialog, group);
+  }
+  // An unmarked dialog still honors its remembered position.
+  {
+    const auto group = QStringLiteral("dialogPositions/patchyPlainPositionTest");
+    seed(group);
+    QDialog dialog(&parent);
+    dialog.setObjectName(QStringLiteral("patchyPlainPositionTest"));
+    dialog.resize(240, 120);
+    patchy::ui::remember_dialog_position(dialog);
+    dialog.show();
+    QApplication::processEvents();
+    CHECK((dialog.pos() - far_position).manhattanLength() <= 10);
+    dialog.close();
+    QApplication::processEvents();
+    auto settings = patchy::ui::app_settings();
+    settings.remove(group);
+    settings.sync();
+  }
+}
+
 void ui_dirty_state_marks_tabs_and_undo_restores_saved_revision() {
   patchy::ui::MainWindow window;
   show_window(window);
@@ -1983,6 +2059,65 @@ void ui_color_picker_accepts_css_rgba_and_names() {
   CHECK(picker.currentColor() == QColor(0, 0, 128));
 }
 
+// GitHub issue 68: the picker opens with keyboard focus in the HTML (hex) field
+// and its value selected, so Ctrl+V then Return applies a copied hex and closes
+// the dialog, and Ctrl+C copies the current hex. The field also selects all
+// whenever it regains focus.
+void ui_color_picker_opens_with_hex_field_selected_for_paste() {
+  QGuiApplication::clipboard()->setText(QStringLiteral("#336699"));
+  bool dialog_seen = false;
+  bool hex_had_focus_with_all_selected = false;
+  bool paste_replaced_hex = false;
+  int ticks = 0;
+  QTimer poll;
+  QObject::connect(&poll, &QTimer::timeout, [&] {
+    auto* dialog = find_top_level_dialog(QStringLiteral("patchyColorDialog"));
+    if (dialog == nullptr || !dialog->isVisible()) {
+      return;
+    }
+    dialog_seen = true;
+    auto* edit = dialog->findChild<QLineEdit*>(QStringLiteral("patchyColorHtmlEdit"));
+    CHECK(edit != nullptr);
+    // The focus lands queued after show; give it a few ticks before judging.
+    if (!(edit->hasFocus() && edit->hasSelectedText()) && ++ticks < 50) {
+      return;
+    }
+    poll.stop();
+    hex_had_focus_with_all_selected =
+        edit->hasFocus() && edit->selectedText() == edit->text() && edit->text() == QStringLiteral("#0A141E");
+    send_key(*edit, Qt::Key_V, Qt::ControlModifier);
+    paste_replaced_hex = edit->text() == QStringLiteral("#336699");
+    // Return commits the field and reaches the dialog's default (OK) button.
+    send_key(*edit, Qt::Key_Return);
+  });
+  poll.start(10);
+  const auto result = patchy::ui::request_patchy_color(nullptr, QColor(10, 20, 30), QStringLiteral("Hex paste"));
+  poll.stop();
+  CHECK(dialog_seen);
+  CHECK(hex_had_focus_with_all_selected);
+  CHECK(paste_replaced_hex);
+  CHECK(result.has_value());
+  CHECK(result.has_value() && *result == QColor(0x33, 0x66, 0x99));
+  QApplication::processEvents();
+
+  // Re-focusing the field selects its value again (a click, Tab, or setFocus).
+  patchy::ui::PatchyColorPicker picker(QColor(1, 2, 3));
+  picker.show();
+  picker.activateWindow();
+  QApplication::processEvents();
+  auto* edit = picker.findChild<QLineEdit*>(QStringLiteral("patchyColorHtmlEdit"));
+  CHECK(edit != nullptr);
+  auto* red_spin = picker.findChild<QSpinBox*>(QStringLiteral("patchyColorRedSpin"));
+  CHECK(red_spin != nullptr);
+  red_spin->setFocus(Qt::MouseFocusReason);
+  QApplication::processEvents();
+  CHECK(!edit->hasFocus());
+  edit->setFocus(Qt::MouseFocusReason);
+  QApplication::processEvents();
+  CHECK(edit->hasFocus());
+  CHECK(edit->selectedText() == QStringLiteral("#010203"));
+}
+
 void ui_hotkey_duplicate_ids_fail_without_replacing_the_command() {
   patchy::ui::HotkeyRegistry registry;
   QAction first(nullptr), second(nullptr);
@@ -2006,6 +2141,8 @@ std::vector<patchy::test::TestCase> pickers_notices_hotkeys_tests() {
        ui_dialog_position_memory_centers_unmoved_dialogs_on_parent},
       {"ui_progress_dialogs_ignore_position_memory_and_center_on_parent",
        ui_progress_dialogs_ignore_position_memory_and_center_on_parent},
+      {"ui_message_boxes_and_marked_dialogs_ignore_position_memory",
+       ui_message_boxes_and_marked_dialogs_ignore_position_memory},
       {"ui_dirty_state_marks_tabs_and_undo_restores_saved_revision",
        ui_dirty_state_marks_tabs_and_undo_restores_saved_revision},
       {"ui_compatibility_report_flags_psd_text_placeholders",
@@ -2056,6 +2193,7 @@ std::vector<patchy::test::TestCase> pickers_notices_hotkeys_tests() {
       {"ui_hotkey_editor_steals_conflicting_shortcut", ui_hotkey_editor_steals_conflicting_shortcut},
       {"ui_hotkey_editor_reset_all_clears_overrides", ui_hotkey_editor_reset_all_clears_overrides},
       {"ui_color_picker_accepts_css_rgba_and_names", ui_color_picker_accepts_css_rgba_and_names},
+      {"ui_color_picker_opens_with_hex_field_selected_for_paste", ui_color_picker_opens_with_hex_field_selected_for_paste},
       {"ui_hotkey_duplicate_ids_fail_without_replacing_the_command", ui_hotkey_duplicate_ids_fail_without_replacing_the_command},
   };
 }

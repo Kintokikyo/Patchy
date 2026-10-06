@@ -28,6 +28,7 @@
 #include <QTextFormat>
 
 #include <optional>
+#include <utility>
 #include <vector>
 
 class QTextBlock;
@@ -268,6 +269,11 @@ public:
   // Nearest character position to a point. Clamps to the first/last line vertically and to
   // the line ends horizontally, so a click anywhere always lands somewhere sensible.
   [[nodiscard]] int position_at(QPointF local_point) const;
+
+  // Document positions [start, end) of the visual line (vertical text: the column) that
+  // holds `position`, resolved the way caret_rect resolves it. The paragraph separator is
+  // never included. Empty when the geometry has no lines.
+  [[nodiscard]] std::optional<std::pair<int, int>> line_range_at(int position) const;
 
 private:
   struct Line {

@@ -4876,7 +4876,12 @@ void MainWindow::begin_startup_update_check() {
   // was opened at startup): it shows if the panel reappears after the last document closes.
   request_update_check(this, QStringLiteral(PATCHY_VERSION), [this](UpdateCheckResult result) {
     if (start_panel_ != nullptr) {
-      start_panel_->set_update_status(update_check_status_text(result));
+      // "Up to date" says nothing the version line above does not; clear the
+      // "Checking..." line instead of restating the version (Seth, October 2026).
+      // Updates, errors and unsupported platforms still show.
+      start_panel_->set_update_status(result.status == UpdateCheckStatus::NoUpdateAvailable
+                                          ? QString()
+                                          : update_check_status_text(result));
     }
     if (result.update.has_value()) {
       show_update_available(*result.update);

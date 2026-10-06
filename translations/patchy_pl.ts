@@ -8240,10 +8240,6 @@ RGB: %2, %3, %4</translation>
         <translation>Utworzony przez %1</translation>
     </message>
     <message>
-        <source>Code contributions from %1</source>
-        <translation>Wkład kodu od %1</translation>
-    </message>
-    <message>
         <source>GitHub: %1</source>
         <translation>GitHub: %1</translation>
     </message>
@@ -8930,6 +8926,18 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>%1 came from a grayscale document and adjusts its gray channel here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its tones will look different.</source>
         <translation>Warstwa %1 pochodzi z dokumentu w skali szarości i tutaj koryguje jego kanał szarości. Patchy zapisuje pliki RGB, więc w zapisanym pliku Photoshop i Patchy zastosują ją do RGB, a jej tony będą wyglądać inaczej.</translation>
+    </message>
+    <message>
+        <source>Don&apos;t Save</source>
+        <translation>Nie zapisuj</translation>
+    </message>
+    <message>
+        <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
+        <translation>Wspaniali ludzie, którzy podarowali sugestie, zgłoszenia błędów i kod: %1</translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation>Proporcje</translation>
     </message>
 </context>
 <context>
@@ -9716,10 +9724,6 @@ RGB: %2, %3, %4</translation>
         <translation>Anulowano kadrowanie</translation>
     </message>
     <message>
-        <source>Drag the handles or edges to adjust. Enter crops, Esc cancels.</source>
-        <translation>Przeciągnij uchwyty lub krawędzie, aby dostosować kadr. Enter zatwierdza, Esc anuluje.</translation>
-    </message>
-    <message>
         <source>%1 x %2 px</source>
         <translation>%1 x %2 piks</translation>
     </message>
@@ -10482,6 +10486,14 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Cancelled the path transform</source>
         <translation>Anulowano transformację ścieżki</translation>
+    </message>
+    <message>
+        <source>Nothing to crop: the box matches the canvas</source>
+        <translation>Nie ma czego kadrować: ramka pokrywa się z obszarem roboczym</translation>
+    </message>
+    <message>
+        <source>Crop box reset to the canvas</source>
+        <translation>Ramka kadrowania przywrócona do obszaru roboczego</translation>
     </message>
 </context>
 <context>
@@ -12564,10 +12576,6 @@ RGB: %2, %3, %4</translation>
         <translation>Zastosuj przycięcie (Enter)</translation>
     </message>
     <message>
-        <source>Cancel crop (Esc)</source>
-        <translation>Anuluj przycinanie (Esc)</translation>
-    </message>
-    <message>
         <source>Preset:</source>
         <translation>Ustawienie wstępne:</translation>
     </message>
@@ -13284,10 +13292,6 @@ RGB: %2, %3, %4</translation>
         <translation>Narzędzie</translation>
     </message>
     <message>
-        <source>Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. Shift constrains layer movement.</source>
-        <translation>Shift+kliknięcie lub %CTRL%+kliknięcie przełącza warstwy. %CTRL% + przeciągnięcie zaznacza warstwy w prostokącie; przytrzymaj Shift przed przeciągnięciem, aby dodać. Shift ogranicza ruch warstwy.</translation>
-    </message>
-    <message>
         <source>Click to place points, drag for curves. On a path: click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL% moves points.</source>
         <translation>Kliknij, aby dodać punkty, lub przeciągnij, aby tworzyć krzywe. Na ścieżce: kliknij segment, aby dodać punkt, lub punkt, aby go usunąć; %ALT%+kliknięcie zmienia typ punktu, a %CTRL% umożliwia przesuwanie punktów.</translation>
     </message>
@@ -13310,10 +13314,6 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Click a point to switch it between corner and smooth.</source>
         <translation>Kliknij punkt, aby przełączyć go pomiędzy narożnikiem a gładkim.</translation>
-    </message>
-    <message>
-        <source>Move: Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it.</source>
-        <translation>Przenieś: Shift+kliknięcie lub %CTRL%+kliknięcie przełącza warstwy. %CTRL% + przeciągnięcie zaznacza prostokąt; Shift dodaje. Przeciągnij wybraną kompozycję, aby ją przenieść.</translation>
     </message>
     <message>
         <source>Pen: click to add points, drag for curves. On a path, click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL%+drag selects or moves points.</source>
@@ -18710,6 +18710,45 @@ Y: %2
         <source>This smart object cannot be re-rendered</source>
         <translation>Tego obiektu inteligentnego nie można wyrenderować ponownie</translation>
     </message>
+    <message>
+        <source>%CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. %ALT%+drag duplicates. Shift constrains layer movement.</source>
+        <translation>%CTRL%+kliknięcie zaznacza warstwę, Shift+kliknięcie ją przełącza. %CTRL%+przeciąganie zaznacza warstwy w prostokącie; przytrzymaj Shift przed przeciąganiem, aby dodać. %ALT%+przeciąganie powiela. Shift ogranicza ruch warstwy.</translation>
+    </message>
+    <message>
+        <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
+        <translation>Przesuwanie: %CTRL%+kliknięcie zaznacza warstwę, Shift+kliknięcie ją przełącza. %CTRL%+przeciąganie zaznacza prostokąt; Shift dodaje. Przeciągnij zaznaczoną grafikę, aby ją przesunąć, %ALT%+przeciąganie, aby ją powielić.</translation>
+    </message>
+    <message>
+        <source>Reset the crop box to the canvas (Esc)</source>
+        <translation>Przywróć ramkę kadrowania do obszaru roboczego (Esc)</translation>
+    </message>
+    <message>
+        <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
+        <translation>Kadrowanie: przeciągaj uchwyty, aby przyciąć lub powiększyć obszar roboczy (%ALT% skaluje względem środka), przeciągnij wewnątrz, aby narysować nową ramkę, przeciągnij na zewnątrz, aby obrócić. Enter kadruje, Esc przywraca ramkę.</translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation>Proporcje</translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation>Rozmiar</translation>
+    </message>
+    <message>
+        <source>Ratio constrains the crop box; Size shows its exact width and height and sets them</source>
+        <translation>Proporcje ograniczają ramkę kadrowania; Rozmiar pokazuje jej dokładną szerokość i wysokość i je ustawia</translation>
+    </message>
+    <message>
+        <source>Width of the crop box</source>
+        <translation>Szerokość ramki kadrowania</translation>
+    </message>
+    <message>
+        <source>Keep the crop box&apos;s width and height in proportion</source>
+        <translation>Zachowaj proporcje szerokości i wysokości ramki kadrowania</translation>
+    </message>
+    <message>
+        <source>Height of the crop box</source>
+        <translation>Wysokość ramki kadrowania</translation>
 
     <message>
         <source>Exported %1 images</source>
@@ -20217,10 +20256,6 @@ Y: %2
     <message>
         <source>Created by %1</source>
         <translation>Utworzony przez %1</translation>
-    </message>
-    <message>
-        <source>Code contributions from %1</source>
-        <translation>Wkład kodu od %1</translation>
     </message>
     <message>
         <source>GitHub: %1</source>

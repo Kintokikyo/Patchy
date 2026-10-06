@@ -23,12 +23,21 @@ _PAGE = r"""<!DOCTYPE html>
     --good: #4fc26b; --warn: #d9a13c; --bad: #d95c4a; --accent: #5aa2e0; --line: #2e323a;
   }
   * { box-sizing: border-box; }
+  /* The page is a fixed-height row: everything (header, summary, matrix) in a scroll
+     container on the left and the detail panel beside it on the right. An open panel
+     narrows the left side instead of covering its right-hand columns, so the matrix's
+     horizontal scrollbar stays reachable. */
   body { margin: 0; background: var(--bg); color: var(--text);
-         font: 13px/1.5 "Segoe UI", system-ui, sans-serif; }
+         font: 13px/1.5 "Segoe UI", system-ui, sans-serif;
+         display: flex; height: 100vh; overflow: hidden; }
+  #page { flex: 1 1 auto; min-width: 0; overflow: auto; }
   header { padding: 14px 22px; border-bottom: 1px solid var(--line); display: flex;
            align-items: baseline; gap: 18px; flex-wrap: wrap; }
   header h1 { font-size: 17px; margin: 0; letter-spacing: .4px; }
   header .meta { color: var(--dim); font-size: 12px; }
+  header .version { color: var(--dim); font-size: 12px; font-weight: 400; }
+  #about { color: var(--dim); font-size: 12px; padding: 8px 22px 0; max-width: 1100px; }
+  #about a { color: var(--accent); }
   #state-pill { padding: 2px 10px; border-radius: 10px; font-size: 11px; background: var(--panel2); }
   #state-pill.running { color: var(--warn); }
   #state-pill.done { color: var(--good); }
@@ -83,11 +92,10 @@ _PAGE = r"""<!DOCTYPE html>
                  padding: 8px 12px; margin: 6px 0 12px; }
   .keep-banner b { color: var(--good); }
   /* The panel itself never scrolls (so the resize handle and close button stay put);
-     #detail-body inside it is the scroll container. */
-  #detail { position: fixed; right: 0; top: 0; bottom: 0; width: min(880px, 92vw);
-            background: var(--panel); border-left: 1px solid var(--line);
-            transform: translateX(102%); transition: transform .18s ease; z-index: 5; }
-  #detail.open { transform: none; }
+     #detail-body inside it is the scroll container. Closed, it takes no room. */
+  #detail { position: relative; flex: none; width: min(880px, 92vw); max-width: 96vw;
+            background: var(--panel); border-left: 1px solid var(--line); display: none; }
+  #detail.open { display: block; }
   #detail-body { height: 100%; overflow: auto; padding: 18px 22px; }
   #detail-resizer { position: absolute; left: 0; top: 0; bottom: 0; width: 7px;
                     cursor: ew-resize; }
@@ -100,6 +108,10 @@ _PAGE = r"""<!DOCTYPE html>
   #detail figcaption { color: var(--dim); font-size: 11px; margin-top: 3px; }
   #detail img { max-width: 260px; border: 1px solid var(--line); border-radius: 4px;
                 background: #fff; image-rendering: auto; display: block; cursor: zoom-in; }
+  /* A tiny render (a 4x4 blend-mode probe, a 1x1 file) is blown up by a whole number so
+     there is something to see, with hard pixels and the factor in its caption. */
+  #detail img.tiny { image-rendering: pixelated; }
+  #detail figcaption .zoom { color: var(--accent); margin-left: 4px; }
   #detail table { border-collapse: collapse; margin: 6px 0 14px; width: 100%; font-size: 12px; }
   #detail th, #detail td { border: 1px solid var(--line); padding: 4px 8px; text-align: left; }
   #detail th { background: var(--panel2); }
@@ -138,13 +150,19 @@ _PAGE = r"""<!DOCTYPE html>
 </style>
 </head>
 <body>
+<div id="page">
 <header>
   <a id="back-link" href="/" title="back to the Testy control panel" style="display:none">&larr; Back</a>
-  <h1>Testy <span style="color:var(--dim)">PSD compatibility</span></h1>
+  <h1>Testy <span style="color:var(--dim)">PSD compatibility</span> <span class="version">v2</span></h1>
   <span id="state-pill">loading</span>
   <span class="meta" id="run-meta"></span>
   <span id="run-controls"></span>
 </header>
+<div id="about">This measures one thing: how faithfully each program loads, renders and saves Photoshop
+PSD and PSB files, against Photoshop's own output. It is not a rating of the programs themselves. A low
+score means keeping documents as PSDs and moving them to and from Photoshop will lose things with that
+program, nothing more. <a href="https://github.com/SethRobinson/Patchy/blob/main/docs/testy.md">How the test works</a> &middot;
+<a href="https://github.com/SethRobinson/Patchy">Testy and Patchy on GitHub</a><span id="corpus-credit"></span></div>
 <div id="summary"></div>
 <div id="known-toggle"></div>
 <main>
@@ -152,6 +170,7 @@ _PAGE = r"""<!DOCTYPE html>
   <table class="matrix"><thead id="matrix-head"></thead><tbody id="matrix-body"></tbody></table>
   <section id="history"></section>
 </main>
+</div>
 <aside id="detail"><div id="detail-resizer"
   title="drag to resize; double-click to reset"></div><button class="close"
   onclick="closeDetail()">&times;</button><div id="detail-body"></div></aside>
@@ -707,6 +726,22 @@ function editorVersionLabel(key) {
   return versions.size > 1 ? 'mixed versions; see updated rows' : [...versions][0];
 }
 
+// The test files are somebody else's work: name them, with a link, next to the
+// explanation of the test.
+function renderCorpusCredit() {
+  const credit = S.run.corpus;
+  const span = document.getElementById("corpus-credit");
+  if (!credit || !span) return;
+  const link = (url, text) => { const a = document.createElement("a"); a.href = url; a.textContent = text; return a; };
+  span.textContent = "";
+  span.append(document.createElement("br"), "Test files: the ");
+  span.append(link(credit.url, credit.name));
+  span.append(" of the ", link(credit.projectUrl, credit.project + " project"),
+              " (" + credit.license + " license)" +
+              (credit.commit ? ", commit " + credit.commit.slice(0, 12) : "") +
+              ". Only the renders are shown here, never the files.");
+}
+
 function render() {
   if (!S) return;
   const pill = document.getElementById("state-pill");
@@ -718,6 +753,7 @@ function render() {
   renderControls();
   const compareWord = S.run.compare === "perceptual" ? "perceptual" : "byte";
   const corpusBytes = totalSize(S.files);
+  renderCorpusCredit();
   document.getElementById("run-meta").textContent =
     S.run.startedAt + "  -  " + S.files.length + " file(s)" +
     (corpusBytes ? ", " + fmtSize(corpusBytes) : "") + "  -  Patchy " + (S.run.patchyVersion || "?") +
@@ -895,8 +931,27 @@ function img(fig, cap, full) {
   if (!fig) return "";
   const version = "?v=" + (S.run.updateCounter || 0);
   return "<figure><a href='" + artUrl(full || fig) + version + "' target='_blank' title='open full size'>" +
-         "<img src='" + artUrl(fig) + version + "'></a>" +
+         "<img src='" + artUrl(fig) + version + "' onload='zoomTiny(this)'></a>" +
          "<figcaption>" + cap + "</figcaption></figure>";
+}
+
+// Images whose longer side is under 64 px are scaled up by a whole number (at most
+// 40x) until that side is at least 120 px, with nearest-neighbour sampling, and the
+// caption says so; everything larger keeps its natural size.
+function zoomTiny(image) {
+  const w = image.naturalWidth, h = image.naturalHeight;
+  if (!w || !h || Math.max(w, h) >= 64) return;
+  const factor = Math.max(2, Math.min(40, Math.ceil(120 / Math.max(w, h))));
+  image.classList.add("tiny");
+  image.style.width = (w * factor) + "px";
+  image.style.height = (h * factor) + "px";
+  const caption = image.closest("figure") && image.closest("figure").querySelector("figcaption");
+  if (caption && !caption.querySelector(".zoom")) {
+    const note = document.createElement("span");
+    note.className = "zoom";
+    note.textContent = "(" + w + "\u00d7" + h + " shown at " + factor + "\u00d7)";
+    caption.append(" ", note);
+  }
 }
 
 function openDetail(fi, ek, keep) {

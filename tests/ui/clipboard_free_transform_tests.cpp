@@ -2265,8 +2265,13 @@ void ui_move_off_canvas_keeps_rectangle_handles_pan_and_locks() {
     CHECK(!canvas->free_transform_active());
     CHECK(canvas->active_layer_document_rect() == original);
   }
+  // Without transform controls the layer is still grabbed where it lies, on the
+  // pasteboard like on the canvas (October 2026): the drag moves it, and the
+  // reverse drag brings it back.
   canvas->set_show_transform_controls(false);
   drag(*canvas, center, center + QPoint(30, 20));
+  CHECK(canvas->active_layer_document_rect() == original.translated(30, 20));
+  drag(*canvas, center + QPoint(30, 20), center);
   CHECK(canvas->active_layer_document_rect() == original);
   canvas->set_show_transform_controls(true);
   canvas->set_spacebar_panning(true);
@@ -2539,6 +2544,61 @@ void ui_free_transform_drag_small_doc_stays_live() {
 // live composited-preview frame must latch the proxy on the next move. The
 // zero env threshold makes any live frame count as slow, so the test is
 // deterministic on every machine.
+// GitHub issue 72: a plain layer with visible content above it must preview through the
+// stacked patches, not the source blit, or the layers above sit under the preview for the
+// whole drag (a shape under other layers appeared to jump to the top until Enter).
+void ui_free_transform_keeps_layers_above_visible_mid_drag() {
+  patchy::Document document(300, 200, patchy::PixelFormat::rgba8());
+  document.add_pixel_layer("Background", solid_pixels(300, 200, patchy::PixelFormat::rgba8(), QColor(Qt::white)));
+  patchy::Layer shape(document.allocate_layer_id(), "Shape",
+                      solid_pixels(80, 80, patchy::PixelFormat::rgba8(), QColor(220, 30, 30, 255)));
+  shape.set_bounds(patchy::Rect{60, 60, 80, 80});
+  const auto shape_id = shape.id();
+  document.add_layer(std::move(shape));
+  patchy::Layer over(document.allocate_layer_id(), "Over",
+                     solid_pixels(40, 40, patchy::PixelFormat::rgba8(), QColor(30, 60, 220, 255)));
+  over.set_bounds(patchy::Rect{100, 100, 40, 40});
+  document.add_layer(std::move(over));
+  document.set_active_layer(shape_id);
+
+  patchy::ui::MainWindow window;
+  window.add_document_session(std::move(document), QStringLiteral("Layers Above"));
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_zoom(1.0);
+  require_action_by_text(window, QStringLiteral("Move"))->trigger();
+  canvas->set_show_transform_controls(true);
+  QApplication::processEvents();
+  CHECK(patchy::ui::MainWindowTestAccess::document(window).active_layer_id() == shape_id);
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(110, 110)), QColor(30, 60, 220), 20));
+
+  // Scale the shape outward from its bottom-right handle so it still runs under "Over".
+  const auto corner = canvas->widget_position_for_document_point(QPoint(140, 140));
+  send_mouse(*canvas, QEvent::MouseButtonPress, corner, Qt::LeftButton, Qt::LeftButton);
+  QApplication::processEvents();
+  CHECK(canvas->free_transform_active());
+  send_mouse(*canvas, QEvent::MouseMove, corner + QPoint(20, 20), Qt::NoButton, Qt::LeftButton);
+  QApplication::processEvents();
+  send_mouse(*canvas, QEvent::MouseMove, corner + QPoint(30, 30), Qt::NoButton, Qt::LeftButton);
+  QApplication::processEvents();
+
+  // Mid-drag: "Over" still covers the shape where they overlap, and the scaled shape shows
+  // past its old edge.
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(110, 110)), QColor(30, 60, 220), 20));
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(155, 155)), QColor(220, 30, 30), 20));
+
+  send_mouse(*canvas, QEvent::MouseButtonRelease, corner + QPoint(30, 30), Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(110, 110)), QColor(30, 60, 220), 20));
+  auto* cancel = window.findChild<QPushButton*>(QStringLiteral("freeTransformCancelButton"));
+  CHECK(cancel != nullptr);
+  if (cancel != nullptr) {
+    cancel->click();
+  }
+  QApplication::processEvents();
+  CHECK(!canvas->free_transform_active());
+}
+
 void ui_free_transform_slow_frame_latches_proxy() {
   EnvironmentVariableRestorer restore_latch("PATCHY_MOVE_LIVE_LATCH_MS");
   qputenv("PATCHY_MOVE_LIVE_LATCH_MS", QByteArray("0"));
@@ -2760,6 +2820,7 @@ std::vector<patchy::test::TestCase> clipboard_free_transform_tests() {
       {"ui_free_transform_drag_proxy_engages_above_threshold",
        ui_free_transform_drag_proxy_engages_above_threshold},
       {"ui_free_transform_drag_small_doc_stays_live", ui_free_transform_drag_small_doc_stays_live},
+      {"ui_free_transform_keeps_layers_above_visible_mid_drag", ui_free_transform_keeps_layers_above_visible_mid_drag},
       {"ui_free_transform_slow_frame_latches_proxy", ui_free_transform_slow_frame_latches_proxy},
       {"ui_free_transform_scaled_base_zoomed_out", ui_free_transform_scaled_base_zoomed_out},
       {"ui_edit_conversion_scanline_rewrites_are_byte_identical",

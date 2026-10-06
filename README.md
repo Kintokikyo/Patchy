@@ -16,7 +16,7 @@ For bug reports and feature requests, please [open an issue](https://github.com/
 
 ## Download
 
-**Latest release: 1.05** · October 4, 2026 · [Release notes](#whats-new) · [All releases](https://github.com/SethRobinson/Patchy/releases)
+**Latest release: 1.06** · October 6, 2026 · [Release notes](#whats-new) · [All releases](https://github.com/SethRobinson/Patchy/releases)
 
 Windows releases are code signed by Seth A. Robinson; the macOS app is signed and
 notarized (Robinson Technologies Corporation); the Linux Flatpak repository is GPG
@@ -90,7 +90,7 @@ See it in action.  Click an image for the full-size capture.
 | **Text and vectors** | Rich and vertical text, paragraph controls, Warp Text, Pen paths, shape layers, vector masks, SVG, and image tracing. |
 | **PDF documents** | Import pages as editable text, vectors, and images on desktop; export single or multi-page PDFs with editable or flattened content. |
 | **Photos and other formats** | Camera Raw development, HEIC/HEIF photos, layered Affinity import, and common image formats. |
-| **Pixel art and game assets** | Named palettes, indexed export, seamless tiling, sprite sheets, image sequences, and animated GIFs. |
+| **Pixel art and game assets** | Named palettes, indexed export, seamless tiling, sprite sheets, image sequences, and animated GIF and WebP. |
 | **Extend your workflow** | Legacy Photoshop filters on Windows, JavaScript scripts, batch processing, command-line tools, and local MCP control. |
 
 [Full feature list and format support](docs/features.md) · [Scripting guide](scripts/bundled/scripting-guide.md) · [AI control setup](docs/ai-control.md)
@@ -103,12 +103,21 @@ schemes, and importable themes are included.
 
 ## PSD compatibility, measured
 
-In the August 7, 2026 Testy run, Photoshop reopened **all 64 Patchy saves**, and
-**all 312 text objects stayed editable**. Patchy's perceptual render match was
-**98.83% across 63 measured files**, using commit `879a3a8`.
+In the [October 6, 2026 Testy v2 run](https://www.rtsoft.com/testy/2026-10-06/),
+Patchy opened **all 309 files** of the psd-tools test collection, and Photoshop
+reopened **every Patchy save** with **all 43 text objects, 183 adjustment layers,
+172 Smart Objects, and 181 live effects** kept. Patchy's perceptual render match
+was **89.8%**, the highest of the seven programs tested against Photoshop's
+reference, using commit `57ba855c`.
 
-These are dated, corpus-specific results. Read the [full comparison and methodology](docs/psd-compatibility-benchmark.md)
-for tested versions, per-file results, preservation checks, and limitations.
+Testy v2 scores each program on what it draws itself: the baked pixels Photoshop
+stores for text, shapes, fills, and Smart Objects are removed first. That is
+stricter than the August run, so the two sets of numbers are not comparable.
+
+These are dated, corpus-specific results. The linked report has every file's
+renders and difference maps for all eight columns. Read the
+[full comparison and methodology](docs/psd-compatibility-benchmark.md) for the
+tables, per-folder results, scoring rules, and limitations.
 
 **Know the limits:** editing is RGB/RGBA 8-bit; there is no GPU acceleration or
 CMYK/Lab/16-bit/32-bit editing. Unsupported Smart Filters can remain preview-locked,
@@ -116,6 +125,22 @@ and Affinity import has format-specific limitations. See [current compatibility]
 
 ## What's New
 
+### 1.06 - October 6, 2026
+
+- Crop tool: it frames the canvas when selected, adopts the current selection, and has a Style menu with a Size mode for typing an exact Width and Height. Alt resizes the box about its center and Space slides it during a handle drag ([issue 66](https://github.com/SethRobinson/Patchy/issues/66))
+- Move tool: Alt-drag duplicates the layer, Ctrl+click selects the layer under the pointer, the Auto-Select setting is remembered, and artwork on the pasteboard can be outlined and grabbed ([issue 69](https://github.com/SethRobinson/Patchy/issues/69), [issue 73](https://github.com/SethRobinson/Patchy/issues/73))
+- Zoom In/Out and Zoom tool clicks step along Photoshop's zoom levels, and 100% is one document pixel per screen pixel on scaled displays ([issue 77](https://github.com/SethRobinson/Patchy/issues/77), [issue 75](https://github.com/SethRobinson/Patchy/issues/75))
+- Changing the foreground color or picking with the Eyedropper recolors the selected shape ([issue 67](https://github.com/SethRobinson/Patchy/issues/67))
+- Text: the keypad Enter key commits the text and a triple click selects a line ([issue 71](https://github.com/SethRobinson/Patchy/issues/71), [issue 74](https://github.com/SethRobinson/Patchy/issues/74))
+- Closing a modified document offers Save, Don't Save, and Cancel ([issue 70](https://github.com/SethRobinson/Patchy/issues/70)), the color picker opens with the hex field selected ([issue 68](https://github.com/SethRobinson/Patchy/issues/68)), options-bar labels are plain text instead of chips ([issue 76](https://github.com/SethRobinson/Patchy/issues/76)), and double-clicking a New Document preset creates the document
+- PSD compatibility: Bitmap, Indexed, Duotone, Lab and Multichannel PSDs open by converting to RGB, adjustment layers in CMYK and grayscale documents apply to their own channels, and the Exposure adjustment layer is supported. Stroke effects on semi-transparent content, group Fill opacity, noise gradient fills, Divide, Levels and Posterize are closer to Photoshop ([issue 65](https://github.com/SethRobinson/Patchy/issues/65))
+- Selection Feather and Anti-alias are kept per tool and remembered between sessions ([issue 64](https://github.com/SethRobinson/Patchy/issues/64))
+- Layers above a layer being transformed stay visible during the drag ([issue 72](https://github.com/SethRobinson/Patchy/issues/72)), and clicking a blank area of the Layers panel deselects every layer
+- Scripting: `layer.rerenderText()` and `layer.rerenderSmartObject()`
+  
+- Testy V2 written, it's a more accurate way to test PSD compatibilty of various apps,, it's a WIP but you can see a run [here](https://www.rtsoft.com/testy/2026-10-06/).  
+
+- I added some people to the credits (Kevdoy had a TON of bug reports today), thanks folks!)  But then the credits got too big, so I moved them to the Help->About screen as being on the main screen actually hurt the real-estate needed to show more recent files.  If anybody is like "no, don't put me in the credits, jerk" just let me know.
 ### 1.05 - October 4, 2026
 
 - Linux: Patchy now updates through `flatpak update` and the software center, from a signed Flatpak repository ([issue 28](https://github.com/SethRobinson/Patchy/issues/28)). The Flatpak moved to the current KDE runtime, and iPhone HEIC photos open without installing an extra codec package
@@ -124,14 +149,6 @@ and Affinity import has format-specific limitations. See [current compatibility]
 - Type tool: pressing on a text layer and dragging selects text in one gesture, without a second click to enter editing first
 - Windows installer: Patchy now appears under Explorer's "Open with" for the image types it opens, without changing any default program
 - Fixed a freeze on KDE when a drag crossed the layer action buttons ([issue 62](https://github.com/SethRobinson/Patchy/issues/62))
-
-### 1.04 - October 3, 2026
-
-- Edit shape appearance and layer styles across selected layers, with mixed-value indicators, live previews, and one undo step per edit
-- Merge selected vectors into one editable vector layer, with a preview and a choice to remove layer effects or use the effects from one source layer
-- Fixed caps on inside and outside dashed vector strokes, and pattern thumbnails in Shape Appearance
-- Windows installer: clearer status spacing and a visible version number
-
 
 [Older releases](RELEASE-HISTORY.md)
 
@@ -173,7 +190,7 @@ Note:  All included textures/materials are real images taken by humans, not AI g
 
 AI has reached the point where you can use your favorite AI agent to add the missing feature you want.
 
-Just give it the link to this repo and say "Add .tiff support" and after a bit, it will be done and working on your computer.  Amazing, right?
+Just give it the link to this repo and tell it "read AGENTS.md and add feature X to this project".  It will read the code, read the tests, and add the feature.
 
 I mean, that's kind the power of open source, amplified.
 
@@ -193,6 +210,6 @@ Also, note that certain features are crippled or not included due to Adobe paten
 
 Created by Seth A. Robinson - [Homepage](https://www.rtsoft.com/) | [Blog](https://www.codedojo.com/) | [Twitter](https://twitter.com/rtsoft) | [Bluesky](https://bsky.app/profile/rtsoft.com) | [Mastodon](https://mastodon.gamedev.place/@rtsoft)
 
-Code contributions from [mcapogna](https://github.com/mcapogna), [csbun](https://github.com/csbun), [ifloppy](https://github.com/ifloppy), and [lucastucious](https://github.com/lucastucious)
+Incredible people who donated suggestions, bug reports, and code: [mcapogna](https://github.com/mcapogna), [csbun](https://github.com/csbun), [ifloppy](https://github.com/ifloppy), [lucastucious](https://github.com/lucastucious), [c-sanchez](https://github.com/c-sanchez), [egofree71](https://github.com/egofree71), [PorkingMane](https://github.com/PorkingMane), [alexanderadam](https://github.com/alexanderadam), [danielmigueltejedor](https://github.com/danielmigueltejedor), [ProShi](https://github.com/ProShi), [Kevdoy](https://github.com/Kevdoy), [popkc3](https://github.com/popkc3), [WinterTreat](https://github.com/WinterTreat), [jackpini](https://github.com/jackpini), and [fivetenth](https://github.com/fivetenth)
 
 Photo "akiko_cycling_okinawa" (seen in the screenshots) by Seth A. Robinson

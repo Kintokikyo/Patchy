@@ -180,7 +180,7 @@ bool CanvasWidget::eventFilter(QObject* watched, QEvent* event) {
     auto* key_event = static_cast<QKeyEvent*>(event);
     if (!key_event->isAutoRepeat() &&
         (key_event->key() == Qt::Key_Shift || key_event->key() == Qt::Key_Alt ||
-         (key_event->key() == Qt::Key_Control && pen_family_tool_active()))) {
+         (key_event->key() == Qt::Key_Control && (pen_family_tool_active() || tool_ == CanvasTool::Move)))) {
       // The event reports the modifier state before this key, so fold the
       // pressed/released key into the modifiers we evaluate.
       const auto bit = key_event->key() == Qt::Key_Shift   ? Qt::ShiftModifier
@@ -207,6 +207,11 @@ bool CanvasWidget::eventFilter(QObject* watched, QEvent* event) {
           update_tool_cursor();
           pen_cursor_modifier_override_.reset();
         }
+      } else if (key_event->key() == Qt::Key_Control && tool_ == CanvasTool::Move) {
+        // With Auto-Select off, Ctrl held over artwork previews the layer a
+        // click would select (GitHub issue 73); refresh the outline from the
+        // folded modifiers at the last pointer position, no motion needed.
+        update_move_hover_outline(last_mouse_position_, modifiers);
       } else if (key_event->key() == Qt::Key_Alt && tool_uses_alt_left_for_color_pick(tool_) &&
                  !painting_ && !drawing_shape_) {
         // Alt is the temporary-eyedropper modifier for paint/shape/fill tools;
@@ -219,7 +224,17 @@ bool CanvasWidget::eventFilter(QObject* watched, QEvent* event) {
         alt_color_pick_cursor_override_.reset();
       } else {
         const auto mode = selection_operation(modifiers);
-        apply_selection_cursor_for_mode(mode);
+        // Over a marquee resize handle the resize cursor stays whatever the
+        // modifier: Alt there mirrors, it does not subtract (GitHub issue 66).
+        // The Options-bar badge still follows the combine mode.
+        const auto handle = tool_ == CanvasTool::Marquee || tool_ == CanvasTool::EllipticalMarquee
+                                ? marquee_resize_handle_at(last_mouse_position_)
+                                : TransformHandle::None;
+        if (handle != TransformHandle::None) {
+          set_transform_cursor_for_handle(handle);
+        } else {
+          apply_selection_cursor_for_mode(mode);
+        }
         if (selection_mode_changed_callback_) {
           selection_mode_changed_callback_(mode);
         }
@@ -230,6 +245,16 @@ bool CanvasWidget::eventFilter(QObject* watched, QEvent* event) {
 }
 
 bool CanvasWidget::event(QEvent* event) {
+  if (event->type() == QEvent::DevicePixelRatioChange) {
+    // The logical scale stays put when the window lands on a differently
+    // scaled screen, so the view zoom (per device pixel) changes: refresh the
+    // readout and the mip/renderer choices that follow it (GitHub issue 75).
+    const auto handled = QWidget::event(event);
+    update_tool_cursor();
+    update();
+    notify_view_changed();
+    return handled;
+  }
   if (event->type() == QEvent::ShortcutOverride) {
     if (processing_render_wait_active_) {
       // A blocking processing wait is live and the canvas has focus (every
@@ -639,8 +664,9 @@ void CanvasWidget::mousePressEvent(QMouseEvent* event) {
   }
 
   if (tool_ == CanvasTool::Crop && crop_session_active_ && event->button() == Qt::LeftButton) {
-    // Handles adjust, the interior moves, and a press off the rect starts a
-    // replacement drag-out (a mere click keeps the pending rect alive).
+    // Handles adjust, the interior of a custom box moves it, a press on the
+    // canvas inside the default frame lays out a new box, and a press off the
+    // box rotates it (a mere click keeps the pending rect alive).
     handle_crop_session_press(event);
     event->accept();
     return;
@@ -906,7 +932,9 @@ void CanvasWidget::mousePressEvent(QMouseEvent* event) {
     {
       const ZoomTraceScope hit_trace("move_press.hit_test", zoom_);
       top_clicked_layer = topmost_move_layer_at(document_point, false);
-      clicked_layer = document_contains(document_point) ? topmost_move_layer_at(document_point, true) : nullptr;
+      // The pasteboard picks like the canvas: a layer lying outside the document
+      // is grabbed by its (unpainted) pixels there.
+      clicked_layer = topmost_move_layer_at(document_point, true);
     }
     if (event->modifiers().testFlag(Qt::ControlModifier)) {
       begin_move_layer_selection(event, clicked_layer, true);
@@ -945,10 +973,10 @@ void CanvasWidget::mousePressEvent(QMouseEvent* event) {
       begin_move_layer_selection(event, clicked_layer, false);
       return;
     }
-    // The selected box remains a Move target on the pasteboard even though
-    // auto-select only picks artwork inside the document. With auto-select
-    // off, any workspace press can move the selection, including a press
-    // outside its box; passive controls must not consume that first drag.
+    // The selected box remains a Move target on the pasteboard where no
+    // artwork is under the pointer. With auto-select off, any workspace press
+    // can move the selection, including a press outside its box; passive
+    // controls must not consume that first drag.
     const bool move_selected_layers = !auto_select_layer_ ||
         (!document_contains(document_point) && passive_handle == TransformHandle::Move);
     if (!move_selected_layers && clicked_layer == nullptr) {
@@ -1015,17 +1043,36 @@ void CanvasWidget::mousePressEvent(QMouseEvent* event) {
       }
       return;
     }
+    // Alt-drag duplicates (GitHub issue 69). The copy is of the selection roots,
+    // not the flattened leaves, so a folder copies as a folder; it is made on
+    // the first drag frame, never on a bare Alt+click.
+    std::vector<LayerId> duplicate_roots;
+    if (event->modifiers().testFlag(Qt::AltModifier) && move_duplicate_requested_callback_) {
+      const bool hit_outside_selection =
+          hit_layer != nullptr && std::find(selected_layer_ids_.begin(), selected_layer_ids_.end(),
+                                            hit_layer->id()) == selected_layer_ids_.end();
+      if (hit_outside_selection) {
+        duplicate_roots.push_back(hit_layer->id());
+      } else {
+        duplicate_roots = selected_layer_ids_;
+        if (duplicate_roots.empty() && document_->active_layer_id().has_value()) {
+          duplicate_roots.push_back(*document_->active_layer_id());
+        }
+      }
+    }
     {
       const ZoomTraceScope begin_trace("move_press.begin_move_drag", zoom_);
-      begin_move_drag(layer_ids, document_point, event->pos());
+      begin_move_drag(layer_ids, document_point, event->pos(), std::move(duplicate_roots));
     }
     return;
   }
 
-  if (const auto handle = marquee_resize_handle_at(event->pos(), event->modifiers());
+  if (const auto handle = marquee_resize_handle_at(event->pos());
       event->button() == Qt::LeftButton && handle != TransformHandle::None && marquee_shape_.has_value()) {
     // Grab an edge or corner handle of a committed marquee to resize it. Tested
     // before the interior move because the handles overlap the interior edge.
+    // Modifiers do not demote the grab: Alt here is the symmetric resize and
+    // Shift the held aspect, never Subtract/Add (GitHub issue 66).
     marquee_resize_handle_ = handle;
     marquee_resize_start_rect_ = marquee_shape_->rect;
     marquee_resize_current_rect_ = marquee_shape_->rect;
@@ -1527,6 +1574,11 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
       (event->buttons() & Qt::LeftButton) != 0) {
     clear_move_hover_outline();
     update_crop_adjust_drag(document_position_f(event->position()), event->modifiers());
+    if (spacebar_repositioning_drag_rect_) {
+      setCursor(Qt::SizeAllCursor);
+    } else {
+      set_transform_cursor_for_handle(crop_drag_handle_);
+    }
     last_mouse_position_ = event->pos();
     return;
   }
@@ -1627,6 +1679,19 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
         last_mouse_position_ = event->pos();
         return;
       }
+      if (!move_drag_duplicate_roots_.empty()) {
+        // Alt-drag (GitHub issue 69): the duplicate is made only now that the
+        // press became a drag, so an Alt+click never leaves a copy behind. The
+        // host selects the copies; the drag continues with them. A refused
+        // request keeps the originals moving.
+        auto roots = std::move(move_drag_duplicate_roots_);
+        move_drag_duplicate_roots_.clear();
+        if (move_duplicate_requested_callback_ && move_duplicate_requested_callback_(std::move(roots))) {
+          if (const auto copies = movable_layer_ids(); !copies.empty()) {
+            begin_move_drag(copies, move_start_, move_press_widget_position_);
+          }
+        }
+      }
       old_transform_controls_rect = move_transform_controls_rect();
       move_drag_pending_ = false;
       moving_layer_ = true;
@@ -1722,7 +1787,7 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
     ensure_move_base_cache();
     // Display-resolution compositing: at zoom <= 50% the live patches render
     // from the preview-scaled document at the display mip level.
-    const auto composite_level = preview_composite_level_for_zoom(zoom_);
+    const auto composite_level = preview_composite_level_for_zoom(view_zoom());
     Document* scaled_preview_document =
         composite_level >= 1 ? preview_scaled_document_for_level(composite_level) : nullptr;
     const QRegion canvas_region(QRect(0, 0, document_->width(), document_->height()));
@@ -1748,7 +1813,7 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
     // scaled patch rects map exactly between the two documents); see
     // draw_document_patch in paintEvent.
     if (const auto align_level =
-            scaled_preview_document != nullptr ? composite_level : display_mip_level_for_zoom(zoom_);
+            scaled_preview_document != nullptr ? composite_level : display_mip_level_for_zoom(view_zoom());
         align_level > 0 && !patch_region.isEmpty()) {
       QRegion aligned_region;
       for (const auto& rect : patch_region) {
@@ -1935,9 +2000,10 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
           }
         }
       }
-      if (const auto handle = marquee_resize_handle_at(event->pos(), event->modifiers());
+      if (const auto handle = marquee_resize_handle_at(event->pos());
           handle != TransformHandle::None) {
-        // Signal that grabbing here resizes the committed marquee.
+        // Signal that grabbing here resizes the committed marquee (with any
+        // modifier: Alt mirrors, it does not subtract).
         set_transform_cursor_for_handle(handle);
       } else if (can_move_selection_at(document_point, event->modifiers())) {
         // Signal that grabbing here drags the selection outline.
@@ -1948,6 +2014,9 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
         // Signal that grabbing here drags the patch region to its source.
         setCursor(Qt::SizeAllCursor);
       } else {
+        // The idle tool cursor reads last_mouse_position_ (the marquee and
+        // crop handle checks), so it must already be this event's position.
+        last_mouse_position_ = event->pos();
         update_tool_cursor();
       }
       update_move_hover_outline(event->pos(), event->modifiers());
@@ -2707,7 +2776,11 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
       } else {
         // A click in the grey margin zooms toward the nearest point on the
         // document frame rather than toward the empty space under the cursor.
-        zoom_at_widget_point(zoom_click_anchor(event->position()), zoom_out ? 0.5 : 2.0);
+        // The step follows Photoshop's zoom ladder (GitHub issue 77): from a
+        // rung to its neighbour, from between rungs to the next one.
+        const auto current_view_zoom = view_zoom();
+        const auto next_view_zoom = next_zoom_ladder_step(current_view_zoom, !zoom_out);
+        zoom_at_widget_point(zoom_click_anchor(event->position()), next_view_zoom / current_view_zoom);
       }
     }
     emit_info_for_widget_position(event->pos());
@@ -3240,7 +3313,9 @@ void CanvasWidget::keyPressEvent(QKeyEvent* event) {
 
   if (tool_ == CanvasTool::Crop && (crop_session_active_ || crop_dragging_out_)) {
     if (event->key() == Qt::Key_Escape) {
-      cancel_crop_session();
+      // Esc puts the box back around the canvas (Photoshop); only a tool
+      // switch ends the session.
+      reset_crop_session_to_canvas();
       event->accept();
       return;
     }
@@ -3315,6 +3390,15 @@ void CanvasWidget::keyPressEvent(QKeyEvent* event) {
       spacebar_reposition_last_document_position_ = spacebar_reposition_origin_document_position_;
       spacebar_reposition_start_marquee_rect_ = marquee_resize_current_rect_;
       spacebar_reposition_start_marquee_start_rect_ = marquee_resize_start_rect_;
+      setCursor(Qt::SizeAllCursor);
+    } else if (crop_drag_handle_ != TransformHandle::None) {
+      // Same for a crop handle drag: the box slides whole, and the drag-start
+      // rect follows so releasing Space resumes the resize in place.
+      spacebar_repositioning_drag_rect_ = true;
+      spacebar_reposition_origin_document_position_ = document_position(last_mouse_position_);
+      spacebar_reposition_last_document_position_ = spacebar_reposition_origin_document_position_;
+      spacebar_reposition_start_marquee_rect_ = crop_rect_;
+      spacebar_reposition_start_marquee_start_rect_ = crop_drag_start_rect_;
       setCursor(Qt::SizeAllCursor);
     } else if (drawing_shape_ || crop_dragging_out_) {
       spacebar_repositioning_drag_rect_ = true;

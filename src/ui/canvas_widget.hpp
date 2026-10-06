@@ -414,13 +414,22 @@ public:
   [[nodiscard]] bool pointer_gesture_active() const noexcept;
   [[nodiscard]] double zoom() const noexcept;
   void set_zoom(double zoom);
+  // The zoom the user sees: document pixels per DEVICE pixel, so 100% is one
+  // document pixel per screen pixel on every display (Photoshop's rule; GitHub
+  // issue 75). zoom() stays the logical, widget-unit scale that every geometry
+  // caller uses; the two differ by devicePixelRatioF() on a scaled display.
+  // Readouts, presets, the status box and scripting speak view zoom.
+  [[nodiscard]] double view_zoom() const noexcept;
+  void set_view_zoom(double view_zoom);
+  void set_view_zoom_centered(double view_zoom);
   // Absolute zoom anchored at the viewport center, Photoshop-style: the anchor
   // is clamped to the document bounds (so a view left off-center never pins
   // grey margin), then per axis the document is centered when it fits the
   // viewport and clamped to show no grey past its edges when it overflows. UI
   // zoom presets (menu Zoom In/Out, Actual Pixels, the zoom-tool double-click,
-  // the status-bar zoom box) must use this instead of set_zoom, which
-  // preserves pan and can leave the canvas mostly off screen.
+  // the status-bar zoom box) must use this (through set_view_zoom_centered)
+  // instead of set_zoom, which preserves pan and can leave the canvas mostly
+  // off screen.
   void set_zoom_centered(double zoom);
   // In-canvas seamless tiling mode (View > Seamless Tiling in Window): paints wrap
   // copies of the committed composite around the document so tile seams are visible
@@ -988,18 +997,31 @@ public:
   [[nodiscard]] std::optional<TransformControlsState> transform_controls_state() const;
   bool set_transform_controls_state(QPointF reference_position, double scale_x_percent,
                                     double scale_y_percent, double rotation_degrees);
-  // Crop tool session (canvas_widget_crop.cpp): drag out a rect, adjust it via
-  // handles, drag outside it to rotate the box, Enter/Apply commits through the
-  // crop-commit callback, Esc cancels. The rect lives in document space and may
-  // extend past the canvas; the commit handler expands the document.
+  // Crop tool session (canvas_widget_crop.cpp). Picking the tool frames the
+  // canvas (or the active selection) with handles; a drag inside that default
+  // box lays out a new rect, handles adjust, the interior of a custom box moves
+  // it, a drag off the box rotates it, Enter/Apply commits through the
+  // crop-commit callback, Esc resets the box to the canvas. The rect lives in
+  // document space and may extend past the canvas; the commit handler expands
+  // the document. Switching tools cancels (never commits).
   [[nodiscard]] bool crop_session_active() const noexcept;
   [[nodiscard]] std::optional<QRect> crop_session_rect() const noexcept;
+  // True once the box differs from the unrotated whole canvas: the Apply and
+  // reset buttons, the no-op commit guard, and the recovery busy check key on it.
+  [[nodiscard]] bool crop_session_has_changes() const noexcept;
   // Box rotation in degrees about the rect center (0 until rotated).
   [[nodiscard]] double crop_session_angle() const noexcept;
   void commit_crop_session();
   void cancel_crop_session();
+  // Puts the box back around the whole canvas (ratio-fitted), angle 0; Esc and
+  // the options-bar X. Starts the session when the Crop tool has none.
+  void reset_crop_session_to_canvas();
+  // Resizes the pending box to `size` pixels about its center (the options-bar
+  // Size fields); the box becomes custom. Ignored without a session.
+  void set_crop_session_size(QSize size);
   // Aspect constraint for new drag-outs and corner-handle drags. Both values
-  // must be > 0 to constrain; changing it never retro-resizes a pending rect.
+  // must be > 0 to constrain; a change re-fits the pending box inside itself
+  // about its center (GitHub issue 66).
   void set_crop_ratio(double width, double height) noexcept;
   [[nodiscard]] double crop_ratio_width() const noexcept;
   [[nodiscard]] double crop_ratio_height() const noexcept;
@@ -1219,6 +1241,12 @@ public:
   // itself directly. Empty layer_ids means "deselect every layer" (the host
   // also clears the document's active layer); active_id is unused then.
   void set_layer_selection_requested_callback(std::function<void(std::vector<LayerId>, LayerId)> callback);
+  // Alt-drag with the Move tool (GitHub issue 69): asked once, when the press
+  // turns into a drag, to duplicate these selection roots. The host duplicates
+  // them, selects the copies (set_selected_layer_ids) and returns true; the
+  // canvas then drags movable_layer_ids(), the copies. False keeps the
+  // originals moving. Unset, Alt-drag is a plain move.
+  void set_move_duplicate_requested_callback(std::function<bool(std::vector<LayerId>)> callback);
   // Commit of a pending crop rect + box angle (document geometry lives on
   // MainWindow).
   void set_crop_commit_requested_callback(std::function<void(QRect, double)> callback);
@@ -1614,7 +1642,13 @@ private:
   // reaped later, once its pick has finished or at the next menu at the same loop level.
   void retire_canvas_context_menu(QMenu* menu);
   void reap_retired_context_menus();
-  void begin_move_drag(const std::vector<LayerId>& layer_ids, QPoint document_point, QPoint widget_point);
+  // `duplicate_roots` non-empty: an Alt press (GitHub issue 69); the first
+  // drag frame asks move_duplicate_requested_callback_ to copy those roots and
+  // then drags the copies.
+  void begin_move_drag(const std::vector<LayerId>& layer_ids, QPoint document_point, QPoint widget_point,
+                       std::vector<LayerId> duplicate_roots = {});
+  // kMinZoom/kMaxZoom bound the VIEW zoom; this clamps a logical scale to them.
+  [[nodiscard]] double clamp_logical_zoom(double logical_zoom) const noexcept;
   void begin_move_layer_selection(QMouseEvent* event, const Layer* clicked_layer, bool rectangle_allowed);
   bool update_move_layer_selection(QMouseEvent* event);
   void finish_move_layer_selection(QMouseEvent* event);
@@ -1884,6 +1918,14 @@ private:
   void nudge_crop_rect(QPoint delta);
   void notify_crop_session_changed();
   void reset_crop_session_state();
+  // Frames the canvas, or the active selection's bounds (which override the
+  // ratio), when the Crop tool is current and a document is set; a no-op
+  // otherwise. Called on tool pick, document swap, and unlock.
+  void begin_default_crop_session();
+  // The largest rect of the set ratio inside `within`, centered; `within`
+  // itself when no ratio is set.
+  [[nodiscard]] QRect ratio_fitted_crop_rect(QRect within) const;
+  [[nodiscard]] QRect canvas_document_rect() const noexcept;
   void draw_crop_overlay(QPainter& painter) const;
   // Patch tool drag lifecycle (canvas_widget_patch_tool.cpp). The drag shows
   // only a raw translated copy of the frozen snapshot; the heal is computed
@@ -1920,8 +1962,7 @@ private:
   // The remembered marquee rect while a marquee tool can resize it (not in
   // Quick Mask, no gesture in flight); nullopt hides the handles.
   [[nodiscard]] std::optional<QRect> resizable_marquee_rect() const;
-  [[nodiscard]] TransformHandle marquee_resize_handle_at(QPoint widget_point,
-                                                          Qt::KeyboardModifiers modifiers) const;
+  [[nodiscard]] TransformHandle marquee_resize_handle_at(QPoint widget_point) const;
   void update_marquee_resize_drag(QPoint document_point, Qt::KeyboardModifiers modifiers);
   void apply_marquee_resize_rect(QRect rect);
   // True while a gesture rewrites selection_ on every pointer move (a Replace
@@ -2401,6 +2442,9 @@ private:
   bool dragging_text_rect_{false};
   bool dragging_text_entry_selection_{false};
   bool move_drag_pending_{false};
+  // Selection roots an Alt press asked to duplicate once the drag starts
+  // (empty: a plain move). Consumed by the first drag frame.
+  std::vector<LayerId> move_drag_duplicate_roots_;
   struct MoveLayerSelectionGesture {
     QPoint press_widget;
     QPointF anchor_document;
@@ -2408,6 +2452,7 @@ private:
     std::vector<LayerId> selected_ids;
     std::optional<LayerId> active_id;
     std::optional<LayerId> clicked_id;
+    std::vector<LayerId> duplicate_roots;
     bool rectangle_allowed{false};
     bool additive{false};
     bool dragging_rectangle{false};
@@ -2452,6 +2497,12 @@ private:
   // Crop tool session state (canvas_widget_crop.cpp). All rects/points are in
   // document space; crop_rect_ may extend past the canvas (commit expands).
   bool crop_session_active_{false};
+  // True while the box is the automatic canvas frame (ratio-fitted or not): a
+  // press inside the canvas then lays out a new rect instead of moving the box.
+  bool crop_box_is_default_{false};
+  // True while the box descends from the selection it adopted on activation
+  // (handles and moves keep it): the marching ants hide meanwhile.
+  bool crop_box_from_selection_{false};
   bool crop_dragging_out_{false};
   bool crop_rotating_{false};
   TransformHandle crop_drag_handle_{TransformHandle::None};
@@ -2529,6 +2580,9 @@ private:
   // The rect the drag last applied; Space repositions from here and moves
   // marquee_resize_start_rect_ along so the resize resumes in place.
   QRect marquee_resize_current_rect_;
+  // Space held during a marquee or crop handle drag: the rect and the drag's
+  // start rect as they were when Space went down (the two gestures never
+  // overlap, so they share the storage).
   QRect spacebar_reposition_start_marquee_rect_;
   QRect spacebar_reposition_start_marquee_start_rect_;
   bool selection_edges_visible_{true};
@@ -2901,6 +2955,7 @@ private:
   std::function<bool(QPointF, bool)> text_entry_selection_drag_callback_;
   std::function<void(LayerId)> active_layer_changed_callback_;
   std::function<void(std::vector<LayerId>, LayerId)> layer_selection_requested_callback_;
+  std::function<bool(std::vector<LayerId>)> move_duplicate_requested_callback_;
   std::function<void(QString)> status_callback_;
   std::function<QList<QAction*>()> selection_context_actions_callback_;
   std::function<QList<QAction*>()> shape_context_actions_callback_;

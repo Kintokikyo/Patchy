@@ -319,7 +319,7 @@ void MainWindow::add_document_session(Document document, QString title, QString 
   if (retouch_sample_all_layers_check_ != nullptr) {
     session->canvas->set_retouch_sample_all_layers(retouch_sample_all_layers_check_->isChecked());
   }
-  session->canvas->set_crop_ratio(current_crop_ratio_w_, current_crop_ratio_h_);
+  session->canvas->set_crop_ratio(effective_crop_ratio_width(), effective_crop_ratio_height());
   if (patch_mode_combo_ != nullptr) {
     session->canvas->set_patch_tool_mode(
         static_cast<CanvasWidget::PatchToolMode>(patch_mode_combo_->currentData().toInt()));
@@ -1402,14 +1402,16 @@ bool MainWindow::confirm_close_session(DocumentSession& target_session) {
   }
 
   const auto title = target_session.title.isEmpty() ? tr("Untitled") : target_session.title;
+  // Save / Don't Save / Cancel name the outcomes (GitHub issue 70); Save is the
+  // default, and the helper answers S, D and the older Y/N keys.
   const auto answer = show_warning_message(this, tr("Save changes?"),
                                            tr("Save changes to %1 before closing?").arg(title),
-                                           QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel,
-                                           QMessageBox::Yes, QStringLiteral("saveChangesMessageBox"));
+                                           QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel,
+                                           QMessageBox::Save, QStringLiteral("saveChangesMessageBox"));
   if (answer == QMessageBox::Cancel) {
     return false;
   }
-  if (answer == QMessageBox::No) {
+  if (answer == QMessageBox::Discard) {
     return true;
   }
   return maybe_save_session(target_session);

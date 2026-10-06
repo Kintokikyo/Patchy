@@ -1080,6 +1080,16 @@ void MainWindow::set_active_layer_from_selection() {
   };
   selection_progress();
   const auto selected_ids = selected_layer_ids();
+  // A click on the panel's blank area empties the selection while Qt keeps the
+  // current row; that is the user deselecting every layer, so the active layer
+  // goes too (the Move tool's transform box otherwise stayed on the old active
+  // layer, Seth, October 2026). Rebuilds run under a signal blocker and never
+  // get here; an empty list has nothing to deselect.
+  if (selected_ids.empty() && layer_list_->count() > 0 && has_active_document() &&
+      document().active_layer_id().has_value()) {
+    deselect_all_layers();
+    return;
+  }
   if (canvas_ != nullptr) {
     canvas_->set_selected_layer_ids(selected_ids);
   }
@@ -1090,7 +1100,21 @@ void MainWindow::set_active_layer_from_selection() {
   refresh_layer_alignment_action_states();
   selection_progress();
   if (layer_list_->currentItem() == nullptr) {
-    return;
+    // Deselecting every layer drops the current row as well. Rows selected
+    // afterwards without one (setSelected from a script or a test) would leave
+    // a selection with no active layer, so the topmost selected row becomes it.
+    QListWidgetItem* topmost = nullptr;
+    const auto selected_items = layer_list_->selectedItems();
+    for (auto* item : selected_items) {
+      if (topmost == nullptr || layer_list_->row(item) < layer_list_->row(topmost)) {
+        topmost = item;
+      }
+    }
+    if (topmost == nullptr) {
+      return;
+    }
+    const QSignalBlocker blocker(layer_list_);
+    layer_list_->setCurrentItem(topmost, QItemSelectionModel::NoUpdate);
   }
 
   const auto id = static_cast<LayerId>(layer_list_->currentItem()->data(kLayerIdRole).toULongLong());
@@ -1565,6 +1589,7 @@ void MainWindow::show_color_panel(bool foreground) {
         if (foreground) {
           canvas_->set_primary_color(color);
           apply_primary_color_to_active_text_editor(color);
+          apply_foreground_color_to_shape_paint(color);
           statusBar()->showMessage(tr("Foreground color changed"));
         } else {
           canvas_->set_secondary_color(color);
@@ -1827,6 +1852,8 @@ void MainWindow::load_tool_settings() {
       settings.value(QStringLiteral("tools/magneticLassoFrequency"), canvas_->magnetic_lasso_frequency()).toInt());
   canvas_->set_show_transform_controls(
       settings.value(QStringLiteral("tools/showTransformControls"), true).toBool());
+  // Auto-Select is remembered across runs (GitHub issue 73).
+  canvas_->set_auto_select_layer(settings.value(QStringLiteral("tools/moveAutoSelect"), true).toBool());
   const auto transform_interpolation =
       settings.value(QStringLiteral("tools/transformInterpolation"),
                      static_cast<int>(CanvasWidget::TransformInterpolation::Bicubic))
@@ -1850,7 +1877,12 @@ void MainWindow::load_tool_settings() {
       std::clamp(settings.value(QStringLiteral("tools/cropRatioWidth"), 0.0).toDouble(), 0.0, 10000.0);
   current_crop_ratio_h_ =
       std::clamp(settings.value(QStringLiteral("tools/cropRatioHeight"), 0.0).toDouble(), 0.0, 10000.0);
-  canvas_->set_crop_ratio(current_crop_ratio_w_, current_crop_ratio_h_);
+  current_crop_style_ = std::clamp(settings.value(QStringLiteral("tools/cropStyle"), 0).toInt(), 0, 1);
+  if (crop_style_combo_ != nullptr) {
+    const QSignalBlocker blocker(crop_style_combo_);
+    crop_style_combo_->setCurrentIndex(current_crop_style_);
+  }
+  canvas_->set_crop_ratio(effective_crop_ratio_width(), effective_crop_ratio_height());
   // Patch mode and Transparent are deliberately session-only: every startup
   // begins at Source with Transparent off, because a persisted Destination or
   // Transparent reads as "the tool is broken" a session later. The retired
@@ -2144,11 +2176,15 @@ void MainWindow::save_tool_settings() const {
   settings.setValue(QStringLiteral("tools/magneticLassoEdgeContrast"), canvas_->magnetic_lasso_edge_contrast());
   settings.setValue(QStringLiteral("tools/magneticLassoFrequency"), canvas_->magnetic_lasso_frequency());
   settings.setValue(QStringLiteral("tools/showTransformControls"), canvas_->show_transform_controls());
+  // tools/moveAutoSelect is written by the options-bar checkbox itself, not here:
+  // tests flip the canvas flag directly and must not leak it into later windows.
   settings.setValue(QStringLiteral("tools/transformInterpolation"), static_cast<int>(canvas_->transform_interpolation()));
   settings.setValue(QStringLiteral("tools/cloneAligned"), canvas_->clone_aligned());
   settings.setValue(QStringLiteral("tools/retouchSampleAllLayers"), canvas_->retouch_sample_all_layers());
-  settings.setValue(QStringLiteral("tools/cropRatioWidth"), canvas_->crop_ratio_width());
-  settings.setValue(QStringLiteral("tools/cropRatioHeight"), canvas_->crop_ratio_height());
+  // The remembered ratio, not the canvas's: Size mode runs the canvas unconstrained.
+  settings.setValue(QStringLiteral("tools/cropRatioWidth"), current_crop_ratio_w_);
+  settings.setValue(QStringLiteral("tools/cropRatioHeight"), current_crop_ratio_h_);
+  settings.setValue(QStringLiteral("tools/cropStyle"), current_crop_style_);
   settings.setValue(QStringLiteral("tools/patternStampPatternId"), current_pattern_stamp_pattern_id_);
   settings.setValue(QStringLiteral("tools/patternStampAligned"), current_pattern_stamp_aligned_);
   settings.setValue(QStringLiteral("tools/healingDiffusion"), current_healing_diffusion_);
@@ -2413,6 +2449,65 @@ void MainWindow::sync_transform_controls_from_canvas() {
   }
 }
 
+double MainWindow::effective_crop_ratio_width() const noexcept {
+  return current_crop_style_ == 0 ? current_crop_ratio_w_ : 0.0;
+}
+
+double MainWindow::effective_crop_ratio_height() const noexcept {
+  return current_crop_style_ == 0 ? current_crop_ratio_h_ : 0.0;
+}
+
+void MainWindow::apply_crop_style(int style) {
+  current_crop_style_ = std::clamp(style, 0, 1);
+  if (canvas_ != nullptr) {
+    // Size mode lifts the constraint (a custom box keeps its shape, the
+    // automatic frame grows back to the canvas); Ratio mode restores the
+    // remembered ratio, which re-fits the box like a fresh entry.
+    canvas_->set_crop_ratio(effective_crop_ratio_width(), effective_crop_ratio_height());
+  }
+  schedule_save_tool_settings();
+  refresh_options_bar();
+}
+
+void MainWindow::handle_crop_size_value_changed(bool horizontal, int value) {
+  if (canvas_ == nullptr || value < 1) {
+    return;
+  }
+  const auto rect = canvas_->crop_session_rect();
+  if (!rect.has_value() || rect->isEmpty()) {
+    return;
+  }
+  auto size = rect->size();
+  const bool linked = crop_link_size_button_ != nullptr && crop_link_size_button_->isChecked();
+  if (horizontal) {
+    size.setWidth(value);
+    if (linked) {
+      size.setHeight(std::max(1, static_cast<int>(std::lround(static_cast<double>(value) * rect->height() /
+                                                              rect->width()))));
+    }
+  } else {
+    size.setHeight(value);
+    if (linked) {
+      size.setWidth(std::max(1, static_cast<int>(std::lround(static_cast<double>(value) * rect->width() /
+                                                             rect->height()))));
+    }
+  }
+  canvas_->set_crop_session_size(size);  // notifies, which re-syncs both fields
+}
+
+bool MainWindow::crop_option_widget_visible(QWidget* widget) const {
+  const auto in = [widget](const std::vector<QWidget*>& widgets) {
+    return std::find(widgets.begin(), widgets.end(), widget) != widgets.end();
+  };
+  if (in(crop_ratio_option_widgets_)) {
+    return current_crop_style_ == 0;
+  }
+  if (in(crop_size_option_widgets_)) {
+    return current_crop_style_ == 1;
+  }
+  return true;
+}
+
 void MainWindow::sync_crop_ratio_preset_combo() {
   if (crop_ratio_preset_combo_ == nullptr || canvas_ == nullptr ||
       crop_ratio_preset_combo_->count() < 3) {
@@ -2483,7 +2578,8 @@ void MainWindow::refresh_options_bar() {
     // click), so they hide instead of stacking next to the session controls and
     // wrapping the bar onto a second row (which shifted the canvas down).
     const auto tool_matches = tools.empty() || std::find(tools.begin(), tools.end(), current_tool_) != tools.end();
-    return tool_matches && !transform_session_active && vector_option_widget_visible(mode_rules, widget);
+    return tool_matches && !transform_session_active && vector_option_widget_visible(mode_rules, widget) &&
+           crop_option_widget_visible(widget);
   };
   for (const auto& [widget, tools] : option_actions_) {
     if (widget != nullptr && !final_visibility(widget, tools) && !widget->isHidden()) {
@@ -2639,14 +2735,31 @@ void MainWindow::refresh_options_bar() {
   if (crop_ratio_w_spin_ != nullptr && crop_ratio_h_spin_ != nullptr && canvas_ != nullptr) {
     const QSignalBlocker w_blocker(crop_ratio_w_spin_);
     const QSignalBlocker h_blocker(crop_ratio_h_spin_);
-    crop_ratio_w_spin_->setValue(canvas_->crop_ratio_width());
-    crop_ratio_h_spin_->setValue(canvas_->crop_ratio_height());
+    crop_ratio_w_spin_->setValue(current_crop_ratio_w_);
+    crop_ratio_h_spin_->setValue(current_crop_ratio_h_);
   }
   sync_crop_ratio_preset_combo();
-  const auto crop_session_active = canvas_ != nullptr && canvas_->crop_session_active();
+  if (crop_width_spin_ != nullptr && crop_height_spin_ != nullptr) {
+    // Size mode mirrors the pending box; without a session the fields rest.
+    const auto crop_rect = canvas_ != nullptr ? canvas_->crop_session_rect() : std::optional<QRect>{};
+    const QSignalBlocker w_blocker(crop_width_spin_);
+    const QSignalBlocker h_blocker(crop_height_spin_);
+    if (crop_rect.has_value()) {
+      crop_width_spin_->setValue(crop_rect->width());
+      crop_height_spin_->setValue(crop_rect->height());
+    }
+    for (QWidget* widget : {static_cast<QWidget*>(crop_width_spin_), static_cast<QWidget*>(crop_height_spin_),
+                            static_cast<QWidget*>(crop_link_size_button_)}) {
+      if (widget != nullptr) {
+        widget->setEnabled(edit_allowed && crop_rect.has_value());
+      }
+    }
+  }
+  // The canvas frame the tool starts with has nothing to apply or reset.
+  const auto crop_has_changes = canvas_ != nullptr && canvas_->crop_session_has_changes();
   for (auto* button : {crop_apply_button_, crop_cancel_button_}) {
     if (button != nullptr) {
-      button->setEnabled(edit_allowed && crop_session_active);
+      button->setEnabled(edit_allowed && crop_has_changes);
     }
   }
   if (patch_mode_combo_ != nullptr && canvas_ != nullptr) {

@@ -132,6 +132,18 @@
     <control>tablet</control>
   </supports>
   <releases>
+    <release version="1.06" date="2026-10-06">
+      <description>
+        <ul>
+          <li>Crop tool: frames the canvas, adopts the selection, and has a Size mode for an exact width and height</li>
+          <li>Move tool: Alt-drag duplicates the layer and Ctrl+click selects the layer under the pointer</li>
+          <li>Zoom steps along fixed zoom levels, and 100% is one document pixel per screen pixel on scaled displays</li>
+          <li>Changing the foreground color recolors the selected shape</li>
+          <li>Opens Bitmap, Indexed, Duotone, Lab and Multichannel PSDs, and adds the Exposure adjustment layer</li>
+          <li>Closing a modified document offers Save, Don't Save, and Cancel</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.05" date="2026-10-04">
       <description>
         <ul>

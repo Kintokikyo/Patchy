@@ -7779,10 +7779,6 @@ RGB: %2, %3, %4</translation>
         <translation>Versione %1 (compilata il %2)</translation>
     </message>
     <message>
-        <source>Code contributions from %1</source>
-        <translation>Contributi al codice di %1</translation>
-    </message>
-    <message>
         <source>GitHub: %1</source>
         <translation>GitHub: %1</translation>
     </message>
@@ -8901,6 +8897,18 @@ RGB: %2, %3, %4</translation>
         <source>%1 came from a grayscale document and adjusts its gray channel here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its tones will look different.</source>
         <translation>%1 proviene da un documento in scala di grigio e qui regola il suo canale del grigio. Patchy salva file RGB, quindi nel file salvato Photoshop e Patchy lo applicano a RGB e i toni appariranno diversi.</translation>
     </message>
+    <message>
+        <source>Don&apos;t Save</source>
+        <translation>Non salvare</translation>
+    </message>
+    <message>
+        <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
+        <translation>Persone fantastiche che hanno donato suggerimenti, segnalazioni di bug e codice: %1</translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation>Rapporto</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -9686,10 +9694,6 @@ RGB: %2, %3, %4</translation>
         <translation>Ritaglio annullato</translation>
     </message>
     <message>
-        <source>Drag the handles or edges to adjust. Enter crops, Esc cancels.</source>
-        <translation>Trascinate le maniglie o i bordi per regolare. Enter ritaglia, Esc annulla.</translation>
-    </message>
-    <message>
         <source>%1 x %2 px</source>
         <translation>%1 x %2 px</translation>
     </message>
@@ -10452,6 +10456,14 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Select Custom Color...</source>
         <translation>Scegli colore personalizzato...</translation>
+    </message>
+    <message>
+        <source>Nothing to crop: the box matches the canvas</source>
+        <translation>Niente da ritagliare: il riquadro coincide con la tela</translation>
+    </message>
+    <message>
+        <source>Crop box reset to the canvas</source>
+        <translation>Riquadro di ritaglio riportato alla tela</translation>
     </message>
 </context>
 <context>
@@ -12199,10 +12211,6 @@ RGB: %2, %3, %4</translation>
         <translation>Applica ritaglio (Enter)</translation>
     </message>
     <message>
-        <source>Cancel crop (Esc)</source>
-        <translation>Annulla ritaglio (Esc)</translation>
-    </message>
-    <message>
         <source>Preset:</source>
         <translation>Predefinito:</translation>
     </message>
@@ -12811,10 +12819,6 @@ RGB: %2, %3, %4</translation>
         <translation>Strumento</translation>
     </message>
     <message>
-        <source>Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. Shift constrains layer movement.</source>
-        <translation>Shift+clic o %CTRL%+clic seleziona o deseleziona i livelli. %CTRL%+trascina seleziona i livelli in un rettangolo; tieni premuto Shift prima di trascinare per aggiungerli alla selezione. Shift vincola lo spostamento del livello.</translation>
-    </message>
-    <message>
         <source>Click to place points, drag for curves. On a path: click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL% moves points.</source>
         <translation>Fai clic per posizionare i punti, trascina per le curve. Su un tracciato: fai clic su un segmento per aggiungere un punto, fai clic su un punto per eliminarlo, %ALT%+clic lo converte, %CTRL% sposta i punti.</translation>
     </message>
@@ -12837,10 +12841,6 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Click a point to switch it between corner and smooth.</source>
         <translation>Fai clic su un punto per passare da angolo a curva e viceversa.</translation>
-    </message>
-    <message>
-        <source>Move: Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it.</source>
-        <translation>Sposta: Shift+clic o %CTRL%+clic seleziona o deseleziona i livelli. %CTRL%+trascina seleziona i livelli in un rettangolo; Shift aggiunge alla selezione. Trascina il contenuto selezionato per spostarlo.</translation>
     </message>
     <message>
         <source>Pen: click to add points, drag for curves. On a path, click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL%+drag selects or moves points.</source>
@@ -18651,6 +18651,46 @@ Convertiti in immagini: %1.</translation>
         <source>This smart object cannot be re-rendered</source>
         <translation>Questo oggetto avanzato non può essere renderizzato di nuovo</translation>
     </message>
+    <message>
+        <source>%CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. %ALT%+drag duplicates. Shift constrains layer movement.</source>
+        <translation>%CTRL%+clic seleziona un livello, Maiusc+clic lo attiva o disattiva. %CTRL%+trascina seleziona i livelli in un rettangolo; tieni premuto Maiusc prima di trascinare per aggiungere. %ALT%+trascina duplica. Maiusc vincola lo spostamento del livello.</translation>
+    </message>
+    <message>
+        <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
+        <translation>Sposta: %CTRL%+clic seleziona un livello, Maiusc+clic lo attiva o disattiva. %CTRL%+trascina seleziona un rettangolo; Maiusc aggiunge. Trascina la grafica selezionata per spostarla, %ALT%+trascina per duplicarla.</translation>
+    </message>
+    <message>
+        <source>Reset the crop box to the canvas (Esc)</source>
+        <translation>Riporta il riquadro di ritaglio alla tela (Esc)</translation>
+    </message>
+    <message>
+        <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
+        <translation>Ritaglia: trascina le maniglie per ritagliare o estendere la tela (%ALT% ridimensiona attorno al centro), trascina all&apos;interno per tracciare un nuovo riquadro, trascina all&apos;esterno per ruotare. Invio ritaglia, Esc ripristina il riquadro.</translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation>Rapporto</translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation>Dimensione</translation>
+    </message>
+    <message>
+        <source>Ratio constrains the crop box; Size shows its exact width and height and sets them</source>
+        <translation>Rapporto vincola il riquadro di ritaglio; Dimensioni mostra larghezza e altezza esatte e le imposta</translation>
+    </message>
+    <message>
+        <source>Width of the crop box</source>
+        <translation>Larghezza del riquadro di ritaglio</translation>
+    </message>
+    <message>
+        <source>Keep the crop box&apos;s width and height in proportion</source>
+        <translation>Mantieni proporzionali larghezza e altezza del riquadro di ritaglio</translation>
+    </message>
+    <message>
+        <source>Height of the crop box</source>
+        <translation>Altezza del riquadro di ritaglio</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::McpActivity</name>
@@ -20132,10 +20172,6 @@ Convertiti in immagini: %1.</translation>
     <message>
         <source>Version %1 (built %2)</source>
         <translation>Versione %1 (compilata il %2)</translation>
-    </message>
-    <message>
-        <source>Code contributions from %1</source>
-        <translation>Contributi al codice di %1</translation>
     </message>
     <message>
         <source>GitHub: %1</source>

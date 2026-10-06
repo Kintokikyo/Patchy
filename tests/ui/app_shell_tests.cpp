@@ -3677,7 +3677,7 @@ void ui_about_dialog_shows_labeled_external_links() {
     CHECK(contributors != nullptr);
     CHECK(contributors->textFormat() == Qt::RichText);
     CHECK(contributors->openExternalLinks());
-    CHECK(contributors->text().startsWith(QStringLiteral("Code contributions from ")));
+    CHECK(contributors->text().startsWith(QStringLiteral("Incredible people who donated suggestions, bug reports, and code: ")));
     CHECK(contributors->text().contains(QStringLiteral("href=\"https://github.com/mcapogna\"")));
     CHECK(contributors->text().contains(QStringLiteral(">mcapogna</a>")));
     CHECK(contributors->text().contains(QStringLiteral("href=\"https://github.com/csbun\"")));
@@ -4312,19 +4312,9 @@ void ui_start_panel_shows_about_info_and_update_status() {
   CHECK(credit->text().contains(QStringLiteral("href=\"https://github.com/SethRobinson\"")));
   CHECK(credit->text().contains(QStringLiteral(">Seth A. Robinson</a>")));
   CHECK(!credit->text().contains(QStringLiteral("@link_text")));
-  auto* contributors = window.findChild<QLabel*>(QStringLiteral("startPanelContributors"));
-  CHECK(contributors != nullptr);
-  CHECK(contributors->textFormat() == Qt::RichText);
-  CHECK(contributors->openExternalLinks());
-  CHECK(contributors->text().startsWith(QStringLiteral("Code contributions from ")));
-  CHECK(contributors->text().contains(QStringLiteral("href=\"https://github.com/mcapogna\"")));
-  CHECK(contributors->text().contains(QStringLiteral(">mcapogna</a>")));
-  CHECK(contributors->text().contains(QStringLiteral("href=\"https://github.com/csbun\"")));
-  CHECK(contributors->text().contains(QStringLiteral(">csbun</a>")));
-  CHECK(contributors->text().contains(QStringLiteral("href=\"https://github.com/ifloppy\"")));
-  CHECK(contributors->text().contains(QStringLiteral(">ifloppy</a>")));
-  CHECK(contributors->text().contains(QStringLiteral("href=\"https://github.com/lucastucious\"")));
-  CHECK(contributors->text().contains(QStringLiteral(">lucastucious</a>")));
+  // The contributor credits belong to the About dialog alone; the start panel
+  // keeps its footer short so the recent-files list gets the room.
+  CHECK(window.findChild<QLabel*>(QStringLiteral("startPanelContributors")) == nullptr);
 
   const auto link_labels = panel->findChildren<QLabel*>(QStringLiteral("startPanelHome"));
   CHECK(link_labels.size() == 2);
@@ -4346,10 +4336,10 @@ void ui_start_panel_shows_about_info_and_update_status() {
   auto* status = window.findChild<QLabel*>(QStringLiteral("startPanelUpdateStatus"));
   CHECK(status != nullptr);
   CHECK(!status->isVisible());
-  panel->set_update_status(QStringLiteral("Patchy is up to date (9.99)."));
+  panel->set_update_status(QStringLiteral("Update available: Patchy 9.99."));
   QApplication::processEvents();
   CHECK(status->isVisible());
-  CHECK(status->text() == QStringLiteral("Patchy is up to date (9.99)."));
+  CHECK(status->text() == QStringLiteral("Update available: Patchy 9.99."));
   save_widget_artifact("ui_start_panel_about_info", window);
   panel->set_update_status(QString());
   CHECK(!status->isVisible());
