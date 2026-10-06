@@ -10490,6 +10490,41 @@ RGB: %2, %3, %4</translation>
         <source>Search fonts...</source>
         <translation>글꼴 검색...</translation>
     </message>
+
+    <message>
+        <source>Add Font…</source>
+        <translation>글꼴 추가…</translation>
+    </message>
+
+    <message>
+        <source>Add Font</source>
+        <translation>글꼴 추가</translation>
+    </message>
+
+    <message>
+        <source>Could not create a temporary font file.</source>
+        <translation>임시 글꼴 파일을 만들 수 없습니다.</translation>
+    </message>
+
+    <message>
+        <source>Could not read the selected font file.</source>
+        <translation>선택한 글꼴 파일을 읽을 수 없습니다.</translation>
+    </message>
+
+    <message>
+        <source>Please select a TTF, OTF, TTC, or ZIP font file.</source>
+        <translation>TTF, OTF, TTC 또는 ZIP 글꼴 파일을 선택하세요.</translation>
+    </message>
+
+    <message>
+        <source>The ZIP file does not contain any supported fonts.</source>
+        <translation>ZIP 파일에 지원되는 글꼴이 없습니다.</translation>
+    </message>
+
+    <message>
+        <source>The selected file is not a valid font.</source>
+        <translation>선택한 파일은 유효한 글꼴이 아닙니다.</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::GradientLibrary</name>
@@ -18562,6 +18597,11 @@ Y: %2
     <message>
         <source>This smart object cannot be re-rendered</source>
         <translation>이 스마트 개체는 다시 렌더링할 수 없습니다.</translation>
+    </message>
+
+    <message>
+        <source>Exported %1 images</source>
+        <translation>%1개의 이미지를 내보냈습니다.</translation>
     </message>
 </context>
 <context>

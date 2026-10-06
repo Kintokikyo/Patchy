@@ -10550,6 +10550,41 @@ RGB: %2, %3, %4</translation>
         <source>Search fonts...</source>
         <translation>Wyszukaj czcionki...</translation>
     </message>
+
+    <message>
+        <source>Add Font…</source>
+        <translation>Dodaj czcionkę…</translation>
+    </message>
+
+    <message>
+        <source>Add Font</source>
+        <translation>Dodaj czcionkę</translation>
+    </message>
+
+    <message>
+        <source>Could not create a temporary font file.</source>
+        <translation>Nie można utworzyć tymczasowego pliku czcionki.</translation>
+    </message>
+
+    <message>
+        <source>Could not read the selected font file.</source>
+        <translation>Nie można odczytać wybranego pliku czcionki.</translation>
+    </message>
+
+    <message>
+        <source>Please select a TTF, OTF, TTC, or ZIP font file.</source>
+        <translation>Wybierz plik czcionki TTF, OTF, TTC lub ZIP.</translation>
+    </message>
+
+    <message>
+        <source>The ZIP file does not contain any supported fonts.</source>
+        <translation>Plik ZIP nie zawiera żadnych obsługiwanych czcionek.</translation>
+    </message>
+
+    <message>
+        <source>The selected file is not a valid font.</source>
+        <translation>Wybrany plik nie jest prawidłową czcionką.</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::GradientLibrary</name>
@@ -18674,6 +18709,11 @@ Y: %2
     <message>
         <source>This smart object cannot be re-rendered</source>
         <translation>Tego obiektu inteligentnego nie można wyrenderować ponownie</translation>
+    </message>
+
+    <message>
+        <source>Exported %1 images</source>
+        <translation>Wyeksportowano %1 obrazów.</translation>
     </message>
 </context>
 <context>
