@@ -180,7 +180,7 @@ bool CanvasWidget::eventFilter(QObject* watched, QEvent* event) {
     auto* key_event = static_cast<QKeyEvent*>(event);
     if (!key_event->isAutoRepeat() &&
         (key_event->key() == Qt::Key_Shift || key_event->key() == Qt::Key_Alt ||
-         (key_event->key() == Qt::Key_Control && pen_family_tool_active()))) {
+         (key_event->key() == Qt::Key_Control && (pen_family_tool_active() || tool_ == CanvasTool::Move)))) {
       // The event reports the modifier state before this key, so fold the
       // pressed/released key into the modifiers we evaluate.
       const auto bit = key_event->key() == Qt::Key_Shift   ? Qt::ShiftModifier
@@ -207,6 +207,11 @@ bool CanvasWidget::eventFilter(QObject* watched, QEvent* event) {
           update_tool_cursor();
           pen_cursor_modifier_override_.reset();
         }
+      } else if (key_event->key() == Qt::Key_Control && tool_ == CanvasTool::Move) {
+        // With Auto-Select off, Ctrl held over artwork previews the layer a
+        // click would select (GitHub issue 73); refresh the outline from the
+        // folded modifiers at the last pointer position, no motion needed.
+        update_move_hover_outline(last_mouse_position_, modifiers);
       } else if (key_event->key() == Qt::Key_Alt && tool_uses_alt_left_for_color_pick(tool_) &&
                  !painting_ && !drawing_shape_) {
         // Alt is the temporary-eyedropper modifier for paint/shape/fill tools;

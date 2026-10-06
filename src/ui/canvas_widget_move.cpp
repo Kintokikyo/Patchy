@@ -894,13 +894,16 @@ std::optional<QRect> CanvasWidget::move_hover_outline_rect_at(QPoint widget_posi
   }
 
   const auto selected_move_layer_ids = movable_layer_ids();
-  if (!auto_select_layer_) {
+  // Ctrl/Cmd+click selects the layer under the pointer with Auto-Select off too
+  // (GitHub issue 73), so a held Ctrl previews the pick the way Auto-Select does.
+  const bool click_selects = auto_select_layer_ || modifiers.testFlag(Qt::ControlModifier);
+  if (!click_selects) {
     if (std::find(selected_move_layer_ids.begin(), selected_move_layer_ids.end(), hit_layer->id()) ==
         selected_move_layer_ids.end()) {
       return std::nullopt;
     }
   }
-  if (show_transform_controls_ && auto_select_layer_) {
+  if (show_transform_controls_ && click_selects) {
     if (!selected_layer_ids_.empty()) {
       if (selected_layer_ids_.size() == 1U && selected_layer_ids_.front() == hit_layer->id()) {
         return std::nullopt;

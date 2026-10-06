@@ -1848,6 +1848,64 @@ void ui_move_preview_keeps_underlying_layers_steady_when_zoomed_out() {
   CHECK(compare_outside_moved_rects(before, after) == 0);
 }
 
+// With Auto-Select off, a held Ctrl previews the layer a Ctrl+click would select
+// (GitHub issue 73): the hover outline appears with Ctrl, also when Ctrl is pressed
+// over a stationary pointer, and goes away when Ctrl is released.
+void ui_move_ctrl_hover_outlines_layer_with_auto_select_off() {
+  patchy::Document document(140, 100, patchy::PixelFormat::rgba8());
+  document.add_pixel_layer("Background",
+                           solid_pixels(140, 100, patchy::PixelFormat::rgba8(), QColor(245, 245, 245, 255)));
+  patchy::Layer target(document.allocate_layer_id(), "Hover Target",
+                       solid_pixels(16, 14, patchy::PixelFormat::rgba8(), QColor(40, 180, 90, 255)));
+  target.set_bounds(patchy::Rect{80, 50, 16, 14});
+  document.add_layer(std::move(target));
+  patchy::Layer selected(document.allocate_layer_id(), "Selected Blue",
+                         solid_pixels(12, 12, patchy::PixelFormat::rgba8(), QColor(40, 90, 220, 255)));
+  selected.set_bounds(patchy::Rect{18, 18, 12, 12});
+  const auto selected_id = selected.id();
+  document.add_layer(std::move(selected));
+  document.set_active_layer(selected_id);
+
+  patchy::ui::MainWindow window;
+  show_window(window);
+  window.add_document_session(std::move(document), QStringLiteral("Ctrl Hover"));
+  QApplication::processEvents();
+  auto* canvas = require_canvas(window);
+  require_action_by_text(window, QStringLiteral("Move"))->trigger();
+  canvas->set_auto_select_layer(false);
+  canvas->set_show_transform_controls(false);
+  canvas->setFocus();
+  QApplication::processEvents();
+
+  const QColor outline_color(95, 170, 255);
+  const QRect outline_probe = QRect(canvas->widget_position_for_document_point(QPoint(80, 50)),
+                                    canvas->widget_position_for_document_point(QPoint(96, 64)))
+                                  .normalized()
+                                  .adjusted(-2, -2, 2, 2);
+  const auto outline_pixels = [&] { return count_pixels_close(canvas->grab().toImage(), outline_probe, outline_color, 18); };
+  const auto over_target = canvas->widget_position_for_document_point(QPoint(88, 57));
+
+  // Plain hover over an unselected layer: nothing (Auto-Select is off).
+  send_mouse(*canvas, QEvent::MouseMove, over_target, Qt::NoButton, Qt::NoButton);
+  QApplication::processEvents();
+  CHECK(outline_pixels() == 0);
+
+  // Moving with Ctrl held shows the outline; releasing Ctrl (via a key event
+  // with the pointer still) hides it again; pressing Ctrl brings it back.
+  send_mouse(*canvas, QEvent::MouseMove, over_target, Qt::NoButton, Qt::NoButton, Qt::ControlModifier);
+  QApplication::processEvents();
+  CHECK(outline_pixels() > 20);
+  send_key_release(*canvas, Qt::Key_Control, Qt::ControlModifier);
+  QApplication::processEvents();
+  CHECK(outline_pixels() == 0);
+  send_key_press(*canvas, Qt::Key_Control, Qt::NoModifier);
+  QApplication::processEvents();
+  CHECK(outline_pixels() > 20);
+  send_key_release(*canvas, Qt::Key_Control, Qt::ControlModifier);
+  QApplication::processEvents();
+  CHECK(outline_pixels() == 0);
+}
+
 void ui_move_tool_hover_outlines_opaque_bounds() {
   patchy::Document document(180, 120, patchy::PixelFormat::rgba8());
   document.add_pixel_layer("Background", solid_pixels(180, 120, patchy::PixelFormat::rgba8(), QColor(Qt::white)));
@@ -4882,6 +4940,7 @@ std::vector<patchy::test::TestCase> move_tool_processing_overlay_tests() {
       {"ui_move_preview_keeps_underlying_layers_steady_when_zoomed_out",
        ui_move_preview_keeps_underlying_layers_steady_when_zoomed_out},
       {"ui_move_tool_hover_outlines_opaque_bounds", ui_move_tool_hover_outlines_opaque_bounds},
+      {"ui_move_ctrl_hover_outlines_layer_with_auto_select_off", ui_move_ctrl_hover_outlines_layer_with_auto_select_off},
       {"ui_move_tool_uses_text_rect_for_hit_and_hover",
        ui_move_tool_uses_text_rect_for_hit_and_hover},
       {"ui_move_transform_controls_do_not_block_auto_select_hover",
