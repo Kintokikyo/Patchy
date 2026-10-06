@@ -16,7 +16,7 @@ For bug reports and feature requests, please [open an issue](https://github.com/
 
 ## Download
 
-**Latest release: 1.05** · October 4, 2026 · [Release notes](#whats-new) · [All releases](https://github.com/SethRobinson/Patchy/releases)
+**Latest release: 1.06** · October 6, 2026 · [Release notes](#whats-new) · [All releases](https://github.com/SethRobinson/Patchy/releases)
 
 Windows releases are code signed by Seth A. Robinson; the macOS app is signed and
 notarized (Robinson Technologies Corporation); the Linux Flatpak repository is GPG
@@ -116,6 +116,19 @@ and Affinity import has format-specific limitations. See [current compatibility]
 
 ## What's New
 
+### 1.06 - October 6, 2026
+
+- Crop tool: it frames the canvas when selected, adopts the current selection, and has a Style menu with a Size mode for typing an exact Width and Height. Alt resizes the box about its center and Space slides it during a handle drag ([issue 66](https://github.com/SethRobinson/Patchy/issues/66))
+- Move tool: Alt-drag duplicates the layer, Ctrl+click selects the layer under the pointer, the Auto-Select setting is remembered, and artwork on the pasteboard can be outlined and grabbed ([issue 69](https://github.com/SethRobinson/Patchy/issues/69), [issue 73](https://github.com/SethRobinson/Patchy/issues/73))
+- Zoom In/Out and Zoom tool clicks step along Photoshop's zoom levels, and 100% is one document pixel per screen pixel on scaled displays ([issue 77](https://github.com/SethRobinson/Patchy/issues/77), [issue 75](https://github.com/SethRobinson/Patchy/issues/75))
+- Changing the foreground color or picking with the Eyedropper recolors the selected shape ([issue 67](https://github.com/SethRobinson/Patchy/issues/67))
+- Text: the keypad Enter key commits the text and a triple click selects a line ([issue 71](https://github.com/SethRobinson/Patchy/issues/71), [issue 74](https://github.com/SethRobinson/Patchy/issues/74))
+- Closing a modified document offers Save, Don't Save, and Cancel ([issue 70](https://github.com/SethRobinson/Patchy/issues/70)), the color picker opens with the hex field selected ([issue 68](https://github.com/SethRobinson/Patchy/issues/68)), options-bar labels are plain text instead of chips ([issue 76](https://github.com/SethRobinson/Patchy/issues/76)), and double-clicking a New Document preset creates the document
+- PSD compatibility: Bitmap, Indexed, Duotone, Lab and Multichannel PSDs open by converting to RGB, adjustment layers in CMYK and grayscale documents apply to their own channels, and the Exposure adjustment layer is supported. Stroke effects on semi-transparent content, group Fill opacity, noise gradient fills, Divide, Levels and Posterize are closer to Photoshop ([issue 65](https://github.com/SethRobinson/Patchy/issues/65))
+- Selection Feather and Anti-alias are kept per tool and remembered between sessions ([issue 64](https://github.com/SethRobinson/Patchy/issues/64))
+- Layers above a layer being transformed stay visible during the drag ([issue 72](https://github.com/SethRobinson/Patchy/issues/72)), and clicking a blank area of the Layers panel deselects every layer
+- Scripting: `layer.rerenderText()` and `layer.rerenderSmartObject()`
+
 ### 1.05 - October 4, 2026
 
 - Linux: Patchy now updates through `flatpak update` and the software center, from a signed Flatpak repository ([issue 28](https://github.com/SethRobinson/Patchy/issues/28)). The Flatpak moved to the current KDE runtime, and iPhone HEIC photos open without installing an extra codec package
@@ -124,14 +137,6 @@ and Affinity import has format-specific limitations. See [current compatibility]
 - Type tool: pressing on a text layer and dragging selects text in one gesture, without a second click to enter editing first
 - Windows installer: Patchy now appears under Explorer's "Open with" for the image types it opens, without changing any default program
 - Fixed a freeze on KDE when a drag crossed the layer action buttons ([issue 62](https://github.com/SethRobinson/Patchy/issues/62))
-
-### 1.04 - October 3, 2026
-
-- Edit shape appearance and layer styles across selected layers, with mixed-value indicators, live previews, and one undo step per edit
-- Merge selected vectors into one editable vector layer, with a preview and a choice to remove layer effects or use the effects from one source layer
-- Fixed caps on inside and outside dashed vector strokes, and pattern thumbnails in Shape Appearance
-- Windows installer: clearer status spacing and a visible version number
-
 
 [Older releases](RELEASE-HISTORY.md)
 

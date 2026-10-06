@@ -3,6 +3,13 @@
 Older Patchy release notes are collected here. The two most recent releases
 remain in [README.md](README.md#whats-new).
 
+## 1.04 - October 3, 2026
+
+- Edit shape appearance and layer styles across selected layers, with mixed-value indicators, live previews, and one undo step per edit
+- Merge selected vectors into one editable vector layer, with a preview and a choice to remove layer effects or use the effects from one source layer
+- Fixed caps on inside and outside dashed vector strokes, and pattern thumbnails in Shape Appearance
+- Windows installer: clearer status spacing and a visible version number
+
 ## 1.03 - October 2, 2026
 
 - Animated WebP import and export: open frames as layers, preview their timing, and export layers as an animation, with lossless output, partial transparency, and loop counts

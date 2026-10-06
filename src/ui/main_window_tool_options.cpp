@@ -1100,7 +1100,21 @@ void MainWindow::set_active_layer_from_selection() {
   refresh_layer_alignment_action_states();
   selection_progress();
   if (layer_list_->currentItem() == nullptr) {
-    return;
+    // Deselecting every layer drops the current row as well. Rows selected
+    // afterwards without one (setSelected from a script or a test) would leave
+    // a selection with no active layer, so the topmost selected row becomes it.
+    QListWidgetItem* topmost = nullptr;
+    const auto selected_items = layer_list_->selectedItems();
+    for (auto* item : selected_items) {
+      if (topmost == nullptr || layer_list_->row(item) < layer_list_->row(topmost)) {
+        topmost = item;
+      }
+    }
+    if (topmost == nullptr) {
+      return;
+    }
+    const QSignalBlocker blocker(layer_list_);
+    layer_list_->setCurrentItem(topmost, QItemSelectionModel::NoUpdate);
   }
 
   const auto id = static_cast<LayerId>(layer_list_->currentItem()->data(kLayerIdRole).toULongLong());

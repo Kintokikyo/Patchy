@@ -2058,7 +2058,15 @@ PatchyColorPicker::PatchyColorPicker(QColor initial, QWidget* parent)
   impl_->set_color(normalized_rgb_color(initial), ColorChangeNotification::No);
 }
 
-PatchyColorPicker::~PatchyColorPicker() = default;
+PatchyColorPicker::~PatchyColorPicker() {
+  // impl_ dies before ~QWidget closes a still-visible picker. That close moves
+  // focus off the hex field, which emits editingFinished, and the child
+  // connections capture impl_: drop them while it is still alive.
+  const auto children = findChildren<QObject*>();
+  for (auto* child : children) {
+    QObject::disconnect(child, nullptr, this, nullptr);
+  }
+}
 
 QColor PatchyColorPicker::currentColor() const {
   return impl_->current_color();
