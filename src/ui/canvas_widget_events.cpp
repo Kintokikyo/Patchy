@@ -2747,7 +2747,11 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
       } else {
         // A click in the grey margin zooms toward the nearest point on the
         // document frame rather than toward the empty space under the cursor.
-        zoom_at_widget_point(zoom_click_anchor(event->position()), zoom_out ? 0.5 : 2.0);
+        // The step follows Photoshop's zoom ladder (GitHub issue 77): from a
+        // rung to its neighbour, from between rungs to the next one.
+        const auto current_view_zoom = view_zoom();
+        const auto next_view_zoom = next_zoom_ladder_step(current_view_zoom, !zoom_out);
+        zoom_at_widget_point(zoom_click_anchor(event->position()), next_view_zoom / current_view_zoom);
       }
     }
     emit_info_for_widget_position(event->pos());

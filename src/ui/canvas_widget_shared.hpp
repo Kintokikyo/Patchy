@@ -173,6 +173,12 @@ QRect preview_scaled_document_rect(QRect rect, int level) noexcept;
 // the larger axis to the smaller as the anchored branches do. Never below 1 px.
 QRect center_anchored_handle_rect(QRect start, bool moves_x, bool moves_y, QPoint point,
                                   double target_ratio) noexcept;
+// The next rung of Photoshop's zoom ladder (0.56% ... 100% ... 12800%) above or
+// below `view_zoom` (document pixels per device pixel; GitHub issue 77). A view
+// already on a rung, within half a percent, steps to the neighbouring rung, so
+// 46.39% goes to 50% in and 33.33% out. Clamped to the ladder's ends; the
+// caller's zoom range clamp still applies.
+double next_zoom_ladder_step(double view_zoom, bool zoom_in) noexcept;
 // A live preview frame (move patches, transform composited preview) slower
 // than this latches the drag onto its proxy on the next move: the area gates
 // cannot price the stack a drag crosses. Env override PATCHY_MOVE_LIVE_LATCH_MS

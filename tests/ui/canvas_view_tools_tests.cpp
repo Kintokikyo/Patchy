@@ -1645,6 +1645,59 @@ void ui_zoom_tool_direction_buttons_set_click_direction() {
   CHECK(!second->zoom_tool_zooms_out());
 }
 
+// GitHub issue 77: Zoom In/Out and the Zoom tool click walk Photoshop's zoom
+// ladder, so an off-ladder view lands on the next rung instead of a multiple.
+void ui_zoom_steps_follow_photoshop_ladder() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto* zoom_in = require_action(window, "viewZoomInAction");
+  auto* zoom_out = require_action(window, "viewZoomOutAction");
+  CHECK(zoom_in != nullptr && zoom_out != nullptr);
+  if (zoom_in == nullptr || zoom_out == nullptr) {
+    return;
+  }
+  const auto close_to = [](double actual, double expected) { return std::abs(actual - expected) < 0.001; };
+
+  canvas->set_view_zoom(0.4639);
+  zoom_in->trigger();
+  QApplication::processEvents();
+  CHECK(close_to(canvas->view_zoom(), 0.5));
+  zoom_in->trigger();
+  QApplication::processEvents();
+  CHECK(close_to(canvas->view_zoom(), 2.0 / 3.0));
+  zoom_out->trigger();
+  QApplication::processEvents();
+  CHECK(close_to(canvas->view_zoom(), 0.5));
+  canvas->set_view_zoom(0.4639);
+  zoom_out->trigger();
+  QApplication::processEvents();
+  CHECK(close_to(canvas->view_zoom(), 1.0 / 3.0));
+
+  // Rungs above 100% are the whole-hundred steps, and the ladder ends clamp.
+  canvas->set_view_zoom(1.0);
+  zoom_in->trigger();
+  zoom_in->trigger();
+  QApplication::processEvents();
+  CHECK(close_to(canvas->view_zoom(), 3.0));
+  canvas->set_view_zoom(128.0);
+  zoom_in->trigger();
+  QApplication::processEvents();
+  CHECK(close_to(canvas->view_zoom(), 128.0));
+
+  // The Zoom tool click takes the same ladder; Alt inverts it.
+  require_action_by_text(window, QStringLiteral("Zoom"))->trigger();
+  QApplication::processEvents();
+  canvas->set_view_zoom(0.4639);
+  const auto at = canvas->widget_position_for_document_point(QPoint(10, 10));
+  send_mouse(*canvas, QEvent::MouseButtonPress, at, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, at, Qt::LeftButton, Qt::NoButton);
+  CHECK(close_to(canvas->view_zoom(), 0.5));
+  send_mouse(*canvas, QEvent::MouseButtonPress, at, Qt::LeftButton, Qt::LeftButton, Qt::AltModifier);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, at, Qt::LeftButton, Qt::NoButton, Qt::AltModifier);
+  CHECK(close_to(canvas->view_zoom(), 1.0 / 3.0));
+}
+
 // The Zoom tool's 100% / Fit Screen / Fill Screen buttons show only for the
 // Zoom tool and set the view like the View menu commands; Fill Screen (a new
 // View command) uses the larger axis ratio where Fit uses the smaller.
@@ -3994,6 +4047,7 @@ std::vector<patchy::test::TestCase> canvas_view_tools_tests() {
       {"ui_zoom_tool_scrubby_drag_zooms_live_around_press_point",
        ui_zoom_tool_scrubby_drag_zooms_live_around_press_point},
       {"ui_zoom_tool_direction_buttons_set_click_direction", ui_zoom_tool_direction_buttons_set_click_direction},
+      {"ui_zoom_steps_follow_photoshop_ladder", ui_zoom_steps_follow_photoshop_ladder},
       {"ui_zoom_options_bar_view_buttons_set_view", ui_zoom_options_bar_view_buttons_set_view},
       {"ui_stamp_and_gradient_flyouts_swap_tools", ui_stamp_and_gradient_flyouts_swap_tools},
       {"ui_tool_cycle_hotkeys_walk_each_flyout", ui_tool_cycle_hotkeys_walk_each_flyout},
