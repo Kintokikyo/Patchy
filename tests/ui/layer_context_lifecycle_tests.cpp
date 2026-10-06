@@ -28,6 +28,7 @@
 #include "ui/brush_tip_picker.hpp"
 #include "ui/blend_if_range_editor.hpp"
 #include "ui/color_panel.hpp"
+#include "ui/new_document_dialog.hpp"
 #include "ui/default_brush_tips.hpp"
 #include "ui/dialog_utils.hpp"
 #include "ui/document_float_window.hpp"
@@ -2287,6 +2288,57 @@ void ui_new_document_presets_and_clipboard_work() {
   QApplication::clipboard()->clear();
 }
 
+// Double-clicking a preset card creates the document without a trip to Create.
+void ui_new_document_preset_double_click_creates_document() {
+  QApplication::clipboard()->clear();
+  {
+    auto settings = patchy::ui::app_settings();
+    settings.remove(QStringLiteral("newDocument"));
+  }
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* tabs = qobject_cast<QTabWidget*>(window.centralWidget());
+  auto* info = window.findChild<QLabel*>(QStringLiteral("documentInfoLabel"));
+  CHECK(tabs != nullptr && info != nullptr);
+  if (tabs == nullptr || info == nullptr) {
+    return;
+  }
+  CHECK(tabs->count() == 1);
+
+  bool card_seen = false;
+  QTimer::singleShot(0, [&card_seen] {
+    for (auto* widget : QApplication::topLevelWidgets()) {
+      if (widget->objectName() != QStringLiteral("patchyNewDocumentDialog")) {
+        continue;
+      }
+      auto* presets = widget->findChild<QListWidget*>(QStringLiteral("newDocumentPresetList"));
+      CHECK(presets != nullptr);
+      if (presets == nullptr) {
+        return;
+      }
+      for (int row = 0; row < presets->count(); ++row) {
+        auto* item = presets->item(row);
+        if (item->data(patchy::ui::kNewDocumentPresetIdRole).toString() != QStringLiteral("screen-720p")) {
+          continue;
+        }
+        card_seen = true;
+        const auto center = presets->visualItemRect(item).center();
+        auto* viewport = presets->viewport();
+        send_mouse(*viewport, QEvent::MouseButtonPress, center, Qt::LeftButton, Qt::LeftButton);
+        send_mouse(*viewport, QEvent::MouseButtonRelease, center, Qt::LeftButton, Qt::NoButton);
+        send_mouse(*viewport, QEvent::MouseButtonDblClick, center, Qt::LeftButton, Qt::LeftButton);
+        send_mouse(*viewport, QEvent::MouseButtonRelease, center, Qt::LeftButton, Qt::NoButton);
+        return;
+      }
+    }
+  });
+  require_action_by_text(window, QStringLiteral("New"))->trigger();
+  QApplication::processEvents();
+  CHECK(card_seen);
+  CHECK(tabs->count() == 2);
+  CHECK(info->text().contains(QStringLiteral("1280 x 720 px")));
+}
+
 void ui_new_document_dialog_remembers_last_settings() {
   QApplication::clipboard()->clear();
   {
@@ -2770,6 +2822,7 @@ std::vector<patchy::test::TestCase> layer_context_lifecycle_tests() {
       {"ui_canvas_size_preserves_layers_and_crop_option_resets",
        ui_canvas_size_preserves_layers_and_crop_option_resets},
       {"ui_new_document_presets_and_clipboard_work", ui_new_document_presets_and_clipboard_work},
+      {"ui_new_document_preset_double_click_creates_document", ui_new_document_preset_double_click_creates_document},
       {"ui_new_document_dialog_remembers_last_settings", ui_new_document_dialog_remembers_last_settings},
       {"ui_new_document_dialog_remembers_unit", ui_new_document_dialog_remembers_unit},
       {"ui_new_document_opens_fit_to_view", ui_new_document_opens_fit_to_view},

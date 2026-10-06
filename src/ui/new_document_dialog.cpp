@@ -715,6 +715,11 @@ std::optional<NewDocumentSettings> request_new_document_settings(QWidget* parent
 
   QObject::connect(create, &QPushButton::clicked, &dialog, &QDialog::accept);
   QObject::connect(cancel, &QPushButton::clicked, &dialog, &QDialog::reject);
+  // Double-clicking a preset card creates the document straight away: the first
+  // click already made it current (and applied its values), so the second is
+  // the same as pressing Create.
+  QObject::connect(preset_list, &QListWidget::itemDoubleClicked, &dialog,
+                   [create](QListWidgetItem*) { create->click(); });
 
   // Restore the last accepted settings; a clipboard image preselects its card instead.
   {
