@@ -18749,7 +18749,7 @@ Y: %2
     <message>
         <source>Height of the crop box</source>
         <translation>Высота рамки кадрирования</translation>
-
+    </message>
     <message>
         <source>Exported %1 images</source>
         <translation>Экспортировано изображений: %1.</translation>
