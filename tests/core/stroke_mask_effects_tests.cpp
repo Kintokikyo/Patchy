@@ -851,21 +851,23 @@ void psd_photoshop_stroke_positions_fixture_matches() {
 void psd_photoshop_stroke_partial_alpha_fixture_matches() {
   // Photoshop-authored reference: regions painted at 100% (x8..28), 50% (x28..56),
   // and 25% alpha (y40..52) with a green 3px outside stroke. Photoshop treats any
-  // painted pixel as inside the stroked shape — the stroke fills the binary shape
-  // and the content covers it per its alpha — so semi-transparent regions show a
-  // green wash, while the opaque region stays clean. Expectations measured from
-  // Photoshop 2026's render.
+  // painted pixel as inside the stroked shape: the stroke fills the shape beneath
+  // the content, which covers it by its own alpha (the Photoshop 2026 render,
+  // re-sampled via COM in October 2026: the 50% region is exactly half content
+  // (200, 30, 30) and half green, (100, 142, 15); the 25% region (50, 199, 8); no
+  // backdrop shows through either). The opaque region stays clean.
   const auto document = patchy::psd::DocumentIo::read_file(
       patchy::test::committed_psd_fixture_path("photoshop-stroke-partial-alpha.psd"));
   const auto rendered = patchy::Compositor{}.flatten_rgb8(document);
-  const auto* opaque = rendered.pixel(16, 24);
-  CHECK(opaque[0] > 150 && opaque[1] < 110);  // 100% region: pure content, no stroke
-  const auto* half = rendered.pixel(44, 24);
-  CHECK(half[1] > 150 && half[1] > half[0] + 30);  // 50% region: stroke shows through
-  const auto* quarter = rendered.pixel(32, 46);
-  CHECK(quarter[1] > 200 && quarter[0] < 110);  // 25% region: stroke dominates
-  const auto* band = rendered.pixel(6, 24);
-  CHECK(band[1] > 200 && band[0] < 80);  // outer band at full strength
+  const auto expect = [&](int x, int y, int r, int g, int b, int tolerance) {
+    const auto* px = rendered.pixel(x, y);
+    CHECK(std::abs(px[0] - r) <= tolerance && std::abs(px[1] - g) <= tolerance && std::abs(px[2] - b) <= tolerance);
+  };
+  expect(16, 24, 200, 30, 30, 2);   // 100% region: pure content, no stroke
+  expect(44, 24, 100, 142, 15, 3);  // 50% region: half content, half stroke
+  expect(32, 46, 50, 199, 8, 3);    // 25% region: a quarter content, the rest stroke
+  expect(6, 24, 0, 255, 0, 2);      // outer band at full strength
+  expect(32, 53, 0, 255, 0, 2);     // the band below the 25% strip is full too
 }
 
 // Shared canvas for the Overprint knockout cases: orange backdrop, opaque
