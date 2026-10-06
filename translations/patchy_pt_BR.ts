@@ -18693,7 +18693,7 @@ Y: %2
     <message>
         <source>Height of the crop box</source>
         <translation>Altura da caixa de corte</translation>
-
+    </message>
     <message>
         <source>Exported %1 images</source>
         <translation>%1 imagens exportadas.</translation>
