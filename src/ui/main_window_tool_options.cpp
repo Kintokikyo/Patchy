@@ -1565,6 +1565,7 @@ void MainWindow::show_color_panel(bool foreground) {
         if (foreground) {
           canvas_->set_primary_color(color);
           apply_primary_color_to_active_text_editor(color);
+          apply_foreground_color_to_shape_paint(color);
           statusBar()->showMessage(tr("Foreground color changed"));
         } else {
           canvas_->set_secondary_color(color);

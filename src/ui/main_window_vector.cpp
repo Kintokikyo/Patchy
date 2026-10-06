@@ -1632,7 +1632,7 @@ bool MainWindow::apply_options_bar_appearance_to_active_shape(const std::vector<
   return commit_options_bar_appearance_fields(fields);
 }
 
-bool MainWindow::commit_options_bar_appearance_fields(const std::vector<std::string>& fields) {
+ShapeAppearanceSettings MainWindow::options_bar_appearance_settings(const std::vector<std::string>& fields) const {
   ShapeAppearanceSettings settings;
   settings.fill = current_vector_fill_;
   settings.stroke.enabled = current_vector_stroke_enabled_;
@@ -1645,7 +1645,11 @@ bool MainWindow::commit_options_bar_appearance_fields(const std::vector<std::str
                             property.key == "stroke.enabled" || property.key == "stroke.width")))
       edits->append(property.capture(settings));
   settings.edits = std::move(edits);
-  return commit_shape_appearance_edit(editable_selected_shape_layer_ids(), settings);
+  return settings;
+}
+
+bool MainWindow::commit_options_bar_appearance_fields(const std::vector<std::string>& fields) {
+  return commit_shape_appearance_edit(editable_selected_shape_layer_ids(), options_bar_appearance_settings(fields));
 }
 
 void MainWindow::finish_pending_shape_appearance_edit() {
@@ -1997,7 +2001,7 @@ void MainWindow::pick_vector_solid_color(bool for_stroke) {
 
 void MainWindow::apply_swatch_color_to_shape_paint(QColor color) {
   if (!vector_appearance_controls_live() || preview_dialog_edit_locked()) return;
-  apply_solid_color_to_shape_paint(color);
+  apply_solid_color_to_shape_paint(color, /*debounce=*/false);
 }
 
 void MainWindow::apply_picked_color_to_selected_shapes(QColor color) {
@@ -2007,22 +2011,38 @@ void MainWindow::apply_picked_color_to_selected_shapes(QColor color) {
   // painter sampling a color with a shape layer selected must not recolor it.
   if (preview_dialog_edit_locked() || editable_selected_shape_layer_ids().empty()) return;
   if (current_tool_ != CanvasTool::Eyedropper && !vector_appearance_controls_live()) return;
-  apply_solid_color_to_shape_paint(color);
+  apply_solid_color_to_shape_paint(color, /*debounce=*/false);
 }
 
-void MainWindow::apply_solid_color_to_shape_paint(QColor color) {
-  finish_pending_shape_appearance_edit();
+void MainWindow::apply_foreground_color_to_shape_paint(QColor color) {
+  // The Foreground color panel while the shape controls are live (GitHub issue
+  // 67): the same rule as a swatch click, debounced because the panel reports
+  // every step of a drag through the picker and each commit is an undo step.
+  if (!vector_appearance_controls_live() || preview_dialog_edit_locked()) return;
+  apply_solid_color_to_shape_paint(color, /*debounce=*/true);
+}
+
+void MainWindow::apply_solid_color_to_shape_paint(QColor color, bool debounce) {
+  // A Solid fill takes the color, else a Solid stroke behind a None fill. Gradient
+  // and pattern fills, and outline-only shapes, are deliberately left alone: the
+  // paint KIND is an explicit options-bar choice (Seth, October 2026).
   const bool to_fill = current_vector_fill_.kind == VectorFillKind::Solid;
   const bool to_stroke = !to_fill && current_vector_fill_.kind == VectorFillKind::None &&
                          current_vector_stroke_enabled_ &&
                          current_vector_stroke_paint_.kind == VectorFillKind::Solid;
   if (!to_fill && !to_stroke) return;
+  if (!debounce) finish_pending_shape_appearance_edit();
   auto& target = to_fill ? current_vector_fill_ : current_vector_stroke_paint_;
   target.color = {static_cast<std::uint8_t>(color.red()), static_cast<std::uint8_t>(color.green()),
                   static_cast<std::uint8_t>(color.blue())};
   update_vector_swatch_icons();
   schedule_save_tool_settings();
-  commit_options_bar_appearance_fields({to_fill ? "fill.color" : "stroke.content.color"});
+  const std::vector<std::string> fields{to_fill ? "fill.color" : "stroke.content.color"};
+  if (debounce) {
+    queue_shape_appearance_edit(options_bar_appearance_settings(fields));
+  } else {
+    commit_options_bar_appearance_fields(fields);
+  }
 }
 
 void MainWindow::pick_vector_gradient(bool for_stroke) {

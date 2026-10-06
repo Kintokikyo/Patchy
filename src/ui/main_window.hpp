@@ -1182,10 +1182,16 @@ private:
   // appearance controls are live. Alt-picks from painting tools only set the
   // foreground.
   void apply_picked_color_to_selected_shapes(QColor color);
+  // The Foreground color panel while the shape controls are live: the swatch
+  // rule, debounced through queue_shape_appearance_edit (GitHub issue 67).
+  void apply_foreground_color_to_shape_paint(QColor color);
   // Shared body: writes `color` into the options-bar solid Fill (or an enabled
-  // solid Stroke when the fill is No Fill) and commits that field to the
-  // selected shape layers as one undo step. Callers gate it.
-  void apply_solid_color_to_shape_paint(QColor color);
+  // solid Stroke when the fill is No Fill) and applies that field to the
+  // selected shape layers, as one undo step now or debounced. Callers gate it.
+  void apply_solid_color_to_shape_paint(QColor color, bool debounce);
+  // The options-bar appearance as ShapeAppearanceSettings with `fields` (or
+  // the kind/stroke basics when empty) captured as its edits.
+  [[nodiscard]] ShapeAppearanceSettings options_bar_appearance_settings(const std::vector<std::string>& fields) const;
   // apply_options_bar_appearance_to_active_shape without its live-controls
   // gate: builds the settings from the options bar and commits `fields`.
   bool commit_options_bar_appearance_fields(const std::vector<std::string>& fields);
