@@ -355,8 +355,10 @@ StartPanel::StartPanel(QWidget* parent) : QWidget(parent) {
                                          "href=\"https://github.com/SethRobinson\">Seth A. Robinson</a>")));
   });
   // The contributor credits live in the About dialog only: every name added
-  // here would take a row from the recent-files list (Seth, October 2026).
-  add_footer_row({version, credit});
+  // here would take a row from the recent-files list (Seth, October 2026). The
+  // version gets its own row so the number stands alone; the author follows.
+  add_footer_row({version});
+  add_footer_row({credit});
 
   const auto make_home_label = [this](const char* source, const QString& link) {
     auto* label = new QLabel(this);

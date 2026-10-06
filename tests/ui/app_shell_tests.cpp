@@ -4336,10 +4336,10 @@ void ui_start_panel_shows_about_info_and_update_status() {
   auto* status = window.findChild<QLabel*>(QStringLiteral("startPanelUpdateStatus"));
   CHECK(status != nullptr);
   CHECK(!status->isVisible());
-  panel->set_update_status(QStringLiteral("Patchy is up to date (9.99)."));
+  panel->set_update_status(QStringLiteral("Update available: Patchy 9.99."));
   QApplication::processEvents();
   CHECK(status->isVisible());
-  CHECK(status->text() == QStringLiteral("Patchy is up to date (9.99)."));
+  CHECK(status->text() == QStringLiteral("Update available: Patchy 9.99."));
   save_widget_artifact("ui_start_panel_about_info", window);
   panel->set_update_status(QString());
   CHECK(!status->isVisible());
