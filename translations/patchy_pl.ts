@@ -18749,7 +18749,7 @@ Y: %2
     <message>
         <source>Height of the crop box</source>
         <translation>Wysokość ramki kadrowania</translation>
-
+    </message>
     <message>
         <source>Exported %1 images</source>
         <translation>Wyeksportowano %1 obrazów.</translation>
