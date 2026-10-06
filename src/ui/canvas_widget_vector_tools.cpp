@@ -42,6 +42,84 @@ constexpr double kPenSmoothDragThresholdPx = 2.0;  // document pixels
 constexpr double kPathHitRadiusPx = 7.0;       // half of the 14 px hit rect
 constexpr qint64 kPathNudgeCoalesceMs = 800;
 
+std::optional<QRectF> selected_path_snap_rect(
+    const VectorPath& path,
+    const std::set<std::pair<int, int>>& selected_anchors) {
+  if (selected_anchors.empty()) {
+    return std::nullopt;
+  }
+
+  QPainterPath geometry;
+
+  std::set<int> selected_groups;
+
+  for (const auto& [subpath_index, anchor_index] : selected_anchors) {
+    if (subpath_index < 0 ||
+        subpath_index >= static_cast<int>(path.subpaths.size())) {
+      continue;
+    }
+
+    const auto& subpath =
+        path.subpaths[static_cast<std::size_t>(subpath_index)];
+
+    if (anchor_index < 0 ||
+        anchor_index >= static_cast<int>(subpath.anchors.size())) {
+      continue;
+    }
+
+    selected_groups.insert(subpath.shape_group);
+  }
+
+  for (const auto& subpath : path.subpaths) {
+    if (!selected_groups.contains(subpath.shape_group) ||
+        subpath.anchors.empty()) {
+      continue;
+    }
+
+    const auto& first = subpath.anchors.front();
+    geometry.moveTo(first.anchor_x, first.anchor_y);
+
+    for (std::size_t i = 0; i + 1 < subpath.anchors.size(); ++i) {
+      const auto& a = subpath.anchors[i];
+      const auto& b = subpath.anchors[i + 1];
+
+      geometry.cubicTo(
+          a.out_x,
+          a.out_y,
+          b.in_x,
+          b.in_y,
+          b.anchor_x,
+          b.anchor_y);
+    }
+
+    if (subpath.closed && subpath.anchors.size() > 1) {
+      const auto& a = subpath.anchors.back();
+      const auto& b = subpath.anchors.front();
+
+      geometry.cubicTo(
+          a.out_x,
+          a.out_y,
+          b.in_x,
+          b.in_y,
+          b.anchor_x,
+          b.anchor_y);
+
+      geometry.closeSubpath();
+    }
+  }
+
+  if (geometry.isEmpty()) {
+    return std::nullopt;
+  }
+
+  const auto bounds = geometry.boundingRect();
+  if (bounds.isEmpty()) {
+    return std::nullopt;
+  }
+
+  return bounds;
+}
+
 // De Casteljau split of the cubic (a.anchor, a.out, b.in, b.anchor) at t,
 // yielding the inserted anchor and the adjusted neighbor handles. Preserves
 // the curve exactly (the Pen add-anchor rule).
@@ -1010,6 +1088,7 @@ bool CanvasWidget::handle_path_edit_press(QMouseEvent* event, QPointF document_p
   path_drag_origin_document_ = document_point;
   path_drag_raw_document_ = document_point;
   path_drag_applied_delta_ = QPointF(0.0, 0.0);
+  path_drag_snap_source_rect_.reset();
   const auto selection_before = path_selected_anchors_;
   const auto extras_before = extra_selected_anchors_;
   const auto notify_if_changed = [&] {
@@ -1046,6 +1125,10 @@ bool CanvasWidget::handle_path_edit_press(QMouseEvent* event, QPointF document_p
              ++a) {
           path_selected_anchors_.insert({s, a});
         }
+      }
+      if (snap_enabled_ && !path_selected_anchors_.empty()) {
+        path_drag_snap_source_rect_ =
+          selected_path_snap_rect(*path, path_selected_anchors_);
       }
     } else {
       if (additive) {
@@ -1116,6 +1199,10 @@ bool CanvasWidget::handle_path_edit_press(QMouseEvent* event, QPointF document_p
              ++a) {
           path_selected_anchors_.insert({s, a});
         }
+      }
+      if (snap_enabled_ && !path_selected_anchors_.empty()) {
+        path_drag_snap_source_rect_ =
+          selected_path_snap_rect(*path, path_selected_anchors_);
       }
     } else {
       // A segment whose ends are already selected drags the whole selection
@@ -1269,9 +1356,25 @@ bool CanvasWidget::update_path_edit_drag(QPointF document_point, Qt::KeyboardMod
     // Anchor drags track the total delta from the press so Shift can constrain
     // (and un-constrain) against it; each frame still applies an increment.
     const auto raw_total = document_point - path_drag_origin_document_;
-    const auto effective_total = (modifiers & Qt::ShiftModifier) != 0
+    auto effective_total = (modifiers & Qt::ShiftModifier) != 0
                                      ? constrain_drag_to_axes(raw_total)
                                      : raw_total;
+                                     
+    if (edit_tool == CanvasTool::PathSelect && snap_enabled_ && path_drag_snap_source_rect_.has_value()) {
+      std::vector<LayerId> exclude_ids;
+
+      if (const auto active = document_->active_layer_id();
+        active.has_value()) {
+        exclude_ids.push_back(*active);
+      }
+
+      effective_total =
+        snapped_path_delta(
+          *path_drag_snap_source_rect_,
+          effective_total,
+          exclude_ids);
+    }
+    
     dx = effective_total.x() - path_drag_applied_delta_.x();
     dy = effective_total.y() - path_drag_applied_delta_.y();
     if (dx == 0.0 && dy == 0.0) {
@@ -1457,6 +1560,7 @@ bool CanvasWidget::handle_path_edit_release(QMouseEvent* event) {
     }
   }
   path_drag_mode_ = PathEditDrag::None;
+  path_drag_snap_source_rect_.reset();
   update();
   return true;
 }

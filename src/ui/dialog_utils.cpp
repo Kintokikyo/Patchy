@@ -18,6 +18,7 @@
 #include <QComboBox>
 #include <QCursor>
 #include <QDialog>
+#include <QDialogButtonBox>
 #include <QDoubleSpinBox>
 #include <QDir>
 #include <QElapsedTimer>
@@ -61,6 +62,7 @@
 #include <QTabBar>
 #include <QTabWidget>
 #include <QToolButton>
+#include <QUrl>
 #include <QVariant>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -888,7 +890,7 @@ bool restore_dialog_position(QDialog& dialog) {
   return true;
 }
 
-#ifdef Q_OS_WASM
+#if defined(Q_OS_WASM) || defined(Q_OS_ANDROID)
 constexpr auto kDialogOverflowScrollInstalledProperty = "patchy.dialogOverflowScrollInstalled";
 
 // Last resort for a dialog whose LAYOUT minimum exceeds the canvas: resizing
@@ -976,7 +978,7 @@ void clamp_dialog_to_screen(QDialog& dialog) {
 #endif
 
 void place_dialog(QDialog& dialog) {
-#ifdef Q_OS_WASM
+#if defined(Q_OS_WASM) || defined(Q_OS_ANDROID)
   clamp_dialog_to_screen(dialog);
 #endif
   if (!restore_dialog_position(dialog)) {
@@ -2277,6 +2279,9 @@ QString get_open_file_name(QWidget* parent, const QString& caption, const QStrin
 #else
   QFileDialog dialog(parent, caption, QString(), filter);
   configure_file_dialog(dialog, object_name, dir, QFileDialog::AcceptOpen, QFileDialog::ExistingFile, selected_filter);
+  #ifdef Q_OS_ANDROID
+    dialog.setNameFilter(QStringLiteral("*"));
+  #endif
   if (filter_details == FilterNameDetails::Hidden) {
     dialog.setOption(QFileDialog::HideNameFilterDetails, true);
   }
@@ -2301,6 +2306,9 @@ QStringList get_open_file_names(QWidget* parent, const QString& caption, const Q
 #else
   QFileDialog dialog(parent, caption, QString(), filter);
   configure_file_dialog(dialog, object_name, dir, QFileDialog::AcceptOpen, QFileDialog::ExistingFiles, selected_filter);
+  #ifdef Q_OS_ANDROID
+    dialog.setNameFilter(QStringLiteral("*"));
+  #endif
   if (filter_details == FilterNameDetails::Hidden) {
     dialog.setOption(QFileDialog::HideNameFilterDetails, true);
   }
@@ -2314,16 +2322,290 @@ QStringList get_open_file_names(QWidget* parent, const QString& caption, const Q
 #endif
 }
 
+#ifdef Q_OS_ANDROID
+
+QString prompt_android_save_file(QWidget* parent,
+                                 const QString& caption,
+                                 const QString& initial_path,
+                                 const QString& filter,
+                                 QString* selected_filter) {
+    const auto rows = filter.split(QStringLiteral(";;"), Qt::SkipEmptyParts);
+
+    QDialog dialog(parent);
+    dialog.setObjectName(QStringLiteral("androidSaveFileDialog"));
+    dialog.setWindowTitle(caption);
+    dialog.setModal(true);
+
+    auto* layout = new QVBoxLayout(&dialog);
+
+    auto* form = new QFormLayout();
+
+    auto* name_edit = new QLineEdit(&dialog);
+    name_edit->setObjectName(QStringLiteral("androidSaveFileNameEdit"));
+
+    auto initial_name = QFileInfo(initial_path).fileName();
+    
+    #ifdef Q_OS_ANDROID
+    if (initial_path.startsWith(QStringLiteral("content://"),
+                        Qt::CaseInsensitive)) {
+                        initial_name = QUrl::fromPercentEncoding(initial_name.toUtf8());
+    }
+    #endif
+    name_edit->setText(initial_name.isEmpty()
+                       ? QStringLiteral("Untitled.psd")
+                       : initial_name);
+    name_edit->selectAll();
+
+    form->addRow(QObject::tr("File name:"), name_edit);
+
+    auto* format_combo = new QComboBox(&dialog);
+    format_combo->setObjectName(QStringLiteral("androidSaveFormatCombo"));
+
+    for (const auto& row : rows) {
+        format_combo->addItem(row);
+    }
+
+    if (selected_filter != nullptr && !selected_filter->isEmpty()) {
+        const int index = format_combo->findText(*selected_filter);
+        if (index >= 0) {
+            format_combo->setCurrentIndex(index);
+        }
+    }
+
+    if (!rows.isEmpty()) {
+        form->addRow(QObject::tr("Format:"), format_combo);
+    }
+    
+    const auto get_filter_extension =
+    [](const QString& filter_text) -> QString {
+        const int wildcard_pos =
+            filter_text.indexOf(QStringLiteral("*."));
+
+        if (wildcard_pos < 0) {
+            return {};
+        }
+
+        const int extension_start = wildcard_pos + 2;
+
+        int extension_end =
+            filter_text.indexOf(
+                QLatin1Char(' '),
+                extension_start);
+
+        const int closing_paren =
+            filter_text.indexOf(
+                QLatin1Char(')'),
+                extension_start);
+
+        if (extension_end < 0 ||
+            (closing_paren >= 0 &&
+             closing_paren < extension_end)) {
+            extension_end = closing_paren;
+        }
+
+        if (extension_end < 0) {
+            extension_end = filter_text.size();
+        }
+
+        return filter_text.mid(
+            extension_start,
+            extension_end - extension_start);
+    };
+
+QObject::connect(
+    format_combo,
+    &QComboBox::currentTextChanged,
+    &dialog,
+    [name_edit, format_combo, get_filter_extension] {
+        const QString current_name =
+            name_edit->text().trimmed();
+
+        if (current_name.isEmpty()) {
+            return;
+        }
+
+        const QString extension =
+            get_filter_extension(
+                format_combo->currentText());
+
+        if (extension.isEmpty()) {
+            return;
+        }
+
+        const QFileInfo info(current_name);
+
+        QString new_name;
+
+        if (info.suffix().isEmpty()) {
+            new_name =
+                current_name +
+                QLatin1Char('.') +
+                extension;
+        } else {
+            new_name =
+                info.completeBaseName() +
+                QLatin1Char('.') +
+                extension;
+        }
+
+        if (new_name != current_name) {
+            name_edit->setText(new_name);
+        }
+    });
+
+    layout->addLayout(form);
+
+    auto* buttons =
+        new QDialogButtonBox(QDialogButtonBox::Save |
+                             QDialogButtonBox::Cancel,
+                             &dialog);
+
+    QObject::connect(
+        buttons, &QDialogButtonBox::accepted,
+        &dialog, &QDialog::accept);
+
+    QObject::connect(
+        buttons, &QDialogButtonBox::rejected,
+        &dialog, &QDialog::reject);
+
+    layout->addWidget(buttons);
+
+    auto* save_button = buttons->button(QDialogButtonBox::Save);
+
+    const auto update_save_enabled =
+        [save_button, name_edit] {
+            save_button->setEnabled(
+                !name_edit->text().trimmed().isEmpty());
+        };
+
+    QObject::connect(
+        name_edit, &QLineEdit::textChanged,
+        &dialog, update_save_enabled);
+
+    update_save_enabled();
+
+    name_edit->setFocus();
+
+    if (exec_dialog(dialog) != QDialog::Accepted) {
+        return {};
+    }
+
+    auto file_name = name_edit->text().trimmed();
+
+    if (file_name.isEmpty()) {
+        return {};
+    }
+
+    // Prevent the user from injecting directory separators.
+    file_name.replace(QLatin1Char('/'), QLatin1Char('_'));
+    file_name.replace(QLatin1Char('\\'), QLatin1Char('_'));
+
+    if (selected_filter != nullptr &&
+    format_combo->count() > 0) {
+    *selected_filter = format_combo->currentText();
+    }
+    
+    // Make the filename match the selected format before
+    // passing it to Android's native save picker.
+    QString selected_extension;
+    
+    const auto current_filter = format_combo->currentText();
+    const int wildcard_pos = 
+    current_filter.indexOf(QStringLiteral("*."));
+    
+    if (wildcard_pos >= 0) {
+    const int extension_start = wildcard_pos + 2;
+
+    int extension_end =
+        current_filter.indexOf(
+            QLatin1Char(' '),
+            extension_start);
+
+    const int closing_paren =
+        current_filter.indexOf(
+            QLatin1Char(')'),
+            extension_start);
+
+    if (extension_end < 0 ||
+        (closing_paren >= 0 &&
+         closing_paren < extension_end)) {
+        extension_end = closing_paren;
+    }
+
+    if (extension_end < 0) {
+        extension_end = current_filter.size();
+    }
+
+    selected_extension =
+        current_filter.mid(
+            extension_start,
+            extension_end - extension_start);
+    }
+    
+    if (!selected_extension.isEmpty()) {
+    const QFileInfo info(file_name);
+
+    if (info.suffix().isEmpty()) {
+        file_name +=
+            QLatin1Char('.') +
+            selected_extension;
+    } else {
+        file_name =
+            info.completeBaseName() +
+            QLatin1Char('.') +
+            selected_extension;
+        }
+    }
+    return file_name;
+}
+
+#endif
+
 QString get_save_file_name(QWidget* parent, const QString& caption, const QString& dir, const QString& filter,
                            QString* selected_filter, const QString& object_name, const QStringList& recent_files) {
 #ifdef Q_OS_WASM
-  // Saving in the browser means downloading, so there is no location to pick;
-  // a small name + format prompt stands in for the save dialog and the chosen
-  // MEMFS path flows through the unchanged writer pipeline, whose result the
-  // per-site offer_browser_download_for_saved_file hook then downloads.
-  Q_UNUSED(object_name);
-  Q_UNUSED(recent_files);
-  return wasm_files::prompt_save_file(parent, caption, dir, filter, selected_filter);
+
+    Q_UNUSED(object_name);
+    Q_UNUSED(recent_files);
+
+    return wasm_files::prompt_save_file(
+        parent,
+        caption,
+        dir,
+        filter,
+        selected_filter);
+
+#elif defined(Q_OS_ANDROID)
+
+    Q_UNUSED(object_name);
+    Q_UNUSED(recent_files);
+
+    const auto file_name =
+        prompt_android_save_file(
+            parent,
+            caption,
+            dir,
+            filter,
+            selected_filter);
+
+    if (file_name.isEmpty()) {
+        return {};
+    }
+
+    // Android's native picker is now only responsible for
+    // choosing the destination folder / final file location.
+    const QString native_filter =
+        (selected_filter != nullptr && !selected_filter->isEmpty())
+            ? *selected_filter
+            : filter;
+            
+    return QFileDialog::getSaveFileName(
+    parent,
+    caption,
+    file_name,
+    native_filter,
+    selected_filter);
+
 #else
   QFileDialog dialog(parent, caption, QString(), filter);
   configure_file_dialog(dialog, object_name, dir, QFileDialog::AcceptSave, QFileDialog::AnyFile, selected_filter);

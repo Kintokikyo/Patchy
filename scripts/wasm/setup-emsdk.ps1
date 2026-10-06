@@ -55,7 +55,15 @@ if ($LASTEXITCODE -ne 0) { throw "emcc verification failed" }
 $EmscriptenConfig = Join-Path $EmsdkDir '.emscripten'
 $NodeLine = (Get-Content $EmscriptenConfig | Where-Object { $_ -match '^NODE_JS' } | Select-Object -First 1)
 Write-Host "activated node config: $NodeLine"
-$NodeExe = Get-ChildItem (Join-Path $EmsdkDir 'node\*\bin\node.exe') | Select-Object -First 1
-if (-not $NodeExe) { throw "bundled node was not found under .deps\emsdk\node" }
+$NodeExe = Get-ChildItem (Join-Path $EmsdkDir 'node\*\bin\node.exe') -ErrorAction SilentlyContinue | Select-Object -First 1
+
+if (-not $NodeExe) {
+  $NodeExe = Get-ChildItem (Join-Path $EmsdkDir 'node\*\node.exe') -ErrorAction SilentlyContinue | Select-Object -First 1
+}
+
+if (-not $NodeExe) {
+  throw "bundled node was not found under .deps\emsdk\node"
+}
+
 Write-Host "bundled node $((& $NodeExe.FullName --version))"
 Write-Host "== wasm toolchain setup complete =="

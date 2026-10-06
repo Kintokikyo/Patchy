@@ -279,6 +279,10 @@ void exclude_submenus_from_native_menu_roles(QMenu& menu) {
 }  // namespace
 
 void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
+  #ifdef Q_OS_ANDROID
+    menuBar()->setNativeMenuBar(false);
+    menuBar()->setVisible(true);
+  #endif
   auto* file_menu = menuBar()->addMenu(tr("&File"));
   auto* edit_menu = menuBar()->addMenu(tr("&Edit"));
   auto* image_menu = menuBar()->addMenu(tr("&Image"));

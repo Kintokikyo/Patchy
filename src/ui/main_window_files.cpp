@@ -267,6 +267,16 @@
 #endif
 
 #include "patchy_version.hpp"
+#ifdef Q_OS_ANDROID
+#include <QJniEnvironment>
+#include <QJniObject>
+#include <QtCore/qnativeinterface.h>
+#include <QTemporaryFile>
+#endif
+
+#ifndef PATCHY_VERSION
+#define PATCHY_VERSION "0.0.0"
+#endif
 
 // Icon resources live in the static patchy_ui library; force registration before first use.
 int qInitResources_icons();
@@ -351,6 +361,272 @@ bool is_affinity_document_extension(const QString& extension) {
   return extension == QStringLiteral("af") || extension == QStringLiteral("afphoto") ||
          extension == QStringLiteral("afdesign") || extension == QStringLiteral("afpub");
 }
+
+#ifdef Q_OS_ANDROID
+
+bool is_android_content_uri(const QString& path) {
+    return path.startsWith(
+        QStringLiteral("content://"),
+        Qt::CaseInsensitive);
+}
+
+QString android_content_uri_display_path(const QString& path) {
+    const QUrl uri(path);
+    const QString encoded_path = uri.path(QUrl::FullyEncoded);
+    const QString tree_marker = QStringLiteral("/tree/");
+
+    const qsizetype tree_pos = encoded_path.indexOf(tree_marker);
+    if (tree_pos >= 0) {
+        QString document_id =
+            encoded_path.mid(tree_pos + tree_marker.size());
+
+        const QString document_marker =
+            QStringLiteral("/document/");
+        const qsizetype document_pos =
+            document_id.indexOf(document_marker);
+
+        if (document_pos >= 0) {
+            document_id = document_id.left(document_pos);
+        }
+
+        document_id = QUrl::fromPercentEncoding(
+            document_id.toUtf8());
+
+        // Android's primary storage identifier is an implementation
+        // detail and does not need to be shown to the user.
+        if (document_id.startsWith(QStringLiteral("primary:"))) {
+            document_id.remove(0, QStringLiteral("primary:").size());
+        }
+
+        if (!document_id.isEmpty()) {
+            return document_id;
+        }
+    }
+
+    return QUrl::fromPercentEncoding(
+        QFileInfo(path).fileName().toUtf8());
+}
+
+#endif
+
+QString display_path_for_ui(const QString& path) {
+#ifdef Q_OS_ANDROID
+    if (is_android_content_uri(path)) {
+        return android_content_uri_display_path(path);
+    }
+#endif
+
+    return QDir::toNativeSeparators(path);
+}
+
+#ifdef Q_OS_ANDROID
+
+void write_file_to_android_uri(const QString& local_path,
+                               const QString& uri_string) {
+
+    const QJniObject context =
+        QNativeInterface::QAndroidApplication::context();
+
+    if (!context.isValid()) {
+        throw std::runtime_error(
+            "Android context is unavailable");
+    }
+
+    const QJniObject local_path_java =
+        QJniObject::fromString(local_path);
+
+    const QUrl android_uri(uri_string);
+    
+    if (!android_uri.isValid()) {
+        throw std::runtime_error(
+            "Android destination URI is invalid");
+    }
+
+    const QString encoded_uri =
+        QString::fromUtf8(
+            android_uri.toEncoded(QUrl::FullyEncoded));
+
+    const QJniObject uri_string_java =
+        QJniObject::fromString(encoded_uri);
+
+    const jboolean result =
+        context.callMethod<jboolean>(
+            "writeFileToUri",
+            "(Ljava/lang/String;Ljava/lang/String;)Z",
+            local_path_java.object<jstring>(),
+            uri_string_java.object<jstring>());
+
+    QJniEnvironment env;
+
+    if (env.checkAndClearExceptions(
+            QJniEnvironment::OutputMode::Silent)) {
+
+        throw std::runtime_error(
+            "Android Java write helper failed");
+    }
+
+    if (!result) {
+        throw std::runtime_error(
+            "Android could not write the destination");
+    }
+}
+
+bool read_file_from_android_uri(const QString& uri_string,
+                                const QString& local_path) {
+
+    const QJniObject context =
+        QNativeInterface::QAndroidApplication::context();
+
+    if (!context.isValid()) {
+        throw std::runtime_error(
+            "Android context is unavailable");
+    }
+
+    const QJniObject local_path_java =
+        QJniObject::fromString(local_path);
+
+    const QUrl android_uri(uri_string);
+
+    if (!android_uri.isValid()) {
+        throw std::runtime_error(
+            "Android source URI is invalid");
+    }
+
+    const QString encoded_uri =
+        QString::fromUtf8(
+            android_uri.toEncoded(QUrl::FullyEncoded));
+
+    const QJniObject uri_string_java =
+        QJniObject::fromString(encoded_uri);
+
+    const jboolean result =
+        context.callMethod<jboolean>(
+            "copyUriToLocalFile",
+            "(Ljava/lang/String;Ljava/lang/String;)Z",
+            uri_string_java.object<jstring>(),
+            local_path_java.object<jstring>());
+
+    QJniEnvironment env;
+
+    if (env.checkAndClearExceptions(
+            QJniEnvironment::OutputMode::Silent)) {
+
+        throw std::runtime_error(
+            "Android Java read helper failed");
+    }
+
+    if (!result) {
+        throw std::runtime_error(
+            "Android could not read the source file");
+    }
+
+    return true;
+}
+
+std::optional<QString> pick_android_directory() {
+
+    const QJniObject context =
+        QNativeInterface::QAndroidApplication::context();
+
+    if (!context.isValid()) {
+        return std::nullopt;
+    }
+
+    constexpr jint request_code = 0x5047;
+
+    context.callMethod<void>(
+        "pickPatchyDirectory",
+        "(I)V",
+        request_code);
+
+    QJniEnvironment env;
+
+    if (env.checkAndClearExceptions(
+            QJniEnvironment::OutputMode::Silent)) {
+
+        return std::nullopt;
+    }
+
+    QElapsedTimer timer;
+    timer.start();
+
+    while (timer.elapsed() < 120000) {
+
+        QApplication::processEvents(
+            QEventLoop::AllEvents,
+            25);
+
+        const QJniObject result =
+            context.callObjectMethod(
+                "consumePatchyDirectoryResult",
+                "(I)Ljava/lang/String;",
+                request_code);
+
+        if (result.isValid()) {
+
+            const QString uri =
+                result.toString();
+
+            if (uri.isEmpty()) {
+                return std::nullopt;
+            }
+
+            return uri;
+        }
+
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(25));
+    }
+
+    return std::nullopt;
+}
+
+bool write_file_to_android_directory(
+    const QString& local_path,
+    const QString& directory_uri,
+    const QString& file_name,
+    const QString& mime_type) {
+
+    const QJniObject context =
+        QNativeInterface::QAndroidApplication::context();
+
+    if (!context.isValid()) {
+        return false;
+    }
+
+    const QJniObject local_path_java =
+        QJniObject::fromString(local_path);
+
+    const QJniObject directory_uri_java =
+        QJniObject::fromString(directory_uri);
+
+    const QJniObject file_name_java =
+        QJniObject::fromString(file_name);
+
+    const QJniObject mime_type_java =
+        QJniObject::fromString(mime_type);
+
+    const jboolean result =
+        context.callMethod<jboolean>(
+            "writeFileToPatchyDirectory",
+            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Z",
+            local_path_java.object<jstring>(),
+            directory_uri_java.object<jstring>(),
+            file_name_java.object<jstring>(),
+            mime_type_java.object<jstring>());
+
+    QJniEnvironment env;
+
+    if (env.checkAndClearExceptions(
+            QJniEnvironment::OutputMode::Silent)) {
+
+        return false;
+    }
+
+    return result;
+}
+
+#endif
 
 // Affinity "Image" layers (placed image files) import wrapped as embedded
 // smart objects; count them for the import-choice dialog.
@@ -1091,7 +1367,44 @@ OpenDocumentResult load_document_from_path(QString path) {
     std::vector<std::string> psd_notices;
     psd::ReadOptions psd_options{true, false, true};
     psd_options.notices = &psd_notices;
-    opened = psd::DocumentIo::read_file(to_filesystem_path(path), psd_options);
+
+    QString psd_read_path = path;
+
+  #ifdef Q_OS_ANDROID
+    std::optional<QTemporaryFile> temporary_psd_file;
+
+    if (is_android_content_uri(path)) {
+        const QString temporary_extension =
+            extension == QStringLiteral("psb")
+                ? QStringLiteral("psb")
+                : QStringLiteral("psd");
+
+        temporary_psd_file.emplace(
+            QDir::tempPath() +
+            QStringLiteral("/patchy-psd-XXXXXX.") +
+            temporary_extension);
+
+        if (!temporary_psd_file->open()) {
+            throw std::runtime_error(
+                QStringLiteral(
+                    "Cannot create temporary file for Android PSD import: %1")
+                    .arg(temporary_psd_file->errorString())
+                    .toStdString());
+        }
+
+        psd_read_path = temporary_psd_file->fileName();
+
+        temporary_psd_file->close();
+
+        read_file_from_android_uri(
+            path,
+            psd_read_path);
+    }
+  #endif
+
+    opened = psd::DocumentIo::read_file(
+        to_filesystem_path(psd_read_path),
+        psd_options);
     for (const auto& notice : psd_notices) {
       import_notices.push_back(translated_file_message(notice));
     }
@@ -1321,21 +1634,45 @@ void show_open_failed_message_box(QWidget* parent, const QString& error_text) {
 }
 
 QString path_with_default_extension(QString path, const QString& selected_filter) {
-  if (!QFileInfo(path).suffix().isEmpty()) {
-    return path;
-  }
+    QString selected_extension;
 
-  for (const auto& entry : file_format_entries()) {
-    if (entry.save_extensions.isEmpty()) {
-      continue;
+    for (const auto& entry : file_format_entries()) {
+        if (entry.save_extensions.isEmpty()) {
+            continue;
+        }
+
+        for (const auto& extension : entry.save_extensions) {
+            if (selected_filter.contains(QStringLiteral("*.") + extension)) {
+                selected_extension = entry.save_extensions.front();
+                break;
+            }
+        }
+
+        if (!selected_extension.isEmpty()) {
+            break;
+        }
     }
-    for (const auto& extension : entry.save_extensions) {
-      if (selected_filter.contains(QStringLiteral("*.") + extension)) {
-        return path + QLatin1Char('.') + entry.save_extensions.front();
-      }
+
+    if (selected_extension.isEmpty()) {
+        selected_extension = QStringLiteral("psd");
     }
-  }
-  return path + QStringLiteral(".psd");
+
+    const QFileInfo info(path);
+    
+    #ifdef Q_OS_ANDROID
+    if (is_android_content_uri(path)) {
+        return path;
+    }
+    #endif
+
+    if (info.suffix().isEmpty()) {
+        return path + QLatin1Char('.') + selected_extension;
+    }
+
+    return info.dir().filePath(
+        info.completeBaseName() +
+        QLatin1Char('.') +
+        selected_extension);
 }
 
 // Interactive-open machinery shared by open_document_path and the document-tab
@@ -2274,7 +2611,7 @@ void MainWindow::open_document_path(QString path) {
       if (!unattended_automation()) remember_open_directory_for_path(path);
     }
     if (loaded->import_notices.isEmpty()) {
-      statusBar()->showMessage(tr("Opened %1").arg(browser_transfer ? loaded_file_name : path));
+      statusBar()->showMessage(tr("Opened %1").arg(loaded_file_name));
     } else {
       // Import notes ride the status bar by default; the consolidated popup is opt-in
       // (see show_import_notices_popup) unless the notes describe data loss.
@@ -2431,7 +2768,7 @@ void MainWindow::reopen_document_session(DocumentSession& target_session) {
     refresh_document_tab_titles();
     open_extra_imported_page_sessions(loaded->file_name, std::move(loaded->extra_documents));
     if (loaded->import_notices.isEmpty()) {
-      statusBar()->showMessage(tr("Reopened %1").arg(path));
+      statusBar()->showMessage(tr("Reopened %1").arg(loaded->file_name));
     } else {
       auto status_notes = loaded->import_notices.front();
       if (loaded->import_notices.size() > 1) {
@@ -3063,7 +3400,7 @@ void MainWindow::import_sprite_sheet() {
     refresh_layer_controls();
     update_undo_redo_actions();
     mark_session_modified(session());
-    statusBar()->showMessage(tr("Imported %1 frames from %2").arg(frame_count).arg(path));
+    statusBar()->showMessage(tr("Imported %1 frames from %2").arg(frame_count).arg(display_path_for_ui(path)));
   } catch (const std::exception& error) {
     show_critical_message(this, tr("Import failed"), translated_file_message(error.what()),
                           QStringLiteral("openFailedMessageBox"));
@@ -3123,7 +3460,7 @@ void MainWindow::export_sprite_sheet() {
     write_flat_image_file(sheet_document, path, extension, *image_options);
     offer_browser_download_for_saved_file(path);
     remember_save_directory_for_path(path);
-    statusBar()->showMessage(tr("Exported sprite sheet %1").arg(path));
+    statusBar()->showMessage(tr("Exported sprite sheet %1").arg(display_path_for_ui(path)));
     if (image_options->export_reveal_in_file_explorer) {
       reveal_path_in_file_explorer(path, /*is_file*/ true);
     }
@@ -3228,43 +3565,184 @@ void MainWindow::export_image_sequence() {
       return;
     }
     const auto& layer_names = options->visible_layers_only ? visible_layer_names : all_layer_names;
+
     const auto file_names = image_sequence_file_names(layer_names, options->naming, extension);
+
+  #ifdef Q_OS_ANDROID
+
+    // Android: pilih folder menggunakan Storage Access Framework.
+    const auto directory_uri = pick_android_directory();
+
+    if (!directory_uri.has_value()) {
+      return;
+    }
+
+    int frame_index = 0;
+
+    for (const auto& layer : std::as_const(document()).layers()) {
+
+      if (options->visible_layers_only && !layer.visible()) {
+        continue;
+      }
+
+      auto frame_document =
+          document_from_qimage(
+              render_layer_isolated(document(), layer),
+              "Frame");
+
+      frame_document.print_settings() =
+          document().print_settings();
+
+      // Render frame ke temporary file terlebih dahulu.
+      std::optional<QTemporaryFile> temporary_file;
+
+      const QString temporary_suffix =
+          extension.isEmpty()
+              ? QStringLiteral(".tmp")
+              : QStringLiteral(".") + extension;
+
+      temporary_file.emplace(
+          QDir::tempPath() +
+          QStringLiteral("/patchy-sequence-XXXXXX") +
+          temporary_suffix);
+
+      if (!temporary_file->open()) {
+        throw std::runtime_error(
+            QStringLiteral(
+                "Cannot create temporary file for Android image sequence: %1")
+                .arg(temporary_file->errorString())
+                .toStdString());
+      }
+
+      const QString temporary_path =
+          temporary_file->fileName();
+
+      temporary_file->close();
+      temporary_file->setAutoRemove(false);
+
+      // Gunakan writer Patchy yang normal untuk menghasilkan frame.
+      write_flat_image_file(
+          frame_document,
+          temporary_path,
+          extension,
+          *image_options);
+
+      QString mime_type;
+
+      if (extension == QStringLiteral("png")) {
+        mime_type = QStringLiteral("image/png");
+      }
+      else if (extension == QStringLiteral("jpg") ||
+               extension == QStringLiteral("jpeg")) {
+        mime_type = QStringLiteral("image/jpeg");
+      }
+      else if (extension == QStringLiteral("webp")) {
+        mime_type = QStringLiteral("image/webp");
+      }
+      else {
+        mime_type =
+            QStringLiteral("application/octet-stream");
+      }
+
+      // Kirim temporary file ke folder Android yang dipilih.
+      if (!write_file_to_android_directory(
+              temporary_path,
+              *directory_uri,
+              file_names[frame_index],
+              mime_type)) {
+
+        QFile::remove(temporary_path);
+
+        throw std::runtime_error(
+            QStringLiteral(
+                "Could not write image sequence frame: %1")
+                .arg(file_names[frame_index])
+                .toStdString());
+      }
+
+      QFile::remove(temporary_path);
+
+      ++frame_index;
+    }
+
+    statusBar()->showMessage(tr("Exported %1 images").arg(file_names.size()));
+
+  #else
+
     const auto directory = chosen.dir();
-    // The save dialog confirmed overwriting only the exact name typed there; the rest
-    // of the set needs its own check.
+
+    // The save dialog confirmed overwriting only the exact name typed there;
+    // the rest of the set needs its own check.
     int existing = 0;
+
     for (const auto& name : file_names) {
       const auto target = directory.filePath(name);
-      if (target != path && QFileInfo::exists(target)) {
+
+      if (target != path &&
+          QFileInfo::exists(target)) {
         ++existing;
       }
     }
+
     if (existing > 0) {
-      const auto answer = show_warning_message(
-          this, tr("Export Image Sequence"),
-          tr("%1 of %2 files already exist in this folder. Overwrite them?").arg(existing).arg(file_names.size()),
-          QMessageBox::Yes | QMessageBox::No, QMessageBox::No, QStringLiteral("imageSequenceOverwriteMessageBox"));
+      const auto answer =
+          show_warning_message(
+              this,
+              tr("Export Image Sequence"),
+              tr("%1 of %2 files already exist in this folder. "
+                 "Overwrite them?")
+                  .arg(existing)
+                  .arg(file_names.size()),
+              QMessageBox::Yes | QMessageBox::No,
+              QMessageBox::No,
+              QStringLiteral(
+                  "imageSequenceOverwriteMessageBox"));
+
       if (answer != QMessageBox::Yes) {
         return;
       }
     }
+
     int frame_index = 0;
-    for (const auto& layer : std::as_const(document()).layers()) {
-      if (options->visible_layers_only && !layer.visible()) {
+
+    for (const auto& layer :
+         std::as_const(document()).layers()) {
+
+      if (options->visible_layers_only &&
+          !layer.visible()) {
         continue;
       }
-      // Each frame routes through the normal export machinery as a flat document and
-      // inherits the source document's print resolution (same as the sprite sheet).
-      auto frame_document = document_from_qimage(render_layer_isolated(document(), layer), tr("Frame").toStdString());
-      frame_document.print_settings() = document().print_settings();
-      write_flat_image_file(frame_document, directory.filePath(file_names[frame_index]), extension, *image_options);
+// Each frame routes through the normal export machinery as a flat document and
+// inherits the source document's print resolution (same as the sprite sheet).
+auto frame_document = document_from_qimage(
+    render_layer_isolated(document(), layer),
+    tr("Frame").toStdString());
+
+frame_document.print_settings() = document().print_settings();
+
+write_flat_image_file(
+    frame_document,
+    directory.filePath(file_names[frame_index]),
+    extension,
+    *image_options);
       ++frame_index;
     }
+
     remember_save_directory_for_path(path);
-    statusBar()->showMessage(tr("Exported %1 images to %2").arg(file_names.size()).arg(directory.absolutePath()));
+
+    statusBar()->showMessage(
+        tr("Exported %1 images to %2")
+            .arg(file_names.size())
+            .arg(directory.absolutePath()));
+
     if (image_options->export_reveal_in_file_explorer) {
-      reveal_path_in_file_explorer(directory.absolutePath(), /*is_file*/ false);
+      reveal_path_in_file_explorer(
+          directory.absolutePath(),
+          /*is_file*/ false);
     }
+
+  #endif
+
   } catch (const std::exception& error) {
     show_critical_message(this, tr("Export failed"), translated_file_message(error.what()),
                           QStringLiteral("exportFailedMessageBox"));
@@ -3304,10 +3782,54 @@ void MainWindow::export_animated_gif() {
   }
   try {
     std::vector<std::string> writer_notices;
-    write_flat_image_file(document(), path, QStringLiteral("gif"), *options, &writer_notices);
+
+  #ifdef Q_OS_ANDROID
+    QString writer_path = path;
+    std::optional<QTemporaryFile> temporary_file;
+
+    if (is_android_content_uri(path)) {
+        temporary_file.emplace(
+            QDir::tempPath() +
+            QStringLiteral("/patchy-gif-XXXXXX.gif"));
+
+        if (!temporary_file->open()) {
+            throw std::runtime_error(
+                QStringLiteral(
+                    "Cannot create temporary file for Android GIF export: %1")
+                    .arg(temporary_file->errorString())
+                    .toStdString());
+        }
+
+        writer_path = temporary_file->fileName();
+
+        temporary_file->close();
+        temporary_file->setAutoRemove(false);
+    }
+  #else
+    const QString writer_path = path;
+  #endif
+
+    write_flat_image_file(
+        document(),
+        writer_path,
+        QStringLiteral("gif"),
+        *options,
+        &writer_notices);
+
+  #ifdef Q_OS_ANDROID
+    if (is_android_content_uri(path)) {
+        write_file_to_android_uri(
+            writer_path,
+            path);
+
+        QFile::remove(writer_path);
+    }
+  #endif
+
     offer_browser_download_for_saved_file(path);
+    
     remember_save_directory_for_path(path);
-    statusBar()->showMessage(tr("Exported %1").arg(path) + export_notes_suffix_for(writer_notices));
+    statusBar()->showMessage(tr("Exported %1").arg(display_path_for_ui(path)) + export_notes_suffix_for(writer_notices));
     if (options->export_reveal_in_file_explorer) {
       reveal_path_in_file_explorer(path, /*is_file*/ true);
     }
@@ -3665,6 +4187,13 @@ bool MainWindow::save_document_to_path(QString path, std::optional<ImageSaveOpti
     return false;
   }
   const auto saving_session_id = session().session_id;
+  
+  #ifdef Q_OS_ANDROID
+    QString writer_path = path;
+    std::optional<QTemporaryFile> temporary_file;
+  #else
+    const QString writer_path = path;
+  #endif
   // Playback drives real layer visibility one frame at a time; a save mid-playback would
   // write that frame's visibility to disk (close_document_session stops it for the same
   // reason before its own prompt).
@@ -3672,7 +4201,34 @@ bool MainWindow::save_document_to_path(QString path, std::optional<ImageSaveOpti
     animation_preview_window_->stop_playback_for(&document());
   }
   const auto extension = extension_for_path(path);
-  const bool discards_layers = save_discards_layers(std::as_const(document()), extension);
+  #ifdef Q_OS_ANDROID
+    if (is_android_content_uri(path)) {
+        const QString temporary_suffix =
+            extension.isEmpty()
+                ? QStringLiteral(".tmp")
+                : QStringLiteral(".") + extension;
+
+        temporary_file.emplace(
+            QDir::tempPath() +
+            QStringLiteral("/patchy-save-XXXXXX") +
+            temporary_suffix);
+
+        if (!temporary_file->open()) {
+            throw std::runtime_error(
+                QStringLiteral(
+                    "Cannot create temporary file for Android save: %1")
+                    .arg(temporary_file->errorString())
+                    .toStdString());
+        }
+
+        writer_path = temporary_file->fileName();
+
+        temporary_file->close();
+        temporary_file->setAutoRemove(false);
+    }
+  #endif
+  const bool discards_layers =
+    save_discards_layers(std::as_const(document()), extension);
   // CLI automation saves are explicit about their target format, so flattening needs no
   // confirmation there (and an unattended run must never block on the prompt).
   const bool linked_external_child =
@@ -3744,23 +4300,32 @@ bool MainWindow::save_document_to_path(QString path, std::optional<ImageSaveOpti
           document().metadata().smart_objects,
           session().path.isEmpty() ? QString() : QFileInfo(session().path).absolutePath(),
           QFileInfo(path).absolutePath());
-      psd::DocumentIo::write_layered_rgb8_file(document(), to_filesystem_path(path),
+      psd::DocumentIo::write_layered_rgb8_file(document(), to_filesystem_path(writer_path),
                                                psd::WriteOptions{extension == QStringLiteral("psb")});
     } else if (extension == QStringLiteral("aseprite") || extension == QStringLiteral("ase")) {
       // Layered save: the Aseprite writer keeps the layer tree instead of flattening.
-      aseprite::DocumentIo::write_file(document(), to_filesystem_path(path));
+      aseprite::DocumentIo::write_file(document(), to_filesystem_path(writer_path));
     } else if (extension == QStringLiteral("svg")) {
       // Structure-preserving vector write (never write_flat_image_file):
       // shape layers stay SVG vectors, the writer reports what it baked.
       std::vector<std::string> svg_notices;
-      svg::DocumentIo::write_file(document(), to_filesystem_path(path), &svg_notices);
+      svg::DocumentIo::write_file(document(), to_filesystem_path(writer_path), &svg_notices);
       export_notes_suffix = export_notes_suffix_for(svg_notices);
     } else {
       // Editable PDF keeps layers and reports what it baked, like the SVG writer.
       std::vector<std::string> writer_notices;
-      write_flat_image_file(document(), path, extension, effective_image_options, &writer_notices);
+      write_flat_image_file(document(), writer_path, extension, effective_image_options, &writer_notices);
       export_notes_suffix = export_notes_suffix_for(writer_notices);
     }
+    #ifdef Q_OS_ANDROID
+    if (is_android_content_uri(path)) {
+        write_file_to_android_uri(
+            writer_path,
+            path);
+
+        QFile::remove(writer_path);
+        }
+    #endif
     offer_browser_download_for_saved_file(path);
     const bool saved_flattened_copy =
         discards_layers &&
@@ -3784,7 +4349,7 @@ bool MainWindow::save_document_to_path(QString path, std::optional<ImageSaveOpti
                                 : extension == QStringLiteral("webp") && effective_image_options.webp_animate
                                     ? tr("Saved animated WebP copy %1")
                                     : tr("Saved flattened copy %1"))
-                                   .arg(path) +
+                                   .arg(display_path_for_ui(path)) +
                                export_notes_suffix);
       return true;
     }
@@ -3808,12 +4373,17 @@ bool MainWindow::save_document_to_path(QString path, std::optional<ImageSaveOpti
     }
     set_session_saved(active_session);
     add_recent_file(path);
-    statusBar()->showMessage(tr("Saved %1").arg(path) + export_notes_suffix);
+    statusBar()->showMessage(tr("Saved %1").arg(session_display_title(active_session)) + export_notes_suffix);
     if (linked_external_child) {
       refresh_external_smart_object_after_save(active_session);
     }
     return true;
   } catch (const std::exception& error) {
+  #ifdef Q_OS_ANDROID
+    if (is_android_content_uri(path) && writer_path != path) {
+        QFile::remove(writer_path);
+    }
+  #endif
     if (unattended_automation()) {
       fprintf(stderr, "Save failed: %s (%s)\n", error.what(), path.toUtf8().constData());
     } else {
@@ -3841,9 +4411,17 @@ void MainWindow::export_flat_image() {
     return;
   }
   path = path_with_default_extension(path, selected_filter);
+  
+  #ifdef Q_OS_ANDROID
+    QString writer_path = path;
+    std::optional<QTemporaryFile> temporary_file;
+  #else
+    QString writer_path = path;
+  #endif
 
   try {
     const auto extension = extension_for_path(path);
+    
     const bool svg_export = extension == QStringLiteral("svg");
     std::optional<ImageSaveOptions> image_options;
     if (!is_photoshop_document_extension(extension) && !svg_export) {
@@ -3876,31 +4454,72 @@ void MainWindow::export_flat_image() {
         return;
       }
     }
+    
+    #ifdef Q_OS_ANDROID
+    if (is_android_content_uri(path)) {
+    const QString temporary_suffix =
+        extension.isEmpty()
+            ? QStringLiteral(".tmp")
+            : QStringLiteral(".") + extension;
+
+    temporary_file.emplace(
+        QDir::tempPath() +
+        QStringLiteral("/patchy-export-XXXXXX") +
+        temporary_suffix);
+
+    if (!temporary_file->open()) {
+        throw std::runtime_error(
+            QStringLiteral(
+                "Cannot create temporary file for Android export: %1")
+                .arg(temporary_file->errorString())
+                .toStdString());
+    }
+
+    writer_path = temporary_file->fileName();
+
+    temporary_file->close();
+    temporary_file->setAutoRemove(false);
+    }
+    #endif
     const auto effective_image_options = image_options.value_or(image_save_defaults_for_document());
     QString export_notes_suffix;
     if (is_photoshop_document_extension(extension)) {
-      psd::DocumentIo::write_flat_rgb8_file(document(), to_filesystem_path(path));
+      psd::DocumentIo::write_flat_rgb8_file(document(), to_filesystem_path(writer_path));
     } else if (svg_export) {
       // The same structure-preserving writer as Save As: shape layers export
       // as real vectors even from the "flat" export flow.
       std::vector<std::string> svg_notices;
-      svg::DocumentIo::write_file(document(), to_filesystem_path(path), &svg_notices);
+      svg::DocumentIo::write_file(document(), to_filesystem_path(writer_path), &svg_notices);
       export_notes_suffix = export_notes_suffix_for(svg_notices);
     } else {
       std::vector<std::string> writer_notices;
-      write_flat_image_file(document(), path, extension, effective_image_options, &writer_notices);
+      write_flat_image_file(document(), writer_path, extension, effective_image_options, &writer_notices);
       export_notes_suffix = export_notes_suffix_for(writer_notices);
     }
+    #ifdef Q_OS_ANDROID
+    if (is_android_content_uri(path)) {
+        write_file_to_android_uri(
+            writer_path,
+            path);
+
+        QFile::remove(writer_path);
+        }
+    #endif
     offer_browser_download_for_saved_file(path);
     if (!is_photoshop_document_extension(extension) && image_save_options_apply_to_extension(extension)) {
       persist_image_save_defaults(effective_image_options);
     }
     remember_save_directory_for_path(path);
-    statusBar()->showMessage(tr("Exported %1").arg(path) + export_notes_suffix);
+    statusBar()->showMessage(tr("Exported %1").arg(display_path_for_ui(path)) + export_notes_suffix);
     if (effective_image_options.export_reveal_in_file_explorer) {
       reveal_path_in_file_explorer(path, /*is_file*/ true);
     }
   } catch (const std::exception& error) {
+    #ifdef Q_OS_ANDROID
+    if (is_android_content_uri(path) && writer_path != path) {
+        QFile::remove(writer_path);
+    }
+    #endif
     show_critical_message(this, tr("Export failed"), translated_file_message(error.what()),
                           QStringLiteral("exportFailedMessageBox"));
   }
@@ -4028,7 +4647,7 @@ void MainWindow::export_documents_to_folder() {
     return;
   }
   statusBar()->showMessage(
-      tr("Exported %1 images to %2").arg(written->size()).arg(QDir::toNativeSeparators(choice->folder)));
+      tr("Exported %1 images to %2").arg(written->size()).arg(display_path_for_ui(choice->folder)));
 }
 
 std::optional<QStringList> MainWindow::export_document_sessions_to_folder(
@@ -4437,12 +5056,16 @@ void MainWindow::rebuild_recent_files_menu() {
   }
 
   const auto add_recent_action = [this](QMenu* menu, const QString& path, int index) {
-    const auto label = tr("&%1 %2").arg(index).arg(QDir::toNativeSeparators(path));
+    const auto display_path = display_path_for_ui(path);
+
+    const auto label = tr("&%1 %2").arg(index).arg(display_path);
     auto* action = menu->addAction(label);
-    action->setToolTip(path);
+    action->setToolTip(display_path);
     action->setData(path);
-    connect(action, &QAction::triggered, this, [this, path] { open_recent_document(path); });
-  };
+    connect(action, &QAction::triggered, this, [this, path] {
+        open_recent_document(path);
+    });
+};
 
   const auto recent_count = static_cast<int>(recent_files_.size());
   const auto direct_count = std::min(recent_count, kRecentFilesMenuPageSize);
@@ -4514,8 +5137,12 @@ void MainWindow::apply_recent_files_filter(const QString& filter_text) {
       }
       // Labels keep the original recency index so a filtered row still says
       // where the file sits in the full list.
-      auto* action = new QAction(tr("&%1 %2").arg(index + 1).arg(native_path), recent_files_menu_);
-      action->setToolTip(path);
+      const auto display_path = display_path_for_ui(path);
+
+      auto* action = new QAction(
+        tr("&%1 %2").arg(index + 1).arg(display_path),
+        recent_files_menu_);
+      action->setToolTip(display_path);
       action->setData(path);
       connect(action, &QAction::triggered, this, [this, path] { open_recent_document(path); });
       recent_files_menu_->addAction(action);

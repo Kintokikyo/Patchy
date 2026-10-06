@@ -232,6 +232,8 @@
 #include <thread>
 #include <utility>
 
+#include <android/log.h>
+
 #ifdef Q_OS_WIN
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -414,6 +416,7 @@ void install_collapsible_dock_title(QDockWidget* dock,
   // toggle only shows while the panel sits in the main window's column.
   // Deferred a hop because window() still reports the old top-level while
   // topLevelChanged is being emitted.
+  
   QObject::connect(dock, &QDockWidget::topLevelChanged, toggle, [dock, toggle](bool) {
     QTimer::singleShot(0, toggle, [dock, toggle] {
       const bool in_main_window_column = qobject_cast<QMainWindow*>(dock->window()) != nullptr;
@@ -453,30 +456,33 @@ void MainWindow::install_right_dock_width_handle(QDockWidget* dock) {
   // group window gets (the floatingChrome property carries the styling).
   connect(dock, &QDockWidget::topLevelChanged, handle, [dock, handle](bool floating) {
     handle->setVisible(!floating);
-    dock->setContentsMargins(floating
-                                 ? QMargins(kGroupWindowFrameMargin, kGroupWindowFrameMargin,
-                                            kGroupWindowFrameMargin, kGroupWindowFrameMargin)
-                                 : QMargins());
+    //dock->setContentsMargins(floating
+                                 //? QMargins(kGroupWindowFrameMargin, kGroupWindowFrameMargin,
+                                            //kGroupWindowFrameMargin, kGroupWindowFrameMargin)
+                                 //: QMargins());
     dock->setProperty("floatingChrome", floating);
-    dock->style()->unpolish(dock);
-    dock->style()->polish(dock);
+    //dock->style()->unpolish(dock);
+    //dock->style()->polish(dock);
   });
-  connect(dock, &QDockWidget::topLevelChanged, this, [this, dock](bool floating) {
-    if (floating) {
-      return;
-    }
+  // TEMP DIAGNOSTIC: disable post-redock resize
+  //connect(dock, &QDockWidget::topLevelChanged, this, [this, dock](bool floating) {
+    //if (floating) {
+      //return;
+    //}
+    
     // Re-docking goes through Qt's drop-preview gap item, whose slot can be
     // taller than a collapsed dock's pinned strip; the widget clamps to the
     // pin but the slot keeps the extra as a gap under the header that grows
     // with every float/re-dock cycle. Snap the slot back to the strip once
     // the plug has settled.
-    QTimer::singleShot(0, this, [this, dock] {
-      if (dock->isFloating() || dock->widget() == nullptr || dock->widget()->isVisible()) {
-        return;
-      }
-      resizeDocks({dock}, {dock->minimumHeight()}, Qt::Vertical);
-    });
-  });
+    
+    //QTimer::singleShot(0, this, [this, dock] {
+      //if (dock->isFloating() || dock->widget() == nullptr || dock->widget()->isVisible()) {
+        //return;
+      //}
+      //resizeDocks({dock}, {dock->minimumHeight()}, Qt::Vertical);
+    //});
+  //});
   update_right_dock_resize_handle_geometry(dock);
 }
 
@@ -743,10 +749,31 @@ bool MainWindow::handle_right_dock_title_drag_event(QObject* watched, QEvent* ev
           return true;
         }
         if (!right_dock_title_drag_started_) {
-          right_dock_title_drag_started_ = true;
-          right_dock_title_drag_dock_->setFloating(true);
+            right_dock_title_drag_started_ = true;
+            
+            __android_log_print(
+              ANDROID_LOG_ERROR,
+              "DOCK-DIAG",
+              "BEFORE setFloating dock=%p",
+              static_cast<void *>(right_dock_title_drag_dock_.data())
+            );
+            
+            right_dock_title_drag_dock_->setFloating(true);
+            
+            __android_log_print(
+              ANDROID_LOG_ERROR,
+              "DOCK-DIAG",
+              "AFTER setFloating dock=%p floating=%d",
+              static_cast<void *>(right_dock_title_drag_dock_.data()),
+              right_dock_title_drag_dock_->isFloating()
+            );
+            
+            mouse_event->accept();
+            return true;
         }
-        right_dock_title_drag_dock_->move(global - right_dock_title_drag_offset_);
+        if (right_dock_title_drag_dock_->isFloating()) {
+            right_dock_title_drag_dock_->move(global - right_dock_title_drag_offset_);
+        }
         mouse_event->accept();
         return true;
       }
@@ -985,7 +1012,8 @@ void MainWindow::create_docks() {
   // Docks dropped onto each other form tab groups, and Qt only wires up
   // dragging a dock back OUT by its tab under GroupedDragging (which also
   // drags a tabbed group as one unit by its shared title bar).
-  setDockOptions(dockOptions() | QMainWindow::GroupedDragging);
+  setDockOptions(dockOptions() & ~QMainWindow::GroupedDragging);
+  setAnimated(false);
   auto* layers_dock = new QDockWidget(tr("Layers"), this);
   layers_dock->setObjectName(QStringLiteral("layersDock"));
   bind_widget_text(layers_dock, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Layers"));

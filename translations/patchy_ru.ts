@@ -10562,6 +10562,41 @@ RGB: %2, %3, %4</translation>
         <source>Search fonts...</source>
         <translation>Поиск шрифтов...</translation>
     </message>
+
+    <message>
+        <source>Add Font…</source>
+        <translation>Добавить шрифт…</translation>
+    </message>
+
+    <message>
+        <source>Add Font</source>
+        <translation>Добавить шрифт</translation>
+    </message>
+
+    <message>
+        <source>Could not create a temporary font file.</source>
+        <translation>Не удалось создать временный файл шрифта.</translation>
+    </message>
+
+    <message>
+        <source>Could not read the selected font file.</source>
+        <translation>Не удалось прочитать выбранный файл шрифта.</translation>
+    </message>
+
+    <message>
+        <source>Please select a TTF, OTF, TTC, or ZIP font file.</source>
+        <translation>Выберите файл шрифта TTF, OTF, TTC или ZIP.</translation>
+    </message>
+
+    <message>
+        <source>The ZIP file does not contain any supported fonts.</source>
+        <translation>ZIP-файл не содержит поддерживаемых шрифтов.</translation>
+    </message>
+
+    <message>
+        <source>The selected file is not a valid font.</source>
+        <translation>Выбранный файл не является допустимым шрифтом.</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::GradientLibrary</name>
@@ -18714,6 +18749,10 @@ Y: %2
     <message>
         <source>Height of the crop box</source>
         <translation>Высота рамки кадрирования</translation>
+
+    <message>
+        <source>Exported %1 images</source>
+        <translation>Экспортировано изображений: %1.</translation>
     </message>
 </context>
 <context>

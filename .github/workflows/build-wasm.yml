@@ -1,0 +1,50 @@
+name: Build Patchy WebAssembly
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-wasm:
+    runs-on: windows-2025-vs2026
+
+    steps:
+      - name: Checkout Patchy
+        uses: actions/checkout@v4
+
+      - name: Setup Emscripten
+        shell: pwsh
+        run: |
+          pwsh -File scripts/wasm/setup-emsdk.ps1
+
+      - name: Setup Qt WebAssembly
+        shell: pwsh
+        run: |
+          pwsh -File scripts/wasm/setup-qt-wasm.ps1
+
+      - name: Build Patchy WASM
+        shell: cmd
+        run: |
+          call .deps\emsdk\emsdk_env.bat
+          call "C:\Program Files\Microsoft Visual Studio\18\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64
+          cmake --preset wasm-release
+          cmake --build --preset wasm-release
+
+      - name: Package WASM output
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifact | Out-Null
+
+          Copy-Item build/wasm-release/patchy.html artifact/
+          Copy-Item build/wasm-release/patchy.js artifact/
+          Copy-Item build/wasm-release/patchy.wasm artifact/
+          Copy-Item build/wasm-release/patchy.data artifact/
+          Copy-Item build/wasm-release/qtloader.js artifact/
+
+          Compress-Archive -Path artifact/* -DestinationPath patchy-wasm.zip
+
+      - name: Upload WASM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: patchy-wasm
+          path: patchy-wasm.zip
+          if-no-files-found: error

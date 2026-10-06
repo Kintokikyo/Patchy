@@ -41,6 +41,10 @@
 #include <QStringList>
 #include <QTimer>
 
+#ifdef Q_OS_ANDROID
+#include <jni.h>
+#endif
+
 #include <array>
 #include <chrono>
 #include <clocale>
@@ -51,6 +55,21 @@
 #include <optional>
 
 #include "patchy_version.hpp"
+
+#ifdef Q_OS_ANDROID
+
+extern "C" {
+
+JNIEXPORT jboolean JNICALL
+Java_org_qtproject_qt_android_QtNativeAccessibility_accessibilitySupported(
+    JNIEnv *, jobject)
+{
+    return JNI_FALSE;
+}
+
+}
+
+#endif
 
 namespace {
 

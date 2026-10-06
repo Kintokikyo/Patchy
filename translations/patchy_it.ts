@@ -10532,6 +10532,34 @@ RGB: %2, %3, %4</translation>
         <source>Search fonts...</source>
         <translation>Cerca font...</translation>
     </message>
+    <message>
+        <source>Add Font…</source>
+        <translation>Aggiungi carattere…</translation>
+    </message>
+    <message>
+        <source>Add Font</source>
+        <translation>Aggiungi carattere</translation>
+    </message>
+    <message>
+        <source>Could not create a temporary font file.</source>
+        <translation>Impossibile creare un file di carattere temporaneo.</translation>
+    </message>
+    <message>
+        <source>Could not read the selected font file.</source>
+        <translation>Impossibile leggere il file di carattere selezionato.</translation>
+    </message>
+    <message>
+        <source>Please select a TTF, OTF, TTC, or ZIP font file.</source>
+        <translation>Seleziona un file di carattere TTF, OTF, TTC o ZIP.</translation>
+    </message>
+    <message>
+        <source>The ZIP file does not contain any supported fonts.</source>
+        <translation>Il file ZIP non contiene caratteri supportati.</translation>
+    </message>
+    <message>
+        <source>The selected file is not a valid font.</source>
+        <translation>Il file selezionato non è un carattere valido.</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::GradientLibrary</name>
@@ -13834,6 +13862,10 @@ Rett.: -</translation>
         <source>Exported %1 images to %2</source>
         <translation>Esportate %1 immagini in %2</translation>
     </message>
+        <message>
+            <source>Exported %1 images</source>
+            <translation>%1 immagini esportate</translation>
+        </message>
     <message>
         <source>Export Animated GIF</source>
         <translation>Esporta GIF animata</translation>

@@ -10532,6 +10532,41 @@ RGB: %2, %3, %4</translation>
         <source>Search fonts...</source>
         <translation>Pesquisar fontes...</translation>
     </message>
+
+    <message>
+        <source>Add Font…</source>
+        <translation>Adicionar fonte…</translation>
+    </message>
+
+    <message>
+        <source>Add Font</source>
+        <translation>Adicionar fonte</translation>
+    </message>
+
+    <message>
+        <source>Could not create a temporary font file.</source>
+        <translation>Não foi possível criar um arquivo de fonte temporário.</translation>
+    </message>
+
+    <message>
+        <source>Could not read the selected font file.</source>
+        <translation>Não foi possível ler o arquivo de fonte selecionado.</translation>
+    </message>
+
+    <message>
+        <source>Please select a TTF, OTF, TTC, or ZIP font file.</source>
+        <translation>Selecione um arquivo de fonte TTF, OTF, TTC ou ZIP.</translation>
+    </message>
+
+    <message>
+        <source>The ZIP file does not contain any supported fonts.</source>
+        <translation>O arquivo ZIP não contém nenhuma fonte compatível.</translation>
+    </message>
+
+    <message>
+        <source>The selected file is not a valid font.</source>
+        <translation>O arquivo selecionado não é uma fonte válida.</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::GradientLibrary</name>
@@ -18658,6 +18693,10 @@ Y: %2
     <message>
         <source>Height of the crop box</source>
         <translation>Altura da caixa de corte</translation>
+
+    <message>
+        <source>Exported %1 images</source>
+        <translation>%1 imagens exportadas.</translation>
     </message>
 </context>
 <context>
