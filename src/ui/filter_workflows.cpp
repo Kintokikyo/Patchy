@@ -87,16 +87,24 @@ namespace {
 // 1/255 on real inputs (e.g. value 4, record {0,45,121%,0,255}: 34 here,
 // 35 in core). Do not "dedupe" one into the other without accepting a
 // behavior change on both the dialog path and the render path.
-std::uint8_t map_levels_value(std::uint8_t value, LevelsRecord record) {
+double map_levels_real(double value, LevelsRecord record) {
   record = clamp_levels_record(record);
   const auto input_range = static_cast<double>(record.white_input - record.black_input);
   const auto gamma = static_cast<double>(record.gamma_percent) / 100.0;
   const auto inverse_gamma = gamma <= 0.0 ? 1.0 : 1.0 / gamma;
   const auto output_range = static_cast<double>(record.white_output - record.black_output);
-  const auto normalized =
-      std::clamp((static_cast<double>(value) - static_cast<double>(record.black_input)) / input_range, 0.0, 1.0);
-  const auto output = static_cast<double>(record.black_output) + std::pow(normalized, inverse_gamma) * output_range;
-  return static_cast<std::uint8_t>(std::clamp(std::lround(output), 0L, 255L));
+  const auto normalized = std::clamp((value - static_cast<double>(record.black_input)) / input_range, 0.0, 1.0);
+  return static_cast<double>(record.black_output) + std::pow(normalized, inverse_gamma) * output_range;
+}
+
+std::uint8_t levels_byte(double value) {
+  return static_cast<std::uint8_t>(std::clamp(std::lround(value), 0L, 255L));
+}
+
+bool levels_record_is_identity(LevelsRecord record) {
+  record = clamp_levels_record(record);
+  return record.black_input == 0 && record.white_input == 255 && record.gamma_percent == 100 &&
+         record.black_output == 0 && record.white_output == 255;
 }
 
 struct LevelsLuts {
@@ -105,7 +113,8 @@ struct LevelsLuts {
   std::array<std::uint8_t, 256> blue;
 };
 
-// Composed master-then-channel transfer evaluated through map_levels_value for
+// Composed channel-then-master transfer (Photoshop's order, the channel result
+// passed on unrounded; see core's apply_levels) evaluated through map_levels_real for
 // every input byte, so the LUT path stays bit-identical to the per-pixel
 // double math it replaced. Never build these from core's build_adjustment_lut:
 // the 1/255 rounding difference above is a behavior contract.
@@ -114,10 +123,14 @@ LevelsLuts build_levels_luts(const LevelsSettings& settings) {
   LevelsLuts luts;
   for (int value = 0; value < 256; ++value) {
     const auto index = static_cast<std::size_t>(value);
-    const auto mapped = map_levels_value(static_cast<std::uint8_t>(value), master);
-    luts.red[index] = map_levels_value(mapped, settings.red);
-    luts.green[index] = map_levels_value(mapped, settings.green);
-    luts.blue[index] = map_levels_value(mapped, settings.blue);
+    const auto map = [&master, value](LevelsRecord record) {
+      const auto staged = levels_record_is_identity(record) ? static_cast<double>(value)
+                                                            : map_levels_real(static_cast<double>(value), record);
+      return levels_byte(map_levels_real(staged, master));
+    };
+    luts.red[index] = map(settings.red);
+    luts.green[index] = map(settings.green);
+    luts.blue[index] = map(settings.blue);
   }
   return luts;
 }

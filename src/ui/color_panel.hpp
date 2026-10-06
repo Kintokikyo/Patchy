@@ -43,6 +43,8 @@ public slots:
 
 signals:
   void currentColorChanged(QColor color);
+  // A deliberate choice, including picking the already displayed color.
+  void colorSelected(QColor color);
 
 private:
   std::unique_ptr<PatchyColorPickerPrivate> impl_;
@@ -83,6 +85,7 @@ bool apply_color_to_open_color_picker(QColor color);
 [[nodiscard]] QDialog* create_patchy_color_panel(QWidget* parent, QColor initial, const QString& title,
                                                     std::function<void(QColor)> color_changed);
 [[nodiscard]] std::optional<QColor> request_patchy_color(QWidget* parent, QColor initial, const QString& title,
-                                                         std::function<void(QColor)> color_changed = {});
+                                                         std::function<void(QColor)> color_changed = {},
+                                                         bool* user_selected = nullptr);
 
 }  // namespace patchy::ui

@@ -991,7 +991,13 @@ void psd_photoshop_curves_fixtures_import_preserve_regenerate_and_round_trip() {
 
   const auto check_mask = [](const patchy::Layer& layer, bool patterned) {
     if (!patterned) {
-      CHECK(!layer.mask().has_value());
+      // Photoshop stores an explicit Reveal All mask with an empty -2
+      // channel. Its identity survives even though it does not alter pixels.
+      CHECK(layer.mask().has_value());
+      CHECK(layer.mask()->pixels.empty());
+      CHECK(layer.mask()->bounds.empty());
+      CHECK(layer.mask()->default_color == 255);
+      CHECK(!layer.mask()->disabled);
       return;
     }
     CHECK(layer.mask().has_value());
@@ -2153,9 +2159,33 @@ void adjustment_posterize_threshold_math_lut_and_metadata_round_trip() {
   CHECK(patchy::posterize_channel_value(127, 2) == 0);
   CHECK(patchy::posterize_channel_value(128, 2) == 255);
   CHECK(patchy::posterize_channel_value(0, 4) == 0);
-  CHECK(patchy::posterize_channel_value(60, 4) == 85);
+  CHECK(patchy::posterize_channel_value(63, 4) == 0);
+  CHECK(patchy::posterize_channel_value(64, 4) == 85);
   CHECK(patchy::posterize_channel_value(128, 4) == 170);
   CHECK(patchy::posterize_channel_value(255, 4) == 255);
+  // Photoshop's steps drop the fraction: 3 levels are 0, 127, 255 and 7 levels are
+  // 0, 42, 85, 127, 170, 212, 255 (its render of psd-tools' posterize_rgb.psd).
+  CHECK(patchy::posterize_channel_value(85, 3) == 0);
+  CHECK(patchy::posterize_channel_value(86, 3) == 127);
+  CHECK(patchy::posterize_channel_value(171, 3) == 255);
+  CHECK(patchy::posterize_channel_value(40, 7) == 42);
+  CHECK(patchy::posterize_channel_value(200, 7) == 212);
+
+  // Levels applies the component channel before Composite RGB. Both pixels are
+  // Photoshop's render of psd-tools' levels_rgb.psd; the reverse order gives 64 and 194.
+  patchy::AdjustmentSettings ordered_levels;
+  ordered_levels.kind = patchy::AdjustmentKind::Levels;
+  ordered_levels.levels.black_input = 34;
+  ordered_levels.levels.gamma_percent = 116;
+  ordered_levels.levels.white_output = 203;
+  ordered_levels.levels.green = patchy::LevelsRecord{0, 222, 63, 55, 255};
+  CHECK(patchy::apply_adjustment_to_color(patchy::RgbColor{87, 59, 54}, ordered_levels).green == 52);
+  ordered_levels.levels = patchy::LevelsAdjustment{};
+  ordered_levels.levels.white_input = 213;
+  ordered_levels.levels.gamma_percent = 122;
+  ordered_levels.levels.black_output = 48;
+  ordered_levels.levels.red = patchy::LevelsRecord{0, 255, 47, 0, 194};
+  CHECK(patchy::apply_adjustment_to_color(patchy::RgbColor{222, 199, 210}, ordered_levels).red == 199);
 
   // Threshold decisions use the mixed luminance, pinned by a colored pixel
   // where a per-channel map would answer differently.
@@ -2181,7 +2211,7 @@ void adjustment_posterize_threshold_math_lut_and_metadata_round_trip() {
   // range's edges, threshold at the shared default).
   patchy::FilterRegistry registry;
   patchy::register_builtin_filters(registry);
-  for (const int levels : {2, 4, 16}) {
+  for (const int levels : {2, 4, 16, 17, 255}) {
     auto adjusted = solid_rgb(16, 16, 0, 0, 0);
     auto filtered = solid_rgb(16, 16, 0, 0, 0);
     for (std::int32_t y = 0; y < 16; ++y) {
@@ -2227,6 +2257,81 @@ void adjustment_posterize_threshold_math_lut_and_metadata_round_trip() {
       }
     }
   }
+}
+
+void adjustment_exposure_math_metadata_and_psd_round_trip() {
+  CHECK(patchy::adjustment_kind_key(patchy::AdjustmentKind::Exposure) == "exposure");
+  CHECK(patchy::adjustment_kind_from_key("exposure") == patchy::AdjustmentKind::Exposure);
+  CHECK(patchy::adjustment_display_name(patchy::AdjustmentKind::Exposure) == "Exposure");
+
+  patchy::AdjustmentSettings exposure;
+  exposure.kind = patchy::AdjustmentKind::Exposure;
+  CHECK(!patchy::adjustment_has_effect(exposure));
+  for (int value = 0; value < 256; ++value) {
+    CHECK(patchy::exposure_channel_value(static_cast<std::uint8_t>(value), exposure.exposure) == value);
+  }
+
+  // Photoshop's render of psd-tools' exposure_rgb.psd, one pixel per setting triple
+  // (the whole strips agree within 1/255).
+  struct Probe {
+    patchy::ExposureAdjustment settings;
+    patchy::RgbColor input;
+    patchy::RgbColor expected;
+  };
+  const Probe probes[] = {
+      {{-182, 1203, 100}, {72, 54, 49}, {104, 101, 100}},
+      {{125, 0, 152}, {229, 211, 221}, {255, 255, 255}},
+      {{-4, 4144, 44}, {162, 177, 193}, {195, 216, 240}},
+      {{203, 775, 152}, {79, 88, 107}, {192, 204, 227}},
+  };
+  for (const auto& probe : probes) {
+    exposure.exposure = probe.settings;
+    CHECK(patchy::adjustment_has_effect(exposure));
+    const auto result = patchy::apply_adjustment_to_color(probe.input, exposure);
+    CHECK(std::abs(static_cast<int>(result.red) - static_cast<int>(probe.expected.red)) <= 1);
+    CHECK(std::abs(static_cast<int>(result.green) - static_cast<int>(probe.expected.green)) <= 1);
+    CHECK(std::abs(static_cast<int>(result.blue) - static_cast<int>(probe.expected.blue)) <= 1);
+  }
+  const auto lut = patchy::build_adjustment_lut(exposure);
+  CHECK(lut.has_value());
+  CHECK(lut->green[88] == patchy::exposure_channel_value(88, exposure.exposure));
+
+  // Out-of-range values clamp to Photoshop's field ranges.
+  const auto clamped = patchy::clamp_exposure(patchy::ExposureAdjustment{99999, -99999, 0});
+  CHECK(clamped.exposure_hundredths == 2000);
+  CHECK(clamped.offset_ten_thousandths == -5000);
+  CHECK(clamped.gamma_hundredths == 1);
+
+  patchy::Document document(1, 1, patchy::PixelFormat::rgb8());
+  document.add_pixel_layer("Base", solid_rgb(1, 1, 79, 88, 107));
+  patchy::Layer layer(document.allocate_layer_id(), "Exposure", patchy::LayerKind::Adjustment);
+  layer.set_bounds(patchy::Rect::from_size(document.width(), document.height()));
+  patchy::configure_adjustment_layer(layer, exposure);
+  document.add_layer(std::move(layer));
+
+  const auto bytes = patchy::psd::DocumentIo::write_layered_rgb8(document);
+  const auto extra = psd_layer_extra_data(bytes, 1);
+  const auto block = psd_layer_block_payload(extra, "expA");
+  CHECK(block.has_value());
+  // Photoshop's own bytes for 2.03 / 0.0775 / 1.52 (psd-tools' exposure_rgb.psd).
+  const std::array<std::uint8_t, 16> expected_block{0x00, 0x01, 0x40, 0x01, 0xEB, 0x85, 0x3D, 0x9E,
+                                                    0xB8, 0x52, 0x3F, 0xC2, 0x8F, 0x5C, 0x00, 0x00};
+  CHECK(block->size() == expected_block.size());
+  CHECK(std::equal(block->begin(), block->end(), expected_block.begin(), expected_block.end()));
+  CHECK(!psd_layer_block_payload(extra, "plAD").has_value());
+
+  const auto read = patchy::psd::DocumentIo::read(bytes);
+  CHECK(read.layers().size() == 2);
+  const auto restored = patchy::adjustment_settings_from_layer(read.layers()[1]);
+  CHECK(restored.has_value());
+  CHECK(restored->kind == patchy::AdjustmentKind::Exposure);
+  CHECK(restored->exposure.exposure_hundredths == 203);
+  CHECK(restored->exposure.offset_ten_thousandths == 775);
+  CHECK(restored->exposure.gamma_hundredths == 152);
+  const auto flattened = patchy::Compositor{}.flatten_rgb8(read);
+  CHECK(std::abs(static_cast<int>(flattened.pixel(0, 0)[0]) - 192) <= 1);
+  CHECK(std::abs(static_cast<int>(flattened.pixel(0, 0)[1]) - 204) <= 1);
+  CHECK(std::abs(static_cast<int>(flattened.pixel(0, 0)[2]) - 227) <= 1);
 }
 
 void psd_posterize_threshold_write_native_blocks_and_round_trip() {
@@ -2978,6 +3083,7 @@ std::vector<patchy::test::TestCase> adjustments_curves_tests() {
        adjustment_posterize_threshold_math_lut_and_metadata_round_trip},
       {"psd_posterize_threshold_write_native_blocks_and_round_trip",
        psd_posterize_threshold_write_native_blocks_and_round_trip},
+      {"adjustment_exposure_math_metadata_and_psd_round_trip", adjustment_exposure_math_metadata_and_psd_round_trip},
       {"psd_photoshop_posterize_threshold_fixtures_import_and_round_trip",
        psd_photoshop_posterize_threshold_fixtures_import_and_round_trip},
       {"adjustment_brightness_contrast_math_lut_and_metadata_round_trip",

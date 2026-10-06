@@ -122,7 +122,8 @@ def check_catalogs(manifest, template):
             plural = message.get("numerus") == "yes"
             if plural:
                 forms = [form.text or "" for form in translation.findall("numerusform")]
-                expected = 1 if language == "ja" or language.startswith("zh") else 2
+                expected = (1 if language in ("ja", "ko") or language.startswith("zh")
+                            else 3 if language in ("pl", "ru") else 2)
                 if len(forms) != expected:
                     problems.append(prefix + f"{len(forms)} plural forms, expected {expected}")
                 if ((translation.text or "").strip() or

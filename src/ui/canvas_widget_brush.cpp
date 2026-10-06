@@ -18,6 +18,7 @@
 #include "core/layer_tree.hpp"
 #include "core/pixel_tools.hpp"
 #include "core/quick_select.hpp"
+#include "ui/dialog_utils.hpp"
 #include "ui/edit_conversions.hpp"
 #include "ui/image_document_io.hpp"
 #include "ui/qt_geometry.hpp"
@@ -784,7 +785,7 @@ void CanvasWidget::end_brush_adjust_drag(bool commit) {
     // (Photoshop does the same). A pen is absolute — its pointer cannot be
     // moved — so its preview is centered on the pen during the drag and the
     // gesture already ends with the brush under the pen.
-    QCursor::setPos(mapToGlobal(brush_adjust_origin_widget_));
+    move_pointer_to_global_position(mapToGlobal(brush_adjust_origin_widget_));
     last_mouse_position_ = brush_adjust_origin_widget_;
   }
   update_tool_cursor();

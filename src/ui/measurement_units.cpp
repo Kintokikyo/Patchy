@@ -1,5 +1,7 @@
 #include "ui/measurement_units.hpp"
 
+#include "ui/app_settings.hpp"
+
 #include <QLocale>
 #include <QObject>
 
@@ -80,6 +82,12 @@ QString format_degrees(double degrees, int decimals, bool show_sign) {
   return format_readout_number(degrees, decimals, show_sign) + degree_suffix();
 }
 
+QString format_measurement(double value, MeasurementUnit unit, int decimals, bool show_sign) {
+  const auto suffix = unit == MeasurementUnit::Percent ? percent_suffix()
+                                                       : QStringLiteral(" ") + measurement_unit_suffix(unit);
+  return format_readout_number(value, decimals, show_sign) + suffix;
+}
+
 QString measurement_unit_name(MeasurementUnit unit) {
   switch (unit) {
     case MeasurementUnit::Pixels:
@@ -139,6 +147,28 @@ MeasurementUnit measurement_unit_from_settings_token(const QString& token, Measu
   return fallback;
 }
 
+MeasurementUnit remembered_dialog_unit(const QString& settings_key, std::initializer_list<MeasurementUnit> offered) {
+  auto settings = app_settings();
+  auto token = settings.value(settings_key).toString();
+  if (token.trimmed().isEmpty()) {
+    token = settings.value(QStringLiteral("view/rulerUnits"), QStringLiteral("px")).toString();
+  }
+  const auto unit = measurement_unit_from_settings_token(token, MeasurementUnit::Pixels);
+  return std::find(offered.begin(), offered.end(), unit) != offered.end() ? unit : MeasurementUnit::Pixels;
+}
+
+void remember_dialog_unit(const QString& settings_key, MeasurementUnit unit) {
+  app_settings().setValue(settings_key, measurement_unit_settings_token(unit));
+}
+
+int remembered_resolution_unit_index(const QString& settings_key) {
+  return app_settings().value(settings_key).toString().trimmed().toLower() == QStringLiteral("cm") ? 1 : 0;
+}
+
+void remember_resolution_unit(const QString& settings_key, int index) {
+  app_settings().setValue(settings_key, index == 1 ? QStringLiteral("cm") : QStringLiteral("in"));
+}
+
 bool measurement_unit_is_physical(MeasurementUnit unit) noexcept {
   switch (unit) {
     case MeasurementUnit::Inches:
@@ -192,6 +222,21 @@ double measurement_unit_to_pixels(double value, MeasurementUnit unit, double ppi
     default:
       return value * sanitized_document_ppi(ppi) / measurement_units_per_inch(unit);
   }
+}
+
+double measurement_unit_single_step(MeasurementUnit unit) noexcept {
+  switch (unit) {
+    case MeasurementUnit::Inches:
+      return 0.01;
+    case MeasurementUnit::Centimeters:
+      return 0.1;
+    case MeasurementUnit::Pixels:
+    case MeasurementUnit::Millimeters:
+    case MeasurementUnit::Points:
+    case MeasurementUnit::Percent:
+      return 1.0;
+  }
+  return 1.0;
 }
 
 int measurement_unit_decimals(MeasurementUnit unit) noexcept {

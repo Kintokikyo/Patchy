@@ -17,8 +17,9 @@ Two trees, one staging target:
   (R/B/I/BI, metric-compatible with Arial, Times New Roman, and Courier New),
   Carlito (R/B/I/BI, Calibri-compatible), Noto Sans and Noto Serif (R/B/I/BI),
   Noto Sans JP, Noto Sans SC, and Noto Sans TC (Regular and Bold each, the
-  CJK UI and text fallback), Montserrat, Oswald, Caveat (Regular and Bold
-  each), and Abril Fatface, Pacifico, Lobster (Regular each). About 58 MB
+  CJK UI and text fallback), Nanum Gothic (Regular and Bold, Korean fallback),
+  Montserrat, Oswald, Caveat (Regular and Bold each), and Abril Fatface, Pacifico,
+  Lobster (Regular each). About 62 MiB
   total, of which the three CJK families are about 45 MB.
 
 The `patchy_bundled_fonts` CMake target cleans and rebuilds
@@ -91,10 +92,12 @@ Accepted side effect: editing a text layer whose PSD says "Arial" on wasm
 commits the alias family (the same outcome as accepting the desktop
 missing-font substitution prompt, but silent and correctly rendered).
 
-The wasm UI font is `{"Noto Sans", "Noto Sans JP"}` (per-glyph fallback keeps
-the Japanese UI from rendering tofu), and
-`render_text_families_for_display_family` appends "Noto Sans JP" on wasm so
-Japanese document text renders through it under any Latin-only face.
+The wasm UI font starts with Noto Sans, followed by
+`wasm_cjk_fallback_families`. Korean puts NanumGothic first among the fallbacks;
+Chinese and Japanese keep their regional Noto order, with NanumGothic last.
+The same list supplies document-text fallback and refreshes when the UI language
+changes. Nanum Gothic's static Regular and Bold faces cover every modern Hangul
+syllable; the browser-only font tree keeps desktop font selection unchanged.
 
 ## User-added fonts (drag and drop)
 
@@ -111,8 +114,13 @@ window registers them for immediate use and persists them:
   non-font extensions, sanitizes to basenames, and enforces allocation caps
   (64 MB/file, 256 MB and 256 entries per archive) as the zip-bomb defense.
 - Persistence stores: desktop copies each font into
-  `<AppDataLocation>/user-fonts` and registers that copy (persist first, then
-  register, so the live font's backing file can never vanish); wasm registers
+  `<AppDataLocation>/user-fonts` (see "Per-user app-data folder" below) and registers that copy (persist first, then
+  register, so the live font's backing file can never vanish) through
+  `add_application_font_by_windows_names` (`src/ui/font_face_name_index.hpp`): on macOS a
+  font whose Macintosh family name differs from its Windows one registers from an in-memory
+  copy without the Macintosh name records, so it is listed under the Windows names Photoshop
+  and every other platform use ("Futura BdCn BT", not Apple's "Futura"; the stored file is
+  untouched). Why: [font-resolution.md](font-resolution.md). Wasm registers
   a MEMFS copy and fire-and-forgets an IndexedDB put (DB `PatchyUserFonts`,
   store `fonts` keyed by file name, so a same-named font overwrites across
   sessions). Bytes that fail `addApplicationFont` are never persisted.
@@ -129,6 +137,18 @@ window registers them for immediate use and persists them:
   store. Registered fonts stay usable until restart (desktop) or page reload
   (wasm) because `QFontDatabase::removeApplicationFont` is never called (it
   can crash live font users; see [testing.md](testing.md)).
+- **Desktop removal never deletes a store file while the app runs.**
+  `clear_user_font_store` lists the files in `user-fonts/.remove-at-next-launch`
+  and the next launch deletes them (`apply_pending_user_font_removals`, the
+  first step of `restore_user_fonts_at_startup`, before anything is registered).
+  A FreeType font database (Linux, and the offscreen platform everywhere)
+  opens the font file again whenever it builds a new engine, so deleting the
+  copy turned the font into another family the next time it was asked for at
+  a new size (October 2026: an Arabic layer in a removed Noto Naskh Arabic
+  came back as Noto Sans Arabic). Windows keeps the font data in memory and
+  never showed it. Adding a removed font again before the restart takes it off
+  the list. A file that cannot be deleted stays listed. Tests that register
+  fonts from the store must not delete it afterwards for the same reason.
 - The font picker needs no manual refresh: `QFontComboBox` repopulates on
   `QGuiApplication::fontDatabaseChanged`, which `addApplicationFont` emits
   (pinned by `ui_user_fonts_add_persist_and_clear`).
@@ -140,3 +160,42 @@ Tests: `tests/core/font_zip_tests.cpp` (extractor) and the two `ui_user_fonts`
 `third_party/fonts-web` inventory but registers it in a child process
 (`--bundled-web-fonts-probe`) so the suite's font database stays clean; see
 [testing.md](testing.md).
+
+## One store per process
+
+A process keeps every store file it registered open until it exits (the FreeType
+database reopens the file for each new engine). Two processes sharing a store therefore
+break each other: on Windows the second cannot delete the first one's files, and on Linux
+and macOS it deletes fonts the first is still drawing with.
+
+- `PATCHY_USER_FONTS_DIR=<dir>` replaces the store directory (`user_fonts_directory()`).
+- The UI suite sets it for every test process (`tests/ui/main.cpp`):
+  `test-artifacts/user-fonts/<pid>` with a `store.lock` held for the life of the process.
+  At startup it removes the stores whose lock it can take, which are the ones left by
+  processes that have exited. Before October 2026 the suite used QStandardPaths' test-mode
+  app-data folder, one directory for every checkout and worktree on the machine; the full
+  UI suite failed `ui_user_fonts_add_persist_and_clear` during the 1.05 release while
+  another session's tests were running. `ui_user_fonts_store_is_private_to_the_process`
+  pins the isolation and the Unicode read of the override.
+- Known limit, not fixed: two running Patchy instances (a second one needs
+  `PATCHY_NO_SINGLE_INSTANCE=1`, `--headless`, or the MCP connector's own app) share the
+  real store. On Windows a file the other instance holds simply stays on the removal list.
+  On Linux and macOS an instance that starts after Remove Added Fonts deletes files the
+  other instance may still load new sizes from.
+
+## Per-user app-data folder
+
+`QStandardPaths::AppDataLocation` holds the dropped-font store (`user-fonts/`) and the
+user scripts folder (`scripts/`, `MainWindow::user_scripts_directory()`). Qt builds it
+from the organization name set in `src/app/main.cpp`: `%APPDATA%\RTsoft\Patchy` on
+Windows, `~/Library/Application Support/RTsoft/Patchy` on macOS,
+`~/.local/share/RTsoft/Patchy` on Linux. Preferences are separate: `app_settings()` names
+its own organization ("Patchy"), so `Patchy.ini` never moves with this name.
+
+Releases through 0.98 used the organization name "Seth A. Robinson". Startup calls
+`app_data_migration::migrate_legacy_app_data()` (`src/ui/app_data_migration.{hpp,cpp}`)
+before the font restore: it merges the legacy folder into the current one without
+overwriting (identical leftovers are deleted, differing ones stay for the user), then
+removes the emptied legacy tree. Treat the organization name as a persisted identifier;
+changing it again means another migration step, not an edit to this one. Test:
+`ui_app_data_migration_merges_legacy_folder` in `tests/ui/app_shell_tests.cpp`.

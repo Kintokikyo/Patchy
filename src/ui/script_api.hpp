@@ -45,10 +45,16 @@ class ScriptLayerObject : public QObject {
   Q_PROPERTY(bool isGroup READ is_group)
   Q_PROPERTY(bool isText READ is_text)
   Q_PROPERTY(bool isShape READ is_shape)
+  Q_PROPERTY(bool isSmartObject READ is_smart_object)
   Q_PROPERTY(QJSValue children READ children)
   Q_PROPERTY(QString text READ text WRITE set_text)
   Q_PROPERTY(QString textOrientation READ text_orientation WRITE set_text_orientation)
   Q_PROPERTY(QString textDirection READ text_direction WRITE set_text_direction)
+  Q_PROPERTY(QString textFont READ text_font)
+  Q_PROPERTY(QJSValue textRuns READ text_runs)
+  Q_PROPERTY(QJSValue textBox READ text_box)
+  Q_PROPERTY(QString textAlign READ text_align WRITE set_text_align)
+  Q_PROPERTY(QJSValue textParagraph READ text_paragraph WRITE set_text_paragraph)
 
 public:
   ScriptLayerObject(ScriptEngineHost& host, std::int64_t session_id, LayerId layer_id);
@@ -73,6 +79,15 @@ public:
   [[nodiscard]] bool is_group() const;
   [[nodiscard]] bool is_text() const;
   [[nodiscard]] bool is_shape() const;
+  [[nodiscard]] bool is_smart_object() const;
+  // Smart objects: {linked, fileName, path, relativePath, missing, changed,
+  // sourceId, width, height, resolution, quad}; null for other layers.
+  Q_INVOKABLE QJSValue getSmartObject() const;
+  // Update Smart Object Content: re-reads this linked layer's file and re-renders
+  // every layer sharing its source. Returns the number of layers re-rendered;
+  // throws for an embedded smart object, a missing file, or an unreadable one.
+  Q_INVOKABLE int updateSmartObject();
+  Q_INVOKABLE int rerenderSmartObject();
   Q_INVOKABLE QJSValue getShape() const;
   Q_INVOKABLE void updateShape(const QJSValue& changes);
   Q_INVOKABLE void transformShape(const QJSValue& matrix, const QJSValue& options = QJSValue());
@@ -90,7 +105,20 @@ public:
   [[nodiscard]] QString text_orientation() const;
   void set_text_orientation(const QString& orientation);
   [[nodiscard]] QString text_direction() const;
+  [[nodiscard]] QString text_font() const;
   void set_text_direction(const QString& direction);
+  // The stored runs ({text, font, style, size, bold, italic, color}), the paragraph box
+  // ({width, height} or null for point text) and the paragraph alignment; setTextRuns replaces
+  // the content with formatted runs through the same session as `text`.
+  [[nodiscard]] QJSValue text_runs() const;
+  [[nodiscard]] QJSValue text_box() const;
+  [[nodiscard]] QString text_align() const;
+  void set_text_align(const QString& align);
+  [[nodiscard]] QJSValue text_paragraph() const;
+  void set_text_paragraph(const QJSValue& paragraph);
+  Q_INVOKABLE void setTextRuns(const QJSValue& runs);
+  // Renders the layer again from its stored text, with no change to the text itself.
+  Q_INVOKABLE void rerenderText();
 
   Q_INVOKABLE void moveTo(double x, double y);
   Q_INVOKABLE QJSValue duplicate(const QJSValue& target = QJSValue());
@@ -100,6 +128,14 @@ public:
   Q_INVOKABLE void fill(const QString& color);
   Q_INVOKABLE void fillRect(int x, int y, int width, int height, const QString& color);
   Q_INVOKABLE void applyFilter(const QString& filterId, const QJSValue& params = QJSValue());
+  // Runs a legacy Photoshop plug-in (an id from patchy.plugins.list()) on this
+  // layer, limited to the document selection. Options {dialog, captureDialog}:
+  // dialog false skips the plug-in's own settings dialog and reuses its last
+  // (or default) settings; captureDialog is a PNG path that receives an image
+  // of the dialog while it is up. Unattended runs never show the dialog unless
+  // captureDialog asks for it, and then answer it automatically. Windows only;
+  // throws elsewhere.
+  Q_INVOKABLE void applyPlugin(const QString& pluginId, const QJSValue& options = QJSValue());
   // Edit > Remove Object on the document selection; the layer must be the
   // document's active layer. Options {method, attempt}; returns {method,
   // patches, source, sourceCount}.
@@ -208,7 +244,16 @@ public:
   Q_INVOKABLE QJSValue getPath(const QString& id) const;
   Q_INVOKABLE QJSValue addPath(const QString& name, const QJSValue& data);
   Q_INVOKABLE QJSValue setWorkPath(const QJSValue& data);
-  Q_INVOKABLE QJSValue addTextLayer(const QString& text, const QJSValue& options = QJSValue());
+  // `text` is a string or an array of runs ({text, font?, size?, bold?, italic?, color?}).
+  Q_INVOKABLE QJSValue addTextLayer(const QJSValue& text, const QJSValue& options = QJSValue());
+  // Files as Layers: each path (a string or an array of strings) becomes a
+  // layer above the active layer, bottom to top in argument order; a
+  // multi-layer file becomes a folder named after it. Throws, adding nothing,
+  // when a file cannot be read. Returns the new layers in argument order.
+  Q_INVOKABLE QJSValue importFilesAsLayers(const QJSValue& paths);
+  // Place Embedded / Place Linked: the file becomes a smart-object layer on top.
+  // Options {linked, x, y, width, height, scale, name}; unknown options throw.
+  Q_INVOKABLE QJSValue addSmartObject(const QString& path, const QJSValue& options = QJSValue());
   Q_INVOKABLE QJSValue findLayer(const QString& name);
   // Combine Shapes: merges the shape layers (siblings) into the bottom-most
   // one with op "unite" | "subtract" | "intersect" | "exclude"; returns it.
@@ -227,6 +272,7 @@ public:
   Q_INVOKABLE void crop(int x, int y, int width, int height);
   Q_INVOKABLE bool saveAs(const QString& path);
   Q_INVOKABLE bool exportAs(const QString& path);
+  Q_INVOKABLE bool exportAnimatedWebp(const QString& path, const QJSValue& options = QJSValue());
   Q_INVOKABLE void close();
   Q_INVOKABLE void activate();
 
@@ -275,6 +321,7 @@ public:
   // editableLayers, missingFontsAsImages }). A single document is accepted too.
   Q_INVOKABLE bool exportPdf(const QJSValue& documents, const QString& path, const QJSValue& options = QJSValue());
   Q_INVOKABLE QStringList commandIds();
+  Q_INVOKABLE QJSValue listFonts();
 
 private:
   ScriptEngineHost& host_;
@@ -300,6 +347,72 @@ public:
   Q_INVOKABLE bool makeDir(const QString& path);
   // Removes one file (never a folder); true when it was removed.
   Q_INVOKABLE bool deleteFile(const QString& path);
+
+private:
+  ScriptEngineHost& host_;
+};
+
+// patchy.plugins: the legacy Photoshop plug-ins Patchy found (docs/plugins.md).
+class ScriptPluginsObject : public QObject {
+  Q_OBJECT
+  Q_PROPERTY(QStringList folders READ folders WRITE set_folders)
+  Q_PROPERTY(QString folder READ folder)
+
+public:
+  explicit ScriptPluginsObject(ScriptEngineHost& host);
+
+  // The plug-ins folder next to the application ("/" separators), created
+  // with its README when read; empty on platforms without one.
+  [[nodiscard]] QString folder() const;
+
+  // The user-added plug-in folders (persisted); setting rescans.
+  [[nodiscard]] QStringList folders() const;
+  void set_folders(const QStringList& folders);
+  // Every plug-in file the last scan saw: {id, name, category, path, supported,
+  // reason, architecture}. Unsupported files (formats, automation, other
+  // platforms) carry the reason.
+  Q_INVOKABLE QJSValue list();
+  // Rescans the automatic and user folders; returns list().
+  Q_INVOKABLE QJSValue rescan();
+
+private:
+  ScriptEngineHost& host_;
+};
+
+// patchy.recovery: the automatic document recovery store (docs/document-recovery.md),
+// exposed so scripts and tests can force a recovery write and inspect or reopen
+// what the store holds. The web build reports enabled === false and holds nothing.
+class ScriptRecoveryObject : public QObject {
+  Q_OBJECT
+  Q_PROPERTY(bool enabled READ enabled WRITE set_enabled)
+  Q_PROPERTY(int intervalMinutes READ interval_minutes WRITE set_interval_minutes)
+  Q_PROPERTY(QString directory READ directory)
+
+public:
+  explicit ScriptRecoveryObject(ScriptEngineHost& host);
+
+  // The persisted preferences; setting either re-arms the timer. The interval
+  // must be one of the Preferences steps (5, 10, 15, 30, 60), else it throws.
+  [[nodiscard]] bool enabled() const;
+  void set_enabled(bool enabled);
+  [[nodiscard]] int interval_minutes() const;
+  void set_interval_minutes(int minutes);
+  // This instance's recovery folder ("/" separators); it exists once something
+  // was written.
+  [[nodiscard]] QString directory() const;
+  // Writes a recovery copy of every modified document whose state changed since
+  // its last copy and waits for the files. Returns the PSB paths written; empty
+  // when nothing changed or the app was busy.
+  Q_INVOKABLE QStringList writeNow();
+  // {file, title, originalPath, savedAt}[] for this instance's copies.
+  Q_INVOKABLE QJSValue listFiles();
+  // {directory, file, title, originalPath, savedAt}[] for copies left by instances
+  // that no longer run.
+  Q_INVOKABLE QJSValue listOrphaned();
+  // Reopens every orphaned copy as a modified "(Recovered)" document; returns them.
+  Q_INVOKABLE QJSValue recoverAll();
+  // Deletes every orphaned folder; returns how many documents were dropped.
+  Q_INVOKABLE int discardOrphaned();
 
 private:
   ScriptEngineHost& host_;

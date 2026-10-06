@@ -10,6 +10,10 @@
   <summary xml:lang="fr">Éditeur d'images matricielles axé sur le format PSD</summary>
   <summary xml:lang="it">Editor di immagini raster incentrato sul formato PSD</summary>
   <summary xml:lang="ja">PSD 対応のラスター画像エディタ</summary>
+  <summary xml:lang="ko">PSD 중심의 래스터 이미지 편집기</summary>
+  <summary xml:lang="pl">Edytor grafiki rastrowej z obsługą formatu PSD</summary>
+  <summary xml:lang="pt_BR">Editor de imagens raster com foco no formato PSD</summary>
+  <summary xml:lang="ru">Редактор растровых изображений с поддержкой формата PSD</summary>
   <summary xml:lang="zh_CN">以 PSD 为核心的位图图像编辑器</summary>
   <summary xml:lang="zh_TW">以 PSD 為核心的點陣圖影像編輯器</summary>
   <description>
@@ -24,7 +28,7 @@
     <p xml:lang="de">
       Patchy ist ein schneller Rastergrafik-Editor, der auf dem Photoshop-Format
       PSD aufbaut: Ebenen, Ordner, Masken, Einstellungsebenen, Ebenenstile und
-      Textebenen lassen sich verlustfrei mit Photoshop austauschen. Er bietet
+      Textebenen lassen sich mit Photoshop austauschen. Er bietet
       Werkzeuge im Photoshop-Stil (Auswahlrechteck, Lasso, magnetisches Lasso,
       Zauberstab, Schnellauswahl, Pinsel mit .abr-Import und Dynamik,
       Kopierstempel, Wischfinger, Verläufe), palettengebundene Bearbeitung mit
@@ -44,8 +48,8 @@
     <p xml:lang="fr">
       Patchy est un éditeur d'images matricielles rapide conçu autour du format
       PSD de Photoshop : les calques, dossiers, masques, calques de réglage,
-      styles de calque et calques de texte font l'aller-retour avec Photoshop
-      sans perte. Il propose des outils dans l'esprit de Photoshop (rectangle de
+      styles de calque et calques de texte font l'aller-retour avec Photoshop.
+      Il propose des outils dans l'esprit de Photoshop (rectangle de
       sélection, lasso, lasso magnétique, baguette magique, sélection rapide,
       pinceaux avec importation de fichiers .abr et dynamique, tampon de
       duplication, doigt, dégradés), une édition en couleurs indexées limitée à
@@ -55,8 +59,8 @@
     <p xml:lang="it">
       Patchy è un editor di immagini raster veloce costruito attorno al formato
       PSD di Photoshop: livelli, cartelle, maschere, livelli di regolazione,
-      stili di livello e livelli di testo si scambiano con Photoshop senza
-      perdite. Include strumenti in stile Photoshop (selezione rettangolare,
+      stili di livello e livelli di testo si scambiano con Photoshop.
+      Include strumenti in stile Photoshop (selezione rettangolare,
       lazo, lazo magnetico, bacchetta magica, selezione rapida, pennelli con
       importazione di file .abr e dinamiche, timbro clone, sfumino, sfumature),
       modifica in colore indicizzato vincolata a una tavolozza per i pixel artist
@@ -65,19 +69,62 @@
     <p xml:lang="ja">
       Patchy は Photoshop の PSD 形式を中心に設計された高速なラスター画像エディタです。レイヤー、フォルダー、マスク、調整レイヤー、レイヤースタイル、テキストレイヤーを Photoshop と相互にやり取りできます。Photoshop 風のツール（長方形選択、なげなわ、マグネット選択、自動選択、クイック選択、.abr の読み込みとダイナミクスに対応したブラシ、コピースタンプ、指先、グラデーション）、ピクセルアーティスト向けのパレットに制限されたインデックスカラー編集、正確なインデックス PNG-8/BMP 書き出しを備えています。
     </p>
+    <p xml:lang="ko">
+      Patchy는 Photoshop PSD 형식을 중심으로 설계된 빠른 래스터 이미지 편집기입니다. 레이어, 폴더, 마스크, 조정 레이어, 레이어 스타일, 텍스트 레이어를 Photoshop과 주고받을 수 있습니다. Photoshop 방식의 도구(선택 윤곽, 올가미, 자석 올가미, 자동 선택, 빠른 선택, .abr 가져오기와 동적 설정을 지원하는 브러시, 복제 도장, 손가락 도구, 그레이디언트), 픽셀 아티스트를 위한 팔레트 기반 인덱스 색상 편집, 정확한 인덱스 PNG-8/BMP 내보내기를 제공합니다.
+    </p>
+    <p xml:lang="pl">
+      Patchy to szybki edytor grafiki rastrowej oparty na formacie PSD programu Photoshop. Warstwy, foldery, maski, warstwy dopasowania, style warstw i warstwy tekstowe można wymieniać z programem Photoshop. Zawiera narzędzia w stylu Photoshopa (zaznaczenie prostokątne, lasso, lasso magnetyczne, różdżkę, szybkie zaznaczanie, pędzle z importem .abr i dynamiką, stempel, smużenie, gradienty), edycję w trybie kolorów indeksowanych ograniczoną do palety dla twórców pixel artu oraz dokładny eksport do indeksowanych formatów PNG-8/BMP.
+    </p>
+    <p xml:lang="pt_BR">
+      O Patchy é um editor rápido de imagens raster desenvolvido em torno do formato PSD do Photoshop: camadas, pastas, máscaras, camadas de ajuste, estilos de camada e camadas de texto podem ser editados e trocados com o Photoshop. Inclui ferramentas no estilo do Photoshop (seleção retangular, laço, laço magnético, varinha mágica, seleção rápida, pincéis com importação de .abr e dinâmica, carimbo, borrar e degradês), edição com cores indexadas limitada à paleta para artistas de pixel art e exportação exata para PNG-8/BMP indexado.
+    </p>
+    <p xml:lang="ru">
+      Patchy: быстрый редактор растровых изображений на основе формата Photoshop PSD. Слои, папки, маски, корректирующие слои, стили слоёв и текстовые слои сохраняются при обмене файлами с Photoshop. Редактор включает инструменты в стиле Photoshop (прямоугольное выделение, лассо, магнитное лассо, волшебная палочка, быстрое выделение, кисти с импортом .abr и настройками динамики, штамп, палец, градиенты), редактирование в индексированных цветах с ограничением палитры для пиксельной графики и точный экспорт в индексированные PNG-8/BMP.
+    </p>
     <p xml:lang="zh_CN">
-      Patchy 是一款围绕 Photoshop PSD 格式打造的快速位图图像编辑器：图层、文件夹、蒙版、调整图层、图层样式和文字图层都能与 Photoshop 无损往返。它提供 Photoshop 风格的工具（选框、套索、磁性套索、魔棒、快速选择、支持导入 .abr 并带有动态的画笔、仿制图章、涂抹、渐变），面向像素画作者的调色板受限索引颜色编辑，以及精确的索引 PNG-8/BMP 导出。
+      Patchy 是一款围绕 Photoshop PSD 格式打造的快速位图图像编辑器：图层、文件夹、蒙版、调整图层、图层样式和文字图层可在与 Photoshop 交换文件时保留。它提供 Photoshop 风格的工具（选框、套索、磁性套索、魔棒、快速选择、支持导入 .abr 并带有动态的画笔、仿制图章、涂抹、渐变），面向像素画作者的调色板受限索引颜色编辑，以及精确的索引 PNG-8/BMP 导出。
     </p>
     <p xml:lang="zh_TW">
-      Patchy 是一款以 Photoshop PSD 格式為核心的快速點陣圖影像編輯器：圖層、資料夾、遮色片、調整圖層、圖層樣式和文字圖層都能與 Photoshop 無損互通。它提供 Photoshop 風格的工具（選取畫面、套索、磁性套索、魔術棒、快速選取、支援匯入 .abr 並具備筆刷動態的筆刷、仿製印章、指尖、漸層），為像素藝術創作者設計的調色盤受限索引色編輯，以及精確的索引 PNG-8/BMP 匯出。
+      Patchy 是一款以 Photoshop PSD 格式為核心的快速點陣圖影像編輯器：圖層、資料夾、遮色片、調整圖層、圖層樣式和文字圖層可在與 Photoshop 交換檔案時保留。它提供 Photoshop 風格的工具（選取畫面、套索、磁性套索、魔術棒、快速選取、支援匯入 .abr 並具備筆刷動態的筆刷、仿製印章、指尖、漸層），為像素藝術創作者設計的調色盤受限索引色編輯，以及精確的索引 PNG-8/BMP 匯出。
     </p>
   </description>
   <launchable type="desktop-id">com.rtsoft.patchy.desktop</launchable>
   <url type="homepage">https://github.com/SethRobinson/Patchy</url>
   <url type="bugtracker">https://github.com/SethRobinson/Patchy/issues</url>
+  <url type="vcs-browser">https://github.com/SethRobinson/Patchy</url>
   <developer id="com.rtsoft">
     <name>Seth A. Robinson</name>
   </developer>
+  <branding>
+    <color type="primary" scheme_preference="light">#a9c7bb</color>
+    <color type="primary" scheme_preference="dark">#2b3a35</color>
+  </branding>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Adjustment layers, Smart Filters and editable text in a layered document</caption>
+      <image type="source" width="1600" height="1000">https://raw.githubusercontent.com/SethRobinson/Patchy/v1.04/docs/images/screenshots/smart_filters.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Layer styles with several effects and blending controls</caption>
+      <image type="source" width="1600" height="1000">https://raw.githubusercontent.com/SethRobinson/Patchy/v1.04/docs/images/screenshots/layer_styles.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Editable vector paths with gradient and pattern paint</caption>
+      <image type="source" width="1600" height="1000">https://raw.githubusercontent.com/SethRobinson/Patchy/v1.04/docs/images/screenshots/vector_tools.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Warped text, mixed fonts in one paragraph and vertical Japanese</caption>
+      <image type="source" width="1600" height="1000">https://raw.githubusercontent.com/SethRobinson/Patchy/v1.04/docs/images/screenshots/warp_text.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Palette mode for indexed-color pixel art</caption>
+      <image type="source" width="1600" height="1000">https://raw.githubusercontent.com/SethRobinson/Patchy/v1.04/docs/images/screenshots/palette_mode.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Brush tips and dynamics</caption>
+      <image type="source" width="1600" height="1000">https://raw.githubusercontent.com/SethRobinson/Patchy/v1.04/docs/images/screenshots/brush_tips.png</image>
+    </screenshot>
+  </screenshots>
   <content_rating type="oars-1.1"/>
   <supports>
     <control>pointing</control>
@@ -85,6 +132,40 @@
     <control>tablet</control>
   </supports>
   <releases>
+    <release version="1.05" date="2026-10-04">
+      <description>
+        <ul>
+          <li>Patchy now updates through flatpak update and the software center, from a signed repository</li>
+          <li>Open from Clipboard: File menu command that opens the copied image as a new document</li>
+          <li>Clicking a palette swatch recolors the selected text and shape layers</li>
+          <li>Type tool: press on a text layer and drag to select text in one gesture</li>
+          <li>Fixed a freeze on KDE when a drag crossed the layer action buttons</li>
+        </ul>
+      </description>
+    </release>
+    <release version="1.04" date="2026-10-03">
+      <description>
+        <ul>
+          <li>Edit shape appearance and layer styles across selected layers, with mixed-value indicators, live previews, and one undo step per edit</li>
+          <li>Merge selected vectors into one editable vector layer, with a preview and a choice of what happens to layer effects</li>
+          <li>Fixed caps on inside and outside dashed vector strokes, and pattern thumbnails in Shape Appearance</li>
+        </ul>
+      </description>
+    </release>
+    <release version="1.03" date="2026-10-02">
+      <description>
+        <ul>
+          <li>Animated WebP import and export, with frame timing preview, lossless output, partial transparency, and loop counts</li>
+          <li>Four more interface languages: Brazilian Portuguese, Russian, Polish, and Korean</li>
+          <li>PSD compatibility: fixed legacy gradient fills and empty layer masks</li>
+          <li>Clearer notices when an installed font cannot draw the text</li>
+        </ul>
+      </description>
+    </release>
+    <release version="1.02" date="2026-10-01"/>
+    <release version="1.01" date="2026-09-29"/>
+    <release version="1.00" date="2026-09-27"/>
+    <release version="0.99" date="2026-09-25"/>
     <release version="0.98" date="2026-09-23"/>
     <release version="0.97" date="2026-09-21"/>
     <release version="0.96" date="2026-09-17"/>

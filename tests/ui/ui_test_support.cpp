@@ -1,9 +1,12 @@
 #include "ui_test_support.hpp"
 
+#include "ui/measurement_units.hpp"
 #include "ui/qt_paths.hpp"
 #include "ui_test_access.hpp"
 
+#include <QCoreApplication>
 #include <QDir>
+#include <QEvent>
 #include <QFont>
 #include <QLabel>
 #include <QFontDatabase>
@@ -237,6 +240,14 @@ void send_key_release(QWidget& widget, int key, Qt::KeyboardModifiers modifiers)
 void send_wheel(QWidget& widget, QPoint position, int delta, Qt::KeyboardModifiers modifiers) {
   QWheelEvent event(QPointF(position), QPointF(widget.mapToGlobal(position)), QPoint(), QPoint(0, delta),
                     Qt::NoButton, modifiers, Qt::NoScrollPhase, false);
+  QApplication::sendEvent(&widget, &event);
+  QApplication::processEvents();
+}
+
+void send_scroll(QWidget& widget, QPoint position, QPoint pixel_delta, Qt::ScrollPhase phase,
+                 Qt::KeyboardModifiers modifiers) {
+  QWheelEvent event(QPointF(position), QPointF(widget.mapToGlobal(position)), pixel_delta, pixel_delta * 2,
+                    Qt::NoButton, modifiers, phase, false);
   QApplication::sendEvent(&widget, &event);
   QApplication::processEvents();
 }
@@ -716,6 +727,15 @@ void cleanup_after_visual_test() {
   patchy::ui::LocalizationManager::instance().set_language(QStringLiteral("en"), false);
   auto settings = patchy::ui::app_settings();
   settings.remove(QStringLiteral("preferences/language"));
+  // Each selection tool's Feather and Anti-alias persist as soon as a test touches the
+  // options bar; a soft edge left behind would reshape every later test's selections.
+  for (const char* key :
+       {"tools/marqueeFeather", "tools/marqueeAntiAlias", "tools/ellipticalMarqueeFeather",
+        "tools/ellipticalMarqueeAntiAlias", "tools/lassoFeather", "tools/lassoAntiAlias",
+        "tools/magneticLassoFeather", "tools/magneticLassoAntiAlias", "tools/wandFeather", "tools/wandAntiAlias",
+        "tools/quickSelectFeather"}) {
+    settings.remove(QLatin1StringView(key));
+  }
   settings.sync();
 }
 
@@ -1047,6 +1067,57 @@ std::optional<QRect> alpha_pixel_bounds_in_rows(const patchy::PixelBuffer& pixel
   return QRect(QPoint(min_x, min_y), QPoint(max_x, max_y));
 }
 
+bool pixel_buffer_border_is_clear(const patchy::PixelBuffer& pixels, int threshold) {
+  if (pixels.empty() || pixels.width() <= 0 || pixels.height() <= 0) {
+    return false;
+  }
+  const auto channels = pixels.format().channels;
+  if (channels != 1U && channels < 4U) {
+    return false;
+  }
+  const auto alpha_channel = channels == 1U ? 0U : 3U;
+  const auto stride = pixels.stride_bytes();
+  const auto bytes = pixels.data();
+  const auto alpha_at = [&](int x, int y) {
+    const auto offset = static_cast<std::size_t>(y) * stride + static_cast<std::size_t>(x) * channels + alpha_channel;
+    return offset < bytes.size() ? static_cast<int>(bytes[offset]) : 0;
+  };
+  for (int x = 0; x < pixels.width(); ++x) {
+    if (alpha_at(x, 0) > threshold || alpha_at(x, pixels.height() - 1) > threshold) {
+      return false;
+    }
+  }
+  for (int y = 0; y < pixels.height(); ++y) {
+    if (alpha_at(0, y) > threshold || alpha_at(pixels.width() - 1, y) > threshold) {
+      return false;
+    }
+  }
+  return true;
+}
+
+std::vector<std::array<double, 6>> tysh_transforms_in_psd(const std::vector<std::uint8_t>& bytes) {
+  std::vector<std::array<double, 6>> transforms;
+  const std::string haystack(bytes.begin(), bytes.end());
+  std::size_t at = 0;
+  while ((at = haystack.find("8BIMTySh", at)) != std::string::npos) {
+    const auto payload = at + 12U;
+    if (payload + 2U + 48U > haystack.size()) {
+      break;
+    }
+    std::array<double, 6> transform{};
+    for (std::size_t index = 0; index < transform.size(); ++index) {
+      std::uint64_t bits = 0;
+      for (std::size_t byte = 0; byte < 8U; ++byte) {
+        bits = (bits << 8U) | static_cast<std::uint8_t>(haystack[payload + 2U + index * 8U + byte]);
+      }
+      std::memcpy(&transform[index], &bits, sizeof(double));
+    }
+    transforms.push_back(transform);
+    at = payload;
+  }
+  return transforms;
+}
+
 patchy::Layer* preview_layer_for_editor(patchy::Document& document, const QTextEdit& editor) {
   if (!editor.property("patchy.textPreviewLayerId").isValid()) {
     return nullptr;
@@ -1191,7 +1262,17 @@ bool skip_without_psd_text_face(const patchy::Layer& layer, const QString& expec
   return skip_without_font_face(expected_family, "imported-PSD text fixture face");
 }
 
+void wait_for_legacy_plugin_scan(patchy::ui::MainWindow& window) {
+  // Startup schedules the scan from a zero-delay timer; deliver that first.
+  QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+  CHECK(process_events_until([&window] { return !window.legacy_plugin_scan_in_flight(); }, 60000));
+  QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+}
+
 QAction* require_legacy_plugin_action(QWidget& root, const QString& text) {
+  if (auto* window = qobject_cast<patchy::ui::MainWindow*>(&root); window != nullptr) {
+    wait_for_legacy_plugin_scan(*window);
+  }
   for (auto* action : root.findChildren<QAction*>(QStringLiteral("legacyPluginAction"))) {
     if (action->text().contains(text, Qt::CaseInsensitive)) {
       return action;
@@ -1283,10 +1364,16 @@ void accept_new_document_dialog(int width_value, int height_value) {
       auto* dialog = qobject_cast<QDialog*>(widget);
       auto* width = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("newDocumentWidthSpin"));
       auto* height = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("newDocumentHeightSpin"));
+      auto* unit = dialog->findChild<QComboBox*>(QStringLiteral("newDocumentUnitCombo"));
       CHECK(width != nullptr);
       CHECK(height != nullptr);
+      CHECK(unit != nullptr);
       CHECK(width->buttonSymbols() == QAbstractSpinBox::NoButtons);
       CHECK(height->buttonSymbols() == QAbstractSpinBox::NoButtons);
+      // The sizes are pixels; the dialog remembers its last unit (issue 53), so
+      // an earlier test's mm pick must not scale them.
+      unit->setCurrentIndex(unit->findData(static_cast<int>(patchy::ui::MeasurementUnit::Pixels)));
+      QApplication::processEvents();
       width->setValue(width_value);
       height->setValue(height_value);
       widget->grab().save(QStringLiteral("test-artifacts/ui_new_document_dialog.png"));
@@ -1474,8 +1561,8 @@ void accept_canvas_size_dialog(int width_value, int height_value) {
         continue;
       }
       auto* dialog = qobject_cast<QDialog*>(widget);
-      auto* width = dialog->findChild<QSpinBox*>(QStringLiteral("canvasSizeWidthSpin"));
-      auto* height = dialog->findChild<QSpinBox*>(QStringLiteral("canvasSizeHeightSpin"));
+      auto* width = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("canvasSizeWidthSpin"));
+      auto* height = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("canvasSizeHeightSpin"));
       auto* new_size = dialog->findChild<QLabel*>(QStringLiteral("canvasSizeNewSizeLabel"));
       auto* relative = dialog->findChild<QCheckBox*>(QStringLiteral("canvasSizeRelativeCheck"));
       auto* width_unit = dialog->findChild<QComboBox*>(QStringLiteral("canvasSizeWidthUnitCombo"));
@@ -1496,6 +1583,10 @@ void accept_canvas_size_dialog(int width_value, int height_value) {
       CHECK(width->buttonSymbols() == QAbstractSpinBox::NoButtons);
       CHECK(height->buttonSymbols() == QAbstractSpinBox::NoButtons);
       CHECK(!relative->isChecked());
+      // The dialog remembers its last unit; the values below are pixels, so pick
+      // Pixels explicitly (the height combo follows the width combo).
+      width_unit->setCurrentIndex(width_unit->findText(QStringLiteral("Pixels")));
+      QApplication::processEvents();
       CHECK(width_unit->currentText() == QStringLiteral("Pixels"));
       CHECK(height_unit->currentText() == QStringLiteral("Pixels"));
       CHECK(extension_color->currentText() == QStringLiteral("Other..."));
@@ -1553,6 +1644,7 @@ void accept_image_size_dialog(int width_value, int height_value) {
       auto* resample = dialog->findChild<QCheckBox*>(QStringLiteral("imageSizeResampleCheck"));
       auto* method = dialog->findChild<QComboBox*>(QStringLiteral("imageSizeResampleCombo"));
       auto* link = dialog->findChild<QToolButton*>(QStringLiteral("imageSizeLinkButton"));
+      auto* width_unit = dialog->findChild<QComboBox*>(QStringLiteral("imageSizeWidthUnitCombo"));
       CHECK(width != nullptr);
       CHECK(height != nullptr);
       CHECK(dimensions != nullptr);
@@ -1560,6 +1652,11 @@ void accept_image_size_dialog(int width_value, int height_value) {
       CHECK(resample != nullptr);
       CHECK(method != nullptr);
       CHECK(link != nullptr);
+      CHECK(width_unit != nullptr);
+      // The dialog remembers its last unit (a Resample-off accept leaves Inches);
+      // the values below are pixels, so pick Pixels explicitly.
+      width_unit->setCurrentIndex(width_unit->findText(QStringLiteral("Pixels")));
+      QApplication::processEvents();
       CHECK(width->buttonSymbols() == QAbstractSpinBox::NoButtons);
       CHECK(height->buttonSymbols() == QAbstractSpinBox::NoButtons);
       CHECK(dimensions->text().contains(QStringLiteral("px x")));
@@ -1793,12 +1890,12 @@ void accept_layer_style_dialog(bool stroke_enabled, bool gradient_enabled, bool 
       bevel_size_slider->setValue(7);
       CHECK(bevel_size->value() == 7);
       categories->setCurrentItem(outer_glow_item);
-      outer_glow_size_slider->setValue(8);
+      patchy::ui::set_slider_to_value(*outer_glow_size_slider, 8);
       CHECK(outer_glow_size->value() == 8);
       outer_glow_blue_slider->setValue(210);
       CHECK(outer_glow_blue->value() == 210);
       categories->setCurrentItem(inner_glow_item);
-      inner_glow_size_slider->setValue(9);
+      patchy::ui::set_slider_to_value(*inner_glow_size_slider, 9);
       CHECK(inner_glow_size->value() == 9);
       categories->setCurrentItem(gradient_enabled ? gradient_item : blending_item);
       gradient_angle_slider->setValue(0);
@@ -1810,7 +1907,7 @@ void accept_layer_style_dialog(bool stroke_enabled, bool gradient_enabled, bool 
       CHECK(shadow_red->value() == 245);
       shadow_green->setValue(246);
       shadow_blue->setValue(247);
-      shadow_distance_slider->setValue(10);
+      patchy::ui::set_slider_to_value(*shadow_distance_slider, 10);
       CHECK(shadow_distance->value() == 10);
       categories->setCurrentItem(gradient_enabled ? gradient_item : blending_item);
       CHECK(gradient_stop_location->value() == 0);
@@ -1821,7 +1918,7 @@ void accept_layer_style_dialog(bool stroke_enabled, bool gradient_enabled, bool 
       send_key(*gradient_stop_hex, Qt::Key_Return);
       CHECK(gradient_stop_hex->text() == QStringLiteral("#FFA000"));
       categories->setCurrentItem(inner_shadow_item);
-      inner_shadow_distance_slider->setValue(3);
+      patchy::ui::set_slider_to_value(*inner_shadow_distance_slider, 3);
       CHECK(inner_shadow_distance->value() == 3);
       categories->setCurrentItem(inner_glow_item);
       add_inner_glow_instance->click();

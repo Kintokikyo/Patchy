@@ -5,7 +5,19 @@ param(
 
     [string]$Version = "0.0.0",
 
-    [switch]$Quiet
+    [switch]$Quiet,
+
+    # Packaging check: load the wizard logo from the Patchy.ico beside the payload and exit.
+    [switch]$CheckLogo,
+
+    # Packaging check: build the whole wizard, show it invisibly, close it, and exit
+    # without installing. Used by scripts\release\verify-windows-package.ps1.
+    [switch]$SmokeTest,
+
+    # Packaging check: write the "Open with" registration under this scratch registry key
+    # instead of HKCU:\Software\Classes and exit without installing. Used by
+    # scripts\release\verify-windows-package.ps1.
+    [string]$OpenWithCheckRoot = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -29,7 +41,7 @@ $PatchyInstallerText = @{
     ja = @{
         RunningPatchyRetryMessage = ConvertFrom-PatchyUnicodeEscapes "Patchy \u306F\u73FE\u5728\u5B9F\u884C\u4E2D\u3067\u3059\u3002\u4F5C\u696D\u3092\u4FDD\u5B58\u3057\u3066 Patchy \u3092\u9589\u3058\u3066\u304B\u3089\u3001[\u518D\u8A66\u884C] \u3092\u30AF\u30EA\u30C3\u30AF\u3057\u3066\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u3092\u7D9A\u884C\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
         RunningPatchyQuietMessage = ConvertFrom-PatchyUnicodeEscapes "Patchy \u306F\u73FE\u5728\u5B9F\u884C\u4E2D\u3067\u3059\u3002Patchy \u3092\u9589\u3058\u3066\u304B\u3089\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u3092\u3082\u3046\u4E00\u5EA6\u5B9F\u884C\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
-        FileInUseQuietMessage = ConvertFrom-PatchyUnicodeEscapes "Patchy \u3092\u66F4\u65B0\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F\u3002Patchy \u3092\u9589\u3058\u3066\u304B\u3089\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u3092\u3082\u3046\u4E00\u5EA6\u5B9F\u884C\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
+        FileInUseQuietMessage = ConvertFrom-PatchyUnicodeEscapes "\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u6E08\u307F\u306E\u30D5\u30A1\u30A4\u30EB\u304C\u4F7F\u7528\u4E2D\u306E\u305F\u3081\u3001Patchy \u3092\u66F4\u65B0\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F\u3002Patchy \u3092\u9589\u3058\u3066\u304B\u3089\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u3092\u3082\u3046\u4E00\u5EA6\u5B9F\u884C\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
         InstallationCanceled = ConvertFrom-PatchyUnicodeEscapes "\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u306F\u30AD\u30E3\u30F3\u30BB\u30EB\u3055\u308C\u307E\u3057\u305F\u3002"
     }
     de = @{
@@ -55,6 +67,30 @@ $PatchyInstallerText = @{
         RunningPatchyQuietMessage = ConvertFrom-PatchyUnicodeEscapes "Patchy \u00E8 in esecuzione. Chiudi Patchy ed esegui di nuovo il programma di installazione."
         FileInUseQuietMessage = ConvertFrom-PatchyUnicodeEscapes "Impossibile aggiornare Patchy perch\u00E9 i file installati sono in uso. Chiudi Patchy ed esegui di nuovo il programma di installazione."
         InstallationCanceled = ConvertFrom-PatchyUnicodeEscapes "Installazione annullata."
+    }
+    ko = @{
+        RunningPatchyRetryMessage = ConvertFrom-PatchyUnicodeEscapes "Patchy\uAC00 \uC2E4\uD589 \uC911\uC785\uB2C8\uB2E4. \uC791\uC5C5\uC744 \uC800\uC7A5\uD558\uACE0 Patchy\uB97C \uB2EB\uC740 \uD6C4 \uB2E4\uC2DC \uC2DC\uB3C4\uB97C \uD074\uB9AD\uD558\uC5EC \uC124\uCE58\uB97C \uACC4\uC18D\uD558\uC138\uC694."
+        RunningPatchyQuietMessage = ConvertFrom-PatchyUnicodeEscapes "Patchy\uAC00 \uC2E4\uD589 \uC911\uC785\uB2C8\uB2E4. Patchy\uB97C \uB2EB\uACE0 \uC124\uCE58 \uD504\uB85C\uADF8\uB7A8\uC744 \uB2E4\uC2DC \uC2E4\uD589\uD558\uC138\uC694."
+        FileInUseQuietMessage = ConvertFrom-PatchyUnicodeEscapes "\uC124\uCE58\uB41C \uD30C\uC77C\uC774 \uC0AC\uC6A9 \uC911\uC774\uC5B4\uC11C Patchy\uB97C \uC5C5\uB370\uC774\uD2B8\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. Patchy\uB97C \uB2EB\uACE0 \uC124\uCE58 \uD504\uB85C\uADF8\uB7A8\uC744 \uB2E4\uC2DC \uC2E4\uD589\uD558\uC138\uC694."
+        InstallationCanceled = ConvertFrom-PatchyUnicodeEscapes "\uC124\uCE58\uAC00 \uCDE8\uC18C\uB418\uC5C8\uC2B5\uB2C8\uB2E4."
+    }
+    pl = @{
+        RunningPatchyRetryMessage = ConvertFrom-PatchyUnicodeEscapes "Patchy jest uruchomiony. Zapisz swoj\u0105 prac\u0119, zamknij Patchy, a nast\u0119pnie kliknij Pon\u00F3w pr\u00F3b\u0119, aby kontynuowa\u0107 instalacj\u0119."
+        RunningPatchyQuietMessage = ConvertFrom-PatchyUnicodeEscapes "Patchy jest uruchomiony. Zamknij Patchy i ponownie uruchom instalator."
+        FileInUseQuietMessage = ConvertFrom-PatchyUnicodeEscapes "Nie mo\u017Cna zaktualizowa\u0107 Patchy, poniewa\u017C zainstalowane pliki s\u0105 u\u017Cywane. Zamknij Patchy i ponownie uruchom instalator."
+        InstallationCanceled = ConvertFrom-PatchyUnicodeEscapes "Instalacja zosta\u0142a anulowana."
+    }
+    pt_BR = @{
+        RunningPatchyRetryMessage = ConvertFrom-PatchyUnicodeEscapes "O Patchy est\u00E1 em execu\u00E7\u00E3o. Salve seu trabalho, feche o Patchy e clique em Repetir para continuar a instala\u00E7\u00E3o."
+        RunningPatchyQuietMessage = ConvertFrom-PatchyUnicodeEscapes "O Patchy est\u00E1 em execu\u00E7\u00E3o. Feche o Patchy e execute o instalador novamente."
+        FileInUseQuietMessage = ConvertFrom-PatchyUnicodeEscapes "N\u00E3o foi poss\u00EDvel atualizar o Patchy porque os arquivos instalados est\u00E3o em uso. Feche o Patchy e execute o instalador novamente."
+        InstallationCanceled = ConvertFrom-PatchyUnicodeEscapes "Instala\u00E7\u00E3o cancelada."
+    }
+    ru = @{
+        RunningPatchyRetryMessage = ConvertFrom-PatchyUnicodeEscapes "Patchy \u0443\u0436\u0435 \u0437\u0430\u043F\u0443\u0449\u0435\u043D. \u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u0435 \u0440\u0430\u0431\u043E\u0442\u0443, \u0437\u0430\u043A\u0440\u043E\u0439\u0442\u0435 Patchy \u0438 \u043D\u0430\u0436\u043C\u0438\u0442\u0435 \u00AB\u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u044C\u00BB, \u0447\u0442\u043E\u0431\u044B \u043F\u0440\u043E\u0434\u043E\u043B\u0436\u0438\u0442\u044C \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0443."
+        RunningPatchyQuietMessage = ConvertFrom-PatchyUnicodeEscapes "Patchy \u0443\u0436\u0435 \u0437\u0430\u043F\u0443\u0449\u0435\u043D. \u0417\u0430\u043A\u0440\u043E\u0439\u0442\u0435 Patchy \u0438 \u0437\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u0435 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0443 \u0441\u043D\u043E\u0432\u0430."
+        FileInUseQuietMessage = ConvertFrom-PatchyUnicodeEscapes "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043E\u0431\u043D\u043E\u0432\u0438\u0442\u044C Patchy, \u043F\u043E\u0441\u043A\u043E\u043B\u044C\u043A\u0443 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u043D\u044B\u0435 \u0444\u0430\u0439\u043B\u044B \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u044E\u0442\u0441\u044F. \u0417\u0430\u043A\u0440\u043E\u0439\u0442\u0435 Patchy \u0438 \u0437\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u0435 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0443 \u0441\u043D\u043E\u0432\u0430."
+        InstallationCanceled = ConvertFrom-PatchyUnicodeEscapes "\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0430 \u043E\u0442\u043C\u0435\u043D\u0435\u043D\u0430."
     }
     zh_CN = @{
         RunningPatchyRetryMessage = ConvertFrom-PatchyUnicodeEscapes "Patchy \u6B63\u5728\u8FD0\u884C\u3002\u8BF7\u4FDD\u5B58\u60A8\u7684\u5DE5\u4F5C\uFF0C\u5173\u95ED Patchy\uFF0C\u7136\u540E\u5355\u51FB\u201C\u91CD\u8BD5\u201D\u7EE7\u7EED\u5B89\u88C5\u3002"
@@ -91,7 +127,10 @@ function Get-PatchyInstallerLanguage {
         return "zh_CN"
     }
 
-    if (@("de", "es", "fr", "it", "ja") -contains $language) {
+    if ($language -eq "pt") {
+        return "pt_BR"
+    }
+    if (@("de", "es", "fr", "it", "ja", "ko", "pl", "ru") -contains $language) {
         return $language
     }
     return "en"
@@ -376,6 +415,104 @@ function Add-PatchyInstalledRelativePath {
     }
 }
 
+# Extensions Patchy is offered for in Explorer's "Open with" list. Keep in step with
+# file_format_entries() in src/ui/main_window_files.cpp and the camera raw list in
+# src/formats/raw_document_io.cpp. PDF is left out on purpose.
+$PatchyOpenWithExtensions = @(
+    "psd", "psb", "png", "jpg", "jpeg", "bmp", "tif", "tiff", "webp", "gif",
+    "aseprite", "ase", "tga", "ico", "cur", "pcx", "lbm", "iff", "bbm", "svg", "svgz",
+    "heic", "heif", "hif", "jxr", "wdp", "hdp", "rttex",
+    "af", "afphoto", "afdesign", "afpub",
+    "dng", "cr2", "cr3", "crw", "nef", "nrw", "arw", "sr2", "srf", "orf", "raf", "rw2",
+    "pef", "srw", "mrw", "3fr", "fff", "iiq", "erf", "kdc", "dcr", "mos", "rwl", "x3f"
+)
+
+# The ProgID named in each extension's OpenWithProgids list. A persisted identifier:
+# UninstallPatchy.cs and installed machines know it by this name.
+$PatchyOpenWithProgId = "Patchy.Image"
+
+# Removes what Register-PatchyOpenWith wrote. The extensions come from the registered
+# SupportedTypes list, so an upgrade also clears types a newer list no longer has. An
+# extension key is deleted only when removing Patchy's value leaves it empty.
+function Unregister-PatchyOpenWith {
+    param(
+        [string]$ClassesRoot = "HKCU:\Software\Classes"
+    )
+
+    $applicationKey = Join-Path $ClassesRoot "Applications\patchy.exe"
+    $supportedTypesKey = Join-Path $applicationKey "SupportedTypes"
+    if (Test-Path -LiteralPath $supportedTypesKey) {
+        foreach ($extension in @((Get-Item -LiteralPath $supportedTypesKey).GetValueNames())) {
+            if ($extension -notmatch '^\.[A-Za-z0-9]+$') { continue }
+            $extensionKey = Join-Path $ClassesRoot $extension
+            $progIdsKey = Join-Path $extensionKey "OpenWithProgids"
+            if (-not (Test-Path -LiteralPath $progIdsKey)) { continue }
+            Remove-ItemProperty -LiteralPath $progIdsKey -Name $PatchyOpenWithProgId -ErrorAction SilentlyContinue
+            foreach ($emptyCandidate in @($progIdsKey, $extensionKey)) {
+                $key = Get-Item -LiteralPath $emptyCandidate
+                if ($key.ValueCount -eq 0 -and $key.SubKeyCount -eq 0) {
+                    Remove-Item -LiteralPath $emptyCandidate -Force
+                } else {
+                    break
+                }
+            }
+        }
+    }
+
+    foreach ($ownedKey in @($applicationKey, (Join-Path $ClassesRoot $PatchyOpenWithProgId))) {
+        if (Test-Path -LiteralPath $ownedKey) {
+            Remove-Item -LiteralPath $ownedKey -Recurse -Force
+        }
+    }
+}
+
+# Lists Patchy as a choice under "Open with" for the types above, without making it the
+# default for any of them. Two parts: the Applications\<exe> key names the app, and a
+# Patchy ProgID added to each extension's OpenWithProgids list is what puts it in the
+# "Open with" submenu (the Applications key alone only reaches "Choose another app").
+# An extension's own default value and the user's choice are never written.
+# UninstallPatchy.exe removes all of it.
+function Register-PatchyOpenWith {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$InstalledExe,
+
+        [string]$ClassesRoot = "HKCU:\Software\Classes"
+    )
+
+    Unregister-PatchyOpenWith -ClassesRoot $ClassesRoot
+
+    $command = "`"$InstalledExe`" `"%1`""
+    $applicationKey = Join-Path $ClassesRoot "Applications\patchy.exe"
+    $supportedTypesKey = Join-Path $applicationKey "SupportedTypes"
+    $progIdKey = Join-Path $ClassesRoot $PatchyOpenWithProgId
+    foreach ($commandOwner in @($applicationKey, $progIdKey)) {
+        $commandKey = Join-Path $commandOwner "shell\open\command"
+        New-Item -Path $commandKey -Force | Out-Null
+        Set-ItemProperty -Path $commandKey -Name "(default)" -Value $command
+    }
+    New-Item -Path $supportedTypesKey -Force | Out-Null
+    New-ItemProperty -Path $applicationKey -Name "FriendlyAppName" -Value "Patchy" -PropertyType String -Force | Out-Null
+    foreach ($extension in $PatchyOpenWithExtensions) {
+        New-ItemProperty -Path $supportedTypesKey -Name ".$extension" -Value "" -PropertyType String -Force | Out-Null
+        $progIdsKey = Join-Path $ClassesRoot ".$extension\OpenWithProgids"
+        if (-not (Test-Path -LiteralPath $progIdsKey)) {
+            New-Item -Path $progIdsKey -Force | Out-Null
+        }
+        New-ItemProperty -Path $progIdsKey -Name $PatchyOpenWithProgId -Value "" -PropertyType String -Force | Out-Null
+    }
+}
+
+# Tells Explorer the registration changed, so the entry appears without a sign-out.
+function Send-PatchyAssociationChanged {
+    Add-Type -Namespace PatchySetup -Name Shell -MemberDefinition @"
+[DllImport("shell32.dll")]
+public static extern void SHChangeNotify(int eventId, uint flags, IntPtr item1, IntPtr item2);
+"@
+    # SHCNE_ASSOCCHANGED, SHCNF_IDLIST
+    [PatchySetup.Shell]::SHChangeNotify(0x08000000, 0, [IntPtr]::Zero, [IntPtr]::Zero)
+}
+
 function Invoke-PatchyInstall {
     param(
         [Parameter(Mandatory = $true)]
@@ -480,6 +617,13 @@ function Invoke-PatchyInstall {
         New-ItemProperty -Path $UninstallKey -Name "NoRepair" -Value 1 -PropertyType DWord -Force | Out-Null
         New-ItemProperty -Path $UninstallKey -Name "EstimatedSize" -Value $estimatedSizeKb -PropertyType DWord -Force | Out-Null
 
+        try {
+            Register-PatchyOpenWith -InstalledExe $installedExe
+            Send-PatchyAssociationChanged
+        } catch {
+            Write-Warning "Could not add Patchy to the Open with list: $($_.Exception.Message)"
+        }
+
         return $installedExe
     } finally {
         if (Test-Path -LiteralPath $tempRoot) {
@@ -552,49 +696,46 @@ function Invoke-PatchyInstallWithRetry {
 }
 
 function New-PatchyLogoBitmap {
-    param([int]$Size = 64)
+    param([string]$IconPath, [int]$Size = 64)
 
+    # Use the same authored artwork as the executable and installed shortcuts.
+    # Decode the largest ICO frame directly before scaling it to the wizard's slot:
+    # Icon.ToBitmap() cannot read PNG-compressed frames in Windows PowerShell 5.1 and
+    # throws "Requested range extends past the end of the array" (issue 55).
+    $bytes = [System.IO.File]::ReadAllBytes($IconPath)
+    $count = [System.BitConverter]::ToUInt16($bytes, 4)
+    $best = -1
+    $bestWidth = 0
+    for ($i = 0; $i -lt $count; $i++) {
+        $width = [int]$bytes[6 + 16 * $i]
+        if ($width -eq 0) { $width = 256 }
+        if ($width -gt $bestWidth) { $bestWidth = $width; $best = $i }
+    }
+    if ($best -lt 0) { throw "No frames in $IconPath" }
+    $length = [System.BitConverter]::ToInt32($bytes, 6 + 16 * $best + 8)
+    $offset = [System.BitConverter]::ToInt32($bytes, 6 + 16 * $best + 12)
+    $icon = $null
+    $stream = $null
+    if ($bytes[$offset] -eq 0x89 -and $bytes[$offset + 1] -eq 0x50 -and $bytes[$offset + 2] -eq 0x4E -and $bytes[$offset + 3] -eq 0x47) {
+        $stream = New-Object System.IO.MemoryStream (, [byte[]]$bytes[$offset..($offset + $length - 1)])
+        $source = [System.Drawing.Image]::FromStream($stream)
+    }
+    else {
+        $icon = New-Object System.Drawing.Icon $IconPath, $bestWidth, $bestWidth
+        $source = $icon.ToBitmap()
+    }
     $bitmap = New-Object System.Drawing.Bitmap $Size, $Size, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
     $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
-    $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
-    $scale = $Size / 64.0
-    $sx = { param([double]$value) [single]($value * $scale) }
-
-    $tile = New-Object System.Drawing.RectangleF (& $sx 7), (& $sx 7), (& $sx 50), (& $sx 50)
-    $gradient = New-Object System.Drawing.Drawing2D.LinearGradientBrush $tile,
-        ([System.Drawing.Color]::FromArgb(88, 170, 235)),
-        ([System.Drawing.Color]::FromArgb(242, 177, 92)),
-        45
-    $blend = New-Object System.Drawing.Drawing2D.ColorBlend 3
-    $blend.Positions = [single[]](0.0, 0.55, 1.0)
-    $blend.Colors = [System.Drawing.Color[]](
-        [System.Drawing.Color]::FromArgb(88, 170, 235),
-        [System.Drawing.Color]::FromArgb(132, 214, 169),
-        [System.Drawing.Color]::FromArgb(242, 177, 92)
-    )
-    $gradient.InterpolationColors = $blend
-    $graphics.FillRectangle($gradient, $tile)
-    $gradient.Dispose()
-
-    $inner = New-Object System.Drawing.RectangleF (& $sx 11), (& $sx 11), (& $sx 42), (& $sx 42)
-    $graphics.FillRectangle((New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(23, 30, 40))), $inner)
-
-    $canvas = New-Object System.Drawing.RectangleF (& $sx 19), (& $sx 19), (& $sx 26), (& $sx 24)
-    $graphics.FillRectangle((New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(247, 249, 252))), $canvas)
-    $graphics.FillRectangle((New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(88, 170, 235))), (& $sx 24), (& $sx 24), (& $sx 13), (& $sx 12))
-    $graphics.FillRectangle((New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(132, 214, 169))), (& $sx 27), (& $sx 31), (& $sx 13), (& $sx 12))
-
-    $patch = New-Object System.Drawing.Drawing2D.GraphicsPath
-    $patch.AddPolygon([System.Drawing.PointF[]]@(
-        (New-Object System.Drawing.PointF (& $sx 27), (& $sx 35)),
-        (New-Object System.Drawing.PointF (& $sx 36), (& $sx 28)),
-        (New-Object System.Drawing.PointF (& $sx 49), (& $sx 36)),
-        (New-Object System.Drawing.PointF (& $sx 39), (& $sx 41))
-    ))
-    $graphics.FillPath((New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(242, 177, 92))), $patch)
-    $patch.Dispose()
-    $graphics.Dispose()
-
+    try {
+        $graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+        $graphics.DrawImage($source, 0, 0, $Size, $Size)
+    }
+    finally {
+        $graphics.Dispose()
+        $source.Dispose()
+        if ($stream) { $stream.Dispose() }
+        if ($icon) { $icon.Dispose() }
+    }
     return $bitmap
 }
 
@@ -622,7 +763,9 @@ function Show-PatchyInstallerWizard {
         [string]$UninstallKey,
 
         [Parameter(Mandatory = $true)]
-        [string]$Version
+        [string]$Version,
+
+        [switch]$SmokeTest
     )
 
     Add-Type -AssemblyName System.Windows.Forms
@@ -641,15 +784,22 @@ function Show-PatchyInstallerWizard {
     $form.FormBorderStyle = "FixedDialog"
     $form.MaximizeBox = $false
     $form.MinimizeBox = $true
-    $form.ClientSize = New-Object System.Drawing.Size 560, 340
+    $form.ClientSize = New-Object System.Drawing.Size 560, 380
     $form.Font = New-Object System.Drawing.Font "Segoe UI", 9
     $form.BackColor = [System.Drawing.Color]::White
     $form.Tag = "ready"
     $formIcon = $null
     $installerIconPath = Join-Path (Split-Path -Parent $PayloadZip) "Patchy.ico"
     if (Test-Path -LiteralPath $installerIconPath -PathType Leaf) {
-        $formIcon = New-Object System.Drawing.Icon $installerIconPath
-        $form.Icon = $formIcon
+        # Artwork is decoration: a logo that fails to load must never stop setup.
+        try {
+            $formIcon = New-Object System.Drawing.Icon $installerIconPath
+            $form.Icon = $formIcon
+        }
+        catch {
+            if ($SmokeTest) { throw }
+            $formIcon = $null
+        }
     }
 
     $leftPanel = New-Object System.Windows.Forms.Panel
@@ -661,7 +811,15 @@ function Show-PatchyInstallerWizard {
     $logo = New-Object System.Windows.Forms.PictureBox
     $logo.Size = New-Object System.Drawing.Size 74, 74
     $logo.Location = New-Object System.Drawing.Point 37, 42
-    $logo.Image = New-PatchyLogoBitmap 74
+    if (Test-Path -LiteralPath $installerIconPath -PathType Leaf) {
+        try {
+            $logo.Image = New-PatchyLogoBitmap -IconPath $installerIconPath -Size 74
+        }
+        catch {
+            if ($SmokeTest) { throw }
+            $logo.Image = $null
+        }
+    }
     $logo.SizeMode = [System.Windows.Forms.PictureBoxSizeMode]::CenterImage
     $leftPanel.Controls.Add($logo)
 
@@ -676,7 +834,7 @@ function Show-PatchyInstallerWizard {
 
     $contentLeft = 176
     $title = New-Object System.Windows.Forms.Label
-    $title.Text = "Install Patchy"
+    $title.Text = "Install Patchy $Version"
     $title.Font = New-Object System.Drawing.Font "Segoe UI Semibold", 15
     $title.ForeColor = [System.Drawing.Color]::FromArgb(23, 30, 40)
     $title.AutoSize = $true
@@ -715,7 +873,7 @@ function Show-PatchyInstallerWizard {
     $legalNotice = New-Object System.Windows.Forms.Label
     $legalNotice.Text = "Patchy is provided under the MIT License as-is, without warranty. Keep backups of important files."
     $legalNotice.ForeColor = [System.Drawing.Color]::FromArgb(83, 92, 104)
-    $legalNotice.Size = New-Object System.Drawing.Size 344, 36
+    $legalNotice.Size = New-Object System.Drawing.Size 344, 40
     $legalNotice.Location = New-Object System.Drawing.Point $contentLeft, 218
     $form.Controls.Add($legalNotice)
 
@@ -723,11 +881,12 @@ function Show-PatchyInstallerWizard {
     $status.Text = ""
     $status.ForeColor = [System.Drawing.Color]::FromArgb(63, 72, 84)
     $status.Size = New-Object System.Drawing.Size 344, 24
-    $status.Location = New-Object System.Drawing.Point $contentLeft, 248
+    # Keep separate rows for the legal notice, status, and progress bar.
+    $status.Location = New-Object System.Drawing.Point $contentLeft, ($legalNotice.Bottom + 8)
     $form.Controls.Add($status)
 
     $progress = New-Object System.Windows.Forms.ProgressBar
-    $progress.Location = New-Object System.Drawing.Point $contentLeft, 274
+    $progress.Location = New-Object System.Drawing.Point $contentLeft, ($status.Bottom + 6)
     $progress.Size = New-Object System.Drawing.Size 344, 18
     $progress.Style = [System.Windows.Forms.ProgressBarStyle]::Marquee
     $progress.MarqueeAnimationSpeed = 30
@@ -829,6 +988,15 @@ function Show-PatchyInstallerWizard {
 
     $form.AcceptButton = $installButton
     $form.CancelButton = $cancelButton
+    if ($SmokeTest) {
+        # Same form and controls as a real run, invisible, closed as soon as it is shown.
+        $form.Opacity = 0
+        $form.ShowInTaskbar = $false
+        $form.Add_Shown({
+            $form.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+            $form.Close()
+        })
+    }
     [void]$form.ShowDialog()
 
     if ($logo.Image) {
@@ -848,6 +1016,59 @@ $startMenuDirectory = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Progr
 $startMenuShortcut = Join-Path $startMenuDirectory "Patchy.lnk"
 $desktopShortcut = Join-Path ([System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::DesktopDirectory)) "Patchy.lnk"
 $uninstallKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Patchy"
+
+if ($CheckLogo) {
+    # build-release.bat runs this in Windows PowerShell 5.1, the host the installer uses.
+    Add-Type -AssemblyName System.Drawing
+    $checkIcon = Join-Path (Split-Path -Parent $PayloadZip) "Patchy.ico"
+    $logoBitmap = New-PatchyLogoBitmap -IconPath $checkIcon -Size 74
+    $windowIcon = New-Object System.Drawing.Icon $checkIcon
+    Write-Host "Installer logo check passed ($($logoBitmap.Width) x $($logoBitmap.Height))."
+    exit 0
+}
+
+if ($OpenWithCheckRoot) {
+    # Only a scratch key: the real Classes tree is never a valid target for the check.
+    if ($OpenWithCheckRoot -notlike "HKCU:\Software\PatchyVerify-*") {
+        Write-Host "Open with check needs a HKCU:\Software\PatchyVerify-* scratch key."
+        exit 1
+    }
+    try {
+        Register-PatchyOpenWith -InstalledExe (Join-Path $installRoot "patchy.exe") -ClassesRoot $OpenWithCheckRoot
+        Write-Host "Open with registration check wrote $OpenWithCheckRoot."
+        exit 0
+    } catch {
+        Write-Host "Open with registration check FAILED: $($_.Exception.Message)"
+        exit 1
+    }
+}
+
+if ($SmokeTest) {
+    # Handled before the quiet branch below so a smoke test can never install, and
+    # without the message box the real error path shows (it would wait for a click).
+    if (-not [Environment]::UserInteractive) {
+        Write-Host "Installer wizard smoke test needs an interactive desktop session."
+        exit 3
+    }
+    try {
+        $smoke = Show-PatchyInstallerWizard `
+            -PayloadZip $PayloadZip `
+            -InstallParent $installParent `
+            -InstallRoot $installRoot `
+            -StartMenuDirectory $startMenuDirectory `
+            -StartMenuShortcut $startMenuShortcut `
+            -DesktopShortcut $desktopShortcut `
+            -UninstallKey $uninstallKey `
+            -Version $Version `
+            -SmokeTest
+        if ($smoke.Completed) { throw "The smoke test must not install." }
+        Write-Host "Installer wizard smoke test passed."
+        exit 0
+    } catch {
+        Write-Host "Installer wizard smoke test FAILED: $($_.Exception.Message)"
+        exit 1
+    }
+}
 
 try {
     if ($Quiet -or -not [Environment]::UserInteractive) {

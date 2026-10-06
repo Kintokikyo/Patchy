@@ -49,8 +49,8 @@ struct VectorRasterOptions {
 [[nodiscard]] CoverageBuffer rasterize_vector_mask_coverage(const LayerVectorMask& mask, Rect clip);
 
 // Stroke coverage for the path with the stroke's width/caps/joins/dashes and
-// alignment applied (inside/outside clip against the path's fill region, the
-// centered-double-width construction). Ignores stroke.enabled so callers can
+// alignment applied (inside/outside clip a double-width band against the fill
+// region, with original-width dash caps on each side). Ignores stroke.enabled so callers can
 // preview; returns empty coverage for degenerate widths.
 [[nodiscard]] CoverageBuffer rasterize_vector_stroke(const VectorPath& path, const VectorStroke& stroke,
                                                      const VectorRasterOptions& options);
@@ -65,6 +65,10 @@ struct ShapeRasterResult {
   // otherwise, in which case the compositor keeps the combined-plane path.
   PixelBuffer fill_pixels{};
   PixelBuffer stroke_pixels{};
+  // `pixels` with alpha replaced by the shape's coverage, over the same `bounds`: the
+  // silhouette layer effects use (VectorShapeContent::effect_matte_cache). Populated
+  // only when a gradient or pattern fill leaves coverage and painted alpha different.
+  PixelBuffer matte_pixels{};
 };
 
 // Optional paint geometry for a render whose clip is not the canvas: a
@@ -95,6 +99,10 @@ struct VectorPaintBounds {
 // compositor never rasterizes - these run at edit/import time only. No-ops
 // when the layer carries no vector shape / vector mask.
 void update_vector_shape_raster(Layer& layer, Rect canvas, const PatternStore* patterns);
+// For a shape layer that keeps the pixels its file carried (a PSD import whose raster
+// has visible alpha is not re-baked): works out the effect silhouette from the shape
+// and stores it beside those pixels, or clears it when coverage and alpha agree.
+void refresh_vector_shape_effect_matte(Layer& layer, Rect canvas, const PatternStore* patterns = nullptr);
 // Regenerates the vector mask's grayscale cache from its path.
 void update_vector_mask_raster(Layer& layer, Rect canvas);
 

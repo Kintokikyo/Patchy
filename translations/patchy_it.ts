@@ -43,10 +43,6 @@
         <translation>Scegli come unire i livelli selezionati e i relativi gruppi.</translation>
     </message>
     <message>
-        <source>Keep vectors and bitmaps separate</source>
-        <translation>Mantieni separati vettori e bitmap</translation>
-    </message>
-    <message>
         <source>Keep editable shapes. Turn off to merge the artwork into bitmap layers.</source>
         <translation>Mantiene le forme modificabili. Disattiva per unire il contenuto in livelli bitmap.</translation>
     </message>
@@ -56,7 +52,7 @@
     </message>
     <message>
         <source>Keep folders and merge their contents separately. Turn off to merge across ordinary Pass Through groups.</source>
-        <translation>Mantiene le cartelle e ne unisce il contenuto separatamente. Disattiva per unire anche attraverso i normali gruppi Passa attraverso.</translation>
+        <translation>Mantiene le cartelle e ne unisce il contenuto separatamente. Disattiva per unire anche attraverso i normali gruppi con metodo Attraversa.</translation>
     </message>
     <message>
         <source>Separate merges for different vector types</source>
@@ -105,6 +101,176 @@
     <message>
         <source>These layers need to stay separate with the selected options.</source>
         <translation>Con le opzioni selezionate questi livelli devono restare separati.</translation>
+    </message>
+    <message>
+        <source>Keep vector layers editable</source>
+        <translation>Mantieni modificabili i livelli vettoriali</translation>
+    </message>
+    <message>
+        <source>These layers keep their own effects and stay separate in a vector merge. Turning off &quot;Keep vector layers editable&quot; rasterizes merged artwork.</source>
+        <translation>Questi livelli mantengono i propri effetti e restano separati durante l’unione vettoriale. Disattivando «Mantieni modificabili i livelli vettoriali», il contenuto unito viene rasterizzato.</translation>
+    </message>
+    <message>
+        <source>Select at least two editable vector layers.</source>
+        <translation>Seleziona almeno due livelli vettoriali modificabili.</translation>
+    </message>
+    <message>
+        <source>This layer is not an editable vector layer.</source>
+        <translation>Questo livello non è un livello vettoriale modificabile.</translation>
+    </message>
+    <message>
+        <source>Unlock this layer and its parent groups first.</source>
+        <translation>Sblocca prima questo livello e i suoi gruppi superiori.</translation>
+    </message>
+    <message>
+        <source>Show this layer and its parent groups first.</source>
+        <translation>Mostra prima questo livello e i suoi gruppi superiori.</translation>
+    </message>
+    <message>
+        <source>A clipping relationship requires this layer to stay separate.</source>
+        <translation>Una relazione di ritaglio richiede che questo livello rimanga separato.</translation>
+    </message>
+    <message>
+        <source>A separate mask prevents this vector merge.</source>
+        <translation>Una maschera separata impedisce questa unione vettoriale.</translation>
+    </message>
+    <message>
+        <source>Smart Filters require this layer to stay separate.</source>
+        <translation>I filtri avanzati richiedono che questo livello rimanga separato.</translation>
+    </message>
+    <message>
+        <source>The blend mode, Blend If, or channel settings require a separate layer.</source>
+        <translation>Il metodo di fusione, Fondi se o le impostazioni dei canali richiedono un livello separato.</translation>
+    </message>
+    <message>
+        <source>Preserved vector data cannot be edited.</source>
+        <translation>I dati vettoriali conservati non possono essere modificati.</translation>
+    </message>
+    <message>
+        <source>This compound vector&apos;s opacity requires it to stay separate.</source>
+        <translation>L’opacità di questo vettore composto richiede che rimanga separato.</translation>
+    </message>
+    <message>
+        <source>This group&apos;s appearance prevents moving shapes across its boundary.</source>
+        <translation>L’aspetto di questo gruppo impedisce di spostare forme oltre il suo confine.</translation>
+    </message>
+    <message>
+        <source>Choose effects from a vector layer included in the merge.</source>
+        <translation>Scegli gli effetti di un livello vettoriale incluso nell’unione.</translation>
+    </message>
+    <message>
+        <source>Vector feather or density requires this shape to stay separate.</source>
+        <translation>La sfumatura o la densità vettoriale richiede che questa forma rimanga separata.</translation>
+    </message>
+    <message>
+        <source>%1: %2</source>
+        <translation>%1: %2</translation>
+    </message>
+    <message>
+        <source>Merge into one vector layer</source>
+        <translation>Unisci in un solo livello vettoriale</translation>
+    </message>
+    <message>
+        <source>Remove layer effects</source>
+        <translation>Rimuovi effetti di livello</translation>
+    </message>
+    <message>
+        <source>Use effects from a layer</source>
+        <translation>Usa gli effetti di un livello</translation>
+    </message>
+    <message>
+        <source>Layer effects:</source>
+        <translation>Effetti di livello:</translation>
+    </message>
+    <message>
+        <source>Use effects from:</source>
+        <translation>Usa effetti da:</translation>
+    </message>
+    <message>
+        <source>Preview</source>
+        <translation>Anteprima</translation>
+    </message>
+    <message>
+        <source>Preview unavailable.</source>
+        <translation>Anteprima non disponibile.</translation>
+    </message>
+    <message>
+        <source>Merged artwork</source>
+        <translation>Grafica unita</translation>
+    </message>
+    <message>
+        <source>Original artwork</source>
+        <translation>Grafica originale</translation>
+    </message>
+    <message>
+        <source>Effects from %1 apply once to the combined silhouette. Each shape keeps its own fill and vector stroke.</source>
+        <translation>Gli effetti di %1 si applicano una sola volta alla sagoma combinata. Ogni forma mantiene il proprio riempimento e tratto vettoriale.</translation>
+    </message>
+    <message>
+        <source>Individual layer effects will be removed. Each shape keeps its own fill and vector stroke.</source>
+        <translation>Gli effetti dei singoli livelli verranno rimossi. Ogni forma mantiene il proprio riempimento e tratto vettoriale.</translation>
+    </message>
+    <message>
+        <source>Result: 1 editable vector layer, replacing %1 in the layer stack.</source>
+        <translation>Risultato: 1 livello vettoriale modificabile che sostituisce %1 nella pila dei livelli.</translation>
+    </message>
+    <message>
+        <source>Stacking relative to unselected layers will change. Review the preview before merging.</source>
+        <translation>L’ordine rispetto ai livelli non selezionati cambierà. Controlla l’anteprima prima di unire.</translation>
+    </message>
+    <message>
+        <source>Updating preview...</source>
+        <translation>Aggiornamento anteprima...</translation>
+    </message>
+</context>
+<context>
+    <name>LegacyPluginFolder</name>
+    <message>
+        <source>Legacy Photoshop plug-ins run on Windows only.</source>
+        <translation>I plug-in legacy di Photoshop vengono eseguiti solo su Windows.</translation>
+    </message>
+    <message>
+        <source>The plug-ins folder could not be created: %1</source>
+        <translation>Impossibile creare la cartella dei plug-in: %1</translation>
+    </message>
+</context>
+<context>
+    <name>LegacyPluginRunner</name>
+    <message>
+        <source>The plug-in host was given an invalid image.</source>
+        <translation>L&apos;host dei plug-in ha ricevuto un&apos;immagine non valida.</translation>
+    </message>
+    <message>
+        <source>The plug-in host program is missing: %1</source>
+        <translation>Il programma host dei plug-in manca: %1</translation>
+    </message>
+    <message>
+        <source>Not enough memory to hand the layer to the plug-in.</source>
+        <translation>Memoria insufficiente per passare il livello al plug-in.</translation>
+    </message>
+    <message>
+        <source>The plug-in host could not be contacted: %1</source>
+        <translation>Impossibile contattare l&apos;host dei plug-in: %1</translation>
+    </message>
+    <message>
+        <source>The plug-in host program could not be started: %1</source>
+        <translation>Impossibile avviare il programma host dei plug-in: %1</translation>
+    </message>
+    <message>
+        <source>The plug-in host did not respond.</source>
+        <translation>L&apos;host dei plug-in non ha risposto.</translation>
+    </message>
+    <message>
+        <source>The plug-in host program does not match this Patchy build.</source>
+        <translation>Il programma host dei plug-in non corrisponde a questa build di Patchy.</translation>
+    </message>
+    <message>
+        <source>The plug-in crashed (host exit code %1).</source>
+        <translation>Il plug-in si è bloccato (codice di uscita dell&apos;host %1).</translation>
+    </message>
+    <message>
+        <source>The plug-in reported an error.</source>
+        <translation>Il plug-in ha segnalato un errore.</translation>
     </message>
 </context>
 <context>
@@ -803,11 +969,11 @@
     </message>
     <message>
         <source>Tilt-Shift Blur supports UInt8 buffers only</source>
-        <translation>Sfocatura inclinazione-spostamento supporta solo buffer UInt8</translation>
+        <translation>Scostamento inclinazione supporta solo buffer UInt8</translation>
     </message>
     <message>
         <source>Invalid Tilt-Shift Blur settings</source>
-        <translation>Impostazioni di Sfocatura inclinazione-spostamento non valide</translation>
+        <translation>Impostazioni di Scostamento inclinazione non valide</translation>
     </message>
     <message>
         <source>Filter recipe changed the pixel format</source>
@@ -911,7 +1077,7 @@
     </message>
     <message>
         <source>Invalid Box Blur input</source>
-        <translation>Input di Sfocatura casella non valido</translation>
+        <translation>Input di Sfocatura selezione non valido</translation>
     </message>
     <message>
         <source>Invalid Emboss input</source>
@@ -1683,7 +1849,7 @@
     </message>
     <message>
         <source>A PDF form was nested too deeply and was skipped.</source>
-        <translation>Un modulo PDF era annidato troppo in profondità ed è stato ignorato.</translation>
+        <translation>Un Form XObject PDF era annidato troppo in profondità ed è stato ignorato.</translation>
     </message>
     <message>
         <source>A PDF spot or separation colour was approximated as a shade of grey.</source>
@@ -2043,7 +2209,7 @@
     </message>
     <message>
         <source>Pass-through group opacity is approximated (SVG group opacity isolates the group)</source>
-        <translation>L&apos;opacità del gruppo Attraverso è approssimata (l&apos;opacità di gruppo SVG isola il gruppo)</translation>
+        <translation>L&apos;opacità dei gruppi con metodo Attraversa è approssimata (l&apos;opacità di gruppo SVG isola il gruppo)</translation>
     </message>
     <message>
         <source>Cannot export an empty document as SVG</source>
@@ -2112,26 +2278,6 @@
     <message>
         <source>Legacy Photoshop plug-ins are Windows binaries; they require the Windows build of Patchy.</source>
         <translation>I plug-in Photoshop legacy sono binari Windows; richiedono la versione Windows di Patchy.</translation>
-    </message>
-    <message>
-        <source>32-bit Photoshop plug-ins require a 32-bit compatibility host.</source>
-        <translation>I plug-in Photoshop a 32 bit richiedono un host di compatibilità a 32 bit.</translation>
-    </message>
-    <message>
-        <source>Plug-in architecture does not match this Patchy build.</source>
-        <translation>L&apos;architettura del plug-in non corrisponde a questa versione di Patchy.</translation>
-    </message>
-    <message>
-        <source>Automation plug-ins are recognized but not supported by the first compatibility adapter.</source>
-        <translation>I plug-in di automazione vengono riconosciuti ma non sono supportati dal primo adattatore di compatibilità.</translation>
-    </message>
-    <message>
-        <source>Classic Photoshop filter plug-in candidate. Runtime execution will be isolated out-of-process.</source>
-        <translation>Candidato plug-in filtro Photoshop classico. L&apos;esecuzione verrà isolata in un processo separato.</translation>
-    </message>
-    <message>
-        <source>Classic Photoshop file-format plug-in candidate. Runtime execution will be isolated out-of-process.</source>
-        <translation>Candidato plug-in formato file Photoshop classico. L&apos;esecuzione verrà isolata in un processo separato.</translation>
     </message>
     <message>
         <source>Plugin identifier cannot be empty</source>
@@ -2403,7 +2549,7 @@
     </message>
     <message>
         <source>PSD filter-effects record cannot be rekeyed safely</source>
-        <translation>Impossibile ricodificare in sicurezza la chiave del record degli effetti filtro PSD</translation>
+        <translation>Impossibile modificare in sicurezza l&apos;identificatore del record degli effetti filtro PSD</translation>
     </message>
     <message>
         <source>PSD filter-effects record id does not match its raw body</source>
@@ -2436,10 +2582,6 @@
     <message>
         <source>The starter PSD reader currently supports 8, 16, and 32-bit files only</source>
         <translation>Il lettore PSD di base supporta attualmente solo file a 8, 16 e 32 bit</translation>
-    </message>
-    <message>
-        <source>The starter PSD reader currently supports RGB and CMYK files only</source>
-        <translation>Il lettore PSD di base supporta attualmente solo file RGB e CMYK</translation>
     </message>
     <message>
         <source>PSD files cannot contain more than 56 channels</source>
@@ -2555,7 +2697,7 @@
     </message>
     <message>
         <source>Unsupported authored Smart Filter stack</source>
-        <translation>Pila di filtri avanzati creata non supportata</translation>
+        <translation>Stack di filtri avanzati creato non supportato</translation>
     </message>
     <message>
         <source>The starter compositor currently supports RGB8 destinations only</source>
@@ -2831,7 +2973,7 @@
     </message>
     <message>
         <source>Pass Through</source>
-        <translation>Attraverso</translation>
+        <translation>Attraversa</translation>
     </message>
     <message>
         <source>Normal</source>
@@ -2923,7 +3065,7 @@
     </message>
     <message>
         <source>Hard Mix</source>
-        <translation>Miscela dura</translation>
+        <translation>Sovrapponi colori</translation>
     </message>
     <message>
         <source>Darker Color</source>
@@ -3724,7 +3866,7 @@
     </message>
     <message>
         <source>Box Blur</source>
-        <translation>Sfocatura casella</translation>
+        <translation>Sfocatura selezione</translation>
     </message>
     <message>
         <source>Sharpen</source>
@@ -3760,7 +3902,7 @@
     </message>
     <message>
         <source>Tilt-Shift Blur</source>
-        <translation>Sfocatura inclina-sposta</translation>
+        <translation>Scostamento inclinazione</translation>
     </message>
     <message>
         <source>Plastic Wrap</source>
@@ -4429,10 +4571,6 @@
     <message>
         <source>Single flattened image</source>
         <translation>Singola immagine unita</translation>
-    </message>
-    <message>
-        <source>Frame delay:</source>
-        <translation>Ritardo fotogramma:</translation>
     </message>
     <message>
         <source> s</source>
@@ -5578,10 +5716,6 @@ Apri in Upscaling generativo...</translation>
         <translation>Larghezza</translation>
     </message>
     <message>
-        <source>%1 px</source>
-        <translation>%1 px</translation>
-    </message>
-    <message>
         <source>Pixels</source>
         <translation>Pixel</translation>
     </message>
@@ -5874,7 +6008,7 @@ Apri in Upscaling generativo...</translation>
     </message>
     <message>
         <source>%1 by folder</source>
-        <translation>%1 per cartella</translation>
+        <translation>%1 dalla cartella</translation>
     </message>
     <message>
         <source>%1
@@ -7225,11 +7359,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Clip to white</source>
-        <translation>Ritaglia sul bianco</translation>
+        <translation>Limita al bianco</translation>
     </message>
     <message>
         <source>Unclipped</source>
-        <translation>Senza ritaglio</translation>
+        <translation>Senza limitazione</translation>
     </message>
     <message>
         <source>Blend</source>
@@ -7643,10 +7777,6 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Version %1 (built %2)</source>
         <translation>Versione %1 (compilata il %2)</translation>
-    </message>
-    <message>
-        <source>Created by Seth A. Robinson</source>
-        <translation>Creato da Seth A. Robinson</translation>
     </message>
     <message>
         <source>Code contributions from %1</source>
@@ -8147,16 +8277,8 @@ RGB: %2, %3, %4</translation>
         <translation>Trascinate la maniglia del centro o del raggio per posizionare il filtro. Trascinate altrove per scorrere la vista; la rotellina del mouse esegue lo zoom.</translation>
     </message>
     <message>
-        <source>UI language for this run only, not saved: en, de, es, fr, it, ja, zh_CN, or zh_TW.</source>
-        <translation>Lingua dell&apos;interfaccia solo per questa esecuzione, non salvata: en, de, es, fr, it, ja, zh_CN o zh_TW.</translation>
-    </message>
-    <message>
         <source>Also crop each actual layer to the canvas area</source>
         <translation>Ritaglia anche ogni singolo livello all’area del quadro</translation>
-    </message>
-    <message>
-        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</source>
-        <translation>Impossibile decodificare questa immagine HEIC. La decodifica HEIC richiede l&apos;estensione codec Flatpak; installala con: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</translation>
     </message>
     <message>
         <source>Create Ellipse</source>
@@ -8298,7 +8420,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Editable import was not possible for page %1 (%2); it was flattened instead.</source>
-        <translation>L&apos;importazione modificabile non è stata possibile per la pagina %1 (%2); è stata unita al suo posto.</translation>
+        <translation>Non è stato possibile importare la pagina %1 in forma modificabile (%2); è stata invece convertita in un&apos;unica immagine.</translation>
     </message>
     <message>
         <source>Portrait</source>
@@ -8490,6 +8612,295 @@ RGB: %2, %3, %4</translation>
         <source>Stroke Color</source>
         <translation>Colore della traccia</translation>
     </message>
+    <message>
+        <source>User data folder (fonts, scripts):</source>
+        <translation>Cartella dei dati utente (font, script):</translation>
+    </message>
+    <message>
+        <source>Open Data Folder</source>
+        <translation>Apri cartella dati</translation>
+    </message>
+    <message>
+        <source>Could not open data folder.</source>
+        <translation>Impossibile aprire la cartella dei dati.</translation>
+    </message>
+    <message>
+        <source>Created by %1</source>
+        <translation>Creato da %1</translation>
+    </message>
+    <message>
+        <source>Could not write PSD file</source>
+        <translation>Impossibile scrivere il file PSD</translation>
+    </message>
+    <message>
+        <source>The starter PSD reader currently supports RGB, CMYK, and Grayscale files only</source>
+        <translation>Il lettore PSD di base supporta attualmente solo file RGB, CMYK e in scala di grigi</translation>
+    </message>
+    <message>
+        <source>Grayscale PSD file must contain at least 1 channel</source>
+        <translation>Il file PSD in scala di grigi deve contenere almeno 1 canale</translation>
+    </message>
+    <message>
+        <source>The source color mode is Grayscale; Patchy converted the gray values to RGB/RGBA for editing and will export RGB PSD data from this document.</source>
+        <translation>Il metodo di colore sorgente è Scala di grigio; Patchy ha convertito i valori di grigio in RGB/RGBA per la modifica ed esporterà dati PSD RGB da questo documento.</translation>
+    </message>
+    <message>
+        <source>Not a Windows plug-in binary.</source>
+        <translation>Non è un file binario di plug-in per Windows.</translation>
+    </message>
+    <message>
+        <source>Unsupported plug-in architecture; only 32-bit and 64-bit x86 plug-ins run.</source>
+        <translation>Architettura del plug-in non supportata; vengono eseguiti solo plug-in x86 a 32 e 64 bit.</translation>
+    </message>
+    <message>
+        <source>File-format and automation plug-ins are not supported; only filter (.8bf) plug-ins run.</source>
+        <translation>I plug-in per formati di file e di automazione non sono supportati; vengono eseguiti solo plug-in filtro (.8bf).</translation>
+    </message>
+    <message>
+        <source>This plug-in is not a filter; only filter (.8bf) plug-ins run.</source>
+        <translation>Questo plug-in non è un filtro; vengono eseguiti solo plug-in filtro (.8bf).</translation>
+    </message>
+    <message>
+        <source>Photoshop filter plug-in (32-bit).</source>
+        <translation>Plug-in filtro di Photoshop (32 bit).</translation>
+    </message>
+    <message>
+        <source>Photoshop filter plug-in (64-bit).</source>
+        <translation>Plug-in filtro di Photoshop (64 bit).</translation>
+    </message>
+    <message>
+        <source>Plug-ins folder (.8bf filters):</source>
+        <translation>Cartella plug-in (filtri .8bf):</translation>
+    </message>
+    <message>
+        <source>Open Plug-ins Folder</source>
+        <translation>Apri cartella plug-in</translation>
+    </message>
+    <message>
+        <source>Could not open the plug-ins folder.</source>
+        <translation>Impossibile aprire la cartella dei plug-in.</translation>
+    </message>
+    <message>
+        <source>Blend Clipped Layers as Group</source>
+        <translation>Fondi livelli ritagliati come gruppo</translation>
+    </message>
+    <message>
+        <source>Keep the layers clipped to this one under its interior effects; turn this off together with Blend Interior Effects as Group to draw them over the overlays instead</source>
+        <translation>Mantiene i livelli ritagliati su questo sotto i suoi effetti interni; disattivalo insieme a Fondi effetti interni come gruppo per disegnarli sopra le sovrapposizioni</translation>
+    </message>
+    <message>
+        <source>This file is 32-bit per channel (HDR). Patchy converted it to 8-bit for editing: precision and dynamic range beyond 8-bit were lost, and saving writes an 8-bit file. Keep the original if you need the 32-bit data.</source>
+        <translation>Questo file è a 32 bit per canale (HDR). Patchy lo ha convertito a 8 bit per la modifica: la precisione e la gamma dinamica oltre gli 8 bit sono andate perse, e il salvataggio scrive un file a 8 bit. Conserva l&apos;originale se ti servono i dati a 32 bit.</translation>
+    </message>
+    <message>
+        <source>This file is 16-bit per channel. Patchy converted it to 8-bit for editing: some precision was lost, and saving writes an 8-bit file. Keep the original if you need the 16-bit data.</source>
+        <translation>Questo file è a 16 bit per canale. Patchy lo ha convertito a 8 bit per la modifica: parte della precisione è andata persa, e il salvataggio scrive un file a 8 bit. Conserva l&apos;originale se ti servono i dati a 16 bit.</translation>
+    </message>
+    <message>
+        <source>The source is %1 bits per channel; Patchy converted it to 8-bit for editing and saves an 8-bit file. Keep the original if you need the deeper data.</source>
+        <translation>La sorgente è a %1 bit per canale; Patchy l&apos;ha convertita a 8 bit per la modifica e salva un file a 8 bit. Conserva l&apos;originale se ti servono i dati a profondità maggiore.</translation>
+    </message>
+    <message>
+        <source>%1 opened with notes:
+
+%2</source>
+        <translation>%1 aperto con note:
+
+%2</translation>
+    </message>
+    <message>
+        <source>Import Notes</source>
+        <translation>Note di importazione</translation>
+    </message>
+    <message>
+        <source>Crop to Selection (Advanced)</source>
+        <translation>Ritaglia sulla selezione (Avanzato)</translation>
+    </message>
+    <message>
+        <source>Also delete layers that end up fully off the canvas</source>
+        <translation>Elimina anche i livelli che restano completamente fuori dal quadro</translation>
+    </message>
+    <message>
+        <source>Patchy can&apos;t locate these fonts: %1. These fonts have no glyphs for their text: %2. Editing this PSD raster preview will substitute other fonts. Continue?</source>
+        <translation>Patchy non trova questi font: %1. Questi font non hanno glifi per il loro testo: %2. Modificando questa anteprima raster PSD verranno sostituiti con altri font. Continuare?</translation>
+    </message>
+    <message>
+        <source>The font &quot;%1&quot; has no glyphs for this text. Editing this PSD raster preview will substitute another font. Continue?</source>
+        <translation>Il font &quot;%1&quot; non ha glifi per questo testo. Modificando questa anteprima raster PSD verrà sostituito con un altro font. Continuare?</translation>
+    </message>
+    <message>
+        <source>These fonts have no glyphs for their text: %1. Editing this PSD raster preview will substitute other fonts. Continue?</source>
+        <translation>Questi font non hanno glifi per il loro testo: %1. Modificando questa anteprima raster PSD verranno sostituiti con altri font. Continuare?</translation>
+    </message>
+    <message>
+        <source>Text layer. Missing font: %1. No glyphs for this text in: %2. Other fonts are being substituted, so the text does not look as it was authored.</source>
+        <translation>Livello di testo. Font mancante: %1. Nessun glifo per questo testo in: %2. Vengono sostituiti da altri font, quindi il testo non appare come è stato creato.</translation>
+    </message>
+    <message>
+        <source>Text layer. No glyphs for this text in: %1. Another font is being substituted, so the text does not look as it was authored.</source>
+        <translation>Livello di testo. Nessun glifo per questo testo in: %1. Viene sostituito da un altro font, quindi il testo non appare come è stato creato.</translation>
+    </message>
+    <message>
+        <source>UI language for this run only, not saved: en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN, or zh_TW.</source>
+        <translation>Lingua dell&apos;interfaccia solo per questa esecuzione, non salvata: en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN o zh_TW.</translation>
+    </message>
+    <message>
+        <source>Invalid or damaged animated WebP.</source>
+        <translation>WebP animato non valido o danneggiato.</translation>
+    </message>
+    <message>
+        <source>Animated WebP exceeds the image allocation limit.</source>
+        <translation>Il WebP animato supera il limite di memoria per le immagini.</translation>
+    </message>
+    <message>
+        <source>Invalid animated WebP dimensions or quality.</source>
+        <translation>Dimensioni o qualità del WebP animato non valide.</translation>
+    </message>
+    <message>
+        <source>Could not create animated WebP encoder.</source>
+        <translation>Impossibile creare il codificatore WebP animato.</translation>
+    </message>
+    <message>
+        <source>Invalid animated WebP frame or duration.</source>
+        <translation>Fotogramma o durata del WebP animato non validi.</translation>
+    </message>
+    <message>
+        <source>Could not encode animated WebP frame.</source>
+        <translation>Impossibile codificare un fotogramma del WebP animato.</translation>
+    </message>
+    <message>
+        <source>Animated WebP needs at least one frame.</source>
+        <translation>Il WebP animato richiede almeno un fotogramma.</translation>
+    </message>
+    <message>
+        <source>Could not finish animated WebP.</source>
+        <translation>Impossibile completare il WebP animato.</translation>
+    </message>
+    <message>
+        <source>Forever</source>
+        <translation>Sempre</translation>
+    </message>
+    <message>
+        <source>Play count:</source>
+        <translation>Numero di riproduzioni:</translation>
+    </message>
+    <message>
+        <source>Each visible top-level layer becomes one frame, with the top layer first. A name ending in a time, like &quot;blink 0.033s&quot;, sets that frame&apos;s delay. Play count includes the first play.</source>
+        <translation>Ogni livello visibile di primo livello diventa un fotogramma, partendo da quello più in alto. Un tempo alla fine del nome, come &quot;blink 0.033s&quot;, imposta la durata del fotogramma. Il conteggio include la prima riproduzione.</translation>
+    </message>
+    <message>
+        <source>Animated WebP: imported %1 frames as layers</source>
+        <translation>WebP animato: %1 fotogrammi importati come livelli</translation>
+    </message>
+    <message>
+        <source>The document has no visible top-level layers to export as an animated WebP.</source>
+        <translation>Il documento non ha livelli visibili di primo livello da esportare come WebP animato.</translation>
+    </message>
+    <message>
+        <source>Could not open WebP file for writing</source>
+        <translation>Impossibile aprire il file WebP in scrittura</translation>
+    </message>
+    <message>
+        <source>Could not write WebP file</source>
+        <translation>Impossibile scrivere il file WebP</translation>
+    </message>
+    <message>
+        <source>Default frame delay:</source>
+        <translation>Durata predefinita del fotogramma:</translation>
+    </message>
+    <message>
+        <source>Mixed: selected layers have different values</source>
+        <translation>Misto: i livelli selezionati hanno valori diversi</translation>
+    </message>
+    <message>
+        <source> (Mixed)</source>
+        <translation> (Misto)</translation>
+    </message>
+    <message>
+        <source>Values from: %1</source>
+        <translation>Valori da: %1</translation>
+    </message>
+    <message>
+        <source>Apply All Settings to Selected Layers</source>
+        <translation>Applica tutte le impostazioni ai livelli selezionati</translation>
+    </message>
+    <message>
+        <source>Present on %1 of %2 layers</source>
+        <translation>Presente su %1 di %2 livelli</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n layers selected</source>
+        <translation>
+            <numerusform>%n livello selezionato</numerusform>
+            <numerusform>%n livelli selezionati</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Editable layers: %n</source>
+        <translation>
+            <numerusform>%n livello modificabile</numerusform>
+            <numerusform>%n livelli modificabili</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Editable rectangles for corner radii: %n</source>
+        <translation>
+            <numerusform>Raggi degli angoli: %n rettangolo modificabile</numerusform>
+            <numerusform>Raggi degli angoli: %n rettangoli modificabili</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Gradient settings apply to %1 of %2 editable layers.</source>
+        <translation>Le impostazioni del gradiente si applicano a %1 di %2 livelli modificabili.</translation>
+    </message>
+    <message>
+        <source>Pattern settings apply to %1 of %2 editable layers.</source>
+        <translation>Le impostazioni del motivo si applicano a %1 di %2 livelli modificabili.</translation>
+    </message>
+    <message>
+        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</source>
+        <translation>Impossibile decodificare questa immagine HEIC. La decodifica HEIC richiede l&apos;estensione codec Flatpak; installala con: flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</translation>
+    </message>
+    <message>
+        <source>Exposure</source>
+        <translation>Esposizione</translation>
+    </message>
+    <message>
+        <source>Offset:</source>
+        <translation>Spostamento:</translation>
+    </message>
+    <message>
+        <source>Gamma Correction:</source>
+        <translation>Correzione gamma:</translation>
+    </message>
+    <message>
+        <source>Exposure: %1, offset %2, gamma %3</source>
+        <translation>Esposizione: %1, spostamento %2, gamma %3</translation>
+    </message>
+    <message>
+        <source>Lab PSD file must contain at least 3 channels</source>
+        <translation>Il file PSD Lab deve contenere almeno 3 canali</translation>
+    </message>
+    <message>
+        <source>This file uses a color mode Patchy does not edit in (Bitmap, Indexed, Duotone, Lab or Multichannel). Patchy converted it to RGB for editing, and saving writes an RGB file. Keep the original if you need its color mode.</source>
+        <translation>Questo file usa un metodo di colore in cui Patchy non lavora (Bitmap, Scala di colore, Due tonalità, Lab o Multicanale). Patchy lo ha convertito in RGB per la modifica e il salvataggio scrive un file RGB. Conserva l&apos;originale se ti serve il suo metodo di colore.</translation>
+    </message>
+    <message>
+        <source>This CMYK file has adjustment layers that act on its CMYK inks. Patchy shows them that way, but it saves RGB files: in a saved file those layers are applied to RGB and the colors will look different. Keep the original, or merge those layers before saving.</source>
+        <translation>Questo file CMYK contiene livelli di regolazione che agiscono sui suoi inchiostri CMYK. Patchy li mostra così, ma salva file RGB: in un file salvato quei livelli vengono applicati a RGB e i colori appariranno diversi. Conserva l&apos;originale oppure unisci quei livelli prima di salvare.</translation>
+    </message>
+    <message>
+        <source>%1 came from a CMYK document and adjusts its CMYK inks here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its colors will look different.</source>
+        <translation>%1 proviene da un documento CMYK e qui regola i suoi inchiostri CMYK. Patchy salva file RGB, quindi nel file salvato Photoshop e Patchy lo applicano a RGB e i colori appariranno diversi.</translation>
+    </message>
+    <message>
+        <source>This grayscale file has adjustment layers that act on its gray channel. Patchy shows them that way, but it saves RGB files: in a saved file those layers are applied to RGB and the tones will look different. Keep the original, or merge those layers before saving.</source>
+        <translation>Questo file in scala di grigio contiene livelli di regolazione che agiscono sul suo canale del grigio. Patchy li mostra così, ma salva file RGB: in un file salvato quei livelli vengono applicati a RGB e i toni appariranno diversi. Conserva l&apos;originale oppure unisci quei livelli prima di salvare.</translation>
+    </message>
+    <message>
+        <source>%1 came from a grayscale document and adjusts its gray channel here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its tones will look different.</source>
+        <translation>%1 proviene da un documento in scala di grigio e qui regola il suo canale del grigio. Patchy salva file RGB, quindi nel file salvato Photoshop e Patchy lo applicano a RGB e i toni appariranno diversi.</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -8547,6 +8958,41 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Utilities</source>
         <translation>Utilità</translation>
+    </message>
+</context>
+<context>
+    <name>ThemeFile</name>
+    <message>
+        <source>Not a valid theme file: %1</source>
+        <translation>File del tema non valido: %1</translation>
+    </message>
+    <message>
+        <source>the top level is not an object</source>
+        <translation>il livello superiore non è un oggetto</translation>
+    </message>
+    <message>
+        <source>Theme file format %1 is not supported by this build (expected %2).</source>
+        <translation>Il formato del file del tema %1 non è supportato da questa versione (previsto %2).</translation>
+    </message>
+    <message>
+        <source>Theme file is missing a valid &quot;base&quot; (must be &quot;dark&quot; or &quot;light&quot;).</source>
+        <translation>Al file del tema manca un &quot;base&quot; valido (deve essere &quot;dark&quot; o &quot;light&quot;).</translation>
+    </message>
+    <message>
+        <source>Theme file&apos;s &quot;roles&quot; is not an object.</source>
+        <translation>Il &quot;roles&quot; del file del tema non è un oggetto.</translation>
+    </message>
+    <message>
+        <source>Unknown color role &quot;%1&quot; (ignored).</source>
+        <translation>Ruolo colore sconosciuto &quot;%1&quot; (ignorato).</translation>
+    </message>
+    <message>
+        <source>Invalid color &quot;%1&quot; for role &quot;%2&quot; (expected #RRGGBB or #RRGGBBAA).</source>
+        <translation>Colore non valido &quot;%1&quot; per il ruolo &quot;%2&quot; (previsto #RRGGBB o #RRGGBBAA).</translation>
+    </message>
+    <message>
+        <source>Theme file &quot;%1&quot; could not be read.</source>
+        <translation>Impossibile leggere il file del tema &quot;%1&quot;.</translation>
     </message>
 </context>
 <context>
@@ -8702,10 +9148,6 @@ RGB: %2, %3, %4</translation>
         <translation>Riproduci</translation>
     </message>
     <message>
-        <source>Frame delay:</source>
-        <translation>Ritardo fotogramma:</translation>
-    </message>
-    <message>
         <source> s</source>
         <translation> s</translation>
     </message>
@@ -8727,11 +9169,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Removes the trailing frame time from the selected layers&apos; names.</source>
-        <translation>Rimuove il tempo del fotogramma finale dai nomi dei livelli selezionati.</translation>
-    </message>
-    <message>
-        <source>Plays the visible top-level layers as frames, top layer first, exactly like the animated GIF export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
-        <translation>Riproduce i livelli visibili di primo livello come fotogrammi, partendo dal livello più in alto, esattamente come l&apos;esportazione in GIF animata. Un nome di livello che termina con un tempo, ad esempio &quot;blink 0.25s&quot;, imposta il ritardo di quel fotogramma.</translation>
+        <translation>Rimuove il tempo del fotogramma aggiunto alla fine dei nomi dei livelli selezionati.</translation>
     </message>
     <message>
         <source>No visible layers</source>
@@ -8744,6 +9182,14 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Stop</source>
         <translation>Interrompi</translation>
+    </message>
+    <message>
+        <source>Plays the visible top-level layers as frames, top layer first, like animated GIF and WebP export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
+        <translation>Riproduce i livelli visibili di primo livello come fotogrammi, dall’alto verso il basso, come nell’esportazione GIF e WebP animati. Un tempo alla fine del nome, come &quot;blink 0.25s&quot;, imposta la durata del fotogramma.</translation>
+    </message>
+    <message>
+        <source>Default frame delay:</source>
+        <translation>Durata predefinita del fotogramma:</translation>
     </message>
 </context>
 <context>
@@ -9557,7 +10003,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Selected layer opacity</source>
-        <translation>Opacità del livello selezionata</translation>
+        <translation>Opacità del livello caricata come selezione</translation>
     </message>
     <message>
         <source>Layer has no mask</source>
@@ -9569,7 +10015,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Selected layer mask</source>
-        <translation>Maschera di livello selezionata</translation>
+        <translation>Maschera di livello caricata come selezione</translation>
     </message>
     <message>
         <source>Make a selection before growing</source>
@@ -9955,6 +10401,58 @@ RGB: %2, %3, %4</translation>
         <source>Resize Selection</source>
         <translation>Ridimensiona selezione</translation>
     </message>
+    <message>
+        <source>Removed object with content-aware fill, variation %1 (%2 patches)</source>
+        <translation>Oggetto rimosso con il riempimento in base al contenuto, variante %1 (%2 toppe)</translation>
+    </message>
+    <message>
+        <source>Remove Object was cancelled</source>
+        <translation>Rimuovi oggetto è stato annullato</translation>
+    </message>
+    <message>
+        <source>Guide X: %1</source>
+        <translation>Guida X: %1</translation>
+    </message>
+    <message>
+        <source>Guide Y: %1</source>
+        <translation>Guida Y: %1</translation>
+    </message>
+    <message>
+        <source>X: %1</source>
+        <translation>X: %1</translation>
+    </message>
+    <message>
+        <source>Y: %1</source>
+        <translation>Y: %1</translation>
+    </message>
+    <message>
+        <source>Default</source>
+        <translation>Predefinito</translation>
+    </message>
+    <message>
+        <source>Black</source>
+        <translation>Nero</translation>
+    </message>
+    <message>
+        <source>Dark Gray</source>
+        <translation>Grigio scuro</translation>
+    </message>
+    <message>
+        <source>Medium Gray</source>
+        <translation>Grigio medio</translation>
+    </message>
+    <message>
+        <source>Light Gray</source>
+        <translation>Grigio chiaro</translation>
+    </message>
+    <message>
+        <source>White</source>
+        <translation>Bianco</translation>
+    </message>
+    <message>
+        <source>Select Custom Color...</source>
+        <translation>Scegli colore personalizzato...</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::ChannelPanel</name>
@@ -10175,6 +10673,55 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Other</source>
         <translation>Altro</translation>
+    </message>
+</context>
+<context>
+    <name>patchy::ui::LegacyPluginRunDialog</name>
+    <message>
+        <source>Legacy Photoshop Plug-in</source>
+        <translation>Plug-in Photoshop legacy</translation>
+    </message>
+    <message>
+        <source>Classic plug-ins show their preview inside their own window. The layer changes after you click OK.</source>
+        <translation>I plug-in classici mostrano l&apos;anteprima nella propria finestra. Il livello cambia dopo aver fatto clic su OK.</translation>
+    </message>
+    <message>
+        <source>Show Plug-in Window</source>
+        <translation>Mostra finestra del plug-in</translation>
+    </message>
+    <message>
+        <source>Brings the plug-in&apos;s window back in front of Patchy.</source>
+        <translation>Riporta la finestra del plug-in davanti a Patchy.</translation>
+    </message>
+    <message>
+        <source>Starting %1...</source>
+        <translation>Avvio di %1...</translation>
+    </message>
+    <message>
+        <source>Force Stop Plug-in</source>
+        <translation>Forza l&apos;arresto del plug-in</translation>
+    </message>
+    <message>
+        <source>Ends the plug-in without applying it. Use it only if the plug-in&apos;s window has stopped responding.</source>
+        <extracomment>Tooltip of the stop button while a plug-in is loading or waits for the user in its own window.</extracomment>
+        <translation>Termina il plug-in senza applicarlo. Usalo solo se la finestra del plug-in non risponde più.</translation>
+    </message>
+    <message>
+        <source>%1 is open in its own window. Adjust its settings there and click its OK button to apply it to this layer.</source>
+        <extracomment>%1 is the plug-in&apos;s name; shown while its own settings window is open.</extracomment>
+        <translation>%1 è aperto nella propria finestra. Regola lì le impostazioni e fai clic sul suo pulsante OK per applicarlo a questo livello.</translation>
+    </message>
+    <message>
+        <source>Applying %1...</source>
+        <translation>Applicazione di %1...</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Annulla</translation>
+    </message>
+    <message>
+        <source>Stops the plug-in. The layer stays unchanged.</source>
+        <translation>Arresta il plug-in. Il livello resta invariato.</translation>
     </message>
 </context>
 <context>
@@ -10726,10 +11273,6 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Shift &amp;Seams to Center</source>
         <translation>&amp;Sposta giunture al centro</translation>
-    </message>
-    <message>
-        <source>&amp;Scan Legacy Photoshop Plug-ins...</source>
-        <translation>&amp;Scansiona plug-in legacy di Photoshop...</translation>
     </message>
     <message>
         <source>Legacy Photoshop Plug-ins</source>
@@ -12269,7 +12812,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. Shift constrains layer movement.</source>
-        <translation>Shift+clic o %CTRL%+clic attiva o disattiva i livelli. %CTRL%+trascina seleziona i livelli in un rettangolo; tieni premuto Shift prima di trascinare per aggiungere. Shift vincola lo spostamento del livello.</translation>
+        <translation>Shift+clic o %CTRL%+clic seleziona o deseleziona i livelli. %CTRL%+trascina seleziona i livelli in un rettangolo; tieni premuto Shift prima di trascinare per aggiungerli alla selezione. Shift vincola lo spostamento del livello.</translation>
     </message>
     <message>
         <source>Click to place points, drag for curves. On a path: click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL% moves points.</source>
@@ -12297,7 +12840,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Move: Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it.</source>
-        <translation>Sposta: Shift+clic o %CTRL%+clic attiva o disattiva i livelli. %CTRL%+trascina seleziona un rettangolo; Shift aggiunge. Trascina il contenuto selezionato per spostarlo.</translation>
+        <translation>Sposta: Shift+clic o %CTRL%+clic seleziona o deseleziona i livelli. %CTRL%+trascina seleziona i livelli in un rettangolo; Shift aggiunge alla selezione. Trascina il contenuto selezionato per spostarlo.</translation>
     </message>
     <message>
         <source>Pen: click to add points, drag for curves. On a path, click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL%+drag selects or moves points.</source>
@@ -13095,18 +13638,6 @@ Rett.: -</translation>
         <translation>%1 aperto. %2</translation>
     </message>
     <message>
-        <source>Import Notes</source>
-        <translation>Note di importazione</translation>
-    </message>
-    <message>
-        <source>%1 opened with notes:
-
-%2</source>
-        <translation>%1 aperto con note:
-
-%2</translation>
-    </message>
-    <message>
         <source>File is missing</source>
         <translation>File mancante</translation>
     </message>
@@ -13352,10 +13883,6 @@ Rett.: -</translation>
         <translation>Salva con nome</translation>
     </message>
     <message>
-        <source>SVG keeps shape layers as vectors, but masks, layer styles, text, and adjustments are baked into images, so Patchy will save a copy. The open document will keep its layers and unsaved changes. To keep everything editable, save as a Photoshop document (.psd) instead.</source>
-        <translation>SVG conserva i livelli forma come vettori, ma maschere, stili di livello, testo e regolazioni vengono convertiti in immagini, quindi Patchy salverà una copia. Il documento aperto conserverà i livelli e le modifiche non salvate. Per mantenere tutto modificabile, salva invece come documento Photoshop (.psd).</translation>
-    </message>
-    <message>
         <source>This file format cannot store layers. Continue saving and flatten the linked file?</source>
         <translation>Questo formato di file non può memorizzare i livelli. Continuare il salvataggio e unire i livelli del file collegato?</translation>
     </message>
@@ -13585,7 +14112,7 @@ Salva il lavoro e chiudi Patchy prima di eseguire il programma di installazione.
     </message>
     <message>
         <source>Cancelled Box Blur</source>
-        <translation>Sfocatura casella annullata</translation>
+        <translation>Sfocatura selezione annullata</translation>
     </message>
     <message>
         <source>Cancelled Emboss</source>
@@ -13597,7 +14124,7 @@ Salva il lavoro e chiudi Patchy prima di eseguire il programma di installazione.
     </message>
     <message>
         <source>Cancelled Plastic Wrap</source>
-        <translation>Plastica annullato</translation>
+        <translation>Involucro di plastica annullato</translation>
     </message>
     <message>
         <source>Cancelled Unsharp Mask</source>
@@ -13645,11 +14172,11 @@ Salva il lavoro e chiudi Patchy prima di eseguire il programma di installazione.
     </message>
     <message>
         <source>Add Box Blur Smart Filter</source>
-        <translation>Aggiungi filtro avanzato Sfocatura casella</translation>
+        <translation>Aggiungi filtro avanzato Sfocatura selezione</translation>
     </message>
     <message>
         <source>Edit Box Blur Smart Filter</source>
-        <translation>Modifica filtro avanzato Sfocatura casella</translation>
+        <translation>Modifica filtro avanzato Sfocatura selezione</translation>
     </message>
     <message>
         <source>Add Emboss Smart Filter</source>
@@ -13757,15 +14284,15 @@ Salva il lavoro e chiudi Patchy prima di eseguire il programma di installazione.
     </message>
     <message>
         <source>Added Box Blur as a Smart Filter</source>
-        <translation>Sfocatura casella aggiunta come filtro avanzato</translation>
+        <translation>Sfocatura selezione aggiunta come filtro avanzato</translation>
     </message>
     <message>
         <source>Added another Box Blur Smart Filter</source>
-        <translation>Aggiunto un altro filtro avanzato Sfocatura casella</translation>
+        <translation>Aggiunto un altro filtro avanzato Sfocatura selezione</translation>
     </message>
     <message>
         <source>Updated Box Blur Smart Filter</source>
-        <translation>Filtro avanzato Sfocatura casella aggiornato</translation>
+        <translation>Filtro avanzato Sfocatura selezione aggiornato</translation>
     </message>
     <message>
         <source>Added Emboss as a Smart Filter</source>
@@ -15571,22 +16098,6 @@ Y: %2
         <translation>Tracciato di lavoro creato dalla selezione.</translation>
     </message>
     <message>
-        <source>Scan Legacy Photoshop Plug-ins</source>
-        <translation>Cerca plug-in Photoshop legacy</translation>
-    </message>
-    <message>
-        <source>Photoshop Plug-ins (*.8bf *.8bi *.8li);;All Files (*.*)</source>
-        <translation>Plug-in Photoshop (*.8bf *.8bi *.8li);;Tutti i file (*.*)</translation>
-    </message>
-    <message>
-        <source>%1 plug-in action(s) available under Plug-ins &gt; Legacy Photoshop Plug-ins.
-
-%2</source>
-        <translation>%1 azioni plug-in disponibili in Plug-in &gt; Plug-in Photoshop legacy.
-
-%2</translation>
-    </message>
-    <message>
         <source>%1: %2 (%3, %4)</source>
         <translation>%1: %2 (%3, %4)</translation>
     </message>
@@ -15601,14 +16112,6 @@ Y: %2
     <message>
         <source>Legacy Photoshop Plug-in</source>
         <translation>Plug-in Photoshop legacy</translation>
-    </message>
-    <message>
-        <source>%1 was scanned and is available, but this build only has compatibility shims for the bundled Greyscale and White to Transparent test filters. A full 8BF host still needs the out-of-process Photoshop SDK adapter.</source>
-        <translation>%1 è stato analizzato ed è disponibile, ma questa build include solo shim di compatibilità per i filtri di prova integrati Scala di grigio e Da bianco a trasparente. Un host 8BF completo richiede ancora l&apos;adattatore fuori processo del Photoshop SDK.</translation>
-    </message>
-    <message>
-        <source>Legacy plug-in</source>
-        <translation>Plug-in legacy</translation>
     </message>
     <message>
         <source>Preferences</source>
@@ -15799,14 +16302,6 @@ Y: %2
         <translation>Usa la punta gomma come Gomma</translation>
     </message>
     <message>
-        <source>Scroll wheel zooms the canvas</source>
-        <translation>La rotellina del mouse esegue lo zoom del quadro</translation>
-    </message>
-    <message>
-        <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan.</source>
-        <translation>Vale anche per un pulsante della penna impostato su Scorrimento. Tieni premuto %CTRL% o Shift durante lo scorrimento per spostare la vista.</translation>
-    </message>
-    <message>
         <source>Pan canvas</source>
         <translation>Sposta il quadro</translation>
     </message>
@@ -15915,10 +16410,6 @@ Y: %2
         <translation>Limiti e centro della selezione</translation>
     </message>
     <message>
-        <source>Ruler units:</source>
-        <translation>Unità righelli:</translation>
-    </message>
-    <message>
         <source>Default visibility:</source>
         <translation>Visibilità predefinita:</translation>
     </message>
@@ -15945,10 +16436,6 @@ Y: %2
     <message>
         <source>Overlay preview:</source>
         <translation>Anteprima sovrapposizione:</translation>
-    </message>
-    <message>
-        <source>Grid and Guides</source>
-        <translation>Griglia e guide</translation>
     </message>
     <message>
         <source>Snap:</source>
@@ -16060,7 +16547,7 @@ Y: %2
     </message>
     <message>
         <source>Float in Window</source>
-        <translation>Mobile nella finestra</translation>
+        <translation>Apri in una finestra separata</translation>
     </message>
     <message>
         <source>Reopen Document</source>
@@ -16120,7 +16607,7 @@ Y: %2
     </message>
     <message>
         <source>This smart object has a warp or perspective transform; Patchy keeps Photoshop&apos;s preview</source>
-        <translation>Questo oggetto avanzato ha una trasformazione altera o prospettica; Patchy mantiene l&apos;anteprima di Photoshop</translation>
+        <translation>Questo oggetto avanzato ha una deformazione o una trasformazione prospettica; Patchy mantiene l&apos;anteprima di Photoshop</translation>
     </message>
     <message>
         <source>This smart object can only be preserved, not edited</source>
@@ -16598,28 +17085,12 @@ Y: %2
         </translation>
     </message>
     <message>
-        <source>Select a shape layer to edit its appearance</source>
-        <translation>Seleziona un livello forma per modificarne l&apos;aspetto</translation>
-    </message>
-    <message>
-        <source>This shape layer&apos;s vector data is preserved but can&apos;t be edited.</source>
-        <translation>I dati vettoriali di questo livello forma sono conservati ma non possono essere modificati.</translation>
-    </message>
-    <message>
-        <source>Updating shape...</source>
-        <translation>Aggiornamento della forma...</translation>
-    </message>
-    <message>
         <source>Cancelled shape appearance</source>
         <translation>Aspetto forma annullato</translation>
     </message>
     <message>
         <source>Shape appearance</source>
         <translation>Aspetto forma</translation>
-    </message>
-    <message>
-        <source>Updated the shape appearance</source>
-        <translation>Aspetto della forma aggiornato</translation>
     </message>
     <message>
         <source>Created fill layer %1.</source>
@@ -17184,8 +17655,8 @@ Y: %2
     <message numerus="yes">
         <source> (%n could not be opened)</source>
         <translation>
-            <numerusform> (%n non è stato possibile aprirlo)</numerusform>
-            <numerusform> (%n non è stato possibile aprirli)</numerusform>
+            <numerusform> (%n non è stato aperto)</numerusform>
+            <numerusform> (%n non sono stati aperti)</numerusform>
         </translation>
     </message>
     <message>
@@ -17253,10 +17724,6 @@ Y: %2
         <translation>Perno:</translation>
     </message>
     <message>
-        <source>Remove &amp;Object</source>
-        <translation>Rimuovi &amp;oggetto</translation>
-    </message>
-    <message>
         <source>Remove Object</source>
         <translation>Rimuovi oggetto</translation>
     </message>
@@ -17310,7 +17777,7 @@ Y: %2
     </message>
     <message>
         <source>Align To: &amp;Canvas</source>
-        <translation>Allinea a: &amp;Tela</translation>
+        <translation>Allinea a: &amp;Quadro</translation>
     </message>
     <message>
         <source>Distribute &amp;Left Edges</source>
@@ -17346,7 +17813,7 @@ Y: %2
     </message>
     <message>
         <source>Snap moved layers to other layers, guides, the grid, and the canvas (View &gt; Snap). Choose the targets under View &gt; Snap To.</source>
-        <translation>Aggancia i livelli spostati ad altri livelli, alle guide, alla griglia e alla tela (Vista &gt; Aggancia). Scegli i bersagli in Vista &gt; Aggancia a.</translation>
+        <translation>Aggancia i livelli spostati ad altri livelli, alle guide, alla griglia e al quadro (Visualizza &gt; Effetto calamita). Scegli le destinazioni in Visualizza &gt; Effetto calamita su.</translation>
     </message>
     <message>
         <source>Distribute layers and choose what to align to</source>
@@ -17404,7 +17871,7 @@ Y: %2
     </message>
     <message>
         <source>Positions and sizes typed into the Free Transform bar land on whole pixels, like Photoshop&apos;s &quot;Snap Vector Tools and Transforms to Pixel Grid&quot;. Rotated transforms are not snapped. When off, a typed fraction such as 3.4 px is kept and the pixels are resampled.</source>
-        <translation>Le posizioni e le dimensioni digitate nella barra di Trasformazione libera cadono su pixel interi, come «Allinea strumenti vettoriali e trasformazioni alla griglia di pixel» di Photoshop. Le trasformazioni ruotate non vengono allineate. Se disattivato, una frazione digitata come 3,4 px viene mantenuta e i pixel vengono ricampionati.</translation>
+        <translation>Le posizioni e le dimensioni digitate nella barra di Trasformazione libera cadono su pixel interi, come «Allinea strumenti vettoriali e trasformazioni alla griglia di pixel» di Photoshop. Le trasformazioni ruotate non vengono allineate. Se disattivato, una frazione digitata come 3.4 px viene mantenuta e i pixel vengono ricampionati.</translation>
     </message>
     <message>
         <source>&amp;Stroke Selection...</source>
@@ -17417,6 +17884,772 @@ Y: %2
     <message>
         <source>Brush tip: Square</source>
         <translation>Punta pennello: Quadrato</translation>
+    </message>
+    <message>
+        <source>Remove &amp;Object...</source>
+        <translation>Rimuovi &amp;oggetto...</translation>
+    </message>
+    <message>
+        <source>Remove Object needs a selection: select the area to remove first</source>
+        <translation>Rimuovi oggetto richiede una selezione: seleziona prima l&apos;area da rimuovere</translation>
+    </message>
+    <message>
+        <source>Tone match</source>
+        <translation>Corrispondenza tonale</translation>
+    </message>
+    <message>
+        <source>How strongly the fill&apos;s brightness is smoothed to its own edges (0 keeps the raw fill)</source>
+        <translation>Quanto la luminosità del riempimento viene uniformata ai suoi bordi (0 mantiene il riempimento grezzo)</translation>
+    </message>
+    <message>
+        <source>Edge feather</source>
+        <translation>Sfumatura del bordo</translation>
+    </message>
+    <message>
+        <source> px</source>
+        <translation> px</translation>
+    </message>
+    <message>
+        <source>Reroll</source>
+        <translation>Rigenera</translation>
+    </message>
+    <message>
+        <source>Fill again with the next variation</source>
+        <translation>Riempi di nuovo con la variante successiva</translation>
+    </message>
+    <message>
+        <source>Variation %1</source>
+        <translation>Variante %1</translation>
+    </message>
+    <message>
+        <source>Content-aware fill (%1 patches)</source>
+        <translation>Riempimento in base al contenuto (%1 toppe)</translation>
+    </message>
+    <message>
+        <source>No clean source patches nearby; used the nearest edge (source %1 of %2)</source>
+        <translation>Nessuna toppa sorgente pulita nelle vicinanze; è stato usato il bordo più vicino (sorgente %1 di %2)</translation>
+    </message>
+    <message>
+        <source>Cancelled Remove Object</source>
+        <translation>Annullato: Rimuovi oggetto</translation>
+    </message>
+    <message>
+        <source>Removed object with content-aware fill, variation %1 (%2 patches)</source>
+        <translation>Oggetto rimosso con il riempimento in base al contenuto, variante %1 (%2 toppe)</translation>
+    </message>
+    <message>
+        <source>Removed object with the nearest edge (source %1 of %2)</source>
+        <translation>Oggetto rimosso con il bordo più vicino (sorgente %1 di %2)</translation>
+    </message>
+    <message>
+        <source>Softens the fill&apos;s edge outward from the selection, on top of its own feather. The filled area grows by the feather, so keep it small when the selection hugs an edge</source>
+        <translation>Ammorbidisce il bordo del riempimento verso l&apos;esterno della selezione, oltre alla sua sfumatura. L&apos;area riempita cresce della sfumatura; tienila piccola quando la selezione rasenta un bordo</translation>
+    </message>
+    <message>
+        <source>Duplicate to New Layer</source>
+        <translation>Duplica in un nuovo livello</translation>
+    </message>
+    <message>
+        <source>Copies this variation&apos;s filled area onto a new hidden layer above this one, so several variations can be kept and compared</source>
+        <translation>Copia l&apos;area riempita di questa variante su un nuovo livello nascosto sopra questo, per conservare e confrontare più varianti</translation>
+    </message>
+    <message>
+        <source>Filling...</source>
+        <translation>Riempimento...</translation>
+    </message>
+    <message>
+        <source>Filling... %1%</source>
+        <translation>Riempimento... %1%</translation>
+    </message>
+    <message>
+        <source>Duplicate Remove Object variation to layer</source>
+        <translation>Duplica variante di Rimuovi oggetto in un livello</translation>
+    </message>
+    <message>
+        <source>Remove Object variation %1</source>
+        <translation>Rimuovi oggetto variante %1</translation>
+    </message>
+    <message>
+        <source>Copied variation %1 to the hidden layer &quot;%2&quot;</source>
+        <translation>Variante %1 copiata nel livello nascosto &quot;%2&quot;</translation>
+    </message>
+    <message>
+        <source>&amp;Files as Layers...</source>
+        <translation>&amp;File come livelli...</translation>
+    </message>
+    <message>
+        <source>the file holds no layers</source>
+        <translation>il file non contiene livelli</translation>
+    </message>
+    <message>
+        <source>Folder</source>
+        <translation>Cartella</translation>
+    </message>
+    <message>
+        <source>None of the files could be added as layers</source>
+        <translation>Nessuno dei file è stato aggiunto come livello</translation>
+    </message>
+    <message>
+        <source>The drop target is no longer in the document</source>
+        <translation>La destinazione del rilascio non è più nel documento</translation>
+    </message>
+    <message>
+        <source>Add files as layers</source>
+        <translation>Aggiungi file come livelli</translation>
+    </message>
+    <message>
+        <source>These files could not be added as layers:
+
+%1</source>
+        <translation>Questi file non sono stati aggiunti come livelli:
+
+%1</translation>
+    </message>
+    <message numerus="yes">
+        <source>Added %n layer(s)</source>
+        <translation>
+            <numerusform>%n livello aggiunto</numerusform>
+            <numerusform>%n livelli aggiunti</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Files as Layers</source>
+        <translation>File come livelli</translation>
+    </message>
+    <message>
+        <source>The document is no longer open.</source>
+        <translation>Il documento non è più aperto.</translation>
+    </message>
+    <message>
+        <source>Adding file %1 of %2...</source>
+        <translation>Aggiunta del file %1 di %2...</translation>
+    </message>
+    <message>
+        <source>Cancelled adding files as layers</source>
+        <translation>Aggiunta dei file come livelli annullata</translation>
+    </message>
+    <message>
+        <source>Recover</source>
+        <translation>Recupera</translation>
+    </message>
+    <message>
+        <source>Automatically save recovery information every</source>
+        <translation>Salva automaticamente le informazioni di ripristino ogni</translation>
+    </message>
+    <message>
+        <source>Writes a copy of each changed document to a recovery folder so it can be reopened after a crash. The file you saved is never touched, and the copies are removed when Patchy quits normally.</source>
+        <translation>Scrive una copia di ogni documento modificato in una cartella di ripristino, così da poterlo riaprire dopo un arresto anomalo. Il file salvato non viene mai toccato e le copie vengono rimosse quando Patchy si chiude normalmente.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n minute(s)</source>
+        <translation>
+            <numerusform>%n minuto</numerusform>
+            <numerusform>%n minuti</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Could not save recovery information: %1</source>
+        <translation>Impossibile salvare le informazioni di ripristino: %1</translation>
+    </message>
+    <message>
+        <source>%1 (Recovered)</source>
+        <translation>%1 (Recuperato)</translation>
+    </message>
+    <message numerus="yes">
+        <source>Recovered %n unsaved document(s) from the last session</source>
+        <translation>
+            <numerusform>Recuperato %n documento non salvato dall&apos;ultima sessione</numerusform>
+            <numerusform>Recuperati %n documenti non salvati dall&apos;ultima sessione</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n recovery file(s) could not be opened; see %1</source>
+        <translation>
+            <numerusform>%n file di ripristino non è stato aperto; vedere %1</numerusform>
+            <numerusform>%n file di ripristino non sono stati aperti; vedere %1</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>How far a pixel&apos;s color may differ from the clicked color and still be filled</source>
+        <translation>Quanto può differire il colore di un pixel dal colore su cui si è fatto clic ed essere comunque riempito</translation>
+    </message>
+    <message>
+        <source>Limit the fill to pixels connected to the click</source>
+        <translation>Limita il riempimento ai pixel contigui al punto cliccato</translation>
+    </message>
+    <message>
+        <source>Paragraph</source>
+        <translation>Paragrafo</translation>
+    </message>
+    <message>
+        <source>Justify (last line left)</source>
+        <translation>Giustifica (ultima riga a sinistra)</translation>
+    </message>
+    <message>
+        <source>Paragraph alignment; Justify spreads every line but the last across the box</source>
+        <translation>Allineamento del paragrafo; Giustifica distribuisce ogni riga tranne l&apos;ultima sulla larghezza della casella</translation>
+    </message>
+    <message>
+        <source>Alignment:</source>
+        <translation>Allineamento:</translation>
+    </message>
+    <message>
+        <source>First line indent:</source>
+        <translation>Rientro prima riga:</translation>
+    </message>
+    <message>
+        <source>Indent of each paragraph&apos;s first line; negative with a left indent makes a hanging indent</source>
+        <translation>Rientro della prima riga di ogni paragrafo; negativo con un rientro sinistro crea un rientro sporgente</translation>
+    </message>
+    <message>
+        <source>Left indent:</source>
+        <translation>Rientro sinistro:</translation>
+    </message>
+    <message>
+        <source>Space between the box edge and every line&apos;s start</source>
+        <translation>Spazio tra il bordo della casella e l&apos;inizio di ogni riga</translation>
+    </message>
+    <message>
+        <source>Right indent:</source>
+        <translation>Rientro destro:</translation>
+    </message>
+    <message>
+        <source>Space between every line&apos;s end and the box edge</source>
+        <translation>Spazio tra la fine di ogni riga e il bordo della casella</translation>
+    </message>
+    <message>
+        <source>Space before:</source>
+        <translation>Spazio prima:</translation>
+    </message>
+    <message>
+        <source>Extra space above each paragraph</source>
+        <translation>Spazio aggiuntivo sopra ogni paragrafo</translation>
+    </message>
+    <message>
+        <source>Space after:</source>
+        <translation>Spazio dopo:</translation>
+    </message>
+    <message>
+        <source>Extra space below each paragraph</source>
+        <translation>Spazio aggiuntivo sotto ogni paragrafo</translation>
+    </message>
+    <message>
+        <source>Paragraph...</source>
+        <translation>Paragrafo...</translation>
+    </message>
+    <message>
+        <source>Paragraph panel (alignment, indents, spacing)</source>
+        <translation>Pannello Paragrafo (allineamento, rientri, spaziatura)</translation>
+    </message>
+    <message>
+        <source>Convert to Layers</source>
+        <translation>Converti in livelli</translation>
+    </message>
+    <message>
+        <source>Replace the smart object with a folder holding the layers of its contents</source>
+        <translation>Sostituisce l&apos;oggetto avanzato con una cartella contenente i livelli del suo contenuto</translation>
+    </message>
+    <message>
+        <source>Embed the linked Smart Object before converting it to layers</source>
+        <translation>Incorpora l&apos;oggetto avanzato collegato prima di convertirlo in livelli</translation>
+    </message>
+    <message>
+        <source>Delete the Smart Filters before converting this Smart Object to layers</source>
+        <translation>Elimina i filtri avanzati prima di convertire questo oggetto avanzato in livelli</translation>
+    </message>
+    <message>
+        <source>A warped or perspective Smart Object can&apos;t be converted to layers; rasterize it instead</source>
+        <translation>Un oggetto avanzato alterato o in prospettiva non può essere convertito in livelli; rasterizzalo invece</translation>
+    </message>
+    <message>
+        <source>The smart object&apos;s contents have no layers to convert</source>
+        <translation>Il contenuto dell&apos;oggetto avanzato non ha livelli da convertire</translation>
+    </message>
+    <message>
+        <source>The contents contain Smart Filters, which can&apos;t be moved out of the Smart Object yet</source>
+        <translation>Il contenuto include filtri avanzati, che non possono ancora essere estratti dall&apos;oggetto avanzato</translation>
+    </message>
+    <message>
+        <source>Could not convert the smart object to layers</source>
+        <translation>Impossibile convertire l&apos;oggetto avanzato in livelli</translation>
+    </message>
+    <message numerus="yes">
+        <source>Converted the smart object to %n layer(s)</source>
+        <translation>
+            <numerusform>Oggetto avanzato convertito in %n livello</numerusform>
+            <numerusform>Oggetto avanzato convertito in %n livelli</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Add Plug-in Folder</source>
+        <translation>Aggiungi cartella plug-in</translation>
+    </message>
+    <message>
+        <source>No plug-ins found (put .8bf files in the plugins folder)</source>
+        <translation>Nessun plug-in trovato (metti i file .8bf nella cartella plugins)</translation>
+    </message>
+    <message>
+        <source>Run the %1 plug-in on the active layer</source>
+        <translation>Esegui il plug-in %1 sul livello attivo</translation>
+    </message>
+    <message>
+        <source>Plug-in: %1</source>
+        <translation>Plug-in: %1</translation>
+    </message>
+    <message>
+        <source>%1 could not run.
+
+%2</source>
+        <translation>Impossibile eseguire %1.
+
+%2</translation>
+    </message>
+    <message>
+        <source>Legacy Photoshop plug-ins run on Windows only.</source>
+        <translation>I plug-in legacy di Photoshop vengono eseguiti solo su Windows.</translation>
+    </message>
+    <message>
+        <source>The selection does not touch the active layer.</source>
+        <translation>La selezione non tocca il livello attivo.</translation>
+    </message>
+    <message>
+        <source>The layer no longer exists.</source>
+        <translation>Il livello non esiste più.</translation>
+    </message>
+    <message>
+        <source>Photoshop filter plug-ins (.8bf, 32-bit or 64-bit) are found in these folders and their subfolders and listed under Plugins &gt; Legacy Photoshop Plug-ins. Only run plug-ins you trust: they execute with your permissions.</source>
+        <translation>I plug-in filtro di Photoshop (.8bf, a 32 o 64 bit) vengono cercati in queste cartelle e nelle loro sottocartelle ed elencati in Plugins &gt; Plug-in legacy di Photoshop. Esegui solo plug-in di cui ti fidi: vengono eseguiti con le tue autorizzazioni.</translation>
+    </message>
+    <message>
+        <source>Always scanned:</source>
+        <translation>Sempre analizzate:</translation>
+    </message>
+    <message>
+        <source>Add Folder...</source>
+        <translation>Aggiungi cartella...</translation>
+    </message>
+    <message>
+        <source>Added folders:</source>
+        <translation>Cartelle aggiunte:</translation>
+    </message>
+    <message>
+        <source>Plug-ins</source>
+        <translation>Plug-in</translation>
+    </message>
+    <message>
+        <source>Open Plug-ins &amp;Folder</source>
+        <translation>Apri &amp;cartella plug-in</translation>
+    </message>
+    <message>
+        <source>&amp;Rescan Plug-in Folders</source>
+        <translation>&amp;Ripeti analisi cartelle plug-in</translation>
+    </message>
+    <message>
+        <source>Could not open the plug-ins folder.</source>
+        <translation>Impossibile aprire la cartella dei plug-in.</translation>
+    </message>
+    <message>
+        <source>Plug-in scan finished: %1 available</source>
+        <translation>Analisi dei plug-in completata: %1 disponibili</translation>
+    </message>
+    <message>
+        <source>Plug-in scan finished: %1 available, %2 not usable</source>
+        <translation>Analisi dei plug-in completata: %1 disponibili, %2 non utilizzabili</translation>
+    </message>
+    <message>
+        <source>Scanning plug-in folders...</source>
+        <translation>Analisi delle cartelle plug-in in corso...</translation>
+    </message>
+    <message>
+        <source>Whole monitor</source>
+        <translation>Intero monitor</translation>
+    </message>
+    <message>
+        <source>Plug-in windows open on the monitor showing Patchy. Plug-ins with full-screen interfaces size themselves to this screen size, so a smaller size keeps them usable on large monitors.</source>
+        <translation>Le finestre dei plug-in si aprono sul monitor che mostra Patchy. I plug-in con interfaccia a schermo intero si adattano a questa dimensione dello schermo, quindi una dimensione minore li mantiene utilizzabili sui monitor grandi.</translation>
+    </message>
+    <message>
+        <source>Screen size for plug-in windows:</source>
+        <translation>Dimensione dello schermo per le finestre dei plug-in:</translation>
+    </message>
+    <message>
+        <source>%1 via Patchy</source>
+        <extracomment>Title of the movable window a full-screen plug-in interface is shown in; %1 is the plug-in&apos;s name.</extracomment>
+        <translation>%1 tramite Patchy</translation>
+    </message>
+    <message>
+        <source>%1: same plug-in as %2, listed once</source>
+        <translation>%1: stesso plug-in di %2, elencato una sola volta</translation>
+    </message>
+    <message>
+        <source>Plug-ins work on one layer at a time. Select a single layer and run it again.</source>
+        <translation>I plug-in lavorano su un livello alla volta. Seleziona un singolo livello ed eseguilo di nuovo.</translation>
+    </message>
+    <message>
+        <source>Import Theme...</source>
+        <translation>Importa tema...</translation>
+    </message>
+    <message>
+        <source>Export Theme...</source>
+        <translation>Esporta tema...</translation>
+    </message>
+    <message>
+        <source>Reload Themes</source>
+        <translation>Ricarica temi</translation>
+    </message>
+    <message>
+        <source>Re-read the theme files in the themes folder and apply the selected one.</source>
+        <translation>Rilegge i file dei temi nella cartella dei temi e applica quello selezionato.</translation>
+    </message>
+    <message>
+        <source>Delete Theme...</source>
+        <translation>Elimina tema...</translation>
+    </message>
+    <message>
+        <source>Open Themes Folder</source>
+        <translation>Apri cartella dei temi</translation>
+    </message>
+    <message>
+        <source>Could not open the themes folder.</source>
+        <translation>Impossibile aprire la cartella dei temi.</translation>
+    </message>
+    <message>
+        <source>Delete Theme</source>
+        <translation>Elimina tema</translation>
+    </message>
+    <message>
+        <source>Delete the theme &quot;%1&quot;? Its file is removed from the themes folder.</source>
+        <translation>Eliminare il tema &quot;%1&quot;? Il file verrà rimosso dalla cartella dei temi.</translation>
+    </message>
+    <message>
+        <source>Could not delete &quot;%1&quot;.</source>
+        <translation>Impossibile eliminare &quot;%1&quot;.</translation>
+    </message>
+    <message>
+        <source>Import Theme</source>
+        <translation>Importa tema</translation>
+    </message>
+    <message>
+        <source>Patchy theme (*.patchytheme)</source>
+        <translation>Tema Patchy (*.patchytheme)</translation>
+    </message>
+    <message>
+        <source>Could not open &quot;%1&quot;.</source>
+        <translation>Impossibile aprire &quot;%1&quot;.</translation>
+    </message>
+    <message>
+        <source>Could not create the themes folder.</source>
+        <translation>Impossibile creare la cartella dei temi.</translation>
+    </message>
+    <message>
+        <source>Theme</source>
+        <comment>Default file name offered when exporting a theme; the save dialog appends the extension.</comment>
+        <translation>Tema</translation>
+    </message>
+    <message>
+        <source>Export Theme</source>
+        <translation>Esporta tema</translation>
+    </message>
+    <message>
+        <source>%1 (built-in)</source>
+        <translation>%1 (integrato)</translation>
+    </message>
+    <message>
+        <source>Cycle Marquee Tools</source>
+        <translation>Alterna strumenti selezione</translation>
+    </message>
+    <message>
+        <source>Cycle Lasso Tools</source>
+        <translation>Alterna strumenti lazo</translation>
+    </message>
+    <message>
+        <source>Cycle Wand Tools</source>
+        <translation>Alterna strumenti bacchetta</translation>
+    </message>
+    <message>
+        <source>Cycle Fill Tools</source>
+        <translation>Alterna strumenti riempimento</translation>
+    </message>
+    <message>
+        <source>Cycle Stamp Tools</source>
+        <translation>Alterna strumenti timbro</translation>
+    </message>
+    <message>
+        <source>Cycle Healing Tools</source>
+        <translation>Alterna strumenti correttivi</translation>
+    </message>
+    <message>
+        <source>Cycle Detail Tools</source>
+        <translation>Alterna strumenti dettaglio</translation>
+    </message>
+    <message>
+        <source>Cycle Toning Tools</source>
+        <translation>Alterna strumenti tonali</translation>
+    </message>
+    <message>
+        <source>Cycle Pen Tools</source>
+        <translation>Alterna strumenti penna</translation>
+    </message>
+    <message>
+        <source>Cycle Path Tools</source>
+        <translation>Alterna strumenti tracciato</translation>
+    </message>
+    <message>
+        <source>Cycle Shape Tools</source>
+        <translation>Alterna strumenti forma</translation>
+    </message>
+    <message>
+        <source>Canvas Background Color</source>
+        <translation>Colore di sfondo dell&apos;area di lavoro</translation>
+    </message>
+    <message>
+        <source>Scrubby Zoom</source>
+        <translation>Zoom trascinando</translation>
+    </message>
+    <message>
+        <source>Drag right to zoom in and left to zoom out around the point you pressed. Off: drag a rectangle to zoom to it</source>
+        <translation>Trascina a destra per ingrandire e a sinistra per ridurre attorno al punto premuto. Disattivato: traccia un rettangolo per ingrandirlo</translation>
+    </message>
+    <message>
+        <source>100%</source>
+        <translation>100%</translation>
+    </message>
+    <message>
+        <source>Fit Screen</source>
+        <translation>Adatta allo schermo</translation>
+    </message>
+    <message>
+        <source>Fill Screen</source>
+        <translation>Riempi schermo</translation>
+    </message>
+    <message>
+        <source>Fi&amp;ll Screen</source>
+        <translation>Riem&amp;pi schermo</translation>
+    </message>
+    <message>
+        <source>Zoom In</source>
+        <translation>Zoom avanti</translation>
+    </message>
+    <message>
+        <source>Zoom Out</source>
+        <translation>Zoom indietro</translation>
+    </message>
+    <message>
+        <source>Show the image at actual pixels (View &gt; Actual Pixels)</source>
+        <translation>Mostra l&apos;immagine a pixel reali (Visualizza &gt; Pixel reali)</translation>
+    </message>
+    <message>
+        <source>Fit the whole image in the window (View &gt; Fit on Screen)</source>
+        <translation>Adatta l&apos;intera immagine alla finestra (Visualizza &gt; Adatta allo schermo)</translation>
+    </message>
+    <message>
+        <source>Zoom until the image fills the window (View &gt; Fill Screen)</source>
+        <translation>Ingrandisci finché l&apos;immagine riempie la finestra (Visualizza &gt; Riempi schermo)</translation>
+    </message>
+    <message>
+        <source>Stroke width:</source>
+        <translation>Spessore traccia:</translation>
+    </message>
+    <message>
+        <source>Default units:</source>
+        <translation>Unità predefinite:</translation>
+    </message>
+    <message>
+        <source>Units &amp;&amp; Grids</source>
+        <translation>Unità &amp;&amp; griglie</translation>
+    </message>
+    <message>
+        <source>Repeat Last Plug-in</source>
+        <translation>Ripeti ultimo plug-in</translation>
+    </message>
+    <message>
+        <source>Last Plug-in Settings...</source>
+        <translation>Impostazioni ultimo plug-in...</translation>
+    </message>
+    <message>
+        <source>The last plug-in is no longer available</source>
+        <translation>L&apos;ultimo plug-in non è più disponibile</translation>
+    </message>
+    <message>
+        <source>Repeat %1</source>
+        <extracomment>Plugins menu; %1 is the plug-in that ran last. Runs it again with its last settings, no dialog.</extracomment>
+        <translation>Ripeti %1</translation>
+    </message>
+    <message>
+        <source>%1 Settings...</source>
+        <extracomment>Plugins menu; %1 is the plug-in that ran last. Opens its settings dialog again, starting from the last settings.</extracomment>
+        <translation>Impostazioni di %1...</translation>
+    </message>
+    <message>
+        <source>Applied %1 (%2 undoes it)</source>
+        <translation>%1 applicato (%2 per annullare)</translation>
+    </message>
+    <message>
+        <source>Place &amp;Linked...</source>
+        <translation>Inserisci elementi &amp;collegati...</translation>
+    </message>
+    <message>
+        <source>This layer is not a linked smart object</source>
+        <translation>Questo livello non è un oggetto avanzato collegato</translation>
+    </message>
+    <message>
+        <source>Place Linked</source>
+        <translation>Inserisci elementi collegati</translation>
+    </message>
+    <message>
+        <source>Placed %1 as a linked smart object</source>
+        <translation>%1 inserito come oggetto avanzato collegato</translation>
+    </message>
+    <message>
+        <source>The placed position or size is out of range</source>
+        <translation>La posizione o le dimensioni dell&apos;inserimento non sono valide</translation>
+    </message>
+    <message>
+        <source>text layer &quot;%1&quot;</source>
+        <translation>livello di testo &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>pixel layer &quot;%1&quot;</source>
+        <translation>livello di pixel &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>smart object &quot;%1&quot;</source>
+        <translation>oggetto avanzato &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>adjustment layer &quot;%1&quot; and the layers below it</source>
+        <translation>livello di regolazione &quot;%1&quot; e i livelli sottostanti</translation>
+    </message>
+    <message>
+        <source>the blend mode of &quot;%1&quot; and the layers below it</source>
+        <translation>il metodo di fusione di &quot;%1&quot; e i livelli sottostanti</translation>
+    </message>
+    <message>
+        <source>shape layer &quot;%1&quot; (its styles or fill options)</source>
+        <translation>livello forma &quot;%1&quot; (i suoi stili o le opzioni di riempimento)</translation>
+    </message>
+    <message>
+        <source>group &quot;%1&quot; (its styles or masks)</source>
+        <translation>gruppo &quot;%1&quot; (i suoi stili o le sue maschere)</translation>
+    </message>
+    <message>
+        <source>clipping mask group &quot;%1&quot;</source>
+        <translation>gruppo con maschera di ritaglio &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>the layer mask on &quot;%1&quot;</source>
+        <translation>la maschera di livello di &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>&quot;%1&quot; (merged under an adjustment layer or blend mode)</source>
+        <translation>&quot;%1&quot; (unito sotto un livello di regolazione o un metodo di fusione)</translation>
+    </message>
+    <message numerus="yes">
+        <source>%1 and %n more</source>
+        <translation>
+            <numerusform>%1 e %n altro</numerusform>
+            <numerusform>%1 e %n altri</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>SVG keeps shape layers as vectors, but this document has content SVG cannot hold as vectors. Continue saving and bake it into images in the linked file?
+
+Baked into images: %1.</source>
+        <translation>SVG mantiene i livelli forma come vettori, ma questo documento contiene elementi che SVG non può conservare come vettori. Continuare il salvataggio e convertirli in immagini nel file collegato?
+
+Convertiti in immagini: %1.</translation>
+    </message>
+    <message>
+        <source>SVG keeps shape layers as vectors, but this document has content SVG cannot hold as vectors, so Patchy will save a copy with that content baked into images. The open document will keep its layers and unsaved changes. To keep everything editable, save as a Photoshop document (.psd) instead.
+
+Baked into images: %1.</source>
+        <translation>SVG mantiene i livelli forma come vettori, ma questo documento contiene elementi che SVG non può conservare come vettori, quindi Patchy salverà una copia con quegli elementi convertiti in immagini. Il documento aperto manterrà i suoi livelli e le modifiche non salvate. Per mantenere tutto modificabile, salva invece come documento Photoshop (.psd).
+
+Convertiti in immagini: %1.</translation>
+    </message>
+    <message>
+        <source>Crop to Selection (Advance&amp;d)...</source>
+        <translation>Ritaglia sulla selezione (Avan&amp;zato)...</translation>
+    </message>
+    <message>
+        <source>Open Canvas Size prefilled with the selection so the crop can be adjusted before it is applied</source>
+        <translation>Apre Dimensione quadro precompilata con la selezione per regolare il ritaglio prima di applicarlo</translation>
+    </message>
+    <message>
+        <source>Canvas %1 x %2, off-canvas layers deleted: %3</source>
+        <translation>Quadro %1 x %2, livelli fuori dal quadro eliminati: %3</translation>
+    </message>
+    <message>
+        <source>Mouse wheel zooms the canvas</source>
+        <translation>La rotellina del mouse esegue lo zoom del quadro</translation>
+    </message>
+    <message>
+        <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan. Two-finger scrolling on a trackpad always pans; pinch to zoom.</source>
+        <translation>Vale anche per un pulsante della penna impostato su Scorrimento. Tieni premuto %CTRL% o Shift durante lo scorrimento per spostare la vista. Lo scorrimento a due dita su un trackpad sposta sempre la vista; pizzica per eseguire lo zoom.</translation>
+    </message>
+    <message>
+        <source>Tools</source>
+        <translation>Strumenti</translation>
+    </message>
+    <message>
+        <source>Layers as Animated &amp;WebP...</source>
+        <translation>Livelli come &amp;WebP animato...</translation>
+    </message>
+    <message>
+        <source>Export Animated WebP</source>
+        <translation>Esporta WebP animato</translation>
+    </message>
+    <message>
+        <source>Saved animated WebP copy %1</source>
+        <translation>Copia WebP animata salvata: %1</translation>
+    </message>
+    <message>
+        <source>Locked layers are skipped. Groups receive their own style; their children are unchanged.</source>
+        <translation>I livelli bloccati vengono ignorati. I gruppi ricevono il proprio stile; i livelli al loro interno restano invariati.</translation>
+    </message>
+    <message>
+        <source>Select an unlocked, editable shape layer</source>
+        <translation>Seleziona un livello forma sbloccato e modificabile</translation>
+    </message>
+    <message>
+        <source>Locked layers and layers without editable shapes are skipped.</source>
+        <translation>I livelli bloccati e quelli senza forme modificabili vengono ignorati.</translation>
+    </message>
+    <message>
+        <source>Updating shapes...</source>
+        <translation>Aggiornamento delle forme...</translation>
+    </message>
+    <message>
+        <source>%1: preserved blending data remains protected.</source>
+        <translation>%1: i dati di fusione conservati restano protetti.</translation>
+    </message>
+    <message>
+        <source>%1: editing effects normalizes unsupported Satin contours.</source>
+        <translation>%1: la modifica degli effetti normalizza i contorni Satinatura non supportati.</translation>
+    </message>
+    <message>
+        <source>Open from &amp;Clipboard</source>
+        <translation>Apri dagli &amp;appunti</translation>
+    </message>
+    <message>
+        <source>&amp;Exposure...</source>
+        <translation>&amp;Esposizione...</translation>
+    </message>
+    <message>
+        <source>Exposure</source>
+        <translation>Esposizione</translation>
+    </message>
+    <message>
+        <source>Cancelled Exposure</source>
+        <translation>Annullato: Esposizione</translation>
+    </message>
+    <message>
+        <source>This layer is not an embedded smart object</source>
+        <translation>Questo livello non è un oggetto avanzato incorporato</translation>
+    </message>
+    <message>
+        <source>This smart object cannot be re-rendered</source>
+        <translation>Questo oggetto avanzato non può essere renderizzato di nuovo</translation>
     </message>
 </context>
 <context>
@@ -18282,10 +19515,6 @@ Y: %2
         <translation>combineShapes: i livelli forma devono trovarsi nella stessa cartella.</translation>
     </message>
     <message>
-        <source>mergeLayers: options must be an object of booleans.</source>
-        <translation>mergeLayers: le opzioni devono essere un oggetto di valori booleani.</translation>
-    </message>
-    <message>
         <source>mergeLayers: unknown option %1</source>
         <translation>mergeLayers: opzione sconosciuta %1</translation>
     </message>
@@ -18737,6 +19966,130 @@ Y: %2
         <source>distributeLayers needs at least three movable layers.</source>
         <translation>distributeLayers richiede almeno tre livelli spostabili.</translation>
     </message>
+    <message>
+        <source>importFilesAsLayers needs a file path or a non-empty array of paths.</source>
+        <translation>importFilesAsLayers richiede un percorso di file o un array di percorsi non vuoto.</translation>
+    </message>
+    <message>
+        <source>No layers were added.</source>
+        <translation>Nessun livello è stato aggiunto.</translation>
+    </message>
+    <message>
+        <source>intervalMinutes must be 5, 10, 15, 30, or 60</source>
+        <translation>intervalMinutes deve essere 5, 10, 15, 30 o 60</translation>
+    </message>
+    <message>
+        <source>textAlign must be &apos;left&apos;, &apos;center&apos;, &apos;right&apos; or &apos;justify&apos;.</source>
+        <translation>textAlign deve essere &apos;left&apos;, &apos;center&apos;, &apos;right&apos; o &apos;justify&apos;.</translation>
+    </message>
+    <message>
+        <source>%1: runs must be an array of {text, font, size, bold, italic, color} objects.</source>
+        <translation>%1: runs deve essere un array di oggetti {text, font, size, bold, italic, color}.</translation>
+    </message>
+    <message>
+        <source>%1: run %2 needs a text string.</source>
+        <translation>%1: il segmento di testo %2 richiede una stringa di testo.</translation>
+    </message>
+    <message>
+        <source>%1: run %2 has a non-positive size.</source>
+        <translation>%1: il segmento di testo %2 ha una dimensione non positiva.</translation>
+    </message>
+    <message>
+        <source>%1: run %2 must be a string or an object.</source>
+        <translation>%1: il segmento di testo %2 deve essere una stringa o un oggetto.</translation>
+    </message>
+    <message>
+        <source>%1: runs must not be empty.</source>
+        <translation>%1: runs non può essere vuoto.</translation>
+    </message>
+    <message>
+        <source>addTextLayer: text must be a string or an array of runs.</source>
+        <translation>addTextLayer: text deve essere una stringa o un array di segmenti di testo.</translation>
+    </message>
+    <message>
+        <source>box must be {width, height} of at least 16 document pixels each.</source>
+        <translation>box deve essere {width, height} con almeno 16 pixel del documento ciascuno.</translation>
+    </message>
+    <message>
+        <source>align must be &apos;left&apos;, &apos;center&apos;, &apos;right&apos; or &apos;justify&apos;.</source>
+        <translation>align deve essere &apos;left&apos;, &apos;center&apos;, &apos;right&apos; o &apos;justify&apos;.</translation>
+    </message>
+    <message>
+        <source>%1: paragraph must be an object with firstLineIndent, startIndent, endIndent, spaceBefore and spaceAfter numbers (document pixels).</source>
+        <translation>%1: paragraph deve essere un oggetto con i numeri firstLineIndent, startIndent, endIndent, spaceBefore e spaceAfter (pixel del documento).</translation>
+    </message>
+    <message>
+        <source>%1: paragraph.%2 must be a number (document pixels).</source>
+        <translation>%1: paragraph.%2 deve essere un numero (pixel del documento).</translation>
+    </message>
+    <message>
+        <source>applyPlugin: unknown option %1.</source>
+        <translation>applyPlugin: opzione sconosciuta %1.</translation>
+    </message>
+    <message>
+        <source>Unknown plug-in id: %1</source>
+        <translation>ID plug-in sconosciuto: %1</translation>
+    </message>
+    <message>
+        <source>Plug-in %1 cannot run: %2</source>
+        <translation>Il plug-in %1 non può essere eseguito: %2</translation>
+    </message>
+    <message>
+        <source>applyPlugin needs a pixel layer.</source>
+        <translation>applyPlugin richiede un livello pixel.</translation>
+    </message>
+    <message>
+        <source>Plug-in %1 was cancelled.</source>
+        <translation>Il plug-in %1 è stato annullato.</translation>
+    </message>
+    <message>
+        <source>Plug-in %1 failed: %2</source>
+        <translation>Il plug-in %1 non è riuscito: %2</translation>
+    </message>
+    <message>
+        <source>addSmartObject needs a file path.</source>
+        <translation>addSmartObject richiede un percorso di file.</translation>
+    </message>
+    <message>
+        <source>addSmartObject: %1 must be a finite number.</source>
+        <translation>addSmartObject: %1 deve essere un numero finito.</translation>
+    </message>
+    <message>
+        <source>%1: font not available, rendered with a fallback: %2</source>
+        <translation>%1: carattere non disponibile, reso con un carattere sostitutivo: %2</translation>
+    </message>
+    <message>
+        <source>%1: font has no glyphs for this text, rendered with a fallback: %2</source>
+        <translation>%1: il carattere non ha glifi per questo testo, reso con un carattere sostitutivo: %2</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp needs a .webp output path.</source>
+        <translation>exportAnimatedWebp richiede un percorso di uscita .webp.</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp options must be an object.</source>
+        <translation>Le opzioni di exportAnimatedWebp devono essere un oggetto.</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp: invalid option %1.</source>
+        <translation>exportAnimatedWebp: opzione %1 non valida.</translation>
+    </message>
+    <message>
+        <source>mergeLayers: options must be an object.</source>
+        <translation>mergeLayers: options deve essere un oggetto.</translation>
+    </message>
+    <message>
+        <source>mergeLayers: effectsFrom must be a layer of this document.</source>
+        <translation>mergeLayers: effectsFrom deve essere un livello di questo documento.</translation>
+    </message>
+    <message>
+        <source>mergeLayers: %1 must be a boolean.</source>
+        <translation>mergeLayers: %1 deve essere un valore booleano.</translation>
+    </message>
+    <message>
+        <source>mergeLayers: effectsFrom requires singleVector.</source>
+        <translation>mergeLayers: effectsFrom richiede singleVector.</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::StartPanel</name>
@@ -18769,10 +20122,6 @@ Y: %2
         <translation>Puoi anche trascinare file immagine in un punto qualsiasi della finestra</translation>
     </message>
     <message>
-        <source>desktop version</source>
-        <translation>versione desktop</translation>
-    </message>
-    <message>
         <source>Everything runs locally in your browser. Nothing you make is ever sent online.</source>
         <translation>Tutto viene eseguito localmente nel browser. Nulla di ciò che crei viene mai inviato online.</translation>
     </message>
@@ -18781,16 +20130,8 @@ Y: %2
         <translation>Trascina qui un file di font o uno zip di font per usare i tuoi font.</translation>
     </message>
     <message>
-        <source>For all your system fonts and better speed, get the %1.</source>
-        <translation>Per tutti i font di sistema e prestazioni migliori, scarica la %1.</translation>
-    </message>
-    <message>
         <source>Version %1 (built %2)</source>
         <translation>Versione %1 (compilata il %2)</translation>
-    </message>
-    <message>
-        <source>Created by Seth A. Robinson</source>
-        <translation>Creato da Seth A. Robinson</translation>
     </message>
     <message>
         <source>Code contributions from %1</source>
@@ -18807,6 +20148,26 @@ Y: %2
     <message>
         <source>No matching recent files</source>
         <translation>Nessun file recente corrispondente</translation>
+    </message>
+    <message>
+        <source>Created by %1</source>
+        <translation>Creato da %1</translation>
+    </message>
+    <message>
+        <source>More power on your desktop</source>
+        <translation>Più possibilità sul tuo desktop</translation>
+    </message>
+    <message>
+        <source>More features, faster editing, and full access to your system fonts.</source>
+        <translation>Più funzioni, modifiche più rapide e accesso completo ai font del tuo sistema.</translation>
+    </message>
+    <message>
+        <source>Download Patchy for Desktop</source>
+        <translation>Scarica Patchy per desktop</translation>
+    </message>
+    <message>
+        <source>Free · Windows, macOS &amp; Linux</source>
+        <translation>Gratis · Windows, macOS e Linux</translation>
     </message>
 </context>
 <context>

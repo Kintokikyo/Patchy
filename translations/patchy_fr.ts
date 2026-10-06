@@ -43,10 +43,6 @@
         <translation>Choisissez comment fusionner les calques sélectionnés et leurs groupes.</translation>
     </message>
     <message>
-        <source>Keep vectors and bitmaps separate</source>
-        <translation>Séparer les vecteurs et les bitmaps</translation>
-    </message>
-    <message>
         <source>Keep editable shapes. Turn off to merge the artwork into bitmap layers.</source>
         <translation>Conserve les formes modifiables. Désactivez cette option pour fusionner le contenu en calques bitmap.</translation>
     </message>
@@ -105,6 +101,176 @@
     <message>
         <source>These layers need to stay separate with the selected options.</source>
         <translation>Ces calques doivent rester séparés avec les options sélectionnées.</translation>
+    </message>
+    <message>
+        <source>Keep vector layers editable</source>
+        <translation>Garder les calques vectoriels modifiables</translation>
+    </message>
+    <message>
+        <source>These layers keep their own effects and stay separate in a vector merge. Turning off &quot;Keep vector layers editable&quot; rasterizes merged artwork.</source>
+        <translation>Ces calques conservent leurs propres effets et restent séparés lors d’une fusion vectorielle. Désactiver « Garder les calques vectoriels modifiables » pixellise le contenu fusionné.</translation>
+    </message>
+    <message>
+        <source>Select at least two editable vector layers.</source>
+        <translation>Sélectionnez au moins deux calques vectoriels modifiables.</translation>
+    </message>
+    <message>
+        <source>This layer is not an editable vector layer.</source>
+        <translation>Ce calque n’est pas un calque vectoriel modifiable.</translation>
+    </message>
+    <message>
+        <source>Unlock this layer and its parent groups first.</source>
+        <translation>Déverrouillez d’abord ce calque et ses groupes parents.</translation>
+    </message>
+    <message>
+        <source>Show this layer and its parent groups first.</source>
+        <translation>Affichez d’abord ce calque et ses groupes parents.</translation>
+    </message>
+    <message>
+        <source>A clipping relationship requires this layer to stay separate.</source>
+        <translation>Une relation d’écrêtage impose de conserver ce calque séparément.</translation>
+    </message>
+    <message>
+        <source>A separate mask prevents this vector merge.</source>
+        <translation>Un masque distinct empêche cette fusion vectorielle.</translation>
+    </message>
+    <message>
+        <source>Smart Filters require this layer to stay separate.</source>
+        <translation>Les filtres dynamiques imposent de conserver ce calque séparément.</translation>
+    </message>
+    <message>
+        <source>The blend mode, Blend If, or channel settings require a separate layer.</source>
+        <translation>Le mode de fusion, « Fusion si » ou les réglages de canaux nécessitent un calque distinct.</translation>
+    </message>
+    <message>
+        <source>Preserved vector data cannot be edited.</source>
+        <translation>Les données vectorielles préservées ne peuvent pas être modifiées.</translation>
+    </message>
+    <message>
+        <source>This compound vector&apos;s opacity requires it to stay separate.</source>
+        <translation>L’opacité de ce vecteur composite impose de le conserver séparément.</translation>
+    </message>
+    <message>
+        <source>This group&apos;s appearance prevents moving shapes across its boundary.</source>
+        <translation>L’apparence de ce groupe empêche de déplacer des formes au-delà de ses limites.</translation>
+    </message>
+    <message>
+        <source>Choose effects from a vector layer included in the merge.</source>
+        <translation>Choisissez les effets d’un calque vectoriel inclus dans la fusion.</translation>
+    </message>
+    <message>
+        <source>Vector feather or density requires this shape to stay separate.</source>
+        <translation>Le contour progressif ou la densité vectorielle impose de conserver cette forme séparément.</translation>
+    </message>
+    <message>
+        <source>%1: %2</source>
+        <translation>%1 : %2</translation>
+    </message>
+    <message>
+        <source>Merge into one vector layer</source>
+        <translation>Fusionner en un seul calque vectoriel</translation>
+    </message>
+    <message>
+        <source>Remove layer effects</source>
+        <translation>Supprimer les effets de calque</translation>
+    </message>
+    <message>
+        <source>Use effects from a layer</source>
+        <translation>Utiliser les effets d’un calque</translation>
+    </message>
+    <message>
+        <source>Layer effects:</source>
+        <translation>Effets de calque :</translation>
+    </message>
+    <message>
+        <source>Use effects from:</source>
+        <translation>Utiliser les effets de :</translation>
+    </message>
+    <message>
+        <source>Preview</source>
+        <translation>Aperçu</translation>
+    </message>
+    <message>
+        <source>Preview unavailable.</source>
+        <translation>Aperçu indisponible.</translation>
+    </message>
+    <message>
+        <source>Merged artwork</source>
+        <translation>Illustration fusionnée</translation>
+    </message>
+    <message>
+        <source>Original artwork</source>
+        <translation>Illustration d’origine</translation>
+    </message>
+    <message>
+        <source>Effects from %1 apply once to the combined silhouette. Each shape keeps its own fill and vector stroke.</source>
+        <translation>Les effets de %1 s’appliquent une seule fois à la silhouette combinée. Chaque forme conserve son fond et son contour vectoriel.</translation>
+    </message>
+    <message>
+        <source>Individual layer effects will be removed. Each shape keeps its own fill and vector stroke.</source>
+        <translation>Les effets de chaque calque seront supprimés. Chaque forme conserve son fond et son contour vectoriel.</translation>
+    </message>
+    <message>
+        <source>Result: 1 editable vector layer, replacing %1 in the layer stack.</source>
+        <translation>Résultat : 1 calque vectoriel modifiable remplaçant %1 dans la pile de calques.</translation>
+    </message>
+    <message>
+        <source>Stacking relative to unselected layers will change. Review the preview before merging.</source>
+        <translation>L’ordre par rapport aux calques non sélectionnés changera. Vérifiez l’aperçu avant la fusion.</translation>
+    </message>
+    <message>
+        <source>Updating preview...</source>
+        <translation>Mise à jour de l’aperçu...</translation>
+    </message>
+</context>
+<context>
+    <name>LegacyPluginFolder</name>
+    <message>
+        <source>Legacy Photoshop plug-ins run on Windows only.</source>
+        <translation>Les anciens modules externes Photoshop ne s&apos;exécutent que sous Windows.</translation>
+    </message>
+    <message>
+        <source>The plug-ins folder could not be created: %1</source>
+        <translation>Le dossier des modules externes n&apos;a pas pu être créé : %1</translation>
+    </message>
+</context>
+<context>
+    <name>LegacyPluginRunner</name>
+    <message>
+        <source>The plug-in host was given an invalid image.</source>
+        <translation>L&apos;hôte de modules externes a reçu une image non valide.</translation>
+    </message>
+    <message>
+        <source>The plug-in host program is missing: %1</source>
+        <translation>Le programme hôte de modules externes est introuvable : %1</translation>
+    </message>
+    <message>
+        <source>Not enough memory to hand the layer to the plug-in.</source>
+        <translation>Mémoire insuffisante pour transmettre le calque au module externe.</translation>
+    </message>
+    <message>
+        <source>The plug-in host could not be contacted: %1</source>
+        <translation>Impossible de contacter l&apos;hôte de modules externes : %1</translation>
+    </message>
+    <message>
+        <source>The plug-in host program could not be started: %1</source>
+        <translation>Impossible de démarrer le programme hôte de modules externes : %1</translation>
+    </message>
+    <message>
+        <source>The plug-in host did not respond.</source>
+        <translation>L&apos;hôte de modules externes n&apos;a pas répondu.</translation>
+    </message>
+    <message>
+        <source>The plug-in host program does not match this Patchy build.</source>
+        <translation>Le programme hôte de modules externes ne correspond pas à cette version de Patchy.</translation>
+    </message>
+    <message>
+        <source>The plug-in crashed (host exit code %1).</source>
+        <translation>Le module externe a planté (code de sortie de l&apos;hôte %1).</translation>
+    </message>
+    <message>
+        <source>The plug-in reported an error.</source>
+        <translation>Le module externe a signalé une erreur.</translation>
     </message>
 </context>
 <context>
@@ -2035,7 +2201,7 @@
     </message>
     <message>
         <source>A pattern fill&apos;s tile was missing and exported as gray</source>
-        <translation>La vignette d&apos;un fond de motif était manquante et a été exportée en gris</translation>
+        <translation>Le carreau d&apos;un fond de motif était manquant et a été exporté en gris</translation>
     </message>
     <message>
         <source>A layer-linked pattern fill was exported anchored to the document origin</source>
@@ -2112,26 +2278,6 @@
     <message>
         <source>Legacy Photoshop plug-ins are Windows binaries; they require the Windows build of Patchy.</source>
         <translation>Les modules externes Photoshop hérités sont des binaires Windows ; ils nécessitent la version Windows de Patchy.</translation>
-    </message>
-    <message>
-        <source>32-bit Photoshop plug-ins require a 32-bit compatibility host.</source>
-        <translation>Les modules externes Photoshop 32 bits nécessitent un hôte de compatibilité 32 bits.</translation>
-    </message>
-    <message>
-        <source>Plug-in architecture does not match this Patchy build.</source>
-        <translation>L&apos;architecture du module externe ne correspond pas à cette version de Patchy.</translation>
-    </message>
-    <message>
-        <source>Automation plug-ins are recognized but not supported by the first compatibility adapter.</source>
-        <translation>Les modules externes d&apos;automatisation sont reconnus mais ne sont pas pris en charge par le premier adaptateur de compatibilité.</translation>
-    </message>
-    <message>
-        <source>Classic Photoshop filter plug-in candidate. Runtime execution will be isolated out-of-process.</source>
-        <translation>Module externe de filtre Photoshop classique candidat. L&apos;exécution sera isolée dans un processus séparé.</translation>
-    </message>
-    <message>
-        <source>Classic Photoshop file-format plug-in candidate. Runtime execution will be isolated out-of-process.</source>
-        <translation>Module externe de format de fichier Photoshop classique candidat. L&apos;exécution sera isolée dans un processus séparé.</translation>
     </message>
     <message>
         <source>Plugin identifier cannot be empty</source>
@@ -2438,10 +2584,6 @@
         <translation>Le lecteur PSD de base ne prend actuellement en charge que les fichiers 8, 16 et 32 bits</translation>
     </message>
     <message>
-        <source>The starter PSD reader currently supports RGB and CMYK files only</source>
-        <translation>Le lecteur PSD de base ne prend actuellement en charge que les fichiers RVB et CMJN</translation>
-    </message>
-    <message>
         <source>PSD files cannot contain more than 56 channels</source>
         <translation>Les fichiers PSD ne peuvent pas contenir plus de 56 couches</translation>
     </message>
@@ -2567,7 +2709,7 @@
     </message>
     <message>
         <source>Tile size must be positive</source>
-        <translation>La taille de la vignette doit être positive</translation>
+        <translation>La taille de la tuile doit être positive</translation>
     </message>
     <message>
         <source>Preview</source>
@@ -4431,10 +4573,6 @@
         <translation>Image aplatie unique</translation>
     </message>
     <message>
-        <source>Frame delay:</source>
-        <translation>Délai entre images :</translation>
-    </message>
-    <message>
         <source> s</source>
         <translation> s</translation>
     </message>
@@ -5477,11 +5615,11 @@
     </message>
     <message>
         <source>%1M</source>
-        <translation>%1 M</translation>
+        <translation>%1 Mo</translation>
     </message>
     <message>
         <source>%1K</source>
-        <translation>%1 K</translation>
+        <translation>%1 Ko</translation>
     </message>
     <message>
         <source>Image Size</source>
@@ -5576,10 +5714,6 @@ Ouvrir dans Agrandissement génératif...</translation>
     <message>
         <source>Width</source>
         <translation>Largeur</translation>
-    </message>
-    <message>
-        <source>%1 px</source>
-        <translation>%1 px</translation>
     </message>
     <message>
         <source>Pixels</source>
@@ -7645,10 +7779,6 @@ RVB : %2, %3, %4</translation>
         <translation>Version %1 (compilée le %2)</translation>
     </message>
     <message>
-        <source>Created by Seth A. Robinson</source>
-        <translation>Créé par Seth A. Robinson</translation>
-    </message>
-    <message>
         <source>Code contributions from %1</source>
         <translation>Contributions au code de %1</translation>
     </message>
@@ -8147,16 +8277,8 @@ RVB : %2, %3, %4</translation>
         <translation>Faites glisser le centre ou la poignée de rayon pour positionner le filtre. Faites glisser ailleurs pour déplacer la vue ; la molette de la souris permet de zoomer.</translation>
     </message>
     <message>
-        <source>UI language for this run only, not saved: en, de, es, fr, it, ja, zh_CN, or zh_TW.</source>
-        <translation>Langue de l&apos;interface pour cette exécution uniquement, non enregistrée : en, de, es, fr, it, ja, zh_CN ou zh_TW.</translation>
-    </message>
-    <message>
         <source>Also crop each actual layer to the canvas area</source>
         <translation>Recadrer également chaque calque à la zone de travail</translation>
-    </message>
-    <message>
-        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</source>
-        <translation>Impossible de décoder cette image HEIC. Le décodage HEIC nécessite l&apos;extension de codecs Flatpak ; installez-la avec : flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</translation>
     </message>
     <message>
         <source>Create Ellipse</source>
@@ -8490,6 +8612,295 @@ RVB : %2, %3, %4</translation>
         <source>Stroke Color</source>
         <translation>Couleur du contour</translation>
     </message>
+    <message>
+        <source>User data folder (fonts, scripts):</source>
+        <translation>Dossier des données utilisateur (polices, scripts) :</translation>
+    </message>
+    <message>
+        <source>Open Data Folder</source>
+        <translation>Ouvrir le dossier des données</translation>
+    </message>
+    <message>
+        <source>Could not open data folder.</source>
+        <translation>Impossible d&apos;ouvrir le dossier des données.</translation>
+    </message>
+    <message>
+        <source>Created by %1</source>
+        <translation>Créé par %1</translation>
+    </message>
+    <message>
+        <source>Could not write PSD file</source>
+        <translation>Impossible d&apos;écrire le fichier PSD</translation>
+    </message>
+    <message>
+        <source>The starter PSD reader currently supports RGB, CMYK, and Grayscale files only</source>
+        <translation>Le lecteur PSD de base ne prend actuellement en charge que les fichiers RVB, CMJN et niveaux de gris</translation>
+    </message>
+    <message>
+        <source>Grayscale PSD file must contain at least 1 channel</source>
+        <translation>Un fichier PSD en niveaux de gris doit contenir au moins 1 couche</translation>
+    </message>
+    <message>
+        <source>The source color mode is Grayscale; Patchy converted the gray values to RGB/RGBA for editing and will export RGB PSD data from this document.</source>
+        <translation>Le mode colorimétrique source est Niveaux de gris ; Patchy a converti les valeurs de gris en RVB/RVBA pour la modification et exportera des données PSD RVB à partir de ce document.</translation>
+    </message>
+    <message>
+        <source>Not a Windows plug-in binary.</source>
+        <translation>Ce fichier n&apos;est pas un module externe Windows.</translation>
+    </message>
+    <message>
+        <source>Unsupported plug-in architecture; only 32-bit and 64-bit x86 plug-ins run.</source>
+        <translation>Architecture de module externe non prise en charge ; seuls les modules x86 32 bits et 64 bits s&apos;exécutent.</translation>
+    </message>
+    <message>
+        <source>File-format and automation plug-ins are not supported; only filter (.8bf) plug-ins run.</source>
+        <translation>Les modules externes de format de fichier et d&apos;automatisation ne sont pas pris en charge ; seuls les modules de filtre (.8bf) s&apos;exécutent.</translation>
+    </message>
+    <message>
+        <source>This plug-in is not a filter; only filter (.8bf) plug-ins run.</source>
+        <translation>Ce module externe n&apos;est pas un filtre ; seuls les modules de filtre (.8bf) s&apos;exécutent.</translation>
+    </message>
+    <message>
+        <source>Photoshop filter plug-in (32-bit).</source>
+        <translation>Module externe de filtre Photoshop (32 bits).</translation>
+    </message>
+    <message>
+        <source>Photoshop filter plug-in (64-bit).</source>
+        <translation>Module externe de filtre Photoshop (64 bits).</translation>
+    </message>
+    <message>
+        <source>Plug-ins folder (.8bf filters):</source>
+        <translation>Dossier des modules externes (filtres .8bf) :</translation>
+    </message>
+    <message>
+        <source>Open Plug-ins Folder</source>
+        <translation>Ouvrir le dossier des modules externes</translation>
+    </message>
+    <message>
+        <source>Could not open the plug-ins folder.</source>
+        <translation>Impossible d&apos;ouvrir le dossier des modules externes.</translation>
+    </message>
+    <message>
+        <source>Blend Clipped Layers as Group</source>
+        <translation>Fusionner les calques écrêtés en groupe</translation>
+    </message>
+    <message>
+        <source>Keep the layers clipped to this one under its interior effects; turn this off together with Blend Interior Effects as Group to draw them over the overlays instead</source>
+        <translation>Garde les calques écrêtés sur celui-ci sous ses effets intérieurs ; désactivez-le avec Fusionner les effets intérieurs en groupe pour les dessiner par-dessus les incrustations</translation>
+    </message>
+    <message>
+        <source>This file is 32-bit per channel (HDR). Patchy converted it to 8-bit for editing: precision and dynamic range beyond 8-bit were lost, and saving writes an 8-bit file. Keep the original if you need the 32-bit data.</source>
+        <translation>Ce fichier est en 32 bits par couche (HDR). Patchy l&apos;a converti en 8 bits pour la modification : la précision et la plage dynamique au-delà de 8 bits sont perdues, et l&apos;enregistrement écrit un fichier 8 bits. Conservez l&apos;original si vous avez besoin des données 32 bits.</translation>
+    </message>
+    <message>
+        <source>This file is 16-bit per channel. Patchy converted it to 8-bit for editing: some precision was lost, and saving writes an 8-bit file. Keep the original if you need the 16-bit data.</source>
+        <translation>Ce fichier est en 16 bits par couche. Patchy l&apos;a converti en 8 bits pour la modification : un peu de précision est perdue, et l&apos;enregistrement écrit un fichier 8 bits. Conservez l&apos;original si vous avez besoin des données 16 bits.</translation>
+    </message>
+    <message>
+        <source>The source is %1 bits per channel; Patchy converted it to 8-bit for editing and saves an 8-bit file. Keep the original if you need the deeper data.</source>
+        <translation>La source est en %1 bits par couche ; Patchy l&apos;a convertie en 8 bits pour la modification et enregistre un fichier 8 bits. Conservez l&apos;original si vous avez besoin des données de plus grande profondeur.</translation>
+    </message>
+    <message>
+        <source>%1 opened with notes:
+
+%2</source>
+        <translation>%1 ouvert avec des notes :
+
+%2</translation>
+    </message>
+    <message>
+        <source>Import Notes</source>
+        <translation>Notes d&apos;importation</translation>
+    </message>
+    <message>
+        <source>Crop to Selection (Advanced)</source>
+        <translation>Recadrer selon la sélection (Avancé)</translation>
+    </message>
+    <message>
+        <source>Also delete layers that end up fully off the canvas</source>
+        <translation>Supprimer aussi les calques entièrement hors de la zone de travail</translation>
+    </message>
+    <message>
+        <source>Patchy can&apos;t locate these fonts: %1. These fonts have no glyphs for their text: %2. Editing this PSD raster preview will substitute other fonts. Continue?</source>
+        <translation>Patchy ne trouve pas ces polices : %1. Ces polices n&apos;ont aucun glyphe pour leur texte : %2. La modification de cet aperçu pixellisé PSD remplacera ces polices par d&apos;autres. Continuer ?</translation>
+    </message>
+    <message>
+        <source>The font &quot;%1&quot; has no glyphs for this text. Editing this PSD raster preview will substitute another font. Continue?</source>
+        <translation>La police « %1 » n&apos;a aucun glyphe pour ce texte. La modification de cet aperçu pixellisé PSD remplacera cette police par une autre. Continuer ?</translation>
+    </message>
+    <message>
+        <source>These fonts have no glyphs for their text: %1. Editing this PSD raster preview will substitute other fonts. Continue?</source>
+        <translation>Ces polices n&apos;ont aucun glyphe pour leur texte : %1. La modification de cet aperçu pixellisé PSD remplacera ces polices par d&apos;autres. Continuer ?</translation>
+    </message>
+    <message>
+        <source>Text layer. Missing font: %1. No glyphs for this text in: %2. Other fonts are being substituted, so the text does not look as it was authored.</source>
+        <translation>Calque de texte. Police manquante : %1. Aucun glyphe pour ce texte dans : %2. D&apos;autres polices sont utilisées à la place, le texte n&apos;a donc pas l&apos;aspect prévu à sa création.</translation>
+    </message>
+    <message>
+        <source>Text layer. No glyphs for this text in: %1. Another font is being substituted, so the text does not look as it was authored.</source>
+        <translation>Calque de texte. Aucun glyphe pour ce texte dans : %1. Une autre police est utilisée à la place, le texte n&apos;a donc pas l&apos;aspect prévu à sa création.</translation>
+    </message>
+    <message>
+        <source>UI language for this run only, not saved: en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN, or zh_TW.</source>
+        <translation>Langue de l&apos;interface pour cette exécution uniquement, non enregistrée : en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN ou zh_TW.</translation>
+    </message>
+    <message>
+        <source>Invalid or damaged animated WebP.</source>
+        <translation>WebP animé non valide ou endommagé.</translation>
+    </message>
+    <message>
+        <source>Animated WebP exceeds the image allocation limit.</source>
+        <translation>Le WebP animé dépasse la limite de mémoire pour les images.</translation>
+    </message>
+    <message>
+        <source>Invalid animated WebP dimensions or quality.</source>
+        <translation>Dimensions ou qualité du WebP animé non valides.</translation>
+    </message>
+    <message>
+        <source>Could not create animated WebP encoder.</source>
+        <translation>Impossible de créer l’encodeur WebP animé.</translation>
+    </message>
+    <message>
+        <source>Invalid animated WebP frame or duration.</source>
+        <translation>Image ou durée du WebP animé non valide.</translation>
+    </message>
+    <message>
+        <source>Could not encode animated WebP frame.</source>
+        <translation>Impossible d’encoder une image du WebP animé.</translation>
+    </message>
+    <message>
+        <source>Animated WebP needs at least one frame.</source>
+        <translation>Un WebP animé nécessite au moins une image.</translation>
+    </message>
+    <message>
+        <source>Could not finish animated WebP.</source>
+        <translation>Impossible de terminer le WebP animé.</translation>
+    </message>
+    <message>
+        <source>Forever</source>
+        <translation>En boucle</translation>
+    </message>
+    <message>
+        <source>Play count:</source>
+        <translation>Nombre de lectures :</translation>
+    </message>
+    <message>
+        <source>Each visible top-level layer becomes one frame, with the top layer first. A name ending in a time, like &quot;blink 0.033s&quot;, sets that frame&apos;s delay. Play count includes the first play.</source>
+        <translation>Chaque calque visible de premier niveau devient une image, en commençant par le calque du haut. Une durée à la fin du nom, comme &quot;blink 0.033s&quot;, définit la durée de cette image. Le nombre inclut la première lecture.</translation>
+    </message>
+    <message>
+        <source>Animated WebP: imported %1 frames as layers</source>
+        <translation>WebP animé : %1 images importées comme calques</translation>
+    </message>
+    <message>
+        <source>The document has no visible top-level layers to export as an animated WebP.</source>
+        <translation>Le document ne contient aucun calque visible de premier niveau à exporter en WebP animé.</translation>
+    </message>
+    <message>
+        <source>Could not open WebP file for writing</source>
+        <translation>Impossible d’ouvrir le fichier WebP en écriture</translation>
+    </message>
+    <message>
+        <source>Could not write WebP file</source>
+        <translation>Impossible d’écrire le fichier WebP</translation>
+    </message>
+    <message>
+        <source>Default frame delay:</source>
+        <translation>Durée d’image par défaut :</translation>
+    </message>
+    <message>
+        <source>Mixed: selected layers have different values</source>
+        <translation>Mixte : les calques sélectionnés ont des valeurs différentes</translation>
+    </message>
+    <message>
+        <source> (Mixed)</source>
+        <translation> (Mixte)</translation>
+    </message>
+    <message>
+        <source>Values from: %1</source>
+        <translation>Valeurs de : %1</translation>
+    </message>
+    <message>
+        <source>Apply All Settings to Selected Layers</source>
+        <translation>Appliquer tous les réglages aux calques sélectionnés</translation>
+    </message>
+    <message>
+        <source>Present on %1 of %2 layers</source>
+        <translation>Présent sur %1 calques sur %2</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n layers selected</source>
+        <translation>
+            <numerusform>%n calque sélectionné</numerusform>
+            <numerusform>%n calques sélectionnés</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Editable layers: %n</source>
+        <translation>
+            <numerusform>%n calque modifiable</numerusform>
+            <numerusform>%n calques modifiables</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Editable rectangles for corner radii: %n</source>
+        <translation>
+            <numerusform>Rayons des coins : %n rectangle modifiable</numerusform>
+            <numerusform>Rayons des coins : %n rectangles modifiables</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Gradient settings apply to %1 of %2 editable layers.</source>
+        <translation>Les réglages du dégradé s’appliquent à %1 calques modifiables sur %2.</translation>
+    </message>
+    <message>
+        <source>Pattern settings apply to %1 of %2 editable layers.</source>
+        <translation>Les réglages du motif s’appliquent à %1 calques modifiables sur %2.</translation>
+    </message>
+    <message>
+        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</source>
+        <translation>Impossible de décoder cette image HEIC. Le décodage HEIC nécessite l&apos;extension de codecs Flatpak ; installez-la avec : flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</translation>
+    </message>
+    <message>
+        <source>Exposure</source>
+        <translation>Exposition</translation>
+    </message>
+    <message>
+        <source>Offset:</source>
+        <translation>Décalage :</translation>
+    </message>
+    <message>
+        <source>Gamma Correction:</source>
+        <translation>Correction gamma :</translation>
+    </message>
+    <message>
+        <source>Exposure: %1, offset %2, gamma %3</source>
+        <translation>Exposition : %1, décalage %2, gamma %3</translation>
+    </message>
+    <message>
+        <source>Lab PSD file must contain at least 3 channels</source>
+        <translation>Un fichier PSD Lab doit contenir au moins 3 couches</translation>
+    </message>
+    <message>
+        <source>This file uses a color mode Patchy does not edit in (Bitmap, Indexed, Duotone, Lab or Multichannel). Patchy converted it to RGB for editing, and saving writes an RGB file. Keep the original if you need its color mode.</source>
+        <translation>Ce fichier utilise un mode colorimétrique dans lequel Patchy ne travaille pas (Bitmap, Couleurs indexées, Bichromie, Lab ou Multicouche). Patchy l&apos;a converti en RVB pour l&apos;édition, et l&apos;enregistrement écrit un fichier RVB. Conservez l&apos;original si vous avez besoin de son mode colorimétrique.</translation>
+    </message>
+    <message>
+        <source>This CMYK file has adjustment layers that act on its CMYK inks. Patchy shows them that way, but it saves RGB files: in a saved file those layers are applied to RGB and the colors will look different. Keep the original, or merge those layers before saving.</source>
+        <translation>Ce fichier CMJN contient des calques de réglage qui agissent sur ses encres CMJN. Patchy les affiche ainsi, mais il enregistre des fichiers RVB : dans un fichier enregistré, ces calques sont appliqués au RVB et les couleurs seront différentes. Conservez l&apos;original ou fusionnez ces calques avant d&apos;enregistrer.</translation>
+    </message>
+    <message>
+        <source>%1 came from a CMYK document and adjusts its CMYK inks here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its colors will look different.</source>
+        <translation>%1 provient d&apos;un document CMJN et règle ici ses encres CMJN. Patchy enregistre des fichiers RVB : dans le fichier enregistré, Photoshop et Patchy l&apos;appliquent au RVB et ses couleurs seront différentes.</translation>
+    </message>
+    <message>
+        <source>This grayscale file has adjustment layers that act on its gray channel. Patchy shows them that way, but it saves RGB files: in a saved file those layers are applied to RGB and the tones will look different. Keep the original, or merge those layers before saving.</source>
+        <translation>Ce fichier en niveaux de gris contient des calques de réglage qui agissent sur sa couche de gris. Patchy les affiche ainsi, mais il enregistre des fichiers RVB : dans un fichier enregistré, ces calques sont appliqués au RVB et les tons seront différents. Conservez l&apos;original ou fusionnez ces calques avant d&apos;enregistrer.</translation>
+    </message>
+    <message>
+        <source>%1 came from a grayscale document and adjusts its gray channel here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its tones will look different.</source>
+        <translation>%1 provient d&apos;un document en niveaux de gris et règle ici sa couche de gris. Patchy enregistre des fichiers RVB : dans le fichier enregistré, Photoshop et Patchy l&apos;appliquent au RVB et ses tons seront différents.</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -8547,6 +8958,41 @@ RVB : %2, %3, %4</translation>
     <message>
         <source>Utilities</source>
         <translation>Utilitaires</translation>
+    </message>
+</context>
+<context>
+    <name>ThemeFile</name>
+    <message>
+        <source>Not a valid theme file: %1</source>
+        <translation>Fichier de thème non valide : %1</translation>
+    </message>
+    <message>
+        <source>the top level is not an object</source>
+        <translation>le niveau supérieur n&apos;est pas un objet</translation>
+    </message>
+    <message>
+        <source>Theme file format %1 is not supported by this build (expected %2).</source>
+        <translation>Le format de fichier de thème %1 n&apos;est pas pris en charge par cette version (attendu : %2).</translation>
+    </message>
+    <message>
+        <source>Theme file is missing a valid &quot;base&quot; (must be &quot;dark&quot; or &quot;light&quot;).</source>
+        <translation>Le fichier de thème n&apos;a pas de &quot;base&quot; valide (doit être &quot;dark&quot; ou &quot;light&quot;).</translation>
+    </message>
+    <message>
+        <source>Theme file&apos;s &quot;roles&quot; is not an object.</source>
+        <translation>Le &quot;roles&quot; du fichier de thème n&apos;est pas un objet.</translation>
+    </message>
+    <message>
+        <source>Unknown color role &quot;%1&quot; (ignored).</source>
+        <translation>Rôle de couleur inconnu &quot;%1&quot; (ignoré).</translation>
+    </message>
+    <message>
+        <source>Invalid color &quot;%1&quot; for role &quot;%2&quot; (expected #RRGGBB or #RRGGBBAA).</source>
+        <translation>Couleur non valide &quot;%1&quot; pour le rôle &quot;%2&quot; (attendu #RRGGBB ou #RRGGBBAA).</translation>
+    </message>
+    <message>
+        <source>Theme file &quot;%1&quot; could not be read.</source>
+        <translation>Impossible de lire le fichier de thème &quot;%1&quot;.</translation>
     </message>
 </context>
 <context>
@@ -8702,10 +9148,6 @@ RVB : %2, %3, %4</translation>
         <translation>Lecture</translation>
     </message>
     <message>
-        <source>Frame delay:</source>
-        <translation>Délai d&apos;image :</translation>
-    </message>
-    <message>
         <source> s</source>
         <translation> s</translation>
     </message>
@@ -8730,10 +9172,6 @@ RVB : %2, %3, %4</translation>
         <translation>Supprime la durée d&apos;image à la fin du nom des calques sélectionnés.</translation>
     </message>
     <message>
-        <source>Plays the visible top-level layers as frames, top layer first, exactly like the animated GIF export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
-        <translation>Lit les calques de premier niveau visibles comme des images, en commençant par le calque du haut, exactement comme l&apos;exportation en GIF animé. Un nom de calque se terminant par une durée, par exemple « clignement 0.25s », définit le délai de cette image.</translation>
-    </message>
-    <message>
         <source>No visible layers</source>
         <translation>Aucun calque visible</translation>
     </message>
@@ -8744,6 +9182,14 @@ RVB : %2, %3, %4</translation>
     <message>
         <source>Stop</source>
         <translation>Arrêter</translation>
+    </message>
+    <message>
+        <source>Plays the visible top-level layers as frames, top layer first, like animated GIF and WebP export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
+        <translation>Lit les calques visibles de premier niveau comme des images, de haut en bas, comme l’export GIF et WebP animés. Une durée à la fin du nom du calque, comme &quot;blink 0.25s&quot;, définit la durée de cette image.</translation>
+    </message>
+    <message>
+        <source>Default frame delay:</source>
+        <translation>Durée d’image par défaut :</translation>
     </message>
 </context>
 <context>
@@ -9955,6 +10401,58 @@ RVB : %2, %3, %4</translation>
         <source>Resize Selection</source>
         <translation>Redimensionner la sélection</translation>
     </message>
+    <message>
+        <source>Removed object with content-aware fill, variation %1 (%2 patches)</source>
+        <translation>Objet supprimé avec le remplissage d&apos;après le contenu, variante %1 (%2 pièces)</translation>
+    </message>
+    <message>
+        <source>Remove Object was cancelled</source>
+        <translation>Supprimer l&apos;objet a été annulé</translation>
+    </message>
+    <message>
+        <source>Guide X: %1</source>
+        <translation>Repère X : %1</translation>
+    </message>
+    <message>
+        <source>Guide Y: %1</source>
+        <translation>Repère Y : %1</translation>
+    </message>
+    <message>
+        <source>X: %1</source>
+        <translation>X : %1</translation>
+    </message>
+    <message>
+        <source>Y: %1</source>
+        <translation>Y : %1</translation>
+    </message>
+    <message>
+        <source>Default</source>
+        <translation>Par défaut</translation>
+    </message>
+    <message>
+        <source>Black</source>
+        <translation>Noir</translation>
+    </message>
+    <message>
+        <source>Dark Gray</source>
+        <translation>Gris foncé</translation>
+    </message>
+    <message>
+        <source>Medium Gray</source>
+        <translation>Gris moyen</translation>
+    </message>
+    <message>
+        <source>Light Gray</source>
+        <translation>Gris clair</translation>
+    </message>
+    <message>
+        <source>White</source>
+        <translation>Blanc</translation>
+    </message>
+    <message>
+        <source>Select Custom Color...</source>
+        <translation>Choisir une couleur personnalisée...</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::ChannelPanel</name>
@@ -10175,6 +10673,55 @@ RVB : %2, %3, %4</translation>
     <message>
         <source>Other</source>
         <translation>Autre</translation>
+    </message>
+</context>
+<context>
+    <name>patchy::ui::LegacyPluginRunDialog</name>
+    <message>
+        <source>Legacy Photoshop Plug-in</source>
+        <translation>Module externe Photoshop hérité</translation>
+    </message>
+    <message>
+        <source>Classic plug-ins show their preview inside their own window. The layer changes after you click OK.</source>
+        <translation>Les modules externes classiques affichent leur aperçu dans leur propre fenêtre. Le calque change après un clic sur OK.</translation>
+    </message>
+    <message>
+        <source>Show Plug-in Window</source>
+        <translation>Afficher la fenêtre du module externe</translation>
+    </message>
+    <message>
+        <source>Brings the plug-in&apos;s window back in front of Patchy.</source>
+        <translation>Ramène la fenêtre du module externe devant Patchy.</translation>
+    </message>
+    <message>
+        <source>Starting %1...</source>
+        <translation>Démarrage de %1...</translation>
+    </message>
+    <message>
+        <source>Force Stop Plug-in</source>
+        <translation>Forcer l&apos;arrêt du module externe</translation>
+    </message>
+    <message>
+        <source>Ends the plug-in without applying it. Use it only if the plug-in&apos;s window has stopped responding.</source>
+        <extracomment>Tooltip of the stop button while a plug-in is loading or waits for the user in its own window.</extracomment>
+        <translation>Met fin au module externe sans l&apos;appliquer. À utiliser seulement si la fenêtre du module externe ne répond plus.</translation>
+    </message>
+    <message>
+        <source>%1 is open in its own window. Adjust its settings there and click its OK button to apply it to this layer.</source>
+        <extracomment>%1 is the plug-in&apos;s name; shown while its own settings window is open.</extracomment>
+        <translation>%1 est ouvert dans sa propre fenêtre. Réglez-y ses paramètres et cliquez sur son bouton OK pour l&apos;appliquer à ce calque.</translation>
+    </message>
+    <message>
+        <source>Applying %1...</source>
+        <translation>Application de %1...</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Annuler</translation>
+    </message>
+    <message>
+        <source>Stops the plug-in. The layer stays unchanged.</source>
+        <translation>Arrête le module externe. Le calque reste inchangé.</translation>
     </message>
 </context>
 <context>
@@ -10726,10 +11273,6 @@ RVB : %2, %3, %4</translation>
     <message>
         <source>Shift &amp;Seams to Center</source>
         <translation>&amp;Décaler les raccords au centre</translation>
-    </message>
-    <message>
-        <source>&amp;Scan Legacy Photoshop Plug-ins...</source>
-        <translation>&amp;Rechercher les anciens modules externes Photoshop...</translation>
     </message>
     <message>
         <source>Legacy Photoshop Plug-ins</source>
@@ -12269,7 +12812,7 @@ RVB : %2, %3, %4</translation>
     </message>
     <message>
         <source>Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. Shift constrains layer movement.</source>
-        <translation>Shift+clic ou %CTRL%+clic active ou désactive les calques. %CTRL%+glisser sélectionne les calques dans un rectangle ; maintenez Shift avant de glisser pour ajouter. Shift contraint le déplacement du calque.</translation>
+        <translation>Shift+clic ou %CTRL%+clic sélectionne ou désélectionne les calques. %CTRL%+glisser sélectionne les calques dans un rectangle ; maintenez Shift avant de glisser pour ajouter à la sélection. Shift contraint le déplacement des calques.</translation>
     </message>
     <message>
         <source>Click to place points, drag for curves. On a path: click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL% moves points.</source>
@@ -12293,11 +12836,11 @@ RVB : %2, %3, %4</translation>
     </message>
     <message>
         <source>Click a point to switch it between corner and smooth.</source>
-        <translation>Cliquez sur un point pour passer de sommet à lissé et inversement.</translation>
+        <translation>Cliquez sur un point pour le convertir entre point d&apos;angle et point d&apos;inflexion.</translation>
     </message>
     <message>
         <source>Move: Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it.</source>
-        <translation>Déplacement : Shift+clic ou %CTRL%+clic active ou désactive les calques. %CTRL%+glisser sélectionne un rectangle ; Shift ajoute. Faites glisser le contenu sélectionné pour le déplacer.</translation>
+        <translation>Déplacement : Shift+clic ou %CTRL%+clic sélectionne ou désélectionne les calques. %CTRL%+glisser sélectionne les calques dans un rectangle ; Shift ajoute à la sélection. Faites glisser le contenu sélectionné pour le déplacer.</translation>
     </message>
     <message>
         <source>Pen: click to add points, drag for curves. On a path, click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL%+drag selects or moves points.</source>
@@ -12321,7 +12864,7 @@ RVB : %2, %3, %4</translation>
     </message>
     <message>
         <source>Convert Point: click a point to switch it between corner and smooth.</source>
-        <translation>Conversion de point : cliquez sur un point pour passer de sommet à lissé et inversement.</translation>
+        <translation>Conversion de point : cliquez sur un point pour le convertir entre point d&apos;angle et point d&apos;inflexion.</translation>
     </message>
     <message>
         <source>Marquee Tools</source>
@@ -13095,18 +13638,6 @@ Rect : -</translation>
         <translation>%1 ouvert. %2</translation>
     </message>
     <message>
-        <source>Import Notes</source>
-        <translation>Notes d&apos;importation</translation>
-    </message>
-    <message>
-        <source>%1 opened with notes:
-
-%2</source>
-        <translation>%1 ouvert avec des notes :
-
-%2</translation>
-    </message>
-    <message>
         <source>File is missing</source>
         <translation>Le fichier est introuvable</translation>
     </message>
@@ -13350,10 +13881,6 @@ Rect : -</translation>
     <message>
         <source>Save As</source>
         <translation>Enregistrer sous</translation>
-    </message>
-    <message>
-        <source>SVG keeps shape layers as vectors, but masks, layer styles, text, and adjustments are baked into images, so Patchy will save a copy. The open document will keep its layers and unsaved changes. To keep everything editable, save as a Photoshop document (.psd) instead.</source>
-        <translation>Le format SVG conserve les calques de forme sous forme de vecteurs, mais les masques, les styles de calque, le texte et les réglages sont convertis en images ; Patchy enregistrera donc une copie. Le document ouvert conservera ses calques et ses modifications non enregistrées. Pour que tout reste modifiable, enregistrez plutôt en tant que document Photoshop (.psd).</translation>
     </message>
     <message>
         <source>This file format cannot store layers. Continue saving and flatten the linked file?</source>
@@ -15571,22 +16098,6 @@ Y : %2
         <translation>Tracé de travail créé à partir de la sélection.</translation>
     </message>
     <message>
-        <source>Scan Legacy Photoshop Plug-ins</source>
-        <translation>Analyser les modules externes Photoshop hérités</translation>
-    </message>
-    <message>
-        <source>Photoshop Plug-ins (*.8bf *.8bi *.8li);;All Files (*.*)</source>
-        <translation>Modules externes Photoshop (*.8bf *.8bi *.8li);;Tous les fichiers (*.*)</translation>
-    </message>
-    <message>
-        <source>%1 plug-in action(s) available under Plug-ins &gt; Legacy Photoshop Plug-ins.
-
-%2</source>
-        <translation>%1 action(s) de module externe disponible(s) sous Modules externes &gt; Modules externes Photoshop hérités.
-
-%2</translation>
-    </message>
-    <message>
         <source>%1: %2 (%3, %4)</source>
         <translation>%1 : %2 (%3, %4)</translation>
     </message>
@@ -15601,14 +16112,6 @@ Y : %2
     <message>
         <source>Legacy Photoshop Plug-in</source>
         <translation>Module externe Photoshop hérité</translation>
-    </message>
-    <message>
-        <source>%1 was scanned and is available, but this build only has compatibility shims for the bundled Greyscale and White to Transparent test filters. A full 8BF host still needs the out-of-process Photoshop SDK adapter.</source>
-        <translation>%1 a été analysé et est disponible, mais cette version ne comporte que des couches de compatibilité pour les filtres de test fournis Niveaux de gris et Blanc vers transparent. Un hôte 8BF complet nécessite encore l&apos;adaptateur hors processus du SDK Photoshop.</translation>
-    </message>
-    <message>
-        <source>Legacy plug-in</source>
-        <translation>Module externe hérité</translation>
     </message>
     <message>
         <source>Preferences</source>
@@ -15799,14 +16302,6 @@ Y : %2
         <translation>Utiliser la pointe gomme du stylet comme Gomme</translation>
     </message>
     <message>
-        <source>Scroll wheel zooms the canvas</source>
-        <translation>La molette de défilement zoome la zone de travail</translation>
-    </message>
-    <message>
-        <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan.</source>
-        <translation>S&apos;applique aussi à un bouton de stylet réglé sur Défilement. Maintenez %CTRL% ou Shift pendant le défilement pour déplacer la vue.</translation>
-    </message>
-    <message>
         <source>Pan canvas</source>
         <translation>Déplacer la vue</translation>
     </message>
@@ -15915,10 +16410,6 @@ Y : %2
         <translation>Limites et centre de la sélection</translation>
     </message>
     <message>
-        <source>Ruler units:</source>
-        <translation>Unités des règles :</translation>
-    </message>
-    <message>
         <source>Default visibility:</source>
         <translation>Visibilité par défaut :</translation>
     </message>
@@ -15945,10 +16436,6 @@ Y : %2
     <message>
         <source>Overlay preview:</source>
         <translation>Aperçu de l&apos;incrustation :</translation>
-    </message>
-    <message>
-        <source>Grid and Guides</source>
-        <translation>Grille et repères</translation>
     </message>
     <message>
         <source>Snap:</source>
@@ -16598,28 +17085,12 @@ Y : %2
         </translation>
     </message>
     <message>
-        <source>Select a shape layer to edit its appearance</source>
-        <translation>Sélectionnez un calque de forme pour modifier son aspect</translation>
-    </message>
-    <message>
-        <source>This shape layer&apos;s vector data is preserved but can&apos;t be edited.</source>
-        <translation>Les données vectorielles de ce calque de forme sont conservées mais ne peuvent pas être modifiées.</translation>
-    </message>
-    <message>
-        <source>Updating shape...</source>
-        <translation>Mise à jour de la forme...</translation>
-    </message>
-    <message>
         <source>Cancelled shape appearance</source>
         <translation>Aspect de la forme annulé</translation>
     </message>
     <message>
         <source>Shape appearance</source>
         <translation>Aspect de la forme</translation>
-    </message>
-    <message>
-        <source>Updated the shape appearance</source>
-        <translation>Aspect de la forme mis à jour</translation>
     </message>
     <message>
         <source>Created fill layer %1.</source>
@@ -16878,7 +17349,7 @@ Y : %2
     </message>
     <message>
         <source>Snap curves to lines</source>
-        <translation>Aligner les courbes sur des droites</translation>
+        <translation>Convertir les courbes en droites</translation>
     </message>
     <message>
         <source>Anchors: %1 -&gt; %2</source>
@@ -17053,11 +17524,11 @@ Y : %2
     </message>
     <message>
         <source>Lay Latin letters on their side along the column instead of upright (Photoshop&apos;s Standard Vertical Roman Alignment)</source>
-        <translation>Coucher les lettres latines le long de la colonne au lieu de les laisser droites (Standard Vertical Roman Alignment de Photoshop)</translation>
+        <translation>Coucher les lettres latines le long de la colonne au lieu de les laisser droites (Alignement romain vertical standard de Photoshop)</translation>
     </message>
     <message>
         <source>Line spacing (Photoshop leading). Entering a value turns Auto leading off.</source>
-        <translation>Interligne (leading de Photoshop). Saisir une valeur désactive l&apos;interligne automatique.</translation>
+        <translation>Interligne, comme dans Photoshop. La saisie d&apos;une valeur désactive l&apos;interligne automatique.</translation>
     </message>
     <message>
         <source>Width of the active shape</source>
@@ -17246,15 +17717,11 @@ Y : %2
     </message>
     <message>
         <source>Shows a small readout beside the pointer while moving, scaling, or rotating: the reference point&apos;s position and the offset, the width and height with the scale percentages, or the angle and how far it turned.</source>
-        <translation>Affiche une petite lecture à côté du pointeur pendant le déplacement, la mise à l&apos;échelle ou la rotation : la position du point de référence et le décalage, la largeur et la hauteur avec les pourcentages d&apos;échelle, ou l&apos;angle et la rotation effectuée.</translation>
+        <translation>Affiche un petit encart à côté du pointeur pendant le déplacement, la mise à l&apos;échelle ou la rotation : la position du point de référence et le décalage, la largeur et la hauteur avec les pourcentages d&apos;échelle, ou l&apos;angle et la rotation effectuée.</translation>
     </message>
     <message>
         <source>Pivot:</source>
         <translation>Pivot :</translation>
-    </message>
-    <message>
-        <source>Remove &amp;Object</source>
-        <translation>Supprimer l&apos;&amp;objet</translation>
     </message>
     <message>
         <source>Remove Object</source>
@@ -17404,7 +17871,7 @@ Y : %2
     </message>
     <message>
         <source>Positions and sizes typed into the Free Transform bar land on whole pixels, like Photoshop&apos;s &quot;Snap Vector Tools and Transforms to Pixel Grid&quot;. Rotated transforms are not snapped. When off, a typed fraction such as 3.4 px is kept and the pixels are resampled.</source>
-        <translation>Les positions et tailles saisies dans la barre de Transformation manuelle tombent sur des pixels entiers, comme « Aligner les outils vectoriels et les transformations sur la grille de pixels » de Photoshop. Les transformations pivotées ne sont pas alignées. Désactivé, une fraction saisie comme 3,4 px est conservée et les pixels sont rééchantillonnés.</translation>
+        <translation>Les positions et tailles saisies dans la barre de Transformation manuelle tombent sur des pixels entiers, comme « Aligner les outils vectoriels et les transformations sur la grille de pixels » de Photoshop. Les transformations pivotées ne sont pas alignées. Désactivé, une fraction saisie comme 3.4 px est conservée et les pixels sont rééchantillonnés.</translation>
     </message>
     <message>
         <source>&amp;Stroke Selection...</source>
@@ -17417,6 +17884,772 @@ Y : %2
     <message>
         <source>Brush tip: Square</source>
         <translation>Pointe du pinceau : Carrée</translation>
+    </message>
+    <message>
+        <source>Remove &amp;Object...</source>
+        <translation>Supprimer l&apos;&amp;objet...</translation>
+    </message>
+    <message>
+        <source>Remove Object needs a selection: select the area to remove first</source>
+        <translation>Supprimer l&apos;objet a besoin d&apos;une sélection : sélectionnez d&apos;abord la zone à supprimer</translation>
+    </message>
+    <message>
+        <source>Tone match</source>
+        <translation>Accord des tons</translation>
+    </message>
+    <message>
+        <source>How strongly the fill&apos;s brightness is smoothed to its own edges (0 keeps the raw fill)</source>
+        <translation>Force du lissage de la luminosité du remplissage vers ses propres bords (0 conserve le remplissage brut)</translation>
+    </message>
+    <message>
+        <source>Edge feather</source>
+        <translation>Contour progressif</translation>
+    </message>
+    <message>
+        <source> px</source>
+        <translation> px</translation>
+    </message>
+    <message>
+        <source>Reroll</source>
+        <translation>Relancer</translation>
+    </message>
+    <message>
+        <source>Fill again with the next variation</source>
+        <translation>Remplir à nouveau avec la variante suivante</translation>
+    </message>
+    <message>
+        <source>Variation %1</source>
+        <translation>Variante %1</translation>
+    </message>
+    <message>
+        <source>Content-aware fill (%1 patches)</source>
+        <translation>Remplissage d&apos;après le contenu (%1 pièces)</translation>
+    </message>
+    <message>
+        <source>No clean source patches nearby; used the nearest edge (source %1 of %2)</source>
+        <translation>Aucune pièce source propre à proximité ; le bord le plus proche a été utilisé (source %1 sur %2)</translation>
+    </message>
+    <message>
+        <source>Cancelled Remove Object</source>
+        <translation>Supprimer l&apos;objet annulé</translation>
+    </message>
+    <message>
+        <source>Removed object with content-aware fill, variation %1 (%2 patches)</source>
+        <translation>Objet supprimé avec le remplissage d&apos;après le contenu, variante %1 (%2 pièces)</translation>
+    </message>
+    <message>
+        <source>Removed object with the nearest edge (source %1 of %2)</source>
+        <translation>Objet supprimé avec le bord le plus proche (source %1 sur %2)</translation>
+    </message>
+    <message>
+        <source>Softens the fill&apos;s edge outward from the selection, on top of its own feather. The filled area grows by the feather, so keep it small when the selection hugs an edge</source>
+        <translation>Adoucit le bord du remplissage vers l&apos;extérieur de la sélection, en plus de son propre contour progressif. La zone remplie s&apos;agrandit du contour progressif ; gardez-le petit quand la sélection longe un bord</translation>
+    </message>
+    <message>
+        <source>Duplicate to New Layer</source>
+        <translation>Dupliquer vers un nouveau calque</translation>
+    </message>
+    <message>
+        <source>Copies this variation&apos;s filled area onto a new hidden layer above this one, so several variations can be kept and compared</source>
+        <translation>Copie la zone remplie de cette variante sur un nouveau calque masqué au-dessus de celui-ci, pour conserver et comparer plusieurs variantes</translation>
+    </message>
+    <message>
+        <source>Filling...</source>
+        <translation>Remplissage...</translation>
+    </message>
+    <message>
+        <source>Filling... %1%</source>
+        <translation>Remplissage... %1%</translation>
+    </message>
+    <message>
+        <source>Duplicate Remove Object variation to layer</source>
+        <translation>Dupliquer la variante de Supprimer l&apos;objet vers un calque</translation>
+    </message>
+    <message>
+        <source>Remove Object variation %1</source>
+        <translation>Supprimer l&apos;objet variante %1</translation>
+    </message>
+    <message>
+        <source>Copied variation %1 to the hidden layer &quot;%2&quot;</source>
+        <translation>Variante %1 copiée dans le calque masqué &quot;%2&quot;</translation>
+    </message>
+    <message>
+        <source>&amp;Files as Layers...</source>
+        <translation>&amp;Fichiers en calques...</translation>
+    </message>
+    <message>
+        <source>the file holds no layers</source>
+        <translation>le fichier ne contient aucun calque</translation>
+    </message>
+    <message>
+        <source>Folder</source>
+        <translation>Dossier</translation>
+    </message>
+    <message>
+        <source>None of the files could be added as layers</source>
+        <translation>Aucun des fichiers n&apos;a pu être ajouté comme calque</translation>
+    </message>
+    <message>
+        <source>The drop target is no longer in the document</source>
+        <translation>La cible du dépôt n&apos;est plus dans le document</translation>
+    </message>
+    <message>
+        <source>Add files as layers</source>
+        <translation>Ajouter des fichiers en calques</translation>
+    </message>
+    <message>
+        <source>These files could not be added as layers:
+
+%1</source>
+        <translation>Ces fichiers n&apos;ont pas pu être ajoutés comme calques :
+
+%1</translation>
+    </message>
+    <message numerus="yes">
+        <source>Added %n layer(s)</source>
+        <translation>
+            <numerusform>%n calque ajouté</numerusform>
+            <numerusform>%n calques ajoutés</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Files as Layers</source>
+        <translation>Fichiers en calques</translation>
+    </message>
+    <message>
+        <source>The document is no longer open.</source>
+        <translation>Le document n&apos;est plus ouvert.</translation>
+    </message>
+    <message>
+        <source>Adding file %1 of %2...</source>
+        <translation>Ajout du fichier %1 sur %2...</translation>
+    </message>
+    <message>
+        <source>Cancelled adding files as layers</source>
+        <translation>Ajout des fichiers en calques annulé</translation>
+    </message>
+    <message>
+        <source>Recover</source>
+        <translation>Récupérer</translation>
+    </message>
+    <message>
+        <source>Automatically save recovery information every</source>
+        <translation>Enregistrer automatiquement les informations de récupération toutes les</translation>
+    </message>
+    <message>
+        <source>Writes a copy of each changed document to a recovery folder so it can be reopened after a crash. The file you saved is never touched, and the copies are removed when Patchy quits normally.</source>
+        <translation>Écrit une copie de chaque document modifié dans un dossier de récupération afin de pouvoir le rouvrir après un plantage. Le fichier que vous avez enregistré n&apos;est jamais touché, et les copies sont supprimées lorsque Patchy se ferme normalement.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n minute(s)</source>
+        <translation>
+            <numerusform>%n minute</numerusform>
+            <numerusform>%n minutes</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Could not save recovery information: %1</source>
+        <translation>Impossible d&apos;enregistrer les informations de récupération : %1</translation>
+    </message>
+    <message>
+        <source>%1 (Recovered)</source>
+        <translation>%1 (Récupéré)</translation>
+    </message>
+    <message numerus="yes">
+        <source>Recovered %n unsaved document(s) from the last session</source>
+        <translation>
+            <numerusform>%n document non enregistré récupéré de la dernière session</numerusform>
+            <numerusform>%n documents non enregistrés récupérés de la dernière session</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n recovery file(s) could not be opened; see %1</source>
+        <translation>
+            <numerusform>%n fichier de récupération n&apos;a pas pu être ouvert ; voir %1</numerusform>
+            <numerusform>%n fichiers de récupération n&apos;ont pas pu être ouverts ; voir %1</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>How far a pixel&apos;s color may differ from the clicked color and still be filled</source>
+        <translation>Écart de couleur maximal entre un pixel et la couleur cliquée pour qu&apos;il soit rempli</translation>
+    </message>
+    <message>
+        <source>Limit the fill to pixels connected to the click</source>
+        <translation>Limiter le remplissage aux pixels contigus au point cliqué</translation>
+    </message>
+    <message>
+        <source>Paragraph</source>
+        <translation>Paragraphe</translation>
+    </message>
+    <message>
+        <source>Justify (last line left)</source>
+        <translation>Justifier (dernière ligne à gauche)</translation>
+    </message>
+    <message>
+        <source>Paragraph alignment; Justify spreads every line but the last across the box</source>
+        <translation>Alignement du paragraphe ; Justifier étale chaque ligne sauf la dernière sur la largeur du bloc</translation>
+    </message>
+    <message>
+        <source>Alignment:</source>
+        <translation>Alignement :</translation>
+    </message>
+    <message>
+        <source>First line indent:</source>
+        <translation>Retrait de première ligne :</translation>
+    </message>
+    <message>
+        <source>Indent of each paragraph&apos;s first line; negative with a left indent makes a hanging indent</source>
+        <translation>Retrait de la première ligne de chaque paragraphe ; une valeur négative combinée à un retrait gauche crée un retrait négatif</translation>
+    </message>
+    <message>
+        <source>Left indent:</source>
+        <translation>Retrait gauche :</translation>
+    </message>
+    <message>
+        <source>Space between the box edge and every line&apos;s start</source>
+        <translation>Espace entre le bord du bloc et le début de chaque ligne</translation>
+    </message>
+    <message>
+        <source>Right indent:</source>
+        <translation>Retrait droit :</translation>
+    </message>
+    <message>
+        <source>Space between every line&apos;s end and the box edge</source>
+        <translation>Espace entre la fin de chaque ligne et le bord du bloc</translation>
+    </message>
+    <message>
+        <source>Space before:</source>
+        <translation>Espace avant :</translation>
+    </message>
+    <message>
+        <source>Extra space above each paragraph</source>
+        <translation>Espace supplémentaire au-dessus de chaque paragraphe</translation>
+    </message>
+    <message>
+        <source>Space after:</source>
+        <translation>Espace après :</translation>
+    </message>
+    <message>
+        <source>Extra space below each paragraph</source>
+        <translation>Espace supplémentaire sous chaque paragraphe</translation>
+    </message>
+    <message>
+        <source>Paragraph...</source>
+        <translation>Paragraphe...</translation>
+    </message>
+    <message>
+        <source>Paragraph panel (alignment, indents, spacing)</source>
+        <translation>Panneau Paragraphe (alignement, retraits, espacement)</translation>
+    </message>
+    <message>
+        <source>Convert to Layers</source>
+        <translation>Convertir en calques</translation>
+    </message>
+    <message>
+        <source>Replace the smart object with a folder holding the layers of its contents</source>
+        <translation>Remplace l&apos;objet dynamique par un dossier contenant les calques de son contenu</translation>
+    </message>
+    <message>
+        <source>Embed the linked Smart Object before converting it to layers</source>
+        <translation>Incorporez l&apos;objet dynamique lié avant de le convertir en calques</translation>
+    </message>
+    <message>
+        <source>Delete the Smart Filters before converting this Smart Object to layers</source>
+        <translation>Supprimez les filtres dynamiques avant de convertir cet objet dynamique en calques</translation>
+    </message>
+    <message>
+        <source>A warped or perspective Smart Object can&apos;t be converted to layers; rasterize it instead</source>
+        <translation>Un objet dynamique déformé ou en perspective ne peut pas être converti en calques ; pixellisez-le plutôt</translation>
+    </message>
+    <message>
+        <source>The smart object&apos;s contents have no layers to convert</source>
+        <translation>Le contenu de l&apos;objet dynamique ne contient aucun calque à convertir</translation>
+    </message>
+    <message>
+        <source>The contents contain Smart Filters, which can&apos;t be moved out of the Smart Object yet</source>
+        <translation>Le contenu comporte des filtres dynamiques, qui ne peuvent pas encore être sortis de l&apos;objet dynamique</translation>
+    </message>
+    <message>
+        <source>Could not convert the smart object to layers</source>
+        <translation>Impossible de convertir l&apos;objet dynamique en calques</translation>
+    </message>
+    <message numerus="yes">
+        <source>Converted the smart object to %n layer(s)</source>
+        <translation>
+            <numerusform>Objet dynamique converti en %n calque</numerusform>
+            <numerusform>Objet dynamique converti en %n calques</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Add Plug-in Folder</source>
+        <translation>Ajouter un dossier de modules externes</translation>
+    </message>
+    <message>
+        <source>No plug-ins found (put .8bf files in the plugins folder)</source>
+        <translation>Aucun module externe trouvé (placez des fichiers .8bf dans le dossier plugins)</translation>
+    </message>
+    <message>
+        <source>Run the %1 plug-in on the active layer</source>
+        <translation>Exécuter le module externe %1 sur le calque actif</translation>
+    </message>
+    <message>
+        <source>Plug-in: %1</source>
+        <translation>Module externe : %1</translation>
+    </message>
+    <message>
+        <source>%1 could not run.
+
+%2</source>
+        <translation>%1 n&apos;a pas pu s&apos;exécuter.
+
+%2</translation>
+    </message>
+    <message>
+        <source>Legacy Photoshop plug-ins run on Windows only.</source>
+        <translation>Les anciens modules externes Photoshop ne s&apos;exécutent que sous Windows.</translation>
+    </message>
+    <message>
+        <source>The selection does not touch the active layer.</source>
+        <translation>La sélection ne touche pas le calque actif.</translation>
+    </message>
+    <message>
+        <source>The layer no longer exists.</source>
+        <translation>Le calque n&apos;existe plus.</translation>
+    </message>
+    <message>
+        <source>Photoshop filter plug-ins (.8bf, 32-bit or 64-bit) are found in these folders and their subfolders and listed under Plugins &gt; Legacy Photoshop Plug-ins. Only run plug-ins you trust: they execute with your permissions.</source>
+        <translation>Les modules externes de filtre Photoshop (.8bf, 32 bits ou 64 bits) sont recherchés dans ces dossiers et leurs sous-dossiers et listés sous Modules externes &gt; Anciens modules externes Photoshop. N&apos;exécutez que des modules de confiance : ils s&apos;exécutent avec vos autorisations.</translation>
+    </message>
+    <message>
+        <source>Always scanned:</source>
+        <translation>Toujours analysés :</translation>
+    </message>
+    <message>
+        <source>Add Folder...</source>
+        <translation>Ajouter un dossier...</translation>
+    </message>
+    <message>
+        <source>Added folders:</source>
+        <translation>Dossiers ajoutés :</translation>
+    </message>
+    <message>
+        <source>Plug-ins</source>
+        <translation>Modules externes</translation>
+    </message>
+    <message>
+        <source>Open Plug-ins &amp;Folder</source>
+        <translation>Ouvrir le &amp;dossier des modules externes</translation>
+    </message>
+    <message>
+        <source>&amp;Rescan Plug-in Folders</source>
+        <translation>&amp;Réanalyser les dossiers de modules externes</translation>
+    </message>
+    <message>
+        <source>Could not open the plug-ins folder.</source>
+        <translation>Impossible d&apos;ouvrir le dossier des modules externes.</translation>
+    </message>
+    <message>
+        <source>Plug-in scan finished: %1 available</source>
+        <translation>Analyse des modules externes terminée : %1 disponibles</translation>
+    </message>
+    <message>
+        <source>Plug-in scan finished: %1 available, %2 not usable</source>
+        <translation>Analyse des modules externes terminée : %1 disponibles, %2 inutilisables</translation>
+    </message>
+    <message>
+        <source>Scanning plug-in folders...</source>
+        <translation>Analyse des dossiers de modules externes...</translation>
+    </message>
+    <message>
+        <source>Whole monitor</source>
+        <translation>Écran entier</translation>
+    </message>
+    <message>
+        <source>Plug-in windows open on the monitor showing Patchy. Plug-ins with full-screen interfaces size themselves to this screen size, so a smaller size keeps them usable on large monitors.</source>
+        <translation>Les fenêtres des modules externes s&apos;ouvrent sur l&apos;écran qui affiche Patchy. Les modules externes à interface plein écran se dimensionnent selon cette taille d&apos;écran ; une taille plus petite les garde utilisables sur les grands écrans.</translation>
+    </message>
+    <message>
+        <source>Screen size for plug-in windows:</source>
+        <translation>Taille d&apos;écran pour les fenêtres des modules externes :</translation>
+    </message>
+    <message>
+        <source>%1 via Patchy</source>
+        <extracomment>Title of the movable window a full-screen plug-in interface is shown in; %1 is the plug-in&apos;s name.</extracomment>
+        <translation>%1 via Patchy</translation>
+    </message>
+    <message>
+        <source>%1: same plug-in as %2, listed once</source>
+        <translation>%1 : même module externe que %2, affiché une seule fois</translation>
+    </message>
+    <message>
+        <source>Plug-ins work on one layer at a time. Select a single layer and run it again.</source>
+        <translation>Les modules externes traitent un seul calque à la fois. Sélectionnez un seul calque et relancez-le.</translation>
+    </message>
+    <message>
+        <source>Import Theme...</source>
+        <translation>Importer un thème...</translation>
+    </message>
+    <message>
+        <source>Export Theme...</source>
+        <translation>Exporter le thème...</translation>
+    </message>
+    <message>
+        <source>Reload Themes</source>
+        <translation>Recharger les thèmes</translation>
+    </message>
+    <message>
+        <source>Re-read the theme files in the themes folder and apply the selected one.</source>
+        <translation>Relit les fichiers de thème du dossier des thèmes et applique celui qui est sélectionné.</translation>
+    </message>
+    <message>
+        <source>Delete Theme...</source>
+        <translation>Supprimer le thème...</translation>
+    </message>
+    <message>
+        <source>Open Themes Folder</source>
+        <translation>Ouvrir le dossier des thèmes</translation>
+    </message>
+    <message>
+        <source>Could not open the themes folder.</source>
+        <translation>Impossible d&apos;ouvrir le dossier des thèmes.</translation>
+    </message>
+    <message>
+        <source>Delete Theme</source>
+        <translation>Supprimer le thème</translation>
+    </message>
+    <message>
+        <source>Delete the theme &quot;%1&quot;? Its file is removed from the themes folder.</source>
+        <translation>Supprimer le thème &quot;%1&quot; ? Son fichier sera retiré du dossier des thèmes.</translation>
+    </message>
+    <message>
+        <source>Could not delete &quot;%1&quot;.</source>
+        <translation>Impossible de supprimer &quot;%1&quot;.</translation>
+    </message>
+    <message>
+        <source>Import Theme</source>
+        <translation>Importer un thème</translation>
+    </message>
+    <message>
+        <source>Patchy theme (*.patchytheme)</source>
+        <translation>Thème Patchy (*.patchytheme)</translation>
+    </message>
+    <message>
+        <source>Could not open &quot;%1&quot;.</source>
+        <translation>Impossible d&apos;ouvrir « %1 ».</translation>
+    </message>
+    <message>
+        <source>Could not create the themes folder.</source>
+        <translation>Impossible de créer le dossier des thèmes.</translation>
+    </message>
+    <message>
+        <source>Theme</source>
+        <comment>Default file name offered when exporting a theme; the save dialog appends the extension.</comment>
+        <translation>Thème</translation>
+    </message>
+    <message>
+        <source>Export Theme</source>
+        <translation>Exporter le thème</translation>
+    </message>
+    <message>
+        <source>%1 (built-in)</source>
+        <translation>%1 (intégré)</translation>
+    </message>
+    <message>
+        <source>Cycle Marquee Tools</source>
+        <translation>Alterner les outils de sélection</translation>
+    </message>
+    <message>
+        <source>Cycle Lasso Tools</source>
+        <translation>Alterner les outils Lasso</translation>
+    </message>
+    <message>
+        <source>Cycle Wand Tools</source>
+        <translation>Alterner les outils Baguette</translation>
+    </message>
+    <message>
+        <source>Cycle Fill Tools</source>
+        <translation>Alterner les outils de remplissage</translation>
+    </message>
+    <message>
+        <source>Cycle Stamp Tools</source>
+        <translation>Alterner les outils Tampon</translation>
+    </message>
+    <message>
+        <source>Cycle Healing Tools</source>
+        <translation>Alterner les outils de correction</translation>
+    </message>
+    <message>
+        <source>Cycle Detail Tools</source>
+        <translation>Alterner les outils de détail</translation>
+    </message>
+    <message>
+        <source>Cycle Toning Tools</source>
+        <translation>Alterner les outils de densité</translation>
+    </message>
+    <message>
+        <source>Cycle Pen Tools</source>
+        <translation>Alterner les outils Plume</translation>
+    </message>
+    <message>
+        <source>Cycle Path Tools</source>
+        <translation>Alterner les outils Tracé</translation>
+    </message>
+    <message>
+        <source>Cycle Shape Tools</source>
+        <translation>Alterner les outils de forme</translation>
+    </message>
+    <message>
+        <source>Canvas Background Color</source>
+        <translation>Couleur d&apos;arrière-plan de la zone de travail</translation>
+    </message>
+    <message>
+        <source>Scrubby Zoom</source>
+        <translation>Zoom continu</translation>
+    </message>
+    <message>
+        <source>Drag right to zoom in and left to zoom out around the point you pressed. Off: drag a rectangle to zoom to it</source>
+        <translation>Faites glisser vers la droite pour zoomer et vers la gauche pour dézoomer autour du point cliqué. Désactivé : tracez un rectangle pour zoomer dessus</translation>
+    </message>
+    <message>
+        <source>100%</source>
+        <translation>100 %</translation>
+    </message>
+    <message>
+        <source>Fit Screen</source>
+        <translation>Taille écran</translation>
+    </message>
+    <message>
+        <source>Fill Screen</source>
+        <translation>Remplir l&apos;écran</translation>
+    </message>
+    <message>
+        <source>Fi&amp;ll Screen</source>
+        <translation>Remp&amp;lir l&apos;écran</translation>
+    </message>
+    <message>
+        <source>Zoom In</source>
+        <translation>Zoom avant</translation>
+    </message>
+    <message>
+        <source>Zoom Out</source>
+        <translation>Zoom arrière</translation>
+    </message>
+    <message>
+        <source>Show the image at actual pixels (View &gt; Actual Pixels)</source>
+        <translation>Afficher l&apos;image en pixels réels (Affichage &gt; Pixels réels)</translation>
+    </message>
+    <message>
+        <source>Fit the whole image in the window (View &gt; Fit on Screen)</source>
+        <translation>Afficher l&apos;image entière dans la fenêtre (Affichage &gt; Taille écran)</translation>
+    </message>
+    <message>
+        <source>Zoom until the image fills the window (View &gt; Fill Screen)</source>
+        <translation>Zoomer jusqu&apos;à ce que l&apos;image remplisse la fenêtre (Affichage &gt; Remplir l&apos;écran)</translation>
+    </message>
+    <message>
+        <source>Stroke width:</source>
+        <translation>Épaisseur du contour:</translation>
+    </message>
+    <message>
+        <source>Default units:</source>
+        <translation>Unités par défaut:</translation>
+    </message>
+    <message>
+        <source>Units &amp;&amp; Grids</source>
+        <translation>Unités &amp;&amp; grilles</translation>
+    </message>
+    <message>
+        <source>Repeat Last Plug-in</source>
+        <translation>Répéter le dernier module externe</translation>
+    </message>
+    <message>
+        <source>Last Plug-in Settings...</source>
+        <translation>Paramètres du dernier module externe...</translation>
+    </message>
+    <message>
+        <source>The last plug-in is no longer available</source>
+        <translation>Le dernier module externe n&apos;est plus disponible</translation>
+    </message>
+    <message>
+        <source>Repeat %1</source>
+        <extracomment>Plugins menu; %1 is the plug-in that ran last. Runs it again with its last settings, no dialog.</extracomment>
+        <translation>Répéter %1</translation>
+    </message>
+    <message>
+        <source>%1 Settings...</source>
+        <extracomment>Plugins menu; %1 is the plug-in that ran last. Opens its settings dialog again, starting from the last settings.</extracomment>
+        <translation>Paramètres de %1...</translation>
+    </message>
+    <message>
+        <source>Applied %1 (%2 undoes it)</source>
+        <translation>%1 appliqué (%2 pour annuler)</translation>
+    </message>
+    <message>
+        <source>Place &amp;Linked...</source>
+        <translation>Importer et &amp;lier...</translation>
+    </message>
+    <message>
+        <source>This layer is not a linked smart object</source>
+        <translation>Ce calque n&apos;est pas un objet dynamique lié</translation>
+    </message>
+    <message>
+        <source>Place Linked</source>
+        <translation>Importer et lier</translation>
+    </message>
+    <message>
+        <source>Placed %1 as a linked smart object</source>
+        <translation>%1 importé comme objet dynamique lié</translation>
+    </message>
+    <message>
+        <source>The placed position or size is out of range</source>
+        <translation>La position ou la taille de l&apos;importation est hors limites</translation>
+    </message>
+    <message>
+        <source>text layer &quot;%1&quot;</source>
+        <translation>calque de texte &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>pixel layer &quot;%1&quot;</source>
+        <translation>calque de pixels &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>smart object &quot;%1&quot;</source>
+        <translation>objet dynamique &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>adjustment layer &quot;%1&quot; and the layers below it</source>
+        <translation>calque de réglage &quot;%1&quot; et les calques en dessous</translation>
+    </message>
+    <message>
+        <source>the blend mode of &quot;%1&quot; and the layers below it</source>
+        <translation>le mode de fusion de &quot;%1&quot; et les calques en dessous</translation>
+    </message>
+    <message>
+        <source>shape layer &quot;%1&quot; (its styles or fill options)</source>
+        <translation>calque de forme &quot;%1&quot; (ses styles ou options de fond)</translation>
+    </message>
+    <message>
+        <source>group &quot;%1&quot; (its styles or masks)</source>
+        <translation>groupe &quot;%1&quot; (ses styles ou masques)</translation>
+    </message>
+    <message>
+        <source>clipping mask group &quot;%1&quot;</source>
+        <translation>groupe de masque d&apos;écrêtage &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>the layer mask on &quot;%1&quot;</source>
+        <translation>le masque de fusion de &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>&quot;%1&quot; (merged under an adjustment layer or blend mode)</source>
+        <translation>&quot;%1&quot; (fusionné sous un calque de réglage ou un mode de fusion)</translation>
+    </message>
+    <message numerus="yes">
+        <source>%1 and %n more</source>
+        <translation>
+            <numerusform>%1 et %n de plus</numerusform>
+            <numerusform>%1 et %n de plus</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>SVG keeps shape layers as vectors, but this document has content SVG cannot hold as vectors. Continue saving and bake it into images in the linked file?
+
+Baked into images: %1.</source>
+        <translation>Le format SVG conserve les calques de forme sous forme de vecteurs, mais ce document contient des éléments que SVG ne peut pas stocker en vecteurs. Continuer l&apos;enregistrement et les convertir en images dans le fichier lié ?
+
+Convertis en images : %1.</translation>
+    </message>
+    <message>
+        <source>SVG keeps shape layers as vectors, but this document has content SVG cannot hold as vectors, so Patchy will save a copy with that content baked into images. The open document will keep its layers and unsaved changes. To keep everything editable, save as a Photoshop document (.psd) instead.
+
+Baked into images: %1.</source>
+        <translation>Le format SVG conserve les calques de forme sous forme de vecteurs, mais ce document contient des éléments que SVG ne peut pas stocker en vecteurs. Patchy enregistrera donc une copie où ces éléments sont convertis en images. Le document ouvert conservera ses calques et ses modifications non enregistrées. Pour que tout reste modifiable, enregistrez plutôt en tant que document Photoshop (.psd).
+
+Convertis en images : %1.</translation>
+    </message>
+    <message>
+        <source>Crop to Selection (Advance&amp;d)...</source>
+        <translation>Recadrer selon la sélection (A&amp;vancé)...</translation>
+    </message>
+    <message>
+        <source>Open Canvas Size prefilled with the selection so the crop can be adjusted before it is applied</source>
+        <translation>Ouvre Taille de la zone de travail préremplie avec la sélection pour ajuster le recadrage avant de l’appliquer</translation>
+    </message>
+    <message>
+        <source>Canvas %1 x %2, off-canvas layers deleted: %3</source>
+        <translation>Zone de travail %1 x %2, calques hors zone supprimés : %3</translation>
+    </message>
+    <message>
+        <source>Mouse wheel zooms the canvas</source>
+        <translation>La molette de la souris zoome la zone de travail</translation>
+    </message>
+    <message>
+        <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan. Two-finger scrolling on a trackpad always pans; pinch to zoom.</source>
+        <translation>S&apos;applique aussi à un bouton de stylet réglé sur Défilement. Maintenez %CTRL% ou Shift pendant le défilement pour déplacer la vue. Le défilement à deux doigts sur un trackpad déplace toujours la vue ; pincez pour zoomer.</translation>
+    </message>
+    <message>
+        <source>Tools</source>
+        <translation>Outils</translation>
+    </message>
+    <message>
+        <source>Layers as Animated &amp;WebP...</source>
+        <translation>Calques en &amp;WebP animé...</translation>
+    </message>
+    <message>
+        <source>Export Animated WebP</source>
+        <translation>Exporter un WebP animé</translation>
+    </message>
+    <message>
+        <source>Saved animated WebP copy %1</source>
+        <translation>Copie WebP animée enregistrée : %1</translation>
+    </message>
+    <message>
+        <source>Locked layers are skipped. Groups receive their own style; their children are unchanged.</source>
+        <translation>Les calques verrouillés sont ignorés. Les groupes reçoivent leur propre style ; leurs calques enfants restent inchangés.</translation>
+    </message>
+    <message>
+        <source>Select an unlocked, editable shape layer</source>
+        <translation>Sélectionnez un calque de forme déverrouillé et modifiable</translation>
+    </message>
+    <message>
+        <source>Locked layers and layers without editable shapes are skipped.</source>
+        <translation>Les calques verrouillés et ceux sans formes modifiables sont ignorés.</translation>
+    </message>
+    <message>
+        <source>Updating shapes...</source>
+        <translation>Mise à jour des formes...</translation>
+    </message>
+    <message>
+        <source>%1: preserved blending data remains protected.</source>
+        <translation>%1 : les données de fusion conservées restent protégées.</translation>
+    </message>
+    <message>
+        <source>%1: editing effects normalizes unsupported Satin contours.</source>
+        <translation>%1 : la modification des effets normalise les contours Satin non pris en charge.</translation>
+    </message>
+    <message>
+        <source>Open from &amp;Clipboard</source>
+        <translation>Ouvrir depuis le &amp;presse-papiers</translation>
+    </message>
+    <message>
+        <source>&amp;Exposure...</source>
+        <translation>&amp;Exposition...</translation>
+    </message>
+    <message>
+        <source>Exposure</source>
+        <translation>Exposition</translation>
+    </message>
+    <message>
+        <source>Cancelled Exposure</source>
+        <translation>Exposition annulée</translation>
+    </message>
+    <message>
+        <source>This layer is not an embedded smart object</source>
+        <translation>Ce calque n&apos;est pas un objet dynamique incorporé</translation>
+    </message>
+    <message>
+        <source>This smart object cannot be re-rendered</source>
+        <translation>Cet objet dynamique ne peut pas être rendu à nouveau</translation>
     </message>
 </context>
 <context>
@@ -18282,10 +19515,6 @@ Y : %2
         <translation>combineShapes : les calques de forme doivent se trouver dans le même dossier.</translation>
     </message>
     <message>
-        <source>mergeLayers: options must be an object of booleans.</source>
-        <translation>mergeLayers : les options doivent être un objet de booléens.</translation>
-    </message>
-    <message>
         <source>mergeLayers: unknown option %1</source>
         <translation>mergeLayers : option inconnue %1</translation>
     </message>
@@ -18737,6 +19966,130 @@ Y : %2
         <source>distributeLayers needs at least three movable layers.</source>
         <translation>distributeLayers nécessite au moins trois calques déplaçables.</translation>
     </message>
+    <message>
+        <source>importFilesAsLayers needs a file path or a non-empty array of paths.</source>
+        <translation>importFilesAsLayers requiert un chemin de fichier ou un tableau de chemins non vide.</translation>
+    </message>
+    <message>
+        <source>No layers were added.</source>
+        <translation>Aucun calque n&apos;a été ajouté.</translation>
+    </message>
+    <message>
+        <source>intervalMinutes must be 5, 10, 15, 30, or 60</source>
+        <translation>intervalMinutes doit valoir 5, 10, 15, 30 ou 60</translation>
+    </message>
+    <message>
+        <source>textAlign must be &apos;left&apos;, &apos;center&apos;, &apos;right&apos; or &apos;justify&apos;.</source>
+        <translation>textAlign doit valoir &apos;left&apos;, &apos;center&apos;, &apos;right&apos; ou &apos;justify&apos;.</translation>
+    </message>
+    <message>
+        <source>%1: runs must be an array of {text, font, size, bold, italic, color} objects.</source>
+        <translation>%1 : runs doit être un tableau d&apos;objets {text, font, size, bold, italic, color}.</translation>
+    </message>
+    <message>
+        <source>%1: run %2 needs a text string.</source>
+        <translation>%1 : le segment %2 a besoin d&apos;une chaîne de texte.</translation>
+    </message>
+    <message>
+        <source>%1: run %2 has a non-positive size.</source>
+        <translation>%1 : le segment %2 a une taille non positive.</translation>
+    </message>
+    <message>
+        <source>%1: run %2 must be a string or an object.</source>
+        <translation>%1 : le segment %2 doit être une chaîne ou un objet.</translation>
+    </message>
+    <message>
+        <source>%1: runs must not be empty.</source>
+        <translation>%1 : runs ne doit pas être vide.</translation>
+    </message>
+    <message>
+        <source>addTextLayer: text must be a string or an array of runs.</source>
+        <translation>addTextLayer : text doit être une chaîne ou un tableau de segments.</translation>
+    </message>
+    <message>
+        <source>box must be {width, height} of at least 16 document pixels each.</source>
+        <translation>box doit être {width, height}, chacun d&apos;au moins 16 pixels du document.</translation>
+    </message>
+    <message>
+        <source>align must be &apos;left&apos;, &apos;center&apos;, &apos;right&apos; or &apos;justify&apos;.</source>
+        <translation>align doit valoir &apos;left&apos;, &apos;center&apos;, &apos;right&apos; ou &apos;justify&apos;.</translation>
+    </message>
+    <message>
+        <source>%1: paragraph must be an object with firstLineIndent, startIndent, endIndent, spaceBefore and spaceAfter numbers (document pixels).</source>
+        <translation>%1 : paragraph doit être un objet avec les nombres firstLineIndent, startIndent, endIndent, spaceBefore et spaceAfter (pixels du document).</translation>
+    </message>
+    <message>
+        <source>%1: paragraph.%2 must be a number (document pixels).</source>
+        <translation>%1 : paragraph.%2 doit être un nombre (pixels du document).</translation>
+    </message>
+    <message>
+        <source>applyPlugin: unknown option %1.</source>
+        <translation>applyPlugin : option inconnue %1.</translation>
+    </message>
+    <message>
+        <source>Unknown plug-in id: %1</source>
+        <translation>Identifiant de module externe inconnu : %1</translation>
+    </message>
+    <message>
+        <source>Plug-in %1 cannot run: %2</source>
+        <translation>Le module externe %1 ne peut pas s&apos;exécuter : %2</translation>
+    </message>
+    <message>
+        <source>applyPlugin needs a pixel layer.</source>
+        <translation>applyPlugin nécessite un calque de pixels.</translation>
+    </message>
+    <message>
+        <source>Plug-in %1 was cancelled.</source>
+        <translation>Le module externe %1 a été annulé.</translation>
+    </message>
+    <message>
+        <source>Plug-in %1 failed: %2</source>
+        <translation>Le module externe %1 a échoué : %2</translation>
+    </message>
+    <message>
+        <source>addSmartObject needs a file path.</source>
+        <translation>addSmartObject requiert un chemin de fichier.</translation>
+    </message>
+    <message>
+        <source>addSmartObject: %1 must be a finite number.</source>
+        <translation>addSmartObject : %1 doit être un nombre fini.</translation>
+    </message>
+    <message>
+        <source>%1: font not available, rendered with a fallback: %2</source>
+        <translation>%1 : police non disponible, rendu avec une police de remplacement : %2</translation>
+    </message>
+    <message>
+        <source>%1: font has no glyphs for this text, rendered with a fallback: %2</source>
+        <translation>%1 : la police n&apos;a aucun glyphe pour ce texte, rendu avec une police de remplacement : %2</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp needs a .webp output path.</source>
+        <translation>exportAnimatedWebp nécessite un chemin de sortie .webp.</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp options must be an object.</source>
+        <translation>Les options de exportAnimatedWebp doivent être un objet.</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp: invalid option %1.</source>
+        <translation>exportAnimatedWebp : option %1 non valide.</translation>
+    </message>
+    <message>
+        <source>mergeLayers: options must be an object.</source>
+        <translation>mergeLayers : options doit être un objet.</translation>
+    </message>
+    <message>
+        <source>mergeLayers: effectsFrom must be a layer of this document.</source>
+        <translation>mergeLayers : effectsFrom doit être un calque de ce document.</translation>
+    </message>
+    <message>
+        <source>mergeLayers: %1 must be a boolean.</source>
+        <translation>mergeLayers : %1 doit être un booléen.</translation>
+    </message>
+    <message>
+        <source>mergeLayers: effectsFrom requires singleVector.</source>
+        <translation>mergeLayers : effectsFrom nécessite singleVector.</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::StartPanel</name>
@@ -18769,10 +20122,6 @@ Y : %2
         <translation>Vous pouvez aussi déposer des fichiers image n&apos;importe où dans la fenêtre</translation>
     </message>
     <message>
-        <source>desktop version</source>
-        <translation>version de bureau</translation>
-    </message>
-    <message>
         <source>Everything runs locally in your browser. Nothing you make is ever sent online.</source>
         <translation>Tout s&apos;exécute localement dans votre navigateur. Rien de ce que vous créez n&apos;est jamais envoyé en ligne.</translation>
     </message>
@@ -18781,16 +20130,8 @@ Y : %2
         <translation>Déposez ici un fichier de police ou une archive zip de polices pour utiliser vos propres polices.</translation>
     </message>
     <message>
-        <source>For all your system fonts and better speed, get the %1.</source>
-        <translation>Pour disposer de toutes vos polices système et de meilleures performances, téléchargez la %1.</translation>
-    </message>
-    <message>
         <source>Version %1 (built %2)</source>
         <translation>Version %1 (compilée le %2)</translation>
-    </message>
-    <message>
-        <source>Created by Seth A. Robinson</source>
-        <translation>Créé par Seth A. Robinson</translation>
     </message>
     <message>
         <source>Code contributions from %1</source>
@@ -18807,6 +20148,26 @@ Y : %2
     <message>
         <source>No matching recent files</source>
         <translation>Aucun fichier récent correspondant</translation>
+    </message>
+    <message>
+        <source>Created by %1</source>
+        <translation>Créé par %1</translation>
+    </message>
+    <message>
+        <source>More power on your desktop</source>
+        <translation>Plus de possibilités sur votre ordinateur</translation>
+    </message>
+    <message>
+        <source>More features, faster editing, and full access to your system fonts.</source>
+        <translation>Plus de fonctions, des retouches plus rapides et un accès complet aux polices de votre système.</translation>
+    </message>
+    <message>
+        <source>Download Patchy for Desktop</source>
+        <translation>Télécharger Patchy pour ordinateur</translation>
+    </message>
+    <message>
+        <source>Free · Windows, macOS &amp; Linux</source>
+        <translation>Gratuit · Windows, macOS et Linux</translation>
     </message>
 </context>
 <context>

@@ -17,6 +17,7 @@ hang watchdog.
 from __future__ import annotations
 
 import json
+import hashlib
 import subprocess
 import time
 from pathlib import Path
@@ -74,8 +75,6 @@ _PROBE_JSX = r"""
   var INPUT = new File(%(input)s);
   var RENDER_PNG = %(render_png)s;
   var RESAVE_PSD = %(resave_psd)s;
-  var MUTATE_SUFFIX = %(mutate_suffix)s;
-  var MUTATED_PNG = %(mutated_png)s;
 
   function q(s) {
     s = String(s);
@@ -147,6 +146,22 @@ _PROBE_JSX = r"""
         try { textSize = L.textItem.size.as ? L.textItem.size.as('px') : Number(L.textItem.size); } catch (e) {}
         entry += ',"text":' + q(contents) + ',"font":' + q(fontName) +
                  ',"textSize":' + (Math.round(textSize * 100) / 100);
+        // Every face the layer uses, not just the first range's (textItem.font): the
+        // Photopea driver hands these fonts over, and a mixed-font layer needs all.
+        var faces = [];
+        try {
+          var styleRanges = layerDescriptor(L.id).getObjectValue(stringIDToTypeID('textKey'))
+                                                 .getList(stringIDToTypeID('textStyleRange'));
+          for (var r = 0; r < styleRanges.count; r++) {
+            var rangeStyle = styleRanges.getObjectValue(r).getObjectValue(stringIDToTypeID('textStyle'));
+            if (!rangeStyle.hasKey(stringIDToTypeID('fontPostScriptName'))) { continue; }
+            var face = q(rangeStyle.getString(stringIDToTypeID('fontPostScriptName')));
+            var known = false;
+            for (var f = 0; f < faces.length; f++) { if (faces[f] == face) { known = true; } }
+            if (!known) { faces.push(face); }
+          }
+        } catch (e) {}
+        entry += ',"fonts":[' + faces.join(',') + ']';
       }
       entry += '}';
       out.push(entry);
@@ -164,14 +179,130 @@ _PROBE_JSX = r"""
   // Render the document's flattened appearance to PNG. Returns 'ok', 'fallback', or
   // an error string. The fallback path is the documented copy-merged workaround for
   // files whose damaged smart-object references make duplicate/saveAs fail.
-  function renderTo(doc, pngPath) {
+  // The reference PNG is always 8-bit sRGB: what Photoshop shows, in the space every
+  // comparison assumes. Saved as-is, a Grayscale document's PNG holds raw dot-gain
+  // values with no profile (an editor that color-manages correctly then reads as
+  // wrong), a 16-bit one a format the comparison misreads, and a Bitmap one cannot
+  // be rendered at all (no direct Bitmap-to-RGB change, no Copy Merged). Each step
+  // is best effort; 32-bit keeps Photoshop's own conversion on save.
+  function normalizeForPng(dup) {
+    try { if (dup.mode == DocumentMode.BITMAP) { dup.changeMode(ChangeMode.GRAYSCALE); } } catch (e1) {}
+    try { if (dup.mode != DocumentMode.RGB) { dup.changeMode(ChangeMode.RGB); } } catch (e2) {}
+    if (dup.bitsPerChannel != BitsPerChannelType.THIRTYTWO) {
+      try {
+        dup.convertProfile('sRGB IEC61966-2.1', Intent.RELATIVECOLORIMETRIC, true, false);
+      } catch (e3) {}
+    }
+    try {
+      if (dup.bitsPerChannel == BitsPerChannelType.SIXTEEN) { dup.bitsPerChannel = BitsPerChannelType.EIGHT; }
+    } catch (e4) {}
+  }
+
+  // Photoshop shows a type layer from the raster cached in the file until the text
+  // changes, and an old file's cache can differ from what this Photoshop would draw.
+  // Writing each layer's own text descriptor back to it makes Photoshop lay the text
+  // out afresh with nothing altered (style runs, transform and warp all ride in the
+  // descriptor). Run on the flattened-for-render duplicate only, so the document
+  // itself, and any resave of it, stays exactly as opened.
+  function refreshText(doc, layers, counter) {
+    for (var i = 0; i < layers.length; i++) {
+      var L = layers[i];
+      if (L.typename == 'LayerSet') { refreshText(doc, L.layers, counter); continue; }
+      var kind = '';
+      try { kind = String(L.kind); } catch (e) {}
+      if (kind != 'LayerKind.TEXT') { continue; }
+      var locked = false;
+      try { locked = L.allLocked; } catch (e) {}
+      if (locked) { continue; }
+      try {
+        var wasVisible = L.visible;
+        doc.activeLayer = L;
+        var ref = new ActionReference();
+        ref.putEnumerated(charIDToTypeID('Lyr '), charIDToTypeID('Ordn'), charIDToTypeID('Trgt'));
+        var textKey = executeActionGet(ref).getObjectValue(stringIDToTypeID('textKey'));
+        var target = new ActionReference();
+        target.putEnumerated(stringIDToTypeID('textLayer'), charIDToTypeID('Ordn'), charIDToTypeID('Trgt'));
+        var set = new ActionDescriptor();
+        set.putReference(charIDToTypeID('null'), target);
+        set.putObject(charIDToTypeID('T   '), stringIDToTypeID('textLayer'), textKey);
+        executeAction(charIDToTypeID('setd'), set, DialogModes.NO);
+        // Selecting a hidden layer shows it; put it back.
+        if (L.visible != wasVisible) { L.visible = wasVisible; }
+        counter.n++;
+      } catch (e) { counter.errors++; }
+    }
+  }
+
+  // The reference render also re-renders embedded smart objects, whose pixels in the
+  // file are a cache as well: opening the contents, making a change that leaves
+  // nothing behind (a layer added and removed) and saving makes Photoshop render the
+  // layer from its contents again, smart filters included. Only where that is
+  // lossless: raster contents stored in a format a save does not degrade. Linked
+  // files (nothing embedded to render) and vector contents (they open in another
+  // app) keep their cache. Run on the duplicate only, like refreshText.
+  // Layers that share one embedded document are all re-rendered by the first of them,
+  // so each document is opened once (a 54-layer file with two embedded documents made
+  // Photoshop open and save them 54 times); and the work stops after 30 seconds, well
+  // inside the probe's hang watchdog, leaving the remaining layers on their cache.
+  function refreshSmartObjects(doc, layers, counter) {
+    for (var i = 0; i < layers.length; i++) {
+      var L = layers[i];
+      if (L.typename == 'LayerSet') { refreshSmartObjects(doc, L.layers, counter); continue; }
+      var kind = '';
+      try { kind = String(L.kind); } catch (e) {}
+      if (kind != 'LayerKind.SMARTOBJECT') { continue; }
+      var locked = false;
+      try { locked = L.allLocked; } catch (e) {}
+      if (locked) { counter.skipped++; continue; }
+      var inner = null;
+      try {
+        var wasVisible = L.visible;
+        doc.activeLayer = L;
+        var ref = new ActionReference();
+        ref.putEnumerated(charIDToTypeID('Lyr '), charIDToTypeID('Ordn'), charIDToTypeID('Trgt'));
+        var so = executeActionGet(ref).getObjectValue(stringIDToTypeID('smartObject'));
+        var placed = typeIDToStringID(so.getEnumerationValue(stringIDToTypeID('placed')));
+        var linked = so.hasKey(stringIDToTypeID('linked')) && so.getBoolean(stringIDToTypeID('linked'));
+        var name = so.hasKey(stringIDToTypeID('fileReference')) ? so.getString(stringIDToTypeID('fileReference')) : '';
+        var contentId = so.hasKey(stringIDToTypeID('documentID')) ? so.getString(stringIDToTypeID('documentID')) : '';
+        var dot = name.lastIndexOf('.');
+        var ext = dot < 0 ? '' : name.substring(dot + 1).toLowerCase();
+        var lossless = ext == '' || ext == 'psd' || ext == 'psb' || ext == 'png' || ext == 'tif' || ext == 'tiff';
+        var shared = contentId != '' && counter.seen[contentId] === true;
+        var late = (new Date()).getTime() - counter.started > 30000;
+        if (placed != 'rasterizeContent' || linked || !lossless || shared || late) {
+          if (L.visible != wasVisible) { L.visible = wasVisible; }
+          if (shared) { counter.n++; } else { counter.skipped++; }
+          continue;
+        }
+        if (contentId != '') { counter.seen[contentId] = true; }
+        executeAction(stringIDToTypeID('placedLayerEditContents'), new ActionDescriptor(), DialogModes.NO);
+        if (app.activeDocument == doc) { throw new Error('contents did not open'); }
+        inner = app.activeDocument;
+        var scratch = inner.artLayers.add();
+        scratch.remove();
+        inner.save();
+        inner.close(SaveOptions.SAVECHANGES);
+        inner = null;
+        app.activeDocument = doc;
+        if (L.visible != wasVisible) { L.visible = wasVisible; }
+        counter.n++;
+      } catch (e) {
+        counter.errors++;
+        try { if (inner !== null) { inner.close(SaveOptions.DONOTSAVECHANGES); } } catch (e2) {}
+        try { app.activeDocument = doc; } catch (e3) {}
+      }
+    }
+  }
+
+  function renderTo(doc, pngPath, freshText, freshSmart) {
     var dup = null;
     try {
       dup = doc.duplicate();
+      if (freshText) { refreshText(dup, dup.layers, freshText); }
+      if (freshSmart) { refreshSmartObjects(dup, dup.layers, freshSmart); }
       dup.flatten();
-      if (dup.mode != DocumentMode.RGB && dup.mode != DocumentMode.GRAYSCALE) {
-        dup.changeMode(ChangeMode.RGB);
-      }
+      normalizeForPng(dup);
       dup.saveAs(new File(pngPath), pngOptions(), true, Extension.LOWERCASE);
       dup.close(SaveOptions.DONOTSAVECHANGES);
       return 'ok';
@@ -193,25 +324,40 @@ _PROBE_JSX = r"""
     }
   }
 
-  // Append the suffix to every unlocked text layer; Photoshop re-lays-out on
-  // assignment. Mirrors Patchy's --append-text (pixel-locked layers skipped).
-  function mutateText(layers, suffix, counter) {
+  // Inspect every style range before assigning contents. A missing face in a
+  // later range can prompt even when textItem.font (the first range) is present.
+  function textFontProblems(layers, out) {
+    function problem(label) {
+      for (var k = 0; k < out.length; k++) { if (out[k] == label) { return; } }
+      out.push(label);
+    }
+    function checkFace(face, unavailable) {
+      if (!face) { problem('unidentified text font'); return; }
+      if (unavailable) { problem(face); return; }
+      try { app.fonts.getByName(face); } catch (e) { problem(face); }
+    }
     for (var i = 0; i < layers.length; i++) {
       var L = layers[i];
-      if (L.typename == 'LayerSet') { mutateText(L.layers, suffix, counter); continue; }
+      if (L.typename == 'LayerSet') { textFontProblems(L.layers, out); continue; }
       var kind = '';
       try { kind = String(L.kind); } catch (e) {}
       if (kind != 'LayerKind.TEXT') { continue; }
-      // Only the full lock blocks a contents edit: Photoshop reports pixelsLocked=true
-      // for EVERY type layer (painting is inherently locked there), so checking it
-      // would skip all text.
-      var locked = false;
-      try { locked = L.allLocked; } catch (e) {}
-      if (locked) { continue; }
+      try { if (L.allLocked) { continue; } } catch (e) {}
       try {
-        L.textItem.contents = L.textItem.contents + suffix;
-        counter.n++;
-      } catch (e) { counter.errors++; }
+        var d = layerDescriptor(L.id).getObjectValue(stringIDToTypeID('textKey'));
+        var ranges = d.getList(stringIDToTypeID('textStyleRange'));
+        if (ranges.count == 0) { problem('unidentified text font'); }
+        for (var j = 0; j < ranges.count; j++) {
+          var style = ranges.getObjectValue(j).getObjectValue(stringIDToTypeID('textStyle'));
+          var fontKey = stringIDToTypeID('fontPostScriptName');
+          var availableKey = stringIDToTypeID('fontAvailable');
+          var face = style.hasKey(fontKey) ? style.getString(fontKey) : String(L.textItem.font);
+          checkFace(face, style.hasKey(availableKey) && !style.getBoolean(availableKey));
+        }
+      } catch (e) {
+        // Do not guess that a partially inspected mixed-font layer is safe.
+        problem('could not inspect fonts in ' + L.name);
+      }
     }
   }
 
@@ -225,34 +371,37 @@ _PROBE_JSX = r"""
     var entries = [];
     walk(opened.layers, '', entries);
     var renderStatus = 'skipped';
+    // The reference render re-renders text, unless a font the text needs is missing:
+    // then Photoshop cannot draw it faithfully either and the cache is the reference.
+    var freshText = {n: 0, errors: 0}, freshFonts = [];
+    textFontProblems(opened.layers, freshFonts);
+    var freshSmart = {n: 0, errors: 0, skipped: 0, seen: {}, started: (new Date()).getTime()};
     if (RENDER_PNG !== null) {
-      renderStatus = renderTo(opened, RENDER_PNG);
+      renderStatus = renderTo(opened, RENDER_PNG, freshFonts.length ? null : freshText, freshSmart);
     }
     var resaveStatus = 'skipped';
     if (RESAVE_PSD !== null) {
-      // Before any mutation: the resave must reflect the file as opened.
       try {
         opened.saveAs(new File(RESAVE_PSD), new PhotoshopSaveOptions(), true, Extension.LOWERCASE);
         resaveStatus = 'ok';
       } catch (e) { resaveStatus = 'resave-error: ' + e; }
     }
-    var mutateCount = -1, mutateErrors = 0, mutatedStatus = 'skipped';
-    if (MUTATE_SUFFIX !== null) {
-      var counter = { n: 0, errors: 0 };
-      mutateText(opened.layers, MUTATE_SUFFIX, counter);
-      mutateCount = counter.n;
-      mutateErrors = counter.errors;
-      if (MUTATED_PNG !== null) {
-        mutatedStatus = renderTo(opened, MUTATED_PNG);
-      }
-    }
+    // Fonts the text needs that Photoshop lacks: it then cannot draw that text
+    // faithfully either, so the reference keeps the baked pixels and nobody's own
+    // text render is scored for this file.
+    var missingFonts = freshFonts;
+    var textFontsMissing = missingFonts.length ? 'Required fonts unavailable: ' + missingFonts.join(', ') : null;
+    var missingJson = [];
+    for (var m = 0; m < missingFonts.length; m++) { missingJson.push(q(missingFonts[m])); }
     var result = '{"ok":true,"width":' + opened.width.as('px') + ',"height":' + opened.height.as('px') +
       ',"resolution":' + opened.resolution +
       ',"render":' + q(renderStatus) +
       ',"resave":' + q(resaveStatus) +
-      ',"mutated":' + q(mutatedStatus) +
-      ',"mutateCount":' + mutateCount +
-      ',"mutateErrors":' + mutateErrors +
+      ',"textFontsMissing":' + (textFontsMissing === null ? 'null' : q(textFontsMissing)) +
+      ',"freshText":' + freshText.n + ',"freshTextErrors":' + freshText.errors +
+      ',"freshSmart":' + freshSmart.n + ',"freshSmartErrors":' + freshSmart.errors +
+      ',"freshSmartSkipped":' + freshSmart.skipped +
+      ',"missingFonts":[' + missingJson.join(',') + ']' +
       ',"layers":[' + entries.join(',') + ']}';
     opened.close(SaveOptions.DONOTSAVECHANGES);
     return result;
@@ -325,6 +474,7 @@ class PhotoshopDriver:
         self._app = None
         self._log = log
         self._version: str | None = None
+        self._font_cache_key: str | None = None
         self._launch_failures = 0
         self._unavailable_reason: str | None = None
 
@@ -388,12 +538,19 @@ class PhotoshopDriver:
             return "unknown"
         return self._version
 
+    def font_cache_key(self) -> str:
+        """Installing a missing font must invalidate the forced-text ground truth."""
+        if self._font_cache_key is None:
+            inventory = self._application().DoJavaScript(
+                "(function(){var a=[];for(var i=0;i<app.fonts.length;i++){"
+                "a.push(app.fonts[i].postScriptName);}a.sort();return a.join('\\n');})();")
+            self._font_cache_key = hashlib.sha256(str(inventory).encode("utf-8")).hexdigest()[:16]
+        return self._font_cache_key
+
     def probe(
         self,
         psd_path: Path,
         render_png: Path | None,
-        mutate_suffix: str | None = None,
-        mutated_png: Path | None = None,
         resave_psd: Path | None = None,
     ) -> dict:
         """Open psd_path; return manifest + render statuses as a dict (ok=False on failure).
@@ -409,12 +566,12 @@ class PhotoshopDriver:
         """
         if self.unavailable:
             return {"ok": False, "launchFailure": True, "error": self._unavailable_reason}
-        result = self._probe_once(psd_path, render_png, mutate_suffix, mutated_png, resave_psd)
+        result = self._probe_once(psd_path, render_png, resave_psd)
         if result.get("ok"):
             self._launch_failures = 0
             return result
         self.restart()
-        retry = self._probe_once(psd_path, render_png, mutate_suffix, mutated_png, resave_psd)
+        retry = self._probe_once(psd_path, render_png, resave_psd)
         # Dialogs the first attempt reported are part of this file's story even when
         # the retry is the one that carries the result.
         dialogs = list(result.get("dialogs") or [])
@@ -449,17 +606,12 @@ class PhotoshopDriver:
         self,
         psd_path: Path,
         render_png: Path | None,
-        mutate_suffix: str | None,
-        mutated_png: Path | None,
         resave_psd: Path | None,
     ) -> dict:
         jsx = _PROBE_JSX % {
             "input": _js_path(psd_path),
             "render_png": _js_path(render_png),
             "resave_psd": _js_path(resave_psd),
-            # Text appended to layer contents, not a path: it must reach Photoshop verbatim.
-            "mutate_suffix": _js_string(mutate_suffix),
-            "mutated_png": _js_path(mutated_png),
         }
         # The guard answers modal alerts Photoshop raises behind the blocked COM call
         # (see the module docstring) and force-kills Photoshop.exe once nothing has

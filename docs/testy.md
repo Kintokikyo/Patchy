@@ -1,8 +1,6 @@
 # Testy: the PSD compatibility benchmark
 
-Testy (`testy/`) measures how Patchy and other installed editors handle real PSD files,
-with Adobe Photoshop 2026 as ground truth. Repeated runs over time show whether Patchy's
-compatibility is improving and which PSDs are trouble.
+Testy (`testy/`) measures PSD compatibility against Adobe Photoshop 2026.
 
 ## Setup
 
@@ -30,6 +28,14 @@ Browser-started runs reuse the panel's server (`--server-url` under the hood), l
 overflows the Windows 32K command-line limit, WinError 206). Endpoint errors come
 back as JSON 500s, not dropped connections. A Cancel button kills the run's
 process tree and marks it "canceled".
+
+**Shut down Testy** (top right) and console Ctrl+C finish the current step,
+checkpoint an unfinished run, wait for the benchmark child to exit, then close the
+server and release its port. The panel shows progress, then goes offline. Restart
+Testy and Resume to continue. Shutdown blocks new runs but allows the finishing
+cell's uploads; it does not force-close editors. A build or editor call already in
+progress must finish first. Use these controls instead of closing the console
+window or killing Python. CLI-owned dashboards also shut down this way.
 
 A Pause button (panel and live report) checkpoints big runs instead of killing them:
 the orchestrator finishes the current file/editor cell (interrupting mid-cell would
@@ -60,13 +66,26 @@ run directory survives and is reported in the panel. Deleted runs are dropped fr
 removed by hand simply unlists it. The live run cannot be deleted, and deletion
 never touches `testy/cache/`.
 
-A "Retest file" button in a served report's detail panel re-runs just that file as a
-fresh run with the same editors and options, refreshing the Patchy build
-first; caches keep the rest fast (Photoshop and the other editors load from
-`testy/cache/`, Patchy re-measures because its cache key includes the git hash). It
-is disabled while a run is live and absent from a frozen report opened from disk.
-Cells cached before the perceptual metric existed are upgraded in place on reuse
-(recomputed from the cached images).
+A **Rerun** button beside each image in a completed batch refreshes that row and
+the batch totals. Choose **Patchy** (default) to check a fix, or **All editors**.
+The child rebuilds Patchy when selected and measures the selected editors afresh,
+including Photoshop ground truth. The batch keeps showing its previous results
+until the rerun finishes. Interrupted runs, failed automation, changed sources,
+and failed builds leave the previous results intact. A source modified since the
+batch requires a new run. Other rows and unselected editor cells are preserved.
+
+Successful reruns update `status.json`, `results.json`, history totals, and scan
+flags. New artifacts and the previous batch snapshot live under
+`runs/<batch>/reruns/<child>/`; the row links to the previous results. Refreshed
+rows show their build/version and time, and the header identifies the batch as a
+partial refresh. These batches contain measurements from multiple builds.
+Existing batches get current controls when served by an updated Testy server;
+restart the server after updating Testy. Frozen reports have no rerun controls.
+Editor-free regressions: run `tests\testy_rerun_tests.py` and
+`tests\testy_shutdown_tests.py` through `scripts\run-throttled.bat python`.
+
+**Retest file** in the detail panel creates a separate one-file run, reusing
+caches and refreshing Patchy's build. Both controls require an idle Testy server.
 
 The CLI remains for scripted use:
 
@@ -79,8 +98,7 @@ refreshes the Patchy release build first (when configured), serves a live dashbo
 and leaves the frozen report + `results.json` in `testy/runs/<timestamp>/`. The
 server root is the same control panel. Clicking a file
 name in a report copies its full path to the clipboard; clicking a thumbnail opens
-the full-size image. The matrix header stays pinned while the page scrolls (the grid
-uses per-cell borders because Chromium drops collapsed borders from a pinned row).
+the full-size image. The matrix header stays pinned while the page scrolls.
 Lost native data is called out: matrix cells get a red "lost: ..." line and a warn
 dot, and the detail panel's native-preservation banner separates objects GONE from
 the resaved file from ones converted to a different kind (e.g. text rasterized);
@@ -90,7 +108,7 @@ broken panel.
 
 Each file's row shows document size, layer count, and file size (shown even when
 ground truth failed); the header totals the corpus, and a scan run's card adds a
-bytes done/total row (older runs backfill sizes on resume). A cell's status line
+bytes done/total row. A cell's status line
 qualifies "opened": a render missing the scan threshold (10% default, by the run's
 comparison mode) reads "opened - poor matching" with a yellow dot; a resave
 Photoshop cannot reopen reads "opened - saves corrupted .psd" with a red dot, as
@@ -104,12 +122,12 @@ Useful flags:
 - `--corpus <file>` - corpus list (one path per line, relative to the repo root).
 - `--editors photoshop,patchy,krita,gimp,photodemon,photopea,affinity` - which columns
   to run. Affinity is opt-in: enable the app's connector once in Affinity's settings
-  (it serves the local MCP endpoint the scripting rides on); with it off, Affinity
-  cells fail with an actionable message and the rest runs. Aseprite has no PSD I/O
-  and is not in the roster.
+  (it serves the local MCP endpoint); with it off, Affinity
+  cells fail with an actionable message and the rest runs. `psdtools` (opt-in) is
+  the psd-tools library: its compositor and a load-and-save (`pip install "psd-tools[composite]"`).
 - `--no-build` - skip the release build refresh (measures the current patchy.exe).
 - `--fresh` - ignore cached ground truth / cells (cache in `testy/cache/`, keyed by
-  file hash + editor version, plus Patchy git hash for the Patchy column).
+  file hash + editor version; Patchy's key is a hash of patchy.exe itself).
 - `--resume runs\<ts>` - continue a paused/canceled/interrupted run directory, skipping
   completed work (implies `--no-build`, ignores `--files/--corpus/--editors`).
 - `--scan [PCT]` - scan mode; see below.
@@ -117,13 +135,41 @@ Useful flags:
   perceptual). Both numbers are always computed and shown either way; a resumed run
   keeps the mode it started with, and runs from before this option flag strictly.
 - `--exit-when-done`, `--no-browser`, `--no-serve`, `--port N` - dashboard behavior.
-- `--suffix "~TESTY~"` - the marker string used by the forced text re-render test.
+- `--suffix "~TESTY~"` - a marker that is now only part of cache entry names (it was the
+  text the retired appended-text leg added).
+
+## The psd-tools collection and the By folder table
+
+`python testy\fetch_psd_tools_corpus.py` checks out psd-tools' `tests/psd_files`
+(309 single-feature PSD/PSB files, GitHub issue 65) at a pinned commit
+into `local-test-fixtures/psd-tools` and writes `testy/corpus/psd-tools.txt`; run
+it with `--corpus corpus\psd-tools.txt` (relative to `testy/`). A multi-folder corpus gets a "By folder" table above
+the matrix (matches, data kept, bad saves per editor); clicking a
+row filters it. The "Score without known limitations" checkbox drops
+16/32-bit and artboard files (entry `traits`) from the totals. Files sharing a stem (`x.psd` beside `x.psb`) get distinct
+artifact directories through the entry's `dir` key (`x~psb`). The core test
+`psd_tools_corpus_reads_and_round_trips_if_available` covers the same files
+without Photoshop.
+
+## Publishing a run as a static site
+
+`python testy\export_static.py <run name>` writes `testy/public/<run name>/` (gitignored):
+`index.html` (a short overview with the editor versions), `report.html`, `status.json`,
+`results.json` and every image the report links to. Copy that one folder to any web
+host; it needs no server code. Off the Testy server the report hides its run controls,
+stops polling once the run is finished, and its Back link goes to the folder's own
+`index.html`. The export leaves out every .psd/.psb (the corpus is third-party work and
+the report does not need the files) and the cache-free leg's working renders, turns
+each file's source into its path below the corpus folder, replaces this machine's
+folders inside error messages with `<run>`, `<patchy>` and `<home>`, and refuses to
+write if a local path is still left. It only ever replaces a folder an earlier export
+made (`testy-export.txt` marks it). Nothing is uploaded by the tool.
 
 ## Scan mode
 
 `--scan` (or the panel's "scan: keep only flagged" checkbox) turns a run into a
 triage pass: a file is FLAGGED if anything failed (ground truth, open, resave, trap,
-text mutation, a skipped/broken editor, a resave Photoshop rejects, a trap sentinel
+a skipped/broken editor, a resave Photoshop rejects, a trap sentinel
 hit Photoshop's own trap render does not share) or if any editor's render differs
 from Photoshop's on more than the threshold fraction of pixels (default 10%,
 `--scan 25` for 25%). The fraction follows the run's comparison mode:
@@ -142,87 +188,35 @@ the reasons as `#` comments. It is a valid corpus list, so a follow-up deep run 
 
 Photoshop ground-truth results (including renders) are cached in `testy/cache/` for
 every file, flagged or not, keyed by file hash + Photoshop version, so a re-scan
-after a Patchy fix skips the slow Photoshop leg. Clear `testy/cache/` if the space
-matters more than re-scan speed.
+after a Patchy fix skips the slow Photoshop leg.
 
 A paused scan resumes normally: files already given their verdict are not
 re-scrubbed or re-flagged, and `flagged.txt` is written once at true completion.
-One benign loss: cells finished just before the pause in a partially-done file stay
-in the report but are not cell-cached.
 
 ## What each cell measures
 
-For every (PSD, editor) pair, the editor opens a staged COPY (corpus files are never
-touched; a SHA check at the end of every run proves it), and Testy records:
-
-- **Opens** - did the file load at all.
-- **Render accuracy** - the editor's flattened PNG vs Photoshop's, composited over
-  white at document size. Two comparisons always run, labeled **byte match** and
-  **perceptual** in the report. Byte match counts pixels off by more than 6/255 per
-  channel (plus RMSE); honest about raw data, but a subtle color-management shift
-  can mark a visually identical render ~100% different. Perceptual counts pixels
-  that actually look wrong: SSIM's contrast-structure term combined with CIEDE2000
-  deltaE, both computed on lightly blurred copies so anti-aliasing jitter stays
-  quiet, with the deltaE threshold scaled up under strong local contrast. A global
-  8/255 shift scores ~0% perceptually while byte match reports ~100%; a genuinely
-  missing, misplaced, or recolored object fires both. Each metric also gets a
-  per-object breakdown using ground-truth layer bounds; an object "renders ok"
-  while under 25% of its region's pixels are off (text legitimately differs on
-  glyph edges; a bbox also contains what renders behind it, so one error can hit
-  several objects). Worst offenders are named in the detail panel, ranked by the
-  run's comparison mode. Byte match runs at document resolution; perceptual costs
-  about a second and 150 MB of numpy temporaries per megapixel, so it runs on
-  copies area-averaged down to `PERCEPTUAL_MAX_PIXELS` (4 MP) and is skipped when
-  the renders match pixel for pixel. Above 4 MP the downsample can shift the
-  perceptual `badFraction` in relative terms; it drives a 10% triage threshold, not
-  a pinned number, and the byte-match figure is unchanged.
-  `python testy\analyze.py --selftest` pins all of it against synthetic renders; no
-  Photoshop or corpus needed.
-- **Honest rendering (trap)** - the editor also opens a byte-patched variant whose
-  embedded flat composite is replaced with magenta (`psd_sections.py` rewrites only
-  the trailing image-data section; all layer data stays byte-identical). Magenta in
-  the render means the editor displayed Photoshop's baked composite instead of
-  compositing layers itself. Flattened files (zero layer records) get no trap: the
-  composite is the only image data, so reading it is correct and even Photoshop
-  would trip the sentinel (noted in the detail panel; old cached cells are fixed
-  on reuse). Photoshop tripping its own trap means even the ground
-  truth could not re-render the layers (missing fonts etc.) and fell back to the
-  baked composite; another editor matching that is not a cheat (a neutral note says
-  so) and does not flag in scan mode. Only sentinel coverage more than 5 points
-  beyond Photoshop's own counts as a cheat.
-- **Native preservation** (labeled "data kept in .psd save" in the report and CLI
-  summary; the results.json/history.jsonl keys stay `native`/`nativeScore`) - the
-  editor's re-saved PSD is reopened in Photoshop and its layer manifest compared
-  against the original's: text still `TEXT`, each adjustment still its exact kind,
-  smart objects still smart, groups/masks/vector masks/live effects/clipping/blend
-  modes intact. This is the "23/40 objects survived" number; a resave Photoshop
-  refuses to open scores as rejected.
-- **Round-trip render** - Photoshop's render of the editor's resave vs the
-  original's render.
-- **Forced text re-render** - scriptable editors append `~TESTY~` to every text
-  layer so cached rasters cannot satisfy the render: Photoshop via COM
-  (`textItem.contents`), Patchy via `patchy.exe --append-text` (real inline-editor
-  sessions per layer). Mutated renders are compared within text-layer regions.
-  Krita 5.3 and Affinity re-render text on open by design, and GIMP's PSD import
-  keeps text layers as baked rasters, so none of them has a mutation leg. The detail panel shows the "render, text appended" pair only
-  for editors with the leg (Patchy; Photoshop's lives with the ground truth);
-  others state why it is absent (`TEXT_MUTATION_SKIPPED` in testy.py). Photopea's
-  mutation pass is deliberately disabled: its script engine hangs on contents
-  assignment for some documents and its DOM never matched text layers reliably.
-
-The Photoshop column doubles as a control: ~100% render accuracy and full native
-preservation validate the pipeline itself.
+Opens, render accuracy, the trap, data kept in the .psd save, the round-trip render,
+and the cache-free leg that scores an editor on what it
+draws itself: all in [testy-scoring.md](testy-scoring.md), with the reference-render
+rules and the "never mark an editor down for the harness's mistake" safeguards.
 
 ## Machine specifics (July 2026)
 
 - Photoshop 2026 via COM (`Photoshop.Application`); techniques per docs/ps-compat.md.
   The driver opens each file once per probe: manifest walk (DOM + ActionManager by
   layer id), duplicate-flatten-save render (copy-merged fallback for damaged files),
-  optional save-as-copy resave, optional text mutation + second render.
-- Krita 5.3.2 headless CLI: `krita.com <in> --export --export-filename <out>` (format
-  by extension; PSD export works). Its console shim prints nothing through pipes;
-  success is exit code + output existence (Fontconfig warnings are filtered out of
-  reported errors).
+  optional save-as-copy resave.
+- Krita 5.3.2 runs its own Python: `kritarunner.com -s testy_krita_export -f main <in>
+  <out> <report>`, started in `drivers/krita_scripts/` (kritarunner replaces PYTHONPATH,
+  so the module is found through the working directory). The script opens the file,
+  polls the projection until two reads match, then exports (format by extension) and
+  writes its verdict to the report file. The plain CLI (`krita.com <in> --export
+  --export-filename <out>`) exports before fill and vector layers are drawn: the same
+  PSD came out drawn on one run and blank on the next, which scored Krita far below
+  what it does. It remains only as the fallback when the script leaves no verdict.
+  Krita's font matching still varies between launches (Arial Black on one, a fallback
+  face on the next), so a PNG render is made twice, a third time if those differ, and
+  the most common picture is kept with a driver note on the cell.
 - PhotoDemon runs as a locally patched build; the stock app has no automation
   surface (its command line only loads files into the GUI). The patch lives in a
   PhotoDemon checkout next to this repository (`../PhotoDemon`, BSD-licensed): a
@@ -238,10 +232,10 @@ preservation validate the pipeline itself.
   next to the `App\` folder or PhotoDemon refuses to start. Editor discovery
   deliberately ignores stock install locations (a stock build would open its GUI and
   burn the cell timeout); only the sibling checkout or an explicit `photodemon` path
-  in config.local.json is used. PhotoDemon keeps text layers editable on PSD import,
-  but with no scripting there is no mutation leg. CLI mode disables PhotoDemon's
-  ExifTool plugin (Testy does not measure metadata, and its async pipe once wedged
-  an export after the .psd was fully written). Related defenses: every CLI driver
+  in config.local.json is used. PhotoDemon imports every PSD layer as plain
+  pixels (pdPSD.cls creates `PDL_Image` only and never reads `TySh`), so there is no
+  text to mutate. CLI mode disables PhotoDemon's
+  ExifTool plugin (Testy does not measure metadata). Related defenses: every CLI driver
   (PhotoDemon, Krita, GIMP) spawns its editor inside
   `drivers/winproc.suppressed_error_dialogs()` so Windows Error Reporting dialogs
   cannot hold a crashed editor open, and the PhotoDemon driver judges a leg by its
@@ -303,8 +297,8 @@ preservation validate the pipeline itself.
   engine so EVERY `app.open` returns error 8000 ("open options are incorrect")
   regardless of file, until a restart. On any probe failure the driver fully
   restarts Photoshop (Quit, wait, taskkill what remains, relaunch) and retries
-  once; a wedge costs one ~35s restart. A hang watchdog force-kills Photoshop when
-  a script blocks past 120s (a stuck modal). Failed cells and cells scored without
+  once. A hang watchdog force-kills Photoshop when
+  a script blocks past 120s. Failed cells and cells scored without
   ground truth are never cached, so re-runs retry them.
 - Never force-kill Photoshop while it is quitting: it saves preferences on the way
   out, and a kill inside that write truncates them, after which every launch dies
@@ -326,10 +320,7 @@ preservation validate the pipeline itself.
   `python testy\drivers\photoshop.py --selftest` pins the classification, wording,
   give-up rule, and what a restart may kill; no Photoshop needed.
 - A file that fails scripted open even on a freshly restarted engine (with a
-  passing control immediately before) is genuinely bad, not a wedge. The one such
-  corpus file, `akiko_cycling_okinawa_with_filters.psd`, was confirmed bad in the
-  Photoshop UI and deleted; the `smart_objects_warp` core test that used it now
-  [SKIP]s on the missing fixture.
+  passing control immediately before) is genuinely bad, not a wedge.
 - Runs fail fast: the Photopea driver aborts when the host page's step log stalls
   for 45s, and the orchestrator trips a per-editor circuit breaker after 3
   consecutive failed cells (remaining cells report "skipped"). Only failures OF
@@ -346,8 +337,7 @@ preservation validate the pipeline itself.
   and `testy/affinity_js.py` speaks it directly with the standard library (no AI,
   no tokens). One execute_script call per document runs Document.load plus
   doc.export for both legs (PNG render, then the "PSD (preserve editability)"
-  preset; preset names resolve by enumeration with a prefix fallback). Typical
-  cell: under 3s even for a 40 MB PSD.
+  preset; preset names resolve by enumeration with a prefix fallback).
 - Affinity JS constraints (verified on 3.2.3.4646): the server demands MCP
   protocol "2025-11-25" and a per-session read of its "preamble" documentation
   topic before execute_script works (affinity_js handles both); scripts may only
@@ -358,13 +348,11 @@ preservation validate the pipeline itself.
   RESETS them, so connecting retries until a session survives a prime-pause-ping
   sequence. NOT_ALLOWED means the user restricted scripting/filesystem access in
   the app's settings; a load refusal (INAPPROPRIATE_FILE_TYPE_OR_FORMAT) is
-  Affinity's own import rejecting the file and scores honestly as opens=fail
-  (vectors_overlay_stroke.psd is such a file; the UI refuses it too).
+  Affinity's own import rejecting the file and scores honestly as opens=fail.
 - Affinity staging I/O rides through `_retry_locked`, which waits out transient
   Windows sharing violations (up to ~2s) on every staged-file unlink, copy, and
   move: Affinity can briefly hold a just-loaded document's handle and antivirus
-  scans grab fresh Desktop copies. Cleanup is non-fatal (a finally-block unlink
-  failure once replaced a cell's real result); a stubbornly locked file is left
+  scans grab fresh Desktop copies. Cleanup is non-fatal; a stubbornly locked file is left
   for the next cell's staging retry or cleanup()'s rmtree.
 - Affinity lifecycle: Document.close is NOT_IMPLEMENTED on Windows, so opened
   documents pile up as tabs; an instance the driver launched restarts after 10
@@ -383,11 +371,14 @@ preservation validate the pipeline itself.
 testy/
   testy.py           orchestrator + dashboard server
   config.py          editor discovery + versions
-  staging.py         run-dir copies + trap generation
-  psd_sections.py    minimal PSD/PSB section walker (trap patching only)
+  staging.py         run-dir copies: trap, cache-stripped and plain variants
+  psd_sections.py    minimal PSD/PSB section walker (trap patching, cache stripping)
   analyze.py         render metrics, sentinel detection, heatmaps (--selftest included)
+  fonts.py           installed font files by PostScript name (handed to Photopea)
   manifest.py        original-vs-resave structural diff
   report.py          status.json + live report.html + history
+  rerun.py           one-image updates and previous-result snapshots
+  export_static.py   one finished run as a folder a plain web host can serve
   affinity_js.py     MCP/JS client for the Affinity app (also reused by .af tooling)
   win_dialogs.py     modal-dialog guard for scripted apps (--selftest included)
   drivers/           one per editor: photoshop (COM, --selftest included), patchy,
@@ -404,10 +395,7 @@ runs" table reads it for the over-time view.
 
 ## Patchy CLI automation (product side)
 
-Testy drives Patchy through product flags added for it (src/app/main.cpp):
-`patchy.exe <in> --export <out>` opens a file, saves it to `<out>` (format by
-extension) and exits unattended (single-instance opt-out, prompts suppressed,
-recent files/folders updated); set `PATCHY_SETTINGS_DIR` to isolate automation
-history from the artist's settings. `--append-text <s>` first appends `<s>` to every text
-layer through real editor sessions so rasters re-render through the text pipeline.
-Pinned by the `ui_cli_append_text_rerenders_and_roundtrips` visual test.
+`patchy.exe <in> --export <out>` saves and exits unattended; set
+`PATCHY_SETTINGS_DIR` to isolate history/settings. `--append-text <s>` edits every
+text layer before export, pinned by `ui_cli_append_text_rerenders_and_roundtrips`.
+Flags live in `src/app/main.cpp`; see [scripting.md](scripting.md).

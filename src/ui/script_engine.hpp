@@ -5,12 +5,14 @@
 #include <QJsonValue>
 #include <QImage>
 #include "ui/script_stroke.hpp"
+#include "ui/text_paragraph_metrics.hpp"
 
 #include "core/document.hpp"
 #include "core/layer.hpp"
 #include "core/layer_alignment.hpp"
 
 #include <QColor>
+#include <QSize>
 #include <QElapsedTimer>
 #include <QFont>
 #include <QImage>
@@ -23,6 +25,7 @@
 #include <QString>
 #include <QStringList>
 
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -100,6 +103,7 @@ private:
 // hold session ids + LayerIds, never pointers (sessions close and the layers
 // vector reallocates). See docs/scripting.md.
 struct PdfExportOptions;
+struct ImageSaveOptions;
 
 class ScriptEngineHost : public QObject {
   Q_OBJECT
@@ -181,6 +185,8 @@ public:
   std::int64_t open_document_file(const QString& path);  // 0 on failure
   std::int64_t create_document(int width, int height);
   bool save_session_to_path(std::int64_t session_id, const QString& path);
+  bool export_session_animated_webp(std::int64_t session_id, const QString& path,
+                                    const ImageSaveOptions& options, QString* error);
   // app.exportPdf: the sessions as the pages of one PDF, in order. False with *error
   // set when a session is gone or the writer refuses.
   bool export_sessions_to_pdf(const std::vector<std::int64_t>& session_ids, const QString& path,
@@ -193,6 +199,51 @@ public:
   // set on refusal; the target's undo rides this run's snapshot.
   std::vector<LayerId> duplicate_layers_to_session(std::int64_t source_session_id, std::vector<LayerId> ids,
                                                    std::int64_t target_session_id, QString* error);
+  // doc.importFilesAsLayers(paths): every file becomes a layer above the
+  // active layer (MainWindow::add_files_as_layers). All or nothing: a file that
+  // cannot be read leaves the document untouched with *error set. Returns the
+  // new root ids top to bottom; the mutation rides this run's snapshot.
+  std::vector<LayerId> import_files_as_layers(std::int64_t session_id, const QStringList& paths, QString* error);
+  // doc.addSmartObject(path, options): the file becomes a smart-object layer on
+  // top (MainWindow::place_file_as_smart_object), embedded or linked. nullopt with
+  // *error set on refusal (an empty *error means the run was stopped). The
+  // mutation rides this run's snapshot.
+  struct SmartObjectParams {
+    bool linked{false};
+    std::optional<double> x;
+    std::optional<double> y;
+    std::optional<double> width;
+    std::optional<double> height;
+    std::optional<double> scale;
+    QString name;
+  };
+  std::optional<LayerId> add_smart_object(std::int64_t session_id, const QString& path,
+                                          const SmartObjectParams& params, QString* error);
+  // layer.updateSmartObject(): Update Smart Object Content for a linked layer.
+  // Returns how many layers were re-rendered (every layer sharing the source); 0
+  // with *error set on refusal.
+  int update_smart_object(std::int64_t session_id, LayerId layer_id, QString* error);
+  // layer.rerenderSmartObject(): the embedded counterpart, rendering from the stored bytes.
+  int rerender_smart_object(std::int64_t session_id, LayerId layer_id, QString* error);
+  // layer.getSmartObject(): nullopt for layers that are not smart objects.
+  struct SmartObjectInfo {
+    bool linked{false};
+    QString file_name;
+    QString path;           // linked: the resolved file, or the stored absolute path when missing
+    QString relative_path;  // linked: the stored path relative to the document's folder
+    bool missing{false};
+    bool changed{false};
+    QString source_id;
+    double width{0.0};
+    double height{0.0};
+    double resolution{72.0};
+    std::array<double, 8> quad{};
+  };
+  [[nodiscard]] std::optional<SmartObjectInfo> smart_object_info(std::int64_t session_id, LayerId layer_id) const;
+  // layer.moveTo on a smart object with a supported Smart Filter stack: the
+  // stack renders in document space, so the layer re-renders at its new place
+  // (the Move tool's commit rule). False when the render failed.
+  bool rerender_moved_smart_filters(std::int64_t session_id, LayerId layer_id);
 
   // Undo integration: the FIRST mutation a run makes to a session pushes one
   // "Script: <name>" snapshot; later mutations in the same run ride it, so the
@@ -240,8 +291,8 @@ public:
   // layer must be the document's active layer. The pixel edit rides this
   // run's undo snapshot. False (with a JS error thrown) on refusal.
   bool remove_object_in_selection(std::int64_t session_id, LayerId layer_id, bool content_aware, int attempt,
-                                  bool* used_content_aware, int* source, int* source_count,
-                                  std::int64_t* patches);
+                                  int tone_match, int feather, bool* used_content_aware, int* source,
+                                  int* source_count, std::int64_t* patches, int* attempt_used);
   // Layer > Arrange > Align / Distribute over `root_ids` (empty = the
   // session's layer selection) through its canvas, riding this run's undo
   // snapshot. Returns the number of layers moved; -1 with a JS error thrown
@@ -252,8 +303,19 @@ public:
 
   // Text layers, driven through the real inline-editor pipeline (the
   // cli_append_text_to_text_layers technique) so rasters render normally.
+  // One formatted run of a text layer. The layer-level values apply unless the run overrides
+  // them; `text` may contain "\n", which starts a new paragraph inside the same layer.
+  struct TextRunParams {
+    QString text;
+    QString family;               // empty = the layer's
+    double size_px{0.0};          // <= 0 = the layer's; document pixels
+    std::optional<bool> bold;
+    std::optional<bool> italic;
+    QColor color;                 // invalid = the layer's
+  };
   struct TextLayerParams {
     QString text;
+    std::vector<TextRunParams> runs;  // when non-empty, the layer's content instead of `text`
     QString family;      // empty = current default
     // Text height in DOCUMENT pixels (<= 0 = current default). The editor
     // font must be set in editor pixels (document px * canvas zoom); a
@@ -265,22 +327,72 @@ public:
     QPoint position{0, 0};
     QString orientation;  // "horizontal" / "vertical"; empty = horizontal
     QString direction;    // "auto" / "ltr" / "rtl"; empty = auto
+    QSize box;            // valid = a paragraph text box of that size at `position` (wrapping)
+    QString align;        // "left" / "center" / "right" / "justify"; empty = the default
+    TextParagraphMetrics paragraph;  // indents and spacing in document px; unset fields keep the defaults
+  };
+  // A stored run read back in text order (see text_layer_runs).
+  struct TextRunInfo {
+    QString text;
+    QString family;
+    QString style;   // the recorded face beyond bold/italic ("Black", "Demi"), or empty
+    double size{0.0};
+    bool bold{false};
+    bool italic{false};
+    QString color;   // #rrggbb
   };
   std::optional<LayerId> add_text_layer(std::int64_t session_id, const TextLayerParams& params);
   bool set_text_layer_text(std::int64_t session_id, LayerId layer_id, const QString& text);
+  // Replaces the layer's content with the runs, each typed in its own format on top of the
+  // first character's; the same hidden session `text` uses.
+  // `api` is the name font warnings are reported under ("layer.text" passes its own).
+  bool set_text_layer_runs(std::int64_t session_id, LayerId layer_id, const std::vector<TextRunParams>& runs,
+                           const char* api = "layer.setTextRuns");
+  // The layer's runs as stored (sizes in document pixels before any layer transform); a layer
+  // with no run data reports one run from its layer-level values.
+  [[nodiscard]] std::vector<TextRunInfo> text_layer_runs(std::int64_t session_id, LayerId layer_id) const;
+  // The paragraph text box size, invalid for point text.
+  [[nodiscard]] QSize text_layer_box(std::int64_t session_id, LayerId layer_id) const;
+  // The first paragraph's alignment name ("left" when nothing is recorded); the setter aligns
+  // every paragraph.
+  [[nodiscard]] QString text_layer_align(std::int64_t session_id, LayerId layer_id) const;
+  bool set_text_layer_align(std::int64_t session_id, LayerId layer_id, const QString& align);
+  // The first paragraph's indents and spacing in document pixels (every field set, 0 when
+  // nothing is recorded); the setter merges the given fields into every paragraph.
+  [[nodiscard]] TextParagraphMetrics text_layer_paragraph(std::int64_t session_id, LayerId layer_id) const;
+  bool set_text_layer_paragraph(std::int64_t session_id, LayerId layer_id, const TextParagraphMetrics& metrics);
   [[nodiscard]] QString text_layer_text(std::int64_t session_id, LayerId layer_id) const;
   // Vertical type and paragraph direction, through the same hidden session as `text`.
   [[nodiscard]] QString text_layer_orientation(std::int64_t session_id, LayerId layer_id) const;
   bool set_text_layer_orientation(std::int64_t session_id, LayerId layer_id, const QString& orientation);
   [[nodiscard]] QString text_layer_direction(std::int64_t session_id, LayerId layer_id) const;
+  // Lays the layer out again from its stored text and commits the result, changing nothing
+  // else: the pixels a PSD carried for the layer are replaced by Patchy's own render.
+  bool rerender_text_layer(std::int64_t session_id, LayerId layer_id);
+  // The layer's primary font family as stored (the requested name, even when it is not installed).
+  [[nodiscard]] QString text_layer_font(std::int64_t session_id, LayerId layer_id) const;
   bool set_text_layer_direction(std::int64_t session_id, LayerId layer_id, const QString& direction);
   [[nodiscard]] bool layer_is_text_layer(std::int64_t session_id, LayerId layer_id) const;
-  bool edit_text_layer_session(std::int64_t session_id, LayerId layer_id,
-                               const std::function<void(QTextEdit&)>& edit);
+  // Runs `edit` in a hidden text session and commits it. Afterwards the console gets a warning,
+  // under the name `api`, for every font the layer cannot be drawn in, including one the session
+  // had to substitute on the way in (an edit moves a missing family onto the face Qt draws it
+  // with, so the committed layer no longer names it). `requested_fonts` are the families the
+  // edit itself names, on top of the ones the layer already used.
+  bool edit_text_layer_session(std::int64_t session_id, LayerId layer_id, const char* api,
+                               const std::function<void(QTextEdit&)>& edit,
+                               const QStringList& requested_fonts = {});
 
   // Filter application onto a layer's pixel buffer by registry id.
   bool apply_filter_to_layer(std::int64_t session_id, LayerId layer_id, const QString& filter_id,
                              const QJSValue& params);
+  // Legacy Photoshop plug-in by identifier (patchy.plugins.list()), limited to
+  // the session's selection; the dialog is skipped for unattended runs.
+  bool apply_legacy_plugin_to_layer(std::int64_t session_id, LayerId layer_id, const QString& plugin_id,
+                                    bool show_dialog, const QString& capture_dialog_path = QString());
+  // The plug-in files the last scan saw, as script objects.
+  [[nodiscard]] QJSValue legacy_plugin_list();
+  // Rescans the plug-in folders (patchy.plugins.rescan / folders setter).
+  void rescan_legacy_plugins();
 
   // Interactive helpers (suppressed for unattended runs - CLI automation mode
   // or a forwarded --run-script: alert logs instead, prompt returns its
@@ -471,6 +583,8 @@ private:
   [[nodiscard]] QJSValue run_form_dialog(const QJSValue& spec, bool merge_args);
   void report_error(const QJSValue& error);
   void emit_message(MessageKind kind, const QString& text);
+  // Console warnings (never a dialog) for the fonts in `asked` the layer was not drawn in.
+  void report_text_fonts(const QString& api, std::int64_t session_id, LayerId layer_id, const QStringList& asked);
   [[nodiscard]] std::chrono::milliseconds watchdog_timeout() const;
   // True when interactive helpers must answer without UI: app-wide CLI
   // automation, or this run arrived via --run-script (forwarded included).

@@ -18,16 +18,21 @@ from __future__ import annotations
 import argparse
 import datetime as _dt
 import functools
+import hashlib
 import http.server
 import json
+import os
 import re
 import shutil
+import signal
 import socket
 import subprocess
 import sys
 import threading
 import time
 import traceback
+import types
+import uuid
 import webbrowser
 from pathlib import Path
 
@@ -37,6 +42,7 @@ import analyze
 import config
 import manifest as manifest_mod
 import report
+import rerun
 import staging
 from drivers import gimp as gimp_driver
 from drivers import krita as krita_driver
@@ -45,23 +51,92 @@ from drivers import photodemon as photodemon_driver
 from drivers.photoshop import PhotoshopDriver
 
 DEFAULT_SUFFIX = "~TESTY~"
+
+# Photoshop layer kinds whose pixels in a PSD are only a CACHE of something the layer
+# defines another way (text and fonts, a path and a fill, an embedded document), with
+# the label one gets in the scored render when the editor draws nothing for it once
+# the cache is gone. An editor that shows such a layer from the cache has not rendered
+# it, and a reader cannot tell; so these files are scored with the caches removed.
+CACHED_LAYER_LABELS = {
+    "TEXT": "Cannot render Photoshop text objects",
+    "SOLIDFILL": "Cannot render Photoshop shape or fill layers",
+    "GRADIENTFILL": "Cannot render Photoshop shape or fill layers",
+    "PATTERNFILL": "Cannot render Photoshop shape or fill layers",
+    "SMARTOBJECT": "Cannot render Photoshop smart objects",
+}
+
+# When a cached layer comes out blank once its cache is gone, is that the editor's
+# failure or the test's? A shape or fill layer without cached pixels is a state
+# Photoshop writes itself (16-bit files) and draws from the layer's data, so a blank
+# one is the editor's failure. A type layer or smart object without them is not:
+# Photoshop itself then shows nothing until the layer is edited, and an editor built
+# the same way would be misjudged. For those two kinds a blank layer counts against
+# the editor only when it is known to draw the kind from the layer's data on open (or
+# after Testy's scripted no-op edit), or known to have no engine for it at all.
+# Any other blank keeps the as-opened pixels and is reported as not measured.
+BLANK_IS_FAILURE = {
+    "patchy": ("TEXT", "SMARTOBJECT"),      # text after the scripted re-render (TEXT_CACHE_KEPT)
+    "affinity": ("TEXT", "SMARTOBJECT"),    # lays out and renders everything afresh
+    "krita": ("TEXT", "SMARTOBJECT"),       # converts text to its own on open; no smart objects
+    "gimp": ("TEXT", "SMARTOBJECT"),        # imports both as the pixels in the file
+    "psdtools": ("TEXT", "SMARTOBJECT"),    # no text engine, no smart-object renderer
+    "photopea": ("TEXT", "SMARTOBJECT"),    # smart objects on open; text after the scripted edit
+    # PhotoDemon's PSD importer (pdPSD.cls) creates every layer as PDL_Image and never
+    # reads the 'TySh' block, so a PSD type layer is only ever its cached pixels there.
+    "photodemon": ("TEXT", "SMARTOBJECT"),
+}
+NOT_MEASURED_REASON = {
+    "TEXT": "this editor may only lay text out after an edit made inside the app, which Testy cannot make",
+    "SMARTOBJECT": "this editor may only render a smart object after an edit made inside the app",
+}
+# Editors whose type layers and smart objects keep their cache in the copies they are
+# given, and are made to draw them by a script instead (the way Photoshop's own
+# reference is produced). Patchy, like Photoshop, shows the stored pixels until the
+# layer is edited and takes its placement from them, so with the cache gone its text
+# comes out small and misplaced and a smart object not at all, which says nothing
+# about its engines; drivers/patchy_text_afresh.js calls layer.rerenderText() and
+# layer.rerenderSmartObject() on each such layer. A layer the script did not reach is
+# reported as not measured.
+TEXT_CACHE_KEPT = {
+    "patchy": "Patchy's script could not re-render this layer",
+}
+# A stripped-copy render that differs from the as-opened one outside the cached layers
+# by more than this is not a render of the same document (a stale tab, a fallback):
+# the leg is then void and the cell stays scored as opened.
+NO_CACHE_OUTSIDE_LIMIT = 0.05
+# A box whose two renders differ in no more than this fraction of its pixels is unchanged.
+NO_CACHE_BOX_UNCHANGED = 0.005
+
+# What an editor's text-rendering score can honestly be based on. Merely opening a
+# PSD proves little: Photoshop, Patchy and others show the raster cached in the file
+# until the text changes. "forced" editors are scored on the forced re-render leg,
+# "open" editors lay text out afresh on every open so their plain render counts,
+# "replay" editors have no text engine at all, and "unmeasured" ones have one that
+# Testy cannot drive. The report ranks only the first two and names the rest.
+TEXT_RENDER_BASIS = {
+    "patchy": ("open", "Patchy's text is laid out afresh by layer.rerenderText()"),
+    "krita": ("open", "Krita lays text out afresh on every open"),
+    "affinity": ("open", "Affinity lays text out afresh on every open"),
+    "gimp": ("replay", "GIMP imports PSD text layers as the rasters Photoshop cached"),
+    "psdtools": ("replay", "psd-tools has no text engine; it composites the rasters Photoshop cached"),
+    "photopea": ("open", "Photopea's text is laid out afresh by a scripted edit that changes nothing, "
+                         "with the document's fonts handed to it"),
+    "photodemon": ("replay", "PhotoDemon imports PSD text layers as the rasters Photoshop cached"),
+}
+# Help an editor gets from Testy for the text score, stated on the Standing card so the
+# number is read for what it is.
+TEXT_HELP_NOTES = {
+    "photopea": "Photopea is fed the correct fonts: it runs in a browser with only its own web fonts, "
+                "so Testy hands it this machine's font files for the fonts each document's text uses",
+}
 # Affinity is deliberately opt-in (--editors photoshop,patchy,krita,photopea,affinity):
 # its driver is background-UIA best-effort and the app's cold-start timing is flaky,
 # so default runs stay fast and reliable without it. (Aseprite was verified to have no
 # PSD I/O at all and removed from the roster entirely.)
 DEFAULT_EDITORS = ["photoshop", "patchy", "krita", "gimp", "photodemon", "photopea"]
-
-# Why an editor's cell has no forced text re-render leg (surfaced in the report's
-# detail panel so a missing "render, text appended" image reads as deliberate).
-# Photoshop and Patchy are the only editors whose text can be scripted; the
-# Photoshop leg lives with the ground truth rather than its own cell.
-TEXT_MUTATION_SKIPPED = {
-    "krita": "Krita re-renders text layers on open by design, so a forced re-render adds no signal",
-    "affinity": "Affinity re-renders text layers on open by design, so a forced re-render adds no signal",
-    "photopea": "deliberately disabled: Photopea's script engine hangs on text-contents assignment for some documents",
-    "gimp": "GIMP imports PSD text layers as baked rasters, so there is no text object to mutate",
-    "photodemon": "the patched /testy-export CLI cannot script text edits",
-}
+# psdtools is opt-in too: a Python PSD library, not an editor, measured for its layer
+# compositor and for what a load-then-save keeps (see drivers/psdtools.py).
+OPT_IN_EDITORS = ["affinity", "psdtools"]
 
 # The Patchy release-build refresh command comes from config.local.json
 # ("build_command"); without one, runs measure the existing patchy.exe as-is.
@@ -95,18 +170,78 @@ def refresh_patchy_build() -> bool:
     # One pre-quoted string, not an argv list: list2cmdline would escape the
     # command's inner quotes as \" which cmd.exe does not understand. With /s,
     # cmd strips exactly the outer quote pair added here.
+    # Keep configured build commands below normal priority and cap cmake's
+    # default parallelism. A batch file avoids nesting another quoted command.
+    command_file = config.REPO_ROOT / "build" / "testy-build.cmd"
+    command_file.parent.mkdir(parents=True, exist_ok=True)
+    command_file.write_text("@echo off\n" + config.BUILD_COMMAND + "\nexit /b %errorlevel%\n", encoding="utf-8")
     completed = subprocess.run(
-        'cmd /s /c "' + config.BUILD_COMMAND + '"', cwd=config.REPO_ROOT,
+        ["cmd", "/c", str(config.REPO_ROOT / "scripts/run-throttled.bat"), str(command_file)],
+        cwd=config.REPO_ROOT, env=dict(os.environ, CMAKE_BUILD_PARALLEL_LEVEL="20"),
         capture_output=True, text=True, timeout=1200,
     )
     output = (completed.stdout or "") + (completed.stderr or "")
     built = ("ninja: no work to do" in output) or ("Linking CXX executable" in output) or (
         "Building CXX object" in output
     )
-    if not built:
-        log("WARNING: build produced no compile/link evidence; patchy.exe may be stale")
+    if not built or completed.returncode != 0:
+        log(f"WARNING: build failed or produced no compile/link evidence (exit {completed.returncode})")
         log(output[-1500:])
-    return built
+    return built and completed.returncode == 0
+
+
+_patchy_build_keys: dict[tuple[str, int, int], str] = {}
+
+
+def patchy_build_key(exe: Path | None, git_fallback: str) -> str:
+    """What a cached Patchy cell is keyed on: the contents of patchy.exe itself.
+
+    The git commit used to stand in for it, which threw every Patchy cell away on
+    any commit, Testy-only ones included, while the binary had not changed (and
+    kept stale cells when the binary was rebuilt from an uncommitted tree). The
+    hash is remembered per (path, size, mtime), so a rebuild mid-run is noticed
+    without rehashing 40 MB for every cell."""
+    if exe is None:
+        return git_fallback
+    try:
+        stat = exe.stat()
+        memo = (str(exe), stat.st_size, stat.st_mtime_ns)
+        if memo not in _patchy_build_keys:
+            _patchy_build_keys[memo] = "exe-" + staging.sha1_of_file(exe)[:20]
+        return _patchy_build_keys[memo]
+    except OSError:
+        return git_fallback
+
+
+def artifact_dir_name(entry: dict) -> str:
+    """The files/<dir> name holding one corpus file's artifacts: its stem, unless
+    init_status had to disambiguate it (entry["dir"])."""
+    return entry.get("dir") or Path(entry["name"]).stem
+
+
+def unique_artifact_dirs(corpus: list[Path]) -> list[str | None]:
+    """Per corpus file, None when its stem is free, else a distinct directory name.
+
+    Two files with one stem (x.psd beside x.psb, or the same name in two folders)
+    would otherwise share files/<stem>/ and overwrite each other's artifacts. The
+    first keeps the plain stem, so runs without a clash look as they always did.
+    Compared case-insensitively: Windows directories are."""
+    taken: set[str] = set()
+    names: list[str | None] = []
+    for path in corpus:
+        candidate = path.stem
+        if candidate.lower() not in taken:
+            taken.add(candidate.lower())
+            names.append(None)
+            continue
+        candidate = f"{path.stem}~{path.suffix.lstrip('.').lower() or 'file'}"
+        counter = 2
+        while candidate.lower() in taken:
+            candidate = f"{path.stem}~{counter}"
+            counter += 1
+        taken.add(candidate.lower())
+        names.append(candidate)
+    return names
 
 
 def read_corpus_file(corpus_path: Path) -> list[Path]:
@@ -154,7 +289,9 @@ _child_run_started: _dt.datetime | None = None
 _child_run_dir: Path | None = None  # known for resumes, discovered for fresh starts
 _in_process_run_active = False
 _in_process_run_dir: Path | None = None
-_spawn_lock = threading.Lock()
+_spawn_lock = threading.RLock()
+_interrupt_requested = threading.Event()
+SHUTDOWN_FILE_ENV = "TESTY_SHUTDOWN_FILE"
 _status_cache: tuple[Path, float, dict] | None = None
 
 
@@ -273,7 +410,7 @@ def _resumable() -> dict | None:
 RUN_ROOT_FILES = ("report.html", "status.json", "status.json.tmp", "results.json",
                   "flagged.txt", PAUSE_FLAG)
 # Every editor subdirectory a run can create under files/<stem>/.
-KNOWN_CELL_DIRS = (*DEFAULT_EDITORS, "affinity")
+KNOWN_CELL_DIRS = (*DEFAULT_EDITORS, *OPT_IN_EDITORS)
 
 
 def _delete_run_dir(run_dir: Path) -> list[str]:
@@ -387,6 +524,18 @@ class TestyRequestHandler(http.server.SimpleHTTPRequestHandler):
         if path == "/testy-run-state":
             self._guarded(self._send_run_state)
             return
+        if path == "/testy-rerun-state":
+            self._guarded(self._send_rerun_state)
+            return
+        if path.endswith("/report.html") and Path(self.translate_path(self.path)).is_file():
+            # Existing batches get current controls without rewriting their reports.
+            body = report._PAGE.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if path.endswith("/status.json"):
             self._guarded(self._send_status_json)
             return
@@ -423,7 +572,7 @@ class TestyRequestHandler(http.server.SimpleHTTPRequestHandler):
             {
                 "files": [str(f) for f in defaults if f.exists()],
                 "editors": DEFAULT_EDITORS,
-                "allEditors": [*DEFAULT_EDITORS, "affinity"],
+                "allEditors": [*DEFAULT_EDITORS, *OPT_IN_EDITORS],
             }
         )
 
@@ -434,24 +583,52 @@ class TestyRequestHandler(http.server.SimpleHTTPRequestHandler):
             "run": live.name if live is not None else None,
             "pausePending": bool(live is not None and (live / PAUSE_FLAG).exists()),
             "resumable": _resumable(),
+            "shuttingDown": self.server.stop_requested.is_set(),
+            "shutdownError": self.server.stop_error,
         })
+
+    def _send_rerun_state(self) -> None:
+        from urllib.parse import parse_qs, urlparse
+        name = parse_qs(urlparse(self.path).query).get("run", [""])[0]
+        try:
+            target = rerun.run_path(config.RUNS_DIR, name)
+        except ValueError as error:
+            self._send_json({"errors": [str(error)]}, status=404)
+            return
+        path = target / rerun.STATE_FILE
+        state = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+        if state.get("state") == "running" and not _run_in_progress():
+            state.update(state="failed", error="Rerun interrupted; previous results kept.")
+        self._send_json(state)
 
     def do_POST(self):  # noqa: N802 - stdlib signature
         from urllib.parse import urlparse
 
         handler = {
+            "/testy-shutdown": self._shutdown,
             "/testy-start-run": self._start_run,
             "/testy-cancel-run": self._cancel_run,
             "/testy-pause-run": self._pause_run,
             "/testy-resume-run": self._resume_run,
             "/testy-delete-runs": self._delete_runs,
             "/testy-retest-file": self._retest_file,
+            "/testy-rerun-file": self._rerun_file,
             "/testy-upload": self._upload,
         }.get(urlparse(self.path).path)
         if handler is None:
             self.send_error(404)
             return
-        self._guarded(handler)
+        # Serialize shutdown with launches and other mutations. Uploads from the
+        # current cell must remain available until the child has finished.
+        with _spawn_lock:
+            if self.server.stop_requested.is_set() and handler not in (self._shutdown, self._upload):
+                self._send_json({"errors": ["Testy is shutting down"]}, status=409)
+                return
+            self._guarded(handler)
+
+    def _shutdown(self) -> None:
+        self.server.request_stop()
+        self._send_json({"shuttingDown": True}, status=202)
 
     def _upload(self) -> None:
         from urllib.parse import parse_qs, urlparse
@@ -490,15 +667,16 @@ class TestyRequestHandler(http.server.SimpleHTTPRequestHandler):
         global _child_run, _child_run_started, _child_run_dir
         log_path = config.RUNS_DIR / "last-child-run.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
-        log_file = open(log_path, "w", encoding="utf-8")
         _child_run_started = _dt.datetime.now()
         _child_run_dir = run_dir
-        _child_run = subprocess.Popen(
-            command,
-            stdout=log_file,
-            stderr=subprocess.STDOUT,
-            creationflags=subprocess.CREATE_NO_WINDOW,
-        )
+        # A server-owned signal reaches a child even before its status.json exists.
+        env = dict(os.environ, **{SHUTDOWN_FILE_ENV: str(self.server.stop_file),
+                                 "PYTHONIOENCODING": "utf-8"})
+        with open(log_path, "w", encoding="utf-8") as log_file:
+            _child_run = subprocess.Popen(
+                command, stdout=log_file, stderr=subprocess.STDOUT, env=env,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+            )
 
     def _start_run(self) -> None:
         if _run_in_progress():
@@ -520,7 +698,7 @@ class TestyRequestHandler(http.server.SimpleHTTPRequestHandler):
         skipped = []
         if not raw_files:
             errors.append("no PSD files given")
-        known_editors = {*DEFAULT_EDITORS, "affinity"}
+        known_editors = {*DEFAULT_EDITORS, *OPT_IN_EDITORS}
         for editor in editors:
             if editor not in known_editors:
                 errors.append(f"unknown editor: {editor}")
@@ -579,7 +757,7 @@ class TestyRequestHandler(http.server.SimpleHTTPRequestHandler):
         The typical use is checking whether a Patchy fix landed: the child run
         refreshes the Patchy build by default, the Photoshop ground truth and the
         other editors' cells come straight from the caches (fast), and the Patchy
-        cell re-measures because its cache key includes the git hash.
+        cell re-measures whenever the rebuilt patchy.exe differs (patchy_build_key).
         """
         if _run_in_progress():
             self._send_json({"errors": ["a run is already in progress"]}, status=409)
@@ -624,6 +802,38 @@ class TestyRequestHandler(http.server.SimpleHTTPRequestHandler):
             )
             self._spawn_child(command)
         self._send_json({"started": True})
+
+    def _rerun_file(self) -> None:
+        request = self._read_json_body()
+        if request is None:
+            return
+        with _spawn_lock:
+            if _run_in_progress():
+                self._send_json({"errors": ["a run is already in progress"]}, status=409)
+                return
+            try:
+                target = rerun.run_path(config.RUNS_DIR, str(request.get("run") or ""))
+                status = json.loads((target / "status.json").read_text(encoding="utf-8"))
+                scope = request.get("scope", "patchy")
+                if scope not in ("patchy", "all"):
+                    raise ValueError("unknown rerun scope")
+                editors = status["run"]["editorOrder"] if scope == "all" else ["patchy"]
+                job = rerun.prepare(config.RUNS_DIR, target.name, str(request.get("source") or ""), editors)
+            except ValueError as error:
+                self._send_json({"errors": [str(error)]}, status=400)
+                return
+            options = job["options"]
+            command = _child_run_command(
+                f"http://127.0.0.1:{self.server.server_address[1]}", [job["source"]], editors,
+                fresh=True, compare=options.get("compare", "strict"), suffix=options.get("suffix"))
+            command += ["--apply-to-run", target.name, "--expected-entry", job["expectedEntry"]]
+            rerun.note_state(config.RUNS_DIR, job, "running")
+            try:
+                self._spawn_child(command)
+            except Exception as error:
+                rerun.note_state(config.RUNS_DIR, job, "failed", error=str(error))
+                raise
+        self._send_json({"started": True, "run": target.name})
 
     def _pause_run(self) -> None:
         request = self._read_json_body()
@@ -781,8 +991,48 @@ class _ExclusiveHTTPServer(http.server.ThreadingHTTPServer):
     # clean OSError so the port scan moves on.
     allow_reuse_address = False
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.stop_requested = threading.Event()
+        self.stopped = threading.Event()
+        self.stop_error = ""
+        self.stop_file = config.RUNS_DIR / f".shutdown-{uuid.uuid4().hex}.flag"
 
-def start_server(port: int) -> tuple[http.server.ThreadingHTTPServer, int]:
+    def request_stop(self) -> None:
+        # Signal handlers only set an event: never take a lock while interrupting
+        # code that may already own it, or raise inside an editor/COM operation.
+        self.stop_requested.set()
+
+    def finish_stop(self) -> None:
+        self.stop_requested.wait()
+        log("shutting down: waiting for the current step to finish and checkpoint")
+        while True:
+            with _spawn_lock:
+                if not _run_in_progress():
+                    break
+                try:
+                    self.stop_file.parent.mkdir(parents=True, exist_ok=True)
+                    self.stop_file.touch()
+                    self.stop_error = ""
+                except OSError as error:
+                    self.stop_error = f"Could not request a checkpoint: {error}"
+            time.sleep(0.2)
+        self.shutdown()
+        self.server_close()
+        try:
+            self.stop_file.unlink(missing_ok=True)
+        except OSError as error:
+            log(f"could not remove shutdown signal: {error}")
+        log("Testy stopped; dashboard port released")
+        self.stopped.set()
+
+    def wait_until_stopped(self) -> None:
+        # Short waits let Windows deliver console signals to the main thread.
+        while not self.stopped.wait(0.2):
+            pass
+
+
+def start_server(port: int) -> tuple[_ExclusiveHTTPServer, int]:
     handler = functools.partial(TestyRequestHandler, directory=str(config.TESTY_ROOT))
     for candidate in range(port, port + 20):
         try:
@@ -791,7 +1041,8 @@ def start_server(port: int) -> tuple[http.server.ThreadingHTTPServer, int]:
             continue
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
-        return server, candidate
+        threading.Thread(target=server.finish_stop, daemon=True).start()
+        return server, server.server_address[1]
     raise RuntimeError("no free port found for the dashboard")
 
 
@@ -804,7 +1055,14 @@ def _thumb(source: Path, out: Path) -> str | None:
 
 
 def _version_slug(text: str) -> str:
-    return re.sub(r"[^A-Za-z0-9.@+-]+", "_", text)[:60]
+    """A cache directory name component for a version key. A key too long to keep
+    whole ends in a hash of all of it: plain truncation dropped the qualifiers at the
+    end of Patchy's key (exe hash, font inventory, then every "-nocacheN" style
+    bump), so its cells were reused across changes that should have retired them."""
+    slug = re.sub(r"[^A-Za-z0-9.@+-]+", "_", text)
+    if len(slug) <= 60:
+        return slug
+    return slug[:47] + "-" + hashlib.sha1(text.encode("utf-8")).hexdigest()[:12]
 
 
 def _file_size(path: Path) -> int | None:
@@ -815,11 +1073,78 @@ def _file_size(path: Path) -> int | None:
         return None
 
 
+def file_traits(path: Path) -> dict | None:
+    """What the report's "known limitations" switch keys on: the PSD header's bit
+    depth and color mode, and whether any layer carries artboard data. None for a
+    source that is gone or is not a PSD/PSB."""
+    try:
+        data = path.read_bytes()
+    except OSError:
+        return None
+    if len(data) < 26 or data[:4] != b"8BPS":
+        return None
+    traits = {"depth": int.from_bytes(data[22:24], "big"),
+              "mode": int.from_bytes(data[24:26], "big")}
+    # A type layer ('TySh' block): the Photoshop reference re-renders its text.
+    if b"8BIMTySh" in data or b"8B64TySh" in data:
+        traits["text"] = True
+    # An embedded smart object ('SoLd'): the reference re-renders it from its contents.
+    if b"8BIMSoLd" in data or b"8B64SoLd" in data:
+        traits["smart"] = True
+    # An embedded ICC profile (image resource 1039) that is not plain sRGB.
+    if b"8BIM\x04\x0f" in data and b"sRGB IEC61966" not in data:
+        traits["profile"] = True
+    # Artboard groups carry an 'artb' (or older 'artd') tagged block.
+    if any(signature + key in data for signature in (b"8BIM", b"8B64")
+           for key in (b"artb", b"artd")):
+        traits["artboards"] = True
+    return traits
+
+
+def refused_with_reference(entry: dict, cell: dict) -> bool:
+    """The editor refused a file Photoshop rendered: a zero for the render averages.
+    Harness failures (timeouts, a dead app, breaker skips) are not the editor's
+    verdict on the file and stay out, as does any file with no reference render."""
+    truth = entry.get("groundTruth") or {}
+    return (cell.get("opens") == "fail" and truth.get("state") == "done"
+            and bool((truth.get("artifacts") or {}).get("render")))
+
+
+def text_fonts_missing(truth: dict | None) -> str | None:
+    """Why no editor's own text render is scored for this file, or None: Photoshop
+    lacks a font the text needs, so it cannot draw the text faithfully either and the
+    baked pixels stay the reference. (Results cached before the appended-text leg
+    was retired carry the same reason as mutateSkipped.)"""
+    if not truth:
+        return None
+    reason = truth.get("textFontsMissing") or truth.get("mutateSkipped")
+    return reason if reason and "fonts unavailable" in reason else None
+
+
+def reference_space_key(traits: dict | None) -> str:
+    """Cache qualifier for files whose Photoshop reference changed: anything not plain
+    8-bit RGB or carrying a non-sRGB profile (the probe now saves 8-bit sRGB), and any
+    file with type layers (the probe now re-renders their text). Their ground truth
+    and every editor's cell are measured afresh; other files keep their caches."""
+    if not traits:
+        return ""
+    key = ""
+    if traits.get("depth", 8) != 8 or traits.get("mode", 3) != 3 or traits.get("profile"):
+        key += "-srgb1"
+    if traits.get("text"):
+        key += "-freshtext2"  # the reference re-renders text; its manifest lists every face used
+    if traits.get("smart"):
+        key += "-freshsmart1"  # and embedded smart objects from their contents
+    return key
+
+
 class Runner:
     def __init__(self, args: argparse.Namespace) -> None:
         global _in_process_run_dir
         self.args = args
+        self.server: _ExclusiveHTTPServer | None = None
         self.suffix = args.suffix
+        self._text_fonts: list[str] = []
         # Scan mode: files whose render stays within this bad-pixel fraction of the
         # Photoshop ground truth (and hit no failure of any kind) are "passed" and
         # their run artifacts are discarded. None = normal run, keep everything.
@@ -894,7 +1219,9 @@ class Runner:
                     "version": info.version,
                     "available": info.available,
                     "notes": info.notes,
-                    "mutationSkipped": TEXT_MUTATION_SKIPPED.get(key),
+                    "textBasis": TEXT_RENDER_BASIS.get(key, (None, None))[0],
+                    "textBasisNote": TEXT_RENDER_BASIS.get(key, (None, None))[1],
+                    "textHelpNote": TEXT_HELP_NOTES.get(key),
                 }
                 for key, info in self.editors.items()
             },
@@ -903,14 +1230,24 @@ class Runner:
                     "name": path.name,
                     "source": str(path),
                     "sizeBytes": _file_size(path),
+                    "traits": file_traits(path),
                     "groundTruth": {"state": "pending"},
                     "cells": {key: {"state": "pending"} for key in self.editor_order},
                 }
                 for path in corpus
             ],
         }
+        for entry, name in zip(self.status["files"], unique_artifact_dirs(corpus)):
+            if name:
+                entry["dir"] = name
         if self.scan_threshold is not None:
             self.status["run"]["scan"] = {"thresholdPct": self.scan_threshold * 100.0}
+        if getattr(self.args, "apply_to_run", None):
+            if len(corpus) != 1 or not self.args.expected_entry:
+                raise ValueError("applying a rerun requires one image and its original result digest")
+            self.status["run"]["rerunRequest"] = {
+                "target": self.args.apply_to_run, "source": str(corpus[0]),
+                "expectedEntry": self.args.expected_entry, "editors": self.editor_order}
         self.push()
 
     def push(self) -> None:
@@ -932,9 +1269,12 @@ class Runner:
 
     def ground_truth(self, index: int, staged: staging.StagedPsd) -> dict | None:
         entry = self.file_entry(index)
-        gt_dir = self.files_dir / Path(entry["name"]).stem / "_truth"
+        gt_dir = self.files_dir / artifact_dir_name(entry) / "_truth"
         gt_dir.mkdir(parents=True, exist_ok=True)
-        cache_dir = config.CACHE_DIR / f"gt-{staged.sha1}-{_version_slug(self.ps.version())}-{self.suffix}"
+        font_key = self.ps.font_cache_key()
+        cache_dir = config.CACHE_DIR / (
+            f"gt-{staged.sha1}-{_version_slug(self.ps.version())}-{self.suffix}-fontcheck1-{font_key}"
+            f"{reference_space_key(entry.get('traits'))}")
         result_path = cache_dir / "result.json"
 
         entry["groundTruth"] = {"state": "running", "stage": "Photoshop ground truth"}
@@ -942,22 +1282,19 @@ class Runner:
 
         if result_path.exists() and not self.args.fresh:
             result = json.loads(result_path.read_text(encoding="utf-8"))
-            for name in ("render.png", "mutated.png"):
-                if (cache_dir / name).exists():
-                    shutil.copyfile(cache_dir / name, gt_dir / name)
+            if (cache_dir / "render.png").exists():
+                shutil.copyfile(cache_dir / "render.png", gt_dir / "render.png")
         else:
-            result = self.ps.probe(
-                staged.original,
-                gt_dir / "render.png",
-                mutate_suffix=self.suffix,
-                mutated_png=gt_dir / "mutated.png",
-            )
+            result = self.ps.probe(staged.original, gt_dir / "render.png")
             if result.get("ok"):
                 cache_dir.mkdir(parents=True, exist_ok=True)
                 result_path.write_text(json.dumps(result), encoding="utf-8")
-                for name in ("render.png", "mutated.png"):
-                    if (gt_dir / name).exists():
-                        shutil.copyfile(gt_dir / name, cache_dir / name)
+                if (gt_dir / "render.png").exists():
+                    shutil.copyfile(gt_dir / "render.png", cache_dir / "render.png")
+        if result.get("ok"):
+            # (Ground truth cached before the appended-text leg was retired calls it
+            # mutateSkipped; only its missing-fonts reason still means anything.)
+            result["textFontsMissing"] = text_fonts_missing(result)
 
         if not result.get("ok"):
             entry["groundTruth"] = {"state": "failed", "error": result.get("error", "unknown")}
@@ -979,22 +1316,23 @@ class Runner:
 
         entry["docSize"] = [int(result["width"]), int(result["height"])]
         entry["layerCount"] = len(result["layers"])
+        entry["textLayers"] = sum(1 for layer in result["layers"] if layer.get("kind") == "TEXT")
+        # Layers whose stored pixels the cache-free leg removes: text, shapes, fills,
+        # smart objects, and the combined raster of a pixel mask plus a vector mask.
+        entry["cachedLayers"] = sum(1 for layer in result["layers"]
+                                    if layer.get("kind") in CACHED_LAYER_LABELS
+                                    or (layer.get("userMask") and layer.get("vectorMask")))
         artifacts = {}
         if (gt_dir / "render.png").exists():
             artifacts["render"] = self._rel(gt_dir / "render.png")
             thumb = _thumb(gt_dir / "render.png", gt_dir / "render_thumb.png")
             if thumb:
                 artifacts["renderThumb"] = self._rel(gt_dir / thumb)
-        if (gt_dir / "mutated.png").exists():
-            artifacts["mutated"] = self._rel(gt_dir / "mutated.png")
-            thumb = _thumb(gt_dir / "mutated.png", gt_dir / "mutated_thumb.png")
-            if thumb:
-                artifacts["mutatedThumb"] = self._rel(gt_dir / thumb)
         entry["groundTruth"] = {
             "state": "done",
             "render": result.get("render"),
-            "mutated": result.get("mutated"),
-            "mutateCount": result.get("mutateCount"),
+            "textFontsMissing": result.get("textFontsMissing"),
+            "missingFonts": result.get("missingFonts", []),
             "artifacts": artifacts,
         }
         # Alerts Photoshop raised while opening the file (the driver acknowledged
@@ -1016,11 +1354,14 @@ class Runner:
         entry = self.file_entry(index)
         cell = entry["cells"][editor_key]
         info = self.editors[editor_key]
-        cell_dir = self.files_dir / Path(entry["name"]).stem / editor_key
+        cell_dir = self.files_dir / artifact_dir_name(entry) / editor_key
         cell_dir.mkdir(parents=True, exist_ok=True)
 
         if not info.available:
-            cell.update({"state": "failed", "error": "editor not found on this machine"})
+            error = "editor not found on this machine"
+            if editor_key == "psdtools" and info.notes:
+                error = info.notes[0]  # names the missing Python packages
+            cell.update({"state": "failed", "error": error})
             self.push()
             return
 
@@ -1037,7 +1378,24 @@ class Runner:
             self.push()
             return
 
-        version_key = self.patchy_hash if editor_key == "patchy" else info.version
+        version_key = (patchy_build_key(info.exe, self.patchy_hash) if editor_key == "patchy"
+                       else info.version)
+        if editor_key == "patchy":
+            # Its forced-text pixels change when Photoshop's font environment
+            # changes too; older cells must not retain an unqualified text score.
+            version_key += "-fontcheck1-" + self.ps.font_cache_key()
+        if editor_key == "psdtools":
+            # Cells cached before the column had its load-and-save leg carry no
+            # "data kept" score; the qualifier keeps them from being reused.
+            version_key += "-resave1"
+        version_key += reference_space_key(entry.get("traits"))
+        if editor_key != "photoshop" and entry.get("cachedLayers"):
+            # Cells for files with cached layers are scored with those caches removed.
+            version_key += "-nocache11"
+        if editor_key == "krita":
+            version_key += "-settled1"  # exported through the script that waits for rendering
+        if editor_key == "photopea" and (entry.get("traits") or {}).get("text"):
+            version_key += "-fonts1"  # Photopea is now handed the fonts the text uses
         cache_dir = config.CACHE_DIR / (
             f"cell-{staged.sha1}-{editor_key}-{_version_slug(version_key)}-{self.suffix}"
         )
@@ -1050,21 +1408,27 @@ class Runner:
             cell.update(cached_cell)
             cell["cached"] = True
             self._upgrade_cached_metrics(entry, cell, cell_dir, cache_dir, staged, truth)
+            self._skip_unavailable_text_comparison(cell, truth)
             self.push()
             return
 
         cell.update({"state": "running", "stage": "opening + exporting"})
+        self._skip_unavailable_text_comparison(cell, truth)
         self.push()
 
         render_png = cell_dir / "render.png"
         resave_psd = cell_dir / "resave.psd"
         trap_png = cell_dir / "trap.png"
-        mutated_png = cell_dir / "mutated.png"
         artifacts: dict = {}
         cell["artifacts"] = artifacts
 
         try:
-            self._drive_editor(editor_key, info, staged, cell, render_png, resave_psd, trap_png, mutated_png)
+            # The fonts this file's text uses (PostScript names from Photoshop's
+            # manifest), for the one editor that has to be handed them: Photopea.
+            self._text_fonts = sorted({str(face) for layer in (truth or {}).get("layers", [])
+                                       if layer.get("kind") == "TEXT"
+                                       for face in (layer.get("fonts") or [layer.get("font")]) if face})
+            self._drive_editor(editor_key, info, staged, cell, render_png, resave_psd, trap_png)
         except Exception as error:
             cell.update({"state": "failed", "error": f"driver error: {error}"})
             self.push()
@@ -1074,10 +1438,13 @@ class Runner:
             self.push()
             return
 
+        self._no_cache_leg(entry, editor_key, info, staged, cell, cell_dir, render_png, truth)
+        if (cell_dir / "render_as_opened.png").exists():
+            artifacts["renderAsOpened"] = self._rel(cell_dir / "render_as_opened.png")
+
         for path, key, thumb_key in (
             (render_png, "render", "renderThumb"),
             (trap_png, "trap", "trapThumb"),
-            (mutated_png, "mutated", "mutatedThumb"),
         ):
             if path.exists():
                 artifacts[key] = self._rel(path)
@@ -1087,7 +1454,7 @@ class Runner:
         if resave_psd.exists():
             artifacts["resavePsd"] = self._rel(resave_psd)
 
-        truth_render = self.files_dir / Path(entry["name"]).stem / "_truth" / "render.png"
+        truth_render = self.files_dir / artifact_dir_name(entry) / "_truth" / "render.png"
         document_size = tuple(entry.get("docSize", (0, 0)))
 
         if truth is not None and render_png.exists() and truth_render.exists() and document_size[0]:
@@ -1098,16 +1465,10 @@ class Runner:
             )
             if (cell_dir / "heatmap.png").exists():
                 artifacts["heatmap"] = self._rel(cell_dir / "heatmap.png")
+            self._apply_text_render_rule(cell)
 
         if trap_png.exists():
             cell["trapSentinelFraction"] = round(analyze.sentinel_fraction(trap_png), 4)
-
-        truth_mutated = self.files_dir / Path(entry["name"]).stem / "_truth" / "mutated.png"
-        if mutated_png.exists() and truth_mutated.exists() and truth is not None and document_size[0]:
-            text_objects = [l for l in truth["layers"] if l.get("kind") == "TEXT"]
-            cell["textRender"] = analyze.compare_renders(
-                truth_mutated, mutated_png, document_size, text_objects, None
-            )
 
         if resave_psd.exists() and truth is not None:
             cell["stage"] = "reopening resave in Photoshop"
@@ -1141,6 +1502,7 @@ class Runner:
                     cell["resaveRejected"] = True
 
         cell["state"] = "done"
+        cell["profileAware"] = True
         cell.pop("stage", None)
         self.push()
 
@@ -1154,6 +1516,255 @@ class Runner:
                 self._write_cell_cache(cell_dir, cache_dir, cell)
             else:
                 self._deferred_cell_caches.setdefault(index, []).append((cell_dir, cache_dir, cell))
+
+    def _render_only(self, editor_key: str, info: config.EditorInfo, source: Path, output: Path,
+                     scratch_dir: Path, text_afresh: bool = False,
+                     rerender_text: bool = True) -> tuple[bool, dict]:
+        """One extra render of `source` by this editor, for the no-cache leg. Returns
+        (rendered, details); Photopea's and Patchy's details name the text layers
+        their scripted re-render did and did not reach. `text_afresh` asks for that
+        re-render where the copy still carries the text's cached pixels (Patchy)."""
+        if editor_key == "patchy" and text_afresh:
+            result = patchy_driver.render_text_afresh(info.exe, source, output, rerender_text=rerender_text)
+            return bool(result["ok"]), result
+        if editor_key == "patchy":
+            return bool(patchy_driver.export(info.exe, source, output)["ok"]), {}
+        if editor_key == "krita":
+            return bool(krita_driver.export(info.exe, source, output)["ok"]), {}
+        if editor_key == "gimp":
+            return bool(gimp_driver.export(info.exe, source, output)["ok"]), {}
+        if editor_key == "photodemon":
+            return bool(photodemon_driver.export(info.exe, source, output)["ok"]), {}
+        if editor_key == "psdtools":
+            from drivers import psdtools as psdtools_driver
+
+            return bool(psdtools_driver.export(source, output)["ok"]), {}
+        if editor_key == "photopea" and self.server_base is not None:
+            from drivers import photopea as photopea_driver
+
+            result = photopea_driver.render_text_afresh(self.server_base, config.TESTY_ROOT, source, output,
+                                                        text_fonts=self._text_fonts,
+                                                        rerender_text=rerender_text)
+            return bool(result.get("ok")) and output.exists(), result
+        if editor_key == "affinity":
+            from drivers import affinity as affinity_driver
+
+            result = affinity_driver.export_all(
+                info.exe, source, None, output, scratch_dir / "nocache_resave.psd",
+                scratch_dir / "nocache_unused.png")
+            return bool(result.get("ok")) and output.exists(), {}
+        return False, {}
+
+    def _no_cache_leg(self, entry: dict, editor_key: str, info: config.EditorInfo,
+                      staged: staging.StagedPsd, cell: dict, cell_dir: Path, render_png: Path,
+                      truth: dict | None) -> None:
+        """Score this editor on what it draws itself, not on Photoshop's cached pixels.
+
+        The editor renders the copy of the file whose cached text, shape, fill and
+        smart-object pixels were removed. That render replaces render.png as the one
+        that gets scored (the render of the file as opened is kept beside it as
+        render_as_opened.png). A cached layer the editor draws nothing for is found by
+        comparing with its render of the "plain" copy, where those layers are ordinary
+        empty pixel layers: no difference in the layer's box means the layer
+        contributed nothing. Such a layer is outlined and labeled in the scored image
+        when the blank is the editor's failure (see BLANK_IS_FAILURE); otherwise its
+        box keeps the as-opened pixels and the layer is reported as not measured.
+
+        The leg must never mark an editor down for the harness's own mistake, so the
+        cell stays scored as opened (noCache.state "not measured", with the reason)
+        whenever the extra renders cannot be trusted: the editor cannot open a copy,
+        a render comes back at another size, or it differs from the as-opened render
+        outside the cached layers, which only a different document would.
+
+        When Photoshop itself lacks a font the text needs, nobody can render that text
+        faithfully and its baked pixels stay the reference: the type layers keep their
+        cache (the *_fontkept copies), are not re-rendered, and are reported as not
+        measured, while shapes, fills, smart objects and masks are still scored."""
+        if (editor_key == "photoshop" or truth is None or staged.cache_stripped is None
+                or staged.cache_plain is None or not render_png.exists()):
+            return
+        fonts_missing = text_fonts_missing(truth)
+        cached = [layer for layer in truth["layers"]
+                  if layer.get("kind") in CACHED_LAYER_LABELS and layer.get("visible", True)
+                  and layer.get("bounds")]
+        font_kept_text: list[str] = []
+        if fonts_missing:
+            font_kept_text = [layer.get("name", "") for layer in cached if layer["kind"] == "TEXT"]
+            cached = [layer for layer in cached if layer["kind"] != "TEXT"]
+        # A layer with a pixel mask and a vector mask lost the stored combination of the
+        # two in these copies: the editor has to rasterize the vector mask itself, so
+        # its render may differ there too. Nothing is labeled; it is simply scored.
+        combined_masks = [layer["bounds"] for layer in truth["layers"]
+                          if layer.get("userMask") and layer.get("vectorMask") and layer.get("bounds")]
+        if not cached and not combined_masks:
+            return
+        stripped_copy, plain_copy = staged.cache_stripped, staged.cache_plain
+        text_kept = editor_key in TEXT_CACHE_KEPT
+        if text_kept:
+            # (A file whose only cached layers are text has no such copies: the
+            # original already is one.)
+            stripped_copy = staged.cache_stripped_text_kept or staged.original
+            plain_copy = staged.cache_plain_text_kept or staged.original
+        elif fonts_missing:
+            stripped_copy, plain_copy = staged.cache_stripped_font_kept, staged.cache_plain_font_kept
+            if stripped_copy is None or plain_copy is None:
+                return  # nothing but text was cached
+        cell["stage"] = "rendering without Photoshop's cached pixels"
+        self.push()
+        boxes = [layer["bounds"] for layer in cached]
+
+        def void(reason: str) -> None:
+            cell["noCache"] = {"state": "not measured", "reason": reason, "cachedLayers": len(cached)}
+            log(f"    no-cache leg not measured for {editor_key}: {reason}")
+
+        def render(source: Path, name: str, text_afresh: bool = False) -> tuple[Path | None, dict, str]:
+            """(render, driver details, why it cannot be trusted or "")."""
+            output = cell_dir / name
+            problem = ""
+            details: dict = {}
+            for _attempt in range(2):
+                try:
+                    output.unlink(missing_ok=True)
+                    ok, details = self._render_only(editor_key, info, source, output, cell_dir, text_afresh,
+                                                    rerender_text=not fonts_missing)
+                except Exception as error:
+                    ok = False
+                    details = {"error": str(error)}
+                for leftover in ("nocache_resave.psd", "nocache_unused.png"):
+                    try:
+                        (cell_dir / leftover).unlink()
+                    except OSError:
+                        pass
+                if not ok or not output.exists():
+                    problem = "the editor could not open the copy of this file with its caches removed"
+                    continue
+                outside = analyze.changed_outside_boxes(render_png, output, boxes + combined_masks)
+                if outside is None:
+                    problem = "its render of the cache-free copy came back at a different size"
+                elif outside > NO_CACHE_OUTSIDE_LIMIT and analyze.sentinel_fraction(output) < 0.5:
+                    problem = (f"its render of the cache-free copy differs from its normal render "
+                               f"outside the cached layers ({outside:.0%} of those pixels)")
+                else:
+                    return output, details, ""
+            return None, details, problem
+
+        try:
+            stripped_render, details, problem = render(stripped_copy, "nocache.png", text_afresh=text_kept)
+            if stripped_render is None:
+                void(problem)
+                return
+            # With no layer left that has pixels, some editors show the file's
+            # flattened image instead, which the copies replace with the sentinel.
+            showed_composite = (analyze.sentinel_fraction(stripped_render) >= 0.5
+                                and analyze.sentinel_fraction(render_png) < 0.5)
+            opened_vs_stripped = analyze.boxes_changed(render_png, stripped_render, boxes) or []
+            blank: list[int] = []
+            if showed_composite:
+                blank = list(range(len(cached)))
+            elif any(fraction > NO_CACHE_BOX_UNCHANGED for fraction in opened_vs_stripped):
+                # (Identical to the as-opened render in every box means every layer
+                # was drawn the same way either way: nothing to find.)
+                plain_render, _plain_details, problem = render(plain_copy, "nocache_plain.png")
+                if plain_render is None:
+                    void(problem)
+                    return
+                contributed = analyze.boxes_changed(plain_render, stripped_render, boxes) or []
+                # Blank: nothing drawn for the layer, and that is a visible loss (a
+                # layer nobody can see in the as-opened render is no finding).
+                blank = [index for index, fraction in enumerate(contributed)
+                         if 0 <= fraction <= NO_CACHE_BOX_UNCHANGED
+                         and opened_vs_stripped[index] > NO_CACHE_BOX_UNCHANGED]
+
+            failures = BLANK_IS_FAILURE.get(editor_key, ())
+            unreached: set[tuple[str, str]] = set()
+            if editor_key == "photopea" or text_kept:
+                scripted = ("TEXT", "SMARTOBJECT") if text_kept else ("TEXT",)
+                unreached = {("TEXT", name) for name in details.get("failed") or []}
+                unreached |= {("SMARTOBJECT", name) for name in details.get("smartFailed") or []}
+                if details.get("error"):
+                    unreached = {(layer["kind"], layer.get("name", "")) for layer in cached
+                                 if layer["kind"] in scripted}
+            unreached_reason = TEXT_CACHE_KEPT.get(
+                editor_key, "Photopea's scripted edit did not reach this text layer")
+            failed: list[int] = []
+            unmeasured: list[int] = []
+            reasons: list[str] = []
+            for index, layer in enumerate(cached):
+                kind = layer["kind"]
+                if (kind, layer.get("name", "")) in unreached:
+                    # Never edited, so the editor never drew it: blank or not, the
+                    # box says nothing about its engine.
+                    unmeasured.append(index)
+                    reasons.append(unreached_reason)
+                elif index not in blank:
+                    continue
+                elif kind in NOT_MEASURED_REASON and kind not in failures:
+                    unmeasured.append(index)
+                    reasons.append(NOT_MEASURED_REASON[kind])
+                else:
+                    failed.append(index)
+            opened_copy = cell_dir / "render_as_opened.png"
+            shutil.copyfile(render_png, opened_copy)
+            analyze.compose_scored_render(
+                render_png, opened_copy if showed_composite else stripped_render,
+                [(cached[index]["bounds"], CACHED_LAYER_LABELS[cached[index]["kind"]]) for index in failed],
+                opened_copy, [cached[index]["bounds"] for index in unmeasured],
+                clear_placeholders=showed_composite)
+            cell["noCache"] = {
+                "state": "done", "cachedLayers": len(cached) + len(font_kept_text),
+                "notRendered": [cached[index].get("name", "") for index in failed],
+                "notMeasured": [cached[index].get("name", "") for index in unmeasured] + font_kept_text,
+            }
+            if font_kept_text:
+                reasons.append(f"Photoshop lacks a font this text needs, so its baked pixels stay ({fonts_missing})")
+            text_failed = [cached[index].get("name", "") for index in failed
+                           if cached[index]["kind"] == "TEXT"]
+            if text_failed:
+                cell["noCache"]["textNotRendered"] = text_failed
+            if showed_composite:
+                cell["noCache"]["showedComposite"] = True
+            if unmeasured or font_kept_text:
+                cell["noCache"]["notMeasuredReason"] = reasons[0]
+            if failed:
+                log(f"    no-cache leg: draws nothing for {len(failed)} of {len(cached)} cached layer(s)")
+        except Exception as error:
+            void(f"harness error: {str(error)[:200]}")
+
+    @staticmethod
+    def _apply_text_render_rule(cell: dict) -> bool:
+        """An editor that cannot render a Photoshop text object (it can only show the
+        pixels Photoshop cached in the file) scores 0% for the file's render, whatever
+        the rest of the picture looks like. The measured numbers stay under
+        renderMetrics.measured; renderMetrics.textNotRendered names the layers.
+        Returns True when it changed the cell."""
+        names = (cell.get("noCache") or {}).get("textNotRendered")
+        metrics = cell.get("renderMetrics")
+        if not names or not metrics or "textNotRendered" in metrics:
+            return False
+        perceptual = metrics.get("perceptual") or {}
+        metrics["measured"] = {
+            "accuracy": metrics.get("accuracy"), "badFraction": metrics.get("badFraction"),
+            "perceptualAccuracy": perceptual.get("accuracy"),
+            "perceptualBadFraction": perceptual.get("badFraction"),
+        }
+        metrics["accuracy"], metrics["badFraction"] = 0.0, 1.0
+        if perceptual:
+            perceptual["accuracy"], perceptual["badFraction"] = 0.0, 1.0
+        metrics["textNotRendered"] = list(names)
+        return True
+
+    @staticmethod
+    def _skip_unavailable_text_comparison(cell: dict, truth: dict | None) -> None:
+        """Note on the cell when Photoshop lacks a font the file's text needs (no
+        editor's own text render is scored then), and drop what a cell cached before
+        the appended-text leg was retired still carries from it."""
+        missing = text_fonts_missing(truth)
+        if missing:
+            cell["textRenderSkipped"] = missing
+        cell.pop("textRender", None)
+        cell.pop("mutateError", None)
+        for key in ("mutated", "mutatedThumb"):
+            (cell.get("artifacts") or {}).pop(key, None)
 
     def _upgrade_cached_metrics(
         self, entry: dict, cell: dict, cell_dir: Path, cache_dir: Path,
@@ -1172,7 +1783,7 @@ class Runner:
         changed = False
         metrics = cell.get("renderMetrics")
         if metrics and "perceptual" not in metrics and truth is not None:
-            truth_render = self.files_dir / Path(entry["name"]).stem / "_truth" / "render.png"
+            truth_render = self.files_dir / artifact_dir_name(entry) / "_truth" / "render.png"
             render_png = cell_dir / "render.png"
             document_size = tuple(entry.get("docSize", (0, 0)))
             if truth_render.exists() and render_png.exists() and document_size and document_size[0]:
@@ -1181,6 +1792,39 @@ class Runner:
                     truth_render, render_png, document_size, truth["layers"], None
                 )
                 changed = True
+        if not cell.get("profileAware"):
+            # Cells scored before the comparison honored embedded ICC profiles: only a
+            # render that carries one can have changed, so only those are re-scored.
+            cell["profileAware"] = True
+            changed = True
+            truth_render = self.files_dir / artifact_dir_name(entry) / "_truth" / "render.png"
+            render_png = cell_dir / "render.png"
+            document_size = tuple(entry.get("docSize", (0, 0)))
+            if (truth is not None and cell.get("renderMetrics") and truth_render.exists()
+                    and render_png.exists() and document_size and document_size[0]
+                    and analyze.has_embedded_profile(render_png)):
+                log("    re-scoring a cached render that carries an ICC profile")
+                cell["renderMetrics"] = analyze.compare_renders(
+                    truth_render, render_png, document_size, truth["layers"], None
+                )
+        # Cells compared under older layer-pairing rules: compare again from the stored
+        # manifest of the resave (no editor or Photoshop run needed).
+        native = cell.get("native")
+        stored = cell_dir / "roundtrip_manifest.json"
+        if (truth is not None and isinstance(native, dict) and "nativeScore" in native
+                and native.get("matching") != manifest_mod.MATCHING_VERSION and stored.exists()):
+            try:
+                resaved_layers = json.loads(stored.read_text(encoding="utf-8"))
+                cell["native"] = manifest_mod.compare_manifests(truth["layers"], resaved_layers)
+                changed = True
+            except (OSError, ValueError):
+                pass
+        # Cells cached before the two text rules (no text saved as text, no text
+        # rendered: 0% for that score) are brought up to date in place.
+        if manifest_mod.apply_text_save_rule(cell.get("native")):
+            changed = True
+        if self._apply_text_render_rule(cell):
+            changed = True
         if staged.trap is None and (
             "trapSentinelFraction" in cell or "trapError" in cell
         ):
@@ -1225,7 +1869,6 @@ class Runner:
         render_png: Path,
         resave_psd: Path,
         trap_png: Path,
-        mutated_png: Path,
     ) -> None:
         if editor_key == "photoshop":
             result = self.ps.probe(staged.original, render_png, resave_psd=resave_psd)
@@ -1261,9 +1904,6 @@ class Runner:
                 cell["resaveError"] = patchy_driver.failure_text(resaved)
             if staged.trap is not None:
                 patchy_driver.export(info.exe, staged.trap, trap_png)
-            mutated = patchy_driver.export(info.exe, staged.original, mutated_png, append_text=self.suffix)
-            if not mutated["ok"]:
-                cell["mutateError"] = patchy_driver.failure_text(mutated)
             return
 
         if editor_key == "krita":
@@ -1282,6 +1922,10 @@ class Runner:
             if not resaved["ok"]:
                 detail = resaved["stderr"] or f"exit {resaved['exitCode']}, no output"
                 cell["resaveError"] = f"opened, but Krita's PSD export failed ({detail})"
+            krita_notes = list(exported.get("notes") or []) + [
+                f"resave: {note}" for note in resaved.get("notes") or []]
+            if krita_notes:
+                cell["driverNotes"] = krita_notes
             if staged.trap is not None:
                 krita_driver.export(info.exe, staged.trap, trap_png)
             return
@@ -1351,9 +1995,8 @@ class Runner:
                 render_png=render_png,
                 resave_psd=resave_psd,
                 trap_png=trap_png,
-                mutated_png=mutated_png,
-                suffix=self.suffix,
                 progress=lambda stage: (cell.__setitem__("stage", stage), self.push()),
+                text_fonts=self._text_fonts,
             )
             if not result["ok"]:
                 cell.update({"state": "failed", "opens": result.get("opens", "fail"),
@@ -1385,6 +2028,29 @@ class Runner:
                 cell["uncacheable"] = True
             return
 
+        if editor_key == "psdtools":
+            from drivers import psdtools as psdtools_driver
+
+            exported = psdtools_driver.export(staged.original, render_png)
+            if exported["note"]:
+                cell["driverNotes"] = [f"render: {exported['note']}"]
+            if not exported["ok"]:
+                detail = exported["stderr"] or f"exit {exported['exitCode']}, no output"
+                cell.update({"state": "failed", "opens": "fail",
+                             "error": f"psd-tools could not render the PSD ({detail})"})
+                self._note_file_rejection(cell, exported)
+                return
+            cell["opens"] = "ok"
+            resaved = psdtools_driver.export(staged.original, resave_psd)
+            if not resaved["ok"]:
+                detail = resaved["stderr"] or f"exit {resaved['exitCode']}, no output"
+                cell["resaveError"] = f"opened, but psd-tools could not save the PSD ({detail})"
+            # The trap leg checks the driver's one promise: force=True really
+            # composites the layers instead of returning the baked preview.
+            if staged.trap is not None:
+                psdtools_driver.export(staged.trap, trap_png)
+            return
+
         cell.update({"state": "failed", "error": f"no driver for editor '{editor_key}'"})
 
     # ---------- scan mode ----------
@@ -1393,11 +2059,17 @@ class Runner:
     # cleanup deletes ONLY these names, one by one, and removes directories with
     # rmdir (which refuses non-empty ones) - never a wildcard, glob, or recursive
     # delete - so anything unexpected inside a run directory survives and is logged.
-    SCRUB_STAGED = ("original.psd", "original.psb", "trap.psd", "trap.psb")
+    SCRUB_STAGED = ("original.psd", "original.psb", "trap.psd", "trap.psb",
+                    "nocache.psd", "nocache.psb", "nocache_plain.psd", "nocache_plain.psb",
+                    "nocache_textkept.psd", "nocache_textkept.psb",
+                    "nocache_fontkept.psd", "nocache_fontkept.psb",
+                    "nocache_plain_fontkept.psd", "nocache_plain_fontkept.psb",
+                    "nocache_plain_textkept.psd", "nocache_plain_textkept.psb")
     SCRUB_TRUTH = ("render.png", "render_thumb.png", "mutated.png", "mutated_thumb.png",
                    "manifest.json")
-    SCRUB_CELL = ("render.png", "render_thumb.png", "resave.psd", "trap.png",
-                  "trap_thumb.png", "mutated.png", "mutated_thumb.png", "heatmap.png",
+    SCRUB_CELL = ("render.png", "render_thumb.png", "render_as_opened.png", "nocache.png",
+                  "nocache_plain.png", "nocache_resave.psd", "nocache_unused.png", "resave.psd", "trap.png",
+                  "trap_thumb.png", "mutated.png", "mutated_thumb.png", "heatmap.png",  # mutated*: older runs
                   "roundtrip.png", "roundtrip_thumb.png", "roundtrip_manifest.json")
 
     def _apply_scan_policy(self, index: int) -> None:
@@ -1472,7 +2144,6 @@ class Runner:
                         f"{ps_sentinel * 100:.1f}%")
             for key, label in (
                 ("resaveError", "resave failed"),
-                ("mutateError", "text mutation failed"),
                 ("trapError", "trap render failed"),
             ):
                 if cell.get(key):
@@ -1484,7 +2155,7 @@ class Runner:
     def _scrub_passed_file(self, entry: dict) -> None:
         """Delete a passing file's artifacts by exact name; keep its metrics."""
         files_root = self.files_dir.resolve()
-        stem = Path(entry["name"]).stem
+        stem = artifact_dir_name(entry)
         file_dir = (self.files_dir / stem).resolve()
         if not stem or file_dir.parent != files_root or file_dir == files_root:
             log(f"scan: refusing to scrub unexpected path: {file_dir}")
@@ -1542,7 +2213,11 @@ class Runner:
     TERMINAL_CELL_STATES = ("done", "failed", "skipped", "unsupported")
 
     def _pause_requested(self) -> bool:
-        return (self.run_dir / PAUSE_FLAG).exists()
+        parent_stop = os.environ.get(SHUTDOWN_FILE_ENV)
+        return (_interrupt_requested.is_set()
+                or bool(self.server and self.server.stop_requested.is_set())
+                or bool(parent_stop and Path(parent_stop).exists())
+                or (self.run_dir / PAUSE_FLAG).exists())
 
     def _photoshop_unavailable_exit(self) -> int:
         """Photoshop stopped launching. Ground truth is the baseline every column is
@@ -1606,6 +2281,8 @@ class Runner:
             # per file fills them in, so a resume upgrades the whole report.
             if entry.get("sizeBytes") is None:
                 entry["sizeBytes"] = _file_size(Path(entry["source"]))
+            if "traits" not in entry:
+                entry["traits"] = file_traits(Path(entry["source"]))
         self.push()
 
     def _file_complete(self, entry: dict) -> bool:
@@ -1644,7 +2321,6 @@ class Runner:
         else:
             self.init_status(corpus)
 
-        server = None
         if self.args.server_url:
             # A controlling server (start-testy.bat's serve.py) already serves the testy
             # root and the upload endpoint; reuse it instead of binding a second port.
@@ -1652,6 +2328,7 @@ class Runner:
             log(f"dashboard: {self.server_base}/runs/{self.run_name}/report.html (parent server)")
         elif not self.args.no_serve:
             server, port = start_server(self.args.port)
+            self.server = server
             self.server_port = port
             self.server_base = f"http://127.0.0.1:{port}"
             url = f"{self.server_base}/runs/{self.run_name}/report.html"
@@ -1661,8 +2338,12 @@ class Runner:
         if not self.resume:  # a resumed run was indexed when it first started
             report.append_run_index(config.TESTY_ROOT, self.run_name)
 
+        if self._pause_requested():
+            return self._graceful_pause_exit()
+
         if not self.args.no_build and "patchy" in self.editor_order:
-            refresh_patchy_build()
+            if not refresh_patchy_build():
+                raise RuntimeError("Patchy build failed; previous results kept")
             self.patchy_hash = git_hash()
             self.editors = config.discover_editors(self.patchy_hash)
             info = self.editors["patchy"]
@@ -1711,7 +2392,7 @@ class Runner:
                 if self.scan_threshold is not None and "scan" not in entry:
                     self._apply_scan_policy(index)
                 continue
-            staged = staging.stage_psd(source, self.files_dir / source.stem / "_staged")
+            staged = staging.stage_psd(source, self.files_dir / artifact_dir_name(entry) / "_staged")
             entry["sha1"] = staged.sha1
             if staged.trap_error:
                 entry["trapError"] = staged.trap_error
@@ -1772,14 +2453,11 @@ class Runner:
         self.push()
         (self.run_dir / "results.json").write_text(json.dumps(self.status, indent=1), encoding="utf-8")
         report.append_history(config.TESTY_ROOT, self._history_summary())
+        if self.status["run"].get("rerunRequest"):
+            rerun.apply(config.RUNS_DIR, self.run_dir, self.status["run"]["rerunRequest"],
+                        summarize=self.summarize_status, scan_reasons=self.scan_reasons_for_status)
         self._print_summary()
 
-        if server is not None and not self.args.exit_when_done:
-            log("run complete - dashboard stays up; press Enter to quit")
-            try:
-                input()
-            except (EOFError, KeyboardInterrupt):
-                pass
         return 0
 
     def _aggregate(self) -> dict:
@@ -1803,6 +2481,11 @@ class Runner:
                     render_scores.append(metrics["accuracy"])
                     if metrics.get("perceptual"):
                         visual_scores.append(metrics["perceptual"]["accuracy"])
+                elif refused_with_reference(entry, cell):
+                    # A file the editor would not open scores zero, not "no data":
+                    # leaving it out let an editor raise its average by refusing files.
+                    render_scores.append(0.0)
+                    visual_scores.append(0.0)
                 native = cell.get("native")
                 if native and "nativeScore" in native:
                     native_scores.append(native["nativeScore"])
@@ -1813,6 +2496,9 @@ class Runner:
                 "render": sum(render_scores) / len(render_scores) if render_scores else 0.0,
                 "visual": sum(visual_scores) / len(visual_scores) if visual_scores else 0.0,
                 "native": sum(native_scores) / len(native_scores) if native_scores else 0.0,
+                # False when no cell produced a resave score (an editor without that
+                # leg, or a run that never got one): "native" is then a placeholder 0.
+                "nativeMeasured": bool(native_scores),
             }
         return aggregate
 
@@ -1824,6 +2510,27 @@ class Runner:
             "editors": self._aggregate(),
         }
 
+    @classmethod
+    def summarize_status(cls, status: dict) -> dict:
+        view = object.__new__(cls)
+        view.status = status
+        view.editor_order = status["run"]["editorOrder"]
+        view.run_name = status["run"]["name"]
+        view.patchy_hash = status["run"].get("patchyGit", "unknown")
+        summary = view._history_summary()
+        summary["reruns"] = status["run"].get("reruns", [])
+        return summary
+
+    @classmethod
+    def scan_reasons_for_status(cls, status: dict, entry: dict) -> list[str]:
+        view = object.__new__(cls)
+        view.scan_threshold = status["run"]["scan"]["thresholdPct"] / 100.0
+        view.compare_mode = status["run"].get("compare", "strict")
+        view.editor_order = status["run"]["editorOrder"]
+        view.editors = {k: types.SimpleNamespace(display_name=v.get("displayName", k))
+                        for k, v in status["editors"].items()}
+        return view._scan_flag_reasons(entry)
+
     def _print_summary(self) -> None:
         aggregate = self._aggregate()
         log("summary (mean byte match / perceptual match / data kept in .psd save / opened):")
@@ -1832,7 +2539,8 @@ class Runner:
             log(
                 f"  {self.editors[editor_key].display_name:<10} "
                 f"byte {a['render'] * 100:5.1f}%   perceptual {a['visual'] * 100:5.1f}%   "
-                f"kept {a['native'] * 100:5.1f}%   "
+                + (f"kept {a['native'] * 100:5.1f}%   " if a["nativeMeasured"] else "kept     -    ")
+                +
                 f"opened {a['opened']}/{a['total']}"
                 + (f"   bad .psd saves {a['badSaves']}" if a["badSaves"] else "")
             )
@@ -1872,21 +2580,50 @@ def main() -> int:
                         help="continue a paused/canceled/interrupted run directory "
                              "(runs\\<timestamp>), skipping completed work; corpus, "
                              "editors, and options come from its status.json")
+    parser.add_argument("--apply-to-run", default=None, help="apply a completed one-image rerun to this batch")
+    parser.add_argument("--expected-entry", default=None, help=argparse.SUPPRESS)
     parser.add_argument("--port", type=int, default=config.PORT, help="dashboard port")
     parser.add_argument("--no-browser", action="store_true", help="do not auto-open the dashboard")
     parser.add_argument("--no-serve", action="store_true", help="write reports without the local server")
     parser.add_argument("--server-url", default=None,
                         help="reuse an already-running Testy server (browser-spawned runs)")
-    parser.add_argument("--exit-when-done", action="store_true", help="do not wait for Enter at the end")
+    parser.add_argument("--exit-when-done", action="store_true", help="stop the dashboard when the run ends")
     args = parser.parse_args()
     if args.scan is not None and not 0.0 <= args.scan <= 100.0:
         parser.error("--scan threshold must be a percentage between 0 and 100")
     global _in_process_run_active
     _in_process_run_active = True
+    _interrupt_requested.clear()
+    runner = None
+
+    def request_stop(_signum, _frame):
+        _interrupt_requested.set()
+        if runner is not None and runner.server is not None:
+            runner.server.request_stop()
+
+    previous_sigint = signal.signal(signal.SIGINT, request_stop)
     try:
-        return Runner(args).run()
+        runner = Runner(args)
+        result = runner.run()
+        if result and runner.status.get("run", {}).get("rerunRequest"):
+            rerun.note_state(config.RUNS_DIR, runner.status["run"]["rerunRequest"], "failed",
+                             error="Rerun did not complete; previous results kept.")
+        _in_process_run_active = False
+        if result == 0 and runner.server is not None and not args.exit_when_done:
+            log("run complete - dashboard stays up; use Shut down Testy or Ctrl+C to quit")
+            runner.server.wait_until_stopped()
+        return result
+    except Exception as error:
+        job = runner.status.get("run", {}).get("rerunRequest") if runner else None
+        if job:
+            rerun.note_state(config.RUNS_DIR, job, "failed", error=str(error))
+        raise
     finally:
         _in_process_run_active = False
+        if runner is not None and runner.server is not None:
+            runner.server.request_stop()
+            runner.server.wait_until_stopped()
+        signal.signal(signal.SIGINT, previous_sigint)
 
 
 if __name__ == "__main__":

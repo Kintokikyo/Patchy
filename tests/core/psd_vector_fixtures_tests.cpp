@@ -882,6 +882,284 @@ void psd_authored_shape_layer_writes_native_blocks() {
   CHECK(metrics.max_channel_delta == 0);
 }
 
+// Compound groups: several contours sharing one shape_group are ONE shape
+// filled even-odd (a donut, Convert to Shape glyph outlines, custom-shape
+// stamps). Photoshop's length-record encoding, pinned on 2026-09-26 by
+// byte-patched probes of Patchy's donut file (PS 2026 via COM): the group's
+// lead record carries the combine op with +6 field 1 (even-odd; PS's own
+// Convert to Shape writes 2 = nonzero winding), and every continuation record
+// carries op 0xFFFF with +6 field 0. Writing each contour with its own op and
+// +6 field 1 (Patchy before this change) made PS unite the inner circle with
+// the outer one: a solid disc, whatever the winding.
+patchy::PathSubpath circle_subpath(double cx, double cy, double radius, bool reverse, std::int32_t group,
+                                   PathCombineOp op = PathCombineOp::Add) {
+  const double k = 0.5523 * radius;
+  std::vector<patchy::PathAnchor> anchors(4);
+  const auto set = [&](std::size_t i, double x, double y, double in_x, double in_y, double out_x, double out_y) {
+    anchors[i].anchor_x = x;
+    anchors[i].anchor_y = y;
+    anchors[i].in_x = in_x;
+    anchors[i].in_y = in_y;
+    anchors[i].out_x = out_x;
+    anchors[i].out_y = out_y;
+    anchors[i].smooth = true;
+  };
+  set(0, cx + radius, cy, cx + radius, cy - k, cx + radius, cy + k);
+  set(1, cx, cy + radius, cx + k, cy + radius, cx - k, cy + radius);
+  set(2, cx - radius, cy, cx - radius, cy + k, cx - radius, cy - k);
+  set(3, cx, cy - radius, cx - k, cy - radius, cx + k, cy - radius);
+  if (reverse) {
+    std::reverse(anchors.begin(), anchors.end());
+    for (auto& anchor : anchors) {
+      std::swap(anchor.in_x, anchor.out_x);
+      std::swap(anchor.in_y, anchor.out_y);
+    }
+  }
+  patchy::PathSubpath subpath;
+  subpath.anchors = std::move(anchors);
+  subpath.closed = true;
+  subpath.op = op;
+  subpath.shape_group = group;
+  return subpath;
+}
+
+// 320x80 canvas, five 64 px cells, one shape layer per cell over a white
+// background (the fixture patchy-compound-group.psd is this document as
+// written by psd_compound_group_writes_continuation_records_and_round_trips):
+//   1 A: outer + inner circle, same winding, one group (hole expected)
+//   2 B: outer + inner circle, inner reversed, one group (hole)
+//   3 C: inner circle first, then outer, same winding, one group (hole)
+//   4 D: outer + hole + island, one group (ring and island filled)
+//   5 E: donut group 0 plus a separate united disc (group 1) over its right
+//        side (the disc fills part of the hole; groups still combine)
+patchy::Document make_compound_group_document() {
+  patchy::Document document(320, 80, patchy::PixelFormat::rgb8());
+  document.add_pixel_layer("bg", patchy::test::solid_rgba(320, 80, 255, 255, 255, 255));
+  const auto add_shape = [&](const char* layer_name, std::vector<patchy::PathSubpath> subpaths,
+                             patchy::RgbColor color) {
+    patchy::Layer shape(document.allocate_layer_id(), layer_name, patchy::PixelBuffer());
+    patchy::VectorShapeContent content;
+    content.path.subpaths = std::move(subpaths);
+    content.fill.kind = patchy::VectorFillKind::Solid;
+    content.fill.color = color;
+    shape.set_vector_shape(content);
+    shape.metadata()[patchy::kLayerMetadataVectorShape] = "1";
+    patchy::update_vector_shape_raster(shape, patchy::Rect::from_size(320, 80), nullptr);
+    document.add_layer(std::move(shape));
+  };
+  const double cy = 40.0;
+  add_shape("A same-winding donut", {circle_subpath(32, cy, 28, false, 0), circle_subpath(32, cy, 14, false, 0)},
+            patchy::RgbColor{220, 40, 40});
+  add_shape("B opposite-winding donut",
+            {circle_subpath(96, cy, 28, false, 0), circle_subpath(96, cy, 14, true, 0)},
+            patchy::RgbColor{40, 160, 60});
+  add_shape("C inner-first donut", {circle_subpath(160, cy, 14, false, 0), circle_subpath(160, cy, 28, false, 0)},
+            patchy::RgbColor{40, 80, 220});
+  add_shape("D nested island",
+            {circle_subpath(224, cy, 28, false, 0), circle_subpath(224, cy, 17, false, 0),
+             circle_subpath(224, cy, 7, false, 0)},
+            patchy::RgbColor{230, 140, 20});
+  add_shape("E donut plus united disc",
+            {circle_subpath(288, cy, 28, false, 0), circle_subpath(288, cy, 14, false, 0),
+             circle_subpath(304, cy, 10, false, 1)},
+            patchy::RgbColor{140, 40, 180});
+  return document;
+}
+
+struct PathLengthRecord {
+  std::uint16_t selector{0};
+  std::uint16_t knots{0};
+  std::uint16_t op{0};
+  std::uint16_t rule{0};  // the u16 at +6: 1 even-odd lead, 2 nonzero lead, 0 continuation
+  std::uint32_t group{0};
+  friend bool operator==(const PathLengthRecord&, const PathLengthRecord&) = default;
+};
+
+std::vector<PathLengthRecord> path_length_records(std::span<const std::uint8_t> payload, std::size_t offset) {
+  std::vector<PathLengthRecord> records;
+  const auto u16 = [&](std::size_t at) {
+    return static_cast<std::uint16_t>((static_cast<std::uint16_t>(payload[at]) << 8U) | payload[at + 1]);
+  };
+  for (; offset + 26 <= payload.size(); offset += 26) {
+    const auto selector = u16(offset);
+    if (selector == 0 || selector == 3) {
+      records.push_back(PathLengthRecord{selector, u16(offset + 2), u16(offset + 4), u16(offset + 6),
+                                         patchy::test::read_u32_be_at(payload, offset + 12)});
+    }
+  }
+  return records;
+}
+
+void check_compound_group_render(const Document& document, const char* stage) {
+  CHECK(document.layers().size() == 6);
+  const auto flat = patchy::Compositor{}.flatten_rgb8(document);
+  const auto is_white = [&](std::int32_t x, std::int32_t y) {
+    const auto* px = flat.pixel(x, y);
+    return px[0] == 255 && px[1] == 255 && px[2] == 255;
+  };
+  const auto is_color = [&](std::int32_t x, std::int32_t y, patchy::RgbColor color) {
+    const auto* px = flat.pixel(x, y);
+    return px[0] == color.red && px[1] == color.green && px[2] == color.blue;
+  };
+  const auto report = [&](bool ok, const char* what) {
+    if (!ok) {
+      std::fprintf(stderr, "compound group render (%s): %s\n", stage, what);
+      write_rgb8_bmp_artifact(std::string("psd_compound_group_") + stage, flat);
+    }
+    CHECK(ok);
+  };
+  // Holes: every same-group inner contour is a hole regardless of winding or order.
+  report(is_white(32, 40), "A hole");
+  report(is_white(96, 40), "B hole");
+  report(is_white(160, 40), "C hole");
+  report(is_color(32 + 21, 40, patchy::RgbColor{220, 40, 40}), "A ring");
+  report(is_color(96 + 21, 40, patchy::RgbColor{40, 160, 60}), "B ring");
+  report(is_color(160 + 21, 40, patchy::RgbColor{40, 80, 220}), "C ring");
+  // Nested even-odd: ring filled, annulus hollow, island filled.
+  report(is_color(224 + 22, 40, patchy::RgbColor{230, 140, 20}), "D ring");
+  report(is_white(224 + 12, 40), "D annulus");
+  report(is_color(224, 40, patchy::RgbColor{230, 140, 20}), "D island");
+  // A second group still unites over the compound group: the disc fills the
+  // hole's right side while the left side of the hole stays open.
+  report(is_color(288 + 8, 40, patchy::RgbColor{140, 40, 180}), "E disc inside hole");
+  report(is_white(288 - 8, 40), "E hole left");
+}
+
+void psd_compound_group_writes_continuation_records_and_round_trips() {
+  const auto document = make_compound_group_document();
+  check_compound_group_render(document, "authored");
+  const auto written = patchy::psd::DocumentIo::write_layered_rgb8(document);
+  // The authored bytes are the fixture source (test-fixtures/psd/patchy-compound-group.psd)
+  // and the Photoshop COM acceptance input.
+  std::filesystem::create_directories("test-artifacts");
+  std::ofstream("test-artifacts/psd_compound_group_authored.psd", std::ios::binary)
+      .write(reinterpret_cast<const char*>(written.data()), static_cast<std::streamsize>(written.size()));
+
+  const auto records_of = [&](std::int16_t layer_index) {
+    const auto extra = patchy::test::psd_layer_extra_data(written, layer_index);
+    const auto vmsk = patchy::test::psd_layer_block_payload(extra, "vmsk");
+    CHECK(vmsk.has_value());
+    return path_length_records(*vmsk, 8);  // past u32 version + u32 flags
+  };
+  using R = PathLengthRecord;
+  const std::vector<R> donut{R{0, 4, 1, 1, 0}, R{0, 4, 0xFFFF, 0, 0}};
+  CHECK(records_of(1) == donut);
+  CHECK(records_of(2) == donut);
+  CHECK(records_of(3) == donut);
+  const std::vector<R> nested{R{0, 4, 1, 1, 0}, R{0, 4, 0xFFFF, 0, 0}, R{0, 4, 0xFFFF, 0, 0}};
+  CHECK(records_of(4) == nested);
+  // A new group after a continuation is a lead again: its own op, +6 field 1.
+  const std::vector<R> two_groups{R{0, 4, 1, 1, 0}, R{0, 4, 0xFFFF, 0, 0}, R{0, 4, 1, 1, 1}};
+  CHECK(records_of(5) == two_groups);
+
+  const auto reread = patchy::psd::DocumentIo::read(written, {});
+  CHECK(reread.layers().size() == 6);
+  for (std::size_t i = 1; i < 6; ++i) {
+    const auto* original = document.layers()[i].vector_shape();
+    const auto* restored = reread.layers()[i].vector_shape();
+    CHECK(original != nullptr && restored != nullptr);
+    CHECK(restored->path.subpaths.size() == original->path.subpaths.size());
+    for (std::size_t j = 0; j < original->path.subpaths.size(); ++j) {
+      const auto& a = original->path.subpaths[j];
+      const auto& b = restored->path.subpaths[j];
+      CHECK(b.op == a.op);  // continuations inherit the lead's op on read
+      CHECK(b.shape_group == a.shape_group);
+      CHECK(b.closed == a.closed);
+      CHECK(b.anchors.size() == a.anchors.size());
+      for (std::size_t k = 0; k < a.anchors.size(); ++k) {
+        CHECK(std::fabs(b.anchors[k].anchor_x - a.anchors[k].anchor_x) < 1e-4);
+        CHECK(std::fabs(b.anchors[k].anchor_y - a.anchors[k].anchor_y) < 1e-4);
+        CHECK(std::fabs(b.anchors[k].out_x - a.anchors[k].out_x) < 1e-4);
+        CHECK(std::fabs(b.anchors[k].in_y - a.anchors[k].in_y) < 1e-4);
+        CHECK(b.anchors[k].smooth == a.anchors[k].smooth);
+      }
+    }
+  }
+  check_compound_group_render(reread, "reread");
+  const auto metrics = rgb_diff_metrics(patchy::Compositor{}.flatten_rgb8(document),
+                                        patchy::Compositor{}.flatten_rgb8(reread));
+  CHECK(metrics.max_channel_delta <= 1);  // 8.24 fixed-point anchor rounding only
+
+  // The same record stream serves the path image resources: a work path with
+  // a compound group round-trips its ops and group too.
+  patchy::Document with_work_path(320, 80, patchy::PixelFormat::rgb8());
+  with_work_path.add_pixel_layer("bg", patchy::test::solid_rgba(320, 80, 255, 255, 255, 255));
+  patchy::VectorPath work;
+  work.subpaths = {circle_subpath(32, 40, 28, false, 0), circle_subpath(32, 40, 14, true, 0),
+                   circle_subpath(96, 40, 20, false, 1, PathCombineOp::Subtract)};
+  with_work_path.add_path(patchy::DocumentPath(with_work_path.allocate_path_id(), "", patchy::DocumentPathKind::Work,
+                                               work));
+  const auto work_written = patchy::psd::DocumentIo::write_layered_rgb8(with_work_path);
+  const auto work_reread = patchy::psd::DocumentIo::read(work_written, {});
+  CHECK(work_reread.paths().size() == 1);
+  const auto& restored_work = work_reread.paths().front().path();
+  CHECK(restored_work.subpaths.size() == 3);
+  CHECK(restored_work.subpaths[0].op == PathCombineOp::Add && restored_work.subpaths[0].shape_group == 0);
+  CHECK(restored_work.subpaths[1].op == PathCombineOp::Add && restored_work.subpaths[1].shape_group == 0);
+  CHECK(restored_work.subpaths[2].op == PathCombineOp::Subtract && restored_work.subpaths[2].shape_group == 1);
+}
+
+// patchy-compound-group.psd is the document above as Patchy writes it;
+// patchy-compound-group.bmp is Photoshop 2026's flatten of that file (COM,
+// 2026-09-26): every same-group inner contour is a hole, so Patchy's even-odd
+// group render matches Photoshop's reading of the continuation encoding.
+void psd_compound_group_fixture_matches_photoshop_flatten() {
+  const auto document = read_fixture("patchy-compound-group.psd");
+  check_compound_group_render(document, "fixture");
+  const auto* nested = layer_at(document, 4).vector_shape();
+  CHECK(nested != nullptr && nested->path.subpaths.size() == 3);
+  for (const auto& subpath : nested->path.subpaths) {
+    CHECK(subpath.op == PathCombineOp::Add && subpath.shape_group == 0);
+  }
+  check_flatten_matches_reference(document, "patchy-compound-group.bmp", "psd_compound_group");
+}
+
+// photoshop-compound-text.psd/bmp: Photoshop's OWN compound encoding (a "B8"
+// text work path made into a solid-color shape layer, PS 2026 via COM,
+// 2026-09-26): one group per glyph, the lead record op 1 with +6 field 2
+// (nonzero winding), the two counters of each glyph as continuation records
+// (op 0xFFFF, +6 field 0). Continuations inherit the lead's op on read, and
+// the glyph counters are holes in both renderers (font counters wind the
+// opposite way, so nonzero and even-odd agree; Patchy fills groups even-odd).
+void psd_photoshop_compound_text_fixture_reads_continuations() {
+  const auto document = read_fixture("photoshop-compound-text.psd");
+  CHECK(document.layers().size() == 2);
+  const auto* shape = layer_at(document, 1).vector_shape();
+  CHECK(shape != nullptr);
+  CHECK(shape->path.subpaths.size() == 6);
+  for (std::size_t i = 0; i < shape->path.subpaths.size(); ++i) {
+    CHECK(shape->path.subpaths[i].op == PathCombineOp::Add);
+    CHECK(shape->path.subpaths[i].shape_group == (i < 3 ? 0 : 1));
+  }
+  // An untouched layer re-emits PS's vmsk verbatim (the nonzero +6 field 2
+  // leads survive); an edited one regenerates the same group structure in
+  // Patchy's form (lead op with +6 field 1, counters as continuations).
+  const auto records_of = [](const std::vector<std::uint8_t>& bytes) {
+    const auto extra = patchy::test::psd_layer_extra_data(bytes, 1);
+    const auto vmsk = patchy::test::psd_layer_block_payload(extra, "vmsk");
+    CHECK(vmsk.has_value());
+    return path_length_records(*vmsk, 8);
+  };
+  const auto check_records = [&](const std::vector<PathLengthRecord>& records, std::uint16_t lead_rule) {
+    CHECK(records.size() == 6);
+    for (std::size_t i = 0; i < records.size(); ++i) {
+      const bool lead = i == 0 || i == 3;
+      CHECK(records[i].op == (lead ? 1 : 0xFFFF));
+      CHECK(records[i].rule == (lead ? lead_rule : 0));
+      CHECK(records[i].group == (i < 3 ? 0U : 1U));
+    }
+  };
+  check_records(records_of(patchy::psd::DocumentIo::write_layered_rgb8(document)), 2);
+  auto edited = document;
+  patchy::mark_layer_vector_block_dirty(*edited.find_layer(edited.layers()[1].id()));
+  const auto written = patchy::psd::DocumentIo::write_layered_rgb8(edited);
+  check_records(records_of(written), 1);
+  const auto reread = patchy::psd::DocumentIo::read(written, {});
+  CHECK(reread.layers()[1].vector_shape()->path.subpaths.size() == 6);
+  check_flatten_matches_reference(document, "photoshop-compound-text.bmp", "psd_compound_text");
+  check_flatten_matches_reference(reread, "photoshop-compound-text.bmp", "psd_compound_text_rewritten");
+}
+
 void psd_open_path_strokes_legacy_export_preserves_shape() {
   // Legacy Patchy file: one open L, a dashed L, a closed triangle, and two
   // open Ls sharing a layer. Photoshop closes only that last pair on open.
@@ -1177,6 +1455,105 @@ void psd_pattern_fill_shape_embeds_patt_block() {
   const auto flat_original = patchy::Compositor{}.flatten_rgb8(document);
   const auto flat_reread = patchy::Compositor{}.flatten_rgb8(reread);
   CHECK(rgb_diff_metrics(flat_original, flat_reread).max_channel_delta == 0);
+}
+
+// A gradient fill authored without transparency stops (the scripting API's gradient paints)
+// used to write an empty Trns list. Photoshop 2026 treats that as unknown data: the "discard
+// unknown data to keep layers editable" prompt on open, and the gradient layer comes back
+// empty (the September 2026 AI-built poster, whose background glow and header bar vanished).
+// Photoshop's own gradients always carry at least two stops, so the writer supplies the two
+// fully opaque end stops an absent list meant; authored stops are written as they are.
+void psd_vector_gradient_fill_without_alpha_stops_writes_opaque_stops() {
+  patchy::Document document(64, 64, patchy::PixelFormat::rgb8());
+  document.add_pixel_layer("bg", patchy::test::solid_rgba(64, 64, 255, 255, 255, 255));
+  patchy::Layer gradient_fill(document.allocate_layer_id(), "Glow", patchy::PixelBuffer());
+  patchy::VectorShapeContent content;
+  patchy::PathSubpath rect;
+  for (const auto& [x, y] : {std::pair{8.0, 8.0}, {56.0, 8.0}, {56.0, 56.0}, {8.0, 56.0}}) {
+    patchy::PathAnchor anchor;
+    anchor.anchor_x = anchor.in_x = anchor.out_x = x;
+    anchor.anchor_y = anchor.in_y = anchor.out_y = y;
+    rect.anchors.push_back(anchor);
+  }
+  content.path.subpaths.push_back(rect);
+  content.fill.kind = patchy::VectorFillKind::Gradient;
+  content.fill.gradient.type = patchy::LayerStyleGradientType::Radial;
+  content.fill.gradient.angle_degrees = 90.0F;
+  content.fill.gradient.color_stops = {patchy::GradientColorStop{0.0F, patchy::RgbColor{27, 39, 102}, 0.5F},
+                                       patchy::GradientColorStop{1.0F, patchy::RgbColor{11, 16, 38}, 0.5F}};
+  content.fill.gradient.alpha_stops.clear();
+  gradient_fill.set_vector_shape(content);
+  gradient_fill.metadata()[patchy::kLayerMetadataVectorShape] = "1";
+  patchy::update_vector_shape_raster(gradient_fill, patchy::Rect::from_size(document.width(), document.height()),
+                                     &document.metadata().patterns);
+  document.add_layer(std::move(gradient_fill));
+
+  const auto written = patchy::psd::DocumentIo::write_layered_rgb8(document);
+  const auto reread = patchy::psd::DocumentIo::read(written, {});
+  CHECK(reread.layers().size() == 2);
+  if (reread.layers().size() != 2) {
+    return;
+  }
+  const auto* roundtrip = reread.layers()[1].vector_shape();
+  CHECK(roundtrip != nullptr);
+  if (roundtrip == nullptr) {
+    return;
+  }
+  CHECK(roundtrip->fill.kind == patchy::VectorFillKind::Gradient);
+  const auto& alpha_stops = roundtrip->fill.gradient.alpha_stops;
+  CHECK(alpha_stops.size() == 2);
+  if (alpha_stops.size() == 2) {
+    CHECK(std::fabs(alpha_stops[0].location - 0.0F) < 0.001F);
+    CHECK(std::fabs(alpha_stops[0].opacity - 1.0F) < 0.001F);
+    CHECK(std::fabs(alpha_stops[1].location - 1.0F) < 0.001F);
+    CHECK(std::fabs(alpha_stops[1].opacity - 1.0F) < 0.001F);
+  }
+  CHECK(roundtrip->fill.gradient.color_stops.size() == 2);
+}
+
+// A Patchy-authored gradient from before the Trns fix (the committed 48x32 fixture: one gradient
+// fill layer with an empty Trns list) heals on save. The reader marks the layer's blocks dirty,
+// the fill payload builder refuses the byte-exact shortcut for a stop-less gradient, and the
+// written block carries the two opaque stops, so Photoshop opens the re-saved file without the
+// discard prompt (verified over COM, September 2026).
+void psd_vector_gradient_without_transparency_stops_heals_on_save() {
+  const auto document =
+      patchy::psd::DocumentIo::read_file(committed_psd_fixture_path("patchy-gradient-empty-transparency.psd"));
+  CHECK(document.layers().size() == 2);
+  if (document.layers().size() != 2) {
+    return;
+  }
+  const auto& glow = document.layers()[1];
+  const auto* shape = glow.vector_shape();
+  CHECK(shape != nullptr);
+  if (shape == nullptr) {
+    return;
+  }
+  CHECK(shape->fill.kind == patchy::VectorFillKind::Gradient);
+  CHECK(shape->fill.gradient.alpha_stops.empty());
+  CHECK(patchy::layer_vector_block_dirty(glow));
+
+  const auto written = patchy::psd::DocumentIo::write_layered_rgb8(document);
+  const auto reread = patchy::psd::DocumentIo::read(written, {});
+  CHECK(reread.layers().size() == 2);
+  if (reread.layers().size() != 2) {
+    return;
+  }
+  const auto* healed = reread.layers()[1].vector_shape();
+  CHECK(healed != nullptr);
+  if (healed == nullptr) {
+    return;
+  }
+  CHECK(healed->fill.kind == patchy::VectorFillKind::Gradient);
+  CHECK(healed->fill.gradient.alpha_stops.size() == 2);
+  if (healed->fill.gradient.alpha_stops.size() == 2) {
+    CHECK(std::fabs(healed->fill.gradient.alpha_stops[0].opacity - 1.0F) < 0.001F);
+    CHECK(std::fabs(healed->fill.gradient.alpha_stops[1].opacity - 1.0F) < 0.001F);
+    CHECK(std::fabs(healed->fill.gradient.alpha_stops[1].location - 1.0F) < 0.001F);
+  }
+  CHECK(healed->fill.gradient.color_stops.size() == 2);
+  // Healed once, the layer is an ordinary untouched import again.
+  CHECK(!patchy::layer_vector_block_dirty(reread.layers()[1]));
 }
 
 void psd_pattern_params_probe_render_parity_if_available() {
@@ -1535,8 +1912,9 @@ void psd_legacy_vmsk_unset_combine_op_fills_by_parity() {
     write_corner_knot(hi, hi);
     write_corner_knot(lo, hi);
   };
-  // The first subpath of the CS4 files carries op 1 / constant 2; the nested
-  // cutouts carry the unset 0xFFFF / 0 form.
+  // The first subpath of the CS4 files carries op 1 / +6 field 2; the nested
+  // cutouts carry the unset 0xFFFF / 0 form. Every record has group index 0,
+  // so the cutout is a continuation contour of the lead's compound group.
   write_square(1, 2, 0.125, 0.875);
   write_square(0xFFFFU, 0, 0.375, 0.625);
 
@@ -1596,7 +1974,10 @@ void psd_legacy_vmsk_unset_combine_op_fills_by_parity() {
   CHECK(content->fill.color.red == 210);
   CHECK(content->path.subpaths.size() == 2);
   CHECK(content->path.subpaths[0].op == PathCombineOp::Add);
-  CHECK(content->path.subpaths[1].op == PathCombineOp::Xor);
+  // Same group as the lead: the continuation inherits its op (the renderer
+  // fills the group even-odd, so the nested square is still a hole).
+  CHECK(content->path.subpaths[1].op == PathCombineOp::Add);
+  CHECK(content->path.subpaths[1].shape_group == content->path.subpaths[0].shape_group);
   CHECK(shape.metadata().count(patchy::kLayerMetadataVectorLock) == 0);
   // Canvas 16x16: outer square 2..14, cutout 6..10. The ring fills, the nested
   // cutout and the outside stay empty.
@@ -1624,7 +2005,16 @@ void psd_legacy_vmsk_unset_combine_op_fills_by_parity() {
 // holding one. They import as editable fill-kind-None shapes now; the vscg
 // paint is the stroke fallback when vstk carries no strokeStyleContent, and a
 // vscg without a vstk/vmsk pair still locks.
-std::vector<std::uint8_t> legacy_stroke_only_shape_psd(bool include_vstk, bool vstk_has_content) {
+struct LegacyShapeFixtureOptions {
+  bool gradient_fill{false};
+  bool legacy_mask{false};
+  bool large_document{false};
+  bool malformed_paint{false};
+  bool empty_real_mask{false};
+};
+
+std::vector<std::uint8_t> legacy_stroke_only_shape_psd(
+    bool include_vstk, bool vstk_has_content, LegacyShapeFixtureOptions options = {}) {
   const auto double_value = [](double value) {
     patchy::psd::DescriptorValue result;
     result.type = patchy::psd::DescriptorValue::Type::Double;
@@ -1651,12 +2041,34 @@ std::vector<std::uint8_t> legacy_stroke_only_shape_psd(bool include_vstk, bool v
 
   // vscg: content key + descriptorVersion + a solid-color paint descriptor.
   patchy::psd::BigEndianWriter vscg;
-  patchy::test::write_ascii4(vscg, "SoCo");
-  vscg.write_u32(16);
+  if (options.gradient_fill) { patchy::test::write_ascii4(vscg, "GdFl"); }
+  else { patchy::test::write_ascii4(vscg, "SoCo"); }
+  vscg.write_u32(options.malformed_paint ? 99 : 16);
   patchy::psd::DescriptorObject paint;
   paint.class_id = "null";
   paint.values["Clr "] = red_color_object();
-  patchy::psd::write_descriptor(vscg, paint);
+  if (options.gradient_fill) {
+    // Reuse a canonical gradient descriptor; the legacy container and its
+    // independent stroke/fill flags below are the behavior under test.
+    Document gradient_document(16, 16, patchy::PixelFormat::rgb8());
+    Layer gradient_layer(gradient_document.allocate_layer_id(), "Gradient", patchy::PixelBuffer());
+    patchy::VectorShapeContent shape;
+    shape.fill.kind = VectorFillKind::Gradient;
+    shape.fill.gradient.angle_degrees = 90.0F;
+    shape.fill.gradient.reverse = true;
+    shape.fill.gradient.color_stops = {{0.0F, {255, 0, 0}}, {1.0F, {0, 0, 255}}};
+    shape.fill.gradient.alpha_stops = {{0.0F, 1.0F}, {1.0F, 1.0F}};
+    gradient_layer.set_vector_shape(shape);
+    gradient_layer.metadata()[patchy::kLayerMetadataVectorShape] = "1";
+    gradient_document.add_layer(std::move(gradient_layer));
+    const auto bytes = patchy::psd::DocumentIo::write_layered_rgb8(gradient_document);
+    const auto payload = patchy::test::psd_layer_block_payload(
+        patchy::test::psd_first_layer_extra_data(bytes), "GdFl");
+    CHECK(payload.has_value());
+    vscg.write_bytes(std::span<const std::uint8_t>(*payload).subspan(4));
+  } else {
+    patchy::psd::write_descriptor(vscg, paint);
+  }
   // Photoshop pads its vector blocks to 4 bytes; an odd-length payload would
   // legitimately re-emit even-padded and defeat the verbatim comparison.
   const auto pad_to_4 = [](patchy::psd::BigEndianWriter& block) {
@@ -1675,8 +2087,8 @@ std::vector<std::uint8_t> legacy_stroke_only_shape_psd(bool include_vstk, bool v
   version.type = patchy::psd::DescriptorValue::Type::Integer;
   version.integer_value = 2;
   stroke.values["strokeStyleVersion"] = version;
-  stroke.values["strokeEnabled"] = bool_value(true);
-  stroke.values["fillEnabled"] = bool_value(false);
+  stroke.values["strokeEnabled"] = bool_value(!options.gradient_fill);
+  stroke.values["fillEnabled"] = bool_value(options.gradient_fill);
   patchy::psd::DescriptorValue width;
   width.type = patchy::psd::DescriptorValue::Type::UnitFloat;
   width.unit = "#Pxl";
@@ -1729,24 +2141,45 @@ std::vector<std::uint8_t> legacy_stroke_only_shape_psd(bool include_vstk, bool v
   write_corner_knot(0.125, 0.875);
 
   patchy::psd::BigEndianWriter layer_extra;
-  layer_extra.write_u32(0);
+  if (options.empty_real_mask) {
+    layer_extra.write_u32(36);
+    for (const auto value : {0U, 0U, 16U, 16U}) { layer_extra.write_u32(value); }
+    layer_extra.write_u8(0);
+    layer_extra.write_u8(8);  // -2 is derived vector coverage, not the user mask
+    layer_extra.write_u8(3);  // real mask disabled and unlinked
+    layer_extra.write_u8(255);
+    for (const auto value : {3U, 4U, 3U, 4U}) { layer_extra.write_u32(value); }
+  } else {
+    layer_extra.write_u32(0);
+  }
   layer_extra.write_u32(0);
   patchy::test::write_pascal_padded(layer_extra, "Stroke Only", 4);
   patchy::test::write_test_layer_block(layer_extra, "vscg", vscg.bytes());
-  patchy::test::write_test_layer_block(layer_extra, "vmsk", vmsk.bytes());
+  if (options.legacy_mask) { patchy::test::write_test_layer_block(layer_extra, "vsms", vmsk.bytes()); }
+  else { patchy::test::write_test_layer_block(layer_extra, "vmsk", vmsk.bytes()); }
   if (include_vstk) {
     patchy::test::write_test_layer_block(layer_extra, "vstk", vstk.bytes());
   }
 
   patchy::psd::BigEndianWriter layer_info;
+  const auto write_length = [&](patchy::psd::BigEndianWriter& target, std::size_t length) {
+    if (options.large_document) { target.write_u64(length); }
+    else { target.write_u32(static_cast<std::uint32_t>(length)); }
+  };
   layer_info.write_u16(1);
   for (int i = 0; i < 4; ++i) {
     layer_info.write_u32(0);  // 0x0 bounds: shape layers rasterize from the path
   }
-  layer_info.write_u16(4);
+  layer_info.write_u16(options.empty_real_mask ? 6 : 4);
   for (const auto channel_id : {0xFFFFU, 0U, 1U, 2U}) {
     layer_info.write_u16(static_cast<std::uint16_t>(channel_id));
-    layer_info.write_u32(2);  // compression marker only
+    write_length(layer_info, 2);  // compression marker only
+  }
+  if (options.empty_real_mask) {
+    layer_info.write_u16(0xFFFEU);
+    write_length(layer_info, 258);
+    layer_info.write_u16(0xFFFDU);
+    write_length(layer_info, 2);
   }
   patchy::test::write_ascii4(layer_info, "8BIM");
   patchy::test::write_ascii4(layer_info, "norm");
@@ -1759,19 +2192,24 @@ std::vector<std::uint8_t> legacy_stroke_only_shape_psd(bool include_vstk, bool v
   for (int channel = 0; channel < 4; ++channel) {
     layer_info.write_u16(0);  // raw, zero pixels
   }
+  if (options.empty_real_mask) {
+    layer_info.write_u16(0);
+    for (int i = 0; i < 256; ++i) { layer_info.write_u8(255); }
+    layer_info.write_u16(0);
+  }
   if ((layer_info.bytes().size() % 2U) != 0) {
     layer_info.write_u8(0);
   }
 
   patchy::psd::BigEndianWriter writer;
-  patchy::psd::write_header(writer, patchy::psd::Header{false, 3, 16, 16, 8, 3});
+  patchy::psd::write_header(writer, patchy::psd::Header{options.large_document, 3, 16, 16, 8, 3});
   writer.write_u32(0);
   writer.write_u32(0);
   patchy::psd::BigEndianWriter layer_mask;
-  layer_mask.write_u32(static_cast<std::uint32_t>(layer_info.bytes().size()));
+  write_length(layer_mask, layer_info.bytes().size());
   layer_mask.write_bytes(layer_info.bytes());
   layer_mask.write_u32(0);
-  writer.write_u32(static_cast<std::uint32_t>(layer_mask.bytes().size()));
+  write_length(writer, layer_mask.bytes().size());
   writer.write_bytes(layer_mask.bytes());
   writer.write_u16(0);
   for (int i = 0; i < 3 * 16 * 16; ++i) {
@@ -1883,6 +2321,179 @@ void psd_legacy_vscg_stroke_only_shape_paint_fallback_and_lock() {
   CHECK(patchy::vector_lock_reason(locked) == "unparsed");
 }
 
+void psd_legacy_vscg_gradient_fill_preserves_and_edits_psd_and_psb() {
+  for (const bool large : {false, true}) {
+    const auto original = legacy_stroke_only_shape_psd(true, true, {true, true, large});
+    auto document = patchy::psd::DocumentIo::read(original);
+    const auto& layer = std::as_const(document).layers().front();
+    const auto* shape = layer.vector_shape();
+    CHECK(shape != nullptr);
+    CHECK(patchy::vector_lock_reason(layer).empty());
+    CHECK(shape->fill.kind == VectorFillKind::Gradient);
+    CHECK(shape->stroke.fill_enabled && !shape->stroke.enabled);
+    CHECK(shape->fill.gradient.reverse);
+    CHECK(shape->fill.gradient.angle_degrees == 90.0F);
+    CHECK(shape->fill.gradient.color_stops.size() == 2);
+    CHECK(shape->fill.gradient.alpha_stops.size() == 2);
+    CHECK(shape_alpha_at(layer, 8, 8) == 255);
+    const auto& pixels = layer.pixels();
+    const auto bounds = layer.bounds();
+    CHECK(pixels.pixel(8 - bounds.x, 3 - bounds.y)[0] !=
+          pixels.pixel(8 - bounds.x, 12 - bounds.y)[0]);
+    const auto gradient = shape->fill.gradient;
+    const auto written = patchy::psd::DocumentIo::write_layered_rgb8(document, {large});
+    check_vector_blocks_byte_equal(original, written, 0, {"vscg", "vstk", "vsms"});
+
+    auto* edited = document.find_layer(layer.id());
+    patchy::translate_moved_layer_metadata(*edited, 1, 0, 16, 16);
+    const auto moved = patchy::psd::DocumentIo::write_layered_rgb8(document, {large});
+    const auto extra = patchy::test::psd_first_layer_extra_data(moved);
+    CHECK(patchy::test::psd_layer_block_payload(extra, "GdFl").has_value());
+    CHECK(patchy::test::psd_layer_block_payload(extra, "vmsk").has_value());
+    CHECK(!patchy::test::psd_layer_block_payload(extra, "vscg").has_value());
+    CHECK(!patchy::test::psd_layer_block_payload(extra, "SoCo").has_value());
+    const auto reread = patchy::psd::DocumentIo::read(moved);
+    const auto* moved_shape = reread.layers().front().vector_shape();
+    CHECK(moved_shape != nullptr);
+    CHECK(moved_shape->fill.kind == VectorFillKind::Gradient);
+    CHECK(moved_shape->fill.gradient == gradient);
+    CHECK(moved_shape->path.subpaths.front().anchors.front().anchor_x == 3.0);
+
+    const auto malformed = legacy_stroke_only_shape_psd(true, true, {true, true, large, true});
+    const auto locked = patchy::psd::DocumentIo::read(malformed);
+    CHECK(locked.layers().front().vector_shape() == nullptr);
+    CHECK(patchy::vector_lock_reason(locked.layers().front()) == "unparsed");
+    const auto preserved = patchy::psd::DocumentIo::write_layered_rgb8(locked, {large});
+    check_vector_blocks_byte_equal(malformed, preserved, 0, {"vscg", "vstk", "vsms"});
+  }
+}
+
+void psd_empty_real_user_mask_preserves_presence_and_flags() {
+  for (const bool large : {false, true}) {
+    const auto original = legacy_stroke_only_shape_psd(true, true, {false, false, large, false, true});
+    const auto check = [](const Document& document) {
+      const auto& layer = document.layers().front();
+      CHECK(layer.mask().has_value());
+      const auto& mask = *layer.mask();
+      CHECK(mask.pixels.empty() && mask.pixels.format() == patchy::PixelFormat::gray8());
+      CHECK(mask.bounds.x == 4 && mask.bounds.y == 3);
+      CHECK(mask.bounds.width == 0 && mask.bounds.height == 0);
+      CHECK(mask.default_color == 255 && mask.disabled);
+      CHECK(!patchy::layer_mask_linked(layer));
+      CHECK(layer.vector_shape() != nullptr);
+    };
+    const auto document = patchy::psd::DocumentIo::read(original);
+    check(document);
+    check(patchy::psd::DocumentIo::read(patchy::psd::DocumentIo::write_layered_rgb8(document, {large})));
+  }
+}
+
+void psd_empty_user_masks_round_trip_all_layer_kinds() {
+  for (const bool large : {false, true}) {
+    for (const auto default_color : {std::uint8_t{0}, std::uint8_t{255}}) {
+      for (const bool disabled : {false, true}) {
+        Document document(16, 16, patchy::PixelFormat::rgb8());
+        Layer pixel(document.allocate_layer_id(), "Pixel", patchy::test::solid_rgba(16, 16, 80, 120, 200, 255));
+        Layer adjustment(document.allocate_layer_id(), "Adjustment", patchy::LayerKind::Adjustment);
+        patchy::configure_adjustment_layer(adjustment, patchy::AdjustmentSettings{});
+        Layer group(document.allocate_layer_id(), "Group", patchy::LayerKind::Group);
+        auto shape_document = patchy::psd::DocumentIo::read(legacy_stroke_only_shape_psd(true, true));
+        const auto& imported_shape = std::as_const(shape_document).layers().front();
+        Layer shape(document.allocate_layer_id(), "Shape", imported_shape.pixels());
+        shape.set_bounds(imported_shape.bounds());
+        shape.set_vector_shape(*imported_shape.vector_shape());
+        shape.metadata()[patchy::kLayerMetadataVectorShape] = "1";
+        const std::array<Layer*, 4> layers{&pixel, &adjustment, &group, &shape};
+        for (std::size_t i = 0; i < layers.size(); ++i) {
+          // Include zero-width and zero-height rectangles, with no allocation.
+          const int width = i == 1 ? 4 : 0;
+          const int height = i == 2 ? 4 : 0;
+          patchy::LayerMask mask{{3, 5, width, height},
+                                patchy::PixelBuffer(width, height, patchy::PixelFormat::gray8()),
+                                default_color, disabled};
+          mask.density = 153;
+          mask.feather = 1.5;
+          layers[i]->set_mask(std::move(mask));
+          patchy::set_layer_mask_linked(*layers[i], false);
+          if (i < 3) {
+            patchy::LayerVectorMask vector_mask;
+            vector_mask.path = shape.vector_shape()->path;
+            vector_mask.density = 204;
+            layers[i]->set_vector_mask(std::move(vector_mask));
+            patchy::update_vector_mask_raster(*layers[i], {0, 0, 16, 16});
+          }
+        }
+        for (auto* layer : layers) { document.add_layer(std::move(*layer)); }
+        const auto bytes = patchy::psd::DocumentIo::write_layered_rgb8(document, {large});
+        const auto copy = patchy::psd::DocumentIo::read(bytes);
+        CHECK(copy.layers().size() == 4);
+        for (std::size_t i = 0; i < copy.layers().size(); ++i) {
+          const auto& source = std::as_const(document).layers()[i];
+          const auto& layer = copy.layers()[i];
+          CHECK(layer.mask().has_value());
+          const auto& mask = *layer.mask();
+          CHECK(mask.pixels.empty());
+          CHECK(mask.bounds.x == source.mask()->bounds.x && mask.bounds.y == source.mask()->bounds.y);
+          CHECK(mask.bounds.width == source.mask()->bounds.width && mask.bounds.height == source.mask()->bounds.height);
+          CHECK(mask.default_color == default_color && mask.disabled == disabled);
+          CHECK(mask.density == 153 && mask.feather == 1.5);
+          CHECK(!patchy::layer_mask_linked(layer));
+          CHECK(std::fabs(patchy::layer_mask_alpha_at(layer, 8, 8) -
+                          patchy::layer_mask_alpha_at(source, 8, 8)) < 1e-6F);
+        }
+      }
+    }
+  }
+}
+
+void psd_testy_legacy_fills_and_masks_round_trip_if_available() {
+  for (const auto* filename : {"APP_Icon_1024x1024.psd",
+                              "C2Kyoto Nintendo NES Cartridge Label Template (Front).psd"}) {
+    const auto path = patchy::test::local_psd_fixture_path(filename);
+    if (!std::filesystem::exists(path)) {
+      std::cout << "[SKIP] local legacy preservation fixture missing: " << filename << '\n';
+      continue;
+    }
+    const bool icon = std::string_view(filename).starts_with("APP_");
+    const auto check = [icon](const Document& document) {
+      std::size_t masks = 0;
+      std::size_t bars = 0;
+      const auto visit = [&](auto&& self, const std::vector<Layer>& layers) -> void {
+        for (const auto& layer : layers) {
+          if (layer.mask().has_value()) { ++masks; }
+          if (!icon && (layer.name() == "Left Bar" || layer.name() == "Right Bar")) {
+            ++bars;
+            CHECK(layer.vector_shape() != nullptr);
+            CHECK(layer.vector_shape()->fill.kind == VectorFillKind::Gradient);
+          }
+          self(self, layer.children());
+        }
+      };
+      visit(visit, document.layers());
+      CHECK(patchy::layer_tree_count(document.layers()) == (icon ? 66U : 415U));
+      if (icon) { CHECK(masks == 8); }
+      else { CHECK(bars == 4); }
+    };
+    std::cout << "[INFO] legacy preservation fixture: " << filename << '\n';
+    std::vector<std::uint8_t> bytes;
+    {
+      const auto document = patchy::psd::DocumentIo::read_file(path);
+      check(document);
+      if constexpr (sizeof(void*) < 8) {
+        if (!icon) {
+          // Import fits, but this 415-layer fixture's decoded data plus the
+          // writer's buffers exceed wasm32's 4 GB address-space limit.
+          std::cout << "[SKIP] C2Kyoto legacy preservation save/readback needs a 64-bit address space; "
+                       "import checked\n";
+          continue;
+        }
+      }
+      bytes = patchy::psd::DocumentIo::write_layered_rgb8(document);
+    }  // Release decoded layers before decoding the saved bytes again.
+    check(patchy::psd::DocumentIo::read(bytes));
+  }
+}
+
 }  // namespace
 
 std::vector<patchy::test::TestCase> psd_vector_fixtures_tests() {
@@ -1914,11 +2525,20 @@ std::vector<patchy::test::TestCase> psd_vector_fixtures_tests() {
        psd_vector_dirty_regeneration_reproduces_unchanged_bytes},
       {"psd_vector_move_translates_model_and_round_trips", psd_vector_move_translates_model_and_round_trips},
       {"psd_vector_mask_and_params_write_round_trip", psd_vector_mask_and_params_write_round_trip},
+      {"psd_vector_gradient_fill_without_alpha_stops_writes_opaque_stops",
+       psd_vector_gradient_fill_without_alpha_stops_writes_opaque_stops},
+      {"psd_vector_gradient_without_transparency_stops_heals_on_save",
+       psd_vector_gradient_without_transparency_stops_heals_on_save},
       {"psd_authored_group_vector_mask_and_raster_parameters_round_trip", psd_authored_group_vector_mask_and_raster_parameters_round_trip},
       {"psd_saved_paths_write_round_trips_and_edits", psd_saved_paths_write_round_trips_and_edits},
       {"psd_saved_paths_reorder_round_trips", psd_saved_paths_reorder_round_trips},
       {"psd_work_path_saved_as_named_round_trips", psd_work_path_saved_as_named_round_trips},
       {"psd_authored_shape_layer_writes_native_blocks", psd_authored_shape_layer_writes_native_blocks},
+      {"psd_compound_group_writes_continuation_records_and_round_trips",
+       psd_compound_group_writes_continuation_records_and_round_trips},
+      {"psd_compound_group_fixture_matches_photoshop_flatten", psd_compound_group_fixture_matches_photoshop_flatten},
+      {"psd_photoshop_compound_text_fixture_reads_continuations",
+       psd_photoshop_compound_text_fixture_reads_continuations},
       {"psd_open_path_strokes_legacy_export_preserves_shape", psd_open_path_strokes_legacy_export_preserves_shape},
       {"psd_open_path_strokes_preserve_opacity_and_foreign_edits", psd_open_path_strokes_preserve_opacity_and_foreign_edits},
       {"psd_open_path_strokes_group_opacity_without_fill", psd_open_path_strokes_group_opacity_without_fill},
@@ -1933,5 +2553,10 @@ std::vector<patchy::test::TestCase> psd_vector_fixtures_tests() {
        psd_interior_overlay_vs_stroke_probe_if_available},
       {"collect_referenced_pattern_resources_covers_vector_content",
        collect_referenced_pattern_resources_covers_vector_content},
+      {"psd_legacy_vscg_gradient_fill_preserves_and_edits_psd_and_psb",
+       psd_legacy_vscg_gradient_fill_preserves_and_edits_psd_and_psb},
+      {"psd_empty_real_user_mask_preserves_presence_and_flags", psd_empty_real_user_mask_preserves_presence_and_flags},
+      {"psd_empty_user_masks_round_trip_all_layer_kinds", psd_empty_user_masks_round_trip_all_layer_kinds},
+      {"psd_testy_legacy_fills_and_masks_round_trip_if_available", psd_testy_legacy_fills_and_masks_round_trip_if_available},
   };
 }

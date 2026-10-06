@@ -1,8 +1,10 @@
 #pragma once
 
 #include <QSettings>
+#include <QStringList>
 
 #include <array>
+#include <utility>
 
 namespace patchy::ui {
 
@@ -41,5 +43,40 @@ inline constexpr int kDefaultGuiScalePercent = 100;
 // Persists the interface scale. Paired with stored_gui_scale_percent() so the settings key,
 // a compatibility contract, lives in exactly one place.
 void set_stored_gui_scale_percent(int percent);
+
+// Automatic document recovery (docs/document-recovery.md): the timer interval steps
+// offered in Preferences, in minutes. Photoshop's own list.
+inline constexpr std::array<int, 5> kRecoveryIntervalMinutes{5, 10, 15, 30, 60};
+inline constexpr int kDefaultRecoveryIntervalMinutes = 10;
+
+// Returns the stored interval when it is one of kRecoveryIntervalMinutes, the default
+// otherwise (a hand-edited ini, a step a later build dropped).
+[[nodiscard]] int normalize_recovery_interval_minutes(int stored);
+
+// The persisted recovery preferences (keys `recovery/enabled`, default true, and
+// `recovery/intervalMinutes`; both are compatibility contracts). The web build has no
+// recovery store, so it reports disabled and ignores writes.
+[[nodiscard]] bool stored_recovery_enabled();
+void set_stored_recovery_enabled(bool enabled);
+[[nodiscard]] int stored_recovery_interval_minutes();
+void set_stored_recovery_interval_minutes(int minutes);
+
+// Legacy Photoshop plug-in folders the user added (key `plugins/userFolders`, a
+// compatibility contract), on top of the automatic `plugins` folders next to the
+// application and in the per-user app-data directory. See docs/plugins.md.
+[[nodiscard]] QStringList stored_legacy_plugin_folders();
+void set_stored_legacy_plugin_folders(const QStringList& folders);
+
+// The largest screen a legacy plug-in is told about (key `plugins/screenSize`,
+// "<width>x<height>" or "monitor"; a compatibility contract). Plug-in windows
+// open on the monitor showing Patchy; full-screen plug-in interfaces size
+// themselves to this, so a cap keeps them usable on large monitors. (0, 0)
+// means the monitor's whole work area. The choices are the Preferences combo;
+// anything else stored falls back to the default. See docs/plugins.md.
+inline constexpr std::array<std::pair<int, int>, 5> kLegacyPluginScreenSizes{
+    {{0, 0}, {1920, 1200}, {1600, 1200}, {1280, 1024}, {1024, 768}}};
+inline constexpr std::pair<int, int> kDefaultLegacyPluginScreenSize{1280, 1024};
+[[nodiscard]] std::pair<int, int> stored_legacy_plugin_screen_size();
+void set_stored_legacy_plugin_screen_size(std::pair<int, int> size);
 
 }  // namespace patchy::ui

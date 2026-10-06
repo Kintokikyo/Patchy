@@ -114,6 +114,10 @@ LevelsRecord levels_record_for_photoshop_index(LevelsAdjustment settings, int in
     case 3:
       return clamp_levels_record(settings.blue);
     default:
+      // Index 4 included: Patchy writes RGB files, and Photoshop 2026 silently turns a
+      // Levels layer into a plain empty layer (mask gone too) when an RGB document's
+      // fifth record is not the identity. The black ink's record stays in the model
+      // (LevelsAdjustment::black_ink) and is never written.
       return {};
   }
 }
@@ -132,6 +136,10 @@ void set_levels_record_for_photoshop_index(LevelsAdjustment& settings, int index
       return;
     case 3:
       settings.blue = record;
+      return;
+    case 4:
+      // A CMYK document's black ink. RGB documents leave this record at its identity.
+      settings.black_ink = record;
       return;
     default:
       return;
@@ -274,7 +282,7 @@ std::optional<AdjustmentSettings> parse_photoshop_levels_adjustment(std::span<co
     settings.kind = AdjustmentKind::Levels;
     for (int index = 0; index < kPhotoshopLevelsRecordCount; ++index) {
       const auto record = read_photoshop_levels_record(reader);
-      if (index < 4) {
+      if (index < 5) {
         set_levels_record_for_photoshop_index(settings.levels, index, record);
       }
     }
@@ -386,8 +394,12 @@ std::optional<AdjustmentSettings> parse_photoshop_curves_adjustment(
 std::vector<std::uint8_t> photoshop_curves_payload(const CurvesAdjustment& curves,
                                                    const UnknownPsdBlock* original) {
   if (original != nullptr) {
+    // (Not when the original carries a black-ink curve: that payload came from a CMYK
+    // document, and Patchy writes RGB, where a fifth channel does not belong. See the
+    // Levels note in levels_record_for_photoshop_index.)
     if (const auto parsed = parse_photoshop_curves_adjustment(original->payload);
-        parsed.has_value() && parsed->curves == curves) {
+        parsed.has_value() && parsed->curves == curves &&
+        curve_points_are_exact_identity(normalized_curve_control_points(curves.black_ink))) {
       // The imported payload may contain compatibility details Patchy does not
       // model. Keep every byte until the modeled control points actually change.
       return original->payload;
@@ -713,6 +725,55 @@ std::optional<std::vector<std::uint8_t>> photoshop_brightness_contrast_descripto
   BigEndianWriter writer;
   writer.write_u32(16);
   write_descriptor(writer, descriptor);
+  return writer.bytes();
+}
+
+std::optional<AdjustmentSettings> parse_photoshop_exposure_adjustment(std::span<const std::uint8_t> payload) {
+  if (payload.size() < 14) {
+    return std::nullopt;
+  }
+  BigEndianReader reader(payload);
+  if (reader.read_u16() != 1) {
+    return std::nullopt;
+  }
+  const auto exposure = std::bit_cast<float>(reader.read_u32());
+  const auto offset = std::bit_cast<float>(reader.read_u32());
+  const auto gamma = std::bit_cast<float>(reader.read_u32());
+  if (!std::isfinite(exposure) || !std::isfinite(offset) || !std::isfinite(gamma)) {
+    return std::nullopt;
+  }
+  // Clamp as doubles first: a wild float must not overflow the integer conversion.
+  const auto scaled = [](float value, double scale, int low, int high) {
+    return static_cast<int>(
+        std::lround(std::clamp(static_cast<double>(value) * scale, static_cast<double>(low), static_cast<double>(high))));
+  };
+  AdjustmentSettings settings;
+  settings.kind = AdjustmentKind::Exposure;
+  settings.exposure = ExposureAdjustment{scaled(exposure, 100.0, -kExposureValueRange, kExposureValueRange),
+                                         scaled(offset, 10000.0, -kExposureOffsetRange, kExposureOffsetRange),
+                                         scaled(gamma, 100.0, kExposureGammaMin, kExposureGammaMax)};
+  return settings;
+}
+
+std::vector<std::uint8_t> photoshop_exposure_payload(const ExposureAdjustment& settings,
+                                                     const UnknownPsdBlock* original) {
+  const auto clamped = clamp_exposure(settings);
+  if (original != nullptr) {
+    // Unedited imported payloads re-emit byte-for-byte, which also keeps Photoshop's
+    // exact float32 values instead of the rounded fields.
+    const auto parsed = parse_photoshop_exposure_adjustment(original->payload);
+    if (parsed.has_value() && parsed->exposure.exposure_hundredths == clamped.exposure_hundredths &&
+        parsed->exposure.offset_ten_thousandths == clamped.offset_ten_thousandths &&
+        parsed->exposure.gamma_hundredths == clamped.gamma_hundredths) {
+      return original->payload;
+    }
+  }
+  BigEndianWriter writer;
+  writer.write_u16(1);
+  writer.write_u32(std::bit_cast<std::uint32_t>(static_cast<float>(clamped.exposure_hundredths / 100.0)));
+  writer.write_u32(std::bit_cast<std::uint32_t>(static_cast<float>(clamped.offset_ten_thousandths / 10000.0)));
+  writer.write_u32(std::bit_cast<std::uint32_t>(static_cast<float>(clamped.gamma_hundredths / 100.0)));
+  writer.write_u16(0);
   return writer.bytes();
 }
 

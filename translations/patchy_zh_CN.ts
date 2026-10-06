@@ -43,10 +43,6 @@
         <translation>选择如何合并所选图层及其编组。</translation>
     </message>
     <message>
-        <source>Keep vectors and bitmaps separate</source>
-        <translation>矢量与位图分开保留</translation>
-    </message>
-    <message>
         <source>Keep editable shapes. Turn off to merge the artwork into bitmap layers.</source>
         <translation>保留可编辑的形状。关闭此选项可将图稿合并为位图图层。</translation>
     </message>
@@ -92,7 +88,7 @@
     </message>
     <message>
         <source>Result: %1 vector layers, %2 bitmap layers, %3 other layers kept.</source>
-        <translation>结果：保留 %1 个矢量图层、%2 个位图图层和 %3 个其他图层。</translation>
+        <translation>结果：%1 个矢量图层、%2 个位图图层，另有 %3 个其他图层保持不变。</translation>
     </message>
     <message>
         <source>The original layers are kept. Multiple outputs are placed in a new group.</source>
@@ -105,6 +101,176 @@
     <message>
         <source>These layers need to stay separate with the selected options.</source>
         <translation>在所选选项下，这些图层需要保持独立。</translation>
+    </message>
+    <message>
+        <source>Keep vector layers editable</source>
+        <translation>保留矢量图层的可编辑性</translation>
+    </message>
+    <message>
+        <source>These layers keep their own effects and stay separate in a vector merge. Turning off &quot;Keep vector layers editable&quot; rasterizes merged artwork.</source>
+        <translation>这些图层会保留各自的效果，在矢量合并时保持独立。关闭“保留矢量图层的可编辑性”会将合并的图像栅格化。</translation>
+    </message>
+    <message>
+        <source>Select at least two editable vector layers.</source>
+        <translation>请至少选择两个可编辑的矢量图层。</translation>
+    </message>
+    <message>
+        <source>This layer is not an editable vector layer.</source>
+        <translation>此图层不是可编辑的矢量图层。</translation>
+    </message>
+    <message>
+        <source>Unlock this layer and its parent groups first.</source>
+        <translation>请先解锁此图层及其父级组。</translation>
+    </message>
+    <message>
+        <source>Show this layer and its parent groups first.</source>
+        <translation>请先显示此图层及其父级组。</translation>
+    </message>
+    <message>
+        <source>A clipping relationship requires this layer to stay separate.</source>
+        <translation>剪贴关系要求此图层保持独立。</translation>
+    </message>
+    <message>
+        <source>A separate mask prevents this vector merge.</source>
+        <translation>单独的蒙版阻止了此次矢量合并。</translation>
+    </message>
+    <message>
+        <source>Smart Filters require this layer to stay separate.</source>
+        <translation>智能滤镜要求此图层保持独立。</translation>
+    </message>
+    <message>
+        <source>The blend mode, Blend If, or channel settings require a separate layer.</source>
+        <translation>混合模式、混合颜色带或通道设置需要单独的图层。</translation>
+    </message>
+    <message>
+        <source>Preserved vector data cannot be edited.</source>
+        <translation>保留的矢量数据无法编辑。</translation>
+    </message>
+    <message>
+        <source>This compound vector&apos;s opacity requires it to stay separate.</source>
+        <translation>此复合矢量的不透明度要求它保持独立。</translation>
+    </message>
+    <message>
+        <source>This group&apos;s appearance prevents moving shapes across its boundary.</source>
+        <translation>此组的外观不允许跨越组边界移动形状。</translation>
+    </message>
+    <message>
+        <source>Choose effects from a vector layer included in the merge.</source>
+        <translation>请选择参与合并的矢量图层作为效果来源。</translation>
+    </message>
+    <message>
+        <source>Vector feather or density requires this shape to stay separate.</source>
+        <translation>矢量羽化或浓度要求此形状保持独立。</translation>
+    </message>
+    <message>
+        <source>%1: %2</source>
+        <translation>%1：%2</translation>
+    </message>
+    <message>
+        <source>Merge into one vector layer</source>
+        <translation>合并为一个矢量图层</translation>
+    </message>
+    <message>
+        <source>Remove layer effects</source>
+        <translation>移除图层效果</translation>
+    </message>
+    <message>
+        <source>Use effects from a layer</source>
+        <translation>使用某个图层的效果</translation>
+    </message>
+    <message>
+        <source>Layer effects:</source>
+        <translation>图层效果：</translation>
+    </message>
+    <message>
+        <source>Use effects from:</source>
+        <translation>效果来源：</translation>
+    </message>
+    <message>
+        <source>Preview</source>
+        <translation>预览</translation>
+    </message>
+    <message>
+        <source>Preview unavailable.</source>
+        <translation>预览不可用。</translation>
+    </message>
+    <message>
+        <source>Merged artwork</source>
+        <translation>合并后的图像</translation>
+    </message>
+    <message>
+        <source>Original artwork</source>
+        <translation>原始图像</translation>
+    </message>
+    <message>
+        <source>Effects from %1 apply once to the combined silhouette. Each shape keeps its own fill and vector stroke.</source>
+        <translation>%1 的效果会对合并后的整个轮廓应用一次。每个形状保留自己的填充和矢量描边。</translation>
+    </message>
+    <message>
+        <source>Individual layer effects will be removed. Each shape keeps its own fill and vector stroke.</source>
+        <translation>各个图层的效果将被移除。每个形状保留自己的填充和矢量描边。</translation>
+    </message>
+    <message>
+        <source>Result: 1 editable vector layer, replacing %1 in the layer stack.</source>
+        <translation>结果：1 个可编辑的矢量图层，在图层堆栈中替换 %1。</translation>
+    </message>
+    <message>
+        <source>Stacking relative to unselected layers will change. Review the preview before merging.</source>
+        <translation>与未选中图层的叠放顺序将发生变化。请在合并前查看预览。</translation>
+    </message>
+    <message>
+        <source>Updating preview...</source>
+        <translation>正在更新预览...</translation>
+    </message>
+</context>
+<context>
+    <name>LegacyPluginFolder</name>
+    <message>
+        <source>Legacy Photoshop plug-ins run on Windows only.</source>
+        <translation>旧版 Photoshop 插件只能在 Windows 上运行。</translation>
+    </message>
+    <message>
+        <source>The plug-ins folder could not be created: %1</source>
+        <translation>无法创建插件文件夹：%1</translation>
+    </message>
+</context>
+<context>
+    <name>LegacyPluginRunner</name>
+    <message>
+        <source>The plug-in host was given an invalid image.</source>
+        <translation>传给插件宿主的图像无效。</translation>
+    </message>
+    <message>
+        <source>The plug-in host program is missing: %1</source>
+        <translation>缺少插件宿主程序：%1</translation>
+    </message>
+    <message>
+        <source>Not enough memory to hand the layer to the plug-in.</source>
+        <translation>内存不足，无法将图层交给插件。</translation>
+    </message>
+    <message>
+        <source>The plug-in host could not be contacted: %1</source>
+        <translation>无法联系插件宿主：%1</translation>
+    </message>
+    <message>
+        <source>The plug-in host program could not be started: %1</source>
+        <translation>无法启动插件宿主程序：%1</translation>
+    </message>
+    <message>
+        <source>The plug-in host did not respond.</source>
+        <translation>插件宿主没有响应。</translation>
+    </message>
+    <message>
+        <source>The plug-in host program does not match this Patchy build.</source>
+        <translation>插件宿主程序与此 Patchy 版本不匹配。</translation>
+    </message>
+    <message>
+        <source>The plug-in crashed (host exit code %1).</source>
+        <translation>插件崩溃了（宿主退出代码 %1）。</translation>
+    </message>
+    <message>
+        <source>The plug-in reported an error.</source>
+        <translation>插件报告了一个错误。</translation>
     </message>
 </context>
 <context>
@@ -803,11 +969,11 @@
     </message>
     <message>
         <source>Tilt-Shift Blur supports UInt8 buffers only</source>
-        <translation>倾斜偏移模糊仅支持 UInt8 缓冲区</translation>
+        <translation>移轴模糊仅支持 UInt8 缓冲区</translation>
     </message>
     <message>
         <source>Invalid Tilt-Shift Blur settings</source>
-        <translation>无效的倾斜偏移模糊设置</translation>
+        <translation>无效的移轴模糊设置</translation>
     </message>
     <message>
         <source>Filter recipe changed the pixel format</source>
@@ -2114,26 +2280,6 @@
         <translation>旧版 Photoshop 增效工具是 Windows 二进制文件，需要 Windows 版本的 Patchy。</translation>
     </message>
     <message>
-        <source>32-bit Photoshop plug-ins require a 32-bit compatibility host.</source>
-        <translation>32 位 Photoshop 增效工具需要 32 位兼容宿主。</translation>
-    </message>
-    <message>
-        <source>Plug-in architecture does not match this Patchy build.</source>
-        <translation>增效工具的架构与此 Patchy 版本不匹配。</translation>
-    </message>
-    <message>
-        <source>Automation plug-ins are recognized but not supported by the first compatibility adapter.</source>
-        <translation>已识别自动化增效工具，但第一代兼容适配器不支持它。</translation>
-    </message>
-    <message>
-        <source>Classic Photoshop filter plug-in candidate. Runtime execution will be isolated out-of-process.</source>
-        <translation>经典 Photoshop 滤镜增效工具候选项。运行时将在独立进程中隔离执行。</translation>
-    </message>
-    <message>
-        <source>Classic Photoshop file-format plug-in candidate. Runtime execution will be isolated out-of-process.</source>
-        <translation>经典 Photoshop 文件格式增效工具候选项。运行时将在独立进程中隔离执行。</translation>
-    </message>
-    <message>
         <source>Plugin identifier cannot be empty</source>
         <translation>插件标识符不能为空</translation>
     </message>
@@ -2436,10 +2582,6 @@
     <message>
         <source>The starter PSD reader currently supports 8, 16, and 32-bit files only</source>
         <translation>初始版 PSD 读取器目前仅支持 8 位、16 位和 32 位文件</translation>
-    </message>
-    <message>
-        <source>The starter PSD reader currently supports RGB and CMYK files only</source>
-        <translation>初始版 PSD 读取器目前仅支持 RGB 和 CMYK 文件</translation>
     </message>
     <message>
         <source>PSD files cannot contain more than 56 channels</source>
@@ -3165,7 +3307,7 @@
     </message>
     <message>
         <source>%1 contains Photoshop Blend If data for an unsupported color mode or payload shape. Patchy preserves it for PSD round-trip but does not render or edit it.</source>
-        <translation>%1 包含 Photoshop 混合颜色带数据，其颜色模式或数据结构不受支持。Patchy 会保留这些数据以便 PSD 往返，但不会渲染或编辑它们。</translation>
+        <translation>%1 包含 Photoshop 混合颜色带数据，其颜色模式或数据结构不受支持。Patchy 会在重新保存 PSD 时保留这些数据，但不会渲染或编辑它们。</translation>
     </message>
     <message>
         <source>%1 contains Blend If data on a Photoshop group-boundary record. Patchy preserves that boundary data but does not render or edit it.</source>
@@ -3173,7 +3315,7 @@
     </message>
     <message>
         <source>%1 contains Photoshop channel blending restrictions for an unsupported color mode or payload shape. Patchy preserves them for PSD round-trip but does not render or edit them.</source>
-        <translation>%1 包含 Photoshop 通道混合限制，其颜色模式或数据结构不受支持。Patchy 会保留这些设置以便 PSD 往返，但不会渲染或编辑它们。</translation>
+        <translation>%1 包含 Photoshop 通道混合限制，其颜色模式或数据结构不受支持。Patchy 会在重新保存 PSD 时保留这些设置，但不会渲染或编辑它们。</translation>
     </message>
     <message>
         <source>%1 preserves %2 unknown PSD layer block(s).</source>
@@ -3193,7 +3335,7 @@
     </message>
     <message>
         <source>%1 is a Patchy-native adjustment layer; it round-trips in Patchy PSDs but may appear as an unsupported adjustment in other editors.</source>
-        <translation>%1 是 Patchy 原生的调整图层；它可在 Patchy 的 PSD 中往返，但在其他编辑器中可能显示为不支持的调整。</translation>
+        <translation>%1 是 Patchy 原生的调整图层；在 Patchy 中保存并重新打开 PSD 后仍可保留，但在其他编辑器中可能显示为不支持的调整。</translation>
     </message>
     <message>
         <source>%1 uses an unsupported layer kind and may not export as editable PSD data.</source>
@@ -3217,7 +3359,7 @@
     </message>
     <message>
         <source>The document embeds %1 smart object source file(s) (%2 MB); they round-trip byte-for-byte.</source>
-        <translation>此文档嵌入了 %1 个智能对象源文件(%2 MB)；它们将逐字节往返。</translation>
+        <translation>此文档嵌入了 %1 个智能对象源文件(%2 MB)；重新保存时会逐字节完整保留这些文件。</translation>
     </message>
     <message>
         <source>PSD Compatibility Report</source>
@@ -4424,10 +4566,6 @@
         <translation>单张拼合图像</translation>
     </message>
     <message>
-        <source>Frame delay:</source>
-        <translation>帧延迟:</translation>
-    </message>
-    <message>
         <source> s</source>
         <translation> 秒</translation>
     </message>
@@ -4618,7 +4756,7 @@
     </message>
     <message>
         <source>Abutting (cutout shapes)</source>
-        <translation>邻接(镂空形状)</translation>
+        <translation>邻接(拼接形状)</translation>
     </message>
     <message>
         <source>Overlapping (stacked shapes)</source>
@@ -5569,10 +5707,6 @@ Open in Generative Upscale...</source>
         <translation>宽度</translation>
     </message>
     <message>
-        <source>%1 px</source>
-        <translation>%1 px</translation>
-    </message>
-    <message>
         <source>Pixels</source>
         <translation>像素</translation>
     </message>
@@ -5638,7 +5772,7 @@ Open in Generative Upscale...</source>
     </message>
     <message>
         <source>New Size: %1</source>
-        <translation>新建大小：%1</translation>
+        <translation>新尺寸：%1</translation>
     </message>
     <message>
         <source>OK</source>
@@ -6856,7 +6990,7 @@ RGB：%2, %3, %4</translation>
     </message>
     <message>
         <source>Page %1 of %2 could not be rendered.</source>
-        <translation>无法渲染第 %1 页 (共 %2 页)。</translation>
+        <translation>无法渲染 %2 的第 %1 页。</translation>
     </message>
     <message>
         <source>Page %1</source>
@@ -7628,10 +7762,6 @@ RGB：%2, %3, %4</translation>
         <translation>版本 %1（构建于 %2）</translation>
     </message>
     <message>
-        <source>Created by Seth A. Robinson</source>
-        <translation>由 Seth A. Robinson 创作</translation>
-    </message>
-    <message>
         <source>Code contributions from %1</source>
         <translation>代码贡献者: %1</translation>
     </message>
@@ -8124,16 +8254,8 @@ RGB：%2, %3, %4</translation>
         <translation>拖动中心或半径控制点以定位滤镜。在其他位置拖动可平移视图，滚动鼠标滚轮可缩放。</translation>
     </message>
     <message>
-        <source>UI language for this run only, not saved: en, de, es, fr, it, ja, zh_CN, or zh_TW.</source>
-        <translation>仅本次运行使用的界面语言，不会保存：en、de、es、fr、it、ja、zh_CN 或 zh_TW。</translation>
-    </message>
-    <message>
         <source>Also crop each actual layer to the canvas area</source>
         <translation>同时将每个图层本身裁剪到画布区域</translation>
-    </message>
-    <message>
-        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</source>
-        <translation>无法解码此 HEIC 图像。HEIC 解码需要 Flatpak 编解码器扩展，请使用以下命令安装：flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</translation>
     </message>
     <message>
         <source>Create Ellipse</source>
@@ -8463,6 +8585,292 @@ RGB：%2, %3, %4</translation>
         <source>Stroke Color</source>
         <translation>描边颜色</translation>
     </message>
+    <message>
+        <source>User data folder (fonts, scripts):</source>
+        <translation>用户数据文件夹 (字体、脚本):</translation>
+    </message>
+    <message>
+        <source>Open Data Folder</source>
+        <translation>打开数据文件夹</translation>
+    </message>
+    <message>
+        <source>Could not open data folder.</source>
+        <translation>无法打开数据文件夹。</translation>
+    </message>
+    <message>
+        <source>Created by %1</source>
+        <translation>由 %1 创作</translation>
+    </message>
+    <message>
+        <source>Could not write PSD file</source>
+        <translation>无法写入 PSD 文件</translation>
+    </message>
+    <message>
+        <source>The starter PSD reader currently supports RGB, CMYK, and Grayscale files only</source>
+        <translation>初始版 PSD 读取器目前仅支持 RGB、CMYK 和灰度文件</translation>
+    </message>
+    <message>
+        <source>Grayscale PSD file must contain at least 1 channel</source>
+        <translation>灰度 PSD 文件必须至少包含 1 个通道</translation>
+    </message>
+    <message>
+        <source>The source color mode is Grayscale; Patchy converted the gray values to RGB/RGBA for editing and will export RGB PSD data from this document.</source>
+        <translation>源颜色模式为灰度；Patchy 已将灰度值转换为 RGB/RGBA 以便编辑，并将从此文档导出 RGB PSD 数据。</translation>
+    </message>
+    <message>
+        <source>Not a Windows plug-in binary.</source>
+        <translation>不是 Windows 插件二进制文件。</translation>
+    </message>
+    <message>
+        <source>Unsupported plug-in architecture; only 32-bit and 64-bit x86 plug-ins run.</source>
+        <translation>不支持的插件架构；只能运行 32 位和 64 位 x86 插件。</translation>
+    </message>
+    <message>
+        <source>File-format and automation plug-ins are not supported; only filter (.8bf) plug-ins run.</source>
+        <translation>不支持文件格式和自动化插件；只能运行滤镜 (.8bf) 插件。</translation>
+    </message>
+    <message>
+        <source>This plug-in is not a filter; only filter (.8bf) plug-ins run.</source>
+        <translation>此插件不是滤镜；只能运行滤镜 (.8bf) 插件。</translation>
+    </message>
+    <message>
+        <source>Photoshop filter plug-in (32-bit).</source>
+        <translation>Photoshop 滤镜插件（32 位）。</translation>
+    </message>
+    <message>
+        <source>Photoshop filter plug-in (64-bit).</source>
+        <translation>Photoshop 滤镜插件（64 位）。</translation>
+    </message>
+    <message>
+        <source>Plug-ins folder (.8bf filters):</source>
+        <translation>插件文件夹（.8bf 滤镜）：</translation>
+    </message>
+    <message>
+        <source>Open Plug-ins Folder</source>
+        <translation>打开插件文件夹</translation>
+    </message>
+    <message>
+        <source>Could not open the plug-ins folder.</source>
+        <translation>无法打开插件文件夹。</translation>
+    </message>
+    <message>
+        <source>Blend Clipped Layers as Group</source>
+        <translation>将剪贴图层混合成组</translation>
+    </message>
+    <message>
+        <source>Keep the layers clipped to this one under its interior effects; turn this off together with Blend Interior Effects as Group to draw them over the overlays instead</source>
+        <translation>将剪贴到此图层的图层保持在其内部效果之下;与“将内部效果混合成组”一起关闭时,改为绘制在叠加之上</translation>
+    </message>
+    <message>
+        <source>This file is 32-bit per channel (HDR). Patchy converted it to 8-bit for editing: precision and dynamic range beyond 8-bit were lost, and saving writes an 8-bit file. Keep the original if you need the 32-bit data.</source>
+        <translation>此文件为每通道 32 位 (HDR)。Patchy 已将其转换为 8 位以便编辑：超出 8 位的精度和动态范围已丢失，保存时会写入 8 位文件。如需 32 位数据，请保留原文件。</translation>
+    </message>
+    <message>
+        <source>This file is 16-bit per channel. Patchy converted it to 8-bit for editing: some precision was lost, and saving writes an 8-bit file. Keep the original if you need the 16-bit data.</source>
+        <translation>此文件为每通道 16 位。Patchy 已将其转换为 8 位以便编辑：部分精度已丢失，保存时会写入 8 位文件。如需 16 位数据，请保留原文件。</translation>
+    </message>
+    <message>
+        <source>The source is %1 bits per channel; Patchy converted it to 8-bit for editing and saves an 8-bit file. Keep the original if you need the deeper data.</source>
+        <translation>源文件为每通道 %1 位；Patchy 已将其转换为 8 位以便编辑，并保存为 8 位文件。如需更高位深的数据，请保留原文件。</translation>
+    </message>
+    <message>
+        <source>%1 opened with notes:
+
+%2</source>
+        <translation>%1 已打开，并附有以下说明:
+
+%2</translation>
+    </message>
+    <message>
+        <source>Import Notes</source>
+        <translation>导入说明</translation>
+    </message>
+    <message>
+        <source>Crop to Selection (Advanced)</source>
+        <translation>裁剪到选区(高级)</translation>
+    </message>
+    <message>
+        <source>Also delete layers that end up fully off the canvas</source>
+        <translation>同时删除完全位于画布之外的图层</translation>
+    </message>
+    <message>
+        <source>Patchy can&apos;t locate these fonts: %1. These fonts have no glyphs for their text: %2. Editing this PSD raster preview will substitute other fonts. Continue?</source>
+        <translation>Patchy 找不到以下字体：%1。以下字体没有其文字所需的字形：%2。编辑此 PSD 栅格预览将替换为其他字体。是否继续？</translation>
+    </message>
+    <message>
+        <source>The font &quot;%1&quot; has no glyphs for this text. Editing this PSD raster preview will substitute another font. Continue?</source>
+        <translation>字体“%1”没有此文字所需的字形。编辑此 PSD 栅格预览将替换为其他字体。是否继续？</translation>
+    </message>
+    <message>
+        <source>These fonts have no glyphs for their text: %1. Editing this PSD raster preview will substitute other fonts. Continue?</source>
+        <translation>以下字体没有其文字所需的字形：%1。编辑此 PSD 栅格预览将替换为其他字体。是否继续？</translation>
+    </message>
+    <message>
+        <source>Text layer. Missing font: %1. No glyphs for this text in: %2. Other fonts are being substituted, so the text does not look as it was authored.</source>
+        <translation>文字图层。缺少字体：%1。以下字体没有此文字所需的字形：%2。已替换为其他字体，因此文字外观与创作时不同。</translation>
+    </message>
+    <message>
+        <source>Text layer. No glyphs for this text in: %1. Another font is being substituted, so the text does not look as it was authored.</source>
+        <translation>文字图层。以下字体没有此文字所需的字形：%1。已替换为其他字体，因此文字外观与创作时不同。</translation>
+    </message>
+    <message>
+        <source>UI language for this run only, not saved: en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN, or zh_TW.</source>
+        <translation>仅本次运行使用的界面语言，不会保存：en、de、es、fr、it、ja、ko、pl、pt_BR、ru、zh_CN 或 zh_TW。</translation>
+    </message>
+    <message>
+        <source>Invalid or damaged animated WebP.</source>
+        <translation>动画 WebP 无效或已损坏。</translation>
+    </message>
+    <message>
+        <source>Animated WebP exceeds the image allocation limit.</source>
+        <translation>动画 WebP 超出了图像内存分配限制。</translation>
+    </message>
+    <message>
+        <source>Invalid animated WebP dimensions or quality.</source>
+        <translation>动画 WebP 的尺寸或质量无效。</translation>
+    </message>
+    <message>
+        <source>Could not create animated WebP encoder.</source>
+        <translation>无法创建动画 WebP 编码器。</translation>
+    </message>
+    <message>
+        <source>Invalid animated WebP frame or duration.</source>
+        <translation>动画 WebP 的帧或时长无效。</translation>
+    </message>
+    <message>
+        <source>Could not encode animated WebP frame.</source>
+        <translation>无法编码动画 WebP 帧。</translation>
+    </message>
+    <message>
+        <source>Animated WebP needs at least one frame.</source>
+        <translation>动画 WebP 至少需要一帧。</translation>
+    </message>
+    <message>
+        <source>Could not finish animated WebP.</source>
+        <translation>无法完成动画 WebP。</translation>
+    </message>
+    <message>
+        <source>Forever</source>
+        <translation>无限循环</translation>
+    </message>
+    <message>
+        <source>Play count:</source>
+        <translation>播放次数:</translation>
+    </message>
+    <message>
+        <source>Each visible top-level layer becomes one frame, with the top layer first. A name ending in a time, like &quot;blink 0.033s&quot;, sets that frame&apos;s delay. Play count includes the first play.</source>
+        <translation>每个可见的顶层图层生成一帧，从最上面的图层开始。名称末尾的时间（如 &quot;blink 0.033s&quot;）指定该帧的显示时长。播放次数包含首次播放。</translation>
+    </message>
+    <message>
+        <source>Animated WebP: imported %1 frames as layers</source>
+        <translation>动画 WebP: 已将 %1 帧导入为图层</translation>
+    </message>
+    <message>
+        <source>The document has no visible top-level layers to export as an animated WebP.</source>
+        <translation>文档没有可导出为动画 WebP 的可见顶层图层。</translation>
+    </message>
+    <message>
+        <source>Could not open WebP file for writing</source>
+        <translation>无法打开 WebP 文件进行写入</translation>
+    </message>
+    <message>
+        <source>Could not write WebP file</source>
+        <translation>无法写入 WebP 文件</translation>
+    </message>
+    <message>
+        <source>Default frame delay:</source>
+        <translation>默认帧间隔:</translation>
+    </message>
+    <message>
+        <source>Mixed: selected layers have different values</source>
+        <translation>混合：选定图层的值不同</translation>
+    </message>
+    <message>
+        <source> (Mixed)</source>
+        <translation> (混合)</translation>
+    </message>
+    <message>
+        <source>Values from: %1</source>
+        <translation>参考值来自：%1</translation>
+    </message>
+    <message>
+        <source>Apply All Settings to Selected Layers</source>
+        <translation>将所有设置应用于选定图层</translation>
+    </message>
+    <message>
+        <source>Present on %1 of %2 layers</source>
+        <translation>存在于 %2 个图层中的 %1 个</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n layers selected</source>
+        <translation>
+            <numerusform>已选择 %n 个图层</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Editable layers: %n</source>
+        <translation>
+            <numerusform>%n 个可编辑图层</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Editable rectangles for corner radii: %n</source>
+        <translation>
+            <numerusform>圆角半径：%n 个可编辑矩形</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Gradient settings apply to %1 of %2 editable layers.</source>
+        <translation>渐变设置适用于 %2 个可编辑图层中的 %1 个。</translation>
+    </message>
+    <message>
+        <source>Pattern settings apply to %1 of %2 editable layers.</source>
+        <translation>图案设置适用于 %2 个可编辑图层中的 %1 个。</translation>
+    </message>
+    <message>
+        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</source>
+        <translation>无法解码此 HEIC 图像。HEIC 解码需要 Flatpak 编解码器扩展，请使用以下命令安装：flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</translation>
+    </message>
+    <message>
+        <source>Exposure</source>
+        <translation>曝光</translation>
+    </message>
+    <message>
+        <source>Offset:</source>
+        <translation>位移:</translation>
+    </message>
+    <message>
+        <source>Gamma Correction:</source>
+        <translation>灰度系数校正:</translation>
+    </message>
+    <message>
+        <source>Exposure: %1, offset %2, gamma %3</source>
+        <translation>曝光：%1，位移 %2，灰度系数 %3</translation>
+    </message>
+    <message>
+        <source>Lab PSD file must contain at least 3 channels</source>
+        <translation>Lab PSD 文件必须至少包含 3 个通道</translation>
+    </message>
+    <message>
+        <source>This file uses a color mode Patchy does not edit in (Bitmap, Indexed, Duotone, Lab or Multichannel). Patchy converted it to RGB for editing, and saving writes an RGB file. Keep the original if you need its color mode.</source>
+        <translation>此文件使用了 Patchy 不用于编辑的颜色模式（位图、索引颜色、双色调、Lab 或多通道）。Patchy 已将其转换为 RGB 以便编辑，保存时会写入 RGB 文件。如果需要原来的颜色模式，请保留原始文件。</translation>
+    </message>
+    <message>
+        <source>This CMYK file has adjustment layers that act on its CMYK inks. Patchy shows them that way, but it saves RGB files: in a saved file those layers are applied to RGB and the colors will look different. Keep the original, or merge those layers before saving.</source>
+        <translation>此 CMYK 文件包含作用于 CMYK 油墨的调整图层。Patchy 会按这种方式显示它们，但保存的是 RGB 文件：在保存后的文件中，这些图层会应用于 RGB，颜色会有所不同。请保留原始文件，或在保存前合并这些图层。</translation>
+    </message>
+    <message>
+        <source>%1 came from a CMYK document and adjusts its CMYK inks here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its colors will look different.</source>
+        <translation>%1 来自 CMYK 文档，在这里调整的是它的 CMYK 油墨。Patchy 保存的是 RGB 文件，因此在保存后的文件中，Photoshop 和 Patchy 都会把它应用于 RGB，颜色会有所不同。</translation>
+    </message>
+    <message>
+        <source>This grayscale file has adjustment layers that act on its gray channel. Patchy shows them that way, but it saves RGB files: in a saved file those layers are applied to RGB and the tones will look different. Keep the original, or merge those layers before saving.</source>
+        <translation>此灰度文件包含作用于灰色通道的调整图层。Patchy 会按这种方式显示它们，但保存的是 RGB 文件：在保存后的文件中，这些图层会应用于 RGB，色调会有所不同。请保留原始文件，或在保存前合并这些图层。</translation>
+    </message>
+    <message>
+        <source>%1 came from a grayscale document and adjusts its gray channel here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its tones will look different.</source>
+        <translation>%1 来自灰度文档，在这里调整的是它的灰色通道。Patchy 保存的是 RGB 文件，因此在保存后的文件中，Photoshop 和 Patchy 都会把它应用于 RGB，色调会有所不同。</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -8520,6 +8928,41 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Utilities</source>
         <translation>实用工具</translation>
+    </message>
+</context>
+<context>
+    <name>ThemeFile</name>
+    <message>
+        <source>Not a valid theme file: %1</source>
+        <translation>不是有效的主题文件：%1</translation>
+    </message>
+    <message>
+        <source>the top level is not an object</source>
+        <translation>顶层不是对象</translation>
+    </message>
+    <message>
+        <source>Theme file format %1 is not supported by this build (expected %2).</source>
+        <translation>此版本不支持主题文件格式 %1（应为 %2）。</translation>
+    </message>
+    <message>
+        <source>Theme file is missing a valid &quot;base&quot; (must be &quot;dark&quot; or &quot;light&quot;).</source>
+        <translation>主题文件缺少有效的 &quot;base&quot;（必须为 &quot;dark&quot; 或 &quot;light&quot;）。</translation>
+    </message>
+    <message>
+        <source>Theme file&apos;s &quot;roles&quot; is not an object.</source>
+        <translation>主题文件的 &quot;roles&quot; 不是对象。</translation>
+    </message>
+    <message>
+        <source>Unknown color role &quot;%1&quot; (ignored).</source>
+        <translation>未知的颜色角色 &quot;%1&quot;（已忽略）。</translation>
+    </message>
+    <message>
+        <source>Invalid color &quot;%1&quot; for role &quot;%2&quot; (expected #RRGGBB or #RRGGBBAA).</source>
+        <translation>角色 &quot;%2&quot; 的颜色 &quot;%1&quot; 无效（应为 #RRGGBB 或 #RRGGBBAA）。</translation>
+    </message>
+    <message>
+        <source>Theme file &quot;%1&quot; could not be read.</source>
+        <translation>无法读取主题文件 &quot;%1&quot;。</translation>
     </message>
 </context>
 <context>
@@ -8675,10 +9118,6 @@ RGB：%2, %3, %4</translation>
         <translation>播放</translation>
     </message>
     <message>
-        <source>Frame delay:</source>
-        <translation>帧延迟:</translation>
-    </message>
-    <message>
         <source> s</source>
         <translation> 秒</translation>
     </message>
@@ -8703,10 +9142,6 @@ RGB：%2, %3, %4</translation>
         <translation>移除选中图层名称末尾的帧时间。</translation>
     </message>
     <message>
-        <source>Plays the visible top-level layers as frames, top layer first, exactly like the animated GIF export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
-        <translation>将可见的顶级图层作为帧播放，最上层的图层为第一帧，与动画 GIF 导出完全一致。以时间结尾的图层名称（例如“blink 0.25s”）会设置该帧的延迟。</translation>
-    </message>
-    <message>
         <source>No visible layers</source>
         <translation>没有可见图层</translation>
     </message>
@@ -8717,6 +9152,14 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Stop</source>
         <translation>停止</translation>
+    </message>
+    <message>
+        <source>Plays the visible top-level layers as frames, top layer first, like animated GIF and WebP export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
+        <translation>将可见的顶层图层从上到下作为帧播放，与动画 GIF 和 WebP 导出相同。图层名称末尾的时间（如 &quot;blink 0.25s&quot;）指定该帧的显示时长。</translation>
+    </message>
+    <message>
+        <source>Default frame delay:</source>
+        <translation>默认帧间隔:</translation>
     </message>
 </context>
 <context>
@@ -9530,7 +9973,7 @@ RGB：%2, %3, %4</translation>
     </message>
     <message>
         <source>Selected layer opacity</source>
-        <translation>已选择图层不透明度</translation>
+        <translation>已选择图层的不透明区域</translation>
     </message>
     <message>
         <source>Layer has no mask</source>
@@ -9902,11 +10345,11 @@ RGB：%2, %3, %4</translation>
     </message>
     <message>
         <source>Removed object with content-aware fill (%1 patches)</source>
-        <translation>已使用内容识别填充移除对象（%1 个补丁）</translation>
+        <translation>已使用内容识别填充移除对象（%1 个图块）</translation>
     </message>
     <message>
         <source>Remove Object found no clean source patches nearby; used the nearest edge instead (source %1 of %2)</source>
-        <translation>移除对象在附近未找到干净的来源补丁，改用最近边缘（来源 %1/%2）</translation>
+        <translation>移除对象在附近未找到干净的来源图块，改用最近边缘（来源 %1/%2）</translation>
     </message>
     <message>
         <source>Removing object...</source>
@@ -9927,6 +10370,58 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Resize Selection</source>
         <translation>调整选区大小</translation>
+    </message>
+    <message>
+        <source>Removed object with content-aware fill, variation %1 (%2 patches)</source>
+        <translation>已使用内容识别填充移除对象，变体 %1（%2 个图块）</translation>
+    </message>
+    <message>
+        <source>Remove Object was cancelled</source>
+        <translation>移除对象已取消</translation>
+    </message>
+    <message>
+        <source>Guide X: %1</source>
+        <translation>参考线 X: %1</translation>
+    </message>
+    <message>
+        <source>Guide Y: %1</source>
+        <translation>参考线 Y: %1</translation>
+    </message>
+    <message>
+        <source>X: %1</source>
+        <translation>X: %1</translation>
+    </message>
+    <message>
+        <source>Y: %1</source>
+        <translation>Y: %1</translation>
+    </message>
+    <message>
+        <source>Default</source>
+        <translation>默认值</translation>
+    </message>
+    <message>
+        <source>Black</source>
+        <translation>黑色</translation>
+    </message>
+    <message>
+        <source>Dark Gray</source>
+        <translation>深灰色</translation>
+    </message>
+    <message>
+        <source>Medium Gray</source>
+        <translation>中灰色</translation>
+    </message>
+    <message>
+        <source>Light Gray</source>
+        <translation>浅灰色</translation>
+    </message>
+    <message>
+        <source>White</source>
+        <translation>白色</translation>
+    </message>
+    <message>
+        <source>Select Custom Color...</source>
+        <translation>选择自定义颜色...</translation>
     </message>
 </context>
 <context>
@@ -10148,6 +10643,55 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Other</source>
         <translation>其他</translation>
+    </message>
+</context>
+<context>
+    <name>patchy::ui::LegacyPluginRunDialog</name>
+    <message>
+        <source>Legacy Photoshop Plug-in</source>
+        <translation>旧版 Photoshop 增效工具</translation>
+    </message>
+    <message>
+        <source>Classic plug-ins show their preview inside their own window. The layer changes after you click OK.</source>
+        <translation>经典插件在自己的窗口中显示预览。单击 OK 后图层才会改变。</translation>
+    </message>
+    <message>
+        <source>Show Plug-in Window</source>
+        <translation>显示插件窗口</translation>
+    </message>
+    <message>
+        <source>Brings the plug-in&apos;s window back in front of Patchy.</source>
+        <translation>将插件窗口重新置于 Patchy 前面。</translation>
+    </message>
+    <message>
+        <source>Starting %1...</source>
+        <translation>正在启动 %1...</translation>
+    </message>
+    <message>
+        <source>Force Stop Plug-in</source>
+        <translation>强制停止插件</translation>
+    </message>
+    <message>
+        <source>Ends the plug-in without applying it. Use it only if the plug-in&apos;s window has stopped responding.</source>
+        <extracomment>Tooltip of the stop button while a plug-in is loading or waits for the user in its own window.</extracomment>
+        <translation>不应用而直接结束插件。仅在插件窗口停止响应时使用。</translation>
+    </message>
+    <message>
+        <source>%1 is open in its own window. Adjust its settings there and click its OK button to apply it to this layer.</source>
+        <extracomment>%1 is the plug-in&apos;s name; shown while its own settings window is open.</extracomment>
+        <translation>%1 已在自己的窗口中打开。请在那里调整设置，然后单击其 OK 按钮，将其应用到此图层。</translation>
+    </message>
+    <message>
+        <source>Applying %1...</source>
+        <translation>正在应用 %1...</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <source>Stops the plug-in. The layer stays unchanged.</source>
+        <translation>停止插件。图层保持不变。</translation>
     </message>
 </context>
 <context>
@@ -10699,10 +11243,6 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Shift &amp;Seams to Center</source>
         <translation>将接缝移到中心(&amp;S)</translation>
-    </message>
-    <message>
-        <source>&amp;Scan Legacy Photoshop Plug-ins...</source>
-        <translation>扫描旧版 Photoshop 增效工具(&amp;S)...</translation>
     </message>
     <message>
         <source>Legacy Photoshop Plug-ins</source>
@@ -13066,18 +13606,6 @@ RGB: -
         <translation>已打开 %1。%2</translation>
     </message>
     <message>
-        <source>Import Notes</source>
-        <translation>导入说明</translation>
-    </message>
-    <message>
-        <source>%1 opened with notes:
-
-%2</source>
-        <translation>%1 已打开，并附有以下说明:
-
-%2</translation>
-    </message>
-    <message>
         <source>File is missing</source>
         <translation>文件缺失</translation>
     </message>
@@ -13318,10 +13846,6 @@ RGB: -
     <message>
         <source>Save As</source>
         <translation>存储为</translation>
-    </message>
-    <message>
-        <source>SVG keeps shape layers as vectors, but masks, layer styles, text, and adjustments are baked into images, so Patchy will save a copy. The open document will keep its layers and unsaved changes. To keep everything editable, save as a Photoshop document (.psd) instead.</source>
-        <translation>SVG 会将形状图层保留为矢量，但蒙版、图层样式、文字和调整会被烘焙为图像，因此 Patchy 将保存一份副本。当前打开的文档仍会保留其图层和未保存的更改。若要保持所有内容可编辑，请改为存储为 Photoshop 文档 (.psd)。</translation>
     </message>
     <message>
         <source>This file format cannot store layers. Continue saving and flatten the linked file?</source>
@@ -15309,7 +15833,7 @@ Y: %2
     </message>
     <message>
         <source>Some layers contain colors outside the palette (filters, layer styles, or text can cause this). Use Image &gt; Snap Image to Palette to fix them. Click to show the Palette panel.</source>
-        <translation>部分图层包含调色板之外的颜色(滤镜、图层样式或文字都可能导致这种情况)。请使用“图像 &gt; 将图像吸附到调色板”进行修复。单击可显示“调色板”面板。</translation>
+        <translation>部分图层包含调色板之外的颜色(滤镜、图层样式或文字都可能导致这种情况)。请使用“图像 &gt; 将图像颜色匹配到调色板”进行修复。单击可显示“调色板”面板。</translation>
     </message>
     <message>
         <source>%1 Shape Path</source>
@@ -15532,22 +16056,6 @@ Y: %2
         <translation>已从选区建立工作路径。</translation>
     </message>
     <message>
-        <source>Scan Legacy Photoshop Plug-ins</source>
-        <translation>扫描旧版 Photoshop 增效工具</translation>
-    </message>
-    <message>
-        <source>Photoshop Plug-ins (*.8bf *.8bi *.8li);;All Files (*.*)</source>
-        <translation>Photoshop 增效工具 (*.8bf *.8bi *.8li);;所有文件 (*.*)</translation>
-    </message>
-    <message>
-        <source>%1 plug-in action(s) available under Plug-ins &gt; Legacy Photoshop Plug-ins.
-
-%2</source>
-        <translation>%1 个增效工具操作可在“增效工具 &gt; 旧版 Photoshop 增效工具”下使用。
-
-%2</translation>
-    </message>
-    <message>
         <source>%1: %2 (%3, %4)</source>
         <translation>%1: %2 (%3, %4)</translation>
     </message>
@@ -15562,14 +16070,6 @@ Y: %2
     <message>
         <source>Legacy Photoshop Plug-in</source>
         <translation>旧版 Photoshop 增效工具</translation>
-    </message>
-    <message>
-        <source>%1 was scanned and is available, but this build only has compatibility shims for the bundled Greyscale and White to Transparent test filters. A full 8BF host still needs the out-of-process Photoshop SDK adapter.</source>
-        <translation>%1 已扫描并可用，但此版本仅为随附的“灰度”和“白色转透明”测试滤镜提供兼容性适配。完整的 8BF 宿主仍需要进程外的 Photoshop SDK 适配器。</translation>
-    </message>
-    <message>
-        <source>Legacy plug-in</source>
-        <translation>旧版增效工具</translation>
     </message>
     <message>
         <source>Preferences</source>
@@ -15760,14 +16260,6 @@ Y: %2
         <translation>将笔尾橡皮擦用作橡皮擦工具</translation>
     </message>
     <message>
-        <source>Scroll wheel zooms the canvas</source>
-        <translation>滚轮缩放画布</translation>
-    </message>
-    <message>
-        <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan.</source>
-        <translation>也适用于设置为“滚动”的笔按钮。滚动时按住 %CTRL% 或 Shift 可平移。</translation>
-    </message>
-    <message>
         <source>Pan canvas</source>
         <translation>平移画布</translation>
     </message>
@@ -15876,10 +16368,6 @@ Y: %2
         <translation>选区边界和中心</translation>
     </message>
     <message>
-        <source>Ruler units:</source>
-        <translation>标尺单位:</translation>
-    </message>
-    <message>
         <source>Default visibility:</source>
         <translation>默认可见性:</translation>
     </message>
@@ -15906,10 +16394,6 @@ Y: %2
     <message>
         <source>Overlay preview:</source>
         <translation>叠加预览:</translation>
-    </message>
-    <message>
-        <source>Grid and Guides</source>
-        <translation>网格和参考线</translation>
     </message>
     <message>
         <source>Snap:</source>
@@ -16558,28 +17042,12 @@ Y: %2
         </translation>
     </message>
     <message>
-        <source>Select a shape layer to edit its appearance</source>
-        <translation>请选择一个形状图层以编辑其外观</translation>
-    </message>
-    <message>
-        <source>This shape layer&apos;s vector data is preserved but can&apos;t be edited.</source>
-        <translation>此形状图层的矢量数据已保留，但无法编辑。</translation>
-    </message>
-    <message>
-        <source>Updating shape...</source>
-        <translation>正在更新形状...</translation>
-    </message>
-    <message>
         <source>Cancelled shape appearance</source>
         <translation>已取消形状外观</translation>
     </message>
     <message>
         <source>Shape appearance</source>
         <translation>形状外观</translation>
-    </message>
-    <message>
-        <source>Updated the shape appearance</source>
-        <translation>已更新形状外观</translation>
     </message>
     <message>
         <source>Created fill layer %1.</source>
@@ -17208,10 +17676,6 @@ Y: %2
         <translation>轴心:</translation>
     </message>
     <message>
-        <source>Remove &amp;Object</source>
-        <translation>移除对象(&amp;O)</translation>
-    </message>
-    <message>
         <source>Remove Object</source>
         <translation>移除对象</translation>
     </message>
@@ -17370,6 +17834,766 @@ Y: %2
     <message>
         <source>Brush tip: Square</source>
         <translation>画笔笔尖: 方形</translation>
+    </message>
+    <message>
+        <source>Remove &amp;Object...</source>
+        <translation>移除对象(&amp;O)...</translation>
+    </message>
+    <message>
+        <source>Remove Object needs a selection: select the area to remove first</source>
+        <translation>移除对象需要选区：请先选择要移除的区域</translation>
+    </message>
+    <message>
+        <source>Tone match</source>
+        <translation>色调匹配</translation>
+    </message>
+    <message>
+        <source>How strongly the fill&apos;s brightness is smoothed to its own edges (0 keeps the raw fill)</source>
+        <translation>填充亮度向其自身边缘平滑的强度（0 保留原始填充）</translation>
+    </message>
+    <message>
+        <source>Edge feather</source>
+        <translation>边缘羽化</translation>
+    </message>
+    <message>
+        <source> px</source>
+        <translation> px</translation>
+    </message>
+    <message>
+        <source>Reroll</source>
+        <translation>重新生成</translation>
+    </message>
+    <message>
+        <source>Fill again with the next variation</source>
+        <translation>使用下一个变体重新填充</translation>
+    </message>
+    <message>
+        <source>Variation %1</source>
+        <translation>变体 %1</translation>
+    </message>
+    <message>
+        <source>Content-aware fill (%1 patches)</source>
+        <translation>内容识别填充（%1 个图块）</translation>
+    </message>
+    <message>
+        <source>No clean source patches nearby; used the nearest edge (source %1 of %2)</source>
+        <translation>附近没有干净的来源图块，已改用最近边缘（来源 %1/%2）</translation>
+    </message>
+    <message>
+        <source>Cancelled Remove Object</source>
+        <translation>已取消移除对象</translation>
+    </message>
+    <message>
+        <source>Removed object with content-aware fill, variation %1 (%2 patches)</source>
+        <translation>已使用内容识别填充移除对象，变体 %1（%2 个图块）</translation>
+    </message>
+    <message>
+        <source>Removed object with the nearest edge (source %1 of %2)</source>
+        <translation>已使用最近边缘移除对象（来源 %1/%2）</translation>
+    </message>
+    <message>
+        <source>Softens the fill&apos;s edge outward from the selection, on top of its own feather. The filled area grows by the feather, so keep it small when the selection hugs an edge</source>
+        <translation>在选区自身羽化之外，向选区外侧柔化填充边缘。填充区域会随羽化扩大，选区紧贴边缘时请保持较小</translation>
+    </message>
+    <message>
+        <source>Duplicate to New Layer</source>
+        <translation>复制到新图层</translation>
+    </message>
+    <message>
+        <source>Copies this variation&apos;s filled area onto a new hidden layer above this one, so several variations can be kept and compared</source>
+        <translation>将此变体的填充区域复制到上方的新隐藏图层，以便保留并比较多个变体</translation>
+    </message>
+    <message>
+        <source>Filling...</source>
+        <translation>正在填充...</translation>
+    </message>
+    <message>
+        <source>Filling... %1%</source>
+        <translation>正在填充... %1%</translation>
+    </message>
+    <message>
+        <source>Duplicate Remove Object variation to layer</source>
+        <translation>将移除对象变体复制到图层</translation>
+    </message>
+    <message>
+        <source>Remove Object variation %1</source>
+        <translation>移除对象变体 %1</translation>
+    </message>
+    <message>
+        <source>Copied variation %1 to the hidden layer &quot;%2&quot;</source>
+        <translation>已将变体 %1 复制到隐藏图层“%2”</translation>
+    </message>
+    <message>
+        <source>&amp;Files as Layers...</source>
+        <translation>文件转为图层(&amp;F)...</translation>
+    </message>
+    <message>
+        <source>the file holds no layers</source>
+        <translation>文件不包含图层</translation>
+    </message>
+    <message>
+        <source>Folder</source>
+        <translation>文件夹</translation>
+    </message>
+    <message>
+        <source>None of the files could be added as layers</source>
+        <translation>没有文件能作为图层添加</translation>
+    </message>
+    <message>
+        <source>The drop target is no longer in the document</source>
+        <translation>放置目标已不在文档中</translation>
+    </message>
+    <message>
+        <source>Add files as layers</source>
+        <translation>将文件添加为图层</translation>
+    </message>
+    <message>
+        <source>These files could not be added as layers:
+
+%1</source>
+        <translation>这些文件无法作为图层添加：
+
+%1</translation>
+    </message>
+    <message numerus="yes">
+        <source>Added %n layer(s)</source>
+        <translation>
+            <numerusform>已添加 %n 个图层</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Files as Layers</source>
+        <translation>文件转为图层</translation>
+    </message>
+    <message>
+        <source>The document is no longer open.</source>
+        <translation>文档已不再打开。</translation>
+    </message>
+    <message>
+        <source>Adding file %1 of %2...</source>
+        <translation>正在添加文件 %1 / %2...</translation>
+    </message>
+    <message>
+        <source>Cancelled adding files as layers</source>
+        <translation>已取消将文件添加为图层</translation>
+    </message>
+    <message>
+        <source>Recover</source>
+        <translation>恢复</translation>
+    </message>
+    <message>
+        <source>Automatically save recovery information every</source>
+        <translation>自动保存恢复信息，间隔</translation>
+    </message>
+    <message>
+        <source>Writes a copy of each changed document to a recovery folder so it can be reopened after a crash. The file you saved is never touched, and the copies are removed when Patchy quits normally.</source>
+        <translation>将每个已更改文档的副本写入恢复文件夹，以便在崩溃后重新打开。您保存的文件绝不会被改动，Patchy 正常退出时会删除这些副本。</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n minute(s)</source>
+        <translation>
+            <numerusform>%n 分钟</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Could not save recovery information: %1</source>
+        <translation>无法保存恢复信息：%1</translation>
+    </message>
+    <message>
+        <source>%1 (Recovered)</source>
+        <translation>%1（已恢复）</translation>
+    </message>
+    <message numerus="yes">
+        <source>Recovered %n unsaved document(s) from the last session</source>
+        <translation>
+            <numerusform>已从上次会话恢复 %n 个未保存的文档</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n recovery file(s) could not be opened; see %1</source>
+        <translation>
+            <numerusform>%n 个恢复文件无法打开；请查看 %1</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>How far a pixel&apos;s color may differ from the clicked color and still be filled</source>
+        <translation>像素颜色与点击颜色相差多少仍会被填充</translation>
+    </message>
+    <message>
+        <source>Limit the fill to pixels connected to the click</source>
+        <translation>将填充限制为与点击点相连的像素</translation>
+    </message>
+    <message>
+        <source>Paragraph</source>
+        <translation>段落</translation>
+    </message>
+    <message>
+        <source>Justify (last line left)</source>
+        <translation>两端对齐 (末行左对齐)</translation>
+    </message>
+    <message>
+        <source>Paragraph alignment; Justify spreads every line but the last across the box</source>
+        <translation>段落对齐方式；两端对齐会将除末行外的每一行铺满文本框</translation>
+    </message>
+    <message>
+        <source>Alignment:</source>
+        <translation>对齐:</translation>
+    </message>
+    <message>
+        <source>First line indent:</source>
+        <translation>首行缩进:</translation>
+    </message>
+    <message>
+        <source>Indent of each paragraph&apos;s first line; negative with a left indent makes a hanging indent</source>
+        <translation>每个段落首行的缩进；与左缩进搭配使用负值可形成悬挂缩进</translation>
+    </message>
+    <message>
+        <source>Left indent:</source>
+        <translation>左缩进:</translation>
+    </message>
+    <message>
+        <source>Space between the box edge and every line&apos;s start</source>
+        <translation>文本框边缘与每行起始位置之间的间距</translation>
+    </message>
+    <message>
+        <source>Right indent:</source>
+        <translation>右缩进:</translation>
+    </message>
+    <message>
+        <source>Space between every line&apos;s end and the box edge</source>
+        <translation>每行末尾与文本框边缘之间的间距</translation>
+    </message>
+    <message>
+        <source>Space before:</source>
+        <translation>段前间距:</translation>
+    </message>
+    <message>
+        <source>Extra space above each paragraph</source>
+        <translation>每个段落上方的额外间距</translation>
+    </message>
+    <message>
+        <source>Space after:</source>
+        <translation>段后间距:</translation>
+    </message>
+    <message>
+        <source>Extra space below each paragraph</source>
+        <translation>每个段落下方的额外间距</translation>
+    </message>
+    <message>
+        <source>Paragraph...</source>
+        <translation>段落...</translation>
+    </message>
+    <message>
+        <source>Paragraph panel (alignment, indents, spacing)</source>
+        <translation>段落面板 (对齐、缩进、间距)</translation>
+    </message>
+    <message>
+        <source>Convert to Layers</source>
+        <translation>转换为图层</translation>
+    </message>
+    <message>
+        <source>Replace the smart object with a folder holding the layers of its contents</source>
+        <translation>用包含其内容图层的文件夹替换智能对象</translation>
+    </message>
+    <message>
+        <source>Embed the linked Smart Object before converting it to layers</source>
+        <translation>请先嵌入链接的智能对象，再将其转换为图层</translation>
+    </message>
+    <message>
+        <source>Delete the Smart Filters before converting this Smart Object to layers</source>
+        <translation>请先删除智能滤镜，再将此智能对象转换为图层</translation>
+    </message>
+    <message>
+        <source>A warped or perspective Smart Object can&apos;t be converted to layers; rasterize it instead</source>
+        <translation>变形或透视的智能对象无法转换为图层；请改为栅格化</translation>
+    </message>
+    <message>
+        <source>The smart object&apos;s contents have no layers to convert</source>
+        <translation>智能对象的内容中没有可转换的图层</translation>
+    </message>
+    <message>
+        <source>The contents contain Smart Filters, which can&apos;t be moved out of the Smart Object yet</source>
+        <translation>内容中包含智能滤镜，目前还无法将其移出智能对象</translation>
+    </message>
+    <message>
+        <source>Could not convert the smart object to layers</source>
+        <translation>无法将智能对象转换为图层</translation>
+    </message>
+    <message numerus="yes">
+        <source>Converted the smart object to %n layer(s)</source>
+        <translation>
+            <numerusform>已将智能对象转换为 %n 个图层</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Add Plug-in Folder</source>
+        <translation>添加插件文件夹</translation>
+    </message>
+    <message>
+        <source>No plug-ins found (put .8bf files in the plugins folder)</source>
+        <translation>未找到插件（请将 .8bf 文件放入 plugins 文件夹）</translation>
+    </message>
+    <message>
+        <source>Run the %1 plug-in on the active layer</source>
+        <translation>在当前图层上运行 %1 插件</translation>
+    </message>
+    <message>
+        <source>Plug-in: %1</source>
+        <translation>插件：%1</translation>
+    </message>
+    <message>
+        <source>%1 could not run.
+
+%2</source>
+        <translation>%1 无法运行。
+
+%2</translation>
+    </message>
+    <message>
+        <source>Legacy Photoshop plug-ins run on Windows only.</source>
+        <translation>旧版 Photoshop 插件只能在 Windows 上运行。</translation>
+    </message>
+    <message>
+        <source>The selection does not touch the active layer.</source>
+        <translation>选区未触及当前图层。</translation>
+    </message>
+    <message>
+        <source>The layer no longer exists.</source>
+        <translation>该图层已不存在。</translation>
+    </message>
+    <message>
+        <source>Photoshop filter plug-ins (.8bf, 32-bit or 64-bit) are found in these folders and their subfolders and listed under Plugins &gt; Legacy Photoshop Plug-ins. Only run plug-ins you trust: they execute with your permissions.</source>
+        <translation>Patchy 会在这些文件夹及其子文件夹中查找 Photoshop 滤镜插件（.8bf，32 位或 64 位），并将其列在“增效工具 &gt; 旧版 Photoshop 增效工具”下。只运行你信任的插件：它们以你的权限执行。</translation>
+    </message>
+    <message>
+        <source>Always scanned:</source>
+        <translation>始终扫描：</translation>
+    </message>
+    <message>
+        <source>Add Folder...</source>
+        <translation>添加文件夹...</translation>
+    </message>
+    <message>
+        <source>Added folders:</source>
+        <translation>已添加的文件夹：</translation>
+    </message>
+    <message>
+        <source>Plug-ins</source>
+        <translation>插件</translation>
+    </message>
+    <message>
+        <source>Open Plug-ins &amp;Folder</source>
+        <translation>打开插件文件夹(&amp;F)</translation>
+    </message>
+    <message>
+        <source>&amp;Rescan Plug-in Folders</source>
+        <translation>重新扫描插件文件夹(&amp;R)</translation>
+    </message>
+    <message>
+        <source>Could not open the plug-ins folder.</source>
+        <translation>无法打开插件文件夹。</translation>
+    </message>
+    <message>
+        <source>Plug-in scan finished: %1 available</source>
+        <translation>插件扫描完成：%1 个可用</translation>
+    </message>
+    <message>
+        <source>Plug-in scan finished: %1 available, %2 not usable</source>
+        <translation>插件扫描完成：%1 个可用，%2 个不可用</translation>
+    </message>
+    <message>
+        <source>Scanning plug-in folders...</source>
+        <translation>正在扫描插件文件夹...</translation>
+    </message>
+    <message>
+        <source>Whole monitor</source>
+        <translation>整个显示器</translation>
+    </message>
+    <message>
+        <source>Plug-in windows open on the monitor showing Patchy. Plug-ins with full-screen interfaces size themselves to this screen size, so a smaller size keeps them usable on large monitors.</source>
+        <translation>插件窗口会在显示 Patchy 的显示器上打开。全屏界面的插件会按此屏幕尺寸显示，较小的尺寸可让它们在大显示器上保持可用。</translation>
+    </message>
+    <message>
+        <source>Screen size for plug-in windows:</source>
+        <translation>插件窗口的屏幕尺寸:</translation>
+    </message>
+    <message>
+        <source>%1 via Patchy</source>
+        <extracomment>Title of the movable window a full-screen plug-in interface is shown in; %1 is the plug-in&apos;s name.</extracomment>
+        <translation>%1 (通过 Patchy)</translation>
+    </message>
+    <message>
+        <source>%1: same plug-in as %2, listed once</source>
+        <translation>%1: 与 %2 是同一插件，仅列出一次</translation>
+    </message>
+    <message>
+        <source>Plug-ins work on one layer at a time. Select a single layer and run it again.</source>
+        <translation>插件一次只能处理一个图层。请选择单个图层后再运行。</translation>
+    </message>
+    <message>
+        <source>Import Theme...</source>
+        <translation>导入主题...</translation>
+    </message>
+    <message>
+        <source>Export Theme...</source>
+        <translation>导出主题...</translation>
+    </message>
+    <message>
+        <source>Reload Themes</source>
+        <translation>重新加载主题</translation>
+    </message>
+    <message>
+        <source>Re-read the theme files in the themes folder and apply the selected one.</source>
+        <translation>重新读取主题文件夹中的主题文件并应用所选主题。</translation>
+    </message>
+    <message>
+        <source>Delete Theme...</source>
+        <translation>删除主题...</translation>
+    </message>
+    <message>
+        <source>Open Themes Folder</source>
+        <translation>打开主题文件夹</translation>
+    </message>
+    <message>
+        <source>Could not open the themes folder.</source>
+        <translation>无法打开主题文件夹。</translation>
+    </message>
+    <message>
+        <source>Delete Theme</source>
+        <translation>删除主题</translation>
+    </message>
+    <message>
+        <source>Delete the theme &quot;%1&quot;? Its file is removed from the themes folder.</source>
+        <translation>删除主题 &quot;%1&quot;？其文件将从主题文件夹中移除。</translation>
+    </message>
+    <message>
+        <source>Could not delete &quot;%1&quot;.</source>
+        <translation>无法删除 &quot;%1&quot;。</translation>
+    </message>
+    <message>
+        <source>Import Theme</source>
+        <translation>导入主题</translation>
+    </message>
+    <message>
+        <source>Patchy theme (*.patchytheme)</source>
+        <translation>Patchy 主题 (*.patchytheme)</translation>
+    </message>
+    <message>
+        <source>Could not open &quot;%1&quot;.</source>
+        <translation>无法打开“%1”。</translation>
+    </message>
+    <message>
+        <source>Could not create the themes folder.</source>
+        <translation>无法创建主题文件夹。</translation>
+    </message>
+    <message>
+        <source>Theme</source>
+        <comment>Default file name offered when exporting a theme; the save dialog appends the extension.</comment>
+        <translation>主题</translation>
+    </message>
+    <message>
+        <source>Export Theme</source>
+        <translation>导出主题</translation>
+    </message>
+    <message>
+        <source>%1 (built-in)</source>
+        <translation>%1（内置）</translation>
+    </message>
+    <message>
+        <source>Cycle Marquee Tools</source>
+        <translation>循环切换选框工具</translation>
+    </message>
+    <message>
+        <source>Cycle Lasso Tools</source>
+        <translation>循环切换套索工具</translation>
+    </message>
+    <message>
+        <source>Cycle Wand Tools</source>
+        <translation>循环切换魔棒工具</translation>
+    </message>
+    <message>
+        <source>Cycle Fill Tools</source>
+        <translation>循环切换填充工具</translation>
+    </message>
+    <message>
+        <source>Cycle Stamp Tools</source>
+        <translation>循环切换图章工具</translation>
+    </message>
+    <message>
+        <source>Cycle Healing Tools</source>
+        <translation>循环切换修复工具</translation>
+    </message>
+    <message>
+        <source>Cycle Detail Tools</source>
+        <translation>循环切换细节工具</translation>
+    </message>
+    <message>
+        <source>Cycle Toning Tools</source>
+        <translation>循环切换色调工具</translation>
+    </message>
+    <message>
+        <source>Cycle Pen Tools</source>
+        <translation>循环切换钢笔工具</translation>
+    </message>
+    <message>
+        <source>Cycle Path Tools</source>
+        <translation>循环切换路径工具</translation>
+    </message>
+    <message>
+        <source>Cycle Shape Tools</source>
+        <translation>循环切换形状工具</translation>
+    </message>
+    <message>
+        <source>Canvas Background Color</source>
+        <translation>画布背景颜色</translation>
+    </message>
+    <message>
+        <source>Scrubby Zoom</source>
+        <translation>细微缩放</translation>
+    </message>
+    <message>
+        <source>Drag right to zoom in and left to zoom out around the point you pressed. Off: drag a rectangle to zoom to it</source>
+        <translation>向右拖动以按下的点为中心放大，向左拖动缩小。关闭时，拖出一个矩形以缩放到该区域</translation>
+    </message>
+    <message>
+        <source>100%</source>
+        <translation>100%</translation>
+    </message>
+    <message>
+        <source>Fit Screen</source>
+        <translation>按屏幕大小缩放</translation>
+    </message>
+    <message>
+        <source>Fill Screen</source>
+        <translation>填充屏幕</translation>
+    </message>
+    <message>
+        <source>Fi&amp;ll Screen</source>
+        <translation>填充屏幕(&amp;L)</translation>
+    </message>
+    <message>
+        <source>Zoom In</source>
+        <translation>放大</translation>
+    </message>
+    <message>
+        <source>Zoom Out</source>
+        <translation>缩小</translation>
+    </message>
+    <message>
+        <source>Show the image at actual pixels (View &gt; Actual Pixels)</source>
+        <translation>以实际像素显示图像 (视图 &gt; 实际像素)</translation>
+    </message>
+    <message>
+        <source>Fit the whole image in the window (View &gt; Fit on Screen)</source>
+        <translation>使整个图像适合窗口 (视图 &gt; 按屏幕大小缩放)</translation>
+    </message>
+    <message>
+        <source>Zoom until the image fills the window (View &gt; Fill Screen)</source>
+        <translation>缩放直到图像填满窗口 (视图 &gt; 填充屏幕)</translation>
+    </message>
+    <message>
+        <source>Stroke width:</source>
+        <translation>描边宽度:</translation>
+    </message>
+    <message>
+        <source>Default units:</source>
+        <translation>默认单位:</translation>
+    </message>
+    <message>
+        <source>Units &amp;&amp; Grids</source>
+        <translation>单位 &amp;&amp; 网格</translation>
+    </message>
+    <message>
+        <source>Repeat Last Plug-in</source>
+        <translation>重复上一个插件</translation>
+    </message>
+    <message>
+        <source>Last Plug-in Settings...</source>
+        <translation>上一个插件的设置...</translation>
+    </message>
+    <message>
+        <source>The last plug-in is no longer available</source>
+        <translation>上一个插件已不可用</translation>
+    </message>
+    <message>
+        <source>Repeat %1</source>
+        <extracomment>Plugins menu; %1 is the plug-in that ran last. Runs it again with its last settings, no dialog.</extracomment>
+        <translation>重复 %1</translation>
+    </message>
+    <message>
+        <source>%1 Settings...</source>
+        <extracomment>Plugins menu; %1 is the plug-in that ran last. Opens its settings dialog again, starting from the last settings.</extracomment>
+        <translation>%1 设置...</translation>
+    </message>
+    <message>
+        <source>Applied %1 (%2 undoes it)</source>
+        <translation>已应用 %1（按 %2 可还原）</translation>
+    </message>
+    <message>
+        <source>Place &amp;Linked...</source>
+        <translation>置入链接对象(&amp;L)...</translation>
+    </message>
+    <message>
+        <source>This layer is not a linked smart object</source>
+        <translation>此图层不是链接的智能对象</translation>
+    </message>
+    <message>
+        <source>Place Linked</source>
+        <translation>置入链接对象</translation>
+    </message>
+    <message>
+        <source>Placed %1 as a linked smart object</source>
+        <translation>已将 %1 置入为链接的智能对象</translation>
+    </message>
+    <message>
+        <source>The placed position or size is out of range</source>
+        <translation>置入的位置或大小超出范围</translation>
+    </message>
+    <message>
+        <source>text layer &quot;%1&quot;</source>
+        <translation>文本图层 &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>pixel layer &quot;%1&quot;</source>
+        <translation>像素图层 &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>smart object &quot;%1&quot;</source>
+        <translation>智能对象 &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>adjustment layer &quot;%1&quot; and the layers below it</source>
+        <translation>调整图层 &quot;%1&quot; 及其下方的图层</translation>
+    </message>
+    <message>
+        <source>the blend mode of &quot;%1&quot; and the layers below it</source>
+        <translation>&quot;%1&quot; 的混合模式及其下方的图层</translation>
+    </message>
+    <message>
+        <source>shape layer &quot;%1&quot; (its styles or fill options)</source>
+        <translation>形状图层 &quot;%1&quot; (其样式或填充选项)</translation>
+    </message>
+    <message>
+        <source>group &quot;%1&quot; (its styles or masks)</source>
+        <translation>图层组 &quot;%1&quot; (其样式或蒙版)</translation>
+    </message>
+    <message>
+        <source>clipping mask group &quot;%1&quot;</source>
+        <translation>剪贴蒙版组 &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>the layer mask on &quot;%1&quot;</source>
+        <translation>&quot;%1&quot; 上的图层蒙版</translation>
+    </message>
+    <message>
+        <source>&quot;%1&quot; (merged under an adjustment layer or blend mode)</source>
+        <translation>&quot;%1&quot; (合并到调整图层或混合模式之下)</translation>
+    </message>
+    <message numerus="yes">
+        <source>%1 and %n more</source>
+        <translation>
+            <numerusform>%1 以及另外 %n 项</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>SVG keeps shape layers as vectors, but this document has content SVG cannot hold as vectors. Continue saving and bake it into images in the linked file?
+
+Baked into images: %1.</source>
+        <translation>SVG 会将形状图层保留为矢量，但此文档包含 SVG 无法以矢量保存的内容。是否继续保存并在链接文件中将其烘焙为图像?
+
+烘焙为图像的内容: %1.</translation>
+    </message>
+    <message>
+        <source>SVG keeps shape layers as vectors, but this document has content SVG cannot hold as vectors, so Patchy will save a copy with that content baked into images. The open document will keep its layers and unsaved changes. To keep everything editable, save as a Photoshop document (.psd) instead.
+
+Baked into images: %1.</source>
+        <translation>SVG 会将形状图层保留为矢量，但此文档包含 SVG 无法以矢量保存的内容，因此 Patchy 将保存一份副本，并将这些内容烘焙为图像。当前打开的文档仍会保留其图层和未保存的更改。若要保持所有内容可编辑，请改为存储为 Photoshop 文档 (.psd)。
+
+烘焙为图像的内容: %1.</translation>
+    </message>
+    <message>
+        <source>Crop to Selection (Advance&amp;d)...</source>
+        <translation>裁剪到选区(高级)(&amp;D)...</translation>
+    </message>
+    <message>
+        <source>Open Canvas Size prefilled with the selection so the crop can be adjusted before it is applied</source>
+        <translation>打开已填入选区的“画布大小”，以便在应用前调整裁剪</translation>
+    </message>
+    <message>
+        <source>Canvas %1 x %2, off-canvas layers deleted: %3</source>
+        <translation>画布 %1 x %2，已删除画布外图层: %3</translation>
+    </message>
+    <message>
+        <source>Mouse wheel zooms the canvas</source>
+        <translation>鼠标滚轮缩放画布</translation>
+    </message>
+    <message>
+        <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan. Two-finger scrolling on a trackpad always pans; pinch to zoom.</source>
+        <translation>也适用于设置为“滚动”的笔按钮。滚动时按住 %CTRL% 或 Shift 可平移。在触控板上双指滚动始终为平移；双指捏合可缩放。</translation>
+    </message>
+    <message>
+        <source>Tools</source>
+        <translation>工具</translation>
+    </message>
+    <message>
+        <source>Layers as Animated &amp;WebP...</source>
+        <translation>图层导出为动画 &amp;WebP...</translation>
+    </message>
+    <message>
+        <source>Export Animated WebP</source>
+        <translation>导出动画 WebP</translation>
+    </message>
+    <message>
+        <source>Saved animated WebP copy %1</source>
+        <translation>已保存动画 WebP 副本 %1</translation>
+    </message>
+    <message>
+        <source>Locked layers are skipped. Groups receive their own style; their children are unchanged.</source>
+        <translation>将跳过锁定的图层。样式应用于组本身，其子图层保持不变。</translation>
+    </message>
+    <message>
+        <source>Select an unlocked, editable shape layer</source>
+        <translation>请选择未锁定且可编辑的形状图层</translation>
+    </message>
+    <message>
+        <source>Locked layers and layers without editable shapes are skipped.</source>
+        <translation>将跳过锁定的图层以及没有可编辑形状的图层。</translation>
+    </message>
+    <message>
+        <source>Updating shapes...</source>
+        <translation>正在更新形状...</translation>
+    </message>
+    <message>
+        <source>%1: preserved blending data remains protected.</source>
+        <translation>%1：保留的混合数据仍受保护。</translation>
+    </message>
+    <message>
+        <source>%1: editing effects normalizes unsupported Satin contours.</source>
+        <translation>%1：编辑效果将标准化不受支持的光泽轮廓。</translation>
+    </message>
+    <message>
+        <source>Open from &amp;Clipboard</source>
+        <translation>从剪贴板打开(&amp;C)</translation>
+    </message>
+    <message>
+        <source>&amp;Exposure...</source>
+        <translation>曝光(&amp;E)...</translation>
+    </message>
+    <message>
+        <source>Exposure</source>
+        <translation>曝光</translation>
+    </message>
+    <message>
+        <source>Cancelled Exposure</source>
+        <translation>已取消曝光</translation>
+    </message>
+    <message>
+        <source>This layer is not an embedded smart object</source>
+        <translation>此图层不是嵌入的智能对象</translation>
+    </message>
+    <message>
+        <source>This smart object cannot be re-rendered</source>
+        <translation>无法重新渲染此智能对象</translation>
     </message>
 </context>
 <context>
@@ -18234,10 +19458,6 @@ Y: %2
         <translation>combineShapes：形状图层必须位于同一文件夹中。</translation>
     </message>
     <message>
-        <source>mergeLayers: options must be an object of booleans.</source>
-        <translation>mergeLayers：选项必须是一个布尔值对象。</translation>
-    </message>
-    <message>
         <source>mergeLayers: unknown option %1</source>
         <translation>mergeLayers：未知选项 %1</translation>
     </message>
@@ -18689,6 +19909,130 @@ Y: %2
         <source>distributeLayers needs at least three movable layers.</source>
         <translation>distributeLayers 需要至少三个可移动的图层。</translation>
     </message>
+    <message>
+        <source>importFilesAsLayers needs a file path or a non-empty array of paths.</source>
+        <translation>importFilesAsLayers 需要一个文件路径或非空的路径数组。</translation>
+    </message>
+    <message>
+        <source>No layers were added.</source>
+        <translation>未添加任何图层。</translation>
+    </message>
+    <message>
+        <source>intervalMinutes must be 5, 10, 15, 30, or 60</source>
+        <translation>intervalMinutes 必须为 5、10、15、30 或 60</translation>
+    </message>
+    <message>
+        <source>textAlign must be &apos;left&apos;, &apos;center&apos;, &apos;right&apos; or &apos;justify&apos;.</source>
+        <translation>textAlign 必须是 &apos;left&apos;、&apos;center&apos;、&apos;right&apos; 或 &apos;justify&apos;。</translation>
+    </message>
+    <message>
+        <source>%1: runs must be an array of {text, font, size, bold, italic, color} objects.</source>
+        <translation>%1：runs 必须是 {text, font, size, bold, italic, color} 对象组成的数组。</translation>
+    </message>
+    <message>
+        <source>%1: run %2 needs a text string.</source>
+        <translation>%1：第 %2 段需要一个 text 字符串。</translation>
+    </message>
+    <message>
+        <source>%1: run %2 has a non-positive size.</source>
+        <translation>%1：第 %2 段的 size 不是正数。</translation>
+    </message>
+    <message>
+        <source>%1: run %2 must be a string or an object.</source>
+        <translation>%1：第 %2 段必须是字符串或对象。</translation>
+    </message>
+    <message>
+        <source>%1: runs must not be empty.</source>
+        <translation>%1：runs 不能为空。</translation>
+    </message>
+    <message>
+        <source>addTextLayer: text must be a string or an array of runs.</source>
+        <translation>addTextLayer：text 必须是字符串或由文本段组成的数组。</translation>
+    </message>
+    <message>
+        <source>box must be {width, height} of at least 16 document pixels each.</source>
+        <translation>box 必须是 {width, height}，且各不少于 16 个文档像素。</translation>
+    </message>
+    <message>
+        <source>align must be &apos;left&apos;, &apos;center&apos;, &apos;right&apos; or &apos;justify&apos;.</source>
+        <translation>align 必须是 &apos;left&apos;、&apos;center&apos;、&apos;right&apos; 或 &apos;justify&apos;。</translation>
+    </message>
+    <message>
+        <source>%1: paragraph must be an object with firstLineIndent, startIndent, endIndent, spaceBefore and spaceAfter numbers (document pixels).</source>
+        <translation>%1: paragraph 必须是包含 firstLineIndent、startIndent、endIndent、spaceBefore 和 spaceAfter 数值的对象（文档像素）。</translation>
+    </message>
+    <message>
+        <source>%1: paragraph.%2 must be a number (document pixels).</source>
+        <translation>%1: paragraph.%2 必须是数值（文档像素）。</translation>
+    </message>
+    <message>
+        <source>applyPlugin: unknown option %1.</source>
+        <translation>applyPlugin：未知选项 %1。</translation>
+    </message>
+    <message>
+        <source>Unknown plug-in id: %1</source>
+        <translation>未知插件 ID：%1</translation>
+    </message>
+    <message>
+        <source>Plug-in %1 cannot run: %2</source>
+        <translation>插件 %1 无法运行：%2</translation>
+    </message>
+    <message>
+        <source>applyPlugin needs a pixel layer.</source>
+        <translation>applyPlugin 需要一个像素图层。</translation>
+    </message>
+    <message>
+        <source>Plug-in %1 was cancelled.</source>
+        <translation>插件 %1 已取消。</translation>
+    </message>
+    <message>
+        <source>Plug-in %1 failed: %2</source>
+        <translation>插件 %1 失败：%2</translation>
+    </message>
+    <message>
+        <source>addSmartObject needs a file path.</source>
+        <translation>addSmartObject 需要一个文件路径。</translation>
+    </message>
+    <message>
+        <source>addSmartObject: %1 must be a finite number.</source>
+        <translation>addSmartObject：%1 必须是有限的数值。</translation>
+    </message>
+    <message>
+        <source>%1: font not available, rendered with a fallback: %2</source>
+        <translation>%1：字体不可用，已使用替代字体渲染：%2</translation>
+    </message>
+    <message>
+        <source>%1: font has no glyphs for this text, rendered with a fallback: %2</source>
+        <translation>%1：字体没有此文字所需的字形，已使用替代字体渲染：%2</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp needs a .webp output path.</source>
+        <translation>exportAnimatedWebp 需要 .webp 输出路径。</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp options must be an object.</source>
+        <translation>exportAnimatedWebp 的选项必须是对象。</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp: invalid option %1.</source>
+        <translation>exportAnimatedWebp: 选项 %1 无效。</translation>
+    </message>
+    <message>
+        <source>mergeLayers: options must be an object.</source>
+        <translation>mergeLayers：options 必须是对象。</translation>
+    </message>
+    <message>
+        <source>mergeLayers: effectsFrom must be a layer of this document.</source>
+        <translation>mergeLayers：effectsFrom 必须是此文档的图层。</translation>
+    </message>
+    <message>
+        <source>mergeLayers: %1 must be a boolean.</source>
+        <translation>mergeLayers：%1 必须是布尔值。</translation>
+    </message>
+    <message>
+        <source>mergeLayers: effectsFrom requires singleVector.</source>
+        <translation>mergeLayers：effectsFrom 需要 singleVector。</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::StartPanel</name>
@@ -18721,10 +20065,6 @@ Y: %2
         <translation>也可以将图像文件拖放到窗口中的任意位置</translation>
     </message>
     <message>
-        <source>desktop version</source>
-        <translation>桌面版</translation>
-    </message>
-    <message>
         <source>Everything runs locally in your browser. Nothing you make is ever sent online.</source>
         <translation>一切都在您的浏览器本地运行。您创作的内容永远不会被发送到网上。</translation>
     </message>
@@ -18733,16 +20073,8 @@ Y: %2
         <translation>将字体文件或包含字体的 zip 压缩包拖放到此处，即可使用您自己的字体。</translation>
     </message>
     <message>
-        <source>For all your system fonts and better speed, get the %1.</source>
-        <translation>要使用全部系统字体并获得更快的速度，请获取 %1。</translation>
-    </message>
-    <message>
         <source>Version %1 (built %2)</source>
         <translation>版本 %1（构建于 %2）</translation>
-    </message>
-    <message>
-        <source>Created by Seth A. Robinson</source>
-        <translation>由 Seth A. Robinson 创作</translation>
     </message>
     <message>
         <source>Code contributions from %1</source>
@@ -18759,6 +20091,26 @@ Y: %2
     <message>
         <source>No matching recent files</source>
         <translation>没有匹配的最近文件</translation>
+    </message>
+    <message>
+        <source>Created by %1</source>
+        <translation>由 %1 创作</translation>
+    </message>
+    <message>
+        <source>More power on your desktop</source>
+        <translation>桌面版，让创作更得心应手</translation>
+    </message>
+    <message>
+        <source>More features, faster editing, and full access to your system fonts.</source>
+        <translation>更多功能、更快的编辑速度，还可使用所有系统字体。</translation>
+    </message>
+    <message>
+        <source>Download Patchy for Desktop</source>
+        <translation>下载Patchy桌面版</translation>
+    </message>
+    <message>
+        <source>Free · Windows, macOS &amp; Linux</source>
+        <translation>免费 · Windows、macOS和Linux</translation>
     </message>
 </context>
 <context>

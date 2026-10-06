@@ -122,3 +122,8 @@ nodes when a scene is built. Parts retain their own paint anchors, stroke sizes
 and opacity. Their combined tile uses the original pixel layer properties,
 including Fill and clipping; tile bounds and raster budgets apply normally. See
 [layer-merging.md](layer-merging.md).
+Compound tiles use the group silhouette compositor over the complete padded
+rectangle. The buffer and its bounds must cover the same area, including negative
+viewport coordinates. Clipping that intermediate to the viewport loses effect
+halos and makes its bounds disagree with its pixels. The cropped-view regression
+`ui_vector_preview_compound_effect_halos_match_cropped_view` covers this contract.

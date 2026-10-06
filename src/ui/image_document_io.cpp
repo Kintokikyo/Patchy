@@ -11,6 +11,10 @@
 #include "formats/bmp_document_io.hpp"
 #include "formats/document_flatten.hpp"
 #include "formats/gif_document_io.hpp"
+#include "formats/animation_timing.hpp"
+#include "formats/webp_animation_io.hpp"
+#include "support/atomic_file_write.hpp"
+#include "support/translate_noop.hpp"
 #include "formats/heif_document_io.hpp"
 #include "formats/ico_document_io.hpp"
 #include "formats/ilbm_document_io.hpp"
@@ -32,6 +36,7 @@
 #include <QImage>
 #include <QImageWriter>
 #include <QObject>
+#include <QSaveFile>
 #include <QString>
 #include <QtGlobal>
 
@@ -1022,7 +1027,7 @@ void composite_document_layer(QImageCompositeTarget& target, const Layer& layer,
     }
     if (render_detail::layer_has_rendered_blend_if(layer) ||
         render_detail::layer_rendered_channel_restriction(layer) != 0U ||
-        layer.blend_mode() != BlendMode::PassThrough || layer.opacity() < 1.0F ||
+        layer.blend_mode() != BlendMode::PassThrough || layer.opacity() < 1.0F || layer.fill_opacity() < 1.0F ||
         (layer.mask().has_value() && !layer.mask()->disabled) || layer_has_enabled_vector_mask(layer) ||
         group_style_renders(layer)) {
       // A Blend-If group must be rendered as one isolated source so This Layer
@@ -2147,6 +2152,34 @@ QImage flat_export_qimage(const Document& document, bool preserve_alpha) {
   return qimage_from_document(document, preserve_alpha);
 }
 
+namespace {
+
+// QImageWriter through a QSaveFile: the encoded bytes land in a sibling temporary
+// file and replace the target only on commit, so a crash, a full disk, or an
+// encoder failure never truncates the user's existing file (the byte-based
+// writers use support/atomic_file_write.hpp for the same reason). The format is
+// the lowercase extension, exactly what QImageWriter(path) derives from a suffix.
+// `quality` < 0 keeps the plugin default.
+void write_qimage_atomically(const QImage& image, const QString& path, const std::string& format, int quality) {
+  QSaveFile file(path);
+  if (!file.open(QIODevice::WriteOnly)) {
+    throw std::runtime_error(file.errorString().toStdString());
+  }
+  QImageWriter writer(&file, QByteArray::fromStdString(format));
+  if (quality >= 0) {
+    writer.setQuality(quality);
+  }
+  if (!writer.write(image)) {
+    file.cancelWriting();
+    throw std::runtime_error(writer.errorString().toStdString());
+  }
+  if (!file.commit()) {
+    throw std::runtime_error(file.errorString().toStdString());
+  }
+}
+
+}  // namespace
+
 void write_flat_image_file(const Document& document, const QString& path, const QString& extension,
                            const ImageSaveOptions& options, std::vector<std::string>* notices) {
   const auto extension_bytes = extension.toStdString();
@@ -2158,6 +2191,10 @@ void write_flat_image_file(const Document& document, const QString& path, const 
                                  options.pdf_jpeg_quality};
     pdf_options.keep_original_image_data = options.pdf_keep_original_images;
     write_pdf_document_file(document, path, pdf_options, notices);
+    return;
+  }
+  if (lower == "webp" && options.webp_animate) {
+    write_animated_webp_file(document, path, options, notices);
     return;
   }
   if (lower == "gif" && options.gif_animate) {
@@ -2251,28 +2288,23 @@ void write_flat_image_file(const Document& document, const QString& path, const 
   // (converting to RGB mode first restores plain RGBA PNG export).
   if (extension.compare(QStringLiteral("png"), Qt::CaseInsensitive) == 0 &&
       document.palette_editing().has_value() && !document.palette_editing()->palette.colors.empty()) {
-    QImageWriter indexed_writer(path);
-    if (!indexed_writer.write(indexed_png8_image(document))) {
-      throw std::runtime_error(indexed_writer.errorString().toStdString());
-    }
+    write_qimage_atomically(indexed_png8_image(document), path, lower, -1);
     return;
   }
 
-  QImageWriter writer(path);
+  int quality = -1;
   if (is_jpeg_extension(extension_bytes)) {
-    writer.setQuality(std::clamp(options.jpeg_quality, 0, 100));
+    quality = std::clamp(options.jpeg_quality, 0, 100);
   } else if (lower == "webp") {
     // Qt's WebP plugin encodes losslessly at quality 100 and lossy below it.
-    writer.setQuality(options.webp_lossless ? 100 : std::clamp(options.webp_quality, 0, 100));
+    quality = options.webp_lossless ? 100 : std::clamp(options.webp_quality, 0, 100);
   }
-  const QImage image = flat_export_qimage(document, image_format_preserves_alpha(extension_bytes));
-  if (!writer.write(image)) {
-    throw std::runtime_error(writer.errorString().toStdString());
-  }
+  write_qimage_atomically(flat_export_qimage(document, image_format_preserves_alpha(extension_bytes)), path, lower,
+                          quality);
 }
 
-void write_animated_gif_file(const Document& document, const QString& path, const ImageSaveOptions& options,
-                             std::vector<std::string>* notices) {
+static void write_animated_layers(const Document& document, const QString& path, const ImageSaveOptions& options,
+                                  std::vector<std::string>* notices, bool as_webp) {
   const bool palette_mode =
       document.palette_editing().has_value() && !document.palette_editing()->palette.colors.empty();
   const auto default_delay_cs =
@@ -2286,7 +2318,8 @@ void write_animated_gif_file(const Document& document, const QString& path, cons
     }
   }
   if (visible_layers.empty()) {
-    throw std::runtime_error("The document has no visible top-level layers to export as an animated GIF.");
+    throw std::runtime_error(as_webp ? PATCHY_TRANSLATE_NOOP("QObject", "The document has no visible top-level layers to export as an animated WebP.")
+                                    : "The document has no visible top-level layers to export as an animated GIF.");
   }
 
   // One transform for every frame. Trim needs every frame up front: it crops to the UNION
@@ -2320,6 +2353,7 @@ void write_animated_gif_file(const Document& document, const QString& path, cons
   transform.resize = export_resize_target(options, width, height, canvas_width, canvas_height);
   transform.scale = std::max(1, options.export_scale);
 
+  std::unique_ptr<webp::AnimationEncoder> webp_encoder;
   std::vector<gif::GifFrame> frames;
   frames.reserve(visible_layers.size());
   std::int32_t frame_width = canvas_width;
@@ -2334,6 +2368,20 @@ void write_animated_gif_file(const Document& document, const QString& path, cons
     }
     frame_width = rgba.width();
     frame_height = rgba.height();
+    if (as_webp) {
+      if (!webp_encoder) {
+        if (options.webp_loop_count < 0 || options.webp_loop_count > 65535 ||
+            options.animation_frame_delay_ms < 0 ||
+            options.animation_frame_delay_ms > static_cast<int>(animation::kMaxFrameDelayMs)) {
+          throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Invalid animated WebP frame or duration."));
+        }
+        webp_encoder = std::make_unique<webp::AnimationEncoder>(frame_width, frame_height,
+            static_cast<std::uint16_t>(options.webp_loop_count), options.webp_quality, options.webp_lossless);
+      }
+      webp_encoder->add(rgba, animation::parse_layer_name_delay_ms(layer.name()).value_or(
+          static_cast<std::uint32_t>(options.animation_frame_delay_ms)));
+      continue;
+    }
     auto indexed = palette_mode
                        ? indexed_rgba8_with_palette(rgba, document.palette_editing()->palette.colors,
                                                     document.palette_editing()->alpha_threshold)
@@ -2345,7 +2393,23 @@ void write_animated_gif_file(const Document& document, const QString& path, cons
     frame.delay_cs = gif::parse_layer_name_delay_cs(layer.name()).value_or(default_delay_cs);
     frames.push_back(std::move(frame));
   }
-  gif::write_animation_file(frame_width, frame_height, frames, to_filesystem_path(path));
+  if (as_webp) {
+    write_file_bytes_atomically(to_filesystem_path(path), webp_encoder->finish(),
+        PATCHY_TRANSLATE_NOOP("QObject", "Could not open WebP file for writing"),
+        PATCHY_TRANSLATE_NOOP("QObject", "Could not write WebP file"));
+  } else {
+    gif::write_animation_file(frame_width, frame_height, frames, to_filesystem_path(path));
+  }
+}
+
+void write_animated_gif_file(const Document& document, const QString& path, const ImageSaveOptions& options,
+                             std::vector<std::string>* notices) {
+  write_animated_layers(document, path, options, notices, false);
+}
+
+void write_animated_webp_file(const Document& document, const QString& path, const ImageSaveOptions& options,
+                              std::vector<std::string>* notices) {
+  write_animated_layers(document, path, options, notices, true);
 }
 
 }  // namespace patchy::ui

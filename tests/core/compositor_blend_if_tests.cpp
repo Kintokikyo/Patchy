@@ -542,6 +542,50 @@ void compositor_clip_base_effects_do_not_widen_the_clip_shape() {
   }
 }
 
+// A group's Fill fades its content like a pixel layer's, and leaves the group's own
+// effects alone. The 50% arms are Photoshop 2026's flatten of psd-tools'
+// transparency/knockout-none-normal.psd and knockout-none-passthrough.psd (a blue layer
+// in a Fill 50% group over red gives 127, 0, 128); the same files carry a style record
+// with every effect off.
+void compositor_group_fill_fades_content_not_effects() {
+  for (const auto mode : {patchy::BlendMode::PassThrough, patchy::BlendMode::Normal}) {
+    for (const bool styled : {false, true}) {
+      patchy::Document document(4, 1, patchy::PixelFormat::rgb8());
+      document.add_pixel_layer("Red", solid_rgb(4, 1, 255, 0, 0));
+      patchy::Layer group(document.allocate_layer_id(), "Fill group", patchy::LayerKind::Group);
+      group.set_blend_mode(mode);
+      group.set_fill_opacity(128.0F / 255.0F);
+      if (styled) {
+        // A full-strength green overlay: the effect must ignore Fill.
+        patchy::LayerColorOverlay overlay;
+        overlay.enabled = true;
+        overlay.color = patchy::RgbColor{0, 255, 0};
+        overlay.opacity = 1.0F;
+        group.layer_style().color_overlays.push_back(overlay);
+      }
+      patchy::Layer blue(document.allocate_layer_id(), "Blue", solid_rgb(2, 1, 0, 0, 255));
+      blue.set_bounds({1, 0, 2, 1});
+      group.add_child(std::move(blue));
+      document.add_layer(std::move(group));
+
+      const auto rendered = patchy::Compositor{}.flatten_rgb8(document);
+      const auto close = [&rendered](int x, int red, int green, int blue_value) {
+        const auto* px = rendered.pixel(x, 0);
+        return std::abs(px[0] - red) <= 1 && std::abs(px[1] - green) <= 1 && std::abs(px[2] - blue_value) <= 1;
+      };
+      CHECK(close(0, 255, 0, 0));
+      CHECK(close(3, 255, 0, 0));
+      if (styled) {
+        CHECK(close(1, 0, 255, 0));
+        CHECK(close(2, 0, 255, 0));
+      } else {
+        CHECK(close(1, 127, 0, 128));
+        CHECK(close(2, 127, 0, 128));
+      }
+    }
+  }
+}
+
 void compositor_group_clip_base_limits_adjustments_and_combines_child_coverage() {
   for (const auto mode : {patchy::BlendMode::PassThrough, patchy::BlendMode::Normal}) {
     patchy::Document document(6, 1, patchy::PixelFormat::rgb8());
@@ -549,7 +593,6 @@ void compositor_group_clip_base_limits_adjustments_and_combines_child_coverage()
     patchy::Layer group(document.allocate_layer_id(), "Clip base", patchy::LayerKind::Group);
     group.set_blend_mode(mode);
     group.set_opacity(0.5F);
-    group.set_fill_opacity(0.0F);  // Folder Fill does not hide content.
     patchy::Layer first(document.allocate_layer_id(), "First", solid_rgba(3, 1, 0, 0, 0, 128));
     first.set_bounds({1, 0, 3, 1});
     group.add_child(std::move(first));
@@ -1405,6 +1448,12 @@ void blend_math_color_burn_dodge_match_photoshop_captures() {
     CHECK(patchy::blend_rgb(gray(t.source), gray(t.destination),
                             patchy::BlendMode::ColorDodge)[0] == t.expected);
   }
+  // Divide's zero corners, from Photoshop's render of psd-tools' divide.psd (pure
+  // primaries at 50% over each other): 0/0 is 0, anything else over 0 is 255.
+  static constexpr Triple kDivide[] = {{0, 0, 0}, {255, 0, 0}, {0, 255, 255}, {0, 1, 255}, {255, 255, 255}, {128, 64, 128}};
+  for (const auto& t : kDivide) {
+    CHECK(patchy::blend_rgb(gray(t.source), gray(t.destination), patchy::BlendMode::Divide)[0] == t.expected);
+  }
 }
 
 void compositor_channel_restriction_keeps_backdrop_channel() {
@@ -1687,6 +1736,7 @@ std::vector<patchy::test::TestCase> compositor_blend_if_tests() {
        compositor_blend_if_clip_base_keeps_original_coverage},
       {"compositor_clip_base_effects_do_not_widen_the_clip_shape",
        compositor_clip_base_effects_do_not_widen_the_clip_shape},
+      {"compositor_group_fill_fades_content_not_effects", compositor_group_fill_fades_content_not_effects},
       {"compositor_group_clip_base_limits_adjustments_and_combines_child_coverage",
        compositor_group_clip_base_limits_adjustments_and_combines_child_coverage},
       {"psd_backglass_group_clipped_invert_matches_photoshop_if_available",

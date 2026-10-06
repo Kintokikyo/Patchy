@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 from pathlib import Path
@@ -41,6 +42,38 @@ def export(exe: Path, input_path: Path, output_path: Path, append_text: str | No
     # that Patchy is broken, so the orchestrator's circuit breaker skips it.
     result["fileRejected"] = not result["ok"] and result["exitCode"] >= 0
     return result
+
+
+def render_text_afresh(exe: Path, input_path: Path, output_path: Path, rerender_text: bool = True) -> dict:
+    """Export `input_path` after Patchy has laid out every type layer itself.
+
+    Patchy shows the pixels saved in the file for a type layer or a smart object until
+    the layer is edited; drivers/patchy_text_afresh.js calls layer.rerenderText() and
+    layer.rerenderSmartObject() on each one, which change nothing else. Returns {"ok",
+    "done"/"failed": [type layer names], "smartDone"/"smartFailed": [embedded smart
+    object names], "error"}. `rerender_text=False` leaves type layers alone (their
+    font is missing here, so the baked pixels stay)."""
+    script = Path(__file__).with_name("patchy_text_afresh.js")
+    report = output_path.with_name(output_path.stem + ".script.txt")
+    report.unlink(missing_ok=True)
+    result = _run(exe, ["--headless", "--run-script", str(script), "--script-output", str(report),
+                        "--script-arg", f"out={output_path}",
+                        "--script-arg", f"text={1 if rerender_text else 0}", str(input_path)])
+    lines = report.read_text(encoding="utf-8", errors="replace").splitlines() if report.exists() else []
+    report.unlink(missing_ok=True)
+    answer: dict = {}
+    for line in lines:
+        if line.startswith("{") and "testyTextAfresh" in line:
+            try:
+                answer = json.loads(line)
+            except ValueError:
+                pass
+    ok = (result["exitCode"] == 0 and bool(answer.get("exported"))
+          and output_path.exists() and output_path.stat().st_size > 0)
+    error = "" if ok else (result.get("stderr") or " | ".join(lines[-3:]) or f"exit {result['exitCode']}")
+    return {"ok": ok, "done": list(answer.get("done") or []), "failed": list(answer.get("failed") or []),
+            "smartDone": list(answer.get("smartDone") or []),
+            "smartFailed": list(answer.get("smartFailed") or []), "error": error}
 
 
 def failure_text(result: dict) -> str:

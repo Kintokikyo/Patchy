@@ -242,10 +242,6 @@
 #include <tpcshrd.h>
 #endif
 
-#ifndef PATCHY_VERSION
-#define PATCHY_VERSION "0.0.0"
-#endif
-
 // Icon resources live in the static patchy_ui library; force registration before first use.
 int qInitResources_icons();
 
@@ -498,6 +494,7 @@ void MainWindow::activate_document_canvas(CanvasWidget* canvas, const std::funct
     show_preview_dialog_edit_lock_message();
     return;
   }
+  if (canvas != canvas_) finish_pending_shape_appearance_edit();
   const auto canvas_changed = canvas != canvas_;
   if (canvas_changed) {
     // Animation-preview playback belongs to the outgoing document: stop it and restore
@@ -550,6 +547,10 @@ void MainWindow::activate_document_canvas(CanvasWidget* canvas, const std::funct
   if (canvas_changed) {
     canvas_->set_fill_opacity(current_fill_opacity_);
     canvas_->set_fill_softness(current_fill_softness_);
+    canvas_->set_fill_tolerance(current_fill_tolerance_);
+    canvas_->set_fill_contiguous(current_fill_contiguous_);
+    canvas_->set_zoom_scrubby(current_zoom_scrubby_);
+    canvas_->set_zoom_tool_zooms_out(current_zoom_tool_zooms_out_);
     canvas_->set_quick_select_size(current_quick_select_size_);
     canvas_->set_quick_select_sample_all_layers(current_quick_select_sample_all_layers_);
     canvas_->set_quick_select_enhance_edge(current_quick_select_enhance_edge_);
@@ -684,6 +685,7 @@ bool MainWindow::close_document_session(DocumentSession& target_session) {
   // smart-object child recursion both run arbitrary UI code (dialogs, nested
   // closes) that can erase sessions_ entries.
   const auto target_id = target_session.session_id;
+  if (&target_session == active_session()) finish_pending_shape_appearance_edit();
   // Commit any in-progress inline text edit while its canvas is still active:
   // the pending text belongs in the save-changes decision below, and an editor
   // that survives into removeTab() auto-commits on the focus change mid
@@ -730,6 +732,12 @@ bool MainWindow::close_document_session(DocumentSession& target_session) {
   if (!confirm_close_session(*live_session)) {
     return false;
   }
+#ifndef Q_OS_WASM
+  // The session is going away with the user's consent: its recovery copy has no
+  // purpose any more (a copy that outlived the session would be "recovered" as a
+  // phantom document after a later crash).
+  discard_recovery_for_session(target_id);
+#endif
   auto* canvas = live_session->canvas;
   auto* float_window = live_session->float_window;
   live_session->float_window = nullptr;
@@ -1526,6 +1534,10 @@ void MainWindow::refresh_document_window_title() {
 
 void MainWindow::set_session_saved(DocumentSession& target_session) {
   target_session.saved_revision = target_session.revision;
+#ifndef Q_OS_WASM
+  // The file on disk is now the newest state; the recovery copy is stale.
+  discard_recovery_for_session(target_session.session_id);
+#endif
   refresh_document_tab_titles();  update_undo_redo_actions();
   refresh_document_info();
 }

@@ -111,7 +111,13 @@ std::optional<CurvesAdjustment> metadata_curves_adjustment(const Layer& layer) {
   if (!rgb.has_value() || !red.has_value() || !green.has_value() || !blue.has_value()) {
     return std::nullopt;
   }
-  return CurvesAdjustment{*rgb, *red, *green, *blue};
+  auto curves = CurvesAdjustment{*rgb, *red, *green, *blue};
+  if (const auto black = parse_curve_control_points(
+          metadata_string_or(layer, kLayerMetadataAdjustmentCurvesBlackPoints, {}));
+      black.has_value()) {
+    curves.black_ink = *black;
+  }
+  return curves;
 }
 
 // "r0;r1;r2;r3;hue;saturation;lightness". A malformed or missing value leaves
@@ -212,27 +218,34 @@ bool levels_record_has_effect(LevelsRecord record) {
          record.black_output != 0 || record.white_output != 255;
 }
 
-std::uint8_t levels_channel(std::uint8_t value, LevelsRecord record) {
+// One Levels record as a real-valued transfer; an identity record returns its input
+// untouched so a master-only adjustment stays bit-identical to a single stage.
+double levels_value(double value, LevelsRecord record) {
   record = clamp_levels_record(record);
+  if (!levels_record_has_effect(record)) {
+    return value;
+  }
   const auto input_range = static_cast<double>(record.white_input - record.black_input);
   const auto gamma = static_cast<double>(record.gamma_percent) / 100.0;
   const auto inverse_gamma = gamma <= 0.0 ? 1.0 : 1.0 / gamma;
-  const auto normalized =
-      std::clamp((static_cast<double>(value) - static_cast<double>(record.black_input)) / input_range, 0.0, 1.0);
+  const auto normalized = std::clamp((value - static_cast<double>(record.black_input)) / input_range, 0.0, 1.0);
   const auto leveled = std::pow(normalized, inverse_gamma);
-  const auto output =
-      static_cast<double>(record.black_output) + leveled * static_cast<double>(record.white_output - record.black_output);
-  return clamp_byte(static_cast<float>(output));
+  return static_cast<double>(record.black_output) +
+         leveled * static_cast<double>(record.white_output - record.black_output);
 }
 
+// Photoshop applies the component channel first, then Composite RGB, as it does for
+// Curves. Pinned against Photoshop's render of psd-tools' levels_rgb.psd (October 2026):
+// this order is within 2/255 everywhere, the reverse is off by up to 52. The channel
+// result feeds the composite stage unrounded; rounding it to a byte in between measures
+// ten times as many 2/255 misses on the same render.
 RgbColor apply_levels(RgbColor color, LevelsAdjustment settings) {
   const auto master = levels_master_record(settings);
-  RgbColor adjusted{levels_channel(color.red, master), levels_channel(color.green, master),
-                    levels_channel(color.blue, master)};
-  adjusted.red = levels_channel(adjusted.red, settings.red);
-  adjusted.green = levels_channel(adjusted.green, settings.green);
-  adjusted.blue = levels_channel(adjusted.blue, settings.blue);
-  return adjusted;
+  const auto channel = [&master](std::uint8_t value, LevelsRecord record) {
+    return clamp_byte(static_cast<float>(levels_value(levels_value(static_cast<double>(value), record), master)));
+  };
+  return RgbColor{channel(color.red, settings.red), channel(color.green, settings.green),
+                  channel(color.blue, settings.blue)};
 }
 
 RgbColor apply_curves(RgbColor color, const CurvesAdjustment& settings) {
@@ -901,12 +914,34 @@ AdjustmentLut build_curves_lut(const CurvesAdjustment& curves) {
   return lut;
 }
 
+// Photoshop's Posterize: `levels` equal-width input buckets (floor(value * levels / 256)),
+// each mapped to its step on the 0..255 output ramp with the fraction dropped (levels 3
+// gives 0, 127, 255). Byte-exact against Photoshop's render of psd-tools' posterize_rgb.psd
+// at 3, 7, 13 and 21 levels (October 2026); rounding to the nearest step is not.
 std::uint8_t posterize_channel_value(std::uint8_t value, int levels) {
-  const auto denominator = std::max(1, levels - 1);
-  const auto bucket =
-      static_cast<int>(std::round(static_cast<double>(value) * denominator / 255.0));
-  return static_cast<std::uint8_t>(
-      std::clamp(std::lround(static_cast<double>(bucket) * 255.0 / denominator), 0L, 255L));
+  levels = std::clamp(levels, 2, 255);
+  const int bucket = static_cast<int>(value) * levels / 256;
+  return static_cast<std::uint8_t>(bucket * 255 / (levels - 1));
+}
+
+ExposureAdjustment clamp_exposure(ExposureAdjustment settings) {
+  settings.exposure_hundredths = std::clamp(settings.exposure_hundredths, -kExposureValueRange, kExposureValueRange);
+  settings.offset_ten_thousandths =
+      std::clamp(settings.offset_ten_thousandths, -kExposureOffsetRange, kExposureOffsetRange);
+  settings.gamma_hundredths = std::clamp(settings.gamma_hundredths, kExposureGammaMin, kExposureGammaMax);
+  return settings;
+}
+
+std::uint8_t exposure_channel_value(std::uint8_t value, ExposureAdjustment settings) {
+  settings = clamp_exposure(settings);
+  constexpr double kDisplayGamma = 2.2;
+  const auto linear = std::pow(static_cast<double>(value) / 255.0, kDisplayGamma);
+  const auto exposed = linear * std::pow(2.0, static_cast<double>(settings.exposure_hundredths) / 100.0) +
+                       static_cast<double>(settings.offset_ten_thousandths) / 10000.0;
+  const auto corrected =
+      std::pow(std::max(0.0, exposed), 100.0 / static_cast<double>(settings.gamma_hundredths));
+  const auto encoded = std::pow(std::clamp(corrected, 0.0, 1.0), 1.0 / kDisplayGamma);
+  return static_cast<std::uint8_t>(std::clamp(std::lround(encoded * 255.0), 0L, 255L));
 }
 
 int threshold_luminance(std::uint8_t red, std::uint8_t green, std::uint8_t blue) {
@@ -1074,6 +1109,8 @@ std::string adjustment_kind_key(AdjustmentKind kind) {
       return "threshold";
     case AdjustmentKind::BrightnessContrast:
       return "brightness_contrast";
+    case AdjustmentKind::Exposure:
+      return "exposure";
   }
   return "levels";
 }
@@ -1096,6 +1133,8 @@ std::string adjustment_display_name(AdjustmentKind kind) {
       return "Threshold";
     case AdjustmentKind::BrightnessContrast:
       return "Brightness/Contrast";
+    case AdjustmentKind::Exposure:
+      return "Exposure";
   }
   return "Adjustment";
 }
@@ -1124,6 +1163,9 @@ std::optional<AdjustmentKind> adjustment_kind_from_key(std::string_view key) {
   }
   if (key == "brightness_contrast") {
     return AdjustmentKind::BrightnessContrast;
+  }
+  if (key == "exposure") {
+    return AdjustmentKind::Exposure;
   }
   return std::nullopt;
 }
@@ -1165,6 +1207,13 @@ std::optional<AdjustmentSettings> adjustment_settings_from_layer(const Layer& la
                                 kLayerMetadataAdjustmentLevelsBlueGammaPercent,
                                 kLayerMetadataAdjustmentLevelsBlueBlackOutput,
                                 kLayerMetadataAdjustmentLevelsBlueWhiteOutput);
+  settings.levels.black_ink =
+      metadata_levels_record_or(layer, kLayerMetadataAdjustmentLevelsBlackInkBlackInput,
+                                kLayerMetadataAdjustmentLevelsBlackInkWhiteInput,
+                                kLayerMetadataAdjustmentLevelsBlackInkGammaPercent,
+                                kLayerMetadataAdjustmentLevelsBlackInkBlackOutput,
+                                kLayerMetadataAdjustmentLevelsBlackInkWhiteOutput);
+  settings.ink_space = find_ink_space(metadata_string_or(layer, kLayerMetadataAdjustmentInkSpace, {}));
   settings.curves = curves_adjustment_from_legacy_outputs(
       metadata_int_or(layer, kLayerMetadataAdjustmentCurvesShadowOutput, 0),
       metadata_int_or(layer, kLayerMetadataAdjustmentCurvesMidtoneOutput, 128),
@@ -1199,6 +1248,10 @@ std::optional<AdjustmentSettings> adjustment_settings_from_layer(const Layer& la
       std::clamp(metadata_int_or(layer, kLayerMetadataAdjustmentPosterizeLevels, 4), 2, 255);
   settings.threshold.level =
       std::clamp(metadata_int_or(layer, kLayerMetadataAdjustmentThresholdLevel, 128), 1, 255);
+  settings.exposure = clamp_exposure(ExposureAdjustment{
+      metadata_int_or(layer, kLayerMetadataAdjustmentExposureValue, 0),
+      metadata_int_or(layer, kLayerMetadataAdjustmentExposureOffset, 0),
+      metadata_int_or(layer, kLayerMetadataAdjustmentExposureGamma, 100)});
   // Default legacy when the key is absent: pre-July-2026 documents were always
   // legacy-mode and must keep their render.
   settings.brightness_contrast.use_legacy =
@@ -1246,6 +1299,16 @@ void configure_adjustment_layer(Layer& layer, const AdjustmentSettings& settings
                              kLayerMetadataAdjustmentLevelsBlueGammaPercent,
                              kLayerMetadataAdjustmentLevelsBlueBlackOutput,
                              kLayerMetadataAdjustmentLevelsBlueWhiteOutput);
+  // The ink space and the black ink's record are written only for an adjustment that
+  // has them, so layers from RGB documents keep exactly the metadata they always had.
+  if (settings.ink_space != nullptr) {
+    set_metadata_string(layer, kLayerMetadataAdjustmentInkSpace, settings.ink_space->id);
+    set_metadata_levels_record(layer, settings.levels.black_ink, kLayerMetadataAdjustmentLevelsBlackInkBlackInput,
+                               kLayerMetadataAdjustmentLevelsBlackInkWhiteInput,
+                               kLayerMetadataAdjustmentLevelsBlackInkGammaPercent,
+                               kLayerMetadataAdjustmentLevelsBlackInkBlackOutput,
+                               kLayerMetadataAdjustmentLevelsBlackInkWhiteOutput);
+  }
   const auto composite_curve_lut = build_curve_lut(settings.curves.rgb);
   set_metadata_int(layer, kLayerMetadataAdjustmentCurvesShadowOutput, composite_curve_lut[0]);
   set_metadata_int(layer, kLayerMetadataAdjustmentCurvesMidtoneOutput, composite_curve_lut[128]);
@@ -1256,6 +1319,10 @@ void configure_adjustment_layer(Layer& layer, const AdjustmentSettings& settings
     metadata[kLayerMetadataAdjustmentCurvesRedPoints] = serialize_curve_control_points(settings.curves.red);
     metadata[kLayerMetadataAdjustmentCurvesGreenPoints] = serialize_curve_control_points(settings.curves.green);
     metadata[kLayerMetadataAdjustmentCurvesBluePoints] = serialize_curve_control_points(settings.curves.blue);
+    if (settings.ink_space != nullptr) {
+      metadata[kLayerMetadataAdjustmentCurvesBlackPoints] =
+          serialize_curve_control_points(settings.curves.black_ink);
+    }
   } else {
     metadata.erase(kLayerMetadataAdjustmentCurvesRgbPoints);
     metadata.erase(kLayerMetadataAdjustmentCurvesRedPoints);
@@ -1291,6 +1358,10 @@ void configure_adjustment_layer(Layer& layer, const AdjustmentSettings& settings
                    std::clamp(settings.posterize.levels, 2, 255));
   set_metadata_int(layer, kLayerMetadataAdjustmentThresholdLevel,
                    std::clamp(settings.threshold.level, 1, 255));
+  const auto exposure = clamp_exposure(settings.exposure);
+  set_metadata_int(layer, kLayerMetadataAdjustmentExposureValue, exposure.exposure_hundredths);
+  set_metadata_int(layer, kLayerMetadataAdjustmentExposureOffset, exposure.offset_ten_thousandths);
+  set_metadata_int(layer, kLayerMetadataAdjustmentExposureGamma, exposure.gamma_hundredths);
   const auto bc_brightness_range =
       settings.brightness_contrast.use_legacy ? kBrightnessContrastLegacyRange : kModernBrightnessRange;
   const auto bc_contrast_low =
@@ -1306,7 +1377,104 @@ void configure_adjustment_layer(Layer& layer, const AdjustmentSettings& settings
                    settings.brightness_contrast.use_legacy ? 1 : 0);
 }
 
+namespace {
+
+// One 256-entry transfer per ink for an adjustment that runs in its ink space, built
+// from the same per-channel math the RGB path uses. Cyan, magenta and yellow read the
+// records RGB documents call red, green and blue; the black ink has its own.
+struct InkAdjustmentTables {
+  AdjustmentSettings settings;
+  std::array<std::array<std::uint8_t, 256>, 4> ink{};
+  bool valid{false};
+};
+
+bool same_ink_adjustment(const AdjustmentSettings& a, const AdjustmentSettings& b) {
+  return a.kind == b.kind && a.ink_space == b.ink_space && a.levels == b.levels && a.curves == b.curves &&
+         a.posterize.levels == b.posterize.levels && a.threshold.level == b.threshold.level &&
+         a.brightness_contrast.brightness == b.brightness_contrast.brightness &&
+         a.brightness_contrast.contrast == b.brightness_contrast.contrast &&
+         a.brightness_contrast.use_legacy == b.brightness_contrast.use_legacy &&
+         a.exposure.exposure_hundredths == b.exposure.exposure_hundredths &&
+         a.exposure.offset_ten_thousandths == b.exposure.offset_ten_thousandths &&
+         a.exposure.gamma_hundredths == b.exposure.gamma_hundredths;
+}
+
+RgbColor apply_adjustment_on_rgb(RgbColor color, const AdjustmentSettings& settings);
+
+void build_ink_adjustment_tables(InkAdjustmentTables& tables, const AdjustmentSettings& settings) {
+  tables.settings = settings;
+  auto rgb_settings = settings;
+  rgb_settings.ink_space = nullptr;
+  // The black ink goes through the same stages as the others, with its own record: run
+  // it as the "red" channel of a second pass.
+  auto black_settings = rgb_settings;
+  black_settings.levels.red = settings.levels.black_ink;
+  black_settings.curves.red = settings.curves.black_ink;
+  for (int value = 0; value < 256; ++value) {
+    const auto probe = static_cast<std::uint8_t>(value);
+    const auto adjusted = apply_adjustment_on_rgb(RgbColor{probe, probe, probe}, rgb_settings);
+    const auto black = apply_adjustment_on_rgb(RgbColor{probe, probe, probe}, black_settings);
+    tables.ink[0][static_cast<std::size_t>(value)] = adjusted.red;
+    tables.ink[1][static_cast<std::size_t>(value)] = adjusted.green;
+    tables.ink[2][static_cast<std::size_t>(value)] = adjusted.blue;
+    tables.ink[3][static_cast<std::size_t>(value)] = black.red;
+  }
+  tables.valid = true;
+}
+
+RgbColor apply_adjustment_in_ink_space(RgbColor color, const AdjustmentSettings& settings) {
+  // Per render thread, like apply_curves: the single-color hook is called per pixel.
+  thread_local InkAdjustmentTables tables;
+  if (!tables.valid || !same_ink_adjustment(tables.settings, settings)) {
+    build_ink_adjustment_tables(tables, settings);
+  }
+  if (settings.ink_space->is_gray()) {
+    // One channel: its record is the one RGB documents call red (see the PSD reader).
+    return settings.ink_space->rgb_from_gray(tables.ink[0][settings.ink_space->gray_from_rgb(color)]);
+  }
+  auto ink = settings.ink_space->ink_from_rgb(color);
+  for (std::size_t channel = 0; channel < ink.size(); ++channel) {
+    ink[channel] = tables.ink[channel][ink[channel]];
+  }
+  return settings.ink_space->rgb_from_ink(ink);
+}
+
+}  // namespace
+
+bool adjustment_runs_in_ink_space(const AdjustmentSettings& settings) noexcept {
+  if (settings.ink_space == nullptr) {
+    return false;
+  }
+  switch (settings.kind) {
+    case AdjustmentKind::Levels:
+    case AdjustmentKind::Curves:
+    case AdjustmentKind::Invert:
+    case AdjustmentKind::Posterize:
+    case AdjustmentKind::BrightnessContrast:
+    case AdjustmentKind::Exposure:
+      return true;
+    // Threshold compares one value: on a single gray channel that is channel-wise.
+    case AdjustmentKind::Threshold:
+      return settings.ink_space->is_gray();
+    // Hue/Saturation and Color Balance mix channels (as does Threshold on four inks);
+    // Photoshop's CMYK forms of them are not modeled, so they stay on the RGB math.
+    case AdjustmentKind::HueSaturation:
+    case AdjustmentKind::ColorBalance:
+      return false;
+  }
+  return false;
+}
+
 RgbColor apply_adjustment_to_color(RgbColor color, const AdjustmentSettings& settings) {
+  if (adjustment_runs_in_ink_space(settings)) {
+    return apply_adjustment_in_ink_space(color, settings);
+  }
+  return apply_adjustment_on_rgb(color, settings);
+}
+
+namespace {
+
+RgbColor apply_adjustment_on_rgb(RgbColor color, const AdjustmentSettings& settings) {
   switch (settings.kind) {
     case AdjustmentKind::Levels:
       return apply_levels(color, settings.levels);
@@ -1339,9 +1507,15 @@ RgbColor apply_adjustment_to_color(RgbColor color, const AdjustmentSettings& set
                       brightness_contrast_channel_value(color.green, brightness, contrast, use_legacy),
                       brightness_contrast_channel_value(color.blue, brightness, contrast, use_legacy)};
     }
+    case AdjustmentKind::Exposure:
+      return RgbColor{exposure_channel_value(color.red, settings.exposure),
+                      exposure_channel_value(color.green, settings.exposure),
+                      exposure_channel_value(color.blue, settings.exposure)};
   }
   return color;
 }
+
+}  // namespace
 
 void apply_adjustment_to_pixels(PixelBuffer& pixels, const AdjustmentSettings& settings) {
   if (pixels.empty() || pixels.format().bit_depth != BitDepth::UInt8 || pixels.format().channels < 3) {
@@ -1367,6 +1541,10 @@ void apply_adjustment_to_pixels(PixelBuffer& pixels, const AdjustmentSettings& s
 }
 
 std::optional<AdjustmentLut> build_adjustment_lut(const AdjustmentSettings& settings) {
+  // An ink-space adjustment is channel-wise on the inks, not on RGB: no RGB table exists.
+  if (adjustment_runs_in_ink_space(settings)) {
+    return std::nullopt;
+  }
   // Hue/Saturation mixes channels through HSL; Threshold compares the mixed
   // RGB luminance, so a per-channel gray-probe LUT would be wrong for any
   // colored pixel. Both take the per-pixel path.
@@ -1394,7 +1572,8 @@ bool adjustment_has_effect(const AdjustmentSettings& settings) {
     case AdjustmentKind::Levels:
       return levels_record_has_effect(levels_master_record(settings.levels)) ||
              levels_record_has_effect(settings.levels.red) || levels_record_has_effect(settings.levels.green) ||
-             levels_record_has_effect(settings.levels.blue);
+             levels_record_has_effect(settings.levels.blue) ||
+             (settings.ink_space != nullptr && levels_record_has_effect(settings.levels.black_ink));
     case AdjustmentKind::Curves:
       {
         const auto lut = build_curves_lut(settings.curves);
@@ -1421,6 +1600,11 @@ bool adjustment_has_effect(const AdjustmentSettings& settings) {
       return true;
     case AdjustmentKind::BrightnessContrast:
       return settings.brightness_contrast.brightness != 0 || settings.brightness_contrast.contrast != 0;
+    case AdjustmentKind::Exposure: {
+      const auto exposure = clamp_exposure(settings.exposure);
+      return exposure.exposure_hundredths != 0 || exposure.offset_ten_thousandths != 0 ||
+             exposure.gamma_hundredths != 100;
+    }
   }
   return false;
 }

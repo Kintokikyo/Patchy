@@ -351,9 +351,11 @@ void ui_brush_tip_softness_feathers_stroke_and_size_reaches_1024() {
   auto* size_spin = window.findChild<QSpinBox*>(QStringLiteral("brushSizeSpin"));
   auto* size_slider = window.findChild<QSlider*>(QStringLiteral("brushSizeSlider"));
   CHECK(size_spin != nullptr && size_spin->maximum() == patchy::ui::kMaxBrushSize);
-  CHECK(size_slider != nullptr && size_slider->maximum() == patchy::ui::kMaxBrushSize);
+  CHECK(size_slider != nullptr && size_slider->maximum() == patchy::ui::kCurvedSliderPositions);
   size_spin->setValue(patchy::ui::kMaxBrushSize);
   CHECK(canvas->brush_size() == patchy::ui::kMaxBrushSize);
+  CHECK(size_slider->value() == patchy::ui::kCurvedSliderPositions);
+  CHECK(patchy::ui::slider_value(*size_slider) == patchy::ui::kMaxBrushSize);
   size_spin->setValue(32);
 
   auto& library = window.brush_tip_library();
@@ -1010,6 +1012,105 @@ void ui_palette_panel_copy_hex_and_updates_open_picker() {
   CHECK(panel_picker->currentColor() == expected_panel);
   CHECK(canvas->primary_color() == expected_panel);
   panel_dialog->close();
+  QApplication::processEvents();
+
+  // The Text Color panel with no session open: a swatch click recolors the selected text
+  // layer, exactly as picking in the panel itself does (GitHub issue 61).
+  require_action_by_text(window, QStringLiteral("Type"))->trigger();
+  const QPoint text_document_point(96, 96);
+  const auto text_widget_point = canvas->widget_position_for_document_point(text_document_point);
+  send_mouse(*canvas, QEvent::MouseButtonPress, text_widget_point, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, text_widget_point, Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  auto* editor = canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
+  CHECK(editor != nullptr);
+  editor->insertPlainText(QStringLiteral("Swatch"));
+  QApplication::processEvents();
+  require_action_by_text(window, QStringLiteral("Move"))->trigger();
+  canvas->setFocus(Qt::OtherFocusReason);
+  QApplication::processEvents();
+  canvas->set_show_transform_controls(false);
+  CHECK(canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor")) == nullptr);
+  const auto active_text_layer = std::as_const(document).active_layer_id();
+  CHECK(active_text_layer.has_value());
+  const auto text_layer_id = active_text_layer.value_or(0);
+
+  const QColor swatch_color(preset->colors[8].red, preset->colors[8].green, preset->colors[8].blue);
+  const auto layer_has_swatch_ink = [&document, text_layer_id, swatch_color] {
+    const auto* layer = std::as_const(document).find_layer(text_layer_id);
+    CHECK(layer != nullptr);
+    if (layer == nullptr) {
+      return false;
+    }
+    const auto& pixels = layer->pixels();
+    for (int y = 0; y < pixels.height(); ++y) {
+      for (int x = 0; x < pixels.width(); ++x) {
+        const auto pixel = pixels.pixel(x, y);
+        if (pixel[3] == 255 && pixel[0] == swatch_color.red() && pixel[1] == swatch_color.green() &&
+            pixel[2] == swatch_color.blue()) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+  CHECK(!layer_has_swatch_ink());
+
+  auto* text_color = window.findChild<QPushButton*>(QStringLiteral("textColorButton"));
+  CHECK(text_color != nullptr);
+  text_color->click();
+  QApplication::processEvents();
+  auto* text_panel = find_top_level_dialog(QStringLiteral("patchyColorDialog"));
+  CHECK(text_panel != nullptr);
+  const auto undo_depth = patchy::ui::MainWindowTestAccess::active_session_undo_depth(window);
+  send_mouse(*grid, QEvent::MouseButtonPress, cell_center(8), Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*grid, QEvent::MouseButtonRelease, cell_center(8), Qt::LeftButton, Qt::NoButton);
+  process_events_for(400);  // the no-session apply waits for the picker to settle
+  CHECK(layer_has_swatch_ink());
+  CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == undo_depth + 1);
+  text_panel->close();
+  QApplication::processEvents();
+
+  // Panel closed: a swatch click with the Type tool still recolors the selected text layer,
+  // and a click with another tool leaves it alone.
+  const auto ink_count = [&document, text_layer_id](QColor color) {
+    const auto* layer = std::as_const(document).find_layer(text_layer_id);
+    int count = 0;
+    if (layer != nullptr) {
+      const auto& pixels = layer->pixels();
+      for (int y = 0; y < pixels.height(); ++y) {
+        for (int x = 0; x < pixels.width(); ++x) {
+          const auto pixel = pixels.pixel(x, y);
+          count += pixel[3] == 255 && pixel[0] == color.red() && pixel[1] == color.green() &&
+                   pixel[2] == color.blue();
+        }
+      }
+    }
+    return count;
+  };
+  const QColor closed_color(preset->colors[12].red, preset->colors[12].green, preset->colors[12].blue);
+  const QColor other_tool_color(preset->colors[14].red, preset->colors[14].green, preset->colors[14].blue);
+  CHECK(find_top_level_dialog(QStringLiteral("patchyColorDialog")) == nullptr);
+  require_action_by_text(window, QStringLiteral("Brush"))->trigger();
+  QApplication::processEvents();
+  send_mouse(*grid, QEvent::MouseButtonPress, cell_center(14), Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*grid, QEvent::MouseButtonRelease, cell_center(14), Qt::LeftButton, Qt::NoButton);
+  process_events_for(400);
+  CHECK(canvas->primary_color() == other_tool_color);
+  CHECK(ink_count(other_tool_color) == 0);
+  CHECK(ink_count(swatch_color) > 0);
+
+  require_action_by_text(window, QStringLiteral("Type"))->trigger();
+  QApplication::processEvents();
+  CHECK(canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor")) == nullptr);
+  CHECK(std::as_const(document).active_layer_id() == active_text_layer);
+  send_mouse(*grid, QEvent::MouseButtonPress, cell_center(12), Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*grid, QEvent::MouseButtonRelease, cell_center(12), Qt::LeftButton, Qt::NoButton);
+  process_events_for(400);
+  CHECK(ink_count(closed_color) > 0);
+  CHECK(ink_count(swatch_color) == 0);
+  CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == undo_depth + 2);
+  require_action_by_text(window, QStringLiteral("Move"))->trigger();
   QApplication::processEvents();
 }
 

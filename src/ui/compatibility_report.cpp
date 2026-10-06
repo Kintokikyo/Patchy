@@ -150,6 +150,17 @@ void append_layer_warnings(const Layer& layer, QStringList& warnings) {
       warnings << QObject::tr("%1 is a Patchy-native adjustment layer; it round-trips in Patchy PSDs but may "
                               "appear as an unsupported adjustment in other editors.")
                        .arg(QString::fromStdString(layer.name()));
+    } else if (adjustment_runs_in_ink_space(*settings)) {
+      // The layer came from a CMYK document and is evaluated on its inks (InkSpace).
+      // An RGB save cannot carry that meaning.
+      warnings << (settings->ink_space->is_gray()
+                       ? QObject::tr("%1 came from a grayscale document and adjusts its gray channel here. "
+                                     "Patchy saves RGB files, so in the saved file Photoshop and Patchy apply "
+                                     "it to RGB and its tones will look different.")
+                       : QObject::tr("%1 came from a CMYK document and adjusts its CMYK inks here. Patchy "
+                                     "saves RGB files, so in the saved file Photoshop and Patchy apply it to "
+                                     "RGB and its colors will look different."))
+                      .arg(QString::fromStdString(layer.name()));
     }
   } else if (layer.kind() != LayerKind::Pixel && layer.kind() != LayerKind::Text) {
     warnings << QObject::tr("%1 uses an unsupported layer kind and may not export as editable PSD data.")
@@ -188,10 +199,19 @@ QStringList compatibility_warnings_for_document(const Document& document) {
     if (color_mode->second == "CMYK") {
       warnings << QObject::tr("The source color mode is CMYK; Patchy converted the pixels to RGB/RGBA for editing "
                               "and will export RGB PSD data from this document.");
+    } else if (color_mode->second == "Grayscale") {
+      warnings << QObject::tr("The source color mode is Grayscale; Patchy converted the gray values to RGB/RGBA "
+                              "for editing and will export RGB PSD data from this document.");
     } else {
       warnings << QObject::tr("The source color mode is %1; Patchy currently edits through RGB/RGBA workflows.")
                        .arg(QString::fromStdString(color_mode->second));
     }
+  }
+  if (const auto depth = document.metadata().values.find("psd.depth");
+      depth != document.metadata().values.end() && depth->second != "8") {
+    warnings << QObject::tr("The source is %1 bits per channel; Patchy converted it to 8-bit for editing and "
+                            "saves an 8-bit file. Keep the original if you need the deeper data.")
+                    .arg(QString::fromStdString(depth->second));
   }
   if (!document.metadata().unknown_psd_resources.empty()) {
     warnings << QObject::tr("The document preserves %1 unknown PSD image resource(s).")

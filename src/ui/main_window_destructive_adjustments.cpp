@@ -216,10 +216,6 @@
 #include <tpcshrd.h>
 #endif
 
-#ifndef PATCHY_VERSION
-#define PATCHY_VERSION "0.0.0"
-#endif
-
 // Icon resources live in the static patchy_ui library; force registration before first use.
 int qInitResources_icons();
 
@@ -245,6 +241,7 @@ bool curves_settings_have_effect(const CurvesSettings& curves) {
 
 void MainWindow::levels_dialog() {
   auto& doc = document();
+  select_only_layer_if_none_active();
   const auto active = doc.active_layer_id();
   if (!active.has_value()) {
     return;
@@ -400,6 +397,7 @@ void MainWindow::levels_dialog() {
 
 void MainWindow::curves_dialog() {
   auto& doc = document();
+  select_only_layer_if_none_active();
   const auto active = doc.active_layer_id();
   if (!active.has_value()) {
     return;
@@ -560,6 +558,7 @@ void MainWindow::curves_dialog() {
 
 void MainWindow::hue_saturation_dialog() {
   auto& doc = document();
+  select_only_layer_if_none_active();
   const auto active = doc.active_layer_id();
   if (!active.has_value()) {
     return;
@@ -663,6 +662,7 @@ void MainWindow::hue_saturation_dialog() {
 
 void MainWindow::color_balance_dialog() {
   auto& doc = document();
+  select_only_layer_if_none_active();
   const auto active = doc.active_layer_id();
   if (!active.has_value()) {
     return;

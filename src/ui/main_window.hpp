@@ -2,23 +2,28 @@
 
 #include "core/adjustment_layer.hpp"
 #include "core/document.hpp"
+#include "core/document_recovery_store.hpp"
 #include "core/layer_alignment.hpp"
+#include "core/layer_tree.hpp"
 #include "core/smart_filter.hpp"
 #include "core/text_warp.hpp"
 #include "filters/filter_registry.hpp"
 #include "formats/format_registry.hpp"
+#include "plugins/legacy_photoshop_adapter.hpp"
 #include "plugins/plugin_host.hpp"
 #include "ui/canvas_widget.hpp"
 #include "ui/channel_panel.hpp"
 #include "ui/hotkey_registry.hpp"
 #include "ui/image_document_io.hpp"
 #include "ui/stress_test.hpp"
+#include "ui/text_paragraph_metrics.hpp"
 #include "ui/unit_spin_box.hpp"
 
 #include <QBrush>
 #include <QByteArray>
 #include <QColor>
 #include <QDialog>
+#include <QElapsedTimer>
 #include <QKeySequence>
 #include <QListWidget>
 #include <QMainWindow>
@@ -27,11 +32,13 @@
 #include <QPoint>
 #include <QPointer>
 #include <QRect>
+#include <QSet>
 #include <QString>
 #include <QStringList>
 #include <array>
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <initializer_list>
 #include <memory>
 #include <optional>
@@ -65,6 +72,7 @@ class QShowEvent;
 class QSlider;
 class QSpinBox;
 class QTabWidget;
+class QTextCharFormat;
 class QTextEdit;
 class QToolBar;
 class QToolButton;
@@ -86,6 +94,7 @@ struct LayerDropRequest;
 namespace patchy::ui {
 
 struct PdfImportedDocument;
+struct ShapeAppearanceSettings;
 
 namespace user_fonts {
 struct AddFontsResult;
@@ -97,6 +106,7 @@ struct HueSaturationSettings;
 using LevelsSettings = LevelsAdjustment;
 using PosterizeSettings = PosterizeAdjustment;
 using ThresholdSettings = ThresholdAdjustment;
+using ExposureSettings = ExposureAdjustment;
 using BrightnessContrastSettings = BrightnessContrastAdjustment;
 struct ScannerAcquireResult;
 struct UpdateInfo;
@@ -110,6 +120,8 @@ class BrushTipLibrary;
 class BrushAutomationLibrary;
 class BrushTipPicker;
 class DocumentFloatWindow;
+class RecoveryInstanceFolder;
+struct OrphanedRecoveryFolder;
 class CustomShapeLibrary;
 class AnimationPreviewWindow;
 class PalettePanel;
@@ -127,19 +139,21 @@ class MainWindow final : public QMainWindow {
   Q_OBJECT
 
 public:
+  // Legacy plug-ins: true from the moment a folder scan is scheduled until its
+  // result is applied (tests and Preferences wait on it; docs/plugins.md).
+  [[nodiscard]] bool legacy_plugin_scan_in_flight() const noexcept;
+  // One character format's family (the render families plus the display family the commit
+  // reads), for callers typing runs in several families into one session.
+  void apply_text_family_to_format(QTextCharFormat& format, const QString& family) const;
   explicit MainWindow(QWidget* parent = nullptr);
   ~MainWindow() override;
   // True only where Patchy draws its own window frame (Windows). macOS/Linux use the
   // native frame: no frameless flag, no chrome buttons, no edge-resize machinery.
   [[nodiscard]] static bool use_custom_window_chrome();
-  // Photoshop-mac convention: two-finger scroll pans and pinch zooms, so plain wheel
-  // zooming defaults OFF on macOS; Windows/Linux keep wheel-zooms-on. Users flip it in
-  // Preferences > Canvas either way (the setting key is shared across platforms).
-#ifdef Q_OS_MACOS
-  static constexpr bool kWheelZoomsDefault = false;
-#else
+  // A plain mouse wheel zooms by default on every platform (Seth, October 2026). macOS
+  // used to default this off for trackpads, which no longer read the setting: a
+  // two-finger scroll always pans and pinch zooms (docs/view-navigation.md).
   static constexpr bool kWheelZoomsDefault = true;
-#endif
   // initial_history_label names the new session's first history state ("Open",
   // an import label, ...); empty means a generic "New document".
   // Background adds the session and its tab without making it the active document: no
@@ -154,6 +168,10 @@ public:
   // Bring this already-running window to the foreground and open the files a second launch handed off
   // via the single-instance channel (see src/app/main.cpp).
   void activate_for_second_instance(const QStringList& paths);
+  // The foreground half of that, run the moment a relaunch's request arrives: un-minimize, raise
+  // and activate the window, then the open modal dialog if there is one (file opens wait for the
+  // dialog to close; the relaunch's foreground grant would not last that long).
+  void bring_to_front_for_second_instance();
   // Save a PNG grab of this window — or a named child widget, optionally cropped to a
   // sub-rect of it — for external verification tooling (the `--screenshot` flag in
   // src/app/main.cpp). Returns false when the widget name is unknown or the save fails.
@@ -164,6 +182,10 @@ public:
   // only, so tests constructing MainWindow never fire network requests; the result lands on
   // the start panel's status line and, for an available update, show_update_available.
   void begin_startup_update_check();
+  // Forced-exit path only (main.cpp, a worker still blocked after the bounded quit
+  // wait): stops recovery writes and deletes the recovery folder now, since the
+  // destructor that normally drops it will not run. See docs/document-recovery.md.
+  void discard_recovery_folder_for_forced_exit();
   [[nodiscard]] const HotkeyRegistry& hotkey_registry() const noexcept { return hotkey_registry_; }
   [[nodiscard]] BrushTipLibrary& brush_tip_library();
   [[nodiscard]] BrushAutomationLibrary& brush_automation_library();
@@ -194,6 +216,38 @@ public:
   // data-loss confirms). Set before opening files.
   void set_cli_automation_mode(bool enabled) { cli_automation_mode_ = enabled; }
   [[nodiscard]] bool unattended_automation() const;
+#ifndef Q_OS_WASM
+  // Automatic document recovery (docs/document-recovery.md, main_window_recovery.cpp):
+  // a timer writes a PSB copy of every modified document into this instance's
+  // recovery folder; a launch after a crash reopens what it finds. The web build has
+  // no recovery store.
+  // Re-reads the recovery preferences and restarts or stops the timer.
+  void apply_recovery_preferences();
+  // The timer tick, callable on demand: writes a recovery copy of every modified
+  // document whose state changed since its last copy. Returns the PSB paths it
+  // started writing; empty when the app is busy (a modal dialog, a canvas gesture,
+  // a write still in flight) or nothing changed. `wait` pumps events until the
+  // background write has finished, so the files exist when it returns.
+  QStringList write_recovery_now(bool wait);
+  [[nodiscard]] QString recovery_directory() const;
+  // The recovery copies this instance holds right now.
+  [[nodiscard]] std::vector<recovery::RecoveryEntry> list_recovery_entries() const;
+  // Recovery folders left by instances that are no longer running.
+  [[nodiscard]] std::vector<OrphanedRecoveryFolder> list_orphaned_recovery() const;
+  // Reopens every orphaned recovery copy as a modified document titled
+  // "<name> (Recovered)" (its path set to the original file when known) and moves
+  // the copy into this instance's folder. Returns the new session ids. Files that
+  // fail to open stay where they are and are reported in the status bar.
+  std::vector<std::int64_t> recover_orphaned_documents();
+  // Deletes every orphaned recovery folder; returns how many documents were dropped.
+  int discard_orphaned_recovery();
+  // The document state a recovery copy holds (see recovery_marks_).
+  struct RecoveryMark {
+    std::int64_t session_id{0};
+    std::int64_t revision{0};
+    std::int64_t state_id{0};
+  };
+#endif
   // The JS scripting engine (lazily created; see main_window_scripting.cpp and
   // docs/scripting.md).
   [[nodiscard]] ScriptEngineHost& script_engine_host();
@@ -535,6 +589,26 @@ private:
   void set_session_saved(DocumentSession& target_session);
   void mark_session_modified(DocumentSession& target_session);
   [[nodiscard]] bool session_is_modified(const DocumentSession& target_session) const noexcept;
+  // True while any canvas runs a pointer gesture, a transform, a crop session, or an
+  // inline text edit (the scripting host's manual-edit check and the recovery
+  // timer's busy check share it).
+  [[nodiscard]] bool any_canvas_interaction_active() const;
+#ifndef Q_OS_WASM
+  void start_document_recovery();
+  [[nodiscard]] bool recovery_busy() const;
+  void discard_recovery_for_session(std::int64_t session_id);
+  void finish_recovery_write(const std::vector<RecoveryMark>& marks, const QStringList& errors);
+  // Opens one recovery copy as a new modified session (main_window_files.cpp).
+  bool open_recovered_document(const QString& psb_path, const QString& title, const QString& original_path,
+                               std::int64_t* session_id);
+  std::shared_ptr<RecoveryInstanceFolder> recovery_folder_;
+  QTimer* recovery_timer_{nullptr};
+  bool recovery_write_in_flight_{false};
+  // Per session id: the (revision, state id) pair its current recovery copy holds.
+  // `revision` alone is not monotonic (undo restores the old value), so the pair is
+  // what identifies a distinct document state.
+  std::unordered_map<std::int64_t, RecoveryMark> recovery_marks_;
+#endif
   // Display title shared by tab text and float-window titles: "Untitled" fallback
   // plus the modified '*' suffix.
   [[nodiscard]] QString session_display_title(const DocumentSession& target_session) const;
@@ -562,16 +636,30 @@ private:
   bool resize_document_image(DocumentSession& target, int width, int height,
                              std::function<bool()> keep_running = {});
   void resize_canvas_dialog();
+  // Image > Crop to Selection (Advanced): the Canvas Size dialog prefilled with the
+  // selection rect as its frame.
+  void crop_to_selection_advanced();
+  // Shared apply for Canvas Size and the advanced crop: `frame` is the new canvas in
+  // current document coordinates (core `resize_canvas_to_frame`).
+  void apply_canvas_size(Rect frame, QColor extension_color, bool crop_layers, bool delete_off_canvas_layers,
+                         const QString& history_label);
   // Shared gate for the whole-document geometry operations (Image Size, Canvas Size,
   // Crop, Rotate). Smart-object placements ride a document-space remap, so those are
   // allowed; native Smart Filter caches and unparsed placements still cannot follow.
   // Shows the matching status error and returns true when the caller must abort.
   [[nodiscard]] bool refuse_document_geometry_change();
-  // Re-renders every editable smart object from its immutable source after a geometry
-  // change that RESAMPLED the previews (Image Size). Photoshop's Image Size stays
-  // non-destructive; without this the layer would keep the bilinear-scaled preview even
-  // though the source is still full resolution. Callers own the undo snapshot.
-  void rerender_smart_object_previews();
+  // Re-renders every editable embedded and every resolvable linked smart object in
+  // `target` from its immutable source after a geometry change that RESAMPLED the
+  // previews (Image Size). Photoshop's Image Size stays non-destructive; without this
+  // the layer would keep the bilinear-scaled preview even though the source is still
+  // full resolution. Each linked file is read once per source element; a missing or
+  // undecodable file keeps the resampled preview and is reported on the status bar.
+  // Callers own the undo snapshot.
+  void rerender_smart_object_previews(DocumentSession& target);
+  // "Linked file X was not found" / "Could not decode X" for a linked layer whose file
+  // cannot be re-rendered from, or an empty string when it can (or the layer is embedded).
+  [[nodiscard]] QString linked_smart_object_problem_message(const Document& document, const Layer& layer,
+                                                            const QString& parent_document_dir) const;
   // The text counterpart for Image Size: every text layer whose composed
   // patchy.text.transform now carries scale is re-rendered through it with the
   // free-transform commit's rules (Patchy-authored text folds the scale into its
@@ -591,6 +679,56 @@ private:
   // The testable core of open_folder; returns how many documents opened (0 when
   // the folder holds no supported image, with a status-bar message).
   int open_folder_path(const QString& directory);
+  // Files as Layers (issue 25): image files become new layers of an open
+  // document, one root per file, through a file drop on the Layers panel,
+  // File > Import > Files as Layers, Paste with copied files, and
+  // doc.importFilesAsLayers. See docs/import.md.
+  // Where the new roots land (a Layers-panel drop target); nullopt means
+  // directly above the active layer.
+  struct LayerInsertionTarget {
+    std::optional<LayerId> layer_id;
+    LayerDropPosition position{LayerDropPosition::AboveItem};
+  };
+  enum class FailedFilesPolicy { SkipFailed, AbortOnAnyFailure };
+  struct AddFilesAsLayersResult {
+    std::vector<LayerId> added_root_ids_top_to_bottom;  // one per file that loaded
+    QStringList failed_paths;                          // input order
+    QStringList failure_messages;                      // "name: reason", parallel to failed_paths
+    bool cancelled{false};                             // progress said stop; nothing was added
+  };
+  // Two phases. Every path decodes first through load_document_from_path (PSD
+  // trees, SVG vectors, RAW defaults, PDF page 1, GIF frames, flat alpha as a
+  // mask); a lone root is renamed to the file's base name and several roots are
+  // wrapped in a pass-through folder named after it. progress(index, total) runs
+  // before each decode (1-based; the UI drives its progress dialog and pumps
+  // events there, scripts their interrupt check) and returning false cancels the
+  // whole add. Then each file's root is copied into a staged copy of the target's
+  // document with copy_layers_between_documents (keep-position placement: exact
+  // when the sizes match, else centered on the canvas), the stack is repositioned
+  // to drop_target, before_mutation runs once with the live session, and the
+  // staged document replaces the live one. The session is re-resolved by id after
+  // the decodes because the progress pump can close documents. Mutates the
+  // target document only: no undo push, refresh, or selection. Empty ids with
+  // *error set when nothing was added.
+  AddFilesAsLayersResult add_files_as_layers(DocumentSession& target, const QStringList& paths,
+                                             std::optional<LayerInsertionTarget> drop_target,
+                                             FailedFilesPolicy policy,
+                                             const std::function<bool(int, int)>& progress,
+                                             const std::function<bool(DocumentSession&)>& before_mutation,
+                                             QString* error);
+  // The interactive wrapper shared by the panel drop, the Import command, and
+  // Paste: the cancellable filesAsLayersProgressDialog ("Adding file N of M",
+  // an event pump per file so the window keeps painting), one "Add files as
+  // layers" snapshot, refresh, selection of every new root (topmost active), the
+  // status line, and the failure box (suppressed when unattended). Cancel adds
+  // nothing. Returns true when at least one layer was added.
+  bool add_files_as_layers_interactive(const QStringList& paths, std::optional<LayerInsertionTarget> drop_target,
+                                       const QString& failure_title);
+  void import_files_as_layers();
+  void import_files_as_layers_with_paths(const QStringList& paths);
+  // The local files in a drag or clipboard payload that could become layers;
+  // empty while a preview dialog holds the edit lock.
+  [[nodiscard]] QStringList supported_layer_drop_paths(const QMimeData* mime_data) const;
   // SVG post-open pass: renders text layers the Qt-free reader marked
   // kLayerMetadataSvgPendingText through the internal text pipeline and
   // positions them from their baseline point + text-anchor. Defined in
@@ -644,6 +782,7 @@ private:
   void import_image_sequence();
   void export_image_sequence();
   void export_animated_gif();
+  void export_animated_webp();
   void set_tile_preview_visible(bool visible, QAction* toggle_action);
   void toggle_animation_preview_window();
   bool accept_open_file_drag(QDropEvent* event);
@@ -698,6 +837,29 @@ private:
   void clear_guides();
   void clear_selected_guides();
   void set_ruler_unit_preference(MeasurementUnit unit);
+  // The ruler unit as the display unit of the pixel-native dimension fields
+  // (docs/resolution-units.md): transform X/Y, the shape W/H readouts, stroke
+  // width and line weight. `register_ruler_unit_field` enrolls a field (its own
+  // context provider stays); `apply_ruler_unit_to_fields` resets every enrolled
+  // field to the preference (a right-click unit pick is a per-field override that
+  // lasts until the next preference change); `refresh_ruler_unit_field_metrics`
+  // recomputes their steps when the active document, and so the PPI, changes.
+  void register_ruler_unit_field(UnitSpinBox* spin);
+  void apply_ruler_unit_to_fields();
+  void refresh_ruler_unit_field_metrics();
+  // The document PPI (300 without a document) and, per axis, the document extent
+  // as the Percent basis, for fields that convert typed units.
+  [[nodiscard]] UnitConversionContext document_unit_context(bool horizontal) const;
+  [[nodiscard]] UnitSpinBox::ContextProvider document_unit_context_provider(bool horizontal) const;
+  // A snapshot for modal dialogs that build their own dimension fields;
+  // `dialog_field_units` adds the unit-menu callback (a pick there sets the ruler
+  // unit preference, like a pick on a live field).
+  [[nodiscard]] DocumentFieldUnits document_field_units() const;
+  [[nodiscard]] DocumentFieldUnits dialog_field_units();
+  // The pasteboard color behind every document (nullopt = the theme's canvas_backdrop),
+  // chosen from the backdrop's right-click menu and persisted as view/canvasBackdropColor.
+  void set_canvas_backdrop_color_preference(std::optional<QColor> color);
+  void choose_custom_canvas_backdrop_color();
   void apply_canvas_aid_settings(CanvasWidget* canvas) const;
   void refresh_vector_preview_action();
   void apply_pen_input_settings(CanvasWidget* canvas) const;
@@ -713,11 +875,55 @@ private:
   void rebuild_scripts_menu();
   void run_script_from_menu(const QString& path);
   void browse_user_scripts_folder();
-  void scan_legacy_plugins();
-  void load_bundled_legacy_plugins();
-  bool register_legacy_plugin_path(const QString& path, QStringList* report = nullptr);
-  void add_legacy_plugin_action(const PluginDescriptor& descriptor);
-  void run_legacy_plugin(QString identifier);
+  // Legacy Photoshop plug-ins (main_window_plugins.cpp, docs/plugins.md). A
+  // scan is a pure file read of each plug-in's property list; running one goes
+  // through the out-of-process host.
+  struct LegacyPluginEntry {
+    std::string identifier;  // legacy.photoshop.<file stem>, the persisted form
+    QString path;            // absolute
+    LegacyPhotoshopPluginProbe probe;
+  };
+  enum class LegacyPluginApplyStatus { Applied, NoChange, Cancelled, Error };
+  // Plugins menu / About dialog: create the plug-ins folder (with its README) and
+  // show it in the file manager.
+  void open_legacy_plugins_folder();
+  // The automatic folders, the remembered user folders, and (developer builds)
+  // the committed test plug-ins next to the binary.
+  [[nodiscard]] static QStringList legacy_plugin_scan_roots();
+  // Rebuilds legacy_plugins_ and the menu from the scan roots synchronously
+  // (scripts, tests, Preferences); `report` gets one line per file found.
+  void rescan_legacy_plugin_folders(QStringList* report = nullptr);
+  // The same scan on a worker thread: startup and the Rescan command use it so a
+  // folder full of plug-ins never blocks the UI. `announce` posts a status-bar
+  // summary when it finishes. A scan requested while one runs queues a rerun.
+  void start_legacy_plugin_scan(bool announce);
+  bool register_legacy_plugin_path(const QString& path, QStringList* report = nullptr, bool rebuild_menu = true);
+  [[nodiscard]] const LegacyPluginEntry* find_legacy_plugin(std::string_view identifier) const noexcept;
+  void rebuild_legacy_plugins_menu();
+  // The menu path; `show_dialog` false repeats the plug-in with its last
+  // settings (Plugins > Repeat).
+  void run_legacy_plugin(QString identifier, bool show_dialog = true);
+  // Plugins > Repeat Last Plug-in / Last Plug-in Settings...: the plug-in that
+  // last completed a run this session.
+  void run_last_legacy_plugin(bool show_dialog);
+  void update_legacy_plugin_repeat_actions();
+  // Runs `entry` on `layer_id` of `session`, limited to the session's selection.
+  // `before_write` runs once, right before the layer is modified (the menu path
+  // pushes its undo snapshot there; the script host has its own).
+  // `capture_dialog_path` (optional PNG path) saves an image of the plug-in's own
+  // dialog while it is up (docs/plugins.md, the README screenshot);
+  // `auto_accept_dialogs` answers whatever dialog appears (unattended runs and
+  // scripts that asked for no dialog); the menu never sets it.
+  LegacyPluginApplyStatus apply_legacy_plugin(DocumentSession& session, LayerId layer_id,
+                                              const LegacyPluginEntry& entry, bool show_dialog,
+                                              const std::function<void()>& before_write, QString* error,
+                                              const QString& capture_dialog_path = QString(),
+                                              bool auto_accept_dialogs = false);
+  // Adds one probed file to legacy_plugins_ (identifier, plugin_host_ entry);
+  // returns whether it is runnable. Shared by the sync and async scans.
+  bool add_legacy_plugin_entry(const QString& path, LegacyPhotoshopPluginProbe probe, QStringList* report);
+  void finish_legacy_plugin_scan(int generation,
+                                 std::vector<std::pair<QString, LegacyPhotoshopPluginProbe>> probes);
   void cut_selection();
   void copy_selection();
   void copy_merged();
@@ -835,6 +1041,8 @@ private:
   void apply_posterize_adjustment(const PosterizeSettings& settings, bool allow_identity = false);
   void new_threshold_adjustment_layer();
   void apply_threshold_adjustment(const ThresholdSettings& settings, bool allow_identity = false);
+  void new_exposure_adjustment_layer();
+  void apply_exposure_adjustment(const ExposureSettings& settings, bool allow_identity = false);
   void new_brightness_contrast_adjustment_layer();
   void apply_brightness_contrast_adjustment(const BrightnessContrastSettings& settings,
                                             bool allow_identity = false);
@@ -879,6 +1087,11 @@ private:
     // Shift-drop, tab drop, dialog, scripts: keep the source coordinates when
     // the documents share dimensions, else center on the target canvas.
     bool keep_source_position{false};
+    // Convert to Layers: translate the copies by exactly this offset (the
+    // Smart Object's placement) instead of either rule above.
+    std::optional<QPoint> exact_offset;
+    // Convert to Layers: every copy keeps its name, colliding or not.
+    bool keep_names{false};
   };
   // Mutates target.document only: no undo push, no refresh, no activation.
   // before_mutation runs after validation and before the first target
@@ -890,6 +1103,13 @@ private:
                                                     const CrossDocumentLayerPlacement& placement,
                                                     const std::function<bool()>& before_mutation,
                                                     QString* error);
+  // The Document-level core of copy_layers_between_sessions, also used by Files
+  // as Layers, whose source is a temporary Document decoded from a file rather
+  // than a session. Same contract: mutates target only, before_mutation runs
+  // after validation, returns the new root ids top to bottom.
+  std::vector<LayerId> copy_layers_between_documents(const Document& source, std::vector<LayerId> ids,
+                                                     Document& target, const CrossDocumentLayerPlacement& placement,
+                                                     const std::function<bool()>& before_mutation, QString* error);
   // The interactive flow around copy_layers_between_sessions: the target's
   // undo snapshot, refresh, activation of the target, and selecting the
   // copies. Sessions are addressed by id: a document may close mid-drag.
@@ -902,11 +1122,17 @@ private:
   // destination document (another open session, or a new document the
   // source's size).
   void duplicate_layer_to_document();
+  // Rename Layer (menu, context menu, footer button, F2): edits the active
+  // layer's name in place in the Layers panel when its row is visible and it is
+  // the only selected layer (Photoshop), else through the rename dialog.
   void rename_active_layer();
+  // Shared commit for the dialog and the inline editor: trims, ignores an empty
+  // or unchanged name, records one "Rename layer" undo step.
+  void apply_layer_rename(LayerId id, const QString& name);
   // Animation Preview's name-token edits: stamps (a value) or strips (nullopt) the
   // trailing frame-time token on the selected (else active) layers' names, as one
   // undoable rename batch.
-  void set_selected_layers_frame_time(std::optional<std::uint16_t> delay_cs);
+  void set_selected_layers_frame_time(std::optional<std::uint32_t> delay_ms);
   void edit_active_layer_style();
   void copy_active_layer_style();
   void paste_layer_style_to_selected_layers();
@@ -946,17 +1172,27 @@ private:
   // (Photoshop's live options-bar editing).
   void show_vector_paint_menu(bool for_stroke);
   void pick_vector_solid_color(bool for_stroke);
+  // A Palette swatch click: recolors the options-bar solid Fill (or, with No Fill, an
+  // enabled solid Stroke) and the selected shape layers. Gradient/pattern paint is left alone.
+  void apply_swatch_color_to_shape_paint(QColor color);
   void pick_vector_gradient(bool for_stroke);
   void pick_vector_pattern(bool for_stroke);
   [[nodiscard]] patchy::Layer* editable_active_vector_shape_layer();
+  [[nodiscard]] std::vector<patchy::LayerId> editable_selected_shape_layer_ids() const;
   [[nodiscard]] bool vector_appearance_controls_live() const;
   // Resolves a pattern id to renderable tiles: document store first, then the
   // library, then the bundled presets (the rasterizer's own fallback order).
   [[nodiscard]] std::optional<patchy::PatternResource> resolve_vector_pattern_resource(
       const std::string& pattern_id);
   void sync_shape_appearance_options_from_active_layer();
-  bool apply_options_bar_appearance_to_active_shape();
+  void refresh_vector_stroke_controls();
+  bool apply_options_bar_appearance_to_active_shape(const std::vector<std::string>& fields = {});
   void schedule_vector_appearance_apply();
+  void finish_pending_shape_appearance_edit();
+  void apply_selected_shape_corner_radius(double radius);
+  void queue_shape_appearance_edit(const ShapeAppearanceSettings& settings);
+  bool commit_shape_appearance_edit(const std::vector<LayerId>& ids,
+                                    const ShapeAppearanceSettings& settings);
   // Options-bar W / H of the active shape layer (Photoshop's readouts): the
   // spins mirror its path bounds and a debounced edit scales the shape about
   // its top-left corner (live shapes stay live under an axis-aligned scale).
@@ -982,7 +1218,9 @@ private:
   // Fill/stroke editing (main_window_vector.cpp): the live-preview appearance
   // dialog for the active shape layer, and Layer > New Fill Layer creation
   // (a shape layer with an empty path = the whole canvas).
-  bool edit_active_shape_appearance(bool record_undo = true);
+  bool edit_active_shape_appearance(bool record_undo = true,
+      std::function<std::optional<ShapeAppearanceSettings>(const ShapeAppearanceSettings&,
+          std::function<void(const ShapeAppearanceSettings&)>)> editor = {});
   void create_fill_layer_with_appearance(const VectorFill& fill, const QString& name);
   [[nodiscard]] Layer build_fill_layer(const patchy::VectorFill& fill, const QString& name);
   [[nodiscard]] QString unique_fill_layer_name(const QString& base);
@@ -1051,16 +1289,33 @@ private:
   bool commit_smart_object_child_session(DocumentSession& child_session);
   void refresh_external_smart_object_after_save(DocumentSession& child_session);
   void update_smart_object_content();
+  // The Update Smart Object Content core, shared with layer.updateSmartObject():
+  // re-reads the linked file behind `layer_id`, stamps the link, and re-renders
+  // every layer sharing that source in `target`. before_mutation runs once, right
+  // before the document changes (the caller's undo snapshot); returning false
+  // abandons the update. Returns how many layers were re-rendered, or 0 with
+  // *error set. No refresh or status message: callers own those.
+  int update_linked_smart_object(DocumentSession& target, LayerId layer_id,
+                                 const std::function<bool()>& before_mutation, QString* error);
+  // layer.rerenderSmartObject(): renders the embedded smart object behind `layer_id`
+  // again from the file bytes it stores, for every layer sharing that source (a PSD
+  // also carries pixels for the layer, which are what is shown until then). Same
+  // contract as update_linked_smart_object.
+  int rerender_embedded_smart_object(DocumentSession& target, LayerId layer_id,
+                                     const std::function<bool()>& before_mutation, QString* error);
   void relink_smart_object_contents();
   void relink_smart_object_contents_with_path(const QString& path);
   void embed_linked_smart_object();
+  // `vector_contents` (a source carrying the file bytes) lets each layer rasterize
+  // vector artwork at its own placement scale instead of resampling `rendered_image`.
   bool refresh_smart_object_layers_for_source(Document& target_document,
                                               const std::string& source_uuid,
                                               const QImage& rendered_image,
                                               double content_dpi,
                                               bool include_external_locked,
                                               bool rekey_placed_instances = false,
-                                              std::string_view replacement_source_uuid = {});
+                                              std::string_view replacement_source_uuid = {},
+                                              const SmartObjectSource* vector_contents = nullptr);
   void replace_smart_object_contents();
   void replace_smart_object_contents_with_path(const QString& path);
   void convert_to_smart_object();
@@ -1069,8 +1324,40 @@ private:
   // write fails; every failure path reports its own error.
   bool convert_layers_to_smart_object(const std::vector<LayerId>& selected_ids);
   void new_smart_object_via_copy();
+  // Layer > Smart Objects > Convert to Layers: replaces the active embedded Smart
+  // Object with a folder holding its contents' layers, mapped through the
+  // placement (docs/smart-object-editing.md).
+  void convert_smart_object_to_layers();
   void place_embedded_file();
   void place_embedded_file_with_path(const QString& path);
+  // File > Place Linked: the smart object references the file on disk instead of
+  // holding a copy (docs/smart-object-editing.md, "Place Linked").
+  void place_linked_file();
+  void place_linked_file_with_path(const QString& path);
+  // Where and how large a placed file lands. With nothing set the file lands at its
+  // physical size, centered, scaled down to fit a smaller canvas (Photoshop's rule).
+  struct SmartObjectPlaceOptions {
+    bool linked{false};
+    // Top-left corner of the placed rectangle in document pixels; an unset axis centers.
+    std::optional<double> x;
+    std::optional<double> y;
+    // Placed size in document pixels; one of them alone keeps the aspect ratio.
+    std::optional<double> width;
+    std::optional<double> height;
+    // Uniform scale of the physical size (1 = 100%); ignored when a size is given.
+    std::optional<double> scale;
+    // Layer name; the file's base name when empty.
+    QString name;
+  };
+  // The Place Embedded / Place Linked core, shared with doc.addSmartObject: adds
+  // `path` to `target` as a smart-object layer on top and makes it active. A linked
+  // placement of a file the document already links shares that element. before_mutation
+  // runs once, right before the document changes (the caller's undo snapshot);
+  // returning false abandons the placement. Returns the new layer's id, or nullopt
+  // with *error set. No refresh or status message: callers own those.
+  std::optional<LayerId> place_file_as_smart_object(DocumentSession& target, const QString& path,
+                                                    const SmartObjectPlaceOptions& options,
+                                                    const std::function<bool()>& before_mutation, QString* error);
   void delete_active_layer();
   void delete_layers(std::vector<LayerId> ids);
   void move_active_layer(int direction);
@@ -1085,6 +1372,11 @@ private:
   void select_layers_in_layer_list(const std::vector<LayerId>& ids, LayerId active_id);
   // Select > Deselect Layers: no selected rows and no active layer.
   void deselect_all_layers();
+  // For a command that needs a layer: with no active layer, a one-layer
+  // document's only layer becomes the selection instead of the command
+  // refusing. Call it right before the command reads its target. See
+  // docs/layer-panel.md, "Deselected state".
+  void select_only_layer_if_none_active();
   void zoom_canvas_to_layer_content(LayerId id);
   void set_layer_visibility_from_item(QListWidgetItem* item);
   void set_layer_visibility(LayerId id, bool visible);
@@ -1101,6 +1393,15 @@ private:
   void fill_active_layer_with_color(QColor color, QString label);
   void clear_active_layer();
   void stroke_selection();
+  // Edit > Remove Object: the dialog (Reroll, Tone match, Edge feather,
+  // Duplicate to New Layer) that fills on a worker thread, previews into the
+  // active layer, and pushes one history entry on OK.
+  void remove_object_dialog();
+  // Variation continuity: a dialog opened again on the same selection (a
+  // hash of the selection region) continues after the last variation it
+  // showed instead of repeating variation 1; another selection starts fresh.
+  std::uint64_t remove_object_last_selection_hash_{0};
+  int remove_object_last_attempt_{-1};
   void apply_brush_tip_to_canvas(CanvasWidget* canvas);
   void import_brush_tips_from_abr();
   void open_brush_tip_manager();
@@ -1146,6 +1447,7 @@ private:
   void finish_pending_layer_fill_opacity_edit();
   void reset_pending_layer_fill_opacity_edit();
   void set_active_layer_blend(int index);
+  void finish_pending_layer_blend_edit();
   void set_active_layer_visible(bool visible);
   void set_layer_lock_flag_state(LayerId id, LayerLockFlags flag, bool locked);
   void set_active_layer_lock_flag(LayerLockFlags flag, bool locked);
@@ -1182,6 +1484,9 @@ private:
   void update_selection_mode_buttons(CanvasWidget::SelectionMode mode);
   // Apply the stored per-tool combine modes to a (new) canvas.
   void apply_selection_modes_to_canvas(CanvasWidget* canvas);
+  // Make the given selection tool's stored Feather and Anti-alias the current ones: canvas
+  // and options-bar controls. Does nothing for a tool without those options.
+  void apply_selection_edge_settings_for_tool(CanvasTool tool);
   void refresh_layer_list(bool retire_automation_rows = false, const std::function<void()>& progress = {});
   void refresh_layer_thumbnails();
   // Revision-keyed thumbnail pixmaps for the ACTIVE document's layer rows.
@@ -1274,17 +1579,31 @@ private:
   void refresh_pattern_stamp_pattern_combo();
   void set_eraser_brush_settings_active(bool active);
   void sync_text_options_from_active_editor();
+  // With no session open the options bar mirrors the active text layer (family, size, face,
+  // smoothing), so a pick is always a real change and edits start from what the layer uses.
+  void sync_text_options_from_active_layer();
+  // The options-bar slots: a live session applies to its selection (or the whole object with
+  // a bare caret); with no session the change goes to every selected text layer through
+  // apply_text_character_edit. The `_to_editor` helpers hold the per-editor work.
   void apply_text_family_to_active_editor();
+  void apply_text_family_to_editor(QTextEdit& editor, const QString& family);
   void apply_text_size_to_active_editor();
+  void apply_text_size_to_editor(QTextEdit& editor, std::optional<double> points);
   // Ctrl+B / Ctrl+I during a text session: select the family's real Bold/Italic face when it
   // ships one, toggle the faux bold / faux italic character property when it does not
   // (Photoshop's fallback). A second press always turns the axis off, faux included.
   void toggle_text_bold_face();
   void toggle_text_italic_face();
   void apply_text_color_to_active_editor();
+  void apply_text_color_to_editor(QTextEdit& editor, QColor color);
+  // The text color panel is live; with no session each change would commit every selected
+  // layer, so the layer edit waits for the picker to settle on `color`.
+  void apply_text_color_to_selected_layers_debounced(QColor color);
   void apply_primary_color_to_active_text_editor(QColor color);
   void apply_text_smoothing_to_active_editor();
+  void apply_text_smoothing_to_editor(QTextEdit& editor, int text_anti_alias);
   void apply_text_alignment_to_active_editor(Qt::Alignment alignment);
+  void apply_text_alignment_to_editor(QTextEdit& editor, Qt::Alignment alignment);
   void sync_text_alignment_buttons_from_editor();
   // Vertical type (options-bar toggle / layer context menu): a live session re-lays out, the
   // selected text layer converts through a hidden session, otherwise the next new layer takes
@@ -1300,6 +1619,10 @@ private:
   // through a hidden session committed immediately without an unwarped preview.
   void open_text_character_dialog();
   void sync_text_character_dialog_from_editor();
+  // Every selected unlocked text layer (the active one when nothing is selected); the
+  // no-session apply path edits all of them, one hidden session each, as ONE "Type" undo
+  // step. `text_character_target_layer` is the first of them (the panel reads it back).
+  [[nodiscard]] std::vector<LayerId> text_character_target_layer_ids() const;
   [[nodiscard]] const Layer* text_character_target_layer() const;
   void apply_text_character_edit(const std::function<bool(QTextEdit&)>& edit);
   void apply_text_character_leading_to_active_editor();
@@ -1308,6 +1631,15 @@ private:
   void apply_text_character_faux_bold_to_active_editor();
   void apply_text_character_faux_italic_to_active_editor();
   void apply_text_character_rotate_roman_to_active_editor();
+  // Paragraph panel (alignment, indents, spacing): the same live-session-or-selected-layers
+  // model as the Character panel. Metrics are paragraph-level, so a bare caret edits its
+  // paragraph and the no-session path edits every paragraph of each selected layer.
+  void open_text_paragraph_dialog();
+  void sync_text_paragraph_dialog_from_editor();
+  void apply_text_paragraph_alignment_from_dialog();
+  void apply_text_paragraph_metrics_to_active_editor();
+  // Merges the metrics (document px) into the block formats under the editor's selection.
+  void apply_text_paragraph_metrics_to_editor(QTextEdit& editor, const TextParagraphMetrics& metrics);
   // The options-bar font-style picker, the only face control in the bar (like Photoshop).
   // `refresh_text_style_combo` rebuilds the list for a family, keeping `preferred` selected
   // when that family offers it and falling back to the face the caller's bold/italic flags
@@ -1318,6 +1650,7 @@ private:
   [[nodiscard]] QString current_text_style_name() const;
   [[nodiscard]] QString current_text_family_for_editor(const QTextEdit& editor) const;
   void apply_text_style_to_active_editor();
+  void apply_text_style_to_editor(QTextEdit& editor, const QString& style);
   // Re-renders a text layer with `warp` applied (identity = unwarped) and refreshes
   // the warp/transform/raster-status metadata. Returns false when the layer's text
   // cannot be rendered.
@@ -1331,6 +1664,8 @@ private:
   // Resolves left-button clicks and drags inside a flat inline editor through the shared
   // TextLineGeometry instead of QTextEdit's own (zoom-scaled, different) layout.
   bool handle_text_editor_viewport_mouse_event(QTextEdit* editor, QEvent* event);
+  // Continues the press that opened a text session as a selection drag (canvas coordinates).
+  bool extend_text_entry_selection(QPointF canvas_point, bool begin);
   void mark_text_editor_changed(QTextEdit* editor);
   void schedule_text_editor_preview(QTextEdit* editor);
   void update_text_editor_preview(QTextEdit* editor);
@@ -1358,6 +1693,8 @@ private:
   void sync_mixer_combination_combo();
   void refresh_options_bar();
   void register_document_action(QAction* action);
+  // Forget an action that a menu rebuild is about to delete.
+  void unregister_document_action(QAction* action);
   void register_document_widget(QWidget* widget);
   void register_hotkey(QAction* action, QString id, QList<QKeySequence> default_shortcuts, QString category = {});
   void register_hotkey(QAction* action, QString id, QKeySequence default_shortcut = {}, QString category = {});
@@ -1371,12 +1708,16 @@ private:
   bool show_preview_dialog_edit_lock_message();
   void sync_brush_controls_from_canvas();
   void load_recent_files();
+  void set_recent_files_from_stored(QStringList stored);
+  bool reload_recent_history();
   void refresh_recent_history();
+  void schedule_recent_history_check(bool force);
   void add_recent_file(QString path);
   void rebuild_recent_files_menu();
   void apply_recent_files_filter(const QString& filter_text);
   bool handle_recent_files_filter_key(QKeyEvent& event);
   void load_recent_folders();
+  void set_recent_folders_from_stored(QStringList stored);
   void add_recent_folder(QString dir);
   void rebuild_recent_folders_menu();
   void configure_recent_files_context_menu(QMenu* menu);
@@ -1494,6 +1835,8 @@ private:
   std::uint64_t quick_mask_thumbnail_revision_{0};
   QPixmap quick_mask_thumbnail_;
   bool swallow_next_canvas_left_press_{false};
+  QPointer<QTextEdit> text_entry_selection_editor_;
+  int text_entry_selection_anchor_{0};
   QListWidget* layer_list_{nullptr};
   QLineEdit* layer_name_filter_edit_{nullptr};
   ChannelPanel* channel_panel_{nullptr};
@@ -1546,6 +1889,7 @@ private:
   QTimer* layer_opacity_idle_timer_{nullptr};
   QTimer* layer_fill_opacity_apply_timer_{nullptr};
   QTimer* layer_fill_opacity_idle_timer_{nullptr};
+  QTimer* layer_blend_idle_timer_{nullptr};
   QTimer* tool_settings_save_timer_{nullptr};
   QComboBox* blend_combo_{nullptr};
   QCheckBox* visible_check_{nullptr};
@@ -1620,6 +1964,13 @@ private:
   QComboBox* sponge_mode_combo_{nullptr};
   QCheckBox* sponge_vibrance_check_{nullptr};
   QCheckBox* wand_contiguous_check_{nullptr};
+  QCheckBox* fill_contiguous_check_{nullptr};
+  QCheckBox* zoom_scrubby_check_{nullptr};
+  QAction* zoom_in_mode_action_{nullptr};
+  QAction* zoom_out_mode_action_{nullptr};
+  QPushButton* zoom_actual_pixels_button_{nullptr};
+  QPushButton* zoom_fit_screen_button_{nullptr};
+  QPushButton* zoom_fill_screen_button_{nullptr};
   QCheckBox* wand_sample_all_layers_check_{nullptr};
   QCheckBox* quick_select_sample_all_layers_check_{nullptr};
   QCheckBox* quick_select_enhance_edge_check_{nullptr};
@@ -1666,6 +2017,19 @@ private:
   // Toggling Vertical with nothing to convert arms the NEXT new type layer once; a new session
   // always starts horizontal otherwise (never persisted: a sticky default surprised users).
   bool text_vertical_next_{false};
+  // apply_text_character_edit runs one hidden session per selected text layer under a
+  // single snapshot: the first commit that reaches a push site takes it, the later commits
+  // are told to skip theirs.
+  bool text_commit_snapshot_suppressed_{false};
+  // Those hidden sessions rewrite the options-bar widgets from each layer they open (and
+  // the commits refresh the bar); the widget slots must not start a nested layer edit from
+  // those writes.
+  bool applying_text_options_to_layers_{false};
+  // Skips the layer-to-widgets sync when nothing it shows has changed (it runs from every
+  // layer-controls refresh).
+  QString text_options_layer_sync_key_;
+  // Bumped per text-color change so only the last debounced layer apply runs.
+  int text_layer_color_apply_generation_{0};
   QPushButton* text_warp_button_{nullptr};
   // Character panel (leading / tracking / glyph scales) for the live editor session;
   // the dialog and its controls are exempt from the focus-loss auto-commit via
@@ -1684,6 +2048,17 @@ private:
   // Vertical type only: rotate Roman glyphs along the column (Photoshop's Standard Vertical
   // Roman Alignment, /BaselineDirection 2).
   QCheckBox* text_character_rotate_roman_{nullptr};
+  // Paragraph panel (alignment, indents, spacing), exempt from the focus-loss auto-commit
+  // like the Character panel.
+  QPushButton* text_paragraph_button_{nullptr};
+  QPointer<QDialog> text_paragraph_dialog_;
+  QLabel* text_paragraph_hint_label_{nullptr};
+  QComboBox* text_paragraph_align_combo_{nullptr};
+  UnitSpinBox* text_paragraph_first_line_indent_spin_{nullptr};
+  UnitSpinBox* text_paragraph_start_indent_spin_{nullptr};
+  UnitSpinBox* text_paragraph_end_indent_spin_{nullptr};
+  UnitSpinBox* text_paragraph_space_before_spin_{nullptr};
+  UnitSpinBox* text_paragraph_space_after_spin_{nullptr};
   // Session apply/cancel for the inline text editor (Photoshop's options-bar
   // commit/cancel); visible only while an editor is open, managed by
   // refresh_options_bar(), never registered as per-tool option widgets.
@@ -1698,8 +2073,8 @@ private:
   QLabel* active_layer_text_label_{nullptr};
   QLabel* active_layer_shape_label_{nullptr};
   QWidget* properties_shape_size_panel_{nullptr};
-  QDoubleSpinBox* properties_shape_width_spin_{nullptr};
-  QDoubleSpinBox* properties_shape_height_spin_{nullptr};
+  UnitSpinBox* properties_shape_width_spin_{nullptr};
+  UnitSpinBox* properties_shape_height_spin_{nullptr};
   QPushButton* properties_shape_link_size_button_{nullptr};
   QPushButton* properties_edit_appearance_button_{nullptr};
   QLabel* active_tool_info_label_{nullptr};
@@ -1735,6 +2110,7 @@ private:
   QAction* layer_smart_object_embed_action_{nullptr};
   // A discoverable alias for Rasterize in the Smart Objects menus.
   QAction* layer_smart_object_to_normal_action_{nullptr};
+  QAction* layer_smart_object_to_layers_action_{nullptr};
   QAction* delete_layer_mask_action_{nullptr};
   QAction* link_layer_mask_action_{nullptr};
   QAction* disable_layer_mask_action_{nullptr};
@@ -1818,6 +2194,18 @@ private:
   QMenu* scripts_menu_{nullptr};
   FilterRegistry filters_;
   PluginHost plugin_host_;
+  std::vector<LegacyPluginEntry> legacy_plugins_;
+  int legacy_plugin_scan_generation_{0};
+  bool legacy_plugin_scan_in_flight_{false};
+  bool legacy_plugin_scan_pending_{false};
+  bool legacy_plugin_scan_announce_{false};
+  // The parameter block each plug-in left after its last run, keyed by
+  // identifier, so running it again starts from the previous settings.
+  std::map<std::string, QByteArray> legacy_plugin_parameters_;
+  // The plug-in whose run last completed this session (Plugins > Repeat).
+  std::string last_legacy_plugin_identifier_;
+  QAction* plugins_repeat_last_action_{nullptr};
+  QAction* plugins_last_settings_action_{nullptr};
   QPageLayout print_page_layout_;
   std::optional<ClipboardPayload> clipboard_;
   struct LayerStyleClipboard {
@@ -1834,8 +2222,20 @@ private:
   std::optional<QByteArray> patchy_system_clipboard_signature_;
   std::vector<LayerId> pending_layer_opacity_ids_;
   std::vector<LayerId> pending_layer_fill_opacity_ids_;
+  std::vector<LayerId> pending_layer_blend_ids_;
+  // Displayed recent lists: the stored lists minus the entries the last
+  // background existence check found missing. Loading never stats the disk
+  // (a cold or unreachable volume would stall startup and the File menu).
   QStringList recent_files_;
   QStringList recent_folders_;
+  QStringList recent_files_stored_;
+  QStringList recent_folders_stored_;
+  QSet<QString> recent_missing_files_;
+  QSet<QString> recent_missing_folders_;
+  QSet<QString> recent_confirmed_paths_;  // opened or saved since the running check started
+  QElapsedTimer recent_check_clock_;
+  bool recent_check_in_flight_{false};
+  bool recent_check_pending_{false};
   std::optional<int> pending_layer_opacity_value_;
   std::optional<int> pending_layer_fill_opacity_value_;
   CanvasTool current_tool_{CanvasTool::Brush};
@@ -1868,6 +2268,12 @@ private:
   int current_marquee_width_{1024};
   int current_marquee_height_{768};
   int current_marquee_corner_radius_{0};
+  // Feather and Anti-alias per selection tool (indexed by CanvasWidget::selection_tool_index),
+  // persisted as tools/<tool>Feather and tools/<tool>AntiAlias. current_selection_* mirror
+  // the active selection tool's slot, which is what the canvas and the options bar hold.
+  std::array<int, CanvasWidget::kSelectionToolCount> selection_feather_by_tool_{};
+  std::array<bool, CanvasWidget::kSelectionToolCount> selection_antialias_by_tool_{true, true, true, true,
+                                                                                    true, true, true};
   int current_selection_feather_radius_{0};
   bool current_selection_antialias_{true};
   double current_crop_ratio_w_{0.0};
@@ -1881,6 +2287,10 @@ private:
   bool current_pen_auto_add_delete_{true};
   int current_fill_opacity_{100};
   int current_fill_softness_{0};
+  int current_fill_tolerance_{32};
+  bool current_fill_contiguous_{true};
+  bool current_zoom_scrubby_{false};
+  bool current_zoom_tool_zooms_out_{false};
   int current_quick_select_size_{30};
   bool current_quick_select_sample_all_layers_{false};
   bool current_quick_select_enhance_edge_{false};
@@ -1900,7 +2310,7 @@ private:
   // custom gradient synced from a layer lives only for the session).
   QString current_vector_fill_gradient_id_;
   QString current_vector_stroke_gradient_id_;
-  int current_vector_line_weight_{4};
+  double current_vector_line_weight_{4.0};
   // 0 = New Layer; 1..4 = PathCombineOp Add / Subtract / Intersect / Xor
   // applied to the active shape layer or work path (session-only).
   int current_vector_combine_index_{0};
@@ -1921,8 +2331,10 @@ private:
   // Debounces live-editing bursts (stroke-width spin / its popup slider) into
   // one undo entry + one rasterize.
   QTimer* vector_appearance_apply_timer_{nullptr};
-  QDoubleSpinBox* vector_shape_width_spin_{nullptr};
-  QDoubleSpinBox* vector_shape_height_spin_{nullptr};
+  std::function<void()> pending_shape_appearance_edit_;
+  std::string pending_shape_appearance_property_;
+  UnitSpinBox* vector_shape_width_spin_{nullptr};
+  UnitSpinBox* vector_shape_height_spin_{nullptr};
   QPushButton* vector_shape_link_size_button_{nullptr};
   QPushButton* vector_appearance_button_{nullptr};
   QTimer* vector_shape_size_apply_timer_{nullptr};
@@ -1945,6 +2357,7 @@ private:
   bool current_sponge_vibrance_{true};
   bool view_rulers_visible_{false};
   MeasurementUnit ruler_unit_{MeasurementUnit::Pixels};
+  std::vector<QPointer<UnitSpinBox>> ruler_unit_fields_;
   bool view_grid_visible_{false};
   bool view_guides_visible_{true};
   // Photoshop's View > Show > Target Path (Ctrl+Shift+H). Deliberately NOT
@@ -1963,6 +2376,7 @@ private:
   int view_grid_subdivisions_{4};
   int view_grid_style_{0};
   QColor view_grid_color_{78, 154, 255, 105};
+  std::optional<QColor> view_canvas_backdrop_color_;
   QColor view_guide_color_{255, 70, 180, 230};
   CanvasWidget::PenInputSettings pen_input_settings_{};
   bool wheel_zooms_{kWheelZoomsDefault};
@@ -1985,6 +2399,7 @@ private:
   bool updating_layer_list_{false};
   bool pending_layer_opacity_edit_active_{false};
   bool pending_layer_fill_opacity_edit_active_{false};
+  bool pending_layer_blend_edit_active_{false};
   bool right_dock_resizing_{false};
   QPoint right_dock_resize_start_global_;
   int right_dock_resize_start_width_{0};

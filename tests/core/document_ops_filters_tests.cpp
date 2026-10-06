@@ -172,6 +172,165 @@ void document_canvas_resize_expands_layers_for_editing() {
   write_bmp_artifact("document_canvas_resize", document);
 }
 
+// The frame overload behind Crop to Selection (Advanced): the canvas becomes the frame
+// (its top-left is the new origin), content translates accordingly, and
+// canvas_resize_frame reproduces the anchor overload's placement.
+void document_canvas_resize_to_frame_translates_by_its_origin() {
+  const auto centered = patchy::canvas_resize_frame(patchy::Rect{0, 0, 8, 8}, patchy::CanvasAnchor::Center, 6, 6);
+  CHECK(centered.x == 1 && centered.y == 1 && centered.width == 6 && centered.height == 6);
+  // Bottom-right anchor on a selection frame: its bottom-right corner (6, 7) stays put.
+  const auto pinned =
+      patchy::canvas_resize_frame(patchy::Rect{2, 3, 4, 4}, patchy::CanvasAnchor::BottomRight, 6, 2);
+  CHECK(pinned.x == 0 && pinned.y == 5 && pinned.width == 6 && pinned.height == 2);
+
+  patchy::Document document(8, 8, patchy::PixelFormat::rgb8());
+  const auto& background = document.add_pixel_layer("Background", solid_rgb(8, 8, 255, 255, 255));
+  const auto background_id = background.id();
+  patchy::Layer sticker(document.allocate_layer_id(), "Sticker", solid_rgba(1, 1, 220, 10, 90, 255));
+  const auto sticker_id = sticker.id();
+  sticker.set_bounds(patchy::Rect{5, 5, 1, 1});
+  document.add_layer(std::move(sticker));
+
+  patchy::resize_canvas_to_frame(document, patchy::Rect{2, 2, 4, 4}, patchy::EditColor{12, 34, 56, 255});
+  CHECK(document.width() == 4 && document.height() == 4);
+  const auto* sticker_layer = document.find_layer(sticker_id);
+  CHECK(sticker_layer != nullptr);
+  CHECK(sticker_layer->bounds().x == 3 && sticker_layer->bounds().y == 3);
+  const auto* background_layer = document.find_layer(background_id);
+  CHECK(background_layer != nullptr);
+  CHECK(background_layer->pixels().pixel(0, 0)[0] == 255);
+
+  // The Background kept its off-canvas pixels (8 x 8 at -2, -2), so a frame reaching
+  // past them exposes extension-colored pixels only beyond that: at (0, 0) of the new
+  // 10 x 10 canvas, while (1, 1) is still the old white.
+  patchy::resize_canvas_to_frame(document, patchy::Rect{-3, -3, 10, 10}, patchy::EditColor{12, 34, 56, 255});
+  CHECK(document.width() == 10 && document.height() == 10);
+  CHECK(sticker_layer->bounds().x == 6 && sticker_layer->bounds().y == 6);
+  CHECK(background_layer->bounds().x == 0 && background_layer->bounds().y == 0);
+  CHECK(background_layer->pixels().pixel(0, 0)[0] == 12);
+  CHECK(background_layer->pixels().pixel(0, 0)[2] == 56);
+  CHECK(background_layer->pixels().pixel(1, 1)[0] == 255);
+
+  // A degenerate frame changes nothing.
+  patchy::resize_canvas_to_frame(document, patchy::Rect{0, 0, 0, 5});
+  CHECK(document.width() == 10 && document.height() == 10);
+}
+
+// Canvas Size's "delete layers fully off the canvas": a layer whose bounds miss the
+// canvas goes, a partly visible one stays, layers without bounds (adjustments, never
+// painted) stay, a group goes only when every child went, and the active layer is
+// re-pointed when it was removed.
+void document_remove_layers_outside_canvas() {
+  patchy::Document document(8, 8, patchy::PixelFormat::rgb8());
+  document.add_pixel_layer("Background", solid_rgb(8, 8, 255, 255, 255));
+  const auto make_sticker = [&document](const char* name, patchy::Rect bounds) {
+    patchy::Layer layer(document.allocate_layer_id(), name,
+                        solid_rgba(bounds.width, bounds.height, 220, 10, 90, 255));
+    layer.set_bounds(bounds);
+    return layer;
+  };
+  const auto add_sticker = [&document, make_sticker](const char* name, patchy::Rect bounds) {
+    auto layer = make_sticker(name, bounds);
+    const auto id = layer.id();
+    document.add_layer(std::move(layer));
+    return id;
+  };
+  const auto inside_id = add_sticker("Inside", patchy::Rect{1, 1, 2, 2});
+  const auto partly_id = add_sticker("Partly", patchy::Rect{7, 7, 3, 3});
+  const auto outside_id = add_sticker("Outside", patchy::Rect{8, 0, 2, 2});
+  const auto negative_id = add_sticker("Negative", patchy::Rect{-4, -4, 4, 4});
+  patchy::Layer unpainted(document.allocate_layer_id(), "Unpainted", patchy::PixelBuffer());
+  const auto unpainted_id = unpainted.id();
+  document.add_layer(std::move(unpainted));
+  patchy::Layer adjustment(document.allocate_layer_id(), "Levels", patchy::LayerKind::Adjustment);
+  const auto adjustment_id = adjustment.id();
+  document.add_layer(std::move(adjustment));
+
+  patchy::Layer mixed(document.allocate_layer_id(), "Mixed", patchy::LayerKind::Group);
+  const auto mixed_id = mixed.id();
+  auto mixed_in = make_sticker("Mixed in", patchy::Rect{3, 3, 2, 2});
+  const auto mixed_in_id = mixed_in.id();
+  auto mixed_out = make_sticker("Mixed out", patchy::Rect{20, 20, 2, 2});
+  const auto mixed_out_id = mixed_out.id();
+  mixed.add_child(std::move(mixed_in));
+  mixed.add_child(std::move(mixed_out));
+  document.add_layer(std::move(mixed));
+
+  patchy::Layer gone(document.allocate_layer_id(), "Gone", patchy::LayerKind::Group);
+  const auto gone_id = gone.id();
+  gone.add_child(make_sticker("Gone child", patchy::Rect{-9, 0, 1, 1}));
+  gone.add_child(make_sticker("Gone child 2", patchy::Rect{0, 8, 5, 5}));
+  document.add_layer(std::move(gone));
+
+  patchy::Layer empty_group(document.allocate_layer_id(), "Empty folder", patchy::LayerKind::Group);
+  const auto empty_group_id = empty_group.id();
+  document.add_layer(std::move(empty_group));
+
+  document.set_active_layer(outside_id);
+  // Outside, Negative, Mixed out, and the Gone group (counted once).
+  CHECK(patchy::remove_layers_outside_canvas(document) == 4);
+  CHECK(document.find_layer(inside_id) != nullptr);
+  CHECK(document.find_layer(partly_id) != nullptr);
+  CHECK(document.find_layer(outside_id) == nullptr);
+  CHECK(document.find_layer(negative_id) == nullptr);
+  CHECK(document.find_layer(unpainted_id) != nullptr);
+  CHECK(document.find_layer(adjustment_id) != nullptr);
+  CHECK(document.find_layer(mixed_id) != nullptr);
+  CHECK(document.find_layer(mixed_in_id) != nullptr);
+  CHECK(document.find_layer(mixed_out_id) == nullptr);
+  CHECK(document.find_layer(gone_id) == nullptr);
+  CHECK(document.find_layer(empty_group_id) != nullptr);
+  CHECK(document.active_layer_id().has_value());
+  CHECK(document.find_layer(*document.active_layer_id()) != nullptr);
+  CHECK(patchy::remove_layers_outside_canvas(document) == 0);
+}
+
+// The layer crop gives every pixel layer canvas-sized bounds, so after a cropping resize
+// nothing tests as off the canvas. Deleting against the frame first is what works.
+void document_remove_layers_outside_frame_before_cropping_resize() {
+  const auto build = [](patchy::LayerId& inside_id, patchy::LayerId& outside_id, patchy::LayerId& group_id) {
+    patchy::Document document(20, 20, patchy::PixelFormat::rgb8());
+    document.add_pixel_layer("Background", solid_rgb(20, 20, 255, 255, 255));
+    const auto make_sticker = [&document](const char* name, patchy::Rect bounds) {
+      patchy::Layer layer(document.allocate_layer_id(), name,
+                          solid_rgba(bounds.width, bounds.height, 220, 10, 90, 255));
+      layer.set_bounds(bounds);
+      return layer;
+    };
+    auto inside = make_sticker("Inside", patchy::Rect{3, 3, 4, 4});
+    inside_id = inside.id();
+    document.add_layer(std::move(inside));
+    auto outside = make_sticker("Outside", patchy::Rect{14, 14, 4, 4});
+    outside_id = outside.id();
+    document.add_layer(std::move(outside));
+    patchy::Layer group(document.allocate_layer_id(), "Gone", patchy::LayerKind::Group);
+    group_id = group.id();
+    group.add_child(make_sticker("Gone child", patchy::Rect{0, 12, 3, 3}));
+    document.add_layer(std::move(group));
+    return document;
+  };
+  const patchy::Rect frame{2, 2, 8, 8};
+  patchy::LayerId inside_id{};
+  patchy::LayerId outside_id{};
+  patchy::LayerId group_id{};
+
+  auto document = build(inside_id, outside_id, group_id);
+  CHECK(patchy::remove_layers_outside_canvas(document, frame) == 2);
+  patchy::resize_canvas_to_frame(document, frame, patchy::EditColor{255, 255, 255, 255}, true);
+  CHECK(document.width() == 8 && document.height() == 8);
+  CHECK(document.find_layer(inside_id) != nullptr);
+  CHECK(document.find_layer(outside_id) == nullptr);
+  CHECK(document.find_layer(group_id) == nullptr);
+  CHECK(patchy::remove_layers_outside_canvas(document) == 0);
+
+  // The order this replaces: crop first, and the off-canvas layers survive as
+  // canvas-sized transparent ones.
+  auto cropped_first = build(inside_id, outside_id, group_id);
+  patchy::resize_canvas_to_frame(cropped_first, frame, patchy::EditColor{255, 255, 255, 255}, true);
+  CHECK(patchy::remove_layers_outside_canvas(cropped_first) == 0);
+  CHECK(cropped_first.find_layer(outside_id) != nullptr);
+}
+
 void document_canvas_resize_honors_anchor_and_extension_color() {
   patchy::Document document(4, 4, patchy::PixelFormat::rgb8());
   const auto& background = document.add_pixel_layer("Background", solid_rgb(4, 4, 255, 255, 255));
@@ -1210,7 +1369,7 @@ void filter_catalog_defines_stable_named_contracts() {
       const auto& blur = actual.catalog.parameters[0];
       CHECK(blur.key == "blur");
       CHECK(blur.kind == Kind::Double);
-      CHECK(blur.minimum == 0.0 && blur.maximum == 100.0);
+      CHECK(blur.minimum == 0.0 && blur.maximum == 500.0);
       CHECK(blur.step == 0.1);
       CHECK(blur.unit == Unit::Pixels);
       CHECK(blur.spatial_scale == Scale::Pixels);
@@ -1357,9 +1516,12 @@ void filter_catalog_defines_stable_named_contracts() {
       const auto is_unsharp_mask_radius =
           actual.identifier == "patchy.filters.unsharp_mask" &&
           parameter.key == "radius";
+      const auto is_gaussian_radius =
+          actual.identifier == "patchy.filters.gaussian_blur" &&
+          parameter.key == "radius";
       const auto is_fractional_radius =
           is_high_pass_radius || is_median_radius || is_surface_blur_radius ||
-          is_unsharp_mask_radius;
+          is_unsharp_mask_radius || is_gaussian_radius;
       CHECK(parameter.kind == (is_fractional_radius
                                    ? patchy::FilterParameterKind::Double
                                    : patchy::FilterParameterKind::Integer));
@@ -1370,7 +1532,10 @@ void filter_catalog_defines_stable_named_contracts() {
       const auto expected_step =
           is_median_radius || is_surface_blur_radius
               ? 0.01
-              : (is_high_pass_radius || is_unsharp_mask_radius ? 0.1 : 1.0);
+              : (is_high_pass_radius || is_unsharp_mask_radius ||
+                         is_gaussian_radius
+                     ? 0.1
+                     : 1.0);
       CHECK(parameter.step == expected_step);
       if (is_fractional_radius) {
         CHECK(std::get<double>(parameter.default_value) ==
@@ -1386,11 +1551,13 @@ void filter_catalog_defines_stable_named_contracts() {
             expected_presentation(actual.identifier, parameter.key));
       CHECK(static_cast<double>(default_value) >= *parameter.minimum);
       CHECK(static_cast<double>(default_value) <= *parameter.maximum);
-      if (is_high_pass_radius) {
+      CHECK(parameter.accepts_legacy_integer == is_gaussian_radius);
+      if (is_high_pass_radius || is_unsharp_mask_radius ||
+          is_gaussian_radius) {
         CHECK(parameter.minimum == 0.1);
         CHECK(parameter.maximum == 1000.0);
         CHECK(parameter.practical_minimum == 0.1);
-        CHECK(parameter.practical_maximum == 12.0);
+        CHECK(parameter.practical_maximum == 100.0);
       } else if (is_median_radius) {
         CHECK(parameter.minimum == 1.0);
         CHECK(parameter.maximum == 500.0);
@@ -1408,11 +1575,6 @@ void filter_catalog_defines_stable_named_contracts() {
         CHECK(parameter.maximum == 100.0);
         CHECK(parameter.practical_minimum == 1.0);
         CHECK(parameter.practical_maximum == 25.0);
-      } else if (is_unsharp_mask_radius) {
-        CHECK(parameter.minimum == 0.1);
-        CHECK(parameter.maximum == 1000.0);
-        CHECK(parameter.practical_minimum == 0.1);
-        CHECK(parameter.practical_maximum == 12.0);
       } else if (actual.identifier == "patchy.filters.motion_blur" &&
                  parameter.key == "angle") {
         CHECK(parameter.minimum == -360.0);
@@ -1422,7 +1584,7 @@ void filter_catalog_defines_stable_named_contracts() {
       } else if (actual.identifier == "patchy.filters.motion_blur" &&
                  parameter.key == "distance") {
         CHECK(parameter.minimum == 1.0);
-        CHECK(parameter.maximum == 999.0);
+        CHECK(parameter.maximum == 2000.0);
         CHECK(parameter.practical_minimum == 1.0);
         CHECK(parameter.practical_maximum == 64.0);
       } else if (actual.identifier == "patchy.filters.emboss" &&
@@ -1443,6 +1605,12 @@ void filter_catalog_defines_stable_named_contracts() {
         CHECK(parameter.maximum == 500.0);
         CHECK(parameter.practical_minimum == 0.0);
         CHECK(parameter.practical_maximum == 300.0);
+      } else if (actual.identifier == "patchy.filters.box_blur" &&
+                 parameter.key == "radius") {
+        CHECK(parameter.minimum == 1.0);
+        CHECK(parameter.maximum == 2000.0);
+        CHECK(parameter.practical_minimum == 1.0);
+        CHECK(parameter.practical_maximum == 100.0);
       } else {
         CHECK(!parameter.practical_minimum.has_value());
         CHECK(!parameter.practical_maximum.has_value());
@@ -1544,15 +1712,27 @@ void filter_invocations_normalize_scale_and_reject_bad_data() {
   const auto normalized = registry.normalize(gaussian);
   CHECK(normalized.has_value());
   CHECK(normalized->parameters.size() == 1);
-  CHECK(std::get<std::int64_t>(normalized->parameters.at("radius")) == 2);
+  CHECK(std::get<double>(normalized->parameters.at("radius")) == 2.0);
   CHECK(normalized->foreground.red == 1);
   CHECK(normalized->background.blue == 6);
 
+  // Recipes and Saved Looks from before the decimal radius stored integers;
+  // they still normalize, widened to doubles.
   gaussian.parameters["radius"] = std::int64_t{999};
+  const auto kept = registry.normalize(gaussian);
+  CHECK(kept.has_value());
+  CHECK(std::get<double>(kept->parameters.at("radius")) == 999.0);
+  gaussian.parameters["radius"] = std::int64_t{5000};
   const auto clamped = registry.normalize(gaussian);
   CHECK(clamped.has_value());
-  CHECK(std::get<std::int64_t>(clamped->parameters.at("radius")) == 12);
-  gaussian.parameters["radius"] = 2.0;
+  CHECK(std::get<double>(clamped->parameters.at("radius")) == 1000.0);
+  gaussian.parameters["radius"] = 0.05;
+  const auto floored = registry.normalize(gaussian);
+  CHECK(floored.has_value());
+  CHECK(std::get<double>(floored->parameters.at("radius")) == 0.1);
+  gaussian.parameters["radius"] = 2.5;
+  CHECK(registry.supports(gaussian));
+  gaussian.parameters["radius"] = std::string("2");
   CHECK(!registry.supports(gaussian));
   gaussian.parameters["radius"] = std::int64_t{2};
   gaussian.schema_version = 2;
@@ -1889,7 +2069,9 @@ void filter_named_engine_recipes_bounds_colors_and_legacy_stay_distinct() {
   CHECK(legacy_posterize.pixel(0, 0)[0] == 0);
   auto named_posterize = posterize_source;
   registry.apply(registry.default_invocation("patchy.filters.posterize"), named_posterize);
-  CHECK(named_posterize.pixel(0, 0)[0] == 85);
+  // Photoshop's floor buckets: at the default 4 levels the named recipe now agrees with
+  // the legacy (value / 64) * 85 form.
+  CHECK(named_posterize.pixel(0, 0)[0] == 0);
 
   patchy::PixelBuffer blur_source(5, 5, patchy::PixelFormat::rgb8());
   blur_source.pixel(2, 2)[0] = 255;
@@ -1898,9 +2080,21 @@ void filter_named_engine_recipes_bounds_colors_and_legacy_stay_distinct() {
   auto legacy_gaussian = blur_source;
   registry.apply("patchy.filters.gaussian_blur", legacy_gaussian);
   CHECK(legacy_gaussian.pixel(2, 2)[0] == 36);
+  // The named path is Photoshop's calibrated Gaussian (radius 2.0 default),
+  // deliberately distinct from the legacy wrapper's fixed 5-tap kernel.
   auto named_gaussian = blur_source;
   registry.apply(registry.default_invocation("patchy.filters.gaussian_blur"), named_gaussian);
-  CHECK(named_gaussian.pixel(2, 2)[0] == 28);
+  auto staged_dot = patchy::PixelBuffer(5, 5, patchy::PixelFormat::rgba8());
+  for (int y = 0; y < 5; ++y) {
+    for (int x = 0; x < 5; ++x) {
+      auto* px = staged_dot.pixel(x, y);
+      px[0] = px[1] = px[2] = blur_source.pixel(x, y)[0];
+      px[3] = 255;
+    }
+  }
+  const auto photoshop_dot = patchy::render_photoshop_gaussian_blur(staged_dot, patchy::Rect{0, 0, 5, 5}, 2.0);
+  CHECK(named_gaussian.pixel(2, 2)[0] == photoshop_dot.pixels.pixel(2, 2)[0]);
+  CHECK(named_gaussian.pixel(2, 2)[0] != legacy_gaussian.pixel(2, 2)[0]);
 
   auto clouds = registry.default_invocation("patchy.filters.clouds", patchy::RgbColor{240, 20, 10},
                                             patchy::RgbColor{5, 15, 230});
@@ -2338,10 +2532,11 @@ void filter_recipe_scales_supports_validates_and_skips_zero_opacity() {
       patchy::FilterRecipeEntry{sharpen},
       patchy::FilterRecipeEntry{vignette, false},
   }};
-  CHECK(registry.translation_invariant_support(supported) == 8);
+  // Box 4 + Gaussian 3 px (three radii of reach: 9) + Sharpen 1.
+  CHECK(registry.translation_invariant_support(supported) == 14);
   supported.entries.back().enabled = true;
   supported.entries.back().opacity = 0.0;
-  CHECK(registry.translation_invariant_support(supported) == 8);
+  CHECK(registry.translation_invariant_support(supported) == 14);
   supported.entries.back().opacity = 1.0;
   CHECK(!registry.translation_invariant_support(supported).has_value());
   CHECK(registry.translation_invariant_support(patchy::FilterRecipe{}) == 0);
@@ -2672,15 +2867,181 @@ void liquify_render_preserves_identity_and_scales_the_field() {
   CHECK(!cancelled.has_value());
 }
 
+// Box Blur radii above the historical 12 px range run an exact integer
+// running-sum path, so a 2000 px radius costs the same per pixel as a 13 px
+// one. It must equal a brute-force edge-clamped, alpha-weighted box average,
+// including radii far larger than the buffer, for RGBA and RGB buffers.
+// Gaussian Blur renders through Photoshop's calibrated Gaussian (the Smart
+// Filter renderer), takes a decimal radius, and still accepts the integer
+// radii older recipes stored.
+void catalog_large_radius_blurs_match_reference_renderers() {
+  patchy::FilterRegistry registry;
+  patchy::register_builtin_filters(registry);
+
+  const auto box_reference = [](const patchy::PixelBuffer &source,
+                                int radius) {
+    auto expected = source;
+    const auto has_alpha = source.format().channels >= 4;
+    const auto taps = static_cast<double>(2 * radius + 1);
+    for (int y = 0; y < source.height(); ++y) {
+      for (int x = 0; x < source.width(); ++x) {
+        std::array<std::int64_t, 4> sums{};
+        for (int dy = -radius; dy <= radius; ++dy) {
+          const auto sy = std::clamp(y + dy, 0, source.height() - 1);
+          for (int dx = -radius; dx <= radius; ++dx) {
+            const auto sx = std::clamp(x + dx, 0, source.width() - 1);
+            const auto *px = source.pixel(sx, sy);
+            const std::int64_t alpha = has_alpha ? px[3] : 255;
+            for (int channel = 0; channel < 3; ++channel) {
+              sums[static_cast<std::size_t>(channel)] +=
+                  static_cast<std::int64_t>(px[channel]) * alpha;
+            }
+            sums[3] += alpha;
+          }
+        }
+        auto *out = expected.pixel(x, y);
+        for (int channel = 0; channel < 3; ++channel) {
+          out[channel] = static_cast<std::uint8_t>(std::clamp(
+              std::lround(sums[3] > 0
+                              ? static_cast<double>(
+                                    sums[static_cast<std::size_t>(channel)]) /
+                                    static_cast<double>(sums[3])
+                              : 0.0),
+              0L, 255L));
+        }
+        if (has_alpha) {
+          out[3] = static_cast<std::uint8_t>(std::clamp(
+              std::lround(static_cast<double>(sums[3]) / (taps * taps)), 0L,
+              255L));
+        }
+      }
+    }
+    return expected;
+  };
+
+  auto rgba = patchy::PixelBuffer(11, 7, patchy::PixelFormat::rgba8());
+  auto rgb = patchy::PixelBuffer(6, 9, patchy::PixelFormat::rgb8());
+  for (auto *buffer : {&rgba, &rgb}) {
+    const auto channels = buffer->format().channels;
+    for (int y = 0; y < buffer->height(); ++y) {
+      for (int x = 0; x < buffer->width(); ++x) {
+        auto *px = buffer->pixel(x, y);
+        px[0] = static_cast<std::uint8_t>((x * 37 + y * 11) % 256);
+        px[1] = static_cast<std::uint8_t>((x * 5 + y * 71) % 256);
+        px[2] = static_cast<std::uint8_t>(255 - (x * 23 + y * 3) % 256);
+        if (channels >= 4) {
+          // Include fully transparent pixels so alpha weighting matters.
+          px[3] = static_cast<std::uint8_t>((x + 2 * y) % 5 == 0
+                                                ? 0
+                                                : 30 + 45 * ((x + y) % 5));
+        }
+      }
+    }
+  }
+
+  auto box = registry.default_invocation("patchy.filters.box_blur");
+  for (const int radius : {13, 17, 40}) {
+    for (const auto *source : {&rgba, &rgb}) {
+      box.parameters["radius"] = std::int64_t{radius};
+      auto actual = *source;
+      registry.apply(box, actual);
+      const auto expected = box_reference(*source, radius);
+      CHECK(std::equal(actual.data().begin(), actual.data().end(),
+                       expected.data().begin(), expected.data().end()));
+    }
+  }
+  // The direct path at 12 px approximates the same average in doubles, so
+  // the switch at 12/13 px is not a visible discontinuity.
+  box.parameters["radius"] = std::int64_t{12};
+  auto direct = rgba;
+  registry.apply(box, direct);
+  const auto direct_expected = box_reference(rgba, 12);
+  for (std::size_t i = 0; i < direct.data().size(); ++i) {
+    CHECK(std::abs(static_cast<int>(direct.data()[i]) -
+                   static_cast<int>(direct_expected.data()[i])) <= 1);
+  }
+  // Above the cutoff the destructive Box Blur equals the Box Blur Smart
+  // Filter's own sliding renderer on the same buffer.
+  box.parameters["radius"] = std::int64_t{15};
+  auto destructive_box = rgba;
+  registry.apply(box, destructive_box);
+  const auto smart_box = patchy::render_box_blur(
+      rgba, patchy::Rect{0, 0, rgba.width(), rgba.height()}, 15.0);
+  CHECK(std::equal(destructive_box.data().begin(), destructive_box.data().end(),
+                   smart_box.pixels.data().begin(),
+                   smart_box.pixels.data().end()));
+  box.parameters["radius"] = std::int64_t{2000};
+  CHECK(registry.normalize(box).has_value());
+  CHECK(registry.output_margin(box, 8, 8) == 2000);
+
+  // Gaussian: byte-identical to the Photoshop Gaussian Smart Filter renderer
+  // on the same buffer, on both sides of its direct/recursive split (8 px).
+  auto gaussian = registry.default_invocation("patchy.filters.gaussian_blur");
+  CHECK(std::get<double>(gaussian.parameters.at("radius")) == 2.0);
+  for (const double radius : {0.5, 2.5, 8.0, 40.0}) {
+    gaussian.parameters["radius"] = radius;
+    auto actual = rgba;
+    registry.apply(gaussian, actual);
+    const auto smart = patchy::render_photoshop_gaussian_blur(
+        rgba, patchy::Rect{0, 0, rgba.width(), rgba.height()}, radius);
+    CHECK(std::equal(actual.data().begin(), actual.data().end(),
+                     smart.pixels.data().begin(), smart.pixels.data().end()));
+  }
+  // RGB layers stage through opaque RGBA.
+  gaussian.parameters["radius"] = 3.0;
+  auto gaussian_rgb = rgb;
+  registry.apply(gaussian, gaussian_rgb);
+  auto staged = patchy::PixelBuffer(rgb.width(), rgb.height(),
+                                    patchy::PixelFormat::rgba8());
+  for (int y = 0; y < rgb.height(); ++y) {
+    for (int x = 0; x < rgb.width(); ++x) {
+      const auto *from = rgb.pixel(x, y);
+      auto *to = staged.pixel(x, y);
+      to[0] = from[0];
+      to[1] = from[1];
+      to[2] = from[2];
+      to[3] = 255;
+    }
+  }
+  const auto staged_smart = patchy::render_photoshop_gaussian_blur(
+      staged, patchy::Rect{0, 0, staged.width(), staged.height()}, 3.0);
+  for (int y = 0; y < rgb.height(); ++y) {
+    for (int x = 0; x < rgb.width(); ++x) {
+      for (int channel = 0; channel < 3; ++channel) {
+        CHECK(gaussian_rgb.pixel(x, y)[channel] ==
+              staged_smart.pixels.pixel(x, y)[channel]);
+      }
+    }
+  }
+  // A legacy integer radius renders exactly like the same decimal radius.
+  gaussian.parameters["radius"] = std::int64_t{3};
+  auto legacy = rgb;
+  registry.apply(gaussian, legacy);
+  CHECK(std::equal(legacy.data().begin(), legacy.data().end(),
+                   gaussian_rgb.data().begin(), gaussian_rgb.data().end()));
+  // The layer grows by three radii, the Gaussian's visible tail.
+  gaussian.parameters["radius"] = 2.5;
+  CHECK(registry.output_margin(gaussian, 8, 8) == 8);
+  gaussian.parameters["radius"] = 1000.0;
+  CHECK(registry.output_margin(gaussian, 8, 8) == 3000);
+}
+
 }  // namespace
 
 std::vector<patchy::test::TestCase> document_ops_filters_tests() {
   return {
+      {"catalog_large_radius_blurs_match_reference_renderers",
+       catalog_large_radius_blurs_match_reference_renderers},
       {"tool_flip_horizontal_changes_pixels_and_writes_artifact", tool_flip_horizontal_changes_pixels_and_writes_artifact},
       {"tool_flip_vertical_changes_pixels_and_writes_artifact", tool_flip_vertical_changes_pixels_and_writes_artifact},
       {"document_crop_to_selection_changes_canvas_and_writes_artifact",
        document_crop_to_selection_changes_canvas_and_writes_artifact},
       {"document_canvas_resize_expands_layers_for_editing", document_canvas_resize_expands_layers_for_editing},
+      {"document_canvas_resize_to_frame_translates_by_its_origin",
+       document_canvas_resize_to_frame_translates_by_its_origin},
+      {"document_remove_layers_outside_canvas", document_remove_layers_outside_canvas},
+      {"document_remove_layers_outside_frame_before_cropping_resize",
+       document_remove_layers_outside_frame_before_cropping_resize},
       {"document_canvas_resize_honors_anchor_and_extension_color",
        document_canvas_resize_honors_anchor_and_extension_color},
       {"document_canvas_resize_preserves_offcanvas_layers_and_masks",

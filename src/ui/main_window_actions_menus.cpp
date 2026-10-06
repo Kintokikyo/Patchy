@@ -241,20 +241,12 @@
 #include <tpcshrd.h>
 #endif
 
-#ifndef PATCHY_VERSION
-#define PATCHY_VERSION "0.0.0"
-#endif
-
 // Icon resources live in the static patchy_ui library; force registration before first use.
 int qInitResources_icons();
 
 namespace patchy::ui {
 
 namespace {
-
-QString escape_qaction_ampersands(QString text) {
-  return text.replace(QLatin1Char('&'), QStringLiteral("&&"));
-}
 
 void bind_translated_status_tip(QObject* object, const char* source,
                                 const char* context = kMainWindowTranslationContext) {
@@ -263,6 +255,24 @@ void bind_translated_status_tip(QObject* object, const char* source,
   }
   object->setProperty(kTranslationContextProperty, QString::fromLatin1(context));
   object->setProperty(kTranslationStatusTipProperty, QString::fromLatin1(source));
+}
+
+// Qt's Cocoa plugin merges a menubar item into the application menu when its title starts
+// with the translated "About", "Config", "Preference", "Options", "Setting", "Setup", "Quit"
+// or "Exit" (the QCocoaMenuItem::sync text heuristic), re-checking on every sync. A submenu
+// that flips to merged after a runtime language switch ("Ajustes", "Réglages") leaves its
+// QCocoaMenu pointing at a freed NSMenuItem, and the next key-window change crashes in
+// setSubmenu: (GitHub issue 29, Qt 6.8.3). Submenus never belong in the app menu, so every
+// submenu action opts out; plain actions keep the heuristic. See docs/platform.md.
+void exclude_submenus_from_native_menu_roles(QMenu& menu) {
+  for (auto* action : menu.actions()) {
+    auto* submenu = action->menu();
+    if (submenu == nullptr) {
+      continue;
+    }
+    action->setMenuRole(QAction::NoRole);
+    exclude_submenus_from_native_menu_roles(*submenu);
+  }
 }
 
 }  // namespace
@@ -300,6 +310,28 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
 
   auto* new_action = file_menu->addAction(tr("&New"));
   auto* open_action = file_menu->addAction(tr("&Open..."));
+  auto* open_clipboard_action = file_menu->addAction(tr("Open from &Clipboard"));
+  bind_action_text(open_clipboard_action, QT_TR_NOOP("Open from &Clipboard"));
+  open_clipboard_action->setObjectName(QStringLiteral("fileOpenClipboardAction"));
+  open_clipboard_action->setIcon(simple_icon(QStringLiteral("paste")));
+  register_hotkey(open_clipboard_action, "file.open_clipboard",
+                  QKeySequence(Qt::CTRL | Qt::ALT | Qt::SHIFT | Qt::Key_N));
+#ifdef Q_OS_WASM
+  // Qt 6.10's browser clipboard is a cache filled by native paste events.
+  // This shortcut does not request a fresh browser read; never open stale pixels.
+  // Keep the command id registered, as with the other desktop-only commands.
+  open_clipboard_action->setVisible(false);
+  open_clipboard_action->setEnabled(false);
+#else
+  connect(open_clipboard_action, &QAction::triggered, this, [this] {
+    if (preview_dialog_edit_locked()) {
+      show_preview_dialog_edit_lock_message();
+      return;
+    }
+    const auto* clipboard = QApplication::clipboard();
+    create_clipboard_document(clipboard != nullptr ? clipboard->image() : QImage(), tr("New document"));
+  });
+#endif
   // A whole folder of images as tabs (the other half of the PDF round trip: pages
   // exported to a folder come back as one document each).
   auto* open_folder_action = file_menu->addAction(tr("Open Fol&der..."));
@@ -363,12 +395,25 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   import_image_sequence_action->setObjectName(QStringLiteral("fileImportImageSequenceAction"));
   register_hotkey(import_image_sequence_action, "file.import_image_sequence");
   connect(import_image_sequence_action, &QAction::triggered, this, [this] { import_image_sequence(); });
+  auto* import_files_as_layers_action = import_menu->addAction(tr("&Files as Layers..."));
+  bind_action_text(import_files_as_layers_action, QT_TR_NOOP("&Files as Layers..."));
+  import_files_as_layers_action->setObjectName(QStringLiteral("fileImportFilesAsLayersAction"));
+  register_hotkey(import_files_as_layers_action, "file.import_files_as_layers");
+  connect(import_files_as_layers_action, &QAction::triggered, this, [this] { import_files_as_layers(); });
+  register_document_action(import_files_as_layers_action);
   auto* place_embedded_action = file_menu->addAction(tr("Place &Embedded..."));
   bind_action_text(place_embedded_action, QT_TR_NOOP("Place &Embedded..."));
   place_embedded_action->setObjectName(QStringLiteral("filePlaceEmbeddedAction"));
   register_hotkey(place_embedded_action, "file.place_embedded");
   connect(place_embedded_action, &QAction::triggered, this, [this] { place_embedded_file(); });
   register_document_action(place_embedded_action);
+  auto* place_linked_action = file_menu->addAction(tr("Place &Linked..."));
+  bind_action_text(place_linked_action, QT_TR_NOOP("Place &Linked..."));
+  place_linked_action->setObjectName(QStringLiteral("filePlaceLinkedAction"));
+  place_linked_action->setMenuRole(QAction::NoRole);
+  register_hotkey(place_linked_action, "file.place_linked");
+  connect(place_linked_action, &QAction::triggered, this, [this] { place_linked_file(); });
+  register_document_action(place_linked_action);
   auto* save_action = file_menu->addAction(tr("&Save"));
   auto* save_as_action = file_menu->addAction(tr("Save &As..."));
   // The export commands sit in their own submenu, the way Import does: the verb
@@ -414,6 +459,13 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   register_hotkey(export_animated_gif_action, "file.export_animated_gif");
   connect(export_animated_gif_action, &QAction::triggered, this, [this] { export_animated_gif(); });
   register_document_action(export_animated_gif_action);
+  auto* export_animated_webp_action = export_menu->addAction(tr("Layers as Animated &WebP..."));
+  bind_action_text(export_animated_webp_action, QT_TR_NOOP("Layers as Animated &WebP..."));
+  export_animated_webp_action->setObjectName(QStringLiteral("fileExportAnimatedWebpAction"));
+  export_animated_webp_action->setMenuRole(QAction::NoRole);
+  register_hotkey(export_animated_webp_action, "file.export_animated_webp");
+  connect(export_animated_webp_action, &QAction::triggered, this, [this] { export_animated_webp(); });
+  register_document_action(export_animated_webp_action);
   auto* page_setup_action = file_menu->addAction(tr("Page Set&up..."));
   auto* print_action = file_menu->addAction(tr("&Print..."));
 #ifdef Q_OS_WASM
@@ -423,6 +475,10 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   // so hotkey ids and wiring are stable; hidden actions do not render in the
   // menu. A browser has no host folders to open or write into either.
   export_image_sequence_action->setVisible(false);
+  // A browser pick is a MEMFS transfer path that only open_document_path releases.
+  import_files_as_layers_action->setVisible(false);
+  // A link needs a host file to point at; the browser only hands over a copy.
+  place_linked_action->setVisible(false);
   export_documents_folder_action->setVisible(false);
   open_folder_action->setVisible(false);
   page_setup_action->setVisible(false);
@@ -603,20 +659,18 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   auto* border_selection_action = new QAction(tr("&Border..."), this);
   auto* layer_transparency_action = new QAction(tr("Load Layer &Transparency"), this);
   auto* stroke_selection_action = edit_menu->addAction(tr("&Stroke Selection..."));
-  // Remove Object: the content-aware exemplar fill of the selection (no
-  // dialog). Also the first entry of the canvas context menu's selection
-  // section. The nearest-edge mirror has no menu entry (Seth, September 2026:
-  // confusing next to this one); it stays as the automatic fallback and the
-  // script API's "nearestEdge" method.
-  auto* remove_object_action = edit_menu->addAction(tr("Remove &Object"));
+  // Remove Object: the content-aware exemplar fill of the selection through
+  // the Remove Object dialog (Reroll, Tone match, Edge feather;
+  // main_window_layer_ops.cpp). Also the first entry of the canvas context
+  // menu's selection section and the Patch options bar's button. The
+  // nearest-edge mirror has no menu entry (Seth, September 2026: confusing
+  // next to this one); it stays as the automatic fallback and the script
+  // API's "nearestEdge" method.
+  auto* remove_object_action = edit_menu->addAction(tr("Remove &Object..."));
   remove_object_action->setObjectName(QStringLiteral("editRemoveObjectAction"));
   remove_object_action->setIcon(simple_icon(QStringLiteral("RO")));
   register_hotkey(remove_object_action, "edit.remove_object");
-  connect(remove_object_action, &QAction::triggered, this, [this] {
-    if (canvas_ != nullptr) {
-      canvas_->remove_object_in_selection();
-    }
-  });
+  connect(remove_object_action, &QAction::triggered, this, [this] { remove_object_dialog(); });
   auto* define_brush_tip_action = edit_menu->addAction(tr("Define Brush Tip from Selection"));
   define_brush_tip_action->setObjectName(QStringLiteral("editDefineBrushTipAction"));
   register_hotkey(define_brush_tip_action, "edit.define_brush_tip");
@@ -692,6 +746,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   connect(contract_selection_action, &QAction::triggered, this, [this] { contract_selection_dialog(); });
   connect(border_selection_action, &QAction::triggered, this, [this] { border_selection_dialog(); });
   connect(layer_transparency_action, &QAction::triggered, this, [this] {
+    select_only_layer_if_none_active();
     canvas_->run_selection_command(tr("Load Layer Transparency"),
                                    [this] { canvas_->select_active_layer_opaque_pixels(); });
   });
@@ -820,6 +875,9 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   // still find "make this a plain layer again" where they look for it.
   layer_smart_object_to_normal_action_ = new QAction(tr("Convert to Normal Layer (Rasterize)"), this);
   bind_action_text(layer_smart_object_to_normal_action_, QT_TR_NOOP("Convert to Normal Layer (Rasterize)"));
+  // Photoshop's Convert to Layers: the contents' own layers replace the Smart Object.
+  layer_smart_object_to_layers_action_ = new QAction(tr("Convert to Layers"), this);
+  bind_action_text(layer_smart_object_to_layers_action_, QT_TR_NOOP("Convert to Layers"));
   auto* layer_smart_objects_menu = layer_menu->addMenu(tr("Smart Objects"));
   layer_smart_objects_menu->setObjectName(QStringLiteral("layerSmartObjectsMenu"));
   layer_smart_objects_menu->addAction(layer_convert_smart_object_action_);
@@ -831,6 +889,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   layer_smart_objects_menu->addAction(layer_smart_object_export_action_);
   layer_smart_objects_menu->addAction(layer_smart_object_via_copy_action_);
   layer_smart_objects_menu->addSeparator();
+  layer_smart_objects_menu->addAction(layer_smart_object_to_layers_action_);
   layer_smart_objects_menu->addAction(layer_smart_object_to_normal_action_);
   // Commands on existing shapes (docs/vector-commands.md). A submenu keeps the
   // Layer menu inside its wasm-viewport row bound.
@@ -896,6 +955,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   auto* merge_down_action = layer_menu->addAction(tr("Merge &Down"));
   merge_down_action->setObjectName(QStringLiteral("layerMergeDownAction"));
   auto* rename_layer_action = layer_menu->addAction(tr("&Rename Layer..."));
+  rename_layer_action->setObjectName(QStringLiteral("layerRenameAction"));
   auto* delete_layer_action = layer_menu->addAction(tr("&Delete Layer"));
   // (No separator before the fill group: the Layer menu's 23-row bound paid
   // for the Shape submenu with it.)
@@ -1033,6 +1093,11 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   layer_smart_object_relink_action_->setObjectName(QStringLiteral("layerSmartObjectRelinkAction"));
   layer_smart_object_embed_action_->setObjectName(QStringLiteral("layerSmartObjectEmbedAction"));
   layer_smart_object_to_normal_action_->setObjectName(QStringLiteral("layerSmartObjectToNormalAction"));
+  layer_smart_object_to_layers_action_->setObjectName(QStringLiteral("layerSmartObjectToLayersAction"));
+  layer_smart_object_to_layers_action_->setStatusTip(
+      tr("Replace the smart object with a folder holding the layers of its contents"));
+  bind_translated_status_tip(layer_smart_object_to_layers_action_,
+                             "Replace the smart object with a folder holding the layers of its contents");
   duplicate_layer_action->setObjectName(QStringLiteral("layerDuplicateAction"));
   delete_layer_action->setObjectName(QStringLiteral("layerDeleteAction"));
   fill_layer_action->setObjectName(QStringLiteral("layerFillForegroundAction"));
@@ -1102,7 +1167,8 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   register_hotkey(edit_adjustment_action, "layer.edit_adjustment");
   register_hotkey(layer_blending_options_action_, "layer.styles");
   register_hotkey(duplicate_layer_action, "layer.duplicate");
-  register_hotkey(rename_layer_action, "layer.rename");
+  // F2: the Explorer, Blender and VS Code rename key on every platform.
+  register_hotkey(rename_layer_action, "layer.rename", QKeySequence(Qt::Key_F2));
   register_hotkey(delete_layer_action, "layer.delete");
   register_hotkey(flip_h_action, "layer.flip_horizontal");
   register_hotkey(flip_v_action, "layer.flip_vertical");
@@ -1155,6 +1221,8 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   connect(layer_smart_object_export_action_, &QAction::triggered, this, [this] { export_smart_object_contents(); });
   connect(layer_smart_object_via_copy_action_, &QAction::triggered, this, [this] { new_smart_object_via_copy(); });
   connect(layer_smart_object_to_normal_action_, &QAction::triggered, this, [this] { rasterize_active_layers(); });
+  connect(layer_smart_object_to_layers_action_, &QAction::triggered, this,
+          [this] { convert_smart_object_to_layers(); });
   connect(layer_smart_object_update_action_, &QAction::triggered, this, [this] { update_smart_object_content(); });
   connect(layer_smart_object_relink_action_, &QAction::triggered, this,
           [this] { relink_smart_object_contents(); });
@@ -1306,6 +1374,12 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   canvas_size_action->setObjectName(QStringLiteral("imageCanvasSizeAction"));
   auto* crop_action = image_menu->addAction(tr("&Crop to Selection"));
   crop_action->setObjectName(QStringLiteral("imageCropToSelectionAction"));
+  auto* crop_advanced_action = image_menu->addAction(tr("Crop to Selection (Advance&d)..."));
+  crop_advanced_action->setObjectName(QStringLiteral("imageCropToSelectionAdvancedAction"));
+  bind_translated_status_tip(
+      crop_advanced_action,
+      QT_TR_NOOP("Open Canvas Size prefilled with the selection so the crop can be adjusted before it is applied"));
+  apply_bound_translation(crop_advanced_action);
   image_menu->addSeparator();
   // "Right" is the 90-degree clockwise turn and "Left" the counterclockwise one; the object
   // names and hotkey ids keep their persisted clockwise/counterclockwise identities.
@@ -1324,6 +1398,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   image_size_action->setIcon(simple_icon(QStringLiteral("IS")));
   canvas_size_action->setIcon(simple_icon(QStringLiteral("CS")));
   crop_action->setIcon(simple_icon(QStringLiteral("crop")));
+  crop_advanced_action->setIcon(simple_icon(QStringLiteral("crop")));
   rotate_cw_action->setIcon(simple_icon(QStringLiteral("rotate")));
   rotate_ccw_action->setIcon(simple_icon(QStringLiteral("rotate")));
   rotate_arbitrary_action->setIcon(simple_icon(QStringLiteral("rotate")));
@@ -1332,6 +1407,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   // Plain C now belongs to the Crop tool (tools.crop); the menu command keeps
   // its persisted id but ships without a default, like Photoshop's Image menu.
   register_hotkey(crop_action, "image.crop_to_selection");
+  register_hotkey(crop_advanced_action, "image.crop_to_selection_advanced");
   register_hotkey(rotate_cw_action, "image.rotate_cw", QKeySequence(Qt::CTRL | Qt::Key_BracketRight));
   register_hotkey(rotate_ccw_action, "image.rotate_ccw", QKeySequence(Qt::CTRL | Qt::Key_BracketLeft));
   register_hotkey(rotate_arbitrary_action, "image.rotate_arbitrary");
@@ -1345,6 +1421,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   connect(image_size_action, &QAction::triggered, this, [this] { resize_image_dialog(); });
   connect(canvas_size_action, &QAction::triggered, this, [this] { resize_canvas_dialog(); });
   connect(crop_action, &QAction::triggered, this, [this] { crop_to_selection(); });
+  connect(crop_advanced_action, &QAction::triggered, this, [this] { crop_to_selection_advanced(); });
   connect(rotate_cw_action, &QAction::triggered, this, [this] { rotate_canvas_clockwise(); });
   connect(rotate_ccw_action, &QAction::triggered, this, [this] { rotate_canvas_counterclockwise(); });
   connect(rotate_arbitrary_action, &QAction::triggered, this, [this] { rotate_canvas_arbitrary(); });
@@ -1511,11 +1588,38 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
     register_document_action(action);
   }
 
-  auto* scan_legacy_plugins_action = plugins_menu->addAction(tr("&Scan Legacy Photoshop Plug-ins..."));
-  scan_legacy_plugins_action->setObjectName(QStringLiteral("pluginsScanLegacyAction"));
-  scan_legacy_plugins_action->setIcon(simple_icon(QStringLiteral("8BF")));
-  connect(scan_legacy_plugins_action, &QAction::triggered, this, [this] { scan_legacy_plugins(); });
-#ifndef Q_OS_WIN
+#ifdef Q_OS_WIN
+  // Photoshop's Ctrl+F / Ctrl+Alt+F for the plug-in that ran last: a plug-in
+  // never previews on the canvas, so "apply, look, undo, adjust" is the loop
+  // and these two keep it short. Their text carries the plug-in's name and
+  // they are enabled by update_legacy_plugin_repeat_actions, not as document
+  // actions (they also need a plug-in that ran).
+  plugins_repeat_last_action_ = plugins_menu->addAction(tr("Repeat Last Plug-in"));
+  plugins_repeat_last_action_->setObjectName(QStringLiteral("pluginsRepeatLastAction"));
+  plugins_repeat_last_action_->setProperty("patchy.channelViewBlocked", true);
+  register_hotkey(plugins_repeat_last_action_, "plugins.repeat_last", QKeySequence(Qt::CTRL | Qt::Key_F));
+  connect(plugins_repeat_last_action_, &QAction::triggered, this, [this] { run_last_legacy_plugin(/*show_dialog=*/false); });
+  plugins_last_settings_action_ = plugins_menu->addAction(tr("Last Plug-in Settings..."));
+  plugins_last_settings_action_->setObjectName(QStringLiteral("pluginsLastSettingsAction"));
+  plugins_last_settings_action_->setProperty("patchy.channelViewBlocked", true);
+  register_hotkey(plugins_last_settings_action_, "plugins.last_settings", QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_F));
+  connect(plugins_last_settings_action_, &QAction::triggered, this, [this] { run_last_legacy_plugin(/*show_dialog=*/true); });
+  register_retranslation([this] { update_legacy_plugin_repeat_actions(); });
+  plugins_menu->addSeparator();
+  // The plug-ins folder next to patchy.exe is the one obvious place for .8bf
+  // files; both commands exist only where the plug-ins can run (docs/plugins.md).
+  auto* open_plugins_folder_action = plugins_menu->addAction(tr("Open Plug-ins &Folder"));
+  open_plugins_folder_action->setObjectName(QStringLiteral("pluginsOpenFolderAction"));
+  open_plugins_folder_action->setIcon(simple_icon(QStringLiteral("8BF")));
+  register_hotkey(open_plugins_folder_action, "plugins.open_folder");
+  connect(open_plugins_folder_action, &QAction::triggered, this, [this] { open_legacy_plugins_folder(); });
+  bind_action_text(open_plugins_folder_action, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Open Plug-ins &Folder"));
+  auto* rescan_plugins_action = plugins_menu->addAction(tr("&Rescan Plug-in Folders"));
+  rescan_plugins_action->setObjectName(QStringLiteral("pluginsRescanAction"));
+  register_hotkey(rescan_plugins_action, "plugins.rescan");
+  connect(rescan_plugins_action, &QAction::triggered, this, [this] { start_legacy_plugin_scan(true); });
+  bind_action_text(rescan_plugins_action, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "&Rescan Plug-in Folders"));
+#else
   // 8BF plug-ins are Windows binaries (the probe rejects them here with the same
   // message); a disabled note manages expectations up front.
   auto* legacy_windows_only_note = plugins_menu->addAction(tr("Legacy 8BF plug-ins run on Windows only"));
@@ -1529,6 +1633,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   auto* zoom_in = view_menu->addAction(tr("Zoom &In"));
   auto* zoom_out = view_menu->addAction(tr("Zoom &Out"));
   auto* fit_on_screen = view_menu->addAction(tr("&Fit on Screen"));
+  auto* fill_screen = view_menu->addAction(tr("Fi&ll Screen"));
   auto* zoom_reset = view_menu->addAction(tr("&Actual Pixels"));
   view_vector_preview_action_ = view_menu->addAction(tr("Dynamic Vector Preview"));
   view_vector_preview_action_->setObjectName(QStringLiteral("viewVectorPreviewAction"));
@@ -1588,6 +1693,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   zoom_in->setObjectName(QStringLiteral("viewZoomInAction"));
   zoom_out->setObjectName(QStringLiteral("viewZoomOutAction"));
   fit_on_screen->setObjectName(QStringLiteral("viewFitOnScreenAction"));
+  fill_screen->setObjectName(QStringLiteral("viewFillScreenAction"));
   zoom_reset->setObjectName(QStringLiteral("viewActualPixelsAction"));
   selection_edges_action->setObjectName(QStringLiteral("viewToggleSelectionEdgesAction"));
   target_path_action->setObjectName(QStringLiteral("viewToggleTargetPathAction"));
@@ -1610,6 +1716,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   zoom_in->setIcon(simple_icon(QStringLiteral("zoomIn")));
   zoom_out->setIcon(simple_icon(QStringLiteral("zoomOut")));
   fit_on_screen->setIcon(simple_icon(QStringLiteral("fit")));
+  fill_screen->setIcon(simple_icon(QStringLiteral("fill")));
   zoom_reset->setIcon(simple_icon(QStringLiteral("1x")));
   selection_edges_action->setIcon(simple_icon(QStringLiteral("SE")));
   view_rulers_action_->setIcon(simple_icon(QStringLiteral("RU")));
@@ -1650,6 +1757,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   register_hotkey(zoom_in, "view.zoom_in", zoom_in_defaults);
   register_hotkey(zoom_out, "view.zoom_out", QKeySequence::keyBindings(QKeySequence::ZoomOut));
   register_hotkey(fit_on_screen, "view.fit_on_screen", QKeySequence(Qt::CTRL | Qt::Key_0));
+  register_hotkey(fill_screen, "view.fill_screen");
   register_hotkey(zoom_reset, "view.actual_pixels", QKeySequence(Qt::CTRL | Qt::Key_1));
   register_hotkey(selection_edges_action, "view.selection_edges", QKeySequence(Qt::CTRL | Qt::Key_H));
   register_hotkey(target_path_action, "view.target_path",
@@ -1666,6 +1774,7 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   connect(zoom_in, &QAction::triggered, this, [this] { canvas_->set_zoom_centered(canvas_->zoom() * 1.25); });
   connect(zoom_out, &QAction::triggered, this, [this] { canvas_->set_zoom_centered(canvas_->zoom() * 0.8); });
   connect(fit_on_screen, &QAction::triggered, this, [this] { canvas_->fit_to_view(); });
+  connect(fill_screen, &QAction::triggered, this, [this] { canvas_->fill_to_view(); });
   connect(zoom_reset, &QAction::triggered, this, [this] { canvas_->set_zoom_centered(1.0); });
   connect(selection_edges_action, &QAction::triggered, this, [this] {
     if (canvas_ != nullptr) {
@@ -1731,7 +1840,8 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   connect(new_guide_layout_action, &QAction::triggered, this, [this] { new_guide_layout_dialog(); });
   connect(clear_selected_guides_action, &QAction::triggered, this, [this] { clear_selected_guides(); });
   connect(clear_guides_action, &QAction::triggered, this, [this] { clear_guides(); });
-  for (auto* action : {zoom_in, zoom_out, fit_on_screen, zoom_reset, selection_edges_action, view_rulers_action_,
+  for (auto* action : {zoom_in, zoom_out, fit_on_screen, fill_screen, zoom_reset, selection_edges_action,
+                       view_rulers_action_,
                        view_grid_action_, view_guides_action_, view_snap_action_, view_lock_guides_action_,
                        snap_to_menu->menuAction(), view_snap_guides_action_, view_snap_grid_action_,
                        view_snap_document_action_, view_snap_layers_action_, view_snap_selection_action_,
@@ -1934,14 +2044,15 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   ctx.image_size_action = image_size_action;
   ctx.canvas_size_action = canvas_size_action;
   ctx.crop_action = crop_action;
+  ctx.crop_advanced_action = crop_advanced_action;
   ctx.rotate_cw_action = rotate_cw_action;
   ctx.rotate_ccw_action = rotate_ccw_action;
   ctx.rotate_arbitrary_action = rotate_arbitrary_action;
   ctx.shift_seams_action = shift_seams_action;
-  ctx.scan_legacy_plugins_action = scan_legacy_plugins_action;
   ctx.zoom_in = zoom_in;
   ctx.zoom_out = zoom_out;
   ctx.fit_on_screen = fit_on_screen;
+  ctx.fill_screen = fill_screen;
   ctx.zoom_reset = zoom_reset;
   ctx.selection_edges_action = selection_edges_action;
   ctx.target_path_action = target_path_action;
@@ -1957,6 +2068,12 @@ void MainWindow::build_menu_bar_actions(ActionBuildContext& ctx) {
   ctx.scripting_guide_action = scripting_guide_action;
   ctx.about_action = about_action;
   ctx.ai_setup_action = ai_setup_action;
+
+  for (auto* action : menuBar()->actions()) {
+    if (auto* menu = action->menu()) {
+      exclude_submenus_from_native_menu_roles(*menu);
+    }
+  }
 }
 
 }  // namespace patchy::ui

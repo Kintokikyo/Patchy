@@ -1,10 +1,12 @@
 #pragma once
 
+#include "core/ink_space.hpp"
 #include "core/layer.hpp"
 
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -52,6 +54,20 @@ inline constexpr const char* kLayerMetadataAdjustmentCurvesMidtoneOutput = "patc
 inline constexpr const char* kLayerMetadataAdjustmentCurvesHighlightOutput =
     "patchy.adjustment.curves.highlight_output";
 inline constexpr const char* kLayerMetadataAdjustmentCurvesRgbPoints = "patchy.adjustment.curves.rgb.points";
+// Adjustments read from a CMYK document (see InkSpace): the space's id, and the black
+// ink's Levels record and curve, which have no RGB counterpart.
+inline constexpr const char* kLayerMetadataAdjustmentInkSpace = "patchy.adjustment.ink_space";
+inline constexpr const char* kLayerMetadataAdjustmentCurvesBlackPoints = "patchy.adjustment.curves.black.points";
+inline constexpr const char* kLayerMetadataAdjustmentLevelsBlackInkBlackInput =
+    "patchy.adjustment.levels.black_ink.black_input";
+inline constexpr const char* kLayerMetadataAdjustmentLevelsBlackInkWhiteInput =
+    "patchy.adjustment.levels.black_ink.white_input";
+inline constexpr const char* kLayerMetadataAdjustmentLevelsBlackInkGammaPercent =
+    "patchy.adjustment.levels.black_ink.gamma_percent";
+inline constexpr const char* kLayerMetadataAdjustmentLevelsBlackInkBlackOutput =
+    "patchy.adjustment.levels.black_ink.black_output";
+inline constexpr const char* kLayerMetadataAdjustmentLevelsBlackInkWhiteOutput =
+    "patchy.adjustment.levels.black_ink.white_output";
 inline constexpr const char* kLayerMetadataAdjustmentCurvesRedPoints = "patchy.adjustment.curves.red.points";
 inline constexpr const char* kLayerMetadataAdjustmentCurvesGreenPoints = "patchy.adjustment.curves.green.points";
 inline constexpr const char* kLayerMetadataAdjustmentCurvesBluePoints = "patchy.adjustment.curves.blue.points";
@@ -81,6 +97,9 @@ inline constexpr const char* kLayerMetadataAdjustmentColorBalanceYellowBlue =
     "patchy.adjustment.color_balance.yellow_blue";
 inline constexpr const char* kLayerMetadataAdjustmentPosterizeLevels = "patchy.adjustment.posterize.levels";
 inline constexpr const char* kLayerMetadataAdjustmentThresholdLevel = "patchy.adjustment.threshold.level";
+inline constexpr const char* kLayerMetadataAdjustmentExposureValue = "patchy.adjustment.exposure.value";
+inline constexpr const char* kLayerMetadataAdjustmentExposureOffset = "patchy.adjustment.exposure.offset";
+inline constexpr const char* kLayerMetadataAdjustmentExposureGamma = "patchy.adjustment.exposure.gamma";
 inline constexpr const char* kLayerMetadataAdjustmentBrightnessContrastBrightness =
     "patchy.adjustment.brightness_contrast.brightness";
 inline constexpr const char* kLayerMetadataAdjustmentBrightnessContrastContrast =
@@ -98,7 +117,8 @@ enum class AdjustmentKind {
   Invert,
   Posterize,
   Threshold,
-  BrightnessContrast
+  BrightnessContrast,
+  Exposure
 };
 
 enum class LevelsChannel {
@@ -114,6 +134,8 @@ struct LevelsRecord {
   int gamma_percent{100};
   int black_output{0};
   int white_output{255};
+
+  friend bool operator==(const LevelsRecord&, const LevelsRecord&) = default;
 };
 
 struct LevelsAdjustment {
@@ -126,6 +148,11 @@ struct LevelsAdjustment {
   LevelsRecord red{};
   LevelsRecord green{};
   LevelsRecord blue{};
+  // The fifth record of a CMYK document's Levels (the black ink). Only an adjustment
+  // with an ink space reads it; there red, green and blue hold cyan, magenta and yellow.
+  LevelsRecord black_ink{};
+
+  friend bool operator==(const LevelsAdjustment&, const LevelsAdjustment&) = default;
 };
 
 enum class CurvesChannel {
@@ -149,6 +176,8 @@ struct CurvesAdjustment {
   CurveControlPoints red{{0, 0}, {255, 255}};
   CurveControlPoints green{{0, 0}, {255, 255}};
   CurveControlPoints blue{{0, 0}, {255, 255}};
+  // The fifth curve of a CMYK document's Curves (the black ink); see LevelsAdjustment.
+  CurveControlPoints black_ink{{0, 0}, {255, 255}};
 
   friend bool operator==(const CurvesAdjustment&, const CurvesAdjustment&) = default;
 };
@@ -226,6 +255,24 @@ struct ThresholdAdjustment {
   int level{128};
 };
 
+// Photoshop's Exposure adjustment ('expA'), stored at the precision of Photoshop's own
+// fields: exposure in hundredths of a stop (-20.00..20.00), offset in ten-thousandths
+// (-0.5000..0.5000), gamma correction in hundredths (0.01..9.99).
+inline constexpr int kExposureValueRange = 2000;
+inline constexpr int kExposureOffsetRange = 5000;
+inline constexpr int kExposureGammaMin = 1;
+inline constexpr int kExposureGammaMax = 999;
+struct ExposureAdjustment {
+  int exposure_hundredths{0};
+  int offset_ten_thousandths{0};
+  int gamma_hundredths{100};
+};
+[[nodiscard]] ExposureAdjustment clamp_exposure(ExposureAdjustment settings);
+// One channel through Photoshop's Exposure: linearize with gamma 2.2, scale by
+// 2^exposure, add the offset, apply 1/gamma, encode again. Within 1/255 of Photoshop's
+// render of psd-tools' exposure_rgb.psd on all four of its setting triples.
+[[nodiscard]] std::uint8_t exposure_channel_value(std::uint8_t value, ExposureAdjustment settings);
+
 // Both Photoshop algorithms are modeled. Modern mode (Photoshop's default,
 // use_legacy false) takes brightness -150..150 and contrast -50..100; legacy
 // mode takes -100..100 for both. Old Patchy documents and 'brit'-only PSDs
@@ -251,7 +298,14 @@ struct AdjustmentSettings {
   PosterizeAdjustment posterize{};
   ThresholdAdjustment threshold{};
   BrightnessContrastAdjustment brightness_contrast{};
+  ExposureAdjustment exposure{};
+  // Set for an adjustment layer that came from a CMYK document whose profile could be
+  // read: the channel-wise kinds (Levels, Curves, Invert, Posterize, Brightness/Contrast,
+  // Exposure) then run on the four inks instead of on RGB. See core/ink_space.hpp.
+  std::shared_ptr<const InkSpace> ink_space;
 };
+// True when `settings` runs in its ink space (it has one and its kind is channel-wise).
+[[nodiscard]] bool adjustment_runs_in_ink_space(const AdjustmentSettings& settings) noexcept;
 
 // Levels record math shared by the UI dialogs and the PSD lvls codec: the
 // single source of truth for the clamp ranges (black_input 0..254,

@@ -423,6 +423,11 @@ std::optional<Rect> layer_visible_alpha_bounds(const Layer& layer, const PixelBu
   if (&pixels == &layer.pixels()) {
     return layer_visible_alpha_bounds(layer, bounds);
   }
+  // A shape layer's effect silhouette spans the layer's bounds by construction; the
+  // bounds themselves are the answer, with no per-render scan of the plane.
+  if (const auto* shape = layer.vector_shape(); shape != nullptr && &pixels == &shape->effect_matte_cache) {
+    return bounds;
+  }
   return layer_visible_alpha_bounds(pixels, bounds);
 }
 

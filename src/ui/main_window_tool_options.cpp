@@ -53,6 +53,7 @@
 #include "ui/gradient_library.hpp"
 #include "ui/gradient_manager_dialog.hpp"
 #include "ui/gradient_preset_popup.hpp"
+#include "ui/curved_slider.hpp"
 #include "ui/dialog_utils.hpp"
 #include "ui/document_float_window.hpp"
 #include "ui/font_picker.hpp"
@@ -249,10 +250,6 @@
 #include <dwmapi.h>
 #include <tchar.h>
 #include <tpcshrd.h>
-#endif
-
-#ifndef PATCHY_VERSION
-#define PATCHY_VERSION "0.0.0"
 #endif
 
 // Icon resources live in the static patchy_ui library; force registration before first use.
@@ -1039,6 +1036,7 @@ bool MainWindow::show_pixel_lock_message_if_all_locked(const std::vector<LayerId
 }
 
 void MainWindow::set_active_layer_from_selection() {
+  if (!updating_layer_controls_) finish_pending_shape_appearance_edit();
   if (updating_layer_controls_) {
     return;
   }
@@ -1260,14 +1258,27 @@ void MainWindow::set_active_layer_blend(int index) {
     refresh_layer_controls();
     return;
   }
-  const auto ids = selected_or_active_layer_ids();
-  if (ids.empty()) {
-    return;
+  // Stepping through modes with the arrow keys or the wheel is one run and one
+  // undo entry, like an Opacity drag; the run ends after a pause or at the next
+  // history change or layer-control refresh.
+  if (!pending_layer_blend_edit_active_) {
+    if (!has_active_document()) {
+      return;
+    }
+    auto ids = selected_or_active_layer_ids();
+    if (ids.empty()) {
+      return;
+    }
+    push_undo_snapshot(tr("Blend mode"));
+    pending_layer_blend_ids_ = std::move(ids);
+    pending_layer_blend_edit_active_ = true;
+  }
+  if (layer_blend_idle_timer_ != nullptr) {
+    layer_blend_idle_timer_->start();
   }
   auto& doc = document();
-  push_undo_snapshot(tr("Blend mode"));
   Rect affected;
-  for (const auto id : ids) {
+  for (const auto id : pending_layer_blend_ids_) {
     auto* layer = doc.find_layer(id);
     if (layer == nullptr) {
       continue;
@@ -1276,6 +1287,14 @@ void MainWindow::set_active_layer_blend(int index) {
     affected = unite_rect(affected, layer_render_bounds(*layer));
   }
   canvas_->document_changed(to_qrect(affected));
+}
+
+void MainWindow::finish_pending_layer_blend_edit() {
+  if (layer_blend_idle_timer_ != nullptr) {
+    layer_blend_idle_timer_->stop();
+  }
+  pending_layer_blend_ids_.clear();
+  pending_layer_blend_edit_active_ = false;
 }
 
 void MainWindow::set_active_layer_visible(bool visible) {
@@ -1500,6 +1519,9 @@ void MainWindow::choose_text_color() {
     if (editor != nullptr) {
       editor->setProperty("patchy.documentTextColor", color);
       apply_text_color_to_active_editor();
+    } else {
+      // No session when the panel opened: the selected text layers take the color (issue 31).
+      apply_text_color_to_selected_layers_debounced(color);
     }
     refresh_color_buttons();
     statusBar()->showMessage(tr("Text color changed"));
@@ -1686,6 +1708,27 @@ void MainWindow::refresh_gradient_controls_from_canvas() {
   }
 }
 
+namespace {
+
+// Settings keys for each selection tool's Feather and Anti-alias. Permanent identifiers.
+// Quick Select has no Anti-alias control; the Patch tool has neither and keeps the defaults.
+struct SelectionEdgeSettingKeys {
+  CanvasTool tool;
+  const char* feather;
+  const char* anti_alias;
+};
+
+constexpr std::array<SelectionEdgeSettingKeys, 6> kSelectionEdgeSettingKeys{{
+    {CanvasTool::Marquee, "tools/marqueeFeather", "tools/marqueeAntiAlias"},
+    {CanvasTool::EllipticalMarquee, "tools/ellipticalMarqueeFeather", "tools/ellipticalMarqueeAntiAlias"},
+    {CanvasTool::Lasso, "tools/lassoFeather", "tools/lassoAntiAlias"},
+    {CanvasTool::MagneticLasso, "tools/magneticLassoFeather", "tools/magneticLassoAntiAlias"},
+    {CanvasTool::MagicWand, "tools/wandFeather", "tools/wandAntiAlias"},
+    {CanvasTool::QuickSelect, "tools/quickSelectFeather", nullptr},
+}};
+
+}  // namespace
+
 void MainWindow::activate_tool(CanvasTool tool) {
   if (tool_action_group_ == nullptr) {
     return;
@@ -1757,6 +1800,17 @@ void MainWindow::load_tool_settings() {
   canvas_->set_wand_contiguous(settings.value(QStringLiteral("tools/wandContiguous"), canvas_->wand_contiguous()).toBool());
   canvas_->set_wand_sample_all_layers(
       settings.value(QStringLiteral("tools/wandSampleAllLayers"), canvas_->wand_sample_all_layers()).toBool());
+  for (const auto& keys : kSelectionEdgeSettingKeys) {
+    const auto index = static_cast<std::size_t>(CanvasWidget::selection_tool_index(keys.tool));
+    selection_feather_by_tool_[index] =
+        std::clamp(settings.value(QLatin1StringView(keys.feather), selection_feather_by_tool_[index]).toInt(), 0,
+                   kMaxSelectionFeatherRadius);
+    if (keys.anti_alias != nullptr) {
+      selection_antialias_by_tool_[index] =
+          settings.value(QLatin1StringView(keys.anti_alias), selection_antialias_by_tool_[index]).toBool();
+    }
+  }
+  apply_selection_edge_settings_for_tool(current_tool_);
   canvas_->set_quick_select_size(
       settings.value(QStringLiteral("tools/quickSelectSize"), canvas_->quick_select_size()).toInt());
   canvas_->set_quick_select_sample_all_layers(
@@ -1940,8 +1994,8 @@ void MainWindow::load_tool_settings() {
       settings.value(QStringLiteral("tools/vectorStrokeWidth"), current_vector_stroke_width_).toDouble(),
       0.1, 1000.0);
   current_vector_line_weight_ = std::clamp(
-      settings.value(QStringLiteral("tools/vectorLineWeight"), current_vector_line_weight_).toInt(), 1,
-      1000);
+      settings.value(QStringLiteral("tools/vectorLineWeight"), current_vector_line_weight_).toDouble(), 1.0,
+      1000.0);
   if (auto* stroke_check = findChild<QCheckBox*>(QStringLiteral("vectorStrokeCheck"));
       stroke_check != nullptr) {
     QSignalBlocker blocker(stroke_check);
@@ -1952,7 +2006,7 @@ void MainWindow::load_tool_settings() {
     QSignalBlocker blocker(stroke_width);
     stroke_width->setValue(current_vector_stroke_width_);
   }
-  if (auto* line_weight = findChild<QSpinBox*>(QStringLiteral("vectorLineWeightSpin"));
+  if (auto* line_weight = findChild<QDoubleSpinBox*>(QStringLiteral("vectorLineWeightSpin"));
       line_weight != nullptr) {
     QSignalBlocker blocker(line_weight);
     line_weight->setValue(current_vector_line_weight_);
@@ -1996,6 +2050,13 @@ void MainWindow::load_tool_settings() {
   update_vector_swatch_icons();
   canvas_->set_fill_opacity(settings.value(QStringLiteral("tools/fillOpacity"), canvas_->fill_opacity()).toInt());
   canvas_->set_fill_softness(settings.value(QStringLiteral("tools/fillSoftness"), canvas_->fill_softness()).toInt());
+  canvas_->set_fill_tolerance(
+      settings.value(QStringLiteral("tools/fillTolerance"), canvas_->fill_tolerance()).toInt());
+  canvas_->set_fill_contiguous(
+      settings.value(QStringLiteral("tools/fillContiguous"), canvas_->fill_contiguous()).toBool());
+  canvas_->set_zoom_scrubby(settings.value(QStringLiteral("tools/zoomScrubby"), canvas_->zoom_scrubby()).toBool());
+  canvas_->set_zoom_tool_zooms_out(
+      settings.value(QStringLiteral("tools/zoomToolZoomsOut"), canvas_->zoom_tool_zooms_out()).toBool());
   const auto sync_fill_widget = [this](const QString& spin_name, const QString& slider_name, int value) {
     if (auto* spin = findChild<QSpinBox*>(spin_name); spin != nullptr) {
       QSignalBlocker blocker(spin);
@@ -2008,6 +2069,10 @@ void MainWindow::load_tool_settings() {
   };
   sync_fill_widget(QStringLiteral("fillOpacitySpin"), QStringLiteral("fillOpacitySlider"), canvas_->fill_opacity());
   sync_fill_widget(QStringLiteral("fillSoftnessSpin"), QStringLiteral("fillSoftnessSlider"), canvas_->fill_softness());
+  if (auto* spin = findChild<QSpinBox*>(QStringLiteral("fillToleranceSpin")); spin != nullptr) {
+    QSignalBlocker blocker(spin);
+    spin->setValue(canvas_->fill_tolerance());
+  }
   const auto gradient_method = settings.value(QStringLiteral("tools/gradientMethod"),
                                               static_cast<int>(canvas_->gradient_method()))
                                    .toInt();
@@ -2065,6 +2130,13 @@ void MainWindow::save_tool_settings() const {
   settings.setValue(QStringLiteral("tools/wandTolerance"), canvas_->wand_tolerance());
   settings.setValue(QStringLiteral("tools/wandContiguous"), canvas_->wand_contiguous());
   settings.setValue(QStringLiteral("tools/wandSampleAllLayers"), canvas_->wand_sample_all_layers());
+  for (const auto& keys : kSelectionEdgeSettingKeys) {
+    const auto index = static_cast<std::size_t>(CanvasWidget::selection_tool_index(keys.tool));
+    settings.setValue(QLatin1StringView(keys.feather), selection_feather_by_tool_[index]);
+    if (keys.anti_alias != nullptr) {
+      settings.setValue(QLatin1StringView(keys.anti_alias), selection_antialias_by_tool_[index]);
+    }
+  }
   settings.setValue(QStringLiteral("tools/quickSelectSize"), canvas_->quick_select_size());
   settings.setValue(QStringLiteral("tools/quickSelectSampleAllLayers"), canvas_->quick_select_sample_all_layers());
   settings.setValue(QStringLiteral("tools/quickSelectEnhanceEdge"), canvas_->quick_select_enhance_edge());
@@ -2143,6 +2215,10 @@ void MainWindow::save_tool_settings() const {
   }
   settings.setValue(QStringLiteral("tools/fillOpacity"), canvas_->fill_opacity());
   settings.setValue(QStringLiteral("tools/fillSoftness"), canvas_->fill_softness());
+  settings.setValue(QStringLiteral("tools/fillTolerance"), canvas_->fill_tolerance());
+  settings.setValue(QStringLiteral("tools/fillContiguous"), canvas_->fill_contiguous());
+  settings.setValue(QStringLiteral("tools/zoomScrubby"), canvas_->zoom_scrubby());
+  settings.setValue(QStringLiteral("tools/zoomToolZoomsOut"), canvas_->zoom_tool_zooms_out());
   settings.setValue(QStringLiteral("tools/gradientMethod"), static_cast<int>(canvas_->gradient_method()));
   settings.setValue(QStringLiteral("tools/gradientReverse"), canvas_->gradient_reverse());
   settings.setValue(QStringLiteral("tools/gradientOpacity"), canvas_->gradient_opacity());
@@ -2171,6 +2247,10 @@ void MainWindow::stash_active_brush_settings() {
   }
   current_fill_opacity_ = canvas_->fill_opacity();
   current_fill_softness_ = canvas_->fill_softness();
+  current_fill_tolerance_ = canvas_->fill_tolerance();
+  current_fill_contiguous_ = canvas_->fill_contiguous();
+  current_zoom_scrubby_ = canvas_->zoom_scrubby();
+  current_zoom_tool_zooms_out_ = canvas_->zoom_tool_zooms_out();
   current_quick_select_size_ = canvas_->quick_select_size();
   current_quick_select_sample_all_layers_ = canvas_->quick_select_sample_all_layers();
   current_quick_select_enhance_edge_ = canvas_->quick_select_enhance_edge();
@@ -2435,6 +2515,12 @@ void MainWindow::refresh_options_bar() {
         widget->objectName() == QStringLiteral("selectionFixedHeightSpin")) {
       enabled = enabled && current_marquee_style_ != CanvasWidget::MarqueeStyle::Normal;
     }
+    // The Zoom tool stays usable while a preview dialog locks editing, so its
+    // options row does too (build_options_bar tags those widgets).
+    const bool allowed_while_locked = widget->property("optionsBarAllowedWhileLocked").toBool();
+    if (allowed_while_locked) {
+      enabled = has_document;
+    }
     if (widget == brush_dynamics_button_ && brush_dynamics_button_ != nullptr) {
       // Enabled once a model is loaded (bitmap tip or the Round session); only the brief
       // pre-initialization state has neither.
@@ -2450,7 +2536,7 @@ void MainWindow::refresh_options_bar() {
     if (auto* button = qobject_cast<QToolButton*>(widget);
         button != nullptr && button->defaultAction() != nullptr) {
       button->defaultAction()->setVisible(visible);
-      button->defaultAction()->setEnabled(edit_allowed);
+      button->defaultAction()->setEnabled(allowed_while_locked ? has_document : edit_allowed);
     }
   }
 
@@ -2504,6 +2590,8 @@ void MainWindow::refresh_options_bar() {
   // The non-modal Character dialog grays out (and shows its click-in-text hint) whenever
   // no live editor session exists; every session boundary funnels through this refresh.
   sync_text_character_dialog_from_editor();
+  // With no session the font, size, face and smoothing controls mirror the active text layer.
+  sync_text_options_from_active_layer();
   if (show_warp_options && warp_style_combo_ != nullptr && warp_bend_spin_ != nullptr) {
     // Mirror the canvas state (a handle drag flips the style back to Custom).
     QSignalBlocker combo_blocker(warp_style_combo_);
@@ -2517,6 +2605,7 @@ void MainWindow::refresh_options_bar() {
     }
   }
   refresh_vector_tool_options_visibility();
+  refresh_vector_stroke_controls();
   if (options_flow_container_ != nullptr) {
     // Visibility changes alter how many controls there are, so recompute the
     // wrapped height and let the toolbar grow or shrink accordingly.
@@ -2609,6 +2698,18 @@ void MainWindow::refresh_options_bar() {
     QSignalBlocker blocker(wand_contiguous_check_);
     wand_contiguous_check_->setChecked(canvas_->wand_contiguous());
   }
+  if (fill_contiguous_check_ != nullptr && canvas_ != nullptr) {
+    QSignalBlocker blocker(fill_contiguous_check_);
+    fill_contiguous_check_->setChecked(canvas_->fill_contiguous());
+  }
+  if (zoom_scrubby_check_ != nullptr && canvas_ != nullptr) {
+    QSignalBlocker blocker(zoom_scrubby_check_);
+    zoom_scrubby_check_->setChecked(canvas_->zoom_scrubby());
+  }
+  if (zoom_in_mode_action_ != nullptr && zoom_out_mode_action_ != nullptr && canvas_ != nullptr) {
+    zoom_in_mode_action_->setChecked(!canvas_->zoom_tool_zooms_out());
+    zoom_out_mode_action_->setChecked(canvas_->zoom_tool_zooms_out());
+  }
   if (wand_sample_all_layers_check_ != nullptr && canvas_ != nullptr) {
     QSignalBlocker blocker(wand_sample_all_layers_check_);
     wand_sample_all_layers_check_->setChecked(canvas_->wand_sample_all_layers());
@@ -2628,7 +2729,7 @@ void MainWindow::refresh_options_bar() {
     }
     if (auto* slider = findChild<QSlider*>(QStringLiteral("quickSelectSizeSlider")); slider != nullptr) {
       QSignalBlocker blocker(slider);
-      slider->setValue(canvas_->quick_select_size());
+      set_slider_to_value(*slider, canvas_->quick_select_size());
     }
     if (auto* spin = findChild<QSpinBox*>(QStringLiteral("magneticLassoWidthSpin")); spin != nullptr) {
       QSignalBlocker blocker(spin);
@@ -2710,6 +2811,27 @@ void MainWindow::apply_selection_modes_to_canvas(CanvasWidget* canvas) {
   }
 }
 
+void MainWindow::apply_selection_edge_settings_for_tool(CanvasTool tool) {
+  const auto index = CanvasWidget::selection_tool_index(tool);
+  if (index < 0) {
+    return;
+  }
+  current_selection_feather_radius_ = selection_feather_by_tool_[static_cast<std::size_t>(index)];
+  current_selection_antialias_ = selection_antialias_by_tool_[static_cast<std::size_t>(index)];
+  if (canvas_ != nullptr) {
+    canvas_->set_selection_feather_radius(current_selection_feather_radius_);
+    canvas_->set_selection_antialias(current_selection_antialias_);
+  }
+  if (auto* feather = findChild<QSpinBox*>(QStringLiteral("selectionFeatherSpin")); feather != nullptr) {
+    const QSignalBlocker blocker(feather);
+    feather->setValue(current_selection_feather_radius_);
+  }
+  if (auto* anti_alias = findChild<QCheckBox*>(QStringLiteral("selectionAntiAliasCheck")); anti_alias != nullptr) {
+    const QSignalBlocker blocker(anti_alias);
+    anti_alias->setChecked(current_selection_antialias_);
+  }
+}
+
 MainWindow::PreviewDialogEditLock::PreviewDialogEditLock(MainWindow& window) noexcept : window_(&window) {
   window_->begin_preview_dialog_edit_lock();
 }
@@ -2740,7 +2862,7 @@ void MainWindow::sync_brush_controls_from_canvas() {
   if (auto* brush_size_slider = findChild<QSlider*>(QStringLiteral("brushSizeSlider"));
       brush_size_slider != nullptr) {
     QSignalBlocker blocker(brush_size_slider);
-    brush_size_slider->setValue(canvas_->brush_size());
+    set_slider_to_value(*brush_size_slider, canvas_->brush_size());
   }
   if (auto* brush_opacity = findChild<QSpinBox*>(QStringLiteral("brushOpacitySpin")); brush_opacity != nullptr) {
     QSignalBlocker blocker(brush_opacity);

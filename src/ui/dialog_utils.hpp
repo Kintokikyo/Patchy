@@ -1,8 +1,11 @@
 #pragma once
 
+#include "ui/curved_slider.hpp"
 #include "ui/theme_qss.hpp"
 #include "ui/unit_spin_box.hpp"
 
+#include <QColor>
+#include <QPoint>
 #include <QFont>
 #include <QString>
 #include <QStringList>
@@ -10,6 +13,8 @@
 #include <QSizeGrip>
 
 #include <exception>
+#include <limits>
+#include <optional>
 
 class QAction;
 class QBoxLayout;
@@ -51,6 +56,37 @@ void configure_toolbar_spinbox(QDoubleSpinBox* spin, int width);
 // spin box's maximum (the spin box itself keeps accepting larger typed values; the
 // slider extends to the current value when it already sits above the cap).
 inline constexpr char kToolbarSpinboxSliderMaxProperty[] = "patchy.popupSliderMax";
+// Set this bool property on an integer toolbar spin box to give its popup slider the
+// SliderCurve::FineLowEnd response (curved_slider.hpp) for size-like ranges.
+inline constexpr char kToolbarSpinboxSliderCurvedProperty[] = "patchy.popupSliderCurved";
+// Scrubby labels (GitHub issue 46, the Photoshop/Figma gesture): a horizontal drag
+// on `label` changes `spin`'s value by one singleStep per pixel (ten with Shift),
+// the label shows the SizeHor cursor, and the drag ends with the spin box's
+// editingFinished so undo paths that coalesce an edit session record one edit. A
+// press without a drag changes nothing. `install_prefix_scrub` makes the prefix text
+// inside a prefixed spin box (Layers panel Opacity/Fill) the handle instead: a drag
+// there scrubs, a plain click focuses the field and selects the number, and the
+// number itself keeps ordinary text selection. `install_scrub_labels_in` walks a
+// container's layout (nested layouts, child containers, QScrollArea contents and
+// QTabWidget pages included) and pairs every QLabel with letters in its text with the
+// spin box it names: the label's buddy when that is a spin box, else the next item in
+// layout order, looking past one QSlider; a spin box pairs directly, and a sub-layout
+// or container widget pairs when its first control (sliders, spacers and unlettered
+// labels passed over) is a spin box: a form row's "[slider] [spin]" or "[spin] - +"
+// field pairs, a "[color button] [spin]" field does not, and a container whose own
+// "Width" label comes first keeps its spins for that label. exec_dialog and run_non_modal_dialog call
+// it on every dialog, and build_options_bar on the options bar, so a new label+field
+// pair opts in by itself; surfaces built after their window is shown (the Filter
+// Gallery's parameter panel) call it again. A spin box that received a handle carries
+// the bool property kScrubHandleInstalledProperty, so repeated installs are no-ops. A
+// label that must not become a handle (the "to" between a range's two fields) sets
+// kScrubLabelExemptProperty. Tests: ui_dialog_scrub_labels_pair_every_row_shape,
+// ui_options_bar_label_scrub_changes_spin_value, ui_layer_opacity_prefix_scrub_is_one_undo_entry.
+inline constexpr char kScrubHandleInstalledProperty[] = "patchy.scrubHandleInstalled";
+inline constexpr char kScrubLabelExemptProperty[] = "patchy.scrubLabelExempt";
+void install_scrub_label(QLabel* label, QAbstractSpinBox* spin);
+void install_prefix_scrub(QSpinBox* spin);
+void install_scrub_labels_in(QWidget* container);
 void configure_dialog_spinbox(QSpinBox* spin, int width = 92);
 void configure_dialog_spinbox(QDoubleSpinBox* spin, int width = 92);
 // Large-button spin box styling (24px - / + buttons with readable glyphs; decrement left,
@@ -94,10 +130,16 @@ QWidget* wrap_spin_with_step_buttons(QAbstractSpinBox* spin, QWidget* parent,
 // these widgets up by exact objectName, so each call site keeps its own naming
 // scheme. row_spacing < 0 keeps the layout's default spacing. step_buttons appends
 // the add_spin_step_buttons pair after the spin box for one-unit adjustments.
+// A slider_maximum below `maximum` stops the slider short of the spin box: the
+// slider covers the practical range while the spin box still accepts `maximum`
+// (a typed value past the slider parks the slider at its end). SliderCurve::FineLowEnd
+// suits size-like ranges; find the slider's value with slider_value(), never value().
 QSpinBox* add_dialog_slider_spin_row(QFormLayout* form, QWidget* parent, const QString& label,
                                      const QString& slider_object_name, const QString& spin_object_name,
                                      int minimum, int maximum, int value, const QString& suffix = QString(),
-                                     int spin_width = 72, int row_spacing = -1, bool step_buttons = false);
+                                     int spin_width = 72, int row_spacing = -1, bool step_buttons = false,
+                                     int slider_maximum = std::numeric_limits<int>::max(),
+                                     SliderCurve curve = SliderCurve::Linear);
 // Same row with a unit-entry spin box: the suffix comes from the native unit and typed
 // unit tokens convert on entry (px/in/cm/mm/pt/%/deg; see unit_spin_box.hpp). `provider`
 // supplies the PPI and percent basis; leave it empty for a plain 300 ppi, no-percent field.
@@ -105,7 +147,8 @@ UnitIntSpinBox* add_dialog_slider_spin_row(QFormLayout* form, QWidget* parent, c
                                            const QString& slider_object_name, const QString& spin_object_name,
                                            int minimum, int maximum, int value, SpinUnit unit,
                                            UnitIntSpinBox::ContextProvider provider = {}, int spin_width = 72,
-                                           int row_spacing = -1, bool step_buttons = false);
+                                           int row_spacing = -1, bool step_buttons = false,
+                                           SliderCurve curve = SliderCurve::Linear);
 // Moves a popup (already resized to its final size) directly below `anchor`:
 // clamps it inside the screen's available horizontal range and flips it above
 // the anchor when it would run past the bottom. Call before show().
@@ -158,6 +201,18 @@ bool unwind_non_modal_dialog_loop(std::exception_ptr error);
 // in dialog_utils_mac.mm; a no-op on other platforms, where the window system
 // already keeps owned/transient dialogs above their parent.
 void keep_dialog_above_parent_window(QDialog& dialog);
+// Moves the mouse pointer. Use this, never QCursor::setPos: on macOS Qt moves the
+// pointer by posting a synthetic mouse event, which makes the system ask the user to
+// let Patchy control the computer (Accessibility). The macOS half
+// (dialog_utils_mac.mm) warps the pointer directly, which needs no permission.
+void move_pointer_to_global_position(QPoint global_position);
+// The color under a global point, for eyedroppers that reach outside the document.
+// own_window_* renders the Patchy window under the point (nullopt when there is none,
+// or the point is on its native frame). screen_color_* reads the composited screen;
+// on macOS that raises the Screen Recording permission prompt, so there it tries the
+// own-window render first and only a pick outside Patchy's windows reads the screen.
+[[nodiscard]] std::optional<QColor> own_window_color_at_global_position(QPoint global_position);
+[[nodiscard]] std::optional<QColor> screen_color_at_global_position(QPoint global_position);
 // Stops a QTabWidget's tab bar from painting the light native tab-bar base across
 // its width (the ::tab stylesheet rules still apply). On macOS the base turns the
 // whole empty area next to the tabs bright white on the dark theme; on Windows it

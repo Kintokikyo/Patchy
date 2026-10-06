@@ -20,7 +20,7 @@ keep the original defaults. See [vector-preview.md](vector-preview.md).
 
 ## GRD files
 
-`src/psd/grd_io.*` reads and writes Photoshop `8BGR` version 5 files containing a version-16 `GrdL` descriptor. It supports solid `CstS`, noise `ClNs`, dynamic `FrgC`/`BckC` stops, ZString display names, and the trailing `8BIMphry` hierarchy. Imports are limited to 32 MiB, 4096 gradients, and 256 stops per list. A damaged tail may return the valid decoded prefix with warnings; structural damage before the first usable gradient is an error.
+`src/psd/grd_io.*` reads and writes Photoshop `8BGR` version 5 files containing a version-16 `GrdL` descriptor. It supports solid `CstS`, noise `ClNs`, dynamic `FrgC`/`BckC` stops, ZString display names, and the trailing `8BIMphry` hierarchy. Imports are limited to 32 MiB, 4096 gradients, and 256 stops per list. A damaged tail may return the valid decoded prefix with warnings; structural damage before the first usable gradient is an error. Gray `Grsc` stops read `Gry ` as Photoshop's black percentage (100 = black), the same convention as lfx2 gray effect colors.
 
 The application library lives under the settings directory's `gradients/` folder. Each entry is one single-gradient `.grd` plus a JSON sidecar with its fixed storage id, canonical name, and folder path. Default ids and English names in `src/core/gradient_presets.cpp` are persisted and append-only. New defaults need a new `introduced_version` and a `kDefaultGradientsVersion` bump; never rename or reuse an existing id.
 
@@ -36,3 +36,7 @@ Gradient Overlay `GrFl` and gradient Stroke `FrFX` share the definition codec bu
 
 Factory reset writes a copied library entry first. In-memory gradients change only
 after the save succeeds, so a write failure leaves the current library intact.
+
+## Noise gradients in PSD fill layers
+
+A Gradient Fill layer or shape stroke may carry a noise (`ClNs`) gradient. Photoshop's PSDs store the channel ranges `Mnm `/`Mxm ` as doubles (79.9988 for 80), where GRD files use longs; the reader accepts both. `gradient_object` (src/psd/psd_vector.cpp) writes the noise form with Photoshop's keys and order (`Nm`, `GrdF`, `ShTr`, `VctC`, `ClrS`, `RndS`, `Smth`, `Mnm`, `Mxm`) and no stop lists. A noise gradient is never "healed" for missing transparency stops: writing it as a stop gradient left an empty `Clrs` list and Photoshop dropped the fill layer on open (psd-tools' `gradients/noise-gradient-*.psd`, found by Testy in October 2026; Photoshop 2026 opens the regenerated file clean with all three layers still Gradient Fill).

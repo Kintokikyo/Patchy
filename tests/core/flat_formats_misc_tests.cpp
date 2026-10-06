@@ -1,3 +1,5 @@
+#include "formats/animation_timing.hpp"
+#include "formats/webp_animation_io.hpp"
 #include "color/color_management.hpp"
 #include "core/adjustment_layer.hpp"
 #include "core/blend_math.hpp"
@@ -1512,6 +1514,65 @@ void ilbm_write_read_round_trips_indexed() {
   patchy::ilbm::DocumentIo::write_file(document, "test-artifacts/ilbm_written.lbm");
 }
 
+void webp_animation_lossless_timing_loops_and_limits() {
+  patchy::PixelBuffer first(16, 12, patchy::PixelFormat::rgba8());
+  patchy::PixelBuffer second(16, 12, patchy::PixelFormat::rgba8());
+  for (int y = 0; y < 12; ++y) for (int x = 0; x < 16; ++x) {
+    auto* a = first.pixel(x, y); auto* b = second.pixel(x, y);
+    a[0] = static_cast<std::uint8_t>(x * 13); a[1] = 60; a[2] = 170; a[3] = 127;
+    b[0] = 240; b[1] = static_cast<std::uint8_t>(y * 17); b[2] = 20; b[3] = 255;
+  }
+  for (const auto loops : {0, 1, 3, 65535}) {
+    patchy::webp::AnimationEncoder encoder(16, 12, static_cast<std::uint16_t>(loops), 75, true);
+    encoder.add(first, 33); encoder.add(second, 67); encoder.add(first, 101);
+    const auto bytes = encoder.finish();
+    int count = 0;
+    const std::array<unsigned, 3> durations{33, 67, 101};
+    CHECK(patchy::webp::decode_animation(bytes, 1024 * 1024, [&](const auto& info) {
+      CHECK(info.width == 16); CHECK(info.height == 12); CHECK(info.loop_count == loops);
+      CHECK(info.frame_count == 3);
+    }, [&](patchy::PixelBuffer pixels, unsigned duration) {
+      CHECK(duration == durations[static_cast<std::size_t>(count)]);
+      const auto& expected = count == 1 ? second : first;
+      CHECK(std::equal(pixels.data().begin(), pixels.data().end(), expected.data().begin()));
+      ++count;
+    }));
+    CHECK(count == 3);
+    bool threw = false;
+    try { patchy::webp::decode_animation(bytes, 10, [](const auto&) {}, [](auto, auto) {}); }
+    catch (const std::exception&) { threw = true; }
+    CHECK(threw);
+    auto truncated = bytes; truncated.resize(bytes.size() / 2);
+    threw = false;
+    try { patchy::webp::decode_animation(truncated, 0, [](const auto&) {}, [](auto, auto) {}); }
+    catch (const std::exception&) { threw = true; }
+    CHECK(threw);
+  }
+  bool threw = false;
+  try { patchy::webp::AnimationEncoder invalid(16384, 12, 0, 75, false); }
+  catch (const std::exception&) { threw = true; }
+  CHECK(threw);
+  patchy::webp::AnimationEncoder encoder(16, 12, 0, 20, false);
+  encoder.add(first, 0); encoder.add(second, 50);
+  CHECK(!encoder.finish().empty());
+}
+
+void webp_animation_millisecond_tokens_preserve_gif_rounding() {
+  using patchy::animation::parse_layer_name_delay_ms;
+  CHECK(parse_layer_name_delay_ms("Frame 1 0.033s") == 33u);
+  CHECK(parse_layer_name_delay_ms("Frame 1 0.0449s") == 45u);
+  CHECK(patchy::gif::parse_layer_name_delay_cs("Frame 1 0.0449s") == 4);
+  CHECK(parse_layer_name_delay_ms("Frame 1 .5s") == 500u);
+  CHECK(parse_layer_name_delay_ms("Frame 1 0s") == 0u);
+  CHECK(parse_layer_name_delay_ms("99999999999999999999999s") == patchy::animation::kMaxFrameDelayMs);
+  for (const auto name : {"", "word", "0.5S", "0,5s", "1e2s", "2.3.4s", ".s"}) {
+    CHECK(!parse_layer_name_delay_ms(name).has_value());
+  }
+  for (const unsigned delay : {0U, 1U, 33U, 100U, 1001U, 16777215U}) {
+    CHECK(parse_layer_name_delay_ms(patchy::animation::format_delay_seconds_token(delay)) == delay);
+  }
+}
+
 }  // namespace
 
 std::vector<patchy::test::TestCase> flat_formats_misc_tests() {
@@ -1527,6 +1588,8 @@ std::vector<patchy::test::TestCase> flat_formats_misc_tests() {
       {"tga_palette_mode_writes_indexed", tga_palette_mode_writes_indexed},
       {"tga_reads_real_world_samples", tga_reads_real_world_samples},
       {"gif_lzw_round_trips_through_reference_decoder", gif_lzw_round_trips_through_reference_decoder},
+      {"webp_animation_lossless_timing_loops_and_limits", webp_animation_lossless_timing_loops_and_limits},
+      {"webp_animation_millisecond_tokens_preserve_gif_rounding", webp_animation_millisecond_tokens_preserve_gif_rounding},
       {"gif_encoder_bytes_are_stable", gif_encoder_bytes_are_stable},
       {"gif_document_write_quantizes_and_round_trips", gif_document_write_quantizes_and_round_trips},
       {"gif_animation_encodes_frames_delays_and_loop", gif_animation_encodes_frames_delays_and_loop},

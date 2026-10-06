@@ -12,6 +12,7 @@
 #include "core/layer_metadata.hpp"
 #include "core/smart_object.hpp"
 #include "core/text_warp.hpp"
+#include "support/atomic_file_write.hpp"
 #include "core/warp_mesh.hpp"
 #include "core/layer_render_utils.hpp"
 #include "core/layer_tree.hpp"
@@ -49,6 +50,7 @@
 #include "ui/gradient_manager_dialog.hpp"
 #include "ui/dialog_utils.hpp"
 #include "ui/document_float_window.hpp"
+#include "ui/qt_paths.hpp"
 #include "ui/font_picker.hpp"
 #include "ui/hotkey_editor.hpp"
 #include "ui/edit_conversions.hpp"
@@ -57,6 +59,7 @@
 #include "ui/layer_list_widget.hpp"
 #include "ui/localization.hpp"
 #include "ui/measurement_units.hpp"
+#include "ui/theme_file.hpp"
 #include "ui/theme_manager.hpp"
 #include "ui/user_fonts.hpp"
 #include "ui/palette_convert_dialog.hpp"
@@ -110,7 +113,6 @@
 #include <QDragLeaveEvent>
 #include <QDropEvent>
 #include <QDoubleSpinBox>
-#include <QElapsedTimer>
 #include <QEvent>
 #include <QEventLoop>
 #include <QFileDialog>
@@ -125,6 +127,7 @@
 #include <QFrame>
 #include <QGridLayout>
 #include <QGroupBox>
+#include <QHash>
 #include <QHeaderView>
 #include <QHBoxLayout>
 #include <QLayout>
@@ -224,6 +227,7 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <span>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -240,10 +244,6 @@
 #include <dwmapi.h>
 #include <tchar.h>
 #include <tpcshrd.h>
-#endif
-
-#ifndef PATCHY_VERSION
-#define PATCHY_VERSION "0.0.0"
 #endif
 
 // Icon resources live in the static patchy_ui library; force registration before first use.
@@ -421,8 +421,16 @@ void MainWindow::show_preferences() {
   const auto make_tab_page = [](QWidget* parent) {
     // Wrap each tab in a scroll area so a tab whose content is taller than the
     // dialog scrolls instead of overlapping its own controls.
-    auto* scroll = new QScrollArea(parent);
+    // The host insets the scroll area from the pane's top and bottom edges so
+    // the vertical scroll bar does not butt against the pane border.
+    auto* host = new QWidget(parent);
+    host->setObjectName(QStringLiteral("preferencesTabHost"));
+    auto* host_layout = new QVBoxLayout(host);
+    host_layout->setContentsMargins(0, 6, 0, 6);
+    host_layout->setSpacing(0);
+    auto* scroll = new QScrollArea(host);
     scroll->setObjectName(QStringLiteral("preferencesTabScroll"));
+    host_layout->addWidget(scroll);
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
     scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -432,7 +440,7 @@ void MainWindow::show_preferences() {
     layout->setContentsMargins(12, 12, 12, 12);
     layout->setSpacing(10);
     scroll->setWidget(page);
-    return std::pair<QWidget*, QVBoxLayout*>{scroll, layout};
+    return std::pair<QWidget*, QVBoxLayout*>{host, layout};
   };
   const auto configure_panel = [](QFrame* panel) {
     panel->setProperty("preferencesPanel", true);
@@ -448,6 +456,10 @@ void MainWindow::show_preferences() {
   auto* tabs = new QTabWidget(&dialog);
   tabs->setObjectName(QStringLiteral("preferencesTabWidget"));
   tabs->setDocumentMode(true);
+  // Every tab stays visible: without scroll buttons the tab bar's minimum
+  // width is the full row, which the layout passes on to the dialog, so the
+  // last tabs never hide behind arrows.
+  tabs->setUsesScrollButtons(false);
   suppress_native_tab_bar_base(*tabs);
 
   auto [application_page, application_layout] = make_tab_page(tabs);
@@ -475,22 +487,320 @@ void MainWindow::show_preferences() {
                               color_scheme_preference_to_token(ColorSchemePreference::FollowSystem));
   color_scheme_combo->addItem(tr("Dark"), color_scheme_preference_to_token(ColorSchemePreference::Dark));
   color_scheme_combo->addItem(tr("Light"), color_scheme_preference_to_token(ColorSchemePreference::Light));
+
+  // Data token for a custom entry: "custom:" + its theme id (a file name within
+  // user_themes_directory(), or "bundled:" + a compiled-in file; see
+  // theme_file.hpp). Kept distinct from the three built-in tokens above, which
+  // are bare scheme spellings and can never start with "custom:".
+  const auto custom_theme_token = [](const QString& file_name) { return QStringLiteral("custom:") + file_name; };
+  // Loaded once per dialog open and shared by the preview handler, the Import
+  // button, and the commit branch below, so none of them re-read a file
+  // mid-dialog.
+  auto custom_themes = std::make_shared<QHash<QString, CustomTheme>>();
+  const auto add_custom_theme_entry = [color_scheme_combo, custom_themes, custom_theme_token](
+                                          const QString& id, const CustomTheme& custom_theme) {
+    const auto name = custom_theme.name.isEmpty() ? id : custom_theme.name;
+    // Compiled-in themes carry a tag: an exported copy in the user's folder
+    // keeps the same name, and the two must stay tellable apart in the list.
+    color_scheme_combo->addItem(is_bundled_theme_id(id) ? tr("%1 (built-in)").arg(name) : name,
+                                custom_theme_token(id));
+    color_scheme_combo->setItemData(color_scheme_combo->count() - 1, id, Qt::ToolTipRole);
+    custom_themes->insert(id, custom_theme);
+  };
+  // Drops every theme entry (and the separators before them) and re-reads
+  // them: the bundled set first, then the user's folder. Runs at open, after
+  // Delete, and from the Reload button, which is the authoring loop (edit the
+  // JSON in a text editor, click Reload). Callers block the combo's signals
+  // around it, because removing the current item moves the selection.
+  const auto rescan_custom_themes = [color_scheme_combo, custom_themes, add_custom_theme_entry] {
+    for (int i = color_scheme_combo->count() - 1; i >= 0; --i) {
+      const auto token = color_scheme_combo->itemData(i).toString();
+      if (token.isEmpty() || token.startsWith(QStringLiteral("custom:"))) {
+        color_scheme_combo->removeItem(i);
+      }
+    }
+    custom_themes->clear();
+    color_scheme_combo->insertSeparator(color_scheme_combo->count());
+    for (const auto& file_name : bundled_theme_file_names()) {
+      const auto id = kBundledThemeIdPrefix + file_name;
+      auto result = load_theme_by_id(id);
+      if (result.theme) {
+        add_custom_theme_entry(id, *result.theme);
+      }
+    }
+    const auto themes_dir = user_themes_directory();
+    if (themes_dir.isEmpty()) {
+      return;
+    }
+    const auto entries = QDir(themes_dir).entryList({QStringLiteral("*.patchytheme")}, QDir::Files, QDir::Name);
+    if (!entries.isEmpty()) {
+      color_scheme_combo->insertSeparator(color_scheme_combo->count());
+    }
+    for (const auto& file_name : entries) {
+      auto result = load_theme_by_id(file_name);
+      if (result.theme) {
+        add_custom_theme_entry(file_name, *result.theme);
+      }
+    }
+  };
+  rescan_custom_themes();
+  // Applies whatever the combo currently shows as a live preview (never
+  // persisted here; the commit branch below persists on OK). Shared by the
+  // combo's change handler, Reload, and Delete.
+  const auto apply_combo_selection = [color_scheme_combo, custom_themes] {
+    const auto token = color_scheme_combo->currentData().toString();
+    if (token.startsWith(QStringLiteral("custom:"))) {
+      const auto found = custom_themes->find(token.mid(7));
+      if (found != custom_themes->end()) {
+        ThemeManager::instance().set_custom_theme(token.mid(7), found.value(), /*persist=*/false);
+      }
+      return;
+    }
+    ThemeManager::instance().set_preference(color_scheme_preference_from_token(token), /*persist=*/false);
+  };
+
   const auto entry_color_scheme = ThemeManager::instance().preference();
-  const auto color_scheme_index =
-      color_scheme_combo->findData(color_scheme_preference_to_token(entry_color_scheme));
+  const auto entry_custom_id = ThemeManager::instance().active_custom_theme_id();
+  const auto entry_token =
+      entry_custom_id ? custom_theme_token(*entry_custom_id) : color_scheme_preference_to_token(entry_color_scheme);
+  const auto color_scheme_index = color_scheme_combo->findData(entry_token);
   color_scheme_combo->setCurrentIndex(color_scheme_index >= 0 ? color_scheme_index : 0);
   application_form->addRow(tr("Color scheme:"), color_scheme_combo);
+
+#ifndef Q_OS_WASM
+  // The theme buttons are desktop-only: wasm has no AppData store to hold the
+  // imported files (user_themes_directory() is empty there).
+  auto* import_theme_button = new QPushButton(tr("Import Theme..."), application_group);
+  import_theme_button->setObjectName(QStringLiteral("preferencesImportThemeButton"));
+  auto* export_theme_button = new QPushButton(tr("Export Theme..."), application_group);
+  export_theme_button->setObjectName(QStringLiteral("preferencesExportThemeButton"));
+  auto* reload_themes_button = new QPushButton(tr("Reload Themes"), application_group);
+  reload_themes_button->setObjectName(QStringLiteral("preferencesReloadThemesButton"));
+  reload_themes_button->setToolTip(tr("Re-read the theme files in the themes folder and apply the selected one."));
+  auto* delete_theme_button = new QPushButton(tr("Delete Theme..."), application_group);
+  delete_theme_button->setObjectName(QStringLiteral("preferencesDeleteThemeButton"));
+  auto* open_themes_folder_button = new QPushButton(tr("Open Themes Folder"), application_group);
+  open_themes_folder_button->setObjectName(QStringLiteral("preferencesOpenThemesFolderButton"));
+  // Two rows: five buttons in one row are wider than the field column, and
+  // the tab's scroll area clips rather than scrolls horizontally, which cut
+  // off the last button and every combo's arrow (September 2026).
+  auto* theme_buttons_row = new QHBoxLayout();
+  theme_buttons_row->addWidget(import_theme_button);
+  theme_buttons_row->addWidget(export_theme_button);
+  theme_buttons_row->addWidget(reload_themes_button);
+  theme_buttons_row->addStretch(1);
+  application_form->addRow(QString(), theme_buttons_row);
+  auto* theme_buttons_row2 = new QHBoxLayout();
+  theme_buttons_row2->addWidget(delete_theme_button);
+  theme_buttons_row2->addWidget(open_themes_folder_button);
+  theme_buttons_row2->addStretch(1);
+  application_form->addRow(QString(), theme_buttons_row2);
+
+  // Delete applies to the user-folder entry the combo shows; a built-in scheme
+  // and a bundled theme cannot be deleted.
+  const auto update_delete_enabled = [color_scheme_combo, delete_theme_button] {
+    const auto token = color_scheme_combo->currentData().toString();
+    delete_theme_button->setEnabled(token.startsWith(QStringLiteral("custom:")) &&
+                                    !is_bundled_theme_id(token.mid(7)));
+  };
+  update_delete_enabled();
+  connect(color_scheme_combo, &QComboBox::currentIndexChanged, &dialog, update_delete_enabled);
+
+  connect(open_themes_folder_button, &QPushButton::clicked, &dialog, [&dialog] {
+    const auto themes_dir = user_themes_directory();
+    if (themes_dir.isEmpty() || !QDir().mkpath(themes_dir) ||
+        !QDesktopServices::openUrl(QUrl::fromLocalFile(themes_dir))) {
+      show_critical_message(&dialog, tr("Open Themes Folder"), tr("Could not open the themes folder."),
+                            QStringLiteral("openThemesFolderFailedMessageBox"));
+    }
+  });
+
+  connect(reload_themes_button, &QPushButton::clicked, &dialog,
+          [color_scheme_combo, rescan_custom_themes, apply_combo_selection, update_delete_enabled] {
+            const auto token = color_scheme_combo->currentData().toString();
+            {
+              const QSignalBlocker blocker(color_scheme_combo);
+              rescan_custom_themes();
+              const auto index = color_scheme_combo->findData(token);
+              color_scheme_combo->setCurrentIndex(index >= 0 ? index : 0);
+            }
+            // A re-read file may hold new colors under the same name, so apply
+            // even when the selection did not move.
+            apply_combo_selection();
+            update_delete_enabled();
+          });
+
+  connect(delete_theme_button, &QPushButton::clicked, &dialog,
+          [&dialog, color_scheme_combo, rescan_custom_themes, apply_combo_selection, update_delete_enabled] {
+            const auto token = color_scheme_combo->currentData().toString();
+            if (!token.startsWith(QStringLiteral("custom:")) || is_bundled_theme_id(token.mid(7))) {
+              return;
+            }
+            const auto file_name = token.mid(7);
+            QMessageBox confirm(QMessageBox::Question, tr("Delete Theme"),
+                                tr("Delete the theme \"%1\"? Its file is removed from the themes folder.")
+                                    .arg(color_scheme_combo->currentText()),
+                                QMessageBox::NoButton, &dialog);
+            confirm.setObjectName(QStringLiteral("preferencesDeleteThemeConfirm"));
+            auto* delete_button = confirm.addButton(tr("Delete"), QMessageBox::AcceptRole);
+            confirm.addButton(QMessageBox::Cancel);
+            confirm.setDefaultButton(delete_button);
+            exec_dialog(confirm);
+            if (confirm.clickedButton() != delete_button) {
+              return;
+            }
+            const auto themes_dir = user_themes_directory();
+            if (themes_dir.isEmpty() || !QFile::remove(QDir(themes_dir).filePath(file_name))) {
+              show_critical_message(&dialog, tr("Delete Theme"), tr("Could not delete \"%1\".").arg(file_name),
+                                    QStringLiteral("deleteThemeFailedMessageBox"));
+              return;
+            }
+            {
+              const QSignalBlocker blocker(color_scheme_combo);
+              rescan_custom_themes();
+              color_scheme_combo->setCurrentIndex(0);
+            }
+            apply_combo_selection();
+            update_delete_enabled();
+          });
+
+  // Import copies the picked file into user_themes_directory() and previews it
+  // immediately, independent of the dialog's Accept/Reject (like "Remove Added
+  // Fonts..." above): the file itself is not a preference, so there is nothing
+  // for the scope guard above to undo if the dialog is later rejected. Only the
+  // live preview it also triggers is covered by that guard.
+  connect(import_theme_button, &QPushButton::clicked, &dialog,
+          [&dialog, color_scheme_combo, add_custom_theme_entry, custom_theme_token] {
+            const auto path = get_open_file_name(&dialog, tr("Import Theme"), QString(),
+                                                 tr("Patchy theme (*.patchytheme)"));
+            if (path.isEmpty()) {
+              return;
+            }
+            QFile source(path);
+            if (!source.open(QIODevice::ReadOnly)) {
+              show_critical_message(&dialog, tr("Import failed"), tr("Could not open \"%1\".").arg(path),
+                                    QStringLiteral("importThemeFailedMessageBox"));
+              return;
+            }
+            const auto json = source.readAll();
+            auto result = load_theme_from_json(json);
+            if (!result.theme) {
+              show_critical_message(&dialog, tr("Import failed"), result.error,
+                                    QStringLiteral("importThemeFailedMessageBox"));
+              return;
+            }
+            const auto themes_dir = user_themes_directory();
+            if (themes_dir.isEmpty() || !QDir().mkpath(themes_dir)) {
+              show_critical_message(&dialog, tr("Import failed"), tr("Could not create the themes folder."),
+                                    QStringLiteral("importThemeFailedMessageBox"));
+              return;
+            }
+            // Copy under the picked file's own name, de-duplicated on a
+            // collision, so the file persists independent of where it was
+            // imported from and load_saved_preference() can find it again by
+            // that name alone.
+            const QDir dir(themes_dir);
+            const auto base_info = QFileInfo(path);
+            const auto stem = base_info.completeBaseName();
+            const auto suffix = base_info.suffix();
+            auto file_name = base_info.fileName();
+            for (int attempt = 2; QFileInfo::exists(dir.filePath(file_name)); ++attempt) {
+              file_name = QStringLiteral("%1-%2.%3").arg(stem).arg(attempt).arg(suffix);
+            }
+            try {
+              write_file_bytes_atomically(to_filesystem_path(dir.filePath(file_name)),
+                                          std::span<const std::uint8_t>(
+                                              reinterpret_cast<const std::uint8_t*>(json.constData()),
+                                              static_cast<std::size_t>(json.size())),
+                                          "Could not create the theme file", "Could not write the theme file");
+            } catch (const std::exception& error) {
+              show_critical_message(&dialog, tr("Import failed"), QString::fromUtf8(error.what()),
+                                    QStringLiteral("importThemeFailedMessageBox"));
+              return;
+            }
+            add_custom_theme_entry(file_name, *result.theme);
+            color_scheme_combo->setCurrentIndex(color_scheme_combo->findData(custom_theme_token(file_name)));
+          });
+
+  // Export writes the palette the combo currently shows. It opens in the
+  // themes folder, suggests the shown theme's own name, and when the file
+  // lands in that folder lists and selects it at once, so "export a built-in,
+  // then edit it" is one step.
+  connect(export_theme_button, &QPushButton::clicked, &dialog,
+          [&dialog, color_scheme_combo, custom_themes, rescan_custom_themes, apply_combo_selection,
+           update_delete_enabled] {
+            auto suggested_name = color_scheme_combo->currentText();
+            if (const auto token = color_scheme_combo->currentData().toString();
+                token.startsWith(QStringLiteral("custom:"))) {
+              const auto found = custom_themes->find(token.mid(7));
+              if (found != custom_themes->end() && !found.value().name.isEmpty()) {
+                suggested_name = found.value().name;
+              }
+            }
+            if (suggested_name.isEmpty()) {
+              suggested_name = tr("Theme", "Default file name offered when exporting a theme; the save dialog "
+                                           "appends the extension.");
+            }
+            auto initial_path = suggested_name + QStringLiteral(".patchytheme");
+            const auto themes_dir = user_themes_directory();
+            if (!themes_dir.isEmpty() && QDir().mkpath(themes_dir)) {
+              initial_path = QDir(themes_dir).filePath(initial_path);
+            }
+            const auto path = get_save_file_name(&dialog, tr("Export Theme"), initial_path,
+                                                 tr("Patchy theme (*.patchytheme)"), nullptr,
+                                                 QStringLiteral("exportThemeFileDialog"));
+            if (path.isEmpty()) {
+              return;
+            }
+            const auto json =
+                serialize_theme_to_json(theme(), active_color_scheme(), QFileInfo(path).completeBaseName());
+            try {
+              write_file_bytes_atomically(
+                  to_filesystem_path(path),
+                  std::span<const std::uint8_t>(reinterpret_cast<const std::uint8_t*>(json.constData()),
+                                                static_cast<std::size_t>(json.size())),
+                  "Could not create the theme file", "Could not write the theme file");
+            } catch (const std::exception& error) {
+              show_critical_message(&dialog, tr("Export failed"), QString::fromUtf8(error.what()),
+                                    QStringLiteral("exportThemeFailedMessageBox"));
+              return;
+            }
+            const QFileInfo written(path);
+            if (themes_dir.isEmpty() ||
+                QDir::cleanPath(written.absolutePath()) != QDir::cleanPath(QDir(themes_dir).absolutePath())) {
+              return;
+            }
+            {
+              const QSignalBlocker blocker(color_scheme_combo);
+              rescan_custom_themes();
+              const auto index = color_scheme_combo->findData(QStringLiteral("custom:") + written.fileName());
+              color_scheme_combo->setCurrentIndex(index >= 0 ? index : 0);
+            }
+            apply_combo_selection();
+            update_delete_enabled();
+          });
+#endif
+
   // The combo previews the scheme live, so every path out of the dialog that is
   // not Accept has to put it back. The chrome X and Esc both reject (the dialog
   // has no Cancel button but install_dark_dialog_chrome still closes by
   // rejecting), and run_stress_test_interactive runs past the accept branch, so
   // a scope guard is safer than an else.
   bool color_scheme_committed = false;
-  const auto restore_color_scheme = qScopeGuard([entry_color_scheme, &color_scheme_committed] {
-    if (!color_scheme_committed) {
-      ThemeManager::instance().set_preference(entry_color_scheme, /*persist=*/false);
-    }
-  });
+  const auto restore_color_scheme =
+      qScopeGuard([entry_color_scheme, entry_custom_id, custom_themes, &color_scheme_committed] {
+        if (color_scheme_committed) {
+          return;
+        }
+        if (entry_custom_id) {
+          const auto found = custom_themes->find(*entry_custom_id);
+          if (found != custom_themes->end()) {
+            ThemeManager::instance().set_custom_theme(*entry_custom_id, found.value(), /*persist=*/false);
+            return;
+          }
+        }
+        ThemeManager::instance().set_preference(entry_color_scheme, /*persist=*/false);
+      });
 
   auto* gui_scale_combo = new QComboBox(application_group);
   gui_scale_combo->setObjectName(QStringLiteral("preferencesGuiScaleCombo"));
@@ -504,11 +814,37 @@ void MainWindow::show_preferences() {
 
 #ifndef Q_OS_WASM
   // The web build has no update check to configure: the deployed site is
-  // always the current version.
-  auto* update_check = new QCheckBox(tr("Check for updates on startup"), application_group);
-  update_check->setObjectName(QStringLiteral("preferencesCheckForUpdatesCheck"));
-  update_check->setChecked(settings.value(QStringLiteral("updates/checkOnStartup"), true).toBool());
-  application_form->addRow(update_check);
+  // always the current version. A store build has none either (the store updates it).
+  QCheckBox* update_check = nullptr;
+  if (update_checks_available()) {
+    update_check = new QCheckBox(tr("Check for updates on startup"), application_group);
+    update_check->setObjectName(QStringLiteral("preferencesCheckForUpdatesCheck"));
+    update_check->setChecked(settings.value(QStringLiteral("updates/checkOnStartup"), true).toBool());
+    application_form->addRow(update_check);
+  }
+  // Automatic document recovery (docs/document-recovery.md): a checkbox and the
+  // interval combo on one row, the way Photoshop's File Handling page lays it out.
+  auto* recovery_row = new QWidget(application_group);
+  auto* recovery_layout = new QHBoxLayout(recovery_row);
+  recovery_layout->setContentsMargins(0, 0, 0, 0);
+  auto* recovery_check = new QCheckBox(tr("Automatically save recovery information every"), recovery_row);
+  recovery_check->setObjectName(QStringLiteral("preferencesRecoveryEnabledCheck"));
+  recovery_check->setToolTip(
+      tr("Writes a copy of each changed document to a recovery folder so it can be reopened after a "
+         "crash. The file you saved is never touched, and the copies are removed when Patchy quits normally."));
+  recovery_check->setChecked(stored_recovery_enabled());
+  auto* recovery_combo = new QComboBox(recovery_row);
+  recovery_combo->setObjectName(QStringLiteral("preferencesRecoveryIntervalCombo"));
+  for (const int minutes : kRecoveryIntervalMinutes) {
+    recovery_combo->addItem(tr("%n minute(s)", nullptr, minutes), minutes);
+  }
+  recovery_combo->setCurrentIndex(recovery_combo->findData(stored_recovery_interval_minutes()));
+  recovery_combo->setEnabled(recovery_check->isChecked());
+  connect(recovery_check, &QCheckBox::toggled, recovery_combo, &QComboBox::setEnabled);
+  recovery_layout->addWidget(recovery_check);
+  recovery_layout->addWidget(recovery_combo);
+  recovery_layout->addStretch(1);
+  application_form->addRow(recovery_row);
 #endif
   auto* psd_import_warnings_check =
       new QCheckBox(tr("Show import warnings and notes in a popup (status bar otherwise)"), application_group);
@@ -527,32 +863,6 @@ void MainWindow::show_preferences() {
          "(as-shot white balance, no adjustments)."));
   raw_develop_check->setChecked(settings.value(QStringLiteral("imports/showRawDevelopDialog"), true).toBool());
   application_form->addRow(raw_develop_check);
-  auto* transform_shift_aspect_check =
-      new QCheckBox(tr("Hold Shift to keep the aspect ratio when transforming"), application_group);
-  transform_shift_aspect_check->setObjectName(QStringLiteral("preferencesTransformShiftAspectCheck"));
-  transform_shift_aspect_check->setToolTip(
-      tr("When off, corner handles keep the aspect ratio and Shift resizes freely, matching "
-         "current Photoshop. When on, corner handles resize freely and Shift keeps the aspect ratio."));
-  transform_shift_aspect_check->setChecked(shift_keeps_transform_aspect_);
-  application_form->addRow(transform_shift_aspect_check);
-  auto* transform_values_check =
-      new QCheckBox(tr("Show transformation values while dragging"), application_group);
-  transform_values_check->setObjectName(QStringLiteral("preferencesShowTransformValuesCheck"));
-  transform_values_check->setToolTip(
-      tr("Shows a small readout beside the pointer while moving, scaling, or rotating: the "
-         "reference point's position and the offset, the width and height with the scale "
-         "percentages, or the angle and how far it turned."));
-  transform_values_check->setChecked(show_transform_drag_values_);
-  application_form->addRow(transform_values_check);
-  auto* transform_snap_check = new QCheckBox(tr("Snap transforms to the pixel grid"), application_group);
-  transform_snap_check->setObjectName(QStringLiteral("preferencesTransformSnapToPixelGridCheck"));
-  transform_snap_check->setToolTip(
-      tr("Positions and sizes typed into the Free Transform bar land on whole pixels, like "
-         "Photoshop's \"Snap Vector Tools and Transforms to Pixel Grid\". Rotated transforms are "
-         "not snapped. When off, a typed fraction such as 3.4 px is kept and the pixels are "
-         "resampled."));
-  transform_snap_check->setChecked(snap_transforms_to_pixel_grid_);
-  application_form->addRow(transform_snap_check);
   auto* zoom_thumbnails_check =
       new QCheckBox(tr("Zoom layer thumbnails to the layer content"), application_group);
   zoom_thumbnails_check->setObjectName(QStringLiteral("preferencesZoomLayerThumbnailsCheck"));
@@ -614,7 +924,8 @@ void MainWindow::show_preferences() {
   // Fonts dropped onto the window persist (desktop: the AppData user-fonts
   // directory; wasm: IndexedDB). This is the one way to empty that store;
   // already-registered fonts stay usable because application fonts are never
-  // removed at runtime.
+  // removed at runtime, and on desktop their store files are only deleted by
+  // the next launch (docs/fonts.md).
   auto* remove_fonts_button = new QPushButton(tr("Remove Added Fonts..."), application_group);
   remove_fonts_button->setObjectName(QStringLiteral("preferencesRemoveUserFontsButton"));
   application_form->addRow(remove_fonts_button);
@@ -690,11 +1001,53 @@ void MainWindow::show_preferences() {
 
   // Connected after setCurrentIndex so restoring the saved value does not count
   // as a user choice.
-  connect(color_scheme_combo, &QComboBox::currentIndexChanged, &dialog, [color_scheme_combo] {
-    ThemeManager::instance().set_preference(
-        color_scheme_preference_from_token(color_scheme_combo->currentData().toString()),
-        /*persist=*/false);
-  });
+  connect(color_scheme_combo, &QComboBox::currentIndexChanged, &dialog, apply_combo_selection);
+
+  // Tools: tool and canvas-input behavior (the mouse wheel, Free Transform), the way
+  // Photoshop's Tools page groups them.
+  auto [tools_page, tools_layout] = make_tab_page(tabs);
+  auto* tools_group = new QFrame(tools_page);
+  tools_group->setObjectName(QStringLiteral("preferencesToolsGroup"));
+  configure_panel(tools_group);
+  auto* tools_form = new QFormLayout(tools_group);
+  configure_form(tools_form);
+  auto* wheel_zoom_check = new QCheckBox(tr("Mouse wheel zooms the canvas"), tools_group);
+  wheel_zoom_check->setObjectName(QStringLiteral("preferencesWheelZoomCheck"));
+  wheel_zoom_check->setChecked(wheel_zooms_);
+  wheel_zoom_check->setToolTip(
+      resolve_modifier_names(
+          tr("Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan. "
+             "Two-finger scrolling on a trackpad always pans; pinch to zoom.")));
+  tools_form->addRow(wheel_zoom_check);
+  auto* transform_shift_aspect_check =
+      new QCheckBox(tr("Hold Shift to keep the aspect ratio when transforming"), tools_group);
+  transform_shift_aspect_check->setObjectName(QStringLiteral("preferencesTransformShiftAspectCheck"));
+  transform_shift_aspect_check->setToolTip(
+      tr("When off, corner handles keep the aspect ratio and Shift resizes freely, matching "
+         "current Photoshop. When on, corner handles resize freely and Shift keeps the aspect ratio."));
+  transform_shift_aspect_check->setChecked(shift_keeps_transform_aspect_);
+  tools_form->addRow(transform_shift_aspect_check);
+  auto* transform_values_check =
+      new QCheckBox(tr("Show transformation values while dragging"), tools_group);
+  transform_values_check->setObjectName(QStringLiteral("preferencesShowTransformValuesCheck"));
+  transform_values_check->setToolTip(
+      tr("Shows a small readout beside the pointer while moving, scaling, or rotating: the "
+         "reference point's position and the offset, the width and height with the scale "
+         "percentages, or the angle and how far it turned."));
+  transform_values_check->setChecked(show_transform_drag_values_);
+  tools_form->addRow(transform_values_check);
+  auto* transform_snap_check = new QCheckBox(tr("Snap transforms to the pixel grid"), tools_group);
+  transform_snap_check->setObjectName(QStringLiteral("preferencesTransformSnapToPixelGridCheck"));
+  transform_snap_check->setToolTip(
+      tr("Positions and sizes typed into the Free Transform bar land on whole pixels, like "
+         "Photoshop's \"Snap Vector Tools and Transforms to Pixel Grid\". Rotated transforms are "
+         "not snapped. When off, a typed fraction such as 3.4 px is kept and the pixels are "
+         "resampled."));
+  transform_snap_check->setChecked(snap_transforms_to_pixel_grid_);
+  tools_form->addRow(transform_snap_check);
+  tools_layout->addWidget(tools_group);
+  tools_layout->addStretch(1);
+  tabs->addTab(tools_page, tr("Tools"));
 
   auto [pen_page, pen_layout] = make_tab_page(tabs);
   auto* pen_group = new QFrame(pen_page);
@@ -725,12 +1078,6 @@ void MainWindow::show_preferences() {
   auto* pen_eraser_check = new QCheckBox(tr("Use eraser tip as Eraser"), pen_group);
   pen_eraser_check->setObjectName(QStringLiteral("preferencesPenEraserTipCheck"));
   pen_eraser_check->setChecked(pen_input_settings_.use_eraser_tip);
-  auto* pen_wheel_zoom_check = new QCheckBox(tr("Scroll wheel zooms the canvas"), pen_group);
-  pen_wheel_zoom_check->setObjectName(QStringLiteral("preferencesPenWheelZoomCheck"));
-  pen_wheel_zoom_check->setChecked(wheel_zooms_);
-  pen_wheel_zoom_check->setToolTip(
-      resolve_modifier_names(
-          tr("Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan.")));
   const auto populate_pen_button_combo = [](QComboBox* combo, PenButtonAction current) {
     const std::array<std::pair<PenButtonAction, QString>, 11> entries{{
         {PenButtonAction::None, tr("None")},
@@ -805,7 +1152,6 @@ void MainWindow::show_preferences() {
   pen_pad_hint_label->setEnabled(false);
 
   pen_form->addRow(pen_eraser_check);
-  pen_form->addRow(pen_wheel_zoom_check);
   pen_form->addRow(tr("Upper pen button:"), pen_primary_button_combo);
   pen_form->addRow(tr("Lower pen button:"), pen_secondary_button_combo);
   pen_form->addRow(pen_pad_hint_label);
@@ -852,6 +1198,7 @@ void MainWindow::show_preferences() {
 
   auto* grid_spacing_spin = new UnitSpinBox(SpinUnit::Pixels, view_group);
   grid_spacing_spin->setObjectName(QStringLiteral("preferencesGridSpacingSpin"));
+  grid_spacing_spin->set_context_provider(document_unit_context_provider(true));
   grid_spacing_spin->setRange(0.03125, 10000.0);
   grid_spacing_spin->setDecimals(3);
   grid_spacing_spin->setValue(static_cast<double>(view_grid_spacing_32_) / 32.0);
@@ -971,7 +1318,7 @@ void MainWindow::show_preferences() {
   snap_targets_layout->addWidget(snap_layers_check, 2, 0, 1, 2);
   snap_targets_layout->addWidget(snap_selection_check, 3, 0, 1, 2);
 
-  view_form->addRow(tr("Ruler units:"), ruler_units_combo);
+  view_form->addRow(tr("Default units:"), ruler_units_combo);
   view_form->addRow(tr("Default visibility:"), visibility_row);
   view_form->addRow(tr("Grid spacing:"), grid_spacing_spin);
   view_form->addRow(tr("Grid subdivisions:"), grid_subdivisions_spin);
@@ -990,7 +1337,7 @@ void MainWindow::show_preferences() {
   view_form->addRow(tr("Overlay preview:"), overlay_preview);
   view_layout->addWidget(view_group);
   view_layout->addStretch(1);
-  tabs->addTab(view_page, tr("Grid and Guides"));
+  tabs->addTab(view_page, tr("Units && Grids"));
 
   auto [snapping_page, snapping_layout] = make_tab_page(tabs);
   auto* snapping_group = new QFrame(snapping_page);
@@ -1005,10 +1352,121 @@ void MainWindow::show_preferences() {
   tabs->addTab(snapping_page, tr("Snapping"));
 
   auto [hotkeys_page, hotkeys_layout] = make_tab_page(tabs);
-  auto* hotkey_editor = new HotkeyEditorPanel(hotkey_registry_, menuBar(), hotkeys_page);
-  hotkeys_layout->addWidget(hotkey_editor);
   hotkeys_layout->addStretch(1);
-  tabs->addTab(hotkeys_page, tr("Hotkeys"));
+  const int hotkeys_tab_index = tabs->addTab(hotkeys_page, tr("Hotkeys"));
+
+  // Building ~150 hotkey rows is the single most expensive part of opening this
+  // dialog, so the panel is built on the first visit to its tab; most
+  // Preferences opens never switch to it. Built on demand, it is also created
+  // after the dialog stylesheet below is set, so Qt never repolishes its
+  // several-hundred-widget subtree (the September 2026 Preferences-open
+  // slowdown). The tab itself stays at this position: tests and the Windows
+  // Plug-ins tab after it depend on the order.
+  HotkeyEditorPanel* hotkey_editor = nullptr;
+  connect(tabs, &QTabWidget::currentChanged, &dialog,
+          [this, hotkeys_page, hotkeys_layout, hotkeys_tab_index, &hotkey_editor](int index) {
+            if (index != hotkeys_tab_index || hotkey_editor != nullptr) {
+              return;
+            }
+            hotkey_editor = new HotkeyEditorPanel(hotkey_registry_, menuBar(), hotkeys_page);
+            hotkeys_layout->insertWidget(0, hotkey_editor);
+          });
+
+#ifdef Q_OS_WIN
+  // Plug-ins: the folders scanned for legacy Photoshop .8bf filters (Windows
+  // only, where they can run). The two automatic folders are fixed; the list
+  // holds the user-added ones (docs/plugins.md). Scanning never runs a plug-in.
+  auto [plugins_page, plugins_layout] = make_tab_page(tabs);
+  auto* plugins_group = new QFrame(plugins_page);
+  plugins_group->setObjectName(QStringLiteral("preferencesPluginsGroup"));
+  configure_panel(plugins_group);
+  auto* plugins_form = new QFormLayout(plugins_group);
+  configure_form(plugins_form);
+  auto* plugins_intro = new QLabel(
+      tr("Photoshop filter plug-ins (.8bf, 32-bit or 64-bit) are found in these folders and their "
+         "subfolders and listed under Plugins > Legacy Photoshop Plug-ins. Only run plug-ins you trust: "
+         "they execute with your permissions."),
+      plugins_group);
+  plugins_intro->setWordWrap(true);
+  plugins_intro->setObjectName(QStringLiteral("preferencesPluginsIntro"));
+  plugins_form->addRow(plugins_intro);
+  auto* plugins_auto_label = new QLabel(plugins_group);
+  plugins_auto_label->setObjectName(QStringLiteral("preferencesPluginsAutomaticFolders"));
+  plugins_auto_label->setWordWrap(true);
+  plugins_auto_label->setTextInteractionFlags(Qt::TextSelectableByMouse);
+  {
+    // The scan roots minus the user list (and the developer fixture folder).
+    QStringList fixed;
+    const auto user_folders = stored_legacy_plugin_folders();
+    for (const auto& scan_root : legacy_plugin_scan_roots()) {
+      if (!user_folders.contains(scan_root) &&
+          !scan_root.endsWith(QStringLiteral("test-fixtures/photoshop-plugins"))) {
+        fixed << QDir::toNativeSeparators(scan_root);
+      }
+    }
+    plugins_auto_label->setText(fixed.join(QLatin1Char('\n')));
+  }
+  plugins_form->addRow(tr("Always scanned:"), plugins_auto_label);
+  auto* plugin_folders_list = new QListWidget(plugins_group);
+  plugin_folders_list->setObjectName(QStringLiteral("preferencesPluginFoldersList"));
+  plugin_folders_list->setSelectionMode(QAbstractItemView::SingleSelection);
+  const auto entry_plugin_folders = stored_legacy_plugin_folders();
+  for (const auto& folder : entry_plugin_folders) {
+    plugin_folders_list->addItem(QDir::toNativeSeparators(folder));
+  }
+  auto* plugin_folder_buttons = new QWidget(plugins_group);
+  auto* plugin_folder_buttons_layout = new QHBoxLayout(plugin_folder_buttons);
+  plugin_folder_buttons_layout->setContentsMargins(0, 0, 0, 0);
+  auto* add_plugin_folder = new QPushButton(tr("Add Folder..."), plugin_folder_buttons);
+  add_plugin_folder->setObjectName(QStringLiteral("preferencesAddPluginFolderButton"));
+  auto* remove_plugin_folder = new QPushButton(tr("Remove"), plugin_folder_buttons);
+  remove_plugin_folder->setObjectName(QStringLiteral("preferencesRemovePluginFolderButton"));
+  remove_plugin_folder->setEnabled(false);
+  plugin_folder_buttons_layout->addWidget(add_plugin_folder);
+  plugin_folder_buttons_layout->addWidget(remove_plugin_folder);
+  plugin_folder_buttons_layout->addStretch(1);
+  connect(plugin_folders_list, &QListWidget::itemSelectionChanged, &dialog,
+          [plugin_folders_list, remove_plugin_folder] {
+            remove_plugin_folder->setEnabled(!plugin_folders_list->selectedItems().isEmpty());
+          });
+  connect(add_plugin_folder, &QPushButton::clicked, &dialog, [&dialog, plugin_folders_list] {
+    const auto chosen = QFileDialog::getExistingDirectory(&dialog, tr("Add Plug-in Folder"), QString());
+    if (chosen.isEmpty()) {
+      return;
+    }
+    const auto native = QDir::toNativeSeparators(chosen);
+    for (int row = 0; row < plugin_folders_list->count(); ++row) {
+      if (plugin_folders_list->item(row)->text() == native) {
+        return;
+      }
+    }
+    plugin_folders_list->addItem(native);
+  });
+  connect(remove_plugin_folder, &QPushButton::clicked, &dialog, [plugin_folders_list] {
+    qDeleteAll(plugin_folders_list->selectedItems());
+  });
+  plugins_form->addRow(tr("Added folders:"), plugin_folders_list);
+  plugins_form->addRow(QString(), plugin_folder_buttons);
+  // The virtual screen (docs/plugins.md): plug-in windows open on the monitor
+  // showing Patchy; full-screen plug-in interfaces size themselves to this.
+  auto* plugin_screen_combo = new QComboBox(plugins_group);
+  plugin_screen_combo->setObjectName(QStringLiteral("preferencesPluginScreenSizeCombo"));
+  for (const auto& [screen_width, screen_height] : kLegacyPluginScreenSizes) {
+    plugin_screen_combo->addItem(screen_width == 0 ? tr("Whole monitor")
+                                                   : QStringLiteral("%1 x %2").arg(screen_width).arg(screen_height),
+                                 QSize(screen_width, screen_height));
+  }
+  const auto entry_plugin_screen = stored_legacy_plugin_screen_size();
+  plugin_screen_combo->setCurrentIndex(
+      plugin_screen_combo->findData(QSize(entry_plugin_screen.first, entry_plugin_screen.second)));
+  plugin_screen_combo->setToolTip(
+      tr("Plug-in windows open on the monitor showing Patchy. Plug-ins with full-screen interfaces size "
+         "themselves to this screen size, so a smaller size keeps them usable on large monitors."));
+  plugins_form->addRow(tr("Screen size for plug-in windows:"), plugin_screen_combo);
+  plugins_layout->addWidget(plugins_group);
+  plugins_layout->addStretch(1);
+  tabs->addTab(plugins_page, tr("Plug-ins"));
+#endif
 
   content->addWidget(tabs, 1);
 
@@ -1019,7 +1477,10 @@ void MainWindow::show_preferences() {
 
   // Applied after every child widget exists: Qt does not reliably pick up
   // sub-control rules (QSpinBox::up-button) for widgets created on hidden
-  // tab pages after the stylesheet was set.
+  // tab pages after the stylesheet was set. The Hotkeys panel is the one
+  // exception, built on demand above: it has no spin box and none of the IDs
+  // below, and creating it after this sheet is what keeps its rows from being
+  // repolished.
   append_themed_style(dialog, QStringLiteral(R"(
     QDialog#patchyPreferencesDialog QTabWidget::pane {
       border: 1px solid @dialog_tab_border;
@@ -1029,7 +1490,6 @@ void MainWindow::show_preferences() {
     QDialog#patchyPreferencesDialog QTabBar::tab {
       background: @dialog_tab_bg;
       border: 1px solid @dialog_tab_border;
-      border-bottom-color: @dialog_tab_bg;
       color: @dialog_tab_text;
       padding: 7px 18px;
       min-width: 92px;
@@ -1068,6 +1528,7 @@ void MainWindow::show_preferences() {
       border: 1px solid @grid_preview_border;
       padding: 0;
     }
+    QDialog#patchyPreferencesDialog QWidget#preferencesTabHost,
     QDialog#patchyPreferencesDialog QScrollArea#preferencesTabScroll,
     QDialog#patchyPreferencesDialog QWidget#preferencesTabPage {
       background: transparent;
@@ -1083,20 +1544,58 @@ void MainWindow::show_preferences() {
   // final word (see docs/ui-conventions.md).
   append_themed_style(dialog, dialog_spinbox_button_style());
 
+  // Wide enough for every tab: the explicit minimum size above keeps the
+  // layout from raising the dialog's minimum itself, so take the layout's
+  // minimum width (the full tab row, styled) by hand.
+  root->activate();
+  const int needed_width = root->totalMinimumSize().width();
+  if (needed_width > dialog.minimumWidth()) {
+    dialog.setMinimumWidth(needed_width);
+  }
+  if (dialog.width() < needed_width) {
+    dialog.resize(needed_width, dialog.height());
+  }
+
   if (exec_dialog(dialog) == QDialog::Accepted) {
     if (const auto code = language_combo->currentData().toString(); !code.isEmpty()) {
       LocalizationManager::instance().set_language(code);
     }
-    hotkey_editor->commit();
+    if (hotkey_editor != nullptr) {
+      hotkey_editor->commit();
+    }
     // No restart notice: the scheme is already applied, unlike interface scale.
-    ThemeManager::instance().set_preference(
-        color_scheme_preference_from_token(color_scheme_combo->currentData().toString()),
-        /*persist=*/true);
+    if (const auto token = color_scheme_combo->currentData().toString(); token.startsWith(QStringLiteral("custom:"))) {
+      const auto found = custom_themes->find(token.mid(7));
+      if (found != custom_themes->end()) {
+        ThemeManager::instance().set_custom_theme(token.mid(7), found.value(), /*persist=*/true);
+      }
+    } else {
+      ThemeManager::instance().set_preference(color_scheme_preference_from_token(token), /*persist=*/true);
+    }
     color_scheme_committed = true;
     const auto new_grid_spacing_32 =
         std::clamp(static_cast<int>(std::lround(grid_spacing_spin->value() * 32.0)), 1, 320000);
 #ifndef Q_OS_WASM
-    settings.setValue(QStringLiteral("updates/checkOnStartup"), update_check->isChecked());
+    if (update_check != nullptr) {
+      settings.setValue(QStringLiteral("updates/checkOnStartup"), update_check->isChecked());
+    }
+    set_stored_recovery_enabled(recovery_check->isChecked());
+    set_stored_recovery_interval_minutes(recovery_combo->currentData().toInt());
+    apply_recovery_preferences();
+#endif
+#ifdef Q_OS_WIN
+    {
+      QStringList plugin_folders;
+      for (int row = 0; row < plugin_folders_list->count(); ++row) {
+        plugin_folders << QDir::fromNativeSeparators(plugin_folders_list->item(row)->text());
+      }
+      if (plugin_folders != entry_plugin_folders) {
+        set_stored_legacy_plugin_folders(plugin_folders);
+        start_legacy_plugin_scan(true);
+      }
+      const auto chosen_screen = plugin_screen_combo->currentData().toSize();
+      set_stored_legacy_plugin_screen_size({chosen_screen.width(), chosen_screen.height()});
+    }
 #endif
     settings.setValue(QStringLiteral("imports/showPsdWarningsAndInfo"), psd_import_warnings_check->isChecked());
     settings.setValue(QStringLiteral("imports/showRawDevelopDialog"), raw_develop_check->isChecked());
@@ -1129,7 +1628,7 @@ void MainWindow::show_preferences() {
         static_cast<PenButtonAction>(pen_secondary_button_combo->currentData().toInt());
     pen_input_settings_.tilt_shape = pen_tilt_shape_check->isChecked();
     pen_input_settings_.tilt_min_roundness_percent = pen_tilt_roundness_spin->value();
-    wheel_zooms_ = pen_wheel_zoom_check->isChecked();
+    wheel_zooms_ = wheel_zoom_check->isChecked();
     shift_keeps_transform_aspect_ = transform_shift_aspect_check->isChecked();
     show_transform_drag_values_ = transform_values_check->isChecked();
     snap_transforms_to_pixel_grid_ = transform_snap_check->isChecked();
@@ -1234,6 +1733,9 @@ void MainWindow::new_guide_dialog() {
   position_spin->setRange(0.0, std::max(document().width(), document().height()));
   position_spin->setDecimals(3);
   position_spin->setValue(0.0);
+  // Shown in the ruler unit, like the guide readout; enrolled for the dialog's
+  // lifetime so its unit menu changes the preference like every other field.
+  register_ruler_unit_field(position_spin);
   form->addRow(tr("Orientation:"), orientation_combo);
   form->addRow(tr("Position:"), position_spin);
   content->addLayout(form);
@@ -1334,7 +1836,96 @@ void MainWindow::set_ruler_unit_preference(MeasurementUnit unit) {
     apply_canvas_aid_settings(active_session->canvas);
   }
   save_view_settings();
+  apply_ruler_unit_to_fields();
   refresh_document_info();
+}
+
+void MainWindow::register_ruler_unit_field(UnitSpinBox* spin) {
+  if (spin == nullptr) {
+    return;
+  }
+  ruler_unit_fields_.emplace_back(spin);
+  set_field_display_unit(spin, ruler_unit_);
+  // Photoshop: a unit picked from a field's menu changes Units & Rulers for every
+  // field and the rulers (set_ruler_unit_preference re-applies it to every enrolled
+  // field; this one already shows it). A typed unit token stays the field's own.
+  connect(spin, &UnitSpinBox::display_unit_picked, this, [this](SpinUnit unit) {
+    if (const auto measurement = measurement_unit_for(unit); measurement.has_value()) {
+      set_ruler_unit_preference(*measurement);
+    }
+  });
+}
+
+void MainWindow::apply_ruler_unit_to_fields() {
+  // Dialog fields (New Guide) enroll for their lifetime; drop the dead pointers.
+  std::erase_if(ruler_unit_fields_, [](const QPointer<UnitSpinBox>& spin) { return spin.isNull(); });
+  for (const auto& spin : ruler_unit_fields_) {
+    set_field_display_unit(spin, ruler_unit_);
+  }
+}
+
+void MainWindow::refresh_ruler_unit_field_metrics() {
+  for (const auto& spin : ruler_unit_fields_) {
+    if (spin != nullptr) {
+      spin->refresh_display_metrics();
+    }
+  }
+}
+
+UnitConversionContext MainWindow::document_unit_context(bool horizontal) const {
+  return document_field_context(document_field_units(), horizontal);
+}
+
+UnitSpinBox::ContextProvider MainWindow::document_unit_context_provider(bool horizontal) const {
+  return [this, horizontal] { return document_unit_context(horizontal); };
+}
+
+DocumentFieldUnits MainWindow::document_field_units() const {
+  DocumentFieldUnits units;
+  units.display_unit = ruler_unit_;
+  if (has_active_document()) {
+    units.ppi = text_size_ppi(document());
+    units.document_width = static_cast<double>(document().width());
+    units.document_height = static_cast<double>(document().height());
+  }
+  return units;
+}
+
+DocumentFieldUnits MainWindow::dialog_field_units() {
+  auto units = document_field_units();
+  // A unit picked in a modal dialog is the same gesture as on a live field.
+  units.on_unit_picked = [this](MeasurementUnit unit) { set_ruler_unit_preference(unit); };
+  return units;
+}
+
+void MainWindow::set_canvas_backdrop_color_preference(std::optional<QColor> color) {
+  if (color.has_value() && !color->isValid()) {
+    color.reset();
+  }
+  if (color.has_value()) {
+    color->setAlpha(255);
+  }
+  view_canvas_backdrop_color_ = color;
+  for (const auto& active_session : sessions_) {
+    apply_canvas_aid_settings(active_session->canvas);
+  }
+  save_view_settings();
+}
+
+// Patchy's own picker with a live preview on every window; Cancel restores the
+// previous choice (a preset or Default), so the preference only changes on OK.
+void MainWindow::choose_custom_canvas_backdrop_color() {
+  const auto previous = view_canvas_backdrop_color_;
+  const auto initial = canvas_ != nullptr ? canvas_->backdrop_color() : theme().canvas_backdrop;
+  const auto preview = [this](QColor color) {
+    for (const auto& active_session : sessions_) {
+      if (active_session->canvas != nullptr) {
+        active_session->canvas->set_backdrop_color_override(color);
+      }
+    }
+  };
+  const auto chosen = request_patchy_color(this, initial, tr("Canvas Background Color"), preview);
+  set_canvas_backdrop_color_preference(chosen.has_value() ? std::optional<QColor>(*chosen) : previous);
 }
 
 void MainWindow::apply_canvas_aid_settings(CanvasWidget* canvas) const {
@@ -1355,6 +1946,7 @@ void MainWindow::apply_canvas_aid_settings(CanvasWidget* canvas) const {
   canvas->set_grid_subdivisions(view_grid_subdivisions_);
   canvas->set_grid_style(view_grid_style_);
   canvas->set_grid_color(view_grid_color_);
+  canvas->set_backdrop_color_override(view_canvas_backdrop_color_);
   canvas->set_guide_color(view_guide_color_);
   canvas->set_target_path_visible(view_target_path_visible_);
   canvas->set_vector_preview_enabled(view_vector_preview_enabled_);
@@ -1498,6 +2090,7 @@ void MainWindow::load_view_settings() {
   ruler_unit_ = measurement_unit_from_settings_token(
       settings.value(QStringLiteral("view/rulerUnits"), QStringLiteral("px")).toString(),
       MeasurementUnit::Pixels);
+  apply_ruler_unit_to_fields();  // the options-bar fields exist by now; the docks enroll themselves
   view_grid_visible_ = settings.value(QStringLiteral("view/gridVisible"), view_grid_visible_).toBool();
   view_guides_visible_ = settings.value(QStringLiteral("view/guidesVisible"), view_guides_visible_).toBool();
   view_guides_locked_ = settings.value(QStringLiteral("view/guidesLocked"), view_guides_locked_).toBool();
@@ -1516,6 +2109,14 @@ void MainWindow::load_view_settings() {
       settings.value(QStringLiteral("view/gridColor"), view_grid_color_).value<QColor>();
   view_guide_color_ =
       settings.value(QStringLiteral("view/guideColor"), view_guide_color_).value<QColor>();
+  // Absent or invalid means Default (the theme role); the key is only written for a user color.
+  if (const auto backdrop = settings.value(QStringLiteral("view/canvasBackdropColor")).value<QColor>();
+      backdrop.isValid()) {
+    view_canvas_backdrop_color_ = backdrop;
+    view_canvas_backdrop_color_->setAlpha(255);
+  } else {
+    view_canvas_backdrop_color_.reset();
+  }
   zoom_layer_thumbnails_to_content_ =
       settings.value(QStringLiteral("view/zoomLayerThumbnailsToContent"), zoom_layer_thumbnails_to_content_)
           .toBool();
@@ -1584,6 +2185,11 @@ void MainWindow::save_view_settings() const {
   settings.setValue(QStringLiteral("view/gridStyle"), view_grid_style_);
   settings.setValue(QStringLiteral("view/gridColor"), view_grid_color_);
   settings.setValue(QStringLiteral("view/guideColor"), view_guide_color_);
+  if (view_canvas_backdrop_color_.has_value()) {
+    settings.setValue(QStringLiteral("view/canvasBackdropColor"), *view_canvas_backdrop_color_);
+  } else {
+    settings.remove(QStringLiteral("view/canvasBackdropColor"));
+  }
   settings.setValue(QStringLiteral("view/zoomLayerThumbnailsToContent"), zoom_layer_thumbnails_to_content_);
   settings.setValue(QStringLiteral("view/guideColorDefaultMigrated"), true);
 }

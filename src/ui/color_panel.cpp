@@ -1500,6 +1500,7 @@ void PatchyColorPickerPrivate::set_color(QColor color, ColorChangeNotification n
   if (notification == ColorChangeNotification::Yes && color_ != previous) {
     emit owner_.currentColorChanged(color_);
   }
+  if (notification == ColorChangeNotification::Yes) emit owner_.colorSelected(color_);
 }
 
 void PatchyColorPickerPrivate::apply_hsv_color(ColorChangeNotification notification) {
@@ -1511,6 +1512,7 @@ void PatchyColorPickerPrivate::apply_hsv_color(ColorChangeNotification notificat
   if (notification == ColorChangeNotification::Yes && color_ != previous) {
     emit owner_.currentColorChanged(color_);
   }
+  if (notification == ColorChangeNotification::Yes) emit owner_.colorSelected(color_);
 }
 
 void PatchyColorPickerPrivate::set_saturation_value_from_point(QPoint point, QSize size) {
@@ -2034,25 +2036,9 @@ void PatchyColorPickerPrivate::finish_screen_pick(QPoint global_position, bool s
 }
 
 void PatchyColorPickerPrivate::sample_screen_color(QPoint global_position) {
-  QScreen* screen = QGuiApplication::screenAt(global_position);
-  if (screen == nullptr) {
-    screen = QGuiApplication::primaryScreen();
+  if (const auto picked = screen_color_at_global_position(global_position); picked.has_value()) {
+    set_color(*picked, ColorChangeNotification::Yes);
   }
-  if (screen == nullptr) {
-    return;
-  }
-
-  const QPoint screen_position = global_position - screen->geometry().topLeft();
-  const QPixmap sample = screen->grabWindow(0, screen_position.x(), screen_position.y(), 1, 1);
-  if (sample.isNull()) {
-    return;
-  }
-
-  const auto image = sample.toImage();
-  if (!image.rect().contains(0, 0)) {
-    return;
-  }
-  set_color(image.pixelColor(0, 0), ColorChangeNotification::Yes);
 }
 
 PatchyColorPicker::PatchyColorPicker(QColor initial, QWidget* parent)
@@ -2150,7 +2136,8 @@ QDialog* create_patchy_color_panel(QWidget* parent, QColor initial, const QStrin
 }
 
 std::optional<QColor> request_patchy_color(QWidget* parent, QColor initial, const QString& title,
-                                           std::function<void(QColor)> color_changed) {
+                                           std::function<void(QColor)> color_changed, bool* user_selected) {
+  if (user_selected != nullptr) *user_selected = false;
   // The picker runs a nested non-modal event loop, which keeps the widget that
   // launched it clickable. Only one picker can be open at a time: a request while
   // one is already open brings that picker back to the front instead of silently
@@ -2175,8 +2162,9 @@ std::optional<QColor> request_patchy_color(QWidget* parent, QColor initial, cons
   auto* layout = install_dark_dialog_chrome(dialog, new QVBoxLayout(&dialog), title);
   auto* picker = new PatchyColorPicker(normalized_rgb_color(initial), &dialog);
   layout->addWidget(picker, 1);
-  QObject::connect(picker, &PatchyColorPicker::currentColorChanged, &dialog, [color_changed = std::move(color_changed)](
+  QObject::connect(picker, &PatchyColorPicker::colorSelected, &dialog, [color_changed = std::move(color_changed), user_selected](
                                                                                QColor color) {
+    if (user_selected != nullptr) *user_selected = true;
     if (color_changed) {
       color_changed(normalized_rgb_color(color));
     }

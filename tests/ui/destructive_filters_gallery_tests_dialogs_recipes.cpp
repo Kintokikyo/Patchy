@@ -447,6 +447,12 @@ void ui_tilt_shift_blur_dialog_cancel_selection_apply_and_undo() {
           focus->value() == 10.0);
     CHECK(transition->minimum() == 0.0 && transition->maximum() == 100.0 &&
           transition->value() == 20.0);
+    // The parameter panel's "Label:" [slider] [spin] rows are scrub handles
+    // (GitHub issue 46): the panel installs them after every rebuild.
+    for (auto* spin : {static_cast<QAbstractSpinBox*>(blur), static_cast<QAbstractSpinBox*>(center_x),
+                       static_cast<QAbstractSpinBox*>(angle), static_cast<QAbstractSpinBox*>(transition)}) {
+      CHECK(spin->property(patchy::ui::kScrubHandleInstalledProperty).toBool());
+    }
     inspected_controls = true;
 
     blur->setValue(4.0);
@@ -1747,10 +1753,11 @@ void ui_filter_gallery_stack_spatial_overlay_tracks_active_input_bounds() {
     looks->setCurrentItem(require_gallery_filter_item(
         *looks, QStringLiteral("patchy.filters.gaussian_blur")));
     QApplication::processEvents();
-    auto* radius = editor->findChild<QSpinBox*>(
+    auto* gaussian_radius = editor->findChild<QDoubleSpinBox*>(
         QStringLiteral("filterRadiusSpin"));
-    CHECK(radius != nullptr);
-    radius->setValue(4);
+    CHECK(gaussian_radius != nullptr);
+    gaussian_radius->setValue(4.0);
+    QSpinBox* radius = nullptr;
     duplicate->click();
     QApplication::processEvents();
     looks->setCurrentItem(require_gallery_filter_item(
@@ -1770,9 +1777,10 @@ void ui_filter_gallery_stack_spatial_overlay_tracks_active_input_bounds() {
     looks->setCurrentItem(require_gallery_filter_item(
         *looks, QStringLiteral("patchy.filters.gaussian_blur")));
     QApplication::processEvents();
-    radius = editor->findChild<QSpinBox*>(QStringLiteral("filterRadiusSpin"));
-    CHECK(radius != nullptr);
-    radius->setValue(3);
+    gaussian_radius =
+        editor->findChild<QDoubleSpinBox*>(QStringLiteral("filterRadiusSpin"));
+    CHECK(gaussian_radius != nullptr);
+    gaussian_radius->setValue(3.0);
     CHECK(process_events_until(
         [&] {
           return !previews.empty() && previews.back().recipe.has_value() &&
@@ -2032,9 +2040,10 @@ void ui_filter_gallery_stack_cancel_and_apply_are_one_transaction() {
     looks->setCurrentItem(require_gallery_filter_item(
         *looks, QStringLiteral("patchy.filters.gaussian_blur")));
     QApplication::processEvents();
-    radius = dialog.findChild<QSpinBox*>(QStringLiteral("filterRadiusSpin"));
-    CHECK(radius != nullptr);
-    radius->setValue(2);
+    auto* gaussian_radius =
+        dialog.findChild<QDoubleSpinBox*>(QStringLiteral("filterRadiusSpin"));
+    CHECK(gaussian_radius != nullptr);
+    gaussian_radius->setValue(2.0);
     CHECK(applied->count() == 2);
     CHECK(applied->item(0)->text() == QStringLiteral("Gaussian Blur"));
     CHECK(applied->item(1)->text() == QStringLiteral("Box Blur"));

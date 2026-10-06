@@ -27,6 +27,7 @@
 #include "ui/brush_tip_manager_dialog.hpp"
 #include "ui/brush_tip_picker.hpp"
 #include "ui/blend_if_range_editor.hpp"
+#include "ui/blend_mode_ui.hpp"
 #include "ui/color_panel.hpp"
 #include "ui/default_brush_tips.hpp"
 #include "ui/dialog_utils.hpp"
@@ -56,6 +57,7 @@
 #include "ui/sprite_sheet_dialog.hpp"
 #include "ui/splash_dialog.hpp"
 #include "ui/app_settings.hpp"
+#include "ui/theme_palette.hpp"
 #include "ui/update_checker.hpp"
 #include "ui/visual_filter_gallery_dialog.hpp"
 #include "ui/zoomable_image_preview.hpp"
@@ -87,6 +89,10 @@
 #include <QDockWidget>
 #include <QDir>
 #include <QDoubleSpinBox>
+#include <QFormLayout>
+#include <QGridLayout>
+#include <QHBoxLayout>
+#include <QVBoxLayout>
 #include <QDragEnterEvent>
 #include <QDragMoveEvent>
 #include <QDropEvent>
@@ -130,6 +136,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QPointer>
+#include <QProxyStyle>
 #include <QPolygonF>
 #include <QThread>
 #include <QPaintEvent>
@@ -295,13 +302,14 @@ void ui_options_bar_spinboxes_fit_widest_value() {
   // no room for the suffix once the popup chevron claimed its 14px text margin.
   // configure_toolbar_spinbox now treats the requested width as a minimum and
   // grows the box to fit its widest value text; require chevron + box chrome
-  // clearance beyond the min/max text on every options-bar spin box.
+  // clearance (14 + 14 in dialog_utils.cpp) beyond the min/max text on every
+  // options-bar spin box.
   patchy::ui::MainWindow window;
   show_window(window);
   auto* toolbar = window.findChild<QToolBar*>(QStringLiteral("Options"));
   CHECK(toolbar != nullptr);
   const auto require_fits = [](const QWidget* spin, const QString& text) {
-    const int required = spin->fontMetrics().horizontalAdvance(text) + 24;
+    const int required = spin->fontMetrics().horizontalAdvance(text) + 28;
     if (spin->minimumWidth() < required) {
       std::fprintf(stderr, "  %s: width %d < %d needed for \"%s\"\n",
                    qPrintable(spin->objectName()), spin->minimumWidth(), required,
@@ -333,6 +341,54 @@ void ui_options_bar_spinboxes_fit_widest_value() {
   CHECK(checked >= 10);
 }
 
+void ui_options_bar_spinboxes_show_their_extremes_unclipped() {
+  // "255" in the Fill tool's Tol box rendered as a clipped "55" on screen (September 2026).
+  // ui_options_bar_spinboxes_fit_widest_value only checks the requested width against a
+  // constant; this measures the live editor once the tool's row is shown, which is what
+  // loses the box's QSS padding and borders, the popup chevron's text margin, and
+  // QLineEdit's own horizontal margins before any text is drawn. It runs on the real
+  // windows platform too (DirectWrite advances are wider than offscreen FreeType's):
+  //   patchy_ui_visual_tests.exe ui_options_bar_spinboxes_show   (no QT_QPA_PLATFORM)
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* toolbar = window.findChild<QToolBar*>(QStringLiteral("Options"));
+  CHECK(toolbar != nullptr);
+  int checked = 0;
+  for (const auto* action_name : {"toolFillAction", "toolMagicWandAction", "toolBrushAction"}) {
+    require_action(window, action_name)->trigger();
+    QApplication::processEvents();
+    for (const auto* spin : toolbar->findChildren<QSpinBox*>()) {
+      if (!spin->isVisible() || !spin->property("patchy.numericPopupInstalled").toBool()) {
+        continue;
+      }
+      const auto* editor = spin->findChild<QLineEdit*>();
+      CHECK(editor != nullptr);
+      if (editor == nullptr) {
+        continue;
+      }
+      // The editor sits inside the box's padding and borders, so a laid-out one is narrower.
+      CHECK(editor->width() < spin->width());
+      // QLineEdit keeps a 2px horizontal margin on each side of its text area.
+      const int available = editor->width() - editor->textMargins().left() -
+                            editor->textMargins().right() - 4;
+      const auto locale = spin->locale();
+      for (const auto& text : {spin->prefix() + locale.toString(spin->minimum()) + spin->suffix(),
+                               spin->prefix() + locale.toString(spin->maximum()) + spin->suffix()}) {
+        // The caret sits after the widest value while it is edited, so it needs room too.
+        const int needed = editor->fontMetrics().horizontalAdvance(text) + 2;
+        if (available < needed) {
+          std::fprintf(stderr, "  %s: editor shows %d px but \"%s\" needs %d px (box %d px)\n",
+                       qPrintable(spin->objectName()), available, qPrintable(text), needed,
+                       spin->width());
+        }
+        CHECK(available >= needed);
+      }
+      ++checked;
+    }
+  }
+  CHECK(checked >= 4);
+}
+
 void ui_canvas_wheel_matches_photoshop_navigation() {
   patchy::ui::MainWindow window;
   show_window(window);
@@ -343,16 +399,21 @@ void ui_canvas_wheel_matches_photoshop_navigation() {
 
   const auto initial_zoom = canvas->zoom();
   const auto initial_origin = canvas->widget_position_for_document_point(QPoint(0, 0));
+  // Photoshop's axes: a plain wheel scrolls vertically, Ctrl or Shift horizontally.
   send_wheel(*canvas, QPoint(300, 240), 120);
-  const auto horizontal_pan_origin = canvas->widget_position_for_document_point(QPoint(0, 0));
-  CHECK(canvas->zoom() == initial_zoom);
-  CHECK(horizontal_pan_origin.x() != initial_origin.x());
-  CHECK(horizontal_pan_origin.y() == initial_origin.y());
-
-  send_wheel(*canvas, QPoint(300, 240), 120, Qt::ControlModifier);
   const auto vertical_pan_origin = canvas->widget_position_for_document_point(QPoint(0, 0));
   CHECK(canvas->zoom() == initial_zoom);
-  CHECK(vertical_pan_origin.y() != horizontal_pan_origin.y());
+  CHECK(vertical_pan_origin.y() != initial_origin.y());
+  CHECK(vertical_pan_origin.x() == initial_origin.x());
+
+  send_wheel(*canvas, QPoint(300, 240), 120, Qt::ControlModifier);
+  const auto horizontal_pan_origin = canvas->widget_position_for_document_point(QPoint(0, 0));
+  CHECK(canvas->zoom() == initial_zoom);
+  CHECK(horizontal_pan_origin.x() != vertical_pan_origin.x());
+  CHECK(horizontal_pan_origin.y() == vertical_pan_origin.y());
+
+  send_wheel(*canvas, QPoint(300, 240), -120, Qt::ShiftModifier);
+  CHECK(canvas->widget_position_for_document_point(QPoint(0, 0)) == vertical_pan_origin);
 
   send_wheel(*canvas, QPoint(300, 240), 120, Qt::AltModifier);
   CHECK(canvas->zoom() > initial_zoom);
@@ -364,9 +425,8 @@ void ui_canvas_wheel_zoom_mode_zooms_at_cursor() {
   show_window(window);
   auto* canvas = require_canvas(window);
   canvas->setFocus();
-  // The mode default is platform-dependent (macOS pans on a plain wheel; see
-  // MainWindow::kWheelZoomsDefault). Pin the default, then switch the zoom mode on
-  // explicitly -- this test drives the MODE's behavior, not the default.
+  // A plain wheel zooms by default on every platform (MainWindow::kWheelZoomsDefault).
+  CHECK(patchy::ui::MainWindow::kWheelZoomsDefault);
   CHECK(canvas->wheel_zooms() == patchy::ui::MainWindow::kWheelZoomsDefault);
   canvas->set_wheel_zooms(true);
 
@@ -383,6 +443,125 @@ void ui_canvas_wheel_zoom_mode_zooms_at_cursor() {
   send_wheel(*canvas, QPoint(300, 240), 120, Qt::ShiftModifier);
   CHECK(canvas->zoom() == zoom_before_pan);
   CHECK(canvas->widget_position_for_document_point(QPoint(0, 0)).x() != origin_before_pan.x());
+}
+
+void ui_canvas_trackpad_scroll_pans_both_axes() {
+  // GitHub issue 44: a two-finger scroll carries both axes and a scroll phase. It pans
+  // freely at finger speed in either wheel mode; a stepped wheel keeps the mode.
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->setFocus();
+  const QPoint at(300, 240);
+  // Zoom in so the pan has room on both axes.
+  canvas->zoom_at_widget_point(QPointF(at), 8.0);
+  const auto origin = [canvas] { return canvas->widget_position_for_document_point(QPoint(0, 0)); };
+
+  for (const bool wheel_zooms : {false, true}) {
+    canvas->set_wheel_zooms(wheel_zooms);
+    const auto zoom = canvas->zoom();
+    auto before = origin();
+    send_scroll(*canvas, at, QPoint(0, 0), Qt::ScrollBegin);
+    send_scroll(*canvas, at, QPoint(0, -30));
+    CHECK(origin() == before + QPoint(0, -30));
+    send_scroll(*canvas, at, QPoint(-20, 1));
+    CHECK(origin() == before + QPoint(-20, -29));
+    send_scroll(*canvas, at, QPoint(7, 9));
+    CHECK(origin() == before + QPoint(-13, -20));
+    send_scroll(*canvas, at, QPoint(0, 0), Qt::ScrollEnd);
+    send_scroll(*canvas, at, QPoint(5, 0), Qt::ScrollMomentum);
+    CHECK(origin() == before + QPoint(-8, -20));
+    CHECK(canvas->zoom() == zoom);
+  }
+
+  // Alt zooms about the pointer in proportion to travel, not one wheel step per event.
+  const auto zoom = canvas->zoom();
+  const auto anchor = canvas->document_point_for_widget_position(QPointF(at));
+  send_scroll(*canvas, at, QPoint(0, 10), Qt::ScrollUpdate, Qt::AltModifier);
+  CHECK(canvas->zoom() > zoom);
+  CHECK(canvas->zoom() < zoom * 1.06);
+  const auto anchor_after = canvas->document_point_for_widget_position(QPointF(at));
+  CHECK(std::abs(anchor_after.x() - anchor.x()) < 0.01);
+  CHECK(std::abs(anchor_after.y() - anchor.y()) < 0.01);
+  send_scroll(*canvas, at, QPoint(0, -10), Qt::ScrollUpdate, Qt::AltModifier);
+  CHECK(std::abs(canvas->zoom() - zoom) < zoom * 1e-9);
+
+  // A pen Scroll button on macOS (Wacom driver) sends phased events that are still
+  // wheel notches: a whole 120 beside a small pixelDelta. They follow the wheel mode.
+  canvas->set_wheel_zooms(true);
+  {
+    const auto zoom_before_notch = canvas->zoom();
+    QWheelEvent notch(QPointF(at), QPointF(canvas->mapToGlobal(at)), QPoint(0, 3), QPoint(0, 120), Qt::NoButton,
+                      Qt::NoModifier, Qt::ScrollUpdate, false);
+    CHECK(!patchy::ui::CanvasWidget::wheel_event_is_continuous_scroll(notch));
+    QApplication::sendEvent(canvas, &notch);
+    CHECK(std::abs(canvas->zoom() - zoom_before_notch * 1.1) < zoom_before_notch * 1e-9);
+    canvas->zoom_at_widget_point(QPointF(at), 1.0 / 1.1);
+    // A finger scroll that happens to travel 60 px also reports 120, and stays a pan.
+    QWheelEvent finger(QPointF(at), QPointF(canvas->mapToGlobal(at)), QPoint(0, 60), QPoint(0, 120), Qt::NoButton,
+                       Qt::NoModifier, Qt::ScrollUpdate, false);
+    CHECK(patchy::ui::CanvasWidget::wheel_event_is_continuous_scroll(finger));
+  }
+
+  // A sideways-only stepped wheel pans horizontally even in wheel-zoom mode.
+  canvas->set_wheel_zooms(true);
+  const auto before = origin();
+  const auto zoom_before_tilt = canvas->zoom();
+  QWheelEvent tilt(QPointF(at), QPointF(canvas->mapToGlobal(at)), QPoint(), QPoint(-120, 0), Qt::NoButton,
+                   Qt::NoModifier, Qt::NoScrollPhase, false);
+  QApplication::sendEvent(canvas, &tilt);
+  CHECK(canvas->zoom() == zoom_before_tilt);
+  CHECK(origin().x() < before.x());
+  CHECK(origin().y() == before.y());
+}
+
+void ui_canvas_trackpad_scroll_ignored_during_pointer_gesture() {
+  // A palm on the trackpad mid-stroke must not slide the document under the brush, and
+  // momentum from an earlier flick stops at the next press.
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->setFocus();
+  canvas->set_tool(patchy::ui::CanvasTool::Brush);
+  const QPoint at(300, 240);
+  canvas->zoom_at_widget_point(QPointF(at), 8.0);
+  const auto origin = [canvas] { return canvas->widget_position_for_document_point(QPoint(0, 0)); };
+
+  const auto before = origin();
+  send_scroll(*canvas, at, QPoint(0, 0), Qt::ScrollBegin);
+  send_mouse(*canvas, QEvent::MouseButtonPress, at, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseMove, at + QPoint(6, 0), Qt::NoButton, Qt::LeftButton);
+  send_scroll(*canvas, at, QPoint(12, 12));
+  CHECK(origin() == before);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, at + QPoint(6, 0), Qt::LeftButton, Qt::NoButton);
+
+  // Leftover momentum after the press is dropped; a fresh scroll works again.
+  send_scroll(*canvas, at, QPoint(12, 0), Qt::ScrollMomentum);
+  CHECK(origin() == before);
+  send_scroll(*canvas, at, QPoint(0, 0), Qt::ScrollBegin);
+  send_scroll(*canvas, at, QPoint(12, 0));
+  CHECK(origin() == before + QPoint(12, 0));
+  send_scroll(*canvas, at, QPoint(4, 0), Qt::ScrollMomentum);
+  CHECK(origin() == before + QPoint(16, 0));
+}
+
+void ui_own_window_color_sample_reads_widget_without_screen_grab() {
+  // The macOS eyedropper samples Patchy's own windows by rendering them, so a pick on
+  // the pasteboard or a panel never needs the Screen Recording permission.
+  QWidget swatch;
+  swatch.setWindowFlag(Qt::FramelessWindowHint);
+  swatch.setAutoFillBackground(true);
+  QPalette palette = swatch.palette();
+  palette.setColor(QPalette::Window, QColor(12, 200, 90));
+  swatch.setPalette(palette);
+  swatch.setGeometry(40, 40, 120, 80);
+  swatch.show();
+  QApplication::processEvents();
+
+  const auto picked = patchy::ui::own_window_color_at_global_position(swatch.mapToGlobal(QPoint(60, 40)));
+  CHECK(picked.has_value());
+  CHECK(*picked == QColor(12, 200, 90));
+  CHECK(!patchy::ui::own_window_color_at_global_position(QPoint(-20000, -20000)).has_value());
 }
 
 void ui_status_bar_zoom_percent_box_edits_zoom() {
@@ -810,6 +989,91 @@ void ui_canvas_scroll_bars_follow_zoom_and_resize() {
   CHECK(vertical->geometry().right() == canvas.width() - 1);
 }
 
+// Right-click on the pasteboard offers Photoshop's backdrop presets (GitHub
+// issue 47): the pick repaints the pasteboard, persists as
+// view/canvasBackdropColor so a new window starts from it, and Default drops
+// the key and returns to the theme role. Inside the document nothing changes.
+void ui_canvas_backdrop_context_menu_sets_color() {
+  SettingsValueRestorer restore_backdrop(QStringLiteral("view/canvasBackdropColor"));
+  {
+    auto settings = patchy::ui::app_settings();
+    settings.remove(QStringLiteral("view/canvasBackdropColor"));
+    settings.sync();
+  }
+  const auto visible_context_menu = [](QWidget& canvas) -> QMenu* {
+    for (auto* menu : canvas.findChildren<QMenu*>(QStringLiteral("canvasContextMenu"))) {
+      if (menu->isVisible()) {
+        return menu;
+      }
+    }
+    return nullptr;
+  };
+  const auto right_click = [&](patchy::ui::CanvasWidget& canvas, QPoint point) {
+    send_mouse(canvas, QEvent::MouseButtonPress, point, Qt::RightButton, Qt::RightButton);
+    send_mouse(canvas, QEvent::MouseButtonRelease, point, Qt::RightButton, Qt::NoButton);
+    QApplication::processEvents();
+    return visible_context_menu(canvas);
+  };
+  const auto find_entry = [](QMenu& menu, const char* name) {
+    auto* action = menu.findChild<QAction*>(QString::fromLatin1(name));
+    CHECK(action != nullptr);
+    return action;
+  };
+  {
+    patchy::ui::MainWindow window;
+    show_window(window);
+    auto* canvas = require_canvas(window);
+    require_action_by_text(window, QStringLiteral("Brush"))->trigger();
+    canvas->set_zoom_centered(0.25);
+    QApplication::processEvents();
+    const auto backdrop_point = canvas->widget_position_for_document_point(QPoint(-300, -300));
+    CHECK(canvas->rect().contains(backdrop_point));
+    CHECK(!canvas->backdrop_color_override().has_value());
+    CHECK(canvas->backdrop_color() == patchy::ui::theme().canvas_backdrop);
+
+    // A painting tool inside the document still has no menu.
+    CHECK(right_click(*canvas, canvas->widget_position_for_document_point(QPoint(100, 100))) == nullptr);
+
+    auto* menu = right_click(*canvas, backdrop_point);
+    CHECK(menu != nullptr);
+    CHECK(find_entry(*menu, "canvasBackdropDefaultAction")->isChecked());
+    CHECK(!find_entry(*menu, "canvasBackdropWhiteAction")->isChecked());
+    CHECK(!find_entry(*menu, "canvasBackdropCustomAction")->isChecked());
+    find_entry(*menu, "canvasBackdropWhiteAction")->trigger();
+    QApplication::processEvents();
+    CHECK(canvas->backdrop_color() == QColor(255, 255, 255));
+    CHECK(canvas->backdrop_color_override().has_value());
+    CHECK(canvas->grab().toImage().pixelColor(backdrop_point) == QColor(255, 255, 255));
+    CHECK(patchy::ui::app_settings().value(QStringLiteral("view/canvasBackdropColor")).value<QColor>() ==
+          QColor(255, 255, 255));
+
+    menu = right_click(*canvas, backdrop_point);
+    CHECK(menu != nullptr);
+    CHECK(find_entry(*menu, "canvasBackdropWhiteAction")->isChecked());
+    CHECK(!find_entry(*menu, "canvasBackdropDefaultAction")->isChecked());
+    find_entry(*menu, "canvasBackdropDarkGrayAction")->trigger();
+    QApplication::processEvents();
+    CHECK(canvas->backdrop_color() == QColor(0x35, 0x35, 0x35));
+  }
+  {
+    // A new window starts from the saved color; Default clears the key.
+    patchy::ui::MainWindow window;
+    show_window(window);
+    auto* canvas = require_canvas(window);
+    CHECK(canvas->backdrop_color() == QColor(0x35, 0x35, 0x35));
+    canvas->set_zoom_centered(0.25);
+    QApplication::processEvents();
+    auto* menu = right_click(*canvas, canvas->widget_position_for_document_point(QPoint(-300, -300)));
+    CHECK(menu != nullptr);
+    CHECK(find_entry(*menu, "canvasBackdropDarkGrayAction")->isChecked());
+    find_entry(*menu, "canvasBackdropDefaultAction")->trigger();
+    QApplication::processEvents();
+    CHECK(canvas->backdrop_color() == patchy::ui::theme().canvas_backdrop);
+    CHECK(!canvas->backdrop_color_override().has_value());
+    CHECK(!patchy::ui::app_settings().contains(QStringLiteral("view/canvasBackdropColor")));
+  }
+}
+
 void ui_canvas_fractional_zoom_paints_to_document_edge() {
   patchy::Document document(1024, 768, patchy::PixelFormat::rgba8());
   patchy::PixelBuffer pixels(1024, 768, patchy::PixelFormat::rgba8());
@@ -970,7 +1234,7 @@ void ui_stamp_and_gradient_flyouts_swap_tools() {
   auto* stamp_button = window.findChild<QToolButton*>(QStringLiteral("stampToolButton"));
   CHECK(stamp_button != nullptr);
   CHECK(stamp_button->menu() != nullptr);
-  CHECK(stamp_button->menu()->actions().size() == 2);
+  CHECK(stamp_button->menu()->actions().size() == 4);  // two tools, separator, Cycle
   CHECK(stamp_button->defaultAction() == require_action(window, "toolCloneAction"));
   require_action(window, "toolPatternStampAction")->trigger();
   QApplication::processEvents();
@@ -980,7 +1244,7 @@ void ui_stamp_and_gradient_flyouts_swap_tools() {
   auto* gradient_button = window.findChild<QToolButton*>(QStringLiteral("gradientToolButton"));
   CHECK(gradient_button != nullptr);
   CHECK(gradient_button->menu() != nullptr);
-  CHECK(gradient_button->menu()->actions().size() == 2);
+  CHECK(gradient_button->menu()->actions().size() == 4);
   CHECK(gradient_button->defaultAction() == require_action(window, "toolGradientAction"));
   require_action(window, "toolFillAction")->trigger();
   QApplication::processEvents();
@@ -990,7 +1254,7 @@ void ui_stamp_and_gradient_flyouts_swap_tools() {
   auto* healing_button = window.findChild<QToolButton*>(QStringLiteral("healingToolButton"));
   CHECK(healing_button != nullptr);
   CHECK(healing_button->menu() != nullptr);
-  CHECK(healing_button->menu()->actions().size() == 3);
+  CHECK(healing_button->menu()->actions().size() == 5);
   CHECK(healing_button->defaultAction() == require_action(window, "toolHealingBrushAction"));
   require_action(window, "toolSpotHealingAction")->trigger();
   QApplication::processEvents();
@@ -1004,7 +1268,7 @@ void ui_stamp_and_gradient_flyouts_swap_tools() {
   auto* pen_button = window.findChild<QToolButton*>(QStringLiteral("penToolButton"));
   CHECK(pen_button != nullptr);
   CHECK(pen_button->menu() != nullptr);
-  CHECK(pen_button->menu()->actions().size() == 4);
+  CHECK(pen_button->menu()->actions().size() == 6);
   CHECK(pen_button->defaultAction() == require_action(window, "toolPenAction"));
   require_action(window, "toolConvertPointAction")->trigger();
   QApplication::processEvents();
@@ -1019,6 +1283,80 @@ void ui_stamp_and_gradient_flyouts_swap_tools() {
     auto* button = window.findChild<QToolButton*>(QString::fromLatin1(name));
     CHECK(button != nullptr);
     CHECK(button->property("toolFlyout").toBool());
+  }
+}
+
+// Shift+<letter> walks a flyout in menu order from the active tool, wrapping,
+// and from the button's shown tool when the active tool is elsewhere (GitHub
+// issue 45, Photoshop's Shift+key convention). The plain letter still selects
+// the group's primary tool.
+void ui_tool_cycle_hotkeys_walk_each_flyout() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  require_action_by_text(window, QStringLiteral("Brush"))->trigger();
+  QApplication::processEvents();
+  CHECK(canvas->tool() == patchy::ui::CanvasTool::Brush);
+
+  auto* healing_button = window.findChild<QToolButton*>(QStringLiteral("healingToolButton"));
+  CHECK(healing_button != nullptr);
+  auto* cycle_healing = require_action(window, "toolCycleHealingAction");
+  CHECK(healing_button->menu()->actions().contains(cycle_healing));
+  CHECK(!cycle_healing->isCheckable());
+  CHECK(cycle_healing->isEnabled());
+
+  // From an unrelated tool the first press steps past the shown member.
+  QTest::keyClick(canvas, Qt::Key_J, Qt::ShiftModifier);
+  QApplication::processEvents();
+  CHECK(canvas->tool() == patchy::ui::CanvasTool::SpotHealing);
+  CHECK(healing_button->defaultAction() == require_action(window, "toolSpotHealingAction"));
+  QTest::keyClick(canvas, Qt::Key_J, Qt::ShiftModifier);
+  QApplication::processEvents();
+  CHECK(canvas->tool() == patchy::ui::CanvasTool::PatchTool);
+  CHECK(healing_button->defaultAction() == require_action(window, "toolPatchAction"));
+  QTest::keyClick(canvas, Qt::Key_J, Qt::ShiftModifier);
+  QApplication::processEvents();
+  CHECK(canvas->tool() == patchy::ui::CanvasTool::Healing);
+  CHECK(healing_button->defaultAction() == require_action(window, "toolHealingBrushAction"));
+  require_action(window, "toolPatchAction")->trigger();
+  QApplication::processEvents();
+  QTest::keyClick(canvas, Qt::Key_J);
+  QApplication::processEvents();
+  CHECK(canvas->tool() == patchy::ui::CanvasTool::Healing);
+
+  // A two-member group toggles; the cycle command drives the flyout button too.
+  auto* gradient_button = window.findChild<QToolButton*>(QStringLiteral("gradientToolButton"));
+  CHECK(gradient_button != nullptr);
+  CHECK(gradient_button->defaultAction() == require_action(window, "toolGradientAction"));
+  QTest::keyClick(canvas, Qt::Key_G, Qt::ShiftModifier);
+  QApplication::processEvents();
+  CHECK(canvas->tool() == patchy::ui::CanvasTool::Fill);
+  CHECK(gradient_button->defaultAction() == require_action(window, "toolFillAction"));
+  QTest::keyClick(canvas, Qt::Key_G, Qt::ShiftModifier);
+  QApplication::processEvents();
+  CHECK(canvas->tool() == patchy::ui::CanvasTool::Gradient);
+  require_action(window, "toolCycleFillAction")->trigger();
+  QApplication::processEvents();
+  CHECK(canvas->tool() == patchy::ui::CanvasTool::Fill);
+
+  // Every flyout owns one, in the tools category, listed after a separator.
+  const auto& registry = window.hotkey_registry();
+  const std::pair<const char*, const char*> cycles[] = {
+      {"toolCycleMarqueeAction", "tools.cycle.marquee"}, {"toolCycleLassoAction", "tools.cycle.lasso"},
+      {"toolCycleWandAction", "tools.cycle.wand"},       {"toolCycleFillAction", "tools.cycle.gradient"},
+      {"toolCycleStampAction", "tools.cycle.stamp"},     {"toolCycleHealingAction", "tools.cycle.healing"},
+      {"toolCycleDetailAction", "tools.cycle.detail"},   {"toolCycleToningAction", "tools.cycle.tone"},
+      {"toolCyclePenAction", "tools.cycle.pen"},         {"toolCyclePathAction", "tools.cycle.path_select"},
+      {"toolCycleShapeAction", "tools.cycle.shape"},
+  };
+  for (const auto& [object_name, id] : cycles) {
+    auto* action = require_action(window, object_name);
+    CHECK(!action->shortcut().isEmpty());
+    CHECK(action->menuRole() == QAction::NoRole);
+    const auto* command = registry.find_command(QString::fromLatin1(id));
+    CHECK(command != nullptr);
+    CHECK(command->action == action);
+    CHECK(command->category == QStringLiteral("tools"));
   }
 }
 
@@ -1108,6 +1446,255 @@ void ui_shape_flyout_and_zoom_tool_work() {
   send_double_click(*zoom_button, zoom_button->rect().center());
   CHECK(std::abs(canvas->zoom() - 1.0) < 0.001);
   save_widget_artifact("ui_shape_flyout_zoom_tool", window);
+}
+
+// Scrubby Zoom (GitHub issue 51): the Zoom tool's options-bar checkbox is off by
+// default, persists as tools/zoomScrubby, reaches the active canvas, and follows
+// the window into a second document.
+void ui_zoom_tool_scrubby_option_persists_and_reaches_canvas() {
+  SettingsValueRestorer saved_scrubby(QStringLiteral("tools/zoomScrubby"));
+  {
+    auto settings = patchy::ui::app_settings();
+    settings.remove(QStringLiteral("tools/zoomScrubby"));
+    settings.sync();
+  }
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto* scrubby = window.findChild<QCheckBox*>(QStringLiteral("zoomScrubbyCheck"));
+  CHECK(scrubby != nullptr);
+  if (scrubby == nullptr) {
+    return;
+  }
+  CHECK(!scrubby->isChecked());
+  CHECK(!canvas->zoom_scrubby());
+
+  require_action(window, "toolBrushAction")->trigger();
+  QApplication::processEvents();
+  CHECK(!scrubby->isVisible());
+  require_action_by_text(window, QStringLiteral("Zoom"))->trigger();
+  QApplication::processEvents();
+  CHECK(canvas->tool() == patchy::ui::CanvasTool::Zoom);
+  CHECK(scrubby->isVisible());
+  CHECK(scrubby->isEnabled());
+
+  scrubby->setChecked(true);
+  QApplication::processEvents();
+  CHECK(canvas->zoom_scrubby());
+  patchy::ui::MainWindowTestAccess::save_tool_settings(window);
+  {
+    auto settings = patchy::ui::app_settings();
+    CHECK(settings.value(QStringLiteral("tools/zoomScrubby"), false).toBool());
+  }
+
+  patchy::ui::MainWindowTestAccess::create_default_document(window);
+  QApplication::processEvents();
+  auto* second = require_canvas(window);
+  CHECK(second != canvas);
+  CHECK(second->zoom_scrubby());
+  CHECK(scrubby->isChecked());
+}
+
+// With Scrubby Zoom on, a Zoom tool drag zooms live from horizontal travel
+// (1.01 per pixel, right = in) about the press point, which stays put; a press
+// without travel is still the fixed-factor click, Alt+drag scrubs, vertical
+// travel does nothing, and turning the option off restores the marquee.
+void ui_zoom_tool_scrubby_drag_zooms_live_around_press_point() {
+  patchy::Document document(128, 96, patchy::PixelFormat::rgba8());
+  document.add_pixel_layer("Paint", solid_pixels(128, 96, patchy::PixelFormat::rgba8(), QColor(200, 200, 200, 255)));
+
+  patchy::ui::CanvasWidget canvas;
+  canvas.resize(400, 300);
+  canvas.set_document(&document);
+  canvas.set_tool(patchy::ui::CanvasTool::Zoom);
+  canvas.set_zoom_scrubby(true);
+  canvas.show();
+  QApplication::processEvents();
+
+  const QPoint anchor_document(40, 30);
+  const auto press = [&canvas](QPoint at, Qt::KeyboardModifiers modifiers = Qt::NoModifier) {
+    send_mouse(canvas, QEvent::MouseButtonPress, at, Qt::LeftButton, Qt::LeftButton, modifiers);
+  };
+  const auto move = [&canvas](QPoint to, Qt::KeyboardModifiers modifiers = Qt::NoModifier) {
+    send_mouse(canvas, QEvent::MouseMove, to, Qt::NoButton, Qt::LeftButton, modifiers);
+  };
+  const auto release = [&canvas](QPoint at, Qt::KeyboardModifiers modifiers = Qt::NoModifier) {
+    send_mouse(canvas, QEvent::MouseButtonRelease, at, Qt::LeftButton, Qt::NoButton, modifiers);
+  };
+
+  // (a) Drag right in steps: the zoom follows 1.01^dx and the pressed document
+  // point stays under the press position.
+  canvas.set_zoom(1.0);
+  const auto start = canvas.widget_position_for_document_point(anchor_document);
+  press(start);
+  move(start + QPoint(20, 0));
+  move(start + QPoint(60, 0));
+  move(start + QPoint(100, 0));
+  release(start + QPoint(100, 0));
+  const auto scrubbed_in = canvas.zoom();
+  CHECK(std::abs(scrubbed_in - std::pow(1.01, 100)) < 0.05);
+  const auto anchor_after = canvas.widget_position_for_document_point(anchor_document);
+  CHECK((anchor_after - start).manhattanLength() <= 2);
+
+  // (b) Drag left the same distance: back to the starting zoom.
+  const auto left_start = canvas.widget_position_for_document_point(anchor_document);
+  press(left_start);
+  move(left_start + QPoint(-50, 0));
+  move(left_start + QPoint(-100, 0));
+  release(left_start + QPoint(-100, 0));
+  CHECK(std::abs(canvas.zoom() - 1.0) < 0.05);
+
+  // (c) A press without travel is still a click: 2x, and 0.5x with Alt.
+  canvas.set_zoom(1.0);
+  const auto click_at = canvas.widget_position_for_document_point(anchor_document);
+  press(click_at);
+  release(click_at);
+  CHECK(std::abs(canvas.zoom() - 2.0) < 0.001);
+  const auto alt_click_at = canvas.widget_position_for_document_point(anchor_document);
+  press(alt_click_at, Qt::AltModifier);
+  release(alt_click_at, Qt::AltModifier);
+  CHECK(std::abs(canvas.zoom() - 1.0) < 0.001);
+
+  // (d) Alt only matters to a click: an Alt drag to the right still zooms in.
+  const auto alt_drag_at = canvas.widget_position_for_document_point(anchor_document);
+  press(alt_drag_at, Qt::AltModifier);
+  move(alt_drag_at + QPoint(50, 0), Qt::AltModifier);
+  release(alt_drag_at + QPoint(50, 0), Qt::AltModifier);
+  CHECK(canvas.zoom() > 1.5);
+
+  // (e) Vertical travel past the click slop is neither a click nor a zoom.
+  canvas.set_zoom(1.0);
+  const auto vertical_at = canvas.widget_position_for_document_point(anchor_document);
+  press(vertical_at);
+  move(vertical_at + QPoint(0, 40));
+  release(vertical_at + QPoint(0, 40));
+  CHECK(std::abs(canvas.zoom() - 1.0) < 0.001);
+
+  // (f) Option off: the same drag is a marquee fit, not a scrub.
+  canvas.set_zoom_scrubby(false);
+  canvas.set_zoom(1.0);
+  const auto marquee_at = canvas.widget_position_for_document_point(anchor_document);
+  press(marquee_at);
+  move(marquee_at + QPoint(60, 30));
+  release(marquee_at + QPoint(60, 30));
+  CHECK(std::abs(canvas.zoom() - std::pow(1.01, 60)) > 0.05);
+  CHECK(canvas.zoom() > 1.0);
+}
+
+// The Zoom tool's Zoom In / Zoom Out toggle sets the click direction (Alt
+// inverts it), persists as tools/zoomToolZoomsOut, and follows the window into
+// a second document.
+void ui_zoom_tool_direction_buttons_set_click_direction() {
+  SettingsValueRestorer saved_direction(QStringLiteral("tools/zoomToolZoomsOut"));
+  {
+    auto settings = patchy::ui::app_settings();
+    settings.remove(QStringLiteral("tools/zoomToolZoomsOut"));
+    settings.sync();
+  }
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto* zoom_in_mode = window.findChild<QAction*>(QStringLiteral("zoomInModeAction"));
+  auto* zoom_out_mode = window.findChild<QAction*>(QStringLiteral("zoomOutModeAction"));
+  CHECK(zoom_in_mode != nullptr);
+  CHECK(zoom_out_mode != nullptr);
+  if (zoom_in_mode == nullptr || zoom_out_mode == nullptr) {
+    return;
+  }
+  CHECK(zoom_in_mode->isCheckable());
+  CHECK(zoom_in_mode->isChecked());
+  CHECK(!zoom_out_mode->isChecked());
+  CHECK(!canvas->zoom_tool_zooms_out());
+
+  require_action_by_text(window, QStringLiteral("Zoom"))->trigger();
+  QApplication::processEvents();
+  CHECK(canvas->tool() == patchy::ui::CanvasTool::Zoom);
+  const auto click = [canvas](Qt::KeyboardModifiers modifiers) {
+    const auto at = canvas->widget_position_for_document_point(QPoint(10, 10));
+    send_mouse(*canvas, QEvent::MouseButtonPress, at, Qt::LeftButton, Qt::LeftButton, modifiers);
+    send_mouse(*canvas, QEvent::MouseButtonRelease, at, Qt::LeftButton, Qt::NoButton, modifiers);
+  };
+  canvas->set_zoom(1.0);
+  click(Qt::NoModifier);
+  CHECK(std::abs(canvas->zoom() - 2.0) < 0.001);
+
+  zoom_out_mode->trigger();
+  QApplication::processEvents();
+  CHECK(zoom_out_mode->isChecked());
+  CHECK(!zoom_in_mode->isChecked());
+  CHECK(canvas->zoom_tool_zooms_out());
+  click(Qt::NoModifier);
+  CHECK(std::abs(canvas->zoom() - 1.0) < 0.001);
+  click(Qt::AltModifier);
+  CHECK(std::abs(canvas->zoom() - 2.0) < 0.001);
+
+  patchy::ui::MainWindowTestAccess::save_tool_settings(window);
+  {
+    auto settings = patchy::ui::app_settings();
+    CHECK(settings.value(QStringLiteral("tools/zoomToolZoomsOut"), false).toBool());
+  }
+  patchy::ui::MainWindowTestAccess::create_default_document(window);
+  QApplication::processEvents();
+  auto* second = require_canvas(window);
+  CHECK(second != canvas);
+  CHECK(second->zoom_tool_zooms_out());
+  CHECK(zoom_out_mode->isChecked());
+
+  zoom_in_mode->trigger();
+  QApplication::processEvents();
+  CHECK(!second->zoom_tool_zooms_out());
+}
+
+// The Zoom tool's 100% / Fit Screen / Fill Screen buttons show only for the
+// Zoom tool and set the view like the View menu commands; Fill Screen (a new
+// View command) uses the larger axis ratio where Fit uses the smaller.
+void ui_zoom_options_bar_view_buttons_set_view() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto* actual = window.findChild<QPushButton*>(QStringLiteral("zoomActualPixelsButton"));
+  auto* fit = window.findChild<QPushButton*>(QStringLiteral("zoomFitScreenButton"));
+  auto* fill = window.findChild<QPushButton*>(QStringLiteral("zoomFillScreenButton"));
+  CHECK(actual != nullptr);
+  CHECK(fit != nullptr);
+  CHECK(fill != nullptr);
+  if (actual == nullptr || fit == nullptr || fill == nullptr) {
+    return;
+  }
+  require_action(window, "toolBrushAction")->trigger();
+  QApplication::processEvents();
+  CHECK(!actual->isVisible());
+  CHECK(!fit->isVisible());
+  CHECK(!fill->isVisible());
+  require_action_by_text(window, QStringLiteral("Zoom"))->trigger();
+  QApplication::processEvents();
+  CHECK(actual->isVisible());
+  CHECK(fit->isVisible());
+  CHECK(fill->isVisible());
+  CHECK(actual->isEnabled());
+
+  const auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  const auto doc_width = static_cast<double>(document.width());
+  const auto doc_height = static_cast<double>(document.height());
+  const auto fit_zoom = std::min((canvas->width() - 80.0) / doc_width, (canvas->height() - 80.0) / doc_height);
+  const auto fill_zoom = std::max(canvas->width() / doc_width, canvas->height() / doc_height);
+  CHECK(fill_zoom > fit_zoom);
+
+  canvas->set_zoom(0.37);
+  actual->click();
+  QApplication::processEvents();
+  CHECK(std::abs(canvas->zoom() - 1.0) < 0.001);
+  fit->click();
+  QApplication::processEvents();
+  CHECK(std::abs(canvas->zoom() - fit_zoom) < 0.001);
+  fill->click();
+  QApplication::processEvents();
+  CHECK(std::abs(canvas->zoom() - fill_zoom) < 0.001);
+
+  canvas->set_zoom(0.37);
+  require_action_by_text(window, QStringLiteral("Fill Screen"))->trigger();
+  QApplication::processEvents();
+  CHECK(std::abs(canvas->zoom() - fill_zoom) < 0.001);
 }
 
 void ui_tool_palette_icons_render_sheet() {
@@ -1298,6 +1885,228 @@ void ui_filled_shape_preview_clears_after_commit() {
         repainted.pixelColor(canvas->widget_position_for_document_point(QPoint(170, 125))));
 }
 
+// Fill tool options: Tol and Contiguous live beside Opacity/Soft, persist, and follow the
+// current_* mirror onto new documents (GitHub issue 30).
+void ui_fill_tool_tolerance_and_contiguous_persist_across_documents() {
+  SettingsValueRestorer saved_tolerance(QStringLiteral("tools/fillTolerance"));
+  SettingsValueRestorer saved_contiguous(QStringLiteral("tools/fillContiguous"));
+  {
+    auto settings = patchy::ui::app_settings();
+    settings.remove(QStringLiteral("tools/fillTolerance"));
+    settings.remove(QStringLiteral("tools/fillContiguous"));
+    settings.sync();
+  }
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto* tolerance = window.findChild<QSpinBox*>(QStringLiteral("fillToleranceSpin"));
+  auto* contiguous = window.findChild<QCheckBox*>(QStringLiteral("fillContiguousCheck"));
+  CHECK(tolerance != nullptr);
+  CHECK(contiguous != nullptr);
+  if (tolerance == nullptr || contiguous == nullptr) {
+    return;
+  }
+  CHECK(tolerance->minimum() == 0);
+  CHECK(tolerance->maximum() == 255);
+  CHECK(canvas->fill_tolerance() == 32);
+  CHECK(canvas->fill_contiguous());
+  CHECK(tolerance->value() == 32);
+  CHECK(contiguous->isChecked());
+
+  require_action(window, "toolBrushAction")->trigger();
+  QApplication::processEvents();
+  CHECK(!tolerance->isVisible());
+  CHECK(!contiguous->isVisible());
+  require_action(window, "toolFillAction")->trigger();
+  QApplication::processEvents();
+  CHECK(tolerance->isVisible());
+  CHECK(contiguous->isVisible());
+
+  tolerance->setValue(48);
+  contiguous->setChecked(false);
+  QApplication::processEvents();
+  CHECK(canvas->fill_tolerance() == 48);
+  CHECK(!canvas->fill_contiguous());
+  patchy::ui::MainWindowTestAccess::save_tool_settings(window);
+  {
+    auto settings = patchy::ui::app_settings();
+    CHECK(settings.value(QStringLiteral("tools/fillTolerance")).toInt() == 48);
+    CHECK(!settings.value(QStringLiteral("tools/fillContiguous"), true).toBool());
+  }
+
+  patchy::ui::MainWindowTestAccess::create_default_document(window);
+  QApplication::processEvents();
+  auto* second = require_canvas(window);
+  CHECK(second != canvas);
+  CHECK(second->fill_tolerance() == 48);
+  CHECK(!second->fill_contiguous());
+  CHECK(tolerance->value() == 48);
+  CHECK(!contiguous->isChecked());
+}
+
+// A Fill tool click honors the tool's own Tol, Contiguous, and Opacity (not the brush's).
+void ui_fill_tool_click_honors_tolerance_contiguous_and_opacity() {
+  patchy::Document document(64, 64, patchy::PixelFormat::rgba8());
+  patchy::PixelBuffer pixels(64, 64, patchy::PixelFormat::rgba8());
+  for (std::int32_t y = 0; y < 64; ++y) {
+    for (std::int32_t x = 0; x < 64; ++x) {
+      auto* px = pixels.pixel(x, y);
+      const bool bar = y >= 30 && y <= 33;
+      const std::uint8_t gray = ((x + y) % 2 == 0) ? 255 : 250;
+      px[0] = px[1] = px[2] = bar ? 0 : gray;
+      px[3] = 255;
+    }
+  }
+  const auto layer_id = document.add_pixel_layer("Background", std::move(pixels)).id();
+  document.set_active_layer(layer_id);
+  const auto pixel_at = [&](int x, int y) {
+    const auto* px = std::as_const(document).find_layer(layer_id)->pixels().pixel(x, y);
+    return QColor(px[0], px[1], px[2], px[3]);
+  };
+
+  patchy::ui::CanvasWidget canvas;
+  canvas.resize(320, 320);
+  canvas.set_document(&document);
+  canvas.set_zoom(4.0);
+  canvas.set_tool(patchy::ui::CanvasTool::Fill);
+  canvas.set_primary_color(QColor(0, 180, 210));
+  canvas.set_brush_opacity(10);  // must not leak into the fill
+  canvas.show();
+  QApplication::processEvents();
+  const auto click = [&](int x, int y) {
+    const auto position = canvas.widget_position_for_document_point(QPoint(x, y));
+    send_mouse(canvas, QEvent::MouseButtonPress, position, Qt::LeftButton, Qt::LeftButton);
+    send_mouse(canvas, QEvent::MouseButtonRelease, position, Qt::LeftButton, Qt::NoButton);
+    QApplication::processEvents();
+  };
+
+  canvas.set_fill_tolerance(0);
+  click(2, 2);
+  CHECK(pixel_at(2, 2) == QColor(0, 180, 210));
+  CHECK(pixel_at(3, 2) == QColor(250, 250, 250));
+
+  canvas.set_fill_tolerance(32);
+  click(4, 4);
+  CHECK(pixel_at(3, 2) == QColor(0, 180, 210));
+  CHECK(pixel_at(63, 29) == QColor(0, 180, 210));
+  CHECK(pixel_at(10, 31) == QColor(0, 0, 0));
+  CHECK(pixel_at(10, 40) == QColor(255, 255, 255));
+
+  // Contiguous off at tolerance 0: the lower island's 255-gray pixels are a checkerboard,
+  // so none of them touch, yet one click fills them all; the 250 grays stay.
+  canvas.set_fill_contiguous(false);
+  canvas.set_fill_tolerance(0);
+  click(10, 40);
+  CHECK(pixel_at(10, 40) == QColor(0, 180, 210));
+  CHECK(pixel_at(12, 40) == QColor(0, 180, 210));
+  CHECK(pixel_at(60, 60) == QColor(0, 180, 210));
+  CHECK(pixel_at(11, 40) == QColor(250, 250, 250));
+  CHECK(pixel_at(10, 31) == QColor(0, 0, 0));
+
+  canvas.set_fill_contiguous(true);
+  canvas.set_fill_tolerance(0);
+  canvas.set_fill_opacity(50);
+  click(10, 31);
+  CHECK(color_close(pixel_at(10, 31), QColor(0, 90, 105), 3));
+  CHECK(color_close(pixel_at(50, 33), QColor(0, 90, 105), 3));
+  CHECK(pixel_at(10, 40) == QColor(0, 180, 210));
+}
+
+// GitHub issue 34: wand-selecting the slightly uneven white background of a 1110 x 1388 image
+// and filling it took about 45 s with both the Fill tool and Layer > Fill. The selection is a
+// QRegion with thousands of row spans (the background weaves between the subject), and every
+// per-pixel selection query went through QRegion::contains, which scans all of them. The canvas
+// now rasterizes such a selection once; both fills must finish in a small fraction of a second.
+void ui_fill_of_wand_selection_with_many_spans_is_fast() {
+  constexpr int kWidth = 1110;
+  constexpr int kHeight = 1388;
+  constexpr int kDiscSpacing = 80;
+  constexpr int kDiscRadius = 24;
+  patchy::Document document(kWidth, kHeight, patchy::PixelFormat::rgba8());
+  patchy::PixelBuffer pixels(kWidth, kHeight, patchy::PixelFormat::rgba8());
+  for (std::int32_t y = 0; y < kHeight; ++y) {
+    for (std::int32_t x = 0; x < kWidth; ++x) {
+      // A near-white background (253..255, within the wand's tolerance) with a grid of dark
+      // discs on it: every row through a disc band crosses a dozen discs, so the wand's
+      // background region holds thousands of spans.
+      const auto dx = x % kDiscSpacing - kDiscSpacing / 2;
+      const auto dy = y % kDiscSpacing - kDiscSpacing / 2;
+      const bool disc = dx * dx + dy * dy <= kDiscRadius * kDiscRadius;
+      const auto gray = static_cast<std::uint8_t>(disc ? 30 : 253 + (x * 7 + y * 13) % 3);
+      auto* px = pixels.pixel(x, y);
+      px[0] = px[1] = px[2] = gray;
+      px[3] = 255;
+    }
+  }
+  const auto layer_id = document.add_pixel_layer("Background", std::move(pixels)).id();
+  document.set_active_layer(layer_id);
+
+  patchy::ui::MainWindow window;
+  show_window(window);
+  window.add_document_session(std::move(document), QStringLiteral("Issue 34"));
+  QApplication::processEvents();
+  auto* canvas = require_canvas(window);
+  auto& edited = patchy::ui::MainWindowTestAccess::document(window);
+  const auto pixel_at = [&](int x, int y) {
+    const auto* px = std::as_const(edited).find_layer(layer_id)->pixels().pixel(x, y);
+    return QColor(px[0], px[1], px[2], px[3]);
+  };
+  const auto click = [&](int x, int y) {
+    const auto position = canvas->widget_position_for_document_point(QPoint(x, y));
+    send_mouse(*canvas, QEvent::MouseButtonPress, position, Qt::LeftButton, Qt::LeftButton);
+    send_mouse(*canvas, QEvent::MouseButtonRelease, position, Qt::LeftButton, Qt::NoButton);
+    QApplication::processEvents();
+  };
+
+  canvas->set_tool(patchy::ui::CanvasTool::MagicWand);
+  canvas->set_wand_tolerance(32);
+  canvas->set_wand_contiguous(true);
+  canvas->set_wand_sample_all_layers(false);
+  canvas->set_selection_feather_radius(0);
+  click(2, 2);
+  const auto& selection = canvas->selected_document_region();
+  CHECK(selection.contains(QPoint(2, 2)));
+  CHECK(!selection.contains(QPoint(kDiscSpacing / 2, kDiscSpacing / 2)));
+  CHECK(selection.rectCount() > 5000);
+  CHECK(canvas->selection_alpha_at(QPoint(2, 2)) == 255U);
+  CHECK(canvas->selection_alpha_at(QPoint(kDiscSpacing / 2, kDiscSpacing / 2)) == 0U);
+  CHECK(canvas->selection_alpha_at(QPoint(kWidth - 3, kHeight - 3)) == 255U);
+  CHECK(canvas->selection_alpha_at(QPoint(kWidth, kHeight - 3)) == 0U);
+  CHECK(canvas->selection_alpha_at(QPoint(-1, 5)) == 0U);
+
+  // Layer > Fill (the background variant needs no dialog).
+  canvas->set_secondary_color(QColor(0, 180, 210));
+  auto* fill_background = window.findChild<QAction*>(QStringLiteral("layerFillBackgroundAction"));
+  CHECK(fill_background != nullptr);
+  QElapsedTimer fill_command_timer;
+  fill_command_timer.start();
+  fill_background->trigger();
+  QApplication::processEvents();
+  const auto fill_command_ms = fill_command_timer.elapsed();
+  CHECK(pixel_at(2, 2) == QColor(0, 180, 210));
+  CHECK(pixel_at(kWidth - 3, kHeight - 3) == QColor(0, 180, 210));
+  CHECK(pixel_at(kDiscSpacing / 2, kDiscSpacing / 2) == QColor(30, 30, 30));
+  CHECK(fill_command_ms < 3000);
+
+  // The Fill tool click inside the same selection floods the fresh fill color.
+  canvas->set_tool(patchy::ui::CanvasTool::Fill);
+  canvas->set_primary_color(QColor(200, 40, 60));
+  canvas->set_fill_tolerance(32);
+  canvas->set_fill_contiguous(true);
+  canvas->set_fill_opacity(100);
+  canvas->set_fill_softness(0);
+  QElapsedTimer fill_tool_timer;
+  fill_tool_timer.start();
+  click(2, 2);
+  const auto fill_tool_ms = fill_tool_timer.elapsed();
+  CHECK(pixel_at(2, 2) == QColor(200, 40, 60));
+  CHECK(pixel_at(kWidth - 3, kHeight - 3) == QColor(200, 40, 60));
+  CHECK(pixel_at(kDiscSpacing / 2, kDiscSpacing / 2) == QColor(30, 30, 30));
+  CHECK(fill_tool_ms < 3000);
+  std::cout << "  fill command " << fill_command_ms << " ms, fill tool " << fill_tool_ms << " ms over "
+            << selection.rectCount() << " selection spans\n";
+}
+
 void ui_options_bar_tracks_active_tool() {
   SettingsValueRestorer saved_gradient_method(QStringLiteral("tools/gradientMethod"));
   SettingsValueRestorer saved_gradient_reverse(QStringLiteral("tools/gradientReverse"));
@@ -1342,6 +2151,7 @@ void ui_options_bar_tracks_active_tool() {
   auto* wand_tolerance = window.findChild<QSpinBox*>(QStringLiteral("wandToleranceSpin"));
   auto* wand_contiguous = window.findChild<QCheckBox*>(QStringLiteral("wandContiguousCheck"));
   auto* wand_sample_all_layers = window.findChild<QCheckBox*>(QStringLiteral("wandSampleAllLayersCheck"));
+  auto* zoom_scrubby = window.findChild<QCheckBox*>(QStringLiteral("zoomScrubbyCheck"));
   auto* feather_group = window.findChild<QWidget*>(QStringLiteral("selectionFeatherGroup"));
   auto* anti_alias = window.findChild<QCheckBox*>(QStringLiteral("selectionAntiAliasCheck"));
   CHECK(move_auto_select != nullptr);
@@ -1376,6 +2186,7 @@ void ui_options_bar_tracks_active_tool() {
   CHECK(wand_tolerance != nullptr);
   CHECK(wand_contiguous != nullptr);
   CHECK(wand_sample_all_layers != nullptr);
+  CHECK(zoom_scrubby != nullptr);
   CHECK(feather_group != nullptr);
   CHECK(anti_alias != nullptr);
   CHECK(anti_alias->isChecked());
@@ -1404,6 +2215,7 @@ void ui_options_bar_tracks_active_tool() {
   CHECK(!move_show_transform_controls->isVisible());
   CHECK(!wand_contiguous->isVisible());
   CHECK(!wand_sample_all_layers->isVisible());
+  CHECK(!zoom_scrubby->isVisible());
   CHECK(!text_font->isVisible());
   CHECK(!text_color->isVisible());
 
@@ -1457,6 +2269,7 @@ void ui_options_bar_tracks_active_tool() {
   CHECK(wand_tolerance->isVisible());
   CHECK(wand_contiguous->isVisible());
   CHECK(wand_sample_all_layers->isVisible());
+  CHECK(!zoom_scrubby->isVisible());
   CHECK(feather_group->isVisible());
   CHECK(anti_alias->isVisible());
   CHECK(!text_font->isVisible());
@@ -2012,6 +2825,378 @@ void ui_layer_opacity_control_defers_slow_rendering_and_undoes_once() {
   CHECK(std::abs(edited_layer->opacity() - 1.0F) <= 0.001F);
 }
 
+// Options-bar labels scrub their field (GitHub issue 46): a horizontal drag on
+// "Size:" moves brushSizeSpin one step per pixel, ten with Shift, clamped to the
+// range; a plain click changes nothing; the label wears the SizeHor cursor.
+void ui_options_bar_label_scrub_changes_spin_value() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  require_action_by_text(window, QStringLiteral("Brush"))->trigger();
+  QApplication::processEvents();
+  auto* size_spin = window.findChild<QSpinBox*>(QStringLiteral("brushSizeSpin"));
+  CHECK(size_spin != nullptr);
+  CHECK(size_spin->property(patchy::ui::kScrubHandleInstalledProperty).toBool());
+  QLabel* size_label = nullptr;
+  for (auto* label : window.findChildren<QLabel*>()) {
+    if (label->isVisible() && label->text() == QStringLiteral("Size:") &&
+        label->property("optionLabel").toBool()) {
+      size_label = label;
+    }
+  }
+  CHECK(size_label != nullptr);
+  CHECK(size_label->cursor().shape() == Qt::SizeHorCursor);
+
+  size_spin->setValue(40);
+  const auto origin = size_label->rect().center();
+  const int drag_start = QApplication::startDragDistance();
+  const auto scrub = [&](int dx, Qt::KeyboardModifiers modifiers) {
+    send_mouse(*size_label, QEvent::MouseButtonPress, origin, Qt::LeftButton, Qt::LeftButton, modifiers);
+    send_mouse(*size_label, QEvent::MouseMove, origin + QPoint(dx, 0), Qt::NoButton, Qt::LeftButton, modifiers);
+    send_mouse(*size_label, QEvent::MouseButtonRelease, origin + QPoint(dx, 0), Qt::LeftButton, Qt::NoButton,
+               modifiers);
+    QApplication::processEvents();
+  };
+  scrub(drag_start + 15, Qt::NoModifier);
+  CHECK(size_spin->value() == 40 + drag_start + 15);
+  scrub(-(drag_start + 15), Qt::NoModifier);
+  CHECK(size_spin->value() == 40);
+  scrub(drag_start + 2, Qt::ShiftModifier);
+  CHECK(size_spin->value() == 40 + 10 * (drag_start + 2));
+  scrub(-5000, Qt::NoModifier);
+  CHECK(size_spin->value() == size_spin->minimum());
+  size_spin->setValue(40);
+  // A press and release without a drag, and a move short of the drag distance.
+  scrub(0, Qt::NoModifier);
+  CHECK(size_spin->value() == 40);
+  scrub(std::max(0, drag_start - 2), Qt::NoModifier);
+  CHECK(size_spin->value() == 40);
+
+  // Every labeled numeric field in the bar has a handle, including the nested
+  // Feather group, the mixer percentages, the transform fields, and text size.
+  for (const char* name : {"brushOpacitySpin", "brushFlowSpin", "selectionFeatherSpin", "mixerWetSpin",
+                           "textSizeSpin"}) {
+    auto* spin = window.findChild<QAbstractSpinBox*>(QString::fromLatin1(name));
+    CHECK(spin != nullptr);
+    CHECK(spin->property(patchy::ui::kScrubHandleInstalledProperty).toBool());
+  }
+  int handles = 0;
+  for (auto* spin : window.findChildren<QAbstractSpinBox*>()) {
+    handles += spin->property(patchy::ui::kScrubHandleInstalledProperty).toBool() ? 1 : 0;
+  }
+  CHECK(handles >= 30);
+}
+
+// Dialogs get scrub handles from exec_dialog / run_non_modal_dialog through
+// install_scrub_labels_in, whose pairing must reach every row shape the dialogs
+// use (GitHub issue 46): a direct form row, a "[slider] [spin]" row widget, a
+// "[spin] - +" step-button row, a grid "label, slider, spin" row, a caption above
+// an HBox, and rows inside a QScrollArea inside a QTabWidget. A label followed by
+// a button and then a spin names the button, not the spin; a row label names the
+// first field of its row, and the "to" between a range's two fields is exempt.
+void ui_dialog_scrub_labels_pair_every_row_shape() {
+  QDialog dialog;
+  auto* root = new QVBoxLayout(&dialog);
+  auto* form = new QFormLayout();
+  root->addLayout(form);
+
+  auto* direct = new QSpinBox(&dialog);
+  direct->setRange(0, 100);
+  direct->setValue(20);
+  form->addRow(QStringLiteral("Direct:"), direct);
+  auto* slider_row_spin = patchy::ui::add_dialog_slider_spin_row(form, &dialog, QStringLiteral("Slider row:"),
+                                                                 QStringLiteral("scrubTestSlider"),
+                                                                 QStringLiteral("scrubTestSliderSpin"), 0, 100, 40);
+  auto* stepped = new QSpinBox(&dialog);
+  stepped->setRange(0, 100);
+  form->addRow(QStringLiteral("Stepped:"),
+               patchy::ui::wrap_spin_with_step_buttons(stepped, &dialog, QStringLiteral("Stepped")));
+  auto* button_then_spin = new QSpinBox(&dialog);
+  auto* button_row = new QWidget(&dialog);
+  auto* button_row_layout = new QHBoxLayout(button_row);
+  button_row_layout->addWidget(new QPushButton(QStringLiteral("Pick"), button_row));
+  button_row_layout->addWidget(button_then_spin);
+  auto* color_label = new QLabel(QStringLiteral("Grid color:"), &dialog);
+  form->addRow(color_label, button_row);
+  // A form row whose field starts with a spin box pairs that first field with the
+  // row label; the exempt "to" leaves the second field alone.
+  auto* range_row = new QWidget(&dialog);
+  auto* range_layout = new QHBoxLayout(range_row);
+  auto* range_minimum = new QSpinBox(range_row);
+  auto* range_to = new QLabel(QStringLiteral("to"), range_row);
+  range_to->setProperty(patchy::ui::kScrubLabelExemptProperty, true);
+  auto* range_maximum = new QSpinBox(range_row);
+  range_layout->addWidget(range_minimum);
+  range_layout->addWidget(range_to);
+  range_layout->addWidget(range_maximum);
+  form->addRow(QStringLiteral("Range:"), range_row);
+
+  auto* grid = new QGridLayout();
+  root->addLayout(grid);
+  auto* grid_label = new QLabel(QStringLiteral("Jitter"), &dialog);
+  auto* grid_spin = new QSpinBox(&dialog);
+  grid->addWidget(grid_label, 0, 0);
+  grid->addWidget(new QSlider(Qt::Horizontal, &dialog), 0, 1);
+  grid->addWidget(grid_spin, 0, 2);
+
+  auto* caption = new QLabel(QStringLiteral("Bend"), &dialog);
+  root->addWidget(caption);
+  auto* caption_row = new QHBoxLayout();
+  auto* caption_spin = new QDoubleSpinBox(&dialog);
+  caption_row->addWidget(new QSlider(Qt::Horizontal, &dialog));
+  caption_row->addWidget(caption_spin);
+  root->addLayout(caption_row);
+
+  // A section caption above a grid of labeled rows (Canvas Size's "New Size:")
+  // leaves the spins to the labels inside the grid.
+  auto* section_caption = new QLabel(QStringLiteral("New Size: 1.2M"), &dialog);
+  root->addWidget(section_caption);
+  auto* section_grid = new QGridLayout();
+  auto* section_label = new QLabel(QStringLiteral("Width"), &dialog);
+  auto* section_spin = new QDoubleSpinBox(&dialog);
+  section_grid->addWidget(section_label, 0, 0);
+  section_grid->addWidget(section_spin, 0, 1);
+  root->addLayout(section_grid);
+
+  auto* tabs = new QTabWidget(&dialog);
+  auto* scroll = new QScrollArea(tabs);
+  auto* page = new QWidget(scroll);
+  auto* page_form = new QFormLayout(page);
+  auto* page_spin = new QSpinBox(page);
+  page_form->addRow(QStringLiteral("Spacing:"), page_spin);
+  scroll->setWidget(page);
+  tabs->addTab(scroll, QStringLiteral("Page"));
+  root->addWidget(tabs);
+
+  patchy::ui::install_scrub_labels_in(&dialog);
+  for (auto* spin : {static_cast<QAbstractSpinBox*>(direct), static_cast<QAbstractSpinBox*>(slider_row_spin),
+                     static_cast<QAbstractSpinBox*>(stepped), static_cast<QAbstractSpinBox*>(grid_spin),
+                     static_cast<QAbstractSpinBox*>(caption_spin), static_cast<QAbstractSpinBox*>(page_spin),
+                     static_cast<QAbstractSpinBox*>(range_minimum), static_cast<QAbstractSpinBox*>(section_spin)}) {
+    CHECK(spin->property(patchy::ui::kScrubHandleInstalledProperty).toBool());
+  }
+  CHECK(section_label->cursor().shape() == Qt::SizeHorCursor);
+  CHECK(section_caption->cursor().shape() != Qt::SizeHorCursor);
+  for (auto* spin : {button_then_spin, range_maximum}) {
+    CHECK(!spin->property(patchy::ui::kScrubHandleInstalledProperty).toBool());
+  }
+  CHECK(grid_label->cursor().shape() == Qt::SizeHorCursor);
+  CHECK(caption->cursor().shape() == Qt::SizeHorCursor);
+  CHECK(color_label->cursor().shape() != Qt::SizeHorCursor);
+  CHECK(range_to->cursor().shape() != Qt::SizeHorCursor);
+  auto* slider_row_label = qobject_cast<QLabel*>(form->labelForField(slider_row_spin->parentWidget()));
+  CHECK(slider_row_label != nullptr);
+  CHECK(slider_row_label->cursor().shape() == Qt::SizeHorCursor);
+
+  // Installing again is a no-op, and a drag on a form-row label moves its field.
+  patchy::ui::install_scrub_labels_in(&dialog);
+  dialog.show();
+  QApplication::processEvents();
+  const auto origin = slider_row_label->rect().center();
+  const int drag_start = QApplication::startDragDistance();
+  send_mouse(*slider_row_label, QEvent::MouseButtonPress, origin, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*slider_row_label, QEvent::MouseMove, origin + QPoint(drag_start + 12, 0), Qt::NoButton,
+             Qt::LeftButton);
+  send_mouse(*slider_row_label, QEvent::MouseButtonRelease, origin + QPoint(drag_start + 12, 0), Qt::LeftButton,
+             Qt::NoButton);
+  QApplication::processEvents();
+  CHECK(slider_row_spin->value() == 40 + drag_start + 12);
+}
+
+// The Layers panel's "Opacity:" prefix scrubs the field (GitHub issue 46): the
+// drag is one undo entry, a plain click on the prefix focuses the field with the
+// number selected, and a drag on the number still selects text.
+void ui_layer_opacity_prefix_scrub_is_one_undo_entry() {
+  patchy::Document document(180, 120, patchy::PixelFormat::rgba8());
+  document.add_pixel_layer("Background", solid_pixels(180, 120, patchy::PixelFormat::rgba8(), QColor(Qt::white)));
+  patchy::Layer layer(document.allocate_layer_id(), "Scrub Target",
+                      solid_pixels(90, 70, patchy::PixelFormat::rgba8(), QColor(30, 150, 220, 255)));
+  const auto layer_id = layer.id();
+  layer.set_bounds(patchy::Rect{35, 25, 90, 70});
+  document.add_layer(std::move(layer));
+  document.set_active_layer(layer_id);
+
+  patchy::ui::MainWindow window;
+  window.add_document_session(std::move(document), QStringLiteral("Opacity Scrub"));
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_zoom(1.0);
+  canvas->force_refresh();
+  QApplication::processEvents();
+
+  auto* opacity_spin = window.findChild<QSpinBox*>(QStringLiteral("layerOpacitySpin"));
+  CHECK(opacity_spin != nullptr);
+  CHECK(opacity_spin->value() == 100);
+  CHECK(opacity_spin->property(patchy::ui::kScrubHandleInstalledProperty).toBool());
+  auto* fill_spin = window.findChild<QSpinBox*>(QStringLiteral("layerFillOpacitySpin"));
+  CHECK(fill_spin != nullptr);
+  CHECK(fill_spin->property(patchy::ui::kScrubHandleInstalledProperty).toBool());
+  auto* editor = opacity_spin->findChild<QLineEdit*>();
+  CHECK(editor != nullptr);
+  const QPoint prefix_point(editor->textMargins().left() + 4, editor->height() / 2);
+  CHECK(editor->cursorPositionAt(prefix_point) < static_cast<int>(opacity_spin->prefix().length()));
+  const int drag_start = QApplication::startDragDistance();
+
+  send_mouse(*editor, QEvent::MouseButtonPress, prefix_point, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*editor, QEvent::MouseMove, prefix_point + QPoint(-(drag_start + 30), 0), Qt::NoButton,
+             Qt::LeftButton);
+  CHECK(opacity_spin->value() == 100 - (drag_start + 30));
+  send_mouse(*editor, QEvent::MouseMove, prefix_point + QPoint(-30, 0), Qt::NoButton, Qt::LeftButton);
+  CHECK(opacity_spin->value() == 70);
+  send_mouse(*editor, QEvent::MouseButtonRelease, prefix_point + QPoint(-30, 0), Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  CHECK(opacity_spin->value() == 70);
+  CHECK(!editor->hasSelectedText());
+
+  auto* edited_layer = patchy::ui::MainWindowTestAccess::document(window).find_layer(layer_id);
+  CHECK(edited_layer != nullptr);
+  QElapsedTimer wait_for_apply;
+  wait_for_apply.start();
+  while (std::abs(edited_layer->opacity() - 0.7F) > 0.001F && wait_for_apply.elapsed() < 900) {
+    QApplication::processEvents(QEventLoop::AllEvents, 20);
+  }
+  CHECK(std::abs(edited_layer->opacity() - 0.7F) <= 0.001F);
+  auto* undo = require_action_by_text(window, QStringLiteral("Undo"));
+  CHECK(undo->isEnabled());
+  undo->trigger();
+  QApplication::processEvents();
+  edited_layer = patchy::ui::MainWindowTestAccess::document(window).find_layer(layer_id);
+  CHECK(edited_layer != nullptr);
+  CHECK(std::abs(edited_layer->opacity() - 1.0F) <= 0.001F);
+  CHECK(!undo->isEnabled());
+  CHECK(opacity_spin->value() == 100);
+
+  // A plain click on the prefix: focus with the number selected, no value change.
+  send_mouse(*editor, QEvent::MouseButtonPress, prefix_point, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*editor, QEvent::MouseButtonRelease, prefix_point, Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  CHECK(opacity_spin->value() == 100);
+  CHECK(editor->hasSelectedText());
+
+  // A drag that starts on the number is ordinary text selection. Toolbar spin
+  // boxes right-align their text, so the number's x comes from the editor's own
+  // cursor geometry rather than from the left margin.
+  editor->deselect();
+  QPoint number_point(-1, editor->height() / 2);
+  for (int x = 0; x < editor->width() && number_point.x() < 0; ++x) {
+    if (editor->cursorPositionAt(QPoint(x, number_point.y())) == static_cast<int>(opacity_spin->prefix().length()) + 1) {
+      number_point.setX(x + 2);
+    }
+  }
+  CHECK(number_point.x() >= 0);
+  CHECK(editor->cursorPositionAt(number_point) >= static_cast<int>(opacity_spin->prefix().length()));
+  send_mouse(*editor, QEvent::MouseButtonPress, number_point, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*editor, QEvent::MouseMove, number_point + QPoint(drag_start + 20, 0), Qt::NoButton, Qt::LeftButton);
+  send_mouse(*editor, QEvent::MouseButtonRelease, number_point + QPoint(drag_start + 20, 0), Qt::LeftButton,
+             Qt::NoButton);
+  QApplication::processEvents();
+  CHECK(opacity_spin->value() == 100);
+}
+
+// Every blend-mode combo steps with Left/Right like Up/Down, closed and with
+// the list open, as the Opacity and Fill fields beside it do.
+void ui_blend_mode_combos_step_with_left_and_right_arrows() {
+  QComboBox combo;
+  patchy::ui::add_blend_mode_items(&combo);
+  patchy::ui::add_blend_mode_items(&combo);  // a refill must not install the filter twice
+  combo.clear();
+  patchy::ui::add_blend_mode_items(&combo);
+  combo.show();
+  QApplication::processEvents();
+  CHECK(combo.currentText() == QStringLiteral("Normal"));
+  send_key(combo, Qt::Key_Right);
+  CHECK(combo.currentText() == QStringLiteral("Dissolve"));
+  send_key(combo, Qt::Key_Right);
+  CHECK(combo.currentText() == QStringLiteral("Darken"));
+  send_key(combo, Qt::Key_Left);
+  CHECK(combo.currentText() == QStringLiteral("Dissolve"));
+  send_key(combo, Qt::Key_Left);
+  send_key(combo, Qt::Key_Left);  // clamps at the first mode like Up does
+  CHECK(combo.currentIndex() == 0);
+  send_key(combo, Qt::Key_Right, Qt::ControlModifier);  // modified arrows keep their own meaning
+  CHECK(combo.currentIndex() == 0);
+
+  combo.showPopup();
+  QApplication::processEvents();
+  auto* view = combo.view();
+  CHECK(view != nullptr);
+  CHECK(view->currentIndex().row() == 0);
+  send_key(*view, Qt::Key_Right);
+  send_key(*view, Qt::Key_Right);
+  CHECK(view->currentIndex().row() == 2);
+  send_key(*view, Qt::Key_Left);
+  CHECK(view->currentIndex().row() == 1);
+  CHECK(combo.currentIndex() == 0);  // the open list only moves its highlight
+  combo.hidePopup();
+  QApplication::processEvents();
+}
+
+// Stepping the Layers-panel blend mode is one undo entry per run, like an
+// Opacity drag, and the run ends on a pause or at the next separate edit.
+void ui_layer_blend_mode_steps_coalesce_into_one_undo_entry() {
+  patchy::Document document(120, 90, patchy::PixelFormat::rgba8());
+  document.add_pixel_layer("Background", solid_pixels(120, 90, patchy::PixelFormat::rgba8(), QColor(Qt::white)));
+  patchy::Layer layer(document.allocate_layer_id(), "Blend Target",
+                      solid_pixels(60, 40, patchy::PixelFormat::rgba8(), QColor(30, 150, 220, 255)));
+  const auto layer_id = layer.id();
+  layer.set_bounds(patchy::Rect{20, 20, 60, 40});
+  document.add_layer(std::move(layer));
+  document.set_active_layer(layer_id);
+
+  patchy::ui::MainWindow window;
+  window.add_document_session(std::move(document), QStringLiteral("Blend Steps"));
+  show_window(window);
+  QApplication::processEvents();
+
+  using Access = patchy::ui::MainWindowTestAccess;
+  auto* blend_combo = window.findChild<QComboBox*>(QStringLiteral("layerBlendModeCombo"));
+  CHECK(blend_combo != nullptr);
+  CHECK(blend_combo->currentText() == QStringLiteral("Normal"));
+  const auto blend_of_target = [&window, layer_id] {
+    const auto* target = std::as_const(Access::document(window)).find_layer(layer_id);
+    CHECK(target != nullptr);
+    return target->blend_mode();
+  };
+
+  const auto depth_before = Access::active_session_undo_depth(window);
+  send_key(*blend_combo, Qt::Key_Right);
+  send_key(*blend_combo, Qt::Key_Right);
+  send_key(*blend_combo, Qt::Key_Down);
+  CHECK(blend_combo->currentText() == QStringLiteral("Multiply"));
+  CHECK(blend_of_target() == patchy::BlendMode::Multiply);
+  CHECK(Access::active_session_undo_depth(window) == depth_before + 1);
+  CHECK(Access::layer_blend_edit_pending(window));
+
+  // A pause ends the run: the next step is a new entry.
+  QElapsedTimer pause;
+  pause.start();
+  while (Access::layer_blend_edit_pending(window) && pause.elapsed() < 3000) {
+    QApplication::processEvents(QEventLoop::AllEvents, 20);
+  }
+  CHECK(!Access::layer_blend_edit_pending(window));
+  send_key(*blend_combo, Qt::Key_Right);
+  CHECK(blend_of_target() == patchy::BlendMode::ColorBurn);
+  CHECK(Access::active_session_undo_depth(window) == depth_before + 2);
+
+  // A separate edit also ends the run instead of folding into it.
+  auto* opacity_spin = window.findChild<QSpinBox*>(QStringLiteral("layerOpacitySpin"));
+  CHECK(opacity_spin != nullptr);
+  opacity_spin->setValue(50);
+  QApplication::processEvents();
+  CHECK(!Access::layer_blend_edit_pending(window));
+  CHECK(Access::active_session_undo_depth(window) == depth_before + 3);
+
+  Access::undo(window);  // opacity
+  QApplication::processEvents();
+  CHECK(blend_of_target() == patchy::BlendMode::ColorBurn);
+  Access::undo(window);  // the single step after the pause
+  QApplication::processEvents();
+  CHECK(blend_of_target() == patchy::BlendMode::Multiply);
+  Access::undo(window);  // the whole first run at once
+  QApplication::processEvents();
+  CHECK(blend_of_target() == patchy::BlendMode::Normal);
+  CHECK(blend_combo->currentText() == QStringLiteral("Normal"));
+}
+
 void ui_collapsed_right_docks_keep_deep_layer_rows_readable() {
   patchy::Document document(128, 128, patchy::PixelFormat::rgba8());
   patchy::Layer root(document.allocate_layer_id(), "Root Folder", patchy::LayerKind::Group);
@@ -2548,6 +3733,57 @@ void ui_tabbed_dock_title_drag_floats_single_dock() {
   CHECK(layers_dock->isFloating());
 }
 
+// Stands in for KDE's Breeze: polishing a widget installs an event filter on it,
+// which Qt puts ahead of the filters already there. The reinstall is capped so
+// a regression fails the test instead of hanging the suite.
+class FilterInstallingStyle : public QProxyStyle {
+public:
+  using QProxyStyle::polish;
+  void polish(QWidget* widget) override {
+    QProxyStyle::polish(widget);
+    ++polish_count;
+    if (polish_count < 200) {
+      widget->removeEventFilter(&probe_);
+      widget->installEventFilter(&probe_);
+    }
+  }
+  int polish_count = 0;
+
+private:
+  QObject probe_;
+};
+
+void ui_layer_action_button_foreign_drag_never_repolishes_in_filter() {
+  // GitHub issue 62: on Wayland a dock drag is a real QDrag, so the layer
+  // action buttons see drag events that carry no layers. Repolishing the
+  // button from inside its event filter froze Patchy under Breeze, whose
+  // polish() reinstalls filters and sends Qt's filter loop back to Patchy's.
+  FilterInstallingStyle style;
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* button = window.findChild<QPushButton*>(QStringLiteral("layerNewButton"));
+  CHECK(button != nullptr);
+  CHECK(button->property("layerDropAction").isValid());
+  button->setEnabled(true);
+  button->setStyle(&style);
+  QApplication::processEvents();
+  style.polish_count = 0;
+
+  QMimeData dock_drag;
+  dock_drag.setData(QStringLiteral("application/x-qt-mainwindowdrag-window"), QByteArray("1"));
+  QDragEnterEvent enter(button->rect().center(), Qt::MoveAction, &dock_drag, Qt::LeftButton, Qt::NoModifier);
+  QApplication::sendEvent(button, &enter);
+  QDragMoveEvent move(button->rect().center(), Qt::MoveAction, &dock_drag, Qt::LeftButton, Qt::NoModifier);
+  QApplication::sendEvent(button, &move);
+  QDragLeaveEvent leave;
+  QApplication::sendEvent(button, &leave);
+  CHECK(style.polish_count == 0);
+  CHECK(!button->property("layerDropActive").toBool());
+  QApplication::processEvents();
+  CHECK(style.polish_count == 0);
+  button->setStyle(nullptr);
+}
+
 void ui_dock_group_window_drags_by_blank_chrome() {
   // Qt's floating dock tab-group window has no grabbable chrome: the blank
   // strip beside the tabs must move the window, presses on the widened frame
@@ -2680,6 +3916,11 @@ std::vector<patchy::test::TestCase> canvas_view_tools_tests() {
       {"ui_startup_defaults_to_round_brush", ui_startup_defaults_to_round_brush},
       {"ui_canvas_wheel_matches_photoshop_navigation", ui_canvas_wheel_matches_photoshop_navigation},
       {"ui_canvas_wheel_zoom_mode_zooms_at_cursor", ui_canvas_wheel_zoom_mode_zooms_at_cursor},
+      {"ui_canvas_trackpad_scroll_pans_both_axes", ui_canvas_trackpad_scroll_pans_both_axes},
+      {"ui_own_window_color_sample_reads_widget_without_screen_grab",
+       ui_own_window_color_sample_reads_widget_without_screen_grab},
+      {"ui_canvas_trackpad_scroll_ignored_during_pointer_gesture",
+       ui_canvas_trackpad_scroll_ignored_during_pointer_gesture},
       {"ui_status_bar_zoom_percent_box_edits_zoom", ui_status_bar_zoom_percent_box_edits_zoom},
       {"ui_zoom_tool_double_click_keeps_view_centered_at_actual_pixels",
        ui_zoom_tool_double_click_keeps_view_centered_at_actual_pixels},
@@ -2695,6 +3936,7 @@ std::vector<patchy::test::TestCase> canvas_view_tools_tests() {
       {"ui_canvas_hand_pan_updates_scroll_bars", ui_canvas_hand_pan_updates_scroll_bars},
       {"ui_canvas_scroll_bar_scrolls_view", ui_canvas_scroll_bar_scrolls_view},
       {"ui_canvas_scroll_bars_follow_zoom_and_resize", ui_canvas_scroll_bars_follow_zoom_and_resize},
+      {"ui_canvas_backdrop_context_menu_sets_color", ui_canvas_backdrop_context_menu_sets_color},
       {"ui_canvas_fractional_zoom_paints_to_document_edge", ui_canvas_fractional_zoom_paints_to_document_edge},
       {"ui_canvas_fractional_zoom_keeps_zoomed_in_pixels_sharp",
        ui_canvas_fractional_zoom_keeps_zoomed_in_pixels_sharp},
@@ -2703,18 +3945,38 @@ std::vector<patchy::test::TestCase> canvas_view_tools_tests() {
       {"ui_zoomed_out_canvas_uses_downsampled_display_mip",
        ui_zoomed_out_canvas_uses_downsampled_display_mip},
       {"ui_shape_flyout_and_zoom_tool_work", ui_shape_flyout_and_zoom_tool_work},
+      {"ui_zoom_tool_scrubby_option_persists_and_reaches_canvas",
+       ui_zoom_tool_scrubby_option_persists_and_reaches_canvas},
+      {"ui_zoom_tool_scrubby_drag_zooms_live_around_press_point",
+       ui_zoom_tool_scrubby_drag_zooms_live_around_press_point},
+      {"ui_zoom_tool_direction_buttons_set_click_direction", ui_zoom_tool_direction_buttons_set_click_direction},
+      {"ui_zoom_options_bar_view_buttons_set_view", ui_zoom_options_bar_view_buttons_set_view},
       {"ui_stamp_and_gradient_flyouts_swap_tools", ui_stamp_and_gradient_flyouts_swap_tools},
+      {"ui_tool_cycle_hotkeys_walk_each_flyout", ui_tool_cycle_hotkeys_walk_each_flyout},
       {"ui_tool_flyout_double_click_opens_menu", ui_tool_flyout_double_click_opens_menu},
       {"ui_tool_flyout_right_click_opens_menu", ui_tool_flyout_right_click_opens_menu},
       {"ui_tool_palette_icons_render_sheet", ui_tool_palette_icons_render_sheet},
       {"ui_filled_shape_preview_clears_after_commit", ui_filled_shape_preview_clears_after_commit},
       {"ui_options_bar_tracks_active_tool", ui_options_bar_tracks_active_tool},
+      {"ui_fill_tool_tolerance_and_contiguous_persist_across_documents",
+       ui_fill_tool_tolerance_and_contiguous_persist_across_documents},
+      {"ui_fill_tool_click_honors_tolerance_contiguous_and_opacity",
+       ui_fill_tool_click_honors_tolerance_contiguous_and_opacity},
+      {"ui_fill_of_wand_selection_with_many_spans_is_fast", ui_fill_of_wand_selection_with_many_spans_is_fast},
       {"ui_gradient_toolbar_preset_popup_applies_stops", ui_gradient_toolbar_preset_popup_applies_stops},
       {"ui_options_bar_spinboxes_fit_widest_value", ui_options_bar_spinboxes_fit_widest_value},
+      {"ui_options_bar_spinboxes_show_their_extremes_unclipped",
+       ui_options_bar_spinboxes_show_their_extremes_unclipped},
       {"ui_right_docks_collapse_layers_show_metadata_and_info_updates",
        ui_right_docks_collapse_layers_show_metadata_and_info_updates},
+      {"ui_options_bar_label_scrub_changes_spin_value", ui_options_bar_label_scrub_changes_spin_value},
+      {"ui_dialog_scrub_labels_pair_every_row_shape", ui_dialog_scrub_labels_pair_every_row_shape},
+      {"ui_layer_opacity_prefix_scrub_is_one_undo_entry", ui_layer_opacity_prefix_scrub_is_one_undo_entry},
       {"ui_layer_opacity_control_defers_slow_rendering_and_undoes_once",
        ui_layer_opacity_control_defers_slow_rendering_and_undoes_once},
+      {"ui_blend_mode_combos_step_with_left_and_right_arrows", ui_blend_mode_combos_step_with_left_and_right_arrows},
+      {"ui_layer_blend_mode_steps_coalesce_into_one_undo_entry",
+       ui_layer_blend_mode_steps_coalesce_into_one_undo_entry},
       {"ui_collapsed_right_docks_keep_deep_layer_rows_readable",
        ui_collapsed_right_docks_keep_deep_layer_rows_readable},
       {"ui_right_dock_panels_expand_within_window_height", ui_right_dock_panels_expand_within_window_height},
@@ -2726,6 +3988,8 @@ std::vector<patchy::test::TestCase> canvas_view_tools_tests() {
       {"ui_tabbed_right_dock_drags_out_by_tab", ui_tabbed_right_dock_drags_out_by_tab},
       {"ui_floating_right_dock_auto_expands", ui_floating_right_dock_auto_expands},
       {"ui_tabbed_dock_title_drag_floats_single_dock", ui_tabbed_dock_title_drag_floats_single_dock},
+      {"ui_layer_action_button_foreign_drag_never_repolishes_in_filter",
+       ui_layer_action_button_foreign_drag_never_repolishes_in_filter},
       {"ui_dock_group_window_drags_by_blank_chrome", ui_dock_group_window_drags_by_blank_chrome},
       {"ui_menu_disabled_items_render_grayed", ui_menu_disabled_items_render_grayed},
   };

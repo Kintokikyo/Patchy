@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QWidget>
+#include <QIcon>
 
 namespace patchy::ui {
 
@@ -12,6 +13,9 @@ class SplashArtwork final : public QWidget {
 
  protected:
   void paintEvent(QPaintEvent* event) override;
+
+ private:
+  QIcon logo_;
 };
 
 }  // namespace patchy::ui

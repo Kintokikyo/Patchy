@@ -275,10 +275,152 @@ def _region_mean(bad_map: np.ndarray, bounds: tuple[int, int, int, int], scale: 
     return float(bad_map[top:bottom, left:right].mean())
 
 
-def _load_over_white(path: Path, size: tuple[int, int] | None) -> tuple[np.ndarray, tuple[int, int]]:
+def has_embedded_profile(path: Path) -> bool:
+    """True when the PNG carries an ICC profile (Affinity and psd-tools write one)."""
+    try:
+        with Image.open(path) as image:
+            return bool(image.info.get("icc_profile"))
+    except OSError:
+        return False
+
+
+def load_srgb_rgba(path: Path) -> Image.Image:
+    """The image as 8-bit sRGB RGBA. An embedded ICC profile is honored: its pixel
+    values are in that profile's space, and comparing them raw against Photoshop's
+    sRGB reference scores a correctly tagged render as wrong. 16-bit gray PNGs are
+    scaled down first (Pillow's own conversion clips them to white)."""
     image = Image.open(path)
+    if image.mode.startswith("I;16") or image.mode == "I":
+        samples = np.asarray(image, dtype=np.float64)
+        image = Image.fromarray(np.clip(np.rint(samples / 257.0), 0, 255).astype(np.uint8), "L")
+        return image.convert("RGBA")
+    profile = image.info.get("icc_profile")
+    if profile and image.mode in ("L", "LA", "RGB", "RGBA"):
+        try:
+            from io import BytesIO
+
+            from PIL import ImageCms
+
+            alpha = image.getchannel("A") if "A" in image.getbands() else None
+            base = image.convert("L" if image.mode in ("L", "LA") else "RGB")
+            converted = ImageCms.profileToProfile(
+                base, ImageCms.ImageCmsProfile(BytesIO(profile)), ImageCms.createProfile("sRGB"),
+                renderingIntent=ImageCms.Intent.RELATIVE_COLORIMETRIC, outputMode="RGB")
+            if converted is not None:
+                image = converted
+                if alpha is not None:
+                    image.putalpha(alpha)
+        except Exception:
+            pass  # an unusable profile: fall back to the raw values
+    return image.convert("RGBA")
+
+
+# A pixel "changed" between two renders past this per-channel difference.
+RENDER_CHANGE_TOLERANCE = 12
+
+
+def _rgb_over_white(image: Image.Image) -> np.ndarray:
+    rgba = np.asarray(image, dtype=np.float32)
+    alpha = rgba[:, :, 3:4] / 255.0
+    return rgba[:, :, :3] * alpha + 255.0 * (1.0 - alpha)
+
+
+def _clipped_box(bounds: list[int], size: tuple[int, int]) -> tuple[int, int, int, int] | None:
+    left, top = max(0, int(bounds[0])), max(0, int(bounds[1]))
+    right, bottom = min(size[0], int(bounds[2])), min(size[1], int(bounds[3]))
+    return (left, top, right, bottom) if right > left and bottom > top else None
+
+
+def _changed_map(first_png: Path, second_png: Path) -> np.ndarray | None:
+    """Per pixel: do two renders of one document differ visibly? None when their
+    sizes differ (they are then not two renders of one document)."""
+    first = load_srgb_rgba(first_png)
+    second = load_srgb_rgba(second_png)
+    if second.size != first.size:
+        return None
+    return (np.abs(_rgb_over_white(first) - _rgb_over_white(second)).max(axis=2)
+            > RENDER_CHANGE_TOLERANCE)
+
+
+def boxes_changed(first_png: Path, second_png: Path, boxes: list[list[int]]) -> list[float] | None:
+    """Per box ([left, top, right, bottom], document pixels): the fraction of its
+    pixels that differ between two renders of one document, -1.0 for a box off the
+    canvas. None when the renders are not the same size."""
+    changed = _changed_map(first_png, second_png)
+    if changed is None:
+        return None
+    size = (changed.shape[1], changed.shape[0])
+    fractions = []
+    for bounds in boxes:
+        box = _clipped_box(bounds, size)
+        fractions.append(-1.0 if box is None
+                         else float(changed[box[1]:box[3], box[0]:box[2]].mean()))
+    return fractions
+
+
+def changed_outside_boxes(first_png: Path, second_png: Path, boxes: list[list[int]]) -> float | None:
+    """The fraction of pixels OUTSIDE every box that differ between two renders of one
+    document. Each box is first grown by a quarter of its size plus 8 pixels, the room
+    an effect or an editor's own text metrics may take. 0.0 when the grown boxes cover
+    the canvas; None when the renders are not the same size."""
+    changed = _changed_map(first_png, second_png)
+    if changed is None:
+        return None
+    height, width = changed.shape
+    outside = np.ones(changed.shape, dtype=bool)
+    for bounds in boxes:
+        grow_x = (int(bounds[2]) - int(bounds[0])) // 4 + 8
+        grow_y = (int(bounds[3]) - int(bounds[1])) // 4 + 8
+        box = _clipped_box([bounds[0] - grow_x, bounds[1] - grow_y, bounds[2] + grow_x, bounds[3] + grow_y],
+                           (width, height))
+        if box is not None:
+            outside[box[1]:box[3], box[0]:box[2]] = False
+    if not outside.any():
+        return 0.0
+    return float(changed[outside].mean())
+
+
+def compose_scored_render(output_png: Path, base_png: Path, placeholders: list[tuple[list[int], str]],
+                          restore_from_png: Path | None = None,
+                          restore_boxes: list[list[int]] | None = None,
+                          clear_placeholders: bool = False) -> None:
+    """Write the render that gets scored: `base_png` (the editor's render of the file
+    with its caches removed), with each placeholder box outlined and labeled, and each
+    restore box copied back from `restore_from_png` (the editor's render as opened).
+    `clear_placeholders` empties each placeholder box first, for a base that still
+    shows cached pixels there."""
+    from PIL import ImageDraw
+
+    scored = load_srgb_rgba(base_png)
+    if restore_from_png is not None and restore_boxes:
+        opened = load_srgb_rgba(restore_from_png)
+        if opened.size != scored.size:
+            opened = opened.resize(scored.size, Image.NEAREST)
+        for bounds in restore_boxes:
+            box = _clipped_box(bounds, scored.size)
+            if box is not None:
+                scored.paste(opened.crop(box), (box[0], box[1]))
+    draw = ImageDraw.Draw(scored)
+    for bounds, label in placeholders:
+        box = _clipped_box(bounds, scored.size)
+        if box is None:
+            continue
+        left, top, right, bottom = box
+        if clear_placeholders:
+            scored.paste((0, 0, 0, 0), box)
+        draw.rectangle((left, top, right - 1, bottom - 1), outline=(200, 0, 0, 255), width=1)
+        label_box = draw.textbbox((0, 0), label)
+        label_width, label_height = label_box[2] - label_box[0], label_box[3] - label_box[1]
+        if right - left >= label_width + 6 and bottom - top >= label_height + 6:
+            draw.rectangle((left + 1, top + 1, left + label_width + 5, top + label_height + 5),
+                           fill=(255, 255, 255, 255))
+            draw.text((left + 3, top + 2), label, fill=(200, 0, 0, 255))
+    scored.save(output_png)
+
+
+def _load_over_white(path: Path, size: tuple[int, int] | None) -> tuple[np.ndarray, tuple[int, int]]:
+    image = load_srgb_rgba(path)
     native_size = image.size
-    image = image.convert("RGBA")
     if size is not None and image.size != size:
         image = image.resize(size, Image.BILINEAR)
     rgba = np.asarray(image, dtype=np.float32)

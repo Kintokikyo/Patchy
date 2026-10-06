@@ -85,12 +85,51 @@ post-open passes (below), `MainWindow::define_custom_shape_from_svg_*`
   and userSpaceOnUse units, gradientTransform, stop-opacity. Geometry maps
   onto the calibrated GdFl model (span = center chord; docs/vector-tools.md);
   smoothness = 0 so stops interpolate linearly, matching SVG.
+  Coordinates are read in gradient space and carried to the document by one
+  matrix: element transform x gradientTransform for userSpaceOnUse, element
+  transform x (unit square -> the element's own pre-transform box) x
+  gradientTransform for objectBoundingBox. The element transform is the whole
+  chain (viewBox mapping, ancestor groups, the element's own), passed to the
+  paint servers as `PaintSpace`; a paint server that skips it misplaces the
+  ramp under any viewBox scale or group transform. A non-uniform matrix keeps
+  the mapped stripes and measures the ramp across them (a diagonal ramp on a
+  non-square box); a radial keeps the larger radius. userSpaceOnUse sets
+  align_with_layer off (placed against the canvas) and resolves percentages
+  against the outermost viewport in user units.
   spreadMethod=reflect -> Reflected (scale doubles; the export halves it
   back). Focal points and repeat spreads are approximated with a notice.
-- **Patterns**: shape-only `<pattern>` content rasterizes once into a
-  document PatternStore tile -> pattern fill anchored to the document origin
-  (pattern_linked = false - exactly SVG's user-space anchoring); richer
-  content degrades to gray + notice.
+- **Patterns**: `<pattern>` with href template inheritance, userSpaceOnUse and
+  objectBoundingBox patternUnits (x/y/width/height; a user-space percentage is
+  a share of the viewport), patternContentUnits, viewBox, patternTransform.
+  The tile becomes a document PatternStore tile and the fill is placed against
+  the document (pattern_linked = false). Pattern space is the painted
+  element's user space, so the grid goes through the same `PaintSpace` matrix
+  as the gradients: element transform x patternTransform, with the tile's
+  corner at x/y (objectBoundingBox: fractions of the element's own
+  pre-transform box, measured from its corner).
+  That matrix is split into what a tile's pixels can carry and what the
+  placement model has to:
+  - Scale along each pattern axis, and a mirror, are baked into the tile: it is
+    rasterized at document resolution (20 user units under a 2x viewBox is a
+    40 px tile at pattern_scale 1), so scaled patterns stay sharp. A mirror
+    reverses the tile's rows.
+  - Rotation becomes pattern_angle. The model's angle is counterclockwise-
+    positive (the Photoshop dial, `PatternTileSampler`), an SVG rotate() is
+    clockwise on the y-down canvas, so the sign flips in both directions.
+  - pattern_scale carries only the remainder: a tile whose document size is not
+    a whole number of pixels is rasterized at the nearest whole size and scaled
+    by the ratio (the period stays exact), and a tile past 4096 px is
+    rasterized at that cap and scaled up.
+  - pattern_phase is the document position of the tile's corner.
+  - Skew is the one approximation (notice).
+  Content is either shapes (solid or gradient fills; strokes are not drawn) or
+  one embedded PNG/JPEG `<image>` that fills the tile unrotated, which is the
+  form the export writes: the decoded image is the tile at its own resolution
+  (stb_image, in the reader) and pattern_scale maps it to the cell. Other
+  content, or an image the pattern or the element would stretch, degrades to
+  gray + notice. A pattern child painted with a pattern (nested, or the
+  pattern itself) paints gray without being resolved. Elements that share a
+  pattern at the same tile size share one PatternStore tile.
 - **clip-path** (userSpaceOnUse, shape children) -> vector mask; **mask**
   (shape children) -> raster mask from fill-luminance-weighted coverage.
 - **Text**: basic `<text>`/tspan -> text layers (Pixel kind + patchy.text.*
@@ -129,12 +168,16 @@ emit native `<rect>`/`<ellipse>`/`<line>` (round-trips back to live).
   restores the true alignment and width (the reader also skips the trick clip
   rather than importing it as a vector mask). Dashes convert width-multiples
   -> absolute user units.
-- Gradients invert the import mapping (center-chord span math); plain ramps
+- Gradients invert the import mapping (center-chord span math, against the
+  path bounds, or the canvas when align_with_layer is off); plain ramps
   emit their real stops (merged ascending union of color+alpha locations,
   reverse via 1-x), while Classic easing (smoothness > 0), non-50% midpoints,
   and noise gradients resample into 65 dense stops. Angle/Diamond -> rasterize.
-- Pattern fills -> `<pattern>` with the tile PNG scaled into the cell +
-  patternTransform; layer-linked anchoring is approximated (notice).
+- Pattern fills -> a userSpaceOnUse `<pattern>` whose cell is the tile size x
+  pattern_scale, holding the tile PNG stretched over the cell, with
+  patternTransform = translate(phase) rotate(-angle). The reader takes that
+  form back to the same tile, scale, angle, and phase. Layer-linked anchoring
+  is approximated (notice).
 - Vector masks -> `<clipPath>` (inverted via canvas-rect + evenodd; density/
   feather/disabled -> rasterize). Raster masks -> luminance `<mask>` with a
   default_color backing rect.
@@ -153,11 +196,28 @@ emit native `<rect>`/`<ellipse>`/`<line>` (round-trips back to live).
 ## UI behavior
 
 - Open lists *.svg and *.svgz; Save As/Export list *.svg. svg stays OUT of
-  save_extension_preserves_layers on purpose: layered saves warn with
-  svg-specific wording ("keeps shape layers as vectors, but ... baked") and
-  keep Photoshop's save-a-copy semantics, and a modified svg-opened document
-  routes Save to Save As (.psd default). Writer notices ride the save/export
-  status message.
+  save_extension_preserves_layers on purpose, but it does not inherit the
+  generic flat-format warning either: `save_discards_layers` (main_window_files.cpp)
+  asks the writer's dry run, `svg::DocumentIo::baked_content`, which walks the
+  document with the writer's own representability rules and reports what
+  `write` would bake (`BakedContentKind` + layer name) without compositing or
+  encoding anything. Empty means shape layers, folders, clipPath vector masks,
+  gradient and pattern paint servers only: Save writes in place with no
+  warning and no Save As redirect, for a plain document and for a linked
+  smart-object child alike (`ui_svg_shape_only_save_writes_vectors_without_warning`,
+  `ui_smart_object_linked_svg_child_saves_vectors_without_warning`). Anything
+  baked (text, pixel and smart-object layers, adjustment layers and
+  CSS-inexpressible blend modes with the layers merged under them, styled or
+  intersect/xor shapes, styled or masked groups, clipping runs, raster masks
+  written as luminance `<mask>` images) keeps the warning, which names the
+  first six items by kind and layer name and counts the rest, and keeps
+  Photoshop's save-a-copy semantics; a modified svg-opened
+  document with baked content still routes Save to Save As (.psd default). A
+  linked child gets the "bake it into the linked file?" wording because its
+  save is a real save (`ui_svg_save_with_text_layer_warns_and_names_it`,
+  core `svg_baked_content_dry_run_matches_writer`). The single-plain-pixel-layer
+  exemption of `flat_save_discards_layers` still applies first. Writer notices
+  ride the save/export status message.
 - File > Export > Flat Image routes svg to the same structure-preserving writer and
   skips the raster options prompt (vectors scale client-side).
 - Edit > Define Custom Shape from SVG File: one stampable library shape per
@@ -175,18 +235,26 @@ emit native `<rect>`/`<ellipse>`/`<line>` (round-trips back to live).
   text (the Illustrator/Figma/Inkscape convention); the internal layer
   clipboard is dropped so Paste reads it back in place. Notices ride the
   status message. Test: `ui_svg_copy_as_svg_round_trips_shape_layer`.
-- File > Place Embedded accepts svg: it becomes an embedded smart object
-  (classified ReadOnly, rendered through the qsvg plugin like other
-  Qt-decodable sources).
+- File > Place Embedded, Place Linked, Relink to File and `doc.addSmartObject`
+  accept svg: it becomes a smart object with Photoshop's `SVG ` filetype and
+  Type 1 (vector) placement, classified ReadOnly for editing and rasterized
+  through the qsvg plugin at the placement's own scale, so every size stays
+  sharp (`render_smart_object_vector_contents`; see
+  [smart-object-editing.md](smart-object-editing.md)).
 
 ## Tests and fixtures
 
 - tests/core/svg_tests.cpp - XML parser edge cases, d-grammar, cascade,
-  gradients, fill-rule decomposition, clip/mask, units/PPI, svgz (gzip built
+  gradients (placement under viewBox scale, group and element transforms, and
+  the canvas-anchored re-export), patterns (tile size, anchor, and baked pixels
+  under viewBox scale, group and element transforms, both unit modes, rotation,
+  mirror, and the export round trip), fill-rule decomposition, clip/mask, units/PPI, svgz (gzip built
   in-test), the 2000-element fallback, export determinism/round-trip/raster
   chunking. tests/ui/svg_ui_tests.cpp - editable open, a QSvgRenderer
   cross-check (independent renderer, mean-delta tolerance), the text
-  positioning pass, data-URI images, save-a-copy + reopen parity, paste,
+  positioning pass, data-URI images, the no-warning in-place save of a
+  shape-only file plus reopen parity, the named flatten warning for a text
+  layer, paste,
   shape-library import, place. Fixtures: test-fixtures/svg/basic-shapes.svg
   (self-authored) and test-fixtures/svg/hot_air_balloons_cc0.svg (CC0 clip
   art, NOTICE-THIRD-PARTY.md; drives the README SVG-import screenshot scene).
@@ -206,6 +274,6 @@ to probe with.
 
 Known approximations (all noticed): nonzero self-intersecting single
 subpaths, radial focal points, spreadMethod=repeat, anisotropic stroke
-transforms, complex text layout, objectBoundingBox clip paths, pass-through
+transforms, skewed patterns, complex text layout, objectBoundingBox clip paths, pass-through
 group opacity, and Photoshop's Classic gradient easing exports as resampled
 stops.

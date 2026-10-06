@@ -125,6 +125,10 @@ void set_rgb_curve(CurvesAdjustment& result, std::uint16_t channel_index, CurveC
     case 3:
       result.blue = std::move(points);
       break;
+    case 4:
+      // A CMYK document's fifth curve (the black ink); RGB documents never write one.
+      result.black_ink = std::move(points);
+      break;
     default:
       break;
   }

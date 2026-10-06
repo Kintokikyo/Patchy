@@ -17,13 +17,13 @@ Vector-preserving merge planning, output preparation, and its dialog live in `ui
 - `main_window_layer_ops.cpp` - clipboard operations, transform/warp dialogs, layer/folder operations, masks, layer styles and context menu, delete/move, merge-visible, fill/clear/stroke, selection geometry, flips, crop-to-selection, and canvas rotation. `rasterize_active_layers`, `rasterize_active_layer_styles`, and `merge_down` stay in `main_window.cpp` because they render text through the internal text pipeline.
 - `main_window_tool_options.cpp` - preset-library accessors, brush-tip import/define, per-layer controls, colors and gradients, tool activation/settings, transform-session controls, options-bar registration, selection-mode buttons, and brush-control synchronization. `current_text_color` and `sync_text_options_from_active_editor` stay in `main_window.cpp` because they use internal text helpers.
 - `main_window_theme.cpp` - `photoshop_style()` and application-wide QSS, declared in `main_window_shared.hpp`.
-- `main_window_plugins.cpp` - legacy Photoshop plug-in scanning, registration, and execution.
+- `main_window_plugins.cpp` - legacy Photoshop plug-in folder scanning, the category submenu, and running a plug-in through the out-of-process host (`legacy_plugin_runner_win.cpp`); see docs/plugins.md.
 - `main_window_layer_panel.cpp` - layer-row widgets, thumbnails, summaries, refresh, drag, and visibility plumbing.
 - `main_window_files.cpp` - the single `file_format_entries()` definition, open/save/export/print/import, and recent files/folders.
 - `main_window_smart_objects.cpp` - smart-object export, commit, refresh, relink, embed, replace, convert, and place flows.
 - `main_window_sessions.cpp` - document sessions, tabs, close paths, float windows, and `update_start_panel_visibility()`.
 - `main_window_preferences.cpp` - Preferences, guides, and pen/view settings.
-- `main_window_document_dialogs.cpp` - Image Size/Canvas Size and resize/reset members. The New Document dialog lives in `src/ui/new_document_dialog.cpp`; its preset ids and `newDocument/` keys are persisted and append-only. Screen presets and `reset_document` default to 72 PPI; print presets use 300 PPI.
+- `main_window_document_dialogs.cpp` - Image Size/Canvas Size and resize/reset members. The New Document dialog lives in `src/ui/new_document_dialog.cpp`; its preset ids and `newDocument/` keys (`lastPresetId`, `lastWidth`, `lastHeight`, `lastPpi`, `lastBackground`, `lastUnit`, `lastResolutionUnit`) are persisted and append-only. Screen presets and `reset_document` default to 72 PPI; print presets use 300 PPI.
 - `main_window_docks.cpp` - dock creation and right-dock resize handles.
 - `main_window_history.cpp` - undo/redo, snapshots, selection history, and history-panel refresh.
 - `main_window_vector.cpp` - shape/fill layers, vector masks, work-path operations, and the shape-appearance preview.
@@ -65,7 +65,7 @@ behavior to a viewport renderer's compositor call; normal renders have no contex
 
 ## PSD codec
 
-The PSD codec uses one TU per block family: `psd_channel_data`, `psd_image_resources`, `psd_adjustments`, `psd_layer_styles`, `psd_text_read`, `psd_text_write`, `psd_layer_records`, `psd_smart_objects`, `psd_vector`, `psd_filter_effects`, and `psd_patterns`, with shared descriptor and big-endian primitives in `psd_descriptor` and `psd_binary`. `psd_layer_styles` owns the `psd_layer_effects.hpp` exports used by ASL I/O.
+The PSD codec uses one TU per block family: `psd_channel_data`, `psd_image_resources`, `psd_adjustments`, `psd_layer_styles`, `psd_text_read`, `psd_text_write`, `psd_text_legacy` (the PS 5.x `tySh` record), `psd_layer_records`, `psd_smart_objects`, `psd_vector`, `psd_filter_effects`, and `psd_patterns`, with shared descriptor and big-endian primitives in `psd_descriptor` and `psd_binary`. `psd_layer_styles` owns the `psd_layer_effects.hpp` exports used by ASL I/O.
 
 Shared internal constants, record types, and declarations live in `psd_io_internal.hpp`; never include it outside `src/psd`. Shared plumbing definitions live in `psd_io_common.cpp`. `psd_document_io.cpp` keeps the read drivers and public `DocumentIo` API. The writer is byte-pinned, so any body change must satisfy the serialization canaries.
 

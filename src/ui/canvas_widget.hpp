@@ -3,6 +3,7 @@
 #include "ui/script_stroke.hpp"
 
 #include "core/document.hpp"
+#include "core/exemplar_inpaint.hpp"
 #include "core/layer_alignment.hpp"
 #include "core/magnetic_lasso.hpp"
 #include "core/pattern_resource.hpp"
@@ -47,6 +48,7 @@
 #include <functional>
 #include <limits>
 #include <memory>
+#include <mutex>
 #include <future>
 #include <optional>
 #include <unordered_map>
@@ -429,6 +431,23 @@ public:
   void zoom_at_widget_point(QPointF widget_position, double factor);
   void set_wheel_zooms(bool enabled) noexcept;
   [[nodiscard]] bool wheel_zooms() const noexcept;
+  // Wheel input comes in two kinds (docs/view-navigation.md): a continuous two-finger
+  // scroll (it carries a scroll phase) always pans in 2D, a stepped wheel follows
+  // wheel_zooms(). wheel_zoom_factor is the zoom step for one event of either kind.
+  [[nodiscard]] static bool wheel_event_is_continuous_scroll(const QWheelEvent& event) noexcept;
+  [[nodiscard]] static double wheel_zoom_factor(const QWheelEvent& event) noexcept;
+  // Scrubby Zoom (docs/view-navigation.md): a Zoom tool drag zooms live about
+  // the press point instead of drawing a marquee. Persisted by MainWindow as
+  // tools/zoomScrubby; default off.
+  void set_zoom_scrubby(bool enabled) noexcept;
+  [[nodiscard]] bool zoom_scrubby() const noexcept;
+  // Zoom tool click direction (the options-bar Zoom In / Zoom Out toggle,
+  // tools/zoomToolZoomsOut). Alt inverts whichever direction is active.
+  void set_zoom_tool_zooms_out(bool enabled);
+  [[nodiscard]] bool zoom_tool_zooms_out() const noexcept;
+  // Zooms so the document covers the viewport (the larger axis ratio, where
+  // fit_to_view uses the smaller) and centers it.
+  void fill_to_view();
   void refresh_tool_cursor();
   void fit_to_view();
   // Recenters the document in the viewport at the current zoom. Used after
@@ -682,6 +701,12 @@ public:
   [[nodiscard]] int fill_opacity() const noexcept;
   void set_fill_softness(int softness) noexcept;
   [[nodiscard]] int fill_softness() const noexcept;
+  // Fill tool color tolerance (0..255, the Magic Wand's metric) and Contiguous; the Fill
+  // command ignores both (it fills the whole selection).
+  void set_fill_tolerance(int tolerance) noexcept;
+  [[nodiscard]] int fill_tolerance() const noexcept;
+  void set_fill_contiguous(bool enabled) noexcept;
+  [[nodiscard]] bool fill_contiguous() const noexcept;
   void set_selection_mode(SelectionMode mode) noexcept;
   [[nodiscard]] SelectionMode selection_mode() const noexcept;
   // Combine mode actually in effect right now, folding in any held Shift/Alt and
@@ -700,25 +725,83 @@ public:
   void run_selection_command(QString label, const std::function<void()>& command);
   // Edit > Remove Object: fill the current selection from its surroundings
   // (canvas_widget_spot_healing.cpp). ContentAware is the exhaustive exemplar
-  // fill of core/exemplar_inpaint.hpp (deterministic; falls back to
-  // NearestEdge when no clean source patch is in reach). NearestEdge is the
-  // selection form of Spot Healing: one shape-derived mirror or shift, where
-  // `attempt` < 0 continues the canvas's own cycle (running again on the same
-  // selection walks the geometry-only candidates) and >= 0 forces that
-  // candidate (wrapping) and becomes the cycle's position. `record_history`
-  // false runs the pixel-edit prechecks without the history push, for callers
-  // that already own an undo snapshot (the script API).
+  // fill of core/exemplar_inpaint.hpp (deterministic per variation; falls
+  // back to NearestEdge when no clean source patch is in reach). NearestEdge
+  // is the selection form of Spot Healing: one shape-derived mirror or shift.
   enum class RemoveObjectMethod { ContentAware, NearestEdge };
+  struct RemoveObjectOptions {
+    RemoveObjectMethod method{RemoveObjectMethod::ContentAware};
+    // NearestEdge: < 0 continues the canvas's own cycle (running again on the
+    // same selection walks the geometry-only candidates), >= 0 forces that
+    // candidate (wrapping) and becomes the cycle's position. ContentAware:
+    // the variation, where 0 (or any negative value) is the byte-stable
+    // best-match fill and N > 0 is variation N (a deterministic near-best
+    // pick per patch; see core/exemplar_inpaint.hpp).
+    int attempt{-1};
+    // ContentAware only: strength of the tone match that follows the fill,
+    // 0 (the raw exemplar fill, the default) to 100 (the full low-pass
+    // replacement).
+    int tone_match{0};
+    // Extra edge feather in pixels, grown outward from the selection (a
+    // gaussian of this sigma over the coverage) on top of the selection's own
+    // feather: the fill covers the widened footprint and the soft skirt
+    // blends its edge. 0 keeps the selection's coverage as is.
+    int feather{0};
+    // false runs the pixel-edit prechecks without the history push, for
+    // callers that already own an undo snapshot (the script API) or that
+    // preview into the layer and push on accept (the Remove Object dialog).
+    bool record_history{true};
+  };
   struct RemoveObjectResult {
     bool applied{false};
     RemoveObjectMethod method{RemoveObjectMethod::ContentAware};  // the method that ran (fallback included)
     int source_index{0};  // NearestEdge: 1-based candidate that was used
     int source_count{0};  // NearestEdge: candidates available
+    int attempt{0};       // ContentAware: the variation that ran (0 = best match)
     std::int64_t patches{0};  // ContentAware: source patches copied
     QString error;  // the refusal (also reported to the status bar) when !applied
   };
+  RemoveObjectResult remove_object_in_selection(const RemoveObjectOptions& options);
+  // The same run in stages, so a host can keep the UI thread free: prepare
+  // (UI thread: the prechecks, the padded coverage, the retouch snapshot),
+  // compute (ANY thread: the exemplar fill and tone match over the job's own
+  // copies, cancellable per patch; nothing to do for NearestEdge), commit
+  // (UI thread: the source map, the history push, the heal write, the
+  // status). remove_object_in_selection(options) is the three in turn under
+  // the progress overlay. A job's snapshot must be the document as it should
+  // look BEFORE the fill: a host that previews into the layer restores the
+  // original before preparing the next job.
+  struct RemoveObjectJob {
+    RemoveObjectOptions options;
+    QRect bounds;                     // padded write bounds (selection + ring + feather reach)
+    std::vector<std::uint8_t> mask;   // coverage over bounds, 0 on the ring
+    QImage snapshot;                  // RGBA8888 retouch snapshot
+    bool valid{false};
+    QString error;                    // the refusal (also reported to the status bar) when !valid
+  };
+  struct RemoveObjectComputed {
+    bool cancelled{false};
+    bool fell_back{false};            // ContentAware found no clean source patch: NearestEdge runs
+    QImage filled;                    // ContentAware: the snapshot with the hole filled
+    ExemplarInpaintResult inpaint;
+  };
+  [[nodiscard]] RemoveObjectJob prepare_remove_object(const RemoveObjectOptions& options);
+  [[nodiscard]] static RemoveObjectComputed compute_remove_object(const RemoveObjectJob& job,
+                                                                  const std::atomic<bool>* cancel,
+                                                                  const std::function<void(int)>& progress_percent);
+  RemoveObjectResult commit_remove_object(const RemoveObjectJob& job, const RemoveObjectComputed& computed);
+  // The historical form: method, attempt, record_history, defaults otherwise.
   RemoveObjectResult remove_object_in_selection(RemoveObjectMethod method = RemoveObjectMethod::ContentAware,
                                                 int attempt = -1, bool record_history = true);
+  // Set by the host: the Patch tool's Enter with an outline and no drag asks
+  // the host to run Remove Object (MainWindow opens its dialog). Without a
+  // callback the canvas runs the default fill directly.
+  void set_remove_object_requested_callback(std::function<void()> callback);
+  // Read-only press-time precheck of begin_edit's pixel-layer branch (8-bit
+  // pixel layer, pixel lock, text/smart-object/shape refusals) WITHOUT the
+  // history push, for gestures that defer begin_edit to release (Spot Healing,
+  // Patch). Reports the same status errors / rasterize prompt when `report`.
+  bool can_begin_pixel_edit(bool report);
   void set_marquee_style(MarqueeStyle style) noexcept;
   [[nodiscard]] MarqueeStyle marquee_style() const noexcept;
   void set_marquee_fixed_size(int width, int height) noexcept;
@@ -1049,6 +1132,16 @@ public:
   [[nodiscard]] QColor grid_color() const noexcept;
   void set_guide_color(QColor color) noexcept;
   [[nodiscard]] QColor guide_color() const noexcept;
+  // The pasteboard behind the document (GitHub issue 47). Unset, it is the theme's
+  // `canvas_backdrop` role; a user color from the backdrop's right-click menu (a view
+  // preference the host owns, `view/canvasBackdropColor`) replaces it in every window.
+  void set_backdrop_color_override(std::optional<QColor> color);
+  [[nodiscard]] std::optional<QColor> backdrop_color_override() const noexcept;
+  [[nodiscard]] QColor backdrop_color() const;
+  // Fired by the backdrop menu's preset entries (nullopt = Default) and by its Select
+  // Custom Color... entry; unset, the presets apply to this canvas alone.
+  void set_backdrop_color_change_requested_callback(std::function<void(std::optional<QColor>)> callback);
+  void set_custom_backdrop_color_requested_callback(std::function<void()> callback);
   void add_guide(GuideOrientation orientation, std::int32_t position_32);
   void clear_guides();
   void clear_selected_guides();
@@ -1113,6 +1206,11 @@ public:
   void set_brush_settings_changed_callback(std::function<void()> callback);
   void set_pen_button_action_callback(std::function<void(PenButtonAction)> callback);
   void set_text_requested_callback(std::function<void(QPoint, QRect)> callback);
+  // The Type-tool press that opens a session on an existing layer keeps the rest of its gesture
+  // on the canvas (Qt delivers a gesture to the widget that took the press), so the canvas hands
+  // the drag to the host: begin = true right after the session opened (returns whether a live
+  // editor is there to select in), then begin = false with each left-held move's widget point.
+  void set_text_entry_selection_drag_callback(std::function<bool(QPointF, bool)> callback);
   void set_active_layer_changed_callback(std::function<void(LayerId)> callback);
   // The canvas asks the host (the layer panel is the selection's source of
   // truth) to make exactly these layers selected with active_id current; the
@@ -1156,6 +1254,12 @@ public:
   // true if it replaced the layer's pixels/bounds (so the resampled bitmap is overridden).
   void set_text_layer_transform_render_callback(std::function<bool(LayerId)> callback);
   void set_smart_object_transform_render_callback(std::function<bool(LayerId)> callback);
+  // The natural-size decode of a smart object's source for the Warp cage: embedded
+  // bytes, or a linked file resolved against the owning document's folder (the canvas
+  // has no path). On failure `error` receives the reason to show (a missing linked
+  // file names the file); an unset callback falls back to embedded bytes only.
+  void set_smart_object_source_image_callback(
+      std::function<std::optional<QImage>(LayerId, QString* error)> callback);
   // A paint tool pressed on a smart-object layer: the host offers to rasterize the
   // layer or open its contents. The triggering press is consumed either way (the
   // modal prompt swallows the release, so the stroke never starts).
@@ -1495,9 +1599,15 @@ private:
   // Escape with nothing to cancel, and Move-tool empty clicks/rectangles:
   // clear the layer selection and the active layer (no history entry).
   void request_layer_deselection();
+  // For a tool that needs a layer: with no active layer, a one-layer
+  // document's only layer becomes the selection instead of the gesture
+  // being refused (MainWindow::select_only_layer_if_none_active's twin).
+  void select_only_layer_if_none_active();
   // Move-tool section of the canvas context menu (canvas_widget_move.cpp):
   // the hit leaf layers under the pointer. Returns whether any entry was added.
   bool add_move_layer_menu_entries(QMenu& menu, QPoint widget_point);
+  // Backdrop-color section of the canvas context menu, for a click outside the document.
+  void add_backdrop_color_menu_entries(QMenu& menu);
   void close_canvas_context_menu();
   // Canvas context menus are never deleted while the click that picked an entry is still
   // being dispatched (see show_canvas_context_menu). A hidden menu is retired here and
@@ -1515,11 +1625,6 @@ private:
   [[nodiscard]] QRect widget_rect_for_document_rect(QRect document_rect) const;
   [[nodiscard]] QRectF widget_rect_for_document_rect(QRectF document_rect) const;
   bool begin_edit(QString label);
-  // Read-only press-time precheck of begin_edit's pixel-layer branch (8-bit
-  // pixel layer, pixel lock, text/smart-object/shape refusals) WITHOUT the
-  // history push, for gestures that defer begin_edit to release (Spot Healing,
-  // Patch). Reports the same status errors / rasterize prompt when `report`.
-  bool can_begin_pixel_edit(bool report);
   [[nodiscard]] CanvasTool effective_tool_for_input() const noexcept;
   void clear_brush_stroke_tracking() noexcept;
   void begin_axis_constrained_stroke(QPointF document_point) noexcept;
@@ -1859,6 +1964,11 @@ private:
   // that writes selection_ / selection_display_region_ directly instead of
   // going through the setters above.
   void invalidate_selection_outline() noexcept;
+  // The rasterized-selection lookup behind selection_alpha_at (see
+  // selection_lookup_bits_): drops it, builds it, and answers one query.
+  void invalidate_selection_lookup() noexcept;
+  void build_selection_lookup() const;
+  [[nodiscard]] bool selection_lookup_contains(QPoint point) const noexcept;
   // Lazily retraces the outline loops after a selection change and refreshes
   // the cached device-space path when zoom/pan/viewport differ from the key it
   // was built for; animation ticks then only restroke the cached path.
@@ -1995,11 +2105,21 @@ private:
   [[nodiscard]] PenInputSample pen_input_sample_from_tablet_event(const QTabletEvent& event) const;
   [[nodiscard]] PenButtonAction pen_action_for_button(Qt::MouseButton button) const noexcept;
   [[nodiscard]] bool pen_recently_in_proximity() const;
+  // True while a press-drag (stroke, drag, pan, zoom drag) owns the pointer: trackpad
+  // scroll and pinch must not move the view under it.
+  [[nodiscard]] bool view_gesture_blocked_by_pointer() const noexcept;
   [[nodiscard]] bool tablet_event_should_pan(const PenInputSample& sample, QEvent::Type event_type) const noexcept;
   [[nodiscard]] bool tablet_event_should_zoom(const PenInputSample& sample, QEvent::Type event_type) const noexcept;
   void begin_zoom_drag(QPointF widget_position);
   void update_zoom_drag(QPointF widget_position);
   void end_zoom_drag();
+  // Multiplies the zoom by kZoomDragFactorPerPixel^delta about zoom_drag_anchor_widget_.
+  void apply_zoom_drag_step(double delta_pixels);
+  // The press position clamped onto the document frame (margin presses zoom
+  // toward the nearest document edge).
+  [[nodiscard]] QPointF zoom_click_anchor(QPointF widget_position) const;
+  // The click direction after Alt inverts the Zoom In / Zoom Out mode.
+  [[nodiscard]] bool zoom_tool_zoom_out_active(Qt::KeyboardModifiers modifiers) const noexcept;
   void begin_brush_adjust_drag(QPoint widget_position, bool from_tablet = false);
   void update_brush_adjust_drag(QPoint widget_position);
   void end_brush_adjust_drag(bool commit);
@@ -2034,6 +2154,10 @@ private:
   double zoom_{1.0};
   QPointF pan_{40.0, 40.0};
   bool wheel_zooms_{true};
+  // Set by a press, cleared by the next ScrollBegin: drops leftover flick momentum.
+  bool swallow_scroll_momentum_{false};
+  bool zoom_scrubby_{false};
+  bool zoom_tool_zooms_out_{false};
   QScrollBar* horizontal_scroll_bar_{nullptr};
   QScrollBar* vertical_scroll_bar_{nullptr};
   bool syncing_scroll_bars_{false};
@@ -2228,6 +2352,8 @@ private:
   int shape_corner_radius_{0};
   int fill_opacity_{100};
   int fill_softness_{0};
+  int fill_tolerance_{32};
+  bool fill_contiguous_{true};
   bool auto_select_layer_{true};
   SelectionMode selection_mode_{SelectionMode::Replace};
   // Per-tool combine modes; selection_mode_ mirrors the active selection tool's
@@ -2273,6 +2399,7 @@ private:
   bool opacity_digit_targets_flow_{false};
   bool drawing_shape_{false};
   bool dragging_text_rect_{false};
+  bool dragging_text_entry_selection_{false};
   bool move_drag_pending_{false};
   struct MoveLayerSelectionGesture {
     QPoint press_widget;
@@ -2321,6 +2448,7 @@ private:
   bool remove_object_has_last_{false};
   QRect remove_object_last_bounds_;
   std::uint64_t remove_object_last_mask_hash_{0};
+  std::function<void()> remove_object_requested_callback_;
   // Crop tool session state (canvas_widget_crop.cpp). All rects/points are in
   // document space; crop_rect_ may extend past the canvas (commit expands).
   bool crop_session_active_{false};
@@ -2356,6 +2484,13 @@ private:
   QImage patch_tool_drag_proxy_image_;
   bool moving_selection_{false};
   bool zooming_{false};
+  // Scrubby Zoom sub-state of zooming_: armed by the press when the option is
+  // on, started once travel passes kZoomClickSlopPx (a shorter press stays a
+  // click). Shares zoom_drag_anchor_widget_ / zoom_drag_last_pos_ with the pen
+  // ZoomCanvas drag; the two gestures never overlap.
+  bool zoom_scrubbing_{false};
+  bool zoom_scrub_started_{false};
+  static constexpr int kZoomClickSlopPx = 8;
   QPoint zoom_start_{};
   QPoint zoom_current_{};
   QPolygon lasso_points_;
@@ -2414,6 +2549,9 @@ private:
   bool rulers_visible_{false};
   MeasurementUnit ruler_unit_{MeasurementUnit::Pixels};
   std::function<void(MeasurementUnit)> ruler_unit_change_requested_callback_;
+  std::optional<QColor> backdrop_color_override_;
+  std::function<void(std::optional<QColor>)> backdrop_color_change_requested_callback_;
+  std::function<void()> custom_backdrop_color_requested_callback_;
   bool grid_visible_{false};
   bool guides_visible_{true};
   bool guides_locked_{false};
@@ -2450,6 +2588,18 @@ private:
   mutable double selection_outline_screen_zoom_{0.0};
   mutable QPointF selection_outline_screen_pan_;
   mutable QRect selection_outline_screen_viewport_;
+  // Rasterized selection_ for the per-pixel lookups behind selection_alpha_at
+  // when the region holds more than a few rectangles: QRegion::contains scans
+  // every rectangle, so a wand selection of a background around a subject
+  // (thousands of row spans) made a 1.5 Mpx fill take about 45 s (GitHub
+  // issue 34). One bit per pixel over selection_lookup_bounds_, built on first
+  // use under selection_lookup_mutex_ (render/filter workers may query it in
+  // parallel), and dropped by invalidate_selection_outline() with the outline
+  // caches, which every selection write already calls.
+  mutable std::vector<std::uint8_t> selection_lookup_bits_;
+  mutable QRect selection_lookup_bounds_;
+  mutable std::atomic<bool> selection_lookup_valid_{false};
+  mutable std::mutex selection_lookup_mutex_;
   QBasicTimer processing_animation_timer_;
   bool processing_overlay_visible_{false};
   bool processing_render_wait_active_{false};
@@ -2512,6 +2662,7 @@ private:
   bool handling_tablet_event_{false};
   bool pen_button_suppressing_paint_{false};
   bool pen_zoom_dragging_{false};
+  // Shared by the pen ZoomCanvas drag and Scrubby Zoom (canvas_widget_events.cpp).
   QPointF zoom_drag_anchor_widget_{};
   QPointF zoom_drag_last_pos_{};
   std::vector<MovingLayer> moving_layers_;
@@ -2747,6 +2898,7 @@ private:
   std::function<void()> brush_settings_changed_callback_;
   std::function<void(PenButtonAction)> pen_button_action_callback_;
   std::function<void(QPoint, QRect)> text_requested_callback_;
+  std::function<bool(QPointF, bool)> text_entry_selection_drag_callback_;
   std::function<void(LayerId)> active_layer_changed_callback_;
   std::function<void(std::vector<LayerId>, LayerId)> layer_selection_requested_callback_;
   std::function<void(QString)> status_callback_;
@@ -2773,6 +2925,7 @@ private:
   std::function<void()> transform_controls_changed_callback_;
   std::function<bool(LayerId)> text_layer_transform_render_callback_;
   std::function<bool(LayerId)> smart_object_transform_render_callback_;
+  std::function<std::optional<QImage>(LayerId, QString*)> smart_object_source_image_callback_;
   std::function<void(LayerId)> smart_object_paint_prompt_callback_;
 };
 

@@ -31,10 +31,6 @@
         <translation>選択したレイヤーとグループの結合方法を選択します。</translation>
     </message>
     <message>
-        <source>Keep vectors and bitmaps separate</source>
-        <translation>ベクターとビットマップを分けて結合</translation>
-    </message>
-    <message>
         <source>Keep editable shapes. Turn off to merge the artwork into bitmap layers.</source>
         <translation>編集可能なシェイプを保持します。オフにすると、アートワークをビットマップレイヤーに結合します。</translation>
     </message>
@@ -105,6 +101,176 @@
     <message>
         <source>The original layers are kept. Multiple outputs are placed in a new group.</source>
         <translation>元のレイヤーは保持されます。複数の結果は新しいグループにまとめられます。</translation>
+    </message>
+    <message>
+        <source>Keep vector layers editable</source>
+        <translation>ベクターレイヤーを編集可能なまま保持</translation>
+    </message>
+    <message>
+        <source>These layers keep their own effects and stay separate in a vector merge. Turning off &quot;Keep vector layers editable&quot; rasterizes merged artwork.</source>
+        <translation>これらのレイヤーは個別の効果を保持するため、ベクターとして結合する際も分かれたままになります。「ベクターレイヤーを編集可能なまま保持」をオフにすると、結合するアートワークがラスタライズされます。</translation>
+    </message>
+    <message>
+        <source>Select at least two editable vector layers.</source>
+        <translation>編集可能なベクターレイヤーを2つ以上選択してください。</translation>
+    </message>
+    <message>
+        <source>This layer is not an editable vector layer.</source>
+        <translation>このレイヤーは編集可能なベクターレイヤーではありません。</translation>
+    </message>
+    <message>
+        <source>Unlock this layer and its parent groups first.</source>
+        <translation>先にこのレイヤーと親グループのロックを解除してください。</translation>
+    </message>
+    <message>
+        <source>Show this layer and its parent groups first.</source>
+        <translation>先にこのレイヤーと親グループを表示してください。</translation>
+    </message>
+    <message>
+        <source>A clipping relationship requires this layer to stay separate.</source>
+        <translation>クリッピング関係があるため、このレイヤーは分離しておく必要があります。</translation>
+    </message>
+    <message>
+        <source>A separate mask prevents this vector merge.</source>
+        <translation>別のマスクがあるため、このベクター結合はできません。</translation>
+    </message>
+    <message>
+        <source>Smart Filters require this layer to stay separate.</source>
+        <translation>スマートフィルターがあるため、このレイヤーは分離しておく必要があります。</translation>
+    </message>
+    <message>
+        <source>The blend mode, Blend If, or channel settings require a separate layer.</source>
+        <translation>描画モード、ブレンド条件、またはチャンネル設定により、別のレイヤーが必要です。</translation>
+    </message>
+    <message>
+        <source>Preserved vector data cannot be edited.</source>
+        <translation>保持されたベクターデータは編集できません。</translation>
+    </message>
+    <message>
+        <source>This compound vector&apos;s opacity requires it to stay separate.</source>
+        <translation>この複合ベクターの不透明度を維持するには、分離しておく必要があります。</translation>
+    </message>
+    <message>
+        <source>This group&apos;s appearance prevents moving shapes across its boundary.</source>
+        <translation>このグループの外観を維持するため、境界を越えてシェイプを移動できません。</translation>
+    </message>
+    <message>
+        <source>Choose effects from a vector layer included in the merge.</source>
+        <translation>結合に含まれるベクターレイヤーから効果を選択してください。</translation>
+    </message>
+    <message>
+        <source>Vector feather or density requires this shape to stay separate.</source>
+        <translation>ベクターのぼかしまたは濃度により、このシェイプは分離しておく必要があります。</translation>
+    </message>
+    <message>
+        <source>%1: %2</source>
+        <translation>%1: %2</translation>
+    </message>
+    <message>
+        <source>Merge into one vector layer</source>
+        <translation>1つのベクターレイヤーに結合</translation>
+    </message>
+    <message>
+        <source>Remove layer effects</source>
+        <translation>レイヤー効果を削除</translation>
+    </message>
+    <message>
+        <source>Use effects from a layer</source>
+        <translation>レイヤーの効果を使用</translation>
+    </message>
+    <message>
+        <source>Layer effects:</source>
+        <translation>レイヤー効果:</translation>
+    </message>
+    <message>
+        <source>Use effects from:</source>
+        <translation>効果の使用元:</translation>
+    </message>
+    <message>
+        <source>Preview</source>
+        <translation>プレビュー</translation>
+    </message>
+    <message>
+        <source>Preview unavailable.</source>
+        <translation>プレビューを表示できません。</translation>
+    </message>
+    <message>
+        <source>Merged artwork</source>
+        <translation>結合後の画像</translation>
+    </message>
+    <message>
+        <source>Original artwork</source>
+        <translation>元の画像</translation>
+    </message>
+    <message>
+        <source>Effects from %1 apply once to the combined silhouette. Each shape keeps its own fill and vector stroke.</source>
+        <translation>%1の効果を結合された輪郭全体に1回適用します。各シェイプの塗りとベクターの線は維持されます。</translation>
+    </message>
+    <message>
+        <source>Individual layer effects will be removed. Each shape keeps its own fill and vector stroke.</source>
+        <translation>個々のレイヤー効果は削除されます。各シェイプの塗りとベクターの線は維持されます。</translation>
+    </message>
+    <message>
+        <source>Result: 1 editable vector layer, replacing %1 in the layer stack.</source>
+        <translation>結果: 編集可能なベクターレイヤー1つで、レイヤーの重なり順における%1を置き換えます。</translation>
+    </message>
+    <message>
+        <source>Stacking relative to unselected layers will change. Review the preview before merging.</source>
+        <translation>未選択レイヤーとの重なり順が変わります。結合前にプレビューを確認してください。</translation>
+    </message>
+    <message>
+        <source>Updating preview...</source>
+        <translation>プレビューを更新中...</translation>
+    </message>
+</context>
+<context>
+    <name>LegacyPluginFolder</name>
+    <message>
+        <source>Legacy Photoshop plug-ins run on Windows only.</source>
+        <translation>従来の Photoshop プラグインは Windows でのみ実行できます。</translation>
+    </message>
+    <message>
+        <source>The plug-ins folder could not be created: %1</source>
+        <translation>プラグインフォルダーを作成できませんでした: %1</translation>
+    </message>
+</context>
+<context>
+    <name>LegacyPluginRunner</name>
+    <message>
+        <source>The plug-in host was given an invalid image.</source>
+        <translation>プラグインホストに無効な画像が渡されました。</translation>
+    </message>
+    <message>
+        <source>The plug-in host program is missing: %1</source>
+        <translation>プラグインホストプログラムが見つかりません: %1</translation>
+    </message>
+    <message>
+        <source>Not enough memory to hand the layer to the plug-in.</source>
+        <translation>レイヤーをプラグインに渡すためのメモリが不足しています。</translation>
+    </message>
+    <message>
+        <source>The plug-in host could not be contacted: %1</source>
+        <translation>プラグインホストに接続できませんでした: %1</translation>
+    </message>
+    <message>
+        <source>The plug-in host program could not be started: %1</source>
+        <translation>プラグインホストプログラムを起動できませんでした: %1</translation>
+    </message>
+    <message>
+        <source>The plug-in host did not respond.</source>
+        <translation>プラグインホストが応答しませんでした。</translation>
+    </message>
+    <message>
+        <source>The plug-in host program does not match this Patchy build.</source>
+        <translation>プラグインホストプログラムがこの Patchy ビルドと一致しません。</translation>
+    </message>
+    <message>
+        <source>The plug-in crashed (host exit code %1).</source>
+        <translation>プラグインがクラッシュしました (ホストの終了コード %1)。</translation>
+    </message>
+    <message>
+        <source>The plug-in reported an error.</source>
+        <translation>プラグインがエラーを報告しました。</translation>
     </message>
 </context>
 <context>
@@ -412,10 +578,6 @@ RGB: %2, %3, %4</translation>
         <translation>単一の統合画像</translation>
     </message>
     <message>
-        <source>Frame delay:</source>
-        <translation>フレーム間隔:</translation>
-    </message>
-    <message>
         <source> s</source>
         <translation> 秒</translation>
     </message>
@@ -501,7 +663,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Trim transparent edges kept the full canvas: the image has no visible pixels.</source>
-        <translation>透明な縁の切り落としはキャンバス全体を残しました: 画像に表示されるピクセルがありません。</translation>
+        <translation>画像に表示可能なピクセルがないため、透明な縁を切り落とさずにキャンバス全体を保持しました。</translation>
     </message>
     <message>
         <source>Export Sprite Sheet</source>
@@ -1904,10 +2066,6 @@ RGB: %2, %3, %4</translation>
         <translation>バージョン %1（ビルド日: %2）</translation>
     </message>
     <message>
-        <source>Created by Seth A. Robinson</source>
-        <translation>作成: Seth A. Robinson</translation>
-    </message>
-    <message>
         <source>Code contributions from %1</source>
         <translation>コード貢献者: %1</translation>
     </message>
@@ -2185,11 +2343,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>%1 contains Photoshop Blend If data for an unsupported color mode or payload shape. Patchy preserves it for PSD round-trip but does not render or edit it.</source>
-        <translation>%1 には、未対応のカラーモードまたはペイロード形式の Photoshop「ブレンド条件 (Blend If)」データが含まれています。Patchy は PSD 往復用に保持しますが、描画や編集は行いません。</translation>
+        <translation>%1 には、未対応のカラーモードまたはデータ形式の Photoshop「ブレンド条件 (Blend If)」データが含まれています。Patchy は PSD の再保存時にこのデータを保持しますが、描画や編集は行いません。</translation>
     </message>
     <message>
         <source>%1 contains Photoshop channel blending restrictions for an unsupported color mode or payload shape. Patchy preserves them for PSD round-trip but does not render or edit them.</source>
-        <translation>%1 には、未対応のカラーモードまたはペイロード形式の Photoshop チャンネル合成制限が含まれています。Patchy は PSD 往復用に保持しますが、描画や編集は行いません。</translation>
+        <translation>%1 には、未対応のカラーモードまたはデータ形式の Photoshop チャンネル合成制限が含まれています。Patchy は PSD の再保存時にこのデータを保持しますが、描画や編集は行いません。</translation>
     </message>
     <message>
         <source>%1 contains Blend If data on a Photoshop group-boundary record. Patchy preserves that boundary data but does not render or edit it.</source>
@@ -2213,7 +2371,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>%1 is a Patchy-native adjustment layer; it round-trips in Patchy PSDs but may appear as an unsupported adjustment in other editors.</source>
-        <translation>%1 は Patchy ネイティブの調整レイヤーです。Patchy PSD では往復できますが、他のエディターでは未対応の調整として表示される場合があります。</translation>
+        <translation>%1 は Patchy 独自の調整レイヤーです。Patchy の PSD では保存して開き直しても保持されますが、他のエディターでは未対応の調整として表示される場合があります。</translation>
     </message>
     <message>
         <source>%1 uses an unsupported layer kind and may not export as editable PSD data.</source>
@@ -2722,11 +2880,11 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Lasso</source>
-        <translation>投げ縄</translation>
+        <translation>なげなわ</translation>
     </message>
     <message>
         <source>Magnetic Lasso</source>
-        <translation>マグネット投げ縄</translation>
+        <translation>マグネット選択</translation>
     </message>
     <message>
         <source>Magic Wand</source>
@@ -2746,7 +2904,7 @@ RGB: %2, %3, %4</translation>
     </message>
     <message>
         <source>Clone Stamp</source>
-        <translation>クローンスタンプ</translation>
+        <translation>コピースタンプ</translation>
     </message>
     <message>
         <source>Healing Brush</source>
@@ -3080,8 +3238,8 @@ Flow: %6
 %7</source>
         <translation>%1
 フォント: %2、%3 pt%4
-色: %5
-フロー: %6
+カラー: %5
+文字形式: %6
 %7</translation>
     </message>
     <message>
@@ -3458,10 +3616,6 @@ Open in Generative Upscale...</source>
     <message>
         <source>Current Size: %1</source>
         <translation>現在のサイズ: %1</translation>
-    </message>
-    <message>
-        <source>%1 px</source>
-        <translation>%1 px</translation>
     </message>
     <message>
         <source>Relative to current dimension</source>
@@ -7626,26 +7780,6 @@ Mixed selection</source>
         <translation>レガシー Photoshop プラグインは Windows バイナリのため、Windows 版の Patchy が必要です。</translation>
     </message>
     <message>
-        <source>32-bit Photoshop plug-ins require a 32-bit compatibility host.</source>
-        <translation>32 ビットの Photoshop プラグインには 32 ビット互換ホストが必要です。</translation>
-    </message>
-    <message>
-        <source>Plug-in architecture does not match this Patchy build.</source>
-        <translation>プラグインのアーキテクチャがこの Patchy ビルドと一致しません。</translation>
-    </message>
-    <message>
-        <source>Automation plug-ins are recognized but not supported by the first compatibility adapter.</source>
-        <translation>オートメーションプラグインは認識されますが、最初の互換アダプターでは対応していません。</translation>
-    </message>
-    <message>
-        <source>Classic Photoshop filter plug-in candidate. Runtime execution will be isolated out-of-process.</source>
-        <translation>従来の Photoshop フィルタープラグインの候補です。実行時は別プロセスに分離されます。</translation>
-    </message>
-    <message>
-        <source>Classic Photoshop file-format plug-in candidate. Runtime execution will be isolated out-of-process.</source>
-        <translation>従来の Photoshop ファイル形式プラグインの候補です。実行時は別プロセスに分離されます。</translation>
-    </message>
-    <message>
         <source>Plugin identifier cannot be empty</source>
         <translation>プラグイン識別子は空にできません</translation>
     </message>
@@ -7938,10 +8072,6 @@ Mixed selection</source>
         <translation>初期版の PSD リーダーは現在、8、16、32 ビットのファイルのみ対応しています</translation>
     </message>
     <message>
-        <source>The starter PSD reader currently supports RGB and CMYK files only</source>
-        <translation>初期版の PSD リーダーは現在、RGB と CMYK のファイルのみ対応しています</translation>
-    </message>
-    <message>
         <source>PSD files cannot contain more than 56 channels</source>
         <translation>PSD ファイルに 56 を超えるチャンネルは含められません</translation>
     </message>
@@ -8124,16 +8254,8 @@ Mixed selection</source>
         <translation>無題</translation>
     </message>
     <message>
-        <source>UI language for this run only, not saved: en, de, es, fr, it, ja, zh_CN, or zh_TW.</source>
-        <translation>この実行のみに適用される UI 言語 (保存されません): en、de、es、fr、it、ja、zh_CN、zh_TW。</translation>
-    </message>
-    <message>
         <source>Also crop each actual layer to the canvas area</source>
         <translation>各レイヤー自体もカンバス領域に切り抜く</translation>
-    </message>
-    <message>
-        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</source>
-        <translation>この HEIC 画像をデコードできません。HEIC のデコードには Flatpak のコーデック拡張が必要です。次のコマンドでインストールしてください: flatpak install --user flathub org.freedesktop.Platform.ffmpeg-full//24.08</translation>
     </message>
     <message>
         <source>Create Ellipse</source>
@@ -8463,6 +8585,292 @@ Mixed selection</source>
         <source>Stroke Color</source>
         <translation>境界線の色</translation>
     </message>
+    <message>
+        <source>User data folder (fonts, scripts):</source>
+        <translation>ユーザーデータフォルダー (フォント、スクリプト):</translation>
+    </message>
+    <message>
+        <source>Open Data Folder</source>
+        <translation>データフォルダーを開く</translation>
+    </message>
+    <message>
+        <source>Could not open data folder.</source>
+        <translation>データフォルダーを開けませんでした。</translation>
+    </message>
+    <message>
+        <source>Created by %1</source>
+        <translation>作成: %1</translation>
+    </message>
+    <message>
+        <source>Could not write PSD file</source>
+        <translation>PSD ファイルを書き込めませんでした</translation>
+    </message>
+    <message>
+        <source>The starter PSD reader currently supports RGB, CMYK, and Grayscale files only</source>
+        <translation>初期版の PSD リーダーは現在、RGB、CMYK、グレースケールのファイルのみ対応しています</translation>
+    </message>
+    <message>
+        <source>Grayscale PSD file must contain at least 1 channel</source>
+        <translation>グレースケールの PSD ファイルには少なくとも 1 つのチャンネルが必要です</translation>
+    </message>
+    <message>
+        <source>The source color mode is Grayscale; Patchy converted the gray values to RGB/RGBA for editing and will export RGB PSD data from this document.</source>
+        <translation>元のカラーモードはグレースケールです。Patchy は編集用にグレー値を RGB/RGBA に変換しました。このドキュメントからは RGB PSD データを書き出します。</translation>
+    </message>
+    <message>
+        <source>Not a Windows plug-in binary.</source>
+        <translation>Windows プラグインのバイナリではありません。</translation>
+    </message>
+    <message>
+        <source>Unsupported plug-in architecture; only 32-bit and 64-bit x86 plug-ins run.</source>
+        <translation>サポートされていないプラグインのアーキテクチャです。32 ビットと 64 ビットの x86 プラグインのみ実行できます。</translation>
+    </message>
+    <message>
+        <source>File-format and automation plug-ins are not supported; only filter (.8bf) plug-ins run.</source>
+        <translation>ファイル形式プラグインと自動化プラグインはサポートされていません。フィルタープラグイン (.8bf) のみ実行できます。</translation>
+    </message>
+    <message>
+        <source>This plug-in is not a filter; only filter (.8bf) plug-ins run.</source>
+        <translation>このプラグインはフィルターではありません。フィルタープラグイン (.8bf) のみ実行できます。</translation>
+    </message>
+    <message>
+        <source>Photoshop filter plug-in (32-bit).</source>
+        <translation>Photoshop フィルタープラグイン (32 ビット)。</translation>
+    </message>
+    <message>
+        <source>Photoshop filter plug-in (64-bit).</source>
+        <translation>Photoshop フィルタープラグイン (64 ビット)。</translation>
+    </message>
+    <message>
+        <source>Plug-ins folder (.8bf filters):</source>
+        <translation>プラグインフォルダー (.8bf フィルター):</translation>
+    </message>
+    <message>
+        <source>Open Plug-ins Folder</source>
+        <translation>プラグインフォルダーを開く</translation>
+    </message>
+    <message>
+        <source>Could not open the plug-ins folder.</source>
+        <translation>プラグインフォルダーを開けませんでした。</translation>
+    </message>
+    <message>
+        <source>Blend Clipped Layers as Group</source>
+        <translation>クリップされたレイヤーをグループとして描画</translation>
+    </message>
+    <message>
+        <source>Keep the layers clipped to this one under its interior effects; turn this off together with Blend Interior Effects as Group to draw them over the overlays instead</source>
+        <translation>このレイヤーにクリップされたレイヤーを内側の効果の下に置きます。「内側の効果をグループとして描画」と一緒にオフにすると、オーバーレイの上に描画されます</translation>
+    </message>
+    <message>
+        <source>This file is 32-bit per channel (HDR). Patchy converted it to 8-bit for editing: precision and dynamic range beyond 8-bit were lost, and saving writes an 8-bit file. Keep the original if you need the 32-bit data.</source>
+        <translation>このファイルはチャンネルあたり 32 ビット (HDR) です。Patchy は編集用に 8 ビットへ変換しました。8 ビットを超える精度とダイナミックレンジは失われ、保存すると 8 ビットのファイルになります。32 ビットのデータが必要な場合は元のファイルを残してください。</translation>
+    </message>
+    <message>
+        <source>This file is 16-bit per channel. Patchy converted it to 8-bit for editing: some precision was lost, and saving writes an 8-bit file. Keep the original if you need the 16-bit data.</source>
+        <translation>このファイルはチャンネルあたり 16 ビットです。Patchy は編集用に 8 ビットへ変換しました。一部の精度が失われ、保存すると 8 ビットのファイルになります。16 ビットのデータが必要な場合は元のファイルを残してください。</translation>
+    </message>
+    <message>
+        <source>The source is %1 bits per channel; Patchy converted it to 8-bit for editing and saves an 8-bit file. Keep the original if you need the deeper data.</source>
+        <translation>元のファイルはチャンネルあたり %1 ビットです。Patchy は編集用に 8 ビットへ変換し、8 ビットのファイルとして保存します。より深いビット深度のデータが必要な場合は元のファイルを残してください。</translation>
+    </message>
+    <message>
+        <source>%1 opened with notes:
+
+%2</source>
+        <translation>%1 を開きましたが、次の注意があります:
+
+%2</translation>
+    </message>
+    <message>
+        <source>Import Notes</source>
+        <translation>読み込みに関する注意</translation>
+    </message>
+    <message>
+        <source>Crop to Selection (Advanced)</source>
+        <translation>選択範囲で切り抜き(詳細)</translation>
+    </message>
+    <message>
+        <source>Also delete layers that end up fully off the canvas</source>
+        <translation>カンバス外に完全に出たレイヤーも削除する</translation>
+    </message>
+    <message>
+        <source>Patchy can&apos;t locate these fonts: %1. These fonts have no glyphs for their text: %2. Editing this PSD raster preview will substitute other fonts. Continue?</source>
+        <translation>Patchy は次のフォントを見つけられません: %1。次のフォントにはテキストのグリフがありません: %2。この PSD ラスタープレビューを編集すると別のフォントで代用します。続行しますか?</translation>
+    </message>
+    <message>
+        <source>The font &quot;%1&quot; has no glyphs for this text. Editing this PSD raster preview will substitute another font. Continue?</source>
+        <translation>フォント「%1」にはこのテキストのグリフがありません。この PSD ラスタープレビューを編集すると別のフォントで代用します。続行しますか?</translation>
+    </message>
+    <message>
+        <source>These fonts have no glyphs for their text: %1. Editing this PSD raster preview will substitute other fonts. Continue?</source>
+        <translation>次のフォントにはテキストのグリフがありません: %1。この PSD ラスタープレビューを編集すると別のフォントで代用します。続行しますか?</translation>
+    </message>
+    <message>
+        <source>Text layer. Missing font: %1. No glyphs for this text in: %2. Other fonts are being substituted, so the text does not look as it was authored.</source>
+        <translation>テキストレイヤー。フォントが見つかりません: %1。このテキストのグリフがないフォント: %2。別のフォントで代替しているため、作成時の見た目とは異なります。</translation>
+    </message>
+    <message>
+        <source>Text layer. No glyphs for this text in: %1. Another font is being substituted, so the text does not look as it was authored.</source>
+        <translation>テキストレイヤー。このテキストのグリフがないフォント: %1。別のフォントで代替しているため、作成時の見た目とは異なります。</translation>
+    </message>
+    <message>
+        <source>UI language for this run only, not saved: en, de, es, fr, it, ja, ko, pl, pt_BR, ru, zh_CN, or zh_TW.</source>
+        <translation>この実行のみに適用される UI 言語 (保存されません): en、de、es、fr、it、ja、ko、pl、pt_BR、ru、zh_CN、zh_TW。</translation>
+    </message>
+    <message>
+        <source>Invalid or damaged animated WebP.</source>
+        <translation>アニメーションWebPが無効または破損しています。</translation>
+    </message>
+    <message>
+        <source>Animated WebP exceeds the image allocation limit.</source>
+        <translation>アニメーションWebPが画像のメモリ割り当て上限を超えています。</translation>
+    </message>
+    <message>
+        <source>Invalid animated WebP dimensions or quality.</source>
+        <translation>アニメーションWebPのサイズまたは品質が無効です。</translation>
+    </message>
+    <message>
+        <source>Could not create animated WebP encoder.</source>
+        <translation>アニメーションWebPエンコーダーを作成できませんでした。</translation>
+    </message>
+    <message>
+        <source>Invalid animated WebP frame or duration.</source>
+        <translation>アニメーションWebPのフレームまたは表示時間が無効です。</translation>
+    </message>
+    <message>
+        <source>Could not encode animated WebP frame.</source>
+        <translation>アニメーションWebPのフレームをエンコードできませんでした。</translation>
+    </message>
+    <message>
+        <source>Animated WebP needs at least one frame.</source>
+        <translation>アニメーションWebPには少なくとも1つのフレームが必要です。</translation>
+    </message>
+    <message>
+        <source>Could not finish animated WebP.</source>
+        <translation>アニメーションWebPの作成を完了できませんでした。</translation>
+    </message>
+    <message>
+        <source>Forever</source>
+        <translation>無限ループ</translation>
+    </message>
+    <message>
+        <source>Play count:</source>
+        <translation>再生回数:</translation>
+    </message>
+    <message>
+        <source>Each visible top-level layer becomes one frame, with the top layer first. A name ending in a time, like &quot;blink 0.033s&quot;, sets that frame&apos;s delay. Play count includes the first play.</source>
+        <translation>表示されている最上位レイヤーを、上から順に1フレームずつ書き出します。「blink 0.033s」のように名前の末尾に時間を指定すると、そのフレームの表示時間になります。再生回数には初回の再生も含まれます。</translation>
+    </message>
+    <message>
+        <source>Animated WebP: imported %1 frames as layers</source>
+        <translation>アニメーションWebP: %1フレームをレイヤーとして読み込みました</translation>
+    </message>
+    <message>
+        <source>The document has no visible top-level layers to export as an animated WebP.</source>
+        <translation>アニメーションWebPとして書き出せる、表示中の最上位レイヤーがありません。</translation>
+    </message>
+    <message>
+        <source>Could not open WebP file for writing</source>
+        <translation>WebPファイルを書き込み用に開けませんでした</translation>
+    </message>
+    <message>
+        <source>Could not write WebP file</source>
+        <translation>WebPファイルに書き込めませんでした</translation>
+    </message>
+    <message>
+        <source>Default frame delay:</source>
+        <translation>既定のフレーム表示時間:</translation>
+    </message>
+    <message>
+        <source>Mixed: selected layers have different values</source>
+        <translation>混在：選択したレイヤーの値が異なります</translation>
+    </message>
+    <message>
+        <source> (Mixed)</source>
+        <translation> (混在)</translation>
+    </message>
+    <message>
+        <source>Values from: %1</source>
+        <translation>値の参照元：%1</translation>
+    </message>
+    <message>
+        <source>Apply All Settings to Selected Layers</source>
+        <translation>すべての設定を選択したレイヤーに適用</translation>
+    </message>
+    <message>
+        <source>Present on %1 of %2 layers</source>
+        <translation>%2 個のレイヤーのうち %1 個に存在</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n layers selected</source>
+        <translation>
+            <numerusform>%n 個のレイヤーを選択中</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Editable layers: %n</source>
+        <translation>
+            <numerusform>編集可能なレイヤー：%n 個</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Editable rectangles for corner radii: %n</source>
+        <translation>
+            <numerusform>角の半径：編集可能な長方形 %n 個</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Gradient settings apply to %1 of %2 editable layers.</source>
+        <translation>グラデーション設定は編集可能な %2 個のレイヤーのうち %1 個に適用されます。</translation>
+    </message>
+    <message>
+        <source>Pattern settings apply to %1 of %2 editable layers.</source>
+        <translation>パターン設定は編集可能な %2 個のレイヤーのうち %1 個に適用されます。</translation>
+    </message>
+    <message>
+        <source>Unable to decode this HEIC image. HEIC decoding needs the Flatpak codec extension; install it with: flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</source>
+        <translation>この HEIC 画像をデコードできません。HEIC のデコードには Flatpak のコーデック拡張が必要です。次のコマンドでインストールしてください: flatpak install --user flathub org.freedesktop.Platform.codecs-extra//25.08-extra</translation>
+    </message>
+    <message>
+        <source>Exposure</source>
+        <translation>露出</translation>
+    </message>
+    <message>
+        <source>Offset:</source>
+        <translation>オフセット:</translation>
+    </message>
+    <message>
+        <source>Gamma Correction:</source>
+        <translation>ガンマ補正:</translation>
+    </message>
+    <message>
+        <source>Exposure: %1, offset %2, gamma %3</source>
+        <translation>露出: %1、オフセット %2、ガンマ %3</translation>
+    </message>
+    <message>
+        <source>Lab PSD file must contain at least 3 channels</source>
+        <translation>Lab の PSD ファイルには少なくとも 3 つのチャンネルが必要です</translation>
+    </message>
+    <message>
+        <source>This file uses a color mode Patchy does not edit in (Bitmap, Indexed, Duotone, Lab or Multichannel). Patchy converted it to RGB for editing, and saving writes an RGB file. Keep the original if you need its color mode.</source>
+        <translation>このファイルは Patchy が編集に使わないカラーモード（モノクロ 2 階調、インデックスカラー、ダブルトーン、Lab、マルチチャンネル）を使用しています。編集のために RGB に変換され、保存すると RGB ファイルになります。元のカラーモードが必要な場合は元のファイルを残してください。</translation>
+    </message>
+    <message>
+        <source>This CMYK file has adjustment layers that act on its CMYK inks. Patchy shows them that way, but it saves RGB files: in a saved file those layers are applied to RGB and the colors will look different. Keep the original, or merge those layers before saving.</source>
+        <translation>この CMYK ファイルには、CMYK インキに作用する調整レイヤーがあります。Patchy ではそのとおりに表示されますが、保存されるのは RGB ファイルです。保存したファイルではこれらのレイヤーが RGB に適用され、色が変わります。元のファイルを残すか、保存前にこれらのレイヤーを結合してください。</translation>
+    </message>
+    <message>
+        <source>%1 came from a CMYK document and adjusts its CMYK inks here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its colors will look different.</source>
+        <translation>%1 は CMYK ドキュメントのもので、ここでは CMYK インキに対して調整されます。Patchy は RGB ファイルを保存するため、保存したファイルでは Photoshop でも Patchy でも RGB に適用され、色が変わります。</translation>
+    </message>
+    <message>
+        <source>This grayscale file has adjustment layers that act on its gray channel. Patchy shows them that way, but it saves RGB files: in a saved file those layers are applied to RGB and the tones will look different. Keep the original, or merge those layers before saving.</source>
+        <translation>このグレースケールファイルには、グレーチャンネルに作用する調整レイヤーがあります。Patchy ではそのとおりに表示されますが、保存されるのは RGB ファイルです。保存したファイルではこれらのレイヤーが RGB に適用され、階調が変わります。元のファイルを残すか、保存前にこれらのレイヤーを結合してください。</translation>
+    </message>
+    <message>
+        <source>%1 came from a grayscale document and adjusts its gray channel here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its tones will look different.</source>
+        <translation>%1 はグレースケールドキュメントのもので、ここではグレーチャンネルに対して調整されます。Patchy は RGB ファイルを保存するため、保存したファイルでは Photoshop でも Patchy でも RGB に適用され、階調が変わります。</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -8520,6 +8928,41 @@ Mixed selection</source>
     <message>
         <source>Utilities</source>
         <translation>ユーティリティ</translation>
+    </message>
+</context>
+<context>
+    <name>ThemeFile</name>
+    <message>
+        <source>Not a valid theme file: %1</source>
+        <translation>有効なテーマファイルではありません: %1</translation>
+    </message>
+    <message>
+        <source>the top level is not an object</source>
+        <translation>最上位がオブジェクトではありません</translation>
+    </message>
+    <message>
+        <source>Theme file format %1 is not supported by this build (expected %2).</source>
+        <translation>テーマファイル形式 %1 はこのビルドでは対応していません（想定: %2）。</translation>
+    </message>
+    <message>
+        <source>Theme file is missing a valid &quot;base&quot; (must be &quot;dark&quot; or &quot;light&quot;).</source>
+        <translation>テーマファイルに有効な &quot;base&quot; がありません（&quot;dark&quot; または &quot;light&quot; が必要です）。</translation>
+    </message>
+    <message>
+        <source>Theme file&apos;s &quot;roles&quot; is not an object.</source>
+        <translation>テーマファイルの &quot;roles&quot; がオブジェクトではありません。</translation>
+    </message>
+    <message>
+        <source>Unknown color role &quot;%1&quot; (ignored).</source>
+        <translation>不明なカラーロール &quot;%1&quot;（無視されます）。</translation>
+    </message>
+    <message>
+        <source>Invalid color &quot;%1&quot; for role &quot;%2&quot; (expected #RRGGBB or #RRGGBBAA).</source>
+        <translation>ロール &quot;%2&quot; の色 &quot;%1&quot; が無効です（#RRGGBB または #RRGGBBAA が必要です）。</translation>
+    </message>
+    <message>
+        <source>Theme file &quot;%1&quot; could not be read.</source>
+        <translation>テーマファイル &quot;%1&quot; を読み込めませんでした。</translation>
     </message>
 </context>
 <context>
@@ -8679,16 +9122,8 @@ Mixed selection</source>
         <translation>停止</translation>
     </message>
     <message>
-        <source>Frame delay:</source>
-        <translation>フレーム間隔:</translation>
-    </message>
-    <message>
         <source> s</source>
         <translation> 秒</translation>
-    </message>
-    <message>
-        <source>Plays the visible top-level layers as frames, top layer first, exactly like the animated GIF export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
-        <translation>表示されているトップレベルのレイヤーを、いちばん上のレイヤーから順にフレームとして再生します (アニメーション GIF の書き出しと同じ順序です)。レイヤー名が「blink 0.25s」のように時間で終わる場合、そのフレームはその時間だけ表示されます。</translation>
     </message>
     <message>
         <source>No visible layers</source>
@@ -8717,6 +9152,14 @@ Mixed selection</source>
     <message>
         <source>Removes the trailing frame time from the selected layers&apos; names.</source>
         <translation>選択したレイヤー名の末尾のフレーム時間を取り除きます。</translation>
+    </message>
+    <message>
+        <source>Plays the visible top-level layers as frames, top layer first, like animated GIF and WebP export. A layer name ending in a time, like &quot;blink 0.25s&quot;, sets that frame&apos;s delay.</source>
+        <translation>アニメーションGIFやWebPの書き出しと同様に、表示されている最上位レイヤーを上から順にフレームとして再生します。「blink 0.25s」のようにレイヤー名の末尾に時間を指定すると、そのフレームの表示時間になります。</translation>
+    </message>
+    <message>
+        <source>Default frame delay:</source>
+        <translation>既定のフレーム表示時間:</translation>
     </message>
 </context>
 <context>
@@ -9430,7 +9873,7 @@ Mixed selection</source>
     </message>
     <message>
         <source>Clone stamp</source>
-        <translation>クローンスタンプ</translation>
+        <translation>コピースタンプ</translation>
     </message>
     <message>
         <source>Healing brush</source>
@@ -9574,7 +10017,7 @@ Mixed selection</source>
     </message>
     <message>
         <source>Lasso</source>
-        <translation>投げ縄</translation>
+        <translation>なげなわ</translation>
     </message>
     <message>
         <source>Smart object contents can&apos;t be painted. Rasterize the layer to edit its pixels.</source>
@@ -9646,7 +10089,7 @@ Mixed selection</source>
     </message>
     <message>
         <source>Magnetic Lasso</source>
-        <translation>マグネット投げ縄</translation>
+        <translation>マグネット選択</translation>
     </message>
     <message>
         <source>Free Transform</source>
@@ -9866,27 +10309,27 @@ Mixed selection</source>
     </message>
     <message>
         <source>Remove Object needs an open document</source>
-        <translation>オブジェクトを除去には開いているドキュメントが必要です</translation>
+        <translation>「オブジェクトを除去」には開いているドキュメントが必要です</translation>
     </message>
     <message>
         <source>Remove Object needs a selection: select the area to remove first</source>
-        <translation>オブジェクトを除去には選択範囲が必要です。先に除去する領域を選択してください</translation>
+        <translation>「オブジェクトを除去」には選択範囲が必要です。先に除去する領域を選択してください</translation>
     </message>
     <message>
         <source>Remove Object needs a selection on the canvas</source>
-        <translation>オブジェクトを除去にはキャンバス上の選択範囲が必要です</translation>
+        <translation>「オブジェクトを除去」にはキャンバス上の選択範囲が必要です</translation>
     </message>
     <message>
         <source>Remove Object needs an editable pixel layer</source>
-        <translation>オブジェクトを除去には編集可能なピクセルレイヤーが必要です</translation>
+        <translation>「オブジェクトを除去」には編集可能なピクセルレイヤーが必要です</translation>
     </message>
     <message>
         <source>Remove Object needs unselected pixels around the selection to sample</source>
-        <translation>オブジェクトを除去には選択範囲の周囲にサンプルできる未選択のピクセルが必要です</translation>
+        <translation>「オブジェクトを除去」には選択範囲の周囲にサンプルできる未選択のピクセルが必要です</translation>
     </message>
     <message>
         <source>Remove Object could not read the document pixels</source>
-        <translation>オブジェクトを除去はドキュメントのピクセルを読み取れませんでした</translation>
+        <translation>「オブジェクトを除去」はドキュメントのピクセルを読み取れませんでした</translation>
     </message>
     <message>
         <source>Remove Object</source>
@@ -9894,7 +10337,7 @@ Mixed selection</source>
     </message>
     <message>
         <source>Remove Object needs a pixel layer</source>
-        <translation>オブジェクトを除去にはピクセルレイヤーが必要です</translation>
+        <translation>「オブジェクトを除去」にはピクセルレイヤーが必要です</translation>
     </message>
     <message>
         <source>Removed object with source %1 of %2. Run again to try another.</source>
@@ -9906,7 +10349,7 @@ Mixed selection</source>
     </message>
     <message>
         <source>Remove Object found no clean source patches nearby; used the nearest edge instead (source %1 of %2)</source>
-        <translation>オブジェクトを除去は近くにきれいなソースパッチを見つけられなかったため、代わりに最寄りの端を使用しました (ソース %1/%2)</translation>
+        <translation>「オブジェクトを除去」は近くにきれいなソースパッチを見つけられなかったため、代わりに最寄りの端を使用しました (ソース %1/%2)</translation>
     </message>
     <message>
         <source>Removing object...</source>
@@ -9927,6 +10370,58 @@ Mixed selection</source>
     <message>
         <source>Resize Selection</source>
         <translation>選択範囲のサイズ変更</translation>
+    </message>
+    <message>
+        <source>Removed object with content-aware fill, variation %1 (%2 patches)</source>
+        <translation>コンテンツに応じた塗りつぶしでオブジェクトを除去しました、バリエーション %1 (%2 パッチ)</translation>
+    </message>
+    <message>
+        <source>Remove Object was cancelled</source>
+        <translation>「オブジェクトを除去」はキャンセルされました</translation>
+    </message>
+    <message>
+        <source>Guide X: %1</source>
+        <translation>ガイド X: %1</translation>
+    </message>
+    <message>
+        <source>Guide Y: %1</source>
+        <translation>ガイド Y: %1</translation>
+    </message>
+    <message>
+        <source>X: %1</source>
+        <translation>X: %1</translation>
+    </message>
+    <message>
+        <source>Y: %1</source>
+        <translation>Y: %1</translation>
+    </message>
+    <message>
+        <source>Default</source>
+        <translation>既定</translation>
+    </message>
+    <message>
+        <source>Black</source>
+        <translation>黒</translation>
+    </message>
+    <message>
+        <source>Dark Gray</source>
+        <translation>ダークグレー</translation>
+    </message>
+    <message>
+        <source>Medium Gray</source>
+        <translation>ミディアムグレー</translation>
+    </message>
+    <message>
+        <source>Light Gray</source>
+        <translation>ライトグレー</translation>
+    </message>
+    <message>
+        <source>White</source>
+        <translation>白</translation>
+    </message>
+    <message>
+        <source>Select Custom Color...</source>
+        <translation>カスタムカラーを選択...</translation>
     </message>
 </context>
 <context>
@@ -10151,6 +10646,55 @@ Mixed selection</source>
     </message>
 </context>
 <context>
+    <name>patchy::ui::LegacyPluginRunDialog</name>
+    <message>
+        <source>Legacy Photoshop Plug-in</source>
+        <translation>従来の Photoshop プラグイン</translation>
+    </message>
+    <message>
+        <source>Classic plug-ins show their preview inside their own window. The layer changes after you click OK.</source>
+        <translation>従来のプラグインはプレビューを自身のウィンドウ内に表示します。レイヤーは OK をクリックした後に変わります。</translation>
+    </message>
+    <message>
+        <source>Show Plug-in Window</source>
+        <translation>プラグインのウィンドウを表示</translation>
+    </message>
+    <message>
+        <source>Brings the plug-in&apos;s window back in front of Patchy.</source>
+        <translation>プラグインのウィンドウを Patchy の前面に戻します。</translation>
+    </message>
+    <message>
+        <source>Starting %1...</source>
+        <translation>%1 を起動しています...</translation>
+    </message>
+    <message>
+        <source>Force Stop Plug-in</source>
+        <translation>プラグインを強制停止</translation>
+    </message>
+    <message>
+        <source>Ends the plug-in without applying it. Use it only if the plug-in&apos;s window has stopped responding.</source>
+        <extracomment>Tooltip of the stop button while a plug-in is loading or waits for the user in its own window.</extracomment>
+        <translation>プラグインを適用せずに終了します。プラグインのウィンドウが応答しなくなった場合にのみ使用してください。</translation>
+    </message>
+    <message>
+        <source>%1 is open in its own window. Adjust its settings there and click its OK button to apply it to this layer.</source>
+        <extracomment>%1 is the plug-in&apos;s name; shown while its own settings window is open.</extracomment>
+        <translation>%1 は独自のウィンドウで開いています。そこで設定を調整し、その OK ボタンをクリックすると、このレイヤーに適用されます。</translation>
+    </message>
+    <message>
+        <source>Applying %1...</source>
+        <translation>%1 を適用しています...</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>キャンセル</translation>
+    </message>
+    <message>
+        <source>Stops the plug-in. The layer stays unchanged.</source>
+        <translation>プラグインを停止します。レイヤーは変更されません。</translation>
+    </message>
+</context>
+<context>
     <name>patchy::ui::MainWindow</name>
     <message>
         <source>Rotate &amp;Arbitrary...</source>
@@ -10195,10 +10739,6 @@ Mixed selection</source>
     <message>
         <source>Put shape layers in a group and apply the vector mask to that group.</source>
         <translation>シェイプレイヤーをグループに入れ、そのグループにベクトルマスクを適用してください。</translation>
-    </message>
-    <message>
-        <source>Import Notes</source>
-        <translation>読み込みに関する注意</translation>
     </message>
     <message>
         <source>I&amp;mport</source>
@@ -10427,14 +10967,6 @@ Mixed selection</source>
     <message>
         <source>Seamless &amp;Tile Preview</source>
         <translation>シームレスタイル プレビュー(&amp;T)</translation>
-    </message>
-    <message>
-        <source>%1 opened with notes:
-
-%2</source>
-        <translation>%1 を開きましたが、次の注意があります:
-
-%2</translation>
     </message>
     <message>
         <source>Development</source>
@@ -10722,11 +11254,11 @@ Mixed selection</source>
     </message>
     <message>
         <source>&amp;Grow</source>
-        <translation>拡張(&amp;G)</translation>
+        <translation>選択範囲を拡張(&amp;G)</translation>
     </message>
     <message>
         <source>Simi&amp;lar</source>
-        <translation>類似部分を選択(&amp;L)</translation>
+        <translation>近似色を選択(&amp;L)</translation>
     </message>
     <message>
         <source>&amp;Expand...</source>
@@ -10742,7 +11274,7 @@ Mixed selection</source>
     </message>
     <message>
         <source>Load Layer &amp;Transparency</source>
-        <translation>レイヤーの透明部分を読み込み(&amp;T)</translation>
+        <translation>レイヤーの透明度を読み込み(&amp;T)</translation>
     </message>
     <message>
         <source>Select All</source>
@@ -10766,7 +11298,7 @@ Mixed selection</source>
     </message>
     <message>
         <source>Select Similar</source>
-        <translation>類似部分を選択</translation>
+        <translation>近似色を選択</translation>
     </message>
     <message>
         <source>&amp;New Layer</source>
@@ -10891,10 +11423,6 @@ Mixed selection</source>
     <message>
         <source>Saved animated GIF copy %1</source>
         <translation>アニメーション GIF のコピー %1 を保存しました</translation>
-    </message>
-    <message>
-        <source>SVG keeps shape layers as vectors, but masks, layer styles, text, and adjustments are baked into images, so Patchy will save a copy. The open document will keep its layers and unsaved changes. To keep everything editable, save as a Photoshop document (.psd) instead.</source>
-        <translation>SVG はシェイプレイヤーをベクターのまま保存しますが、マスク、レイヤースタイル、テキスト、調整レイヤーは画像として書き出されるため、Patchy はコピーを保存します。開いているドキュメントのレイヤーと未保存の変更はそのまま残ります。すべてを編集可能なまま残すには、Photoshop ドキュメント (.psd) として保存してください。</translation>
     </message>
     <message>
         <source>Export PDF Layers</source>
@@ -11132,7 +11660,7 @@ Either way Patchy writes a copy; the open document keeps its layers and unsaved 
     </message>
     <message>
         <source>The image has more than 256 colors. Use Image &gt; Mode &gt; Indexed (Palette) to optimize it down.</source>
-        <translation>画像の色数が 256 を超えています。イメージ &gt; モード &gt; インデックスカラー (パレット) で色数を最適化してください。</translation>
+        <translation>画像の色数が 256 を超えています。画像 &gt; モード &gt; インデックスカラー (パレット) で色数を最適化してください。</translation>
     </message>
     <message>
         <source>Extract palette</source>
@@ -11222,7 +11750,7 @@ Either way Patchy writes a copy; the open document keeps its layers and unsaved 
     </message>
     <message>
         <source>Keep editing with the palette? Painting will snap to its colors; you can switch back any time with Image &gt; Mode &gt; RGB Color.</source>
-        <translation>このパレットで編集を続けますか？描画はパレットの色にスナップされます。イメージ &gt; モード &gt; RGB カラーでいつでも戻せます。</translation>
+        <translation>このパレットで編集を続けますか？描画はパレットの色にスナップされます。画像 &gt; モード &gt; RGB カラーでいつでも戻せます。</translation>
     </message>
     <message>
         <source>Use Palette</source>
@@ -11256,7 +11784,7 @@ Either way Patchy writes a copy; the open document keeps its layers and unsaved 
     </message>
     <message>
         <source>Some layers contain colors outside the palette (filters, layer styles, or text can cause this). Use Image &gt; Snap Image to Palette to fix them. Click to show the Palette panel.</source>
-        <translation>パレット外の色を含むレイヤーがあります (フィルター、レイヤースタイル、テキストなどが原因になります)。イメージ &gt; 画像をパレットにスナップで修正できます。クリックでパレットパネルを表示します。</translation>
+        <translation>パレット外の色を含むレイヤーがあります (フィルター、レイヤースタイル、テキストなどが原因になります)。画像 &gt; 画像をパレットにスナップで修正できます。クリックでパレットパネルを表示します。</translation>
     </message>
     <message>
         <source>Clipboard Image</source>
@@ -11511,10 +12039,6 @@ Either way Patchy writes a copy; the open document keeps its layers and unsaved 
         <translation>%1 をアクティブレイヤーに適用</translation>
     </message>
     <message>
-        <source>&amp;Scan Legacy Photoshop Plug-ins...</source>
-        <translation>従来の Photoshop プラグインをスキャン(&amp;S)...</translation>
-    </message>
-    <message>
         <source>Legacy 8BF plug-ins run on Windows only</source>
         <translation>レガシー 8BF プラグインは Windows でのみ動作します</translation>
     </message>
@@ -11584,11 +12108,11 @@ Either way Patchy writes a copy; the open document keeps its layers and unsaved 
     </message>
     <message>
         <source>Lasso Tools</source>
-        <translation>投げ縄ツール</translation>
+        <translation>なげなわツール</translation>
     </message>
     <message>
         <source>Magnetic Lasso</source>
-        <translation>マグネット投げ縄</translation>
+        <translation>マグネット選択</translation>
     </message>
     <message>
         <source>Contrast:</source>
@@ -11712,7 +12236,7 @@ Either way Patchy writes a copy; the open document keeps its layers and unsaved 
     </message>
     <message>
         <source>Lasso</source>
-        <translation>投げ縄</translation>
+        <translation>なげなわ</translation>
     </message>
     <message>
         <source>Magic Wand</source>
@@ -12694,20 +13218,12 @@ To update, paste this into a terminal:
         <translation>タブレットのドライバーでペンボタンを「右ボタンクリック」と「中ボタンクリック」に設定してください。ペンがキャンバス上にあるとき、右クリックで「ペンの上ボタン」、中クリックで「ペンの下ボタン」のアクションが実行されます。スクロールやパンに設定されたボタンはドライバーが処理するため、これらのアクションを実行できません。タブレットのパッドボタン（エクスプレスキー）も同様にドライバー専用です。元に戻す、やり直し、ブラシサイズの [ と ]、消しゴムの E などのキーボードショートカットに割り当ててください。</translation>
     </message>
     <message>
-        <source>Scroll wheel zooms the canvas</source>
-        <translation>スクロールホイールでキャンバスをズームする</translation>
-    </message>
-    <message>
         <source>Close smart object contents?</source>
         <translation>スマートオブジェクトの内容を閉じますか?</translation>
     </message>
     <message>
         <source>%1 has smart object contents open for editing. Close those tabs too?</source>
         <translation>%1 のスマートオブジェクトの内容が編集用に開いています。そのタブも閉じますか?</translation>
-    </message>
-    <message>
-        <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan.</source>
-        <translation>スクロールに設定されたペンボタンにも適用されます。スクロール中に %CTRL% または Shift を押すとパンします。</translation>
     </message>
     <message>
         <source>Pick color</source>
@@ -12738,22 +13254,6 @@ To update, paste this into a terminal:
         <translation>ペン</translation>
     </message>
     <message>
-        <source>Scan Legacy Photoshop Plug-ins</source>
-        <translation>従来の Photoshop プラグインをスキャン</translation>
-    </message>
-    <message>
-        <source>Photoshop Plug-ins (*.8bf *.8bi *.8li);;All Files (*.*)</source>
-        <translation>Photoshop プラグイン (*.8bf *.8bi *.8li);;すべてのファイル (*.*)</translation>
-    </message>
-    <message>
-        <source>%1 plug-in action(s) available under Plug-ins &gt; Legacy Photoshop Plug-ins.
-
-%2</source>
-        <translation>%1 個のプラグイン操作が プラグイン &gt; 従来の Photoshop プラグイン で利用できます。
-
-%2</translation>
-    </message>
-    <message>
         <source>%1: %2 (%3, %4)</source>
         <translation>%1: %2 (%3, %4)</translation>
     </message>
@@ -12768,14 +13268,6 @@ To update, paste this into a terminal:
     <message>
         <source>Legacy Photoshop Plug-in</source>
         <translation>従来の Photoshop プラグイン</translation>
-    </message>
-    <message>
-        <source>%1 was scanned and is available, but this build only has compatibility shims for the bundled Greyscale and White to Transparent test filters. A full 8BF host still needs the out-of-process Photoshop SDK adapter.</source>
-        <translation>%1 はスキャンされ利用可能ですが、このビルドには同梱の Greyscale と White to Transparent テストフィルター用の互換シムしかありません。完全な 8BF ホストには、引き続き別プロセスの Photoshop SDK アダプターが必要です。</translation>
-    </message>
-    <message>
-        <source>Legacy plug-in</source>
-        <translation>従来のプラグイン</translation>
     </message>
     <message>
         <source>Applied %1</source>
@@ -13229,11 +13721,11 @@ To update, paste this into a terminal:
     </message>
     <message>
         <source>Convert the layer to a smart object to keep the text editable, or rasterize it into plain pixels. Rasterized text can&apos;t be edited again.</source>
-        <translation>テキストを編集可能なまま保つにはレイヤーをスマートオブジェクトに変換するか、通常のピクセルにラスタライズしてください。ラスタライズしたテキストは再編集できません。</translation>
+        <translation>テキストを編集可能なまま保つには、レイヤーをスマートオブジェクトに変換してください。または、通常のピクセルにラスタライズできます。ラスタライズしたテキストは再編集できません。</translation>
     </message>
     <message>
         <source>Convert the layer to a smart object to keep the shape editable, or rasterize it into plain pixels. A rasterized shape can&apos;t be edited as a vector again.</source>
-        <translation>シェイプを編集可能なまま保つにはレイヤーをスマートオブジェクトに変換するか、通常のピクセルにラスタライズしてください。ラスタライズしたシェイプはベクターとして再編集できません。</translation>
+        <translation>シェイプを編集可能なまま保つには、レイヤーをスマートオブジェクトに変換してください。または、通常のピクセルにラスタライズできます。ラスタライズしたシェイプはベクターとして再編集できません。</translation>
     </message>
     <message>
         <source>Rasterize the layer into plain pixels to use %1. Rasterized text can&apos;t be edited again.</source>
@@ -13357,7 +13849,7 @@ To update, paste this into a terminal:
     </message>
     <message>
         <source>Load Layer Transparency</source>
-        <translation>レイヤーの透明部分を読み込み</translation>
+        <translation>レイヤーの透明度を読み込み</translation>
     </message>
     <message>
         <source>Add Layer Mask</source>
@@ -13413,7 +13905,7 @@ To update, paste this into a terminal:
     </message>
     <message>
         <source>Merged layers down</source>
-        <translation>レイヤーを結合しました</translation>
+        <translation>レイヤーを下のレイヤーと結合しました</translation>
     </message>
     <message>
         <source>Filled layer mask</source>
@@ -13595,7 +14087,7 @@ To update, paste this into a terminal:
     </message>
     <message>
         <source>Embeddable Files (*.psd *.psb *.png *.jpg *.jpeg *.tif *.tiff *.bmp *.svg *.svgz);;All Files (*.*)</source>
-        <translation>埋め込み可能なファイル (*.psd *.psb *.png *.jpg *.jpeg *.tif *.tiff *.bmp);;すべてのファイル (*.*)</translation>
+        <translation>埋め込み可能なファイル (*.psd *.psb *.png *.jpg *.jpeg *.tif *.tiff *.bmp *.svg *.svgz);;すべてのファイル (*.*)</translation>
     </message>
     <message>
         <source>Replace failed</source>
@@ -14320,10 +14812,6 @@ Y: %2
         <translation>選択範囲の境界と中心</translation>
     </message>
     <message>
-        <source>Ruler units:</source>
-        <translation>定規の単位:</translation>
-    </message>
-    <message>
         <source>Default visibility:</source>
         <translation>既定の表示:</translation>
     </message>
@@ -14350,10 +14838,6 @@ Y: %2
     <message>
         <source>Overlay preview:</source>
         <translation>オーバーレイプレビュー:</translation>
-    </message>
-    <message>
-        <source>Grid and Guides</source>
-        <translation>グリッドとガイド</translation>
     </message>
     <message>
         <source>Snap:</source>
@@ -14941,7 +15425,7 @@ Clipped to the layer below</source>
     </message>
     <message>
         <source>Cancelled Add Noise</source>
-        <translation>ノイズを加えるをキャンセルしました</translation>
+        <translation>「ノイズを加える」をキャンセルしました</translation>
     </message>
     <message>
         <source>Add Radial Blur Smart Filter</source>
@@ -14953,11 +15437,11 @@ Clipped to the layer below</source>
     </message>
     <message>
         <source>Add Add Noise Smart Filter</source>
-        <translation>ノイズを加えるスマートフィルターを追加</translation>
+        <translation>「ノイズを加える」スマートフィルターを追加</translation>
     </message>
     <message>
         <source>Edit Add Noise Smart Filter</source>
-        <translation>ノイズを加えるスマートフィルターを編集</translation>
+        <translation>「ノイズを加える」スマートフィルターを編集</translation>
     </message>
     <message>
         <source>Added Radial Blur as a Smart Filter</source>
@@ -14973,15 +15457,15 @@ Clipped to the layer below</source>
     </message>
     <message>
         <source>Added Add Noise as a Smart Filter</source>
-        <translation>ノイズを加えるをスマートフィルターとして追加しました</translation>
+        <translation>「ノイズを加える」をスマートフィルターとして追加しました</translation>
     </message>
     <message>
         <source>Added another Add Noise Smart Filter</source>
-        <translation>ノイズを加えるスマートフィルターをもう1つ追加しました</translation>
+        <translation>「ノイズを加える」スマートフィルターをもう1つ追加しました</translation>
     </message>
     <message>
         <source>Updated Add Noise Smart Filter</source>
-        <translation>ノイズを加えるスマートフィルターを更新しました</translation>
+        <translation>「ノイズを加える」スマートフィルターを更新しました</translation>
     </message>
     <message>
         <source>Add Box Blur Smart Filter</source>
@@ -15700,24 +16184,12 @@ Clipped to the layer below</source>
         <translation>パスを作業用パスに追加しました。</translation>
     </message>
     <message>
-        <source>Select a shape layer to edit its appearance</source>
-        <translation>外観を編集するシェイプレイヤーを選択してください</translation>
-    </message>
-    <message>
-        <source>This shape layer&apos;s vector data is preserved but can&apos;t be edited.</source>
-        <translation>このシェイプレイヤーのベクトルデータは保持されていますが編集できません。</translation>
-    </message>
-    <message>
         <source>Cancelled shape appearance</source>
         <translation>シェイプの外観をキャンセルしました</translation>
     </message>
     <message>
         <source>Shape appearance</source>
         <translation>シェイプの外観</translation>
-    </message>
-    <message>
-        <source>Updated the shape appearance</source>
-        <translation>シェイプの外観を更新しました</translation>
     </message>
     <message>
         <source>Color Fill %1</source>
@@ -16894,10 +17366,6 @@ Clipped to the layer below</source>
         <translation>埋め込み可能なファイル (*.psd *.psb *.png *.jpg *.jpeg *.tif *.tiff *.bmp);;すべてのファイル (*.*)</translation>
     </message>
     <message>
-        <source>Updating shape...</source>
-        <translation>シェイプを更新しています...</translation>
-    </message>
-    <message>
         <source>1280 x 720 (HD)</source>
         <translation>1280 x 720 (HD)</translation>
     </message>
@@ -16983,7 +17451,7 @@ Clipped to the layer below</source>
     </message>
     <message>
         <source>Paragraph direction (auto follows the first strong character)</source>
-        <translation>段落の方向（自動は最初の強い文字に従います）</translation>
+        <translation>段落の方向（自動では、最初に方向性が明確な文字に従います）</translation>
     </message>
     <message>
         <source>Auto</source>
@@ -17208,10 +17676,6 @@ Clipped to the layer below</source>
         <translation>基準点:</translation>
     </message>
     <message>
-        <source>Remove &amp;Object</source>
-        <translation>オブジェクトを除去(&amp;O)</translation>
-    </message>
-    <message>
         <source>Remove Object</source>
         <translation>オブジェクトを除去</translation>
     </message>
@@ -17370,6 +17834,766 @@ Clipped to the layer below</source>
     <message>
         <source>Brush tip: Square</source>
         <translation>ブラシ先端: 正方形</translation>
+    </message>
+    <message>
+        <source>Remove &amp;Object...</source>
+        <translation>オブジェクトを除去(&amp;O)...</translation>
+    </message>
+    <message>
+        <source>Remove Object needs a selection: select the area to remove first</source>
+        <translation>「オブジェクトを除去」には選択範囲が必要です。先に除去する領域を選択してください</translation>
+    </message>
+    <message>
+        <source>Tone match</source>
+        <translation>トーン一致</translation>
+    </message>
+    <message>
+        <source>How strongly the fill&apos;s brightness is smoothed to its own edges (0 keeps the raw fill)</source>
+        <translation>塗りつぶしの明るさをその縁に合わせて滑らかにする強さ (0 で生の塗りつぶしを保持)</translation>
+    </message>
+    <message>
+        <source>Edge feather</source>
+        <translation>境界のぼかし</translation>
+    </message>
+    <message>
+        <source> px</source>
+        <translation> px</translation>
+    </message>
+    <message>
+        <source>Reroll</source>
+        <translation>リロール</translation>
+    </message>
+    <message>
+        <source>Fill again with the next variation</source>
+        <translation>次のバリエーションで再度塗りつぶします</translation>
+    </message>
+    <message>
+        <source>Variation %1</source>
+        <translation>バリエーション %1</translation>
+    </message>
+    <message>
+        <source>Content-aware fill (%1 patches)</source>
+        <translation>コンテンツに応じた塗りつぶし (%1 パッチ)</translation>
+    </message>
+    <message>
+        <source>No clean source patches nearby; used the nearest edge (source %1 of %2)</source>
+        <translation>近くにきれいなソースパッチがないため、最寄りの端を使用しました (ソース %1/%2)</translation>
+    </message>
+    <message>
+        <source>Cancelled Remove Object</source>
+        <translation>「オブジェクトを除去」をキャンセルしました</translation>
+    </message>
+    <message>
+        <source>Removed object with content-aware fill, variation %1 (%2 patches)</source>
+        <translation>コンテンツに応じた塗りつぶしでオブジェクトを除去しました、バリエーション %1 (%2 パッチ)</translation>
+    </message>
+    <message>
+        <source>Removed object with the nearest edge (source %1 of %2)</source>
+        <translation>最寄りの端でオブジェクトを除去しました (ソース %1/%2)</translation>
+    </message>
+    <message>
+        <source>Softens the fill&apos;s edge outward from the selection, on top of its own feather. The filled area grows by the feather, so keep it small when the selection hugs an edge</source>
+        <translation>選択範囲自身のぼかしに加えて、塗りつぶしの縁を選択範囲の外側へぼかします。塗りつぶし範囲はぼかしの分だけ広がるため、選択範囲が縁に接している場合は小さくしてください</translation>
+    </message>
+    <message>
+        <source>Duplicate to New Layer</source>
+        <translation>新規レイヤーに複製</translation>
+    </message>
+    <message>
+        <source>Copies this variation&apos;s filled area onto a new hidden layer above this one, so several variations can be kept and compared</source>
+        <translation>このバリエーションの塗りつぶし範囲を上の新しい非表示レイヤーにコピーし、複数のバリエーションを保存して比較できるようにします</translation>
+    </message>
+    <message>
+        <source>Filling...</source>
+        <translation>塗りつぶし中...</translation>
+    </message>
+    <message>
+        <source>Filling... %1%</source>
+        <translation>塗りつぶし中... %1%</translation>
+    </message>
+    <message>
+        <source>Duplicate Remove Object variation to layer</source>
+        <translation>「オブジェクトを除去」のバリエーションをレイヤーに複製</translation>
+    </message>
+    <message>
+        <source>Remove Object variation %1</source>
+        <translation>オブジェクトを除去 バリエーション %1</translation>
+    </message>
+    <message>
+        <source>Copied variation %1 to the hidden layer &quot;%2&quot;</source>
+        <translation>バリエーション %1 を非表示レイヤー &quot;%2&quot; にコピーしました</translation>
+    </message>
+    <message>
+        <source>&amp;Files as Layers...</source>
+        <translation>ファイルをレイヤーへ(&amp;F)...</translation>
+    </message>
+    <message>
+        <source>the file holds no layers</source>
+        <translation>ファイルにレイヤーがありません</translation>
+    </message>
+    <message>
+        <source>Folder</source>
+        <translation>フォルダー</translation>
+    </message>
+    <message>
+        <source>None of the files could be added as layers</source>
+        <translation>どのファイルもレイヤーとして追加できませんでした</translation>
+    </message>
+    <message>
+        <source>The drop target is no longer in the document</source>
+        <translation>ドロップ先はドキュメント内に存在しません</translation>
+    </message>
+    <message>
+        <source>Add files as layers</source>
+        <translation>ファイルをレイヤーとして追加</translation>
+    </message>
+    <message>
+        <source>These files could not be added as layers:
+
+%1</source>
+        <translation>これらのファイルはレイヤーとして追加できませんでした:
+
+%1</translation>
+    </message>
+    <message numerus="yes">
+        <source>Added %n layer(s)</source>
+        <translation>
+            <numerusform>%n 個のレイヤーを追加しました</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Files as Layers</source>
+        <translation>ファイルをレイヤーへ</translation>
+    </message>
+    <message>
+        <source>The document is no longer open.</source>
+        <translation>ドキュメントはすでに閉じられています。</translation>
+    </message>
+    <message>
+        <source>Adding file %1 of %2...</source>
+        <translation>ファイルを追加中 %1 / %2...</translation>
+    </message>
+    <message>
+        <source>Cancelled adding files as layers</source>
+        <translation>ファイルをレイヤーとして追加する処理をキャンセルしました</translation>
+    </message>
+    <message>
+        <source>Recover</source>
+        <translation>復元</translation>
+    </message>
+    <message>
+        <source>Automatically save recovery information every</source>
+        <translation>復元情報を自動保存する間隔</translation>
+    </message>
+    <message>
+        <source>Writes a copy of each changed document to a recovery folder so it can be reopened after a crash. The file you saved is never touched, and the copies are removed when Patchy quits normally.</source>
+        <translation>変更した各ドキュメントのコピーを復元フォルダーに書き込み、クラッシュ後に再度開けるようにします。保存したファイルには一切触れず、Patchy が正常に終了するとコピーは削除されます。</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n minute(s)</source>
+        <translation>
+            <numerusform>%n 分</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Could not save recovery information: %1</source>
+        <translation>復元情報を保存できませんでした: %1</translation>
+    </message>
+    <message>
+        <source>%1 (Recovered)</source>
+        <translation>%1 (復元済み)</translation>
+    </message>
+    <message numerus="yes">
+        <source>Recovered %n unsaved document(s) from the last session</source>
+        <translation>
+            <numerusform>前回のセッションから未保存のドキュメントを %n 件復元しました</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n recovery file(s) could not be opened; see %1</source>
+        <translation>
+            <numerusform>%n 件の復元ファイルを開けませんでした。%1 を確認してください</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>How far a pixel&apos;s color may differ from the clicked color and still be filled</source>
+        <translation>クリックした色からどれだけ離れた色までを塗りつぶすか</translation>
+    </message>
+    <message>
+        <source>Limit the fill to pixels connected to the click</source>
+        <translation>塗りつぶしをクリック位置とつながったピクセルに限定します</translation>
+    </message>
+    <message>
+        <source>Paragraph</source>
+        <translation>段落</translation>
+    </message>
+    <message>
+        <source>Justify (last line left)</source>
+        <translation>均等配置（最終行左揃え）</translation>
+    </message>
+    <message>
+        <source>Paragraph alignment; Justify spreads every line but the last across the box</source>
+        <translation>段落の配置。均等配置は最終行以外の各行をテキストボックスの幅いっぱいに広げます</translation>
+    </message>
+    <message>
+        <source>Alignment:</source>
+        <translation>配置:</translation>
+    </message>
+    <message>
+        <source>First line indent:</source>
+        <translation>1 行目インデント:</translation>
+    </message>
+    <message>
+        <source>Indent of each paragraph&apos;s first line; negative with a left indent makes a hanging indent</source>
+        <translation>各段落の 1 行目のインデント。左インデントと組み合わせて負の値にするとぶら下げインデントになります</translation>
+    </message>
+    <message>
+        <source>Left indent:</source>
+        <translation>左インデント:</translation>
+    </message>
+    <message>
+        <source>Space between the box edge and every line&apos;s start</source>
+        <translation>テキストボックスの端と各行の先頭との間隔</translation>
+    </message>
+    <message>
+        <source>Right indent:</source>
+        <translation>右インデント:</translation>
+    </message>
+    <message>
+        <source>Space between every line&apos;s end and the box edge</source>
+        <translation>各行の末尾とテキストボックスの端との間隔</translation>
+    </message>
+    <message>
+        <source>Space before:</source>
+        <translation>段落前の間隔:</translation>
+    </message>
+    <message>
+        <source>Extra space above each paragraph</source>
+        <translation>各段落の上に追加する間隔</translation>
+    </message>
+    <message>
+        <source>Space after:</source>
+        <translation>段落後の間隔:</translation>
+    </message>
+    <message>
+        <source>Extra space below each paragraph</source>
+        <translation>各段落の下に追加する間隔</translation>
+    </message>
+    <message>
+        <source>Paragraph...</source>
+        <translation>段落...</translation>
+    </message>
+    <message>
+        <source>Paragraph panel (alignment, indents, spacing)</source>
+        <translation>段落パネル（配置・インデント・間隔）</translation>
+    </message>
+    <message>
+        <source>Convert to Layers</source>
+        <translation>レイヤーに変換</translation>
+    </message>
+    <message>
+        <source>Replace the smart object with a folder holding the layers of its contents</source>
+        <translation>スマートオブジェクトを、その内容のレイヤーを収めたフォルダーに置き換えます</translation>
+    </message>
+    <message>
+        <source>Embed the linked Smart Object before converting it to layers</source>
+        <translation>レイヤーに変換する前に、リンクされたスマートオブジェクトを埋め込んでください</translation>
+    </message>
+    <message>
+        <source>Delete the Smart Filters before converting this Smart Object to layers</source>
+        <translation>このスマートオブジェクトをレイヤーに変換する前に、スマートフィルターを削除してください</translation>
+    </message>
+    <message>
+        <source>A warped or perspective Smart Object can&apos;t be converted to layers; rasterize it instead</source>
+        <translation>ワープまたは遠近法が適用されたスマートオブジェクトはレイヤーに変換できません。代わりにラスタライズしてください</translation>
+    </message>
+    <message>
+        <source>The smart object&apos;s contents have no layers to convert</source>
+        <translation>スマートオブジェクトの内容に変換できるレイヤーがありません</translation>
+    </message>
+    <message>
+        <source>The contents contain Smart Filters, which can&apos;t be moved out of the Smart Object yet</source>
+        <translation>内容にスマートフィルターが含まれているため、まだスマートオブジェクトの外に移動できません</translation>
+    </message>
+    <message>
+        <source>Could not convert the smart object to layers</source>
+        <translation>スマートオブジェクトをレイヤーに変換できませんでした</translation>
+    </message>
+    <message numerus="yes">
+        <source>Converted the smart object to %n layer(s)</source>
+        <translation>
+            <numerusform>スマートオブジェクトを %n 個のレイヤーに変換しました</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Add Plug-in Folder</source>
+        <translation>プラグインフォルダーを追加</translation>
+    </message>
+    <message>
+        <source>No plug-ins found (put .8bf files in the plugins folder)</source>
+        <translation>プラグインが見つかりません (.8bf ファイルを plugins フォルダーに置いてください)</translation>
+    </message>
+    <message>
+        <source>Run the %1 plug-in on the active layer</source>
+        <translation>アクティブなレイヤーでプラグイン %1 を実行</translation>
+    </message>
+    <message>
+        <source>Plug-in: %1</source>
+        <translation>プラグイン: %1</translation>
+    </message>
+    <message>
+        <source>%1 could not run.
+
+%2</source>
+        <translation>%1 を実行できませんでした。
+
+%2</translation>
+    </message>
+    <message>
+        <source>Legacy Photoshop plug-ins run on Windows only.</source>
+        <translation>従来の Photoshop プラグインは Windows でのみ実行できます。</translation>
+    </message>
+    <message>
+        <source>The selection does not touch the active layer.</source>
+        <translation>選択範囲がアクティブなレイヤーに触れていません。</translation>
+    </message>
+    <message>
+        <source>The layer no longer exists.</source>
+        <translation>レイヤーは既に存在しません。</translation>
+    </message>
+    <message>
+        <source>Photoshop filter plug-ins (.8bf, 32-bit or 64-bit) are found in these folders and their subfolders and listed under Plugins &gt; Legacy Photoshop Plug-ins. Only run plug-ins you trust: they execute with your permissions.</source>
+        <translation>Photoshop フィルタープラグイン (.8bf、32 ビットまたは 64 ビット) はこれらのフォルダーとそのサブフォルダーから検索され、「プラグイン &gt; 従来の Photoshop プラグイン」に表示されます。信頼できるプラグインだけを実行してください。プラグインはあなたの権限で実行されます。</translation>
+    </message>
+    <message>
+        <source>Always scanned:</source>
+        <translation>常に検索:</translation>
+    </message>
+    <message>
+        <source>Add Folder...</source>
+        <translation>フォルダーを追加...</translation>
+    </message>
+    <message>
+        <source>Added folders:</source>
+        <translation>追加したフォルダー:</translation>
+    </message>
+    <message>
+        <source>Plug-ins</source>
+        <translation>プラグイン</translation>
+    </message>
+    <message>
+        <source>Open Plug-ins &amp;Folder</source>
+        <translation>プラグインフォルダーを開く(&amp;F)</translation>
+    </message>
+    <message>
+        <source>&amp;Rescan Plug-in Folders</source>
+        <translation>プラグインフォルダーを再検索(&amp;R)</translation>
+    </message>
+    <message>
+        <source>Could not open the plug-ins folder.</source>
+        <translation>プラグインフォルダーを開けませんでした。</translation>
+    </message>
+    <message>
+        <source>Plug-in scan finished: %1 available</source>
+        <translation>プラグインの検索が完了しました: %1 個が利用可能</translation>
+    </message>
+    <message>
+        <source>Plug-in scan finished: %1 available, %2 not usable</source>
+        <translation>プラグインの検索が完了しました: %1 個が利用可能、%2 個は使用不可</translation>
+    </message>
+    <message>
+        <source>Scanning plug-in folders...</source>
+        <translation>プラグインフォルダーを検索中...</translation>
+    </message>
+    <message>
+        <source>Whole monitor</source>
+        <translation>モニター全体</translation>
+    </message>
+    <message>
+        <source>Plug-in windows open on the monitor showing Patchy. Plug-ins with full-screen interfaces size themselves to this screen size, so a smaller size keeps them usable on large monitors.</source>
+        <translation>プラグインのウィンドウは Patchy を表示しているモニターに開きます。全画面インターフェースのプラグインはこの画面サイズに合わせて表示されるため、小さいサイズにすると大きなモニターでも使いやすくなります。</translation>
+    </message>
+    <message>
+        <source>Screen size for plug-in windows:</source>
+        <translation>プラグインウィンドウの画面サイズ:</translation>
+    </message>
+    <message>
+        <source>%1 via Patchy</source>
+        <extracomment>Title of the movable window a full-screen plug-in interface is shown in; %1 is the plug-in&apos;s name.</extracomment>
+        <translation>%1 (Patchy 経由)</translation>
+    </message>
+    <message>
+        <source>%1: same plug-in as %2, listed once</source>
+        <translation>%1: %2 と同じプラグインのため 1 回だけ表示します</translation>
+    </message>
+    <message>
+        <source>Plug-ins work on one layer at a time. Select a single layer and run it again.</source>
+        <translation>プラグインは一度に 1 つのレイヤーにしか適用できません。レイヤーを 1 つだけ選択してから、もう一度実行してください。</translation>
+    </message>
+    <message>
+        <source>Import Theme...</source>
+        <translation>テーマを読み込み...</translation>
+    </message>
+    <message>
+        <source>Export Theme...</source>
+        <translation>テーマを書き出し...</translation>
+    </message>
+    <message>
+        <source>Reload Themes</source>
+        <translation>テーマを再読み込み</translation>
+    </message>
+    <message>
+        <source>Re-read the theme files in the themes folder and apply the selected one.</source>
+        <translation>テーマフォルダー内のテーマファイルを再読み込みし、選択中のテーマを適用します。</translation>
+    </message>
+    <message>
+        <source>Delete Theme...</source>
+        <translation>テーマを削除...</translation>
+    </message>
+    <message>
+        <source>Open Themes Folder</source>
+        <translation>テーマフォルダーを開く</translation>
+    </message>
+    <message>
+        <source>Could not open the themes folder.</source>
+        <translation>テーマフォルダーを開けませんでした。</translation>
+    </message>
+    <message>
+        <source>Delete Theme</source>
+        <translation>テーマを削除</translation>
+    </message>
+    <message>
+        <source>Delete the theme &quot;%1&quot;? Its file is removed from the themes folder.</source>
+        <translation>テーマ &quot;%1&quot; を削除しますか？ファイルはテーマフォルダーから削除されます。</translation>
+    </message>
+    <message>
+        <source>Could not delete &quot;%1&quot;.</source>
+        <translation>&quot;%1&quot; を削除できませんでした。</translation>
+    </message>
+    <message>
+        <source>Import Theme</source>
+        <translation>テーマを読み込み</translation>
+    </message>
+    <message>
+        <source>Patchy theme (*.patchytheme)</source>
+        <translation>Patchy テーマ (*.patchytheme)</translation>
+    </message>
+    <message>
+        <source>Could not open &quot;%1&quot;.</source>
+        <translation>「%1」を開けませんでした。</translation>
+    </message>
+    <message>
+        <source>Could not create the themes folder.</source>
+        <translation>テーマフォルダーを作成できませんでした。</translation>
+    </message>
+    <message>
+        <source>Theme</source>
+        <comment>Default file name offered when exporting a theme; the save dialog appends the extension.</comment>
+        <translation>テーマ</translation>
+    </message>
+    <message>
+        <source>Export Theme</source>
+        <translation>テーマを書き出し</translation>
+    </message>
+    <message>
+        <source>%1 (built-in)</source>
+        <translation>%1（内蔵）</translation>
+    </message>
+    <message>
+        <source>Cycle Marquee Tools</source>
+        <translation>選択ツールを切り替え</translation>
+    </message>
+    <message>
+        <source>Cycle Lasso Tools</source>
+        <translation>なげなわツールを切り替え</translation>
+    </message>
+    <message>
+        <source>Cycle Wand Tools</source>
+        <translation>自動選択ツールを切り替え</translation>
+    </message>
+    <message>
+        <source>Cycle Fill Tools</source>
+        <translation>塗りつぶしツールを切り替え</translation>
+    </message>
+    <message>
+        <source>Cycle Stamp Tools</source>
+        <translation>スタンプツールを切り替え</translation>
+    </message>
+    <message>
+        <source>Cycle Healing Tools</source>
+        <translation>修復ツールを切り替え</translation>
+    </message>
+    <message>
+        <source>Cycle Detail Tools</source>
+        <translation>ディテールツールを切り替え</translation>
+    </message>
+    <message>
+        <source>Cycle Toning Tools</source>
+        <translation>色調補正ツールを切り替え</translation>
+    </message>
+    <message>
+        <source>Cycle Pen Tools</source>
+        <translation>ペンツールを切り替え</translation>
+    </message>
+    <message>
+        <source>Cycle Path Tools</source>
+        <translation>パスツールを切り替え</translation>
+    </message>
+    <message>
+        <source>Cycle Shape Tools</source>
+        <translation>図形ツールを切り替え</translation>
+    </message>
+    <message>
+        <source>Canvas Background Color</source>
+        <translation>カンバスの背景色</translation>
+    </message>
+    <message>
+        <source>Scrubby Zoom</source>
+        <translation>スクラブズーム</translation>
+    </message>
+    <message>
+        <source>Drag right to zoom in and left to zoom out around the point you pressed. Off: drag a rectangle to zoom to it</source>
+        <translation>右にドラッグで押した位置を中心に拡大、左にドラッグで縮小します。オフの場合は矩形をドラッグしてその範囲にズームします</translation>
+    </message>
+    <message>
+        <source>100%</source>
+        <translation>100%</translation>
+    </message>
+    <message>
+        <source>Fit Screen</source>
+        <translation>画面に合わせる</translation>
+    </message>
+    <message>
+        <source>Fill Screen</source>
+        <translation>画面全体に広げる</translation>
+    </message>
+    <message>
+        <source>Fi&amp;ll Screen</source>
+        <translation>画面全体に広げる(&amp;L)</translation>
+    </message>
+    <message>
+        <source>Zoom In</source>
+        <translation>ズームイン</translation>
+    </message>
+    <message>
+        <source>Zoom Out</source>
+        <translation>ズームアウト</translation>
+    </message>
+    <message>
+        <source>Show the image at actual pixels (View &gt; Actual Pixels)</source>
+        <translation>画像を実際のピクセルサイズで表示します (表示 &gt; 実際のピクセル)</translation>
+    </message>
+    <message>
+        <source>Fit the whole image in the window (View &gt; Fit on Screen)</source>
+        <translation>画像全体をウィンドウに収めます (表示 &gt; 画面に合わせる)</translation>
+    </message>
+    <message>
+        <source>Zoom until the image fills the window (View &gt; Fill Screen)</source>
+        <translation>画像がウィンドウいっぱいになるまでズームします (表示 &gt; 画面全体に広げる)</translation>
+    </message>
+    <message>
+        <source>Stroke width:</source>
+        <translation>線の幅:</translation>
+    </message>
+    <message>
+        <source>Default units:</source>
+        <translation>既定の単位:</translation>
+    </message>
+    <message>
+        <source>Units &amp;&amp; Grids</source>
+        <translation>単位 &amp;&amp; グリッド</translation>
+    </message>
+    <message>
+        <source>Repeat Last Plug-in</source>
+        <translation>最後のプラグインを再実行</translation>
+    </message>
+    <message>
+        <source>Last Plug-in Settings...</source>
+        <translation>最後のプラグインの設定...</translation>
+    </message>
+    <message>
+        <source>The last plug-in is no longer available</source>
+        <translation>最後のプラグインは利用できなくなりました</translation>
+    </message>
+    <message>
+        <source>Repeat %1</source>
+        <extracomment>Plugins menu; %1 is the plug-in that ran last. Runs it again with its last settings, no dialog.</extracomment>
+        <translation>%1 を再実行</translation>
+    </message>
+    <message>
+        <source>%1 Settings...</source>
+        <extracomment>Plugins menu; %1 is the plug-in that ran last. Opens its settings dialog again, starting from the last settings.</extracomment>
+        <translation>%1 の設定...</translation>
+    </message>
+    <message>
+        <source>Applied %1 (%2 undoes it)</source>
+        <translation>%1 を適用しました (%2 で取り消せます)</translation>
+    </message>
+    <message>
+        <source>Place &amp;Linked...</source>
+        <translation>リンクを配置(&amp;L)...</translation>
+    </message>
+    <message>
+        <source>This layer is not a linked smart object</source>
+        <translation>このレイヤーはリンクされたスマートオブジェクトではありません</translation>
+    </message>
+    <message>
+        <source>Place Linked</source>
+        <translation>リンクを配置</translation>
+    </message>
+    <message>
+        <source>Placed %1 as a linked smart object</source>
+        <translation>%1 をリンクされたスマートオブジェクトとして配置しました</translation>
+    </message>
+    <message>
+        <source>The placed position or size is out of range</source>
+        <translation>配置位置またはサイズが範囲外です</translation>
+    </message>
+    <message>
+        <source>text layer &quot;%1&quot;</source>
+        <translation>テキストレイヤー &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>pixel layer &quot;%1&quot;</source>
+        <translation>ピクセルレイヤー &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>smart object &quot;%1&quot;</source>
+        <translation>スマートオブジェクト &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>adjustment layer &quot;%1&quot; and the layers below it</source>
+        <translation>調整レイヤー &quot;%1&quot; とその下のレイヤー</translation>
+    </message>
+    <message>
+        <source>the blend mode of &quot;%1&quot; and the layers below it</source>
+        <translation>&quot;%1&quot; の描画モードとその下のレイヤー</translation>
+    </message>
+    <message>
+        <source>shape layer &quot;%1&quot; (its styles or fill options)</source>
+        <translation>シェイプレイヤー &quot;%1&quot; (スタイルまたは塗りオプション)</translation>
+    </message>
+    <message>
+        <source>group &quot;%1&quot; (its styles or masks)</source>
+        <translation>グループ &quot;%1&quot; (スタイルまたはマスク)</translation>
+    </message>
+    <message>
+        <source>clipping mask group &quot;%1&quot;</source>
+        <translation>クリッピングマスクグループ &quot;%1&quot;</translation>
+    </message>
+    <message>
+        <source>the layer mask on &quot;%1&quot;</source>
+        <translation>&quot;%1&quot; のレイヤーマスク</translation>
+    </message>
+    <message>
+        <source>&quot;%1&quot; (merged under an adjustment layer or blend mode)</source>
+        <translation>&quot;%1&quot; (調整レイヤーまたは描画モードの下で結合)</translation>
+    </message>
+    <message numerus="yes">
+        <source>%1 and %n more</source>
+        <translation>
+            <numerusform>%1 とその他 %n 件</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>SVG keeps shape layers as vectors, but this document has content SVG cannot hold as vectors. Continue saving and bake it into images in the linked file?
+
+Baked into images: %1.</source>
+        <translation>SVG はシェイプレイヤーをベクターのまま保存しますが、このドキュメントには SVG がベクターとして保存できない内容が含まれています。保存を続行し、リンクされたファイル内でその内容を画像に変換しますか?
+
+画像に変換される内容: %1.</translation>
+    </message>
+    <message>
+        <source>SVG keeps shape layers as vectors, but this document has content SVG cannot hold as vectors, so Patchy will save a copy with that content baked into images. The open document will keep its layers and unsaved changes. To keep everything editable, save as a Photoshop document (.psd) instead.
+
+Baked into images: %1.</source>
+        <translation>SVG はシェイプレイヤーをベクターのまま保存しますが、このドキュメントには SVG がベクターとして保存できない内容が含まれているため、Patchy はその内容を画像に変換したコピーを保存します。開いているドキュメントのレイヤーと未保存の変更はそのまま残ります。すべてを編集可能なまま残すには、Photoshop ドキュメント (.psd) として保存してください。
+
+画像に変換される内容: %1.</translation>
+    </message>
+    <message>
+        <source>Crop to Selection (Advance&amp;d)...</source>
+        <translation>選択範囲で切り抜き(詳細)(&amp;D)...</translation>
+    </message>
+    <message>
+        <source>Open Canvas Size prefilled with the selection so the crop can be adjusted before it is applied</source>
+        <translation>選択範囲を入力済みのキャンバスサイズを開き、適用前に切り抜きを調整できます</translation>
+    </message>
+    <message>
+        <source>Canvas %1 x %2, off-canvas layers deleted: %3</source>
+        <translation>キャンバス %1 x %2、カンバス外のレイヤーを削除: %3</translation>
+    </message>
+    <message>
+        <source>Mouse wheel zooms the canvas</source>
+        <translation>マウスホイールでキャンバスをズームする</translation>
+    </message>
+    <message>
+        <source>Also applies to a pen button set to Scroll. Hold %CTRL% or Shift while scrolling to pan. Two-finger scrolling on a trackpad always pans; pinch to zoom.</source>
+        <translation>スクロールに設定されたペンボタンにも適用されます。スクロール中に %CTRL% または Shift を押すとパンします。トラックパッドの 2 本指スクロールは常にパンします。ズームするにはピンチします。</translation>
+    </message>
+    <message>
+        <source>Tools</source>
+        <translation>ツール</translation>
+    </message>
+    <message>
+        <source>Layers as Animated &amp;WebP...</source>
+        <translation>レイヤーをアニメーションWebPとして書き出す(&amp;W)...</translation>
+    </message>
+    <message>
+        <source>Export Animated WebP</source>
+        <translation>アニメーションWebPを書き出す</translation>
+    </message>
+    <message>
+        <source>Saved animated WebP copy %1</source>
+        <translation>アニメーションWebPのコピーを保存しました: %1</translation>
+    </message>
+    <message>
+        <source>Locked layers are skipped. Groups receive their own style; their children are unchanged.</source>
+        <translation>ロックされたレイヤーはスキップされます。グループ自体にスタイルが適用され、子レイヤーは変更されません。</translation>
+    </message>
+    <message>
+        <source>Select an unlocked, editable shape layer</source>
+        <translation>ロックされていない編集可能なシェイプレイヤーを選択してください</translation>
+    </message>
+    <message>
+        <source>Locked layers and layers without editable shapes are skipped.</source>
+        <translation>ロックされたレイヤーと編集可能なシェイプのないレイヤーはスキップされます。</translation>
+    </message>
+    <message>
+        <source>Updating shapes...</source>
+        <translation>シェイプを更新中...</translation>
+    </message>
+    <message>
+        <source>%1: preserved blending data remains protected.</source>
+        <translation>%1：保持されている描画設定データは保護されます。</translation>
+    </message>
+    <message>
+        <source>%1: editing effects normalizes unsupported Satin contours.</source>
+        <translation>%1：効果を編集すると、未対応のサテン輪郭が標準化されます。</translation>
+    </message>
+    <message>
+        <source>Open from &amp;Clipboard</source>
+        <translation>クリップボードから開く(&amp;C)</translation>
+    </message>
+    <message>
+        <source>&amp;Exposure...</source>
+        <translation>露出(&amp;E)...</translation>
+    </message>
+    <message>
+        <source>Exposure</source>
+        <translation>露出</translation>
+    </message>
+    <message>
+        <source>Cancelled Exposure</source>
+        <translation>露出をキャンセルしました</translation>
+    </message>
+    <message>
+        <source>This layer is not an embedded smart object</source>
+        <translation>このレイヤーは埋め込みスマートオブジェクトではありません</translation>
+    </message>
+    <message>
+        <source>This smart object cannot be re-rendered</source>
+        <translation>このスマートオブジェクトは再レンダリングできません</translation>
     </message>
 </context>
 <context>
@@ -18574,10 +19798,6 @@ Clipped to the layer below</source>
         <translation>一時停止中にストロークの対象が変更されました。続行する前にドキュメントを確認してください。</translation>
     </message>
     <message>
-        <source>mergeLayers: options must be an object of booleans.</source>
-        <translation>mergeLayers: オプションには真偽値のオブジェクトを指定してください。</translation>
-    </message>
-    <message>
         <source>mergeLayers: unknown option %1</source>
         <translation>mergeLayers: 不明なオプション %1</translation>
     </message>
@@ -18689,6 +19909,130 @@ Clipped to the layer below</source>
         <source>distributeLayers needs at least three movable layers.</source>
         <translation>distributeLayers には移動可能なレイヤーが 3 つ以上必要です。</translation>
     </message>
+    <message>
+        <source>importFilesAsLayers needs a file path or a non-empty array of paths.</source>
+        <translation>importFilesAsLayers にはファイルパスまたは空でないパスの配列が必要です。</translation>
+    </message>
+    <message>
+        <source>No layers were added.</source>
+        <translation>レイヤーは追加されませんでした。</translation>
+    </message>
+    <message>
+        <source>intervalMinutes must be 5, 10, 15, 30, or 60</source>
+        <translation>intervalMinutes は 5、10、15、30、60 のいずれかにしてください</translation>
+    </message>
+    <message>
+        <source>textAlign must be &apos;left&apos;, &apos;center&apos;, &apos;right&apos; or &apos;justify&apos;.</source>
+        <translation>textAlign は &apos;left&apos;、&apos;center&apos;、&apos;right&apos;、&apos;justify&apos; のいずれかにしてください。</translation>
+    </message>
+    <message>
+        <source>%1: runs must be an array of {text, font, size, bold, italic, color} objects.</source>
+        <translation>%1: runs は {text, font, size, bold, italic, color} オブジェクトの配列にしてください。</translation>
+    </message>
+    <message>
+        <source>%1: run %2 needs a text string.</source>
+        <translation>%1: ラン %2 には text 文字列が必要です。</translation>
+    </message>
+    <message>
+        <source>%1: run %2 has a non-positive size.</source>
+        <translation>%1: ラン %2 の size が正の値ではありません。</translation>
+    </message>
+    <message>
+        <source>%1: run %2 must be a string or an object.</source>
+        <translation>%1: ラン %2 は文字列またはオブジェクトにしてください。</translation>
+    </message>
+    <message>
+        <source>%1: runs must not be empty.</source>
+        <translation>%1: runs を空にはできません。</translation>
+    </message>
+    <message>
+        <source>addTextLayer: text must be a string or an array of runs.</source>
+        <translation>addTextLayer: text は文字列またはランの配列にしてください。</translation>
+    </message>
+    <message>
+        <source>box must be {width, height} of at least 16 document pixels each.</source>
+        <translation>box は {width, height} で、それぞれ 16 ドキュメントピクセル以上にしてください。</translation>
+    </message>
+    <message>
+        <source>align must be &apos;left&apos;, &apos;center&apos;, &apos;right&apos; or &apos;justify&apos;.</source>
+        <translation>align は &apos;left&apos;、&apos;center&apos;、&apos;right&apos;、&apos;justify&apos; のいずれかにしてください。</translation>
+    </message>
+    <message>
+        <source>%1: paragraph must be an object with firstLineIndent, startIndent, endIndent, spaceBefore and spaceAfter numbers (document pixels).</source>
+        <translation>%1: paragraph は firstLineIndent、startIndent、endIndent、spaceBefore、spaceAfter の数値を持つオブジェクトにしてください（ドキュメントピクセル）。</translation>
+    </message>
+    <message>
+        <source>%1: paragraph.%2 must be a number (document pixels).</source>
+        <translation>%1: paragraph.%2 は数値にしてください（ドキュメントピクセル）。</translation>
+    </message>
+    <message>
+        <source>applyPlugin: unknown option %1.</source>
+        <translation>applyPlugin: 不明なオプション %1。</translation>
+    </message>
+    <message>
+        <source>Unknown plug-in id: %1</source>
+        <translation>不明なプラグイン ID: %1</translation>
+    </message>
+    <message>
+        <source>Plug-in %1 cannot run: %2</source>
+        <translation>プラグイン %1 を実行できません: %2</translation>
+    </message>
+    <message>
+        <source>applyPlugin needs a pixel layer.</source>
+        <translation>applyPlugin にはピクセルレイヤーが必要です。</translation>
+    </message>
+    <message>
+        <source>Plug-in %1 was cancelled.</source>
+        <translation>プラグイン %1 はキャンセルされました。</translation>
+    </message>
+    <message>
+        <source>Plug-in %1 failed: %2</source>
+        <translation>プラグイン %1 が失敗しました: %2</translation>
+    </message>
+    <message>
+        <source>addSmartObject needs a file path.</source>
+        <translation>addSmartObject にはファイルパスが必要です。</translation>
+    </message>
+    <message>
+        <source>addSmartObject: %1 must be a finite number.</source>
+        <translation>addSmartObject: %1 は有限の数値にしてください。</translation>
+    </message>
+    <message>
+        <source>%1: font not available, rendered with a fallback: %2</source>
+        <translation>%1: フォントを使用できないため、代替フォントで描画しました: %2</translation>
+    </message>
+    <message>
+        <source>%1: font has no glyphs for this text, rendered with a fallback: %2</source>
+        <translation>%1: フォントにこのテキストのグリフがないため、代替フォントで描画しました: %2</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp needs a .webp output path.</source>
+        <translation>exportAnimatedWebpには拡張子.webpの出力パスが必要です。</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp options must be an object.</source>
+        <translation>exportAnimatedWebpのオプションはオブジェクトである必要があります。</translation>
+    </message>
+    <message>
+        <source>exportAnimatedWebp: invalid option %1.</source>
+        <translation>exportAnimatedWebp: オプション%1が無効です。</translation>
+    </message>
+    <message>
+        <source>mergeLayers: options must be an object.</source>
+        <translation>mergeLayers: optionsはオブジェクトである必要があります。</translation>
+    </message>
+    <message>
+        <source>mergeLayers: effectsFrom must be a layer of this document.</source>
+        <translation>mergeLayers: effectsFromはこのドキュメントのレイヤーである必要があります。</translation>
+    </message>
+    <message>
+        <source>mergeLayers: %1 must be a boolean.</source>
+        <translation>mergeLayers: %1はブール値である必要があります。</translation>
+    </message>
+    <message>
+        <source>mergeLayers: effectsFrom requires singleVector.</source>
+        <translation>mergeLayers: effectsFromにはsingleVectorが必要です。</translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::StartPanel</name>
@@ -18703,10 +20047,6 @@ Clipped to the layer below</source>
     <message>
         <source>Version %1 (built %2)</source>
         <translation>バージョン %1（ビルド日: %2）</translation>
-    </message>
-    <message>
-        <source>Created by Seth A. Robinson</source>
-        <translation>作成: Seth A. Robinson</translation>
     </message>
     <message>
         <source>Code contributions from %1</source>
@@ -18753,12 +20093,24 @@ Clipped to the layer below</source>
         <translation>フォントファイルまたはフォントの zip をここにドロップすると、自分のフォントを使用できます。</translation>
     </message>
     <message>
-        <source>For all your system fonts and better speed, get the %1.</source>
-        <translation>システムフォントの利用や高速な動作には、%1をご利用ください。</translation>
+        <source>Created by %1</source>
+        <translation>作成: %1</translation>
     </message>
     <message>
-        <source>desktop version</source>
-        <translation>デスクトップ版</translation>
+        <source>More power on your desktop</source>
+        <translation>デスクトップでもっと快適に</translation>
+    </message>
+    <message>
+        <source>More features, faster editing, and full access to your system fonts.</source>
+        <translation>より多くの機能、より高速な編集、システム内のすべてのフォントを利用できます。</translation>
+    </message>
+    <message>
+        <source>Download Patchy for Desktop</source>
+        <translation>デスクトップ版Patchyをダウンロード</translation>
+    </message>
+    <message>
+        <source>Free · Windows, macOS &amp; Linux</source>
+        <translation>無料 · Windows、macOS、Linux</translation>
     </message>
 </context>
 <context>

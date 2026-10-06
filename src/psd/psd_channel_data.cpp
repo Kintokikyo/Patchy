@@ -526,6 +526,145 @@ bool is_cmyk_color_mode(std::uint16_t color_mode) noexcept {
   return color_mode == kColorModeCmyk;
 }
 
+bool is_grayscale_color_mode(std::uint16_t color_mode) noexcept {
+  return color_mode == kColorModeGrayscale || color_mode == kColorModeDuotone ||
+         color_mode == kColorModeBitmap || color_mode == kColorModeIndexed;
+}
+
+bool is_lab_color_mode(std::uint16_t color_mode) noexcept {
+  return color_mode == kColorModeLab;
+}
+
+void convert_indexed_plane_to_rgb(PixelBuffer& pixels, const std::uint8_t* indices, std::size_t pixel_count,
+                                  const std::uint8_t* palette) {
+  const auto channels = static_cast<std::size_t>(pixels.format().channels);
+  auto* target = pixels.data().data();
+  for (std::size_t i = 0; i < pixel_count; ++i) {
+    auto* pixel = target + i * channels;
+    const auto index = static_cast<std::size_t>(indices[i]);
+    pixel[0] = palette[index];
+    pixel[1] = palette[256U + index];
+    pixel[2] = palette[512U + index];
+  }
+}
+
+// CIE Lab (D50, as Photoshop stores it) to sRGB (D65): Lab to XYZ, Bradford adaptation,
+// the sRGB matrix, then the shared transfer function. Out-of-gamut colors clip.
+std::array<std::uint8_t, 3> srgb8_from_lab(double lightness, double a, double b) {
+  const auto inverse = [](double t) {
+    constexpr double delta = 6.0 / 29.0;
+    return t > delta ? t * t * t : 3.0 * delta * delta * (t - 4.0 / 29.0);
+  };
+  const double fy = (lightness + 16.0) / 116.0;
+  const double x50 = 0.96422 * inverse(fy + a / 500.0);
+  const double y50 = inverse(fy);
+  const double z50 = 0.82521 * inverse(fy - b / 200.0);
+  // Bradford D50 -> D65.
+  const double x = 0.9555766 * x50 - 0.0230393 * y50 + 0.0631636 * z50;
+  const double y = -0.0282895 * x50 + 1.0099416 * y50 + 0.0210077 * z50;
+  const double z = 0.0122982 * x50 - 0.0204830 * y50 + 1.3299098 * z50;
+  const double red = 3.2404542 * x - 1.5371385 * y - 0.4985314 * z;
+  const double green = -0.9692660 * x + 1.8760108 * y + 0.0415560 * z;
+  const double blue = 0.0556434 * x - 0.2040259 * y + 1.0572252 * z;
+  return {linear_to_srgb8(static_cast<float>(red)), linear_to_srgb8(static_cast<float>(green)),
+          linear_to_srgb8(static_cast<float>(blue))};
+}
+
+void convert_lab_pixels_to_rgb(PixelBuffer& pixels) {
+  const auto channels = static_cast<std::size_t>(pixels.format().channels);
+  if (channels < 3U) {
+    return;
+  }
+  auto* target = pixels.data().data();
+  const auto pixel_count = static_cast<std::size_t>(pixels.width()) * static_cast<std::size_t>(pixels.height());
+  for (std::size_t i = 0; i < pixel_count; ++i) {
+    auto* pixel = target + i * channels;
+    const auto rgb = srgb8_from_lab(static_cast<double>(pixel[0]) * 100.0 / 255.0,
+                                    static_cast<double>(pixel[1]) - 128.0, static_cast<double>(pixel[2]) - 128.0);
+    pixel[0] = rgb[0];
+    pixel[1] = rgb[1];
+    pixel[2] = rgb[2];
+  }
+}
+
+void convert_multichannel_planes_to_rgb(PixelBuffer& pixels, std::span<const std::vector<std::uint8_t>> planes,
+                                        std::size_t pixel_count) {
+  const auto channels = static_cast<std::size_t>(pixels.format().channels);
+  auto* target = pixels.data().data();
+  for (std::size_t component = 0; component < 3U; ++component) {
+    const auto* plane = component < planes.size() && planes[component].size() == pixel_count
+                            ? planes[component].data()
+                            : nullptr;
+    for (std::size_t i = 0; i < pixel_count; ++i) {
+      target[i * channels + component] = plane != nullptr ? plane[i] : std::uint8_t{255};
+    }
+  }
+}
+
+std::vector<std::uint8_t> read_bitmap_composite_plane(BigEndianReader& reader, const Header& header,
+                                                      std::uint16_t compression, std::size_t* damaged_rows) {
+  const auto width = static_cast<std::size_t>(header.width);
+  const auto height = static_cast<std::size_t>(header.height);
+  const auto row_bytes = (width + 7U) / 8U;
+  std::vector<std::uint8_t> packed;
+  if (compression == kCompressionRaw) {
+    packed = reader.read_bytes(row_bytes * height);
+  } else if (compression == kCompressionRle) {
+    std::vector<std::uint32_t> row_lengths;
+    row_lengths.reserve(static_cast<std::size_t>(header.channels) * height);
+    for (std::size_t row = 0; row < static_cast<std::size_t>(header.channels) * height; ++row) {
+      row_lengths.push_back(header.large_document ? reader.read_u32() : reader.read_u16());
+    }
+    packed = read_rle_channel_from_counts(reader, std::span<const std::uint32_t>(row_lengths.data(), height),
+                                          row_bytes, damaged_rows);
+  } else {
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "Unsupported PSD composite compression"));
+  }
+  if (packed.size() < row_bytes * height) {
+    throw std::runtime_error(PATCHY_TRANSLATE_NOOP("QObject", "PSD composite channel data is truncated"));
+  }
+  std::vector<std::uint8_t> gray(width * height);
+  for (std::size_t y = 0; y < height; ++y) {
+    const auto* row = packed.data() + y * row_bytes;
+    for (std::size_t x = 0; x < width; ++x) {
+      const auto bit = (row[x / 8U] >> (7U - (x % 8U))) & 1U;
+      gray[y * width + x] = bit != 0U ? std::uint8_t{0} : std::uint8_t{255};
+    }
+  }
+  return gray;
+}
+
+// A gray profile maps each of the 256 input values to one sRGB triple, so the transform
+// runs once over a ramp and the plane expands through that table: byte-identical to a
+// per-pixel conversion and cheap enough that no parallel strips are needed.
+void convert_gray_plane_to_rgb(PixelBuffer& pixels, const std::uint8_t* gray, std::size_t pixel_count,
+                               const GrayToRgbTransform* icc) {
+  const auto channels = static_cast<std::size_t>(pixels.format().channels);
+  auto* target = pixels.data().data();
+  if (icc == nullptr) {
+    for (std::size_t i = 0; i < pixel_count; ++i) {
+      auto* pixel = target + i * channels;
+      pixel[0] = gray[i];
+      pixel[1] = gray[i];
+      pixel[2] = gray[i];
+    }
+    return;
+  }
+  std::array<std::uint8_t, 256> ramp{};
+  for (std::size_t value = 0; value < ramp.size(); ++value) {
+    ramp[value] = static_cast<std::uint8_t>(value);
+  }
+  std::array<std::uint8_t, 256 * 3> table{};
+  icc->convert(ramp.data(), table.data(), ramp.size());
+  for (std::size_t i = 0; i < pixel_count; ++i) {
+    auto* pixel = target + i * channels;
+    const auto* rgb = table.data() + static_cast<std::size_t>(gray[i]) * 3U;
+    pixel[0] = rgb[0];
+    pixel[1] = rgb[1];
+    pixel[2] = rgb[2];
+  }
+}
+
 // CMYK-mode documents also carry CMYK colors in descriptors (lfx2 effect colors) and text
 // engine data, as ink fractions. Convert with the same naive mix as the pixel decode above
 // so effect/text colors keep their relationship to the converted pixels.

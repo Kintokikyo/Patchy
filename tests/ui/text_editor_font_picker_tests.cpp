@@ -132,6 +132,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QPointer>
+#include <QRawFont>
 #include <QPolygonF>
 #include <QThread>
 #include <QPaintEvent>
@@ -199,6 +200,9 @@
 #include "ui_test_access.hpp"
 #include "ui_test_groups.hpp"
 #include "ui_test_support.hpp"
+#include "unicode_path_names.hpp"
+
+#include <cstdlib>
 
 namespace {
 
@@ -1282,6 +1286,162 @@ void ui_text_edit_entry_leaves_the_pixels_alone() {
   check_text_edit_entry_leaves_pixels_alone(true);
 }
 
+// Glyph ink outside the advance box (Arial Italic: the "j" hook starts left of the pen, the "f"
+// overruns its advance) must survive a point-text render, and the buffer that grows around the
+// origin to hold it must not move the text: the transform still names the pen, re-entering and
+// re-applying reproduce the pixels, and the saved TySh anchors at the pen (issue 20).
+void ui_point_text_render_keeps_glyph_overhang() {
+  patchy::test::register_test_fonts(patchy::test::TestFontRole::UiDefault);
+  QFont probe_font(QStringLiteral("Arial"));
+  probe_font.setItalic(true);
+  probe_font.setPixelSize(96);
+  const auto raw = QRawFont::fromFont(probe_font);
+  if (!raw.isValid() || raw.familyName() != QStringLiteral("Arial") || !raw.styleName().contains(QStringLiteral("Italic"))) {
+    std::printf("[SKIP] Arial Italic is not registered (glyph overhang probe)\n");
+    return;
+  }
+  const auto glyphs = raw.glyphIndexesForString(QStringLiteral("jf"));
+  if (glyphs.size() != 2) {
+    std::printf("[SKIP] Arial Italic has no glyphs for \"jf\"\n");
+    return;
+  }
+  const auto j_left = raw.boundingRect(glyphs[0]).left();
+  const auto f_overhang = raw.boundingRect(glyphs[1]).right() - raw.advancesForGlyphIndexes({glyphs[1]}).value(0).x();
+  std::printf("  Arial Italic 96 px: j ink starts %.2f px from the pen, f overruns its advance by %.2f px\n",
+              j_left, f_overhang);
+  std::fflush(stdout);
+  if (j_left > -1.0 || f_overhang < 1.0) {
+    std::printf("[SKIP] this Arial Italic has no overhanging glyphs to probe\n");
+    return;
+  }
+
+  patchy::ui::MainWindow window;
+  show_window(window);
+  patchy::Document document(800, 500, patchy::PixelFormat::rgba8());
+  document.add_pixel_layer("Background", solid_pixels(800, 500, patchy::PixelFormat::rgba8(), QColor(Qt::white)));
+  document.print_settings().horizontal_ppi = 72.0;  // 96 pt = 96 px
+  document.print_settings().vertical_ppi = 72.0;
+  window.add_document_session(std::move(document), QStringLiteral("Glyph Overhang"));
+  auto* canvas = require_canvas(window);
+  canvas->set_zoom(1.0);
+  canvas->set_primary_color(QColor(0, 0, 0));
+  require_action_by_text(window, QStringLiteral("Type"))->trigger();
+  QApplication::processEvents();
+  auto* font_combo = window.findChild<QFontComboBox*>(QStringLiteral("textFontCombo"));
+  auto* size_spin = window.findChild<QDoubleSpinBox*>(QStringLiteral("textSizeSpin"));
+  CHECK(font_combo != nullptr && size_spin != nullptr);
+  if (font_combo == nullptr || size_spin == nullptr) {
+    return;
+  }
+  font_combo->setCurrentFont(QFont(QStringLiteral("Arial")));
+  size_spin->setValue(96.0);
+  QApplication::processEvents();
+
+  const QPoint pen(100, 200);
+  const auto widget_point = canvas->widget_position_for_document_point(pen);
+  send_mouse(*canvas, QEvent::MouseButtonPress, widget_point, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, widget_point, Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  QPointer<QTextEdit> editor = canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
+  CHECK(editor != nullptr);
+  if (editor == nullptr) {
+    return;
+  }
+  editor->setPlainText(QStringLiteral("jf"));
+  editor->setFocus(Qt::OtherFocusReason);
+  editor->selectAll();
+  QTest::keyClick(editor.data(), Qt::Key_I, Qt::ControlModifier);  // the real Italic face
+  QApplication::processEvents();
+  process_events_for(150);
+  require_action_by_text(window, QStringLiteral("Move"))->trigger();
+  QApplication::processEvents();
+  process_events_for(150);
+
+  auto& live_document = patchy::ui::MainWindowTestAccess::document(window);
+  const auto layer_id = live_document.active_layer_id();
+  CHECK(layer_id.has_value());
+  auto* committed = layer_id.has_value() ? live_document.find_layer(*layer_id) : nullptr;
+  CHECK(committed != nullptr);
+  if (committed == nullptr) {
+    return;
+  }
+  const auto committed_bounds = committed->bounds();
+  const auto committed_pixels = committed->pixels();
+  const auto transform_value = committed->metadata().find(patchy::kLayerMetadataTextTransform);
+  CHECK(transform_value != committed->metadata().end());
+  const auto transform = transform_value != committed->metadata().end()
+                             ? patchy::parse_layer_affine_transform(transform_value->second)
+                             : std::nullopt;
+  CHECK(transform.has_value());
+  const auto italic = committed->metadata().find(patchy::kLayerMetadataTextItalic);
+  CHECK(italic != committed->metadata().end() && italic->second == "true");
+  std::printf("  committed %dx%d at (%d,%d); transform (%.3f, %.3f)\n", committed_bounds.width, committed_bounds.height,
+              committed_bounds.x, committed_bounds.y, transform.has_value() ? (*transform)[4] : 0.0,
+              transform.has_value() ? (*transform)[5] : 0.0);
+  std::fflush(stdout);
+  // The buffer starts left of the pen to hold the "j" hook, and keeps a clear margin all round.
+  CHECK(committed_bounds.x < pen.x());
+  CHECK(pixel_buffer_border_is_clear(committed_pixels));
+  // The transform still names the pen.
+  if (transform.has_value()) {
+    CHECK(std::abs((*transform)[4] - pen.x()) < 1e-6);
+    CHECK(std::abs((*transform)[5] - pen.y()) < 1e-6);
+  }
+
+  // Re-enter on the glyphs: the preview and a second apply reproduce the pixels in place.
+  require_action_by_text(window, QStringLiteral("Type"))->trigger();
+  const QPoint reenter(committed_bounds.x + committed_bounds.width / 2, committed_bounds.y + committed_bounds.height / 2);
+  const auto reenter_point = canvas->widget_position_for_document_point(reenter);
+  send_mouse(*canvas, QEvent::MouseButtonPress, reenter_point, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, reenter_point, Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  process_events_for(150);
+  auto* reentered = canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
+  CHECK(reentered != nullptr);
+  bool preview_matches = false;
+  if (reentered != nullptr) {
+    CHECK(reentered->property("patchy.editingLayerId").toULongLong() == static_cast<qulonglong>(*layer_id));
+    if (auto* preview = preview_layer_for_editor(live_document, *reentered); preview != nullptr) {
+      preview_matches = preview->bounds().x == committed_bounds.x && preview->bounds().y == committed_bounds.y &&
+                        patchy::ui::pixel_buffers_equal(preview->pixels(), committed_pixels);
+      if (!preview_matches) {
+        std::printf("  entry preview %dx%d at (%d,%d) differs from the committed raster\n", preview->bounds().width,
+                    preview->bounds().height, preview->bounds().x, preview->bounds().y);
+      }
+    }
+  }
+  require_action_by_text(window, QStringLiteral("Move"))->trigger();
+  QApplication::processEvents();
+  process_events_for(150);
+  CHECK(preview_matches);
+  auto* recommitted = live_document.find_layer(*layer_id);
+  CHECK(recommitted != nullptr);
+  if (recommitted == nullptr) {
+    return;
+  }
+  CHECK(recommitted->bounds().x == committed_bounds.x);
+  CHECK(recommitted->bounds().y == committed_bounds.y);
+  CHECK(patchy::ui::pixel_buffers_equal(recommitted->pixels(), committed_pixels));
+
+  // The saved TySh anchors at the pen: tx is the pen, ty the pen plus the recorded first baseline
+  // (measured from the text origin, not from the raster's top row).
+  const auto baseline_value = recommitted->metadata().find(patchy::kLayerMetadataTextFirstBaseline);
+  CHECK(baseline_value != recommitted->metadata().end());
+  const double first_baseline =
+      baseline_value != recommitted->metadata().end() ? std::stod(baseline_value->second) : 0.0;
+  CHECK(first_baseline > 50.0 && first_baseline < 100.0);  // Arial's ascent at 96 px is ~87
+  const auto bytes = patchy::psd::DocumentIo::write_layered_rgb8(live_document);
+  const auto transforms = tysh_transforms_in_psd(bytes);
+  CHECK(transforms.size() == 1U);
+  if (!transforms.empty()) {
+    std::printf("  saved TySh anchor (%.3f, %.3f); first baseline %.3f\n", transforms[0][4], transforms[0][5],
+                first_baseline);
+    std::fflush(stdout);
+    CHECK(std::abs(transforms[0][4] - pen.x()) < 0.01);
+    CHECK(std::abs(transforms[0][5] - (pen.y() + first_baseline)) < 0.01);
+  }
+}
+
 // Drag-selecting with the mouse, and Shift+Arrow selecting with the keyboard, must both produce
 // a highlight that covers the glyphs it claims to cover. `reenter` runs the checks on a re-opened
 // session (the layer's stored metadata rebuilds the editor) rather than the session that created
@@ -1425,6 +1585,136 @@ void check_text_selection_matches_glyphs(bool reenter) {
 void ui_text_mouse_and_keyboard_selection_match_glyphs() {
   check_text_selection_matches_glyphs(false);
   check_text_selection_matches_glyphs(true);
+}
+
+// With the Type tool and no session open, one press-drag across an existing text layer opens the
+// session AND selects the dragged range, as in Photoshop. The press that opens the session goes
+// to the canvas, so the canvas has to carry the rest of that gesture to the new editor; it used
+// to drop it, and selecting took a second press-drag.
+void ui_text_press_drag_from_outside_session_selects_range() {
+  patchy::test::register_test_fonts(patchy::test::TestFontRole::UiDefault);
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_zoom(1.0);
+  require_action_by_text(window, QStringLiteral("Type"))->trigger();
+  canvas->set_primary_color(QColor(20, 20, 20));
+
+  const auto widget_point = canvas->widget_position_for_document_point(QPoint(60, 80));
+  send_mouse(*canvas, QEvent::MouseButtonPress, widget_point, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, widget_point, Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  auto* editor = canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor"));
+  CHECK(editor != nullptr);
+  if (editor == nullptr) {
+    return;
+  }
+  editor->setPlainText(QStringLiteral("Handgloves"));
+  QApplication::processEvents();
+  process_events_for(150);
+  require_action_by_text(window, QStringLiteral("Move"))->trigger();
+  QApplication::processEvents();
+  process_events_for(150);
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  const auto* committed = std::as_const(document).find_layer(document.active_layer_id().value_or(patchy::LayerId{}));
+  CHECK(committed != nullptr);
+  if (committed == nullptr) {
+    return;
+  }
+  const auto bounds = committed->bounds();
+  const auto layer_centre =
+      canvas->widget_position_for_document_point(QPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2));
+  require_action_by_text(window, QStringLiteral("Type"))->trigger();
+
+  const auto live_editor = [&] { return canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor")); };
+  const auto cancel_session = [&] {
+    if (auto* open = live_editor(); open != nullptr) {
+      send_key(*open, Qt::Key_Escape);
+      QApplication::processEvents();
+      process_events_for(100);
+    }
+  };
+
+  // Open the session once the old way to learn where carets 1 and 5 sit on the canvas, then
+  // cancel it: the layer is untouched, so the next session lays out identically.
+  send_mouse(*canvas, QEvent::MouseButtonPress, layer_centre, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, layer_centre, Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  process_events_for(200);
+  editor = live_editor();
+  CHECK(editor != nullptr);
+  if (editor == nullptr) {
+    return;
+  }
+  const auto caret_canvas_point = [&](int position) {
+    auto cursor = editor->textCursor();
+    cursor.setPosition(position);
+    editor->setTextCursor(cursor);
+    QApplication::processEvents();
+    auto caret = editor->property("patchy.previewCaretRect").toRect();
+    if (caret.isEmpty()) {
+      caret = editor->cursorRect();
+    }
+    return editor->viewport()->mapTo(canvas, QPoint(caret.left(), (caret.top() + caret.bottom()) / 2));
+  };
+  const auto drag_from = caret_canvas_point(1);
+  const auto drag_to = caret_canvas_point(5);
+  cancel_session();
+  CHECK(live_editor() == nullptr);
+  CHECK(drag_to.x() > drag_from.x());
+
+  // One gesture: press on the text, drag, release.
+  send_mouse(*canvas, QEvent::MouseButtonPress, drag_from, Qt::LeftButton, Qt::LeftButton);
+  auto* entered = live_editor();
+  CHECK(entered != nullptr);
+  if (entered == nullptr) {
+    return;
+  }
+  CHECK(!entered->textCursor().hasSelection());
+  CHECK(entered->textCursor().position() == 1);
+  send_mouse(*canvas, QEvent::MouseMove, QPoint((drag_from.x() + drag_to.x()) / 2, drag_to.y()), Qt::NoButton,
+             Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseMove, drag_to, Qt::NoButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, drag_to, Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  CHECK(live_editor() == entered);
+  CHECK(entered->textCursor().selectedText() == QStringLiteral("andg"));
+  CHECK(entered->textCursor().anchor() == 1);
+
+  // The gesture ended at the release: later moves over the canvas leave the selection alone,
+  // with or without a button (a held button here belongs to some other gesture).
+  send_mouse(*canvas, QEvent::MouseMove, drag_from, Qt::NoButton, Qt::NoButton);
+  send_mouse(*canvas, QEvent::MouseMove, drag_from, Qt::NoButton, Qt::LeftButton);
+  QApplication::processEvents();
+  CHECK(live_editor() == entered);
+  CHECK(entered->textCursor().selectedText() == QStringLiteral("andg"));
+  cancel_session();
+
+  // A plain click still leaves a bare caret.
+  send_mouse(*canvas, QEvent::MouseButtonPress, drag_from, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, drag_from, Qt::LeftButton, Qt::NoButton);
+  send_mouse(*canvas, QEvent::MouseMove, drag_to, Qt::NoButton, Qt::NoButton);
+  QApplication::processEvents();
+  entered = live_editor();
+  CHECK(entered != nullptr);
+  if (entered != nullptr) {
+    CHECK(!entered->textCursor().hasSelection());
+    CHECK(entered->textCursor().position() == 1);
+  }
+  cancel_session();
+
+  // A release the canvas never saw (a prompt took it while the session opened): the first move
+  // without the button ends the gesture, and a button held after that does not revive it.
+  send_mouse(*canvas, QEvent::MouseButtonPress, drag_from, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseMove, drag_from, Qt::NoButton, Qt::NoButton);
+  send_mouse(*canvas, QEvent::MouseMove, drag_to, Qt::NoButton, Qt::LeftButton);
+  QApplication::processEvents();
+  entered = live_editor();
+  CHECK(entered != nullptr);
+  if (entered != nullptr) {
+    CHECK(!entered->textCursor().hasSelection());
+  }
+  cancel_session();
 }
 
 void ui_text_commit_is_zoom_independent() {
@@ -1820,10 +2110,16 @@ void ui_user_fonts_add_persist_and_clear() {
 
   const auto store_dir = user_fonts::user_fonts_directory();
   CHECK(!store_dir.isEmpty());
+  // The store is private to this process (tests/ui/main.cpp), so only this process could have
+  // put anything in it. Deleting is safe here and only here: this is the first test of the
+  // process to register anything from the store.
   user_fonts::clear_user_font_store();
+  user_fonts::apply_pending_user_font_removals(store_dir);
   const QStringList font_filters = {QStringLiteral("*.ttf"), QStringLiteral("*.otf"),
                                     QStringLiteral("*.ttc")};
   CHECK(QDir(store_dir).entryList(font_filters, QDir::Files).isEmpty());
+  const auto pending_list = store_dir + QStringLiteral("/.remove-at-next-launch");
+  CHECK(!QFileInfo::exists(pending_list));
 
   const auto regular_font =
       QStringLiteral(PATCHY_SOURCE_DIR "/third_party/fonts/noto_naskh_arabic/NotoNaskhArabic-Regular.ttf");
@@ -1942,11 +2238,103 @@ void ui_user_fonts_add_persist_and_clear() {
   user_fonts::restore_user_fonts_at_startup();
   CHECK(QDir(store_dir).entryList(font_filters, QDir::Files).size() == 2);
 
-  // Clearing empties the store; already-registered fonts stay usable
-  // (application fonts are never removed at runtime).
+  // Clearing marks the store's files for the next launch and deletes nothing: the fonts are
+  // promised to stay usable until a restart, and their files back them.
   user_fonts::clear_user_font_store();
-  CHECK(QDir(store_dir).entryList(font_filters, QDir::Files).isEmpty());
+  CHECK(QDir(store_dir).entryList(font_filters, QDir::Files).size() == 2);
+  const auto pending_names = [&pending_list] {
+    QFile file(pending_list);
+    return file.open(QIODevice::ReadOnly) ? QString::fromUtf8(file.readAll()).split(QLatin1Char('\n'))
+                                          : QStringList{};
+  };
+  CHECK(pending_names().contains(QStringLiteral("PatchyUserFontFixture.ttf")));
+  CHECK(pending_names().contains(QStringLiteral("NotoNaskhArabic-Bold.ttf")));
   CHECK(model_contains(family));
+  // "Usable" means it still DRAWS, at a size nothing has asked for yet: a font database that
+  // opens the file again for a new engine (FreeType: Linux, and the offscreen platform
+  // everywhere) must not find the store copy gone and hand back another family.
+  for (const bool bold : {false, true}) {
+    QFont cleared(family);
+    cleared.setPixelSize(bold ? 41 : 37);
+    cleared.setBold(bold);
+    const auto face = QRawFont::fromFont(cleared, QFontDatabase::Arabic);
+    CHECK(face.isValid());
+    CHECK(face.familyName() == family);
+    CHECK(face.supportsCharacter(QChar(0x0633)));
+  }
+
+  // Adding a removed font again before the restart keeps it: it comes off the list.
+  const auto readded = user_fonts::add_user_fonts({dropped_font});
+  CHECK(readded.duplicate_count == 1);
+  CHECK(!pending_names().contains(QStringLiteral("PatchyUserFontFixture.ttf")));
+  CHECK(pending_names().contains(QStringLiteral("NotoNaskhArabic-Bold.ttf")));
+  user_fonts::clear_user_font_store();
+  CHECK(pending_names().contains(QStringLiteral("PatchyUserFontFixture.ttf")));
+
+  // The next launch deletes what was marked, and only that. Proven on a scratch store: this
+  // process still draws with the real one's files.
+  QTemporaryDir scratch_store;
+  CHECK(scratch_store.isValid());
+  const auto scratch_file = [&scratch_store](const QString& name) { return scratch_store.filePath(name); };
+  const auto write_file = [](const QString& path, const QByteArray& bytes) {
+    QFile file(path);
+    return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size();
+  };
+  CHECK(write_file(scratch_file(QStringLiteral("gone.ttf")), "a"));
+  CHECK(write_file(scratch_file(QStringLiteral("also gone.otf")), "b"));
+  CHECK(write_file(scratch_file(QStringLiteral("kept.ttf")), "c"));
+  QTemporaryDir outside;
+  CHECK(outside.isValid());
+  const auto outside_file = outside.filePath(QStringLiteral("outside.ttf"));
+  CHECK(write_file(outside_file, "d"));
+  CHECK(write_file(scratch_file(QStringLiteral(".remove-at-next-launch")),
+                   (QStringLiteral("gone.ttf\nalso gone.otf\nmissing.ttf\n") + outside_file +
+                    QStringLiteral("\n../") + QFileInfo(outside.path()).fileName() + QStringLiteral("/outside.ttf\n"))
+                       .toUtf8()));
+  user_fonts::apply_pending_user_font_removals(scratch_store.path());
+  CHECK(!QFileInfo::exists(scratch_file(QStringLiteral("gone.ttf"))));
+  CHECK(!QFileInfo::exists(scratch_file(QStringLiteral("also gone.otf"))));
+  CHECK(QFileInfo::exists(scratch_file(QStringLiteral("kept.ttf"))));
+  CHECK(QFileInfo::exists(outside_file));
+  CHECK(!QFileInfo::exists(scratch_file(QStringLiteral(".remove-at-next-launch"))));
+}
+
+// Two suite processes must never share a store: a process keeps its registered store files
+// open, so a shared store fails the second process's cleanup on Windows and pulls live fonts
+// out from under the first one elsewhere. The harness therefore points PATCHY_USER_FONTS_DIR
+// at a per-process directory, which wins over QStandardPaths in either mode.
+void ui_user_fonts_store_is_private_to_the_process() {
+  namespace user_fonts = patchy::ui::user_fonts;
+  const auto configured = qEnvironmentVariable("PATCHY_USER_FONTS_DIR");
+  CHECK(!configured.isEmpty());
+  const auto store_dir = user_fonts::user_fonts_directory();
+  CHECK(store_dir == QDir::cleanPath(configured));
+  CHECK(QFileInfo(store_dir).fileName() == QString::number(QCoreApplication::applicationPid()));
+  CHECK(QFileInfo::exists(store_dir + QStringLiteral("/store.lock")));
+  {
+    struct StandardPathsTestMode {
+      StandardPathsTestMode() { QStandardPaths::setTestModeEnabled(true); }
+      ~StandardPathsTestMode() { QStandardPaths::setTestModeEnabled(false); }
+    } standard_paths_test_mode;
+    CHECK(user_fonts::user_fonts_directory() == store_dir);
+    CHECK(!store_dir.startsWith(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)));
+  }
+
+  // The override is read as Unicode, and an empty one falls back to the app-data folder.
+  const EnvironmentVariableRestorer restore_override("PATCHY_USER_FONTS_DIR");
+  const auto unicode_dir =
+      QDir::current().filePath(QStringLiteral("test-artifacts/") +
+                               QString::fromUtf8(patchy::test::utf8_string(patchy::test::kUnicodeDirName)) +
+                               QStringLiteral("/user fonts"));
+#ifdef Q_OS_WIN
+  CHECK(_wputenv_s(L"PATCHY_USER_FONTS_DIR", reinterpret_cast<const wchar_t*>(unicode_dir.utf16())) == 0);
+#else
+  qputenv("PATCHY_USER_FONTS_DIR", unicode_dir.toUtf8());
+#endif
+  CHECK(user_fonts::user_fonts_directory() == QDir::cleanPath(unicode_dir));
+  qputenv("PATCHY_USER_FONTS_DIR", QByteArray());
+  CHECK(user_fonts::user_fonts_directory() ==
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QStringLiteral("/user-fonts"));
 }
 
 // Every bundled web font must register in the FreeType font database (the
@@ -1983,6 +2371,7 @@ void ui_bundled_web_fonts_register_and_create_engines() {
   CHECK(listed("Noto Sans"));
   CHECK(listed("Noto Serif"));
   CHECK(listed("Noto Sans JP"));
+  CHECK(listed("NanumGothic"));
 }
 
 // Dropping a font file on the main window registers it instead of trying to
@@ -1993,7 +2382,6 @@ void ui_font_drop_registers_instead_of_opening() {
     ~StandardPathsTestMode() { QStandardPaths::setTestModeEnabled(false); }
   } standard_paths_test_mode;
   namespace user_fonts = patchy::ui::user_fonts;
-  user_fonts::clear_user_font_store();
 
   patchy::ui::MainWindow window;
   show_window(window);
@@ -2021,6 +2409,7 @@ void ui_font_drop_registers_instead_of_opening() {
   CHECK(window.statusBar()->currentMessage().contains(QStringLiteral("Pacifico")));
   const auto store_dir = user_fonts::user_fonts_directory();
   CHECK(QFileInfo::exists(store_dir + QStringLiteral("/PatchyDropFixture.ttf")));
+  // Marks the store for the next run's cleanup; nothing is deleted under the live fonts.
   user_fonts::clear_user_font_store();
 }
 
@@ -2047,9 +2436,12 @@ std::vector<patchy::test::TestCase> text_editor_font_picker_tests() {
       {"ui_text_edit_hides_editor_glyphs_and_shows_selection_over_style_preview",
        ui_text_edit_hides_editor_glyphs_and_shows_selection_over_style_preview},
       {"ui_text_edit_entry_leaves_the_pixels_alone", ui_text_edit_entry_leaves_the_pixels_alone},
+      {"ui_point_text_render_keeps_glyph_overhang", ui_point_text_render_keeps_glyph_overhang},
       {"ui_text_commit_is_zoom_independent", ui_text_commit_is_zoom_independent},
       {"ui_text_mouse_and_keyboard_selection_match_glyphs",
        ui_text_mouse_and_keyboard_selection_match_glyphs},
+      {"ui_text_press_drag_from_outside_session_selects_range",
+       ui_text_press_drag_from_outside_session_selects_range},
       {"ui_expensive_text_style_preview_never_blanks_while_typing",
        ui_expensive_text_style_preview_never_blanks_while_typing},
       {"ui_text_editor_paste_uses_current_format_for_rich_emoji_clipboard",
@@ -2058,6 +2450,7 @@ std::vector<patchy::test::TestCase> text_editor_font_picker_tests() {
        ui_text_tool_drag_creates_resizable_wrapped_text_box},
       {"ui_text_size_popup_slider_caps_at_200pt", ui_text_size_popup_slider_caps_at_200pt},
       {"ui_user_fonts_add_persist_and_clear", ui_user_fonts_add_persist_and_clear},
+      {"ui_user_fonts_store_is_private_to_the_process", ui_user_fonts_store_is_private_to_the_process},
       {"ui_bundled_web_fonts_register_and_create_engines",
        ui_bundled_web_fonts_register_and_create_engines},
       {"ui_font_drop_registers_instead_of_opening", ui_font_drop_registers_instead_of_opening},

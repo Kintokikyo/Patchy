@@ -2,6 +2,8 @@
 
 #include "core/document.hpp"
 
+#include <QStringList>
+
 #include <functional>
 #include <optional>
 #include <vector>
@@ -17,6 +19,8 @@ struct LayerMergeOptions {
   bool within_groups{false};
   bool separate_vector_types{true};
   bool hide_originals{true}; // Copy dialog only; Merge Down never changes this.
+  bool single_vector{false}; // Explicitly permits effect removal and changes to stacking order.
+  std::optional<LayerId> effects_source{}; // Single-vector mode: absent removes effects.
 };
 
 struct LayerMergeNode {
@@ -28,6 +32,18 @@ struct LayerMergeNode {
   bool vector{false};
   bool rasterize{false};
   bool changed{false};
+  bool replace_effects{false};
+  std::optional<LayerId> effects_source{};
+};
+
+enum class LayerMergeBlocker {
+  TooFewVectors, NotVector, Locked, Hidden, Clipping, Mask, Filters, Blending,
+  UnsupportedVector, OpacityBoundary, GroupBoundary, InvalidEffectsSource, VectorEdges
+};
+
+struct LayerMergeIssue {
+  LayerId layer_id{0};
+  LayerMergeBlocker reason{LayerMergeBlocker::NotVector};
 };
 
 struct LayerMergePlan {
@@ -38,11 +54,16 @@ struct LayerMergePlan {
   std::size_t bitmap_layers{0};
   std::size_t kept_layers{0};
   bool changed{false};
+  bool changes_stacking_order{false};
+  std::vector<LayerMergeIssue> blockers;
 };
+
+[[nodiscard]] QStringList layer_merge_blocker_messages(const Document& document, const LayerMergePlan& plan);
 
 [[nodiscard]] bool merge_selection_contains_vectors(const Document& document, const std::vector<LayerId>& ids);
 // Read-only: never bakes pixels or changes document revisions. Unselected layers,
-// clipping chains, locks, masks and backdrop-dependent appearances are barriers.
+// clipping chains, locks, masks and backdrop-dependent appearances are barriers
+// unless an explicit single-vector policy permits changing effects/stacking.
 [[nodiscard]] LayerMergePlan plan_layer_merge(const Document& document, const std::vector<LayerId>& ids,
                                              LayerMergeOptions options = {}, bool copy = false);
 [[nodiscard]] Document visible_document_for_merge_copy(const Document& document);
@@ -54,6 +75,7 @@ struct LayerMergePlan {
     CanvasWidget* canvas, const Document& document, const LayerMergePlan& plan,
     const std::function<std::optional<Layer>(const Layer&)>& raster_source = {});
 [[nodiscard]] std::optional<LayerMergeOptions> show_layer_merge_dialog(
-    QWidget* parent, const Document& document, const std::vector<LayerId>& ids, bool copy = false);
+    QWidget* parent, const Document& document, const std::vector<LayerId>& ids, bool copy = false,
+    std::optional<Document>* prepared_result = nullptr);
 
 }  // namespace patchy::ui

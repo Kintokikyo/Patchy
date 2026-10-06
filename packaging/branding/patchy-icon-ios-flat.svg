@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>Patchy app icon, full bleed, flat</title>
+  <rect id="background" width="1024" height="1024" fill="#FEBA20"/>
+  <g id="body" transform="translate(100 100) scale(0.944954)">
+    <g id="letter" transform="translate(0 16)">
+      <path id="p" d="M232,96 H664 L772,204 V384 L600,556 H300 V612 L168,744 H100 V228 Z M300,256 H564 V396 H300 Z" fill="#363F3B" fill-rule="evenodd"/>
+      <path id="patch" d="M536,96 H664 L772,204 V384 L714,442 L536,264 Z" fill="#FFFFFF"/>
+    </g>
+  </g>
+</svg>

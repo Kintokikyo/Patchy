@@ -605,6 +605,63 @@ void ui_layer_style_blend_if_unsupported_requires_explicit_replace() {
   CHECK(!non_rgb_layer.blend_if_rgb_compatible());
 }
 
+void ui_layer_style_shadow_distances_accept_photoshop_30000() {
+  patchy::Document document(96, 72, patchy::PixelFormat::rgba8());
+  patchy::Layer layer(document.allocate_layer_id(), "Far Shadows",
+                      solid_pixels(32, 24, patchy::PixelFormat::rgba8(), QColor(80, 140, 220, 255)));
+  patchy::LayerDropShadow shadow;
+  shadow.enabled = true;
+  shadow.distance = 6.0F;
+  layer.layer_style().drop_shadows.push_back(shadow);
+  patchy::LayerInnerShadow inner;
+  inner.enabled = true;
+  inner.distance = 4.0F;
+  layer.layer_style().inner_shadows.push_back(inner);
+
+  bool drove_dialog = false;
+  QTimer::singleShot(0, [&] {
+    auto* dialog = qobject_cast<QDialog*>(find_top_level_dialog(QStringLiteral("patchyLayerStyleDialog")));
+    CHECK(dialog != nullptr);
+    auto* drop = dialog->findChild<QSpinBox*>(QStringLiteral("layerStyleDropShadowDistanceSpin"));
+    auto* drop_slider = dialog->findChild<QSlider*>(QStringLiteral("layerStyleDropShadowDistanceSlider"));
+    auto* inner_spin = dialog->findChild<QSpinBox*>(QStringLiteral("layerStyleInnerShadowDistanceSpin"));
+    auto* inner_slider = dialog->findChild<QSlider*>(QStringLiteral("layerStyleInnerShadowDistanceSlider"));
+    auto* categories = dialog->findChild<QListWidget*>(QStringLiteral("layerStyleCategoryList"));
+    CHECK(categories != nullptr);
+    CHECK(drop != nullptr && drop_slider != nullptr && inner_spin != nullptr && inner_slider != nullptr);
+    // Edits commit to the selected effect category.
+    const auto select_category = [categories](const QString& name) {
+      const auto items = categories->findItems(name, Qt::MatchExactly);
+      CHECK(!items.empty());
+      categories->setCurrentItem(items.front());
+    };
+    select_category(QStringLiteral("Drop Shadow"));
+    // Photoshop's typed 0..30000 px; the curved sliders keep their historical
+    // reach (2000 and 1000 at the track's end).
+    CHECK(drop->maximum() == 30000 && drop_slider->maximum() == patchy::ui::kCurvedSliderPositions);
+    CHECK(inner_spin->maximum() == 30000 && inner_slider->maximum() == patchy::ui::kCurvedSliderPositions);
+    // A typed value past the slider parks the slider at its end without
+    // echoing back into the spin box.
+    drop->setValue(5000);
+    CHECK(drop->value() == 5000 && drop_slider->value() == patchy::ui::kCurvedSliderPositions);
+    CHECK(patchy::ui::slider_value(*drop_slider) == 2000);
+    patchy::ui::set_slider_to_value(*drop_slider, 120);
+    CHECK(drop->value() == 120);
+    drop->setValue(25000);
+    select_category(QStringLiteral("Inner Shadow"));
+    inner_spin->setValue(20000);
+    CHECK(inner_spin->value() == 20000 && patchy::ui::slider_value(*inner_slider) == 1000);
+    drove_dialog = true;
+    dialog->accept();
+  });
+  const auto settings = patchy::ui::request_layer_style_settings(nullptr, layer, {});
+  CHECK(drove_dialog);
+  CHECK(settings.has_value());
+  CHECK(settings->style.drop_shadows.size() == 1U && settings->style.inner_shadows.size() == 1U);
+  CHECK(std::lround(settings->style.drop_shadows.front().distance) == 25000);
+  CHECK(std::lround(settings->style.inner_shadows.front().distance) == 20000);
+}
+
 void ui_layer_style_dialog_coalesces_rapid_slider_preview_callbacks() {
   patchy::Document document(96, 72, patchy::PixelFormat::rgba8());
   patchy::Layer layer(document.allocate_layer_id(), "Coalesced Style",
@@ -639,7 +696,7 @@ void ui_layer_style_dialog_coalesces_rapid_slider_preview_callbacks() {
     categories->setCurrentItem(shadow_items.front());
     for (int value = 1; value <= 24; ++value) {
       opacity_slider->setValue(value);
-      shadow_distance_slider->setValue(value);
+      patchy::ui::set_slider_to_value(*shadow_distance_slider, value);
       CHECK(opacity->value() == value);
       CHECK(shadow_distance->value() == value);
     }
@@ -666,7 +723,7 @@ void ui_layer_style_dialog_coalesces_rapid_slider_preview_callbacks() {
             CHECK(shadow_distance_slider != nullptr);
             for (int value = 25; value <= 48; ++value) {
               opacity_slider->setValue(value);
-              shadow_distance_slider->setValue(value + 6);
+              patchy::ui::set_slider_to_value(*shadow_distance_slider, value + 6);
             }
           });
           QElapsedTimer slow_preview;
@@ -1112,6 +1169,43 @@ void ui_layer_style_blending_options_round_trip_the_interior_group_flag() {
   const auto cleared = patchy::ui::request_layer_style_settings(nullptr, layer, {});
   CHECK(cleared.has_value());
   CHECK(!cleared->style.blend_interior_elements);
+}
+
+void ui_layer_style_blending_options_round_trip_the_clipped_group_flag() {
+  // "Blend Clipped Layers as Group" ('clbl', on by default) also has no effect
+  // page of its own; the Blending Options checkbox keeps an imported off state
+  // through a dialog edit and can turn it back on.
+  patchy::Document document(96, 72, patchy::PixelFormat::rgba8());
+  patchy::Layer layer(document.allocate_layer_id(), "Ungrouped Clip Base",
+                      solid_pixels(48, 36, patchy::PixelFormat::rgba8(), QColor(80, 140, 220, 255)));
+  patchy::LayerColorOverlay overlay;
+  overlay.enabled = true;
+  layer.layer_style().color_overlays.push_back(overlay);
+  layer.layer_style().blend_clipped_elements = false;
+
+  QTimer::singleShot(0, [] {
+    auto* dialog = qobject_cast<QDialog*>(find_top_level_dialog(QStringLiteral("patchyLayerStyleDialog")));
+    CHECK(dialog != nullptr);
+    auto* blend_clipped = dialog->findChild<QCheckBox*>(QStringLiteral("layerStyleBlendClippedCheck"));
+    CHECK(blend_clipped != nullptr);
+    CHECK(!blend_clipped->isChecked());
+    QTimer::singleShot(80, dialog, [dialog] { dialog->accept(); });
+  });
+  const auto kept = patchy::ui::request_layer_style_settings(nullptr, layer, {});
+  CHECK(kept.has_value());
+  CHECK(!kept->style.blend_clipped_elements);
+
+  QTimer::singleShot(0, [] {
+    auto* dialog = qobject_cast<QDialog*>(find_top_level_dialog(QStringLiteral("patchyLayerStyleDialog")));
+    CHECK(dialog != nullptr);
+    auto* blend_clipped = dialog->findChild<QCheckBox*>(QStringLiteral("layerStyleBlendClippedCheck"));
+    CHECK(blend_clipped != nullptr);
+    blend_clipped->setChecked(true);
+    QTimer::singleShot(80, dialog, [dialog] { dialog->accept(); });
+  });
+  const auto restored = patchy::ui::request_layer_style_settings(nullptr, layer, {});
+  CHECK(restored.has_value());
+  CHECK(restored->style.blend_clipped_elements);
 }
 
 void ui_layer_style_blending_options_round_trip_channel_restrictions() {
@@ -1937,6 +2031,8 @@ void ui_layer_style_slider_rows_have_step_buttons() {
 
 std::vector<patchy::test::TestCase> layer_style_gradient_tests_part1() {
   return {
+      {"ui_layer_style_shadow_distances_accept_photoshop_30000",
+       ui_layer_style_shadow_distances_accept_photoshop_30000},
       {"ui_layer_style_dialog_coalesces_rapid_slider_preview_callbacks",
        ui_layer_style_dialog_coalesces_rapid_slider_preview_callbacks},
       {"ui_layer_style_opacity_slider_does_not_block_on_slow_preview_render",
@@ -1964,6 +2060,8 @@ std::vector<patchy::test::TestCase> layer_style_gradient_tests_part1() {
        ui_layer_style_preview_is_transient_and_show_effects_persists},
       {"ui_layer_style_blending_options_round_trip_the_interior_group_flag",
        ui_layer_style_blending_options_round_trip_the_interior_group_flag},
+      {"ui_layer_style_blending_options_round_trip_the_clipped_group_flag",
+       ui_layer_style_blending_options_round_trip_the_clipped_group_flag},
       {"ui_layer_style_gradient_stroke_controls_map_to_settings",
        ui_layer_style_gradient_stroke_controls_map_to_settings},
       {"ui_layer_style_stroke_gradient_fill_keeps_dialog_height",

@@ -4,11 +4,17 @@
 #include "ui_test_support.hpp"
 
 #include "core/document_path.hpp"
+#include "core/palette.hpp"
+#include "core/palette_presets.hpp"
 #include "core/pixel_buffer.hpp"
 #include "core/vector_shape.hpp"
 #include "core/vector_raster.hpp"
 #include "ui/default_custom_shapes.hpp"
+#include "ui/dialog_utils.hpp"
+#include "ui/measurement_units.hpp"
 #include "ui/pattern_library.hpp"
+#include "ui/shape_appearance_dialog.hpp"
+#include "ui/unit_spin_box.hpp"
 
 #include <QAction>
 #include <QCheckBox>
@@ -17,6 +23,7 @@
 #include <QDockWidget>
 #include <QDoubleSpinBox>
 #include <QLabel>
+#include <QLayout>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMenu>
@@ -36,6 +43,7 @@
 
 #include <array>
 #include <cmath>
+#include <exception>
 #include <functional>
 #include <cstdio>
 #include <cstring>
@@ -168,6 +176,82 @@ void ui_shape_tool_path_mode_populates_work_path() {
   CHECK(second_canvas->vector_tool_mode() == patchy::ui::VectorToolMode::Path);
 }
 
+// A Palette swatch click recolors the options-bar solid Fill and the selected shape layer
+// (GitHub issue 61); gradient paint is left alone.
+void ui_palette_swatch_click_recolors_selected_shape() {
+  VectorSettingsGuard settings_guard;
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+
+  const auto* preset = patchy::find_builtin_palette_preset("pico8");
+  CHECK(preset != nullptr);
+  patchy::DocumentPaletteEditing editing;
+  editing.palette.colors.assign(preset->colors.begin(), preset->colors.end());
+  editing.palette_revision = 1;
+  document.palette_editing() = editing;
+  patchy::ui::MainWindowTestAccess::refresh_document_info(window);
+  QApplication::processEvents();
+  auto* grid = window.findChild<QWidget*>(QStringLiteral("paletteSwatchGrid"));
+  CHECK(grid != nullptr);
+  const auto click_swatch = [grid](int index) {
+    const QPoint center((index % 12) * 20 + 9, (index / 12) * 20 + 9);
+    send_mouse(*grid, QEvent::MouseButtonPress, center, Qt::LeftButton, Qt::LeftButton);
+    send_mouse(*grid, QEvent::MouseButtonRelease, center, Qt::LeftButton, Qt::NoButton);
+    QApplication::processEvents();
+  };
+  const auto swatch = [preset](int index) { return preset->colors[static_cast<std::size_t>(index)]; };
+
+  require_action_by_text(window, QStringLiteral("Ellipse"))->trigger();
+  auto* mode_combo = window.findChild<QComboBox*>(QStringLiteral("vectorModeCombo"));
+  CHECK(mode_combo != nullptr);
+  mode_combo->setCurrentIndex(0);  // Shape
+  auto& fill = patchy::ui::MainWindowTestAccess::current_vector_fill(window);
+  fill = {};
+  fill.kind = patchy::VectorFillKind::Solid;
+  fill.color = {10, 20, 30};
+  shape_drag(*canvas, QPoint(150, 150), QPoint(350, 280));
+  const auto shape_id = std::as_const(document).active_layer_id();
+  CHECK(shape_id.has_value());
+  const auto shape = [&]() -> const patchy::VectorShapeContent* {
+    const auto* layer = std::as_const(document).find_layer(shape_id.value_or(0));
+    return layer != nullptr ? layer->vector_shape() : nullptr;
+  };
+  CHECK(shape() != nullptr);
+  if (shape() == nullptr) {
+    return;
+  }
+  CHECK(shape()->fill.color == (patchy::RgbColor{10, 20, 30}));
+
+  // Solid fill: the box and the layer take the swatch, as one undo step.
+  const auto depth = patchy::ui::MainWindowTestAccess::active_session_undo_depth(window);
+  click_swatch(8);
+  CHECK(fill.kind == patchy::VectorFillKind::Solid);
+  CHECK(fill.color == swatch(8));
+  CHECK(shape()->fill.color == swatch(8));
+  CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == depth + 1);
+  CHECK(canvas->primary_color() == QColor(swatch(8).red, swatch(8).green, swatch(8).blue));
+
+  // Another tool: the swatch only sets the foreground.
+  require_action_by_text(window, QStringLiteral("Brush"))->trigger();
+  QApplication::processEvents();
+  click_swatch(9);
+  CHECK(shape()->fill.color == swatch(8));
+  CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == depth + 1);
+
+  // Gradient fill: left alone.
+  require_action_by_text(window, QStringLiteral("Ellipse"))->trigger();
+  QApplication::processEvents();
+  fill.kind = patchy::VectorFillKind::Gradient;
+  CHECK(patchy::ui::MainWindowTestAccess::apply_options_bar_appearance(window));
+  const auto gradient_depth = patchy::ui::MainWindowTestAccess::active_session_undo_depth(window);
+  click_swatch(10);
+  CHECK(shape()->fill.kind == patchy::VectorFillKind::Gradient);
+  CHECK(shape()->fill.color == swatch(8));
+  CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == gradient_depth);
+}
+
 void ui_shape_tool_pixels_mode_keeps_raster_commit() {
   VectorSettingsGuard settings_guard;
   patchy::ui::MainWindow window;
@@ -203,7 +287,7 @@ void ui_line_shape_layer_uses_weight_and_stroke_settings() {
   auto& document = patchy::ui::MainWindowTestAccess::document(window);
 
   canvas->set_tool(patchy::ui::CanvasTool::Line);
-  auto* weight_spin = window.findChild<QSpinBox*>(QStringLiteral("vectorLineWeightSpin"));
+  auto* weight_spin = window.findChild<QDoubleSpinBox*>(QStringLiteral("vectorLineWeightSpin"));
   CHECK(weight_spin != nullptr);
   weight_spin->setValue(10);
 
@@ -914,7 +998,7 @@ void ui_line_arrowheads_extend_the_shape() {
   auto& document = patchy::ui::MainWindowTestAccess::document(window);
 
   canvas->set_tool(patchy::ui::CanvasTool::Line);
-  auto* weight_spin = window.findChild<QSpinBox*>(QStringLiteral("vectorLineWeightSpin"));
+  auto* weight_spin = window.findChild<QDoubleSpinBox*>(QStringLiteral("vectorLineWeightSpin"));
   CHECK(weight_spin != nullptr);
   weight_spin->setValue(6);
   auto* arrow_end = window.findChild<QCheckBox*>(QStringLiteral("lineArrowEndCheck"));
@@ -1375,6 +1459,76 @@ void ui_path_edits_refresh_panel_thumbnails() {
   CHECK(before != after);
 }
 
+void ui_shape_pattern_dropdowns_show_embedded_thumbnails() {
+  QTemporaryDir library_dir;
+  CHECK(library_dir.isValid());
+  patchy::ui::PatternLibrary library(library_dir.path());
+  const std::array<QString, 3> ids{QStringLiteral("embedded-only"),
+                                 QStringLiteral("shared-pattern-id"),
+                                 QStringLiteral("library-only")};
+  const std::array<QColor, 3> colors{QColor(220, 40, 60), QColor(30, 180, 70),
+                                   QColor(40, 80, 220)};
+  const auto tile = [](QColor color) {
+    return solid_pixels(8, 8, patchy::PixelFormat::rgba8(), color);
+  };
+  patchy::PatternStore patterns;
+  patterns.adopt({ids[0].toStdString(), "Embedded pattern", tile(colors[0])});
+  patterns.adopt({ids[1].toStdString(), "Document version", tile(colors[1])});
+  CHECK(!library.add_pattern(QStringLiteral("Library version"), tile(QColor(200, 90, 210)),
+                             {}, ids[1]).isEmpty());
+  CHECK(!library.add_pattern(QStringLiteral("Library only"), tile(colors[2]), {}, ids[2]).isEmpty());
+
+  patchy::ui::ShapeAppearanceSettings initial;
+  initial.fill.kind = patchy::VectorFillKind::Pattern;
+  initial.fill.pattern_id = ids[0].toStdString();
+  initial.fill.pattern_name = "Embedded pattern";
+  initial.stroke.enabled = true;
+  initial.stroke.width = 4;
+  initial.stroke.content.kind = patchy::VectorFillKind::Pattern;
+  initial.stroke.content.pattern_id = ids[1].toStdString();
+  initial.stroke.content.pattern_name = "Document version";
+  QTimer::singleShot(0, [&] {
+    try {
+      auto* dialog = find_top_level_dialog(QStringLiteral("shapeAppearanceDialog"));
+      CHECK(dialog != nullptr);
+      const std::array<QString, 2> combo_names{QStringLiteral("shapeFillPatternCombo"),
+                                             QStringLiteral("shapeStrokePatternCombo")};
+      for (std::size_t paint = 0; paint < combo_names.size(); ++paint) {
+        auto* combo = dialog->findChild<QComboBox*>(combo_names[paint]);
+        CHECK(combo != nullptr);
+        CHECK(combo->currentData().toString() == ids[paint]);
+        // A shared id appears once, with the document's pixels, even when
+        // the library has a different tile under that same id.
+        CHECK(combo->count() == 3);
+        for (std::size_t pattern = 0; pattern < ids.size(); ++pattern) {
+          const auto index = combo->findData(ids[pattern]);
+          CHECK(index >= 0);
+          const auto icon = combo->itemIcon(index);
+          CHECK(!icon.isNull());
+          const auto preview = icon.pixmap(combo->iconSize()).toImage();
+          CHECK(!preview.isNull());
+          CHECK(color_close(preview.pixelColor(preview.width() / 2, preview.height() / 2),
+                            colors[pattern], 1));
+        }
+        combo->showPopup();
+        QApplication::processEvents();
+        save_widget_artifact(paint == 0 ? "ui_shape_fill_pattern_thumbnails"
+                                       : "ui_shape_stroke_pattern_thumbnails",
+                             *combo->view()->window());
+        combo->hidePopup();
+      }
+      dialog->accept();
+    } catch (...) {
+      patchy::ui::unwind_non_modal_dialog_loop(std::current_exception());
+    }
+  });
+  const auto edited = patchy::ui::request_shape_appearance_settings(
+      nullptr, {}, initial, {}, nullptr, &library, &patterns, {}, {});
+  CHECK(edited.has_value());
+  CHECK(edited->fill == initial.fill);
+  CHECK(edited->stroke == initial.stroke);
+}
+
 void ui_shape_pattern_fill_uses_custom_library_pattern() {
   // Regression: choosing a CUSTOM library pattern (imported image, auto
   // generated id) in the Shape Appearance dialog rendered an empty fill.
@@ -1602,15 +1756,20 @@ void ui_options_bar_edits_selected_shape_appearance() {
   CHECK(canvas->tool() == patchy::ui::CanvasTool::PathSelect);
   auto* stroke_check = window.findChild<QCheckBox*>(QStringLiteral("vectorStrokeCheck"));
   auto* stroke_width = window.findChild<QDoubleSpinBox*>(QStringLiteral("vectorStrokeWidthSpin"));
+  auto* stroke_swatch = window.findChild<QToolButton*>(QStringLiteral("vectorStrokeSwatchButton"));
+  auto* stroke_label = window.findChild<QLabel*>(QStringLiteral("vectorStrokeWidthLabel"));
   CHECK(stroke_check != nullptr && stroke_width != nullptr);
+  CHECK(stroke_swatch != nullptr && stroke_label != nullptr);
   // The appearance controls show for the select tool because the active layer
   // is an editable shape.
   CHECK(stroke_check->isVisible());
   CHECK(!stroke_check->isChecked());  // synced from the strokeless layer
+  CHECK(!stroke_width->isEnabled() && !stroke_swatch->isEnabled() && !stroke_label->isEnabled());
 
   // Toggling the stroke applies to the selected shape immediately.
   stroke_check->setChecked(true);
   QApplication::processEvents();
+  CHECK(stroke_width->isEnabled() && stroke_swatch->isEnabled() && stroke_label->isEnabled());
   {
     const auto* layer = std::as_const(document).find_layer(*layer_id);
     CHECK(layer != nullptr && layer->vector_shape() != nullptr);
@@ -1619,10 +1778,14 @@ void ui_options_bar_edits_selected_shape_appearance() {
   }
   CHECK(patchy::ui::MainWindowTestAccess::active_session_undo_depth(window) == base_depth + 1);
 
-  // The width spin debounces; the deterministic test applies directly (the
-  // pending timer later no-ops through the equality check).
+  // Wait for the debounced edit to finish before testing subsequent gestures
+  // and Undo, so no queued width edit outranks their passive control sync.
   stroke_width->setValue(8.0);
-  CHECK(patchy::ui::MainWindowTestAccess::apply_options_bar_appearance(window));
+  CHECK(process_events_until([&] {
+    const auto* layer = std::as_const(document).find_layer(*layer_id);
+    return layer != nullptr && layer->vector_shape() != nullptr &&
+           std::abs(layer->vector_shape()->stroke.width - 8.0) < 1e-9;
+  }));
   {
     const auto* layer = std::as_const(document).find_layer(*layer_id);
     CHECK(std::abs(layer->vector_shape()->stroke.width - 8.0) < 1e-9);
@@ -1662,6 +1825,69 @@ void ui_options_bar_edits_selected_shape_appearance() {
     CHECK(layer->vector_shape()->fill.color == (patchy::RgbColor{0, 0, 0}));
     CHECK(layer->vector_shape()->stroke.enabled);  // stroke gesture still applied
   }
+  require_action_by_text(window, QStringLiteral("Undo"))->trigger();  // width
+  require_action_by_text(window, QStringLiteral("Undo"))->trigger();  // stroke enabled
+  QApplication::processEvents();
+  CHECK(!stroke_check->isChecked());
+  CHECK(!stroke_width->isEnabled() && !stroke_swatch->isEnabled() && !stroke_label->isEnabled());
+  require_action_by_text(window, QStringLiteral("Redo"))->trigger();
+  QApplication::processEvents();
+  CHECK(stroke_check->isChecked());
+  CHECK(stroke_width->isEnabled() && stroke_swatch->isEnabled() && stroke_label->isEnabled());
+}
+
+void ui_shape_options_group_stroke_controls_and_end_with_appearance() {
+  VectorSettingsGuard settings_guard;
+  SettingsValueRestorer restore_units(QStringLiteral("view/rulerUnits"));
+  patchy::ui::MainWindow window;
+  show_window(window);
+  window.resize(1800, 800);
+  patchy::ui::MainWindowTestAccess::set_ruler_unit(window, patchy::ui::MeasurementUnit::Pixels);
+  auto* stroke_check = window.findChild<QCheckBox*>(QStringLiteral("vectorStrokeCheck"));
+  auto* stroke_width = window.findChild<QDoubleSpinBox*>(QStringLiteral("vectorStrokeWidthSpin"));
+  auto* stroke_swatch = window.findChild<QToolButton*>(QStringLiteral("vectorStrokeSwatchButton"));
+  auto* stroke_label = window.findChild<QLabel*>(QStringLiteral("vectorStrokeWidthLabel"));
+  auto* appearance = window.findChild<QPushButton*>(QStringLiteral("vectorAppearanceButton"));
+  auto* options = window.findChild<QWidget*>(QStringLiteral("OptionsContent"));
+  CHECK(stroke_check && stroke_width && stroke_swatch && stroke_label && appearance && options);
+  CHECK(stroke_label->text() == QStringLiteral("Stroke width:"));
+  CHECK(stroke_width->property(patchy::ui::kScrubHandleInstalledProperty).toBool());
+  stroke_width->setValue(3.0);
+
+  for (const char* tool : {"Rect", "Ellipse", "Line", "Polygon", "Custom Shape", "Pen"}) {
+    require_action_by_text(window, QString::fromLatin1(tool))->trigger();
+    QApplication::processEvents();
+    CHECK(appearance->isVisible());
+    CHECK(stroke_check->isVisible() && stroke_swatch->isVisible() && stroke_label->isVisible());
+    const auto appearance_position = appearance->mapTo(options, QPoint());
+    for (int i = 0; i < options->layout()->count(); ++i) {
+      auto* widget = options->layout()->itemAt(i)->widget();
+      if (widget == nullptr || widget == appearance || !widget->isVisible()) {
+        continue;
+      }
+      const auto position = widget->mapTo(options, QPoint());
+      CHECK(position.y() + widget->height() <= appearance_position.y() ||
+            (position.y() <= appearance_position.y() + appearance->height() &&
+             position.x() + widget->width() <= appearance_position.x()));
+    }
+    stroke_check->setChecked(true);
+    CHECK(stroke_width->isEnabled() && stroke_swatch->isEnabled() && stroke_label->isEnabled());
+    stroke_check->setChecked(false);
+    CHECK(!stroke_width->isEnabled() && !stroke_swatch->isEnabled() && !stroke_label->isEnabled());
+    CHECK(stroke_width->value() == 3.0);
+  }
+  require_action_by_text(window, QStringLiteral("Rect"))->trigger();
+  QApplication::processEvents();
+  save_widget_artifact("shape-options-stroke-disabled", *options);
+  stroke_check->setChecked(true);
+  const auto origin = stroke_label->rect().center();
+  const auto destination = origin + QPoint(QApplication::startDragDistance() + 5, 0);
+  send_mouse(*stroke_label, QEvent::MouseButtonPress, origin, Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*stroke_label, QEvent::MouseMove, destination, Qt::NoButton, Qt::LeftButton);
+  send_mouse(*stroke_label, QEvent::MouseButtonRelease, destination, Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  CHECK(stroke_width->value() == 3.0 + (QApplication::startDragDistance() + 5) * stroke_width->singleStep());
+  save_widget_artifact("shape-options-stroke-enabled", *options);
 }
 
 void ui_new_fill_layer_clips_to_targeted_path() {
@@ -4111,12 +4337,186 @@ void ui_shape_context_menu_offers_shape_commands() {
   }
 }
 
+// Issue 53: the shape W/H readouts (options bar and Properties panel), the
+// transform X/Y fields, stroke width and line weight present themselves in the
+// ruler unit through the document PPI. value() stays document pixels, a typed
+// plain number is read in the shown unit, arrow steps move one shown unit, and
+// a ruler unit change re-renders every field.
+void ui_shape_size_fields_follow_ruler_unit() {
+  VectorSettingsGuard settings_guard;
+  SettingsValueRestorer restore_units(QStringLiteral("view/rulerUnits"));
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  document.print_settings().horizontal_ppi = 300.0;
+  document.print_settings().vertical_ppi = 300.0;
+  patchy::ui::MainWindowTestAccess::set_ruler_unit(window, patchy::ui::MeasurementUnit::Pixels);
+
+  auto* width_spin = window.findChild<patchy::ui::UnitSpinBox*>(QStringLiteral("vectorShapeWidthSpin"));
+  auto* height_spin = window.findChild<patchy::ui::UnitSpinBox*>(QStringLiteral("vectorShapeHeightSpin"));
+  auto* properties_width =
+      window.findChild<patchy::ui::UnitSpinBox*>(QStringLiteral("propertiesShapeWidthSpin"));
+  auto* stroke_width = window.findChild<patchy::ui::UnitSpinBox*>(QStringLiteral("vectorStrokeWidthSpin"));
+  auto* line_weight = window.findChild<patchy::ui::UnitSpinBox*>(QStringLiteral("vectorLineWeightSpin"));
+  auto* transform_x = window.findChild<patchy::ui::UnitSpinBox*>(QStringLiteral("freeTransformXSpin"));
+  const std::array<patchy::ui::UnitSpinBox*, 6> fields{width_spin,   height_spin, properties_width,
+                                                        stroke_width, line_weight, transform_x};
+  for (auto* spin : fields) {
+    CHECK(spin != nullptr);
+    CHECK(spin->display_unit() == patchy::ui::SpinUnit::Pixels);
+    CHECK(spin->display_unit_switchable());
+  }
+  const auto mm_suffix =
+      QStringLiteral(" ") + patchy::ui::measurement_unit_suffix(patchy::ui::MeasurementUnit::Millimeters);
+  const auto commit_text = [](QDoubleSpinBox& spin, const QString& text) {
+    auto* editor = spin.findChild<QLineEdit*>();
+    CHECK(editor != nullptr);
+    editor->setText(text);
+    send_key(spin, Qt::Key_Return);
+    QApplication::processEvents();
+  };
+
+  require_action(window, "toolEllipseAction")->trigger();
+  QApplication::processEvents();
+  shape_drag(*canvas, QPoint(100, 100), QPoint(400, 250));  // 300 x 150 px
+  const auto layer_id = *document.active_layer_id();
+  CHECK(std::abs(width_spin->value() - 300.0) < 0.5);
+  stroke_width->setValue(6.0);
+  line_weight->setValue(3.0);
+
+  // Millimeters: every field re-renders; the values stay pixels.
+  patchy::ui::MainWindowTestAccess::set_ruler_unit(window, patchy::ui::MeasurementUnit::Millimeters);
+  for (auto* spin : fields) {
+    CHECK(spin->display_unit() == patchy::ui::SpinUnit::Millimeters);
+    CHECK(spin->suffix() == mm_suffix);
+  }
+  CHECK(std::abs(width_spin->value() - 300.0) < 0.5);
+  CHECK(width_spin->text() == QStringLiteral("25.4") + mm_suffix);
+  CHECK(properties_width->text() == QStringLiteral("25.4") + mm_suffix);
+  CHECK(height_spin->text() == QStringLiteral("12.7") + mm_suffix);
+  CHECK(std::abs(stroke_width->value() - 6.0) < 1e-9);
+  CHECK(stroke_width->text() == QStringLiteral("0.5") + mm_suffix);
+  CHECK(std::abs(width_spin->singleStep() - 300.0 / 25.4) < 1e-6);  // one arrow press = 1 mm
+  {
+    auto settings = patchy::ui::app_settings();
+    CHECK(settings.value(QStringLiteral("view/rulerUnits")).toString() == QStringLiteral("mm"));
+  }
+
+  // A plain number typed now means millimeters: 50.8 mm is 600 px, and the
+  // shape resizes to it.
+  commit_text(*width_spin, QStringLiteral("50.8"));
+  CHECK(std::abs(width_spin->value() - 600.0) < 0.5);
+  process_events_for(450);
+  const auto* content = document.find_layer(layer_id)->vector_shape();
+  CHECK(content != nullptr);
+  CHECK(content->origination.size() == 1);
+  CHECK(std::abs(content->origination[0].right - 700.0) < 0.5);
+  CHECK(properties_width->text() == QStringLiteral("50.8") + mm_suffix);
+
+  // A unit picked from a field's menu is Photoshop's Units & Rulers change: the
+  // preference, the rulers and every enrolled field follow.
+  height_spin->pick_display_unit(patchy::ui::SpinUnit::Centimeters);
+  CHECK(patchy::ui::MainWindowTestAccess::ruler_unit(window) == patchy::ui::MeasurementUnit::Centimeters);
+  CHECK(canvas->ruler_unit() == patchy::ui::MeasurementUnit::Centimeters);
+  for (auto* spin : fields) {
+    CHECK(spin->display_unit() == patchy::ui::SpinUnit::Centimeters);
+  }
+  const auto cm_suffix =
+      QStringLiteral(" ") + patchy::ui::measurement_unit_suffix(patchy::ui::MeasurementUnit::Centimeters);
+  CHECK(height_spin->text() == QStringLiteral("1.27") + cm_suffix);
+  {
+    auto settings = patchy::ui::app_settings();
+    CHECK(settings.value(QStringLiteral("view/rulerUnits")).toString() == QStringLiteral("cm"));
+  }
+
+  // A typed unit token is the field's own choice: the preference and the other
+  // fields stay in centimeters.
+  commit_text(*height_spin, QStringLiteral("0.5 in"));
+  CHECK(std::abs(height_spin->value() - 150.0) < 0.5);
+  CHECK(height_spin->display_unit() == patchy::ui::SpinUnit::Inches);
+  CHECK(height_spin->text() == QStringLiteral("0.500") + patchy::ui::inch_suffix());
+  CHECK(patchy::ui::MainWindowTestAccess::ruler_unit(window) == patchy::ui::MeasurementUnit::Centimeters);
+  CHECK(width_spin->display_unit() == patchy::ui::SpinUnit::Centimeters);
+
+  // A new preference overrides it and lands everywhere.
+  patchy::ui::MainWindowTestAccess::set_ruler_unit(window, patchy::ui::MeasurementUnit::Inches);
+  for (auto* spin : fields) {
+    CHECK(spin->display_unit() == patchy::ui::SpinUnit::Inches);
+  }
+  CHECK(width_spin->text() == QStringLiteral("2.000") + patchy::ui::inch_suffix());
+  CHECK(line_weight->text() == QStringLiteral("0.010") + patchy::ui::inch_suffix());
+
+  // Back to pixels restores the construction presentation.
+  patchy::ui::MainWindowTestAccess::set_ruler_unit(window, patchy::ui::MeasurementUnit::Pixels);
+  for (auto* spin : fields) {
+    CHECK(spin->display_unit() == patchy::ui::SpinUnit::Pixels);
+  }
+  CHECK(width_spin->text() == QStringLiteral("600.0") + patchy::ui::pixel_suffix());
+  CHECK(std::abs(width_spin->singleStep() - 1.0) < 1e-9);
+  CHECK(width_spin->decimals() == 1);
+  CHECK(line_weight->text() == QStringLiteral("3.0") + patchy::ui::pixel_suffix());
+}
+
+// A unit picked on a modal dialog's field is the same Units & Rulers change as on a
+// live field: the preference, the options-bar readouts and the dialog's other
+// dimension fields all follow while the dialog is still open.
+void ui_shape_appearance_unit_pick_sets_ruler_unit() {
+  VectorSettingsGuard settings_guard;
+  SettingsValueRestorer restore_units(QStringLiteral("view/rulerUnits"));
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  auto& document = patchy::ui::MainWindowTestAccess::document(window);
+  document.print_settings().horizontal_ppi = 300.0;
+  document.print_settings().vertical_ppi = 300.0;
+  patchy::ui::MainWindowTestAccess::set_ruler_unit(window, patchy::ui::MeasurementUnit::Pixels);
+  make_rect_shape_layer(window, *canvas);  // 200 x 120 px
+  auto* options_width = window.findChild<patchy::ui::UnitSpinBox*>(QStringLiteral("vectorShapeWidthSpin"));
+  CHECK(options_width != nullptr);
+
+  bool drove_dialog = false;
+  QTimer::singleShot(0, [&] {
+    auto* dialog = patchy::test::ui::find_top_level_dialog(QStringLiteral("shapeAppearanceDialog"));
+    CHECK(dialog != nullptr);
+    if (dialog == nullptr) {
+      return;
+    }
+    auto* width = dialog->findChild<patchy::ui::UnitSpinBox*>(QStringLiteral("shapeGeometryWidthSpin"));
+    auto* height = dialog->findChild<patchy::ui::UnitSpinBox*>(QStringLiteral("shapeGeometryHeightSpin"));
+    auto* stroke = dialog->findChild<patchy::ui::UnitSpinBox*>(QStringLiteral("shapeStrokeWidthSpin"));
+    CHECK(width != nullptr && height != nullptr && stroke != nullptr);
+    CHECK(width->display_unit() == patchy::ui::SpinUnit::Pixels);
+    height->pick_display_unit(patchy::ui::SpinUnit::Inches);
+    QApplication::processEvents();
+    CHECK(width->display_unit() == patchy::ui::SpinUnit::Inches);
+    CHECK(stroke->display_unit() == patchy::ui::SpinUnit::Inches);
+    CHECK(std::abs(width->value() - 200.0) < 1e-6);  // the value stays pixels
+    CHECK(width->text() == QStringLiteral("0.667") + patchy::ui::inch_suffix());
+    CHECK(patchy::ui::MainWindowTestAccess::ruler_unit(window) == patchy::ui::MeasurementUnit::Inches);
+    CHECK(options_width->display_unit() == patchy::ui::SpinUnit::Inches);
+    drove_dialog = true;
+    dialog->reject();
+  });
+  patchy::ui::MainWindowTestAccess::edit_active_shape_appearance(window);
+  QApplication::processEvents();
+  CHECK(drove_dialog);
+  CHECK(canvas->ruler_unit() == patchy::ui::MeasurementUnit::Inches);
+  {
+    auto settings = patchy::ui::app_settings();
+    CHECK(settings.value(QStringLiteral("view/rulerUnits")).toString() == QStringLiteral("in"));
+  }
+}
+
 std::vector<patchy::test::TestCase> vector_shape_tool_tests() {
   return {
+      {"ui_shape_size_fields_follow_ruler_unit", ui_shape_size_fields_follow_ruler_unit},
+      {"ui_shape_appearance_unit_pick_sets_ruler_unit", ui_shape_appearance_unit_pick_sets_ruler_unit},
       {"ui_shape_tool_creates_shape_layer_and_undoes", ui_shape_tool_creates_shape_layer_and_undoes},
       {"ui_shape_tool_combine_extends_active_shape_layer",
        ui_shape_tool_combine_extends_active_shape_layer},
       {"ui_shape_tool_path_mode_populates_work_path", ui_shape_tool_path_mode_populates_work_path},
+      {"ui_palette_swatch_click_recolors_selected_shape", ui_palette_swatch_click_recolors_selected_shape},
       {"ui_shape_tool_pixels_mode_keeps_raster_commit", ui_shape_tool_pixels_mode_keeps_raster_commit},
       {"ui_line_shape_layer_uses_weight_and_stroke_settings",
        ui_line_shape_layer_uses_weight_and_stroke_settings},
@@ -4160,10 +4560,14 @@ std::vector<patchy::test::TestCase> vector_shape_tool_tests() {
       {"ui_new_fill_layer_clips_to_targeted_path", ui_new_fill_layer_clips_to_targeted_path},
       {"ui_shape_pattern_fill_uses_custom_library_pattern",
        ui_shape_pattern_fill_uses_custom_library_pattern},
+      {"ui_shape_pattern_dropdowns_show_embedded_thumbnails",
+       ui_shape_pattern_dropdowns_show_embedded_thumbnails},
       {"ui_options_bar_pattern_fill_creates_pattern_shape",
        ui_options_bar_pattern_fill_creates_pattern_shape},
       {"ui_options_bar_edits_selected_shape_appearance",
        ui_options_bar_edits_selected_shape_appearance},
+      {"ui_shape_options_group_stroke_controls_and_end_with_appearance",
+       ui_shape_options_group_stroke_controls_and_end_with_appearance},
       {"ui_path_edits_refresh_panel_thumbnails", ui_path_edits_refresh_panel_thumbnails},
       {"ui_paths_panel_clipping_path_toggle", ui_paths_panel_clipping_path_toggle},
       {"ui_shape_mode_drag_previews_fill_appearance",

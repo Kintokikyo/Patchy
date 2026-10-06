@@ -502,6 +502,7 @@ void CanvasWidget::set_edit_locked(bool locked) noexcept {
     clear_retained_move_caches();
     reset_move_live_latch();
     dragging_text_rect_ = false;
+    dragging_text_entry_selection_ = false;
     selecting_ = false;
     lassoing_ = false;
     cancel_magnetic_lasso();
@@ -1120,6 +1121,10 @@ void CanvasWidget::set_text_requested_callback(std::function<void(QPoint, QRect)
   text_requested_callback_ = std::move(callback);
 }
 
+void CanvasWidget::set_text_entry_selection_drag_callback(std::function<bool(QPointF, bool)> callback) {
+  text_entry_selection_drag_callback_ = std::move(callback);
+}
+
 void CanvasWidget::set_active_layer_changed_callback(std::function<void(LayerId)> callback) {
   active_layer_changed_callback_ = std::move(callback);
 }
@@ -1173,6 +1178,15 @@ void CanvasWidget::set_error_status_callback(std::function<void(QString)> callba
 
 // Blocking refusals from canvas tools. Falls back to the plain status callback
 // so hosts that wire only set_status_callback still see the message text.
+void CanvasWidget::select_only_layer_if_none_active() {
+  if (document_ == nullptr || edit_locked_ || document_->active_layer_id().has_value()) {
+    return;
+  }
+  if (const auto id = only_layer_id(std::as_const(*document_).layers()); id.has_value()) {
+    request_layer_selection({*id}, *id);
+  }
+}
+
 void CanvasWidget::report_status_error(const QString& message) const {
   if (error_status_callback_) {
     error_status_callback_(message);
@@ -1209,6 +1223,11 @@ void CanvasWidget::set_transform_controls_changed_callback(std::function<void()>
 
 void CanvasWidget::set_smart_object_transform_render_callback(std::function<bool(LayerId)> callback) {
   smart_object_transform_render_callback_ = std::move(callback);
+}
+
+void CanvasWidget::set_smart_object_source_image_callback(
+    std::function<std::optional<QImage>(LayerId, QString* error)> callback) {
+  smart_object_source_image_callback_ = std::move(callback);
 }
 
 void CanvasWidget::set_smart_object_paint_prompt_callback(std::function<void(LayerId)> callback) {
@@ -1526,7 +1545,7 @@ void CanvasWidget::emit_info_for_widget_position(QPoint widget_position) const {
   } else if (document_ != nullptr && dragging_text_rect_) {
     info.active_rect = normalized_rect(text_rect_start_, snapped_document_point(document_point));
     info.active_rect_label = tr("Text");
-  } else if (document_ != nullptr && zooming_) {
+  } else if (document_ != nullptr && zooming_ && !zoom_scrubbing_) {
     info.active_rect = normalized_rect(zoom_start_, document_point);
     info.active_rect_label = tr("Zoom");
   } else if (document_ != nullptr && !selection_.isEmpty()) {

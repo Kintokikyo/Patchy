@@ -1,6 +1,8 @@
 #include "ui/animation_preview_window.hpp"
 
 #include "formats/gif_document_io.hpp"
+#include "formats/animation_timing.hpp"
+#include "ui/image_save_options_dialog.hpp"
 #include "ui/app_settings.hpp"
 #include "ui/dialog_utils.hpp"
 
@@ -26,7 +28,7 @@ constexpr int kMinimumFrameDelayMs = 10;
 
 AnimationPreviewWindow::AnimationPreviewWindow(
     std::function<Document*()> document_provider, std::function<void(bool)> visuals_changed,
-    std::function<void(std::optional<std::uint16_t>)> apply_selection_frame_time, QWidget* parent)
+    std::function<void(std::optional<std::uint32_t>)> apply_selection_frame_time, QWidget* parent)
     : QDialog(parent),
       provider_(std::move(document_provider)),
       visuals_changed_(std::move(visuals_changed)),
@@ -49,16 +51,14 @@ AnimationPreviewWindow::AnimationPreviewWindow(
 
   auto* delay_row = new QHBoxLayout();
   delay_row->setSpacing(8);
-  delay_row->addWidget(new QLabel(tr("Frame delay:"), this));
+  delay_row->addWidget(new QLabel(tr("Default frame delay:"), this));
   delay_spin_ = new QDoubleSpinBox(this);
   delay_spin_->setObjectName(QStringLiteral("animationFrameDelaySpin"));
   delay_spin_->setSuffix(tr(" s"));
-  delay_spin_->setRange(0.0, 655.35);  // the GIF u16 centisecond wire range
-  delay_spin_->setDecimals(2);
+  delay_spin_->setRange(0.0, animation::kMaxFrameDelayMs / 1000.0);
+  delay_spin_->setDecimals(3);
   delay_spin_->setSingleStep(0.05);
-  delay_spin_->setValue(
-      std::clamp(app_settings().value(QStringLiteral("saveOptions/gifFrameDelayCs"), 10).toInt(), 0, 0xffff) /
-      100.0);
+  delay_spin_->setValue(load_image_save_option_defaults().animation_frame_delay_ms / 1000.0);
   configure_dialog_spinbox(delay_spin_, 96);
   delay_row->addWidget(delay_spin_);
   delay_row->addStretch(1);
@@ -70,8 +70,8 @@ AnimationPreviewWindow::AnimationPreviewWindow(
   selection_time_spin_ = new QDoubleSpinBox(this);
   selection_time_spin_->setObjectName(QStringLiteral("animationSelectionTimeSpin"));
   selection_time_spin_->setSuffix(tr(" s"));
-  selection_time_spin_->setRange(0.0, 655.35);  // the GIF u16 centisecond wire range
-  selection_time_spin_->setDecimals(2);
+  selection_time_spin_->setRange(0.0, animation::kMaxFrameDelayMs / 1000.0);
+  selection_time_spin_->setDecimals(3);
   selection_time_spin_->setSingleStep(0.05);
   selection_time_spin_->setValue(delay_spin_->value());
   configure_dialog_spinbox(selection_time_spin_, 96);
@@ -89,7 +89,7 @@ AnimationPreviewWindow::AnimationPreviewWindow(
   content->addLayout(selection_row);
 
   auto* hint = new QLabel(
-      tr("Plays the visible top-level layers as frames, top layer first, exactly like the animated GIF "
+      tr("Plays the visible top-level layers as frames, top layer first, like animated GIF and WebP "
          "export. A layer name ending in a time, like \"blink 0.25s\", sets that frame's delay."),
       this);
   hint->setObjectName(QStringLiteral("animationPreviewHintLabel"));
@@ -103,8 +103,8 @@ AnimationPreviewWindow::AnimationPreviewWindow(
   connect(set_time_button, &QPushButton::clicked, this, [this] {
     stop_playback(true);
     if (apply_selection_frame_time_ != nullptr) {
-      apply_selection_frame_time_(static_cast<std::uint16_t>(
-          std::clamp<long long>(std::llround(selection_time_spin_->value() * 100.0), 0, 0xffff)));
+      apply_selection_frame_time_(static_cast<std::uint32_t>(
+          std::clamp<long long>(std::llround(selection_time_spin_->value() * 1000.0), 0, animation::kMaxFrameDelayMs)));
     }
   });
   connect(remove_time_button, &QPushButton::clicked, this, [this] {
@@ -116,6 +116,8 @@ AnimationPreviewWindow::AnimationPreviewWindow(
   // The spin edits the shared default delay (the animated GIF export dialog reads the
   // same key); the next frame advance picks a change up immediately.
   connect(delay_spin_, &QDoubleSpinBox::valueChanged, this, [](double value) {
+    app_settings().setValue(QStringLiteral("saveOptions/animationFrameDelayMs"),
+                           static_cast<int>(std::llround(value * 1000.0)));
     app_settings().setValue(
         QStringLiteral("saveOptions/gifFrameDelayCs"),
         static_cast<int>(std::clamp<long long>(std::llround(value * 100.0), 0, 0xffff)));
@@ -241,21 +243,15 @@ void AnimationPreviewWindow::show_current_frame() {
   timer_.start(current_frame_delay_ms());
 }
 
-std::uint16_t AnimationPreviewWindow::frame_delay_cs(std::size_t index) const {
-  const auto default_cs = static_cast<std::uint16_t>(
-      std::clamp<long long>(std::llround(delay_spin_->value() * 100.0), 0, 0xffff));
-  if (playback_document_ == nullptr || index >= frame_ids_.size()) {
-    return default_cs;
-  }
+std::uint32_t AnimationPreviewWindow::frame_delay_ms(std::size_t index) const {
+  const auto default_ms = static_cast<std::uint32_t>(std::llround(delay_spin_->value() * 1000.0));
+  if (playback_document_ == nullptr || index >= frame_ids_.size()) return default_ms;
   const auto* layer = std::as_const(*playback_document_).find_layer(frame_ids_[index]);
-  if (layer == nullptr) {
-    return default_cs;
-  }
-  return gif::parse_layer_name_delay_cs(layer->name()).value_or(default_cs);
+  return layer == nullptr ? default_ms : animation::parse_layer_name_delay_ms(layer->name()).value_or(default_ms);
 }
 
 int AnimationPreviewWindow::current_frame_delay_ms() const {
-  return std::max(kMinimumFrameDelayMs, static_cast<int>(frame_delay_cs(frame_index_)) * 10);
+  return std::max(kMinimumFrameDelayMs, static_cast<int>(frame_delay_ms(frame_index_)));
 }
 
 void AnimationPreviewWindow::update_playback_controls() {

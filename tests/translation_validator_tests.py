@@ -16,7 +16,7 @@ SCRIPT = ROOT / "scripts/check-translations.py"
 spec = importlib.util.spec_from_file_location("translation_validator", SCRIPT)
 validator = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(validator)
-LANGUAGES = ("de", "es", "fr", "it", "ja", "zh_CN", "zh_TW")
+LANGUAGES = ("de", "es", "fr", "it", "ja", "ko", "pl", "pt_BR", "ru", "zh_CN", "zh_TW")
 
 
 class TranslationValidatorTests(unittest.TestCase):
@@ -96,6 +96,29 @@ class TranslationValidatorTests(unittest.TestCase):
         ET.SubElement(translation, "numerusform").text = "&Translated %1..."
         tree.write(path, encoding="utf-8")
         self.assertTrue(any("plural forms" in problem for problem in self.problems()))
+
+    def test_plural_form_counts_for_every_language(self):
+        # Independent expectations include Korean's single form and both Slavic
+        # three-form catalogs; a two-form assumption must never silently pass.
+        counts = {"de": 2, "es": 2, "fr": 2, "it": 2, "ja": 1, "ko": 1,
+                  "pl": 3, "pt_BR": 2, "ru": 3, "zh_CN": 1, "zh_TW": 1}
+        template = validator.read_catalog(self.template, "en")
+        next(iter(template.values())).set("numerus", "yes")
+        for language, expected in counts.items():
+            for actual in (1, 2, 3, 4):
+                with self.subTest(language=language, forms=actual):
+                    path = self.write_catalog(language)
+                    tree = ET.parse(path)
+                    message = tree.getroot().find("context/message")
+                    message.set("numerus", "yes")
+                    translation = message.find("translation")
+                    translation.text = None
+                    for index in range(actual):
+                        ET.SubElement(translation, "numerusform").text = f"&Translated %1 form {index}..."
+                    tree.write(path, encoding="utf-8")
+                    manifest = dict(self.manifest, languages=[language])
+                    problems = validator.check_catalogs(manifest, template)
+                    self.assertEqual(actual != expected, bool(problems), problems)
 
     def test_template_freshness_and_unicode_paths(self):
         # Real lupdate, with all fixture inputs inside a Unicode directory.

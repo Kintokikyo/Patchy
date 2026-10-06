@@ -78,6 +78,9 @@ namespace {
 
 constexpr double kMinZoom = 0.05;
 constexpr double kMaxZoom = 128.0;
+// One pixel of drag-zoom travel (the pen ZoomCanvas button vertically, Scrubby
+// Zoom horizontally) multiplies the zoom by this: about 70 px doubles it.
+constexpr double kZoomDragFactorPerPixel = 1.01;
 constexpr double kMinimumVisibleDocumentFraction = 0.10;
 constexpr int kScrollBarSingleStep = 20;
 
@@ -196,6 +199,21 @@ void CanvasWidget::fit_to_view() {
   const auto available_height = std::max(1.0, static_cast<double>(height() - 80));
   zoom_ = std::clamp(std::min(available_width / static_cast<double>(document_->width()),
                               available_height / static_cast<double>(document_->height())),
+                     kMinZoom, kMaxZoom);
+  pan_ = QPointF((static_cast<double>(width()) - static_cast<double>(document_->width()) * zoom_) / 2.0,
+                 (static_cast<double>(height()) - static_cast<double>(document_->height()) * zoom_) / 2.0);
+  constrain_pan();
+  update();
+  notify_view_changed();
+}
+
+void CanvasWidget::fill_to_view() {
+  if (document_ == nullptr || document_->width() <= 0 || document_->height() <= 0 || width() <= 0 || height() <= 0) {
+    return;
+  }
+
+  zoom_ = std::clamp(std::max(static_cast<double>(width()) / static_cast<double>(document_->width()),
+                              static_cast<double>(height()) / static_cast<double>(document_->height())),
                      kMinZoom, kMaxZoom);
   pan_ = QPointF((static_cast<double>(width()) - static_cast<double>(document_->width()) * zoom_) / 2.0,
                  (static_cast<double>(height()) - static_cast<double>(document_->height()) * zoom_) / 2.0);
@@ -392,9 +410,49 @@ bool CanvasWidget::wheel_zooms() const noexcept {
   return wheel_zooms_;
 }
 
+void CanvasWidget::set_zoom_scrubby(bool enabled) noexcept {
+  zoom_scrubby_ = enabled;
+}
+
+bool CanvasWidget::zoom_scrubby() const noexcept {
+  return zoom_scrubby_;
+}
+
+void CanvasWidget::set_zoom_tool_zooms_out(bool enabled) {
+  if (zoom_tool_zooms_out_ == enabled) {
+    return;
+  }
+  zoom_tool_zooms_out_ = enabled;
+  if (tool_ == CanvasTool::Zoom) {
+    update_tool_cursor();
+    update();
+  }
+}
+
+bool CanvasWidget::zoom_tool_zooms_out() const noexcept {
+  return zoom_tool_zooms_out_;
+}
+
+bool CanvasWidget::zoom_tool_zoom_out_active(Qt::KeyboardModifiers modifiers) const noexcept {
+  return zoom_tool_zooms_out_ != ((modifiers & Qt::AltModifier) != 0);
+}
+
+QPointF CanvasWidget::zoom_click_anchor(QPointF widget_pos) const {
+  // A press in the grey margin zooms toward the nearest point on the document
+  // frame rather than toward the empty space under the cursor.
+  if (document_ == nullptr) {
+    return widget_pos;
+  }
+  const QRectF frame(widget_position_f(QPointF(0.0, 0.0)),
+                     widget_position_f(QPointF(document_->width(), document_->height())));
+  return QPointF(std::clamp(widget_pos.x(), frame.left(), frame.right()),
+                 std::clamp(widget_pos.y(), frame.top(), frame.bottom()));
+}
+
 void CanvasWidget::draw_zoom_preview(QPainter& painter) const {
-  // No marquee while Alt is held (Alt is a point zoom-out, not a rectangle).
-  if (!zooming_ || (QApplication::keyboardModifiers() & Qt::AltModifier) != 0) {
+  // No marquee while the click would zoom out (Alt, or the Zoom Out mode: a
+  // point zoom, not a rectangle) or while a Scrubby Zoom drag is zooming live.
+  if (!zooming_ || zoom_scrubbing_ || zoom_tool_zoom_out_active(QApplication::keyboardModifiers())) {
     return;
   }
 
@@ -473,11 +531,14 @@ void CanvasWidget::update_zoom_drag(QPointF widget_position) {
   // Dragging up zooms in, dragging down zooms out, anchored on the press point.
   const auto delta = zoom_drag_last_pos_.y() - widget_position.y();
   zoom_drag_last_pos_ = widget_position;
-  if (std::abs(delta) < 0.001) {
+  apply_zoom_drag_step(delta);
+}
+
+void CanvasWidget::apply_zoom_drag_step(double delta_pixels) {
+  if (std::abs(delta_pixels) < 0.001) {
     return;
   }
-  const auto factor = std::pow(1.01, delta);
-  zoom_at_widget_point(zoom_drag_anchor_widget_, factor);
+  zoom_at_widget_point(zoom_drag_anchor_widget_, std::pow(kZoomDragFactorPerPixel, delta_pixels));
 }
 
 void CanvasWidget::end_zoom_drag() {

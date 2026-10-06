@@ -37,7 +37,13 @@ struct EditOptions {
   BrushDynamics brush_dynamics{};            // per-dab tip dynamics; default = disabled
   bool fill_shapes{false};
   int shape_corner_radius{0};
-  double fill_softness_feather{0.0};  // fill_rect: inward edge feather band (px); 0 = hard edge
+  double fill_softness_feather{0.0};  // fill_rect/flood_fill: inward edge feather band (px); 0 = hard edge
+  // flood_fill only. Tolerance is the Magic Wand's metric (color_within_tolerance), so Fill
+  // tolerance N accepts exactly the pixels Wand tolerance N selects; 0 is an exact match.
+  // Contiguous limits the fill to pixels connected to the click; off fills every matching
+  // pixel of the layer (within the selection), like Photoshop's Contiguous checkbox.
+  int flood_tolerance{0};
+  bool flood_contiguous{true};
   bool lock_transparent_pixels{false};
   // Palette-mode write constraint (non-owning, caller keeps the LUT alive for the
   // operation). When set, pixel writes binarize coverage at its threshold, blend
@@ -188,6 +194,15 @@ enum class CanvasAnchor {
                                   bool erase);
 [[nodiscard]] Rect draw_ellipse(Document& document, LayerId layer_id, Rect rect, const EditOptions& options,
                                 bool erase);
+// The Magic Wand's color metric, shared with flood_fill: the sum of squared per-channel
+// differences over the channels present (at most four) is within 4 * tolerance^2.
+// Tolerance 0 is an exact match. CanvasWidget's wand engines inline the same formula;
+// keep them in step (`tool_fill_bucket_tolerance_metric_matches_magic_wand` pins it).
+[[nodiscard]] bool color_within_tolerance(const std::uint8_t* a, const std::uint8_t* b, std::uint16_t channels,
+                                          int tolerance) noexcept;
+// Paint Bucket fill from (x, y): honors options.flood_tolerance, options.flood_contiguous,
+// options.primary.a (opacity, blended through the ordinary pixel writer), and
+// options.fill_softness_feather (feathered inward from the filled region's edge).
 [[nodiscard]] Rect flood_fill(Document& document, LayerId layer_id, std::int32_t x, std::int32_t y,
                               const EditOptions& options);
 [[nodiscard]] Rect fill_rect(Document& document, LayerId layer_id, Rect rect, const EditOptions& options);
@@ -221,6 +236,26 @@ void resize_canvas_and_layers(Document& document, std::int32_t width, std::int32
                               CanvasAnchor anchor = CanvasAnchor::TopLeft,
                               EditColor extension_color = EditColor{255, 255, 255, 255},
                               bool crop_layers = false);
+// The frame the anchor overload resizes to: `reference` (the canvas, or the selection for
+// Crop to Selection (Advanced)) becomes new_width x new_height about its anchor point,
+// in current document coordinates.
+[[nodiscard]] Rect canvas_resize_frame(Rect reference, CanvasAnchor anchor, std::int32_t new_width,
+                                       std::int32_t new_height) noexcept;
+// Canvas resize to an explicit frame in current document coordinates: the canvas becomes
+// frame.width x frame.height with the frame's top-left as the new origin, under the anchor
+// overload's layer, mask, and channel rules. A degenerate frame is a no-op.
+void resize_canvas_to_frame(Document& document, Rect frame,
+                            EditColor extension_color = EditColor{255, 255, 255, 255},
+                            bool crop_layers = false);
+// Removes every non-group layer whose bounds lie entirely outside the canvas and every
+// group emptied by that (Canvas Size's "delete layers fully off the canvas" option).
+// Layers without bounds (adjustments, never-painted layers) stay. Returns the number of
+// layers removed, a removed group counting once.
+std::size_t remove_layers_outside_canvas(Document& document);
+// The same against `canvas`, a rect in current document coordinates. A canvas resize
+// that also crops layers must call this with its frame BEFORE resizing: the crop
+// rewrites every pixel layer to canvas-sized bounds, which hides the off-canvas ones.
+std::size_t remove_layers_outside_canvas(Document& document, Rect canvas);
 [[nodiscard]] bool crop_document(Document& document, Rect crop);
 // Crop that may extend beyond the canvas: content outside `crop` is discarded,
 // the canvas becomes crop.width x crop.height, area outside the old canvas is

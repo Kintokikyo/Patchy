@@ -1,21 +1,16 @@
 # WebAssembly (Emscripten) build
 
-Deep reference for the wasm builds. Read this before touching the `wasm-core`,
-`wasm-release`, or `wasm-release-st` presets, the emsdk/Qt-kit provisioning,
-or `scripts/wasm/`.
+Read before changing wasm presets, emsdk/Qt provisioning, or `scripts/wasm/`.
 
 ## What exists today
 
-Three configurations share the pinned Emscripten 4.0.7 toolchain:
+All three configurations use Emscripten 4.0.7:
 
 - **`wasm-core`**: the Qt-free engine libraries plus `patchy_core_tests`,
   run under node (`PATCHY_BUILD_APP=OFF`).
-- **`wasm-release`**: the full app linked against Qt for
-  WebAssembly (6.10.3 `wasm_multithread`, static), running in a browser tab
-  with Asyncify plus pthreads. File I/O, drag-in, and settings are
-  browser-backed (details below). Background work runs on real threads; the
-  deployment cost is cross-origin isolation (COOP/COEP headers, see
-  deployment).
+- **`wasm-release`**: the full app with static Qt 6.10.3 `wasm_multithread`,
+  Asyncify and pthreads. File I/O, drops and settings are browser-backed.
+  Real worker threads require COOP/COEP headers (see deployment).
 - **`wasm-release-st`**: the same app with the 6.10.3 single-thread kit
   (`PATCHY_WASM_SINGLETHREAD=ON`: no pthreads, pool, or shared memory). It is
   staged as `st/` for Safari diagnostics, but current ST builds also die under
@@ -25,9 +20,7 @@ Three configurations share the pinned Emscripten 4.0.7 toolchain:
   declares `QThread::loopLevel()` without defining it (an ST-only link error);
   `canvas_widget_move.cpp` reads `QThreadData` via `Qt6::CorePrivate` instead.
 
-The presets, the `if(EMSCRIPTEN)` CMake branches, the `Q_OS_WASM` gates,
-and `scripts/wasm/` are the whole wasm surface. The stress/A-B harness is in
-[performance.md](performance.md).
+Stress/A-B harness: [performance.md](performance.md).
 
 ## Toolchain setup
 
@@ -35,14 +28,12 @@ and `scripts/wasm/` are the whole wasm surface. The stress/A-B harness is in
 pwsh -File scripts\wasm\setup-emsdk.ps1
 ```
 
-Idempotent: clones emsdk into `.deps\emsdk` (gitignored), `git pull`s an
-existing clone (a stale checkout fails with "unknown version"), installs +
-activates Emscripten 4.0.7, the Qt-supported version (`-EmsdkVersion`
-provisions others; emsdk swaps `upstream/` in place on activate, so
-serialize builds across versions and reactivate 4.0.7 when done). The
-bundled node 22.16.0 runs the tests; the scripts glob
-`.deps\emsdk\node\*\bin\node.exe`, so extra node directories (newer emsdk
-node packages drop the `bin\` level) are fine while exactly one matches.
+Clones or updates `.deps\emsdk` (gitignored), then installs and activates
+Qt-supported Emscripten 4.0.7. `-EmsdkVersion` selects another version;
+activation replaces `upstream/`, so serialize versions and restore 4.0.7
+afterward. Tests use bundled node 22.16.0. The scripts glob
+`.deps\emsdk\node\*\bin\node.exe`; exactly one must match (newer node
+packages omit `bin\`).
 
 ## Configure and build (wasm-core)
 
@@ -68,12 +59,16 @@ Takes the usual name-substring filter as the first argument; runs the
 emsdk-bundled node from `build\wasm-core`, so `test-artifacts/` lands there.
 `ctest` also works there (the preset pins `CMAKE_CROSSCOMPILING_EMULATOR`).
 
-The suite passes at the Windows count with the 2.4 GB
-`local-test-fixtures/` corpus, canaries byte-identical. Expected `[SKIP]`s:
+Canaries match native output. Expected `[SKIP]`s:
 one absent local fixture, two HEIC tests (node has no `VideoDecoder`), and
 `af_modern_embeds_are_center_anchored_if_available` (fixture beyond the
 wasm32 address space). The engine libraries carry no wasm `#ifdef`s; the one
 guard, in `tests/core/main.cpp`, skips the crash-stack reporter.
+
+`psd_testy_legacy_fills_and_masks_round_trip_if_available` checks both imports.
+C2Kyoto's 415-layer save exceeds wasm32's 4 GB limit, so its save/readback
+requires 64-bit pointers. Icon and synthetic legacy-fill/mask round trips
+run fully on every platform.
 
 ## wasm-core preset decisions (all in CMakePresets.json)
 
@@ -91,8 +86,9 @@ guard, in `tests/core/main.cpp`, skips the crash-stack reporter.
   node-only. Path queries work, but anything resolving through
   `weakly_canonical` (`fs::relative`, `fs::canonical`) throws "No such file or
   directory" on a Windows `D:/...` path that exists. Use the lexical forms
-  (`lexically_relative`, `lexically_normal`) where the answer is pure string
-  work on paths you already built.
+  (`lexically_relative`, `lexically_normal`) for pure string work on paths you
+  built. `fs::copy_file` onto an existing file fails ("Bad file descriptor"):
+  remove the target first.
 - Memory: growth to 4 GB, 256 MB initial, 8 MB stack (LibRaw's dcraw-derived
   decoders carry large stack locals; the 64 KB default is far too small),
   1 MB worker stacks.
@@ -208,6 +204,8 @@ onto setTimeout before qtloader runs (harness below).
   `globalThis.patchyPthreadPoolSize`, which the baked pool formula prefers.
   Perf-only: an undersized pool degrades blocking fan-outs to sequential, it
   cannot deadlock).
+- **Open from Clipboard** is hidden/disabled: browser reads are cached
+  ([clipboard.md](clipboard.md)).
 - **Compiled out or stubbed:** QtPrintSupport does not exist on wasm
   (`print_dialog_wasm.cpp` stubs; File menu hides Print/Page Setup; the
   portable half stays in `print_layout.cpp`). Qt publishes no wasm qtpdf
@@ -327,6 +325,12 @@ Other step-3 decisions:
 
 ### Browser UI fit
 
+- **Desktop download card:** below New Document / Open, highlighting more
+  features, speed and system fonts. The themed, keyboard-accessible button opens
+  the GitHub README's download section in a new tab. Text retranslates live;
+  labels and the button caption wrap. Short windows scroll the content above a
+  fixed footer. Privacy and font-upload guidance follows the card. Desktop
+  start panels keep their existing layout.
 - **Interface scale comes from the shell page, never QT_SCALE_FACTOR.** The
   wasm plugin takes pointer events from raw `offsetX`/`clientX` without
   applying Qt's high-DPI factor, so any factor but 1 renders scaled yet
@@ -473,7 +477,7 @@ a tab past recovery on a slow script. Three pumps are compiled out under
 script_engine.cpp), the processing-overlay tick, and the overlay-show pump
 (`show_processing_overlay`), both canvas_widget_render.cpp. Long
 synchronous bursts show no progress until they yield; long filter work
-already runs on a worker. Companion guards: `call_script_callback` refuses
+and the Remove Object fill run on a worker instead. Companion guards: `call_script_callback` refuses
 reentry while script code is executing; the script canvas frame timer is
 single-shot, re-armed per frame.
 
@@ -515,9 +519,3 @@ also constructs the memory (bullet above), appends a plain-language hint to
 the crash screen when the abort text looks like out-of-memory, and versions
 the `patchy.data` fetch via `locateFile`. No special MIME is needed (the
 page compiles from bytes; streaming instantiation is unused).
-
-## Later steps (not built yet)
-
-Remaining: texture lazy-fetch, the advertised document-size cap, and
-preset/library persistence across reloads (follow the poll-pattern
-IndexedDB glue in user_fonts_wasm.cpp, not IDBFS).

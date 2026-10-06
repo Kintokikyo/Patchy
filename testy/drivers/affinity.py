@@ -181,10 +181,17 @@ def export_all(
     def log(message: str) -> None:
         log_lines.append(message)
 
-    # Stage under the real document stem (staged copies are all "original.psd";
-    # the layout is files/<real stem>/_staged/original.psd) - meaningful tab
-    # titles and unique staging names.
-    real_stem = original.parent.parent.name if original.stem == "original" else original.stem
+    # Stage under the real document stem (the layout is
+    # files/<real stem>/_staged/original.psd) - meaningful tab titles and unique
+    # staging names. The other staged copies share their names across files too
+    # ("nocache.psd"): staged under the bare name, Affinity exported the previous
+    # file's copy, so they get the stem as a prefix.
+    if original.parent.name == "_staged":
+        real_stem = original.parent.parent.name
+        if original.stem != "original":
+            real_stem += "-" + original.stem
+    else:
+        real_stem = original.stem
     staging = _staging_dir()
     input_file = staging / f"{real_stem}{original.suffix}"
     png_staged = staging / f"{real_stem}-render.png"
