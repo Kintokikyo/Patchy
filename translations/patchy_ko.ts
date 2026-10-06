@@ -18637,7 +18637,7 @@ Y: %2
     <message>
         <source>Height of the crop box</source>
         <translation>자르기 상자 높이</translation>
-
+    </message>
     <message>
         <source>Exported %1 images</source>
         <translation>%1개의 이미지를 내보냈습니다.</translation>
