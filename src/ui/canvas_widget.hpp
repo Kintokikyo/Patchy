@@ -2569,6 +2569,9 @@ private:
   // The rect the drag last applied; Space repositions from here and moves
   // marquee_resize_start_rect_ along so the resize resumes in place.
   QRect marquee_resize_current_rect_;
+  // Space held during a marquee or crop handle drag: the rect and the drag's
+  // start rect as they were when Space went down (the two gestures never
+  // overlap, so they share the storage).
   QRect spacebar_reposition_start_marquee_rect_;
   QRect spacebar_reposition_start_marquee_start_rect_;
   bool selection_edges_visible_{true};

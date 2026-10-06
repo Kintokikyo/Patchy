@@ -1573,6 +1573,15 @@ void ui_marquee_alt_on_handle_shows_resize_cursor_and_mirrors() {
              Qt::NoButton, Qt::NoButton, Qt::AltModifier);
   CHECK(canvas->cursor().shape() == Qt::BitmapCursor);
 
+  // A stationary pointer on a handle keeps the resize cursor through an Alt
+  // press (the key path refreshes the badge without a mouse move).
+  send_mouse(*canvas, QEvent::MouseMove, corner, Qt::NoButton, Qt::NoButton);
+  CHECK(canvas->cursor().shape() == Qt::SizeFDiagCursor);
+  send_key_press(*canvas, Qt::Key_Alt, Qt::NoModifier);
+  CHECK(canvas->cursor().shape() == Qt::SizeFDiagCursor);
+  send_key_release(*canvas, Qt::Key_Alt, Qt::AltModifier);
+  CHECK(canvas->cursor().shape() == Qt::SizeFDiagCursor);
+
   // Alt from the press on: the handle drives a centered resize, nothing is
   // subtracted.
   const auto to = canvas->widget_position_for_document_point(

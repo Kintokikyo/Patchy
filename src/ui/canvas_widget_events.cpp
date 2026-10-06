@@ -224,7 +224,17 @@ bool CanvasWidget::eventFilter(QObject* watched, QEvent* event) {
         alt_color_pick_cursor_override_.reset();
       } else {
         const auto mode = selection_operation(modifiers);
-        apply_selection_cursor_for_mode(mode);
+        // Over a marquee resize handle the resize cursor stays whatever the
+        // modifier: Alt there mirrors, it does not subtract (GitHub issue 66).
+        // The Options-bar badge still follows the combine mode.
+        const auto handle = tool_ == CanvasTool::Marquee || tool_ == CanvasTool::EllipticalMarquee
+                                ? marquee_resize_handle_at(last_mouse_position_)
+                                : TransformHandle::None;
+        if (handle != TransformHandle::None) {
+          set_transform_cursor_for_handle(handle);
+        } else {
+          apply_selection_cursor_for_mode(mode);
+        }
         if (selection_mode_changed_callback_) {
           selection_mode_changed_callback_(mode);
         }
@@ -1562,6 +1572,11 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
       (event->buttons() & Qt::LeftButton) != 0) {
     clear_move_hover_outline();
     update_crop_adjust_drag(document_position_f(event->position()), event->modifiers());
+    if (spacebar_repositioning_drag_rect_) {
+      setCursor(Qt::SizeAllCursor);
+    } else {
+      set_transform_cursor_for_handle(crop_drag_handle_);
+    }
     last_mouse_position_ = event->pos();
     return;
   }
@@ -3373,6 +3388,15 @@ void CanvasWidget::keyPressEvent(QKeyEvent* event) {
       spacebar_reposition_last_document_position_ = spacebar_reposition_origin_document_position_;
       spacebar_reposition_start_marquee_rect_ = marquee_resize_current_rect_;
       spacebar_reposition_start_marquee_start_rect_ = marquee_resize_start_rect_;
+      setCursor(Qt::SizeAllCursor);
+    } else if (crop_drag_handle_ != TransformHandle::None) {
+      // Same for a crop handle drag: the box slides whole, and the drag-start
+      // rect follows so releasing Space resumes the resize in place.
+      spacebar_repositioning_drag_rect_ = true;
+      spacebar_reposition_origin_document_position_ = document_position(last_mouse_position_);
+      spacebar_reposition_last_document_position_ = spacebar_reposition_origin_document_position_;
+      spacebar_reposition_start_marquee_rect_ = crop_rect_;
+      spacebar_reposition_start_marquee_start_rect_ = crop_drag_start_rect_;
       setCursor(Qt::SizeAllCursor);
     } else if (drawing_shape_ || crop_dragging_out_) {
       spacebar_repositioning_drag_rect_ = true;

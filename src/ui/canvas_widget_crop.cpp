@@ -364,6 +364,19 @@ void CanvasWidget::update_crop_adjust_drag(QPointF document_point, Qt::KeyboardM
   }
 
   const auto rotated = crop_angle_ != 0.0;
+  if (spacebar_repositioning_drag_rect_) {
+    // Space held mid-drag slides the whole box (the marquee handle rule). The
+    // drag-start rect follows so releasing Space resumes the resize where the
+    // box now is; a rotated box moves raw (snapping assumes axis-aligned edges).
+    const QPoint rounded(static_cast<int>(std::lround(document_point.x())),
+                         static_cast<int>(std::lround(document_point.y())));
+    const auto raw_delta = rounded - spacebar_reposition_origin_document_position_;
+    const auto delta = rotated ? raw_delta : snapped_rect_delta(spacebar_reposition_start_marquee_rect_, raw_delta);
+    crop_drag_start_rect_ = spacebar_reposition_start_marquee_start_rect_.translated(delta);
+    crop_rect_ = spacebar_reposition_start_marquee_rect_.translated(delta);
+    update();
+    return;
+  }
   if (crop_drag_handle_ == TransformHandle::Move) {
     const QPoint raw_delta(static_cast<int>(std::lround(document_point.x() - crop_drag_start_point_.x())),
                            static_cast<int>(std::lround(document_point.y() - crop_drag_start_point_.y())));
@@ -521,6 +534,7 @@ void CanvasWidget::finish_crop_mouse_release(QMouseEvent* event) {
   if (crop_drag_handle_ != TransformHandle::None) {
     update_crop_adjust_drag(document_position_f(event->position()), event->modifiers());
     crop_drag_handle_ = TransformHandle::None;
+    spacebar_repositioning_drag_rect_ = false;
     crop_box_is_default_ = false;
     update_tool_cursor();
     update();

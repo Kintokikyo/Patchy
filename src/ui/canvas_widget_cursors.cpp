@@ -339,6 +339,16 @@ void CanvasWidget::update_tool_cursor() {
     return;
   }
   if (tool_ == CanvasTool::Crop) {
+    if (crop_drag_handle_ != TransformHandle::None) {
+      // Mid-drag the grabbed handle owns the cursor (Space released during the
+      // drag lands here through set_tool), whatever is under the pointer now.
+      if (spacebar_repositioning_drag_rect_) {
+        setCursor(Qt::SizeAllCursor);
+      } else {
+        set_transform_cursor_for_handle(crop_drag_handle_);
+      }
+      return;
+    }
     if (crop_session_active_) {
       // Session hover feedback: resize cursors over the handles, move inside,
       // and the rotate hint everywhere off the box (the straighten gesture).

@@ -438,6 +438,55 @@ void ui_crop_alt_handle_drag_resizes_about_center() {
   CHECK(canvas->crop_session_rect() == QRect(0, 128, 1024, 512));
 }
 
+// Space held during a crop handle drag slides the whole box, and releasing it
+// resumes the resize from the slid position (the marquee handle rule).
+void ui_crop_handle_drag_space_slides_box_then_resumes() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  require_action(window, "toolCropAction")->trigger();
+  QApplication::processEvents();
+  canvas->set_snap_enabled(false);
+  canvas->set_crop_ratio(0.0, 0.0);
+
+  drag(*canvas, canvas->widget_position_for_document_point(QPoint(100, 100)),
+       canvas->widget_position_for_document_point(QPoint(200, 180)));
+  CHECK(canvas->crop_session_rect() == QRect(100, 100, 101, 81));
+
+  // Right edge handle out by 30.
+  send_mouse(*canvas, QEvent::MouseButtonPress, canvas->widget_position_for_document_point(QPoint(201, 140)),
+             Qt::LeftButton, Qt::LeftButton);
+  send_mouse(*canvas, QEvent::MouseMove, canvas->widget_position_for_document_point(QPoint(231, 140)),
+             Qt::NoButton, Qt::LeftButton);
+  CHECK(canvas->crop_session_rect() == QRect(100, 100, 131, 81));
+  CHECK(canvas->cursor().shape() == Qt::SizeHorCursor);
+
+  // Space held: the pointer slides the whole box, size intact.
+  send_key_press(*canvas, Qt::Key_Space);
+  CHECK(canvas->cursor().shape() == Qt::SizeAllCursor);
+  send_mouse(*canvas, QEvent::MouseMove, canvas->widget_position_for_document_point(QPoint(251, 155)),
+             Qt::NoButton, Qt::LeftButton);
+  CHECK(canvas->crop_session_rect() == QRect(120, 115, 131, 81));
+
+  // Space released: the resize resumes from the slid box, the right edge
+  // tracking the pointer and the left edge staying put.
+  send_key_release(*canvas, Qt::Key_Space);
+  CHECK(canvas->cursor().shape() == Qt::SizeHorCursor);
+  send_mouse(*canvas, QEvent::MouseMove, canvas->widget_position_for_document_point(QPoint(261, 155)),
+             Qt::NoButton, Qt::LeftButton);
+  CHECK(canvas->crop_session_rect() == QRect(120, 115, 141, 81));
+  send_mouse(*canvas, QEvent::MouseButtonRelease, canvas->widget_position_for_document_point(QPoint(261, 155)),
+             Qt::LeftButton, Qt::NoButton);
+  QApplication::processEvents();
+  CHECK(canvas->crop_session_rect() == QRect(120, 115, 141, 81));
+  CHECK(canvas->crop_session_active());
+
+  // A later handle drag starts clean (no leftover slide state).
+  drag(*canvas, canvas->widget_position_for_document_point(QPoint(120, 155)),
+       canvas->widget_position_for_document_point(QPoint(110, 155)));
+  CHECK(canvas->crop_session_rect() == QRect(110, 115, 151, 81));
+}
+
 void ui_crop_rotated_commit_straightens_box() {
   patchy::ui::MainWindow window;
   show_window(window);
@@ -646,6 +695,7 @@ std::vector<patchy::test::TestCase> crop_tool_tests() {
       {"ui_crop_tool_adopts_active_selection", ui_crop_tool_adopts_active_selection},
       {"ui_crop_handles_resize_move_and_nudge", ui_crop_handles_resize_move_and_nudge},
       {"ui_crop_alt_handle_drag_resizes_about_center", ui_crop_alt_handle_drag_resizes_about_center},
+      {"ui_crop_handle_drag_space_slides_box_then_resumes", ui_crop_handle_drag_space_slides_box_then_resumes},
       {"ui_crop_rotated_commit_straightens_box", ui_crop_rotated_commit_straightens_box},
       {"ui_crop_enter_commits_expanding_document", ui_crop_enter_commits_expanding_document},
       {"ui_crop_escape_resets_and_tool_switch_cancels", ui_crop_escape_resets_and_tool_switch_cancels},
