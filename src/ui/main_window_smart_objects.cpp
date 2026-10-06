@@ -2013,8 +2013,11 @@ std::optional<LayerId> MainWindow::place_file_as_smart_object(DocumentSession& t
     placed_width = physical_width * *options.scale;
     placed_height = physical_height * *options.scale;
   }
-  const double left = options.x.value_or((doc.width() - placed_width) / 2.0);
-  const double top = options.y.value_or((doc.height() - placed_height) / 2.0);
+  // Custom fix: snap default Smart Object placement to whole pixels.
+  // Prevents raster images from being resampled/blurry at 1:1 scale.
+  const double left = options.x.value_or(std::round((doc.width() - placed_width) / 2.0));
+  const double top = options.y.value_or(std::round((doc.height() - placed_height) / 2.0));
+  
   constexpr double kMaxPlacedSide = 30000.0;  // the document size limit
   constexpr double kMaxPlacedOffset = 1000000.0;
   const auto side_ok = [](double side) { return std::isfinite(side) && side >= 1.0 && side <= kMaxPlacedSide; };
