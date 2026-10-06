@@ -927,7 +927,7 @@ void ui_mcp_pause_can_close_document_and_resume_async_safely() {
       QTimer answer;
       QObject::connect(&answer, &QTimer::timeout, &window, [&] {
         if (auto* box = qobject_cast<QMessageBox*>(find_top_level_dialog(QStringLiteral("saveChangesMessageBox")))) {
-          prompted = true; answer.stop(); box->done(QMessageBox::No);
+          prompted = true; answer.stop(); box->done(QMessageBox::Discard);
         }
       });
       answer.start(10);
@@ -1069,7 +1069,7 @@ void ui_mcp_visible_idle_save_prompts_and_window_close() {
   answer_close(QMessageBox::Cancel, false);
   CHECK(tabs->count() == 1 && window.isVisible());
   CHECK(connection.state()["stateToken"] == before_cancel["stateToken"]);
-  answer_close(QMessageBox::No, false);
+  answer_close(QMessageBox::Discard, false);
   CHECK(host.session_ids().empty());
   connection.edit("app.open(" + path_json + ");");
   const auto active_red = [&] {
@@ -1078,7 +1078,7 @@ void ui_mcp_visible_idle_save_prompts_and_window_close() {
   };
   CHECK(active_red() == 0x11); // Discard did not overwrite the saved file.
   connection.edit("app.activeDocument.activeLayer.fill('#667788');");
-  answer_close(QMessageBox::Yes, false);
+  answer_close(QMessageBox::Save, false);
   CHECK(host.session_ids().empty());
   connection.edit("app.open(" + path_json + ");");
   CHECK(active_red() == 0x66); // Save persisted the edit before closing.
@@ -1088,7 +1088,7 @@ void ui_mcp_visible_idle_save_prompts_and_window_close() {
   connection.edit("app.newDocument(24,24).addLayer('Unsaved').fill('#8899aa');");
   answer_close(QMessageBox::Cancel, true);
   CHECK(window.isVisible() && host.session_ids().size() == 1);
-  answer_close(QMessageBox::No, true);
+  answer_close(QMessageBox::Discard, true);
   CHECK(!window.isVisible());
   connection.disconnect();
 }

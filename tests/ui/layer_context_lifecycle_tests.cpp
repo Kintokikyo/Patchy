@@ -1906,7 +1906,7 @@ void ui_close_last_tab_with_active_text_edit_commits_editor_first() {
     prompt_seen = true;
     editor_gone_at_prompt = canvas->findChild<QTextEdit*>(QStringLiteral("inlineTextEditor")) == nullptr;
     dismiss_timer->stop();
-    dialog->button(QMessageBox::No)->click();
+    dialog->button(QMessageBox::Discard)->click();
   });
   dismiss_timer->start();
 
@@ -1919,11 +1919,13 @@ void ui_close_last_tab_with_active_text_edit_commits_editor_first() {
   CHECK(tabs->count() == 0);
 }
 
-// The close-document save prompt asks Yes/No/Cancel, and bare Y/N key presses
-// (no Alt) activate Yes/No like native Windows message boxes. Qt itself only
-// wires the Alt+mnemonic; show_warning_message adds the plain letters, so both
-// the button set and the accelerators are pinned here.
-void ui_save_prompt_uses_yes_no_cancel_with_letter_hotkeys() {
+// The close-document save prompt offers Save / Don't Save / Cancel with Save as
+// the default (GitHub issue 70), and bare key presses (no Alt) answer it like
+// native Windows message boxes: S and D for the two buttons, plus Y and N as
+// aliases from the Yes/No days. Qt itself only wires the Alt+mnemonic;
+// show_warning_message adds the plain letters, so both the button set and the
+// accelerators are pinned here.
+void ui_save_prompt_uses_save_dont_save_cancel_with_letter_hotkeys() {
   std::filesystem::create_directories("test-artifacts");
   const auto path = QFileInfo(QDir(QStringLiteral("test-artifacts"))
                                   .filePath(QStringLiteral("ui_save_prompt_yes_no.tga")))
@@ -1960,10 +1962,10 @@ void ui_save_prompt_uses_yes_no_cancel_with_letter_hotkeys() {
   // Dismisses the save prompt with a bare letter key once it appears, recording
   // the button layout. The prompt runs a nested event loop, hence the timer.
   bool prompt_seen = false;
-  bool buttons_are_yes_no_cancel = false;
+  bool buttons_are_save_dont_save_cancel = false;
   const auto dismiss_prompt_with_key = [&](int key) {
     prompt_seen = false;
-    buttons_are_yes_no_cancel = false;
+    buttons_are_save_dont_save_cancel = false;
     auto* dismiss_timer = new QTimer(&window);
     dismiss_timer->setInterval(10);
     QObject::connect(dismiss_timer, &QTimer::timeout, &window, [&, key, dismiss_timer] {
@@ -1972,10 +1974,12 @@ void ui_save_prompt_uses_yes_no_cancel_with_letter_hotkeys() {
         return;
       }
       prompt_seen = true;
-      buttons_are_yes_no_cancel =
-          dialog->button(QMessageBox::Yes) != nullptr && dialog->button(QMessageBox::No) != nullptr &&
-          dialog->button(QMessageBox::Cancel) != nullptr && dialog->button(QMessageBox::Save) == nullptr &&
-          dialog->button(QMessageBox::Discard) == nullptr;
+      auto* save = dialog->button(QMessageBox::Save);
+      auto* discard = dialog->button(QMessageBox::Discard);
+      buttons_are_save_dont_save_cancel =
+          save != nullptr && discard != nullptr && dialog->button(QMessageBox::Cancel) != nullptr &&
+          dialog->button(QMessageBox::Yes) == nullptr && dialog->button(QMessageBox::No) == nullptr &&
+          dialog->defaultButton() == save && discard->text() == QStringLiteral("Don't Save");
       dismiss_timer->stop();
       dismiss_timer->deleteLater();
       // Send to the focused button when there is one: the bare letter must reach
@@ -1986,40 +1990,45 @@ void ui_save_prompt_uses_yes_no_cancel_with_letter_hotkeys() {
     dismiss_timer->start();
   };
 
-  // N answers No: the document closes without saving.
-  patchy::ui::MainWindowTestAccess::open_document_path(window, path);
-  QApplication::processEvents();
-  require_action_by_text(window, QStringLiteral("Flip Layer Horizontal"))->trigger();
-  QApplication::processEvents();
-  CHECK(corner_color() == right_color);
-  int tabs_before_close = tabs->count();
-  dismiss_prompt_with_key(Qt::Key_N);
-  CHECK(patchy::ui::MainWindowTestAccess::close_document_tab(window, tabs->currentIndex()));
-  QApplication::processEvents();
-  CHECK(prompt_seen);
-  CHECK(buttons_are_yes_no_cancel);
-  CHECK(tabs->count() == tabs_before_close - 1);
+  // Flips the open document, closes its tab answering the prompt with `key`,
+  // and reports whether the prompt appeared with the expected buttons.
+  const auto flip_and_close_with_key = [&](int key) {
+    require_action_by_text(window, QStringLiteral("Flip Layer Horizontal"))->trigger();
+    QApplication::processEvents();
+    const int tabs_before_close = tabs->count();
+    dismiss_prompt_with_key(key);
+    CHECK(patchy::ui::MainWindowTestAccess::close_document_tab(window, tabs->currentIndex()));
+    QApplication::processEvents();
+    CHECK(prompt_seen);
+    CHECK(buttons_are_save_dont_save_cancel);
+    CHECK(tabs->count() == tabs_before_close - 1);
+  };
+  const auto reopen = [&] {
+    patchy::ui::MainWindowTestAccess::open_document_path(window, path);
+    QApplication::processEvents();
+  };
 
-  // The file kept its original pixels.
-  patchy::ui::MainWindowTestAccess::open_document_path(window, path);
-  QApplication::processEvents();
+  // D answers Don't Save: the document closes and the file keeps its pixels.
+  reopen();
+  CHECK(corner_color() == left_color);
+  flip_and_close_with_key(Qt::Key_D);
+  reopen();
   CHECK(corner_color() == left_color);
 
-  // Y answers Yes: the document saves to its path, then closes.
-  require_action_by_text(window, QStringLiteral("Flip Layer Horizontal"))->trigger();
-  QApplication::processEvents();
-  tabs_before_close = tabs->count();
-  dismiss_prompt_with_key(Qt::Key_Y);
-  CHECK(patchy::ui::MainWindowTestAccess::close_document_tab(window, tabs->currentIndex()));
-  QApplication::processEvents();
-  CHECK(prompt_seen);
-  CHECK(buttons_are_yes_no_cancel);
-  CHECK(tabs->count() == tabs_before_close - 1);
+  // N still means Don't Save.
+  flip_and_close_with_key(Qt::Key_N);
+  reopen();
+  CHECK(corner_color() == left_color);
 
-  // The flipped pixels reached disk.
-  patchy::ui::MainWindowTestAccess::open_document_path(window, path);
-  QApplication::processEvents();
+  // S answers Save: the flipped pixels reach disk before the tab closes.
+  flip_and_close_with_key(Qt::Key_S);
+  reopen();
   CHECK(corner_color() == right_color);
+
+  // Y still means Save.
+  flip_and_close_with_key(Qt::Key_Y);
+  reopen();
+  CHECK(corner_color() == left_color);
 }
 
 void ui_document_tab_context_menu_closes_tabs_and_file_menu_closes_all() {
@@ -2753,8 +2762,8 @@ std::vector<patchy::test::TestCase> layer_context_lifecycle_tests() {
       {"ui_closing_last_document_leaves_empty_workspace", ui_closing_last_document_leaves_empty_workspace},
       {"ui_close_last_tab_with_active_text_edit_commits_editor_first",
        ui_close_last_tab_with_active_text_edit_commits_editor_first},
-      {"ui_save_prompt_uses_yes_no_cancel_with_letter_hotkeys",
-       ui_save_prompt_uses_yes_no_cancel_with_letter_hotkeys},
+      {"ui_save_prompt_uses_save_dont_save_cancel_with_letter_hotkeys",
+       ui_save_prompt_uses_save_dont_save_cancel_with_letter_hotkeys},
       {"ui_document_tab_context_menu_closes_tabs_and_file_menu_closes_all",
        ui_document_tab_context_menu_closes_tabs_and_file_menu_closes_all},
       {"ui_new_document_and_canvas_size_dialogs_work", ui_new_document_and_canvas_size_dialogs_work},

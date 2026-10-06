@@ -8901,6 +8901,10 @@ RGB: %2, %3, %4</translation>
         <source>%1 came from a grayscale document and adjusts its gray channel here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its tones will look different.</source>
         <translation>%1 veio de um documento em tons de cinza e aqui ajusta o canal de cinza dele. O Patchy salva arquivos RGB; no arquivo salvo, o Photoshop e o Patchy aplicam a camada em RGB e os tons ficarão diferentes.</translation>
     </message>
+    <message>
+        <source>Don&apos;t Save</source>
+        <translation>Não salvar</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

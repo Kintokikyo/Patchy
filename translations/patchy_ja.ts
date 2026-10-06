@@ -8871,6 +8871,10 @@ Mixed selection</source>
         <source>%1 came from a grayscale document and adjusts its gray channel here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its tones will look different.</source>
         <translation>%1 はグレースケールドキュメントのもので、ここではグレーチャンネルに対して調整されます。Patchy は RGB ファイルを保存するため、保存したファイルでは Photoshop でも Patchy でも RGB に適用され、階調が変わります。</translation>
     </message>
+    <message>
+        <source>Don&apos;t Save</source>
+        <translation>保存しない</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

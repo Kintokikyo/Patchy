@@ -285,7 +285,7 @@ void ui_recovery_file_removed_on_save_and_on_close() {
   auto* tabs = document_tabs(window);
   CHECK(tabs != nullptr);
   bool prompt_seen = false;
-  answer_save_prompt(window, QMessageBox::No, prompt_seen);
+  answer_save_prompt(window, QMessageBox::Discard, prompt_seen);
   CHECK(patchy::ui::MainWindowTestAccess::close_document_tab(window, tabs->currentIndex()));
   QApplication::processEvents();
   CHECK(prompt_seen);

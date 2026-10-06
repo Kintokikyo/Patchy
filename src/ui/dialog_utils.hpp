@@ -219,8 +219,9 @@ void move_pointer_to_global_position(QPoint global_position);
 // stays covered until the tabs overflow, when a 1px white base line shows through
 // the transparent scroll buttons at the bar's right edge.
 void suppress_native_tab_bar_base(QTabWidget& tabs);
-// When the box has Yes/No buttons, plain Y/N key presses activate them
-// (native-message-box style; Qt itself only wires Alt+mnemonic).
+// Plain letter keys answer the box (native-message-box style; Qt itself only
+// wires Alt+mnemonic): Y/N for Yes/No, S/D for Save/Discard, and Y/N also
+// stand in for Save/Discard. A Discard button always reads "Don't Save".
 [[nodiscard]] QMessageBox::StandardButton show_warning_message(
     QWidget* parent, const QString& title, const QString& text, QMessageBox::StandardButtons buttons,
     QMessageBox::StandardButton default_button = QMessageBox::NoButton, const QString& object_name = QString());

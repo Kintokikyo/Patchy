@@ -8871,6 +8871,10 @@ RGB: %2, %3, %4</translation>
         <source>%1 came from a grayscale document and adjusts its gray channel here. Patchy saves RGB files, so in the saved file Photoshop and Patchy apply it to RGB and its tones will look different.</source>
         <translation>%1은(는) 회색 음영 문서에서 가져온 것으로, 여기서는 회색 채널에 적용됩니다. Patchy는 RGB 파일로 저장하므로 저장된 파일에서는 Photoshop과 Patchy 모두 RGB에 적용하여 색조가 달라집니다.</translation>
     </message>
+    <message>
+        <source>Don&apos;t Save</source>
+        <translation>저장 안 함</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>

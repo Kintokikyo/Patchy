@@ -1402,14 +1402,16 @@ bool MainWindow::confirm_close_session(DocumentSession& target_session) {
   }
 
   const auto title = target_session.title.isEmpty() ? tr("Untitled") : target_session.title;
+  // Save / Don't Save / Cancel name the outcomes (GitHub issue 70); Save is the
+  // default, and the helper answers S, D and the older Y/N keys.
   const auto answer = show_warning_message(this, tr("Save changes?"),
                                            tr("Save changes to %1 before closing?").arg(title),
-                                           QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel,
-                                           QMessageBox::Yes, QStringLiteral("saveChangesMessageBox"));
+                                           QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel,
+                                           QMessageBox::Save, QStringLiteral("saveChangesMessageBox"));
   if (answer == QMessageBox::Cancel) {
     return false;
   }
-  if (answer == QMessageBox::No) {
+  if (answer == QMessageBox::Discard) {
     return true;
   }
   return maybe_save_session(target_session);
