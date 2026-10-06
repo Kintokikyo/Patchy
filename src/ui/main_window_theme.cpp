@@ -907,6 +907,13 @@ QString photoshop_style_template() {
       background: @button_hover_bg;
       border-color: @button_hover_border_strong;
     }
+    /* The button Enter presses carries the accent outline, like Photoshop's save
+       prompt (Seth, October 2026). Qt hands "default" to whichever auto-default
+       button has focus, so the outline follows Tab between a dialog's buttons.
+       After :hover so a hovered default keeps it. */
+    QPushButton:default {
+      border: 1px solid @accent_border_bright;
+    }
     QPushButton:checked {
       background: @accent_checked_bg;
       border-color: @accent_checked_border;

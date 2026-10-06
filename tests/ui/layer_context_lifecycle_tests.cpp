@@ -1983,6 +1983,9 @@ void ui_save_prompt_uses_save_dont_save_cancel_with_letter_hotkeys() {
           dialog->defaultButton() == save && discard->text() == QStringLiteral("Don't Save");
       dismiss_timer->stop();
       dismiss_timer->deleteLater();
+      if (key == Qt::Key_D) {
+        save_widget_artifact("ui_save_prompt", *dialog);  // Save carries the default outline
+      }
       // Send to the focused button when there is one: the bare letter must reach
       // the box by propagating up from the child, the interactive path.
       auto* target = dialog->focusWidget() != nullptr ? dialog->focusWidget() : dialog;
