@@ -6,6 +6,7 @@
 
 #include "ui_test_groups.hpp"
 
+#include <QLineEdit>
 #include <QStatusBar>
 
 namespace {
@@ -298,6 +299,137 @@ void ui_crop_tool_adopts_active_selection() {
   QApplication::processEvents();
   CHECK(info_label->text().contains(QStringLiteral("1024 x 768 px")));
   CHECK(canvas->crop_session_rect() == QRect(0, 0, 1024, 768));
+}
+
+// The Style combo: Ratio shows the preset/ratio row, Size shows unit Width /
+// Height fields that mirror the box and resize it about its center (linked
+// when the chain button is down), handle drags flow back into the fields, and
+// the remembered ratio returns with Ratio mode. tools/cropStyle persists.
+void ui_crop_size_style_fields_mirror_and_resize_box() {
+  SettingsValueRestorer saved_style(QStringLiteral("tools/cropStyle"));
+  SettingsValueRestorer saved_ratio_w(QStringLiteral("tools/cropRatioWidth"));
+  SettingsValueRestorer saved_ratio_h(QStringLiteral("tools/cropRatioHeight"));
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  require_action(window, "toolCropAction")->trigger();
+  QApplication::processEvents();
+  canvas->set_snap_enabled(false);
+
+  auto* style = window.findChild<QComboBox*>(QStringLiteral("cropStyleCombo"));
+  auto* preset = window.findChild<QComboBox*>(QStringLiteral("cropRatioPresetCombo"));
+  auto* ratio_w = window.findChild<QDoubleSpinBox*>(QStringLiteral("cropRatioWidthSpin"));
+  auto* ratio_h = window.findChild<QDoubleSpinBox*>(QStringLiteral("cropRatioHeightSpin"));
+  auto* width = window.findChild<QSpinBox*>(QStringLiteral("cropWidthSpin"));
+  auto* height = window.findChild<QSpinBox*>(QStringLiteral("cropHeightSpin"));
+  auto* link = window.findChild<QPushButton*>(QStringLiteral("cropLinkSizeButton"));
+  CHECK(style != nullptr);
+  CHECK(preset != nullptr);
+  CHECK(ratio_w != nullptr);
+  CHECK(ratio_h != nullptr);
+  CHECK(width != nullptr);
+  CHECK(height != nullptr);
+  CHECK(link != nullptr);
+  if (style == nullptr || preset == nullptr || ratio_w == nullptr || ratio_h == nullptr || width == nullptr ||
+      height == nullptr || link == nullptr) {
+    return;
+  }
+  style->setCurrentIndex(0);
+  ratio_w->setValue(2.0);
+  ratio_h->setValue(1.0);
+  QApplication::processEvents();
+  CHECK(style->currentText() == QStringLiteral("Ratio"));
+  CHECK(preset->isVisible());
+  CHECK(ratio_w->isVisible());
+  CHECK(!width->isVisible());
+  CHECK(!height->isVisible());
+  CHECK(canvas->crop_session_rect() == QRect(0, 128, 1024, 512));
+
+  // Size: the ratio row hides, the constraint lifts (the automatic frame grows
+  // back to the canvas; a custom box would keep its shape), and the fields
+  // mirror the box.
+  style->setCurrentIndex(1);
+  QApplication::processEvents();
+  CHECK(!preset->isVisible());
+  CHECK(!ratio_w->isVisible());
+  CHECK(width->isVisible());
+  CHECK(height->isVisible());
+  CHECK(width->value() == 1024);
+  CHECK(height->value() == 768);
+  CHECK(canvas->crop_ratio_width() == 0.0);
+  CHECK(canvas->crop_session_rect() == QRect(0, 0, 1024, 768));
+
+  // Typing a width resizes the box about its center; height alone stays.
+  width->setValue(500);
+  QApplication::processEvents();
+  CHECK(canvas->crop_session_rect() == QRect(262, 0, 500, 768));
+  CHECK(canvas->crop_session_has_changes());
+  height->setValue(400);
+  QApplication::processEvents();
+  CHECK(canvas->crop_session_rect() == QRect(262, 184, 500, 400));
+
+  // A handle drag flows back into the fields (right edge out by 100).
+  drag(*canvas, canvas->widget_position_for_document_point(QPoint(762, 384)),
+       canvas->widget_position_for_document_point(QPoint(862, 384)));
+  CHECK(canvas->crop_session_rect() == QRect(262, 184, 600, 400));
+  CHECK(width->value() == 600);
+  CHECK(height->value() == 400);
+
+  save_widget_artifact("ui_crop_size_options_bar", window);
+
+  // Linked: the other axis keeps the box's proportion (600 : 400).
+  link->setChecked(true);
+  width->setValue(300);
+  QApplication::processEvents();
+  CHECK(canvas->crop_session_rect() == QRect(412, 284, 300, 200));
+  CHECK(height->value() == 200);
+  height->setValue(100);
+  QApplication::processEvents();
+  CHECK(canvas->crop_session_rect() == QRect(487, 334, 150, 100));
+  CHECK(width->value() == 150);
+  link->setChecked(false);
+
+  // A typed unit token converts like the marquee's fields: percent of the
+  // document width (1024) here, so no PPI enters the expectation.
+  auto* width_editor = width->findChild<QLineEdit*>();
+  CHECK(width_editor != nullptr);
+  if (width_editor != nullptr) {
+    width_editor->setText(QStringLiteral("50%"));
+    width->interpretText();
+    QApplication::processEvents();
+    CHECK(width->value() == 512);
+    CHECK(canvas->crop_session_rect()->width() == 512);
+  }
+
+  // Esc still resets to the canvas frame and the fields follow.
+  send_key(*canvas, Qt::Key_Escape);
+  CHECK(width->value() == 1024);
+  CHECK(height->value() == 768);
+
+  // Back to Ratio: the remembered 2 : 1 returns and re-fits the frame.
+  style->setCurrentIndex(0);
+  QApplication::processEvents();
+  CHECK(canvas->crop_ratio_width() == 2.0);
+  CHECK(ratio_w->value() == 2.0);
+  CHECK(canvas->crop_session_rect() == QRect(0, 128, 1024, 512));
+  CHECK(preset->isVisible());
+  CHECK(!width->isVisible());
+
+  // The style persists across windows.
+  style->setCurrentIndex(1);
+  QApplication::processEvents();
+  window.close();
+  QApplication::processEvents();
+  patchy::ui::MainWindow second;
+  show_window(second);
+  require_action(second, "toolCropAction")->trigger();
+  QApplication::processEvents();
+  auto* second_style = second.findChild<QComboBox*>(QStringLiteral("cropStyleCombo"));
+  CHECK(second_style != nullptr);
+  if (second_style != nullptr) {
+    CHECK(second_style->currentIndex() == 1);
+  }
+  CHECK(require_canvas(second)->crop_ratio_width() == 0.0);
 }
 
 void ui_crop_handles_resize_move_and_nudge() {
@@ -693,6 +825,7 @@ std::vector<patchy::test::TestCase> crop_tool_tests() {
       {"ui_crop_drag_out_geometry", ui_crop_drag_out_geometry},
       {"ui_crop_tool_frames_canvas_and_fits_ratio", ui_crop_tool_frames_canvas_and_fits_ratio},
       {"ui_crop_tool_adopts_active_selection", ui_crop_tool_adopts_active_selection},
+      {"ui_crop_size_style_fields_mirror_and_resize_box", ui_crop_size_style_fields_mirror_and_resize_box},
       {"ui_crop_handles_resize_move_and_nudge", ui_crop_handles_resize_move_and_nudge},
       {"ui_crop_alt_handle_drag_resizes_about_center", ui_crop_alt_handle_drag_resizes_about_center},
       {"ui_crop_handle_drag_space_slides_box_then_resumes", ui_crop_handle_drag_space_slides_box_then_resumes},

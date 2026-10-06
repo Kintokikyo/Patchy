@@ -8935,6 +8935,10 @@ RGB: %2, %3, %4</translation>
         <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
         <translation>Wspaniali ludzie, którzy podarowali sugestie, zgłoszenia błędów i kod: %1</translation>
     </message>
+    <message>
+        <source>Ratio</source>
+        <translation>Proporcje</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -18686,6 +18690,30 @@ Y: %2
     <message>
         <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
         <translation>Kadrowanie: przeciągaj uchwyty, aby przyciąć lub powiększyć obszar roboczy (%ALT% skaluje względem środka), przeciągnij wewnątrz, aby narysować nową ramkę, przeciągnij na zewnątrz, aby obrócić. Enter kadruje, Esc przywraca ramkę.</translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation>Proporcje</translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation>Rozmiar</translation>
+    </message>
+    <message>
+        <source>Ratio constrains the crop box; Size shows its exact width and height and sets them</source>
+        <translation>Proporcje ograniczają ramkę kadrowania; Rozmiar pokazuje jej dokładną szerokość i wysokość i je ustawia</translation>
+    </message>
+    <message>
+        <source>Width of the crop box</source>
+        <translation>Szerokość ramki kadrowania</translation>
+    </message>
+    <message>
+        <source>Keep the crop box&apos;s width and height in proportion</source>
+        <translation>Zachowaj proporcje szerokości i wysokości ramki kadrowania</translation>
+    </message>
+    <message>
+        <source>Height of the crop box</source>
+        <translation>Wysokość ramki kadrowania</translation>
     </message>
 </context>
 <context>

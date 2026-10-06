@@ -8894,6 +8894,10 @@ RGB: %2, %3, %4</source>
         <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Ratio</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -18579,6 +18583,30 @@ Baked into images: %1.</source>
     </message>
     <message>
         <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ratio constrains the crop box; Size shows its exact width and height and sets them</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Width of the crop box</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Keep the crop box&apos;s width and height in proportion</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Height of the crop box</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

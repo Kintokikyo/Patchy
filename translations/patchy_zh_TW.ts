@@ -8875,6 +8875,10 @@ RGB：%2, %3, %4</translation>
         <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
         <translation>慷慨貢獻建議、錯誤回報與程式碼的了不起的人們：%1</translation>
     </message>
+    <message>
+        <source>Ratio</source>
+        <translation>比例</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -18574,6 +18578,30 @@ Baked into images: %1.</source>
     <message>
         <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
         <translation>裁切：拖曳控制點以裁切或擴展畫布（%ALT% 以中心縮放），在內部拖曳可繪製新裁切框，在外部拖曳可旋轉。Enter 裁切，Esc 重設裁切框。</translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation>比例</translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation>尺寸</translation>
+    </message>
+    <message>
+        <source>Ratio constrains the crop box; Size shows its exact width and height and sets them</source>
+        <translation>比例用於限制裁切框；尺寸顯示並設定裁切框的精確寬度和高度</translation>
+    </message>
+    <message>
+        <source>Width of the crop box</source>
+        <translation>裁切框寬度</translation>
+    </message>
+    <message>
+        <source>Keep the crop box&apos;s width and height in proportion</source>
+        <translation>保持裁切框寬高比例</translation>
+    </message>
+    <message>
+        <source>Height of the crop box</source>
+        <translation>裁切框高度</translation>
     </message>
 </context>
 <context>

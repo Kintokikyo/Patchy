@@ -1016,6 +1016,9 @@ public:
   // Puts the box back around the whole canvas (ratio-fitted), angle 0; Esc and
   // the options-bar X. Starts the session when the Crop tool has none.
   void reset_crop_session_to_canvas();
+  // Resizes the pending box to `size` pixels about its center (the options-bar
+  // Size fields); the box becomes custom. Ignored without a session.
+  void set_crop_session_size(QSize size);
   // Aspect constraint for new drag-outs and corner-handle drags. Both values
   // must be > 0 to constrain; a change re-fits the pending box inside itself
   // about its center (GitHub issue 66).

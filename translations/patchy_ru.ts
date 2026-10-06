@@ -8935,6 +8935,10 @@ RGB: %2, %3, %4</translation>
         <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
         <translation>Замечательные люди, подарившие предложения, отчёты об ошибках и код: %1</translation>
     </message>
+    <message>
+        <source>Ratio</source>
+        <translation>Пропорции</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -18686,6 +18690,30 @@ Y: %2
     <message>
         <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
         <translation>Кадрирование: тяните маркеры, чтобы обрезать или расширить холст (%ALT% масштабирует от центра), тяните внутри, чтобы задать новую рамку, тяните снаружи, чтобы повернуть. Enter кадрирует, Esc сбрасывает рамку.</translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation>Пропорции</translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation>Размер</translation>
+    </message>
+    <message>
+        <source>Ratio constrains the crop box; Size shows its exact width and height and sets them</source>
+        <translation>Пропорции ограничивают рамку кадрирования; Размер показывает её точную ширину и высоту и задаёт их</translation>
+    </message>
+    <message>
+        <source>Width of the crop box</source>
+        <translation>Ширина рамки кадрирования</translation>
+    </message>
+    <message>
+        <source>Keep the crop box&apos;s width and height in proportion</source>
+        <translation>Сохранять пропорции ширины и высоты рамки кадрирования</translation>
+    </message>
+    <message>
+        <source>Height of the crop box</source>
+        <translation>Высота рамки кадрирования</translation>
     </message>
 </context>
 <context>

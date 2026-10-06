@@ -8905,6 +8905,10 @@ RGB: %2, %3, %4</translation>
         <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
         <translation>Persone fantastiche che hanno donato suggerimenti, segnalazioni di bug e codice: %1</translation>
     </message>
+    <message>
+        <source>Ratio</source>
+        <translation>Rapporto</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -18629,7 +18633,31 @@ Convertiti in immagini: %1.</translation>
     </message>
     <message>
         <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
-        <translation>Ritaglia: trascina le maniglie per ritagliare o estendere la tela (%ALT% ridimensiona attorno al centro), trascina all'interno per tracciare un nuovo riquadro, trascina all'esterno per ruotare. Invio ritaglia, Esc ripristina il riquadro.</translation>
+        <translation>Ritaglia: trascina le maniglie per ritagliare o estendere la tela (%ALT% ridimensiona attorno al centro), trascina all&apos;interno per tracciare un nuovo riquadro, trascina all&apos;esterno per ruotare. Invio ritaglia, Esc ripristina il riquadro.</translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation>Rapporto</translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation>Dimensione</translation>
+    </message>
+    <message>
+        <source>Ratio constrains the crop box; Size shows its exact width and height and sets them</source>
+        <translation>Rapporto vincola il riquadro di ritaglio; Dimensioni mostra larghezza e altezza esatte e le imposta</translation>
+    </message>
+    <message>
+        <source>Width of the crop box</source>
+        <translation>Larghezza del riquadro di ritaglio</translation>
+    </message>
+    <message>
+        <source>Keep the crop box&apos;s width and height in proportion</source>
+        <translation>Mantieni proporzionali larghezza e altezza del riquadro di ritaglio</translation>
+    </message>
+    <message>
+        <source>Height of the crop box</source>
+        <translation>Altezza del riquadro di ritaglio</translation>
     </message>
 </context>
 <context>

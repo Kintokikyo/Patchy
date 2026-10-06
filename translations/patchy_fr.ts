@@ -8905,6 +8905,10 @@ RVB : %2, %3, %4</translation>
         <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
         <translation>Des personnes formidables qui ont offert suggestions, rapports de bogues et code : %1</translation>
     </message>
+    <message>
+        <source>Ratio</source>
+        <translation>Rapport</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -18629,7 +18633,31 @@ Convertis en images : %1.</translation>
     </message>
     <message>
         <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
-        <translation>Recadrage : faites glisser les poignées pour recadrer ou agrandir la zone de travail (%ALT% redimensionne autour du centre), glissez à l'intérieur pour tracer un nouveau cadre, glissez à l'extérieur pour pivoter. Entrée recadre, Échap réinitialise le cadre.</translation>
+        <translation>Recadrage : faites glisser les poignées pour recadrer ou agrandir la zone de travail (%ALT% redimensionne autour du centre), glissez à l&apos;intérieur pour tracer un nouveau cadre, glissez à l&apos;extérieur pour pivoter. Entrée recadre, Échap réinitialise le cadre.</translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation>Rapport</translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation>Taille</translation>
+    </message>
+    <message>
+        <source>Ratio constrains the crop box; Size shows its exact width and height and sets them</source>
+        <translation>Rapport contraint le cadre de recadrage ; Taille affiche sa largeur et sa hauteur exactes et les définit</translation>
+    </message>
+    <message>
+        <source>Width of the crop box</source>
+        <translation>Largeur du cadre de recadrage</translation>
+    </message>
+    <message>
+        <source>Keep the crop box&apos;s width and height in proportion</source>
+        <translation>Conserver les proportions du cadre de recadrage</translation>
+    </message>
+    <message>
+        <source>Height of the crop box</source>
+        <translation>Hauteur du cadre de recadrage</translation>
     </message>
 </context>
 <context>

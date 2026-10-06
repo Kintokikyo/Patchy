@@ -1225,7 +1225,26 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   add_option_separator({CanvasTool::Marquee, CanvasTool::EllipticalMarquee, CanvasTool::Lasso,
                         CanvasTool::MagneticLasso, CanvasTool::MagicWand});
 
-  add_option_label(QT_TR_NOOP("Ratio:"), {CanvasTool::Crop});
+  // Crop: Style picks what the fields mean, like the marquee's Style combo.
+  // Ratio shows the preset combo and the unitless W : H pair; Size shows unit
+  // Width / Height fields that mirror the box and resize it about its center.
+  add_option_label(QT_TR_NOOP("Style:"), {CanvasTool::Crop});
+  crop_style_combo_ = new QComboBox(toolbar);
+  crop_style_combo_->setObjectName(QStringLiteral("cropStyleCombo"));
+  crop_style_combo_->addItems({tr("Ratio"), tr("Size")});
+  crop_style_combo_->setFixedWidth(72);
+  QPointer<QComboBox> crop_style_combo(crop_style_combo_);
+  register_retranslation([crop_style_combo] {
+    if (crop_style_combo == nullptr || crop_style_combo->count() < 2) {
+      return;
+    }
+    QSignalBlocker blocker(crop_style_combo);
+    crop_style_combo->setItemText(0, QObject::tr("Ratio"));
+    crop_style_combo->setItemText(1, QObject::tr("Size"));
+  });
+  bind_tooltip(crop_style_combo_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Ratio constrains the crop box; Size shows its exact width and height and sets them"));
+  add_option_widget(crop_style_combo_, {CanvasTool::Crop});
+  crop_ratio_option_widgets_.push_back(add_option_label(QT_TR_NOOP("Ratio:"), {CanvasTool::Crop}));
   crop_ratio_preset_combo_ = new QComboBox(toolbar);
   crop_ratio_preset_combo_->setObjectName(QStringLiteral("cropRatioPresetCombo"));
   crop_ratio_preset_combo_->setMinimumWidth(118);
@@ -1252,7 +1271,7 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     crop_preset_combo->setItemText(crop_preset_combo->count() - 1, QObject::tr("Custom"));
   });
   bind_tooltip(crop_ratio_preset_combo_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Aspect ratio preset for the crop box"));
-  add_option_widget(crop_ratio_preset_combo_, {CanvasTool::Crop});
+  crop_ratio_option_widgets_.push_back(add_option_widget(crop_ratio_preset_combo_, {CanvasTool::Crop}));
   crop_ratio_w_spin_ = new QDoubleSpinBox(toolbar);
   crop_ratio_w_spin_->setObjectName(QStringLiteral("cropRatioWidthSpin"));
   crop_ratio_w_spin_->setRange(0.0, 10000.0);
@@ -1260,11 +1279,11 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   crop_ratio_w_spin_->setValue(0.0);
   bind_tooltip(crop_ratio_w_spin_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Aspect ratio width (0 = unconstrained)"));
   configure_toolbar_spinbox(crop_ratio_w_spin_, 64);
-  add_option_widget(crop_ratio_w_spin_, {CanvasTool::Crop});
+  crop_ratio_option_widgets_.push_back(add_option_widget(crop_ratio_w_spin_, {CanvasTool::Crop}));
   auto* crop_ratio_separator = new QLabel(QStringLiteral(":"), options_content);
   crop_ratio_separator->setProperty("optionLabel", true);
   crop_ratio_separator->setAlignment(Qt::AlignVCenter);
-  add_option_widget(crop_ratio_separator, {CanvasTool::Crop});
+  crop_ratio_option_widgets_.push_back(add_option_widget(crop_ratio_separator, {CanvasTool::Crop}));
   crop_ratio_h_spin_ = new QDoubleSpinBox(toolbar);
   crop_ratio_h_spin_->setObjectName(QStringLiteral("cropRatioHeightSpin"));
   crop_ratio_h_spin_->setRange(0.0, 10000.0);
@@ -1272,12 +1291,42 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
   crop_ratio_h_spin_->setValue(0.0);
   bind_tooltip(crop_ratio_h_spin_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Aspect ratio height (0 = unconstrained)"));
   configure_toolbar_spinbox(crop_ratio_h_spin_, 64);
-  add_option_widget(crop_ratio_h_spin_, {CanvasTool::Crop});
+  crop_ratio_option_widgets_.push_back(add_option_widget(crop_ratio_h_spin_, {CanvasTool::Crop}));
   crop_ratio_clear_button_ = new QPushButton(tr("Clear"), toolbar);
   crop_ratio_clear_button_->setObjectName(QStringLiteral("cropRatioClearButton"));
   bind_widget_text(crop_ratio_clear_button_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Clear"));
   bind_tooltip(crop_ratio_clear_button_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Clear the aspect ratio constraint"));
-  add_option_widget(crop_ratio_clear_button_, {CanvasTool::Crop});
+  crop_ratio_option_widgets_.push_back(add_option_widget(crop_ratio_clear_button_, {CanvasTool::Crop}));
+  // Size mode: the same unit fields as the marquee's Fixed Size pair (pixel
+  // native, a typed unit token converts at the document PPI, the same quick
+  // values in the popup). Values commit on Enter or focus-out, never per
+  // keystroke, so a half-typed width never reshapes the box.
+  crop_size_option_widgets_.push_back(add_option_label(QT_TR_NOOP("Width:"), {CanvasTool::Crop}));
+  crop_width_spin_ = new UnitIntSpinBox(SpinUnit::Pixels, toolbar);
+  crop_width_spin_->set_context_provider(document_axis_context(true));
+  crop_width_spin_->setObjectName(QStringLiteral("cropWidthSpin"));
+  crop_width_spin_->setRange(1, 30000);
+  crop_width_spin_->setKeyboardTracking(false);
+  bind_tooltip(crop_width_spin_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Width of the crop box"));
+  configure_toolbar_spinbox(crop_width_spin_, 78);
+  crop_size_option_widgets_.push_back(add_option_widget(crop_width_spin_, {CanvasTool::Crop}));
+  crop_link_size_button_ = new QPushButton(toolbar);
+  crop_link_size_button_->setObjectName(QStringLiteral("cropLinkSizeButton"));
+  crop_link_size_button_->setCheckable(true);
+  crop_link_size_button_->setChecked(false);
+  crop_link_size_button_->setIcon(simple_icon(QStringLiteral("link"), QColor(220, 226, 235)));
+  bind_tooltip(crop_link_size_button_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Keep the crop box's width and height in proportion"));
+  crop_link_size_button_->setFixedWidth(28);
+  crop_size_option_widgets_.push_back(add_option_widget(crop_link_size_button_, {CanvasTool::Crop}));
+  crop_size_option_widgets_.push_back(add_option_label(QT_TR_NOOP("Height:"), {CanvasTool::Crop}));
+  crop_height_spin_ = new UnitIntSpinBox(SpinUnit::Pixels, toolbar);
+  crop_height_spin_->set_context_provider(document_axis_context(false));
+  crop_height_spin_->setObjectName(QStringLiteral("cropHeightSpin"));
+  crop_height_spin_->setRange(1, 30000);
+  crop_height_spin_->setKeyboardTracking(false);
+  bind_tooltip(crop_height_spin_, QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Height of the crop box"));
+  configure_toolbar_spinbox(crop_height_spin_, 78);
+  crop_size_option_widgets_.push_back(add_option_widget(crop_height_spin_, {CanvasTool::Crop}));
   crop_apply_button_ = new QPushButton(toolbar);
   crop_apply_button_->setObjectName(QStringLiteral("cropApplyButton"));
   crop_apply_button_->setIcon(simple_icon(QStringLiteral("ok"), QColor(160, 220, 165)));
@@ -1301,11 +1350,18 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     current_crop_ratio_w_ = crop_ratio_w_spin_->value();
     current_crop_ratio_h_ = crop_ratio_h_spin_->value();
     if (canvas_ != nullptr) {
-      canvas_->set_crop_ratio(current_crop_ratio_w_, current_crop_ratio_h_);
+      canvas_->set_crop_ratio(effective_crop_ratio_width(), effective_crop_ratio_height());
     }
     sync_crop_ratio_preset_combo();
     schedule_save_tool_settings();
   };
+  connect(crop_style_combo_, &QComboBox::currentIndexChanged, this, [this](int index) {
+    apply_crop_style(index);
+  });
+  connect(crop_width_spin_, &QSpinBox::valueChanged, this,
+          [this](int value) { handle_crop_size_value_changed(true, value); });
+  connect(crop_height_spin_, &QSpinBox::valueChanged, this,
+          [this](int value) { handle_crop_size_value_changed(false, value); });
   connect(crop_ratio_w_spin_, &QDoubleSpinBox::valueChanged, this,
           [apply_crop_ratio](double) { apply_crop_ratio(); });
   connect(crop_ratio_h_spin_, &QDoubleSpinBox::valueChanged, this,

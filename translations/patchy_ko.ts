@@ -8875,6 +8875,10 @@ RGB: %2, %3, %4</translation>
         <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
         <translation>제안, 버그 보고, 코드를 보내 주신 멋진 분들: %1</translation>
     </message>
+    <message>
+        <source>Ratio</source>
+        <translation>비율</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -18574,6 +18578,30 @@ Y: %2
     <message>
         <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
         <translation>자르기: 핸들을 드래그하여 자르거나 캔버스를 확장합니다 (%ALT%는 중심 기준으로 크기 조절). 안쪽을 드래그하면 새 상자를 그리고, 바깥쪽을 드래그하면 회전합니다. Enter는 자르기, Esc는 상자를 재설정합니다.</translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation>비율</translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation>크기</translation>
+    </message>
+    <message>
+        <source>Ratio constrains the crop box; Size shows its exact width and height and sets them</source>
+        <translation>비율은 자르기 상자를 제한하고, 크기는 상자의 정확한 너비와 높이를 표시하고 설정합니다</translation>
+    </message>
+    <message>
+        <source>Width of the crop box</source>
+        <translation>자르기 상자 너비</translation>
+    </message>
+    <message>
+        <source>Keep the crop box&apos;s width and height in proportion</source>
+        <translation>자르기 상자의 너비와 높이 비율 유지</translation>
+    </message>
+    <message>
+        <source>Height of the crop box</source>
+        <translation>자르기 상자 높이</translation>
     </message>
 </context>
 <context>

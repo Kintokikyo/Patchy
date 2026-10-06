@@ -8905,6 +8905,10 @@ RGB: %2, %3, %4</translation>
         <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
         <translation>Personas increíbles que aportaron sugerencias, informes de errores y código: %1</translation>
     </message>
+    <message>
+        <source>Ratio</source>
+        <translation>Proporción</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -18630,6 +18634,30 @@ Convertido en imágenes: %1.</translation>
     <message>
         <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
         <translation>Recortar: arrastre los tiradores para recortar o ampliar el lienzo (%ALT% redimensiona desde el centro), arrastre dentro para trazar un cuadro nuevo, arrastre fuera para rotar. Intro recorta, Esc restablece el cuadro.</translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation>Proporción</translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation>Tamaño</translation>
+    </message>
+    <message>
+        <source>Ratio constrains the crop box; Size shows its exact width and height and sets them</source>
+        <translation>Proporción restringe el cuadro de recorte; Tamaño muestra su ancho y alto exactos y los establece</translation>
+    </message>
+    <message>
+        <source>Width of the crop box</source>
+        <translation>Ancho del cuadro de recorte</translation>
+    </message>
+    <message>
+        <source>Keep the crop box&apos;s width and height in proportion</source>
+        <translation>Mantener proporcionales el ancho y el alto del cuadro de recorte</translation>
+    </message>
+    <message>
+        <source>Height of the crop box</source>
+        <translation>Alto del cuadro de recorte</translation>
     </message>
 </context>
 <context>

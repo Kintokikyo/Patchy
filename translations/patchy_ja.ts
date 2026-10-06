@@ -8875,6 +8875,10 @@ Mixed selection</source>
         <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
         <translation>提案、バグ報告、コードを寄せてくれた素晴らしい方々: %1</translation>
     </message>
+    <message>
+        <source>Ratio</source>
+        <translation>比率</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -18574,6 +18578,30 @@ Baked into images: %1.</source>
     <message>
         <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
         <translation>切り抜き: ハンドルをドラッグして切り抜くかカンバスを広げます (%ALT% で中心基準)。内側をドラッグすると新しい枠、外側をドラッグすると回転します。Enter で切り抜き、Esc で枠をリセットします。</translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation>比率</translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation>サイズ</translation>
+    </message>
+    <message>
+        <source>Ratio constrains the crop box; Size shows its exact width and height and sets them</source>
+        <translation>比率は切り抜き枠を制約し、サイズは枠の正確な幅と高さを表示して設定します</translation>
+    </message>
+    <message>
+        <source>Width of the crop box</source>
+        <translation>切り抜き枠の幅</translation>
+    </message>
+    <message>
+        <source>Keep the crop box&apos;s width and height in proportion</source>
+        <translation>切り抜き枠の幅と高さの比率を保つ</translation>
+    </message>
+    <message>
+        <source>Height of the crop box</source>
+        <translation>切り抜き枠の高さ</translation>
     </message>
 </context>
 <context>

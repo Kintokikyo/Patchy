@@ -217,6 +217,21 @@ void CanvasWidget::begin_default_crop_session() {
   notify_crop_session_changed();
 }
 
+void CanvasWidget::set_crop_session_size(QSize size) {
+  if (!crop_session_active_ || size.width() < 1 || size.height() < 1) {
+    return;
+  }
+  const QRect rect(crop_rect_.x() + (crop_rect_.width() - size.width()) / 2,
+                   crop_rect_.y() + (crop_rect_.height() - size.height()) / 2, size.width(), size.height());
+  if (rect == crop_rect_) {
+    return;
+  }
+  crop_rect_ = rect;
+  crop_box_is_default_ = false;
+  update();
+  notify_crop_session_changed();
+}
+
 void CanvasWidget::reset_crop_session_to_canvas() {
   if (tool_ != CanvasTool::Crop || document_ == nullptr || edit_locked_) {
     cancel_crop_session();

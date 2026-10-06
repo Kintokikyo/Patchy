@@ -8905,6 +8905,10 @@ RGB: %2, %3, %4</translation>
         <source>Incredible people who donated suggestions, bug reports, and code: %1</source>
         <translation>Pessoas incríveis que doaram sugestões, relatórios de bugs e código: %1</translation>
     </message>
+    <message>
+        <source>Ratio</source>
+        <translation>Proporção</translation>
+    </message>
 </context>
 <context>
     <name>ScannerImport</name>
@@ -18630,6 +18634,30 @@ Y: %2
     <message>
         <source>Crop: drag the handles to crop or extend the canvas (%ALT% resizes about the center), drag inside to lay out a new box, drag outside it to rotate. Enter crops, Esc resets the box.</source>
         <translation>Corte: arraste as alças para cortar ou ampliar a tela (%ALT% redimensiona a partir do centro), arraste dentro para traçar uma nova caixa, arraste fora para girar. Enter corta, Esc redefine a caixa.</translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation>Proporção</translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation>Tamanho</translation>
+    </message>
+    <message>
+        <source>Ratio constrains the crop box; Size shows its exact width and height and sets them</source>
+        <translation>Proporção restringe a caixa de corte; Tamanho mostra sua largura e altura exatas e as define</translation>
+    </message>
+    <message>
+        <source>Width of the crop box</source>
+        <translation>Largura da caixa de corte</translation>
+    </message>
+    <message>
+        <source>Keep the crop box&apos;s width and height in proportion</source>
+        <translation>Manter a largura e a altura da caixa de corte proporcionais</translation>
+    </message>
+    <message>
+        <source>Height of the crop box</source>
+        <translation>Altura da caixa de corte</translation>
     </message>
 </context>
 <context>
