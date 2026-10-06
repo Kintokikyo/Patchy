@@ -10509,6 +10509,34 @@ RGB: %2, %3, %4</source>
         <source>Search fonts...</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Add Font…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add Font</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not create a temporary font file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not read the selected font file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Please select a TTF, OTF, TTC, or ZIP font file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The ZIP file does not contain any supported fonts.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The selected file is not a valid font.</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>patchy::ui::GradientLibrary</name>
@@ -13817,6 +13845,10 @@ Rect: -</source>
         <source>Exported %1 images to %2</source>
         <translation type="unfinished"></translation>
     </message>
+        <message>
+            <source>Exported %1 images</source>
+            <translation type="unfinished"></translation>
+        </message>
     <message>
         <source>Export Animated GIF</source>
         <translation type="unfinished"></translation>

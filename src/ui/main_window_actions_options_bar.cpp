@@ -341,6 +341,12 @@ public:
     const int available = width() > 0 ? width() : 1200;
     const int height = layout() != nullptr ? layout()->heightForWidth(available) : 0;
     return QSize(available, height);
+    
+  #ifdef Q_OS_ANDROID
+    return QSize(QWIDGETSIZE_MAX, height);
+  #else
+    return QSize(available, height);
+  #endif
   }
   QSize minimumSizeHint() const override {
     const int available = width() > 0 ? width() : 0;

@@ -25,6 +25,7 @@
 #include <QShowEvent>
 #include <QStyledItemDelegate>
 #include <QStyleOptionViewItem>
+#include <QUrl>
 #include <QVBoxLayout>
 #include <QUrl>
 
@@ -103,13 +104,49 @@ class RecentFileDelegate final : public QStyledItemDelegate {
     }
 
     const QFileInfo info(path);
+
+    QString display_name = info.fileName();
+    QString display_location = info.absolutePath();
+
+    #ifdef Q_OS_ANDROID
+    if (path.startsWith(QStringLiteral("content://"),
+                    Qt::CaseInsensitive)) {
+      const QUrl uri(path);
+
+      QString decoded_path = QUrl::fromPercentEncoding(
+        uri.path(QUrl::FullyEncoded).toUtf8());
+
+      const QString document_prefix =
+        QStringLiteral("/document/");
+
+      if (decoded_path.startsWith(document_prefix)) {
+        decoded_path = decoded_path.mid(document_prefix.size());
+      }
+
+      if (decoded_path.startsWith(QStringLiteral("primary:"))) {
+        decoded_path = decoded_path.mid(
+            QStringLiteral("primary:").size());
+      }
+
+      display_name = QFileInfo(decoded_path).fileName();
+      display_location = QFileInfo(decoded_path).path();
+
+      if (display_location == QStringLiteral(".")) {
+        display_location.clear();
+      }
+    }
+    #endif
+
     const QRect text_area = row.adjusted(10, 3, -10, -3);
     const auto name_font = offset_font(option.font, 0, true);
     painter->setFont(name_font);
     painter->setPen(theme().text_primary);
     const QRect name_rect(text_area.left(), text_area.top(), text_area.width(), text_area.height() / 2);
     painter->drawText(name_rect, Qt::AlignLeft | Qt::AlignVCenter,
-                      QFontMetrics(name_font).elidedText(info.fileName(), Qt::ElideMiddle, name_rect.width()));
+                  QFontMetrics(name_font).elidedText(
+                      display_name,
+                      Qt::ElideMiddle,
+                      name_rect.width()));
 
     const auto path_font = offset_font(option.font, -1, false);
     painter->setFont(path_font);
@@ -117,8 +154,10 @@ class RecentFileDelegate final : public QStyledItemDelegate {
     const QRect path_rect(text_area.left(), text_area.top() + text_area.height() / 2, text_area.width(),
                           text_area.height() - text_area.height() / 2);
     painter->drawText(path_rect, Qt::AlignLeft | Qt::AlignVCenter,
-                      QFontMetrics(path_font).elidedText(QDir::toNativeSeparators(info.absolutePath()),
-                                                         Qt::ElideMiddle, path_rect.width()));
+                  QFontMetrics(path_font).elidedText(
+                      display_location,
+                      Qt::ElideMiddle,
+                      path_rect.width()));
     painter->restore();
   }
 };
@@ -550,6 +589,15 @@ void StartPanel::set_recent_files(const QStringList& paths) {
     if (recent_paths_.size() >= kMaxRecentEntries) {
       break;
     }
+    
+  #ifdef Q_OS_ANDROID
+    if (path.startsWith(QStringLiteral("content://"),
+                        Qt::CaseInsensitive)) {
+        recent_paths_ << path;
+        continue;
+    }
+  #endif
+
     // No stat here: MainWindow drops missing entries after its background
     // existence check, and a click on one that vanished since reports it.
     recent_paths_ << QFileInfo(path).absoluteFilePath();
@@ -570,9 +618,40 @@ void StartPanel::rebuild_recent_rows() {
     if (!matches) {
       continue;
     }
-    auto* item = new QListWidgetItem(QFileInfo(path).fileName(), recent_list_);
+    QString display_name = QFileInfo(path).fileName();
+    QString display_location = QFileInfo(path).absolutePath();
+
+    #ifdef Q_OS_ANDROID
+      if (path.startsWith(QStringLiteral("content://"),
+                        Qt::CaseInsensitive)) {
+        const QUrl uri(path);
+        QString decoded_path = QUrl::fromPercentEncoding(
+            uri.path(QUrl::FullyEncoded).toUtf8());
+
+        const QString document_prefix =
+            QStringLiteral("/document/");
+
+        if (decoded_path.startsWith(document_prefix)) {
+            decoded_path = decoded_path.mid(document_prefix.size());
+        }
+
+        if (decoded_path.startsWith(QStringLiteral("primary:"))) {
+            decoded_path = decoded_path.mid(
+                QStringLiteral("primary:").size());
+        }
+
+        display_name = QFileInfo(decoded_path).fileName();
+        display_location = QFileInfo(decoded_path).path();
+
+        if (display_location == QStringLiteral(".")) {
+            display_location.clear();
+        }
+      }
+    #endif
+
+    auto* item = new QListWidgetItem(display_name, recent_list_);
     item->setData(kRecentPathRole, path);
-    item->setToolTip(native_path);
+    item->setToolTip(display_name);
   }
 
   const bool has_entries = !recent_paths_.isEmpty();

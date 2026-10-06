@@ -1538,7 +1538,14 @@ private:
                                std::vector<SnapCandidate>& y_candidates) const;
   void append_snap_target_candidates(std::vector<double>& x_candidates,
                                      std::vector<double>& y_candidates) const;
-  [[nodiscard]] QPoint snapped_rect_delta(QRect source_rect, QPoint raw_delta) const;
+  [[nodiscard]] QPoint snapped_rect_delta(
+    QRect source_rect,
+    QPoint raw_delta,
+    const std::vector<LayerId>& exclude_ids = {}) const;
+  [[nodiscard]] QPointF snapped_path_delta(
+    QRectF source_rect,
+    QPointF raw_delta,
+    const std::vector<LayerId>& exclude_ids = {}) const;
   [[nodiscard]] QPoint snapped_marquee_current_point(QPoint anchor, QPoint current) const;
   [[nodiscard]] QPoint snapped_move_delta(QPoint raw_delta) const;
   [[nodiscard]] MoveSnapResult snapped_move_delta_with_matches(QPoint raw_delta) const;
@@ -2226,6 +2233,7 @@ private:
   QPointF path_drag_origin_document_{};
   QPointF path_drag_raw_document_{};
   QPointF path_drag_applied_delta_{};
+  std::optional<QRectF> path_drag_snap_source_rect_;
   QPointF path_marquee_start_{};
   QPointF path_marquee_current_{};
   // Last raw pointer position of the marquee drag; Shift key toggles replay
@@ -2744,6 +2752,13 @@ private:
   std::optional<LayerId> transform_layer_id_;
   QRectF transform_original_rect_{};
   QRectF transform_current_rect_{};
+  
+  // Reference size and scale for Smart Object Free Transform.
+  // Unlike the rasterized layer bounds, these stay tied to the embedded source.
+  QSizeF transform_percent_reference_size_{};
+  double transform_initial_scale_x_{1.0};
+  double transform_initial_scale_y_{1.0};
+  
   QRectF transform_drag_start_rect_{};
   QPointF transform_drag_start_point_{};
   TransformHandle transform_drag_handle_{TransformHandle::None};

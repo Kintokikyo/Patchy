@@ -552,6 +552,8 @@ if(PATCHY_BUILD_APP)
   # there would fail the whole find_package and silently skip the app target.
   if(EMSCRIPTEN)
     set(PATCHY_QT_COMPONENTS Widgets Svg Network Qml LinguistTools)
+  elseif(ANDROID)
+    set(PATCHY_QT_COMPONENTS Widgets Svg Network Qml LinguistTools)
   else()
     set(PATCHY_QT_COMPONENTS Widgets Svg PrintSupport Network Qml LinguistTools Test)
   endif()
@@ -725,7 +727,7 @@ ${PATCHY_LUPDATE_MANIFEST_SOURCES}
     # when the Qt install is missing qtimageformats or its TLS plugin. Not on wasm:
     # that kit links plugins statically (no loadable files to probe) and has no TLS
     # backend at all (QtNetwork rides the browser's fetch).
-    if(NOT EMSCRIPTEN)
+    if(NOT EMSCRIPTEN AND NOT ANDROID)
       if(WIN32)
         set(PATCHY_REQUIRED_QT_TLS_PLUGINS qschannelbackend)
         set(PATCHY_QT_PLUGIN_PREFIX "")
@@ -900,7 +902,7 @@ ${PATCHY_LUPDATE_MANIFEST_SOURCES}
       endif()
     endfunction()
     # One writer assembles the installable skill, including the authoritative API docs.
-    if(NOT EMSCRIPTEN)
+    if(NOT EMSCRIPTEN AND NOT ANDROID)
       set(PATCHY_AGENT_KIT_DIR "${PROJECT_SOURCE_DIR}/agent-kit")
       file(GLOB_RECURSE PATCHY_AGENT_KIT_FILES CONFIGURE_DEPENDS "${PATCHY_AGENT_KIT_DIR}/*")
       set(PATCHY_AGENT_KIT_STAMP "${CMAKE_BINARY_DIR}/CMakeFiles/patchy_agent_kit.stamp")
@@ -1246,6 +1248,8 @@ ${PATCHY_LUPDATE_MANIFEST_SOURCES}
       # header to defuse the sendPendingEvents re-entrancy crash (docs/wasm.md);
       # drop this dependency when the upstream fix lands.
       target_link_libraries(patchy_ui PRIVATE Qt6::CorePrivate)
+    elseif(ANDROID)
+      target_sources(patchy_ui PRIVATE src/ui/print_dialog_wasm.cpp)
     else()
       target_sources(patchy_ui PRIVATE src/ui/print_dialog.cpp)
       target_link_libraries(patchy_ui PUBLIC Qt6::PrintSupport)
@@ -1468,13 +1472,25 @@ ${PATCHY_LUPDATE_MANIFEST_SOURCES}
       if(DEFINED PATCHY_FONTS_STAMP)
         set_property(TARGET patchy APPEND PROPERTY LINK_DEPENDS "${PATCHY_FONTS_STAMP}")
       endif()
+    elseif(ANDROID)
+      qt_add_executable(patchy src/app/main.cpp)
+      set_property(TARGET patchy PROPERTY 
+      QT_ANDROID_PACKAGE_SOURCE_DIR 
+      "${CMAKE_CURRENT_SOURCE_DIR}/android"
+      )
     else()
       add_executable(patchy WIN32 MACOSX_BUNDLE
         src/app/main.cpp
       )
     endif()
+    if(ANDROID)
+      set_target_properties(patchy PROPERTIES
+        QT_ANDROID_PACKAGE_NAME "com.DKapp.SethRobinson.patchy"
+        QT_ANDROID_APP_ICON "@mipmap/ic_launcher"
+      )
+    endif()
     target_link_libraries(patchy PRIVATE patchy_ui)
-    if(NOT EMSCRIPTEN)
+    if(NOT EMSCRIPTEN AND NOT ANDROID)
       add_executable(patchy-mcp src/app/main.cpp src/app/mcp_server.cpp src/app/mcp_stdio.cpp)
       target_link_libraries(patchy-mcp PRIVATE patchy_ui)
       target_compile_definitions(patchy-mcp PRIVATE PATCHY_MCP_EXECUTABLE=1)
@@ -1512,7 +1528,7 @@ ${PATCHY_LUPDATE_MANIFEST_SOURCES}
     patchy_copy_qt_runtime(patchy)
     patchy_copy_bundled_fonts(patchy)
     patchy_copy_bundled_scripts(patchy)
-    if(NOT EMSCRIPTEN)
+    if(NOT EMSCRIPTEN AND NOT ANDROID)
       # This small runner is a required build tool, independent of PATCHY_BUILD_TESTS.
       # It shares the actual checks with the UI suite and has private temporary settings.
       add_executable(patchy_translation_checks
@@ -1615,7 +1631,7 @@ ${PATCHY_LUPDATE_MANIFEST_SOURCES}
       add_custom_target(patchy_bundle_resources ALL
                         DEPENDS "${PATCHY_BUNDLE_RESOURCES_STAMP}")
     endif()
-    if(NOT EMSCRIPTEN)
+    if(NOT EMSCRIPTEN AND NOT ANDROID)
       # 34 MB the wasm virtual filesystem could never see; the sole runtime
       # consumer (load_bundled_legacy_plugins) early-returns when absent.
       add_custom_command(TARGET patchy POST_BUILD
@@ -1629,7 +1645,7 @@ ${PATCHY_LUPDATE_MANIFEST_SOURCES}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
       )
     endif()
-    if(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
+    if(UNIX AND NOT APPLE AND NOT EMSCRIPTEN AND NOT ANDROID)
       install(DIRECTORY "${PATCHY_AGENT_KIT_DIR}/"
               DESTINATION "${CMAKE_INSTALL_DATADIR}/patchy/ai")
       install(FILES "${PATCHY_BUNDLED_SCRIPTS_DIR}/patchy.d.ts"

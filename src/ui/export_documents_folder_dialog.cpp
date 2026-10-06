@@ -19,6 +19,7 @@
 #include <QPushButton>
 #include <QSpinBox>
 #include <QVBoxLayout>
+#include <QUrl>
 
 #include <algorithm>
 
@@ -32,6 +33,66 @@ constexpr auto kPaddingKey = "exportDocumentsFolder/padding";
 constexpr auto kFormatKey = "exportDocumentsFolder/format";
 constexpr auto kExistingFilesKey = "exportDocumentsFolder/existingFiles";
 
+#ifdef Q_OS_ANDROID
+
+bool is_android_content_uri(const QString& path) {
+  return path.startsWith(
+      QStringLiteral("content://"),
+      Qt::CaseInsensitive);
+}
+
+QString display_folder_for_ui(const QString& path) {
+  if (!is_android_content_uri(path)) {
+    return QDir::toNativeSeparators(path);
+  }
+
+  const QUrl uri(path);
+  const QString encoded_path = uri.path(QUrl::FullyEncoded);
+  const QString tree_marker = QStringLiteral("/tree/");
+
+  const qsizetype tree_pos =
+      encoded_path.indexOf(tree_marker);
+
+  if (tree_pos >= 0) {
+    QString document_id =
+        encoded_path.mid(tree_pos + tree_marker.size());
+
+    const QString document_marker =
+        QStringLiteral("/document/");
+    const qsizetype document_pos =
+        document_id.indexOf(document_marker);
+
+    if (document_pos >= 0) {
+      document_id = document_id.left(document_pos);
+    }
+
+    document_id = QUrl::fromPercentEncoding(
+        document_id.toUtf8());
+
+    if (document_id.startsWith(
+            QStringLiteral("primary:"))) {
+      document_id.remove(
+          0,
+          QStringLiteral("primary:").size());
+    }
+
+    if (!document_id.isEmpty()) {
+      return document_id;
+    }
+  }
+
+  return QUrl::fromPercentEncoding(
+      QFileInfo(path).fileName().toUtf8());
+}
+
+#else
+
+QString display_folder_for_ui(const QString& path) {
+  return QDir::toNativeSeparators(path);
+}
+
+#endif
+
 }  // namespace
 
 std::optional<ExportDocumentsFolderChoice> run_export_documents_folder_dialog(
@@ -40,6 +101,11 @@ std::optional<ExportDocumentsFolderChoice> run_export_documents_folder_dialog(
   auto settings = app_settings();
 
   QDialog dialog(parent);
+  QString folder_value =
+    settings.value(
+        QLatin1String(kFolderKey),
+        initial_folder)
+        .toString();
   dialog.setObjectName(QStringLiteral("exportDocumentsFolderDialog"));
   dialog.setWindowTitle(QObject::tr("Export Documents to Folder"));
   dialog.resize(540, 520);
@@ -61,7 +127,11 @@ std::optional<ExportDocumentsFolderChoice> run_export_documents_folder_dialog(
   folder_row_layout->setSpacing(4);
   auto* folder_edit = new QLineEdit(folder_row);
   folder_edit->setObjectName(QStringLiteral("exportDocumentsFolderEdit"));
-  folder_edit->setText(QDir::toNativeSeparators(settings.value(QLatin1String(kFolderKey), initial_folder).toString()));
+#ifdef Q_OS_ANDROID
+  folder_edit->setReadOnly(true);
+#endif
+  folder_edit->setText(
+    display_folder_for_ui(folder_value));
   auto* browse_button = new QPushButton(QStringLiteral("..."), folder_row);
   browse_button->setObjectName(QStringLiteral("exportDocumentsFolderBrowseButton"));
   browse_button->setToolTip(QObject::tr("Choose Folder..."));
@@ -184,25 +254,53 @@ std::optional<ExportDocumentsFolderChoice> run_export_documents_folder_dialog(
   QObject::connect(start_spin, &QSpinBox::valueChanged, &dialog, sync);
   QObject::connect(padding_spin, &QSpinBox::valueChanged, &dialog, sync);
   QObject::connect(format_combo, &QComboBox::currentIndexChanged, &dialog, sync);
-  QObject::connect(browse_button, &QPushButton::clicked, &dialog, [&dialog, folder_edit] {
-    const auto chosen = QFileDialog::getExistingDirectory(&dialog, QObject::tr("Choose Folder"), folder_edit->text());
-    if (!chosen.isEmpty()) {
-      folder_edit->setText(QDir::toNativeSeparators(chosen));
-    }
-  });
+  QObject::connect(
+    browse_button,
+    &QPushButton::clicked,
+    &dialog,
+    [&dialog, folder_edit, &folder_value] {
+      const auto chosen =
+          QFileDialog::getExistingDirectory(
+              &dialog,
+              QObject::tr("Choose Folder"),
+              folder_value);
+
+      if (!chosen.isEmpty()) {
+        // Keep the real Android SAF URI internally.
+        folder_value = chosen;
+
+        // Only show a human-readable path in the UI.
+        folder_edit->setText(
+            display_folder_for_ui(folder_value));
+      }
+    });
   // Validating accept: the folder must exist (or be creatable) before the dialog
   // closes; on failure it stays open for a correction.
-  QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, [&dialog, folder_edit] {
-    const QString folder = folder_edit->text().trimmed();
-    if (folder.isEmpty() || !QDir().mkpath(folder)) {
-      (void)show_warning_message(&dialog, QObject::tr("Export Documents to Folder"),
-                                 QObject::tr("The folder \"%1\" could not be created.").arg(folder),
-                                 QMessageBox::Ok, QMessageBox::Ok,
-                                 QStringLiteral("exportDocumentsFolderCreateFailedMessageBox"));
-      return;
-    }
-    dialog.accept();
-  });
+  QObject::connect(
+    buttons,
+    &QDialogButtonBox::accepted,
+    &dialog,
+    [&dialog, folder_edit, &folder_value] {
+      Q_UNUSED(folder_edit);
+
+      const QString folder = folder_value.trimmed();
+
+      if (folder.isEmpty() || !QDir().mkpath(folder)) {
+        (void)show_warning_message(
+            &dialog,
+            QObject::tr("Export Documents to Folder"),
+            QObject::tr(
+                "The folder \"%1\" could not be created.")
+                .arg(folder),
+            QMessageBox::Ok,
+            QMessageBox::Ok,
+            QStringLiteral(
+                "exportDocumentsFolderCreateFailedMessageBox"));
+        return;
+      }
+
+      dialog.accept();
+    });
   QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
   append_themed_style(dialog, dialog_spinbox_button_style());
 
@@ -213,7 +311,7 @@ std::optional<ExportDocumentsFolderChoice> run_export_documents_folder_dialog(
 
   ExportDocumentsFolderChoice choice;
   choice.session_ids = selected_session_ids(*list);
-  choice.folder = QDir(folder_edit->text().trimmed()).absolutePath();
+  choice.folder = folder_value.trimmed();
   choice.extension = format_combo->currentData().toString();
   choice.naming = current_naming();
   choice.existing_files = static_cast<ExportDocumentsExistingFiles>(existing_combo->currentData().toInt());
