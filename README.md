@@ -128,7 +128,10 @@ and Affinity import has format-specific limitations. See [current compatibility]
 - Selection Feather and Anti-alias are kept per tool and remembered between sessions ([issue 64](https://github.com/SethRobinson/Patchy/issues/64))
 - Layers above a layer being transformed stay visible during the drag ([issue 72](https://github.com/SethRobinson/Patchy/issues/72)), and clicking a blank area of the Layers panel deselects every layer
 - Scripting: `layer.rerenderText()` and `layer.rerenderSmartObject()`
+  
+- Testy V2 written, it's a more accurate way to test PSD compatibilty of various apps,, it's a WIP but you can see a run [here](https://www.rtsoft.com/testy/2026-10-06/).  
 
+- I added some people to the credits (Kevdoy had a TON of bug reports today), thanks folks!)  But then the credits got too big, so I moved them to the Help->About screen as being on the main screen actually hurt the real-estate needed to show more recent files.  If anybody is like "no, don't put me in the credits, jerk" just let me know.
 ### 1.05 - October 4, 2026
 
 - Linux: Patchy now updates through `flatpak update` and the software center, from a signed Flatpak repository ([issue 28](https://github.com/SethRobinson/Patchy/issues/28)). The Flatpak moved to the current KDE runtime, and iPhone HEIC photos open without installing an extra codec package
