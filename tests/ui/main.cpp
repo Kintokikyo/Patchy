@@ -110,6 +110,29 @@ LONG WINAPI report_access_violation(EXCEPTION_POINTERS* info) {
               static_cast<unsigned long long>(symbol_displacement));
     }
   }
+  // The walk above stops at the first frame it cannot unwind (a fault inside
+  // the heap manager prints nothing), so also leave a minidump beside the
+  // artifacts: `dump_stack.exe <dmp> build\release` symbolizes it offline
+  // against the matching PDB (docs/testing.md).
+  char dump_path[MAX_PATH] = {};
+  snprintf(dump_path, sizeof(dump_path), "test-artifacts\\crash-%lu.dmp",
+           static_cast<unsigned long>(GetCurrentProcessId()));
+  CreateDirectoryA("test-artifacts", nullptr);
+  const auto dump_file =
+      CreateFileA(dump_path, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (dump_file != INVALID_HANDLE_VALUE) {
+    MINIDUMP_EXCEPTION_INFORMATION exception_info = {};
+    exception_info.ThreadId = GetCurrentThreadId();
+    exception_info.ExceptionPointers = info;
+    exception_info.ClientPointers = FALSE;
+    const auto dump_type = static_cast<MINIDUMP_TYPE>(MiniDumpWithIndirectlyReferencedMemory | MiniDumpWithDataSegs |
+                                                      MiniDumpWithHandleData | MiniDumpWithThreadInfo);
+    const auto written = MiniDumpWriteDump(process, GetCurrentProcessId(), dump_file, dump_type, &exception_info,
+                                           nullptr, nullptr);
+    CloseHandle(dump_file);
+    fprintf(stderr, written != FALSE ? "[CRASH] minidump written to %s\n" : "[CRASH] minidump failed: %s\n",
+            dump_path);
+  }
   fflush(stderr);
   return EXCEPTION_CONTINUE_SEARCH;
 }
