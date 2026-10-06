@@ -1250,6 +1250,9 @@ void configure_toolbar_spinbox_impl(SpinBox* spin, int width) {
     new ToolbarSpinboxWidthRefresher<SpinBox>(spin);
   }
   install_numeric_popup(spin);
+  // A click into a toolbar field selects its value so typing replaces it
+  // (GitHub issue 66; Qt only does this for keyboard focus).
+  select_all_on_focus(*spin);
 }
 
 }  // namespace

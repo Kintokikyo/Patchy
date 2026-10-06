@@ -193,6 +193,67 @@ void ui_crop_handles_resize_move_and_nudge() {
   CHECK(!canvas->crop_session_active());
 }
 
+// GitHub issue 66: Alt while dragging a crop handle resizes the box about its
+// center (the opposite side mirrors the dragged one), free or ratio-locked.
+void ui_crop_alt_handle_drag_resizes_about_center() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  require_action(window, "toolCropAction")->trigger();
+  QApplication::processEvents();
+  canvas->set_snap_enabled(false);
+  canvas->set_crop_ratio(0.0, 0.0);
+
+  drag(*canvas, canvas->widget_position_for_document_point(QPoint(100, 100)),
+       canvas->widget_position_for_document_point(QPoint(200, 180)));
+  auto rect = canvas->crop_session_rect();
+  CHECK(rect.has_value());
+  CHECK(*rect == QRect(100, 100, 101, 81));
+
+  // Alt pressed after the grab: the handle still drives the drag.
+  const auto alt_drag = [&](QPoint from_document, QPoint to_document) {
+    const auto from = canvas->widget_position_for_document_point(from_document);
+    const auto to = canvas->widget_position_for_document_point(to_document);
+    send_mouse(*canvas, QEvent::MouseButtonPress, from, Qt::LeftButton, Qt::LeftButton);
+    send_mouse(*canvas, QEvent::MouseMove, (from + to) / 2, Qt::NoButton, Qt::LeftButton, Qt::AltModifier);
+    send_mouse(*canvas, QEvent::MouseMove, to, Qt::NoButton, Qt::LeftButton, Qt::AltModifier);
+    send_mouse(*canvas, QEvent::MouseButtonRelease, to, Qt::LeftButton, Qt::NoButton, Qt::AltModifier);
+    QApplication::processEvents();
+  };
+  const auto within = [](int actual, int expected) { return std::abs(actual - expected) <= 1; };
+
+  // Bottom-right corner, center (150.5, 140.5): both sides grow equally.
+  alt_drag(QPoint(201, 181), QPoint(240, 220));
+  rect = canvas->crop_session_rect();
+  CHECK(rect.has_value());
+  CHECK(within(rect->width(), 179));
+  CHECK(within(rect->height(), 159));
+  CHECK(within(rect->x() + rect->width() / 2, 150));
+  CHECK(within(rect->y() + rect->height() / 2, 140));
+
+  // Left edge: the width grows on both sides, the height stays.
+  const auto before_edge = *rect;
+  alt_drag(QPoint(before_edge.x(), before_edge.y() + before_edge.height() / 2), QPoint(before_edge.x() - 20, 300));
+  rect = canvas->crop_session_rect();
+  CHECK(rect.has_value());
+  CHECK(within(rect->width(), before_edge.width() + 40));
+  CHECK(rect->height() == before_edge.height());
+  CHECK(within(rect->x() + rect->width() / 2, before_edge.x() + before_edge.width() / 2));
+
+  // A 2:1 ratio holds about the center too.
+  canvas->set_crop_ratio(2.0, 1.0);
+  const auto before_ratio = *rect;
+  alt_drag(QPoint(before_ratio.x() + before_ratio.width(), before_ratio.y() + before_ratio.height()),
+           QPoint(before_ratio.x() + before_ratio.width() + 20, before_ratio.y() + before_ratio.height() + 20));
+  rect = canvas->crop_session_rect();
+  CHECK(rect.has_value());
+  CHECK(std::abs(rect->width() - rect->height() * 2) <= 2);
+  CHECK(within(rect->x() + rect->width() / 2, before_ratio.x() + before_ratio.width() / 2));
+  CHECK(within(rect->y() + rect->height() / 2, before_ratio.y() + before_ratio.height() / 2));
+  send_key(*canvas, Qt::Key_Escape);
+  CHECK(!canvas->crop_session_active());
+}
+
 void ui_crop_rotated_commit_straightens_box() {
   patchy::ui::MainWindow window;
   show_window(window);
@@ -385,6 +446,7 @@ std::vector<patchy::test::TestCase> crop_tool_tests() {
       {"ui_crop_tool_activates_with_c_hotkey", ui_crop_tool_activates_with_c_hotkey},
       {"ui_crop_drag_out_geometry", ui_crop_drag_out_geometry},
       {"ui_crop_handles_resize_move_and_nudge", ui_crop_handles_resize_move_and_nudge},
+      {"ui_crop_alt_handle_drag_resizes_about_center", ui_crop_alt_handle_drag_resizes_about_center},
       {"ui_crop_rotated_commit_straightens_box", ui_crop_rotated_commit_straightens_box},
       {"ui_crop_enter_commits_expanding_document", ui_crop_enter_commits_expanding_document},
       {"ui_crop_escape_and_tool_switch_cancel", ui_crop_escape_and_tool_switch_cancel},

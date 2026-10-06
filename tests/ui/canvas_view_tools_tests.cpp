@@ -2107,6 +2107,49 @@ void ui_fill_of_wand_selection_with_many_spans_is_fast() {
             << selection.rectCount() << " selection spans\n";
 }
 
+// GitHub issue 66: clicking into an options-bar numeric field selects its whole
+// value, so typing replaces it (Qt only selects on keyboard focus).
+void ui_toolbar_spin_boxes_select_all_on_focus() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  window.activateWindow();
+  QApplication::processEvents();
+
+  require_action(window, "toolCropAction")->trigger();
+  QApplication::processEvents();
+  auto* ratio_width = window.findChild<QDoubleSpinBox*>(QStringLiteral("cropRatioWidthSpin"));
+  CHECK(ratio_width != nullptr);
+  if (ratio_width != nullptr) {
+    CHECK(ratio_width->isVisible());
+    auto* editor = ratio_width->findChild<QLineEdit*>();
+    CHECK(editor != nullptr);
+    if (editor != nullptr) {
+      editor->deselect();
+      ratio_width->setFocus(Qt::MouseFocusReason);
+      QApplication::processEvents();
+      CHECK(editor->hasFocus());
+      CHECK(editor->hasSelectedText());
+      CHECK(editor->selectedText() == editor->text());
+    }
+  }
+
+  require_action_by_text(window, QStringLiteral("Brush"))->trigger();
+  QApplication::processEvents();
+  auto* brush_size = window.findChild<QSpinBox*>(QStringLiteral("brushSizeSpin"));
+  CHECK(brush_size != nullptr);
+  if (brush_size != nullptr) {
+    auto* editor = brush_size->findChild<QLineEdit*>();
+    CHECK(editor != nullptr);
+    if (editor != nullptr) {
+      editor->deselect();
+      brush_size->setFocus(Qt::MouseFocusReason);
+      QApplication::processEvents();
+      CHECK(editor->hasFocus());
+      CHECK(editor->selectedText() == editor->text());
+    }
+  }
+}
+
 void ui_options_bar_tracks_active_tool() {
   SettingsValueRestorer saved_gradient_method(QStringLiteral("tools/gradientMethod"));
   SettingsValueRestorer saved_gradient_reverse(QStringLiteral("tools/gradientReverse"));
@@ -2115,6 +2158,7 @@ void ui_options_bar_tracks_active_tool() {
   SettingsValueRestorer saved_gradient_stops(QStringLiteral("tools/gradientStops"));
   SettingsValueRestorer saved_text_smoothing(QStringLiteral("tools/textSmoothing"));
   SettingsValueRestorer saved_show_transform_controls(QStringLiteral("tools/showTransformControls"));
+  SettingsValueRestorer saved_move_auto_select(QStringLiteral("tools/moveAutoSelect"));
   auto settings = patchy::ui::app_settings();
   settings.remove(QStringLiteral("tools/showTransformControls"));
   settings.sync();
@@ -3957,6 +4001,7 @@ std::vector<patchy::test::TestCase> canvas_view_tools_tests() {
       {"ui_tool_flyout_right_click_opens_menu", ui_tool_flyout_right_click_opens_menu},
       {"ui_tool_palette_icons_render_sheet", ui_tool_palette_icons_render_sheet},
       {"ui_filled_shape_preview_clears_after_commit", ui_filled_shape_preview_clears_after_commit},
+      {"ui_toolbar_spin_boxes_select_all_on_focus", ui_toolbar_spin_boxes_select_all_on_focus},
       {"ui_options_bar_tracks_active_tool", ui_options_bar_tracks_active_tool},
       {"ui_fill_tool_tolerance_and_contiguous_persist_across_documents",
        ui_fill_tool_tolerance_and_contiguous_persist_across_documents},

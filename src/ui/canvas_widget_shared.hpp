@@ -166,6 +166,13 @@ QRect rect_aligned_to_mip_grid(QRect rect, int level) noexcept;
 // document's coordinates (floor origin, ceil extent - the partial edge blocks
 // of a ceil-halved canvas stay covered).
 QRect preview_scaled_document_rect(QRect rect, int level) noexcept;
+// Handle-drag rect anchored at the start rect's center (Alt held; GitHub issue
+// 66): the dragged edge or corner follows `point` and the opposite side mirrors
+// it, so the box resizes evenly about its center. `moves_x`/`moves_y` say which
+// axes the handle drives; a `target_ratio` > 0 constrains width:height, fitting
+// the larger axis to the smaller as the anchored branches do. Never below 1 px.
+QRect center_anchored_handle_rect(QRect start, bool moves_x, bool moves_y, QPoint point,
+                                  double target_ratio) noexcept;
 // A live preview frame (move patches, transform composited preview) slower
 // than this latches the drag onto its proxy on the next move: the area gates
 // cannot price the stack a drag crosses. Env override PATCHY_MOVE_LIVE_LATCH_MS

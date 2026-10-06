@@ -557,6 +557,33 @@ QRect rect_aligned_to_mip_grid(QRect rect, int level) noexcept {
   return QRect(QPoint(left, top), QPoint(right, bottom));
 }
 
+QRect center_anchored_handle_rect(QRect start, bool moves_x, bool moves_y, QPoint point,
+                                  double target_ratio) noexcept {
+  const double center_x = start.x() + start.width() / 2.0;
+  const double center_y = start.y() + start.height() / 2.0;
+  double half_width = moves_x ? std::abs(point.x() - center_x) : start.width() / 2.0;
+  double half_height = moves_y ? std::abs(point.y() - center_y) : start.height() / 2.0;
+  half_width = std::max(0.5, half_width);
+  half_height = std::max(0.5, half_height);
+  if (target_ratio > 0.0) {
+    if (moves_x && moves_y) {
+      if (half_width / half_height > target_ratio) {
+        half_width = half_height * target_ratio;
+      } else {
+        half_height = half_width / target_ratio;
+      }
+    } else if (moves_x) {
+      half_height = half_width / target_ratio;
+    } else {
+      half_width = half_height * target_ratio;
+    }
+  }
+  const auto width = std::max(1, static_cast<int>(std::lround(half_width * 2.0)));
+  const auto height = std::max(1, static_cast<int>(std::lround(half_height * 2.0)));
+  return QRect(static_cast<int>(std::lround(center_x - width / 2.0)),
+               static_cast<int>(std::lround(center_y - height / 2.0)), width, height);
+}
+
 QRect preview_scaled_document_rect(QRect rect, int level) noexcept {
   if (rect.isEmpty() || level <= 0) {
     return rect;

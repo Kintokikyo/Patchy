@@ -1399,7 +1399,14 @@ void CanvasWidget::update_marquee_resize_drag(QPoint document_point, Qt::Keyboar
   const auto corner = (moves_left || moves_right) && (moves_top || moves_bottom);
 
   QRect rect;
-  if (corner && (modifiers & Qt::ShiftModifier) != 0 && start.height() > 0) {
+  const bool holds_aspect = corner && (modifiers & Qt::ShiftModifier) != 0 && start.height() > 0;
+  if ((modifiers & Qt::AltModifier) != 0) {
+    // Alt resizes about the center, the opposite side mirroring the dragged one
+    // (GitHub issue 66). Alt at the press means Subtract and never reaches a
+    // handle, so this is the mid-drag Alt, like Shift below.
+    rect = center_anchored_handle_rect(start, moves_left || moves_right, moves_top || moves_bottom, point,
+                                       holds_aspect ? static_cast<double>(start.width()) / start.height() : 0.0);
+  } else if (holds_aspect) {
     // Shift on a corner holds the drag-start aspect (the crop handle rule). The
     // options-bar Style only shapes drag-outs, so it does not bind here.
     const auto target_ratio = static_cast<double>(start.width()) / start.height();

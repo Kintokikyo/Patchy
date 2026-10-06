@@ -300,7 +300,13 @@ void CanvasWidget::update_crop_adjust_drag(QPointF document_point, Qt::KeyboardM
   }
 
   QRect rect;
-  if (target_ratio > 0.0 && corner) {
+  if ((modifiers & Qt::AltModifier) != 0) {
+    // Alt resizes about the center: the opposite side mirrors the dragged one
+    // (GitHub issue 66; read mid-drag, so it works with the Alt pressed after the
+    // grab too). A set ratio or Shift still constrains the result.
+    rect = center_anchored_handle_rect(start, moves_left || moves_right, moves_top || moves_bottom, point,
+                                       target_ratio);
+  } else if (target_ratio > 0.0 && corner) {
     const auto anchor_x = moves_left ? start.x() + start.width() : start.x();
     const auto anchor_y = moves_top ? start.y() + start.height() : start.y();
     auto width = std::max(1, std::abs(point.x() - anchor_x));

@@ -1462,6 +1462,62 @@ void ui_marquee_corner_handle_drag_and_shift_aspect() {
   CHECK(resized->height() == before_flip.height());
 }
 
+// GitHub issue 66: Alt held while dragging a marquee handle resizes the
+// selection about its center. Alt at the press means Subtract (and misses the
+// handle), so it is pressed after the grab, like Shift.
+void ui_marquee_alt_handle_drag_resizes_about_center() {
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  canvas->set_tool(patchy::ui::CanvasTool::Marquee);
+  canvas->set_snap_enabled(false);
+
+  // Start away from the canvas edges: the mirrored side grows too, and a
+  // selection past the canvas rasterizes clipped.
+  drag(*canvas, canvas->widget_position_for_document_point(QPoint(200, 120)),
+       canvas->widget_position_for_document_point(QPoint(260, 160)));
+  const auto original = canvas->selected_document_rect();
+  CHECK(original.has_value());
+  if (!original.has_value()) {
+    return;
+  }
+  const auto alt_drag = [&](QPoint handle, QPoint to) {
+    send_mouse(*canvas, QEvent::MouseButtonPress, handle, Qt::LeftButton, Qt::LeftButton);
+    send_mouse(*canvas, QEvent::MouseMove, (handle + to) / 2, Qt::NoButton, Qt::LeftButton, Qt::AltModifier);
+    send_mouse(*canvas, QEvent::MouseMove, to, Qt::NoButton, Qt::LeftButton, Qt::AltModifier);
+    send_mouse(*canvas, QEvent::MouseButtonRelease, to, Qt::LeftButton, Qt::NoButton, Qt::AltModifier);
+    QApplication::processEvents();
+  };
+
+  // Bottom-right corner out by 30 on each axis: 60 wider and taller, same center.
+  alt_drag(marquee_handle_position(*canvas, *original, 2, 2),
+           canvas->widget_position_for_document_point(
+               QPoint(original->x() + original->width() + 30, original->y() + original->height() + 30)));
+  auto resized = canvas->selected_document_rect();
+  CHECK(resized.has_value());
+  if (!resized.has_value()) {
+    return;
+  }
+  CHECK(within_one(resized->width(), original->width() + 60));
+  CHECK(within_one(resized->height(), original->height() + 60));
+  CHECK(within_one(resized->center().x(), original->center().x()));
+  CHECK(within_one(resized->center().y(), original->center().y()));
+
+  // Right edge out by 20: 40 wider, the height and the center stay.
+  const auto before_edge = *resized;
+  alt_drag(marquee_handle_position(*canvas, before_edge, 2, 1),
+           canvas->widget_position_for_document_point(
+               QPoint(before_edge.x() + before_edge.width() + 20, before_edge.y() + before_edge.height() / 2)));
+  resized = canvas->selected_document_rect();
+  CHECK(resized.has_value());
+  if (!resized.has_value()) {
+    return;
+  }
+  CHECK(within_one(resized->width(), before_edge.width() + 40));
+  CHECK(resized->height() == before_edge.height());
+  CHECK(within_one(resized->center().x(), before_edge.center().x()));
+}
+
 void ui_elliptical_marquee_handle_drag_keeps_ellipse() {
   patchy::ui::MainWindow window;
   show_window(window);
@@ -1997,6 +2053,7 @@ std::vector<patchy::test::TestCase> selection_marquee_lasso_tests_part2() {
       {"ui_marquee_gestures_never_snap_to_their_own_selection",
        ui_marquee_gestures_never_snap_to_their_own_selection},
       {"ui_marquee_corner_handle_drag_and_shift_aspect", ui_marquee_corner_handle_drag_and_shift_aspect},
+      {"ui_marquee_alt_handle_drag_resizes_about_center", ui_marquee_alt_handle_drag_resizes_about_center},
       {"ui_elliptical_marquee_handle_drag_keeps_ellipse", ui_elliptical_marquee_handle_drag_keeps_ellipse},
       {"ui_marquee_feathered_resize_rerasterizes_soft_edge", ui_marquee_feathered_resize_rerasterizes_soft_edge},
       {"ui_marquee_handles_follow_move_and_vanish_after_other_edits",
