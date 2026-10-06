@@ -12787,10 +12787,6 @@ RGB: %2, %3, %4</translation>
         <translation>Werkzeug</translation>
     </message>
     <message>
-        <source>Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. Shift constrains layer movement.</source>
-        <translation>Shift+Klick oder %CTRL%+Klick wählt Ebenen aus oder hebt ihre Auswahl auf. %CTRL%+Ziehen wählt Ebenen in einem Rechteck aus; halten Sie vor dem Ziehen Shift gedrückt, um zur Auswahl hinzuzufügen. Shift beschränkt die Ebenenbewegung.</translation>
-    </message>
-    <message>
         <source>Click to place points, drag for curves. On a path: click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL% moves points.</source>
         <translation>Klicken Sie, um Punkte zu setzen, ziehen Sie für Kurven. Auf einem Pfad: Ein Klick auf ein Segment fügt einen Punkt hinzu, ein Klick auf einen Punkt löscht ihn, %ALT%+Klick wandelt ihn um, %CTRL% verschiebt Punkte.</translation>
     </message>
@@ -12813,10 +12809,6 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Click a point to switch it between corner and smooth.</source>
         <translation>Klicken Sie auf einen Punkt, um zwischen Eck- und Übergangspunkt zu wechseln.</translation>
-    </message>
-    <message>
-        <source>Move: Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it.</source>
-        <translation>Verschieben: Shift+Klick oder %CTRL%+Klick wählt Ebenen aus oder hebt ihre Auswahl auf. %CTRL%+Ziehen wählt Ebenen in einem Rechteck aus; Shift fügt zur Auswahl hinzu. Ziehen Sie ausgewählte Inhalte, um sie zu verschieben.</translation>
     </message>
     <message>
         <source>Pen: click to add points, drag for curves. On a path, click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL%+drag selects or moves points.</source>
@@ -18622,6 +18614,14 @@ In Bilder umgewandelt: %1.</translation>
     <message>
         <source>This smart object cannot be re-rendered</source>
         <translation>Dieses Smartobjekt kann nicht neu gerendert werden</translation>
+    </message>
+    <message>
+        <source>%CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. %ALT%+drag duplicates. Shift constrains layer movement.</source>
+        <translation>%CTRL%+Klick wählt eine Ebene aus, Umschalt+Klick schaltet sie um. %CTRL%+Ziehen wählt Ebenen in einem Rechteck aus; Umschalt vor dem Ziehen halten, um hinzuzufügen. %ALT%+Ziehen dupliziert. Umschalt beschränkt die Ebenenbewegung.</translation>
+    </message>
+    <message>
+        <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
+        <translation>Verschieben: %CTRL%+Klick wählt eine Ebene aus, Umschalt+Klick schaltet sie um. %CTRL%+Ziehen wählt ein Rechteck aus; Umschalt fügt hinzu. Ausgewählte Grafik ziehen, um sie zu verschieben, %ALT%+Ziehen, um sie zu duplizieren.</translation>
     </message>
 </context>
 <context>

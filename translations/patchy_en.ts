@@ -12776,10 +12776,6 @@ RGB: %2, %3, %4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. Shift constrains layer movement.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Click to place points, drag for curves. On a path: click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL% moves points.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -12801,10 +12797,6 @@ RGB: %2, %3, %4</source>
     </message>
     <message>
         <source>Click a point to switch it between corner and smooth.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Move: Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -18571,6 +18563,14 @@ Baked into images: %1.</source>
     </message>
     <message>
         <source>This smart object cannot be re-rendered</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. %ALT%+drag duplicates. Shift constrains layer movement.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

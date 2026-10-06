@@ -420,6 +420,14 @@ void CanvasWidget::begin_move_layer_selection(QMouseEvent* event, const Layer* c
   }
   gesture.rectangle_allowed = rectangle_allowed;
   gesture.additive = event->modifiers().testFlag(Qt::ShiftModifier);
+  if (event->modifiers().testFlag(Qt::AltModifier) && move_duplicate_requested_callback_) {
+    // Shift+Alt-drag duplicates the enlarged selection (GitHub issue 69).
+    gesture.duplicate_roots = gesture.selected_ids;
+    if (gesture.clicked_id.has_value() && std::find(gesture.duplicate_roots.begin(), gesture.duplicate_roots.end(),
+                                                    *gesture.clicked_id) == gesture.duplicate_roots.end()) {
+      gesture.duplicate_roots.push_back(*gesture.clicked_id);
+    }
+  }
   move_layer_selection_gesture_ = std::move(gesture);
   clear_move_hover_outline();
 }
@@ -466,7 +474,8 @@ bool CanvasWidget::update_move_layer_selection(QMouseEvent* event) {
   if (ids.empty()) {
     return true;
   }
-  begin_move_drag(ids, document_position(pending.press_widget), pending.press_widget);
+  begin_move_drag(ids, document_position(pending.press_widget), pending.press_widget,
+                  std::move(pending.duplicate_roots));
   return false;
 }
 
@@ -530,8 +539,10 @@ void CanvasWidget::finish_move_layer_selection(QMouseEvent* event) {
     if (!active.has_value() || std::find(ids.begin(), ids.end(), *active) == ids.end()) {
       active = matches.front();
     }
-  } else if (gesture.clicked_id.has_value() && !gesture.rectangle_allowed && !gesture.additive) {
-    // This was a plain click on a selected member, not a modifier toggle.
+  } else if (gesture.clicked_id.has_value() && !gesture.additive) {
+    // A plain click on a selected member, or a Ctrl/Cmd+click on any layer
+    // (GitHub issue 73, Photoshop's rule): select just that layer. Shift (and
+    // Ctrl+Shift) is the additive toggle below.
     ids = {*gesture.clicked_id};
     active = gesture.clicked_id;
   } else if (gesture.clicked_id.has_value()) {
@@ -586,9 +597,10 @@ void CanvasWidget::draw_move_layer_selection(QPainter& painter) const {
 }
 
 void CanvasWidget::begin_move_drag(const std::vector<LayerId>& layer_ids, QPoint document_point,
-                                   QPoint widget_point) {
+                                   QPoint widget_point, std::vector<LayerId> duplicate_roots) {
   cancel_move_preview();
   move_drag_pending_ = true;
+  move_drag_duplicate_roots_ = std::move(duplicate_roots);
   moving_layer_ = false;
   move_start_ = document_point;
   begin_axis_constrained_stroke(QPointF(move_start_));

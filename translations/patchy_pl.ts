@@ -13253,10 +13253,6 @@ RGB: %2, %3, %4</translation>
         <translation>Narzędzie</translation>
     </message>
     <message>
-        <source>Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. Shift constrains layer movement.</source>
-        <translation>Shift+kliknięcie lub %CTRL%+kliknięcie przełącza warstwy. %CTRL% + przeciągnięcie zaznacza warstwy w prostokącie; przytrzymaj Shift przed przeciągnięciem, aby dodać. Shift ogranicza ruch warstwy.</translation>
-    </message>
-    <message>
         <source>Click to place points, drag for curves. On a path: click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL% moves points.</source>
         <translation>Kliknij, aby dodać punkty, lub przeciągnij, aby tworzyć krzywe. Na ścieżce: kliknij segment, aby dodać punkt, lub punkt, aby go usunąć; %ALT%+kliknięcie zmienia typ punktu, a %CTRL% umożliwia przesuwanie punktów.</translation>
     </message>
@@ -13279,10 +13275,6 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Click a point to switch it between corner and smooth.</source>
         <translation>Kliknij punkt, aby przełączyć go pomiędzy narożnikiem a gładkim.</translation>
-    </message>
-    <message>
-        <source>Move: Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it.</source>
-        <translation>Przenieś: Shift+kliknięcie lub %CTRL%+kliknięcie przełącza warstwy. %CTRL% + przeciągnięcie zaznacza prostokąt; Shift dodaje. Przeciągnij wybraną kompozycję, aby ją przenieść.</translation>
     </message>
     <message>
         <source>Pen: click to add points, drag for curves. On a path, click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL%+drag selects or moves points.</source>
@@ -18678,6 +18670,14 @@ Y: %2
     <message>
         <source>This smart object cannot be re-rendered</source>
         <translation>Tego obiektu inteligentnego nie można wyrenderować ponownie</translation>
+    </message>
+    <message>
+        <source>%CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. %ALT%+drag duplicates. Shift constrains layer movement.</source>
+        <translation>%CTRL%+kliknięcie zaznacza warstwę, Shift+kliknięcie ją przełącza. %CTRL%+przeciąganie zaznacza warstwy w prostokącie; przytrzymaj Shift przed przeciąganiem, aby dodać. %ALT%+przeciąganie powiela. Shift ogranicza ruch warstwy.</translation>
+    </message>
+    <message>
+        <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
+        <translation>Przesuwanie: %CTRL%+kliknięcie zaznacza warstwę, Shift+kliknięcie ją przełącza. %CTRL%+przeciąganie zaznacza prostokąt; Shift dodaje. Przeciągnij zaznaczoną grafikę, aby ją przesunąć, %ALT%+przeciąganie, aby ją powielić.</translation>
     </message>
 </context>
 <context>

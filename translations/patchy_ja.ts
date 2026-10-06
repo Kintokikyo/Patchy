@@ -12323,14 +12323,6 @@ Either way Patchy writes a copy; the open document keeps its layers and unsaved 
         <translation>%1 枚のレイヤーを選択中</translation>
     </message>
     <message>
-        <source>Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. Shift constrains layer movement.</source>
-        <translation>Shift+クリックまたは%CTRL%+クリックでレイヤーの選択を切り替えます。%CTRL%+ドラッグで四角形内のレイヤーを選択し、ドラッグ前からShiftを押すと追加します。レイヤーの移動中はShiftで方向を固定します。</translation>
-    </message>
-    <message>
-        <source>Move: Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it.</source>
-        <translation>移動: Shift+クリックまたは%CTRL%+クリックでレイヤーの選択を切り替えます。%CTRL%+ドラッグで四角形選択し、Shiftで追加します。選択した画像をドラッグすると移動します。</translation>
-    </message>
-    <message>
         <source>Show Transform Controls</source>
         <translation>変形コントロールを表示</translation>
     </message>
@@ -18566,6 +18558,14 @@ Baked into images: %1.</source>
     <message>
         <source>This smart object cannot be re-rendered</source>
         <translation>このスマートオブジェクトは再レンダリングできません</translation>
+    </message>
+    <message>
+        <source>%CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. %ALT%+drag duplicates. Shift constrains layer movement.</source>
+        <translation>%CTRL%+クリックでレイヤーを選択、Shift+クリックで選択を切り替えます。%CTRL%+ドラッグで矩形内のレイヤーを選択、ドラッグ前にShiftを押すと追加します。%ALT%+ドラッグで複製します。Shiftでレイヤーの移動方向を固定します。</translation>
+    </message>
+    <message>
+        <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
+        <translation>移動: %CTRL%+クリックでレイヤーを選択、Shift+クリックで切り替えます。%CTRL%+ドラッグで矩形選択、Shiftで追加します。選択したアートワークをドラッグして移動、%ALT%+ドラッグで複製します。</translation>
     </message>
 </context>
 <context>

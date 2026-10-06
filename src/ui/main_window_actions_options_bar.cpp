@@ -582,6 +582,10 @@ void MainWindow::build_options_bar(ActionBuildContext& ctx) {
     if (canvas_ != nullptr) {
       canvas_->set_auto_select_layer(checked);
     }
+    // Remembered across runs (GitHub issue 73). Written here, by the user's
+    // click, rather than by save_tool_settings: tests set the canvas flag
+    // directly and must not leak it into later windows.
+    app_settings().setValue(QStringLiteral("tools/moveAutoSelect"), checked);
   });
   move_show_transform_controls_check_ = new CheckGlyphBox(tr("Show Transform Controls"), toolbar);
   move_show_transform_controls_check_->setObjectName(QStringLiteral("moveShowTransformControlsCheck"));

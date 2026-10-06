@@ -8492,6 +8492,15 @@ void MainWindow::configure_canvas(CanvasWidget* canvas) {
     refresh_options_bar();
     refresh_paths_panel();
   });
+  // Alt-drag with the Move tool duplicates the dragged layers first (GitHub
+  // issue 69): the copies land above the originals, selected, and the drag
+  // continues with them. duplicate_layers already selects the copies.
+  canvas->set_move_duplicate_requested_callback([this, canvas](std::vector<LayerId> roots) {
+    if (canvas != canvas_) {
+      return false;
+    }
+    return !duplicate_layers(std::move(roots)).empty();
+  });
   canvas->set_status_callback([this](QString message) { statusBar()->showMessage(message); });
   canvas->set_selection_context_actions_callback([this] { return selection_context_actions_; });
   // A right-click on the active shape layer: the Layer > Shape and Edit menus'

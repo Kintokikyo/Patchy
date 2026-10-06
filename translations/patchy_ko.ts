@@ -13193,10 +13193,6 @@ RGB: %2, %3, %4</translation>
         <translation>도구</translation>
     </message>
     <message>
-        <source>Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. Shift constrains layer movement.</source>
-        <translation>Shift+클릭 또는 %CTRL%+클릭으로 레이어 선택을 전환합니다. %CTRL%+드래그로 사각형 안의 레이어를 선택하며, Shift를 누른 상태에서 드래그하면 선택에 추가합니다. Shift는 레이어 이동 방향을 제한합니다.</translation>
-    </message>
-    <message>
         <source>Click to place points, drag for curves. On a path: click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL% moves points.</source>
         <translation>클릭하여 점을 놓고 드래그하여 곡선을 만듭니다. 패스에서 선분을 클릭하면 점이 추가되고, 점을 클릭하면 삭제됩니다. %ALT%+클릭으로 점을 변환하고, %CTRL%로 점을 이동합니다.</translation>
     </message>
@@ -13219,10 +13215,6 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Click a point to switch it between corner and smooth.</source>
         <translation>점을 클릭하여 모퉁이점과 곡선점 사이를 전환합니다.</translation>
-    </message>
-    <message>
-        <source>Move: Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it.</source>
-        <translation>이동: Shift+클릭 또는 %CTRL%+클릭으로 레이어 선택을 전환합니다. %CTRL%+드래그로 사각형 영역을 선택하고, Shift를 누르면 선택에 추가합니다. 선택한 그림을 드래그하여 이동합니다.</translation>
     </message>
     <message>
         <source>Pen: click to add points, drag for curves. On a path, click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL%+drag selects or moves points.</source>
@@ -18566,6 +18558,14 @@ Y: %2
     <message>
         <source>This smart object cannot be re-rendered</source>
         <translation>이 스마트 개체는 다시 렌더링할 수 없습니다.</translation>
+    </message>
+    <message>
+        <source>%CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. %ALT%+drag duplicates. Shift constrains layer movement.</source>
+        <translation>%CTRL%+클릭으로 레이어를 선택하고 Shift+클릭으로 선택을 전환합니다. %CTRL%+드래그로 사각형 안의 레이어를 선택하며, 드래그 전에 Shift를 누르면 추가됩니다. %ALT%+드래그로 복제합니다. Shift는 레이어 이동 방향을 고정합니다.</translation>
+    </message>
+    <message>
+        <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
+        <translation>이동: %CTRL%+클릭으로 레이어를 선택하고 Shift+클릭으로 전환합니다. %CTRL%+드래그로 사각형을 선택하고 Shift로 추가합니다. 선택한 아트워크를 드래그하여 이동하고 %ALT%+드래그로 복제합니다.</translation>
     </message>
 </context>
 <context>

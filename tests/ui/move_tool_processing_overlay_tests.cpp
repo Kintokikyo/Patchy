@@ -556,7 +556,7 @@ void ui_move_auto_select_blank_drag_deselects_multi_selection() {
   CHECK(window.statusBar()->currentMessage() == QStringLiteral("0 layers selected"));
 }
 
-void ui_move_ctrl_click_toggles_layer_selection() {
+void ui_move_ctrl_click_selects_only_the_clicked_layer() {
   patchy::Document document(140, 100, patchy::PixelFormat::rgba8());
 
   patchy::Layer red(document.allocate_layer_id(), "Selected Red",
@@ -596,40 +596,51 @@ void ui_move_ctrl_click_toggles_layer_selection() {
   canvas->set_show_transform_controls(false);
   canvas->set_snap_enabled(false);
 
-  // Ctrl+click on an unselected layer adds it without moving any pixels.
+  // Ctrl+click on an unselected layer selects just that layer (GitHub issue 73,
+  // Photoshop's rule) without moving any pixels.
   const auto target_point = canvas->widget_position_for_document_point(QPoint(88, 57));
   send_mouse(*canvas, QEvent::MouseButtonPress, target_point, Qt::LeftButton, Qt::LeftButton,
              Qt::ControlModifier);
+  CHECK(layer_list->selectedItems().size() == 2);  // commits on release
   send_mouse(*canvas, QEvent::MouseButtonRelease, target_point, Qt::LeftButton, Qt::NoButton,
              Qt::ControlModifier);
   QApplication::processEvents();
   red_item = require_layer_item(*layer_list, QStringLiteral("Selected Red"));
   blue_item = require_layer_item(*layer_list, QStringLiteral("Selected Blue"));
   auto* target_item = require_layer_item(*layer_list, QStringLiteral("Toggle Target"));
-  CHECK(layer_list->selectedItems().size() == 3);
-  CHECK(red_item->isSelected());
-  CHECK(blue_item->isSelected());
+  CHECK(layer_list->selectedItems().size() == 1);
+  CHECK(!red_item->isSelected());
+  CHECK(!blue_item->isSelected());
   CHECK(target_item->isSelected());
   CHECK(layer_list->currentItem() == target_item);
   CHECK(color_close(canvas_pixel(*canvas, QPoint(88, 57)), QColor(40, 180, 90), 40));
   CHECK(color_close(canvas_pixel(*canvas, QPoint(24, 24)), QColor(220, 40, 40), 40));
 
-  // Ctrl+click on a selected layer removes it on release without moving pixels.
-  send_mouse(*canvas, QEvent::MouseButtonPress, target_point, Qt::LeftButton, Qt::LeftButton,
-             Qt::ControlModifier);
-  CHECK(layer_list->selectedItems().size() == 3);
-  send_mouse(*canvas, QEvent::MouseButtonRelease, target_point, Qt::LeftButton, Qt::NoButton,
-             Qt::ControlModifier);
+  // Ctrl+Shift+click toggles: it adds Red, then removes it again, on release.
+  const auto red_toggle_point = canvas->widget_position_for_document_point(QPoint(24, 24));
+  send_mouse(*canvas, QEvent::MouseButtonPress, red_toggle_point, Qt::LeftButton, Qt::LeftButton,
+             Qt::ControlModifier | Qt::ShiftModifier);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, red_toggle_point, Qt::LeftButton, Qt::NoButton,
+             Qt::ControlModifier | Qt::ShiftModifier);
   QApplication::processEvents();
   red_item = require_layer_item(*layer_list, QStringLiteral("Selected Red"));
-  blue_item = require_layer_item(*layer_list, QStringLiteral("Selected Blue"));
   target_item = require_layer_item(*layer_list, QStringLiteral("Toggle Target"));
   CHECK(layer_list->selectedItems().size() == 2);
   CHECK(red_item->isSelected());
-  CHECK(blue_item->isSelected());
-  CHECK(!target_item->isSelected());
-  CHECK(layer_list->currentItem() != target_item);
-  CHECK(color_close(canvas_pixel(*canvas, QPoint(88, 57)), QColor(40, 180, 90), 40));
+  CHECK(target_item->isSelected());
+  CHECK(layer_list->currentItem() == red_item);
+  send_mouse(*canvas, QEvent::MouseButtonPress, red_toggle_point, Qt::LeftButton, Qt::LeftButton,
+             Qt::ControlModifier | Qt::ShiftModifier);
+  CHECK(layer_list->selectedItems().size() == 2);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, red_toggle_point, Qt::LeftButton, Qt::NoButton,
+             Qt::ControlModifier | Qt::ShiftModifier);
+  QApplication::processEvents();
+  red_item = require_layer_item(*layer_list, QStringLiteral("Selected Red"));
+  target_item = require_layer_item(*layer_list, QStringLiteral("Toggle Target"));
+  CHECK(layer_list->selectedItems().size() == 1);
+  CHECK(!red_item->isSelected());
+  CHECK(target_item->isSelected());
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(24, 24)), QColor(220, 40, 40), 40));
 
   // Ctrl+click that hits no layer deselects every layer (no error message).
   window.statusBar()->clearMessage();
@@ -644,7 +655,7 @@ void ui_move_ctrl_click_toggles_layer_selection() {
   CHECK(!patchy::ui::MainWindowTestAccess::document(window).active_layer_id().has_value());
   CHECK(window.statusBar()->currentMessage() == QStringLiteral("0 layers selected"));
 
-  // Removing the only selected layer is a no-op.
+  // Ctrl+click on the only selected layer keeps it selected.
   layer_list->clearSelection();
   auto* red_row = require_layer_item(*layer_list, QStringLiteral("Selected Red"));
   layer_list->setCurrentItem(red_row);
@@ -660,7 +671,8 @@ void ui_move_ctrl_click_toggles_layer_selection() {
   CHECK(layer_list->selectedItems().size() == 1);
   CHECK(red_row->isSelected());
 
-  // The toggle is an explicit gesture: it works with Auto-Select off too.
+  // The gesture is explicit: with Auto-Select off, Ctrl+click still selects
+  // the clicked layer in place of the current selection.
   canvas->set_auto_select_layer(false);
   const auto blue_point = canvas->widget_position_for_document_point(QPoint(54, 24));
   send_mouse(*canvas, QEvent::MouseButtonPress, blue_point, Qt::LeftButton, Qt::LeftButton,
@@ -670,10 +682,136 @@ void ui_move_ctrl_click_toggles_layer_selection() {
   QApplication::processEvents();
   red_row = require_layer_item(*layer_list, QStringLiteral("Selected Red"));
   auto* blue_row = require_layer_item(*layer_list, QStringLiteral("Selected Blue"));
-  CHECK(layer_list->selectedItems().size() == 2);
-  CHECK(red_row->isSelected());
+  CHECK(layer_list->selectedItems().size() == 1);
+  CHECK(!red_row->isSelected());
   CHECK(blue_row->isSelected());
-  save_widget_artifact("ui_move_ctrl_click_toggles_selection", window);
+  CHECK(layer_list->currentItem() == blue_row);
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(54, 24)), QColor(40, 90, 220), 40));
+  save_widget_artifact("ui_move_ctrl_click_selects_only_clicked", window);
+}
+
+// GitHub issue 69: Alt-drag with the Move tool leaves the original in place and
+// drags a copy of the layer (a "Duplicate layer" step, then the move). A bare
+// Alt+click, below the drag threshold, copies nothing.
+void ui_move_alt_drag_duplicates_layer() {
+  patchy::Document document(140, 100, patchy::PixelFormat::rgba8());
+  document.add_pixel_layer("Background",
+                           solid_pixels(140, 100, patchy::PixelFormat::rgba8(), QColor(245, 245, 245, 255)));
+  patchy::Layer red(document.allocate_layer_id(), "Red",
+                    solid_pixels(12, 12, patchy::PixelFormat::rgba8(), QColor(220, 40, 40, 255)));
+  red.set_bounds(patchy::Rect{18, 18, 12, 12});
+  const auto red_id = red.id();
+  document.add_layer(std::move(red));
+
+  patchy::ui::MainWindow window;
+  show_window(window);
+  window.add_document_session(std::move(document), QStringLiteral("Alt Drag Duplicate"));
+  QApplication::processEvents();
+  auto* canvas = require_canvas(window);
+  auto* layer_list = window.findChild<QListWidget*>(QStringLiteral("layerList"));
+  CHECK(layer_list != nullptr);
+  CHECK(layer_list->count() == 2);
+  require_action_by_text(window, QStringLiteral("Move"))->trigger();
+  canvas->set_auto_select_layer(true);
+  canvas->set_show_transform_controls(false);
+  canvas->set_snap_enabled(false);
+  auto& live = patchy::ui::MainWindowTestAccess::document(window);
+  const auto layer_count = [&] { return patchy::layer_tree_count(std::as_const(live).layers()); };
+  CHECK(layer_count() == 2);
+
+  // Alt+click without a drag: nothing is duplicated.
+  const auto start = canvas->widget_position_for_document_point(QPoint(24, 24));
+  send_mouse(*canvas, QEvent::MouseButtonPress, start, Qt::LeftButton, Qt::LeftButton, Qt::AltModifier);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, start, Qt::LeftButton, Qt::NoButton, Qt::AltModifier);
+  QApplication::processEvents();
+  CHECK(layer_count() == 2);
+
+  // Alt-drag: the copy moves, the original stays.
+  send_mouse(*canvas, QEvent::MouseButtonPress, start, Qt::LeftButton, Qt::LeftButton, Qt::AltModifier);
+  CHECK(layer_count() == 2);
+  send_mouse(*canvas, QEvent::MouseMove, start + QPoint(15, 10), Qt::NoButton, Qt::LeftButton, Qt::AltModifier);
+  QApplication::processEvents();
+  CHECK(layer_count() == 3);
+  send_mouse(*canvas, QEvent::MouseMove, start + QPoint(30, 20), Qt::NoButton, Qt::LeftButton, Qt::AltModifier);
+  send_mouse(*canvas, QEvent::MouseButtonRelease, start + QPoint(30, 20), Qt::LeftButton, Qt::NoButton,
+             Qt::AltModifier);
+  QApplication::processEvents();
+  process_events_for(100);
+  CHECK(layer_count() == 3);
+  const auto* original = std::as_const(live).find_layer(red_id);
+  CHECK(original != nullptr);
+  if (original != nullptr) {
+    CHECK(original->bounds().x == 18);
+    CHECK(original->bounds().y == 18);
+  }
+  const auto active_id = live.active_layer_id();
+  CHECK(active_id.has_value() && *active_id != red_id);
+  const auto* copy = active_id.has_value() ? std::as_const(live).find_layer(*active_id) : nullptr;
+  CHECK(copy != nullptr);
+  if (copy != nullptr) {
+    CHECK(copy->bounds().x == 48);
+    CHECK(copy->bounds().y == 38);
+    CHECK(copy->bounds().width == 12);
+  }
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(24, 24)), QColor(220, 40, 40), 40));
+  CHECK(color_close(canvas_pixel(*canvas, QPoint(54, 44)), QColor(220, 40, 40), 40));
+  CHECK(layer_list->count() == 3);
+  CHECK(layer_list->selectedItems().size() == 1);
+
+  // Two undo steps bring back the single Red: the move, then the duplicate.
+  auto* undo_action = require_action_by_text(window, QStringLiteral("Undo"));
+  CHECK(undo_action != nullptr);
+  if (undo_action == nullptr) {
+    return;
+  }
+  undo_action->trigger();
+  QApplication::processEvents();
+  CHECK(layer_count() == 3);
+  undo_action->trigger();
+  QApplication::processEvents();
+  CHECK(layer_count() == 2);
+}
+
+// GitHub issue 73: the Move tool's Auto-Select checkbox is remembered across
+// runs (`tools/moveAutoSelect`), like Show Transform Controls.
+void ui_move_auto_select_persists_across_windows() {
+  SettingsValueRestorer saved(QStringLiteral("tools/moveAutoSelect"));
+  {
+    auto settings = patchy::ui::app_settings();
+    settings.setValue(QStringLiteral("tools/moveAutoSelect"), false);
+    settings.sync();
+  }
+  {
+    patchy::ui::MainWindow window;
+    show_window(window);
+    auto* canvas = require_canvas(window);
+    auto* check = window.findChild<QCheckBox*>(QStringLiteral("moveAutoSelectCheck"));
+    CHECK(check != nullptr);
+    require_action_by_text(window, QStringLiteral("Move"))->trigger();
+    QApplication::processEvents();
+    CHECK(!canvas->auto_select_layer());
+    CHECK(check != nullptr && !check->isChecked());
+    if (check != nullptr) {
+      check->setChecked(true);
+    }
+    QApplication::processEvents();
+    CHECK(canvas->auto_select_layer());
+    // The debounced save flushes on close, like a real quit.
+    window.close();
+    QApplication::processEvents();
+  }
+  {
+    auto settings = patchy::ui::app_settings();
+    CHECK(settings.value(QStringLiteral("tools/moveAutoSelect")).toBool());
+  }
+  patchy::ui::MainWindow window;
+  show_window(window);
+  auto* canvas = require_canvas(window);
+  require_action_by_text(window, QStringLiteral("Move"))->trigger();
+  QApplication::processEvents();
+  CHECK(canvas->auto_select_layer());
+  auto* check = window.findChild<QCheckBox*>(QStringLiteral("moveAutoSelectCheck"));
+  CHECK(check != nullptr && check->isChecked());
 }
 
 void ui_move_ctrl_drag_selects_rectangle_without_moving() {
@@ -776,11 +914,13 @@ void ui_move_ctrl_click_selects_layer_inside_collapsed_folder() {
   QApplication::processEvents();
   QApplication::processEvents();
 
+  // Ctrl+click selects just the clicked layer (GitHub issue 73), so the
+  // Background drops out; the collapsed folder expands to show the child's row.
   background_item = require_layer_item(*layer_list, QStringLiteral("Background"));
   auto* child_item = require_layer_item(*layer_list, QStringLiteral("Hidden Child"));
-  CHECK(background_item->isSelected());
+  CHECK(!background_item->isSelected());
   CHECK(child_item->isSelected());
-  CHECK(layer_list->selectedItems().size() == 2);
+  CHECK(layer_list->selectedItems().size() == 1);
   CHECK(layer_list->currentItem() == child_item);
 }
 
@@ -894,7 +1034,9 @@ void ui_move_plain_click_selects_only_hit_layer_and_reports_count() {
     CHECK(list->currentItem() == require_layer_item(*list, name));
     CHECK(window.statusBar()->currentMessage() == QStringLiteral("1 layer selected"));
   };
-  click(0, Qt::ControlModifier);
+  // Ctrl+Shift and Shift add to the selection (a bare Ctrl+click replaces it,
+  // GitHub issue 73).
+  click(0, Qt::ControlModifier | Qt::ShiftModifier);
   CHECK(window.statusBar()->currentMessage() == QStringLiteral("2 layers selected"));
   click(1, Qt::ShiftModifier);
   CHECK(window.statusBar()->currentMessage() == QStringLiteral("3 layers selected"));
@@ -909,7 +1051,7 @@ void ui_move_plain_click_selects_only_hit_layer_and_reports_count() {
   click(0, Qt::ShiftModifier);
   click(2); // A new, unselected target also replaces the selection.
   expect_single(QStringLiteral("Green"));
-  click(0, Qt::ControlModifier);
+  click(0, Qt::ControlModifier | Qt::ShiftModifier);
   click(1, Qt::ShiftModifier);
   click(0); // A selected member that was not active also replaces the set.
   expect_single(QStringLiteral("Red"));
@@ -954,6 +1096,9 @@ void ui_move_modifier_clicks_defer_toggles_and_shift_drag_keeps_selection() {
   for (const auto modifiers : {Qt::KeyboardModifiers(Qt::ShiftModifier),
                                Qt::KeyboardModifiers(Qt::ControlModifier),
                                Qt::KeyboardModifiers(Qt::ControlModifier | Qt::ShiftModifier)}) {
+    // Shift (with or without Ctrl) toggles; a bare Ctrl+click selects only the
+    // clicked layer (GitHub issue 73). Both commit on release.
+    const bool replaces = modifiers == Qt::KeyboardModifiers(Qt::ControlModifier);
     MoveSelectionScene scene;
     scene.canvas.set_auto_select_layer(false);
     const auto start = scene.point(QPoint(25, 25));
@@ -964,10 +1109,18 @@ void ui_move_modifier_clicks_defer_toggles_and_shift_drag_keeps_selection() {
     send_mouse(scene.canvas, QEvent::MouseMove, jitter, Qt::NoButton, Qt::LeftButton, modifiers);
     scene.expect({scene.green});
     send_mouse(scene.canvas, QEvent::MouseButtonRelease, jitter, Qt::LeftButton, Qt::NoButton, modifiers);
-    scene.expect({scene.red, scene.green});
+    if (replaces) {
+      scene.expect({scene.red});
+    } else {
+      scene.expect({scene.red, scene.green});
+    }
     CHECK(!scene.canvas.pointer_gesture_active());
     scene.click(QPoint(25, 25), modifiers);
-    scene.expect({scene.green});
+    if (replaces) {
+      scene.expect({scene.red});
+    } else {
+      scene.expect({scene.green});
+    }
     scene.click(QPoint(115, 75), modifiers);
     scene.expect({scene.green});
     CHECK(scene.content_edits == 0);
@@ -4697,7 +4850,9 @@ std::vector<patchy::test::TestCase> move_tool_processing_overlay_tests() {
        ui_move_tool_grabs_transparent_pixel_inside_layer_rect},
       {"ui_move_tool_prefers_selected_layer_rect_over_topmost_rect",
        ui_move_tool_prefers_selected_layer_rect_over_topmost_rect},
-      {"ui_move_ctrl_click_toggles_layer_selection", ui_move_ctrl_click_toggles_layer_selection},
+      {"ui_move_ctrl_click_selects_only_the_clicked_layer", ui_move_ctrl_click_selects_only_the_clicked_layer},
+      {"ui_move_alt_drag_duplicates_layer", ui_move_alt_drag_duplicates_layer},
+      {"ui_move_auto_select_persists_across_windows", ui_move_auto_select_persists_across_windows},
       {"ui_move_ctrl_drag_selects_rectangle_without_moving", ui_move_ctrl_drag_selects_rectangle_without_moving},
       {"ui_move_ctrl_click_selects_layer_inside_collapsed_folder",
        ui_move_ctrl_click_selects_layer_inside_collapsed_folder},

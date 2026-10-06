@@ -1015,9 +1015,26 @@ void CanvasWidget::mousePressEvent(QMouseEvent* event) {
       }
       return;
     }
+    // Alt-drag duplicates (GitHub issue 69). The copy is of the selection roots,
+    // not the flattened leaves, so a folder copies as a folder; it is made on
+    // the first drag frame, never on a bare Alt+click.
+    std::vector<LayerId> duplicate_roots;
+    if (event->modifiers().testFlag(Qt::AltModifier) && move_duplicate_requested_callback_) {
+      const bool hit_outside_selection =
+          hit_layer != nullptr && std::find(selected_layer_ids_.begin(), selected_layer_ids_.end(),
+                                            hit_layer->id()) == selected_layer_ids_.end();
+      if (hit_outside_selection) {
+        duplicate_roots.push_back(hit_layer->id());
+      } else {
+        duplicate_roots = selected_layer_ids_;
+        if (duplicate_roots.empty() && document_->active_layer_id().has_value()) {
+          duplicate_roots.push_back(*document_->active_layer_id());
+        }
+      }
+    }
     {
       const ZoomTraceScope begin_trace("move_press.begin_move_drag", zoom_);
-      begin_move_drag(layer_ids, document_point, event->pos());
+      begin_move_drag(layer_ids, document_point, event->pos(), std::move(duplicate_roots));
     }
     return;
   }
@@ -1626,6 +1643,19 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
       if (widget_delta.manhattanLength() < QApplication::startDragDistance()) {
         last_mouse_position_ = event->pos();
         return;
+      }
+      if (!move_drag_duplicate_roots_.empty()) {
+        // Alt-drag (GitHub issue 69): the duplicate is made only now that the
+        // press became a drag, so an Alt+click never leaves a copy behind. The
+        // host selects the copies; the drag continues with them. A refused
+        // request keeps the originals moving.
+        auto roots = std::move(move_drag_duplicate_roots_);
+        move_drag_duplicate_roots_.clear();
+        if (move_duplicate_requested_callback_ && move_duplicate_requested_callback_(std::move(roots))) {
+          if (const auto copies = movable_layer_ids(); !copies.empty()) {
+            begin_move_drag(copies, move_start_, move_press_widget_position_);
+          }
+        }
       }
       old_transform_controls_rect = move_transform_controls_rect();
       move_drag_pending_ = false;

@@ -1076,7 +1076,9 @@ private:
   void invert_active_layer_mask();
   void apply_active_layer_mask();
   void duplicate_active_layer();
-  void duplicate_layers(std::vector<LayerId> ids);
+  // Returns the copies' ids top to bottom (empty when nothing was duplicated);
+  // the copies are selected with the topmost active.
+  std::vector<LayerId> duplicate_layers(std::vector<LayerId> ids);
   // Cross-document layer copy: a Layers-panel drag dropped on another
   // document's canvas or tab, Duplicate Layer to Document, and
   // layer.duplicate(target) all end here.

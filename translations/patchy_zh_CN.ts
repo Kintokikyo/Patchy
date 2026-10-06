@@ -12757,10 +12757,6 @@ RGB：%2, %3, %4</translation>
         <translation>工具</translation>
     </message>
     <message>
-        <source>Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. Shift constrains layer movement.</source>
-        <translation>Shift+单击或 %CTRL%+单击可切换图层选择。%CTRL%+拖动可框选图层；拖动前按住 Shift 可添加。Shift 可约束图层移动方向。</translation>
-    </message>
-    <message>
         <source>Click to place points, drag for curves. On a path: click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL% moves points.</source>
         <translation>单击放置锚点，拖动绘制曲线。在路径上：单击线段可添加锚点，单击锚点可将其删除，%ALT%+单击可转换锚点，%CTRL% 可移动锚点。</translation>
     </message>
@@ -12783,10 +12779,6 @@ RGB：%2, %3, %4</translation>
     <message>
         <source>Click a point to switch it between corner and smooth.</source>
         <translation>单击锚点可在角点和平滑点之间切换。</translation>
-    </message>
-    <message>
-        <source>Move: Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it.</source>
-        <translation>移动：Shift+单击或 %CTRL%+单击可切换图层选择。%CTRL%+拖动可框选；按住 Shift 可添加。拖动所选内容可移动它。</translation>
     </message>
     <message>
         <source>Pen: click to add points, drag for curves. On a path, click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL%+drag selects or moves points.</source>
@@ -18566,6 +18558,14 @@ Baked into images: %1.</source>
     <message>
         <source>This smart object cannot be re-rendered</source>
         <translation>无法重新渲染此智能对象</translation>
+    </message>
+    <message>
+        <source>%CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. %ALT%+drag duplicates. Shift constrains layer movement.</source>
+        <translation>%CTRL%+单击选择图层，Shift+单击切换选择。%CTRL%+拖动框选图层；拖动前按住 Shift 可追加。%ALT%+拖动可复制。Shift 约束图层移动方向。</translation>
+    </message>
+    <message>
+        <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
+        <translation>移动：%CTRL%+单击选择图层，Shift+单击切换选择。%CTRL%+拖动框选；Shift 追加。拖动所选内容以移动，%ALT%+拖动以复制。</translation>
     </message>
 </context>
 <context>

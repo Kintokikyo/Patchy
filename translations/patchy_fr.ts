@@ -12787,10 +12787,6 @@ RVB : %2, %3, %4</translation>
         <translation>Outil</translation>
     </message>
     <message>
-        <source>Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. Shift constrains layer movement.</source>
-        <translation>Shift+clic ou %CTRL%+clic sélectionne ou désélectionne les calques. %CTRL%+glisser sélectionne les calques dans un rectangle ; maintenez Shift avant de glisser pour ajouter à la sélection. Shift contraint le déplacement des calques.</translation>
-    </message>
-    <message>
         <source>Click to place points, drag for curves. On a path: click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL% moves points.</source>
         <translation>Cliquez pour placer des points, faites glisser pour des courbes. Sur un tracé : cliquez sur un segment pour ajouter un point, cliquez sur un point pour le supprimer, %ALT%+clic le convertit, %CTRL% déplace les points.</translation>
     </message>
@@ -12813,10 +12809,6 @@ RVB : %2, %3, %4</translation>
     <message>
         <source>Click a point to switch it between corner and smooth.</source>
         <translation>Cliquez sur un point pour le convertir entre point d&apos;angle et point d&apos;inflexion.</translation>
-    </message>
-    <message>
-        <source>Move: Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it.</source>
-        <translation>Déplacement : Shift+clic ou %CTRL%+clic sélectionne ou désélectionne les calques. %CTRL%+glisser sélectionne les calques dans un rectangle ; Shift ajoute à la sélection. Faites glisser le contenu sélectionné pour le déplacer.</translation>
     </message>
     <message>
         <source>Pen: click to add points, drag for curves. On a path, click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL%+drag selects or moves points.</source>
@@ -18622,6 +18614,14 @@ Convertis en images : %1.</translation>
     <message>
         <source>This smart object cannot be re-rendered</source>
         <translation>Cet objet dynamique ne peut pas être rendu à nouveau</translation>
+    </message>
+    <message>
+        <source>%CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. %ALT%+drag duplicates. Shift constrains layer movement.</source>
+        <translation>%CTRL%+clic sélectionne un calque, Maj+clic le bascule. %CTRL%+glisser sélectionne les calques dans un rectangle ; maintenez Maj avant de glisser pour ajouter. %ALT%+glisser duplique. Maj contraint le déplacement du calque.</translation>
+    </message>
+    <message>
+        <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
+        <translation>Déplacement : %CTRL%+clic sélectionne un calque, Maj+clic le bascule. %CTRL%+glisser sélectionne un rectangle ; Maj ajoute. Faites glisser l&apos;illustration sélectionnée pour la déplacer, %ALT%+glisser pour la dupliquer.</translation>
     </message>
 </context>
 <context>

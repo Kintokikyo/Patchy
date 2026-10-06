@@ -12787,10 +12787,6 @@ RGB: %2, %3, %4</translation>
         <translation>Strumento</translation>
     </message>
     <message>
-        <source>Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. Shift constrains layer movement.</source>
-        <translation>Shift+clic o %CTRL%+clic seleziona o deseleziona i livelli. %CTRL%+trascina seleziona i livelli in un rettangolo; tieni premuto Shift prima di trascinare per aggiungerli alla selezione. Shift vincola lo spostamento del livello.</translation>
-    </message>
-    <message>
         <source>Click to place points, drag for curves. On a path: click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL% moves points.</source>
         <translation>Fai clic per posizionare i punti, trascina per le curve. Su un tracciato: fai clic su un segmento per aggiungere un punto, fai clic su un punto per eliminarlo, %ALT%+clic lo converte, %CTRL% sposta i punti.</translation>
     </message>
@@ -12813,10 +12809,6 @@ RGB: %2, %3, %4</translation>
     <message>
         <source>Click a point to switch it between corner and smooth.</source>
         <translation>Fai clic su un punto per passare da angolo a curva e viceversa.</translation>
-    </message>
-    <message>
-        <source>Move: Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it.</source>
-        <translation>Sposta: Shift+clic o %CTRL%+clic seleziona o deseleziona i livelli. %CTRL%+trascina seleziona i livelli in un rettangolo; Shift aggiunge alla selezione. Trascina il contenuto selezionato per spostarlo.</translation>
     </message>
     <message>
         <source>Pen: click to add points, drag for curves. On a path, click a segment to add a point, click a point to delete it, %ALT%+click converts it, %CTRL%+drag selects or moves points.</source>
@@ -18622,6 +18614,14 @@ Convertiti in immagini: %1.</translation>
     <message>
         <source>This smart object cannot be re-rendered</source>
         <translation>Questo oggetto avanzato non può essere renderizzato di nuovo</translation>
+    </message>
+    <message>
+        <source>%CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects layers in a rectangle; hold Shift before dragging to add. %ALT%+drag duplicates. Shift constrains layer movement.</source>
+        <translation>%CTRL%+clic seleziona un livello, Maiusc+clic lo attiva o disattiva. %CTRL%+trascina seleziona i livelli in un rettangolo; tieni premuto Maiusc prima di trascinare per aggiungere. %ALT%+trascina duplica. Maiusc vincola lo spostamento del livello.</translation>
+    </message>
+    <message>
+        <source>Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.</source>
+        <translation>Sposta: %CTRL%+clic seleziona un livello, Maiusc+clic lo attiva o disattiva. %CTRL%+trascina seleziona un rettangolo; Maiusc aggiunge. Trascina la grafica selezionata per spostarla, %ALT%+trascina per duplicarla.</translation>
     </message>
 </context>
 <context>

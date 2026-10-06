@@ -426,8 +426,8 @@ QString tool_hotkey_id(CanvasTool tool) {
 const char* tool_tooltip_detail_source(CanvasTool tool) {
   switch (tool) {
     case CanvasTool::Move:
-      return QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects layers in a rectangle; "
-             "hold Shift before dragging to add. Shift constrains layer movement.");
+      return QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "%CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects layers in a "
+             "rectangle; hold Shift before dragging to add. %ALT%+drag duplicates. Shift constrains layer movement.");
     case CanvasTool::Pen:
       return QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Click to place points, drag for curves. On a path: click a segment to add a "
              "point, click a point to delete it, %ALT%+click converts it, %CTRL% moves points.");
@@ -451,8 +451,8 @@ const char* tool_tooltip_detail_source(CanvasTool tool) {
 const char* tool_activation_hint_source(CanvasTool tool) {
   switch (tool) {
     case CanvasTool::Move:
-      return QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Move: Shift+click or %CTRL%+click toggles layers. %CTRL%+drag selects a rectangle; "
-             "Shift adds. Drag selected artwork to move it.");
+      return QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Move: %CTRL%+click selects a layer, Shift+click toggles it. %CTRL%+drag selects a "
+             "rectangle; Shift adds. Drag selected artwork to move it, %ALT%+drag to duplicate it.");
     case CanvasTool::Pen:
       return QT_TRANSLATE_NOOP("patchy::ui::MainWindow", "Pen: click to add points, drag for curves. On a path, click a segment to add a "
              "point, click a point to delete it, %ALT%+click converts it, %CTRL%+drag selects or "

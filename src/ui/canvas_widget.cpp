@@ -1134,6 +1134,10 @@ void CanvasWidget::set_layer_selection_requested_callback(
   layer_selection_requested_callback_ = std::move(callback);
 }
 
+void CanvasWidget::set_move_duplicate_requested_callback(std::function<bool(std::vector<LayerId>)> callback) {
+  move_duplicate_requested_callback_ = std::move(callback);
+}
+
 void CanvasWidget::request_layer_selection(std::vector<LayerId> layer_ids, LayerId active_id) {
   if (layer_selection_requested_callback_) {
     // The host round-trips synchronously: the panel selection change pushes

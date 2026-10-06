@@ -1219,6 +1219,12 @@ public:
   // itself directly. Empty layer_ids means "deselect every layer" (the host
   // also clears the document's active layer); active_id is unused then.
   void set_layer_selection_requested_callback(std::function<void(std::vector<LayerId>, LayerId)> callback);
+  // Alt-drag with the Move tool (GitHub issue 69): asked once, when the press
+  // turns into a drag, to duplicate these selection roots. The host duplicates
+  // them, selects the copies (set_selected_layer_ids) and returns true; the
+  // canvas then drags movable_layer_ids(), the copies. False keeps the
+  // originals moving. Unset, Alt-drag is a plain move.
+  void set_move_duplicate_requested_callback(std::function<bool(std::vector<LayerId>)> callback);
   // Commit of a pending crop rect + box angle (document geometry lives on
   // MainWindow).
   void set_crop_commit_requested_callback(std::function<void(QRect, double)> callback);
@@ -1607,7 +1613,11 @@ private:
   // reaped later, once its pick has finished or at the next menu at the same loop level.
   void retire_canvas_context_menu(QMenu* menu);
   void reap_retired_context_menus();
-  void begin_move_drag(const std::vector<LayerId>& layer_ids, QPoint document_point, QPoint widget_point);
+  // `duplicate_roots` non-empty: an Alt press (GitHub issue 69); the first
+  // drag frame asks move_duplicate_requested_callback_ to copy those roots and
+  // then drags the copies.
+  void begin_move_drag(const std::vector<LayerId>& layer_ids, QPoint document_point, QPoint widget_point,
+                       std::vector<LayerId> duplicate_roots = {});
   void begin_move_layer_selection(QMouseEvent* event, const Layer* clicked_layer, bool rectangle_allowed);
   bool update_move_layer_selection(QMouseEvent* event);
   void finish_move_layer_selection(QMouseEvent* event);
@@ -2393,6 +2403,9 @@ private:
   bool dragging_text_rect_{false};
   bool dragging_text_entry_selection_{false};
   bool move_drag_pending_{false};
+  // Selection roots an Alt press asked to duplicate once the drag starts
+  // (empty: a plain move). Consumed by the first drag frame.
+  std::vector<LayerId> move_drag_duplicate_roots_;
   struct MoveLayerSelectionGesture {
     QPoint press_widget;
     QPointF anchor_document;
@@ -2400,6 +2413,7 @@ private:
     std::vector<LayerId> selected_ids;
     std::optional<LayerId> active_id;
     std::optional<LayerId> clicked_id;
+    std::vector<LayerId> duplicate_roots;
     bool rectangle_allowed{false};
     bool additive{false};
     bool dragging_rectangle{false};
@@ -2886,6 +2900,7 @@ private:
   std::function<bool(QPointF, bool)> text_entry_selection_drag_callback_;
   std::function<void(LayerId)> active_layer_changed_callback_;
   std::function<void(std::vector<LayerId>, LayerId)> layer_selection_requested_callback_;
+  std::function<bool(std::vector<LayerId>)> move_duplicate_requested_callback_;
   std::function<void(QString)> status_callback_;
   std::function<QList<QAction*>()> selection_context_actions_callback_;
   std::function<QList<QAction*>()> shape_context_actions_callback_;
