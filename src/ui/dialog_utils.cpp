@@ -81,6 +81,7 @@ namespace {
 
 constexpr auto kDialogPositionMemoryInstalledProperty = "patchy.dialogPositionMemoryInstalled";
 constexpr auto kDialogPositionMemoryIdProperty = "patchy.dialogPositionMemoryId";
+constexpr auto kDialogAlwaysCenteredProperty = "patchy.dialogAlwaysCentered";
 
 constexpr int kChevronAreaWidth = 14;
 
@@ -871,6 +872,17 @@ bool restore_dialog_position(QDialog& dialog) {
   const auto stored_position = settings.value(key);
   if (!stored_position.canConvert<QPoint>()) {
     return false;
+  }
+  // A position remembered on a screen the owner no longer occupies (a monitor
+  // unplugged, the main window moved to another display) would strand the
+  // dialog away from the app: fall back to centering on the owner instead.
+  if (auto* parent = dialog.parentWidget(); parent != nullptr) {
+    if (auto* owner_screen = parent->window()->screen(); owner_screen != nullptr) {
+      const QRect remembered(stored_position.toPoint(), dialog_placement_size(dialog));
+      if (!remembered.intersects(owner_screen->availableGeometry())) {
+        return false;
+      }
+    }
   }
   dialog.move(clamped_dialog_position(dialog, stored_position.toPoint()));
   return true;
@@ -1761,6 +1773,10 @@ void set_dialog_position_memory_id(QDialog& dialog, const QString& id) {
   dialog.setProperty(kDialogPositionMemoryIdProperty, id);
 }
 
+void mark_dialog_always_centered(QDialog& dialog) {
+  dialog.setProperty(kDialogAlwaysCenteredProperty, true);
+}
+
 void remember_dialog_position(QDialog& dialog) {
   if (dialog.property(kDialogPositionMemoryInstalledProperty).toBool()) {
     return;
@@ -1770,8 +1786,11 @@ void remember_dialog_position(QDialog& dialog) {
   // appear where the user is looking, so it is centered on its owner every
   // time and never records a position. A spot remembered from an earlier
   // window layout put it far from the main window (Seth, September 2026).
-  // Any position an older build saved under its name is dropped here.
-  if (qobject_cast<QProgressDialog*>(&dialog) != nullptr) {
+  // Message boxes (the save prompt, every question) and dialogs marked with
+  // mark_dialog_always_centered (About) follow the same rule (Seth, October
+  // 2026). Any position an older build saved under their names is dropped here.
+  if (qobject_cast<QProgressDialog*>(&dialog) != nullptr || qobject_cast<QMessageBox*>(&dialog) != nullptr ||
+      dialog.property(kDialogAlwaysCenteredProperty).toBool()) {
     clear_dialog_position(dialog);
 #ifdef Q_OS_WASM
     clamp_dialog_to_screen(dialog);

@@ -78,6 +78,8 @@ public:
 
   explicit PatchySplashDialog(QWidget* parent = nullptr) : QDialog(parent) {
     setObjectName(QStringLiteral("patchySplashScreen"));
+    // About always opens centered on the app; a remembered spot is never wanted.
+    mark_dialog_always_centered(*this);
     setWindowFlags(Qt::Dialog | Qt::FramelessWindowHint);
     apply_frameless_window_effects_on_show(*this, WindowCornerRadius::Standard);
     setModal(true);

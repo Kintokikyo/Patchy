@@ -616,6 +616,82 @@ void ui_progress_dialogs_ignore_position_memory_and_center_on_parent() {
   settings.sync();
 }
 
+// Message boxes (the save prompt, every question) and dialogs marked with
+// mark_dialog_always_centered (About) ignore a remembered position: they center
+// on their owner every time and drop any saved spot (Seth, October 2026).
+void ui_message_boxes_and_marked_dialogs_ignore_position_memory() {
+  const auto screen_rect = QApplication::primaryScreen() != nullptr
+                               ? QApplication::primaryScreen()->availableGeometry()
+                               : QRect(0, 0, 640, 480);
+  const auto far_position = screen_rect.topLeft() + QPoint(4, 5);
+  QWidget parent;
+  parent.resize(420, 260);
+  parent.move(screen_rect.topLeft() + QPoint(160, 120));
+  parent.show();
+  QApplication::processEvents();
+
+  const auto seed = [far_position](const QString& group) {
+    auto settings = patchy::ui::app_settings();
+    settings.remove(group);
+    settings.setValue(group + QStringLiteral("/pos"), far_position);
+    settings.setValue(group + QStringLiteral("/moved"), true);
+    settings.sync();
+  };
+  const auto expect_centered_and_forgotten = [&](QDialog& dialog, const QString& group) {
+    patchy::ui::remember_dialog_position(dialog);
+    dialog.show();
+    QApplication::processEvents();
+    const auto expected =
+        parent.frameGeometry().center() - QPoint(dialog.size().width() / 2, dialog.size().height() / 2);
+    CHECK((dialog.pos() - expected).manhattanLength() <= 10);
+    CHECK((dialog.pos() - far_position).manhattanLength() > 10);
+    dialog.move(far_position);
+    QApplication::processEvents();
+    dialog.close();
+    QApplication::processEvents();
+    auto settings = patchy::ui::app_settings();
+    CHECK(!settings.value(group + QStringLiteral("/pos")).isValid());
+    CHECK(!settings.value(group + QStringLiteral("/moved"), false).toBool());
+    settings.remove(group);
+    settings.sync();
+  };
+
+  {
+    const auto group = QStringLiteral("dialogPositions/patchyMessageBoxPositionTest");
+    seed(group);
+    QMessageBox box(QMessageBox::Warning, QStringLiteral("Save changes?"), QStringLiteral("Save?"),
+                    QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, &parent);
+    box.setObjectName(QStringLiteral("patchyMessageBoxPositionTest"));
+    expect_centered_and_forgotten(box, group);
+  }
+  {
+    const auto group = QStringLiteral("dialogPositions/patchyMarkedPositionTest");
+    seed(group);
+    QDialog dialog(&parent);
+    dialog.setObjectName(QStringLiteral("patchyMarkedPositionTest"));
+    dialog.resize(240, 120);
+    patchy::ui::mark_dialog_always_centered(dialog);
+    expect_centered_and_forgotten(dialog, group);
+  }
+  // An unmarked dialog still honors its remembered position.
+  {
+    const auto group = QStringLiteral("dialogPositions/patchyPlainPositionTest");
+    seed(group);
+    QDialog dialog(&parent);
+    dialog.setObjectName(QStringLiteral("patchyPlainPositionTest"));
+    dialog.resize(240, 120);
+    patchy::ui::remember_dialog_position(dialog);
+    dialog.show();
+    QApplication::processEvents();
+    CHECK((dialog.pos() - far_position).manhattanLength() <= 10);
+    dialog.close();
+    QApplication::processEvents();
+    auto settings = patchy::ui::app_settings();
+    settings.remove(group);
+    settings.sync();
+  }
+}
+
 void ui_dirty_state_marks_tabs_and_undo_restores_saved_revision() {
   patchy::ui::MainWindow window;
   show_window(window);
@@ -2065,6 +2141,8 @@ std::vector<patchy::test::TestCase> pickers_notices_hotkeys_tests() {
        ui_dialog_position_memory_centers_unmoved_dialogs_on_parent},
       {"ui_progress_dialogs_ignore_position_memory_and_center_on_parent",
        ui_progress_dialogs_ignore_position_memory_and_center_on_parent},
+      {"ui_message_boxes_and_marked_dialogs_ignore_position_memory",
+       ui_message_boxes_and_marked_dialogs_ignore_position_memory},
       {"ui_dirty_state_marks_tabs_and_undo_restores_saved_revision",
        ui_dirty_state_marks_tabs_and_undo_restores_saved_revision},
       {"ui_compatibility_report_flags_psd_text_placeholders",

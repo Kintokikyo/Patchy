@@ -180,6 +180,9 @@ QVBoxLayout* install_dark_dialog_chrome(QDialog& dialog, QVBoxLayout* root, cons
 // dialog's objectName). Lets dialogs that share an objectName (for tests/styling)
 // keep separate remembered positions. Set before remember_dialog_position runs.
 void set_dialog_position_memory_id(QDialog& dialog, const QString& id);
+// Opts a dialog out of position memory: it centers on its owner every time
+// and drops any saved position (what About and every message box want).
+void mark_dialog_always_centered(QDialog& dialog);
 void remember_dialog_position(QDialog& dialog);
 int exec_dialog(QDialog& dialog);
 int run_non_modal_dialog(QDialog& dialog);
