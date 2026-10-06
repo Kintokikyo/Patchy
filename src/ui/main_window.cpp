@@ -2295,6 +2295,61 @@ int text_editor_position_at_viewport_point(const QTextEdit& editor, QPointF view
                            (viewport_point.y() + scroll_offset.y()) / zoom));
 }
 
+// GitHub issue 74: a third click, within the double-click interval of a double-click and near
+// its point, selects the visual line. QTextEdit's own triple-click detection never runs because
+// the session handlers intercept every left press, so the two press paths track it here.
+constexpr auto kTextEditorTripleClickArmedMsProperty = "patchy.textTripleClickArmedMs";
+constexpr auto kTextEditorTripleClickPointProperty = "patchy.textTripleClickGlobalPoint";
+
+void arm_text_editor_triple_click(QTextEdit& editor, QPointF global_point) {
+  editor.setProperty(kTextEditorTripleClickArmedMsProperty, QDateTime::currentMSecsSinceEpoch());
+  editor.setProperty(kTextEditorTripleClickPointProperty, global_point);
+}
+
+// Consumes the armed double-click either way: a fourth click is a plain press again.
+bool text_editor_press_completes_triple_click(QTextEdit& editor, QPointF global_point) {
+  const auto armed = editor.property(kTextEditorTripleClickArmedMsProperty);
+  const auto point = editor.property(kTextEditorTripleClickPointProperty);
+  editor.setProperty(kTextEditorTripleClickArmedMsProperty, QVariant());
+  editor.setProperty(kTextEditorTripleClickPointProperty, QVariant());
+  if (!armed.isValid() || !point.isValid()) {
+    return false;
+  }
+  const auto elapsed = QDateTime::currentMSecsSinceEpoch() - armed.toLongLong();
+  if (elapsed < 0 || elapsed > QApplication::doubleClickInterval()) {
+    return false;
+  }
+  const auto delta = global_point - point.toPointF();
+  const auto slop = static_cast<qreal>(QApplication::startDragDistance());
+  return std::abs(delta.x()) <= slop && std::abs(delta.y()) <= slop;
+}
+
+// The document positions [start, end) a triple click at `position` selects: the visual line
+// from the same line plan clicks resolve with (QTextCursor::LineUnderCursor would answer from
+// the widget's own differently spaced layout), minus trailing whitespace and soft line
+// separators so the highlight ends with the glyphs.
+std::pair<int, int> text_editor_line_range_at(const QTextEdit& editor, int position) {
+  const auto* document = editor.document();
+  const auto maximum = std::max(0, document->characterCount() - 1);
+  position = std::clamp(position, 0, maximum);
+  double zoom = 1.0;
+  std::optional<std::pair<int, int>> range;
+  if (const auto* layout_document = text_editor_document_space_layout(editor, zoom); layout_document != nullptr) {
+    range = text_editor_line_geometry(editor, *layout_document).line_range_at(position);
+  }
+  if (!range.has_value()) {
+    const auto block = document->findBlock(position);
+    range = std::make_pair(block.position(), block.position() + std::max(0, block.length() - 1));
+  }
+  auto [start, end] = *range;
+  start = std::clamp(start, 0, maximum);
+  end = std::clamp(end, start, maximum);
+  while (end > start && document->characterAt(end - 1).isSpace()) {
+    --end;
+  }
+  return {start, end};
+}
+
 void clear_text_editor_preview_overlays(QTextEdit& editor) {
   editor.setProperty(kTextEditorPreviewCaretProperty, QVariant());
   editor.setProperty(kTextEditorPreviewSelectionProperty, QVariant());
@@ -2627,7 +2682,20 @@ protected:
 
     editor_->setFocus(Qt::MouseFocusReason);
     auto cursor = editor_->textCursor();
-    if ((event->modifiers() & Qt::ShiftModifier) != 0) {
+    const bool shift = (event->modifiers() & Qt::ShiftModifier) != 0;
+    const bool triple_click = text_editor_press_completes_triple_click(*editor_, event->globalPosition());
+    if (triple_click && !shift) {
+      const auto [start, end] = text_editor_line_range_at(*editor_, *position);
+      selection_anchor_ = start;
+      cursor.setPosition(start);
+      cursor.setPosition(end, QTextCursor::KeepAnchor);
+      editor_->setTextCursor(cursor);
+      selecting_ = false;
+      event->accept();
+      update();
+      return;
+    }
+    if (shift) {
       selection_anchor_ = cursor.position();
       cursor.setPosition(selection_anchor_);
       cursor.setPosition(*position, QTextCursor::KeepAnchor);
@@ -2699,6 +2767,7 @@ protected:
     }
 
     editor_->setFocus(Qt::MouseFocusReason);
+    arm_text_editor_triple_click(*editor_, event->globalPosition());
     auto cursor = editor_->textCursor();
     cursor.setPosition(text_editor_position_at_local_point(*editor_, *editor_point / zoom()));
     cursor.select(QTextCursor::WordUnderCursor);
@@ -7718,8 +7787,13 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event) {
         key_event->accept();
         return true;
       }
+      // Ctrl/Cmd+Return commits, and so does the keypad Enter key on its own
+      // (Qt reports it as Key_Enter with KeypadModifier; on Mac laptops fn+Return
+      // arrives the same way). Plain Return stays a line break (GitHub issue 71).
+      const bool keypad_enter =
+          key_event->key() == Qt::Key_Enter && (key_event->modifiers() & Qt::KeypadModifier) != 0;
       if ((key_event->key() == Qt::Key_Return || key_event->key() == Qt::Key_Enter) &&
-          (key_event->modifiers() & Qt::ControlModifier) != 0) {
+          ((key_event->modifiers() & Qt::ControlModifier) != 0 || keypad_enter)) {
         const QPoint document_point(editor->property("patchy.documentTextX").toInt(),
                                     editor->property("patchy.documentTextY").toInt());
         commit_text_editor(editor, document_point, layer_id);
@@ -12453,16 +12527,24 @@ bool MainWindow::handle_text_editor_viewport_mouse_event(QTextEdit* editor, QEve
   const auto position = text_editor_position_at_viewport_point(*editor, mouse_event->position());
   auto cursor = editor->textCursor();
   switch (event->type()) {
-    case QEvent::MouseButtonPress:
+    case QEvent::MouseButtonPress: {
       editor->setFocus(Qt::MouseFocusReason);
-      cursor.setPosition(position,
-                         (mouse_event->modifiers() & Qt::ShiftModifier) != 0 ? QTextCursor::KeepAnchor
-                                                                            : QTextCursor::MoveAnchor);
+      const bool shift = (mouse_event->modifiers() & Qt::ShiftModifier) != 0;
+      const bool triple_click = text_editor_press_completes_triple_click(*editor, mouse_event->globalPosition());
+      if (triple_click && !shift) {
+        const auto [start, end] = text_editor_line_range_at(*editor, position);
+        cursor.setPosition(start);
+        cursor.setPosition(end, QTextCursor::KeepAnchor);
+      } else {
+        cursor.setPosition(position, shift ? QTextCursor::KeepAnchor : QTextCursor::MoveAnchor);
+      }
       break;
+    }
     case QEvent::MouseMove:
       cursor.setPosition(position, QTextCursor::KeepAnchor);
       break;
     case QEvent::MouseButtonDblClick:
+      arm_text_editor_triple_click(*editor, mouse_event->globalPosition());
       cursor.setPosition(position);
       cursor.select(QTextCursor::WordUnderCursor);
       break;

@@ -880,6 +880,52 @@ QRectF TextLineGeometry::caret_rect(int position) const {
   return {};
 }
 
+std::optional<std::pair<int, int>> TextLineGeometry::line_range_at(int position) const {
+  position = std::clamp(position, 0, maximum_position_);
+  if (vertical_) {
+    if (columns_.empty()) {
+      return std::nullopt;
+    }
+    const VerticalTextColumn* target = &columns_.back();
+    for (const auto& column : columns_) {
+      if (position >= column.start && (position < column.end || (position == column.end && column.last_in_block))) {
+        target = &column;
+        break;
+      }
+    }
+    return std::make_pair(target->start, std::max(target->start, target->end));
+  }
+  if (lines_.empty()) {
+    return std::nullopt;
+  }
+
+  // Same block-first resolution as caret_rect: a block's last line ends before the paragraph
+  // separator, so a flat scan would hand the previous block's last line to a position at the
+  // start of the next block.
+  int target_block = lines_.back().block_position;
+  for (const auto& entry : lines_) {
+    if (position >= entry.block_position && position < entry.block_position + entry.block_length) {
+      target_block = entry.block_position;
+      break;
+    }
+  }
+  for (std::size_t index = 0; index < lines_.size(); ++index) {
+    const auto& entry = lines_[index];
+    if (entry.block_position != target_block) {
+      continue;
+    }
+    const auto line_start = entry.block_position + entry.line.textStart();
+    const auto line_end = line_start + entry.line.textLength();
+    const bool last_line_of_block =
+        index + 1 >= lines_.size() || lines_[index + 1].block_position != entry.block_position;
+    if (position < line_start || (position > line_end && !last_line_of_block)) {
+      continue;
+    }
+    return std::make_pair(line_start, std::max(line_start, line_end));
+  }
+  return std::nullopt;
+}
+
 std::vector<QRectF> TextLineGeometry::selection_rects(int start, int end) const {
   start = std::clamp(start, 0, maximum_position_);
   end = std::clamp(end, 0, maximum_position_);

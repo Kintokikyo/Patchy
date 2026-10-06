@@ -45,7 +45,10 @@ click inside a session (the widget hit-tests its own integer-pixel, Qt-spaced la
 `MainWindow::handle_text_editor_viewport_mouse_event` intercepts left press/drag/double-click for
 the flat case and `TransformedTextEditOverlay::cursor_position_for_overlay_point` the transformed
 one; both end at `TextLineGeometry::position_at`; right-click, middle click and release fall
-through. `ui_psd_text_click_returns_to_the_caret_it_drew` pins the round trip. The editor widget
+through. `ui_psd_text_click_returns_to_the_caret_it_drew` pins the round trip. Double-click
+selects the word; a third click inside the double-click interval selects the visual line
+(`TextLineGeometry::line_range_at`, trailing whitespace trimmed; tracked via the
+`patchy.textTripleClick*` properties; GitHub issue 74, `ui_text_triple_click_selects_the_line`). The editor widget
 is SIZED from that layout too, never `QTextDocument::size()`: its rect is its hit area, and a
 line past a too-short bottom edge clicks through to the canvas, whose focus-loss auto-commit ends
 the session (`ui_transformed_text_click_returns_to_the_caret_it_drew`).
@@ -102,7 +105,8 @@ back BEFORE `remove_text_editor_preview`, in commit and cancel.
 
 - A Type-tool click inserts a provisional 1x1 text layer (marker `patchy.internal.provisional_text`); `commit_text_editor` removes it via the marker-checked `MainWindow::take_provisional_text_layer`, then snapshots and recreates the committed layer under the same id; cancel/empty-commit leaves history and modified state untouched.
 - **Commit invalidation must cover old ∪ preview ∪ new.** The restore/remove teardown pair invalidates its regions BEFORE the layer mutates, so `commit_text_editor` captures the old layer and preview render bounds up front and unions them into the post-mutation `document_changed_effect_bounds`, or the old render stays baked in the canvas cache wherever the new bounds do not cover it (routine on warped layers). Same rule for `hide_text_editor_source_layer`: it returns the vacated rect and never invalidates itself, so every caller must consume the return.
-- **Warped text layers get a warp-aware session**: entry resolves a Move-corrected unwarped transform and gates off every raster-derived anchor (the raster is the warped ink). See Warp Text in [warp.md](warp.md).
+- **Warped text layers get a warp-aware session**: entry resolves a Move-corrected unwarped transform and gates off every raster-derived anchor. See Warp Text in [warp.md](warp.md).
+- Commit keys (`MainWindow::eventFilter`): Ctrl/Cmd+Return and the bare keypad Enter (`Key_Enter` + `KeypadModifier`, also Mac fn+Return); plain Return is a line break, Escape cancels (GitHub issue 71, `ui_text_keypad_enter_commits_and_return_breaks_line`).
 - Clicking off commits through the focus-loss handler, which arms `swallow_next_canvas_left_press_` so the press that caused the commit cannot start the next session; a release clears a stale flag. The canvas event filter must leave that flag alone during a blocking processing wait: on wasm the mouseup arrives re-entrantly inside the commit's undo-snapshot wait ([wasm.md](wasm.md); `ui_text_click_off_commit_ignores_reentrant_release_during_wait`).
 - Mutating actions that take no focus (layer lock buttons) call `finish_active_text_editor()` first, or they act on a half-committed session.
 
@@ -244,7 +248,7 @@ Lives in [font-resolution.md](font-resolution.md): how a display family name bec
 
 ## Paragraph panel
 
-- Opened via options bar > Paragraph... while the Text tool is active; edits alignment (Left, Center, Right, Justify with the last line left, the only justify variant the paragraph runs model) plus Photoshop's five metrics: first line indent, left indent, right indent, space before, space after. The fields show points at the document's text PPI and store document pixels, which is what `patchy.text.paragraph_runs` (v2 columns 4 to 8) and the TySh EngineData carry, so a value entered here round-trips to Photoshop through the existing writer without any Txt2 work. A negative first line indent with a positive left indent is a hanging indent (`/Hanging true` in the EngineData).
+- Opened via options bar > Paragraph... while the Text tool is active; edits alignment (Left, Center, Right, Justify with the last line left, the only justify variant the paragraph runs model) plus Photoshop's five metrics: first line indent, left indent, right indent, space before, space after. The fields show points at the document's text PPI and store document pixels, as `patchy.text.paragraph_runs` (v2 columns 4 to 8) and the TySh EngineData carry them. A negative first line indent with a positive left indent is a hanging indent (`/Hanging true` in the EngineData).
 - Same session model as the Character panel: during inline editing a change merges into the block formats of the paragraphs the selection touches (a bare caret edits its own paragraph); with no session it applies to every paragraph of every selected unlocked text layer through the hidden-session path, one Type undo step. Block margins live in editor pixels (document px times the canvas zoom, divided by a PSD-frame session's display scale, the same conversion leading uses).
 - The panel reads the caret's paragraph in a session, else the active layer's first paragraph from a 1:1 render document. `textParagraphDialog` and `textParagraphButton` are exempt from the focus-loss auto-commit via `is_text_option_widget`; `sync_text_character_dialog_from_editor` and the alignment-button sync also refresh it.
 - Scripting: `layer.textParagraph` (read the first paragraph, set merges into every paragraph) and the `paragraph` option of `addTextLayer`, document pixels ([scripting.md](scripting.md)). Tests: `ui_text_paragraph_panel_sets_indents_and_spacing`, `ui_script_text_paragraph_reads_and_sets_metrics`.
